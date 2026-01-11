@@ -41,6 +41,7 @@ class PipelineResponsePayload(BaseModel):
             "llm_source": config.llm_source,
             "local_ollama_url": config.local_ollama_url,
             "cloud_ollama_url": config.cloud_ollama_url,
+            "lmstudio_url": config.lmstudio_url,
             "ffmpeg_path": config.ffmpeg_path,
             "thread_count": config.thread_count,
             "queue_size": config.queue_size,

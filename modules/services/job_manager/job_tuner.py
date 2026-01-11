@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, Optional
 
 from ... import config_manager as cfg
 from ...translation_engine import ThreadWorkerPool
+from ...llm_providers import is_local_llm_provider, split_llm_model_identifier
 from ..pipeline_service import PipelineRequest
 from .job import PipelineJob
 
@@ -146,6 +147,21 @@ class PipelineJobTuner:
         provider = (getattr(inputs, "translation_provider", "") or "").strip().lower()
         if provider not in _LLM_PROVIDER_ALIASES:
             return False
+        model_name = None
+        for source in (request.pipeline_overrides, request.config):
+            if not isinstance(source, dict):
+                continue
+            override_model = source.get("ollama_model") or source.get("llm_model")
+            if isinstance(override_model, str) and override_model.strip():
+                model_name = override_model.strip()
+                break
+        if model_name:
+            provider, stripped_model = split_llm_model_identifier(model_name)
+            local_flag = is_local_llm_provider(provider)
+            if local_flag is not None:
+                return local_flag
+            candidate = stripped_model or model_name
+            return "cloud" not in candidate.lower()
         llm_source = request.pipeline_overrides.get("llm_source")
         if llm_source is None and request.context is not None:
             llm_source = request.context.llm_source

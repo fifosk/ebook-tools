@@ -404,6 +404,7 @@ class RenderPipeline:
                 llm_source=self._config.llm_source,
                 local_api_url=self._config.local_ollama_url,
                 cloud_api_url=self._config.cloud_ollama_url,
+                lmstudio_api_url=self._config.lmstudio_url,
                 cloud_api_key=self._config.ollama_api_key,
             )
         return translation_client

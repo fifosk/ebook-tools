@@ -53,6 +53,15 @@ export default function VideoDubbingTabs({
         <button
           type="button"
           role="tab"
+          className={`${styles.tabButton} ${activeTab === 'tuning' ? styles.tabButtonActive : ''}`}
+          aria-selected={activeTab === 'tuning'}
+          onClick={() => onTabChange('tuning')}
+        >
+          Tuning
+        </button>
+        <button
+          type="button"
+          role="tab"
           className={`${styles.tabButton} ${activeTab === 'jobs' ? styles.tabButtonActive : ''}`}
           aria-selected={activeTab === 'jobs'}
           onClick={() => onTabChange('jobs')}

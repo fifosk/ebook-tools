@@ -570,13 +570,15 @@ def _handle_llm_source(
     config: Dict[str, Any], refined: Sequence[str], overrides: Dict[str, Any], debug_enabled: bool
 ) -> Tuple[Dict[str, Any], bool]:
     current = config.get("llm_source", cfg.DEFAULT_LLM_SOURCE)
-    inp_val = prompt_user(f"Select LLM source (local/cloud) (current: {current}): ").strip().lower()
+    inp_val = prompt_user(
+        f"Select LLM source (local/cloud/lmstudio) (current: {current}): "
+    ).strip().lower()
     if inp_val:
         if inp_val in cfg.VALID_LLM_SOURCES:
             config["llm_source"] = inp_val
             context.refresh_runtime_context(config, overrides)
         else:
-            console_warning("Invalid LLM source. Please enter 'local' or 'cloud'.")
+            console_warning("Invalid LLM source. Please enter 'local', 'cloud', or 'lmstudio'.")
     return config, False
 
 

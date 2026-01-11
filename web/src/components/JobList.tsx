@@ -13,6 +13,8 @@ export interface JobState {
   jobId: string;
   status: PipelineStatusResponse;
   latestEvent?: ProgressEventPayload;
+  latestTranslationEvent?: ProgressEventPayload;
+  latestMediaEvent?: ProgressEventPayload;
   isReloading: boolean;
   isMutating: boolean;
   canManage: boolean;
@@ -106,6 +108,8 @@ export function JobList({
                   jobId={job.jobId}
                   status={job.status}
                   latestEvent={job.latestEvent}
+                  latestTranslationEvent={job.latestTranslationEvent}
+                  latestMediaEvent={job.latestMediaEvent}
                   onEvent={(event) => onProgressEvent(job.jobId, event)}
                   onPause={() => onPauseJob(job.jobId)}
                   onResume={() => onResumeJob(job.jobId)}

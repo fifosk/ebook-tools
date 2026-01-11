@@ -5,7 +5,7 @@ A SwiftUI app that authenticates against the ebook-tools FastAPI backend, lists 
 ## Requirements
 
 - Xcode 15.0+ (iOS 17 SDK) with Swift Concurrency support.
-- An accessible ebook-tools API (iOS/iPadOS defaults to `https://mac-studio.local:8000`; tvOS defaults to `http://Mac-Studio.local:8001`).
+- An accessible ebook-tools API (defaults to `https://api.langtools.fifosk.synology.me` on both iOS/iPadOS and tvOS).
 - Library files exposed through `/api/library/media/{job_id}` (the app appends `access_token` for media streaming).
 
 ## Project layout
@@ -27,7 +27,7 @@ ios/InteractiveReader
 1. Open `ios/InteractiveReader/InteractiveReader.xcodeproj` in Xcode.
 2. Select the `InteractiveReader` (iOS/iPadOS) or `InteractiveReaderTV` (tvOS) scheme and a target device.
 3. Run (`⌘R`).
-4. In the UI, set the API base URL (defaults to `https://mac-studio.local:8000` on iOS/iPadOS or `http://Mac-Studio.local:8001` on tvOS), sign in, and open a Library item.
+4. In the UI, set the API base URL (defaults to `https://api.langtools.fifosk.synology.me`), sign in, and open a Library item.
 
 ### Library media URLs
 

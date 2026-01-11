@@ -66,7 +66,10 @@ struct MediaURLResolver {
             }
             let relative = extractLibraryRelativePath(from: trimmed)
                 ?? (trimmed.hasPrefix("/") ? trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "/")) : trimmed)
-            return resolver.url(jobId: jobId, filePath: relative)
+            if let url = resolver.url(jobId: jobId, filePath: relative) {
+                return appendAccessToken(url, accessToken: accessToken)
+            }
+            return nil
         }
     }
 

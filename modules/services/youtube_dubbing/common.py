@@ -18,6 +18,7 @@ _SUBTITLE_EXTENSIONS = {"ass", "srt", "vtt", "sub"}
 _LANGUAGE_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,16}$")
 _DEFAULT_ORIGINAL_MIX_PERCENT = 15.0
 _DEFAULT_FLUSH_SENTENCES = 10
+_DEFAULT_TRANSLATION_BATCH_SIZE = 10
 _TEMP_DIR = Path(os.environ.get("EBOOK_TOOLS_TMPDIR") or os.environ.get("TMPDIR") or "/tmp").expanduser()
 _SUBTITLE_MIRROR_DIR = (
     Path(os.environ.get("SUBTITLE_SOURCE_DIR") or "/Volumes/Data/Download/Subtitles").expanduser()
@@ -84,6 +85,7 @@ __all__ = [
     "DEFAULT_YOUTUBE_VIDEO_ROOT",
     "_ASS_DIALOGUE_PATTERN",
     "_DEFAULT_FLUSH_SENTENCES",
+    "_DEFAULT_TRANSLATION_BATCH_SIZE",
     "_DEFAULT_ORIGINAL_MIX_PERCENT",
     "_ENCODING_WORKER_CAP",
     "_GAP_MIX_MAX_PERCENT",

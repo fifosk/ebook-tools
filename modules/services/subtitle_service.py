@@ -20,6 +20,7 @@ from modules.render.backends import get_audio_synthesizer
 from modules.retry_annotations import is_failure_annotation
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager, PipelineJobStatus
+from modules.services.job_manager.runtime_context import job_runtime_context
 from modules.services.youtube_dubbing import delete_nas_subtitle
 from modules.subtitles import SubtitleCue, SubtitleJobOptions
 from modules.subtitles.common import ASS_EXTENSION, DEFAULT_OUTPUT_SUFFIX, SRT_EXTENSION
@@ -471,45 +472,46 @@ class SubtitleService:
 
                 on_transcript_batch = _enqueue_transcript_batch
 
-            try:
-                result = process_subtitle_file(
-                    input_path,
-                    output_path,
-                    options,
-                    mirror_output_path=mirror_path,
-                    tracker=tracker_local,
-                    stop_event=stop_event,
-                    collect_transcript_entries=False,
-                    on_transcript_batch=on_transcript_batch,
-                )
-            except SubtitleJobCancelled:
-                if audio_queue is not None:
-                    audio_shutdown.set()
-                    audio_queue.put(None)
-                    if audio_thread is not None:
-                        audio_thread.join()
-                job.status = PipelineJobStatus.CANCELLED
-                job.error_message = None
-                return
-            except Exception as exc:
-                if audio_queue is not None:
-                    audio_shutdown.set()
-                    audio_queue.put(None)
-                    if audio_thread is not None:
-                        audio_thread.join()
-                job.status = PipelineJobStatus.FAILED
-                job.error_message = str(exc)
-                raise
-            else:
-                if audio_queue is not None:
-                    audio_queue.put(None)
-                    if audio_thread is not None:
-                        audio_thread.join()
-                if audio_errors:
-                    exc = audio_errors[0]
+            with job_runtime_context(self._locator, job.job_id):
+                try:
+                    result = process_subtitle_file(
+                        input_path,
+                        output_path,
+                        options,
+                        mirror_output_path=mirror_path,
+                        tracker=tracker_local,
+                        stop_event=stop_event,
+                        collect_transcript_entries=False,
+                        on_transcript_batch=on_transcript_batch,
+                    )
+                except SubtitleJobCancelled:
+                    if audio_queue is not None:
+                        audio_shutdown.set()
+                        audio_queue.put(None)
+                        if audio_thread is not None:
+                            audio_thread.join()
+                    job.status = PipelineJobStatus.CANCELLED
+                    job.error_message = None
+                    return
+                except Exception as exc:
+                    if audio_queue is not None:
+                        audio_shutdown.set()
+                        audio_queue.put(None)
+                        if audio_thread is not None:
+                            audio_thread.join()
                     job.status = PipelineJobStatus.FAILED
                     job.error_message = str(exc)
-                    raise exc
+                    raise
+                else:
+                    if audio_queue is not None:
+                        audio_queue.put(None)
+                        if audio_thread is not None:
+                            audio_thread.join()
+                    if audio_errors:
+                        exc = audio_errors[0]
+                        job.status = PipelineJobStatus.FAILED
+                        job.error_message = str(exc)
+                        raise exc
 
             relative_path = output_path.relative_to(self._locator.job_root(job.job_id)).as_posix()
             export_path: Optional[Path] = None

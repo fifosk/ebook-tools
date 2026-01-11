@@ -22,7 +22,7 @@ export const MY_LINGUIST_STORAGE_KEYS = {
   bubblePinnedSize: 'ebookTools.myLinguist.bubblePinnedSize',
 } as const;
 export const MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE = 'English';
-export const MY_LINGUIST_DEFAULT_LLM_MODEL = 'gpt-oss:120b-cloud';
+export const MY_LINGUIST_DEFAULT_LLM_MODEL = 'ollama_cloud:gpt-oss:120b-cloud';
 
 export const EMPTY_TIMING_PAYLOAD: TimingPayload = {
   trackKind: 'translation_only',

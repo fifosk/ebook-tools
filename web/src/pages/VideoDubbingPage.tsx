@@ -44,8 +44,10 @@ import VideoMetadataPanel from './video-dubbing/VideoMetadataPanel';
 import VideoDubbingOptionsPanel from './video-dubbing/VideoDubbingOptionsPanel';
 import VideoSourcePanel from './video-dubbing/VideoSourcePanel';
 import VideoDubbingTabs from './video-dubbing/VideoDubbingTabs';
+import VideoDubbingTuningPanel from './video-dubbing/VideoDubbingTuningPanel';
 import {
   DEFAULT_LLM_MODEL,
+  DEFAULT_TRANSLATION_BATCH_SIZE,
   DEFAULT_VIDEO_DIR,
   VIDEO_DUB_STORAGE_KEYS
 } from './video-dubbing/videoDubbingConfig';
@@ -126,6 +128,7 @@ export default function VideoDubbingPage({
   const [endOffset, setEndOffset] = useState('');
   const [originalMixPercent, setOriginalMixPercent] = useState(5);
   const [flushSentences, setFlushSentences] = useState(10);
+  const [translationBatchSize, setTranslationBatchSize] = useState(DEFAULT_TRANSLATION_BATCH_SIZE);
   const [targetHeight, setTargetHeight] = useState(480);
   const [preserveAspectRatio, setPreserveAspectRatio] = useState(true);
   const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
@@ -676,6 +679,12 @@ export default function VideoDubbingPage({
       setFlushSentences(prefillParameters.flush_sentences);
     }
     if (
+      typeof prefillParameters.translation_batch_size === 'number' &&
+      Number.isFinite(prefillParameters.translation_batch_size)
+    ) {
+      setTranslationBatchSize(prefillParameters.translation_batch_size);
+    }
+    if (
       typeof prefillParameters.target_height === 'number' &&
       Number.isFinite(prefillParameters.target_height)
     ) {
@@ -999,6 +1008,7 @@ export default function VideoDubbingPage({
         flush_sentences: flushSentences,
         llm_model: llmModel || undefined,
         translation_provider: translationProvider || undefined,
+        translation_batch_size: translationBatchSize,
         transliteration_mode: transliterationMode || undefined,
         split_batches: splitBatches,
         stitch_batches: stitchBatches,
@@ -1027,6 +1037,7 @@ export default function VideoDubbingPage({
     endOffset,
     originalMixPercent,
     flushSentences,
+    translationBatchSize,
     llmModel,
     translationProvider,
     transliterationMode,
@@ -1211,7 +1222,6 @@ export default function VideoDubbingPage({
           transliterationMode={transliterationMode}
           targetHeight={targetHeight}
           preserveAspectRatio={preserveAspectRatio}
-          flushSentences={flushSentences}
           splitBatches={splitBatches}
           stitchBatches={stitchBatches}
           includeTransliteration={includeTransliteration}
@@ -1226,13 +1236,21 @@ export default function VideoDubbingPage({
           onTransliterationModeChange={setTransliterationMode}
           onTargetHeightChange={setTargetHeight}
           onPreserveAspectRatioChange={setPreserveAspectRatio}
-          onFlushSentencesChange={setFlushSentences}
           onSplitBatchesChange={setSplitBatches}
           onStitchBatchesChange={setStitchBatches}
           onIncludeTransliterationChange={setIncludeTransliteration}
           onOriginalMixPercentChange={setOriginalMixPercent}
           onStartOffsetChange={setStartOffset}
           onEndOffsetChange={setEndOffset}
+        />
+      ) : null}
+
+      {activeTab === 'tuning' ? (
+        <VideoDubbingTuningPanel
+          translationBatchSize={translationBatchSize}
+          flushSentences={flushSentences}
+          onTranslationBatchSizeChange={setTranslationBatchSize}
+          onFlushSentencesChange={setFlushSentences}
         />
       ) : null}
 

@@ -32,7 +32,10 @@ DEFAULT_OLLAMA_URL = os.environ.get(
 DEFAULT_OLLAMA_CLOUD_URL = os.environ.get(
     "OLLAMA_CLOUD_URL", "https://api.ollama.com/v1/chat/completions"
 )
-VALID_LLM_SOURCES = {"local", "cloud"}
+DEFAULT_LMSTUDIO_URL = os.environ.get(
+    "LMSTUDIO_URL", "http://127.0.0.1:1234/v1/chat/completions"
+)
+VALID_LLM_SOURCES = {"local", "cloud", "lmstudio"}
 _env_llm_source = os.environ.get("LLM_SOURCE", "local").strip().lower()
 DEFAULT_LLM_SOURCE = _env_llm_source if _env_llm_source in VALID_LLM_SOURCES else "local"
 DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
@@ -68,6 +71,7 @@ __all__ = [
     "SENSITIVE_CONFIG_KEYS",
     "DEFAULT_OLLAMA_URL",
     "DEFAULT_OLLAMA_CLOUD_URL",
+    "DEFAULT_LMSTUDIO_URL",
     "VALID_LLM_SOURCES",
     "DEFAULT_LLM_SOURCE",
     "DEFAULT_FFMPEG_PATH",

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional, Sequence, Tuple
 
+from modules import text_normalization as text_norm
 from modules.llm_client import create_client
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.progress_tracker import ProgressTracker
@@ -15,7 +17,7 @@ from modules.transliteration import (
     get_transliterator,
     resolve_local_transliteration_module,
 )
-from modules.translation_engine import _unexpected_script_used
+from modules.translation_engine import _unexpected_script_used, translate_batch
 
 from .common import ASS_EXTENSION, SRT_EXTENSION, logger
 from .errors import SubtitleJobCancelled, SubtitleProcessingError
@@ -50,7 +52,7 @@ from .render import (
     _resolve_ass_font_size,
 )
 from .text import _format_timecode_label, _normalize_text
-from .translation import _translate_text
+from .translation import _looks_like_gibberish_translation, _translate_text
 from .utils import _is_cancelled, _resolve_batch_size, _resolve_worker_count
 
 
@@ -148,6 +150,17 @@ def process_subtitle_file(
     if transliteration_enabled and transliterator_to_use is None:
         transliterator_to_use = get_transliterator()
     transliteration_enabled = transliteration_enabled and transliterator_to_use is not None
+    translation_batch_size = options.translation_batch_size
+    use_llm_batching = (
+        options.translation_provider == "llm"
+        and translation_batch_size is not None
+        and translation_batch_size > 1
+    )
+    allow_llm_transliteration = (
+        transliteration_enabled
+        and options.transliteration_mode != "python"
+        and transliterator_to_use is not None
+    )
 
     resolved_ass_font_size = _resolve_ass_font_size(options.ass_font_size)
     resolved_ass_emphasis = _resolve_ass_emphasis_scale(options.ass_emphasis_scale)
@@ -199,18 +212,73 @@ def process_subtitle_file(
                     raise SubtitleJobCancelled("Subtitle job interrupted by cancellation request")
 
                 batch = cues[batch_start : batch_start + batch_size]
+                translation_overrides: List[Optional[str]] = [None] * len(batch)
+                transliteration_overrides: List[Optional[str]] = [None] * len(batch)
+                if use_llm_batching and batch:
+                    batch_sentences = [cue.as_text() for cue in batch]
+                    batch_sentence_numbers = [
+                        batch_start + idx + 1 for idx in range(len(batch_sentences))
+                    ]
+                    client_context = (
+                        create_client(model=options.llm_model)
+                        if options.llm_model
+                        else contextlib.nullcontext()
+                    )
+                    try:
+                        with client_context as client:
+                            resolved_client = client if options.llm_model else None
+                            translations = translate_batch(
+                                batch_sentences,
+                                language_context.translation_source_language,
+                                options.target_language,
+                                include_transliteration=allow_llm_transliteration,
+                                translation_provider=options.translation_provider,
+                                llm_batch_size=translation_batch_size,
+                                client=resolved_client,
+                                max_workers=worker_count,
+                                progress_tracker=tracker,
+                                sentence_numbers=batch_sentence_numbers,
+                            )
+                    except Exception:  # pragma: no cover - fallback to per-cue translation
+                        logger.warning(
+                            "Unable to batch translate subtitle cues; falling back to per-cue translation",
+                            exc_info=True,
+                        )
+                        translations = []
+                    if len(translations) == len(batch_sentences):
+                        for idx, raw_translation in enumerate(translations):
+                            raw_text = raw_translation or ""
+                            if not raw_text.strip() or is_failure_annotation(raw_text):
+                                continue
+                            translation_line, inline_translit = text_norm.split_translation_and_transliteration(
+                                raw_text
+                            )
+                            translation_line = _normalize_text(translation_line or raw_text)
+                            inline_translit = _normalize_text(inline_translit or "")
+                            if not translation_line:
+                                continue
+                            if _looks_like_gibberish_translation(
+                                source=batch_sentences[idx],
+                                candidate=translation_line,
+                            ):
+                                continue
+                            translation_overrides[idx] = translation_line
+                            if inline_translit:
+                                transliteration_overrides[idx] = inline_translit
                 processed_batch = list(
                     executor.map(
-                        lambda cue: _process_cue(
-                            cue,
+                        lambda payload: _process_cue(
+                            payload[0],
                             options,
                             transliterator_to_use,
                             stop_event,
                             renderer,
                             language_context,
                             tracker,
+                            translation_override=payload[1],
+                            transliteration_override=payload[2],
                         ),
-                        batch,
+                        zip(batch, translation_overrides, transliteration_overrides),
                     )
                 )
 
@@ -372,6 +440,7 @@ def process_subtitle_file(
         else None,
         "show_original": options.show_original,
         "batch_size": batch_size,
+        "translation_batch_size": options.translation_batch_size,
         "workers": worker_count,
     }
     metadata["start_time_offset_seconds"] = float(start_offset)
@@ -406,22 +475,27 @@ def _process_cue(
     renderer: CueTextRenderer,
     language_context: SubtitleLanguageContext,
     tracker: Optional[ProgressTracker],
+    translation_override: Optional[str] = None,
+    transliteration_override: Optional[str] = None,
 ) -> "_RenderedCueBatch":
     if _is_cancelled(stop_event):
         raise SubtitleJobCancelled("Subtitle job interrupted by cancellation request")
 
     source_text = cue.as_text()
     original_text = _normalize_text(source_text)
-    translation = _normalize_text(
-        _translate_text(
-            source_text,
-            source_language=language_context.translation_source_language,
-            target_language=options.target_language,
-            llm_model=options.llm_model,
-            translation_provider=options.translation_provider,
-            progress_tracker=tracker,
+    if translation_override is not None:
+        translation = _normalize_text(translation_override)
+    else:
+        translation = _normalize_text(
+            _translate_text(
+                source_text,
+                source_language=language_context.translation_source_language,
+                target_language=options.target_language,
+                llm_model=options.llm_model,
+                translation_provider=options.translation_provider,
+                progress_tracker=tracker,
+            )
         )
-    )
     translation_failed = is_failure_annotation(translation)
     if not translation_failed:
         script_mismatch, script_label = _unexpected_script_used(
@@ -476,7 +550,9 @@ def _process_cue(
         and not translation_failed
     ):
         try:
-            if options.llm_model and options.transliteration_mode != "python":
+            if transliteration_override:
+                transliteration_text = _normalize_text(transliteration_override)
+            elif options.llm_model and options.transliteration_mode != "python":
                 with create_client(model=options.llm_model) as client:
                     transliteration_result = transliterator.transliterate(
                         translation,
@@ -497,7 +573,8 @@ def _process_cue(
                 "Transliteration failed for cue %s: %s", cue.index, exc, exc_info=True
             )
         else:
-            transliteration_text = _normalize_text(transliteration_result.text)
+            if not transliteration_text:
+                transliteration_text = _normalize_text(transliteration_result.text)
 
     cues = _build_output_cues(
         cue,

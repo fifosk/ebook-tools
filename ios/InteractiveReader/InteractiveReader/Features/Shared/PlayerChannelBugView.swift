@@ -7,7 +7,7 @@ enum MyLinguistPreferences {
     static let lookupLanguageKey = "mylinguist.lookupLanguage"
     static let llmModelKey = "mylinguist.llmModel"
     static let defaultLookupLanguage = "English"
-    static let defaultLlmModel = "gpt-oss:120b-cloud"
+    static let defaultLlmModel = "ollama_cloud:gpt-oss:120b-cloud"
 }
 
 enum PlayerChannelVariant {

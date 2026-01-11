@@ -8,6 +8,7 @@ from typing import Any, List, Mapping, Optional, Sequence
 from modules.progress_tracker import ProgressTracker
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJob, PipelineJobManager, PipelineJobStatus
+from modules.services.job_manager.runtime_context import job_runtime_context
 from modules.transliteration import (
     TransliterationService,
     get_transliterator,
@@ -15,7 +16,13 @@ from modules.transliteration import (
 )
 
 from .audio_utils import _clamp_original_mix
-from .common import _DEFAULT_FLUSH_SENTENCES, _TARGET_DUB_HEIGHT, _DubJobCancelled, logger
+from .common import (
+    _DEFAULT_FLUSH_SENTENCES,
+    _DEFAULT_TRANSLATION_BATCH_SIZE,
+    _TARGET_DUB_HEIGHT,
+    _DubJobCancelled,
+    logger,
+)
 from .dialogues import _clip_dialogues_to_window, _parse_dialogues, _validate_time_window
 from .generation import generate_dubbed_video
 from .stitching import stitch_dub_batches
@@ -156,6 +163,7 @@ def _build_job_result(
     flush_sentences: int,
     llm_model: Optional[str],
     translation_provider: Optional[str],
+    translation_batch_size: int,
     transliteration_mode: Optional[str],
     transliteration_model: Optional[str],
     transliteration_module: Optional[str],
@@ -181,6 +189,7 @@ def _build_job_result(
             "flush_sentences": flush_sentences,
             "llm_model": llm_model,
             "translation_provider": translation_provider,
+            "translation_batch_size": translation_batch_size,
             "transliteration_mode": transliteration_mode,
             "transliteration_model": transliteration_model,
             "transliteration_module": transliteration_module,
@@ -209,6 +218,7 @@ def _run_dub_job(
     flush_sentences: Optional[int] = None,
     llm_model: Optional[str] = None,
     translation_provider: Optional[str] = None,
+    translation_batch_size: Optional[int] = None,
     transliteration_mode: Optional[str] = None,
     split_batches: bool = False,
     stitch_batches: bool = True,
@@ -245,6 +255,11 @@ def _run_dub_job(
         stitched_generated_files_snapshot: Optional[dict] = None
         resolved_translation_provider = (
             _normalize_translation_provider(translation_provider) or "llm"
+        )
+        resolved_translation_batch_size = (
+            max(1, int(translation_batch_size))
+            if translation_batch_size is not None
+            else _DEFAULT_TRANSLATION_BATCH_SIZE
         )
         resolved_transliteration_mode = (
             _normalize_transliteration_mode(transliteration_mode) or "default"
@@ -487,6 +502,7 @@ def _run_dub_job(
             flush_sentences=flush_sentences,
             llm_model=llm_model,
             translation_provider=resolved_translation_provider,
+            translation_batch_size=resolved_translation_batch_size,
             transliteration_mode=resolved_transliteration_mode,
             split_batches=split_batches,
             include_transliteration=include_transliteration_resolved,
@@ -678,6 +694,7 @@ def _run_dub_job(
         flush_sentences=flush_sentences if flush_sentences is not None else _DEFAULT_FLUSH_SENTENCES,
         llm_model=llm_model,
         translation_provider=resolved_translation_provider,
+        translation_batch_size=resolved_translation_batch_size,
         transliteration_mode=resolved_transliteration_mode,
         transliteration_model=llm_model if resolved_transliteration_mode == "default" else None,
         transliteration_module=resolve_local_transliteration_module(language_code)
@@ -734,6 +751,7 @@ class YoutubeDubbingService:
         flush_sentences: Optional[int] = None,
         llm_model: Optional[str] = None,
         translation_provider: Optional[str] = None,
+        translation_batch_size: Optional[int] = None,
         transliteration_mode: Optional[str] = None,
         split_batches: Optional[bool] = None,
         stitch_batches: Optional[bool] = None,
@@ -773,6 +791,11 @@ class YoutubeDubbingService:
         resolved_translation_provider = (
             _normalize_translation_provider(translation_provider) or "llm"
         )
+        resolved_translation_batch_size = (
+            max(1, int(translation_batch_size))
+            if translation_batch_size is not None
+            else _DEFAULT_TRANSLATION_BATCH_SIZE
+        )
         resolved_transliteration_mode = (
             _normalize_transliteration_mode(transliteration_mode) or "default"
         )
@@ -793,6 +816,7 @@ class YoutubeDubbingService:
             "flush_sentences": flush_sentences if flush_sentences is not None else _DEFAULT_FLUSH_SENTENCES,
             "llm_model": llm_model,
             "translation_provider": resolved_translation_provider,
+            "translation_batch_size": resolved_translation_batch_size,
             "transliteration_mode": resolved_transliteration_mode,
             "split_batches": bool(split_batches) if split_batches is not None else False,
             "stitch_batches": True if stitch_batches is None else bool(stitch_batches),
@@ -804,33 +828,35 @@ class YoutubeDubbingService:
             payload["media_metadata"] = dict(media_metadata)
 
         def _worker(job: PipelineJob) -> None:
-            _run_dub_job(
-                job,
-                video_path=resolved_video,
-                subtitle_path=resolved_subtitle,
-                language_code=language_code,
-                voice=voice,
-                tempo=tempo,
-                macos_reading_speed=macos_reading_speed,
-                output_dir=output_dir,
-                max_workers=self._max_workers,
-                start_time_offset=start_offset,
-                end_time_offset=end_offset,
-                original_mix_percent=original_mix_percent,
-                flush_sentences=flush_sentences,
-                llm_model=llm_model,
-                translation_provider=resolved_translation_provider,
-                transliteration_mode=resolved_transliteration_mode,
-                split_batches=bool(split_batches) if split_batches is not None else False,
-                stitch_batches=True if stitch_batches is None else bool(stitch_batches),
-                include_transliteration=include_transliteration,
-                target_height=resolved_target_height,
-                preserve_aspect_ratio=preserve_aspect_ratio_resolved,
-                file_locator=self._job_manager.file_locator,
-                source_subtitle_path=resolved_subtitle,
-                source_kind=source_kind,
-                source_language=source_language_hint,
-            )
+            with job_runtime_context(self._job_manager.file_locator, job.job_id):
+                _run_dub_job(
+                    job,
+                    video_path=resolved_video,
+                    subtitle_path=resolved_subtitle,
+                    language_code=language_code,
+                    voice=voice,
+                    tempo=tempo,
+                    macos_reading_speed=macos_reading_speed,
+                    output_dir=output_dir,
+                    max_workers=self._max_workers,
+                    start_time_offset=start_offset,
+                    end_time_offset=end_offset,
+                    original_mix_percent=original_mix_percent,
+                    flush_sentences=flush_sentences,
+                    llm_model=llm_model,
+                    translation_provider=resolved_translation_provider,
+                    translation_batch_size=resolved_translation_batch_size,
+                    transliteration_mode=resolved_transliteration_mode,
+                    split_batches=bool(split_batches) if split_batches is not None else False,
+                    stitch_batches=True if stitch_batches is None else bool(stitch_batches),
+                    include_transliteration=include_transliteration,
+                    target_height=resolved_target_height,
+                    preserve_aspect_ratio=preserve_aspect_ratio_resolved,
+                    file_locator=self._job_manager.file_locator,
+                    source_subtitle_path=resolved_subtitle,
+                    source_kind=source_kind,
+                    source_language=source_language_hint,
+                )
 
         return self._job_manager.submit_background_job(
             job_type="youtube_dub",

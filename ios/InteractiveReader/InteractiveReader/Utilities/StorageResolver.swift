@@ -26,11 +26,19 @@ struct StorageResolver {
         }
         var url = baseURL
         url.appendPathComponent(trimmedJob, isDirectory: true)
-        return url.appendingPathComponent(trimmedPath, isDirectory: false)
+        let components = trimmedPath
+            .split(separator: "/")
+            .map { String($0) }
+            .filter { !$0.isEmpty }
+        guard !components.isEmpty else { return nil }
+        for (index, component) in components.enumerated() {
+            url.appendPathComponent(component, isDirectory: index < components.count - 1)
+        }
+        return url
     }
 
     private static func makeDefaultBaseURL(from apiBaseURL: URL) -> URL? {
-        let url = apiBaseURL
+        let url = normalizeBaseURL(apiBaseURL)
         let path = url.path
         if path.hasSuffix("/storage/jobs") || path == "/storage/jobs" {
             return url
@@ -40,5 +48,19 @@ struct StorageResolver {
         }
         return url.appendingPathComponent("storage", isDirectory: true)
             .appendingPathComponent("jobs", isDirectory: true)
+    }
+
+    private static func normalizeBaseURL(_ apiBaseURL: URL) -> URL {
+        guard var components = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false) else {
+            return apiBaseURL
+        }
+        if let host = components.host?.lowercased(),
+           host == "langtools.fifosk.synology.me" {
+            components.host = "api.langtools.fifosk.synology.me"
+        }
+        if components.path == "/api" || components.path == "/api/" {
+            components.path = "/"
+        }
+        return components.url ?? apiBaseURL
     }
 }

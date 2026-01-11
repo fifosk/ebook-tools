@@ -20,6 +20,7 @@ def configure_default_client(
     llm_source: Optional[str] = None,
     local_api_url: Optional[str] = None,
     cloud_api_url: Optional[str] = None,
+    lmstudio_api_url: Optional[str] = None,
     fallback_sources: Optional[Sequence[str]] = None,
     allow_fallback: Optional[bool] = None,
     cloud_api_key: Optional[str] = None,
@@ -42,6 +43,8 @@ def configure_default_client(
         updates["local_api_url"] = local_api_url
     if cloud_api_url is not None:
         updates["cloud_api_url"] = cloud_api_url
+    if lmstudio_api_url is not None:
+        updates["lmstudio_api_url"] = lmstudio_api_url
     if fallback_sources is not None:
         updates["fallback_sources"] = tuple(fallback_sources)
     if allow_fallback is not None:
@@ -65,6 +68,7 @@ def acquire_client(client: Optional[LLMClient]) -> Tuple[LLMClient, bool]:
         llm_source=_DEFAULT_CLIENT_SETTINGS.llm_source,
         local_api_url=_DEFAULT_CLIENT_SETTINGS.local_api_url,
         cloud_api_url=_DEFAULT_CLIENT_SETTINGS.cloud_api_url,
+        lmstudio_api_url=_DEFAULT_CLIENT_SETTINGS.lmstudio_api_url,
         fallback_sources=_DEFAULT_CLIENT_SETTINGS.fallback_sources,
         allow_fallback=_DEFAULT_CLIENT_SETTINGS.allow_fallback,
         cloud_api_key=_DEFAULT_CLIENT_SETTINGS.cloud_api_key,

@@ -1,4 +1,4 @@
-"""Utility classes for interacting with Ollama chat endpoints."""
+"""Utility classes for interacting with Ollama/OpenAI-compatible chat endpoints."""
 
 from __future__ import annotations
 
@@ -13,6 +13,12 @@ import requests
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules.llm_endpoints import LLMSource, ResolvedEndpoint, resolve_endpoints
+from modules.llm_providers import (
+    LMSTUDIO_LOCAL,
+    OLLAMA_CLOUD,
+    OLLAMA_LOCAL,
+    split_llm_model_identifier,
+)
 
 logger = log_mgr.get_logger()
 
@@ -31,6 +37,7 @@ class ClientSettings:
     llm_source: str = cfg.DEFAULT_LLM_SOURCE
     local_api_url: Optional[str] = None
     cloud_api_url: Optional[str] = None
+    lmstudio_api_url: Optional[str] = None
     fallback_sources: Sequence[str] = ()
     allow_fallback: bool = True
     cloud_api_key: Optional[str] = None
@@ -39,6 +46,12 @@ class ClientSettings:
         """Return the concrete API URL, honoring the runtime context defaults."""
 
         primary_source = LLMSource.from_value(self.llm_source)
+        if primary_source == LLMSource.LMSTUDIO:
+            if self.api_url:
+                return self.api_url
+            if self.lmstudio_api_url:
+                return self.lmstudio_api_url
+            return cfg.get_lmstudio_url()
         if primary_source == LLMSource.CLOUD:
             if self.api_url:
                 return self.api_url
@@ -70,7 +83,7 @@ class LLMResponse:
 
 
 class LLMClient:
-    """Stateless helper for issuing chat requests against the Ollama API."""
+    """Stateless helper for issuing chat requests against LLM chat APIs."""
 
     def __init__(
         self,
@@ -141,6 +154,14 @@ class LLMClient:
     # ------------------------------------------------------------------
     def _extract_token_usage(self, data: Dict[str, Any]) -> TokenUsage:
         usage: TokenUsage = {}
+        if isinstance(data.get("usage"), dict):
+            usage_payload = data["usage"]
+            prompt_tokens = usage_payload.get("prompt_tokens")
+            completion_tokens = usage_payload.get("completion_tokens")
+            if isinstance(prompt_tokens, int):
+                usage["prompt_eval_count"] = prompt_tokens
+            if isinstance(completion_tokens, int):
+                usage["eval_count"] = completion_tokens
         for key in ("prompt_eval_count", "eval_count"):
             value = data.get(key)
             if isinstance(value, int):
@@ -159,17 +180,40 @@ class LLMClient:
         for line in response.iter_lines(decode_unicode=True):
             if not line:
                 continue
+            payload_text = line
+            if isinstance(payload_text, bytes):
+                encoding = response.encoding or "utf-8"
+                try:
+                    payload_text = payload_text.decode(encoding)
+                except UnicodeDecodeError:
+                    payload_text = payload_text.decode("utf-8", errors="replace")
+            if payload_text.startswith("data:"):
+                payload_text = payload_text[len("data:") :].strip()
+                if payload_text == "[DONE]":
+                    continue
             try:
-                payload = json.loads(line)
+                payload = json.loads(payload_text)
             except json.JSONDecodeError:
                 self._log_debug("Skipping non-JSON line from stream: %s", line)
                 continue
             raw_chunks.append(payload)
             message = payload.get("message", {}).get("content")
+            if not message and isinstance(payload.get("response"), str):
+                message = payload["response"]
+            if not message and isinstance(payload.get("choices"), list):
+                for choice in payload["choices"]:
+                    if not isinstance(choice, dict):
+                        continue
+                    delta = choice.get("delta") if isinstance(choice.get("delta"), dict) else None
+                    if delta and isinstance(delta.get("content"), str):
+                        message = delta["content"]
+                        break
+                    message_text = choice.get("text")
+                    if isinstance(message_text, str):
+                        message = message_text
+                        break
             if message:
                 full_text += message
-            elif "response" in payload and isinstance(payload["response"], str):
-                full_text += payload["response"]
             self._merge_token_usage(token_usage, payload)
 
         response_payload = LLMResponse(
@@ -199,6 +243,20 @@ class LLMClient:
         message = data.get("message", {}).get("content")
         if not message and isinstance(data.get("response"), str):
             message = data["response"]
+        if not message and isinstance(data.get("choices"), list):
+            for choice in data["choices"]:
+                if not isinstance(choice, dict):
+                    continue
+                choice_message = choice.get("message")
+                if isinstance(choice_message, dict) and isinstance(
+                    choice_message.get("content"), str
+                ):
+                    message = choice_message["content"]
+                    break
+                choice_text = choice.get("text")
+                if isinstance(choice_text, str):
+                    message = choice_text
+                    break
 
         text = message if isinstance(message, str) else ""
 
@@ -433,6 +491,7 @@ def create_client(
     llm_source: Optional[str] = None,
     local_api_url: Optional[str] = None,
     cloud_api_url: Optional[str] = None,
+    lmstudio_api_url: Optional[str] = None,
     fallback_sources: Optional[Sequence[str]] = None,
     allow_fallback: bool = True,
     cloud_api_key: Optional[str] = None,
@@ -440,14 +499,29 @@ def create_client(
 ) -> LLMClient:
     """Return a new :class:`LLMClient` with the provided configuration."""
 
+    resolved_model = model or cfg.DEFAULT_MODEL
+    provider, stripped_model = split_llm_model_identifier(resolved_model)
+    if provider and stripped_model:
+        resolved_model = stripped_model
+        if provider == OLLAMA_LOCAL:
+            llm_source = "local"
+            api_url = local_api_url or cfg.get_local_ollama_url()
+        elif provider == OLLAMA_CLOUD:
+            llm_source = "cloud"
+            api_url = cloud_api_url or cfg.get_cloud_ollama_url()
+        elif provider == LMSTUDIO_LOCAL:
+            llm_source = "lmstudio"
+            api_url = lmstudio_api_url or cfg.get_lmstudio_url()
+
     settings = ClientSettings(
-        model=model or cfg.DEFAULT_MODEL,
+        model=resolved_model,
         api_url=api_url,
         debug=debug,
         api_key=api_key,
         llm_source=llm_source or cfg.get_llm_source(),
         local_api_url=local_api_url,
         cloud_api_url=cloud_api_url,
+        lmstudio_api_url=lmstudio_api_url,
         fallback_sources=fallback_sources or (),
         allow_fallback=allow_fallback,
         cloud_api_key=cloud_api_key,

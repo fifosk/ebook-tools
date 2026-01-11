@@ -52,6 +52,15 @@ export default function SubtitleToolTabs({
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === 'tuning'}
+          className={`${styles.tabButton} ${activeTab === 'tuning' ? styles.tabButtonActive : ''}`}
+          onClick={() => onTabChange('tuning')}
+        >
+          Tuning
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === 'jobs'}
           className={`${styles.tabButton} ${activeTab === 'jobs' ? styles.tabButtonActive : ''}`}
           onClick={() => onTabChange('jobs')}

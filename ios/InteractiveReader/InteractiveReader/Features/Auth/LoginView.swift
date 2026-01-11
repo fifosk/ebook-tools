@@ -26,11 +26,11 @@ struct LoginView: View {
                                 .focused($focusedField, equals: .api)
 
                             #if os(tvOS)
-                            Text("Example: http://Mac-Studio.local:8001")
+                            Text("Example: https://api.langtools.fifosk.synology.me")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             #else
-                            Text("Example: https://mac-studio.local:8000")
+                            Text("Example: https://api.langtools.fifosk.synology.me")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             #endif

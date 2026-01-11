@@ -112,6 +112,7 @@ class PipelineConfig:
     llm_source: str = field(default_factory=cfg.get_llm_source)
     local_ollama_url: str = field(default_factory=cfg.get_local_ollama_url)
     cloud_ollama_url: str = field(default_factory=cfg.get_cloud_ollama_url)
+    lmstudio_url: str = field(default_factory=cfg.get_lmstudio_url)
     ffmpeg_path: Optional[str] = None
     thread_count: int = field(default_factory=cfg.get_thread_count)
     queue_size: int = field(default_factory=cfg.get_queue_size)
@@ -639,6 +640,7 @@ def build_pipeline_config(
 
     local_ollama_url_default = context.local_ollama_url
     cloud_ollama_url_default = context.cloud_ollama_url
+    lmstudio_url_default = context.lmstudio_url
 
     local_ollama_url = str(
         _select_value("ollama_local_url", config, overrides, local_ollama_url_default)
@@ -648,6 +650,10 @@ def build_pipeline_config(
         _select_value("ollama_cloud_url", config, overrides, cloud_ollama_url_default)
         or cloud_ollama_url_default
     )
+    lmstudio_url = str(
+        _select_value("lmstudio_url", config, overrides, lmstudio_url_default)
+        or lmstudio_url_default
+    )
 
     ollama_model = str(
         _select_value("ollama_model", config, overrides, cfg.DEFAULT_MODEL)
@@ -656,6 +662,8 @@ def build_pipeline_config(
 
     if llm_source == "cloud":
         ollama_url_default = cloud_ollama_url or context.ollama_url
+    elif llm_source == "lmstudio":
+        ollama_url_default = lmstudio_url or context.ollama_url
     else:
         ollama_url_default = local_ollama_url or context.ollama_url
 
@@ -755,6 +763,7 @@ def build_pipeline_config(
         llm_source=llm_source,
         local_ollama_url=local_ollama_url,
         cloud_ollama_url=cloud_ollama_url,
+        lmstudio_url=lmstudio_url,
         ffmpeg_path=ffmpeg_path,
         thread_count=thread_count,
         queue_size=queue_size,

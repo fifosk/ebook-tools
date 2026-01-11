@@ -22,6 +22,7 @@ import SubtitleJobsPanel from './subtitle-tool/SubtitleJobsPanel';
 import SubtitleMetadataPanel from './subtitle-tool/SubtitleMetadataPanel';
 import SubtitleOptionsPanel from './subtitle-tool/SubtitleOptionsPanel';
 import SubtitleSourcePanel from './subtitle-tool/SubtitleSourcePanel';
+import SubtitleTuningPanel from './subtitle-tool/SubtitleTuningPanel';
 import SubtitleToolTabs from './subtitle-tool/SubtitleToolTabs';
 import {
   DEFAULT_ASS_EMPHASIS,
@@ -30,6 +31,7 @@ import {
   DEFAULT_LLM_MODEL,
   DEFAULT_START_TIME,
   DEFAULT_SUBTITLE_SOURCE_DIRECTORY,
+  DEFAULT_TRANSLATION_BATCH_SIZE,
   DEFAULT_WORKER_COUNT,
   MAX_ASS_EMPHASIS,
   MAX_ASS_FONT_SIZE,
@@ -179,6 +181,9 @@ export default function SubtitleToolPage({
   const [mirrorToSourceDir, setMirrorToSourceDir] = useState<boolean>(true);
   const [workerCount, setWorkerCount] = useState<number | ''>(DEFAULT_WORKER_COUNT);
   const [batchSize, setBatchSize] = useState<number | ''>(DEFAULT_BATCH_SIZE);
+  const [translationBatchSize, setTranslationBatchSize] = useState<number | ''>(
+    DEFAULT_TRANSLATION_BATCH_SIZE
+  );
   const [startTime, setStartTime] = useState<string>(DEFAULT_START_TIME);
   const [endTime, setEndTime] = useState<string>('');
   const [availableModels, setAvailableModels] = useState<string[]>([]);
@@ -201,6 +206,9 @@ export default function SubtitleToolPage({
   const [lastSubmittedBatchSize, setLastSubmittedBatchSize] = useState<number | null>(
     typeof DEFAULT_BATCH_SIZE === 'number' ? DEFAULT_BATCH_SIZE : null
   );
+  const [lastSubmittedTranslationBatchSize, setLastSubmittedTranslationBatchSize] = useState<
+    number | null
+  >(typeof DEFAULT_TRANSLATION_BATCH_SIZE === 'number' ? DEFAULT_TRANSLATION_BATCH_SIZE : null);
   const [lastSubmittedStartTime, setLastSubmittedStartTime] = useState<string>(DEFAULT_START_TIME);
   const [lastSubmittedEndTime, setLastSubmittedEndTime] = useState<string | null>(null);
   const [lastSubmittedModel, setLastSubmittedModel] = useState<string | null>(null);
@@ -240,6 +248,12 @@ export default function SubtitleToolPage({
     }
     if (typeof prefillParameters.batch_size === 'number' && Number.isFinite(prefillParameters.batch_size)) {
       setBatchSize(prefillParameters.batch_size);
+    }
+    if (
+      typeof prefillParameters.translation_batch_size === 'number' &&
+      Number.isFinite(prefillParameters.translation_batch_size)
+    ) {
+      setTranslationBatchSize(prefillParameters.translation_batch_size);
     }
     if (typeof prefillParameters.start_time_offset_seconds === 'number') {
       setStartTime(formatTimecodeFromSeconds(prefillParameters.start_time_offset_seconds));
@@ -677,6 +691,9 @@ export default function SubtitleToolPage({
       if (typeof batchSize === 'number' && batchSize > 0) {
         formData.append('batch_size', String(batchSize));
       }
+      if (typeof translationBatchSize === 'number' && translationBatchSize > 0) {
+        formData.append('translation_batch_size', String(translationBatchSize));
+      }
       if (mediaMetadataDraft) {
         formData.append('media_metadata_json', JSON.stringify(mediaMetadataDraft));
       }
@@ -687,6 +704,9 @@ export default function SubtitleToolPage({
         setLastSubmittedJobId(response.job_id);
         setLastSubmittedWorkerCount(typeof workerCount === 'number' ? workerCount : null);
         setLastSubmittedBatchSize(typeof batchSize === 'number' ? batchSize : null);
+        setLastSubmittedTranslationBatchSize(
+          typeof translationBatchSize === 'number' ? translationBatchSize : null
+        );
         setLastSubmittedStartTime(normalisedStartTime);
         setLastSubmittedEndTime(normalisedEndTime || null);
         setLastSubmittedModel(selectedModel.trim() ? selectedModel.trim() : null);
@@ -730,6 +750,7 @@ export default function SubtitleToolPage({
       uploadFile,
       workerCount,
       batchSize,
+      translationBatchSize,
       mirrorToSourceDir,
       startTime,
       endTime,
@@ -776,6 +797,9 @@ export default function SubtitleToolPage({
             }
             if (lastSubmittedBatchSize) {
               details.push(`batch size ${lastSubmittedBatchSize}`);
+            }
+            if (lastSubmittedTranslationBatchSize) {
+              details.push(`LLM batch ${lastSubmittedTranslationBatchSize}`);
             }
             if (lastSubmittedStartTime && lastSubmittedStartTime !== DEFAULT_START_TIME) {
               details.push(`starting at ${lastSubmittedStartTime}`);
@@ -852,8 +876,6 @@ export default function SubtitleToolPage({
             outputFormat={outputFormat}
             assFontSize={assFontSize}
             assEmphasis={assEmphasis}
-            workerCount={workerCount}
-            batchSize={batchSize}
             startTime={startTime}
             endTime={endTime}
             sourceDirectory={sourceDirectory}
@@ -870,10 +892,19 @@ export default function SubtitleToolPage({
             onOutputFormatChange={setOutputFormat}
             onAssFontSizeChange={setAssFontSize}
             onAssEmphasisChange={setAssEmphasis}
-            onWorkerCountChange={setWorkerCount}
-            onBatchSizeChange={setBatchSize}
             onStartTimeChange={setStartTime}
             onEndTimeChange={setEndTime}
+          />
+        ) : null}
+
+        {activeTab === 'tuning' ? (
+          <SubtitleTuningPanel
+            workerCount={workerCount}
+            batchSize={batchSize}
+            translationBatchSize={translationBatchSize}
+            onWorkerCountChange={setWorkerCount}
+            onBatchSizeChange={setBatchSize}
+            onTranslationBatchSizeChange={setTranslationBatchSize}
           />
         ) : null}
 

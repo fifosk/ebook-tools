@@ -16,6 +16,7 @@ from modules.config.loader import get_rendering_config
 from .constants import (
     DEFAULT_BOOKS_RELATIVE,
     DEFAULT_FFMPEG_PATH,
+    DEFAULT_LMSTUDIO_URL,
     DEFAULT_OLLAMA_CLOUD_URL,
     DEFAULT_OLLAMA_URL,
     DEFAULT_OUTPUT_RELATIVE,
@@ -51,6 +52,7 @@ class RuntimeContext:
     llm_source: str
     local_ollama_url: str
     cloud_ollama_url: str
+    lmstudio_url: str
     thread_count: int
     queue_size: int
     pipeline_enabled: bool
@@ -69,6 +71,7 @@ class RuntimeContext:
             "llm_source": self.llm_source,
             "local_ollama_url": self.local_ollama_url,
             "cloud_ollama_url": self.cloud_ollama_url,
+            "lmstudio_url": self.lmstudio_url,
             "thread_count": self.thread_count,
             "queue_size": self.queue_size,
             "pipeline_enabled": self.pipeline_enabled,
@@ -118,7 +121,7 @@ def _hardware_tuning_defaults() -> Dict[str, Any]:
     system = platform.system()
 
     if system == "Darwin" and cpu_count >= 10 and 34 <= memory_gib <= 38:
-        thread_count = max(8, cpu_count - 2)
+        thread_count = 4
         queue_size = max(DEFAULT_QUEUE_SIZE, thread_count * 5)
         job_max_workers = max(2, min(4, cpu_count // 4))
         slide_parallelism = "thread"
@@ -353,8 +356,10 @@ def build_runtime_context(
 
     local_override = overrides.get("ollama_local_url") if overrides else None
     cloud_override = overrides.get("ollama_cloud_url") if overrides else None
+    lmstudio_override = overrides.get("lmstudio_url") if overrides else None
     config_local_url = config.get("ollama_local_url")
     config_cloud_url = config.get("ollama_cloud_url")
+    config_lmstudio_url = config.get("lmstudio_url")
 
     local_ollama_url = _resolve_url(
         local_override or config_local_url,
@@ -363,6 +368,10 @@ def build_runtime_context(
     cloud_ollama_url = _resolve_url(
         cloud_override or config_cloud_url,
         DEFAULT_OLLAMA_CLOUD_URL,
+    )
+    lmstudio_url = _resolve_url(
+        lmstudio_override or config_lmstudio_url,
+        DEFAULT_LMSTUDIO_URL,
     )
 
     working_path = resolve_directory(
@@ -451,7 +460,12 @@ def build_runtime_context(
         get_rendering_config.cache_clear()
 
     config_primary_url = config.get("ollama_url")
-    default_primary_url = cloud_ollama_url if llm_source == "cloud" else local_ollama_url
+    if llm_source == "cloud":
+        default_primary_url = cloud_ollama_url
+    elif llm_source == "lmstudio":
+        default_primary_url = lmstudio_url
+    else:
+        default_primary_url = local_ollama_url
     ollama_url = _resolve_url(
         ollama_override or config_primary_url,
         default_primary_url,
@@ -483,6 +497,7 @@ def build_runtime_context(
         llm_source=llm_source,
         local_ollama_url=local_ollama_url,
         cloud_ollama_url=cloud_ollama_url,
+        lmstudio_url=lmstudio_url,
         thread_count=thread_count,
         queue_size=queue_size,
         pipeline_enabled=pipeline_enabled,

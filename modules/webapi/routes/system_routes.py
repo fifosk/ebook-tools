@@ -49,7 +49,7 @@ async def get_pipeline_defaults(
 async def get_llm_models(
     request_user: RequestUserContext = Depends(get_request_user),
 ) -> LLMModelListResponse:
-    """Return the available LLM models from the Ollama server."""
+    """Return the available LLM models from configured providers."""
 
     _ensure_editor(request_user)
     try:
@@ -57,7 +57,7 @@ async def get_llm_models(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to query Ollama model list.",
+            detail="Unable to query LLM model list.",
         ) from exc
     return LLMModelListResponse(models=models)
 

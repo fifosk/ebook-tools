@@ -9,6 +9,7 @@ import EmojiIcon from './EmojiIcon';
 import JobTypeGlyphBadge from './JobTypeGlyphBadge';
 import { getStatusGlyph } from '../utils/status';
 import { getJobTypeGlyph, isTvSeriesMetadata } from '../utils/jobGlyphs';
+import { resolveProgressStage } from '../utils/progressEvents';
 import { coerceRecord, readNestedValue } from './player-panel/helpers';
 
 const SIDEBAR_STAGE_GLYPHS: Record<string, { icon: string; tooltip: string }> = {
@@ -318,7 +319,11 @@ function resolveSidebarProgress(job: JobState): number | null {
   if (!job.status || job.status.status !== 'running') {
     return null;
   }
-  const event = job.latestEvent ?? job.status.latest_event ?? null;
+  const preferredEvent = job.latestMediaEvent ?? null;
+  const fallbackEvent = job.latestEvent ?? job.status.latest_event ?? null;
+  const fallbackStage = resolveProgressStage(fallbackEvent);
+  const isTranslationStage = fallbackStage === 'translation';
+  const event = preferredEvent ?? (!isTranslationStage ? fallbackEvent : null);
   const snapshot = event?.snapshot;
   if (!snapshot) {
     return null;

@@ -75,8 +75,6 @@ type SubtitleOptionsPanelProps = {
   outputFormat: SubtitleOutputFormat;
   assFontSize: number | '';
   assEmphasis: number | '';
-  workerCount: number | '';
-  batchSize: number | '';
   startTime: string;
   endTime: string;
   sourceDirectory: string;
@@ -93,8 +91,6 @@ type SubtitleOptionsPanelProps = {
   onOutputFormatChange: (value: SubtitleOutputFormat) => void;
   onAssFontSizeChange: (value: number | '') => void;
   onAssEmphasisChange: (value: number | '') => void;
-  onWorkerCountChange: (value: number | '') => void;
-  onBatchSizeChange: (value: number | '') => void;
   onStartTimeChange: (value: string) => void;
   onEndTimeChange: (value: string) => void;
 };
@@ -117,8 +113,6 @@ export default function SubtitleOptionsPanel({
   outputFormat,
   assFontSize,
   assEmphasis,
-  workerCount,
-  batchSize,
   startTime,
   endTime,
   sourceDirectory,
@@ -135,8 +129,6 @@ export default function SubtitleOptionsPanel({
   onOutputFormatChange,
   onAssFontSizeChange,
   onAssEmphasisChange,
-  onWorkerCountChange,
-  onBatchSizeChange,
   onStartTimeChange,
   onEndTimeChange
 }: SubtitleOptionsPanelProps) {
@@ -341,48 +333,6 @@ export default function SubtitleOptionsPanel({
               disabled={outputFormat !== 'ass'}
             />
             <small>Translation scale (default {DEFAULT_ASS_EMPHASIS.toFixed(2)}×).</small>
-          </label>
-          <label>
-            Worker threads
-            <input
-              type="number"
-              min={1}
-              max={32}
-              value={workerCount}
-              onChange={(event) => {
-                const raw = event.target.value;
-                if (!raw.trim()) {
-                  onWorkerCountChange('');
-                  return;
-                }
-                const parsed = Number(raw);
-                if (Number.isNaN(parsed)) {
-                  return;
-                }
-                onWorkerCountChange(Math.min(Math.max(1, parsed), 32));
-              }}
-            />
-          </label>
-          <label>
-            Batch size
-            <input
-              type="number"
-              min={1}
-              max={500}
-              value={batchSize}
-              onChange={(event) => {
-                const raw = event.target.value;
-                if (!raw.trim()) {
-                  onBatchSizeChange('');
-                  return;
-                }
-                const parsed = Number(raw);
-                if (Number.isNaN(parsed)) {
-                  return;
-                }
-                onBatchSizeChange(Math.min(Math.max(1, parsed), 500));
-              }}
-            />
           </label>
           <label>
             Start time (MM:SS or HH:MM:SS)

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePipelineEvents } from '../hooks/usePipelineEvents';
 import { appendAccessToken, resolveJobCoverUrl } from '../api/client';
 import {
@@ -10,8 +10,10 @@ import {
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 import { getStatusGlyph } from '../utils/status';
 import { resolveImageNodeLabel } from '../constants/imageNodes';
+import { isLocalLlmProvider, splitLlmModelId } from '../utils/llmProviders';
 import AccessPolicyEditor from './access/AccessPolicyEditor';
 import { JobProgressMediaMetadata } from './job-progress/JobProgressMediaMetadata';
+import { resolveProgressStage } from '../utils/progressEvents';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
 import {
   CREATION_METADATA_KEYS,
@@ -41,6 +43,8 @@ type Props = {
   jobId: string;
   status: PipelineStatusResponse | undefined;
   latestEvent: ProgressEventPayload | undefined;
+  latestTranslationEvent?: ProgressEventPayload;
+  latestMediaEvent?: ProgressEventPayload;
   onEvent: (event: ProgressEventPayload) => void;
   onPause: () => void;
   onResume: () => void;
@@ -62,6 +66,8 @@ export function JobProgress({
   jobId,
   status,
   latestEvent,
+  latestTranslationEvent,
+  latestMediaEvent,
   onEvent,
   onPause,
   onResume,
@@ -123,7 +129,18 @@ export function JobProgress({
     isSubtitleJob && status?.result && typeof status.result === 'object'
       ? (status.result as Record<string, unknown>)
       : null;
-  const event = latestEvent ?? status?.latest_event ?? undefined;
+  const statusEvent = status?.latest_event ?? undefined;
+  const event = latestEvent ?? statusEvent ?? undefined;
+  const eventStage = resolveProgressStage(event);
+  const statusStage = resolveProgressStage(statusEvent);
+  const translationEvent =
+    latestTranslationEvent ??
+    (eventStage === 'translation' ? event : undefined) ??
+    (statusStage === 'translation' ? statusEvent : undefined);
+  const mediaEvent =
+    latestMediaEvent ??
+    (eventStage === 'media' ? event : undefined) ??
+    (statusStage === 'media' ? statusEvent : undefined);
   const subtitleBookMetadata =
     subtitleResult && typeof subtitleResult.book_metadata === 'object'
       ? (subtitleResult.book_metadata as Record<string, unknown>)
@@ -232,25 +249,49 @@ export function JobProgress({
       status?.parameters?.translation_provider ?? metadata['translation_provider'] ?? null;
     const translationProvider = normalizeTranslationProvider(translationProviderRaw);
     const translationModel = normalizeTextValue(metadata['translation_model']);
-    const llmModel = normalizeTextValue(status?.parameters?.llm_model);
+    const llmModel =
+      normalizeTextValue(status?.parameters?.llm_model) ??
+      normalizeTextValue(pipelineConfig?.ollama_model);
+    const modelName = translationModel ?? llmModel;
+    const modelInfo = splitLlmModelId(modelName);
+    const modelProvider = modelInfo.provider;
+    const modelBase = modelInfo.model ?? modelName;
+    const providerLocalFlag = isLocalLlmProvider(modelProvider);
+    const modelIsCloud =
+      providerLocalFlag === false
+        ? true
+        : providerLocalFlag === true
+          ? false
+          : modelBase
+            ? modelBase.toLowerCase().includes('cloud')
+            : false;
     const providerLabel =
       formatTranslationProviderLabel(
         translationProvider,
         translationModel,
         llmModel
       ) ?? 'Text translation';
-    const llmSourceRaw = pipelineConfig?.llm_source;
-    const llmSource = typeof llmSourceRaw === 'string' ? llmSourceRaw.trim().toLowerCase() : null;
     const batchSize = coerceNumber(status?.parameters?.translation_batch_size);
     if (translationPool !== null) {
       const hintParts = ['Controlled by Worker threads'];
-      if (translationProvider === 'llm' && llmSource) {
-        hintParts.push(`LLM source: ${llmSource}`);
+      if (translationProvider === 'llm' && modelName) {
+        hintParts.push(`Model: ${modelName}`);
+        if (modelProvider) {
+          hintParts.push(`Provider: ${modelProvider}`);
+        }
       }
       if (batchSize !== null && batchSize > 1) {
         hintParts.push(`Batch size: ${batchSize} sentences/request`);
-        if (translationProvider === 'llm' && llmSource === 'local') {
-          hintParts.push('Local LLM batching caps to 1 call');
+        if (translationProvider === 'llm') {
+          if (modelName) {
+            hintParts.push(
+              modelIsCloud
+                ? "Model is cloud-backed (no local cap)"
+                : "Model is local (batch calls capped to 1)"
+            );
+          } else {
+            hintParts.push('Model not reported (local cap may apply)');
+          }
         }
       }
       entries.push({
@@ -258,6 +299,21 @@ export function JobProgress({
         value: formatTuningValue(translationPool),
         hint: hintParts.join('. ')
       });
+      if (translationProvider === 'llm' && batchSize !== null && batchSize > 1) {
+        let capValue = 'Unknown';
+        let capHint = 'Model not reported; unable to determine cap.';
+        if (modelName) {
+          capValue = modelIsCloud ? 'No' : 'Yes';
+          capHint = modelIsCloud
+            ? 'Cloud-backed model; batching is not capped.'
+            : 'Local model; batching is capped to 1 parallel LLM call.';
+        }
+        entries.push({
+          label: 'LLM batch cap applies',
+          value: capValue,
+          hint: capHint
+        });
+      }
     }
     if (threadCount !== null) {
       const audioHintParts = ['Controlled by Worker threads'];
@@ -281,7 +337,7 @@ export function JobProgress({
   }, [
     metadata,
     pipelineConfig?.generate_audio,
-    pipelineConfig?.llm_source,
+    pipelineConfig?.ollama_model,
     pipelineConfig?.selected_voice,
     pipelineConfig?.thread_count,
     status?.parameters?.llm_model,
@@ -322,6 +378,35 @@ export function JobProgress({
         return cleaned.length === 0 || cleaned.toUpperCase() === 'N/A';
       })
     : false;
+
+  const translationProgress = useMemo(() => {
+    if (!translationEvent) {
+      return null;
+    }
+    const meta = translationEvent.metadata;
+    const metaRecord = meta && typeof meta === 'object' ? (meta as Record<string, unknown>) : null;
+    const completed =
+      coerceNumber(metaRecord?.translation_completed) ?? translationEvent.snapshot.completed;
+    const total = coerceNumber(metaRecord?.translation_total) ?? translationEvent.snapshot.total;
+    return { completed, total };
+  }, [translationEvent]);
+  const mediaProgress = useMemo(() => {
+    if (!mediaEvent) {
+      return null;
+    }
+    const { completed, total } = mediaEvent.snapshot;
+    return { completed, total };
+  }, [mediaEvent]);
+  const formatProgressValue = useCallback((progress: { completed: number; total: number | null }) => {
+    const completedLabel =
+      typeof progress.completed === 'number' && Number.isFinite(progress.completed)
+        ? Math.max(0, Math.round(progress.completed)).toString()
+        : '0';
+    if (typeof progress.total === 'number' && Number.isFinite(progress.total)) {
+      return `${completedLabel} / ${Math.max(0, Math.round(progress.total))}`;
+    }
+    return completedLabel;
+  }, []);
 
   const canPause =
     isBookJob && canManage && !isTerminal && statusValue !== 'paused' && statusValue !== 'pausing';
@@ -654,6 +739,27 @@ export function JobProgress({
                 <span>{value}</span>
               </div>
             ))}
+          </div>
+        </div>
+      ) : null}
+      {showOverviewSections && (translationProgress || mediaProgress) ? (
+        <div>
+          <h4>Stage progress</h4>
+          <div className="progress-grid">
+            {translationProgress ? (
+              <div className="progress-metric">
+                <strong>Translation progress</strong>
+                <span>{formatProgressValue(translationProgress)}</span>
+                <p className="progress-metric__hint">Counts translated sentences (LLM/googletrans).</p>
+              </div>
+            ) : null}
+            {mediaProgress ? (
+              <div className="progress-metric">
+                <strong>Media progress</strong>
+                <span>{formatProgressValue(mediaProgress)}</span>
+                <p className="progress-metric__hint">Counts sentences with generated media output.</p>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

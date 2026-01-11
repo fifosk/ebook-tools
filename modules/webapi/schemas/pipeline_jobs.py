@@ -415,6 +415,7 @@ def _build_subtitle_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         subtitle_path=subtitle_path,
         llm_model=_coerce_str(options.get("llm_model")),
         translation_provider=_coerce_str(options.get("translation_provider")),
+        translation_batch_size=_coerce_int(options.get("translation_batch_size")),
         transliteration_mode=_coerce_str(options.get("transliteration_mode")),
         worker_count=_coerce_int(options.get("worker_count")),
         batch_size=_coerce_int(options.get("batch_size")),
@@ -440,6 +441,7 @@ def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobPar
     flush_sentences = _coerce_int(payload.get("flush_sentences"))
     llm_model = _coerce_str(payload.get("llm_model"))
     translation_provider = _coerce_str(payload.get("translation_provider"))
+    translation_batch_size = _coerce_int(payload.get("translation_batch_size"))
     transliteration_mode = _coerce_str(payload.get("transliteration_mode"))
     split_batches = _coerce_bool(payload.get("split_batches"))
 
@@ -462,6 +464,7 @@ def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobPar
         flush_sentences=flush_sentences,
         llm_model=llm_model,
         translation_provider=translation_provider,
+        translation_batch_size=translation_batch_size,
         transliteration_mode=transliteration_mode,
         split_batches=split_batches,
     )

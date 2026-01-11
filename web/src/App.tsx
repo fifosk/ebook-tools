@@ -44,12 +44,15 @@ import ReadingBedsPanel from './components/admin/ReadingBedsPanel';
 import { resolveMediaCompletion } from './utils/mediaFormatters';
 import { buildLibraryBookMetadata } from './utils/libraryMetadata';
 import { canAccessPolicy, normalizeRole } from './utils/accessControl';
+import { resolveProgressStage } from './utils/progressEvents';
 import type { LibraryOpenInput, MediaSelectionRequest } from './types/player';
 import { isLibraryOpenRequest } from './types/player';
 
 interface JobRegistryEntry {
   status: PipelineStatusResponse;
   latestEvent?: ProgressEventPayload;
+  latestTranslationEvent?: ProgressEventPayload;
+  latestMediaEvent?: ProgressEventPayload;
 }
 
 type JobAction = 'pause' | 'resume' | 'cancel' | 'delete' | 'restart';
@@ -283,6 +286,7 @@ export function App() {
         const next: Record<string, JobRegistryEntry> = {};
         for (const status of statuses) {
           const current = previous[status.job_id];
+          const statusStage = resolveProgressStage(status.latest_event);
           const resolvedCompletion = resolveMediaCompletion(status);
           const normalizedStatus =
             resolvedCompletion !== null
@@ -290,7 +294,15 @@ export function App() {
               : status;
           next[status.job_id] = {
             status: normalizedStatus,
-            latestEvent: status.latest_event ?? current?.latestEvent
+            latestEvent: status.latest_event ?? current?.latestEvent,
+            latestTranslationEvent:
+              statusStage === 'translation'
+                ? status.latest_event ?? undefined
+                : current?.latestTranslationEvent,
+            latestMediaEvent:
+              statusStage === 'media'
+                ? status.latest_event ?? undefined
+                : current?.latestMediaEvent
           };
         }
         return next;
@@ -503,7 +515,9 @@ export function App() {
         ...previous,
         [submission.job_id]: {
           status: placeholderStatus,
-          latestEvent: undefined
+          latestEvent: undefined,
+          latestTranslationEvent: undefined,
+          latestMediaEvent: undefined
         }
       }));
       setPendingInputFile(null);
@@ -525,6 +539,7 @@ export function App() {
 
       const nextStatus = current.status ? { ...current.status } : undefined;
       const metadata = event.metadata;
+      const stage = resolveProgressStage(event);
 
       if (nextStatus && metadata && typeof metadata === 'object') {
         const generated = (metadata as Record<string, unknown>).generated_files;
@@ -550,7 +565,10 @@ export function App() {
         [jobId]: {
           ...current,
           status: nextStatus ?? current.status,
-          latestEvent: event
+          latestEvent: event,
+          latestTranslationEvent:
+            stage === 'translation' ? event : current.latestTranslationEvent,
+          latestMediaEvent: stage === 'media' ? event : current.latestMediaEvent
         }
       };
     });
@@ -1106,6 +1124,8 @@ export function App() {
         jobId,
         status: resolvedStatus,
         latestEvent: entry.latestEvent,
+        latestTranslationEvent: entry.latestTranslationEvent,
+        latestMediaEvent: entry.latestMediaEvent,
         isReloading: Boolean(reloadingJobs[jobId]),
         isMutating: Boolean(mutatingJobs[jobId]),
         canManage,

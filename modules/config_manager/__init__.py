@@ -15,6 +15,7 @@ from .constants import (
     DEFAULT_MODEL,
     DEFAULT_OLLAMA_CLOUD_URL,
     DEFAULT_OLLAMA_URL,
+    DEFAULT_LMSTUDIO_URL,
     DEFAULT_OUTPUT_RELATIVE,
     DEFAULT_QUEUE_SIZE,
     DEFAULT_JOB_MAX_WORKERS,
@@ -99,6 +100,19 @@ def get_cloud_ollama_url() -> str:
     return DEFAULT_OLLAMA_CLOUD_URL
 
 
+def get_lmstudio_url() -> str:
+    """Return the configured LM Studio endpoint URL."""
+
+    context = get_runtime_context(None)
+    if context:
+        return context.lmstudio_url
+    settings = get_settings()
+    candidate = getattr(settings, "lmstudio_url", None)
+    if isinstance(candidate, str) and candidate.strip():
+        return candidate.strip()
+    return DEFAULT_LMSTUDIO_URL
+
+
 def get_ollama_url() -> str:
     """Return the Ollama endpoint URL for the active runtime context."""
 
@@ -114,6 +128,8 @@ def get_ollama_url() -> str:
     source = get_llm_source()
     if source == "cloud":
         return get_cloud_ollama_url()
+    if source == "lmstudio":
+        return get_lmstudio_url()
     return get_local_ollama_url()
 
 
@@ -180,6 +196,7 @@ __all__ = [
     "get_cloud_ollama_url",
     "get_llm_source",
     "get_local_ollama_url",
+    "get_lmstudio_url",
     "get_ollama_url",
     "get_translation_fallback_model",
     "get_translation_llm_timeout_seconds",

@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional
 
+from .common import DEFAULT_TRANSLATION_BATCH_SIZE
+
 
 _HEX_COLOR_PATTERN = re.compile(r"^#?(?P<value>[0-9A-Fa-f]{6})$")
 _GOOGLE_TRANSLATION_PROVIDER_ALIASES = {
@@ -150,6 +152,7 @@ class SubtitleJobOptions:
     highlight: bool = True
     generate_audio_book: bool = True
     batch_size: Optional[int] = None
+    translation_batch_size: Optional[int] = None
     worker_count: Optional[int] = None
     mirror_batches_to_source_dir: bool = True
     start_time_offset: Optional[float] = None
@@ -207,6 +210,14 @@ class SubtitleJobOptions:
         object.__setattr__(self, "translation_provider", translation_provider)
         transliteration_mode = _normalize_transliteration_mode(self.transliteration_mode)
         object.__setattr__(self, "transliteration_mode", transliteration_mode)
+        translation_batch_value = self.translation_batch_size
+        resolved_translation_batch = DEFAULT_TRANSLATION_BATCH_SIZE
+        if translation_batch_value is not None:
+            try:
+                resolved_translation_batch = max(1, int(translation_batch_value))
+            except (TypeError, ValueError):
+                resolved_translation_batch = DEFAULT_TRANSLATION_BATCH_SIZE
+        object.__setattr__(self, "translation_batch_size", resolved_translation_batch)
         font_size_value = self.ass_font_size
         resolved_font_size = None
         if font_size_value is not None:
@@ -351,6 +362,9 @@ class SubtitleJobOptions:
             highlight=bool(data.get("highlight", True)),
             generate_audio_book=generate_audio_book,
             batch_size=int(data["batch_size"]) if data.get("batch_size") else None,
+            translation_batch_size=(
+                int(data["translation_batch_size"]) if data.get("translation_batch_size") else None
+            ),
             worker_count=worker_count,
             mirror_batches_to_source_dir=bool(
                 data.get("mirror_batches_to_source_dir", True)
@@ -383,6 +397,8 @@ class SubtitleJobOptions:
         }
         if self.batch_size is not None:
             payload["batch_size"] = self.batch_size
+        if self.translation_batch_size is not None:
+            payload["translation_batch_size"] = self.translation_batch_size
         if self.worker_count is not None:
             payload["worker_count"] = self.worker_count
         if self.start_time_offset is not None:

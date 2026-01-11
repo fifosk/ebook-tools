@@ -66,7 +66,6 @@ type VideoDubbingOptionsPanelProps = {
   transliterationMode: string;
   targetHeight: number;
   preserveAspectRatio: boolean;
-  flushSentences: number;
   splitBatches: boolean;
   stitchBatches: boolean;
   includeTransliteration: boolean;
@@ -81,7 +80,6 @@ type VideoDubbingOptionsPanelProps = {
   onTransliterationModeChange: (value: string) => void;
   onTargetHeightChange: (value: number) => void;
   onPreserveAspectRatioChange: (value: boolean) => void;
-  onFlushSentencesChange: (value: number) => void;
   onSplitBatchesChange: (value: boolean) => void;
   onStitchBatchesChange: (value: boolean) => void;
   onIncludeTransliterationChange: (value: boolean) => void;
@@ -107,7 +105,6 @@ export default function VideoDubbingOptionsPanel({
   transliterationMode,
   targetHeight,
   preserveAspectRatio,
-  flushSentences,
   splitBatches,
   stitchBatches,
   includeTransliteration,
@@ -122,7 +119,6 @@ export default function VideoDubbingOptionsPanel({
   onTransliterationModeChange,
   onTargetHeightChange,
   onPreserveAspectRatioChange,
-  onFlushSentencesChange,
   onSplitBatchesChange,
   onStitchBatchesChange,
   onIncludeTransliterationChange,
@@ -217,7 +213,7 @@ export default function VideoDubbingOptionsPanel({
           <p className={styles.fieldHint}>
             {usesGoogleTranslate
               ? 'Model used for transliteration when googletrans is enabled.'
-              : 'Model used when translating subtitles before TTS (defaults to kimi-k2-thinking:cloud).'}
+              : 'Model used when translating subtitles before TTS (defaults to ollama_cloud:kimi-k2-thinking:cloud).'}
           </p>
           {isLoadingModels ? <p className={styles.status}>Loading models…</p> : null}
           {modelError ? <p className={styles.error}>{modelError}</p> : null}
@@ -259,21 +255,6 @@ export default function VideoDubbingOptionsPanel({
             onChange={(event) => onPreserveAspectRatioChange(event.target.checked)}
           />
           <span>Keep original aspect ratio (recommended)</span>
-        </label>
-        <label className={styles.field}>
-          <span>Flush interval (sentences)</span>
-          <div className={styles.rangeRow}>
-            <input
-              className={styles.input}
-              type="number"
-              min={1}
-              step={1}
-              value={flushSentences}
-              onChange={(event) => onFlushSentencesChange(Math.max(1, Number(event.target.value)))}
-            />
-            <span className={styles.rangeValue}>{flushSentences} sentences</span>
-          </div>
-          <p className={styles.fieldHint}>Write out/append the video every N sentences (default 10).</p>
         </label>
         <label className={styles.fieldCheckbox}>
           <input

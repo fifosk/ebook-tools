@@ -24,6 +24,7 @@ from .constants import (
     DEFAULT_MODEL,
     DEFAULT_OLLAMA_CLOUD_URL,
     DEFAULT_OLLAMA_URL,
+    DEFAULT_LMSTUDIO_URL,
     DEFAULT_TRANSLATION_FALLBACK_MODEL,
     DEFAULT_TRANSLATION_LLM_TIMEOUT_SECONDS,
     DEFAULT_TTS_FALLBACK_VOICE,
@@ -102,6 +103,7 @@ class EbookToolsSettings(BaseModel):
     llm_source: str = DEFAULT_LLM_SOURCE
     ollama_local_url: str = DEFAULT_OLLAMA_URL
     ollama_cloud_url: str = DEFAULT_OLLAMA_CLOUD_URL
+    lmstudio_url: str = DEFAULT_LMSTUDIO_URL
     ffmpeg_path: Optional[str] = None
     video_backend: str = "ffmpeg"
     thread_count: int = 5
@@ -142,6 +144,10 @@ class EnvironmentOverrides(BaseSettings):
     )
     ollama_url: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("OLLAMA_URL", "EBOOK_OLLAMA_URL")
+    )
+    lmstudio_url: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("LMSTUDIO_URL", "EBOOK_LMSTUDIO_URL"),
     )
     llm_source: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("LLM_SOURCE", "EBOOK_LLM_SOURCE")

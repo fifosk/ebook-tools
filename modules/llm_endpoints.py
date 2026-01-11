@@ -1,4 +1,4 @@
-"""Endpoint adapter registry for Ollama-compatible LLM backends."""
+"""Endpoint adapter registry for Ollama/OpenAI-compatible LLM backends."""
 
 from __future__ import annotations
 
@@ -17,11 +17,14 @@ class LLMSource(str, Enum):
 
     LOCAL = "local"
     CLOUD = "cloud"
+    LMSTUDIO = "lmstudio"
 
     @classmethod
     def from_value(cls, value: Optional[str]) -> "LLMSource":
         if isinstance(value, str):
             candidate = value.strip().lower()
+            if candidate.startswith("lmstudio"):
+                return cls.LMSTUDIO
             for member in cls:
                 if member.value == candidate:
                     return member
@@ -98,9 +101,29 @@ class CloudOllamaAdapter(LLMEndpointAdapter):
         return bool(settings.cloud_api_key or settings.api_key)
 
 
+class LMStudioAdapter(LLMEndpointAdapter):
+    """Adapter that targets a local LM Studio endpoint."""
+
+    source = LLMSource.LMSTUDIO
+
+    def resolve_url(self, settings: "ClientSettings") -> str:
+        if settings.llm_source == self.source.value and settings.api_url:
+            return settings.api_url
+        if settings.lmstudio_api_url:
+            return settings.lmstudio_api_url
+        return cfg.get_lmstudio_url()
+
+    def build_headers(self, settings: "ClientSettings") -> Dict[str, str]:
+        headers: Dict[str, str] = {}
+        if settings.api_key:
+            headers["Authorization"] = f"Bearer {settings.api_key}"
+        return headers
+
+
 _ADAPTERS: Dict[LLMSource, LLMEndpointAdapter] = {
     LLMSource.LOCAL: LocalOllamaAdapter(),
     LLMSource.CLOUD: CloudOllamaAdapter(),
+    LLMSource.LMSTUDIO: LMStudioAdapter(),
 }
 
 
@@ -154,4 +177,3 @@ __all__ = [
     "ResolvedEndpoint",
     "resolve_endpoints",
 ]
-

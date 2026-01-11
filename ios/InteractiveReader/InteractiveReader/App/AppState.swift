@@ -3,9 +3,9 @@ import SwiftUI
 @MainActor
 final class AppState: ObservableObject {
     #if os(tvOS)
-    @AppStorage("apiBaseURL") var apiBaseURLString: String = "http://Mac-Studio.local:8001"
+    @AppStorage("apiBaseURL") var apiBaseURLString: String = "https://api.langtools.fifosk.synology.me"
     #else
-    @AppStorage("apiBaseURL") var apiBaseURLString: String = "https://mac-studio.local:8000"
+    @AppStorage("apiBaseURL") var apiBaseURLString: String = "https://api.langtools.fifosk.synology.me"
     #endif
     @AppStorage("authToken") private var storedToken: String = ""
     @AppStorage("lastUsername") var lastUsername: String = ""

@@ -3,7 +3,7 @@ import SwiftUI
 struct JobLoaderView: View {
     @StateObject private var viewModel = InteractivePlayerViewModel()
 
-    @State private var apiBaseURL: String = "http://localhost:8000"
+    @State private var apiBaseURL: String = "https://api.langtools.fifosk.synology.me"
     @State private var storageBaseURL: String = ""
     @State private var jobID: String = ""
     @State private var authToken: String = ""

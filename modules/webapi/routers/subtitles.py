@@ -890,6 +890,7 @@ def generate_youtube_dub(
             flush_sentences=flush_sentences,
             llm_model=llm_model,
             translation_provider=payload.translation_provider,
+            translation_batch_size=payload.translation_batch_size,
             transliteration_mode=payload.transliteration_mode,
             split_batches=split_batches,
             stitch_batches=stitch_batches,
@@ -923,16 +924,16 @@ def generate_youtube_dub(
 def list_subtitle_models(
     request_user: RequestUserContext = Depends(get_request_user),
 ) -> LLMModelListResponse:
-    """Return available Ollama models for subtitle translations."""
+    """Return available LLM models for subtitle translations."""
 
     _ensure_editor(request_user)
     try:
         models = list_available_llm_models()
     except Exception as exc:
-        logger.error("Unable to query Ollama model tags", exc_info=True)
+        logger.error("Unable to query LLM model tags", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to query Ollama model list.",
+            detail="Unable to query LLM model list.",
         ) from exc
 
     return LLMModelListResponse(models=models)
@@ -955,6 +956,7 @@ async def submit_subtitle_job(
     show_original: Union[str, bool] = Form(True),
     generate_audio_book: Union[str, bool] = Form(True),
     batch_size: Optional[str] = Form(None),
+    translation_batch_size: Optional[str] = Form(None),
     worker_count: Optional[str] = Form(None),
     start_time: Optional[str] = Form("00:00"),
     end_time: Optional[str] = Form(None),
@@ -1024,6 +1026,7 @@ async def submit_subtitle_job(
             highlight=_as_bool(highlight, True),
             generate_audio_book=_as_bool(generate_audio_book, True),
             batch_size=_coerce_int(batch_size),
+            translation_batch_size=_coerce_int(translation_batch_size),
             worker_count=_coerce_int(worker_count),
             mirror_batches_to_source_dir=_as_bool(mirror_batches_to_source_dir, True),
             start_time_offset=start_offset_seconds,

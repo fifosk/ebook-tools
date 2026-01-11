@@ -73,6 +73,7 @@ export default function SubtitleJobsPanel({
             const total = event?.snapshot.total ?? null;
             const workerValue = subtitleMetadata ? subtitleMetadata['workers'] : null;
             const batchValue = subtitleMetadata ? subtitleMetadata['batch_size'] : null;
+            const translationBatchValue = subtitleMetadata ? subtitleMetadata['translation_batch_size'] : null;
             const targetLanguageValue = subtitleMetadata ? subtitleMetadata['target_language'] : null;
             const originalLanguageValue = subtitleMetadata ? subtitleMetadata['original_language'] : null;
             const showOriginalValue = subtitleMetadata ? subtitleMetadata['show_original'] : null;
@@ -110,6 +111,10 @@ export default function SubtitleJobsPanel({
             const batchSetting =
               typeof batchValue === 'number' && Number.isFinite(batchValue)
                 ? batchValue
+                : null;
+            const translationBatchSetting =
+              typeof translationBatchValue === 'number' && Number.isFinite(translationBatchValue)
+                ? translationBatchValue
                 : null;
             const startTimeLabel =
               typeof startTimeValue === 'string' && startTimeValue.trim()
@@ -251,6 +256,12 @@ export default function SubtitleJobsPanel({
                     <div>
                       <dt>Batch size</dt>
                       <dd>{batchSetting}</dd>
+                    </div>
+                  ) : null}
+                  {translationBatchSetting ? (
+                    <div>
+                      <dt>LLM batch</dt>
+                      <dd>{translationBatchSetting}</dd>
                     </div>
                   ) : null}
                   {startTimeLabel ? (
