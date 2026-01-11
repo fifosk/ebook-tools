@@ -39,6 +39,7 @@ class RenderPhaseRequest:
     generate_images: bool = False
     include_transliteration: bool = False
     translation_provider: Optional[str] = None
+    translation_batch_size: Optional[int] = None
     transliteration_mode: Optional[str] = None
     book_metadata: Optional[dict] = None
 
@@ -84,6 +85,7 @@ def process_epub(
         generate_images=request.generate_images,
         include_transliteration=request.include_transliteration,
         translation_provider=request.translation_provider,
+        translation_batch_size=request.translation_batch_size,
         transliteration_mode=request.transliteration_mode,
         book_metadata=request.book_metadata,
     )

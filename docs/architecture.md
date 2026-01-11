@@ -13,7 +13,7 @@
 1. **Entry point** – `modules/ebook_tools.py` parses CLI or interactive input and builds a `PipelineRequest`.
 2. **Pipeline execution** – `modules/services/pipeline_service.py` assembles a `PipelineConfig`, coordinates ingestion, translation, rendering, and media generation, and returns a `PipelineResponse`.
 3. **Ingestion** – `modules/core/ingestion.py` extracts EPUB text, splits it into sentences, and caches refined lists.
-4. **Translation** – `modules/translation_engine.py` runs sentence translations through worker pools backed by the configured LLM client.
+4. **Translation** – `modules/translation_engine.py` runs sentence translations through worker pools backed by the configured LLM client. Pipeline jobs can batch LLM translation/transliteration requests via `translation_batch_size` (default: 10; set to 1 to disable) to reduce request counts and GPU load.
 5. **Rendering & media** – `modules/core/rendering/`, `modules/output_formatter.py`, and `modules/audio_video_generator.py` create HTML/PDF documents, audio narration, optional sentence/batch images, and optional video batches.
 6. **Observability** – `modules/progress_tracker.py` emits structured events that feed CLI logs and the API SSE stream; `modules/observability.py` wraps stages with structured logging/telemetry.
 

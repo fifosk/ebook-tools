@@ -113,6 +113,31 @@ const JOB_CREATION_VIEWS = new Set<SelectedView>([
   YOUTUBE_DUB_VIEW
 ]);
 
+const mergeGeneratedFiles = (
+  current: unknown,
+  incoming: unknown,
+): Record<string, unknown> | null => {
+  if (!incoming || typeof incoming !== 'object') {
+    return current && typeof current === 'object' ? (current as Record<string, unknown>) : null;
+  }
+  const incomingRecord = incoming as Record<string, unknown>;
+  if (!current || typeof current !== 'object') {
+    return incomingRecord;
+  }
+  const currentRecord = current as Record<string, unknown>;
+  const merged: Record<string, unknown> = {
+    ...currentRecord,
+    ...incomingRecord
+  };
+  const stickyKeys = ['translation_batch_stats', 'translation_fallback', 'tts_fallback'];
+  stickyKeys.forEach((key) => {
+    if (!(key in incomingRecord) && key in currentRecord) {
+      merged[key] = currentRecord[key];
+    }
+  });
+  return merged;
+};
+
 const isJobCreationView = (view: SelectedView): boolean => {
   if (typeof view === 'string' && view.startsWith('pipeline:')) {
     return true;
@@ -504,7 +529,7 @@ export function App() {
       if (nextStatus && metadata && typeof metadata === 'object') {
         const generated = (metadata as Record<string, unknown>).generated_files;
         if (generated && typeof generated === 'object') {
-          nextStatus.generated_files = generated as Record<string, unknown>;
+          nextStatus.generated_files = mergeGeneratedFiles(nextStatus.generated_files, generated);
         }
 
         const mediaCompletedMeta = (metadata as Record<string, unknown>).media_completed;

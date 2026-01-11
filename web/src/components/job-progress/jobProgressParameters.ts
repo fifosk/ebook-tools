@@ -48,6 +48,13 @@ export function buildJobParameterEntries(
     pipelineResult && pipelineResult.book_metadata && typeof pipelineResult.book_metadata === 'object'
       ? (pipelineResult.book_metadata as Record<string, unknown>)
       : null;
+  const generatedFiles =
+    status.generated_files && typeof status.generated_files === 'object'
+      ? (status.generated_files as Record<string, unknown>)
+      : null;
+  const translationFallback = coerceRecord(generatedFiles?.['translation_fallback']);
+  const translationFallbackModel = getStringField(translationFallback, 'fallback_model');
+  const translationFallbackScope = getStringField(translationFallback, 'scope');
   const languageValues = (parameters?.target_languages ?? []).filter(
     (value): value is string => typeof value === 'string' && value.trim().length > 0,
   );
@@ -59,11 +66,20 @@ export function buildJobParameterEntries(
   const translationProviderRaw =
     parameters?.translation_provider ?? getStringField(pipelineMetadata, 'translation_provider');
   const translationProvider = normalizeTranslationProvider(translationProviderRaw);
+  const translationBatchSize = coerceNumber(parameters?.translation_batch_size);
   const translationModel = getStringField(pipelineMetadata, 'translation_model');
-  const translationModelLabel = translationModel ? formatModelLabel(translationModel) : null;
+  const normalizedLlmModel = llmModelRaw ? llmModelRaw.trim().toLowerCase() : null;
+  const normalizedTranslationModel = translationModel ? translationModel.trim().toLowerCase() : null;
+  const effectiveTranslationModel =
+    translationProvider === 'llm' && normalizedLlmModel
+      ? !normalizedTranslationModel || normalizedTranslationModel !== normalizedLlmModel
+        ? llmModelRaw
+        : translationModel
+      : translationModel;
+  const translationModelLabel = effectiveTranslationModel ? formatModelLabel(effectiveTranslationModel) : null;
   const translationProviderLabel = formatTranslationProviderLabel(
     translationProvider,
-    translationModel,
+    effectiveTranslationModel,
     llmModelRaw,
   );
   const transliterationModeRaw =
@@ -71,10 +87,17 @@ export function buildJobParameterEntries(
   const transliterationMode = normalizeTransliterationMode(transliterationModeRaw);
   const transliterationModelRaw =
     parameters?.transliteration_model ?? getStringField(pipelineMetadata, 'transliteration_model');
+  const normalizedTransliterationModel = transliterationModelRaw ? transliterationModelRaw.trim().toLowerCase() : null;
+  const effectiveTransliterationModel =
+    transliterationMode === 'default' && normalizedLlmModel
+      ? !normalizedTransliterationModel || normalizedTransliterationModel !== normalizedLlmModel
+        ? llmModelRaw
+        : transliterationModelRaw
+      : transliterationModelRaw;
   const transliterationModule =
     parameters?.transliteration_module ?? getStringField(pipelineMetadata, 'transliteration_module');
   const resolvedTransliterationModel =
-    transliterationModelRaw ?? (transliterationMode === 'default' ? llmModelRaw : null);
+    effectiveTransliterationModel ?? (transliterationMode === 'default' ? llmModelRaw : null);
   const transliterationModelLabel = resolvedTransliterationModel
     ? formatModelLabel(resolvedTransliterationModel)
     : null;
@@ -293,6 +316,24 @@ export function buildJobParameterEntries(
         key: 'pipeline-translation-provider',
         label: 'Translation provider',
         value: translationProviderLabel,
+      });
+    }
+    if (translationFallbackModel) {
+      const fallbackLabel =
+        translationFallbackScope === 'transliteration'
+          ? 'Transliteration fallback model'
+          : 'Translation fallback model';
+      entries.push({
+        key: 'pipeline-translation-fallback-model',
+        label: fallbackLabel,
+        value: formatModelLabel(translationFallbackModel) ?? translationFallbackModel,
+      });
+    }
+    if (translationBatchSize !== null) {
+      entries.push({
+        key: 'pipeline-translation-batch-size',
+        label: 'LLM batch size',
+        value: translationBatchSize,
       });
     }
     if (translationModelLabel && translationProvider === 'googletrans') {

@@ -37,6 +37,20 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from .pipeline import PipelineState, RenderPipeline
 
 
+def _resolve_first_flush_size(
+    sentences_per_file: int, translation_batch_size: Optional[int]
+) -> Optional[int]:
+    if sentences_per_file <= 1 or translation_batch_size is None:
+        return None
+    try:
+        batch_size = int(translation_batch_size)
+    except (TypeError, ValueError):
+        return None
+    if batch_size <= 1 or batch_size >= sentences_per_file:
+        return None
+    return batch_size
+
+
 def process_sequential(
     self,
     *,
@@ -54,6 +68,7 @@ def process_sequential(
     sentences_per_file: int,
     include_transliteration: bool,
     translation_provider: Optional[str],
+    translation_batch_size: Optional[int],
     transliteration_mode: str,
     transliteration_client,
     output_html: bool,
@@ -65,6 +80,9 @@ def process_sequential(
 ) -> None:
     batch_size = worker_count
     processed = 0
+    first_flush_size = _resolve_first_flush_size(
+        sentences_per_file, translation_batch_size
+    )
     while processed < total_refined:
         if self._should_stop():
             console_info(
@@ -90,9 +108,11 @@ def process_sequential(
             batch_targets,
             include_transliteration=include_transliteration,
             translation_provider=translation_provider,
+            llm_batch_size=translation_batch_size,
             client=translation_client,
             worker_pool=worker_pool,
             max_workers=worker_count,
+            sentence_numbers=batch_sentence_numbers,
         )
 
         for sentence_number, sentence, current_target, translation_result in zip(
@@ -180,6 +200,8 @@ def process_sequential(
                 audio_segment=audio_segment,
                 original_audio_segment=original_audio_segment,
                 voice_metadata=voice_metadata,
+                first_flush_size=first_flush_size,
+                first_batch_start=start_sentence,
             )
             processed += 1
 
@@ -206,6 +228,7 @@ def process_pipeline(
     sentences_per_file: int,
     include_transliteration: bool,
     translation_provider: Optional[str],
+    translation_batch_size: Optional[int],
     transliteration_mode: str,
     transliteration_client,
     output_html: bool,
@@ -265,6 +288,10 @@ def process_pipeline(
         stop_event=pipeline_stop_event,
     )
 
+    first_flush_size = _resolve_first_flush_size(
+        sentences_per_file, translation_batch_size
+    )
+
     target_sequence = build_target_sequence(
         target_languages,
         total_refined,
@@ -287,6 +314,7 @@ def process_pipeline(
         transliteration_mode=transliteration_mode,
         transliteration_client=transliteration_client,
         include_transliteration=include_transliteration,
+        llm_batch_size=translation_batch_size,
     )
 
     buffered_results = {}
@@ -452,11 +480,18 @@ def process_pipeline(
                     sentence_text=str(item.sentence or "").strip(),
                 )
 
+                sentences_in_chunk = item.sentence_number - state.current_batch_start + 1
                 should_flush = (
-                    (item.sentence_number - state.current_batch_start + 1)
-                    % sentences_per_file
-                    == 0
+                    sentences_in_chunk % sentences_per_file == 0
                 ) and not pipeline_stop_event.is_set()
+                if (
+                    not should_flush
+                    and first_flush_size
+                    and state.current_batch_start == start_sentence
+                    and sentences_in_chunk >= first_flush_size
+                    and not pipeline_stop_event.is_set()
+                ):
+                    should_flush = True
                 if should_flush:
                     audio_tracks: Dict[str, List[AudioSegment]] = {}
                     if state.current_original_segments:

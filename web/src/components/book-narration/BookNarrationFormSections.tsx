@@ -345,11 +345,13 @@ export function BookNarrationFormSections({
           threadCount={formState.thread_count}
           queueSize={formState.queue_size}
           jobMaxWorkers={formState.job_max_workers}
+          translationBatchSize={formState.translation_batch_size}
           slideParallelism={formState.slide_parallelism}
           slideParallelWorkers={formState.slide_parallel_workers}
           onThreadCountChange={(value) => handleChange('thread_count', value)}
           onQueueSizeChange={(value) => handleChange('queue_size', value)}
           onJobMaxWorkersChange={(value) => handleChange('job_max_workers', value)}
+          onTranslationBatchSizeChange={(value) => handleChange('translation_batch_size', value)}
           onSlideParallelismChange={(value) => handleChange('slide_parallelism', value)}
           onSlideParallelWorkersChange={(value) => handleChange('slide_parallel_workers', value)}
         />

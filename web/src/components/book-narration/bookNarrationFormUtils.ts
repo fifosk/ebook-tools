@@ -414,6 +414,13 @@ export function applyConfigDefaults(previous: FormState, config: Record<string, 
     next.translation_provider = translationProvider.trim();
   }
 
+  const translationBatchSize = coerceNumber(
+    config['translation_batch_size'] ?? config['translation_llm_batch_size'] ?? config['llm_batch_size'],
+  );
+  if (translationBatchSize !== undefined) {
+    next.translation_batch_size = Math.max(1, Math.trunc(translationBatchSize));
+  }
+
   const transliterationMode = config['transliteration_mode'];
   if (typeof transliterationMode === 'string' && transliterationMode.trim()) {
     next.transliteration_mode = transliterationMode.trim();

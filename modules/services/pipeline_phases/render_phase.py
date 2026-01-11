@@ -52,6 +52,7 @@ def execute_render_phase(
         generate_images=bool(getattr(request.inputs, "add_images", False)),
         include_transliteration=request.inputs.include_transliteration,
         translation_provider=getattr(request.inputs, "translation_provider", None),
+        translation_batch_size=getattr(request.inputs, "translation_batch_size", None),
         transliteration_mode=getattr(request.inputs, "transliteration_mode", None),
         book_metadata=metadata_result.metadata.as_dict(),
     )

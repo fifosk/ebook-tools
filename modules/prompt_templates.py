@@ -140,6 +140,90 @@ def make_translation_prompt(
     return "\n".join(instructions)
 
 
+def make_translation_batch_prompt(
+    source_language: str,
+    target_language: str,
+    *,
+    mode: str = "default",
+    include_transliteration: bool = False,
+) -> str:
+    """Build a translation prompt for JSON batch requests."""
+
+    target_lower = target_language.lower()
+
+    instructions = [
+        f"Translate each item from {source_language} to {target_language}.",
+        "The input is a JSON object with an `items` array; each item includes an `id` and `text`.",
+        "Return ONLY valid JSON with an `items` array of objects.",
+        "Each output item MUST include `id`, `translation`, and `transliteration` fields.",
+        "Never include markdown, code fences, commentary, or labels.",
+        "Do not include the source text in the response.",
+        "The `translation` and `transliteration` values must be single-line strings without line breaks.",
+        "If you cannot translate an item, return an empty string for `translation` (and `transliteration`).",
+    ]
+
+    if mode == "literal":
+        instructions.append("Ensure the translation is as literal as possible while remaining grammatical.")
+    elif mode == "fluency":
+        instructions.append("Focus on producing a fluent, idiomatic translation that reads naturally.")
+
+    for lang_name, config in _SEGMENTATION_REQUIREMENTS.items():
+        if any(alias in target_lower for alias in config["aliases"]):
+            example = config.get("example")
+            example_suffix = f' EXAMPLE: "{example}"' if example else ""
+            instructions.append(
+                f"Return the {lang_name.capitalize()} translation on ONE LINE with SPACES between every word/phrase (explicit word segmentation). Do NOT add newlines or per-character spacing; keep punctuation minimal and only where it belongs.{example_suffix}"
+            )
+            if lang_name == "khmer":
+                instructions.append(
+                    "For Khmer specifically, force clear space-separated Khmer WORDS using normal U+0020 spaces (no zero-width spaces), never insert per-syllable spacing inside a word, and avoid run-on text. Do NOT use Latin script or transliteration. Aim for a close word-for-word mapping to the source (one Khmer word per source word/phrase) unless an idiomatic grouping is required. Reject any per-syllable segmentation—words must stay intact."
+                )
+            if lang_name == "burmese":
+                instructions.append(
+                    "For Burmese specifically, insert normal spaces between words/phrases (avoid per-syllable or per-character spacing), keep native Myanmar script only (no Latin), and avoid run-on text."
+                )
+
+    if include_transliteration:
+        instructions.append(
+            "Populate the `transliteration` field ONLY when a transliteration is appropriate; otherwise use an empty string."
+        )
+        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["thai"]["aliases"]):
+            instructions.append(
+                "When providing the Thai transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
+            )
+        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["burmese"]["aliases"]):
+            instructions.append(
+                "When providing the Burmese transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
+            )
+        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["japanese"]["aliases"]):
+            instructions.append(
+                "When providing the Japanese transliteration (romaji), keep it on ONE LINE, separate words or phrases with SPACES (NOT per-character or per-syllable), avoid labels, and mimic the segmentation in the translation field."
+            )
+        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["khmer"]["aliases"]):
+            instructions.append(
+                "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
+            )
+    else:
+        instructions.append("Always return an empty string for `transliteration`.")
+
+    instructions.extend(language_policies.script_prompt_instructions(target_language))
+
+    if target_lower in _ROMANI_ALIASES:
+        instructions.append(
+            "Translate into Romani (ISO 639-2 rom, the Romany language of Roma communities), NOT Romanian. Use authentic Romani vocabulary and grammar and avoid Romanian words unless they are genuine Romani loanwords."
+        )
+    if target_lower in _PASHTO_ALIASES:
+        instructions.append(
+            "Translate into Pashto (ISO 639-1 ps), NOT Urdu or Hindi. Use authentic Pashto vocabulary and grammar, written in Pashto’s Arabic-derived script, and avoid Urdu/Hindi calques unless they are genuine Pashto usage."
+        )
+
+    for requirement in _DIACRITIC_REQUIREMENTS.values():
+        if any(alias in target_lower for alias in requirement["aliases"]):
+            instructions.append(requirement["instruction"])
+
+    return "\n".join(instructions)
+
+
 def make_transliteration_prompt(target_language: str) -> str:
     """Prompt for requesting a transliteration from the model."""
 

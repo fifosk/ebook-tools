@@ -90,6 +90,7 @@ class RenderPipeline:
         generate_images: bool = False,
         include_transliteration: bool = False,
         translation_provider: Optional[str] = None,
+        translation_batch_size: Optional[int] = None,
         transliteration_mode: Optional[str] = None,
         book_metadata: Optional[dict] = None,
     ) -> Tuple[
@@ -221,6 +222,7 @@ class RenderPipeline:
                     sentences_per_file=sentences_per_file,
                     include_transliteration=include_transliteration,
                     translation_provider=translation_provider,
+                    translation_batch_size=translation_batch_size,
                     transliteration_mode=normalized_transliteration_mode,
                     transliteration_client=transliteration_client,
                     output_html=output_html,
@@ -251,6 +253,7 @@ class RenderPipeline:
                     sentences_per_file=sentences_per_file,
                     include_transliteration=include_transliteration,
                     translation_provider=translation_provider,
+                    translation_batch_size=translation_batch_size,
                     transliteration_mode=normalized_transliteration_mode,
                     transliteration_client=transliteration_client,
                     output_html=output_html,
@@ -568,6 +571,8 @@ class RenderPipeline:
         audio_segment: Optional[AudioSegment],
         original_audio_segment: Optional[AudioSegment] = None,
         voice_metadata: Optional[Mapping[str, Mapping[str, str]]] = None,
+        first_flush_size: Optional[int] = None,
+        first_batch_start: Optional[int] = None,
     ) -> None:
         written_block, video_block = build_written_and_video_blocks(
             sentence_number=sentence_number,
@@ -632,9 +637,16 @@ class RenderPipeline:
         if state.all_sentence_metadata is not None:
             state.all_sentence_metadata.append(metadata_payload)
 
-        should_flush = (
-            (sentence_number - state.current_batch_start + 1) % sentences_per_file == 0
-        )
+        sentences_in_chunk = sentence_number - state.current_batch_start + 1
+        should_flush = sentences_in_chunk % sentences_per_file == 0
+        if (
+            not should_flush
+            and first_flush_size
+            and first_batch_start is not None
+            and state.current_batch_start == first_batch_start
+            and sentences_in_chunk >= first_flush_size
+        ):
+            should_flush = True
         if should_flush:
             audio_tracks: Dict[str, List[AudioSegment]] = {}
             if state.current_original_segments:
@@ -688,6 +700,7 @@ class RenderPipeline:
         sentences_per_file: int,
         include_transliteration: bool,
         translation_provider: Optional[str],
+        translation_batch_size: Optional[int],
         transliteration_mode: str,
         transliteration_client,
         output_html: bool,
@@ -713,6 +726,7 @@ class RenderPipeline:
             sentences_per_file=sentences_per_file,
             include_transliteration=include_transliteration,
             translation_provider=translation_provider,
+            translation_batch_size=translation_batch_size,
             transliteration_mode=transliteration_mode,
             transliteration_client=transliteration_client,
             output_html=output_html,
@@ -745,6 +759,7 @@ class RenderPipeline:
         sentences_per_file: int,
         include_transliteration: bool,
         translation_provider: Optional[str],
+        translation_batch_size: Optional[int],
         transliteration_mode: str,
         transliteration_client,
         output_html: bool,
@@ -775,6 +790,7 @@ class RenderPipeline:
             sentences_per_file=sentences_per_file,
             include_transliteration=include_transliteration,
             translation_provider=translation_provider,
+            translation_batch_size=translation_batch_size,
             transliteration_mode=transliteration_mode,
             transliteration_client=transliteration_client,
             output_html=output_html,

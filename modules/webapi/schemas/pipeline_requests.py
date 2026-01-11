@@ -33,6 +33,7 @@ class PipelineInputPayload(BaseModel):
     add_images: bool = False
     include_transliteration: bool = True
     translation_provider: str = "llm"
+    translation_batch_size: int = 10
     transliteration_mode: str = "default"
     tempo: float = 1.0
     voice_overrides: Dict[str, str] = Field(default_factory=dict)

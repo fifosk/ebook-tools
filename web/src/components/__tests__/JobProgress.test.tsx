@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { JobProgress } from '../JobProgress';
 import type { PipelineStatusResponse, ProgressEventPayload } from '../../api/dtos';
 
@@ -151,6 +151,8 @@ describe('JobProgress', () => {
         canManage={true}
       />
     );
+
+    fireEvent.click(screen.getByRole('tab', { name: /metadata/i }));
 
     expect(screen.getByText('Book metadata')).toBeInTheDocument();
     expect(screen.getByText('Example Title')).toBeInTheDocument();

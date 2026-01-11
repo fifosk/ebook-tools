@@ -495,6 +495,11 @@ export function BookNarrationForm({
         typeof prefillParameters.translation_provider === 'string' && prefillParameters.translation_provider.trim()
           ? prefillParameters.translation_provider.trim()
           : previous.translation_provider;
+      const translationBatchSize =
+        typeof prefillParameters.translation_batch_size === 'number' &&
+        Number.isFinite(prefillParameters.translation_batch_size)
+          ? Math.max(1, Math.trunc(prefillParameters.translation_batch_size))
+          : previous.translation_batch_size;
       const transliterationMode =
         typeof prefillParameters.transliteration_mode === 'string' && prefillParameters.transliteration_mode.trim()
           ? prefillParameters.transliteration_mode.trim()
@@ -522,6 +527,7 @@ export function BookNarrationForm({
         tempo,
         include_transliteration: includeTransliteration,
         translation_provider: translationProvider,
+        translation_batch_size: translationBatchSize,
         transliteration_mode: transliterationMode,
         add_images: addImages,
         voice_overrides: voiceOverrides

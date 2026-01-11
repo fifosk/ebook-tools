@@ -109,6 +109,10 @@ export function useBookNarrationSubmit({
         if (audioBitrate !== undefined) {
           pipelineOverrides.audio_bitrate_kbps = Math.max(32, Math.trunc(audioBitrate));
         }
+        const rawTranslationBatchSize = Number(formState.translation_batch_size);
+        const normalizedTranslationBatchSize = Number.isFinite(rawTranslationBatchSize)
+          ? Math.trunc(rawTranslationBatchSize)
+          : 10;
         if (formState.add_images) {
           pipelineOverrides.image_prompt_pipeline =
             normalizeImagePromptPipeline(formState.image_prompt_pipeline) ?? 'prompt_plan';
@@ -250,6 +254,7 @@ export function useBookNarrationSubmit({
             add_images: formState.add_images,
             include_transliteration: formState.include_transliteration,
             translation_provider: formState.translation_provider,
+            translation_batch_size: Math.max(1, normalizedTranslationBatchSize),
             transliteration_mode: formState.transliteration_mode,
             tempo: Number(formState.tempo),
             book_metadata: json.book_metadata,

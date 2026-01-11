@@ -228,6 +228,28 @@ def _set_if_blank(metadata: Dict[str, Any], key: str, value: Optional[str]) -> N
     metadata[key] = trimmed
 
 
+def _set_if_blank_or_override(
+    metadata: Dict[str, Any],
+    key: str,
+    value: Optional[str],
+    *,
+    requested_key: Optional[str] = None,
+) -> None:
+    if value is None:
+        return
+    trimmed = value.strip()
+    if not trimmed:
+        return
+    existing = metadata.get(key)
+    if isinstance(existing, str) and existing.strip():
+        existing_trimmed = existing.strip()
+        if existing_trimmed != trimmed and requested_key:
+            requested_existing = metadata.get(requested_key)
+            if not (isinstance(requested_existing, str) and requested_existing.strip()):
+                metadata[requested_key] = existing_trimmed
+    metadata[key] = trimmed
+
+
 def _set_list_if_blank(metadata: Dict[str, Any], key: str, values: list[str]) -> None:
     if not values:
         return
@@ -288,12 +310,14 @@ def _apply_language_metadata(
     for payload in (request_payload, resume_context):
         if not isinstance(payload, Mapping):
             continue
-        pipeline_overrides = payload.get("pipeline_overrides")
-        if isinstance(pipeline_overrides, Mapping):
-            llm_model = _normalize_option_label(pipeline_overrides.get("ollama_model")) or llm_model
         config_section = payload.get("config")
         if isinstance(config_section, Mapping):
             llm_model = _normalize_option_label(config_section.get("ollama_model")) or llm_model
+        pipeline_overrides = payload.get("pipeline_overrides")
+        if isinstance(pipeline_overrides, Mapping):
+            override_model = _normalize_option_label(pipeline_overrides.get("ollama_model"))
+            if override_model:
+                llm_model = override_model
         if llm_model:
             break
 
@@ -318,9 +342,19 @@ def _apply_language_metadata(
             transliteration_module = resolve_local_transliteration_module(target_for_module)
 
     _set_if_blank(book_metadata, "translation_provider", translation_provider)
-    _set_if_blank(book_metadata, "translation_model", translation_model)
+    _set_if_blank_or_override(
+        book_metadata,
+        "translation_model",
+        translation_model,
+        requested_key="translation_model_requested",
+    )
     _set_if_blank(book_metadata, "transliteration_mode", transliteration_mode)
-    _set_if_blank(book_metadata, "transliteration_model", transliteration_model)
+    _set_if_blank_or_override(
+        book_metadata,
+        "transliteration_model",
+        transliteration_model,
+        requested_key="transliteration_model_requested",
+    )
     _set_if_blank(book_metadata, "transliteration_module", transliteration_module)
 
 

@@ -5,11 +5,13 @@ type BookNarrationPerformanceSectionProps = {
   threadCount: string;
   queueSize: string;
   jobMaxWorkers: string;
+  translationBatchSize: number;
   slideParallelism: string;
   slideParallelWorkers: string;
   onThreadCountChange: (value: string) => void;
   onQueueSizeChange: (value: string) => void;
   onJobMaxWorkersChange: (value: string) => void;
+  onTranslationBatchSizeChange: (value: number) => void;
   onSlideParallelismChange: (value: string) => void;
   onSlideParallelWorkersChange: (value: string) => void;
 };
@@ -21,11 +23,13 @@ const BookNarrationPerformanceSection = ({
   threadCount,
   queueSize,
   jobMaxWorkers,
+  translationBatchSize,
   slideParallelism,
   slideParallelWorkers,
   onThreadCountChange,
   onQueueSizeChange,
   onJobMaxWorkersChange,
+  onTranslationBatchSizeChange,
   onSlideParallelismChange,
   onSlideParallelWorkersChange
 }: BookNarrationPerformanceSectionProps) => {
@@ -82,6 +86,22 @@ const BookNarrationPerformanceSection = ({
                 placeholder="Default"
               />
             </label>
+            <label htmlFor="translation_batch_size">
+              LLM batch size (sentences per request)
+              <input
+                id="translation_batch_size"
+                name="translation_batch_size"
+                type="number"
+                min={1}
+                max={50}
+                step={1}
+                value={translationBatchSize}
+                onChange={(event) => onTranslationBatchSizeChange(Number(event.target.value))}
+              />
+            </label>
+            <p className="form-help-text">
+              Batches multiple sentences into one LLM call. Use 1 to disable batching.
+            </p>
           </details>
           <details>
             <summary>Slide rendering</summary>

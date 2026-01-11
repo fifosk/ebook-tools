@@ -50,6 +50,7 @@ export const DEFAULT_FORM_STATE: FormState = {
   image_api_timeout_seconds: '300',
   include_transliteration: true,
   translation_provider: 'llm',
+  translation_batch_size: 10,
   transliteration_mode: 'default',
   tempo: 1,
   thread_count: '',

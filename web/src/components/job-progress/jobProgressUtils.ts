@@ -48,6 +48,21 @@ const TUNING_LABELS: Record<string, string> = {
   slide_parallel_workers: 'Slide workers',
 };
 
+const TUNING_DESCRIPTIONS: Record<string, string> = {
+  hardware_profile: 'Hardware profile used to pick tuning defaults.',
+  detected_cpu_cores: 'Auto-detected CPU cores used for sizing workers.',
+  detected_memory_gib: 'Auto-detected RAM used for sizing workers.',
+  pipeline_mode: 'Streams translation and media together for faster first output.',
+  thread_count: 'Caps translation and audio worker threads (parallel LLM and TTS calls).',
+  translation_pool_workers: 'Actual translation worker threads in use (parallel LLM calls).',
+  translation_pool_mode: 'Worker pool implementation used for translations.',
+  queue_size: 'Buffer between translation and media workers; larger means more in-flight tasks.',
+  job_worker_slots: 'Max concurrent jobs the server can execute.',
+  job_max_workers: 'Configured job concurrency limit (may be capped by hardware).',
+  slide_parallelism: 'Slide rendering parallelism mode.',
+  slide_parallel_workers: 'Parallel slide render workers (video/HTML export).',
+};
+
 const TUNING_ORDER: string[] = [
   'hardware_profile',
   'detected_cpu_cores',
@@ -158,6 +173,10 @@ export function formatTransliterationModeLabel(mode: string | null): string | nu
 
 export function formatTuningLabel(key: string): string {
   return TUNING_LABELS[key] ?? key.replace(/_/g, ' ');
+}
+
+export function formatTuningDescription(key: string): string | null {
+  return TUNING_DESCRIPTIONS[key] ?? null;
 }
 
 export function formatTuningValue(value: unknown): string {
@@ -573,6 +592,19 @@ export function formatSecondsPerImage(value: number | null): string {
     return `${value.toFixed(1)} s/image`;
   }
   return `${Math.round(value)} s/image`;
+}
+
+export function formatSeconds(value: number | null, suffix: string = 's'): string {
+  if (value === null || !Number.isFinite(value) || value <= 0) {
+    return `— ${suffix}`;
+  }
+  if (value < 1) {
+    return `${value.toFixed(2)} ${suffix}`;
+  }
+  if (value < 10) {
+    return `${value.toFixed(1)} ${suffix}`;
+  }
+  return `${Math.round(value)} ${suffix}`;
 }
 
 export function countGeneratedImages(status: PipelineStatusResponse | undefined): number {

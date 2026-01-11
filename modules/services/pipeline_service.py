@@ -60,6 +60,7 @@ class PipelineInput:
     include_transliteration: bool
     tempo: float
     translation_provider: str = "llm"
+    translation_batch_size: int = 10
     transliteration_mode: str = "default"
     book_metadata: PipelineMetadata = field(default_factory=PipelineMetadata)
     voice_overrides: Dict[str, str] = field(default_factory=dict)
@@ -81,6 +82,11 @@ class PipelineInput:
                     continue
                 sanitized[normalized_key] = normalized_value
             self.voice_overrides = sanitized
+        try:
+            batch_size = int(self.translation_batch_size)
+        except (TypeError, ValueError):
+            batch_size = 1
+        self.translation_batch_size = max(1, batch_size)
 
 
 @dataclass(slots=True)

@@ -78,6 +78,7 @@ export type FormState = {
   image_api_timeout_seconds: string;
   include_transliteration: boolean;
   translation_provider: string;
+  translation_batch_size: number;
   transliteration_mode: string;
   tempo: number;
   thread_count: string;

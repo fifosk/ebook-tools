@@ -62,9 +62,11 @@ def translate_batch(
     include_transliteration: bool = False,
     translation_provider: Optional[str] = None,
     max_workers: Optional[int] = None,
+    llm_batch_size: Optional[int] = None,
     client=None,
     worker_pool=None,
     progress_tracker=None,
+    sentence_numbers: Optional[Sequence[int]] = None,
 ) -> List[str]:
     """Translate ``sentences`` sequentially for the provided ``target_languages``."""
 
@@ -75,9 +77,11 @@ def translate_batch(
         include_transliteration=include_transliteration,
         translation_provider=translation_provider,
         max_workers=max_workers,
+        llm_batch_size=llm_batch_size,
         client=client,
         worker_pool=worker_pool,
         progress_tracker=progress_tracker,
+        sentence_numbers=sentence_numbers,
     )
 
 
@@ -129,6 +133,7 @@ def start_translation_pipeline(
     transliteration_mode: Optional[str] = None,
     transliteration_client=None,
     include_transliteration: bool = False,
+    llm_batch_size: Optional[int] = None,
 ):
     """Start the background translation pipeline using the translation engine."""
 
@@ -149,4 +154,5 @@ def start_translation_pipeline(
         transliteration_mode=transliteration_mode,
         transliteration_client=transliteration_client,
         include_transliteration=include_transliteration,
+        llm_batch_size=llm_batch_size,
     )

@@ -53,6 +53,7 @@ class JobParameterSnapshot(BaseModel):
     include_transliteration: Optional[bool] = None
     add_images: Optional[bool] = None
     translation_provider: Optional[str] = None
+    translation_batch_size: Optional[int] = None
     transliteration_mode: Optional[str] = None
     transliteration_model: Optional[str] = None
     transliteration_module: Optional[str] = None
@@ -322,6 +323,7 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
     include_transliteration = _coerce_bool(inputs.get("include_transliteration"))
     add_images = _coerce_bool(inputs.get("add_images"))
     translation_provider = _coerce_str(inputs.get("translation_provider"))
+    translation_batch_size = _coerce_int(inputs.get("translation_batch_size"))
     transliteration_mode_raw = _coerce_str(inputs.get("transliteration_mode"))
 
     input_file = _coerce_str(inputs.get("input_file"))
@@ -382,6 +384,7 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         include_transliteration=include_transliteration,
         add_images=add_images,
         translation_provider=translation_provider,
+        translation_batch_size=translation_batch_size,
         transliteration_mode=normalized_transliteration_mode,
         transliteration_model=transliteration_model,
         transliteration_module=transliteration_module,

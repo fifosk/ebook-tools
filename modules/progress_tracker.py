@@ -83,6 +83,7 @@ class ProgressTracker:
         self._lock = threading.Lock()
         self._start_time = time.perf_counter()
         self._completed = 0
+        self._translation_completed = 0
         self._total: Optional[int] = total_blocks
         self._report_interval = max(0.1, report_interval)
         self._finished_event = threading.Event()
@@ -127,15 +128,29 @@ class ProgressTracker:
 
         now = time.perf_counter()
         with self._lock:
+            already_recorded = sentence_number in self._translation_timestamps
             self._translation_timestamps[sentence_number] = now
-            # No completion counter increment here; consumer completions drive progress.
+            if not already_recorded:
+                self._translation_completed += 1
+            translation_completed = self._translation_completed
+            total = self._total
+        translation_snapshot = self._build_progress_snapshot(
+            completed=translation_completed,
+            total=total,
+            now=now,
+        )
+        metadata = {
+            "stage": "translation",
+            "index": index,
+            "sentence_number": sentence_number,
+            "translation_completed": translation_completed,
+        }
+        if total is not None:
+            metadata["translation_total"] = total
         self._emit_event(
             "progress",
-            metadata={
-                "stage": "translation",
-                "index": index,
-                "sentence_number": sentence_number,
-            },
+            snapshot=translation_snapshot,
+            metadata=metadata,
         )
 
     def record_retry(self, stage: str, reason: str) -> None:
@@ -330,10 +345,18 @@ class ProgressTracker:
 
         if not payload:
             return
+        event_payload = copy.deepcopy(dict(payload))
         with self._lock:
             for key, value in payload.items():
                 self._generated_files_extras[key] = copy.deepcopy(value)
             self._generated_files_snapshot = self._build_generated_files_snapshot_locked()
+        self._emit_event(
+            "progress",
+            metadata={
+                "stage": "generated_files",
+                "generated_files": event_payload,
+            },
+        )
 
     def get_retry_counts(self) -> Dict[str, Dict[str, int]]:
         """Return a snapshot of retry counters grouped by stage and reason."""
@@ -355,8 +378,17 @@ class ProgressTracker:
         with self._lock:
             completed = self._completed
             total = self._total
-        now = time.perf_counter()
-        elapsed = max(0.0, now - self._start_time)
+        return self._build_progress_snapshot(completed=completed, total=total)
+
+    def _build_progress_snapshot(
+        self,
+        *,
+        completed: int,
+        total: Optional[int],
+        now: Optional[float] = None,
+    ) -> ProgressSnapshot:
+        timestamp = now if now is not None else time.perf_counter()
+        elapsed = max(0.0, timestamp - self._start_time)
         if elapsed > 0 and completed > 0:
             speed = completed / elapsed
         else:

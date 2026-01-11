@@ -17,16 +17,21 @@ import {
   CREATION_METADATA_KEYS,
   TERMINAL_STATES,
   buildImageClusterNodes,
+  coerceNumber,
   coerceRecord,
   formatDate,
   formatFallbackValue,
   formatMetadataLabel,
   formatMetadataValue,
+  formatSeconds,
   formatSecondsPerImage,
+  formatTuningDescription,
   formatTuningLabel,
   formatTuningValue,
+  formatTranslationProviderLabel,
   normaliseStringList,
   normalizeMetadataValue,
+  normalizeTranslationProvider,
   normalizeTextValue,
   resolveImageClusterSummary,
   sortTuningEntries,
@@ -52,6 +57,7 @@ type Props = {
 };
 
 type SubtitleJobTab = 'overview' | 'metadata';
+type BookJobTab = 'overview' | 'metadata' | 'permissions';
 export function JobProgress({
   jobId,
   status,
@@ -214,6 +220,76 @@ export function JobProgress({
     });
     return sortTuningEntries(filtered);
   }, [status?.tuning]);
+  const parallelismEntries = useMemo(() => {
+    const entries: Array<{ label: string; value: string; hint?: string }> = [];
+    const tuning = status?.tuning ?? null;
+    const tuningRecord = coerceRecord(tuning);
+    const threadCount =
+      coerceNumber(tuningRecord?.thread_count) ?? coerceNumber(pipelineConfig?.thread_count);
+    const translationPool =
+      coerceNumber(tuningRecord?.translation_pool_workers) ?? threadCount;
+    const translationProviderRaw =
+      status?.parameters?.translation_provider ?? metadata['translation_provider'] ?? null;
+    const translationProvider = normalizeTranslationProvider(translationProviderRaw);
+    const translationModel = normalizeTextValue(metadata['translation_model']);
+    const llmModel = normalizeTextValue(status?.parameters?.llm_model);
+    const providerLabel =
+      formatTranslationProviderLabel(
+        translationProvider,
+        translationModel,
+        llmModel
+      ) ?? 'Text translation';
+    const llmSourceRaw = pipelineConfig?.llm_source;
+    const llmSource = typeof llmSourceRaw === 'string' ? llmSourceRaw.trim().toLowerCase() : null;
+    const batchSize = coerceNumber(status?.parameters?.translation_batch_size);
+    if (translationPool !== null) {
+      const hintParts = ['Controlled by Worker threads'];
+      if (translationProvider === 'llm' && llmSource) {
+        hintParts.push(`LLM source: ${llmSource}`);
+      }
+      if (batchSize !== null && batchSize > 1) {
+        hintParts.push(`Batch size: ${batchSize} sentences/request`);
+        if (translationProvider === 'llm' && llmSource === 'local') {
+          hintParts.push('Local LLM batching caps to 1 call');
+        }
+      }
+      entries.push({
+        label: `${providerLabel} parallel calls`,
+        value: formatTuningValue(translationPool),
+        hint: hintParts.join('. ')
+      });
+    }
+    if (threadCount !== null) {
+      const audioHintParts = ['Controlled by Worker threads'];
+      const selectedVoice = normalizeTextValue(
+        status?.parameters?.selected_voice ?? pipelineConfig?.selected_voice
+      );
+      const generateAudio = pipelineConfig?.generate_audio;
+      if (selectedVoice) {
+        audioHintParts.push(`Voice: ${selectedVoice}`);
+      }
+      if (generateAudio === false) {
+        audioHintParts.push('Audio disabled for this job');
+      }
+      entries.push({
+        label: 'TTS parallel calls',
+        value: formatTuningValue(threadCount),
+        hint: audioHintParts.join('. ')
+      });
+    }
+    return entries;
+  }, [
+    metadata,
+    pipelineConfig?.generate_audio,
+    pipelineConfig?.llm_source,
+    pipelineConfig?.selected_voice,
+    pipelineConfig?.thread_count,
+    status?.parameters?.llm_model,
+    status?.parameters?.selected_voice,
+    status?.parameters?.translation_batch_size,
+    status?.parameters?.translation_provider,
+    status?.tuning
+  ]);
   const fallbackEntries = useMemo(() => {
     const generated = coerceRecord(status?.generated_files);
     if (!generated) {
@@ -270,6 +346,53 @@ export function JobProgress({
       : undefined;
   const showLibraryReadyNotice = canManage && isLibraryCandidate;
   const jobParameterEntries = useMemo(() => buildJobParameterEntries(status), [status]);
+  const batchStats = useMemo(() => {
+    const generated = status?.generated_files;
+    if (!generated || typeof generated !== 'object') {
+      return null;
+    }
+    return coerceRecord((generated as Record<string, unknown>)['translation_batch_stats']);
+  }, [status?.generated_files]);
+  const batchStatEntries = useMemo(() => {
+    const entries: [string, string][] = [];
+    const configuredBatchSize = coerceNumber(status?.parameters?.translation_batch_size);
+    const statsBatchSize = coerceNumber(batchStats?.['batch_size']);
+    const resolvedBatchSize = statsBatchSize ?? configuredBatchSize;
+    if (resolvedBatchSize !== null && resolvedBatchSize > 1) {
+      entries.push(['Batch size', resolvedBatchSize.toString()]);
+    }
+    if (!batchStats) {
+      if (resolvedBatchSize !== null && resolvedBatchSize > 1) {
+        entries.push(['Batches completed', '0']);
+        entries.push(['Items translated', '0']);
+      }
+      return entries;
+    }
+    const batches = coerceNumber(batchStats['batches_completed']);
+    if (batches !== null) {
+      entries.push(['Batches completed', batches.toString()]);
+    }
+    const items = coerceNumber(batchStats['items_completed']);
+    if (items !== null) {
+      entries.push(['Items translated', items.toString()]);
+    }
+    const avgBatch = coerceNumber(batchStats['avg_batch_seconds']);
+    if (avgBatch !== null) {
+      entries.push(['Avg batch time', formatSeconds(avgBatch, 's/batch')]);
+    }
+    const avgItem = coerceNumber(batchStats['avg_item_seconds']);
+    if (avgItem !== null) {
+      entries.push(['Avg item time', formatSeconds(avgItem, 's/item')]);
+    }
+    const lastBatch = coerceNumber(batchStats['last_batch_seconds']);
+    const lastItems = coerceNumber(batchStats['last_batch_items']);
+    if (lastBatch !== null) {
+      const suffix =
+        lastItems !== null ? ` (${lastItems} sentence${lastItems === 1 ? '' : 's'})` : '';
+      entries.push(['Last batch time', `${formatSeconds(lastBatch, 's/batch')}${suffix}`]);
+    }
+    return entries;
+  }, [batchStats, status?.parameters?.translation_batch_size]);
   const statusGlyph = getStatusGlyph(statusValue);
   const jobLabel = useMemo(() => normalizeTextValue(status?.job_label) ?? null, [status?.job_label]);
   const ownerId = typeof status?.user_id === 'string' ? status.user_id : null;
@@ -292,12 +415,21 @@ export function JobProgress({
     [imageClusterSummary, pipelineConfig, imageGenerationEnabled]
   );
   const [subtitleTab, setSubtitleTab] = useState<SubtitleJobTab>('overview');
+  const [bookTab, setBookTab] = useState<BookJobTab>('overview');
   useEffect(() => {
     if (!supportsTvMetadata) {
       setSubtitleTab('overview');
     }
   }, [supportsTvMetadata]);
+  useEffect(() => {
+    if (!isBookJob) {
+      setBookTab('overview');
+    }
+  }, [isBookJob]);
   const showMediaMetadata = supportsTvMetadata && subtitleTab === 'metadata';
+  const showOverviewSections = !isBookJob || bookTab === 'overview';
+  const showMetadataSections = !isBookJob || bookTab === 'metadata';
+  const showPermissionsSections = !isBookJob || bookTab === 'permissions';
 
   return (
     <div className="job-card" aria-live="polite">
@@ -377,7 +509,38 @@ export function JobProgress({
         canManage={canManage}
         onReload={onReload}
       />
-      {jobParameterEntries.length > 0 ? (
+      {isBookJob ? (
+        <div className="job-card__tabs" role="tablist" aria-label="Book job tabs">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={bookTab === 'overview'}
+            className={`job-card__tab ${bookTab === 'overview' ? 'is-active' : ''}`}
+            onClick={() => setBookTab('overview')}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={bookTab === 'metadata'}
+            className={`job-card__tab ${bookTab === 'metadata' ? 'is-active' : ''}`}
+            onClick={() => setBookTab('metadata')}
+          >
+            Metadata
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={bookTab === 'permissions'}
+            className={`job-card__tab ${bookTab === 'permissions' ? 'is-active' : ''}`}
+            onClick={() => setBookTab('permissions')}
+          >
+            Permissions
+          </button>
+        </div>
+      ) : null}
+      {showOverviewSections && jobParameterEntries.length > 0 ? (
         <div className="job-card__section">
           <h4>Job parameters</h4>
           <dl className="metadata-grid">
@@ -390,16 +553,18 @@ export function JobProgress({
           </dl>
         </div>
       ) : null}
-      <div className="job-card__section">
-        <AccessPolicyEditor
-          policy={accessPolicy}
-          ownerId={ownerId}
-          defaultVisibility={accessDefaultVisibility}
-          canEdit={canManage}
-          onSave={onUpdateAccess}
-        />
-      </div>
-      {isBookJob && imageClusterNodes.length > 0 ? (
+      {showPermissionsSections ? (
+        <div className="job-card__section">
+          <AccessPolicyEditor
+            policy={accessPolicy}
+            ownerId={ownerId}
+            defaultVisibility={accessDefaultVisibility}
+            canEdit={canManage}
+            onSave={onUpdateAccess}
+          />
+        </div>
+      ) : null}
+      {showOverviewSections && isBookJob && imageClusterNodes.length > 0 ? (
         <div className="job-card__section">
           <h4>Image cluster</h4>
           <dl className="metadata-grid">
@@ -419,36 +584,67 @@ export function JobProgress({
           </dl>
         </div>
       ) : null}
-      {status?.error ? <div className="alert">{status.error}</div> : null}
-      {showLibraryReadyNotice ? (
+      {showOverviewSections && status?.error ? <div className="alert">{status.error}</div> : null}
+      {showOverviewSections && showLibraryReadyNotice ? (
         <div className="notice notice--success" role="status">
           Media generation finished. Move this job into the library when you're ready.
         </div>
       ) : null}
-      {statusValue === 'pausing' ? (
+      {showOverviewSections && statusValue === 'pausing' ? (
         <div className="notice notice--info" role="status">
           Pause requested. Completing in-flight media generation before the job fully pauses.
         </div>
       ) : null}
-      {statusValue === 'paused' && mediaCompleted === false ? (
+      {showOverviewSections && statusValue === 'paused' && mediaCompleted === false ? (
         <div className="notice notice--warning" role="status">
           Some media is still finalizing. Generated files shown below reflect the latest available output.
         </div>
       ) : null}
-      {showMediaMetadata ? null : tuningEntries.length > 0 ? (
+      {showOverviewSections && !showMediaMetadata && parallelismEntries.length > 0 ? (
         <div>
-          <h4>Performance tuning</h4>
+          <h4>Parallelism overview</h4>
           <div className="progress-grid">
-            {tuningEntries.map(([key, value]) => (
-              <div className="progress-metric" key={key}>
-                <strong>{formatTuningLabel(key)}</strong>
-                <span>{formatTuningValue(value)}</span>
+            {parallelismEntries.map(({ label, value, hint }) => (
+              <div className="progress-metric" key={label}>
+                <strong>{label}</strong>
+                <span>{value}</span>
+                {hint ? <p className="progress-metric__hint">{hint}</p> : null}
               </div>
             ))}
           </div>
         </div>
       ) : null}
-      {fallbackEntries.length > 0 ? (
+      {showOverviewSections && !showMediaMetadata && tuningEntries.length > 0 ? (
+        <div>
+          <h4>Performance tuning</h4>
+          <div className="progress-grid">
+            {tuningEntries.map(([key, value]) => {
+              const description = formatTuningDescription(key);
+              return (
+                <div className="progress-metric" key={key}>
+                  <strong>{formatTuningLabel(key)}</strong>
+                  <span>{formatTuningValue(value)}</span>
+                  {description ? <p className="progress-metric__hint">{description}</p> : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      {showOverviewSections && batchStatEntries.length > 0 ? (
+        <div>
+          <h4>LLM batch stats</h4>
+          <div className="progress-grid">
+            {batchStatEntries.map(([label, value]) => (
+              <div className="progress-metric" key={label}>
+                <strong>{label}</strong>
+                <span>{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {showOverviewSections && fallbackEntries.length > 0 ? (
         <div>
           <h4>Fallbacks</h4>
           <div className="progress-grid">
@@ -461,13 +657,13 @@ export function JobProgress({
           </div>
         </div>
       ) : null}
-      {translationsUnavailable ? (
+      {showOverviewSections && translationsUnavailable ? (
         <div className="alert" role="status">
           Translated content was not returned by the LLM. Verify your model configuration and try reloading once the
           metadata has been refreshed.
         </div>
       ) : null}
-      {event ? (
+      {showOverviewSections && event ? (
         <div>
           <h4>Latest progress</h4>
           <div className="progress-grid">
@@ -499,10 +695,10 @@ export function JobProgress({
           </div>
           {event.error ? <div className="alert">{event.error}</div> : null}
         </div>
-      ) : (
+      ) : showOverviewSections ? (
         <p>No progress events received yet.</p>
-      )}
-      {creationSummary ? (
+      ) : null}
+      {showMetadataSections && creationSummary ? (
         <div className="job-card__section">
           <h4>Book creation summary</h4>
           {creationSummary.epubPath ? (
@@ -533,7 +729,7 @@ export function JobProgress({
           ) : null}
         </div>
       ) : null}
-      {isSubtitleJob && subtitleTab === 'metadata' ? null : (
+      {isSubtitleJob && subtitleTab === 'metadata' ? null : !showMetadataSections ? null : (
         <div className="job-card__section">
           <h4>{isSubtitleJob ? 'Subtitle metadata' : 'Book metadata'}</h4>
           {shouldShowCoverPreview && coverUrl && !coverFailed ? (

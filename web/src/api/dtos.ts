@@ -84,6 +84,7 @@ export interface PipelineInputPayload {
   add_images: boolean;
   include_transliteration: boolean;
   translation_provider?: string;
+  translation_batch_size?: number;
   transliteration_mode?: string;
   tempo: number;
   book_metadata: Record<string, unknown>;
@@ -203,6 +204,7 @@ export interface JobParameterSnapshot {
   include_transliteration?: boolean | null;
   add_images?: boolean | null;
   translation_provider?: string | null;
+  translation_batch_size?: number | null;
   transliteration_mode?: string | null;
   transliteration_model?: string | null;
   transliteration_module?: string | null;

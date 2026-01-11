@@ -9,6 +9,9 @@ from ...translation_engine import ThreadWorkerPool
 from ..pipeline_service import PipelineRequest
 from .job import PipelineJob
 
+_LLM_PROVIDER_ALIASES = {"llm", "ollama", "default"}
+_LLM_BATCH_WORKERS = 1
+
 
 class PipelineJobTuner:
     """Encapsulate worker sizing and tuning behaviour for jobs."""
@@ -109,15 +112,48 @@ class PipelineJobTuner:
         return number if number >= 0 else None
 
     def _resolve_thread_count(self, request: PipelineRequest) -> Optional[int]:
-        candidate = request.pipeline_overrides.get("thread_count")
-        if candidate is None and request.context is not None:
+        thread_override = request.pipeline_overrides.get("thread_count")
+        if thread_override is not None:
+            value = self._coerce_non_negative_int(thread_override)
+            if value is None:
+                return None
+            return max(1, value)
+
+        candidate = None
+        if request.context is not None:
             candidate = request.context.thread_count
         if candidate is None:
             candidate = request.config.get("thread_count")
         value = self._coerce_non_negative_int(candidate)
         if value is None:
             return None
-        return max(1, value)
+        resolved = max(1, value)
+        if self._should_limit_batch_workers(request):
+            return min(resolved, _LLM_BATCH_WORKERS)
+        return resolved
+
+    @staticmethod
+    def _should_limit_batch_workers(request: PipelineRequest) -> bool:
+        inputs = request.inputs
+        if inputs is None:
+            return False
+        try:
+            batch_size = int(getattr(inputs, "translation_batch_size", 0) or 0)
+        except (TypeError, ValueError):
+            batch_size = 0
+        if batch_size <= 1:
+            return False
+        provider = (getattr(inputs, "translation_provider", "") or "").strip().lower()
+        if provider not in _LLM_PROVIDER_ALIASES:
+            return False
+        llm_source = request.pipeline_overrides.get("llm_source")
+        if llm_source is None and request.context is not None:
+            llm_source = request.context.llm_source
+        if llm_source is None:
+            llm_source = request.config.get("llm_source")
+        if not isinstance(llm_source, str):
+            llm_source = cfg.get_llm_source()
+        return llm_source.strip().lower() == "local"
 
     def _resolve_queue_size(self, request: PipelineRequest) -> Optional[int]:
         candidate = request.pipeline_overrides.get("queue_size")
