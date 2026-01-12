@@ -40,7 +40,14 @@ function LibraryToolbar({
           className={styles.searchInput}
           aria-label="Search library"
         />
-        {isLoading ? <span aria-live="polite">Loading…</span> : null}
+        {isLoading ? (
+          <div className={styles.loadingIndicator} role="status" aria-live="polite">
+            <span className={styles.loadingBar} />
+            <span className={styles.loadingBar} />
+            <span className={styles.loadingBar} />
+            <span className={styles.loadingText}>Loading library…</span>
+          </div>
+        ) : null}
       </div>
       <div className={styles.views} role="group" aria-label="Library view modes">
         {VIEW_OPTIONS.map((option) => (

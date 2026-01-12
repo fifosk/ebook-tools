@@ -7,14 +7,39 @@ final class LoginViewModel: ObservableObject {
     @Published var password: String = ""
     @Published var errorMessage: String?
     @Published var isLoading = false
+    @Published var serverStatus: LoginServerStatus = .checking
 
     init(username: String = "") {
         self.username = username
     }
 
+    func refreshServerStatus(using appState: AppState) async {
+        guard let apiBaseURL = appState.apiBaseURL else {
+            serverStatus = .offline
+            return
+        }
+
+        serverStatus = .checking
+        let healthURL = makeHealthURL(from: apiBaseURL)
+        var request = URLRequest(url: healthURL)
+        request.timeoutInterval = 6
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse,
+               (200...299).contains(httpResponse.statusCode) {
+                serverStatus = .online
+            } else {
+                serverStatus = .offline
+            }
+        } catch {
+            serverStatus = .offline
+        }
+    }
+
     func signIn(using appState: AppState) async {
         guard let apiBaseURL = appState.apiBaseURL else {
-            errorMessage = "Enter a valid API base URL."
+            errorMessage = "API server is unavailable."
             return
         }
         let trimmedUser = username.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -40,7 +65,7 @@ final class LoginViewModel: ObservableObject {
 
     func signInWithApple(credential: ASAuthorizationAppleIDCredential, using appState: AppState) async {
         guard let apiBaseURL = appState.apiBaseURL else {
-            errorMessage = "Enter a valid API base URL."
+            errorMessage = "API server is unavailable."
             return
         }
         guard let tokenData = credential.identityToken,
@@ -74,5 +99,14 @@ final class LoginViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func makeHealthURL(from baseURL: URL) -> URL {
+        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            return baseURL.appendingPathComponent("_health")
+        }
+        let trimmedPath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        components.path = trimmedPath.isEmpty ? "/_health" : "/\(trimmedPath)/_health"
+        return components.url ?? baseURL.appendingPathComponent("_health")
     }
 }

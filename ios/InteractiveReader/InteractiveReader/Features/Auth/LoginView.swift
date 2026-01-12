@@ -8,100 +8,90 @@ struct LoginView: View {
     @FocusState private var focusedField: Field?
 
     private enum Field {
-        case api
         case username
         case password
     }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    PlatformGroupBox(label: { Text("Server") }) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            TextField("API base URL", text: $appState.apiBaseURLString)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                                #if os(iOS)
-                                .keyboardType(.URL)
-                                #endif
-                                .focused($focusedField, equals: .api)
+            ZStack {
+                LoginBackgroundView()
+                ScrollView {
+                    VStack(spacing: 24) {
+                        LoginCard {
+                            VStack(alignment: .leading, spacing: 20) {
+                                LoginHeaderView()
+                                LoginServerStatusView(status: viewModel.serverStatus)
 
-                            #if os(tvOS)
-                            Text("Example: https://api.langtools.fifosk.synology.me")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            #else
-                            Text("Example: https://api.langtools.fifosk.synology.me")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            #endif
-                        }
-                        .padding(.vertical, 4)
-                    }
+                                VStack(alignment: .leading, spacing: 12) {
+                                    TextField("Username", text: $viewModel.username)
+                                        .textInputAutocapitalization(.never)
+                                        .autocorrectionDisabled()
+                                        .focused($focusedField, equals: .username)
+                                        .loginFieldStyle()
 
-                    PlatformGroupBox(label: { Text("Sign in") }) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            TextField("Username", text: $viewModel.username)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                                .focused($focusedField, equals: .username)
+                                    SecureField("Password", text: $viewModel.password)
+                                        .focused($focusedField, equals: .password)
+                                        .submitLabel(.go)
+                                        .onSubmit(signIn)
+                                        .loginFieldStyle()
 
-                            SecureField("Password", text: $viewModel.password)
-                                .focused($focusedField, equals: .password)
-                                .submitLabel(.go)
-                                .onSubmit(signIn)
-
-                            if let error = viewModel.errorMessage {
-                                Label(error, systemImage: "exclamationmark.triangle.fill")
-                                    .font(.callout)
-                                    .foregroundStyle(.red)
-                            }
-
-                            Button(action: signIn) {
-                                HStack {
-                                    if viewModel.isLoading {
-                                        ProgressView()
+                                    if let error = viewModel.errorMessage {
+                                        Label(error, systemImage: "exclamationmark.triangle.fill")
+                                            .font(.callout)
+                                            .foregroundStyle(.red)
                                     }
-                                    Text("Sign In")
-                                }
-                                .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(viewModel.isLoading)
 
-                            #if os(tvOS)
-                            Button(action: handleAppleButton) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "applelogo")
-                                    Text("Sign In with Apple")
+                                    Button(action: signIn) {
+                                        HStack {
+                                            if viewModel.isLoading {
+                                                ProgressView()
+                                            }
+                                            Text("Sign In")
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                    }
+                                    .loginPrimaryButtonStyle()
+                                    .disabled(viewModel.isLoading)
+
+                                    #if os(tvOS)
+                                    Button(action: handleAppleButton) {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "applelogo")
+                                            Text("Sign In with Apple")
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.black)
+                                    .foregroundStyle(.white)
+                                    .frame(minHeight: 44)
+                                    .disabled(viewModel.isLoading)
+                                    #else
+                                    SignInWithAppleButton(.signIn, onRequest: { request in
+                                        request.requestedScopes = [.fullName, .email]
+                                    }, onCompletion: handleAppleSignIn)
+                                    .signInWithAppleButtonStyle(.black)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .disabled(viewModel.isLoading)
+                                    #endif
                                 }
-                                .frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.black)
-                            .foregroundStyle(.white)
-                            .frame(minHeight: 44)
-                            .disabled(viewModel.isLoading)
-                            #else
-                            SignInWithAppleButton(.signIn, onRequest: { request in
-                                request.requestedScopes = [.fullName, .email]
-                            }, onCompletion: handleAppleSignIn)
-                            .signInWithAppleButtonStyle(.black)
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .disabled(viewModel.isLoading)
-                            #endif
                         }
-                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity, alignment: .center)
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 32)
                 }
-                .padding()
             }
-            .navigationTitle("ebook-tools")
+            .toolbar(.hidden, for: .navigationBar)
         }
         .onAppear {
             if viewModel.username.isEmpty {
                 viewModel.username = appState.lastUsername
+            }
+            Task {
+                await viewModel.refreshServerStatus(using: appState)
             }
             appleSignIn.onCredential = { credential in
                 Task {

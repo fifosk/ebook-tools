@@ -28,6 +28,7 @@ interface VideoPlayerProps {
     coverAltText?: string | null;
     glyph?: string | null;
     glyphLabel?: string | null;
+    summary?: string | null;
   } | null;
   autoPlay?: boolean;
   onPlaybackEnded?: () => void;
@@ -61,7 +62,7 @@ interface VideoPlayerProps {
   subtitleBackgroundOpacity?: number;
 }
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { appendAccessTokenToStorageUrl, getAuthToken } from '../api/client';
 import { formatMediaDropdownLabel } from '../utils/mediaLabels';
@@ -74,6 +75,87 @@ import PlayerChannelBug from './PlayerChannelBug';
 import SubtitleTrackOverlay from './video-subtitles/SubtitleTrackOverlay';
 
 const DEFAULT_PLAYBACK_RATE = 1;
+const SUMMARY_MARQUEE_SPEED = 28;
+const SUMMARY_MARQUEE_GAP = 32;
+
+type SummaryTickerMetrics = {
+  shouldScroll: boolean;
+  distance: number;
+  duration: number;
+};
+
+function SummaryTicker({ text }: { text: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const textRef = useRef<HTMLSpanElement | null>(null);
+  const [metrics, setMetrics] = useState<SummaryTickerMetrics>({
+    shouldScroll: false,
+    distance: 0,
+    duration: 0,
+  });
+
+  const measure = useCallback(() => {
+    const container = containerRef.current;
+    const textNode = textRef.current;
+    if (!container || !textNode) {
+      return;
+    }
+    const containerWidth = container.clientWidth;
+    const textWidth = textNode.scrollWidth;
+    if (!containerWidth || !textWidth) {
+      setMetrics({ shouldScroll: false, distance: 0, duration: 0 });
+      return;
+    }
+    const shouldScroll = textWidth > containerWidth + 8;
+    const distance = textWidth + SUMMARY_MARQUEE_GAP;
+    const duration = distance > 0 ? distance / SUMMARY_MARQUEE_SPEED : 0;
+    setMetrics({ shouldScroll, distance, duration });
+  }, []);
+
+  useLayoutEffect(() => {
+    measure();
+  }, [measure, text]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      measure();
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [measure]);
+
+  return (
+    <div
+      className="video-player__info-summary"
+      ref={containerRef}
+      data-scrolling={metrics.shouldScroll ? 'true' : 'false'}
+      aria-label={text}
+    >
+      <div
+        className="video-player__info-summary-track"
+        style={
+          {
+            '--marquee-gap': `${SUMMARY_MARQUEE_GAP}px`,
+            '--marquee-distance': `${metrics.distance}px`,
+            '--marquee-duration': `${Math.max(metrics.duration, 8)}s`,
+          } as CSSProperties
+        }
+      >
+        <span className="video-player__info-summary-text" ref={textRef}>
+          {text}
+        </span>
+        {metrics.shouldScroll ? (
+          <span className="video-player__info-summary-text" aria-hidden="true">
+            {text}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 function sanitiseRate(value: number | null | undefined): number {
   if (!Number.isFinite(value) || !value) {
@@ -350,6 +432,7 @@ export default function VideoPlayer({
   const [secondaryCoverFailed, setSecondaryCoverFailed] = useState(false);
   const [playbackClock, setPlaybackClock] = useState({ current: 0, duration: 0 });
   const playbackClockRef = useRef({ current: 0, duration: 0 });
+  const [isPlaying, setIsPlaying] = useState(false);
   const scrubStateRef = useRef({
     pointerId: null as number | null,
     active: false,
@@ -367,6 +450,7 @@ export default function VideoPlayer({
   useEffect(() => {
     playbackClockRef.current = { current: 0, duration: 0 };
     setPlaybackClock({ current: 0, duration: 0 });
+    setIsPlaying(false);
   }, [activeFile?.id]);
   const artVariant = useMemo(() => {
     const glyph = (infoBadge?.glyph ?? '').trim().toLowerCase();
@@ -425,12 +509,21 @@ export default function VideoPlayer({
     const remaining = Math.max(playbackClock.duration - played, 0);
     return `${formatDurationLabel(played)} / ${formatDurationLabel(remaining)} remaining`;
   }, [playbackClock.current, playbackClock.duration]);
+  const summaryText = useMemo(() => {
+    const summary = infoBadge?.summary;
+    if (typeof summary !== 'string') {
+      return null;
+    }
+    const trimmed = summary.trim();
+    return trimmed ? trimmed : null;
+  }, [infoBadge?.summary]);
   const hasInfoHeader = Boolean(
     infoBadge &&
       (infoBadge.title ||
         infoBadge.meta ||
         infoBadge.coverUrl ||
         infoBadge.glyph ||
+        summaryText ||
         languageFlags.length > 0 ||
         segmentLabel ||
         timelineLabel),
@@ -1047,10 +1140,12 @@ export default function VideoPlayer({
   }, [updatePlaybackClock]);
 
   const handlePlay = useCallback(() => {
+    setIsPlaying(true);
     onPlaybackStateChange?.('playing');
   }, [onPlaybackStateChange]);
 
   const handlePause = useCallback(() => {
+    setIsPlaying(false);
     onPlaybackStateChange?.('paused');
   }, [onPlaybackStateChange]);
 
@@ -1059,6 +1154,7 @@ export default function VideoPlayer({
     const isNativeFullscreen = Boolean(element && isNativeWebkitFullscreen(element));
     nativeFullscreenReentryRef.current = isNativeFullscreen;
     nativeFullscreenReentryDeadlineRef.current = isNativeFullscreen ? Date.now() + 1500 : 0;
+    setIsPlaying(false);
     onPlaybackStateChange?.('paused');
     onPlaybackEnded?.();
   }, [onPlaybackEnded, onPlaybackStateChange]);
@@ -1427,67 +1523,68 @@ export default function VideoPlayer({
                 data-collapsed={isHeaderCollapsed ? 'true' : undefined}
               >
                 {showHeaderContent ? (
-                  <div className="player-panel__player-info-header-content" aria-hidden="true">
-                    <div className="video-player__info-header-left">
-                      <PlayerChannelBug
-                        glyph={(infoBadge.glyph ?? '').trim() || 'VID'}
-                        label={infoBadge.glyphLabel}
-                      />
-                      {infoBadge.coverUrl && !coverFailed ? (
-                        <div className="player-panel__player-info-art" data-variant={artVariant}>
-                          <img
-                            className="player-panel__player-info-art-main"
-                            src={infoBadge.coverUrl}
-                            alt={infoBadge.coverAltText ?? (infoBadge.title ? `Cover for ${infoBadge.title}` : 'Cover')}
-                            onError={() => setCoverFailed(true)}
-                            loading="lazy"
-                          />
-                          {infoBadge.coverSecondaryUrl && !secondaryCoverFailed ? (
+                  <div className="video-player__info-header-body">
+                    <div className="player-panel__player-info-header-content" aria-hidden="true">
+                      <div className="video-player__info-header-left">
+                        <PlayerChannelBug
+                          glyph={(infoBadge.glyph ?? '').trim() || 'VID'}
+                          label={infoBadge.glyphLabel}
+                        />
+                        {infoBadge.coverUrl && !coverFailed ? (
+                          <div className="player-panel__player-info-art" data-variant={artVariant}>
                             <img
-                              className="player-panel__player-info-art-secondary"
-                              src={infoBadge.coverSecondaryUrl}
-                              alt=""
-                              aria-hidden="true"
-                              onError={() => setSecondaryCoverFailed(true)}
+                              className="player-panel__player-info-art-main"
+                              src={infoBadge.coverUrl}
+                              alt={infoBadge.coverAltText ?? (infoBadge.title ? `Cover for ${infoBadge.title}` : 'Cover')}
+                              onError={() => setCoverFailed(true)}
                               loading="lazy"
                             />
-                          ) : null}
-                        </div>
-                      ) : null}
-                      {infoBadge.title || infoBadge.meta || languageFlags.length > 0 ? (
-                        <div className="video-player__info-badge">
-                          <div className="video-player__info-text">
-                            {infoBadge.title ? (
-                              <span className="video-player__info-title">{infoBadge.title}</span>
-                            ) : null}
-                            {infoBadge.meta ? (
-                              <span className="video-player__info-meta">{infoBadge.meta}</span>
-                            ) : null}
-                            {languageFlags.length > 0 ? (
-                              <div className="video-player__info-flags">
-                                {languageFlags.map((entry, index) => (
-                                  <div className="video-player__info-flag-group" key={`${entry.role}-${entry.label}`}>
-                                    <span className="video-player__info-flag">
-                                      <EmojiIcon emoji={entry.flag} className="video-player__info-flag-emoji" />
-                                      <span className="video-player__info-flag-label">{entry.label}</span>
-                                    </span>
-                                    {index < languageFlags.length - 1 ? (
-                                      <span className="video-player__info-flag-sep">to</span>
-                                    ) : null}
-                                  </div>
-                                ))}
-                              </div>
+                            {infoBadge.coverSecondaryUrl && !secondaryCoverFailed ? (
+                              <img
+                                className="player-panel__player-info-art-secondary"
+                                src={infoBadge.coverSecondaryUrl}
+                                alt=""
+                                aria-hidden="true"
+                                onError={() => setSecondaryCoverFailed(true)}
+                                loading="lazy"
+                              />
                             ) : null}
                           </div>
+                        ) : null}
+                        {infoBadge.title || infoBadge.meta || languageFlags.length > 0 ? (
+                          <div className="video-player__info-badge">
+                            <div className="video-player__info-text">
+                              {infoBadge.title ? (
+                                <span className="video-player__info-title">{infoBadge.title}</span>
+                              ) : null}
+                              {infoBadge.meta ? <span className="video-player__info-meta">{infoBadge.meta}</span> : null}
+                              {languageFlags.length > 0 ? (
+                                <div className="video-player__info-flags">
+                                  {languageFlags.map((entry, index) => (
+                                    <div className="video-player__info-flag-group" key={`${entry.role}-${entry.label}`}>
+                                      <span className="video-player__info-flag">
+                                        <EmojiIcon emoji={entry.flag} className="video-player__info-flag-emoji" />
+                                        <span className="video-player__info-flag-label">{entry.label}</span>
+                                      </span>
+                                      {index < languageFlags.length - 1 ? (
+                                        <span className="video-player__info-flag-sep">to</span>
+                                      ) : null}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                      {segmentLabel || timelineLabel ? (
+                        <div className="video-player__info-header-right">
+                          {segmentLabel ? <span className="video-player__info-pill">{segmentLabel}</span> : null}
+                          {timelineLabel ? <span className="video-player__info-pill">{timelineLabel}</span> : null}
                         </div>
                       ) : null}
                     </div>
-                    {segmentLabel || timelineLabel ? (
-                      <div className="video-player__info-header-right">
-                        {segmentLabel ? <span className="video-player__info-pill">{segmentLabel}</span> : null}
-                        {timelineLabel ? <span className="video-player__info-pill">{timelineLabel}</span> : null}
-                      </div>
-                    ) : null}
+                    {!isPlaying && summaryText ? <SummaryTicker text={summaryText} /> : null}
                   </div>
                 ) : null}
                 <button

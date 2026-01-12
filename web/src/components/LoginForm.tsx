@@ -85,10 +85,12 @@ export default function LoginForm({
     }
     googleButtonRef.current.innerHTML = '';
     googleApi.renderButton(googleButtonRef.current, {
-      theme: 'outline',
+      theme: 'filled_black',
       size: 'large',
       text: 'continue_with',
       shape: 'pill',
+      logo_alignment: 'left',
+      locale: 'en',
       width: googleButtonRef.current.clientWidth || 360
     });
     return true;
@@ -241,7 +243,14 @@ export default function LoginForm({
                 Continue with Apple
               </button>
             ) : null}
-            {googleClientId ? <div ref={googleButtonRef} className="auth-form__oauth-google" /> : null}
+            {googleClientId ? (
+              <div className="auth-form__oauth-google-wrap">
+                <div ref={googleButtonRef} className="auth-form__oauth-google" />
+                <p className="auth-form__oauth-hint">
+                  Sign in or sign up as Viewer (user auto-created).
+                </p>
+              </div>
+            ) : null}
           </div>
         </>
       ) : null}

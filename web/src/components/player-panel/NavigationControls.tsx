@@ -396,6 +396,7 @@ export function NavigationControls({
   const fullscreenIcon = isFullscreen ? '🗗' : '⛶';
   const advancedToggleClassName = [
     'player-panel__nav-button',
+    'player-panel__nav-button--caret',
     advancedControlsOpen ? 'player-panel__nav-button--advanced-active' : null,
   ]
     .filter(Boolean)
@@ -543,6 +544,7 @@ export function NavigationControls({
               onClick={() => onNavigate('first')}
               disabled={disableFirst}
               aria-label="Go to first item"
+              title="Go to first item"
             >
               <span aria-hidden="true">⏮</span>
             </button>
@@ -552,6 +554,7 @@ export function NavigationControls({
               onClick={() => onNavigate('previous')}
               disabled={disablePrevious}
               aria-label="Go to previous item"
+              title="Go to previous item"
             >
               <span aria-hidden="true">⏪</span>
             </button>
@@ -562,6 +565,7 @@ export function NavigationControls({
               disabled={disablePlayback}
               aria-label={playbackLabel}
               aria-pressed={isPlaying ? 'true' : 'false'}
+              title={playbackLabel}
             >
               <span aria-hidden="true">{playbackIcon}</span>
             </button>
@@ -571,6 +575,7 @@ export function NavigationControls({
               onClick={() => onNavigate('next')}
               disabled={disableNext}
               aria-label="Go to next item"
+              title="Go to next item"
             >
               <span aria-hidden="true">⏩</span>
             </button>
@@ -580,6 +585,7 @@ export function NavigationControls({
               onClick={() => onNavigate('last')}
               disabled={disableLast}
               aria-label="Go to last item"
+              title="Go to last item"
             >
               <span aria-hidden="true">⏭</span>
             </button>
@@ -661,19 +667,18 @@ export function NavigationControls({
                 role="group"
                 aria-label="Subtitle layers"
               >
-                <span className="player-panel__subtitle-flag-glyph" aria-hidden="true" title="Subtitle tracks">
-                  CC
-                </span>
                 {[
-                  { key: 'original' as const, label: 'Orig' },
-                  { key: 'transliteration' as const, label: 'Translit' },
-                  { key: 'translation' as const, label: 'Trans' },
+                  { key: 'original' as const, label: 'Orig', title: 'Original subtitles' },
+                  { key: 'transliteration' as const, label: 'Translit', title: 'Transliteration subtitles' },
+                  { key: 'translation' as const, label: 'Trans', title: 'Translation subtitles' },
                 ].map((entry) => (
                   <button
                     key={entry.key}
                     type="button"
                     className="player-panel__subtitle-flag player-panel__subtitle-flag--compact"
                     aria-pressed={resolvedCueVisibility[entry.key]}
+                    aria-label={`Toggle ${entry.title}`}
+                    title={`Toggle ${entry.title}`}
                     onClick={() => handleToggleCueLayer(entry.key)}
                     disabled={disableCueLayerToggles || disableSubtitleToggle}
                   >
@@ -690,6 +695,7 @@ export function NavigationControls({
                   onClick={() => setBookmarkMenuOpen((current) => !current)}
                   aria-label="Bookmarks"
                   aria-expanded={bookmarkMenuOpen}
+                  title="Bookmarks"
                 >
                   <span aria-hidden="true">🔖</span>
                 </button>
@@ -702,6 +708,7 @@ export function NavigationControls({
                         className="player-panel__bookmark-add"
                         onClick={() => onAddBookmark?.()}
                         disabled={!onAddBookmark}
+                        title="Add bookmark"
                       >
                         Add
                       </button>
@@ -719,6 +726,7 @@ export function NavigationControls({
                                 onJumpToBookmark?.(bookmark);
                                 setBookmarkMenuOpen(false);
                               }}
+                              title={`Jump to ${bookmark.label}`}
                             >
                               {bookmark.label}
                             </button>
@@ -727,6 +735,7 @@ export function NavigationControls({
                               className="player-panel__bookmark-remove"
                               onClick={() => onRemoveBookmark?.(bookmark)}
                               aria-label={`Remove ${bookmark.label}`}
+                              title={`Remove ${bookmark.label}`}
                             >
                               ✕
                             </button>
@@ -737,6 +746,21 @@ export function NavigationControls({
                   </div>
                 ) : null}
               </div>
+            ) : null}
+            {showExport ? (
+              <button
+                type="button"
+                className="player-panel__nav-button player-panel__nav-button--export"
+                onClick={onExport}
+                disabled={exportDisabled || !onExport}
+                aria-label={resolvedExportLabel}
+                title={resolvedExportTitle}
+                aria-busy={exportBusy ? 'true' : undefined}
+              >
+                <span aria-hidden="true" className="player-panel__nav-button-icon">
+                  {exportBusy ? '⏳' : '📦'}
+                </span>
+              </button>
             ) : null}
             {showBackToLibrary ? (
               <button
@@ -759,7 +783,7 @@ export function NavigationControls({
                 aria-label={advancedToggleLabel}
                 title={advancedToggleLabel}
               >
-                <span aria-hidden="true">🎚</span>
+                <span aria-hidden="true" className="player-panel__nav-button-caret" />
               </button>
             ) : null}
             <button
@@ -770,24 +794,10 @@ export function NavigationControls({
               aria-pressed={isFullscreen}
               aria-label={fullscreenLabel}
               data-testid={fullscreenTestId}
+              title={fullscreenLabel}
             >
               <span aria-hidden="true">{fullscreenIcon}</span>
             </button>
-            {showExport ? (
-              <button
-                type="button"
-                className="player-panel__nav-button player-panel__nav-button--export"
-                onClick={onExport}
-                disabled={exportDisabled || !onExport}
-                aria-label={resolvedExportLabel}
-                title={resolvedExportTitle}
-                aria-busy={exportBusy ? 'true' : undefined}
-              >
-                <span aria-hidden="true" className="player-panel__nav-button-icon">
-                  {exportBusy ? '⏳' : '⬇'}
-                </span>
-              </button>
-            ) : null}
           </div>
           {nowPlayingText ? (
             <span className="player-panel__now-playing" title={nowPlayingTitle ?? nowPlayingText}>
@@ -809,6 +819,7 @@ export function NavigationControls({
                       onChange={handleChapterSelect}
                       aria-label="Jump to chapter"
                       disabled={!onChapterJump}
+                      title="Jump to chapter"
                     >
                       <option value="" disabled>
                         Select
@@ -874,6 +885,7 @@ export function NavigationControls({
                       className="player-panel__sentence-jump-button"
                       onClick={onSentenceJumpSubmit}
                       disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
+                      title="Jump to sentence"
                     >
                       Go
                     </button>
@@ -907,6 +919,7 @@ export function NavigationControls({
                 onChange={handleSpeedChange}
                 aria-label="Speed"
                 aria-valuetext={formattedSpeed}
+                title="Translation speed"
               />
               <span className="player-panel__control-value" aria-live="polite">
                 {formattedSpeed}
@@ -932,6 +945,7 @@ export function NavigationControls({
                 aria-valuemax={fontScaleMax}
                 aria-valuenow={Math.round(fontScalePercent)}
                 aria-valuetext={formattedFontScale}
+                title="Font size"
               />
               <span className="player-panel__control-value" aria-live="polite">
                 {formattedFontScale}
@@ -957,6 +971,7 @@ export function NavigationControls({
                 aria-valuemax={myLinguistFontScaleMax}
                 aria-valuenow={Math.round(myLinguistFontScalePercent)}
                 aria-valuetext={formattedMyLinguistFontScale}
+                title="MyLinguist font size"
               />
               <span className="player-panel__control-value" aria-live="polite">
                 {formattedMyLinguistFontScale}
@@ -979,6 +994,7 @@ export function NavigationControls({
                 onChange={(event) => onSubtitleScaleChange?.(Number(event.target.value))}
                 aria-label="Subtitle size"
                 aria-valuetext={`${Math.round(subtitleScale * 100)}%`}
+                title="Subtitle size"
               />
               <span className="player-panel__control-value" aria-live="polite">
                 {Math.round(subtitleScale * 100)}%
@@ -1002,6 +1018,7 @@ export function NavigationControls({
                 aria-label="Subtitle background opacity"
                 aria-valuetext={formattedSubtitleBackgroundOpacity}
                 disabled={disableSubtitleToggle || !subtitlesEnabled}
+                title="Subtitle background opacity"
               />
               <span className="player-panel__control-value" aria-live="polite">
                 {formattedSubtitleBackgroundOpacity}
@@ -1024,6 +1041,7 @@ export function NavigationControls({
                 onChange={(event) => onInteractiveBackgroundOpacityChange?.(Number(event.target.value))}
                 aria-label="Interactive reader background opacity"
                 aria-valuetext={formattedInteractiveBackgroundOpacity}
+                title="Interactive reader background opacity"
               />
               <span className="player-panel__control-value" aria-live="polite">
                 {formattedInteractiveBackgroundOpacity}
@@ -1046,6 +1064,7 @@ export function NavigationControls({
                 onChange={(event) => onInteractiveSentenceCardOpacityChange?.(Number(event.target.value))}
                 aria-label="Sentence card background opacity"
                 aria-valuetext={formattedInteractiveSentenceCardOpacity}
+                title="Sentence card opacity"
               />
               <span className="player-panel__control-value" aria-live="polite">
                 {formattedInteractiveSentenceCardOpacity}
@@ -1072,6 +1091,7 @@ export function NavigationControls({
                 aria-valuemax={readingBedVolumeMax}
                 aria-valuenow={Math.round(readingBedVolumePercent)}
                 aria-valuetext={formattedReadingBedVolume}
+                title="Reading music volume"
               />
               <span className="player-panel__control-value" aria-live="polite">
                 {formattedReadingBedVolume}
@@ -1091,6 +1111,7 @@ export function NavigationControls({
                 onChange={handleReadingBedTrackChange}
                 disabled={disableReadingBedToggle || !readingBedEnabled}
                 aria-label="Reading music track"
+                title="Reading music track"
               >
                 {readingBedTrackOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -1280,6 +1301,7 @@ export function NavigationControls({
               onChange={handleSpeedChange}
               aria-label="Speed"
               aria-valuetext={formattedSpeed}
+              title="Translation speed"
             />
             <span className="player-panel__nav-speed-value" aria-live="polite">
               {formattedSpeed}
@@ -1308,6 +1330,7 @@ export function NavigationControls({
               onChange={(event) => onSubtitleScaleChange?.(Number(event.target.value))}
               aria-label="Subtitle size"
               aria-valuetext={`${Math.round(subtitleScale * 100)}%`}
+              title="Subtitle size"
             />
             <span className="player-panel__nav-subtitles-value" aria-live="polite">
               {Math.round(subtitleScale * 100)}%
@@ -1337,6 +1360,7 @@ export function NavigationControls({
               aria-label="Subtitle background opacity"
               aria-valuetext={formattedSubtitleBackgroundOpacity}
               disabled={disableSubtitleToggle || !subtitlesEnabled}
+              title="Subtitle background opacity"
             />
             <span className="player-panel__nav-subtitle-background-value" aria-live="polite">
               {formattedSubtitleBackgroundOpacity}

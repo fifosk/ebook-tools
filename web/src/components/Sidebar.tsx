@@ -25,7 +25,7 @@ interface SidebarProps {
   sidebarJobs: JobState[];
   activeJobId: string | null;
   onSelectJob: (jobId: string) => void;
-  onOpenPlayer: () => void;
+  onOpenPlayer: (jobId?: string, options?: { autoPlay?: boolean }) => void;
   isAdmin: boolean;
   canScheduleJobs: boolean;
   createBookView: SelectedView;
@@ -435,7 +435,7 @@ export function Sidebar({
         <button
           type="button"
           className={`sidebar__link sidebar__link--player ${selectedView === jobMediaView ? 'is-active' : ''}`}
-          onClick={onOpenPlayer}
+          onClick={() => onOpenPlayer()}
           disabled={!canOpenPlayer}
         >
           <span className="sidebar__player-label">
@@ -578,10 +578,10 @@ export function Sidebar({
 	                  const glyph = resolveJobGlyph(job);
 	                  const stageGlyph = resolveSidebarStage(job);
 	                  return (
-	                    <li key={job.jobId}>
-	                      <button
-	                        type="button"
-                        className={`sidebar__link sidebar__link--job ${isActiveJob ? 'is-active' : ''}`}
+                    <li key={job.jobId} className="sidebar__job-row">
+                      <button
+                        type="button"
+                        className={`sidebar__link sidebar__link--job sidebar__job-main ${isActiveJob ? 'is-active' : ''}`}
                         onClick={() => onSelectJob(job.jobId)}
                         title={`${nameMeta.tooltip} (${job.jobId})`}
                       >
@@ -610,27 +610,41 @@ export function Sidebar({
                             </span>
                           ) : null}
                           <JobTypeGlyphBadge glyph={glyph} className="sidebar__job-type" />
-		                          {languageMeta.flag ? (
-		                            <EmojiIcon
-		                              className="sidebar__job-flag"
-		                              emoji={languageMeta.flag}
-		                              title={languageMeta.tooltip ?? languageMeta.label}
-		                              ariaLabel={languageMeta.tooltip ?? languageMeta.label}
-		                            />
-		                          ) : null}
-	                          {stageGlyph ? (
-	                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
-	                              {stageGlyph.icon}
-	                            </span>
-	                          ) : null}
-	                          <span
-	                            className="job-status"
-	                            data-state={statusValue}
-	                            title={statusLabel.tooltip}
+                          {languageMeta.flag ? (
+                            <EmojiIcon
+                              className="sidebar__job-flag"
+                              emoji={languageMeta.flag}
+                              title={languageMeta.tooltip ?? languageMeta.label}
+                              ariaLabel={languageMeta.tooltip ?? languageMeta.label}
+                            />
+                          ) : null}
+                          {stageGlyph ? (
+                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
+                              {stageGlyph.icon}
+                            </span>
+                          ) : null}
+                          <span
+                            className="job-status"
+                            data-state={statusValue}
+                            title={statusLabel.tooltip}
                             aria-label={statusLabel.tooltip}
                           >
                             {statusLabel.icon}
                           </span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="sidebar__job-play"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onOpenPlayer(job.jobId, { autoPlay: true });
+                        }}
+                        title={`Play ${nameMeta.tooltip}`}
+                        aria-label={`Play ${nameMeta.label}`}
+                      >
+                        <span className="sidebar__job-play-icon" aria-hidden="true">
+                          ▶
                         </span>
                       </button>
                     </li>
@@ -654,10 +668,10 @@ export function Sidebar({
 	                  const glyph = resolveJobGlyph(job);
 	                  const stageGlyph = resolveSidebarStage(job);
 	                  return (
-	                    <li key={job.jobId}>
-	                      <button
-	                        type="button"
-                        className={`sidebar__link sidebar__link--job ${isActiveJob ? 'is-active' : ''}`}
+                    <li key={job.jobId} className="sidebar__job-row">
+                      <button
+                        type="button"
+                        className={`sidebar__link sidebar__link--job sidebar__job-main ${isActiveJob ? 'is-active' : ''}`}
                         onClick={() => onSelectJob(job.jobId)}
                         title={`${nameMeta.tooltip} (${job.jobId})`}
                       >
@@ -686,27 +700,41 @@ export function Sidebar({
                             </span>
                           ) : null}
                           <JobTypeGlyphBadge glyph={glyph} className="sidebar__job-type" />
-		                          {languageMeta.flag ? (
-		                            <EmojiIcon
-		                              className="sidebar__job-flag"
-		                              emoji={languageMeta.flag}
-		                              title={languageMeta.tooltip ?? languageMeta.label}
-		                              ariaLabel={languageMeta.tooltip ?? languageMeta.label}
-		                            />
-		                          ) : null}
-	                          {stageGlyph ? (
-	                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
-	                              {stageGlyph.icon}
-	                            </span>
-	                          ) : null}
-	                          <span
-	                            className="job-status"
-	                            data-state={statusValue}
-	                            title={statusLabel.tooltip}
+                          {languageMeta.flag ? (
+                            <EmojiIcon
+                              className="sidebar__job-flag"
+                              emoji={languageMeta.flag}
+                              title={languageMeta.tooltip ?? languageMeta.label}
+                              ariaLabel={languageMeta.tooltip ?? languageMeta.label}
+                            />
+                          ) : null}
+                          {stageGlyph ? (
+                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
+                              {stageGlyph.icon}
+                            </span>
+                          ) : null}
+                          <span
+                            className="job-status"
+                            data-state={statusValue}
+                            title={statusLabel.tooltip}
                             aria-label={statusLabel.tooltip}
                           >
                             {statusLabel.icon}
                           </span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="sidebar__job-play"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onOpenPlayer(job.jobId, { autoPlay: true });
+                        }}
+                        title={`Play ${nameMeta.tooltip}`}
+                        aria-label={`Play ${nameMeta.label}`}
+                      >
+                        <span className="sidebar__job-play-icon" aria-hidden="true">
+                          ▶
                         </span>
                       </button>
                     </li>
@@ -730,10 +758,10 @@ export function Sidebar({
 	                  const glyph = resolveJobGlyph(job);
 	                  const stageGlyph = resolveSidebarStage(job);
 	                  return (
-	                    <li key={job.jobId}>
-	                      <button
-	                        type="button"
-                        className={`sidebar__link sidebar__link--job ${isActiveJob ? 'is-active' : ''}`}
+                    <li key={job.jobId} className="sidebar__job-row">
+                      <button
+                        type="button"
+                        className={`sidebar__link sidebar__link--job sidebar__job-main ${isActiveJob ? 'is-active' : ''}`}
                         onClick={() => onSelectJob(job.jobId)}
                         title={`${nameMeta.tooltip} (${job.jobId})`}
                       >
@@ -762,27 +790,41 @@ export function Sidebar({
                             </span>
                           ) : null}
                           <JobTypeGlyphBadge glyph={glyph} className="sidebar__job-type" />
-		                          {languageMeta.flag ? (
-		                            <EmojiIcon
-		                              className="sidebar__job-flag"
-		                              emoji={languageMeta.flag}
-		                              title={languageMeta.tooltip ?? languageMeta.label}
-		                              ariaLabel={languageMeta.tooltip ?? languageMeta.label}
-		                            />
-		                          ) : null}
-	                          {stageGlyph ? (
-	                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
-	                              {stageGlyph.icon}
-	                            </span>
-	                          ) : null}
-	                          <span
-	                            className="job-status"
-	                            data-state={statusValue}
-	                            title={statusLabel.tooltip}
+                          {languageMeta.flag ? (
+                            <EmojiIcon
+                              className="sidebar__job-flag"
+                              emoji={languageMeta.flag}
+                              title={languageMeta.tooltip ?? languageMeta.label}
+                              ariaLabel={languageMeta.tooltip ?? languageMeta.label}
+                            />
+                          ) : null}
+                          {stageGlyph ? (
+                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
+                              {stageGlyph.icon}
+                            </span>
+                          ) : null}
+                          <span
+                            className="job-status"
+                            data-state={statusValue}
+                            title={statusLabel.tooltip}
                             aria-label={statusLabel.tooltip}
                           >
                             {statusLabel.icon}
                           </span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="sidebar__job-play"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onOpenPlayer(job.jobId, { autoPlay: true });
+                        }}
+                        title={`Play ${nameMeta.tooltip}`}
+                        aria-label={`Play ${nameMeta.label}`}
+                      >
+                        <span className="sidebar__job-play-icon" aria-hidden="true">
+                          ▶
                         </span>
                       </button>
                     </li>

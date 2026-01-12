@@ -686,6 +686,13 @@ export default function PlayerPanel({
   });
 
   useEffect(() => {
+    if (!selectionRequest?.autoPlay) {
+      return;
+    }
+    requestAutoPlay();
+  }, [requestAutoPlay, selectionRequest?.autoPlay, selectionRequest?.token]);
+
+  useEffect(() => {
     resetInteractiveFullscreen();
     setPendingSelection(null);
     setPendingChunkSelection(null);

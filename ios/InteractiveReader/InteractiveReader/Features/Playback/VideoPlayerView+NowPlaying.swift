@@ -20,7 +20,7 @@ extension VideoPlayerView {
             title: metadata.title,
             artist: metadata.artist,
             album: metadata.album,
-            artworkURL: metadata.artworkURL,
+            artworkURL: metadata.artworkURL ?? metadata.secondaryArtworkURL,
             mediaType: .video
         )
     }

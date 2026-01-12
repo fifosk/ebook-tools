@@ -16,3 +16,5 @@ interface Window {
     };
   };
 }
+
+declare const __APP_BRANCH__: string;

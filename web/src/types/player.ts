@@ -15,6 +15,7 @@ export interface MediaSelectionRequest {
   preferredType?: MediaCategory | null;
   offsetRatio?: number | null;
   approximateTime?: number | null;
+  autoPlay?: boolean;
   token?: number;
 }
 

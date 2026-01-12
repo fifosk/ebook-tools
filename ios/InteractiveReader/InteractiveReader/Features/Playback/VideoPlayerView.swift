@@ -127,6 +127,18 @@ struct VideoPlayerView: View {
         Self.clampPlaybackRate(playbackRateValue)
     }
 
+    var metadataUpdateKey: String {
+        [
+            metadata.title,
+            metadata.subtitle ?? "",
+            metadata.artist ?? "",
+            metadata.album ?? "",
+            metadata.artworkURL?.absoluteString ?? "",
+            metadata.secondaryArtworkURL?.absoluteString ?? ""
+        ]
+        .joined(separator: "|")
+    }
+
     init(
         videoURL: URL,
         subtitleTracks: [VideoSubtitleTrack],
@@ -237,6 +249,9 @@ struct VideoPlayerView: View {
         .onChange(of: resumeActionID) { _, _ in
             pendingResumeTime = resumeTime ?? 0
             applyPendingResumeIfPossible()
+        }
+        .onChange(of: metadataUpdateKey) { _, _ in
+            updateNowPlayingMetadata()
         }
         .onChange(of: resumeTime) { _, newValue in
             if newValue != nil {

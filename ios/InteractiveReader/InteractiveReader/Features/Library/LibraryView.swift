@@ -17,6 +17,7 @@ struct LibraryView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
     @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+    @Environment(\.colorScheme) private var colorScheme
     #if os(tvOS)
     @State private var isSearchPresented = false
     #endif
@@ -40,6 +41,9 @@ struct LibraryView: View {
                                 resumeStatus: resumeStatus(for: item)
                             )
                         }
+                        #if os(tvOS)
+                        .listRowBackground(Color.clear)
+                        #endif
                     } else {
                         #if os(tvOS)
                         Button {
@@ -52,6 +56,7 @@ struct LibraryView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                        .listRowBackground(Color.clear)
                         #else
                         LibraryRowView(
                             item: item,
@@ -67,6 +72,9 @@ struct LibraryView: View {
                 }
             }
             .listStyle(.plain)
+            #if os(tvOS)
+            .background(AppTheme.background(for: colorScheme))
+            #endif
             .overlay(alignment: .center) {
                 listOverlay
             }

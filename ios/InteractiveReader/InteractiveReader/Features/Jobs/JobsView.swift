@@ -17,6 +17,7 @@ struct JobsView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
     @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+    @Environment(\.colorScheme) private var colorScheme
     #if os(tvOS)
     @State private var isSearchPresented = false
     #endif
@@ -35,6 +36,9 @@ struct JobsView: View {
                     Section("Active jobs") {
                         Text("No active jobs.")
                             .foregroundStyle(.secondary)
+                            #if os(tvOS)
+                            .listRowBackground(Color.clear)
+                            #endif
                     }
                 } else {
                     Section("Active jobs") {
@@ -46,6 +50,9 @@ struct JobsView: View {
                     Section("Finished jobs") {
                         Text("No finished jobs yet.")
                             .foregroundStyle(.secondary)
+                            #if os(tvOS)
+                            .listRowBackground(Color.clear)
+                            #endif
                     }
                 } else {
                     Section("Finished jobs") {
@@ -54,6 +61,9 @@ struct JobsView: View {
                 }
             }
             .listStyle(.plain)
+            #if os(tvOS)
+            .background(AppTheme.background(for: colorScheme))
+            #endif
             .overlay(alignment: .center) {
                 listOverlay
             }
@@ -103,6 +113,9 @@ struct JobsView: View {
                 NavigationLink(value: job) {
                     JobRowView(job: job, resumeStatus: resumeStatus(for: job))
                 }
+                #if os(tvOS)
+                .listRowBackground(Color.clear)
+                #endif
             } else {
                 #if os(tvOS)
                 Button {
@@ -111,6 +124,7 @@ struct JobsView: View {
                     JobRowView(job: job, resumeStatus: resumeStatus(for: job))
                 }
                 .buttonStyle(.plain)
+                .listRowBackground(Color.clear)
                 #else
                 JobRowView(job: job, resumeStatus: resumeStatus(for: job))
                     .contentShape(Rectangle())

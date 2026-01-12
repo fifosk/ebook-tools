@@ -175,9 +175,21 @@ describe('Sidebar', () => {
     expect(handleSelectView.mock.calls).toContainEqual(['subtitles:youtube-dub']);
     expect(handleSelectView.mock.calls).toContainEqual(['admin:users']);
 
-    fireEvent.click(screen.getByRole('button', { name: /Job 123/i }));
+    const jobButton = screen
+      .getAllByRole('button', { name: /Job 123/i })
+      .find((button) => button.classList.contains('sidebar__job-main'));
+    if (!jobButton) {
+      throw new Error('Expected to find job button for Job 123.');
+    }
+    fireEvent.click(jobButton);
     expect(handleSelectJob).toHaveBeenCalledWith('123');
-    fireEvent.click(screen.getByRole('button', { name: /Spanish Pending/i }));
+    const dubButton = screen
+      .getAllByRole('button', { name: /Spanish Pending/i })
+      .find((button) => button.classList.contains('sidebar__job-main'));
+    if (!dubButton) {
+      throw new Error('Expected to find job button for Spanish Pending.');
+    }
+    fireEvent.click(dubButton);
     expect(handleSelectJob).toHaveBeenCalledWith('dub-1');
 
     const playerButton = screen.getByRole('button', { name: /Player Select a job/i });

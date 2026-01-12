@@ -942,6 +942,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
           audioUrl={resolvedAudioUrl}
           noAudioAvailable={noAudioAvailable}
           collapsed={inlineAudioCollapsed}
+          showControls={false}
           playerRef={attachPlayerCore}
           mediaRef={attachMediaElement}
           onPlay={handleInlineAudioPlay}
@@ -984,68 +985,65 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
           className="player-panel__document-body player-panel__interactive-frame"
           style={interactiveFrameStyle}
         >
-          {hasInfoHeader ? (
-            <div
-              className="player-panel__player-info-header"
-              data-collapsed={isHeaderCollapsed ? 'true' : undefined}
-            >
-              {showHeaderContent ? (
-                <div className="player-panel__player-info-header-content" aria-hidden="true">
-                  {hasChannelBug ? <PlayerChannelBug glyph={safeInfoGlyph} label={infoGlyphLabel} /> : null}
-                  {showCoverArt ? (
-                    <div className="player-panel__player-info-art" data-variant={resolvedInfoCoverVariant}>
+          {hasInfoHeader && showHeaderContent ? (
+            <div className="player-panel__player-info-header">
+              <div className="player-panel__player-info-header-content" aria-hidden="true">
+                {hasChannelBug ? <PlayerChannelBug glyph={safeInfoGlyph} label={infoGlyphLabel} /> : null}
+                {showCoverArt ? (
+                  <div className="player-panel__player-info-art" data-variant={resolvedInfoCoverVariant}>
+                    <img
+                      className="player-panel__player-info-art-main"
+                      src={resolvedCoverUrl ?? undefined}
+                      alt={coverAltText}
+                      onError={handleCoverError}
+                      loading="lazy"
+                    />
+                    {showSecondaryCover ? (
                       <img
-                        className="player-panel__player-info-art-main"
-                        src={resolvedCoverUrl ?? undefined}
-                        alt={coverAltText}
-                        onError={handleCoverError}
+                        className="player-panel__player-info-art-secondary"
+                        src={resolvedSecondaryCoverUrl ?? undefined}
+                        alt=""
+                        aria-hidden="true"
+                        onError={handleSecondaryCoverError}
                         loading="lazy"
                       />
-                      {showSecondaryCover ? (
-                        <img
-                          className="player-panel__player-info-art-secondary"
-                          src={resolvedSecondaryCoverUrl ?? undefined}
-                          alt=""
-                          aria-hidden="true"
-                          onError={handleSecondaryCoverError}
-                          loading="lazy"
-                        />
+                    ) : null}
+                  </div>
+                ) : null}
+                {showTextBadge ? (
+                  <div className="player-panel__interactive-book-badge player-panel__player-info-badge">
+                    <div className="player-panel__interactive-book-badge-text">
+                      {safeInfoTitle ? (
+                        <span className="player-panel__interactive-book-badge-title">{safeInfoTitle}</span>
+                      ) : null}
+                      {safeInfoMeta ? (
+                        <span className="player-panel__interactive-book-badge-meta">{safeInfoMeta}</span>
                       ) : null}
                     </div>
-                  ) : null}
-                  {showTextBadge ? (
-                    <div className="player-panel__interactive-book-badge player-panel__player-info-badge">
-                      <div className="player-panel__interactive-book-badge-text">
-                        {safeInfoTitle ? (
-                          <span className="player-panel__interactive-book-badge-title">{safeInfoTitle}</span>
-                        ) : null}
-                        {safeInfoMeta ? (
-                          <span className="player-panel__interactive-book-badge-meta">{safeInfoMeta}</span>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              <button
-                type="button"
-                className="player-panel__player-info-toggle"
-                data-collapsed={isHeaderCollapsed ? 'true' : 'false'}
-                onClick={toggleHeaderCollapsed}
-                onPointerDown={(event) => event.stopPropagation()}
-                aria-label={isHeaderCollapsed ? 'Show info header' : 'Hide info header'}
-              >
-                <svg viewBox="0 0 24 24" role="img" focusable="false" aria-hidden="true">
-                  <path d="M6 9l6 6 6-6Z" fill="currentColor" />
-                </svg>
-              </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
+          ) : null}
+          {hasInfoHeader ? (
+            <button
+              type="button"
+              className="player-panel__player-info-toggle player-panel__player-info-toggle--interactive"
+              data-collapsed={isHeaderCollapsed ? 'true' : 'false'}
+              onClick={toggleHeaderCollapsed}
+              onPointerDown={(event) => event.stopPropagation()}
+              aria-label={isHeaderCollapsed ? 'Show info header' : 'Hide info header'}
+            >
+              <svg viewBox="0 0 24 24" role="img" focusable="false" aria-hidden="true">
+                <path d="M6 9l6 6 6-6Z" fill="currentColor" />
+              </svg>
+            </button>
           ) : null}
           <div
             className="player-panel__interactive-body"
             data-has-badge={showHeaderContent ? 'true' : undefined}
           >
-            {slideIndicator || audioTimelineText ? (
+            {showHeaderContent && (slideIndicator || audioTimelineText) ? (
               <div className="player-panel__interactive-slide-stack">
                 {slideIndicator ? (
                   <div className="player-panel__interactive-slide-indicator" title={slideIndicator.label}>

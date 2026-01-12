@@ -16,6 +16,8 @@
 		1798B1562EF9F1A00092A8AF /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C52CBAA7D2D4EEA82595A11 /* RootView.swift */; };
 		1798B1572EF9F1A00092A8AF /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CA622A841D84F91B133AFCB /* LoginView.swift */; };
 		1798B1582EF9F1A00092A8AF /* LoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A55CB165B3497CB0EF8A7D /* LoginViewModel.swift */; };
+		F1A2B3C4D5E6F708192A3B50 /* LoginChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F708192A3B4F /* LoginChrome.swift */; };
+		F1A2B3C4D5E6F708192A3B52 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F708192A3B54 /* AppTheme.swift */; };
 		F1A2B3C4D5E6F708192A3B4E /* AppleSignInCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F708192A3B4C /* AppleSignInCoordinator.swift */; };
 		1798B1592EF9F1A00092A8AF /* LibraryShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EACAFCD435FB4D46926CB3F5 /* LibraryShellView.swift */; };
 		1798B15A2EF9F1A00092A8AF /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0090F34EFAD42D0BD98A51D /* LibraryView.swift */; };
@@ -37,6 +39,8 @@
 		1798B16B2EFA07720092A8AF /* PlatformGroupBox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1798B16A2EFA07720092A8AF /* PlatformGroupBox.swift */; };
 		1798B16C2EFA07720092A8AF /* PlatformGroupBox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1798B16A2EFA07720092A8AF /* PlatformGroupBox.swift */; };
 		1E995D494DBD48DC88CD5FCB /* LoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A55CB165B3497CB0EF8A7D /* LoginViewModel.swift */; };
+		F1A2B3C4D5E6F708192A3B51 /* LoginChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F708192A3B4F /* LoginChrome.swift */; };
+		F1A2B3C4D5E6F708192A3B53 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F708192A3B54 /* AppTheme.swift */; };
 		274889EEFEFC4A7EAB66B3D9 /* LibraryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73A95624331046EE991E094F /* LibraryViewModel.swift */; };
 		2CB5F4FB2432438F9366E006 /* SubtitleParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B853B91F6A48DCA58660A7 /* SubtitleParser.swift */; };
 		33F2C40709904BACAA2E5070 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 047AC4516AF7484BA731CF4E /* AppState.swift */; };
@@ -184,6 +188,8 @@
 		1798B16A2EFA07720092A8AF /* PlatformGroupBox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformGroupBox.swift; sourceTree = "<group>"; };
 		59436E996D4F461495E34AD4 /* LibraryPlaybackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryPlaybackView.swift; sourceTree = "<group>"; };
 		5CA622A841D84F91B133AFCB /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E6F708192A3B54 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E6F708192A3B4F /* LoginChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginChrome.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6F708192A3B4C /* AppleSignInCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInCoordinator.swift; sourceTree = "<group>"; };
 		61EDAE75211A49A18DC32515 /* SubtitleOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleOverlayView.swift; sourceTree = "<group>"; };
 		685C091564D94AC4B550BDBB /* InteractiveReaderTV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = InteractiveReaderTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -294,6 +300,7 @@
 				F1A2B3C4D5E6F708192A3B4C /* AppleSignInCoordinator.swift */,
 				5CA622A841D84F91B133AFCB /* LoginView.swift */,
 				C9A55CB165B3497CB0EF8A7D /* LoginViewModel.swift */,
+				F1A2B3C4D5E6F708192A3B4F /* LoginChrome.swift */,
 				1798B16A2EFA07720092A8AF /* PlatformGroupBox.swift */,
 			);
 			path = Auth;
@@ -505,6 +512,7 @@
 		C0A1B2C3D4E5F60718293A4E /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				F1A2B3C4D5E6F708192A3B54 /* AppTheme.swift */,
 				C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */,
 			);
 			path = Shared;
@@ -623,6 +631,8 @@
 				D6CA6C00E95343CEAD94AEE8 /* RootView.swift in Sources */,
 				3F472EF5C5D94254BB3EBC46 /* LoginView.swift in Sources */,
 				1E995D494DBD48DC88CD5FCB /* LoginViewModel.swift in Sources */,
+				F1A2B3C4D5E6F708192A3B51 /* LoginChrome.swift in Sources */,
+				F1A2B3C4D5E6F708192A3B53 /* AppTheme.swift in Sources */,
 				F1A2B3C4D5E6F708192A3B4D /* AppleSignInCoordinator.swift in Sources */,
 				A860F02F70BE44A5B779EE50 /* LibraryShellView.swift in Sources */,
 				ED1E894786624B1EAF5ADB8F /* LibraryView.swift in Sources */,
@@ -712,6 +722,8 @@
 				1798B1562EF9F1A00092A8AF /* RootView.swift in Sources */,
 				1798B1572EF9F1A00092A8AF /* LoginView.swift in Sources */,
 				1798B1582EF9F1A00092A8AF /* LoginViewModel.swift in Sources */,
+				F1A2B3C4D5E6F708192A3B50 /* LoginChrome.swift in Sources */,
+				F1A2B3C4D5E6F708192A3B52 /* AppTheme.swift in Sources */,
 				F1A2B3C4D5E6F708192A3B4E /* AppleSignInCoordinator.swift in Sources */,
 				1798B1592EF9F1A00092A8AF /* LibraryShellView.swift in Sources */,
 				1798B15A2EF9F1A00092A8AF /* LibraryView.swift in Sources */,

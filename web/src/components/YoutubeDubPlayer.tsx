@@ -245,6 +245,48 @@ function resolveYoutubeChannel(youtubeMetadata: Record<string, unknown> | null):
   return typeof uploader === 'string' && uploader.trim() ? uploader.trim() : null;
 }
 
+const SUMMARY_LENGTH_LIMIT = 320;
+
+function normaliseSummary(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  let text = value.trim();
+  if (!text) {
+    return null;
+  }
+  text = text.replace(/<[^>]+>/g, ' ');
+  text = text.replace(/\s+/g, ' ').trim();
+  if (!text) {
+    return null;
+  }
+  if (text.length > SUMMARY_LENGTH_LIMIT) {
+    const cutoff = Math.max(SUMMARY_LENGTH_LIMIT - 3, 0);
+    text = `${text.slice(0, cutoff).trim()}...`;
+  }
+  return text;
+}
+
+function resolveYoutubeSummary(youtubeMetadata: Record<string, unknown> | null): string | null {
+  if (!youtubeMetadata) {
+    return null;
+  }
+  return normaliseSummary(youtubeMetadata['summary'] ?? youtubeMetadata['description']);
+}
+
+function resolveTvSummary(tvMetadata: Record<string, unknown> | null): string | null {
+  if (!tvMetadata) {
+    return null;
+  }
+  const episode = coerceRecord(tvMetadata['episode']);
+  const episodeSummary = normaliseSummary(episode?.['summary']);
+  if (episodeSummary) {
+    return episodeSummary;
+  }
+  const show = coerceRecord(tvMetadata['show']);
+  return normaliseSummary(show?.['summary']);
+}
+
 function formatTvEpisodeLabel(tvMetadata: Record<string, unknown> | null): string | null {
   const kind = typeof tvMetadata?.['kind'] === 'string' ? (tvMetadata?.['kind'] as string).trim().toLowerCase() : '';
   if (kind !== 'tv_episode') {
@@ -833,6 +875,7 @@ export default function YoutubeDubPlayer({
       }
     }
     const meta = metaParts.filter(Boolean).join(' · ') || null;
+    const summary = resolveYoutubeSummary(youtubeMetadata) ?? resolveTvSummary(tvMetadata) ?? null;
 
     return {
       title,
@@ -842,6 +885,7 @@ export default function YoutubeDubPlayer({
       coverSecondaryUrl,
       glyph,
       glyphLabel,
+      summary,
     };
   }, [
     activeVideoId,

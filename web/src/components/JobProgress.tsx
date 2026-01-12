@@ -60,8 +60,7 @@ type Props = {
   canManage: boolean;
 };
 
-type SubtitleJobTab = 'overview' | 'metadata';
-type BookJobTab = 'overview' | 'metadata' | 'permissions';
+type JobTab = 'overview' | 'metadata' | 'permissions';
 export function JobProgress({
   jobId,
   status,
@@ -499,22 +498,11 @@ export function JobProgress({
     () => buildImageClusterNodes(imageClusterSummary, pipelineConfig, imageGenerationEnabled),
     [imageClusterSummary, pipelineConfig, imageGenerationEnabled]
   );
-  const [subtitleTab, setSubtitleTab] = useState<SubtitleJobTab>('overview');
-  const [bookTab, setBookTab] = useState<BookJobTab>('overview');
-  useEffect(() => {
-    if (!supportsTvMetadata) {
-      setSubtitleTab('overview');
-    }
-  }, [supportsTvMetadata]);
-  useEffect(() => {
-    if (!isBookJob) {
-      setBookTab('overview');
-    }
-  }, [isBookJob]);
-  const showMediaMetadata = supportsTvMetadata && subtitleTab === 'metadata';
-  const showOverviewSections = !isBookJob || bookTab === 'overview';
-  const showMetadataSections = !isBookJob || bookTab === 'metadata';
-  const showPermissionsSections = !isBookJob || bookTab === 'permissions';
+  const [jobTab, setJobTab] = useState<JobTab>('overview');
+  const showMetadataSections = jobTab === 'metadata';
+  const showMediaMetadata = supportsTvMetadata && showMetadataSections;
+  const showOverviewSections = jobTab === 'overview';
+  const showPermissionsSections = jobTab === 'permissions';
 
   return (
     <div className="job-card" aria-live="polite">
@@ -585,45 +573,44 @@ export function JobProgress({
           </>
         ) : null}
       </p>
-      <JobProgressMediaMetadata
-        jobId={jobId}
-        supportsTvMetadata={supportsTvMetadata}
-        supportsYoutubeMetadata={supportsYoutubeMetadata}
-        subtitleTab={subtitleTab}
-        onTabChange={setSubtitleTab}
-        canManage={canManage}
-        onReload={onReload}
-      />
-      {isBookJob ? (
-        <div className="job-card__tabs" role="tablist" aria-label="Book job tabs">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={bookTab === 'overview'}
-            className={`job-card__tab ${bookTab === 'overview' ? 'is-active' : ''}`}
-            onClick={() => setBookTab('overview')}
-          >
-            Overview
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={bookTab === 'metadata'}
-            className={`job-card__tab ${bookTab === 'metadata' ? 'is-active' : ''}`}
-            onClick={() => setBookTab('metadata')}
-          >
-            Metadata
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={bookTab === 'permissions'}
-            className={`job-card__tab ${bookTab === 'permissions' ? 'is-active' : ''}`}
-            onClick={() => setBookTab('permissions')}
-          >
-            Permissions
-          </button>
-        </div>
+      <div className="job-card__tabs" role="tablist" aria-label="Job tabs">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={jobTab === 'overview'}
+          className={`job-card__tab ${jobTab === 'overview' ? 'is-active' : ''}`}
+          onClick={() => setJobTab('overview')}
+        >
+          Overview
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={jobTab === 'metadata'}
+          className={`job-card__tab ${jobTab === 'metadata' ? 'is-active' : ''}`}
+          onClick={() => setJobTab('metadata')}
+        >
+          Metadata
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={jobTab === 'permissions'}
+          className={`job-card__tab ${jobTab === 'permissions' ? 'is-active' : ''}`}
+          onClick={() => setJobTab('permissions')}
+        >
+          Permissions
+        </button>
+      </div>
+      {showMetadataSections ? (
+        <JobProgressMediaMetadata
+          jobId={jobId}
+          supportsTvMetadata={supportsTvMetadata}
+          supportsYoutubeMetadata={supportsYoutubeMetadata}
+          showMetadata={showMediaMetadata}
+          canManage={canManage}
+          onReload={onReload}
+        />
       ) : null}
       {showOverviewSections && jobParameterEntries.length > 0 ? (
         <div className="job-card__section">
@@ -685,7 +672,20 @@ export function JobProgress({
           Some media is still finalizing. Generated files shown below reflect the latest available output.
         </div>
       ) : null}
-      {showOverviewSections && !showMediaMetadata && parallelismEntries.length > 0 ? (
+      {showOverviewSections && batchStatEntries.length > 0 ? (
+        <div>
+          <h4>LLM batch stats</h4>
+          <div className="progress-grid">
+            {batchStatEntries.map(([label, value]) => (
+              <div className="progress-metric" key={label}>
+                <strong>{label}</strong>
+                <span>{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {showOverviewSections && parallelismEntries.length > 0 ? (
         <div>
           <h4>Parallelism overview</h4>
           <div className="progress-grid">
@@ -699,7 +699,7 @@ export function JobProgress({
           </div>
         </div>
       ) : null}
-      {showOverviewSections && !showMediaMetadata && tuningEntries.length > 0 ? (
+      {showOverviewSections && !isBookJob && tuningEntries.length > 0 ? (
         <div>
           <h4>Performance tuning</h4>
           <div className="progress-grid">
@@ -713,19 +713,6 @@ export function JobProgress({
                 </div>
               );
             })}
-          </div>
-        </div>
-      ) : null}
-      {showOverviewSections && batchStatEntries.length > 0 ? (
-        <div>
-          <h4>LLM batch stats</h4>
-          <div className="progress-grid">
-            {batchStatEntries.map(([label, value]) => (
-              <div className="progress-metric" key={label}>
-                <strong>{label}</strong>
-                <span>{value}</span>
-              </div>
-            ))}
           </div>
         </div>
       ) : null}
@@ -835,7 +822,7 @@ export function JobProgress({
           ) : null}
         </div>
       ) : null}
-      {isSubtitleJob && subtitleTab === 'metadata' ? null : !showMetadataSections ? null : (
+      {!showMetadataSections ? null : (
         <div className="job-card__section">
           <h4>{isSubtitleJob ? 'Subtitle metadata' : 'Book metadata'}</h4>
           {shouldShowCoverPreview && coverUrl && !coverFailed ? (

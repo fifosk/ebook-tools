@@ -49,6 +49,12 @@ async def get_pipeline_defaults(
     _ensure_editor(request_user)
     resolved = context_provider.resolve_config()
     stripped = cfg.strip_derived_config(resolved)
+    input_file = stripped.get("input_file")
+    books_dir = resolved.get("books_dir")
+    if isinstance(input_file, str) and input_file.strip():
+        candidate = cfg.resolve_file_path(input_file.strip(), books_dir)
+        if candidate and not candidate.exists():
+            stripped.pop("input_file", None)
     return PipelineDefaultsResponse(config=stripped)
 
 

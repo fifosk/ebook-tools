@@ -23,6 +23,7 @@ import {
   OAuthLoginRequestPayload
 } from './api/dtos';
 import {
+  API_BASE_URL,
   cancelJob,
   deleteJob,
   fetchJobs,
@@ -39,6 +40,7 @@ import { useTheme } from './components/ThemeProvider';
 import type { ThemeMode } from './components/ThemeProvider';
 import { useAuth } from './components/AuthProvider';
 import LoginForm from './components/LoginForm';
+import LoginServerStatus from './components/LoginServerStatus';
 import ChangePasswordForm from './components/ChangePasswordForm';
 import UserManagementPanel from './components/admin/UserManagementPanel';
 import ReadingBedsPanel from './components/admin/ReadingBedsPanel';
@@ -109,6 +111,11 @@ const BOOK_NARRATION_SECTION_TO_VIEW: Record<BookNarrationFormSection, PipelineM
   performance: 'pipeline:performance',
   submit: 'pipeline:submit'
 };
+
+const APP_BRANCH =
+  typeof __APP_BRANCH__ === 'string' && __APP_BRANCH__.trim()
+    ? __APP_BRANCH__.trim()
+    : (import.meta.env.VITE_APP_BRANCH as string | undefined)?.trim() || 'unknown';
 
 const JOB_CREATION_VIEWS = new Set<SelectedView>([
   CREATE_BOOK_VIEW,
@@ -967,17 +974,30 @@ export function App() {
     [jobs, refreshJobs, resolveJobPermissions]
   );
 
-  const handleOpenPlayerForJob = useCallback(() => {
-    if (!activeJobId) {
+  const handleOpenPlayerForJob = useCallback((jobId?: string, options?: { autoPlay?: boolean }) => {
+    const resolvedJobId = jobId ?? activeJobId;
+    if (!resolvedJobId) {
       return;
     }
-    const entry = jobs[activeJobId];
+    if (resolvedJobId !== activeJobId) {
+      setActiveJobId(resolvedJobId);
+    }
+    const entry = jobs[resolvedJobId];
     const jobType = entry?.status?.job_type ?? null;
-    setPlayerContext({ type: 'job', jobId: activeJobId, jobType });
-    setPlayerSelection(null);
+    setPlayerContext({ type: 'job', jobId: resolvedJobId, jobType });
+    if (options?.autoPlay && jobType !== 'youtube_dub') {
+      setPlayerSelection({
+        baseId: null,
+        preferredType: 'audio',
+        autoPlay: true,
+        token: Date.now(),
+      });
+    } else {
+      setPlayerSelection(null);
+    }
     setSelectedView(JOB_MEDIA_VIEW);
     setIsImmersiveMode(false);
-  }, [activeJobId, jobs]);
+  }, [activeJobId, jobs, setActiveJobId]);
 
   const handlePlayLibraryItem = useCallback(
     (entry: LibraryOpenInput) => {
@@ -1023,6 +1043,7 @@ export function App() {
               preferredType: selection.preferredType ?? null,
               offsetRatio: selection.offsetRatio ?? null,
               approximateTime: selection.approximateTime ?? null,
+              autoPlay: selection.autoPlay ?? undefined,
               token: selection.token ?? Date.now()
             }
           : null
@@ -1337,7 +1358,11 @@ export function App() {
               </svg>
             </div>
             <h1>Language tools</h1>
+            <span className="app-version" aria-label={`Version ${APP_BRANCH}`}>
+              v{APP_BRANCH}
+            </span>
           </div>
+          <LoginServerStatus apiBaseUrl={API_BASE_URL} />
           <LoginForm
             onSubmit={handleLogin}
             onOAuthSubmit={handleOAuthLogin}
@@ -1371,6 +1396,9 @@ export function App() {
             </button>
             <span className="sidebar__title" aria-label="Language Tools">
               Language Tools
+            </span>
+            <span className="sidebar__version app-version" aria-label={`Version ${APP_BRANCH}`}>
+              v{APP_BRANCH}
             </span>
           </div>
         </div>

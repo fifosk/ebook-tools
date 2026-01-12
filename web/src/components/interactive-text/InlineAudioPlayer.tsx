@@ -5,6 +5,7 @@ interface InlineAudioPlayerProps {
   audioUrl: string | null;
   noAudioAvailable: boolean;
   collapsed: boolean;
+  showControls?: boolean;
   playerRef: Ref<PlayerCoreHandle>;
   mediaRef?: PlayerCoreProps['mediaRef'];
   onPlay?: PlayerCoreProps['onPlay'];
@@ -24,6 +25,7 @@ export function InlineAudioPlayer({
   audioUrl,
   noAudioAvailable,
   collapsed,
+  showControls = true,
   playerRef,
   mediaRef,
   onPlay,
@@ -39,6 +41,30 @@ export function InlineAudioPlayer({
   onRateChange,
 }: InlineAudioPlayerProps) {
   if (audioUrl) {
+    if (!showControls) {
+      return (
+        <PlayerCore
+          ref={playerRef}
+          className="player-panel__interactive-audio-hidden"
+          mediaRef={mediaRef}
+          src={audioUrl ?? undefined}
+          id="main-audio"
+          controls={false}
+          preload="metadata"
+          onPlay={onPlay}
+          onPause={onPause}
+          onLoadedMetadata={onLoadedMetadata}
+          onTimeUpdate={onTimeUpdate}
+          onEnded={onEnded}
+          onSeeked={onSeeked}
+          onSeeking={onSeeking}
+          onWaiting={onWaiting}
+          onStalled={onStalled}
+          onPlaying={onPlaying}
+          onRateChange={onRateChange}
+        />
+      );
+    }
     return (
       <div
         className={[
@@ -74,7 +100,7 @@ export function InlineAudioPlayer({
       </div>
     );
   }
-  if (noAudioAvailable) {
+  if (noAudioAvailable && showControls) {
     return (
       <div className="player-panel__interactive-no-audio" role="status">
         Matching audio has not been generated for this selection yet.

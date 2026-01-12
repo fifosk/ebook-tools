@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ServerOptions as HttpsServerOptions } from 'node:https';
+import { execSync } from 'node:child_process';
 
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
@@ -11,6 +12,7 @@ export default defineConfig(({ mode }) => {
   // Load env vars from the same dir as this config file
   const env = loadEnv(mode, __dirname, "");
   const isExportBuild = mode === "export";
+  const appBranch = resolveGitBranch(env);
 
   console.log("[DEBUG] loaded env via loadEnv:", {
     https: env.VITE_DEV_HTTPS,
@@ -21,8 +23,9 @@ export default defineConfig(({ mode }) => {
 
   const httpsOptions = resolveHttpsOptions(env);
   const serverPort = parsePort(env.VITE_DEV_PORT) ?? 5173;
-  const hmrHost = env.VITE_DEV_HMR_HOST;
-  const hmrConfig = hmrHost ? { host: hmrHost } : undefined;
+  const disableHmr = parseBooleanFlag(env.VITE_DEV_DISABLE_HMR) ?? false;
+  const hmrConfig = disableHmr ? false : resolveHmrConfig(env);
+  const origin = env.VITE_DEV_ORIGIN;
 
   const buildConfig = {
     // Silence chunk size warnings; the app bundles many shared components by design.
@@ -45,11 +48,17 @@ export default defineConfig(({ mode }) => {
 
     build: buildConfig,
 
+    define: {
+      __APP_BRANCH__: JSON.stringify(appBranch),
+      'import.meta.env.VITE_APP_BRANCH': JSON.stringify(appBranch)
+    },
+
     server: {
       host: true,
       port: serverPort,
       strictPort: true,
       hmr: hmrConfig,
+      ...(origin ? { origin } : {}),
       https: httpsOptions
     },
 
@@ -121,6 +130,44 @@ function parsePort(value: string | undefined): number | undefined {
   if (!value) return undefined;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function resolveHmrConfig(env: Record<string, string>) {
+  const host = env.VITE_DEV_HMR_HOST;
+  const protocol = env.VITE_DEV_HMR_PROTOCOL as 'ws' | 'wss' | undefined;
+  const port = parsePort(env.VITE_DEV_HMR_PORT);
+  const clientPort = parsePort(env.VITE_DEV_HMR_CLIENT_PORT);
+  const path = env.VITE_DEV_HMR_PATH;
+
+  if (!host && !protocol && !port && !clientPort && !path) {
+    return undefined;
+  }
+
+  return {
+    ...(host ? { host } : {}),
+    ...(protocol ? { protocol } : {}),
+    ...(port ? { port } : {}),
+    ...(clientPort ? { clientPort } : {}),
+    ...(path ? { path } : {})
+  };
+}
+
+function resolveGitBranch(env: Record<string, string>): string {
+  const explicit = env.VITE_APP_BRANCH;
+  if (explicit && explicit.trim()) {
+    return explicit.trim();
+  }
+  try {
+    const output = execSync('git rev-parse --abbrev-ref HEAD', {
+      cwd: __dirname,
+      stdio: ['ignore', 'pipe', 'ignore']
+    })
+      .toString()
+      .trim();
+    return output || 'unknown';
+  } catch {
+    return 'unknown';
+  }
 }
 
 function resolveFilePath(target: string, envKey: string, allowMissing = false): string | undefined {
