@@ -1,4 +1,8 @@
+import { useCallback, useMemo } from 'react';
 import type { CSSProperties, Ref, PointerEvent as ReactPointerEvent } from 'react';
+import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../../constants/languageCodes';
+import { normalizeLanguageLabel } from '../../utils/languages';
+import EmojiIcon from '../EmojiIcon';
 import type { LinguistBubbleFloatingPlacement, LinguistBubbleState } from './types';
 import { containsNonLatinLetters, renderWithNonLatinBoost } from './utils';
 
@@ -24,6 +28,10 @@ interface MyLinguistBubbleProps {
   onSpeak: () => void;
   onSpeakSlow: () => void;
   onClose: () => void;
+  lookupLanguageOptions: string[];
+  llmModelOptions: string[];
+  onLookupLanguageChange: (value: string) => void;
+  onLlmModelChange: (value: string | null) => void;
   onBubblePointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onBubblePointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onBubblePointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -54,6 +62,10 @@ export function MyLinguistBubble({
   onSpeak,
   onSpeakSlow,
   onClose,
+  lookupLanguageOptions,
+  llmModelOptions,
+  onLookupLanguageChange,
+  onLlmModelChange,
   onBubblePointerDown,
   onBubblePointerMove,
   onBubblePointerUp,
@@ -83,6 +95,55 @@ export function MyLinguistBubble({
           height: floatingSize ? `${floatingSize.height}px` : undefined,
         } as CSSProperties)
       : undefined;
+  const resolvedLookupLanguage =
+    normalizeLanguageLabel(bubble.lookupLanguage) || bubble.lookupLanguage || 'English';
+  const resolvedLookupFlag = resolveLanguageFlag(resolvedLookupLanguage) ?? DEFAULT_LANGUAGE_FLAG;
+  const resolvedLookupOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    const append = (value: string) => {
+      const normalized = normalizeLanguageLabel(value) || value.trim();
+      if (!normalized) {
+        return;
+      }
+      const key = normalized.toLowerCase();
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      result.push(normalized);
+    };
+    append(resolvedLookupLanguage);
+    lookupLanguageOptions.forEach(append);
+    return result;
+  }, [lookupLanguageOptions, resolvedLookupLanguage]);
+  const formatLookupOptionLabel = useCallback((language: string) => {
+    const normalized = normalizeLanguageLabel(language) || language;
+    const flag = resolveLanguageFlag(language) ?? DEFAULT_LANGUAGE_FLAG;
+    return `${flag} ${normalized}`;
+  }, []);
+  const resolvedModelValue = bubble.llmModel?.trim() ?? '';
+  const resolvedModelOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    const append = (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return;
+      }
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      result.push(trimmed);
+    };
+    if (bubble.llmModel) {
+      append(bubble.llmModel);
+    }
+    llmModelOptions.forEach(append);
+    return result;
+  }, [bubble.llmModel, llmModelOptions]);
 
   return (
     <div
@@ -104,7 +165,42 @@ export function MyLinguistBubble({
       >
         <div className="player-panel__my-linguist-bubble-header-left">
           <span className="player-panel__my-linguist-bubble-title">MyLinguist</span>
-          <span className="player-panel__my-linguist-bubble-meta">Model: {bubble.modelLabel}</span>
+          <div className="player-panel__my-linguist-bubble-selectors">
+            <label className="player-panel__my-linguist-bubble-select">
+              <span className="visually-hidden">Lookup language</span>
+              <span className="player-panel__my-linguist-bubble-flag" aria-hidden="true">
+                <EmojiIcon emoji={resolvedLookupFlag} />
+              </span>
+              <select
+                value={resolvedLookupLanguage}
+                onChange={(event) => onLookupLanguageChange(event.target.value)}
+                aria-label="Lookup language"
+              >
+                {resolvedLookupOptions.map((language) => (
+                  <option key={language} value={language}>
+                    {formatLookupOptionLabel(language)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="player-panel__my-linguist-bubble-select player-panel__my-linguist-bubble-select--model">
+              <span className="visually-hidden">LLM model</span>
+              <select
+                value={resolvedModelValue}
+                onChange={(event) =>
+                  onLlmModelChange(event.target.value.trim() ? event.target.value : null)
+                }
+                aria-label="LLM model"
+              >
+                <option value="">Auto</option>
+                {resolvedModelOptions.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
         <div className="player-panel__my-linguist-bubble-actions">
           <button

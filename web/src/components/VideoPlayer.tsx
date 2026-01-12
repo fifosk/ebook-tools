@@ -66,6 +66,7 @@ import { formatMediaDropdownLabel } from '../utils/mediaLabels';
 import { formatDurationLabel } from '../utils/timeFormatters';
 import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
 import { normalizeLanguageLabel } from '../utils/languages';
+import { HEADER_COLLAPSE_KEY, loadHeaderCollapsed, storeHeaderCollapsed } from '../utils/playerHeader';
 import EmojiIcon from './EmojiIcon';
 import PlayerChannelBug from './PlayerChannelBug';
 import SubtitleTrackOverlay from './video-subtitles/SubtitleTrackOverlay';
@@ -248,8 +249,30 @@ export default function VideoPlayer({
   const sourceChangedWhileFullscreenRef = useRef(false);
   const subtitleTrackElementRef = useRef<HTMLTrackElement | null>(null);
   const pendingSubtitleTrackRef = useRef<SubtitleTrack | null>(null);
+  const [dockedBubbleContainer, setDockedBubbleContainer] = useState<HTMLDivElement | null>(null);
   const [subtitleRevision, setSubtitleRevision] = useState(0);
   const cueTextCacheRef = useRef<WeakMap<TextTrackCue, string>>(new WeakMap());
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(loadHeaderCollapsed);
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== HEADER_COLLAPSE_KEY) {
+        return;
+      }
+      setIsHeaderCollapsed(loadHeaderCollapsed());
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+  const toggleHeaderCollapsed = useCallback(() => {
+    setIsHeaderCollapsed((previous) => {
+      const next = !previous;
+      storeHeaderCollapsed(next);
+      return next;
+    });
+  }, []);
   const authToken = getAuthToken();
   const resolvedFiles = useMemo(
     () =>
@@ -375,7 +398,7 @@ export default function VideoPlayer({
     const remaining = Math.max(playbackClock.duration - played, 0);
     return `${formatDurationLabel(played)} / ${formatDurationLabel(remaining)} remaining`;
   }, [playbackClock.current, playbackClock.duration]);
-  const showInfoHeader = Boolean(
+  const hasInfoHeader = Boolean(
     infoBadge &&
       (infoBadge.title ||
         infoBadge.meta ||
@@ -385,6 +408,7 @@ export default function VideoPlayer({
         segmentLabel ||
         timelineLabel),
   );
+  const showHeaderContent = hasInfoHeader && !isHeaderCollapsed;
   const videoStyle = useMemo(() => {
     return { '--subtitle-scale': subtitleScale } as CSSProperties;
   }, [subtitleScale]);
@@ -1358,68 +1382,87 @@ export default function VideoPlayer({
             onPointerUp={handleScrubPointerEnd}
             onPointerCancel={handleScrubPointerEnd}
           >
-            {infoBadge && showInfoHeader ? (
-              <div className="player-panel__player-info-header video-player__info-header" aria-hidden="true">
-                <div className="video-player__info-header-left">
-                  <PlayerChannelBug
-                    glyph={(infoBadge.glyph ?? '').trim() || 'VID'}
-                    label={infoBadge.glyphLabel}
-                  />
-                  {infoBadge.coverUrl && !coverFailed ? (
-                    <div className="player-panel__player-info-art" data-variant={artVariant}>
-                      <img
-                        className="player-panel__player-info-art-main"
-                        src={infoBadge.coverUrl}
-                        alt={infoBadge.coverAltText ?? (infoBadge.title ? `Cover for ${infoBadge.title}` : 'Cover')}
-                        onError={() => setCoverFailed(true)}
-                        loading="lazy"
+            {hasInfoHeader && infoBadge ? (
+              <div
+                className="player-panel__player-info-header video-player__info-header"
+                data-collapsed={isHeaderCollapsed ? 'true' : undefined}
+              >
+                {showHeaderContent ? (
+                  <div className="player-panel__player-info-header-content" aria-hidden="true">
+                    <div className="video-player__info-header-left">
+                      <PlayerChannelBug
+                        glyph={(infoBadge.glyph ?? '').trim() || 'VID'}
+                        label={infoBadge.glyphLabel}
                       />
-                      {infoBadge.coverSecondaryUrl && !secondaryCoverFailed ? (
-                        <img
-                          className="player-panel__player-info-art-secondary"
-                          src={infoBadge.coverSecondaryUrl}
-                          alt=""
-                          aria-hidden="true"
-                          onError={() => setSecondaryCoverFailed(true)}
-                          loading="lazy"
-                        />
+                      {infoBadge.coverUrl && !coverFailed ? (
+                        <div className="player-panel__player-info-art" data-variant={artVariant}>
+                          <img
+                            className="player-panel__player-info-art-main"
+                            src={infoBadge.coverUrl}
+                            alt={infoBadge.coverAltText ?? (infoBadge.title ? `Cover for ${infoBadge.title}` : 'Cover')}
+                            onError={() => setCoverFailed(true)}
+                            loading="lazy"
+                          />
+                          {infoBadge.coverSecondaryUrl && !secondaryCoverFailed ? (
+                            <img
+                              className="player-panel__player-info-art-secondary"
+                              src={infoBadge.coverSecondaryUrl}
+                              alt=""
+                              aria-hidden="true"
+                              onError={() => setSecondaryCoverFailed(true)}
+                              loading="lazy"
+                            />
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {infoBadge.title || infoBadge.meta || languageFlags.length > 0 ? (
+                        <div className="video-player__info-badge">
+                          <div className="video-player__info-text">
+                            {infoBadge.title ? (
+                              <span className="video-player__info-title">{infoBadge.title}</span>
+                            ) : null}
+                            {infoBadge.meta ? (
+                              <span className="video-player__info-meta">{infoBadge.meta}</span>
+                            ) : null}
+                            {languageFlags.length > 0 ? (
+                              <div className="video-player__info-flags">
+                                {languageFlags.map((entry, index) => (
+                                  <div className="video-player__info-flag-group" key={`${entry.role}-${entry.label}`}>
+                                    <span className="video-player__info-flag">
+                                      <EmojiIcon emoji={entry.flag} className="video-player__info-flag-emoji" />
+                                      <span className="video-player__info-flag-label">{entry.label}</span>
+                                    </span>
+                                    {index < languageFlags.length - 1 ? (
+                                      <span className="video-player__info-flag-sep">to</span>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
                       ) : null}
                     </div>
-                  ) : null}
-                  {infoBadge.title || infoBadge.meta || languageFlags.length > 0 ? (
-                    <div className="video-player__info-badge">
-                      <div className="video-player__info-text">
-                        {infoBadge.title ? (
-                          <span className="video-player__info-title">{infoBadge.title}</span>
-                        ) : null}
-                        {infoBadge.meta ? (
-                          <span className="video-player__info-meta">{infoBadge.meta}</span>
-                        ) : null}
-                        {languageFlags.length > 0 ? (
-                          <div className="video-player__info-flags">
-                            {languageFlags.map((entry, index) => (
-                              <div className="video-player__info-flag-group" key={`${entry.role}-${entry.label}`}>
-                                <span className="video-player__info-flag">
-                                  <EmojiIcon emoji={entry.flag} className="video-player__info-flag-emoji" />
-                                  <span className="video-player__info-flag-label">{entry.label}</span>
-                                </span>
-                                {index < languageFlags.length - 1 ? (
-                                  <span className="video-player__info-flag-sep">to</span>
-                                ) : null}
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
+                    {segmentLabel || timelineLabel ? (
+                      <div className="video-player__info-header-right">
+                        {segmentLabel ? <span className="video-player__info-pill">{segmentLabel}</span> : null}
+                        {timelineLabel ? <span className="video-player__info-pill">{timelineLabel}</span> : null}
                       </div>
-                    </div>
-                  ) : null}
-                </div>
-                {segmentLabel || timelineLabel ? (
-                  <div className="video-player__info-header-right">
-                    {segmentLabel ? <span className="video-player__info-pill">{segmentLabel}</span> : null}
-                    {timelineLabel ? <span className="video-player__info-pill">{timelineLabel}</span> : null}
+                    ) : null}
                   </div>
                 ) : null}
+                <button
+                  type="button"
+                  className="player-panel__player-info-toggle player-panel__player-info-toggle--video"
+                  data-collapsed={isHeaderCollapsed ? 'true' : 'false'}
+                  onClick={toggleHeaderCollapsed}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  aria-label={isHeaderCollapsed ? 'Show info header' : 'Hide info header'}
+                >
+                  <svg viewBox="0 0 24 24" role="img" focusable="false" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6Z" fill="currentColor" />
+                  </svg>
+                </button>
               </div>
             ) : null}
             <video
@@ -1462,9 +1505,15 @@ export default function VideoPlayer({
               jobId={jobId}
               jobOriginalLanguage={jobOriginalLanguage}
               jobTranslationLanguage={jobTranslationLanguage}
+              dockedContainer={dockedBubbleContainer}
             />
           </div>
         </div>
+        <div
+          ref={setDockedBubbleContainer}
+          className="player-panel__my-linguist-dock video-player__my-linguist-dock"
+          aria-label="MyLinguist lookup dock"
+        />
         <div className="video-player__selector">
           <label className="video-player__selector-label" htmlFor={playlistSelectId}>
             Video

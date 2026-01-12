@@ -7,12 +7,24 @@ import {
   useState,
 } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MutableRefObject, PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type { TextPlayerVariantKind } from '../../text-player/TextPlayer';
+import { fetchLlmModels } from '../../api/client';
 import { MyLinguistBubble } from '../interactive-text/MyLinguistBubble';
-import { MY_LINGUIST_BUBBLE_MAX_CHARS } from '../interactive-text/constants';
+import {
+  MY_LINGUIST_BUBBLE_MAX_CHARS,
+  MY_LINGUIST_DEFAULT_LLM_MODEL,
+  MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE,
+  MY_LINGUIST_STORAGE_KEYS,
+} from '../interactive-text/constants';
 import type { LinguistBubbleState } from '../interactive-text/types';
 import { useLinguistBubbleLayout } from '../interactive-text/useLinguistBubbleLayout';
 import { useLinguistBubbleLookup } from '../interactive-text/useLinguistBubbleLookup';
+import {
+  buildMyLinguistLanguageOptions,
+  buildMyLinguistModelOptions,
+  storeMyLinguistStored,
+} from '../interactive-text/utils';
 import type { SubtitleTrack } from '../VideoPlayer';
 import { parseAssSubtitles, type AssSubtitleCue, type AssSubtitleTrackKind } from './assParser';
 import styles from './SubtitleTrackOverlay.module.css';
@@ -200,6 +212,7 @@ interface SubtitleTrackOverlayProps {
   jobId?: string | null;
   jobOriginalLanguage?: string | null;
   jobTranslationLanguage?: string | null;
+  dockedContainer?: HTMLElement | null;
 }
 
 export default function SubtitleTrackOverlay({
@@ -214,6 +227,7 @@ export default function SubtitleTrackOverlay({
   jobId = null,
   jobOriginalLanguage = null,
   jobTranslationLanguage = null,
+  dockedContainer = null,
 }: SubtitleTrackOverlayProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const trackRefs = useRef<Record<TrackKind, HTMLDivElement | null>>({
@@ -241,6 +255,8 @@ export default function SubtitleTrackOverlay({
   const [bubble, setBubble] = useState<LinguistBubbleState | null>(null);
   const [verticalOffset, setVerticalOffset] = useState(0);
   const [isDraggingSubtitles, setIsDraggingSubtitles] = useState(false);
+  const llmModelsLoadedRef = useRef(false);
+  const [availableLlmModels, setAvailableLlmModels] = useState<string[]>([]);
   const dragStateRef = useRef({
     pointerId: null as number | null,
     startX: 0,
@@ -270,6 +286,34 @@ export default function SubtitleTrackOverlay({
       ? jobOriginalLanguage.trim()
       : null;
   const globalInputLanguage = resolvedJobOriginalLanguage ?? resolvedJobTranslationLanguage ?? 'English';
+  const lookupLanguageOptions = useMemo(
+    () =>
+      buildMyLinguistLanguageOptions(
+        [
+          bubble?.lookupLanguage,
+          resolvedJobTranslationLanguage,
+          resolvedJobOriginalLanguage,
+          globalInputLanguage,
+          MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE,
+        ],
+        MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE,
+      ),
+    [
+      bubble?.lookupLanguage,
+      globalInputLanguage,
+      resolvedJobOriginalLanguage,
+      resolvedJobTranslationLanguage,
+    ],
+  );
+  const llmModelOptions = useMemo(
+    () =>
+      buildMyLinguistModelOptions(
+        bubble?.llmModel,
+        availableLlmModels,
+        MY_LINGUIST_DEFAULT_LLM_MODEL,
+      ),
+    [availableLlmModels, bubble?.llmModel],
+  );
 
   const lookup = useLinguistBubbleLookup({
     isEnabled: true,
@@ -294,6 +338,45 @@ export default function SubtitleTrackOverlay({
     layout.resetLayout();
     setBubble(null);
   }, [layout]);
+
+  const handleLookupLanguageChange = useCallback((value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return;
+    }
+    storeMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.lookupLanguage, trimmed);
+    setBubble((previous) => {
+      if (!previous) {
+        return previous;
+      }
+      return { ...previous, lookupLanguage: trimmed };
+    });
+  }, []);
+
+  const handleLlmModelChange = useCallback((value: string | null) => {
+    const trimmed = (value ?? '').trim();
+    storeMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.llmModel, trimmed, { allowEmpty: true });
+    setBubble((previous) => {
+      if (!previous) {
+        return previous;
+      }
+      return { ...previous, llmModel: trimmed ? trimmed : null };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!bubble || llmModelsLoadedRef.current) {
+      return;
+    }
+    llmModelsLoadedRef.current = true;
+    void fetchLlmModels()
+      .then((models) => {
+        setAvailableLlmModels(models ?? []);
+      })
+      .catch(() => {
+        setAvailableLlmModels([]);
+      });
+  }, [bubble]);
 
   const resumePlaybackAndDefocus = useCallback(() => {
     closeBubble();
@@ -1104,37 +1187,47 @@ export default function SubtitleTrackOverlay({
           </div>
         );
       })}
-      {bubble ? (
-        <MyLinguistBubble
-          bubble={bubble}
-          isPinned={layout.bubblePinned}
-          isDocked={layout.bubbleDocked}
-          isDragging={layout.bubbleDragging}
-          isResizing={layout.bubbleResizing}
-          variant={layout.bubbleDocked ? 'docked' : 'floating'}
-          bubbleRef={layout.bubbleRef}
-          floatingPlacement={layout.floatingPlacement}
-          floatingPosition={layout.floatingPosition}
-          floatingSize={layout.floatingSize}
-          canNavigatePrev={false}
-          canNavigateNext={false}
-          onTogglePinned={layout.onTogglePinned}
-          onToggleDocked={layout.onToggleDocked}
-          onNavigatePrev={() => {}}
-          onNavigateNext={() => {}}
-          onSpeak={lookup.onSpeak}
-          onSpeakSlow={lookup.onSpeakSlow}
-          onClose={closeBubble}
-          onBubblePointerDown={layout.onBubblePointerDown}
-          onBubblePointerMove={layout.onBubblePointerMove}
-          onBubblePointerUp={layout.onBubblePointerUp}
-          onBubblePointerCancel={layout.onBubblePointerCancel}
-          onResizeHandlePointerDown={layout.onResizeHandlePointerDown}
-          onResizeHandlePointerMove={layout.onResizeHandlePointerMove}
-          onResizeHandlePointerUp={layout.onResizeHandlePointerUp}
-          onResizeHandlePointerCancel={layout.onResizeHandlePointerCancel}
-        />
-      ) : null}
+      {bubble ? (() => {
+        const bubbleNode = (
+          <MyLinguistBubble
+            bubble={bubble}
+            isPinned={layout.bubblePinned}
+            isDocked={layout.bubbleDocked}
+            isDragging={layout.bubbleDragging}
+            isResizing={layout.bubbleResizing}
+            variant={layout.bubbleDocked ? 'docked' : 'floating'}
+            bubbleRef={layout.bubbleRef}
+            floatingPlacement={layout.floatingPlacement}
+            floatingPosition={layout.floatingPosition}
+            floatingSize={layout.floatingSize}
+            canNavigatePrev={false}
+            canNavigateNext={false}
+            onTogglePinned={layout.onTogglePinned}
+            onToggleDocked={layout.onToggleDocked}
+            onNavigatePrev={() => {}}
+            onNavigateNext={() => {}}
+            onSpeak={lookup.onSpeak}
+            onSpeakSlow={lookup.onSpeakSlow}
+            onClose={closeBubble}
+            lookupLanguageOptions={lookupLanguageOptions}
+            onLookupLanguageChange={handleLookupLanguageChange}
+            llmModelOptions={llmModelOptions}
+            onLlmModelChange={handleLlmModelChange}
+            onBubblePointerDown={layout.onBubblePointerDown}
+            onBubblePointerMove={layout.onBubblePointerMove}
+            onBubblePointerUp={layout.onBubblePointerUp}
+            onBubblePointerCancel={layout.onBubblePointerCancel}
+            onResizeHandlePointerDown={layout.onResizeHandlePointerDown}
+            onResizeHandlePointerMove={layout.onResizeHandlePointerMove}
+            onResizeHandlePointerUp={layout.onResizeHandlePointerUp}
+            onResizeHandlePointerCancel={layout.onResizeHandlePointerCancel}
+          />
+        );
+        if (layout.bubbleDocked && dockedContainer) {
+          return createPortal(bubbleNode, dockedContainer);
+        }
+        return bubbleNode;
+      })() : null}
     </div>
   );
 }

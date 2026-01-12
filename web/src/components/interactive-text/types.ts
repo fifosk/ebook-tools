@@ -67,7 +67,8 @@ export type LinguistBubbleState = {
   fullQuery: string;
   status: 'loading' | 'ready' | 'error';
   answer: string;
-  modelLabel: string;
+  lookupLanguage: string;
+  llmModel: string | null;
   ttsLanguage: string;
   ttsStatus: LinguistBubbleTtsStatus;
   navigation: LinguistBubbleNavigation | null;

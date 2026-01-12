@@ -400,7 +400,7 @@ export function useLinguistBubbleLayout({
       if (!(event.target instanceof HTMLElement)) {
         return;
       }
-      if (event.target.closest('button')) {
+      if (event.target.closest('button, select')) {
         return;
       }
       const bubbleEl = bubbleRef.current;

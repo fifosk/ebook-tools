@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   MouseEvent as ReactMouseEvent,
   MutableRefObject,
   PointerEvent as ReactPointerEvent,
 } from 'react';
+import { fetchLlmModels } from '../../api/client';
 import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
 import {
   MY_LINGUIST_BUBBLE_MAX_CHARS,
+  MY_LINGUIST_DEFAULT_LLM_MODEL,
+  MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE,
+  MY_LINGUIST_STORAGE_KEYS,
 } from './constants';
 import type {
   LinguistBubbleFloatingPlacement,
@@ -20,6 +24,11 @@ import { useLinguistBubbleInteractions } from './useLinguistBubbleInteractions';
 import { useLinguistBubbleLayout } from './useLinguistBubbleLayout';
 import { useLinguistBubbleLookup } from './useLinguistBubbleLookup';
 import { useLinguistBubbleNavigation } from './useLinguistBubbleNavigation';
+import {
+  buildMyLinguistLanguageOptions,
+  buildMyLinguistModelOptions,
+  storeMyLinguistStored,
+} from './utils';
 
 export type UseLinguistBubbleArgs = {
   containerRef: MutableRefObject<HTMLDivElement | null>;
@@ -80,6 +89,10 @@ export type UseLinguistBubbleResult = {
     anchorElement: HTMLElement | null,
     navigationOverride?: LinguistBubbleNavigation | null,
   ) => void;
+  lookupLanguageOptions: string[];
+  llmModelOptions: string[];
+  onLookupLanguageChange: (value: string) => void;
+  onLlmModelChange: (value: string | null) => void;
 };
 
 export function useLinguistBubble({
@@ -106,6 +119,36 @@ export function useLinguistBubble({
   const linguistRequestCounterRef = useRef(0);
   const linguistAnchorRectRef = useRef<DOMRect | null>(null);
   const linguistAnchorElementRef = useRef<HTMLElement | null>(null);
+  const llmModelsLoadedRef = useRef(false);
+  const [availableLlmModels, setAvailableLlmModels] = useState<string[]>([]);
+  const lookupLanguageOptions = useMemo(
+    () =>
+      buildMyLinguistLanguageOptions(
+        [
+          linguistBubble?.lookupLanguage,
+          resolvedJobTranslationLanguage,
+          resolvedJobOriginalLanguage,
+          globalInputLanguage,
+          MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE,
+        ],
+        MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE,
+      ),
+    [
+      globalInputLanguage,
+      linguistBubble?.lookupLanguage,
+      resolvedJobOriginalLanguage,
+      resolvedJobTranslationLanguage,
+    ],
+  );
+  const llmModelOptions = useMemo(
+    () =>
+      buildMyLinguistModelOptions(
+        linguistBubble?.llmModel,
+        availableLlmModels,
+        MY_LINGUIST_DEFAULT_LLM_MODEL,
+      ),
+    [availableLlmModels, linguistBubble?.llmModel],
+  );
 
   const layout = useLinguistBubbleLayout({
     anchorRectRef: linguistAnchorRectRef,
@@ -160,6 +203,31 @@ export function useLinguistBubble({
     onInlineAudioPlaybackStateChange,
     openLinguistBubbleForRect: lookup.openLinguistBubbleForRect,
   });
+
+  const handleLookupLanguageChange = useCallback((value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return;
+    }
+    storeMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.lookupLanguage, trimmed);
+    setLinguistBubble((previous) => {
+      if (!previous) {
+        return previous;
+      }
+      return { ...previous, lookupLanguage: trimmed };
+    });
+  }, []);
+
+  const handleLlmModelChange = useCallback((value: string | null) => {
+    const trimmed = (value ?? '').trim();
+    storeMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.llmModel, trimmed, { allowEmpty: true });
+    setLinguistBubble((previous) => {
+      if (!previous) {
+        return previous;
+      }
+      return { ...previous, llmModel: trimmed ? trimmed : null };
+    });
+  }, []);
 
   const closeLinguistBubble = useCallback(() => {
     lookup.resetBubbleState();
@@ -230,10 +298,26 @@ export function useLinguistBubble({
     };
   }, [closeLinguistBubble, linguistBubble, layout.bubbleRef]);
 
+  useEffect(() => {
+    if (!isEnabled || !linguistBubble || llmModelsLoadedRef.current) {
+      return;
+    }
+    llmModelsLoadedRef.current = true;
+    void fetchLlmModels()
+      .then((models) => {
+        setAvailableLlmModels(models ?? []);
+      })
+      .catch(() => {
+        setAvailableLlmModels([]);
+      });
+  }, [isEnabled, linguistBubble]);
+
   const noop = useCallback(() => {}, []);
   const noopNavigate = useCallback((_delta: -1 | 1) => {}, []);
   const noopMouse = useCallback((_event: ReactMouseEvent<HTMLDivElement>) => {}, []);
   const noopPointer = useCallback((_event: ReactPointerEvent<HTMLDivElement>) => {}, []);
+  const noopLookup = useCallback((_value: string) => {}, []);
+  const noopModel = useCallback((_value: string | null) => {}, []);
 
   if (!isEnabled) {
     return {
@@ -270,6 +354,10 @@ export function useLinguistBubble({
       onBackgroundClick: interactions.onBackgroundClick,
       requestPositionUpdate: noop,
       openTokenLookup: noop as UseLinguistBubbleResult['openTokenLookup'],
+      lookupLanguageOptions: [],
+      llmModelOptions: [],
+      onLookupLanguageChange: noopLookup,
+      onLlmModelChange: noopModel,
     };
   }
 
@@ -307,5 +395,9 @@ export function useLinguistBubble({
     onBackgroundClick: interactions.onBackgroundClick,
     requestPositionUpdate: layout.requestPositionUpdate,
     openTokenLookup,
+    lookupLanguageOptions,
+    llmModelOptions,
+    onLookupLanguageChange: handleLookupLanguageChange,
+    onLlmModelChange: handleLlmModelChange,
   };
 }

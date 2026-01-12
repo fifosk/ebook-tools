@@ -156,6 +156,7 @@ export function setUnauthorizedHandler(handler: (() => void) | null): () => void
 
 type FetchOptions = {
   skipAuth?: boolean;
+  suppressUnauthorized?: boolean;
 };
 
 function buildHeaders(initHeaders?: HeadersInit): Headers {
@@ -166,7 +167,7 @@ function buildHeaders(initHeaders?: HeadersInit): Headers {
 async function apiFetch(
   path: string,
   init: RequestInit = {},
-  { skipAuth = false }: FetchOptions = {}
+  { skipAuth = false, suppressUnauthorized = false }: FetchOptions = {}
 ): Promise<Response> {
   const headers = buildHeaders(init.headers);
   if (!skipAuth && authToken && !headers.has('Authorization')) {
@@ -181,7 +182,7 @@ async function apiFetch(
 
   const response = await fetch(withBase(path), { ...init, headers });
 
-  if (!skipAuth && (response.status === 401 || response.status === 403)) {
+  if (!skipAuth && !suppressUnauthorized && (response.status === 401 || response.status === 403)) {
     unauthorizedHandler?.();
   }
 
@@ -480,7 +481,10 @@ export async function generateYoutubeDub(
 }
 
 export async function fetchLlmModels(): Promise<string[]> {
-  const response = await apiFetch('/api/pipelines/llm-models');
+  const response = await apiFetch('/api/pipelines/llm-models', {}, { suppressUnauthorized: true });
+  if (response.status === 401 || response.status === 403) {
+    return [];
+  }
   const payload = await handleResponse<LlmModelListResponse>(response);
   return payload.models ?? [];
 }

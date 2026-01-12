@@ -25,11 +25,18 @@ from modules.permissions import normalize_role
 
 router = APIRouter()
 _ALLOWED_ROLES = {"admin", "editor"}
+_ALLOWED_LLM_MODEL_ROLES = {"admin", "editor", "viewer"}
 
 
 def _ensure_editor(request_user: RequestUserContext) -> None:
     role = normalize_role(request_user.user_role) or ""
     if role not in _ALLOWED_ROLES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+
+
+def _ensure_llm_model_access(request_user: RequestUserContext) -> None:
+    role = normalize_role(request_user.user_role) or ""
+    if role not in _ALLOWED_LLM_MODEL_ROLES:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 @router.get("/defaults", response_model=PipelineDefaultsResponse)
@@ -51,7 +58,7 @@ async def get_llm_models(
 ) -> LLMModelListResponse:
     """Return the available LLM models from configured providers."""
 
-    _ensure_editor(request_user)
+    _ensure_llm_model_access(request_user)
     try:
         models = list_available_llm_models()
     except Exception as exc:

@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import type { JobTimingEntry, JobTimingResponse, TrackTimingPayload } from '../../api/dtos';
+import { LANGUAGE_CODES } from '../../constants/languageCodes';
 import type { WordIndex } from '../../lib/timing/wordSync';
 import type { TextPlayerVariantKind } from '../../text-player/TextPlayer';
 import type { Segment, TimingPayload, TrackKind, WordToken } from '../../types/timing';
 import { groupBy } from '../../utils/groupBy';
+import { normalizeLanguageLabel, sortLanguageLabelsByName } from '../../utils/languages';
 import type { ParagraphFragment, SentenceFragment, SentenceGate } from './types';
 import { MY_LINGUIST_EMPTY_SENTINEL } from './constants';
 
@@ -223,6 +225,23 @@ export function loadMyLinguistStored(key: string, { allowEmpty = false }: { allo
   }
 }
 
+export function storeMyLinguistStored(
+  key: string,
+  value: string,
+  { allowEmpty = false }: { allowEmpty?: boolean } = {},
+): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    const trimmed = value.trim();
+    const next = allowEmpty && !trimmed ? MY_LINGUIST_EMPTY_SENTINEL : trimmed;
+    window.localStorage.setItem(key, next);
+  } catch {
+    return;
+  }
+}
+
 export function loadMyLinguistStoredBool(key: string, fallback: boolean): boolean {
   if (typeof window === 'undefined') {
     return fallback;
@@ -243,6 +262,69 @@ export function loadMyLinguistStoredBool(key: string, fallback: boolean): boolea
   } catch {
     return fallback;
   }
+}
+
+export function buildMyLinguistLanguageOptions(
+  preferredLanguages: Array<string | null | undefined>,
+  fallback?: string,
+): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  const append = (value?: string | null) => {
+    const normalized = normalizeLanguageLabel(value);
+    if (!normalized) {
+      return;
+    }
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    result.push(normalized);
+  };
+
+  preferredLanguages.forEach(append);
+  sortLanguageLabelsByName(Object.keys(LANGUAGE_CODES)).forEach(append);
+
+  if (result.length === 0 && fallback) {
+    append(fallback);
+  }
+
+  return result;
+}
+
+export function buildMyLinguistModelOptions(
+  currentModel: string | null | undefined,
+  availableModels: string[],
+  fallbackModel: string,
+): string[] {
+  const seen = new Set<string>();
+  const models: string[] = [];
+  const append = (value: string | null | undefined) => {
+    if (!value) {
+      return;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return;
+    }
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    models.push(trimmed);
+  };
+
+  append(currentModel);
+  append(fallbackModel);
+  availableModels.forEach(append);
+
+  if (models.length === 0 && fallbackModel) {
+    return [fallbackModel];
+  }
+
+  return models;
 }
 
 export function normalizeValidation(

@@ -22,6 +22,7 @@ import { useLanguagePreferences } from '../context/LanguageProvider';
 import { useMyPainter } from '../context/MyPainterProvider';
 import type { InteractiveTextTheme } from '../types/interactiveTextTheme';
 import type { PlayerFeatureFlags, PlayerMode } from '../types/player';
+import { HEADER_COLLAPSE_KEY, loadHeaderCollapsed, storeHeaderCollapsed } from '../utils/playerHeader';
 import PlayerChannelBug from './PlayerChannelBug';
 import { InteractiveFullscreenControls } from './interactive-text/InteractiveFullscreenControls';
 import { InlineAudioPlayer } from './interactive-text/InlineAudioPlayer';
@@ -164,6 +165,27 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const linguistEnabled = featureFlags.linguist !== false;
   const painterEnabled = featureFlags.painter !== false;
   const sequenceDebugEnabled = useSequenceDebug();
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(loadHeaderCollapsed);
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== HEADER_COLLAPSE_KEY) {
+        return;
+      }
+      setIsHeaderCollapsed(loadHeaderCollapsed());
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+  const toggleHeaderCollapsed = useCallback(() => {
+    setIsHeaderCollapsed((previous) => {
+      const next = !previous;
+      storeHeaderCollapsed(next);
+      return next;
+    });
+  }, []);
   const resolvedJobOriginalLanguage = useMemo(() => {
     const trimmed = typeof jobOriginalLanguage === 'string' ? jobOriginalLanguage.trim() : '';
     return trimmed.length > 0 ? trimmed : null;
@@ -181,7 +203,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     hasChannelBug,
     safeInfoTitle,
     safeInfoMeta,
-    showInfoHeader,
+    showInfoHeader: hasInfoHeader,
     showTextBadge,
     showCoverArt,
     showSecondaryCover,
@@ -211,6 +233,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     bookCoverUrl,
     bookCoverAltText,
   });
+  const showHeaderContent = hasInfoHeader && !isHeaderCollapsed;
   const revealMemoryRef = useRef<{
     sentenceIdx: number | null;
     counts: Record<TextPlayerVariantKind, number>;
@@ -342,6 +365,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     onBackgroundClick: handleInteractiveBackgroundClick,
     requestPositionUpdate: requestLinguistBubblePositionUpdate,
     openTokenLookup: openLinguistTokenLookup,
+    lookupLanguageOptions: linguistLookupLanguageOptions,
+    llmModelOptions: linguistLlmModelOptions,
+    onLookupLanguageChange: handleLookupLanguageChange,
+    onLlmModelChange: handleLlmModelChange,
   } = linguist;
 
   useEffect(() => {
@@ -850,6 +877,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         onSpeak={handleLinguistSpeak}
         onSpeakSlow={handleLinguistSpeakSlow}
         onClose={closeLinguistBubble}
+        lookupLanguageOptions={linguistLookupLanguageOptions}
+        onLookupLanguageChange={handleLookupLanguageChange}
+        llmModelOptions={linguistLlmModelOptions}
+        onLlmModelChange={handleLlmModelChange}
         onBubblePointerDown={handleBubblePointerDown}
         onBubblePointerMove={handleBubblePointerMove}
         onBubblePointerUp={handleBubblePointerUp}
@@ -953,47 +984,66 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
           className="player-panel__document-body player-panel__interactive-frame"
           style={interactiveFrameStyle}
         >
-          {showInfoHeader ? (
-            <div className="player-panel__player-info-header" aria-hidden="true">
-              {hasChannelBug ? <PlayerChannelBug glyph={safeInfoGlyph} label={infoGlyphLabel} /> : null}
-              {showCoverArt ? (
-                <div className="player-panel__player-info-art" data-variant={resolvedInfoCoverVariant}>
-                  <img
-                    className="player-panel__player-info-art-main"
-                    src={resolvedCoverUrl ?? undefined}
-                    alt={coverAltText}
-                    onError={handleCoverError}
-                    loading="lazy"
-                  />
-                  {showSecondaryCover ? (
-                    <img
-                      className="player-panel__player-info-art-secondary"
-                      src={resolvedSecondaryCoverUrl ?? undefined}
-                      alt=""
-                      aria-hidden="true"
-                      onError={handleSecondaryCoverError}
-                      loading="lazy"
-                    />
+          {hasInfoHeader ? (
+            <div
+              className="player-panel__player-info-header"
+              data-collapsed={isHeaderCollapsed ? 'true' : undefined}
+            >
+              {showHeaderContent ? (
+                <div className="player-panel__player-info-header-content" aria-hidden="true">
+                  {hasChannelBug ? <PlayerChannelBug glyph={safeInfoGlyph} label={infoGlyphLabel} /> : null}
+                  {showCoverArt ? (
+                    <div className="player-panel__player-info-art" data-variant={resolvedInfoCoverVariant}>
+                      <img
+                        className="player-panel__player-info-art-main"
+                        src={resolvedCoverUrl ?? undefined}
+                        alt={coverAltText}
+                        onError={handleCoverError}
+                        loading="lazy"
+                      />
+                      {showSecondaryCover ? (
+                        <img
+                          className="player-panel__player-info-art-secondary"
+                          src={resolvedSecondaryCoverUrl ?? undefined}
+                          alt=""
+                          aria-hidden="true"
+                          onError={handleSecondaryCoverError}
+                          loading="lazy"
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {showTextBadge ? (
+                    <div className="player-panel__interactive-book-badge player-panel__player-info-badge">
+                      <div className="player-panel__interactive-book-badge-text">
+                        {safeInfoTitle ? (
+                          <span className="player-panel__interactive-book-badge-title">{safeInfoTitle}</span>
+                        ) : null}
+                        {safeInfoMeta ? (
+                          <span className="player-panel__interactive-book-badge-meta">{safeInfoMeta}</span>
+                        ) : null}
+                      </div>
+                    </div>
                   ) : null}
                 </div>
               ) : null}
-              {showTextBadge ? (
-                <div className="player-panel__interactive-book-badge player-panel__player-info-badge">
-                  <div className="player-panel__interactive-book-badge-text">
-                    {safeInfoTitle ? (
-                      <span className="player-panel__interactive-book-badge-title">{safeInfoTitle}</span>
-                    ) : null}
-                    {safeInfoMeta ? (
-                      <span className="player-panel__interactive-book-badge-meta">{safeInfoMeta}</span>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
+              <button
+                type="button"
+                className="player-panel__player-info-toggle"
+                data-collapsed={isHeaderCollapsed ? 'true' : 'false'}
+                onClick={toggleHeaderCollapsed}
+                onPointerDown={(event) => event.stopPropagation()}
+                aria-label={isHeaderCollapsed ? 'Show info header' : 'Hide info header'}
+              >
+                <svg viewBox="0 0 24 24" role="img" focusable="false" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6Z" fill="currentColor" />
+                </svg>
+              </button>
             </div>
           ) : null}
           <div
             className="player-panel__interactive-body"
-            data-has-badge={showInfoHeader ? 'true' : undefined}
+            data-has-badge={showHeaderContent ? 'true' : undefined}
           >
             {slideIndicator || audioTimelineText ? (
               <div className="player-panel__interactive-slide-stack">
@@ -1073,6 +1123,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
                 onSpeak={handleLinguistSpeak}
                 onSpeakSlow={handleLinguistSpeakSlow}
                 onClose={closeLinguistBubble}
+                lookupLanguageOptions={linguistLookupLanguageOptions}
+                onLookupLanguageChange={handleLookupLanguageChange}
+                llmModelOptions={linguistLlmModelOptions}
+                onLlmModelChange={handleLlmModelChange}
                 onBubblePointerDown={handleBubblePointerDown}
                 onBubblePointerMove={handleBubblePointerMove}
                 onBubblePointerUp={handleBubblePointerUp}

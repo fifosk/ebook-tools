@@ -164,7 +164,6 @@ export function useLinguistBubbleLookup({
           : storedModel.trim()
             ? storedModel.trim()
             : null;
-      const modelLabel = resolvedModel ?? 'Auto';
       const resolvedPrompt =
         storedPrompt && storedPrompt.trim()
           ? storedPrompt.trim()
@@ -178,7 +177,8 @@ export function useLinguistBubbleLookup({
         fullQuery: cleanedQuery,
         status: 'loading',
         answer: loadingAnswer,
-        modelLabel,
+        lookupLanguage: resolvedLookupLanguage,
+        llmModel: resolvedModel,
         ttsLanguage: resolvedInputLanguage,
         ttsStatus: 'idle',
         navigation,
