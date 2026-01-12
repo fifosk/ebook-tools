@@ -225,7 +225,12 @@ export function subtitleFormatFromPath(path: string | null | undefined): string 
   if (!path) {
     return '';
   }
-  const match = path.trim().match(/\.([^.\\/]+)$/);
+  const trimmed = path.trim();
+  if (!trimmed) {
+    return '';
+  }
+  const pathOnly = trimmed.split(/[?#]/, 1)[0] ?? trimmed;
+  const match = pathOnly.match(/\.([^.\\/]+)$/);
   if (!match) {
     return '';
   }

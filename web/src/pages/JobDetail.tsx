@@ -63,6 +63,7 @@ export default function JobDetail({
           mediaComplete={isComplete}
           isLoading={isLoading}
           error={error}
+          jobType={jobType ?? null}
           onPlaybackStateChange={onPlaybackStateChange}
           onVideoPlaybackStateChange={onVideoPlaybackStateChange}
           onFullscreenChange={onFullscreenChange}

@@ -41,6 +41,19 @@ type TrackLineMap = {
   tokenLine: Map<number, number>;
 };
 
+function isAssSubtitleTrack(track: SubtitleTrack | null): boolean {
+  if (!track) {
+    return false;
+  }
+  if (track.format) {
+    const cleaned = track.format.split(/[?#]/, 1)[0] ?? track.format;
+    return cleaned.toLowerCase() === 'ass';
+  }
+  const candidate = track.url ?? '';
+  const withoutQuery = candidate.split(/[?#]/)[0] ?? '';
+  return withoutQuery.toLowerCase().endsWith('.ass');
+}
+
 const TRACK_RENDER_ORDER: TrackKind[] = ['original', 'translation', 'transliteration'];
 
 const EMPTY_LINE_MAP: TrackLineMap = { lines: [], tokenLine: new Map() };
@@ -200,6 +213,7 @@ interface SubtitleTrackOverlayProps {
   videoRef: MutableRefObject<HTMLVideoElement | null>;
   track: SubtitleTrack | null;
   enabled: boolean;
+  linguistEnabled?: boolean;
   deferLoadUntilPlay?: boolean;
   cueVisibility?: {
     original: boolean;
@@ -219,6 +233,7 @@ export default function SubtitleTrackOverlay({
   videoRef,
   track,
   enabled,
+  linguistEnabled = true,
   deferLoadUntilPlay = false,
   cueVisibility = EMPTY_VISIBILITY,
   subtitleScale = 1,
@@ -242,11 +257,7 @@ export default function SubtitleTrackOverlay({
   });
   const [assReadyToLoad, setAssReadyToLoad] = useState(!deferLoadUntilPlay);
   const [cues, setCues] = useState<AssSubtitleCue[]>([]);
-  const shouldLoadAss =
-    enabled &&
-    assReadyToLoad &&
-    typeof track?.url === 'string' &&
-    track.url.toLowerCase().split(/[?#]/)[0]?.endsWith('.ass');
+  const shouldLoadAss = enabled && assReadyToLoad && isAssSubtitleTrack(track);
   const overlayActive = enabled && shouldLoadAss && cues.length > 0;
   const [activeCueIndex, setActiveCueIndex] = useState(-1);
   const activeCueIndexRef = useRef(-1);
@@ -316,7 +327,7 @@ export default function SubtitleTrackOverlay({
   );
 
   const lookup = useLinguistBubbleLookup({
-    isEnabled: true,
+    isEnabled: linguistEnabled,
     audioRef: videoRef as unknown as MutableRefObject<HTMLAudioElement | null>,
     requestCounterRef: linguistRequestCounterRef,
     bubble,
@@ -338,6 +349,14 @@ export default function SubtitleTrackOverlay({
     layout.resetLayout();
     setBubble(null);
   }, [layout]);
+
+  useEffect(() => {
+    if (!linguistEnabled) {
+      llmModelsLoadedRef.current = false;
+      setAvailableLlmModels([]);
+      closeBubble();
+    }
+  }, [closeBubble, linguistEnabled]);
 
   const handleLookupLanguageChange = useCallback((value: string) => {
     const trimmed = value.trim();
@@ -365,7 +384,7 @@ export default function SubtitleTrackOverlay({
   }, []);
 
   useEffect(() => {
-    if (!bubble || llmModelsLoadedRef.current) {
+    if (!linguistEnabled || !bubble || llmModelsLoadedRef.current) {
       return;
     }
     llmModelsLoadedRef.current = true;
@@ -546,7 +565,7 @@ export default function SubtitleTrackOverlay({
 
   useEffect(() => {
     setAssReadyToLoad(!deferLoadUntilPlay);
-  }, [deferLoadUntilPlay, track?.url]);
+  }, [deferLoadUntilPlay, track?.format, track?.url]);
 
   useEffect(() => {
     if (!deferLoadUntilPlay || assReadyToLoad) {
@@ -874,17 +893,20 @@ export default function SubtitleTrackOverlay({
         return;
       }
       const rect = element?.getBoundingClientRect();
-      if (rect) {
+      if (linguistEnabled && rect) {
         lookup.openLinguistBubbleForRect(word, rect, 'click', toVariantKind(trackKey), element);
       }
       setSelection({ track: trackKey, index });
       overlayRef.current?.focus();
     },
-    [lookup, tracks],
+    [linguistEnabled, lookup, tracks],
   );
 
   const openSelectionLookup = useCallback(
     () => {
+      if (!linguistEnabled) {
+        return false;
+      }
       const fallback = resolveDefaultSelection(visibleTracks, tracks);
       const current = selection ?? fallback;
       if (!current) {
@@ -907,7 +929,7 @@ export default function SubtitleTrackOverlay({
       overlayRef.current?.focus();
       return true;
     },
-    [lookup, selection, tracks, visibleTracks],
+    [linguistEnabled, lookup, selection, tracks, visibleTracks],
   );
 
   const handleKeyDown = useCallback(
@@ -1187,7 +1209,7 @@ export default function SubtitleTrackOverlay({
           </div>
         );
       })}
-      {bubble ? (() => {
+      {linguistEnabled && bubble ? (() => {
         const bubbleNode = (
           <MyLinguistBubble
             bubble={bubble}

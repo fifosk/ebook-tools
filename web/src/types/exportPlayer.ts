@@ -31,6 +31,7 @@ export type ExportPlayerManifest = {
   source?: ExportPlayerSource | null;
   book_metadata?: Record<string, unknown> | null;
   media?: Record<string, PipelineMediaFile[] | undefined> | null;
+  inline_subtitles?: Record<string, string> | null;
   chunks?: PipelineMediaChunk[] | null;
   complete?: boolean | null;
   reading_bed?: ExportReadingBed | null;

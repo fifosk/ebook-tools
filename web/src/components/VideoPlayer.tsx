@@ -10,6 +10,7 @@ export interface SubtitleTrack {
   label?: string;
   kind?: string;
   language?: string;
+  format?: string;
 }
 
 interface VideoPlayerProps {
@@ -48,6 +49,7 @@ interface VideoPlayerProps {
       | null
   ) => void;
   subtitlesEnabled?: boolean;
+  linguistEnabled?: boolean;
   tracks?: SubtitleTrack[];
   cueVisibility?: {
     original: boolean;
@@ -125,6 +127,23 @@ function injectVttCueStyle(payload: string, backgroundPercent: number, subtitleS
   return `WEBVTT\n\n${styleBlock}${payload}`;
 }
 
+function decodeDataUrl(value: string): string | null {
+  const match = value.match(/^data:(.*?)(;base64)?,(.*)$/);
+  if (!match) {
+    return null;
+  }
+  const isBase64 = Boolean(match[2]);
+  const payload = match[3] ?? '';
+  try {
+    if (isBase64) {
+      return atob(payload);
+    }
+    return decodeURIComponent(payload);
+  } catch {
+    return null;
+  }
+}
+
 function filterCueTextByVisibility(
   rawText: string,
   visibility: { original: boolean; transliteration: boolean; translation: boolean }
@@ -163,15 +182,36 @@ function filterCueTextByVisibility(
 
 const EMPTY_VTT_DATA_URL = 'data:text/vtt;charset=utf-8,WEBVTT%0A%0A';
 
+function resolveSubtitleFormat(track: SubtitleTrack | null): string {
+  if (!track) {
+    return '';
+  }
+  if (track.format) {
+    const cleaned = track.format.split(/[?#]/, 1)[0] ?? track.format;
+    return cleaned.toLowerCase();
+  }
+  const candidate = track.url ?? '';
+  if (candidate.startsWith('data:text/vtt')) {
+    return 'vtt';
+  }
+  const withoutQuery = candidate.split(/[?#]/)[0] ?? '';
+  const match = withoutQuery.match(/\.([^.\\/]+)$/);
+  return match ? match[1].toLowerCase() : '';
+}
+
+function isVttSubtitleTrack(track: SubtitleTrack | null): boolean {
+  return resolveSubtitleFormat(track) === 'vtt';
+}
+
+function isAssSubtitleTrack(track: SubtitleTrack | null): boolean {
+  return resolveSubtitleFormat(track) === 'ass';
+}
+
 function selectPrimarySubtitleTrack(tracks: SubtitleTrack[]): SubtitleTrack | null {
   if (!tracks || tracks.length === 0) {
     return null;
   }
-  const vtt = tracks.find((track) => {
-    const candidate = track.url ?? '';
-    const withoutQuery = candidate.split(/[?#]/)[0] ?? '';
-    return withoutQuery.toLowerCase().endsWith('.vtt');
-  });
+  const vtt = tracks.find((track) => isVttSubtitleTrack(track));
   return vtt ?? tracks[0] ?? null;
 }
 
@@ -179,21 +219,7 @@ function selectAssSubtitleTrack(tracks: SubtitleTrack[]): SubtitleTrack | null {
   if (!tracks || tracks.length === 0) {
     return null;
   }
-  return (
-    tracks.find((track) => {
-      const candidate = track.url ?? '';
-      const withoutQuery = candidate.split(/[?#]/)[0] ?? '';
-      return withoutQuery.toLowerCase().endsWith('.ass');
-    }) ?? null
-  );
-}
-
-function isAssSubtitleTrack(track: SubtitleTrack | null): boolean {
-  if (!track?.url) {
-    return false;
-  }
-  const withoutQuery = track.url.split(/[?#]/)[0] ?? '';
-  return withoutQuery.toLowerCase().endsWith('.ass');
+  return tracks.find((track) => isAssSubtitleTrack(track)) ?? null;
 }
 
 function isSafariBrowser(): boolean {
@@ -231,6 +257,7 @@ export default function VideoPlayer({
   onExitTheaterMode,
   onRegisterControls,
   subtitlesEnabled = true,
+  linguistEnabled = true,
   tracks = [],
   cueVisibility = { original: true, transliteration: true, translation: true },
   subtitleScale = 1,
@@ -431,13 +458,7 @@ export default function VideoPlayer({
     }
 
     const candidate = activeSubtitleTrack.url ?? '';
-    const withoutQuery = candidate.split(/[?#]/)[0] ?? '';
-    if (!withoutQuery.toLowerCase().endsWith('.vtt')) {
-      setProcessedSubtitleUrl(activeSubtitleTrack.url);
-      return;
-    }
-
-    if (isFileProtocol || typeof fetch !== 'function') {
+    if (!isVttSubtitleTrack(activeSubtitleTrack)) {
       setProcessedSubtitleUrl(activeSubtitleTrack.url);
       return;
     }
@@ -447,6 +468,23 @@ export default function VideoPlayer({
 
     const run = async () => {
       try {
+        if (candidate.startsWith('data:')) {
+          const raw = decodeDataUrl(candidate);
+          if (!raw) {
+            setProcessedSubtitleUrl(activeSubtitleTrack.url);
+            return;
+          }
+          const vtt = injectVttCueStyle(raw, resolvedSubtitleBackgroundOpacityPercent, subtitleScale);
+          const blob = new Blob([vtt], { type: 'text/vtt' });
+          const objectUrl = URL.createObjectURL(blob);
+          revokedUrl = objectUrl;
+          setProcessedSubtitleUrl(objectUrl);
+          return;
+        }
+        if (isFileProtocol || typeof fetch !== 'function') {
+          setProcessedSubtitleUrl(activeSubtitleTrack.url);
+          return;
+        }
         const response = await fetch(activeSubtitleTrack.url, { signal: controller.signal });
         if (!response.ok) {
           setProcessedSubtitleUrl(activeSubtitleTrack.url);
@@ -473,6 +511,7 @@ export default function VideoPlayer({
       }
     };
   }, [
+    activeSubtitleTrack?.format,
     activeSubtitleTrack?.url,
     disableNativeTrack,
     isFileProtocol,
@@ -1497,6 +1536,7 @@ export default function VideoPlayer({
               videoRef={elementRef}
               track={overlaySubtitleTrack}
               enabled={subtitlesEnabled}
+              linguistEnabled={linguistEnabled}
               deferLoadUntilPlay={deferAssLoad}
               cueVisibility={cueVisibility}
               subtitleScale={subtitleScale}

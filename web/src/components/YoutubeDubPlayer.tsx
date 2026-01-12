@@ -29,6 +29,9 @@ import type { LibraryItem, SubtitleTvMetadataResponse, YoutubeVideoMetadataRespo
 import { coerceExportPath } from '../utils/storageResolver';
 import { downloadWithSaveAs } from '../utils/downloads';
 import { buildLibraryBookMetadata } from '../utils/libraryMetadata';
+import { subtitleFormatFromPath } from '../utils/subtitles';
+import { extractJobType } from '../utils/jobGlyphs';
+import type { ExportPlayerManifest } from '../types/exportPlayer';
 import { extractMetadataFirstString, extractMetadataText } from './player-panel/helpers';
 import { useMyLinguist } from '../context/MyLinguistProvider';
 
@@ -40,6 +43,7 @@ interface YoutubeDubPlayerProps {
   mediaComplete: boolean;
   isLoading: boolean;
   error: Error | null;
+  jobType?: string | null;
   playerMode?: 'online' | 'export';
   onFullscreenChange?: (isFullscreen: boolean) => void;
   onPlaybackStateChange?: (isPlaying: boolean) => void;
@@ -175,6 +179,19 @@ function extractTvMediaMetadataFromLibrary(item: LibraryItem | null | undefined)
   return coerceRecord(candidate);
 }
 
+function extractTvMediaMetadataFromPayload(payload: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!payload) {
+    return null;
+  }
+  const candidate =
+    readNestedValue(payload, ['result', 'youtube_dub', 'media_metadata']) ??
+    readNestedValue(payload, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
+    readNestedValue(payload, ['request', 'media_metadata']) ??
+    readNestedValue(payload, ['media_metadata']) ??
+    null;
+  return coerceRecord(candidate);
+}
+
 function resolveTvImage(
   jobId: string,
   tvMetadata: Record<string, unknown> | null,
@@ -258,6 +275,7 @@ export default function YoutubeDubPlayer({
   mediaComplete,
   isLoading,
   error,
+  jobType = null,
   playerMode = 'online',
   onFullscreenChange,
   onPlaybackStateChange,
@@ -269,6 +287,21 @@ export default function YoutubeDubPlayer({
 }: YoutubeDubPlayerProps) {
   const isExportMode = playerMode === 'export';
   const { adjustBaseFontScalePercent, baseFontScalePercent } = useMyLinguist();
+  const resolvedJobType = useMemo(() => jobType ?? extractJobType(bookMetadata) ?? null, [bookMetadata, jobType]);
+  const inlineSubtitles = useMemo(() => {
+    if (!isExportMode || typeof window === 'undefined') {
+      return null;
+    }
+    const candidate = (window as Window & { __EXPORT_DATA__?: unknown }).__EXPORT_DATA__;
+    if (!candidate || typeof candidate !== 'object') {
+      return null;
+    }
+    const manifest = candidate as ExportPlayerManifest;
+    if (!manifest.inline_subtitles || typeof manifest.inline_subtitles !== 'object') {
+      return null;
+    }
+    return manifest.inline_subtitles as Record<string, string>;
+  }, [isExportMode]);
   const resolveMediaUrl = useCallback(
     (url: string) => {
       if (isExportMode) {
@@ -278,6 +311,62 @@ export default function YoutubeDubPlayer({
     },
     [appendAccessToken, isExportMode, jobId],
   );
+  const normalizeInlineSubtitleKey = useCallback((value: string): string => {
+    const trimmed = value.trim().replace(/\\+/g, '/');
+    const pathOnly = trimmed.split(/[?#]/)[0] ?? trimmed;
+    let normalized = pathOnly.replace(/^\.?\//, '');
+    try {
+      normalized = decodeURIComponent(normalized);
+    } catch {
+      // Keep normalized as-is when decoding fails.
+    }
+    return normalized;
+  }, []);
+  const resolveInlineSubtitlePayload = useCallback(
+    (value: string): string | null => {
+      if (!inlineSubtitles) {
+        return null;
+      }
+      const normalized = normalizeInlineSubtitleKey(value);
+      return inlineSubtitles[normalized] ?? inlineSubtitles[normalized.replace(/^\/+/, '')] ?? null;
+    },
+    [inlineSubtitles, normalizeInlineSubtitleKey],
+  );
+  const buildSubtitleDataUrl = useCallback((payload: string, format?: string | null): string => {
+    const normalizedFormat = (format ?? '').toLowerCase();
+    const mime = normalizedFormat === 'vtt' ? 'text/vtt' : 'text/plain';
+    return `data:${mime};charset=utf-8,${encodeURIComponent(payload)}`;
+  }, []);
+  const resolveSubtitleUrl = useCallback(
+    (url: string, format?: string | null): string => {
+      const resolved = resolveMediaUrl(url);
+      if (!isExportMode) {
+        return resolved;
+      }
+      const payload = resolveInlineSubtitlePayload(resolved);
+      if (!payload) {
+        return resolved;
+      }
+      const inferredFormat = format || subtitleFormatFromPath(resolved);
+      return buildSubtitleDataUrl(payload, inferredFormat);
+    },
+    [buildSubtitleDataUrl, isExportMode, resolveInlineSubtitlePayload, resolveMediaUrl],
+  );
+  const exportTvMetadata = useMemo(
+    () => (isExportMode ? extractTvMediaMetadataFromPayload(coerceRecord(bookMetadata)) : null),
+    [bookMetadata, isExportMode],
+  );
+  const exportYoutubeMetadata = useMemo(() => {
+    if (!isExportMode) {
+      return null;
+    }
+    const record = coerceRecord(bookMetadata);
+    const direct = record ? coerceRecord(record['youtube']) : null;
+    if (direct) {
+      return direct;
+    }
+    return extractYoutubeVideoMetadataFromTv(exportTvMetadata);
+  }, [bookMetadata, exportTvMetadata, isExportMode]);
   const videoLookup = useMemo(() => {
     const map = new Map<string, LiveMediaItem>();
     media.video.forEach((item, index) => {
@@ -469,12 +558,16 @@ export default function YoutubeDubPlayer({
     const fallbackTracks: SubtitleTrack[] = media.text
       .filter((entry) => typeof entry.url === 'string' && entry.url.length > 0)
       .sort((a, b) => formatRank(a) - formatRank(b))
-      .map((entry) => ({
-        url: resolveMediaUrl(entry.url!),
-        label: entry.name ?? entry.url ?? 'Subtitles',
-        kind: 'subtitles',
-        language: (entry as { language?: string }).language ?? undefined,
-      }));
+      .map((entry) => {
+        const format = subtitleFormatFromPath(entry.url ?? entry.name ?? entry.path);
+        return {
+          url: resolveSubtitleUrl(entry.url!, format),
+          label: entry.name ?? entry.url ?? 'Subtitles',
+          kind: 'subtitles',
+          language: (entry as { language?: string }).language ?? undefined,
+          format: format || undefined,
+        };
+      });
     media.video.forEach((video, index) => {
       if (typeof video.url !== 'string' || video.url.length === 0) {
         return;
@@ -529,12 +622,16 @@ export default function YoutubeDubPlayer({
         if (unique.length > 0) {
           map.set(
             videoId,
-            unique.map((entry) => ({
-              url: resolveMediaUrl(entry.url!),
-              label: entry.name ?? entry.url ?? 'Subtitles',
-              kind: 'subtitles',
-              language: (entry as { language?: string }).language ?? undefined,
-            })),
+            unique.map((entry) => {
+              const format = subtitleFormatFromPath(entry.url ?? entry.name ?? entry.path);
+              return {
+                url: resolveSubtitleUrl(entry.url!, format),
+                label: entry.name ?? entry.url ?? 'Subtitles',
+                kind: 'subtitles',
+                language: (entry as { language?: string }).language ?? undefined,
+                format: format || undefined,
+              };
+            }),
           );
           return;
         }
@@ -554,12 +651,16 @@ export default function YoutubeDubPlayer({
               seen.add(url);
               return true;
             })
-            .map((entry) => ({
-              url: resolveMediaUrl(entry.url!),
-              label: entry.name ?? entry.url ?? 'Subtitles',
-              kind: 'subtitles',
-              language: (entry as { language?: string }).language ?? undefined,
-            })),
+            .map((entry) => {
+              const format = subtitleFormatFromPath(entry.url ?? entry.name ?? entry.path);
+              return {
+                url: resolveSubtitleUrl(entry.url!, format),
+                label: entry.name ?? entry.url ?? 'Subtitles',
+                kind: 'subtitles',
+                language: (entry as { language?: string }).language ?? undefined,
+                format: format || undefined,
+              };
+            }),
         );
       }
     });
@@ -568,7 +669,7 @@ export default function YoutubeDubPlayer({
     }
 
     return map;
-  }, [deriveBaseId, media.text, media.video, resolveMediaUrl]);
+  }, [deriveBaseId, media.text, media.video, resolveMediaUrl, resolveSubtitleUrl]);
 
   const buildSiblingSubtitleTracks = useCallback((videoUrl: string | null | undefined): SubtitleTrack[] => {
     if (!videoUrl) {
@@ -580,13 +681,17 @@ export default function YoutubeDubPlayer({
     if (candidates.length === 0) {
       return [];
     }
-    return candidates.map((candidate, index) => ({
-      url: candidate,
-      label: index === 0 ? 'Subtitles' : `Subtitles (${index + 1})`,
-      kind: 'subtitles',
-      language: 'und',
-    }));
-  }, []);
+    return candidates.map((candidate, index) => {
+      const format = subtitleFormatFromPath(candidate);
+      return {
+        url: resolveSubtitleUrl(candidate, format),
+        label: index === 0 ? 'Subtitles' : `Subtitles (${index + 1})`,
+        kind: 'subtitles',
+        language: 'und',
+        format: format || undefined,
+      };
+    });
+  }, [resolveSubtitleUrl]);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -649,10 +754,14 @@ export default function YoutubeDubPlayer({
       return trimmed;
     };
 
-    const tvMetadata = isLibrary ? extractTvMediaMetadataFromLibrary(libraryItem) : jobTvMetadata;
+    const tvMetadata = isLibrary
+      ? extractTvMediaMetadataFromLibrary(libraryItem)
+      : jobTvMetadata ?? exportTvMetadata;
     const kind = typeof tvMetadata?.['kind'] === 'string' ? (tvMetadata.kind as string).trim().toLowerCase() : '';
     const youtubeFromTv = extractYoutubeVideoMetadataFromTv(tvMetadata);
-    const youtubeMetadata = isLibrary ? youtubeFromTv : jobYoutubeMetadata ?? youtubeFromTv;
+    const youtubeMetadata = isLibrary
+      ? youtubeFromTv
+      : jobYoutubeMetadata ?? exportYoutubeMetadata ?? youtubeFromTv;
 
     const episodeCoverUrl = resolveTvImage(jobId, tvMetadata, 'episode', resolver);
     const showCoverUrl = resolveTvImage(jobId, tvMetadata, 'show', resolver);
@@ -682,20 +791,17 @@ export default function YoutubeDubPlayer({
       })() ??
       null;
 
-    const isYoutubeVideo = Boolean(youtubeMetadata);
-    const glyph = isYoutubeVideo
-      ? 'YT'
-      : !isLibrary
-        ? 'DUB'
-        : kind === 'tv_episode'
-          ? 'TV'
-          : 'NAS';
+    const jobTypeValue = (resolvedJobType ?? '').trim().toLowerCase();
+    const hasYoutubeJobType = jobTypeValue.includes('youtube');
+    const isYoutubeVideo = Boolean(youtubeMetadata) || hasYoutubeJobType;
+    const isTvSeries = kind === 'tv_episode' || Boolean(tvMetadata?.['show'] || tvMetadata?.['episode']);
+    const glyph = isYoutubeVideo ? 'YT' : isTvSeries ? 'TV' : !isLibrary ? 'DUB' : 'NAS';
     const glyphLabel = isYoutubeVideo
       ? 'YouTube video'
-      : !isLibrary
-        ? 'Dubbed video'
-        : kind === 'tv_episode'
-          ? 'TV episode'
+      : isTvSeries
+        ? 'TV episode'
+        : !isLibrary
+          ? 'Dubbed video'
           : 'NAS video';
 
     const metaParts: string[] = [];
@@ -737,7 +843,17 @@ export default function YoutubeDubPlayer({
       glyph,
       glyphLabel,
     };
-  }, [activeVideoId, jobId, jobTvMetadata, jobYoutubeMetadata, libraryItem, videoFiles]);
+  }, [
+    activeVideoId,
+    exportTvMetadata,
+    exportYoutubeMetadata,
+    jobId,
+    jobTvMetadata,
+    jobYoutubeMetadata,
+    libraryItem,
+    resolvedJobType,
+    videoFiles,
+  ]);
 
   useEffect(() => {
     if (activeSubtitleTracks.length > 0 || media.text.length > 0) {
@@ -1560,6 +1676,7 @@ export default function YoutubeDubPlayer({
           onExitTheaterMode={handleExitFullscreen}
           onRegisterControls={handleRegisterControls}
           subtitlesEnabled={subtitlesEnabled}
+          linguistEnabled={!isExportMode}
           tracks={activeSubtitleTracks}
           cueVisibility={cueVisibility}
           subtitleScale={activeSubtitleScale}

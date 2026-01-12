@@ -52,6 +52,10 @@ export default function ExportPlayerApp() {
     chunks: manifest.chunks ?? [],
     complete: Boolean(manifest.complete),
   };
+  const exportFeatures = useMemo(
+    () => ({ ...(manifest.player?.features ?? {}), linguist: false }),
+    [manifest.player?.features]
+  );
 
   const snapshot = useMemo(() => normaliseFetchedMedia(payload, jobId), [jobId, payload]);
   const readingBed = resolveReadingBed(manifest);
@@ -91,6 +95,7 @@ export default function ExportPlayerApp() {
         mediaComplete={snapshot.complete}
         isLoading={false}
         error={null}
+        jobType={manifest.source?.job_type ?? null}
         bookMetadata={(manifest.book_metadata as Record<string, unknown> | null) ?? null}
         playerMode="export"
       />
@@ -110,7 +115,7 @@ export default function ExportPlayerApp() {
       error={null}
       bookMetadata={(manifest.book_metadata as Record<string, unknown> | null) ?? null}
       playerMode="export"
-      playerFeatures={manifest.player?.features ?? undefined}
+      playerFeatures={exportFeatures}
       readingBedOverride={readingBed}
     />
   );

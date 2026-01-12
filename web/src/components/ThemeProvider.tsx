@@ -13,22 +13,32 @@ interface ThemeContextValue {
 const STORAGE_KEY = 'dashboard-theme-mode';
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
+function isExportContext(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return Boolean((window as Window & { __EXPORT_DATA__?: unknown }).__EXPORT_DATA__);
+}
+
 function getSystemPreference(): ResolvedTheme {
   if (typeof window === 'undefined') {
-    return 'light';
+    return 'dark';
   }
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 function readStoredMode(): ThemeMode {
   if (typeof window === 'undefined') {
-    return 'system';
+    return 'dark';
+  }
+  if (isExportContext()) {
+    return 'dark';
   }
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === 'light' || stored === 'dark' || stored === 'system' || stored === 'magenta') {
     return stored;
   }
-  return 'system';
+  return 'dark';
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -57,6 +67,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') {
+      return;
+    }
+    if (isExportContext()) {
       return;
     }
     if (mode) {

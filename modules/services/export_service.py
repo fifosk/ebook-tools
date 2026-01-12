@@ -46,6 +46,7 @@ IMAGE_SUFFIXES = {
     ".heic",
     ".heif",
 }
+INLINE_SUBTITLE_SUFFIXES = {".ass", ".srt", ".vtt"}
 
 
 class ExportServiceError(RuntimeError):
@@ -449,6 +450,36 @@ def _sanitize_media_entry(entry: Mapping[str, Any], *, job_root: Path) -> Option
     return payload
 
 
+def _collect_inline_subtitles(
+    media_map: Mapping[str, Iterable[Mapping[str, Any]]], *, job_root: Path
+) -> Optional[Dict[str, str]]:
+    inline: Dict[str, str] = {}
+    for entries in media_map.values():
+        if not isinstance(entries, Iterable):
+            continue
+        for entry in entries:
+            if not isinstance(entry, Mapping):
+                continue
+            candidate = entry.get("relative_path") or entry.get("url") or entry.get("path")
+            if not isinstance(candidate, str) or not candidate.strip():
+                continue
+            normalized = _normalize_relative_path(candidate, job_root=job_root)
+            if not normalized:
+                continue
+            suffix = Path(normalized).suffix.lower()
+            if suffix not in INLINE_SUBTITLE_SUFFIXES:
+                continue
+            source_path = job_root / normalized
+            if not source_path.exists():
+                continue
+            try:
+                payload = source_path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                payload = source_path.read_text(encoding="utf-8", errors="replace")
+            inline[normalized] = payload
+    return inline or None
+
+
 def _sanitize_audio_tracks(
     payload: Mapping[str, Any], *, job_root: Path
 ) -> Optional[Dict[str, Dict[str, Any]]]:
@@ -825,6 +856,7 @@ class ExportService:
             else None
         )
         export_player_type = "video" if is_video_export else DEFAULT_EXPORT_PLAYER_TYPE
+        inline_subtitles = _collect_inline_subtitles(media_map, job_root=job_root)
 
         source_payload: Dict[str, Any] = {
             "kind": source_kind,
@@ -858,6 +890,8 @@ class ExportService:
             },
             "created_at": _now_iso(),
         }
+        if inline_subtitles:
+            export_manifest["inline_subtitles"] = inline_subtitles
         if export_label:
             export_manifest["export_label"] = export_label
 
