@@ -19,6 +19,22 @@ struct LoginRequestPayload: Encodable {
     let password: String
 }
 
+struct OAuthLoginRequestPayload: Encodable {
+    let provider: String
+    let idToken: String
+    let email: String?
+    let firstName: String?
+    let lastName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case provider
+        case idToken = "id_token"
+        case email
+        case firstName = "first_name"
+        case lastName = "last_name"
+    }
+}
+
 struct AssistantLookupRequest: Encodable {
     let query: String
     let inputLanguage: String

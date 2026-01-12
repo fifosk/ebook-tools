@@ -132,9 +132,14 @@ def make_translation_prompt(
                 )
 
     if include_transliteration:
-        instructions.append(
-            "If a transliteration is appropriate, append ONLY the transliteration on the SECOND LINE, without prefixes, labels, commentary, or delimiter characters."
-        )
+        if language_policies.is_non_latin_language_hint(target_language):
+            instructions.append(
+                "Append a transliteration on the SECOND LINE for EVERY response; do NOT leave it blank unless the source text is empty."
+            )
+        else:
+            instructions.append(
+                "If a transliteration is appropriate, append ONLY the transliteration on the SECOND LINE, without prefixes, labels, commentary, or delimiter characters."
+            )
         if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["thai"]["aliases"]):
             instructions.append(
                 "When providing the Thai transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
@@ -224,9 +229,14 @@ def make_translation_batch_prompt(
         instructions.append(
             "The `translation` and `transliteration` values must be single-line strings without line breaks."
         )
-        instructions.append(
-            "Populate the `transliteration` field ONLY when a transliteration is appropriate; otherwise use an empty string."
-        )
+        if language_policies.is_non_latin_language_hint(target_language):
+            instructions.append(
+                "Populate the `transliteration` field for EVERY item (Latin script), leaving it blank only when the source text is empty."
+            )
+        else:
+            instructions.append(
+                "Populate the `transliteration` field ONLY when a transliteration is appropriate; otherwise use an empty string."
+            )
         if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["thai"]["aliases"]):
             instructions.append(
                 "When providing the Thai transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."

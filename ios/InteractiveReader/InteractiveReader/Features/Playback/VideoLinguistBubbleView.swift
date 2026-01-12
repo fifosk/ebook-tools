@@ -22,6 +22,10 @@ struct VideoLinguistBubbleView: View {
     let canIncreaseFont: Bool
     let canDecreaseFont: Bool
     let lookupLanguage: String
+    #if os(tvOS)
+    let isFocusEnabled: Bool
+    let onBubbleFocus: (() -> Void)?
+    #endif
     let lookupLanguageOptions: [String]
     let onLookupLanguageChange: (String) -> Void
     let llmModel: String
@@ -38,8 +42,7 @@ struct VideoLinguistBubbleView: View {
     #endif
     #if os(tvOS)
     @FocusState private var focusedControl: BubbleHeaderControl?
-    @State private var showingLanguagePicker = false
-    @State private var showingModelPicker = false
+    @State private var activePicker: BubblePicker?
 
     private enum BubbleHeaderControl: Hashable {
         case language
@@ -48,9 +51,25 @@ struct VideoLinguistBubbleView: View {
         case increaseFont
         case close
     }
+
+    private enum BubblePicker: Hashable {
+        case language
+        case model
+    }
     #endif
 
     var body: some View {
+        ZStack {
+            bubbleBody
+            #if os(tvOS)
+            if activePicker != nil {
+                pickerOverlay
+            }
+            #endif
+        }
+    }
+
+    private var bubbleBody: some View {
         VStack(alignment: .leading, spacing: 10) {
             headerControls
 
@@ -76,8 +95,30 @@ struct VideoLinguistBubbleView: View {
         .frame(maxWidth: .infinity, alignment: .center)
         #if os(tvOS)
         .focusEffectDisabled()
-        .onMoveCommand { direction in
-            handleBubbleFocusMove(direction)
+        .focusSection()
+        .onAppear {
+            if isFocusEnabled && focusedControl == nil {
+                focusedControl = .language
+            }
+        }
+        .onChange(of: isFocusEnabled) { _, enabled in
+            if enabled {
+                if focusedControl == nil {
+                    focusedControl = .language
+                }
+            } else if focusedControl != nil {
+                focusedControl = nil
+            }
+        }
+        .onChange(of: activePicker) { _, newValue in
+            if newValue == nil && focusedControl == nil {
+                focusedControl = .language
+            }
+        }
+        .onChange(of: focusedControl) { _, newValue in
+            if newValue != nil {
+                onBubbleFocus?()
+            }
         }
         #endif
         #if os(iOS)
@@ -118,12 +159,9 @@ struct VideoLinguistBubbleView: View {
 
     private var closeButton: some View {
         #if os(tvOS)
-        bubbleControlButton(
-            systemName: "xmark",
-            control: .close,
-            isEnabled: true,
-            action: onClose
-        )
+        bubbleControlItem(control: .close, isEnabled: true, action: onClose) {
+            Image(systemName: "xmark")
+        }
         #else
         Button(action: onClose) {
             Image(systemName: "xmark")
@@ -185,31 +223,12 @@ struct VideoLinguistBubbleView: View {
     private var lookupLanguageMenu: some View {
         let entry = LanguageFlagResolver.flagEntry(for: lookupLanguage)
         #if os(tvOS)
-        Button {
-            showingLanguagePicker = true
-        } label: {
-            bubbleControlLabel(isFocused: focusedControl == .language) {
-                Text(entry.emoji)
-            }
+        bubbleControlItem(control: .language, isEnabled: true, action: {
+            activePicker = .language
+        }) {
+            Text(entry.emoji)
         }
-        .buttonStyle(.plain)
-        .focused($focusedControl, equals: .language)
-        .focusEffectDisabled()
         .accessibilityLabel("Lookup language")
-        .confirmationDialog("Lookup language", isPresented: $showingLanguagePicker, titleVisibility: .visible) {
-            ForEach(lookupLanguageOptions, id: \.self) { language in
-                let option = LanguageFlagResolver.flagEntry(for: language)
-                Button {
-                    onLookupLanguageChange(option.label)
-                } label: {
-                    if option.label == entry.label {
-                        Label("\(option.emoji) \(option.label)", systemImage: "checkmark")
-                    } else {
-                        Text("\(option.emoji) \(option.label)")
-                    }
-                }
-            }
-        }
         #else
         Menu {
             ForEach(lookupLanguageOptions, id: \.self) { language in
@@ -218,9 +237,12 @@ struct VideoLinguistBubbleView: View {
                     onLookupLanguageChange(option.label)
                 } label: {
                     if option.label == entry.label {
-                        Label("\(option.emoji) \(option.label)", systemImage: "checkmark")
+                        Label(
+                            title: { Text(verbatim: "\(option.emoji) \(option.label)") },
+                            icon: { Image(systemName: "checkmark") }
+                        )
                     } else {
-                        Text("\(option.emoji) \(option.label)")
+                        Text(verbatim: "\(option.emoji) \(option.label)")
                     }
                 }
             }
@@ -238,32 +260,14 @@ struct VideoLinguistBubbleView: View {
     @ViewBuilder
     private var modelMenu: some View {
         #if os(tvOS)
-        Button {
-            showingModelPicker = true
-        } label: {
-            bubbleControlLabel(isFocused: focusedControl == .model) {
-                Text(llmModel)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
+        bubbleControlItem(control: .model, isEnabled: true, action: {
+            activePicker = .model
+        }) {
+            Text(verbatim: llmModel)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
-        .buttonStyle(.plain)
-        .focused($focusedControl, equals: .model)
-        .focusEffectDisabled()
         .accessibilityLabel("Lookup model")
-        .confirmationDialog("Lookup model", isPresented: $showingModelPicker, titleVisibility: .visible) {
-            ForEach(llmModelOptions, id: \.self) { model in
-                Button {
-                    onLlmModelChange(model)
-                } label: {
-                    if model == llmModel {
-                        Label(model, systemImage: "checkmark")
-                    } else {
-                        Text(model)
-                    }
-                }
-            }
-        }
         #else
         Menu {
             ForEach(llmModelOptions, id: \.self) { model in
@@ -271,14 +275,17 @@ struct VideoLinguistBubbleView: View {
                     onLlmModelChange(model)
                 } label: {
                     if model == llmModel {
-                        Label(model, systemImage: "checkmark")
+                        Label(
+                            title: { Text(verbatim: model) },
+                            icon: { Image(systemName: "checkmark") }
+                        )
                     } else {
-                        Text(model)
+                        Text(verbatim: model)
                     }
                 }
             }
         } label: {
-            Text(llmModel)
+            Text(verbatim: llmModel)
                 .font(.caption2)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -294,18 +301,12 @@ struct VideoLinguistBubbleView: View {
     private var fontSizeControls: some View {
         #if os(tvOS)
         HStack(spacing: 6) {
-            bubbleControlButton(
-                title: "A-",
-                control: .decreaseFont,
-                isEnabled: canDecreaseFont,
-                action: onDecreaseFont
-            )
-            bubbleControlButton(
-                title: "A+",
-                control: .increaseFont,
-                isEnabled: canIncreaseFont,
-                action: onIncreaseFont
-            )
+            bubbleControlItem(control: .decreaseFont, isEnabled: canDecreaseFont, action: onDecreaseFont) {
+                Text("A-")
+            }
+            bubbleControlItem(control: .increaseFont, isEnabled: canIncreaseFont, action: onIncreaseFont) {
+                Text("A+")
+            }
         }
         #else
         HStack(spacing: 4) {
@@ -332,24 +333,141 @@ struct VideoLinguistBubbleView: View {
     }
 
     #if os(tvOS)
-    private var bubbleFocusOrder: [BubbleHeaderControl] {
-        [.language, .model, .decreaseFont, .increaseFont, .close]
+    private struct BubblePickerOption: Identifiable {
+        let id: String
+        let title: String
+        let value: String
+        let isSelected: Bool
+        let lineLimit: Int
     }
 
-    private func handleBubbleFocusMove(_ direction: MoveCommandDirection) {
-        guard let current = focusedControl else { return }
-        guard let index = bubbleFocusOrder.firstIndex(of: current) else { return }
-        switch direction {
-        case .left:
-            let next = max(0, index - 1)
-            focusedControl = bubbleFocusOrder[next]
-        case .right:
-            let next = min(bubbleFocusOrder.count - 1, index + 1)
-            focusedControl = bubbleFocusOrder[next]
-        case .up, .down:
-            break
-        default:
-            break
+    private struct BubblePickerOptionRow: View {
+        let option: BubblePickerOption
+
+        var body: some View {
+            HStack(spacing: 10) {
+                Text(verbatim: option.title)
+                    .lineLimit(option.lineLimit)
+                Spacer(minLength: 12)
+                if option.isSelected {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.white)
+                }
+            }
+            .font(.callout)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.white.opacity(option.isSelected ? 0.25 : 0.12))
+            )
+        }
+    }
+
+    private struct BubblePickerOverlay: View {
+        let title: String
+        let options: [BubblePickerOption]
+        let onSelectOption: (BubblePickerOption) -> Void
+        let activePicker: Binding<BubblePicker?>
+        @FocusState private var pickerFocus: String?
+
+        var body: some View {
+            ZStack {
+                Color.black.opacity(0.55)
+                    .ignoresSafeArea()
+                VStack(spacing: 12) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(options) { option in
+                                Button {
+                                    onSelectOption(option)
+                                    activePicker.wrappedValue = nil
+                                } label: {
+                                    BubblePickerOptionRow(option: option)
+                                }
+                                .buttonStyle(.plain)
+                                .focused($pickerFocus, equals: Optional(option.id))
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                    }
+                    Button("Close") {
+                        activePicker.wrappedValue = nil
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.black.opacity(0.4), in: Capsule())
+                    .foregroundStyle(.white)
+                }
+                .padding(16)
+                .frame(maxWidth: 520)
+                .background(Color.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 16))
+            }
+            .focusSection()
+            .onExitCommand {
+                activePicker.wrappedValue = nil
+            }
+            .onAppear {
+                if pickerFocus == nil {
+                    pickerFocus = options.first(where: { $0.isSelected })?.id ?? options.first?.id
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var pickerOverlay: some View {
+        if let activePicker {
+            pickerOverlayContent(activePicker: activePicker)
+        }
+    }
+
+    @ViewBuilder
+    private func pickerOverlayContent(activePicker selection: BubblePicker) -> some View {
+        let isLanguage = selection == .language
+        let title = isLanguage ? "Lookup language" : "Lookup model"
+        let options = pickerOptions(isLanguage: isLanguage)
+        BubblePickerOverlay(
+            title: title,
+            options: options,
+            onSelectOption: { option in
+                if isLanguage {
+                    onLookupLanguageChange(option.value)
+                } else {
+                    onLlmModelChange(option.value)
+                }
+            },
+            activePicker: $activePicker
+        )
+    }
+
+    private func pickerOptions(isLanguage: Bool) -> [BubblePickerOption] {
+        if isLanguage {
+            return lookupLanguageOptions.map { option in
+                let entry = LanguageFlagResolver.flagEntry(for: option)
+                let label = entry.label
+                return BubblePickerOption(
+                    id: option,
+                    title: "\(entry.emoji) \(label)",
+                    value: label,
+                    isSelected: label == lookupLanguage,
+                    lineLimit: 1
+                )
+            }
+        }
+        return llmModelOptions.map { model in
+            BubblePickerOption(
+                id: model,
+                title: model,
+                value: model,
+                isSelected: model == llmModel,
+                lineLimit: 2
+            )
         }
     }
 
@@ -369,26 +487,25 @@ struct VideoLinguistBubbleView: View {
             )
     }
 
-    private func bubbleControlButton(
-        title: String? = nil,
-        systemName: String? = nil,
+    private func bubbleControlItem(
         control: BubbleHeaderControl,
         isEnabled: Bool,
-        action: @escaping () -> Void
+        action: @escaping () -> Void,
+        @ViewBuilder label: () -> some View
     ) -> some View {
-        Button(action: action) {
-            bubbleControlLabel(isFocused: focusedControl == control) {
-                if let systemName {
-                    Image(systemName: systemName)
-                } else if let title {
-                    Text(title)
-                }
-            }
+        let canFocus = isEnabled && activePicker == nil
+        return bubbleControlLabel(isFocused: focusedControl == control) {
+            label()
         }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.45)
+        .contentShape(Rectangle())
+        .focusable(canFocus)
         .focused($focusedControl, equals: control)
         .focusEffectDisabled()
+        .onTapGesture {
+            guard canFocus, focusedControl == control else { return }
+            action()
+        }
     }
     #endif
 

@@ -1,5 +1,6 @@
 import {
   LoginRequestPayload,
+  OAuthLoginRequestPayload,
   ManagedUser,
   PasswordChangeRequestPayload,
   ImageNodeAvailabilityRequestPayload,
@@ -222,6 +223,21 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export async function login(payload: LoginRequestPayload): Promise<SessionStatusResponse> {
   const response = await apiFetch(
     '/api/auth/login',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    },
+    { skipAuth: true }
+  );
+  return handleResponse<SessionStatusResponse>(response);
+}
+
+export async function loginWithOAuth(payload: OAuthLoginRequestPayload): Promise<SessionStatusResponse> {
+  const response = await apiFetch(
+    '/api/auth/oauth',
     {
       method: 'POST',
       headers: {

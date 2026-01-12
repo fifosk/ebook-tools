@@ -19,7 +19,8 @@ import {
   PipelineRequestPayload,
   JobParameterSnapshot,
   PipelineStatusResponse,
-  ProgressEventPayload
+  ProgressEventPayload,
+  OAuthLoginRequestPayload
 } from './api/dtos';
 import {
   cancelJob,
@@ -156,7 +157,15 @@ export function App() {
     return <DualTrackDemoRoute />;
   }
 
-  const { session, isLoading: isAuthLoading, logoutReason, login, logout, updatePassword } = useAuth();
+  const {
+    session,
+    isLoading: isAuthLoading,
+    logoutReason,
+    login,
+    loginWithOAuth,
+    logout,
+    updatePassword
+  } = useAuth();
   const [jobs, setJobs] = useState<Record<string, JobRegistryEntry>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -228,6 +237,21 @@ export function App() {
       }
     },
     [login]
+  );
+
+  const handleOAuthLogin = useCallback(
+    async (payload: OAuthLoginRequestPayload) => {
+      setIsLoggingIn(true);
+      setAuthError(null);
+      try {
+        await loginWithOAuth(payload);
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : 'Unable to sign in.');
+      } finally {
+        setIsLoggingIn(false);
+      }
+    },
+    [loginWithOAuth]
   );
 
   const handleLogout = useCallback(async () => {
@@ -1302,10 +1326,21 @@ export function App() {
     return (
       <div className="auth-screen">
         <div className="auth-card">
-          <h1>Language tools</h1>
-          <p>Sign in to submit jobs and manage pipeline activity.</p>
+          <div className="auth-card__header">
+            <div className="auth-card__logo" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M3 12h18" />
+                <path d="M5 7c2.2 1.4 4.7 2 7 2s4.8-.6 7-2" />
+                <path d="M5 17c2.2-1.4 4.7-2 7-2s4.8.6 7 2" />
+                <path d="M12 3c2.5 3 2.5 15 0 18c-2.5-3-2.5-15 0-18z" />
+              </svg>
+            </div>
+            <h1>Language tools</h1>
+          </div>
           <LoginForm
             onSubmit={handleLogin}
+            onOAuthSubmit={handleOAuthLogin}
             isSubmitting={isLoggingIn}
             error={authError}
             notice={logoutReason}

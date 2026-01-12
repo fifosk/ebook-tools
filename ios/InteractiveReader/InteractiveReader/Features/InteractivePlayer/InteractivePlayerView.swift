@@ -115,70 +115,65 @@ struct InteractivePlayerView: View {
             .onPlayPauseCommand {
                 audioCoordinator.togglePlayback()
             }
-            .applyIf(!isMenuVisible) { view in
-                view.onMoveCommand { direction in
-                    guard let chunk = viewModel.selectedChunk else { return }
-                    if focusedArea == .bubble {
-                        if direction == .up {
-                            focusedArea = .transcript
-                        }
-                        return
-                    }
-                    if focusedArea == .controls {
-                        if direction == .down {
-                            focusedArea = .transcript
-                        }
-                        return
-                    }
-                    let isTranscriptFocus = focusedArea == .transcript || focusedArea == nil
-                    guard isTranscriptFocus else { return }
-                    switch direction {
-                    case .left:
-                        if audioCoordinator.isPlaying {
-                            viewModel.skipSentence(forward: false)
-                        } else {
-                            handleWordNavigation(-1, in: chunk)
-                        }
-                    case .right:
-                        if audioCoordinator.isPlaying {
-                            viewModel.skipSentence(forward: true)
-                        } else {
-                            handleWordNavigation(1, in: chunk)
-                        }
-                    case .up:
-                        if audioCoordinator.isPlaying {
-                            focusedArea = .controls
-                        } else {
-                            let moved = handleTrackNavigation(-1, in: chunk)
-                            if moved {
-                                focusedArea = .transcript
-                            } else {
-                                focusedArea = .controls
-                            }
-                        }
-                    case .down:
-                        if audioCoordinator.isPlaying {
-                            showMenu()
-                        } else {
-                            let moved = handleTrackNavigation(1, in: chunk)
-                            if moved {
-                                focusedArea = .transcript
-                            } else if linguistBubble != nil {
-                                focusedArea = .bubble
-                            } else {
-                                focusedArea = .transcript
-                            }
-                        }
-                    default:
-                        break
-                    }
-                }
-            }
-            .applyIf(isMenuVisible) { view in
-                view.onMoveCommand { direction in
+            .onMoveCommand { direction in
+                guard let chunk = viewModel.selectedChunk else { return }
+                if focusedArea == .bubble {
                     if direction == .up {
-                        hideMenu()
+                        focusedArea = .transcript
                     }
+                    return
+                }
+                if isMenuVisible, direction == .up {
+                    hideMenu()
+                    return
+                }
+                if focusedArea == .controls {
+                    if direction == .down {
+                        focusedArea = .transcript
+                    }
+                    return
+                }
+                let isTranscriptFocus = focusedArea == .transcript || focusedArea == nil
+                guard isTranscriptFocus else { return }
+                switch direction {
+                case .left:
+                    if audioCoordinator.isPlaying {
+                        viewModel.skipSentence(forward: false)
+                    } else {
+                        handleWordNavigation(-1, in: chunk)
+                    }
+                case .right:
+                    if audioCoordinator.isPlaying {
+                        viewModel.skipSentence(forward: true)
+                    } else {
+                        handleWordNavigation(1, in: chunk)
+                    }
+                case .up:
+                    if audioCoordinator.isPlaying {
+                        focusedArea = .controls
+                    } else {
+                        let moved = handleTrackNavigation(-1, in: chunk)
+                        if moved {
+                            focusedArea = .transcript
+                        } else {
+                            focusedArea = .controls
+                        }
+                    }
+                case .down:
+                    if audioCoordinator.isPlaying {
+                        showMenu()
+                    } else {
+                        let moved = handleTrackNavigation(1, in: chunk)
+                        if moved {
+                            focusedArea = .transcript
+                        } else if linguistBubble != nil {
+                            focusedArea = .bubble
+                        } else {
+                            focusedArea = .transcript
+                        }
+                    }
+                default:
+                    break
                 }
             }
         #else

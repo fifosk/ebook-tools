@@ -151,13 +151,20 @@ extension VideoPlayerView {
     }
 
     var llmModelOptions: [String] {
-        var models = availableLlmModels
-        let defaultModel = MyLinguistPreferences.defaultLlmModel
-        if !models.contains(defaultModel) {
-            models.insert(defaultModel, at: 0)
+        let candidates = [resolvedLlmModel, MyLinguistPreferences.defaultLlmModel] + availableLlmModels
+        var seen: Set<String> = []
+        var models: [String] = []
+        for candidate in candidates {
+            guard let raw = candidate else { continue }
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let key = trimmed.lowercased()
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            models.append(trimmed)
         }
         if models.isEmpty {
-            models = [defaultModel]
+            return [MyLinguistPreferences.defaultLlmModel]
         }
         return models
     }

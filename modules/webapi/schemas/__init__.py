@@ -6,6 +6,7 @@ from .audio import GTTSLanguage, MacOSVoice, VoiceInventoryResponse, VoiceMatchR
 from .access import AccessGrantPayload, AccessPolicyPayload, AccessPolicyUpdateRequest
 from .auth import (
     LoginRequestPayload,
+    OAuthLoginRequestPayload,
     PasswordChangeRequestPayload,
     SessionStatusResponse,
     SessionUserPayload,
@@ -166,6 +167,7 @@ __all__ = [
     "LibrarySearchResponse",
     "LLMModelListResponse",
     "LoginRequestPayload",
+    "OAuthLoginRequestPayload",
     "MacOSVoice",
     "ManagedUserPayload",
     "MediaAPISettings",

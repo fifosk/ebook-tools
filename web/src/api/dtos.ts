@@ -551,6 +551,16 @@ export interface SessionStatusResponse {
   user: SessionUser;
 }
 
+export type OAuthProvider = 'google' | 'apple';
+
+export interface OAuthLoginRequestPayload {
+  provider: OAuthProvider;
+  id_token: string;
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+}
+
 export interface LoginRequestPayload {
   username: string;
   password: string;

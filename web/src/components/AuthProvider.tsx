@@ -3,6 +3,7 @@ import {
   changePassword as changePasswordRequest,
   fetchSessionStatus,
   login as loginRequest,
+  loginWithOAuth as loginWithOAuthRequest,
   logout as logoutRequest,
   setAuthContext,
   setAuthToken,
@@ -10,6 +11,7 @@ import {
 } from '../api/client';
 import type {
   LoginRequestPayload,
+  OAuthLoginRequestPayload,
   PasswordChangeRequestPayload,
   SessionStatusResponse
 } from '../api/dtos';
@@ -19,6 +21,7 @@ interface AuthContextValue {
   isLoading: boolean;
   logoutReason: string | null;
   login: (username: string, password: string) => Promise<SessionStatusResponse>;
+  loginWithOAuth: (payload: OAuthLoginRequestPayload) => Promise<SessionStatusResponse>;
   logout: () => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
@@ -132,6 +135,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [applySession]
   );
 
+  const loginWithOAuth = useCallback(
+    async (payload: OAuthLoginRequestPayload) => {
+      const response = await loginWithOAuthRequest(payload);
+      applySession(response);
+      return response;
+    },
+    [applySession]
+  );
+
   const logout = useCallback(async () => {
     try {
       await logoutRequest();
@@ -152,8 +164,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ session, isLoading, logoutReason, login, logout, updatePassword }),
-    [isLoading, login, logout, logoutReason, session, updatePassword]
+    () => ({ session, isLoading, logoutReason, login, loginWithOAuth, logout, updatePassword }),
+    [isLoading, login, loginWithOAuth, logout, logoutReason, session, updatePassword]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

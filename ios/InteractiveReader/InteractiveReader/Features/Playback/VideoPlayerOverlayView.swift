@@ -280,23 +280,49 @@ struct VideoPlayerOverlayView: View {
     private var subtitleStack: some View {
         let stack = VStack(spacing: 6) {
             if let subtitleBubble {
-                VideoLinguistBubbleView(
-                    bubble: subtitleBubble,
-                    fontScale: subtitleLinguistFontScale,
-                    canIncreaseFont: canIncreaseSubtitleLinguistFont,
-                    canDecreaseFont: canDecreaseSubtitleLinguistFont,
-                    lookupLanguage: lookupLanguage,
-                    lookupLanguageOptions: lookupLanguageOptions,
-                    onLookupLanguageChange: onLookupLanguageChange,
-                    llmModel: llmModel,
-                    llmModelOptions: llmModelOptions,
-                    onLlmModelChange: onLlmModelChange,
-                    onIncreaseFont: onIncreaseSubtitleLinguistFont,
-                    onDecreaseFont: onDecreaseSubtitleLinguistFont,
-                    onResetFont: onResetSubtitleBubbleFont,
-                    onClose: onCloseSubtitleBubble,
-                    onMagnify: onSetSubtitleBubbleFont
-                )
+                Group {
+                    #if os(tvOS)
+                    VideoLinguistBubbleView(
+                        bubble: subtitleBubble,
+                        fontScale: subtitleLinguistFontScale,
+                        canIncreaseFont: canIncreaseSubtitleLinguistFont,
+                        canDecreaseFont: canDecreaseSubtitleLinguistFont,
+                        lookupLanguage: lookupLanguage,
+                        isFocusEnabled: focusTarget == .bubble,
+                        onBubbleFocus: {
+                            focusTarget = .bubble
+                        },
+                        lookupLanguageOptions: lookupLanguageOptions,
+                        onLookupLanguageChange: onLookupLanguageChange,
+                        llmModel: llmModel,
+                        llmModelOptions: llmModelOptions,
+                        onLlmModelChange: onLlmModelChange,
+                        onIncreaseFont: onIncreaseSubtitleLinguistFont,
+                        onDecreaseFont: onDecreaseSubtitleLinguistFont,
+                        onResetFont: onResetSubtitleBubbleFont,
+                        onClose: onCloseSubtitleBubble,
+                        onMagnify: onSetSubtitleBubbleFont
+                    )
+                    #else
+                    VideoLinguistBubbleView(
+                        bubble: subtitleBubble,
+                        fontScale: subtitleLinguistFontScale,
+                        canIncreaseFont: canIncreaseSubtitleLinguistFont,
+                        canDecreaseFont: canDecreaseSubtitleLinguistFont,
+                        lookupLanguage: lookupLanguage,
+                        lookupLanguageOptions: lookupLanguageOptions,
+                        onLookupLanguageChange: onLookupLanguageChange,
+                        llmModel: llmModel,
+                        llmModelOptions: llmModelOptions,
+                        onLlmModelChange: onLlmModelChange,
+                        onIncreaseFont: onIncreaseSubtitleLinguistFont,
+                        onDecreaseFont: onDecreaseSubtitleLinguistFont,
+                        onResetFont: onResetSubtitleBubbleFont,
+                        onClose: onCloseSubtitleBubble,
+                        onMagnify: onSetSubtitleBubbleFont
+                    )
+                    #endif
+                }
                 .padding(.bottom, 6)
                 #if os(tvOS)
                 .focusSection()
@@ -385,14 +411,19 @@ struct VideoPlayerOverlayView: View {
                         focusTarget = .subtitles
                     } else {
                         suppressControlFocus = false
-                        showTVControls = true
-                        focusTarget = .control(.playPause)
+                        if subtitleBubble != nil {
+                            focusTarget = .bubble
+                        } else {
+                            showTVControls = true
+                            focusTarget = .control(.playPause)
+                        }
                     }
                 default:
                     break
                 }
             }
             .onTapGesture {
+                guard focusTarget != .bubble else { return }
                 if isPlaying {
                     onUserInteraction()
                 } else {

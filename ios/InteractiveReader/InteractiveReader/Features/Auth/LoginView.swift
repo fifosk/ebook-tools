@@ -1,8 +1,10 @@
+import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var viewModel = LoginViewModel()
+    @StateObject private var appleSignIn = AppleSignInCoordinator()
     @FocusState private var focusedField: Field?
 
     private enum Field {
@@ -67,6 +69,28 @@ struct LoginView: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(viewModel.isLoading)
+
+                            #if os(tvOS)
+                            Button(action: handleAppleButton) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "applelogo")
+                                    Text("Sign In with Apple")
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.black)
+                            .foregroundStyle(.white)
+                            .frame(minHeight: 44)
+                            .disabled(viewModel.isLoading)
+                            #else
+                            SignInWithAppleButton(.signIn, onRequest: { request in
+                                request.requestedScopes = [.fullName, .email]
+                            }, onCompletion: handleAppleSignIn)
+                            .signInWithAppleButtonStyle(.black)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .disabled(viewModel.isLoading)
+                            #endif
                         }
                         .padding(.vertical, 4)
                     }
@@ -79,6 +103,14 @@ struct LoginView: View {
             if viewModel.username.isEmpty {
                 viewModel.username = appState.lastUsername
             }
+            appleSignIn.onCredential = { credential in
+                Task {
+                    await viewModel.signInWithApple(credential: credential, using: appState)
+                }
+            }
+            appleSignIn.onError = { error in
+                viewModel.errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -87,5 +119,26 @@ struct LoginView: View {
         Task {
             await viewModel.signIn(using: appState)
         }
+    }
+
+    private func handleAppleSignIn(result: Result<ASAuthorization, Error>) {
+        focusedField = nil
+        switch result {
+        case .success(let authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                viewModel.errorMessage = "Apple sign-in did not return a credential."
+                return
+            }
+            Task {
+                await viewModel.signInWithApple(credential: credential, using: appState)
+            }
+        case .failure(let error):
+            viewModel.errorMessage = error.localizedDescription
+        }
+    }
+
+    private func handleAppleButton() {
+        focusedField = nil
+        appleSignIn.startSignIn()
     }
 }
