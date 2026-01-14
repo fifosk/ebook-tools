@@ -371,11 +371,11 @@ export function usePlayerPanelJobInfo({
   const hasTvSeriesMetadata = isTvSeriesMetadata(tvMetadata);
   const channelBug = useMemo(() => {
     const normalisedJobType = (jobType ?? '').trim().toLowerCase();
-    if (normalisedJobType.includes('youtube') || hasYoutubeMetadata) {
-      return { glyph: 'YT', label: 'YouTube' };
-    }
     if (hasTvSeriesMetadata) {
       return { glyph: 'TV', label: 'TV series' };
+    }
+    if (normalisedJobType.includes('youtube') || hasYoutubeMetadata) {
+      return { glyph: 'YT', label: 'YouTube' };
     }
     if (itemType === 'book') {
       return { glyph: 'BK', label: 'Book' };

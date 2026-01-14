@@ -13,6 +13,9 @@ from typing import Dict, Iterable, Iterator, List, Mapping, MutableMapping, Opti
 from ..metadata_manager import MetadataLoader
 from ..services.file_locator import FileLocator
 from ..services.job_manager.job import PipelineJob
+from ..subtitles.io import _read_subtitle_text, load_subtitle_cues
+from ..subtitles.models import SubtitleCue
+from ..subtitles.text import _normalize_text
 
 MediaBucket = Dict[str, List[MutableMapping[str, object]]]
 
@@ -41,6 +44,23 @@ _VIDEO_TYPES = {
 _SCRIPT_STYLE_PATTERN = re.compile(r"<\s*(script|style)[^>]*>.*?<\s*/\s*\1\s*>", re.IGNORECASE | re.DOTALL)
 _TAG_PATTERN = re.compile(r"<[^>]+>")
 _WHITESPACE_PATTERN = re.compile(r"\s+")
+_SUBTITLE_EXTENSIONS = {".srt", ".vtt", ".ass"}
+_SUBTITLE_EXTENSION_ORDER = [".ass", ".vtt", ".srt"]
+_DEFAULT_ASS_FIELDS = [
+    "layer",
+    "start",
+    "end",
+    "style",
+    "name",
+    "marginl",
+    "marginr",
+    "marginv",
+    "effect",
+    "text",
+]
+_ASS_TIMESTAMP_PATTERN = re.compile(
+    r"^(?P<hours>\d+):(?P<minutes>\d{2}):(?P<seconds>\d{2})[.](?P<centis>\d{2})$"
+)
 
 
 @dataclass(slots=True)
@@ -64,6 +84,8 @@ class SearchMediaResult:
     offset_ratio: float | None
     approximate_time_seconds: float | None
     media: MediaBucket
+    cue_start_seconds: float | None = None
+    cue_end_seconds: float | None = None
 def _coerce_inputs_mapping(candidate: object) -> Optional[Mapping[str, object]]:
     if candidate is None:
         return None
@@ -353,15 +375,270 @@ def _resolve_job_root(job: PipelineJob, locator: FileLocator) -> Optional[Path]:
     return default_root if default_root.exists() else None
 
 
-def _load_text_from_chunk_metadata(loader: MetadataLoader, chunk: Mapping[str, object]) -> Optional[str]:
+def _extract_entry_extension(entry: Mapping[str, object]) -> str:
+    for key in ("relative_path", "path", "url", "name"):
+        value = entry.get(key)
+        if not isinstance(value, str):
+            continue
+        cleaned = value.strip()
+        if not cleaned:
+            continue
+        cleaned = cleaned.split("?", 1)[0].split("#", 1)[0]
+        suffix = Path(cleaned).suffix.lower()
+        if suffix:
+            return suffix
+    return ""
+
+
+def _subtitle_entry_identity(entry: Mapping[str, object]) -> Optional[str]:
+    for key in ("relative_path", "path", "url", "name"):
+        value = entry.get(key)
+        if not isinstance(value, str):
+            continue
+        cleaned = value.strip()
+        if not cleaned:
+            continue
+        cleaned = cleaned.split("?", 1)[0].split("#", 1)[0]
+        if cleaned:
+            return cleaned.lower()
+    return None
+
+
+def _subtitle_entry_base_id(entry: Mapping[str, object]) -> Optional[str]:
+    identity = _subtitle_entry_identity(entry)
+    if not identity:
+        return None
+    stem = Path(identity).stem
+    return stem.lower() if stem else None
+
+
+def _select_preferred_subtitle_keys(
+    chunks: Sequence[Mapping[str, object]],
+) -> set[str]:
+    preferred: Dict[str, Tuple[str, int]] = {}
+    for chunk in chunks:
+        files = chunk.get("files")
+        if not isinstance(files, Iterable):
+            continue
+        for entry in files:
+            if not isinstance(entry, Mapping):
+                continue
+            suffix = _extract_entry_extension(entry)
+            if suffix not in _SUBTITLE_EXTENSIONS:
+                continue
+            identity = _subtitle_entry_identity(entry)
+            if not identity:
+                continue
+            base_id = _subtitle_entry_base_id(entry)
+            group_key = base_id or identity
+            rank = (
+                _SUBTITLE_EXTENSION_ORDER.index(suffix)
+                if suffix in _SUBTITLE_EXTENSION_ORDER
+                else len(_SUBTITLE_EXTENSION_ORDER)
+            )
+            existing = preferred.get(group_key)
+            if existing is None or rank < existing[1]:
+                preferred[group_key] = (identity, rank)
+    return {value[0] for value in preferred.values()}
+
+
+def _resolve_entry_path(
+    job_id: str,
+    entry: Mapping[str, object],
+    locator: FileLocator,
+) -> Optional[Path]:
+    path_value = entry.get("path")
+    if isinstance(path_value, str) and path_value.strip():
+        candidate = Path(path_value)
+        try:
+            if candidate.exists():
+                return candidate
+        except OSError:
+            pass
+    relative = entry.get("relative_path")
+    if isinstance(relative, str) and relative.strip():
+        try:
+            candidate = locator.resolve_path(job_id, relative)
+        except ValueError:
+            candidate = None
+        if candidate is not None:
+            try:
+                if candidate.exists():
+                    return candidate
+            except OSError:
+                return None
+    return None
+
+
+def _parse_ass_timestamp(value: str) -> Optional[float]:
+    match = _ASS_TIMESTAMP_PATTERN.match(value.strip())
+    if not match:
+        return None
+    hours = int(match.group("hours"))
+    minutes = int(match.group("minutes"))
+    seconds = int(match.group("seconds"))
+    centis = int(match.group("centis"))
+    return hours * 3600 + minutes * 60 + seconds + centis / 100.0
+
+
+def _parse_ass_cues(payload: str) -> List[SubtitleCue]:
+    cues: List[SubtitleCue] = []
+    in_events = False
+    fields: Optional[List[str]] = None
+    index = 1
+    for raw_line in payload.replace("\r\n", "\n").splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("[") and stripped.endswith("]"):
+            in_events = stripped.strip().lower() == "[events]"
+            continue
+        if not in_events:
+            continue
+        lowered = stripped.lower()
+        if lowered.startswith("format:"):
+            field_list = stripped.split(":", 1)[1]
+            fields = [field.strip().lower() for field in field_list.split(",") if field.strip()]
+            continue
+        if not lowered.startswith("dialogue:"):
+            continue
+        raw_dialogue = stripped.split(":", 1)[1].lstrip()
+        active_fields = fields or _DEFAULT_ASS_FIELDS
+        parts = [part.strip() for part in raw_dialogue.split(",", len(active_fields) - 1)]
+        if len(parts) < len(active_fields):
+            continue
+        try:
+            start_idx = active_fields.index("start")
+            end_idx = active_fields.index("end")
+            text_idx = active_fields.index("text")
+        except ValueError:
+            continue
+        start_time = _parse_ass_timestamp(parts[start_idx]) if parts[start_idx] else None
+        end_time = _parse_ass_timestamp(parts[end_idx]) if parts[end_idx] else None
+        if start_time is None:
+            continue
+        if end_time is None:
+            end_time = start_time
+        text_value = parts[text_idx] if text_idx < len(parts) else ""
+        cues.append(
+            SubtitleCue(
+                index=index,
+                start=start_time,
+                end=end_time,
+                lines=[text_value],
+            )
+        )
+        index += 1
+    return cues
+
+
+def _load_subtitle_cues_for_entry(
+    job_id: str,
+    entry: Mapping[str, object],
+    locator: FileLocator,
+) -> List[SubtitleCue]:
+    suffix = _extract_entry_extension(entry)
+    if suffix not in _SUBTITLE_EXTENSIONS:
+        return []
+    path = _resolve_entry_path(job_id, entry, locator)
+    if path is None:
+        return []
+    if suffix in {".srt", ".vtt"}:
+        try:
+            return load_subtitle_cues(path)
+        except Exception:
+            return []
+    if suffix == ".ass":
+        try:
+            payload = _read_subtitle_text(path)
+        except Exception:
+            return []
+        return _parse_ass_cues(payload)
+    return []
+
+
+def _collect_subtitle_matches(
+    cues: Sequence[SubtitleCue],
+    query: str,
+) -> List[Tuple[str, int, int, int, int, float, float, float, float]]:
+    matches: List[Tuple[str, int, int, int, int, float, float, float, float]] = []
+    merged_text: Optional[str] = None
+    merged_start: Optional[float] = None
+    merged_end: Optional[float] = None
+    merge_gap = 0.1
+
+    def flush_group() -> None:
+        nonlocal merged_text, merged_start, merged_end
+        if not merged_text or merged_start is None or merged_end is None:
+            merged_text = None
+            merged_start = None
+            merged_end = None
+            return
+        hit_points = _find_matches(merged_text, query)
+        if hit_points:
+            snippet, occurrence_count = _build_snippet(merged_text, hit_points)
+            match_start, match_end = hit_points[0]
+            text_length = len(merged_text)
+            offset_ratio = (
+                max(min(match_start / text_length, 1.0), 0.0) if text_length else 0.0
+            )
+            duration = max(0.0, merged_end - merged_start)
+            approximate_time = (
+                merged_start + offset_ratio * duration if duration > 0 else merged_start
+            )
+            matches.append(
+                (
+                    snippet,
+                    occurrence_count,
+                    match_start,
+                    match_end,
+                    text_length,
+                    offset_ratio,
+                    approximate_time,
+                    merged_start,
+                    merged_end,
+                )
+            )
+        merged_text = None
+        merged_start = None
+        merged_end = None
+
+    for cue in cues:
+        raw_text = cue.as_text()
+        if not raw_text:
+            continue
+        normalized = _normalize_text(raw_text)
+        if not normalized:
+            continue
+        if (
+            merged_text is not None
+            and normalized == merged_text
+            and merged_end is not None
+            and cue.start <= merged_end + merge_gap
+        ):
+            merged_end = max(merged_end, cue.end)
+            continue
+        flush_group()
+        merged_text = normalized
+        merged_start = cue.start
+        merged_end = cue.end
+
+    flush_group()
+    return matches
+
+
+def _load_text_from_chunk_metadata(
+    loader: MetadataLoader,
+    chunk: Mapping[str, object],
+) -> Tuple[Optional[str], Optional[Mapping[str, object]]]:
     try:
         payload = loader.load_chunk(chunk, include_sentences=True)
     except Exception:
-        return None
+        return None, None
 
     sentences = payload.get("sentences")
     if not isinstance(sentences, list) or not sentences:
-        return None
+        return None, payload
 
     fragments: List[str] = []
     for sentence in sentences:
@@ -394,8 +671,74 @@ def _load_text_from_chunk_metadata(loader: MetadataLoader, chunk: Mapping[str, o
                 fragments.append(trimmed)
 
     if not fragments:
-        return None
-    return " ".join(fragments)
+        return None, payload
+    return " ".join(fragments), payload
+
+
+def _chunk_entries_from_manifest(manifest: Mapping[str, object]) -> List[Mapping[str, object]]:
+    raw_chunks = manifest.get("chunks")
+    if not isinstance(raw_chunks, list):
+        return []
+    entries: List[Tuple[int, Dict[str, object]]] = []
+    for entry in raw_chunks:
+        if not isinstance(entry, Mapping):
+            continue
+        index_value = entry.get("index")
+        index = index_value if isinstance(index_value, int) else None
+        chunk_entry: Dict[str, object] = {
+            "chunk_id": entry.get("chunk_id"),
+            "metadata_path": entry.get("path"),
+            "metadata_url": entry.get("url"),
+            "sentence_count": entry.get("sentence_count"),
+        }
+        entries.append((index if index is not None else len(entries), chunk_entry))
+    entries.sort(key=lambda item: item[0])
+    return [entry for _, entry in entries]
+
+
+def _chunk_entry_key(chunk: Mapping[str, object]) -> Optional[str]:
+    for key in ("chunk_id", "metadata_path", "metadata_url"):
+        value = chunk.get(key)
+        if isinstance(value, str):
+            trimmed = value.strip()
+            if trimmed:
+                return trimmed
+    return None
+
+
+def _merge_chunk_entries(
+    primary: List[Mapping[str, object]],
+    fallback: List[Mapping[str, object]],
+) -> List[Mapping[str, object]]:
+    if not primary:
+        return fallback
+    if not fallback:
+        return primary
+    fallback_map: Dict[str, Mapping[str, object]] = {}
+    for entry in fallback:
+        key = _chunk_entry_key(entry)
+        if key:
+            fallback_map[key] = entry
+    merged: List[Mapping[str, object]] = []
+    used_keys: set[str] = set()
+    for entry in primary:
+        key = _chunk_entry_key(entry)
+        supplement = fallback_map.get(key) if key else None
+        if supplement:
+            combined: Dict[str, object] = dict(entry)
+            for field, value in supplement.items():
+                if field not in combined or combined[field] in (None, [], {}):
+                    combined[field] = value
+            merged.append(combined)
+            used_keys.add(key)
+        else:
+            merged.append(entry)
+    for entry in fallback:
+        key = _chunk_entry_key(entry)
+        if key and key in used_keys:
+            continue
+        merged.append(entry)
+    return merged
 
 
 def search_generated_media(
@@ -414,6 +757,7 @@ def search_generated_media(
 
     normalized_query = query.strip()
     results: List[SearchMediaResult] = []
+    seen_subtitle_hits: set[tuple] = set()
 
     for job in jobs:
         generated = job.generated_files
@@ -430,20 +774,65 @@ def search_generated_media(
         else:
             chunk_entries = list(_iterate_chunk_entries(generated))
 
+        if job_root is not None:
+            try:
+                metadata_loader = MetadataLoader(job_root)
+            except Exception:
+                metadata_loader = None
+            else:
+                loader_chunks = list(metadata_loader.iter_chunks())
+                if not loader_chunks:
+                    loader_chunks = _chunk_entries_from_manifest(
+                        metadata_loader.build_chunk_manifest()
+                    )
+                if loader_chunks and len(loader_chunks) > len(chunk_entries):
+                    chunk_entries = _merge_chunk_entries(loader_chunks, chunk_entries)
+
         if not chunk_entries:
             continue
 
+        preferred_subtitle_keys = _select_preferred_subtitle_keys(chunk_entries)
+        processed_subtitle_keys: set[str] = set()
         chunk_total = len(chunk_entries)
 
         for chunk_index, chunk in enumerate(chunk_entries):
             files = chunk.get("files")
             if not isinstance(files, Iterable):
-                continue
+                files = []
+
+            file_entries = [entry for entry in files if isinstance(entry, Mapping)]
+            subtitle_entry: Optional[Mapping[str, object]] = None
+            subtitle_rank = len(_SUBTITLE_EXTENSION_ORDER)
+            for entry in file_entries:
+                suffix = _extract_entry_extension(entry)
+                if suffix in _SUBTITLE_EXTENSIONS:
+                    rank = (
+                        _SUBTITLE_EXTENSION_ORDER.index(suffix)
+                        if suffix in _SUBTITLE_EXTENSION_ORDER
+                        else len(_SUBTITLE_EXTENSION_ORDER)
+                    )
+                    if subtitle_entry is None or rank < subtitle_rank:
+                        subtitle_entry = entry
+                        subtitle_rank = rank
+            if subtitle_entry is not None:
+                subtitle_key = _subtitle_entry_identity(subtitle_entry)
+                if subtitle_key:
+                    if preferred_subtitle_keys and subtitle_key not in preferred_subtitle_keys:
+                        subtitle_entry = None
+                    elif subtitle_key in processed_subtitle_keys:
+                        continue
+
+            metadata_payload = None
+            if metadata_loader is not None:
+                try:
+                    metadata_payload = metadata_loader.load_chunk(
+                        chunk, include_sentences=False
+                    )
+                except Exception:
+                    metadata_payload = None
 
             text_entry = None
-            for candidate in files:
-                if not isinstance(candidate, Mapping):
-                    continue
+            for candidate in file_entries:
                 if _normalise_media_type(candidate.get("type")) == "text":
                     text_entry = candidate
                     break
@@ -452,8 +841,36 @@ def search_generated_media(
             else:
                 text_content = _load_text_from_entry(job.job_id, text_entry, locator)
 
+            chunk_id_value = chunk.get("chunk_id")
+            if chunk_id_value is None and isinstance(metadata_payload, Mapping):
+                chunk_id_value = metadata_payload.get("chunk_id")
+            range_fragment_value = chunk.get("range_fragment")
+            if range_fragment_value is None and isinstance(metadata_payload, Mapping):
+                range_fragment_value = metadata_payload.get("range_fragment")
+            start_sentence_value = chunk.get("start_sentence")
+            if start_sentence_value is None and isinstance(metadata_payload, Mapping):
+                start_sentence_value = metadata_payload.get("start_sentence")
+            end_sentence_value = chunk.get("end_sentence")
+            if end_sentence_value is None and isinstance(metadata_payload, Mapping):
+                end_sentence_value = metadata_payload.get("end_sentence")
+
+            base_id: Optional[str] = None
+            if subtitle_entry is not None:
+                for key in ("relative_path", "path", "url", "name"):
+                    value = subtitle_entry.get(key)
+                    if not isinstance(value, str):
+                        continue
+                    candidate = value.strip()
+                    if not candidate:
+                        continue
+                    candidate = candidate.split("?", 1)[0].split("#", 1)[0]
+                    stem = Path(candidate).stem
+                    if stem:
+                        base_id = stem.lower()
+                        break
+
             if text_content is None:
-                if not loader_attempted:
+                if metadata_loader is None and not loader_attempted:
                     loader_attempted = True
                     if job_root is not None:
                         manifest_path = job_root / "metadata" / "job.json"
@@ -463,7 +880,95 @@ def search_generated_media(
                             except Exception:
                                 metadata_loader = None
                 if metadata_loader is not None:
-                    text_content = _load_text_from_chunk_metadata(metadata_loader, chunk)
+                    text_content, metadata_payload = _load_text_from_chunk_metadata(
+                        metadata_loader, chunk
+                    )
+                    if chunk_id_value is None and isinstance(metadata_payload, Mapping):
+                        chunk_id_value = metadata_payload.get("chunk_id")
+                    if range_fragment_value is None and isinstance(metadata_payload, Mapping):
+                        range_fragment_value = metadata_payload.get("range_fragment")
+                    if start_sentence_value is None and isinstance(metadata_payload, Mapping):
+                        start_sentence_value = metadata_payload.get("start_sentence")
+                    if end_sentence_value is None and isinstance(metadata_payload, Mapping):
+                        end_sentence_value = metadata_payload.get("end_sentence")
+
+            subtitle_matches: List[
+                Tuple[str, int, int, int, int, float, float, float, float]
+            ] = []
+            if subtitle_entry is not None:
+                subtitle_key = _subtitle_entry_identity(subtitle_entry)
+                if subtitle_key:
+                    processed_subtitle_keys.add(subtitle_key)
+                cues = _load_subtitle_cues_for_entry(job.job_id, subtitle_entry, locator)
+                if cues:
+                    subtitle_matches = _collect_subtitle_matches(
+                        cues, normalized_query
+                    )
+
+            if subtitle_matches:
+                relative_value = (
+                    text_entry.get("relative_path") if text_entry is not None else None
+                )
+                if base_id is None and isinstance(relative_value, str) and relative_value.strip():
+                    base_candidate = Path(relative_value).name or relative_value
+                    base_id = Path(base_candidate).stem.lower() or None
+                if base_id is None and chunk_id_value:
+                    base_candidate = str(chunk_id_value)
+                    if base_candidate:
+                        base_id = Path(base_candidate).stem.lower()
+                media_bucket = _gather_media_entries(
+                    job.job_id,
+                    (entry for entry in file_entries if isinstance(entry, Mapping)),
+                    locator,
+                )
+                for (
+                    snippet,
+                    occurrence_count,
+                    match_start,
+                    match_end,
+                    text_length,
+                    offset_ratio,
+                    approximate_time,
+                    cue_start,
+                    cue_end,
+                ) in subtitle_matches:
+                    subtitle_key = (
+                        job.job_id,
+                        base_id,
+                        cue_start,
+                        cue_end,
+                    )
+                    if subtitle_key in seen_subtitle_hits:
+                        continue
+                    seen_subtitle_hits.add(subtitle_key)
+                    results.append(
+                        SearchMediaResult(
+                            job_id=job.job_id,
+                            job_label=_resolve_job_label(job),
+                            base_id=base_id,
+                            chunk_id=str(chunk_id_value) if chunk_id_value is not None else None,
+                            chunk_index=chunk_index,
+                            chunk_total=chunk_total,
+                            range_fragment=str(range_fragment_value)
+                            if range_fragment_value is not None
+                            else None,
+                            start_sentence=_coerce_int(start_sentence_value),
+                            end_sentence=_coerce_int(end_sentence_value),
+                            snippet=snippet,
+                            occurrence_count=occurrence_count,
+                            match_start=match_start,
+                            match_end=match_end,
+                            text_length=text_length,
+                            offset_ratio=offset_ratio,
+                            approximate_time_seconds=approximate_time,
+                            cue_start_seconds=cue_start,
+                            cue_end_seconds=cue_end,
+                            media=media_bucket,
+                        )
+                    )
+                    if len(results) >= limit:
+                        return results
+                continue
 
             if text_content is None:
                 continue
@@ -473,14 +978,14 @@ def search_generated_media(
                 continue
 
             relative_value = text_entry.get("relative_path") if text_entry is not None else None
-            base_id: Optional[str] = None
             if isinstance(relative_value, str) and relative_value.strip():
                 base_candidate = Path(relative_value).name or relative_value
                 base_id = Path(base_candidate).stem.lower() or None
-            elif chunk.get("chunk_id"):
-                chunk_candidate = str(chunk.get("chunk_id"))
-                if chunk_candidate:
-                    base_id = Path(chunk_candidate).stem.lower()
+            else:
+                if chunk_id_value:
+                    chunk_candidate = str(chunk_id_value)
+                    if chunk_candidate:
+                        base_id = Path(chunk_candidate).stem.lower()
 
             text_length = len(text_content)
             match_start = matches[0][0]
@@ -507,14 +1012,14 @@ def search_generated_media(
                     job_id=job.job_id,
                     job_label=_resolve_job_label(job),
                     base_id=base_id,
-                    chunk_id=str(chunk.get("chunk_id")) if chunk.get("chunk_id") is not None else None,
+                    chunk_id=str(chunk_id_value) if chunk_id_value is not None else None,
                     chunk_index=chunk_index,
                     chunk_total=chunk_total,
-                    range_fragment=str(chunk.get("range_fragment"))
-                    if chunk.get("range_fragment") is not None
+                    range_fragment=str(range_fragment_value)
+                    if range_fragment_value is not None
                     else None,
-                    start_sentence=_coerce_int(chunk.get("start_sentence")),
-                    end_sentence=_coerce_int(chunk.get("end_sentence")),
+                    start_sentence=_coerce_int(start_sentence_value),
+                    end_sentence=_coerce_int(end_sentence_value),
                     snippet=snippet,
                     occurrence_count=occurrence_count,
                     match_start=match_start,

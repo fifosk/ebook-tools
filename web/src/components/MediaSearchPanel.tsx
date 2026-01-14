@@ -10,6 +10,7 @@ import {
 import { MediaSearchResponse, MediaSearchResult } from '../api/dtos';
 import { searchMedia } from '../api/client';
 import styles from './MediaSearchPanel.module.css';
+import { formatDurationLabel } from '../utils/timeFormatters';
 
 type MediaCategory = 'text' | 'video' | 'library';
 const BASE_MEDIA_CATEGORIES: Array<Exclude<MediaCategory, 'library'>> = ['text', 'video'];
@@ -65,6 +66,18 @@ function highlightSnippet(snippet: string, term: string): Array<string | JSX.Ele
   }
 
   return highlights;
+}
+
+function formatCueRange(result: MediaSearchResult): string | null {
+  const start = result.cue_start_seconds;
+  const end = result.cue_end_seconds;
+  if (typeof start !== 'number' || !Number.isFinite(start)) {
+    return null;
+  }
+  if (typeof end !== 'number' || !Number.isFinite(end)) {
+    return null;
+  }
+  return `${formatDurationLabel(start)}–${formatDurationLabel(end)}`;
 }
 
 export default function MediaSearchPanel({
@@ -295,6 +308,7 @@ export default function MediaSearchPanel({
                   return `Chunk ${humanIndex}`;
                 })();
                 const chunkRangeLabel = result.range_fragment ? `Sentences ${result.range_fragment}` : null;
+                const cueRangeLabel = formatCueRange(result);
 
                 let metaText: string;
                 if (isLibraryResult) {
@@ -311,6 +325,9 @@ export default function MediaSearchPanel({
                   if (chunkSummary) {
                     libraryParts.push(chunkSummary);
                   }
+                  if (cueRangeLabel) {
+                    libraryParts.push(cueRangeLabel);
+                  }
 
                   metaText = libraryParts.join(' · ');
                   if (!metaText) {
@@ -323,6 +340,9 @@ export default function MediaSearchPanel({
                   }
                   if (chunkRangeLabel) {
                     pipelineParts.push(chunkRangeLabel);
+                  }
+                  if (cueRangeLabel) {
+                    pipelineParts.push(cueRangeLabel);
                   }
                   let pipelineMeta = pipelineParts.join(' • ');
                   if (!pipelineMeta) {
@@ -388,21 +408,22 @@ export default function MediaSearchPanel({
                     <p className={styles.snippet}>{highlightSnippet(result.snippet, activeQuery)}</p>
                     {categories.length > 0 ? (
                       <div className={styles.resultActions}>
-                        {categories.map((category) => (
-                          <button
-                            key={category}
-                            type="button"
-                            className={styles.actionButton}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              applyResultAction(result, category);
-                            }}
-                          >
-                            {category === 'text' ? 'Jump to sentence' : null}
-                            {category === 'video' ? 'Play video' : null}
-                            {category === 'library' ? 'Open in Reader' : null}
-                          </button>
-                        ))}
+                        {categories
+                          .filter((category) => category !== 'video')
+                          .map((category) => (
+                            <button
+                              key={category}
+                              type="button"
+                              className={styles.actionButton}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                applyResultAction(result, category);
+                              }}
+                            >
+                              {category === 'text' ? 'Jump to sentence' : null}
+                              {category === 'library' ? 'Open in Reader' : null}
+                            </button>
+                          ))}
                       </div>
                     ) : null}
                   </article>

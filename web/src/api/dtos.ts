@@ -210,6 +210,7 @@ export interface JobParameterSnapshot {
   transliteration_module?: string | null;
   target_height?: number | null;
   preserve_aspect_ratio?: boolean | null;
+  media_metadata?: Record<string, unknown> | null;
 }
 
 export interface PipelineStatusResponse {
@@ -957,6 +958,8 @@ export interface MediaSearchResult {
   text_length: number | null;
   offset_ratio: number | null;
   approximate_time_seconds: number | null;
+  cue_start_seconds?: number | null;
+  cue_end_seconds?: number | null;
   media: Record<string, PipelineMediaFile[] | undefined>;
   source: 'pipeline' | 'library';
   libraryAuthor?: string | null;

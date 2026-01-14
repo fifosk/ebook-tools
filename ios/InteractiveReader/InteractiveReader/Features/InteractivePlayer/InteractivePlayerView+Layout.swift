@@ -12,37 +12,23 @@ extension InteractivePlayerView {
     }
 
     var playerContent: some View {
-        ZStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 12) {
-                if let chunk = viewModel.selectedChunk {
-                    interactiveContent(for: chunk)
-                } else {
-                    Text("No interactive chunks were returned for this job.")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        playerContentWrapped()
+    }
 
-            if let chunk = viewModel.selectedChunk, (shouldShowHeaderOverlay || isTV) {
-                playerInfoOverlay(for: chunk)
-            }
-            if let chunk = viewModel.selectedChunk {
-                menuOverlay(for: chunk)
-            }
-            headerToggleButton
-            trackpadSwipeLayer
-            shortcutHelpOverlay
-            keyboardShortcutLayer
-        }
+    private func playerContentWrapped() -> some View {
+        let viewModel = self.viewModel
+        let audioCoordinator = self.audioCoordinator
+        var view = AnyView(playerStack)
         #if !os(tvOS)
-        .simultaneousGesture(menuToggleGesture, including: .subviews)
+        view = AnyView(view.simultaneousGesture(menuToggleGesture, including: .subviews))
         #endif
-        .onAppear {
+        view = AnyView(view.onAppear {
             loadLlmModelsIfNeeded()
             refreshBookmarks()
             guard let chunk = viewModel.selectedChunk else { return }
             applyDefaultTrackSelection(for: chunk)
             syncSelectedSentence(for: chunk)
+            viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
             configureReadingBed()
             #if os(tvOS)
             if !didSetInitialFocus {
@@ -52,58 +38,61 @@ extension InteractivePlayerView {
                 }
             }
             #endif
-        }
-        .onChange(of: viewModel.selectedChunk?.id) { _, _ in
+        })
+        view = AnyView(view.onChange(of: viewModel.selectedChunk?.id) { _, _ in
             guard let chunk = viewModel.selectedChunk else { return }
             clearLinguistState()
             applyDefaultTrackSelection(for: chunk)
             syncSelectedSentence(for: chunk)
+            viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
             if isMenuVisible && !audioCoordinator.isPlaying {
                 frozenTranscriptSentences = transcriptSentences(for: chunk)
             } else {
                 frozenTranscriptSentences = nil
             }
-        }
-        .onChange(of: trackAvailabilitySignature) { _, _ in
+        })
+        view = AnyView(view.onChange(of: trackAvailabilitySignature) { _, _ in
             guard let chunk = viewModel.selectedChunk else { return }
             applyDefaultTrackSelection(for: chunk)
-        }
-        .onChange(of: viewModel.highlightingTime) { _, _ in
+        })
+        view = AnyView(view.onChange(of: viewModel.highlightingTime) { _, _ in
             guard !isMenuVisible else { return }
             guard focusedArea != .controls && focusedArea != .bubble else { return }
             guard let chunk = viewModel.selectedChunk else { return }
             if audioCoordinator.isPlaying {
+                viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: true)
                 return
             }
             syncSelectedSentence(for: chunk)
-        }
-        .onChange(of: viewModel.readingBedURL) { _, _ in
+        })
+        view = AnyView(view.onChange(of: viewModel.readingBedURL) { _, _ in
             configureReadingBed()
-        }
-        .onChange(of: readingBedEnabled) { _, _ in
+        })
+        view = AnyView(view.onChange(of: readingBedEnabled) { _, _ in
             updateReadingBedPlayback()
-        }
-        .onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
+        })
+        view = AnyView(view.onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
             handleNarrationPlaybackChange(isPlaying: isPlaying)
             if isPlaying {
                 clearLinguistState()
             }
             if isPlaying {
                 frozenTranscriptSentences = nil
+                viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: true)
             } else if let chunk = viewModel.selectedChunk {
                 syncPausedSelection(for: chunk)
                 if isMenuVisible {
                     frozenTranscriptSentences = transcriptSentences(for: chunk)
                 }
             }
-        }
-        .onChange(of: visibleTracks) { _, _ in
+        })
+        view = AnyView(view.onChange(of: visibleTracks) { _, _ in
             clearLinguistState()
             if isMenuVisible, !audioCoordinator.isPlaying, let chunk = viewModel.selectedChunk {
                 frozenTranscriptSentences = transcriptSentences(for: chunk)
             }
-        }
-        .onChange(of: isMenuVisible) { _, visible in
+        })
+        view = AnyView(view.onChange(of: isMenuVisible) { _, visible in
             guard let chunk = viewModel.selectedChunk else { return }
             if visible && !audioCoordinator.isPlaying {
                 frozenTranscriptSentences = transcriptSentences(for: chunk)
@@ -111,30 +100,67 @@ extension InteractivePlayerView {
                 frozenTranscriptSentences = nil
             }
             updateReadingBedPlayback()
-        }
-        .onChange(of: bookmarkIdentityKey) { _, _ in
+        })
+        view = AnyView(view.onChange(of: bookmarkIdentityKey) { _, _ in
             refreshBookmarks()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: PlaybackBookmarkStore.didChangeNotification)) { notification in
-            guard let jobId = resolvedBookmarkJobId else { return }
-            let userId = resolvedBookmarkUserId
-            if let changedUser = notification.userInfo?["userId"] as? String, changedUser != userId {
-                return
+        })
+        view = AnyView(
+            view.onReceive(NotificationCenter.default.publisher(for: PlaybackBookmarkStore.didChangeNotification)) { notification in
+                guard let jobId = resolvedBookmarkJobId else { return }
+                let userId = resolvedBookmarkUserId
+                if let changedUser = notification.userInfo?["userId"] as? String, changedUser != userId {
+                    return
+                }
+                bookmarks = PlaybackBookmarkStore.shared.bookmarks(for: jobId, userId: userId)
             }
-            bookmarks = PlaybackBookmarkStore.shared.bookmarks(for: jobId, userId: userId)
-        }
-        .onChange(of: readingBedCoordinator.isPlaying) { _, isPlaying in
+        )
+        view = AnyView(view.onChange(of: readingBedCoordinator.isPlaying) { _, isPlaying in
             guard !isPlaying else { return }
             guard readingBedEnabled else { return }
             guard audioCoordinator.isPlaybackRequested else { return }
             updateReadingBedPlayback()
-        }
-        .onDisappear {
+        })
+        view = AnyView(view.onDisappear {
             readingBedPauseTask?.cancel()
             readingBedPauseTask = nil
             readingBedCoordinator.reset()
             clearLinguistState()
+        })
+        return view
+    }
+
+    private var playerStack: some View {
+        ZStack(alignment: .top) {
+            playerMainLayer
+            playerOverlayLayer
         }
+    }
+
+    @ViewBuilder
+    private var playerMainLayer: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let chunk = viewModel.selectedChunk {
+                interactiveContent(for: chunk)
+            } else {
+                Text("No interactive chunks were returned for this job.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    @ViewBuilder
+    private var playerOverlayLayer: some View {
+        if let chunk = viewModel.selectedChunk, (shouldShowHeaderOverlay || isTV) {
+            playerInfoOverlay(for: chunk)
+        }
+        if let chunk = viewModel.selectedChunk {
+            menuOverlay(for: chunk)
+        }
+        headerToggleButton
+        trackpadSwipeLayer
+        shortcutHelpOverlay
+        keyboardShortcutLayer
     }
 
     var isPad: Bool {

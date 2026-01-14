@@ -6,6 +6,7 @@ import UIKit
 
 struct JobsView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var offlineStore: OfflineMediaStore
     @ObservedObject var viewModel: JobsViewModel
     let useNavigationLinks: Bool
     let onRefresh: () -> Void
@@ -110,11 +111,24 @@ struct JobsView: View {
     private func jobRows(_ jobs: [PipelineStatusResponse]) -> some View {
         ForEach(jobs) { job in
             if useNavigationLinks {
+                #if os(tvOS)
                 NavigationLink(value: job) {
                     JobRowView(job: job, resumeStatus: resumeStatus(for: job))
                 }
                 #if os(tvOS)
                 .listRowBackground(Color.clear)
+                #endif
+                #else
+                NavigationLink(value: job) {
+                    JobRowView(job: job, resumeStatus: resumeStatus(for: job))
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        Task { await handleDelete(job) }
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
                 #endif
             } else {
                 #if os(tvOS)
@@ -130,6 +144,13 @@ struct JobsView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         onSelect?(job)
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            Task { await handleDelete(job) }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
                     }
                 #endif
             }
@@ -390,5 +411,14 @@ struct JobsView: View {
         formatter.allowedUnits = time >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
         formatter.zeroFormattingBehavior = .pad
         return formatter.string(from: time) ?? "0:00"
+    }
+
+    @MainActor
+    private func handleDelete(_ job: PipelineStatusResponse) async {
+        let didDelete = await viewModel.delete(jobId: job.jobId, using: appState)
+        guard didDelete else { return }
+        offlineStore.remove(jobId: job.jobId, kind: .job)
+        resumeAvailability.removeValue(forKey: job.jobId)
+        iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     }
 }

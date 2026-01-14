@@ -5,7 +5,10 @@ extension InteractivePlayerViewModel {
         jobId: String,
         configuration: APIClientConfiguration,
         origin: MediaOrigin = .job,
-        preferLiveMedia: Bool = false
+        preferLiveMedia: Bool = false,
+        mediaOverride: PipelineMediaResponse? = nil,
+        timingOverride: JobTimingResponse? = nil,
+        resolverOverride: MediaURLResolver? = nil
     ) async {
         let trimmedJobId = jobId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedJobId.isEmpty else {
@@ -26,6 +29,9 @@ extension InteractivePlayerViewModel {
         audioDurationByURL = [:]
         chunkMetadataLoaded = []
         chunkMetadataLoading = []
+        chunkMetadataAttemptedAt = [:]
+        lastPrefetchSentenceNumber = nil
+        prefetchedAudioURLs = []
         jobContext = nil
         mediaResponse = nil
         timingResponse = nil
@@ -39,6 +45,26 @@ extension InteractivePlayerViewModel {
         stopLiveUpdates()
 
         do {
+            if let mediaOverride {
+                let resolver = try (resolverOverride ?? makeResolver(origin: origin, configuration: configuration))
+                let context = try JobContextBuilder.build(
+                    jobId: trimmedJobId,
+                    media: mediaOverride,
+                    timing: timingOverride,
+                    resolver: resolver
+                )
+                jobContext = context
+                mediaResolver = resolver
+                mediaResponse = mediaOverride
+                timingResponse = timingOverride
+                readingBedCatalog = nil
+                selectedReadingBedID = nil
+                readingBedURL = nil
+                configureDefaultSelections()
+                loadState = .loaded
+                return
+            }
+
             let client = APIClient(configuration: configuration)
             async let mediaTask: PipelineMediaResponse = {
                 switch origin {
@@ -61,25 +87,7 @@ extension InteractivePlayerViewModel {
             }()
             let (media, timing) = try await (mediaTask, timingTask)
             let readingBeds = await readingBedsTask
-            let resolver: MediaURLResolver
-            switch origin {
-            case .library:
-                resolver = MediaURLResolver(
-                    origin: .library(apiBaseURL: configuration.apiBaseURL, accessToken: configuration.authToken)
-                )
-            case .job:
-                let storageResolver = try StorageResolver(
-                    apiBaseURL: configuration.apiBaseURL,
-                    override: configuration.storageBaseURL
-                )
-                resolver = MediaURLResolver(
-                    origin: .storage(
-                        apiBaseURL: configuration.apiBaseURL,
-                        resolver: storageResolver,
-                        accessToken: configuration.authToken
-                    )
-                )
-            }
+            let resolver = try makeResolver(origin: origin, configuration: configuration)
             let context = try JobContextBuilder.build(
                 jobId: trimmedJobId,
                 media: media,
@@ -207,11 +215,16 @@ extension InteractivePlayerViewModel {
             ?? "chunk-\(fallback)"
     }
 
-    func loadChunkMetadataIfNeeded(for chunkID: String) async {
+    func loadChunkMetadataIfNeeded(for chunkID: String, force: Bool = false) async {
         guard let jobId, let resolver = mediaResolver else { return }
         guard let currentMediaResponse = mediaResponse else { return }
         guard !chunkMetadataLoaded.contains(chunkID) else { return }
         guard !chunkMetadataLoading.contains(chunkID) else { return }
+        if !force, let lastAttempt = chunkMetadataAttemptedAt[chunkID] {
+            if Date().timeIntervalSince(lastAttempt) < metadataRetryInterval {
+                return
+            }
+        }
 
         guard let index = resolveChunkIndex(chunkID, chunks: currentMediaResponse.chunks) else { return }
         let chunk = currentMediaResponse.chunks[index]
@@ -240,6 +253,7 @@ extension InteractivePlayerViewModel {
         }
         guard !candidates.isEmpty else { return }
 
+        chunkMetadataAttemptedAt[chunkID] = Date()
         chunkMetadataLoading.insert(chunkID)
         defer { chunkMetadataLoading.remove(chunkID) }
 
@@ -247,11 +261,15 @@ extension InteractivePlayerViewModel {
             var payloadData: Data? = nil
             for candidate in candidates {
                 guard let url = resolver.resolvePath(jobId: jobId, relativePath: candidate) else { continue }
+                if url.isFileURL {
+                    payloadData = try Data(contentsOf: url)
+                    break
+                }
                 var request = URLRequest(url: url)
                 request.setValue("application/json", forHTTPHeaderField: "Accept")
                 let (data, response) = try await URLSession.shared.data(for: request)
-                guard let httpResponse = response as? HTTPURLResponse,
-                      (200..<300).contains(httpResponse.statusCode) else {
+                if let httpResponse = response as? HTTPURLResponse,
+                   !(200..<300).contains(httpResponse.statusCode) {
                     continue
                 }
                 payloadData = data
@@ -317,5 +335,26 @@ extension InteractivePlayerViewModel {
             }
         }
         return nil
+    }
+
+    private func makeResolver(origin: MediaOrigin, configuration: APIClientConfiguration) throws -> MediaURLResolver {
+        switch origin {
+        case .library:
+            return MediaURLResolver(
+                origin: .library(apiBaseURL: configuration.apiBaseURL, accessToken: configuration.authToken)
+            )
+        case .job:
+            let storageResolver = try StorageResolver(
+                apiBaseURL: configuration.apiBaseURL,
+                override: configuration.storageBaseURL
+            )
+            return MediaURLResolver(
+                origin: .storage(
+                    apiBaseURL: configuration.apiBaseURL,
+                    resolver: storageResolver,
+                    accessToken: configuration.authToken
+                )
+            )
+        }
     }
 }

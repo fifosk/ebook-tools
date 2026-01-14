@@ -89,6 +89,9 @@ struct JobRowView: View {
             Spacer()
 
             #if !os(tvOS)
+            if job.isFinishedForDisplay {
+                OfflineSyncBadge(jobId: job.jobId, kind: .job, isEligible: true)
+            }
             Image(systemName: "chevron.right")
                 .foregroundStyle(.secondary)
             #endif
@@ -138,9 +141,6 @@ struct JobRowView: View {
 
     private var jobTypeGlyph: JobTypeGlyph {
         let resolved = JobTypeGlyphResolver.glyph(for: job.jobType)
-        if resolved.variant == .youtube {
-            return resolved
-        }
         if isTvSeries {
             return JobTypeGlyph(icon: "TV", label: "TV series", variant: .tv)
         }
@@ -213,11 +213,11 @@ struct JobRowView: View {
 
     private var jobVariant: PlayerChannelVariant {
         let type = job.jobType.lowercased()
-        if type.contains("youtube") {
-            return .youtube
-        }
         if isTvSeries {
             return .tv
+        }
+        if type.contains("youtube") {
+            return .youtube
         }
         if type.contains("dub") {
             return .dub

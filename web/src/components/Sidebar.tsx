@@ -295,6 +295,10 @@ function resolveSidebarStage(job: JobState): { icon: string; tooltip: string } |
 function resolveJobTvMetadata(job: JobState): Record<string, unknown> | null {
   const payload = job.status?.result ?? null;
   if (!payload || typeof payload !== 'object') {
+    const parameters = job.status?.parameters ?? null;
+    if (parameters && typeof parameters === 'object') {
+      return coerceRecord((parameters as Record<string, unknown>)['media_metadata']);
+    }
     return null;
   }
   const record = payload as Record<string, unknown>;
@@ -305,6 +309,9 @@ function resolveJobTvMetadata(job: JobState): Record<string, unknown> | null {
     readNestedValue(record, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
     readNestedValue(record, ['request', 'media_metadata']) ??
     readNestedValue(record, ['media_metadata']) ??
+    (job.status?.parameters && typeof job.status.parameters === 'object'
+      ? (job.status.parameters as Record<string, unknown>)['media_metadata']
+      : null) ??
     null;
   return coerceRecord(candidate);
 }

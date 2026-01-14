@@ -117,6 +117,8 @@ class MediaSearchHit(BaseModel):
     text_length: Optional[int] = None
     offset_ratio: Optional[float] = None
     approximate_time_seconds: Optional[float] = None
+    cue_start_seconds: Optional[float] = None
+    cue_end_seconds: Optional[float] = None
     media: Dict[str, List[PipelineMediaFile]] = Field(default_factory=dict)
     source: Literal["pipeline", "library"] = Field(default="pipeline")
     library_author: Optional[str] = Field(default=None, alias="libraryAuthor")

@@ -57,6 +57,7 @@ class JobParameterSnapshot(BaseModel):
     transliteration_mode: Optional[str] = None
     transliteration_model: Optional[str] = None
     transliteration_module: Optional[str] = None
+    media_metadata: Optional[Dict[str, Any]] = None
 
 
 class ImageGenerationSummary(BaseModel):
@@ -107,6 +108,12 @@ def _coerce_float(value: Any) -> Optional[float]:
             return float(stripped)
         except ValueError:
             return None
+    return None
+
+
+def _coerce_mapping(value: Any) -> Optional[Dict[str, Any]]:
+    if isinstance(value, Mapping):
+        return dict(value)
     return None
 
 
@@ -423,6 +430,7 @@ def _build_subtitle_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         enable_transliteration=_coerce_bool(options.get("enable_transliteration")),
         start_time_offset_seconds=_coerce_float(options.get("start_time_offset")),
         end_time_offset_seconds=_coerce_float(options.get("end_time_offset")),
+        media_metadata=_coerce_mapping(payload.get("media_metadata")),
     )
 
 
@@ -444,6 +452,7 @@ def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobPar
     translation_batch_size = _coerce_int(payload.get("translation_batch_size"))
     transliteration_mode = _coerce_str(payload.get("transliteration_mode"))
     split_batches = _coerce_bool(payload.get("split_batches"))
+    media_metadata = _coerce_mapping(payload.get("media_metadata"))
 
     target_languages = [target_language] if target_language else []
 
@@ -467,6 +476,7 @@ def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobPar
         translation_batch_size=translation_batch_size,
         transliteration_mode=transliteration_mode,
         split_batches=split_batches,
+        media_metadata=media_metadata,
     )
 
 

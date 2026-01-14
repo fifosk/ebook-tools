@@ -44,9 +44,15 @@ extension VideoPlayerView {
         subtitleLoadToken = loadToken
         subtitleTask = Task {
             do {
-                var request = URLRequest(url: track.url)
-                request.cachePolicy = .reloadIgnoringLocalCacheData
-                let (data, _) = try await URLSession.shared.data(for: request)
+                let data: Data
+                if track.url.isFileURL {
+                    data = try Data(contentsOf: track.url)
+                } else {
+                    var request = URLRequest(url: track.url)
+                    request.cachePolicy = .reloadIgnoringLocalCacheData
+                    let (payload, _) = try await URLSession.shared.data(for: request)
+                    data = payload
+                }
                 let content = String(data: data, encoding: .utf8) ?? ""
                 let parsed = SubtitleParser.parse(from: content, format: track.format)
                 await MainActor.run {

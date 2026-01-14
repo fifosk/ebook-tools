@@ -1,0 +1,96 @@
+import Foundation
+
+extension InteractivePlayerViewModel {
+    func prefetchAdjacentSentencesIfNeeded(isPlaying: Bool) {
+        guard let context = jobContext, let chunk = selectedChunk else { return }
+        guard let activeNumber = activeSentenceNumber(in: chunk) else { return }
+        if !isPlaying && !chunk.sentences.isEmpty {
+            return
+        }
+        if !chunk.sentences.isEmpty {
+            if lastPrefetchSentenceNumber == activeNumber {
+                return
+            }
+            lastPrefetchSentenceNumber = activeNumber
+        }
+        Task { [weak self] in
+            await self?.prefetchAdjacentSentences(around: activeNumber, in: context, selectedChunk: chunk)
+        }
+    }
+
+    private func activeSentenceNumber(in chunk: InteractiveChunk) -> Int? {
+        if let active = activeSentence(at: highlightingTime) {
+            return active.displayIndex ?? active.id
+        }
+        if let start = chunk.startSentence, start > 0 {
+            return start
+        }
+        return nil
+    }
+
+    private func prefetchAdjacentSentences(
+        around sentenceNumber: Int,
+        in context: JobContext,
+        selectedChunk: InteractiveChunk
+    ) async {
+        guard sentenceNumber > 0 else { return }
+        var targets: [InteractiveChunk] = []
+        for offset in (-metadataPrefetchRadius)...metadataPrefetchRadius {
+            let candidate = sentenceNumber + offset
+            guard candidate > 0 else { continue }
+            if let chunk = resolveChunk(containing: candidate, in: context) {
+                targets.append(chunk)
+            }
+        }
+        if targets.isEmpty {
+            targets = prefetchFallbackChunks(from: selectedChunk, in: context)
+        }
+        let uniqueTargets = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
+        for chunk in uniqueTargets.values {
+            await loadChunkMetadataIfNeeded(for: chunk.id)
+            prefetchChunkMediaIfNeeded(for: chunk)
+        }
+    }
+
+    private func prefetchFallbackChunks(from chunk: InteractiveChunk, in context: JobContext) -> [InteractiveChunk] {
+        var targets: [InteractiveChunk] = [chunk]
+        var previous = chunk
+        for _ in 0..<metadataPrefetchRadius {
+            guard let next = context.previousChunk(before: previous.id) else { break }
+            targets.append(next)
+            previous = next
+        }
+        var forward = chunk
+        for _ in 0..<metadataPrefetchRadius {
+            guard let next = context.nextChunk(after: forward.id) else { break }
+            targets.append(next)
+            forward = next
+        }
+        return targets
+    }
+
+    private func prefetchChunkMediaIfNeeded(for chunk: InteractiveChunk) {
+        guard let track = preferredAudioOption(for: chunk) else { return }
+        guard let url = track.streamURLs.first else { return }
+        guard !prefetchedAudioURLs.contains(url) else { return }
+        prefetchedAudioURLs.insert(url)
+        Task.detached(priority: .background) {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 6
+            request.setValue("bytes=0-2047", forHTTPHeaderField: "Range")
+            _ = try? await URLSession.shared.data(for: request)
+        }
+    }
+
+    private func preferredAudioOption(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption? {
+        if let selectedID = selectedAudioTrackID,
+           let match = chunk.audioOptions.first(where: { $0.id == selectedID }) {
+            return match
+        }
+        if let preferred = preferredAudioKind,
+           let match = chunk.audioOptions.first(where: { $0.kind == preferred }) {
+            return match
+        }
+        return chunk.audioOptions.first
+    }
+}

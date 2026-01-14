@@ -45,6 +45,23 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
+    func delete(jobId: String, using appState: AppState) async -> Bool {
+        guard let configuration = appState.configuration else {
+            errorMessage = "Configure a valid API base URL before continuing."
+            return false
+        }
+        do {
+            let client = APIClient(configuration: configuration)
+            try await client.deleteLibraryItem(jobId: jobId)
+            items.removeAll { $0.jobId == jobId }
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     var filteredItems: [LibraryItem] {
         items.filter { $0.itemType == activeFilter.itemType }
     }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type ServerStatus = 'checking' | 'online' | 'offline';
 
@@ -6,8 +6,17 @@ interface LoginServerStatusProps {
   apiBaseUrl: string;
 }
 
+const CACHE_TTL_MS = 60000;
+
+type StatusCache = {
+  status: ServerStatus;
+  checkedAt: number;
+};
+
 export default function LoginServerStatus({ apiBaseUrl }: LoginServerStatusProps) {
   const [status, setStatus] = useState<ServerStatus>('checking');
+  const lastCheckedRef = useRef<number>(0);
+  const inFlightRef = useRef(false);
 
   const healthUrl = useMemo(() => {
     if (!apiBaseUrl) {
@@ -20,12 +29,63 @@ export default function LoginServerStatus({ apiBaseUrl }: LoginServerStatusProps
     }
   }, [apiBaseUrl]);
 
-  const checkHealth = useCallback(async () => {
+  const cacheKey = useMemo(() => {
     if (!healthUrl) {
-      setStatus('offline');
+      return '';
+    }
+    return `loginHealth:${healthUrl}`;
+  }, [healthUrl]);
+
+  const readCache = useCallback((): StatusCache | null => {
+    if (!cacheKey) {
+      return null;
+    }
+    try {
+      const raw = window.sessionStorage.getItem(cacheKey);
+      if (!raw) {
+        return null;
+      }
+      const parsed = JSON.parse(raw) as StatusCache;
+      if (!parsed || typeof parsed.checkedAt !== 'number' || typeof parsed.status !== 'string') {
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }, [cacheKey]);
+
+  const writeCache = useCallback(
+    (nextStatus: ServerStatus, checkedAt: number) => {
+      if (!cacheKey) {
+        return;
+      }
+      try {
+        window.sessionStorage.setItem(cacheKey, JSON.stringify({ status: nextStatus, checkedAt }));
+      } catch {
+        // Ignore cache failures in private mode.
+      }
+    },
+    [cacheKey]
+  );
+
+  const setStatusIfChanged = useCallback((nextStatus: ServerStatus) => {
+    setStatus((prev) => (prev === nextStatus ? prev : nextStatus));
+  }, []);
+
+  const checkHealth = useCallback(async (force = false) => {
+    if (!healthUrl) {
+      setStatusIfChanged('offline');
       return;
     }
-    setStatus('checking');
+    if (inFlightRef.current) {
+      return;
+    }
+    const now = Date.now();
+    if (!force && now - lastCheckedRef.current < CACHE_TTL_MS) {
+      return;
+    }
+    inFlightRef.current = true;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 4000);
     try {
@@ -34,21 +94,41 @@ export default function LoginServerStatus({ apiBaseUrl }: LoginServerStatusProps
         cache: 'no-store',
         signal: controller.signal
       });
-      setStatus(response.ok ? 'online' : 'offline');
+      const nextStatus: ServerStatus = response.ok ? 'online' : 'offline';
+      lastCheckedRef.current = now;
+      writeCache(nextStatus, now);
+      setStatusIfChanged(nextStatus);
     } catch {
-      setStatus('offline');
+      lastCheckedRef.current = now;
+      writeCache('offline', now);
+      setStatusIfChanged('offline');
     } finally {
       window.clearTimeout(timeout);
+      inFlightRef.current = false;
     }
-  }, [healthUrl]);
+  }, [healthUrl, setStatusIfChanged, writeCache]);
 
   useEffect(() => {
-    void checkHealth();
+    if (!healthUrl) {
+      setStatusIfChanged('offline');
+      return;
+    }
+    const cached = readCache();
+    if (cached) {
+      lastCheckedRef.current = cached.checkedAt;
+      setStatusIfChanged(cached.status);
+    }
+    const now = Date.now();
+    if (!cached || now - cached.checkedAt >= CACHE_TTL_MS) {
+      void checkHealth(true);
+    }
     const interval = window.setInterval(() => {
-      void checkHealth();
-    }, 15000);
+      if (document.visibilityState === 'visible') {
+        void checkHealth();
+      }
+    }, 30000);
     return () => window.clearInterval(interval);
-  }, [checkHealth]);
+  }, [checkHealth, healthUrl, readCache, setStatusIfChanged]);
 
   const statusLabel = useMemo(() => {
     if (status === 'online') {

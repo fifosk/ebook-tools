@@ -3,6 +3,7 @@ import SwiftUI
 
 struct JobPlaybackView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var offlineStore: OfflineMediaStore
     @Environment(\.scenePhase) private var scenePhase
     #if !os(tvOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass

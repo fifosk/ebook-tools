@@ -45,6 +45,23 @@ final class JobsViewModel: ObservableObject {
         }
     }
 
+    func delete(jobId: String, using appState: AppState) async -> Bool {
+        guard let configuration = appState.configuration else {
+            errorMessage = "Configure a valid API base URL before continuing."
+            return false
+        }
+        do {
+            let client = APIClient(configuration: configuration)
+            try await client.deleteJob(jobId: jobId)
+            jobs.removeAll { $0.jobId == jobId }
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     func startAutoRefresh(using appState: AppState) {
         refreshTask?.cancel()
         refreshTask = Task { [weak self] in

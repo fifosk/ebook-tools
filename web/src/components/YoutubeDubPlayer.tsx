@@ -4,6 +4,7 @@ import { useMediaMemory } from '../hooks/useMediaMemory';
 import { formatBookmarkTime, usePlaybackBookmarks } from '../hooks/usePlaybackBookmarks';
 import VideoPlayer, { type SubtitleTrack } from './VideoPlayer';
 import { NavigationControls } from './player-panel/NavigationControls';
+import MediaSearchPanel from './MediaSearchPanel';
 import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
 import {
   appendAccessToken,
@@ -23,9 +24,14 @@ import {
   TRANSLATION_SPEED_STEP,
   normaliseTranslationSpeed,
 } from './player-panel/constants';
-import { buildMediaFileId, toVideoFiles } from './player-panel/utils';
+import { buildMediaFileId, resolveBaseIdFromResult, toVideoFiles } from './player-panel/utils';
 import type { NavigationIntent } from './player-panel/constants';
-import type { LibraryItem, SubtitleTvMetadataResponse, YoutubeVideoMetadataResponse } from '../api/dtos';
+import type {
+  LibraryItem,
+  MediaSearchResult,
+  SubtitleTvMetadataResponse,
+  YoutubeVideoMetadataResponse
+} from '../api/dtos';
 import { coerceExportPath } from '../utils/storageResolver';
 import { downloadWithSaveAs } from '../utils/downloads';
 import { buildLibraryBookMetadata } from '../utils/libraryMetadata';
@@ -837,11 +843,11 @@ export default function YoutubeDubPlayer({
     const hasYoutubeJobType = jobTypeValue.includes('youtube');
     const isYoutubeVideo = Boolean(youtubeMetadata) || hasYoutubeJobType;
     const isTvSeries = kind === 'tv_episode' || Boolean(tvMetadata?.['show'] || tvMetadata?.['episode']);
-    const glyph = isYoutubeVideo ? 'YT' : isTvSeries ? 'TV' : !isLibrary ? 'DUB' : 'NAS';
-    const glyphLabel = isYoutubeVideo
-      ? 'YouTube video'
-      : isTvSeries
-        ? 'TV episode'
+    const glyph = isTvSeries ? 'TV' : isYoutubeVideo ? 'YT' : !isLibrary ? 'DUB' : 'NAS';
+    const glyphLabel = isTvSeries
+      ? 'TV episode'
+      : isYoutubeVideo
+        ? 'YouTube video'
         : !isLibrary
           ? 'Dubbed video'
           : 'NAS video';
@@ -1467,6 +1473,68 @@ export default function YoutubeDubPlayer({
     [deriveBaseId, rememberPosition, videoLookup],
   );
 
+  const resolveSearchVideoId = useCallback(
+    (result: MediaSearchResult): string | null => {
+      const candidates = Array.isArray(result.media?.video) ? result.media.video : [];
+      for (let index = 0; index < candidates.length; index += 1) {
+        const entry = candidates[index];
+        if (!entry) {
+          continue;
+        }
+        const candidateId = buildMediaFileId({ ...entry, type: 'video' }, index);
+        if (videoLookup.has(candidateId)) {
+          return candidateId;
+        }
+      }
+      const baseId = resolveBaseIdFromResult(result, 'video');
+      if (!baseId) {
+        return null;
+      }
+      for (const [candidateId, item] of videoLookup) {
+        const itemBaseId = deriveBaseId(item);
+        if (itemBaseId && itemBaseId === baseId) {
+          return candidateId;
+        }
+      }
+      return null;
+    },
+    [deriveBaseId, videoLookup],
+  );
+
+  const handleSearchSelection = useCallback(
+    (result: MediaSearchResult) => {
+      if (!jobId || result.job_id !== jobId) {
+        return;
+      }
+      const timeValue = result.approximate_time_seconds;
+      if (typeof timeValue !== 'number' || !Number.isFinite(timeValue)) {
+        return;
+      }
+      const clamped = Math.max(timeValue, 0);
+      const resolvedId = resolveSearchVideoId(result) ?? activeVideoId ?? videoFiles[0]?.id ?? null;
+      if (!resolvedId) {
+        return;
+      }
+      if (resolvedId === activeVideoId) {
+        applyBookmarkSeek(resolvedId, clamped);
+        return;
+      }
+      pendingBookmarkSeekRef.current = { videoId: resolvedId, time: clamped };
+      setActiveVideoId(resolvedId);
+    },
+    [activeVideoId, applyBookmarkSeek, jobId, resolveSearchVideoId, videoFiles],
+  );
+
+  const handleSearchResultAction = useCallback(
+    (result: MediaSearchResult, category: 'text' | 'video' | 'library') => {
+      if (category === 'library') {
+        return;
+      }
+      handleSearchSelection(result);
+    },
+    [handleSearchSelection],
+  );
+
   const handleJumpBookmark = useCallback(
     (bookmark: { mediaId?: string | null; position?: number | null }) => {
       const targetVideoId = bookmark.mediaId ?? activeVideoId;
@@ -1503,6 +1571,7 @@ export default function YoutubeDubPlayer({
   const disablePlayback = videoCount === 0 || !controlsRef.current;
   const disableFullscreen = videoCount === 0;
   const canExport = !isExportMode && mediaComplete && videoCount > 0;
+  const searchEnabled = !isExportMode;
   const exportSourceKind = libraryItem ? 'library' : 'job';
   const activeSubtitleScale = isFullscreen ? fullscreenSubtitleScale : subtitleScale;
   const activeSubtitleScaleMin = isFullscreen ? SUBTITLE_SCALE_FULLSCREEN_MIN : SUBTITLE_SCALE_MIN;
@@ -1567,6 +1636,10 @@ export default function YoutubeDubPlayer({
     const snapped = Math.round(clamped / 10) * 10;
     setSubtitleBackgroundOpacityPercent(snapped);
   }, []);
+
+  const searchPanel = searchEnabled ? (
+    <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchResultAction} variant="compact" />
+  ) : null;
 
   useEffect(() => {
     return () => {
@@ -1685,6 +1758,8 @@ export default function YoutubeDubPlayer({
           exportLabel={isExporting ? 'Preparing export' : 'Export offline player'}
           exportTitle={isExporting ? 'Preparing export...' : 'Export offline player'}
           exportError={exportError}
+          searchPanel={searchPanel}
+          searchPlacement="primary"
         />
       }
     >

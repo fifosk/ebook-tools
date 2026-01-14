@@ -16,6 +16,7 @@ _ASS_INLINE_BREAKS = ("\\h", "\\N", "\\n")
 def _normalize_text(value: str) -> str:
     normalized = unicodedata.normalize("NFC", value or "")
     normalized = html.unescape(normalized)
+    normalized = _ASS_TAG_PATTERN.sub(" ", normalized)
     normalized = _HTML_TAG_PATTERN.sub(" ", normalized)
     for marker in _ASS_INLINE_BREAKS:
         normalized = normalized.replace(marker, " ")

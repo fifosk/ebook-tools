@@ -111,6 +111,7 @@ export interface NavigationControlsProps {
   jobStartSentence?: number | null;
   bookTotalSentences?: number | null;
   searchPanel?: ReactNode;
+  searchPlacement?: 'primary' | 'secondary';
   showChapterJump?: boolean;
   chapters?: ChapterNavigationEntry[];
   activeChapterId?: string | null;
@@ -248,6 +249,7 @@ export function NavigationControls({
   jobStartSentence = null,
   bookTotalSentences = null,
   searchPanel,
+  searchPlacement = 'secondary',
   showChapterJump = false,
   chapters = [],
   activeChapterId = null,
@@ -319,6 +321,9 @@ export function NavigationControls({
   const fullscreenTestId = context === 'panel' ? 'player-panel-interactive-fullscreen' : undefined;
   const playbackLabel = isPlaying ? 'Pause playback' : 'Play playback';
   const playbackIcon = isPlaying ? '⏸' : '▶';
+  const searchInPrimary = Boolean(searchPanel) && searchPlacement === 'primary';
+  const searchInSecondary = Boolean(searchPanel) && !searchInPrimary;
+  const showPrimaryInfoRow = searchInPrimary;
   const originalToggleClassName = [
     'player-panel__nav-button',
     'player-panel__nav-button--audio',
@@ -799,12 +804,25 @@ export function NavigationControls({
               <span aria-hidden="true">{fullscreenIcon}</span>
             </button>
           </div>
-          {nowPlayingText ? (
+          {showPrimaryInfoRow ? (
+            <div className="player-panel__navigation-row-info">
+              {nowPlayingText ? (
+                <span className="player-panel__now-playing" title={nowPlayingTitle ?? nowPlayingText}>
+                  {nowPlayingText}
+                </span>
+              ) : null}
+              {searchInPrimary ? (
+                <div className="player-panel__navigation-search player-panel__navigation-search--primary">
+                  {searchPanel}
+                </div>
+              ) : null}
+            </div>
+          ) : nowPlayingText ? (
             <span className="player-panel__now-playing" title={nowPlayingTitle ?? nowPlayingText}>
               {nowPlayingText}
             </span>
           ) : null}
-          {searchPanel || showSentenceJump || shouldShowChapterJump ? (
+          {searchInSecondary || showSentenceJump || shouldShowChapterJump ? (
             <div className="player-panel__navigation-secondary">
               <div className="player-panel__navigation-secondary-group">
                 {shouldShowChapterJump ? (
@@ -843,7 +861,7 @@ export function NavigationControls({
                     </select>
                   </div>
                 ) : null}
-                {searchPanel ? <div className="player-panel__navigation-search">{searchPanel}</div> : null}
+                {searchInSecondary ? <div className="player-panel__navigation-search">{searchPanel}</div> : null}
                 {showSentenceJump ? (
                   <div className="player-panel__sentence-jump" data-testid="player-panel-sentence-jump">
                     {sentenceJumpError ? (

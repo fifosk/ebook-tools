@@ -3,6 +3,7 @@ import SwiftUI
 
 struct LibraryPlaybackView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var offlineStore: OfflineMediaStore
     @Environment(\.scenePhase) private var scenePhase
     #if !os(tvOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -753,11 +754,11 @@ struct LibraryPlaybackView: View {
         let isYoutubeVideo = resolvedYoutubeMetadata != nil
         let isTvSeries = isTvSeriesMetadata
         let channelVariant: PlayerChannelVariant = {
-            if isYoutubeVideo {
-                return .youtube
-            }
             if isTvSeries {
                 return .tv
+            }
+            if isYoutubeVideo {
+                return .youtube
             }
             switch item.itemType {
             case "narrated_subtitle":
@@ -766,10 +767,10 @@ struct LibraryPlaybackView: View {
                 return .video
             }
         }()
-        let channelLabel = isYoutubeVideo
-            ? "YouTube"
-            : isTvSeries
-                ? "TV"
+        let channelLabel = isTvSeries
+            ? "TV"
+            : isYoutubeVideo
+                ? "YouTube"
                 : (item.itemType == "narrated_subtitle" ? "Subtitles" : "Video")
         return VideoPlaybackMetadata(
             title: title,
@@ -794,7 +795,28 @@ struct LibraryPlaybackView: View {
         autoPlayOnLoad = false
         resumeDecisionPending = true
         sentenceIndexTracker.value = nil
-        await viewModel.loadJob(jobId: item.jobId, configuration: configuration, origin: .library)
+        let offlinePayload = offlineStore.cachedPayload(for: item.jobId, kind: .library)
+        if let offlinePayload,
+           let localResolver = offlineStore.localResolver(for: .library, configuration: configuration) {
+            let offlineConfig = APIClientConfiguration(
+                apiBaseURL: configuration.apiBaseURL,
+                storageBaseURL: offlinePayload.storageBaseURL,
+                authToken: configuration.authToken,
+                userID: configuration.userID,
+                userRole: configuration.userRole
+            )
+            await viewModel.loadJob(
+                jobId: item.jobId,
+                configuration: offlineConfig,
+                origin: .library,
+                preferLiveMedia: false,
+                mediaOverride: offlinePayload.media,
+                timingOverride: offlinePayload.timing,
+                resolverOverride: localResolver
+            )
+        } else {
+            await viewModel.loadJob(jobId: item.jobId, configuration: configuration, origin: .library)
+        }
         await viewModel.updateChapterIndex(from: item.metadata)
         if isVideoPreferred {
             nowPlaying.clear()

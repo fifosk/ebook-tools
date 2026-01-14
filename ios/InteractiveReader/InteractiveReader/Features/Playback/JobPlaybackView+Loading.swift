@@ -15,12 +15,33 @@ extension JobPlaybackView {
         subtitleTvMetadata = nil
         youtubeVideoMetadata = nil
         jobStatus = job
-        await viewModel.loadJob(
-            jobId: job.jobId,
-            configuration: configuration,
-            origin: .job,
-            preferLiveMedia: currentJob.status.isActive
-        )
+        let offlinePayload = offlineStore.cachedPayload(for: job.jobId, kind: .job)
+        if let offlinePayload,
+           let localResolver = offlineStore.localResolver(for: .job, configuration: configuration) {
+            let offlineConfig = APIClientConfiguration(
+                apiBaseURL: configuration.apiBaseURL,
+                storageBaseURL: offlinePayload.storageBaseURL,
+                authToken: configuration.authToken,
+                userID: configuration.userID,
+                userRole: configuration.userRole
+            )
+            await viewModel.loadJob(
+                jobId: job.jobId,
+                configuration: offlineConfig,
+                origin: .job,
+                preferLiveMedia: false,
+                mediaOverride: offlinePayload.media,
+                timingOverride: offlinePayload.timing,
+                resolverOverride: localResolver
+            )
+        } else {
+            await viewModel.loadJob(
+                jobId: job.jobId,
+                configuration: configuration,
+                origin: .job,
+                preferLiveMedia: currentJob.status.isActive
+            )
+        }
         await viewModel.updateChapterIndex(from: jobMetadata)
         await loadVideoMetadata()
         refreshActiveVideoSegment()

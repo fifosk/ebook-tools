@@ -251,6 +251,8 @@ async def search_pipeline_media(
                 text_length=hit.text_length,
                 offset_ratio=hit.offset_ratio,
                 approximate_time_seconds=hit.approximate_time_seconds,
+                cue_start_seconds=hit.cue_start_seconds,
+                cue_end_seconds=hit.cue_end_seconds,
                 media=media_payload,
                 source=hit_source,
             )

@@ -66,6 +66,21 @@ final class APIClient {
         return try decode(PipelineMediaResponse.self, from: data)
     }
 
+    func fetchJobMediaData(jobId: String) async throws -> Data {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        return try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/media")
+    }
+
+    func fetchLibraryMediaData(jobId: String) async throws -> Data {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        return try await sendRequest(path: "/api/library/media/\(encoded)")
+    }
+
+    func fetchJobTimingData(jobId: String) async throws -> Data? {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        return try await sendRequestAllowingNotFound(path: "/api/jobs/\(encoded)/timing")
+    }
+
     func fetchJobTiming(jobId: String) async throws -> JobTimingResponse? {
         let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
         guard let data = try await sendRequestAllowingNotFound(path: "/api/jobs/\(encoded)/timing") else {
@@ -118,6 +133,16 @@ final class APIClient {
         let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
         let data = try await sendRequest(path: "/api/pipelines/\(encoded)")
         return try decode(PipelineStatusResponse.self, from: data)
+    }
+
+    func deleteJob(jobId: String) async throws {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        _ = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/delete", method: "POST")
+    }
+
+    func deleteLibraryItem(jobId: String) async throws {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        _ = try await sendRequest(path: "/api/library/remove/\(encoded)", method: "DELETE")
     }
 
     func fetchReadingBeds() async throws -> ReadingBedListResponse {

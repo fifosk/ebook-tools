@@ -46,10 +46,15 @@ final class InteractivePlayerViewModel: ObservableObject {
     var audioDurationByURL: [URL: Double] = [:]
     var chunkMetadataLoaded: Set<String> = []
     var chunkMetadataLoading: Set<String> = []
+    var chunkMetadataAttemptedAt: [String: Date] = [:]
+    var lastPrefetchSentenceNumber: Int?
+    var prefetchedAudioURLs: Set<URL> = []
     var pendingSentenceJump: PendingSentenceJump?
     let defaultReadingBedPath = "/assets/reading-beds/lost-in-the-pages.mp3"
     var liveUpdateTask: Task<Void, Never>?
     let liveUpdateInterval: UInt64 = 4_000_000_000
+    let metadataPrefetchRadius: Int = 2
+    let metadataRetryInterval: TimeInterval = 6
 
     init() {
         audioCoordinator.onPlaybackEnded = { [weak self] in

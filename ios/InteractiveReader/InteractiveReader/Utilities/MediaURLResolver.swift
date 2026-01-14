@@ -9,26 +9,57 @@ struct MediaURLResolver {
     let origin: MediaURLOrigin
 
     func resolveAudioURL(jobId: String, track: AudioTrackMetadata) -> URL? {
-        if let urlString = track.url, let url = resolveURL(from: urlString, jobId: jobId) {
-            return url
+        switch origin {
+        case .storage:
+            if let path = track.path, isStorageRelativePath(path), let url = resolveURL(from: path, jobId: jobId) {
+                return url
+            }
+            if let urlString = track.url, let url = resolveURL(from: urlString, jobId: jobId) {
+                return url
+            }
+            if let path = track.path, let url = resolveURL(from: path, jobId: jobId) {
+                return url
+            }
+            return nil
+        case .library:
+            if let urlString = track.url, let url = resolveURL(from: urlString, jobId: jobId) {
+                return url
+            }
+            if let path = track.path {
+                return resolveURL(from: path, jobId: jobId)
+            }
+            return nil
         }
-        if let path = track.path {
-            return resolveURL(from: path, jobId: jobId)
-        }
-        return nil
     }
 
     func resolveFileURL(jobId: String, file: PipelineMediaFile) -> URL? {
-        if let urlString = file.url, let url = resolveURL(from: urlString, jobId: jobId) {
-            return url
+        switch origin {
+        case .storage:
+            if let relative = file.relativePath, let url = resolveURL(from: relative, jobId: jobId) {
+                return url
+            }
+            if let path = file.path, isStorageRelativePath(path), let url = resolveURL(from: path, jobId: jobId) {
+                return url
+            }
+            if let urlString = file.url, let url = resolveURL(from: urlString, jobId: jobId) {
+                return url
+            }
+            if let path = file.path, let url = resolveURL(from: path, jobId: jobId) {
+                return url
+            }
+            return nil
+        case .library:
+            if let urlString = file.url, let url = resolveURL(from: urlString, jobId: jobId) {
+                return url
+            }
+            if let relative = file.relativePath, let url = resolveURL(from: relative, jobId: jobId) {
+                return url
+            }
+            if let path = file.path, let url = resolveURL(from: path, jobId: jobId) {
+                return url
+            }
+            return nil
         }
-        if let relative = file.relativePath, let url = resolveURL(from: relative, jobId: jobId) {
-            return url
-        }
-        if let path = file.path, let url = resolveURL(from: path, jobId: jobId) {
-            return url
-        }
-        return nil
     }
 
     func resolvePath(jobId: String, relativePath: String) -> URL? {
@@ -138,6 +169,9 @@ struct MediaURLResolver {
         guard let token = accessToken, !token.isEmpty else {
             return url
         }
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+            return url
+        }
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return url
         }
@@ -201,6 +235,22 @@ struct MediaURLResolver {
         default:
             return false
         }
+    }
+
+    private func isStorageRelativePath(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        let normalized = trimmed.replacingOccurrences(of: "\\", with: "/")
+        if normalized.hasPrefix("media/") || normalized.hasPrefix("metadata/") {
+            return true
+        }
+        if normalized.hasPrefix("/media/") || normalized.hasPrefix("/metadata/") {
+            return true
+        }
+        if normalized.contains("/storage/") || normalized.contains("/media/") || normalized.contains("/metadata/") {
+            return true
+        }
+        return false
     }
 }
 

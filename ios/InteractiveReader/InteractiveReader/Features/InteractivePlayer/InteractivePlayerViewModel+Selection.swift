@@ -5,6 +5,7 @@ extension InteractivePlayerViewModel {
     func selectChunk(id: String, autoPlay: Bool = false) {
         guard selectedChunkID != id else { return }
         selectedChunkID = id
+        lastPrefetchSentenceNumber = nil
         guard let chunk = selectedChunk else {
             audioCoordinator.reset()
             selectedTimingURL = nil
@@ -19,7 +20,7 @@ extension InteractivePlayerViewModel {
         prepareAudio(for: chunk, autoPlay: autoPlay)
         attemptPendingSentenceJump(in: chunk)
         Task { [weak self] in
-            await self?.loadChunkMetadataIfNeeded(for: chunk.id)
+            await self?.loadChunkMetadataIfNeeded(for: chunk.id, force: true)
         }
     }
 
@@ -69,6 +70,7 @@ extension InteractivePlayerViewModel {
 
     func configureDefaultSelections() {
         guard let context = jobContext else { return }
+        lastPrefetchSentenceNumber = nil
         if let chunk = context.chunks.first(where: { !$0.audioOptions.isEmpty }) ?? context.chunks.first {
             selectedChunkID = chunk.id
             if let option = chunk.audioOptions.first {
@@ -79,7 +81,7 @@ extension InteractivePlayerViewModel {
             }
             prepareAudio(for: chunk, autoPlay: false)
             Task { [weak self] in
-                await self?.loadChunkMetadataIfNeeded(for: chunk.id)
+                await self?.loadChunkMetadataIfNeeded(for: chunk.id, force: true)
             }
         } else {
             selectedChunkID = nil
@@ -118,7 +120,7 @@ extension InteractivePlayerViewModel {
         attemptPendingSentenceJump(in: targetChunk)
         if selectedChunkID == targetChunk.id {
             Task { [weak self] in
-                await self?.loadChunkMetadataIfNeeded(for: targetChunk.id)
+                await self?.loadChunkMetadataIfNeeded(for: targetChunk.id, force: true)
             }
         }
     }

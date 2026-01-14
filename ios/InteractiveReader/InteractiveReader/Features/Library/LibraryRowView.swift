@@ -58,6 +58,7 @@ struct LibraryRowView: View {
             Spacer()
 
             #if !os(tvOS)
+            OfflineSyncBadge(jobId: item.jobId, kind: .library, isEligible: true)
             Image(systemName: "chevron.right")
                 .foregroundStyle(.secondary)
             #endif
@@ -93,9 +94,6 @@ struct LibraryRowView: View {
 
     private var jobTypeGlyph: JobTypeGlyph {
         let resolved = JobTypeGlyphResolver.glyph(for: jobTypeValue)
-        if resolved.variant == .youtube {
-            return resolved
-        }
         if isTvSeries {
             return JobTypeGlyph(icon: "TV", label: "TV series", variant: .tv)
         }

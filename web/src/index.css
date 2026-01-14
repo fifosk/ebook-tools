@@ -2873,10 +2873,34 @@ button.link-button:focus {
   width: 100%;
 }
 
+.player-panel__navigation-row-info {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.player-panel__navigation-search--primary {
+  flex: 0 1 12rem;
+  min-width: 6.5rem;
+}
+
 .player-panel__navigation-group--compact-controls .player-panel__navigation-row {
   gap: 0.35rem;
   justify-content: center;
   align-items: center;
+}
+
+.player-panel__navigation-group--compact-controls .player-panel__navigation-row-info {
+  gap: 0.35rem;
+}
+
+.player-panel__navigation-group--compact-controls .player-panel__navigation-search--primary {
+  flex-basis: clamp(7.5rem, 18vw, 12rem);
+  min-width: 6rem;
 }
 
 .player-panel__navigation-group--compact-controls .player-panel__navigation {

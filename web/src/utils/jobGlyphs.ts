@@ -46,12 +46,12 @@ export function getJobTypeGlyph(
   options?: { isTvSeries?: boolean },
 ): JobTypeGlyph {
   const normalized = normalizeJobType(jobType).toLowerCase();
+  if (options?.isTvSeries) {
+    return { icon: 'TV', label: 'TV series', variant: 'tv' };
+  }
   if (normalized.includes('youtube')) {
     const label = normalized.includes('dub') ? 'YouTube dub job' : 'YouTube job';
     return { icon: 'YT', label, variant: 'youtube' };
-  }
-  if (options?.isTvSeries) {
-    return { icon: 'TV', label: 'TV series', variant: 'tv' };
   }
   switch (normalized) {
     case 'pipeline':

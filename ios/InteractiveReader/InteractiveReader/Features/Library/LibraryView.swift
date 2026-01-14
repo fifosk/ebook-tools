@@ -5,6 +5,8 @@ import UIKit
 #endif
 
 struct LibraryView: View {
+    @EnvironmentObject var appState: AppState
+    @EnvironmentObject var offlineStore: OfflineMediaStore
     @ObservedObject var viewModel: LibraryViewModel
     let useNavigationLinks: Bool
     let onRefresh: () -> Void
@@ -34,6 +36,7 @@ struct LibraryView: View {
             List {
                 ForEach(viewModel.filteredItems) { item in
                     if useNavigationLinks {
+                        #if os(tvOS)
                         NavigationLink(value: item) {
                             LibraryRowView(
                                 item: item,
@@ -43,6 +46,22 @@ struct LibraryView: View {
                         }
                         #if os(tvOS)
                         .listRowBackground(Color.clear)
+                        #endif
+                        #else
+                        NavigationLink(value: item) {
+                            LibraryRowView(
+                                item: item,
+                                coverURL: coverResolver(item),
+                                resumeStatus: resumeStatus(for: item)
+                            )
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                Task { await handleDelete(item) }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                         #endif
                     } else {
                         #if os(tvOS)
@@ -66,6 +85,13 @@ struct LibraryView: View {
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 onSelect?(item)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    Task { await handleDelete(item) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                         #endif
                     }
@@ -363,5 +389,14 @@ struct LibraryView: View {
         formatter.allowedUnits = time >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
         formatter.zeroFormattingBehavior = .pad
         return formatter.string(from: time) ?? "0:00"
+    }
+
+    @MainActor
+    private func handleDelete(_ item: LibraryItem) async {
+        let didDelete = await viewModel.delete(jobId: item.jobId, using: appState)
+        guard didDelete else { return }
+        offlineStore.remove(jobId: item.jobId, kind: .library)
+        resumeAvailability.removeValue(forKey: item.jobId)
+        iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     }
 }
