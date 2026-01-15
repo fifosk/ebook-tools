@@ -26,11 +26,15 @@ export interface TextPlayerSentence {
   variants: TextPlayerVariantDisplay[];
 }
 
+type VariantVisibility = Partial<Record<TextPlayerVariantKind, boolean>>;
+
 interface TextPlayerProps {
   sentences: TextPlayerSentence[];
   onSeek?: (time: number) => void;
   selection?: TextPlayerTokenSelection | null;
   shadowSelection?: TextPlayerTokenSelection | null;
+  variantVisibility?: VariantVisibility;
+  onToggleVariant?: (variant: TextPlayerVariantKind) => void;
   belowTracks?: React.ReactNode;
   footer?: React.ReactNode;
 }
@@ -79,6 +83,16 @@ function variantFutureClass(kind: TextPlayerVariantKind): string {
   }
 }
 
+function resolveVariantVisibility(
+  kind: TextPlayerVariantKind,
+  visibility?: VariantVisibility,
+): boolean {
+  if (!visibility) {
+    return true;
+  }
+  return visibility[kind] ?? true;
+}
+
 function renderVariant(
   sentenceState: 'past' | 'active' | 'future',
   sentenceIndex: number,
@@ -86,11 +100,14 @@ function renderVariant(
   onSeek?: (time: number) => void,
   selection?: TextPlayerTokenSelection | null,
   shadowSelection?: TextPlayerTokenSelection | null,
+  variantVisibility?: VariantVisibility,
+  onToggleVariant?: (variant: TextPlayerVariantKind) => void,
 ) {
   if (!variant.tokens.length) {
     return null;
   }
 
+  const isVisible = resolveVariantVisibility(variant.baseClass, variantVisibility);
   const baseClassName = variantBaseClass(variant.baseClass);
   const pastClassName = variantPastClass(variant.baseClass);
   const currentClassName = variantCurrentClass(variant.baseClass);
@@ -110,77 +127,75 @@ function renderVariant(
   };
 
   const content: React.ReactNode[] = [];
-  variant.tokens.forEach((token, index) => {
-    const classNames = [styles.wordBase, baseClassName];
-    const isSelected =
-      selection?.sentenceIndex === sentenceIndex &&
-      selection.variantKind === variant.baseClass &&
-      selection.tokenIndex === index;
-    const isShadow =
-      shadowSelection?.sentenceIndex === sentenceIndex &&
-      shadowSelection.variantKind === variant.baseClass &&
-      shadowSelection.tokenIndex === index;
+  if (isVisible) {
+    variant.tokens.forEach((token, index) => {
+      const classNames = [styles.wordBase, baseClassName];
+      const isSelected =
+        selection?.sentenceIndex === sentenceIndex &&
+        selection.variantKind === variant.baseClass &&
+        selection.tokenIndex === index;
+      const isShadow =
+        shadowSelection?.sentenceIndex === sentenceIndex &&
+        shadowSelection.variantKind === variant.baseClass &&
+        shadowSelection.tokenIndex === index;
 
-    if (sentenceState === 'future') {
-      classNames.push(futureClassName);
-    } else if (sentenceState === 'past') {
-      classNames.push(pastClassName);
-    } else if (revealedCount === 0) {
-      classNames.push(futureClassName);
-    } else if (index < revealedCount - 1) {
-      classNames.push(pastClassName);
-    } else if (index === revealedCount - 1) {
-      classNames.push(currentClassName);
-    } else {
-      classNames.push(futureClassName);
-    }
+      if (sentenceState === 'future') {
+        classNames.push(futureClassName);
+      } else if (sentenceState === 'past') {
+        classNames.push(pastClassName);
+      } else if (revealedCount === 0) {
+        classNames.push(futureClassName);
+      } else if (index < revealedCount - 1) {
+        classNames.push(pastClassName);
+      } else if (index === revealedCount - 1) {
+        classNames.push(currentClassName);
+      } else {
+        classNames.push(futureClassName);
+      }
 
-    if (isSelected) {
-      classNames.push(styles.wordSelected);
-    }
-    if (isShadow) {
-      classNames.push(styles.wordShadow);
-    }
+      if (isSelected) {
+        classNames.push(styles.wordSelected);
+      }
+      if (isShadow) {
+        classNames.push(styles.wordShadow);
+      }
 
-    const tokenKey = `${variant.baseClass}-${sentenceIndex}-${index}`;
-    content.push(
-      <span
-        key={tokenKey}
-        className={classNames.join(' ')}
-        role={onSeek ? 'button' : undefined}
-        tabIndex={onSeek ? 0 : undefined}
-        onClick={() => handleSeek(index)}
-        onKeyDown={(event) => {
-          if (!onSeek) {
-            return;
-          }
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            handleSeek(index);
-          }
-        }}
-        data-text-player-token="true"
-        data-text-player-variant={variant.baseClass}
-        data-text-player-token-index={index}
-        data-text-player-sentence-index={sentenceIndex}
-      >
-        {token}
-      </span>
-    );
-    if (index < variant.tokens.length - 1) {
+      const tokenKey = `${variant.baseClass}-${sentenceIndex}-${index}`;
       content.push(
         <span
-          key={`${tokenKey}-space`}
-          className={styles.wordSpacer}
+          key={tokenKey}
+          className={classNames.join(' ')}
+          role={onSeek ? 'button' : undefined}
+          tabIndex={onSeek ? 0 : undefined}
+          onClick={() => handleSeek(index)}
+          onKeyDown={(event) => {
+            if (!onSeek) {
+              return;
+            }
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              handleSeek(index);
+            }
+          }}
+          data-text-player-token="true"
+          data-text-player-variant={variant.baseClass}
+          data-text-player-token-index={index}
+          data-text-player-sentence-index={sentenceIndex}
         >
-          {' '}
+          {token}
         </span>
       );
-    }
-  });
-
-  if (content.length === 0) {
-    return null;
+      if (index < variant.tokens.length - 1) {
+        content.push(
+          <span
+            key={`${tokenKey}-space`}
+            className={styles.wordSpacer}
+          >
+            {' '}
+          </span>
+        );
+      }
+    });
   }
 
   const contentClassName = (() => {
@@ -194,10 +209,31 @@ function renderVariant(
     }
   })();
 
+  const labelNode = onToggleVariant ? (
+    <button
+      type="button"
+      className={`${styles.lineLabel} ${styles.lineLabelButton}`}
+      aria-pressed={isVisible}
+      onClick={() => onToggleVariant(variant.baseClass)}
+      title={`${isVisible ? 'Hide' : 'Show'} ${variant.label} track`}
+    >
+      <span className={styles.lineLabelText}>{variant.label}</span>
+      <span className={styles.lineLabelCaret} aria-hidden="true" />
+    </button>
+  ) : (
+    <span className={styles.lineLabel}>{variant.label}</span>
+  );
+
+  const contentNode = isVisible ? (
+    <div className={contentClassName}>{content}</div>
+  ) : (
+    <div className={`${styles.lineContent} ${styles.lineContentPlaceholder}`} aria-hidden="true" />
+  );
+
   return (
     <div className={styles.lineRow} key={`${variant.baseClass}-row`} data-text-player-variant={variant.baseClass}>
-      <span className={styles.lineLabel}>{variant.label}</span>
-      <div className={contentClassName}>{content}</div>
+      {labelNode}
+      {contentNode}
     </div>
   );
 }
@@ -207,6 +243,8 @@ const TextPlayer: React.FC<TextPlayerProps> = ({
   onSeek,
   selection = null,
   shadowSelection = null,
+  variantVisibility,
+  onToggleVariant,
   belowTracks,
   footer,
 }) => {
@@ -241,7 +279,16 @@ const TextPlayer: React.FC<TextPlayerProps> = ({
             data-sentence-index={sentence.index}
           >
             {sentence.variants.map((variant) =>
-              renderVariant(sentence.state, sentence.index, variant, onSeek, selection, shadowSelection)
+              renderVariant(
+                sentence.state,
+                sentence.index,
+                variant,
+                onSeek,
+                selection,
+                shadowSelection,
+                variantVisibility,
+                onToggleVariant,
+              )
             )}
           </div>
         );

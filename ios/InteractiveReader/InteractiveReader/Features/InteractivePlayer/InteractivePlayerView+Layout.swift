@@ -199,6 +199,10 @@ extension InteractivePlayerView {
             llmModelOptions: llmModelOptions,
             onLlmModelChange: { storedLlmModel = $0 },
             playbackPrimaryKind: playbackPrimaryKind(for: chunk),
+            visibleTracks: visibleTracks,
+            onToggleTrack: { kind in
+                toggleTrackIfAvailable(kind)
+            },
             isMenuVisible: isMenuVisible,
             trackFontScale: trackFontScale,
             linguistFontScale: linguistFontScale,

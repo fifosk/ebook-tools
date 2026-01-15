@@ -119,15 +119,6 @@ export function useInteractiveAudioPlayback({
       }
     );
   }, [cueVisibility]);
-  const isVariantVisible = useCallback(
-    (variant: TextPlayerVariantKind) => {
-      if (variant === 'translit') {
-        return resolvedCueVisibility.transliteration;
-      }
-      return resolvedCueVisibility[variant];
-    },
-    [resolvedCueVisibility],
-  );
   const resolvedTranslationSpeed = useMemo(
     () => normaliseTranslationSpeed(translationSpeed),
     [translationSpeed],
@@ -308,7 +299,6 @@ export function useInteractiveAudioPlayback({
     audioDuration,
     chunkTime,
     activeSentenceIndex,
-    isVariantVisible,
     revealMemoryRef,
   });
 
@@ -317,7 +307,6 @@ export function useInteractiveAudioPlayback({
     timelineDisplay,
     chunk,
     activeSentenceIndex,
-    cueVisibility: resolvedCueVisibility,
   });
 
   const updateSentenceForTime = useCallback(

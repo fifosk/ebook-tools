@@ -24,6 +24,8 @@ struct InteractiveTranscriptView: View {
     let llmModelOptions: [String]
     let onLlmModelChange: (String) -> Void
     let playbackPrimaryKind: TextPlayerVariantKind?
+    let visibleTracks: Set<TextPlayerVariantKind>
+    let onToggleTrack: (TextPlayerVariantKind) -> Void
     let isMenuVisible: Bool
     let trackFontScale: CGFloat
     let linguistFontScale: CGFloat
@@ -89,7 +91,9 @@ struct InteractiveTranscriptView: View {
                     onTokenLookup: onLookupToken,
                     onTokenSeek: onSeekToken,
                     fontScale: trackFontScale,
-                    playbackPrimaryKind: playbackPrimaryKind
+                    playbackPrimaryKind: playbackPrimaryKind,
+                    visibleTracks: visibleTracks,
+                    onToggleTrack: onToggleTrack
                 )
                     .frame(maxWidth: .infinity, maxHeight: textHeight, alignment: .top)
                     .contentShape(Rectangle())
@@ -135,7 +139,9 @@ struct InteractiveTranscriptView: View {
                         onTokenLookup: onLookupToken,
                         onTokenSeek: onSeekToken,
                         fontScale: trackFontScale,
-                        playbackPrimaryKind: playbackPrimaryKind
+                        playbackPrimaryKind: playbackPrimaryKind,
+                        visibleTracks: visibleTracks,
+                        onToggleTrack: onToggleTrack
                     )
                         .frame(
                             maxWidth: .infinity,
@@ -185,7 +191,9 @@ struct InteractiveTranscriptView: View {
                         onTokenLookup: onLookupToken,
                         onTokenSeek: onSeekToken,
                         fontScale: trackFontScale,
-                        playbackPrimaryKind: playbackPrimaryKind
+                        playbackPrimaryKind: playbackPrimaryKind,
+                        visibleTracks: visibleTracks,
+                        onToggleTrack: onToggleTrack
                     )
                         .frame(
                             maxWidth: .infinity,

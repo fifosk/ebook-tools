@@ -18,11 +18,6 @@ type UseTextPlayerSentencesArgs = {
   timelineDisplay: TimelineDisplay | null;
   chunk: LiveMediaChunk | null;
   activeSentenceIndex: number;
-  cueVisibility: {
-    original: boolean;
-    transliteration: boolean;
-    translation: boolean;
-  };
 };
 
 export function useTextPlayerSentences({
@@ -30,7 +25,6 @@ export function useTextPlayerSentences({
   timelineDisplay,
   chunk,
   activeSentenceIndex,
-  cueVisibility,
 }: UseTextPlayerSentencesArgs): {
   rawSentences: SentenceFragment[];
   textPlayerSentences: TextPlayerSentence[] | null;
@@ -73,7 +67,7 @@ export function useTextPlayerSentences({
         const translationTokens = tokenizeSentenceText(metadata.translation?.text ?? null);
 
         const variants: TextPlayerVariantDisplay[] = [];
-        if (cueVisibility.original && originalTokens.length > 0) {
+        if (originalTokens.length > 0) {
           variants.push({
             label: 'Original',
             tokens: originalTokens,
@@ -82,7 +76,7 @@ export function useTextPlayerSentences({
             baseClass: 'original',
           });
         }
-        if (cueVisibility.transliteration && transliterationTokens.length > 0) {
+        if (transliterationTokens.length > 0) {
           variants.push({
             label: 'Transliteration',
             tokens: transliterationTokens,
@@ -91,7 +85,7 @@ export function useTextPlayerSentences({
             baseClass: 'translit',
           });
         }
-        if (cueVisibility.translation && translationTokens.length > 0) {
+        if (translationTokens.length > 0) {
           variants.push({
             label: 'Translation',
             tokens: translationTokens,
@@ -134,7 +128,7 @@ export function useTextPlayerSentences({
         const transliterationTokens = tokenizeSentenceText(sentence.transliteration);
 
         const variants: TextPlayerVariantDisplay[] = [];
-        if (cueVisibility.original && originalTokens.length > 0) {
+        if (originalTokens.length > 0) {
           variants.push({
             label: 'Original',
             tokens: originalTokens,
@@ -143,7 +137,7 @@ export function useTextPlayerSentences({
             baseClass: 'original',
           });
         }
-        if (cueVisibility.transliteration && transliterationTokens.length > 0) {
+        if (transliterationTokens.length > 0) {
           variants.push({
             label: 'Transliteration',
             tokens: transliterationTokens,
@@ -152,7 +146,7 @@ export function useTextPlayerSentences({
             baseClass: 'translit',
           });
         }
-        if (cueVisibility.translation && translationTokens.length > 0) {
+        if (translationTokens.length > 0) {
           variants.push({
             label: 'Translation',
             tokens: translationTokens,
@@ -183,7 +177,7 @@ export function useTextPlayerSentences({
       fallbackFromContent.find((sentence) => sentence.index === activeSentenceIndex) ??
       fallbackFromContent[0];
     return forceActive(active);
-  }, [activeSentenceIndex, chunk?.sentences, cueVisibility, rawSentences, timelineDisplay?.sentences]);
+  }, [activeSentenceIndex, chunk?.sentences, rawSentences, timelineDisplay?.sentences]);
 
   const sentenceWeightSummary = useMemo(() => {
     let cumulativeTotal = 0;

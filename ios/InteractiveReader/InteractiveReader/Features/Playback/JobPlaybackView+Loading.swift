@@ -34,6 +34,7 @@ extension JobPlaybackView {
                 timingOverride: offlinePayload.timing,
                 resolverOverride: localResolver
             )
+            applyOfflineReadingBeds(offlinePayload)
         } else {
             await viewModel.loadJob(
                 jobId: job.jobId,
@@ -73,6 +74,13 @@ extension JobPlaybackView {
         if currentJob.status.isActive {
             viewModel.startLiveUpdates()
         }
+    }
+
+    @MainActor
+    private func applyOfflineReadingBeds(_ payload: OfflineMediaStore.OfflineMediaPayload) {
+        viewModel.readingBedCatalog = payload.readingBeds
+        viewModel.readingBedBaseURL = payload.readingBedBaseURL
+        viewModel.selectReadingBed(id: viewModel.selectedReadingBedID)
     }
 
     @MainActor

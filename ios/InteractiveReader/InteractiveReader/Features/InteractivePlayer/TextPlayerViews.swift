@@ -10,6 +10,8 @@ struct TextPlayerFrame: View {
     let onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void)?
     let fontScale: CGFloat
     let playbackPrimaryKind: TextPlayerVariantKind?
+    let visibleTracks: Set<TextPlayerVariantKind>
+    let onToggleTrack: ((TextPlayerVariantKind) -> Void)?
 
     var body: some View {
         VStack(spacing: 10) {
@@ -24,6 +26,8 @@ struct TextPlayerFrame: View {
                         sentence: sentence,
                         selection: selection,
                         playbackPrimaryKind: playbackPrimaryKind,
+                        visibleTracks: visibleTracks,
+                        onToggleTrack: onToggleTrack,
                         onTokenLookup: onTokenLookup,
                         onTokenSeek: onTokenSeek,
                         fontScale: fontScale
@@ -50,6 +54,8 @@ struct TextPlayerSentenceView: View {
     let sentence: TextPlayerSentenceDisplay
     let selection: TextPlayerWordSelection?
     let playbackPrimaryKind: TextPlayerVariantKind?
+    let visibleTracks: Set<TextPlayerVariantKind>
+    let onToggleTrack: ((TextPlayerVariantKind) -> Void)?
     let onTokenLookup: ((Int, TextPlayerVariantKind, Int, String) -> Void)?
     let onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void)?
     let fontScale: CGFloat
@@ -65,6 +71,10 @@ struct TextPlayerSentenceView: View {
                     shadowTokenIndex: shadowTokenIndex(for: variant),
                     playbackTokenIndex: playbackTokenIndex(for: variant, primaryIndex: playbackPrimaryIndex),
                     playbackShadowIndex: playbackShadowIndex(for: variant, primaryIndex: playbackPrimaryIndex),
+                    isVisible: visibleTracks.contains(variant.kind),
+                    onToggleVisibility: {
+                        onToggleTrack?(variant.kind)
+                    },
                     fontScale: fontScale,
                     onTokenLookup: { tokenIndex, token in
                         onTokenLookup?(sentence.index, variant.kind, tokenIndex, token)
@@ -329,25 +339,48 @@ struct TextPlayerVariantView: View {
     let shadowTokenIndex: Int?
     let playbackTokenIndex: Int?
     let playbackShadowIndex: Int?
+    let isVisible: Bool
+    let onToggleVisibility: (() -> Void)?
     let fontScale: CGFloat
     let onTokenLookup: ((Int, String) -> Void)?
     let onTokenSeek: ((Int, Double?) -> Void)?
 
     var body: some View {
         VStack(spacing: 6) {
-            Text(variant.label)
-                .font(labelFont)
+            Button(action: {
+                onToggleVisibility?()
+            }) {
+                HStack(spacing: 6) {
+                    Text(variant.label)
+                        .font(labelFont)
+                        .textCase(.uppercase)
+                        .tracking(1.2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .allowsTightening(true)
+                    Image(systemName: isVisible ? "chevron.up" : "chevron.down")
+                        .font(labelFont.weight(.semibold))
+                }
                 .foregroundStyle(TextPlayerTheme.lineLabel)
-                .textCase(.uppercase)
-                .tracking(1.2)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .allowsTightening(true)
+                .opacity(isVisible ? 1 : 0.55)
                 .frame(maxWidth: .infinity)
-            tokenFlow
-                .font(lineFont)
-                .frame(maxWidth: .infinity)
-                .layoutPriority(1)
+            }
+            .buttonStyle(.plain)
+            .disabled(onToggleVisibility == nil)
+            #if os(tvOS)
+            .focusable(false)
+            #endif
+            Group {
+                if isVisible {
+                    tokenFlow
+                        .font(lineFont)
+                        .frame(maxWidth: .infinity)
+                        .layoutPriority(1)
+                } else {
+                    Color.clear
+                        .frame(height: 1)
+                }
+            }
         }
     }
 

@@ -275,6 +275,7 @@ type BuildInteractiveViewerPropsArgs = {
     jobOriginalLanguage: InteractiveTextViewerProps['jobOriginalLanguage'];
     jobTranslationLanguage: InteractiveTextViewerProps['jobTranslationLanguage'];
     cueVisibility: InteractiveTextViewerProps['cueVisibility'];
+    onToggleCueVisibility: InteractiveTextViewerProps['onToggleCueVisibility'];
     activeAudioUrl: InteractiveTextViewerProps['activeAudioUrl'];
     noAudioAvailable: InteractiveTextViewerProps['noAudioAvailable'];
     jobId: InteractiveTextViewerProps['jobId'];
@@ -346,6 +347,7 @@ export function buildInteractiveViewerProps({
     jobOriginalLanguage: core.jobOriginalLanguage,
     jobTranslationLanguage: core.jobTranslationLanguage,
     cueVisibility: core.cueVisibility,
+    onToggleCueVisibility: core.onToggleCueVisibility,
     activeAudioUrl: core.activeAudioUrl,
     noAudioAvailable: core.noAudioAvailable,
     jobId: core.jobId,

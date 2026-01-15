@@ -305,8 +305,7 @@ extension InteractivePlayerViewModel {
         let display = TextPlayerTimeline.buildTimelineDisplay(
             timelineSentences: timelineSentences,
             chunkTime: time,
-            audioDuration: playbackDuration(for: chunk),
-            isVariantVisible: { _ in true }
+            audioDuration: playbackDuration(for: chunk)
         ),
         chunk.sentences.indices.contains(display.activeIndex) {
             return chunk.sentences[display.activeIndex]

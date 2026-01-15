@@ -298,8 +298,7 @@ enum TextPlayerTimeline {
     static func buildTimelineDisplay(
         timelineSentences: [TimelineSentenceRuntime],
         chunkTime: Double,
-        audioDuration: Double?,
-        isVariantVisible: (TextPlayerVariantKind) -> Bool
+        audioDuration: Double?
     ) -> TimelineDisplay? {
         guard !timelineSentences.isEmpty else { return nil }
 
@@ -356,7 +355,6 @@ enum TextPlayerTimeline {
             var variants: [TextPlayerVariantDisplay] = []
 
             func appendVariant(label: String, kind: TextPlayerVariantKind, variantRuntime: TimelineVariantRuntime?) {
-                guard isVariantVisible(kind) else { return }
                 guard let variantRuntime, !variantRuntime.tokens.isEmpty else { return }
 
                 let tokens = variantRuntime.tokens
@@ -428,7 +426,6 @@ enum TextPlayerTimeline {
     static func buildStaticDisplay(
         sentences: [InteractiveChunk.Sentence],
         activeIndex: Int? = nil,
-        isVariantVisible: (TextPlayerVariantKind) -> Bool
     ) -> [TextPlayerSentenceDisplay] {
         guard !sentences.isEmpty else { return [] }
         let resolvedActiveIndex = activeIndex ?? 0
@@ -436,7 +433,6 @@ enum TextPlayerTimeline {
             var variants: [TextPlayerVariantDisplay] = []
 
             func appendStaticVariant(label: String, kind: TextPlayerVariantKind, tokens: [String]) {
-                guard isVariantVisible(kind) else { return }
                 guard !tokens.isEmpty else { return }
                 variants.append(
                     TextPlayerVariantDisplay(

@@ -20,6 +20,7 @@ extension InteractivePlayerViewModel {
         self.jobId = trimmedJobId
         apiBaseURL = configuration.apiBaseURL
         authToken = configuration.authToken
+        readingBedBaseURL = nil
         apiConfiguration = configuration
         mediaOrigin = origin
         selectedChunkID = nil

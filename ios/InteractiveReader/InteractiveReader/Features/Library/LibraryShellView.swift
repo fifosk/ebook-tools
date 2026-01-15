@@ -8,7 +8,7 @@ struct LibraryShellView: View {
     @State private var selectedJob: PipelineStatusResponse?
     @State private var libraryAutoPlay = false
     @State private var jobsAutoPlay = false
-    @State private var activeSection: BrowseSection = .library
+    @State private var activeSection: BrowseSection = .jobs
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private enum BrowseSection: String, CaseIterable, Identifiable {
@@ -21,6 +21,14 @@ struct LibraryShellView: View {
     private var isSplitLayout: Bool {
         #if !os(tvOS)
         return horizontalSizeClass == .regular
+        #else
+        return false
+        #endif
+    }
+
+    private var isCompactLayout: Bool {
+        #if !os(tvOS)
+        return horizontalSizeClass == .compact
         #else
         return false
         #endif
@@ -158,12 +166,17 @@ struct LibraryShellView: View {
                 )
             }
         }
+        #if !os(tvOS)
+        .navigationTitle(isCompactLayout ? "" : activeSection.rawValue)
+        .navigationBarTitleDisplayMode(isCompactLayout ? .inline : .automatic)
+        #else
         .navigationTitle(activeSection.rawValue)
+        #endif
     }
 
     private var sectionPicker: some View {
         Picker("Browse", selection: $activeSection) {
-            ForEach(BrowseSection.allCases) { section in
+            ForEach(orderedSections) { section in
                 Text(section.rawValue).tag(section)
             }
         }
@@ -180,6 +193,14 @@ struct LibraryShellView: View {
         return AnyView(sectionPicker)
         #else
         return nil
+        #endif
+    }
+
+    private var orderedSections: [BrowseSection] {
+        #if os(tvOS)
+        return BrowseSection.allCases
+        #else
+        return [.jobs, .library]
         #endif
     }
 

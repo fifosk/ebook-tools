@@ -5,6 +5,7 @@ struct LibraryPlaybackView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var offlineStore: OfflineMediaStore
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dismiss) private var dismiss
     #if !os(tvOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -85,6 +86,12 @@ struct LibraryPlaybackView: View {
         viewModel.jobContext != nil && !isVideoPreferred
     }
 
+    #if os(iOS)
+    private var shouldHideInteractiveNavigation: Bool {
+        shouldUseInteractiveBackground && UIDevice.current.userInterfaceIdiom == .phone
+    }
+    #endif
+
     private var standardBodyPadding: EdgeInsets {
         #if os(tvOS)
         return shouldUseInteractiveBackground
@@ -110,8 +117,9 @@ struct LibraryPlaybackView: View {
         #endif
     }
 
+    @ViewBuilder
     private var standardBody: some View {
-        VStack(alignment: .leading, spacing: rootSpacing) {
+        let base = VStack(alignment: .leading, spacing: rootSpacing) {
             if isVideoPreferred {
                 header
             }
@@ -196,6 +204,22 @@ struct LibraryPlaybackView: View {
                     .ignoresSafeArea()
             }
         }
+        #endif
+        #if os(iOS)
+        if shouldHideInteractiveNavigation {
+            base
+                .overlay(alignment: .leading) {
+                    EdgeSwipeBackOverlay {
+                        dismiss()
+                    }
+                }
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationBarBackButtonHidden(true)
+        } else {
+            base
+        }
+        #else
+        base
         #endif
     }
 
@@ -814,6 +838,7 @@ struct LibraryPlaybackView: View {
                 timingOverride: offlinePayload.timing,
                 resolverOverride: localResolver
             )
+            applyOfflineReadingBeds(offlinePayload)
         } else {
             await viewModel.loadJob(jobId: item.jobId, configuration: configuration, origin: .library)
         }
@@ -840,6 +865,13 @@ struct LibraryPlaybackView: View {
         if shouldAutoPlay {
             startPlaybackFromBeginning()
         }
+    }
+
+    @MainActor
+    private func applyOfflineReadingBeds(_ payload: OfflineMediaStore.OfflineMediaPayload) {
+        viewModel.readingBedCatalog = payload.readingBeds
+        viewModel.readingBedBaseURL = payload.readingBedBaseURL
+        viewModel.selectReadingBed(id: viewModel.selectedReadingBedID)
     }
 
     private func configureNowPlaying() {

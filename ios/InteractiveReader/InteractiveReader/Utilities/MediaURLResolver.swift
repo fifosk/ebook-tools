@@ -77,7 +77,13 @@ struct MediaURLResolver {
                     return buildLibraryMediaURL(jobId: jobId, relativePath: relative, apiBaseURL: apiBaseURL, accessToken: accessToken)
                 }
                 return appendAccessToken(url, accessToken: accessToken)
-            case .storage:
+            case let .storage(_, resolver, _):
+                if resolver.baseURL.isFileURL,
+                   let relative = extractStorageRelativePath(from: url.path, jobId: jobId)
+                    ?? extractLibraryRelativePath(from: url.path),
+                   let localURL = resolver.url(jobId: jobId, filePath: relative) {
+                    return localURL
+                }
                 return applyAccessToken(to: url)
             }
         }
@@ -91,6 +97,12 @@ struct MediaURLResolver {
             return nil
         case let .storage(apiBaseURL, resolver, accessToken):
             if trimmed.hasPrefix("/api/") || trimmed.hasPrefix("/storage/") {
+                if resolver.baseURL.isFileURL,
+                   let relative = extractStorageRelativePath(from: trimmed, jobId: jobId)
+                    ?? extractLibraryRelativePath(from: trimmed),
+                   let localURL = resolver.url(jobId: jobId, filePath: relative) {
+                    return localURL
+                }
                 if let url = buildURL(from: apiBaseURL, path: trimmed) {
                     return appendAccessToken(url, accessToken: accessToken)
                 }
@@ -147,11 +159,27 @@ struct MediaURLResolver {
 
     private func extractLibraryRelativePath(from rawValue: String) -> String? {
         let normalised = rawValue.replacingOccurrences(of: "\\", with: "/")
+        if let range = normalised.range(of: "/api/library/media/"),
+           let fileRange = normalised.range(of: "/file/", range: range.upperBound..<normalised.endIndex) {
+            return String(normalised[fileRange.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
         if let range = normalised.range(of: "/media/") {
             return String(normalised[range.lowerBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         }
         if let range = normalised.range(of: "/metadata/") {
             return String(normalised[range.lowerBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
+        return nil
+    }
+
+    private func extractStorageRelativePath(from rawValue: String, jobId: String) -> String? {
+        let normalised = rawValue.replacingOccurrences(of: "\\", with: "/")
+        let encodedJob = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let candidates = [jobId, encodedJob]
+        for candidate in candidates {
+            if let range = normalised.range(of: "/storage/jobs/\(candidate)/") {
+                return String(normalised[range.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            }
         }
         return nil
     }

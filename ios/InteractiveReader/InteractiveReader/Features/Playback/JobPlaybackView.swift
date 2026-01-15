@@ -5,6 +5,7 @@ struct JobPlaybackView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var offlineStore: OfflineMediaStore
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dismiss) private var dismiss
     #if !os(tvOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -102,6 +103,12 @@ struct JobPlaybackView: View {
         viewModel.jobContext != nil && !isVideoPreferred
     }
 
+    #if os(iOS)
+    private var shouldHideInteractiveNavigation: Bool {
+        shouldUseInteractiveBackground && UIDevice.current.userInterfaceIdiom == .phone
+    }
+    #endif
+
     var standardBodyPadding: EdgeInsets {
         #if os(tvOS)
         return shouldUseInteractiveBackground
@@ -127,8 +134,9 @@ struct JobPlaybackView: View {
         #endif
     }
 
+    @ViewBuilder
     var standardBody: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let base = VStack(alignment: .leading, spacing: 12) {
             switch viewModel.loadState {
             case .idle, .loading:
                 loadingView
@@ -221,6 +229,22 @@ struct JobPlaybackView: View {
                     .ignoresSafeArea()
             }
         }
+        #endif
+        #if os(iOS)
+        if shouldHideInteractiveNavigation {
+            base
+                .overlay(alignment: .leading) {
+                    EdgeSwipeBackOverlay {
+                        dismiss()
+                    }
+                }
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationBarBackButtonHidden(true)
+        } else {
+            base
+        }
+        #else
+        base
         #endif
     }
 
@@ -409,5 +433,29 @@ struct JobPlaybackView: View {
             return "\(base) · ID \(chunkID)"
         }
         return base
+    }
+}
+
+struct EdgeSwipeBackOverlay: View {
+    let onBack: () -> Void
+    var edgeWidth: CGFloat = 28
+    var minimumDistance: CGFloat = 18
+    var requiredTranslation: CGFloat = 60
+    var maxVerticalTranslation: CGFloat = 40
+
+    var body: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: minimumDistance, coordinateSpace: .local)
+                    .onEnded { value in
+                        guard value.translation.width > requiredTranslation else { return }
+                        guard abs(value.translation.height) < maxVerticalTranslation else { return }
+                        onBack()
+                    }
+            )
+            .frame(width: edgeWidth)
+            .frame(maxHeight: .infinity, alignment: .leading)
+            .accessibilityHidden(true)
     }
 }

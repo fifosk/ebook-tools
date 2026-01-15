@@ -145,6 +145,22 @@ final class APIClient {
         _ = try await sendRequest(path: "/api/library/remove/\(encoded)", method: "DELETE")
     }
 
+    func moveJobToLibrary(jobId: String, statusOverride: String? = nil) async throws {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        if let statusOverride {
+            struct LibraryMoveRequest: Encodable {
+                let statusOverride: String
+            }
+            _ = try await sendJSONRequest(
+                path: "/api/library/move/\(encoded)",
+                method: "POST",
+                payload: LibraryMoveRequest(statusOverride: statusOverride)
+            )
+        } else {
+            _ = try await sendRequest(path: "/api/library/move/\(encoded)", method: "POST")
+        }
+    }
+
     func fetchReadingBeds() async throws -> ReadingBedListResponse {
         let data = try await sendRequest(path: "/api/reading-beds")
         return try decode(ReadingBedListResponse.self, from: data)

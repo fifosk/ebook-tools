@@ -40,6 +40,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     var mediaResolver: MediaURLResolver?
     var apiBaseURL: URL?
     var authToken: String?
+    var readingBedBaseURL: URL?
     var apiConfiguration: APIClientConfiguration?
     var mediaOrigin: MediaOrigin = .job
     var preferredAudioKind: InteractiveChunk.AudioOption.Kind?

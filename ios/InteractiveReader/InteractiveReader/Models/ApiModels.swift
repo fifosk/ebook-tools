@@ -162,7 +162,7 @@ struct PipelineJobListResponse: Decodable {
     let jobs: [PipelineStatusResponse]
 }
 
-struct ReadingBedEntry: Decodable, Identifiable {
+struct ReadingBedEntry: Codable, Identifiable {
     let id: String
     let label: String
     let url: String
@@ -171,7 +171,7 @@ struct ReadingBedEntry: Decodable, Identifiable {
     let isDefault: Bool?
 }
 
-struct ReadingBedListResponse: Decodable {
+struct ReadingBedListResponse: Codable {
     let defaultId: String?
     let beds: [ReadingBedEntry]
 }

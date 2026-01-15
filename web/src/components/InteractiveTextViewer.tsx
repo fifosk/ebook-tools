@@ -184,6 +184,7 @@ interface InteractiveTextViewerProps {
     transliteration: boolean;
     translation: boolean;
   };
+  onToggleCueVisibility?: (key: 'original' | 'transliteration' | 'translation') => void;
   activeAudioUrl: string | null;
   noAudioAvailable: boolean;
   jobId?: string | null;
@@ -280,6 +281,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     jobOriginalLanguage = null,
     jobTranslationLanguage = null,
     cueVisibility,
+    onToggleCueVisibility,
   },
   forwardedRef,
 ) {
@@ -318,6 +320,28 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     const trimmed = typeof jobTranslationLanguage === 'string' ? jobTranslationLanguage.trim() : '';
     return trimmed.length > 0 ? trimmed : null;
   }, [jobTranslationLanguage]);
+  const resolvedVariantVisibility = useMemo(
+    () => ({
+      original: cueVisibility?.original ?? true,
+      translation: cueVisibility?.translation ?? true,
+      translit: cueVisibility?.transliteration ?? true,
+    }),
+    [cueVisibility],
+  );
+  const isVariantVisible = useCallback(
+    (kind: TextPlayerVariantKind) => resolvedVariantVisibility[kind] ?? true,
+    [resolvedVariantVisibility],
+  );
+  const handleToggleVariant = useCallback(
+    (kind: TextPlayerVariantKind) => {
+      if (!onToggleCueVisibility) {
+        return;
+      }
+      const key = kind === 'translit' ? 'transliteration' : kind;
+      onToggleCueVisibility(key);
+    },
+    [onToggleCueVisibility],
+  );
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dictionarySuppressSeekRef = useRef(false);
@@ -738,6 +762,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     if (!navigation || navigation.sentenceIndex !== activeTextSentence.index) {
       return;
     }
+    if (!isVariantVisible(navigation.variantKind)) {
+      return;
+    }
     const variant = activeTextSentence.variants.find((entry) => entry.baseClass === navigation.variantKind);
     if (!variant || variant.tokens.length === 0) {
       return;
@@ -748,7 +775,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       variantKind: navigation.variantKind,
       tokenIndex: clampedIndex,
     });
-  }, [activeTextSentence, isInlineAudioPlaying, linguistBubble?.navigation]);
+  }, [activeTextSentence, isInlineAudioPlaying, isVariantVisible, linguistBubble?.navigation]);
 
   const fullscreenRequestedRef = useRef(false);
   const fullscreenResyncPendingRef = useRef(false);
@@ -1024,8 +1051,12 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       return { selection: null, shadowSelection: null };
     }
 
-    const variantForKind = (kind: TextPlayerVariantKind) =>
-      activeTextSentence.variants.find((variant) => variant.baseClass === kind) ?? null;
+    const variantForKind = (kind: TextPlayerVariantKind) => {
+      if (!isVariantVisible(kind)) {
+        return null;
+      }
+      return activeTextSentence.variants.find((variant) => variant.baseClass === kind) ?? null;
+    };
 
     const resolveSelection = (
       variant: (typeof activeTextSentence.variants)[number] | null,
@@ -1107,7 +1138,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     }
 
     return { selection, shadowSelection };
-  }, [activeTextSentence, isInlineAudioPlaying, linguistBubble?.navigation, manualSelection]);
+  }, [activeTextSentence, isInlineAudioPlaying, isVariantVisible, linguistBubble?.navigation, manualSelection]);
   const handleTextPlayerKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
       if (isInlineAudioPlaying || !activeTextSentence) {
@@ -1119,7 +1150,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       if (key !== 'Enter' && !isArrow) {
         return;
       }
-      const variants = activeTextSentence.variants.filter((variant) => variant.tokens.length > 0);
+      const variants = activeTextSentence.variants.filter(
+        (variant) => variant.tokens.length > 0 && isVariantVisible(variant.baseClass),
+      );
       if (variants.length === 0) {
         return;
       }
@@ -1191,7 +1224,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       event.preventDefault();
       event.stopPropagation();
     },
-    [activeTextSentence, isInlineAudioPlaying, openLinguistTokenLookup, textPlayerSelection],
+    [activeTextSentence, isInlineAudioPlaying, isVariantVisible, openLinguistTokenLookup, textPlayerSelection],
   );
   const showTextPlayer =
     !(legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0) &&
@@ -1419,6 +1452,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
                   onSeek={handleTokenSeek}
                   selection={textPlayerSelection}
                   shadowSelection={textPlayerShadowSelection}
+                  variantVisibility={resolvedVariantVisibility}
+                  onToggleVariant={onToggleCueVisibility ? handleToggleVariant : undefined}
                   footer={pinnedLinguistBubbleNode}
                 />
               ) : rawSentences.length > 0 ? (

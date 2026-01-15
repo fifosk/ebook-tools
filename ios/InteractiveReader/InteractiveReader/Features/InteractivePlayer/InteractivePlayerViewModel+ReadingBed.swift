@@ -16,10 +16,23 @@ extension InteractivePlayerViewModel {
     }
 
     func resolveReadingBedURL(from catalog: ReadingBedListResponse?, selectedID: String?) -> URL? {
-        guard let apiBaseURL else { return nil }
+        guard let baseURL = readingBedBaseURL ?? apiBaseURL else { return nil }
         let selectedEntry = selectReadingBed(from: catalog, selectedID: selectedID)
         let rawPath = selectedEntry?.url.nonEmptyValue ?? defaultReadingBedPath
-        guard let url = buildReadingBedURL(from: rawPath, baseURL: apiBaseURL) else { return nil }
+        if let sharedURL = OfflineMediaStore.sharedReadingBedURL(for: rawPath) {
+            return sharedURL
+        }
+        if let fallback = OfflineMediaStore.sharedDefaultReadingBedURL() {
+            return fallback
+        }
+        if baseURL.isFileURL {
+            guard let relative = normalizeReadingBedPath(rawPath) else { return nil }
+            let localURL = baseURL.appendingPathComponent(relative)
+            if FileManager.default.fileExists(atPath: localURL.path) {
+                return localURL
+            }
+        }
+        guard let url = buildReadingBedURL(from: rawPath, baseURL: baseURL) else { return nil }
         return appendAccessToken(url, token: authToken)
     }
 
@@ -61,6 +74,7 @@ extension InteractivePlayerViewModel {
     }
 
     func appendAccessToken(_ url: URL, token: String?) -> URL {
+        guard !url.isFileURL else { return url }
         guard let token, !token.isEmpty else { return url }
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
         var items = components.queryItems ?? []
@@ -70,5 +84,28 @@ extension InteractivePlayerViewModel {
         items.append(URLQueryItem(name: "access_token", value: token))
         components.queryItems = items
         return components.url ?? url
+    }
+
+    private func normalizeReadingBedPath(_ rawPath: String) -> String? {
+        let trimmed = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed.replacingOccurrences(of: "\\", with: "/")
+        let path = URL(string: normalized)?.path ?? normalized
+        if let range = path.range(of: "/assets/reading-beds/") {
+            return String(path[range.lowerBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
+        if let range = path.range(of: "/reading-beds/") {
+            let suffix = String(path[range.lowerBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return suffix.hasPrefix("assets/") ? suffix : "assets/\(suffix)"
+        }
+        let trimmedPath = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if trimmedPath.hasPrefix("assets/reading-beds/") {
+            return trimmedPath
+        }
+        if trimmedPath.hasPrefix("reading-beds/") {
+            return "assets/\(trimmedPath)"
+        }
+        guard let fileName = trimmedPath.split(separator: "/").last else { return nil }
+        return "assets/reading-beds/\(fileName)"
     }
 }

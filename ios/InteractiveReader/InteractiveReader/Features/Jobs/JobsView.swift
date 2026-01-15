@@ -68,6 +68,11 @@ struct JobsView: View {
             .overlay(alignment: .center) {
                 listOverlay
             }
+            #if os(iOS)
+            .refreshable {
+                handleRefresh()
+            }
+            #endif
         }
         .onAppear {
             refreshResumeStatus()
@@ -122,6 +127,9 @@ struct JobsView: View {
                 NavigationLink(value: job) {
                     JobRowView(job: job, resumeStatus: resumeStatus(for: job))
                 }
+                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                    moveToLibraryAction(for: job)
+                }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
                         Task { await handleDelete(job) }
@@ -144,6 +152,9 @@ struct JobsView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         onSelect?(job)
+                    }
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        moveToLibraryAction(for: job)
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
@@ -176,6 +187,17 @@ struct JobsView: View {
         }
     }
 
+    @ViewBuilder
+    private func moveToLibraryAction(for job: PipelineStatusResponse) -> some View {
+        Button {
+            Task { await handleMoveToLibrary(job) }
+        } label: {
+            Label("Move to Library", systemImage: "books.vertical")
+        }
+        .tint(.blue)
+        .disabled(!job.isFinishedForDisplay)
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
             #if os(tvOS)
@@ -197,6 +219,10 @@ struct JobsView: View {
         #if os(tvOS)
         .font(tvOSHeaderFont)
         #endif
+    }
+
+    private func handleMoveToLibrary(_ job: PipelineStatusResponse) async {
+        _ = await viewModel.moveToLibrary(jobId: job.jobId, using: appState)
     }
 
     private var searchRow: some View {

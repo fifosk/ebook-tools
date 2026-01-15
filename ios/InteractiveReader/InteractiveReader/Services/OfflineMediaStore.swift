@@ -2,6 +2,11 @@ import Foundation
 
 @MainActor
 final class OfflineMediaStore: ObservableObject {
+    static let sharedContainerIdentifier = "iCloud.com.ebook-tools.interactivereader"
+    static let sharedRootFolderName = "OfflineMedia"
+    static let sharedReadingBedsFolderName = "ReadingBeds"
+    static let sharedDefaultReadingBedPath = "/assets/reading-beds/lost-in-the-pages.mp3"
+
     enum OfflineMediaKind: String, Codable {
         case job
         case library
@@ -60,6 +65,8 @@ final class OfflineMediaStore: ObservableObject {
         let media: PipelineMediaResponse
         let timing: JobTimingResponse?
         let storageBaseURL: URL
+        let readingBeds: ReadingBedListResponse?
+        let readingBedBaseURL: URL?
     }
 
     private struct OfflineMediaManifest: Codable {
@@ -70,6 +77,7 @@ final class OfflineMediaStore: ObservableObject {
         let totalBytes: Int64
         let mediaFile: String
         let timingFile: String?
+        let readingBedsFile: String?
     }
 
     private struct DownloadItem {
@@ -79,14 +87,18 @@ final class OfflineMediaStore: ObservableObject {
 
     @Published private(set) var statuses: [OfflineMediaKey: SyncStatus] = [:]
 
-    private let containerIdentifier = "iCloud.com.ebook-tools.interactivereader"
-    private let rootFolderName = "OfflineMedia"
+    private let containerIdentifier = OfflineMediaStore.sharedContainerIdentifier
+    private let rootFolderName = OfflineMediaStore.sharedRootFolderName
+    private let readingBedsFolderName = OfflineMediaStore.sharedReadingBedsFolderName
     private let manifestFileName = "offline_manifest.json"
     private let mediaFileName = "media.json"
     private let timingFileName = "timing.json"
+    private let readingBedsFileName = "reading_beds.json"
+    private let defaultReadingBedPath = OfflineMediaStore.sharedDefaultReadingBedPath
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private var syncTasks: [OfflineMediaKey: Task<Void, Never>] = [:]
+    private var readingBedTask: Task<Void, Never>?
 
     init() {
         let encoder = JSONEncoder()
@@ -138,7 +150,42 @@ final class OfflineMediaStore: ObservableObject {
                 timing = try? decoder.decode(JobTimingResponse.self, from: timingData)
             }
         }
-        return OfflineMediaPayload(media: media, timing: timing, storageBaseURL: baseURL)
+        var readingBeds: ReadingBedListResponse? = nil
+        var readingBedBaseURL: URL? = nil
+        if let sharedRoot = readingBedsRootURL() {
+            let sharedFile = sharedRoot.appendingPathComponent(readingBedsFileName)
+            if let readingBedsData = try? Data(contentsOf: sharedFile) {
+                readingBeds = try? decoder.decode(ReadingBedListResponse.self, from: readingBedsData)
+                readingBedBaseURL = sharedRoot
+            }
+        }
+        if readingBeds == nil {
+            let readingBedsFile = manifest.readingBedsFile ?? readingBedsFileName
+            let readingBedsURL = itemRoot.appendingPathComponent(readingBedsFile)
+            if let readingBedsData = try? Data(contentsOf: readingBedsURL) {
+                readingBeds = try? decoder.decode(ReadingBedListResponse.self, from: readingBedsData)
+                readingBedBaseURL = itemRoot
+            }
+        }
+        if readingBedBaseURL == nil {
+            if let sharedRoot = readingBedsRootURL() {
+                let defaultRelative = defaultReadingBedPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                let defaultURL = sharedRoot.appendingPathComponent(defaultRelative)
+                if FileManager.default.fileExists(atPath: defaultURL.path) {
+                    readingBedBaseURL = sharedRoot
+                }
+            }
+            if readingBedBaseURL == nil {
+                readingBedBaseURL = itemRoot
+            }
+        }
+        return OfflineMediaPayload(
+            media: media,
+            timing: timing,
+            storageBaseURL: baseURL,
+            readingBeds: readingBeds,
+            readingBedBaseURL: readingBedBaseURL
+        )
     }
 
     func sync(jobId: String, kind: OfflineMediaKind, configuration: APIClientConfiguration) {
@@ -186,6 +233,50 @@ final class OfflineMediaStore: ObservableObject {
         return root.appendingPathComponent(kind.folderName, isDirectory: true)
     }
 
+    static func sharedReadingBedURL(for rawPath: String) -> URL? {
+        guard let root = sharedReadingBedsRootURL() else { return nil }
+        guard let relative = normalizeSharedReadingBedPath(rawPath) else { return nil }
+        let url = root.appendingPathComponent(relative)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        if let values = try? url.resourceValues(forKeys: [.isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]),
+           values.isUbiquitousItem == true,
+           values.ubiquitousItemDownloadingStatus != URLUbiquitousItemDownloadingStatus.current {
+            try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+            return nil
+        }
+        return url
+    }
+
+    static func sharedDefaultReadingBedURL() -> URL? {
+        sharedReadingBedURL(for: sharedDefaultReadingBedPath)
+    }
+
+    static func sharedReadingBedsRootURL() -> URL? {
+        guard let container = FileManager.default.url(forUbiquityContainerIdentifier: sharedContainerIdentifier) else {
+            return nil
+        }
+        let documents = container.appendingPathComponent("Documents", isDirectory: true)
+        return documents
+            .appendingPathComponent(sharedRootFolderName, isDirectory: true)
+            .appendingPathComponent(sharedReadingBedsFolderName, isDirectory: true)
+    }
+
+    func syncSharedReadingBedsIfNeeded(configuration: APIClientConfiguration) {
+        guard readingBedTask == nil else { return }
+        guard let root = readingBedsRootURL() else { return }
+        let listURL = root.appendingPathComponent(readingBedsFileName)
+        let defaultRelative = defaultReadingBedPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let defaultURL = root.appendingPathComponent(defaultRelative)
+        if FileManager.default.fileExists(atPath: listURL.path),
+           FileManager.default.fileExists(atPath: defaultURL.path) {
+            return
+        }
+        readingBedTask = Task.detached(priority: .utility) { [weak self] () async -> Void in
+            guard let self else { return }
+            await self.performSharedReadingBedSync(configuration: configuration)
+        }
+    }
+
     func localResolver(for kind: OfflineMediaKind, configuration: APIClientConfiguration) -> MediaURLResolver? {
         guard let baseURL = storageBaseURL(for: kind),
               let resolver = try? StorageResolver(apiBaseURL: configuration.apiBaseURL, override: baseURL)
@@ -203,6 +294,11 @@ final class OfflineMediaStore: ObservableObject {
         }
         let documents = container.appendingPathComponent("Documents", isDirectory: true)
         return documents.appendingPathComponent(rootFolderName, isDirectory: true)
+    }
+
+    private func readingBedsRootURL() -> URL? {
+        guard let root = rootURL() else { return nil }
+        return root.appendingPathComponent(readingBedsFolderName, isDirectory: true)
     }
 
     private func itemRoot(for key: OfflineMediaKey) -> URL? {
@@ -241,6 +337,10 @@ final class OfflineMediaStore: ObservableObject {
         let fileManager = FileManager.default
         do {
             try fileManager.createDirectory(at: itemRoot, withIntermediateDirectories: true)
+            let readingBedsRoot = readingBedsRootURL()
+            if let readingBedsRoot {
+                try fileManager.createDirectory(at: readingBedsRoot, withIntermediateDirectories: true)
+            }
             let client = APIClient(configuration: configuration)
             let mediaData: Data
             switch kind {
@@ -251,12 +351,44 @@ final class OfflineMediaStore: ObservableObject {
             }
             let media = try decoder.decode(PipelineMediaResponse.self, from: mediaData)
             let timingData = try? await client.fetchJobTimingData(jobId: jobId)
+            let readingBeds = try? await client.fetchReadingBeds()
             let resolver = try makeRemoteResolver(for: kind, configuration: configuration)
             let items = collectDownloadItems(media: media, jobId: jobId, resolver: resolver)
+            let readingBedItems = collectReadingBedItems(
+                readingBeds: readingBeds,
+                apiBaseURL: configuration.apiBaseURL,
+                jobId: jobId
+            )
+            let pendingReadingBedItems: [DownloadItem]
+            if let readingBedsRoot {
+                pendingReadingBedItems = readingBedItems.filter { item in
+                    let destination = readingBedsRoot.appendingPathComponent(item.relativePath)
+                    return !fileManager.fileExists(atPath: destination.path)
+                }
+            } else {
+                pendingReadingBedItems = []
+            }
 
             var completed = 0
             var totalBytes: Int64 = 0
-            let totalFiles = items.count
+            let totalFiles = items.count + pendingReadingBedItems.count
+            if let readingBedsRoot {
+                for item in pendingReadingBedItems {
+                    if Task.isCancelled { throw CancellationError() }
+                    let fileBytes = try await download(item: item, to: readingBedsRoot)
+                    totalBytes += fileBytes
+                    completed += 1
+                    let progress = totalFiles > 0 ? Double(completed) / Double(totalFiles) : 1
+                    await MainActor.run {
+                        statuses[key] = SyncStatus(
+                            state: .syncing(progress),
+                            updatedAt: Date(),
+                            fileCount: totalFiles,
+                            totalBytes: totalBytes
+                        )
+                    }
+                }
+            }
             for item in items {
                 if Task.isCancelled { throw CancellationError() }
                 let fileBytes = try await download(item: item, to: itemRoot)
@@ -281,6 +413,17 @@ final class OfflineMediaStore: ObservableObject {
                 try timingData.write(to: timingURL, options: .atomic)
                 timingName = timingFileName
             }
+            var readingBedsFileForManifest: String? = nil
+            if let readingBeds, let readingBedsRoot {
+                let readingBedsData = try encoder.encode(readingBeds)
+                let readingBedsURL = readingBedsRoot.appendingPathComponent(readingBedsFileName)
+                try readingBedsData.write(to: readingBedsURL, options: .atomic)
+            } else if let readingBeds {
+                let readingBedsURL = itemRoot.appendingPathComponent(readingBedsFileName)
+                let readingBedsData = try encoder.encode(readingBeds)
+                try readingBedsData.write(to: readingBedsURL, options: .atomic)
+                readingBedsFileForManifest = readingBedsFileName
+            }
             let manifest = OfflineMediaManifest(
                 jobId: jobId,
                 kind: kind,
@@ -288,7 +431,8 @@ final class OfflineMediaStore: ObservableObject {
                 fileCount: totalFiles,
                 totalBytes: totalBytes,
                 mediaFile: mediaFileName,
-                timingFile: timingName
+                timingFile: timingName,
+                readingBedsFile: readingBedsFileForManifest
             )
             try writeManifest(manifest, to: key)
             await MainActor.run {
@@ -399,6 +543,62 @@ final class OfflineMediaStore: ObservableObject {
         return items
     }
 
+    private func performSharedReadingBedSync(configuration: APIClientConfiguration) async {
+        guard let root = readingBedsRootURL() else { return }
+        let fileManager = FileManager.default
+        defer {
+            Task { @MainActor in
+                readingBedTask = nil
+            }
+        }
+        do {
+            try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+            let client = APIClient(configuration: configuration)
+            let readingBeds = try? await client.fetchReadingBeds()
+            let items = collectReadingBedItems(
+                readingBeds: readingBeds,
+                apiBaseURL: configuration.apiBaseURL,
+                jobId: "shared"
+            )
+            for item in items {
+                if Task.isCancelled { break }
+                let destination = root.appendingPathComponent(item.relativePath)
+                if fileManager.fileExists(atPath: destination.path) {
+                    continue
+                }
+                _ = try await download(item: item, to: root)
+            }
+            if let readingBeds {
+                let data = try encoder.encode(readingBeds)
+                let url = root.appendingPathComponent(readingBedsFileName)
+                try data.write(to: url, options: .atomic)
+            }
+        } catch {
+            return
+        }
+    }
+
+    private func collectReadingBedItems(
+        readingBeds: ReadingBedListResponse?,
+        apiBaseURL: URL,
+        jobId: String
+    ) -> [DownloadItem] {
+        var paths: [String] = readingBeds?.beds.map { $0.url } ?? []
+        if !paths.contains(defaultReadingBedPath) {
+            paths.append(defaultReadingBedPath)
+        }
+        var items: [DownloadItem] = []
+        var seen: Set<String> = []
+        for rawPath in paths {
+            guard let relativePath = normalizeReadingBedPath(rawPath, jobId: jobId) else { continue }
+            guard !seen.contains(relativePath) else { continue }
+            guard let url = resolveReadingBedRemoteURL(rawPath: rawPath, apiBaseURL: apiBaseURL) else { continue }
+            seen.insert(relativePath)
+            items.append(DownloadItem(relativePath: relativePath, url: url))
+        }
+        return items
+    }
+
     private func preferredRelativePath(for file: PipelineMediaFile, jobId: String) -> String? {
         if let relative = file.relativePath?.nonEmptyValue {
             return relative
@@ -427,6 +627,13 @@ final class OfflineMediaStore: ObservableObject {
                 return String(path[range.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             }
         }
+        if let range = path.range(of: "/assets/reading-beds/") {
+            return String(path[range.lowerBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
+        if let range = path.range(of: "/reading-beds/") {
+            let suffix = String(path[range.lowerBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return suffix.hasPrefix("assets/") ? suffix : "assets/\(suffix)"
+        }
         if let range = path.range(of: "/media/") {
             return String(path[range.lowerBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         }
@@ -434,6 +641,12 @@ final class OfflineMediaStore: ObservableObject {
             return String(path[range.lowerBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         }
         let trimmedPath = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if trimmedPath.hasPrefix("assets/reading-beds/") {
+            return trimmedPath
+        }
+        if trimmedPath.hasPrefix("reading-beds/") {
+            return "assets/\(trimmedPath)"
+        }
         if trimmedPath.hasPrefix("media/") || trimmedPath.hasPrefix("metadata/") {
             return trimmedPath
         }
@@ -441,6 +654,64 @@ final class OfflineMediaStore: ObservableObject {
             return "media/\(fileName)"
         }
         return nil
+    }
+
+    private func normalizeReadingBedPath(_ raw: String, jobId: String) -> String? {
+        if let normalized = normalizeRelativePath(raw, jobId: jobId),
+           normalized.contains("reading-beds") {
+            return normalized
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed.replacingOccurrences(of: "\\", with: "/")
+        let path = URL(string: normalized)?.path ?? normalized
+        let trimmedPath = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard let fileName = trimmedPath.split(separator: "/").last else { return nil }
+        return "assets/reading-beds/\(fileName)"
+    }
+
+    private static func normalizeSharedReadingBedPath(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed.replacingOccurrences(of: "\\", with: "/")
+        let path = URL(string: normalized)?.path ?? normalized
+        if let range = path.range(of: "/assets/reading-beds/") {
+            return String(path[range.lowerBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
+        if let range = path.range(of: "/reading-beds/") {
+            let suffix = String(path[range.lowerBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return suffix.hasPrefix("assets/") ? suffix : "assets/\(suffix)"
+        }
+        let trimmedPath = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if trimmedPath.hasPrefix("assets/reading-beds/") {
+            return trimmedPath
+        }
+        if trimmedPath.hasPrefix("reading-beds/") {
+            return "assets/\(trimmedPath)"
+        }
+        guard let fileName = trimmedPath.split(separator: "/").last else { return nil }
+        return "assets/reading-beds/\(fileName)"
+    }
+
+    private func resolveReadingBedRemoteURL(rawPath: String, apiBaseURL: URL) -> URL? {
+        let trimmed = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let url = URL(string: trimmed), url.scheme != nil {
+            return url
+        }
+        var components = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false) ?? URLComponents()
+        let basePath = components.path
+        let suffix = trimmed.hasPrefix("/") ? String(trimmed.dropFirst()) : trimmed
+        let resolvedPath: String
+        if basePath.isEmpty || basePath == "/" {
+            resolvedPath = "/" + suffix
+        } else if basePath.hasSuffix("/") {
+            resolvedPath = basePath + suffix
+        } else {
+            resolvedPath = basePath + "/" + suffix
+        }
+        components.path = resolvedPath
+        return components.url ?? apiBaseURL.appendingPathComponent(suffix)
     }
 
     private func download(item: DownloadItem, to root: URL) async throws -> Int64 {

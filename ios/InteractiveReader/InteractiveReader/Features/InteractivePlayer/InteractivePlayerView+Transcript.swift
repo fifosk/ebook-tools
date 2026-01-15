@@ -102,18 +102,15 @@ extension InteractivePlayerView {
             audioDuration: durationValue,
             useCombinedPhases: useCombinedPhases
         )
-        let isVariantVisible: (TextPlayerVariantKind) -> Bool = { visibleTracks.contains($0) }
         let timelineDisplay = timelineSentences.flatMap { runtime in
             TextPlayerTimeline.buildTimelineDisplay(
                 timelineSentences: runtime,
                 chunkTime: playbackTime,
-                audioDuration: durationValue,
-                isVariantVisible: isVariantVisible
+                audioDuration: durationValue
             )
         }
         let staticDisplay = TextPlayerTimeline.buildStaticDisplay(
-            sentences: chunk.sentences,
-            isVariantVisible: isVariantVisible
+            sentences: chunk.sentences
         )
         return TextPlayerTimeline.selectActiveSentence(
             from: timelineDisplay?.sentences ?? staticDisplay
@@ -138,20 +135,26 @@ extension InteractivePlayerView {
         for sentence: TextPlayerSentenceDisplay,
         chunk: InteractiveChunk
     ) -> TextPlayerVariantDisplay? {
+        let visibleVariants = sentence.variants.filter { variant in
+            visibleTracks.contains(variant.kind) && !variant.tokens.isEmpty
+        }
+        if visibleVariants.isEmpty {
+            return sentence.variants.first(where: { !$0.tokens.isEmpty })
+        }
         let preferredKind = preferredNavigationKind(for: chunk)
-        if let preferred = sentence.variants.first(where: { $0.kind == preferredKind }) {
+        if let preferred = visibleVariants.first(where: { $0.kind == preferredKind }) {
             return preferred
         }
-        if let translation = sentence.variants.first(where: { $0.kind == .translation }) {
+        if let translation = visibleVariants.first(where: { $0.kind == .translation }) {
             return translation
         }
-        if let original = sentence.variants.first(where: { $0.kind == .original }) {
+        if let original = visibleVariants.first(where: { $0.kind == .original }) {
             return original
         }
-        if let transliteration = sentence.variants.first(where: { $0.kind == .transliteration }) {
+        if let transliteration = visibleVariants.first(where: { $0.kind == .transliteration }) {
             return transliteration
         }
-        return sentence.variants.first
+        return visibleVariants.first
     }
 
     func resolvedSelection(for chunk: InteractiveChunk) -> TextPlayerWordSelection? {
@@ -159,6 +162,7 @@ extension InteractivePlayerView {
         if let selection = linguistSelection,
            selection.sentenceIndex == sentence.index,
            let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }),
+           visibleTracks.contains(variant.kind),
            variant.tokens.indices.contains(selection.tokenIndex) {
             return selection
         }
@@ -235,7 +239,9 @@ extension InteractivePlayerView {
             audioCoordinator.pause()
         }
         guard let sentence = activeSentenceDisplay(for: chunk) else { return false }
-        let variants = sentence.variants
+        let variants = sentence.variants.filter { variant in
+            visibleTracks.contains(variant.kind) && !variant.tokens.isEmpty
+        }
         guard !variants.isEmpty else { return false }
         let currentSelection = resolvedSelection(for: chunk)
         let currentIndex: Int = {

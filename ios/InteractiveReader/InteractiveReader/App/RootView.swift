@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var offlineStore: OfflineMediaStore
 
     var body: some View {
         Group {
@@ -13,6 +14,10 @@ struct RootView: View {
         }
         .task {
             await appState.restoreSessionIfNeeded()
+        }
+        .task(id: appState.session?.token) {
+            guard let configuration = appState.configuration else { return }
+            offlineStore.syncSharedReadingBedsIfNeeded(configuration: configuration)
         }
     }
 

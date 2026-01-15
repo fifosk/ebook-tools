@@ -885,6 +885,7 @@ export default function PlayerPanel({
       jobOriginalLanguage,
       jobTranslationLanguage,
       cueVisibility: interactiveTextVisibility,
+      onToggleCueVisibility: handleToggleInteractiveTextLayer,
       activeAudioUrl: inlineAudioSelection,
       noAudioAvailable: inlineAudioUnavailable,
       jobId,

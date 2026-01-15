@@ -28,7 +28,6 @@ type UseTimelineDisplayArgs = {
   audioDuration: number | null;
   chunkTime: number;
   activeSentenceIndex: number;
-  isVariantVisible: (variant: TextPlayerVariantKind) => boolean;
   revealMemoryRef: RevealMemoryRef;
 };
 
@@ -40,7 +39,6 @@ export function useTimelineDisplay({
   audioDuration,
   chunkTime,
   activeSentenceIndex,
-  isVariantVisible,
   revealMemoryRef,
 }: UseTimelineDisplayArgs): {
   timelineSentences: TimelineSentenceRuntime[] | null;
@@ -356,9 +354,6 @@ export function useTimelineDisplay({
         baseClass: TextPlayerVariantKind,
         variantRuntime?: TimelineVariantRuntime,
       ) => {
-        if (!isVariantVisible(baseClass)) {
-          return;
-        }
         if (!variantRuntime || variantRuntime.tokens.length === 0) {
           return;
         }
@@ -451,7 +446,7 @@ export function useTimelineDisplay({
       activeIndex: activeIndex ?? 0,
       effectiveTime,
     };
-  }, [timelineSentences, chunkTime, audioDuration, activeSentenceIndex, isVariantVisible]);
+  }, [timelineSentences, chunkTime, audioDuration, activeSentenceIndex]);
 
   return { timelineSentences, timelineDisplay };
 }

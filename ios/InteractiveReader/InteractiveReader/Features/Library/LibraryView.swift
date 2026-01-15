@@ -104,6 +104,11 @@ struct LibraryView: View {
             .overlay(alignment: .center) {
                 listOverlay
             }
+            #if os(iOS)
+            .refreshable {
+                handleRefresh()
+            }
+            #endif
         }
         .onAppear {
             refreshResumeStatus()

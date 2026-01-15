@@ -14,7 +14,7 @@ final class JobsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var query: String = ""
-    @Published var activeFilter: JobFilter = .book
+    @Published var activeFilter: JobFilter = .video
 
     private var refreshTask: Task<Void, Never>?
     private let refreshInterval: UInt64 = 6_000_000_000
@@ -53,6 +53,23 @@ final class JobsViewModel: ObservableObject {
         do {
             let client = APIClient(configuration: configuration)
             try await client.deleteJob(jobId: jobId)
+            jobs.removeAll { $0.jobId == jobId }
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func moveToLibrary(jobId: String, using appState: AppState) async -> Bool {
+        guard let configuration = appState.configuration else {
+            errorMessage = "Configure a valid API base URL before continuing."
+            return false
+        }
+        do {
+            let client = APIClient(configuration: configuration)
+            try await client.moveJobToLibrary(jobId: jobId)
             jobs.removeAll { $0.jobId == jobId }
             errorMessage = nil
             return true
