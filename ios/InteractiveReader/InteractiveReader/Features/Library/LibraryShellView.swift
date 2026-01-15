@@ -9,11 +9,15 @@ struct LibraryShellView: View {
     @State private var libraryAutoPlay = false
     @State private var jobsAutoPlay = false
     @State private var activeSection: BrowseSection = .jobs
+    #if !os(tvOS)
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    #endif
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private enum BrowseSection: String, CaseIterable, Identifiable {
-        case library = "Library"
         case jobs = "Jobs"
+        case library = "Library"
+        case search = "Search"
 
         var id: String { rawValue }
     }
@@ -60,7 +64,7 @@ struct LibraryShellView: View {
         #else
         Group {
             if isSplitLayout {
-                NavigationSplitView {
+                NavigationSplitView(columnVisibility: $columnVisibility) {
                     browseList(useNavigationLinks: false)
                 } detail: {
                     detailView
@@ -119,15 +123,26 @@ struct LibraryShellView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        case .search:
+            if let selectedItem {
+                LibraryPlaybackView(item: selectedItem, autoPlayOnLoad: $libraryAutoPlay)
+            } else if let selectedJob {
+                JobPlaybackView(job: selectedJob, autoPlayOnLoad: $jobsAutoPlay)
+            } else {
+                VStack(spacing: 12) {
+                    Text("Search jobs and library")
+                        .font(.title3)
+                    Text("Use the search field to find items across your library and jobs.")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
     }
 
     @ViewBuilder
     private func browseList(useNavigationLinks: Bool) -> some View {
         VStack(spacing: 10) {
-            #if !os(tvOS)
-            sectionPicker
-            #endif
             switch activeSection {
             case .library:
                 LibraryView(
@@ -145,7 +160,9 @@ struct LibraryShellView: View {
                     },
                     coverResolver: coverURL(for:),
                     resumeUserId: resumeUserId,
-                    sectionPicker: sectionPickerForHeader
+                    sectionPicker: sectionPickerForHeader,
+                    onCollapseSidebar: isSplitLayout ? { collapseSidebar() } : nil,
+                    onSearchRequested: { activeSection = .search }
                 )
             case .jobs:
                 JobsView(
@@ -162,7 +179,35 @@ struct LibraryShellView: View {
                         jobsAutoPlay = true
                     },
                     sectionPicker: sectionPickerForHeader,
-                    resumeUserId: resumeUserId
+                    resumeUserId: resumeUserId,
+                    onCollapseSidebar: isSplitLayout ? { collapseSidebar() } : nil,
+                    onSearchRequested: { activeSection = .search }
+                )
+            case .search:
+                CombinedSearchView(
+                    libraryViewModel: viewModel,
+                    jobsViewModel: jobsViewModel,
+                    useNavigationLinks: useNavigationLinks,
+                    onRefresh: {
+                        Task {
+                            await viewModel.load(using: appState)
+                            await jobsViewModel.load(using: appState)
+                        }
+                    },
+                    onSignOut: {
+                        appState.signOut()
+                    },
+                    onSelectItem: { item in
+                        selectedItem = item
+                        libraryAutoPlay = true
+                    },
+                    onSelectJob: { job in
+                        selectedJob = job
+                        jobsAutoPlay = true
+                    },
+                    coverResolver: coverURL(for:),
+                    resumeUserId: resumeUserId,
+                    sectionPicker: sectionPickerForHeader
                 )
             }
         }
@@ -170,14 +215,15 @@ struct LibraryShellView: View {
         .navigationTitle(isCompactLayout ? "" : activeSection.rawValue)
         .navigationBarTitleDisplayMode(isCompactLayout ? .inline : .automatic)
         #else
-        .navigationTitle(activeSection.rawValue)
+        .navigationTitle("")
         #endif
     }
 
     private var sectionPicker: some View {
         Picker("Browse", selection: $activeSection) {
             ForEach(orderedSections) { section in
-                Text(section.rawValue).tag(section)
+                sectionPickerLabel(for: section)
+                    .tag(section)
             }
         }
         #if os(tvOS)
@@ -189,19 +235,11 @@ struct LibraryShellView: View {
     }
 
     private var sectionPickerForHeader: AnyView? {
-        #if os(tvOS)
         return AnyView(sectionPicker)
-        #else
-        return nil
-        #endif
     }
 
     private var orderedSections: [BrowseSection] {
-        #if os(tvOS)
-        return BrowseSection.allCases
-        #else
-        return [.jobs, .library]
-        #endif
+        return [.jobs, .library, .search]
     }
 
     private func coverURL(for item: LibraryItem) -> URL? {
@@ -211,7 +249,7 @@ struct LibraryShellView: View {
     }
 
     private var resumeUserId: String? {
-        appState.session?.user.username.nonEmptyValue ?? appState.lastUsername.nonEmptyValue
+        appState.resumeUserKey
     }
 
     private func handleSectionChange(_ newValue: BrowseSection) {
@@ -222,6 +260,380 @@ struct LibraryShellView: View {
         case .jobs:
             jobsViewModel.startAutoRefresh(using: appState)
             libraryAutoPlay = false
+        case .search:
+            jobsViewModel.stopAutoRefresh()
+            libraryAutoPlay = false
+            jobsAutoPlay = false
         }
+    }
+
+    private func collapseSidebar() {
+        #if !os(tvOS)
+        guard isSplitLayout else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            columnVisibility = .detailOnly
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private func sectionPickerLabel(for section: BrowseSection) -> some View {
+        switch section {
+        case .library:
+            Text(section.rawValue)
+        case .jobs:
+            Text(section.rawValue)
+        case .search:
+            Image(systemName: "magnifyingglass")
+                .accessibilityLabel("Search")
+        }
+    }
+}
+
+struct SidebarSwipeDismissLayer: View {
+    let onCollapse: () -> Void
+    var minimumDistance: CGFloat = 24
+    var requiredTranslation: CGFloat = 70
+    var maxVerticalTranslation: CGFloat = 50
+
+    var body: some View {
+        #if os(tvOS)
+        Color.clear
+            .accessibilityHidden(true)
+        #else
+        Color.clear
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: minimumDistance, coordinateSpace: .local)
+                    .onEnded { value in
+                        let horizontal = value.translation.width
+                        let vertical = value.translation.height
+                        guard abs(horizontal) > abs(vertical) else { return }
+                        guard horizontal < -requiredTranslation else { return }
+                        guard abs(vertical) < maxVerticalTranslation else { return }
+                        onCollapse()
+                    }
+            )
+            .accessibilityHidden(true)
+        #endif
+    }
+}
+
+private struct CombinedSearchView: View {
+    @ObservedObject var libraryViewModel: LibraryViewModel
+    @ObservedObject var jobsViewModel: JobsViewModel
+    let useNavigationLinks: Bool
+    let onRefresh: () -> Void
+    let onSignOut: () -> Void
+    let onSelectItem: ((LibraryItem) -> Void)?
+    let onSelectJob: ((PipelineStatusResponse) -> Void)?
+    let coverResolver: (LibraryItem) -> URL?
+    let resumeUserId: String?
+    let sectionPicker: AnyView?
+
+    @State private var query: String = ""
+    @FocusState private var isSearchFocused: Bool
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+
+    private enum SearchResult: Identifiable {
+        case library(LibraryItem)
+        case job(PipelineStatusResponse)
+
+        var id: String {
+            switch self {
+            case let .library(item):
+                return "library-\(item.jobId)"
+            case let .job(job):
+                return "job-\(job.jobId)"
+            }
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            header
+            List {
+                if trimmedQuery.isEmpty {
+                    Text("Type to search across jobs and library items.")
+                        .foregroundStyle(.secondary)
+                } else if results.isEmpty {
+                    Text("No matches found.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(results) { result in
+                        switch result {
+                        case let .library(item):
+                            libraryRow(for: item)
+                        case let .job(job):
+                            jobRow(for: job)
+                        }
+                    }
+                }
+            }
+            .listStyle(.plain)
+            #if os(tvOS)
+            .background(AppTheme.background(for: colorScheme))
+            #endif
+        }
+        .onAppear {
+            isSearchFocused = true
+            iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: PlaybackResumeStore.didChangeNotification)) { _ in
+            iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+        }
+    }
+
+    private var trimmedQuery: String {
+        query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var loweredQuery: String {
+        trimmedQuery.lowercased()
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            actionRow
+            if let sectionPicker { sectionPicker }
+            searchRow
+        }
+        .padding(.top, 8)
+        #if os(tvOS)
+        .font(tvOSHeaderFont)
+        #endif
+    }
+
+    private var actionRow: some View {
+        let status = iCloudStatus
+        let userLabel = resumeUserId ?? "Log In"
+        let statusLabel = status.isAvailable ? "Online" : "Offline"
+        let iconSize: CGFloat = {
+            #if os(tvOS)
+            return 20
+            #else
+            return 18
+            #endif
+        }()
+        return HStack(spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "globe")
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundStyle(Color.blue)
+                Text("Language Tools")
+                    .lineLimit(1)
+                AppVersionBadge()
+            }
+            HStack(spacing: 6) {
+                Image(systemName: status.isAvailable ? "icloud" : "icloud.slash")
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundStyle(status.isAvailable ? Color.blue : Color.secondary)
+            }
+            .accessibilityLabel(statusLabel)
+            Button(action: onRefresh) {
+                Image(systemName: "arrow.clockwise")
+            }
+            .disabled(libraryViewModel.isLoading || jobsViewModel.isLoading)
+            .accessibilityLabel("Refresh")
+            Menu {
+                Button("Log Out", action: onSignOut)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.crop.circle")
+                    Text(userLabel)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal)
+    }
+
+    #if os(tvOS)
+    private var tvOSHeaderFont: Font {
+        let size = UIFont.preferredFont(forTextStyle: .body).pointSize * 0.5
+        return .system(size: size)
+    }
+    #endif
+
+    private var searchRow: some View {
+        HStack(spacing: 8) {
+            TextField("Search jobs and library", text: $query)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .focused($isSearchFocused)
+                .submitLabel(.search)
+            Button {
+                isSearchFocused = true
+            } label: {
+                Image(systemName: "magnifyingglass")
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private var results: [SearchResult] {
+        guard !loweredQuery.isEmpty else { return [] }
+        let jobMatches = jobsViewModel.jobs.filter { matches(job: $0, query: loweredQuery) }
+        let libraryMatches = libraryViewModel.items.filter { matches(item: $0, query: loweredQuery) }
+        let merged = jobMatches.map { SearchResult.job($0) }
+            + libraryMatches.map { SearchResult.library($0) }
+        return merged.sorted { lhs, rhs in
+            let leftDate = createdAt(for: lhs) ?? .distantPast
+            let rightDate = createdAt(for: rhs) ?? .distantPast
+            return leftDate > rightDate
+        }
+    }
+
+    @ViewBuilder
+    private func jobRow(for job: PipelineStatusResponse) -> some View {
+        if useNavigationLinks {
+            NavigationLink(value: job) {
+                JobRowView(job: job, resumeStatus: resumeStatus(for: job))
+            }
+        } else {
+            JobRowView(job: job, resumeStatus: resumeStatus(for: job))
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onSelectJob?(job)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func libraryRow(for item: LibraryItem) -> some View {
+        if useNavigationLinks {
+            NavigationLink(value: item) {
+                LibraryRowView(
+                    item: item,
+                    coverURL: coverResolver(item),
+                    resumeStatus: resumeStatus(for: item)
+                )
+            }
+        } else {
+            LibraryRowView(
+                item: item,
+                coverURL: coverResolver(item),
+                resumeStatus: resumeStatus(for: item)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onSelectItem?(item)
+            }
+        }
+    }
+
+    private func matches(job: PipelineStatusResponse, query: String) -> Bool {
+        jobSearchFields(job).contains { $0.contains(query) }
+    }
+
+    private func matches(item: LibraryItem, query: String) -> Bool {
+        librarySearchFields(item).contains { $0.contains(query) }
+    }
+
+    private func jobSearchFields(_ job: PipelineStatusResponse) -> [String] {
+        var fields: [String] = [job.jobId.lowercased(), job.jobType.lowercased()]
+        if let label = job.jobLabel?.nonEmptyValue {
+            fields.append(label.lowercased())
+        }
+        if let title = jobTitle(from: job)?.lowercased() {
+            fields.append(title)
+        }
+        return fields
+    }
+
+    private func librarySearchFields(_ item: LibraryItem) -> [String] {
+        var fields: [String] = [
+            item.jobId.lowercased(),
+            item.bookTitle.lowercased(),
+            item.author.lowercased(),
+            item.itemType.lowercased()
+        ]
+        if let genre = item.genre?.lowercased() {
+            fields.append(genre)
+        }
+        return fields
+    }
+
+    private func jobTitle(from job: PipelineStatusResponse) -> String? {
+        if let label = job.jobLabel?.nonEmptyValue {
+            return label
+        }
+        guard let resultObject = job.result?.objectValue else { return nil }
+        if let title = resultObject["title"]?.stringValue?.nonEmptyValue {
+            return title
+        }
+        if let book = resultObject["book_metadata"]?.objectValue,
+           let title = book["title"]?.stringValue?.nonEmptyValue {
+            return title
+        }
+        return nil
+    }
+
+    private func createdAt(for result: SearchResult) -> Date? {
+        switch result {
+        case let .library(item):
+            return parseDate(item.createdAt)
+        case let .job(job):
+            return parseDate(job.createdAt)
+        }
+    }
+
+    private func parseDate(_ value: String) -> Date? {
+        Self.dateFormatterWithFractional.date(from: value) ?? Self.dateFormatter.date(from: value)
+    }
+
+    private static let dateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    private static let dateFormatterWithFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private func resumeStatus(for job: PipelineStatusResponse) -> LibraryRowView.ResumeStatus {
+        guard let resumeUserId else { return .none() }
+        let availability = PlaybackResumeStore.shared.availability(for: job.jobId, userId: resumeUserId)
+        let entry = availability.hasCloud ? availability.cloudEntry : nil
+        guard let entry else { return .none() }
+        let label = resumeLabel(prefix: "C", entry: entry)
+        return .cloud(label: label)
+    }
+
+    private func resumeStatus(for item: LibraryItem) -> LibraryRowView.ResumeStatus {
+        guard let resumeUserId else { return .none() }
+        let availability = PlaybackResumeStore.shared.availability(for: item.jobId, userId: resumeUserId)
+        let entry = availability.hasCloud ? availability.cloudEntry : nil
+        guard let entry else { return .none() }
+        let label = resumeLabel(prefix: "C", entry: entry)
+        return .cloud(label: label)
+    }
+
+    private func resumeLabel(prefix: String, entry: PlaybackResumeEntry?) -> String {
+        guard let entry else { return "\(prefix)" }
+        switch entry.kind {
+        case .sentence:
+            if let sentence = entry.sentenceNumber, sentence > 0 {
+                return "\(prefix):\(sentence)"
+            }
+        case .time:
+            if let time = entry.playbackTime, time > 0 {
+                return "\(prefix):\(formatPlaybackTime(time))"
+            }
+        }
+        return "\(prefix)"
+    }
+
+    private func formatPlaybackTime(_ time: Double) -> String {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = time >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
+        formatter.zeroFormattingBehavior = .pad
+        return formatter.string(from: time) ?? "0:00"
     }
 }

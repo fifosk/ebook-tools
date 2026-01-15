@@ -32,6 +32,26 @@ final class AppState: ObservableObject {
         )
     }
 
+    var resumeUserKey: String? {
+        let raw = session?.user.email?.nonEmptyValue
+            ?? session?.user.username.nonEmptyValue
+        return raw?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .nonEmptyValue
+    }
+
+    var resumeUserAliases: [String] {
+        var aliases: [String] = []
+        if let email = session?.user.email?.nonEmptyValue {
+            aliases.append(email)
+        }
+        if let username = session?.user.username.nonEmptyValue {
+            aliases.append(username)
+        }
+        return aliases
+    }
+
     func updateSession(_ session: SessionStatusResponse) {
         storedToken = session.token
         self.session = session

@@ -14,10 +14,16 @@ struct JobsView: View {
     let onSelect: ((PipelineStatusResponse) -> Void)?
     let sectionPicker: AnyView?
     let resumeUserId: String?
+    let onCollapseSidebar: (() -> Void)?
+    let onSearchRequested: (() -> Void)?
 
     @FocusState private var isSearchFocused: Bool
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
     @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+    #if os(iOS)
+    @State private var rowFrames: [CGRect] = []
+    private let listCoordinateSpace = "jobsList"
+    #endif
     @Environment(\.colorScheme) private var colorScheme
     #if os(tvOS)
     @State private var isSearchPresented = false
@@ -33,37 +39,39 @@ struct JobsView: View {
             }
 
             List {
-                if viewModel.activeJobs.isEmpty {
-                    Section("Active jobs") {
-                        Text("No active jobs.")
-                            .foregroundStyle(.secondary)
-                            #if os(tvOS)
-                            .listRowBackground(Color.clear)
-                            #endif
-                    }
+                if viewModel.filteredJobs.isEmpty {
+                    Text("No jobs yet.")
+                        .foregroundStyle(.secondary)
+                        #if os(tvOS)
+                        .listRowBackground(Color.clear)
+                        #endif
                 } else {
-                    Section("Active jobs") {
-                        jobRows(viewModel.activeJobs)
-                    }
-                }
-
-                if viewModel.finishedJobs.isEmpty {
-                    Section("Finished jobs") {
-                        Text("No finished jobs yet.")
-                            .foregroundStyle(.secondary)
-                            #if os(tvOS)
-                            .listRowBackground(Color.clear)
-                            #endif
-                    }
-                } else {
-                    Section("Finished jobs") {
-                        jobRows(viewModel.finishedJobs)
-                    }
+                    jobRows(viewModel.filteredJobs)
                 }
             }
             .listStyle(.plain)
             #if os(tvOS)
             .background(AppTheme.background(for: colorScheme))
+            #endif
+            #if os(iOS)
+            .coordinateSpace(name: listCoordinateSpace)
+            .onPreferenceChange(RowFramePreferenceKey.self) { frames in
+                rowFrames = frames
+            }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 24, coordinateSpace: .named(listCoordinateSpace))
+                    .onEnded { value in
+                        guard let onCollapseSidebar else { return }
+                        let start = value.startLocation
+                        guard !rowFrames.contains(where: { $0.contains(start) }) else { return }
+                        let horizontal = value.translation.width
+                        let vertical = value.translation.height
+                        guard abs(horizontal) > abs(vertical) else { return }
+                        guard horizontal < -70 else { return }
+                        guard abs(vertical) < 50 else { return }
+                        onCollapseSidebar()
+                    }
+            )
             #endif
             .overlay(alignment: .center) {
                 listOverlay
@@ -97,19 +105,6 @@ struct JobsView: View {
             viewModel.stopAutoRefresh()
         }
         #endif
-        #if !os(tvOS)
-        .toolbar {
-            ToolbarItemGroup(placement: .topBarLeading) {
-                Button("Refresh", action: handleRefresh)
-                    .disabled(viewModel.isLoading)
-                Button("Sync", action: handleSync)
-                    .disabled(resumeUserId == nil)
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Sign Out", action: onSignOut)
-            }
-        }
-        #endif
     }
 
     @ViewBuilder
@@ -127,6 +122,7 @@ struct JobsView: View {
                 NavigationLink(value: job) {
                     JobRowView(job: job, resumeStatus: resumeStatus(for: job))
                 }
+                .background(rowFrameCapture())
                 .swipeActions(edge: .leading, allowsFullSwipe: false) {
                     moveToLibraryAction(for: job)
                 }
@@ -149,6 +145,7 @@ struct JobsView: View {
                 .listRowBackground(Color.clear)
                 #else
                 JobRowView(job: job, resumeStatus: resumeStatus(for: job))
+                    .background(rowFrameCapture())
                     .contentShape(Rectangle())
                     .onTapGesture {
                         onSelect?(job)
@@ -173,6 +170,21 @@ struct JobsView: View {
             .foregroundStyle(.red)
             .font(.callout)
     }
+
+    #if os(iOS)
+    private func rowFrameCapture() -> some View {
+        GeometryReader { proxy in
+            Color.clear.preference(
+                key: RowFramePreferenceKey.self,
+                value: [proxy.frame(in: .named(listCoordinateSpace))]
+            )
+        }
+    }
+    #else
+    private func rowFrameCapture() -> some View {
+        Color.clear
+    }
+    #endif
 
     private var listOverlay: some View {
         Group {
@@ -200,20 +212,20 @@ struct JobsView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
+            actionRow
             #if os(tvOS)
-            headerButtons
             if isSearchPresented {
                 searchRow
             }
+            #else
+            if onSearchRequested == nil {
+                searchRow
+            }
+            #endif
             if let sectionPicker {
                 sectionPicker
             }
             filterPicker
-            #else
-            searchRow
-            filterPicker
-            #endif
-            iCloudStatusRow
         }
         .padding(.top, 8)
         #if os(tvOS)
@@ -283,54 +295,58 @@ struct JobsView: View {
     }
 
     #if os(tvOS)
-    private var headerButtons: some View {
-        HStack(spacing: 16) {
-            Button("Refresh", action: handleRefresh)
-                .disabled(viewModel.isLoading)
-            Button {
-                presentSearch()
-            } label: {
-                Image(systemName: "magnifyingglass")
-            }
-            Button("Sync", action: handleSync)
-                .disabled(resumeUserId == nil)
-            Button("Sign Out", action: onSignOut)
-        }
-        .padding(.horizontal)
-    }
-    #endif
-
-    #if os(tvOS)
     private var tvOSHeaderFont: Font {
         let size = UIFont.preferredFont(forTextStyle: .body).pointSize * 0.5
         return .system(size: size)
     }
     #endif
 
-    private var iCloudStatusRow: some View {
+    private var actionRow: some View {
         let status = iCloudStatus
-        let label = status.isAvailable ? "iCloud: connected" : "iCloud: unavailable"
-        let detail = status.lastSyncAttempt.map { "Last sync \(formatRelativeTime($0))" }
-        return HStack(spacing: 8) {
-            Image(systemName: status.isAvailable ? "icloud" : "icloud.slash")
-                .foregroundStyle(status.isAvailable ? Color.blue : Color.secondary)
-            Text(label)
-                .foregroundStyle(status.isAvailable ? Color.primary : Color.secondary)
-            if let detail {
-                Text(detail)
-                    .foregroundStyle(.secondary)
+        let userLabel = resumeUserId ?? "Log In"
+        let statusLabel = status.isAvailable ? "Online" : "Offline"
+        let iconSize: CGFloat = {
+            #if os(tvOS)
+            return 20
+            #else
+            return 18
+            #endif
+        }()
+        return HStack(spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "globe")
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundStyle(Color.blue)
+                Text("Language Tools")
+                    .lineLimit(1)
+                AppVersionBadge()
             }
+            HStack(spacing: 6) {
+                Image(systemName: status.isAvailable ? "icloud" : "icloud.slash")
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundStyle(status.isAvailable ? Color.blue : Color.secondary)
+            }
+            .accessibilityLabel(statusLabel)
+            Button(action: handleRefresh) {
+                Image(systemName: "arrow.clockwise")
+            }
+            .disabled(viewModel.isLoading)
+            .accessibilityLabel("Refresh")
             Spacer()
+            Menu {
+                Button("Log Out", action: onSignOut)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.crop.circle")
+                    Text(userLabel)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
         }
-        .font(iCloudStatusFont)
         .padding(.horizontal)
-    }
-
-    private var iCloudStatusFont: Font {
         #if os(tvOS)
-        return tvOSHeaderFont
-        #else
-        return .caption
+        .font(tvOSHeaderFont)
         #endif
     }
 
@@ -356,7 +372,7 @@ struct JobsView: View {
     private func handleSync() {
         guard let resumeUserId else { return }
         Task {
-            await PlaybackResumeStore.shared.syncNow(userId: resumeUserId)
+            await PlaybackResumeStore.shared.syncNow(userId: resumeUserId, aliases: appState.resumeUserAliases)
             await MainActor.run {
                 resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: resumeUserId)
                 iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
@@ -379,7 +395,10 @@ struct JobsView: View {
         resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: resumeUserId)
         iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
         Task {
-            await PlaybackResumeStore.shared.refreshCloudEntries(userId: resumeUserId)
+            await PlaybackResumeStore.shared.refreshCloudEntries(
+                userId: resumeUserId,
+                aliases: appState.resumeUserAliases
+            )
             await MainActor.run {
                 resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: resumeUserId)
                 iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
@@ -391,30 +410,12 @@ struct JobsView: View {
         guard let availability = resumeAvailability[job.jobId] else {
             return .none()
         }
-        let localEntry = availability.hasLocal ? availability.localEntry : nil
         let cloudEntry = availability.hasCloud ? availability.cloudEntry : nil
-        if localEntry == nil && cloudEntry == nil {
+        guard let cloudEntry else {
             return .none()
-        }
-        if let localEntry, let cloudEntry {
-            let localLabel = resumeLabel(prefix: "L", entry: localEntry)
-            let cloudLabel = resumeLabel(prefix: "C", entry: cloudEntry)
-            let label = "\(localLabel) \(cloudLabel)"
-            return .both(label: label)
-        }
-        if let localEntry {
-            let label = resumeLabel(prefix: "L", entry: localEntry)
-            return .local(label: label)
         }
         let label = resumeLabel(prefix: "C", entry: cloudEntry)
         return .cloud(label: label)
-    }
-
-    private func formatRelativeTime(_ timestamp: TimeInterval) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        let date = Date(timeIntervalSince1970: timestamp)
-        return formatter.localizedString(for: date, relativeTo: Date())
     }
 
     private func resumeLabel(prefix: String, entry: PlaybackResumeEntry?) -> String {
@@ -448,3 +449,13 @@ struct JobsView: View {
         iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     }
 }
+
+#if os(iOS)
+private struct RowFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [CGRect] = []
+
+    static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+#endif

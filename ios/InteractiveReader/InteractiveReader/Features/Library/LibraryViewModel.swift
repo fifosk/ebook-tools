@@ -3,20 +3,20 @@ import Foundation
 @MainActor
 final class LibraryViewModel: ObservableObject {
     enum LibraryFilter: String, CaseIterable, Identifiable {
+        case video = "Video"
         case book = "Books"
         case subtitles = "Subtitles"
-        case video = "Video"
 
         var id: String { rawValue }
 
         var itemType: String {
             switch self {
+            case .video:
+                return "video"
             case .book:
                 return "book"
             case .subtitles:
                 return "narrated_subtitle"
-            case .video:
-                return "video"
             }
         }
     }

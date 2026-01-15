@@ -55,7 +55,7 @@ extension JobPlaybackView {
             updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         }
         if let userId = resumeUserId {
-            await PlaybackResumeStore.shared.refreshCloudEntries(userId: userId)
+            await PlaybackResumeStore.shared.syncNow(userId: userId, aliases: appState.resumeUserAliases)
         }
         if let resumeEntry = resolveResumeEntry() {
             pendingResumeEntry = resumeEntry
@@ -199,8 +199,7 @@ extension JobPlaybackView {
 
     func handleVideoPlaybackProgress(time: Double, isPlaying: Bool) {
         let absoluteTime = absoluteVideoTime(for: activeVideoSegmentID ?? videoSegments.first?.id, segmentTime: time)
-        lastVideoTime = absoluteTime
-        recordVideoResume(time: absoluteTime, isPlaying: isPlaying)
+        _ = recordVideoResume(time: absoluteTime, isPlaying: isPlaying)
     }
 
     func absoluteVideoTime(for segmentID: String?, segmentTime: Double) -> Double {

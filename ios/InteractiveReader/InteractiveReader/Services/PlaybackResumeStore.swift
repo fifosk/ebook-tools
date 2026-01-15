@@ -64,7 +64,6 @@ final class PlaybackResumeStore {
     private let localStore = UserDefaults.standard
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
-    private let maxEntries = 200
     private let containerIdentifier = "iCloud.com.ebook-tools.interactivereader"
     private let recordType = "ResumeEntry"
     private let pendingUploadPrefix = "resume.pending.upload."
@@ -85,31 +84,29 @@ final class PlaybackResumeStore {
     private init() {}
 
     func entry(for jobId: String, userId: String) -> PlaybackResumeEntry? {
-        let localEntry = loadEntriesFromLocal(for: userId)[jobId]
-        let cloudEntry = cloudCache[jobId]
-        if let localEntry, let cloudEntry {
-            return cloudEntry.updatedAt >= localEntry.updatedAt ? cloudEntry : localEntry
-        }
-        return cloudEntry ?? localEntry
+        let canonicalUserKey = canonicalUserId(userId)
+        return cloudEntries(for: canonicalUserKey)[jobId]
     }
 
     func availability(for jobId: String, userId: String) -> PlaybackResumeAvailability {
+        let canonicalUserKey = canonicalUserId(userId)
+        let cloudEntry = cloudEntries(for: canonicalUserKey)[jobId]
         return PlaybackResumeAvailability(
-            localEntry: loadEntriesFromLocal(for: userId)[jobId],
-            cloudEntry: cloudCache[jobId],
+            localEntry: nil,
+            cloudEntry: cloudEntry,
             isICloudAvailable: isCloudAvailable
         )
     }
 
     func availabilitySnapshot(for userId: String) -> [String: PlaybackResumeAvailability] {
-        let localEntries = loadEntriesFromLocal(for: userId)
-        let cloudEntries = cloudCache
-        let jobIds = Set(localEntries.keys).union(cloudEntries.keys)
+        let canonicalUserKey = canonicalUserId(userId)
+        let cloudEntries = cloudEntries(for: canonicalUserKey)
+        let jobIds = Set(cloudEntries.keys)
         var snapshot: [String: PlaybackResumeAvailability] = [:]
         snapshot.reserveCapacity(jobIds.count)
         for jobId in jobIds {
             snapshot[jobId] = PlaybackResumeAvailability(
-                localEntry: localEntries[jobId],
+                localEntry: nil,
                 cloudEntry: cloudEntries[jobId],
                 isICloudAvailable: isCloudAvailable
             )
@@ -117,34 +114,62 @@ final class PlaybackResumeStore {
         return snapshot
     }
 
-    func refreshCloudEntries(userId: String) async {
+    func refreshCloudEntries(userId: String, aliases: [String] = []) async {
+        let canonicalUserKey = canonicalUserId(userId)
+        let aliasSet = Set(aliases.map { canonicalUserId($0) }.filter { !$0.isEmpty }).union([canonicalUserKey])
         lastCloudSyncAttempt = Date().timeIntervalSince1970
-        if lastCloudUserId != userId {
+        if lastCloudUserId != canonicalUserKey {
             cloudCache = [:]
-            lastCloudUserId = userId
+            lastCloudUserId = canonicalUserKey
         }
         await updateAccountStatus()
-        let hasPending = !loadPendingUploads(for: userId).isEmpty || !loadPendingDeletes(for: userId).isEmpty
-        if hasPending {
-            scheduleSync(userId: userId)
-        }
+        let hasPending = !loadPendingUploads(for: canonicalUserKey).isEmpty || !loadPendingDeletes(for: canonicalUserKey).isEmpty
         guard isCloudAvailable else {
             lastCloudSyncSucceeded = false
-            cloudCache = [:]
             return
         }
+        if hasPending {
+            await runSync(userId: canonicalUserKey)
+        }
+        let pendingUploads = loadPendingUploads(for: canonicalUserKey)
+        let pendingDeletes = loadPendingDeletes(for: canonicalUserKey)
+        let shouldMarkSyncSuccess = pendingUploads.isEmpty && pendingDeletes.isEmpty
         do {
-            let records = try await fetchResumeRecords(userId: userId)
+            let records = try await fetchResumeRecords(userIds: Array(aliasSet))
             var refreshed: [String: PlaybackResumeEntry] = [:]
             refreshed.reserveCapacity(records.count)
             for record in records {
-                if let entry = entry(from: record, userId: userId) {
-                    refreshed[entry.jobId] = entry
+                if let entry = entry(from: record, userId: canonicalUserKey) {
+                    if let existing = refreshed[entry.jobId] {
+                        if entry.updatedAt > existing.updatedAt {
+                            refreshed[entry.jobId] = entry
+                        }
+                    } else {
+                        refreshed[entry.jobId] = entry
+                    }
+                }
+            }
+            if !pendingUploads.isEmpty {
+                for (jobId, entry) in pendingUploads {
+                    if let existing = refreshed[jobId] {
+                        if entry.updatedAt > existing.updatedAt {
+                            refreshed[jobId] = entry
+                        }
+                    } else {
+                        refreshed[jobId] = entry
+                    }
+                }
+            }
+            if !pendingDeletes.isEmpty {
+                for jobId in pendingDeletes {
+                    refreshed.removeValue(forKey: jobId)
                 }
             }
             cloudCache = refreshed
-            lastCloudSyncSucceeded = true
-            lastCloudError = nil
+            if shouldMarkSyncSuccess {
+                lastCloudSyncSucceeded = true
+                lastCloudError = nil
+            }
         } catch {
             lastCloudSyncSucceeded = false
             lastCloudError = error.localizedDescription
@@ -177,59 +202,34 @@ final class PlaybackResumeStore {
     }
 
     func updateEntry(_ entry: PlaybackResumeEntry, userId: String) {
-        var payload = loadEntriesFromLocal(for: userId)
-        payload[entry.jobId] = entry
-        if payload.count > maxEntries {
-            let sorted = payload.values.sorted { $0.updatedAt < $1.updatedAt }
-            let excess = payload.count - maxEntries
-            for stale in sorted.prefix(excess) {
-                payload.removeValue(forKey: stale.jobId)
-            }
-        }
-        persistLocalEntries(payload, for: userId)
-        queuePendingUpload(entry, userId: userId)
-        scheduleSync(userId: userId)
-        notifyChange(userId: userId)
+        let canonicalUserKey = canonicalUserId(userId)
+        ensureUserContext(canonicalUserKey)
+        cloudCache[entry.jobId] = entry
+        queuePendingUpload(entry, userId: canonicalUserKey)
+        scheduleSync(userId: canonicalUserKey)
+        notifyChange(userId: canonicalUserKey)
     }
 
     func clearEntry(jobId: String, userId: String) {
-        var payload = loadEntriesFromLocal(for: userId)
-        payload.removeValue(forKey: jobId)
-        persistLocalEntries(payload, for: userId)
-        queuePendingDelete(jobId: jobId, userId: userId)
-        scheduleSync(userId: userId)
-        notifyChange(userId: userId)
+        let canonicalUserKey = canonicalUserId(userId)
+        ensureUserContext(canonicalUserKey)
+        cloudCache.removeValue(forKey: jobId)
+        queuePendingDelete(jobId: jobId, userId: canonicalUserKey)
+        scheduleSync(userId: canonicalUserKey)
+        notifyChange(userId: canonicalUserKey)
     }
 
-    func syncNow(userId: String) async {
+    func syncNow(userId: String, aliases: [String] = []) async {
+        let canonicalUserKey = canonicalUserId(userId)
         syncTask?.cancel()
         syncTask = nil
         queuedSyncUserId = nil
-        await runSync(userId: userId)
-        await refreshCloudEntries(userId: userId)
+        await runSync(userId: canonicalUserKey)
+        await refreshCloudEntries(userId: canonicalUserKey, aliases: aliases)
     }
 
     private var isCloudAvailable: Bool {
         cloudAccountStatus == .available
-    }
-
-    private func loadEntriesFromLocal(for userId: String) -> [String: PlaybackResumeEntry] {
-        let key = localStorageKey(for: userId)
-        guard let data = localStore.data(forKey: key) else { return [:] }
-        do {
-            return try decoder.decode([String: PlaybackResumeEntry].self, from: data)
-        } catch {
-            return [:]
-        }
-    }
-
-    private func persistLocalEntries(_ entries: [String: PlaybackResumeEntry], for userId: String) {
-        guard let data = try? encoder.encode(entries) else { return }
-        localStore.set(data, forKey: localStorageKey(for: userId))
-    }
-
-    private func localStorageKey(for userId: String) -> String {
-        "resume.local.\(normalizedUserKey(userId))"
     }
 
     private func pendingUploadStorageKey(for userId: String) -> String {
@@ -275,6 +275,22 @@ final class PlaybackResumeStore {
         return String(cleaned[..<index])
     }
 
+    private func ensureUserContext(_ userId: String) {
+        if lastCloudUserId != userId {
+            cloudCache = [:]
+            lastCloudUserId = userId
+        }
+    }
+
+    private func cloudEntries(for userId: String) -> [String: PlaybackResumeEntry] {
+        guard lastCloudUserId == userId else { return [:] }
+        return cloudCache
+    }
+
+    private func canonicalUserId(_ raw: String) -> String {
+        raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
     private func updateAccountStatus() async {
         do {
             cloudAccountStatus = try await cloudContainer.accountStatus()
@@ -284,8 +300,16 @@ final class PlaybackResumeStore {
         }
     }
 
-    private func fetchResumeRecords(userId: String) async throws -> [CKRecord] {
-        let predicate = NSPredicate(format: "userId == %@", userId)
+    private func fetchResumeRecords(userIds: [String]) async throws -> [CKRecord] {
+        let cleaned = userIds.filter { !$0.isEmpty }
+        let predicate: NSPredicate
+        if cleaned.count > 1 {
+            predicate = NSPredicate(format: "userId IN %@", cleaned)
+        } else if let userId = cleaned.first {
+            predicate = NSPredicate(format: "userId == %@", userId)
+        } else {
+            predicate = NSPredicate(value: false)
+        }
         let query = CKQuery(recordType: recordType, predicate: predicate)
         var records: [CKRecord] = []
         var cursor: CKQueryOperation.Cursor?

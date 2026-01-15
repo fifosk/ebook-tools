@@ -3,9 +3,9 @@ import Foundation
 @MainActor
 final class JobsViewModel: ObservableObject {
     enum JobFilter: String, CaseIterable, Identifiable {
+        case video = "Video"
         case book = "Books"
         case subtitles = "Subtitles"
-        case video = "Video"
 
         var id: String { rawValue }
     }

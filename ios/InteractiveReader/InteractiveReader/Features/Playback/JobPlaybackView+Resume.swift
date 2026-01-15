@@ -1,8 +1,11 @@
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
 
 extension JobPlaybackView {
     var resumeUserId: String? {
-        appState.session?.user.username.nonEmptyValue ?? appState.lastUsername.nonEmptyValue
+        appState.resumeUserKey
     }
 
     var resumeItemType: String {
@@ -38,7 +41,12 @@ extension JobPlaybackView {
 
     func startPlaybackFromBeginning() {
         if isVideoPreferred {
+            #if os(iOS)
+            let shouldPresent = UIDevice.current.userInterfaceIdiom == .phone
+            startVideoPlayback(at: nil, presentPlayer: shouldPresent)
+            #else
             startVideoPlayback(at: nil, presentPlayer: false)
+            #endif
         } else if viewModel.jobContext != nil {
             startInteractivePlayback(at: 1)
         }
@@ -136,13 +144,14 @@ extension JobPlaybackView {
     }
 
     func resumePromptMessage(for entry: PlaybackResumeEntry) -> String {
+        let iCloudNote = iCloudResumeNote()
         switch entry.kind {
         case .sentence:
             let sentence = entry.sentenceNumber ?? 1
-            return "Continue from sentence \(sentence)."
+            return "Continue from sentence \(sentence).\n\(iCloudNote)"
         case .time:
             let time = entry.playbackTime ?? 0
-            return "Continue from \(formatPlaybackTime(time))."
+            return "Continue from \(formatPlaybackTime(time)).\n\(iCloudNote)"
         }
     }
 
@@ -153,11 +162,29 @@ extension JobPlaybackView {
         return formatter.string(from: time) ?? "0:00"
     }
 
-    func recordInteractiveResume(sentenceIndex: Int) {
+    func iCloudResumeNote() -> String {
+        let status = PlaybackResumeStore.shared.iCloudStatus()
+        guard status.isAvailable else { return "iCloud: unavailable" }
+        if let lastSync = status.lastSyncAttempt {
+            return "iCloud sync \(formatRelativeTime(lastSync))"
+        }
+        return "iCloud: connected"
+    }
+
+    func formatRelativeTime(_ timestamp: TimeInterval) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        let date = Date(timeIntervalSince1970: timestamp)
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    func recordInteractiveResume(sentenceIndex: Int, force: Bool = false) {
         guard !resumeDecisionPending else { return }
         guard let userId = resumeUserId else { return }
         guard sentenceIndex > 0 else { return }
-        guard sentenceIndex != lastRecordedSentence else { return }
+        if !force, sentenceIndex == lastRecordedSentence {
+            return
+        }
         lastRecordedSentence = sentenceIndex
         let entry = PlaybackResumeEntry(
             jobId: currentJob.jobId,
@@ -170,13 +197,18 @@ extension JobPlaybackView {
         PlaybackResumeStore.shared.updateEntry(entry, userId: userId)
     }
 
-    func recordVideoResume(time: Double, isPlaying: Bool) {
-        guard !resumeDecisionPending else { return }
-        guard let userId = resumeUserId else { return }
-        guard time.isFinite, time >= 0 else { return }
+    @discardableResult
+    func recordVideoResume(time: Double, isPlaying: Bool) -> Bool {
+        guard !resumeDecisionPending else { return false }
+        guard let userId = resumeUserId else { return false }
+        guard time.isFinite, time >= 0 else { return false }
+        if !isPlaying, time < 1, lastVideoTime > 5 {
+            return false
+        }
+        lastVideoTime = time
         let bucket = Int(time / 5)
         if bucket == lastRecordedTimeBucket, isPlaying {
-            return
+            return true
         }
         lastRecordedTimeBucket = bucket
         let entry = PlaybackResumeEntry(
@@ -188,13 +220,19 @@ extension JobPlaybackView {
             playbackTime: time
         )
         PlaybackResumeStore.shared.updateEntry(entry, userId: userId)
+        return true
     }
 
     func persistResumeOnExit() {
         if isVideoPreferred {
             recordVideoResume(time: lastVideoTime, isPlaying: false)
         } else if let sentenceIndex {
-            recordInteractiveResume(sentenceIndex: sentenceIndex)
+            recordInteractiveResume(sentenceIndex: sentenceIndex, force: true)
+        }
+        if let userId = resumeUserId {
+            Task {
+                await PlaybackResumeStore.shared.syncNow(userId: userId, aliases: appState.resumeUserAliases)
+            }
         }
     }
 

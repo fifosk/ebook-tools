@@ -79,6 +79,10 @@ struct JobPlaybackView: View {
                     nowPlaying.clear()
                 }
             }
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase != .active else { return }
+                persistResumeOnExit()
+            }
             .alert("Resume playback?", isPresented: $showResumePrompt, presenting: pendingResumeEntry) { entry in
                 Button("Resume") {
                     applyResume(entry)
@@ -444,6 +448,12 @@ struct EdgeSwipeBackOverlay: View {
     var maxVerticalTranslation: CGFloat = 40
 
     var body: some View {
+        #if os(tvOS)
+        Color.clear
+            .frame(width: edgeWidth)
+            .frame(maxHeight: .infinity, alignment: .leading)
+            .accessibilityHidden(true)
+        #else
         Color.clear
             .contentShape(Rectangle())
             .gesture(
@@ -457,5 +467,6 @@ struct EdgeSwipeBackOverlay: View {
             .frame(width: edgeWidth)
             .frame(maxHeight: .infinity, alignment: .leading)
             .accessibilityHidden(true)
+        #endif
     }
 }

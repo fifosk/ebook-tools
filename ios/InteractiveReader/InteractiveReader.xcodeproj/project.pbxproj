@@ -550,6 +550,7 @@
 				CBE58951F4AB41F8BEA08E64 /* Sources */,
 				30B9FE142F2C474683E58967 /* Frameworks */,
 				7E37B4046D1B4F6BAE8EF948 /* Resources */,
+				B7C8D9E0F1A2B3C4D5E6F702 /* Set Git Branch (tvOS) */,
 			);
 			buildRules = (
 			);
@@ -567,6 +568,7 @@
 				6FDC3A112F914D000A1D9A1 /* Sources */,
 				6FDC3A122F914D000A1D9A1 /* Frameworks */,
 				6FDC3A132F914D000A1D9A1 /* Resources */,
+				B7C8D9E0F1A2B3C4D5E6F701 /* Set Git Branch */,
 			);
 			buildRules = (
 			);
@@ -627,6 +629,37 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B7C8D9E0F1A2B3C4D5E6F701 /* Set Git Branch */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Set Git Branch";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nBRANCH=$(git -C \"${SRCROOT}\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\")\nPLIST=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Info.plist\"\nif [ -f \"$PLIST\" ]; then\n  /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_BRANCH ${BRANCH}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_BRANCH string ${BRANCH}\" \"$PLIST\"\nfi\n";
+		};
+		B7C8D9E0F1A2B3C4D5E6F702 /* Set Git Branch (tvOS) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Set Git Branch (tvOS)";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nBRANCH=$(git -C \"${SRCROOT}\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\")\nPLIST=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Info.plist\"\nif [ -f \"$PLIST\" ]; then\n  /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_BRANCH ${BRANCH}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_BRANCH string ${BRANCH}\" \"$PLIST\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		6FDC3A112F914D000A1D9A1 /* Sources */ = {
