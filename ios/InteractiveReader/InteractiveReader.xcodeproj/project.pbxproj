@@ -640,10 +640,11 @@
 			);
 			name = "Set Git Branch";
 			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/branch.stamp",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nBRANCH=$(git -C \"${SRCROOT}\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\")\nPLIST=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Info.plist\"\nif [ -f \"$PLIST\" ]; then\n  /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_BRANCH ${BRANCH}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_BRANCH string ${BRANCH}\" \"$PLIST\"\nfi\n";
+			shellScript = "set -e\nBRANCH=$(git -C \"${SRCROOT}\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\")\nPLIST_CANDIDATES=(\n  \"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Info.plist\"\n  \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n  \"${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}/Info.plist\"\n)\nfor PLIST in \"${PLIST_CANDIDATES[@]}\"; do\n  if [ -f \"$PLIST\" ]; then\n    /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_BRANCH ${BRANCH}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_BRANCH string ${BRANCH}\" \"$PLIST\"\n    break\n  fi\ndone\nSTAMP=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/branch.stamp\"\nmkdir -p \"$(dirname \"$STAMP\")\"\necho \"${BRANCH}\" > \"$STAMP\"\n";
 		};
 		B7C8D9E0F1A2B3C4D5E6F702 /* Set Git Branch (tvOS) */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -654,10 +655,11 @@
 			);
 			name = "Set Git Branch (tvOS)";
 			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/branch.stamp",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nBRANCH=$(git -C \"${SRCROOT}\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\")\nPLIST=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Info.plist\"\nif [ -f \"$PLIST\" ]; then\n  /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_BRANCH ${BRANCH}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_BRANCH string ${BRANCH}\" \"$PLIST\"\nfi\n";
+			shellScript = "set -e\nBRANCH=$(git -C \"${SRCROOT}\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\")\nPLIST_CANDIDATES=(\n  \"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Info.plist\"\n  \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n  \"${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}/Info.plist\"\n)\nfor PLIST in \"${PLIST_CANDIDATES[@]}\"; do\n  if [ -f \"$PLIST\" ]; then\n    /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_BRANCH ${BRANCH}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_BRANCH string ${BRANCH}\" \"$PLIST\"\n    break\n  fi\ndone\nSTAMP=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/branch.stamp\"\nmkdir -p \"$(dirname \"$STAMP\")\"\necho \"${BRANCH}\" > \"$STAMP\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

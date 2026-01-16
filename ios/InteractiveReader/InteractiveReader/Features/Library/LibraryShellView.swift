@@ -228,6 +228,9 @@ struct LibraryShellView: View {
         }
         #if os(tvOS)
         .pickerStyle(.automatic)
+        .onLongPressGesture(minimumDuration: 0.6) {
+            handleSectionRefresh()
+        }
         #else
         .pickerStyle(.segmented)
         #endif
@@ -264,6 +267,20 @@ struct LibraryShellView: View {
             jobsViewModel.stopAutoRefresh()
             libraryAutoPlay = false
             jobsAutoPlay = false
+        }
+    }
+
+    private func handleSectionRefresh() {
+        switch activeSection {
+        case .jobs:
+            Task { await jobsViewModel.load(using: appState) }
+        case .library:
+            Task { await viewModel.load(using: appState) }
+        case .search:
+            Task {
+                await viewModel.load(using: appState)
+                await jobsViewModel.load(using: appState)
+            }
         }
     }
 

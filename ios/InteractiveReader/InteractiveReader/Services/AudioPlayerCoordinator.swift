@@ -1,6 +1,11 @@
 import AVFoundation
 import Foundation
 
+enum AudioPlaybackRole {
+    case primary
+    case ambient
+}
+
 @MainActor
 final class AudioPlayerCoordinator: ObservableObject {
     @Published private(set) var isPlaying = false
@@ -14,6 +19,7 @@ final class AudioPlayerCoordinator: ObservableObject {
     @Published private(set) var activeURLs: [URL] = []
     var onPlaybackEnded: (() -> Void)?
 
+    let role: AudioPlaybackRole
     private var shouldLoop = false
     private var player: AVPlayer?
     private var timeObserverToken: Any?
@@ -27,7 +33,8 @@ final class AudioPlayerCoordinator: ObservableObject {
     private var itemURLMap: [ObjectIdentifier: URL] = [:]
     private var itemOrder: [ObjectIdentifier: Int] = [:]
 
-    init() {
+    init(role: AudioPlaybackRole = .primary) {
+        self.role = role
         configureAudioSession()
         installInterruptionObserver()
     }
@@ -91,6 +98,7 @@ final class AudioPlayerCoordinator: ObservableObject {
     func play() {
         guard let player = player else { return }
         configureAudioSession()
+        AudioPlaybackRegistry.shared.beginPlayback(for: self)
         isPlaybackRequested = true
         if #available(iOS 10.0, tvOS 10.0, *) {
             player.playImmediately(atRate: Float(playbackRate))
@@ -105,6 +113,7 @@ final class AudioPlayerCoordinator: ObservableObject {
         player?.pause()
         isPlaying = false
         isPlaybackRequested = false
+        AudioPlaybackRegistry.shared.endPlayback(for: self)
     }
 
     func togglePlayback() {
@@ -277,6 +286,7 @@ final class AudioPlayerCoordinator: ObservableObject {
                 self.isPlaying = false
                 self.isPlaybackRequested = false
                 self.currentTime = 0
+                AudioPlaybackRegistry.shared.endPlayback(for: self)
                 self.onPlaybackEnded?()
                 return
             }
@@ -356,5 +366,24 @@ final class AudioPlayerCoordinator: ObservableObject {
         if activeURL != url {
             activeURL = url
         }
+    }
+}
+
+@MainActor
+private final class AudioPlaybackRegistry {
+    static let shared = AudioPlaybackRegistry()
+    private weak var activePrimary: AudioPlayerCoordinator?
+
+    func beginPlayback(for coordinator: AudioPlayerCoordinator) {
+        guard coordinator.role == .primary else { return }
+        if let active = activePrimary, active !== coordinator {
+            active.pause()
+        }
+        activePrimary = coordinator
+    }
+
+    func endPlayback(for coordinator: AudioPlayerCoordinator) {
+        guard activePrimary === coordinator else { return }
+        activePrimary = nil
     }
 }

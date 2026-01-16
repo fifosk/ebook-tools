@@ -258,6 +258,9 @@ struct LibraryView: View {
         }
         .pickerStyle(.automatic)
         .padding(.horizontal)
+        .onLongPressGesture(minimumDuration: 0.6) {
+            handleRefresh()
+        }
         #else
         Picker("Filter", selection: $viewModel.activeFilter) {
             ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in

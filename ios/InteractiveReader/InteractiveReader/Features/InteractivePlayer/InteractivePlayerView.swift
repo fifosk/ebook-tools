@@ -16,7 +16,7 @@ struct InteractivePlayerView: View {
     let bookmarkUserId: String?
     let bookmarkJobId: String?
     let bookmarkItemType: String?
-    @State var readingBedCoordinator = AudioPlayerCoordinator()
+    @State var readingBedCoordinator = AudioPlayerCoordinator(role: .ambient)
     @State var readingBedEnabled = true
     @State var scrubbedTime: Double?
     @State var visibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
