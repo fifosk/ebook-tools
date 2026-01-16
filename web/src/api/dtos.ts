@@ -86,6 +86,7 @@ export interface PipelineInputPayload {
   translation_provider?: string;
   translation_batch_size?: number;
   transliteration_mode?: string;
+  transliteration_model?: string | null;
   tempo: number;
   book_metadata: Record<string, unknown>;
 }
@@ -467,6 +468,7 @@ export interface YoutubeDubRequest {
   translation_provider?: string | null;
   translation_batch_size?: number | null;
   transliteration_mode?: string | null;
+  transliteration_model?: string | null;
   split_batches?: boolean | null;
   stitch_batches?: boolean | null;
   include_transliteration?: boolean | null;

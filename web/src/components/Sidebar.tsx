@@ -10,6 +10,7 @@ import JobTypeGlyphBadge from './JobTypeGlyphBadge';
 import { getStatusGlyph } from '../utils/status';
 import { getJobTypeGlyph, isTvSeriesMetadata } from '../utils/jobGlyphs';
 import { resolveProgressStage } from '../utils/progressEvents';
+import { coerceNumber } from './job-progress/jobProgressUtils';
 import { coerceRecord, readNestedValue } from './player-panel/helpers';
 
 const SIDEBAR_STAGE_GLYPHS: Record<string, { icon: string; tooltip: string }> = {
@@ -325,6 +326,24 @@ function resolveJobGlyph(job: JobState): { icon: string; label: string; variant?
 function resolveSidebarProgress(job: JobState): number | null {
   if (!job.status || job.status.status !== 'running') {
     return null;
+  }
+  const generated = coerceRecord(job.status.generated_files);
+  const mediaBatchStats = generated ? coerceRecord(generated['media_batch_stats']) : null;
+  if (mediaBatchStats) {
+    const completed = coerceNumber(mediaBatchStats['batches_completed']);
+    const total = coerceNumber(mediaBatchStats['batches_total']);
+    if (
+      typeof completed === 'number' &&
+      typeof total === 'number' &&
+      Number.isFinite(completed) &&
+      Number.isFinite(total) &&
+      total > 0
+    ) {
+      const ratio = completed / total;
+      if (Number.isFinite(ratio) && ratio >= 0) {
+        return Math.min(100, Math.max(0, Math.round(ratio * 100)));
+      }
+    }
   }
   const preferredEvent = job.latestMediaEvent ?? null;
   const fallbackEvent = job.latestEvent ?? job.status.latest_event ?? null;

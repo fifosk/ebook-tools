@@ -80,6 +80,7 @@ export type FormState = {
   translation_provider: string;
   translation_batch_size: number;
   transliteration_mode: string;
+  transliteration_model: string;
   tempo: number;
   thread_count: string;
   queue_size: string;

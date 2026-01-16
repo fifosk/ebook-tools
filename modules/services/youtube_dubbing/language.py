@@ -78,15 +78,15 @@ def _transliterate_text(
     language: str,
     *,
     transliteration_mode: Optional[str] = None,
-    llm_model: Optional[str] = None,
+    transliteration_model: Optional[str] = None,
     progress_tracker: Optional["ProgressTracker"] = None,
 ) -> str:
     """Return plain transliteration text from the service result."""
 
     resolved_mode = (transliteration_mode or "").strip().lower().replace("_", "-")
     python_only = resolved_mode in {"python", "python-module", "module", "local-module"}
-    if llm_model and not python_only:
-        with create_client(model=llm_model) as client:
+    if transliteration_model and not python_only:
+        with create_client(model=transliteration_model) as client:
             result = transliterator.transliterate(
                 text,
                 language,

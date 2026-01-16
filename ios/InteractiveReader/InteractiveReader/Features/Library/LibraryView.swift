@@ -50,9 +50,14 @@ struct LibraryView: View {
                                 resumeStatus: resumeStatus(for: item)
                             )
                         }
-                        #if os(tvOS)
                         .listRowBackground(Color.clear)
-                        #endif
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                Task { await handleDelete(item) }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                         #else
                         NavigationLink(value: item) {
                             LibraryRowView(
@@ -83,6 +88,13 @@ struct LibraryView: View {
                         }
                         .buttonStyle(.plain)
                         .listRowBackground(Color.clear)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                Task { await handleDelete(item) }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                         #else
                         LibraryRowView(
                             item: item,

@@ -332,6 +332,7 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
     translation_provider = _coerce_str(inputs.get("translation_provider"))
     translation_batch_size = _coerce_int(inputs.get("translation_batch_size"))
     transliteration_mode_raw = _coerce_str(inputs.get("transliteration_mode"))
+    transliteration_model_raw = _coerce_str(inputs.get("transliteration_model"))
 
     input_file = _coerce_str(inputs.get("input_file"))
     base_output_file = _coerce_str(inputs.get("base_output_file"))
@@ -366,10 +367,10 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         else:
             normalized_transliteration_mode = "default"
 
-    transliteration_model = None
+    transliteration_model = transliteration_model_raw
     transliteration_module = None
     if normalized_transliteration_mode == "default":
-        transliteration_model = llm_model
+        transliteration_model = transliteration_model or llm_model
     elif normalized_transliteration_mode == "python":
         target_for_module = target_languages[0] if target_languages else None
         if target_for_module:
@@ -416,6 +417,13 @@ def _build_subtitle_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         options.get("original_language")
     )
 
+    transliteration_mode = _coerce_str(options.get("transliteration_mode"))
+    transliteration_model = _coerce_str(options.get("transliteration_model"))
+    if transliteration_mode:
+        normalized = transliteration_mode.strip().lower().replace("_", "-")
+        if normalized not in {"python", "python-module", "module", "local-module"}:
+            transliteration_model = transliteration_model or _coerce_str(options.get("llm_model"))
+
     return JobParameterSnapshot(
         input_language=input_language,
         target_languages=target_languages,
@@ -423,7 +431,8 @@ def _build_subtitle_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         llm_model=_coerce_str(options.get("llm_model")),
         translation_provider=_coerce_str(options.get("translation_provider")),
         translation_batch_size=_coerce_int(options.get("translation_batch_size")),
-        transliteration_mode=_coerce_str(options.get("transliteration_mode")),
+        transliteration_mode=transliteration_mode,
+        transliteration_model=transliteration_model,
         worker_count=_coerce_int(options.get("worker_count")),
         batch_size=_coerce_int(options.get("batch_size")),
         show_original=_coerce_bool(options.get("show_original")),
@@ -451,6 +460,11 @@ def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobPar
     translation_provider = _coerce_str(payload.get("translation_provider"))
     translation_batch_size = _coerce_int(payload.get("translation_batch_size"))
     transliteration_mode = _coerce_str(payload.get("transliteration_mode"))
+    transliteration_model = _coerce_str(payload.get("transliteration_model"))
+    if transliteration_mode:
+        normalized = transliteration_mode.strip().lower().replace("_", "-")
+        if normalized not in {"python", "python-module", "module", "local-module"}:
+            transliteration_model = transliteration_model or llm_model
     split_batches = _coerce_bool(payload.get("split_batches"))
     media_metadata = _coerce_mapping(payload.get("media_metadata"))
 
@@ -475,6 +489,7 @@ def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobPar
         translation_provider=translation_provider,
         translation_batch_size=translation_batch_size,
         transliteration_mode=transliteration_mode,
+        transliteration_model=transliteration_model,
         split_batches=split_batches,
         media_metadata=media_metadata,
     )

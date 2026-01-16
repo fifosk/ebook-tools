@@ -115,9 +115,15 @@ struct JobsView: View {
                 NavigationLink(value: job) {
                     JobRowView(job: job, resumeStatus: resumeStatus(for: job))
                 }
-                #if os(tvOS)
                 .listRowBackground(Color.clear)
-                #endif
+                .contextMenu {
+                    moveToLibraryAction(for: job)
+                    Button(role: .destructive) {
+                        Task { await handleDelete(job) }
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
                 #else
                 NavigationLink(value: job) {
                     JobRowView(job: job, resumeStatus: resumeStatus(for: job))
@@ -143,6 +149,14 @@ struct JobsView: View {
                 }
                 .buttonStyle(.plain)
                 .listRowBackground(Color.clear)
+                .contextMenu {
+                    moveToLibraryAction(for: job)
+                    Button(role: .destructive) {
+                        Task { await handleDelete(job) }
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
                 #else
                 JobRowView(job: job, resumeStatus: resumeStatus(for: job))
                     .background(rowFrameCapture())

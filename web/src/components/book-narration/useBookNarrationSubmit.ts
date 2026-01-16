@@ -256,6 +256,7 @@ export function useBookNarrationSubmit({
             translation_provider: formState.translation_provider,
             translation_batch_size: Math.max(1, normalizedTranslationBatchSize),
             transliteration_mode: formState.transliteration_mode,
+            transliteration_model: formState.transliteration_model.trim() || null,
             tempo: Number(formState.tempo),
             book_metadata: json.book_metadata,
           },

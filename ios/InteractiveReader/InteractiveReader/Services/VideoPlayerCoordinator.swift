@@ -23,7 +23,13 @@ final class VideoPlayerCoordinator: ObservableObject {
         isPlaying = false
         configureAudioSession()
         let item = AVPlayerItem(url: url)
+        #if os(tvOS)
+        item.preferredForwardBufferDuration = 2
+        #endif
         let player = AVPlayer(playerItem: item)
+        #if os(tvOS)
+        player.automaticallyWaitsToMinimizeStalling = false
+        #endif
         #if os(iOS)
         player.allowsExternalPlayback = true
         player.usesExternalPlaybackWhileExternalScreenIsActive = true

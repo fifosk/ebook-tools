@@ -35,7 +35,7 @@ def _write_webvtt(
     include_transliteration: bool = False,
     transliterator: Optional[TransliterationService] = None,
     transliteration_mode: Optional[str] = None,
-    llm_model: Optional[str] = None,
+    transliteration_model: Optional[str] = None,
 ) -> Path:
     """Serialize dialogues into a WebVTT file."""
 
@@ -62,7 +62,7 @@ def _write_webvtt(
                 entry.translation,
                 resolved_language,
                 transliteration_mode=transliteration_mode,
-                llm_model=llm_model,
+                transliteration_model=transliteration_model,
             )
         except Exception:
             return ""
@@ -124,7 +124,7 @@ def _ensure_webvtt_variant(
     include_transliteration: bool = False,
     transliterator: Optional[TransliterationService] = None,
     transliteration_mode: Optional[str] = None,
-    llm_model: Optional[str] = None,
+    transliteration_model: Optional[str] = None,
 ) -> Optional[Path]:
     """Create (or refresh) a WebVTT sibling for ``source`` inside ``storage_root`` if possible."""
 
@@ -146,7 +146,7 @@ def _ensure_webvtt_variant(
             include_transliteration=include_transliteration,
             transliterator=transliterator if include_transliteration else None,
             transliteration_mode=transliteration_mode,
-            llm_model=llm_model,
+            transliteration_model=transliteration_model,
         )
     except Exception:
         logger.debug("Unable to create WebVTT variant for %s", source, exc_info=True)
@@ -162,7 +162,7 @@ def _ensure_webvtt_for_video(
     include_transliteration: bool = False,
     transliterator: Optional[TransliterationService] = None,
     transliteration_mode: Optional[str] = None,
-    llm_model: Optional[str] = None,
+    transliteration_model: Optional[str] = None,
 ) -> Optional[Path]:
     """Create (or refresh) a VTT aligned to the rendered video (including batch offsets)."""
 
@@ -211,7 +211,7 @@ def _ensure_webvtt_for_video(
             include_transliteration=include_transliteration,
             transliterator=transliterator if include_transliteration else None,
             transliteration_mode=transliteration_mode,
-            llm_model=llm_model,
+            transliteration_model=transliteration_model,
         )
     except Exception:
         logger.debug("Unable to create aligned WebVTT for %s", video_path, exc_info=True)

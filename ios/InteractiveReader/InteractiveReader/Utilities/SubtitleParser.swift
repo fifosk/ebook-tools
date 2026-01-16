@@ -1,6 +1,6 @@
 import Foundation
 
-enum SubtitleFormat: String {
+enum SubtitleFormat: String, Codable {
     case ass
     case vtt
     case srt
@@ -40,36 +40,146 @@ struct VideoSubtitleTrack: Identifiable, Hashable {
     let label: String
 }
 
-struct VideoSubtitleSpan: Hashable {
+struct VideoSubtitleSpan: Hashable, Codable {
     let text: String
     let colorHex: String?
     let isBold: Bool
     let scale: Double
 }
 
-enum VideoSubtitleLineKind: String {
+enum VideoSubtitleLineKind: String, Codable {
     case original
     case translation
     case transliteration
     case unknown
 }
 
-struct VideoSubtitleLine: Hashable {
+struct VideoSubtitleLine: Hashable, Codable {
     let text: String
     let spans: [VideoSubtitleSpan]?
     let kind: VideoSubtitleLineKind
 }
 
-struct VideoSubtitleCue: Identifiable {
-    let id = UUID()
+struct VideoSubtitleCue: Identifiable, Codable {
+    let id: UUID
     let start: Double
     let end: Double
     let text: String
     let spans: [VideoSubtitleSpan]?
     let lines: [VideoSubtitleLine]
+
+    init(
+        id: UUID = UUID(),
+        start: Double,
+        end: Double,
+        text: String,
+        spans: [VideoSubtitleSpan]?,
+        lines: [VideoSubtitleLine]
+    ) {
+        self.id = id
+        self.start = start
+        self.end = end
+        self.text = text
+        self.spans = spans
+        self.lines = lines
+    }
 }
 
 enum SubtitleParser {
+    enum StreamingMode {
+        case full
+        case plain
+    }
+
+    struct StreamingParser {
+        private let mode: StreamingMode
+        private var currentStart: Double?
+        private var currentEnd: Double?
+        private var lineEntries: [(text: String, spans: [VideoSubtitleSpan]?)] = []
+
+        init(mode: StreamingMode = .full) {
+            self.mode = mode
+        }
+
+        mutating func consume(line: String) -> VideoSubtitleCue? {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty {
+                return finalizeCue()
+            }
+            if currentStart == nil, trimmed.allSatisfy({ $0.isNumber }) {
+                return nil
+            }
+            if trimmed.contains("-->") {
+                let pendingCue = finalizeCue()
+                parseTimecodeLine(trimmed)
+                return pendingCue
+            }
+            guard currentStart != nil else {
+                return nil
+            }
+            let parsed = mode == .plain
+                ? SubtitleParser.parsePlainLine(line)
+                : SubtitleParser.parseMarkupLine(line)
+            lineEntries.append(parsed)
+            return nil
+        }
+
+        mutating func finish() -> VideoSubtitleCue? {
+            return finalizeCue()
+        }
+
+        private mutating func parseTimecodeLine(_ line: String) -> VideoSubtitleCue? {
+            let parts = line.components(separatedBy: "-->")
+            guard parts.count >= 2 else {
+                return nil
+            }
+            guard let start = SubtitleParser.parseTimecode(parts[0].trimmingCharacters(in: .whitespaces)),
+                  let end = SubtitleParser.parseTimecode(parts[1].split(separator: " ").first.map(String.init) ?? "") else {
+                resetCueState()
+                return nil
+            }
+            currentStart = start
+            currentEnd = end
+            lineEntries.removeAll(keepingCapacity: true)
+            return nil
+        }
+
+        private mutating func finalizeCue() -> VideoSubtitleCue? {
+            guard let start = currentStart, let end = currentEnd else {
+                resetCueState()
+                return nil
+            }
+            let text = lineEntries
+                .map(\.text)
+                .joined(separator: "\n")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else {
+                resetCueState()
+                return nil
+            }
+            let usesSpans = lineEntries.contains { $0.spans != nil }
+            let resolvedSpans: [VideoSubtitleSpan]? = usesSpans
+                ? SubtitleParser.mergeLineSpans(lineEntries)
+                : nil
+            let lines = SubtitleParser.buildLines(from: text, spans: resolvedSpans)
+            let cue = VideoSubtitleCue(
+                start: start,
+                end: end,
+                text: text,
+                spans: resolvedSpans,
+                lines: lines
+            )
+            resetCueState()
+            return cue
+        }
+
+        private mutating func resetCueState() {
+            currentStart = nil
+            currentEnd = nil
+            lineEntries.removeAll(keepingCapacity: true)
+        }
+    }
+
     static func parse(from content: String, format: SubtitleFormat? = nil) -> [VideoSubtitleCue] {
         let resolvedFormat = format ?? detectFormat(content)
         switch resolvedFormat {
@@ -323,6 +433,32 @@ enum SubtitleParser {
         }
         let text = spans.map(\.text).joined()
         return (text, spans.isEmpty ? nil : spans)
+    }
+
+    private static func parsePlainLine(
+        _ value: String
+    ) -> (text: String, spans: [VideoSubtitleSpan]?) {
+        guard value.contains("<") else {
+            return (decodeHtmlEntities(value), nil)
+        }
+        var output = ""
+        var index = value.startIndex
+        while index < value.endIndex {
+            let char = value[index]
+            if char == "<", let close = value[index...].firstIndex(of: ">") {
+                let rawTag = value[value.index(after: index)..<close]
+                let tag = rawTag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if tag.hasPrefix("br") {
+                    output.append("\n")
+                }
+                index = value.index(after: close)
+                continue
+            }
+            output.append(char)
+            index = value.index(after: index)
+        }
+        let decoded = decodeHtmlEntities(output)
+        return (decoded, nil)
     }
 
     private static func parseFontAttributes(

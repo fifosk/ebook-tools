@@ -49,6 +49,7 @@ class SubtitleSubmissionPayload(BaseModel):
     llm_model: Optional[str] = None
     translation_provider: Optional[str] = None
     transliteration_mode: Optional[str] = None
+    transliteration_model: Optional[str] = None
 
 
 class SubtitleSourceListResponse(BaseModel):

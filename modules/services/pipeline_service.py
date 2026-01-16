@@ -62,6 +62,7 @@ class PipelineInput:
     translation_provider: str = "llm"
     translation_batch_size: int = 10
     transliteration_mode: str = "default"
+    transliteration_model: Optional[str] = None
     book_metadata: PipelineMetadata = field(default_factory=PipelineMetadata)
     voice_overrides: Dict[str, str] = field(default_factory=dict)
     audio_bitrate_kbps: Optional[int] = None

@@ -295,6 +295,7 @@ def _apply_language_metadata(
 
     translation_provider: Optional[str] = None
     transliteration_mode: Optional[str] = None
+    transliteration_model: Optional[str] = None
     for payload in (request_payload, resume_context, subtitle_metadata):
         for section in _iter_language_sections(payload):
             if translation_provider is None:
@@ -304,6 +305,10 @@ def _apply_language_metadata(
             if transliteration_mode is None:
                 transliteration_mode = _normalize_transliteration_mode(
                     _normalize_option_label(_read_language_key(section, "transliteration_mode"))
+                )
+            if transliteration_model is None:
+                transliteration_model = _normalize_option_label(
+                    _read_language_key(section, "transliteration_model")
                 )
 
     llm_model: Optional[str] = None
@@ -332,10 +337,10 @@ def _apply_language_metadata(
     elif translation_provider == "llm":
         translation_model = llm_model
 
-    transliteration_model = None
+    resolved_transliteration_model = None
     transliteration_module = None
     if transliteration_mode == "default":
-        transliteration_model = llm_model
+        resolved_transliteration_model = transliteration_model or llm_model
     elif transliteration_mode == "python":
         target_for_module = target_language or (target_languages[0] if target_languages else None)
         if target_for_module:
@@ -352,7 +357,7 @@ def _apply_language_metadata(
     _set_if_blank_or_override(
         book_metadata,
         "transliteration_model",
-        transliteration_model,
+        resolved_transliteration_model,
         requested_key="transliteration_model_requested",
     )
     _set_if_blank(book_metadata, "transliteration_module", transliteration_module)

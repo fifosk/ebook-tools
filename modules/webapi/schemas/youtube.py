@@ -185,6 +185,7 @@ class YoutubeDubRequest(BaseModel):
     translation_provider: Optional[str] = None
     translation_batch_size: Optional[int] = None
     transliteration_mode: Optional[str] = None
+    transliteration_model: Optional[str] = None
     split_batches: Optional[bool] = None
     stitch_batches: Optional[bool] = True
     include_transliteration: Optional[bool] = None

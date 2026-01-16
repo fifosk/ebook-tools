@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import concurrent.futures
+import math
 import queue
 import threading
+import time
 from functools import partial
 from typing import Any, Dict, Mapping, Optional, Sequence, List, TYPE_CHECKING
 
@@ -34,6 +36,8 @@ from .pipeline_image_state import _ImageGenerationState
 from .pipeline_images import ImagePipelineCoordinator
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
+    from modules.progress_tracker import ProgressTracker
+
     from .pipeline import PipelineState, RenderPipeline
 
 
@@ -49,6 +53,64 @@ def _resolve_first_flush_size(
     if batch_size <= 1 or batch_size >= sentences_per_file:
         return None
     return batch_size
+
+
+def _resolve_media_batch_total(
+    total_sentences: int,
+    sentences_per_file: int,
+    first_flush_size: Optional[int],
+) -> int:
+    total = max(0, int(total_sentences))
+    if total == 0:
+        return 0
+    safe_sentences_per_file = max(1, int(sentences_per_file))
+    if safe_sentences_per_file <= 1:
+        return total
+    if first_flush_size and 0 < first_flush_size < safe_sentences_per_file:
+        if total <= first_flush_size:
+            return 1
+        remaining = total - first_flush_size
+        return 1 + math.ceil(remaining / safe_sentences_per_file)
+    return math.ceil(total / safe_sentences_per_file)
+
+
+def _initialize_media_batch_progress(
+    *,
+    state: "PipelineState",
+    total_refined: int,
+    sentences_per_file: int,
+    first_flush_size: Optional[int],
+    progress_tracker: Optional["ProgressTracker"],
+) -> None:
+    batch_total = _resolve_media_batch_total(
+        total_refined,
+        sentences_per_file,
+        first_flush_size,
+    )
+    state.media_batch_total = batch_total
+    state.media_batch_completed = 0
+    state.media_batch_items_total = max(0, int(total_refined))
+    state.media_batch_items_completed = 0
+    state.media_batch_size = max(1, int(sentences_per_file))
+    state.media_batch_ids = set()
+    if first_flush_size:
+        state.media_batch_first_size = int(first_flush_size)
+    if progress_tracker is None:
+        return
+    payload: Dict[str, object] = {
+        "batch_size": state.media_batch_size,
+        "batches_total": batch_total,
+        "batches_completed": 0,
+        "items_total": state.media_batch_items_total,
+        "items_completed": 0,
+        "last_updated": round(time.time(), 3),
+    }
+    if state.media_batch_first_size:
+        payload["first_batch_size"] = state.media_batch_first_size
+    progress_tracker.update_generated_files_metadata(
+        {"media_batch_stats": payload}
+    )
+
 
 
 def process_sequential(
@@ -83,6 +145,13 @@ def process_sequential(
     first_flush_size = _resolve_first_flush_size(
         sentences_per_file, translation_batch_size
     )
+    _initialize_media_batch_progress(
+        state=state,
+        total_refined=total_refined,
+        sentences_per_file=sentences_per_file,
+        first_flush_size=first_flush_size,
+        progress_tracker=self._progress,
+    )
     while processed < total_refined:
         if self._should_stop():
             console_info(
@@ -107,11 +176,15 @@ def process_sequential(
             input_language,
             batch_targets,
             include_transliteration=include_transliteration,
+            transliteration_mode=transliteration_mode,
+            transliteration_client=transliteration_client,
+            transliterator=self._transliterator,
             translation_provider=translation_provider,
             llm_batch_size=translation_batch_size,
             client=translation_client,
             worker_pool=worker_pool,
             max_workers=worker_count,
+            progress_tracker=self._progress,
             sentence_numbers=batch_sentence_numbers,
         )
 
@@ -294,6 +367,13 @@ def process_pipeline(
 
     first_flush_size = _resolve_first_flush_size(
         sentences_per_file, translation_batch_size
+    )
+    _initialize_media_batch_progress(
+        state=state,
+        total_refined=total_refined,
+        sentences_per_file=sentences_per_file,
+        first_flush_size=first_flush_size,
+        progress_tracker=self._progress,
     )
 
     target_sequence = build_target_sequence(

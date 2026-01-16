@@ -162,6 +162,7 @@ class SubtitleJobOptions:
     llm_model: Optional[str] = None
     translation_provider: Optional[str] = None
     transliteration_mode: Optional[str] = None
+    transliteration_model: Optional[str] = None
     ass_font_size: Optional[int] = None
     ass_emphasis_scale: Optional[float] = None
     source_is_youtube: bool = False
@@ -210,6 +211,12 @@ class SubtitleJobOptions:
         object.__setattr__(self, "translation_provider", translation_provider)
         transliteration_mode = _normalize_transliteration_mode(self.transliteration_mode)
         object.__setattr__(self, "transliteration_mode", transliteration_mode)
+        transliteration_model_value = (self.transliteration_model or "").strip()
+        object.__setattr__(
+            self,
+            "transliteration_model",
+            transliteration_model_value or None,
+        )
         translation_batch_value = self.translation_batch_size
         resolved_translation_batch = DEFAULT_TRANSLATION_BATCH_SIZE
         if translation_batch_value is not None:
@@ -306,6 +313,12 @@ class SubtitleJobOptions:
             stripped = llm_model_raw.strip()
             if stripped:
                 llm_model = stripped
+        transliteration_model_raw = data.get("transliteration_model")
+        transliteration_model = None
+        if isinstance(transliteration_model_raw, str):
+            stripped = transliteration_model_raw.strip()
+            if stripped:
+                transliteration_model = stripped
         translation_provider_raw = data.get("translation_provider")
         translation_provider = (
             translation_provider_raw.strip()
@@ -374,6 +387,7 @@ class SubtitleJobOptions:
             output_format=output_format_raw or "srt",
             color_palette=palette,
             llm_model=llm_model,
+            transliteration_model=transliteration_model,
             translation_provider=translation_provider,
             transliteration_mode=transliteration_mode,
             ass_font_size=ass_font_size,
@@ -411,6 +425,8 @@ class SubtitleJobOptions:
             payload["translation_provider"] = self.translation_provider
         if self.transliteration_mode:
             payload["transliteration_mode"] = self.transliteration_mode
+        if self.transliteration_model:
+            payload["transliteration_model"] = self.transliteration_model
         if self.ass_font_size is not None:
             payload["ass_font_size"] = self.ass_font_size
         if self.ass_emphasis_scale is not None:

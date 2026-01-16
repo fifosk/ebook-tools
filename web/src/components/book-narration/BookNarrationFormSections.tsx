@@ -205,6 +205,7 @@ export function BookNarrationFormSections({
           ollamaModel={formState.ollama_model}
           translationProvider={formState.translation_provider}
           transliterationMode={formState.transliteration_mode}
+          transliterationModel={formState.transliteration_model}
           llmModels={availableLlmModels}
           llmModelsLoading={isLoadingLlmModels}
           llmModelsError={llmModelError}
@@ -230,6 +231,7 @@ export function BookNarrationFormSections({
           onOllamaModelChange={(value) => handleChange('ollama_model', value)}
           onTranslationProviderChange={(value) => handleChange('translation_provider', value)}
           onTransliterationModeChange={(value) => handleChange('transliteration_mode', value)}
+          onTransliterationModelChange={(value) => handleChange('transliteration_model', value)}
           onSentencesPerOutputFileChange={(value) =>
             handleChange('sentences_per_output_file', value)
           }

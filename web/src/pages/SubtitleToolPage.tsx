@@ -188,6 +188,7 @@ export default function SubtitleToolPage({
   const [endTime, setEndTime] = useState<string>('');
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_LLM_MODEL);
+  const [transliterationModel, setTransliterationModel] = useState<string>('');
   const [translationProvider, setTranslationProvider] = useState<string>('llm');
   const [transliterationMode, setTransliterationMode] = useState<string>('default');
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
@@ -269,6 +270,9 @@ export default function SubtitleToolPage({
     }
     if (prefillParameters.transliteration_mode && typeof prefillParameters.transliteration_mode === 'string') {
       setTransliterationMode(prefillParameters.transliteration_mode.trim());
+    }
+    if (prefillParameters.transliteration_model && typeof prefillParameters.transliteration_model === 'string') {
+      setTransliterationModel(prefillParameters.transliteration_model.trim());
     }
     const sourcePath =
       typeof prefillParameters.subtitle_path === 'string'
@@ -677,6 +681,9 @@ export default function SubtitleToolPage({
       if (transliterationMode.trim()) {
         formData.append('transliteration_mode', transliterationMode.trim());
       }
+      if (transliterationModel.trim()) {
+        formData.append('transliteration_model', transliterationModel.trim());
+      }
       if (normalisedEndTime) {
         formData.append('end_time', normalisedEndTime);
       }
@@ -761,7 +768,8 @@ export default function SubtitleToolPage({
       assEmphasis,
       mediaMetadataDraft,
       translationProvider,
-      transliterationMode
+      transliterationMode,
+      transliterationModel
     ]
   );
 
@@ -863,6 +871,7 @@ export default function SubtitleToolPage({
             targetLanguage={targetLanguage}
             sortedLanguageOptions={sortedLanguageOptions}
             selectedModel={selectedModel}
+            transliterationModel={transliterationModel}
             availableModels={availableModels}
             modelsLoading={modelsLoading}
             modelsError={modelsError}
@@ -884,6 +893,7 @@ export default function SubtitleToolPage({
             onModelChange={setSelectedModel}
             onTranslationProviderChange={setTranslationProvider}
             onTransliterationModeChange={setTransliterationMode}
+            onTransliterationModelChange={setTransliterationModel}
             onEnableTransliterationChange={setEnableTransliteration}
             onEnableHighlightChange={setEnableHighlight}
             onGenerateAudioBookChange={setGenerateAudioBook}

@@ -59,6 +59,7 @@ type VideoDubbingOptionsPanelProps = {
   isPreviewing: boolean;
   previewError: string | null;
   llmModel: string;
+  transliterationModel: string;
   llmModels: string[];
   isLoadingModels: boolean;
   modelError: string | null;
@@ -78,6 +79,7 @@ type VideoDubbingOptionsPanelProps = {
   onModelChange: (value: string) => void;
   onTranslationProviderChange: (value: string) => void;
   onTransliterationModeChange: (value: string) => void;
+  onTransliterationModelChange: (value: string) => void;
   onTargetHeightChange: (value: number) => void;
   onPreserveAspectRatioChange: (value: boolean) => void;
   onSplitBatchesChange: (value: boolean) => void;
@@ -98,6 +100,7 @@ export default function VideoDubbingOptionsPanel({
   isPreviewing,
   previewError,
   llmModel,
+  transliterationModel,
   llmModels,
   isLoadingModels,
   modelError,
@@ -117,6 +120,7 @@ export default function VideoDubbingOptionsPanel({
   onModelChange,
   onTranslationProviderChange,
   onTransliterationModeChange,
+  onTransliterationModelChange,
   onTargetHeightChange,
   onPreserveAspectRatioChange,
   onSplitBatchesChange,
@@ -129,6 +133,15 @@ export default function VideoDubbingOptionsPanel({
   const resolvedTranslationProvider = normalizeTranslationProvider(translationProvider);
   const usesGoogleTranslate = resolvedTranslationProvider === 'googletrans';
   const resolvedTransliterationMode = normalizeTransliterationMode(transliterationMode);
+  const allowTransliterationModel = resolvedTransliterationMode !== 'python';
+  const baseModelOptions = llmModels.length ? llmModels : [DEFAULT_LLM_MODEL];
+  const modelOptions = Array.from(
+    new Set([...(llmModel.trim() ? [llmModel.trim()] : []), ...baseModelOptions])
+  );
+  const transliterationModelValue = transliterationModel.trim();
+  const transliterationModelOptions = Array.from(
+    new Set([...(transliterationModelValue ? [transliterationModelValue] : []), ...modelOptions])
+  );
   const selectedTransliterationOption =
     TRANSLITERATION_MODE_OPTIONS.find((option) => option.value === resolvedTransliterationMode) ??
     TRANSLITERATION_MODE_OPTIONS[0];
@@ -204,11 +217,11 @@ export default function VideoDubbingOptionsPanel({
             onChange={(event) => onModelChange(event.target.value)}
             disabled={isLoadingModels}
           >
-            {[...(llmModels.length ? llmModels : [DEFAULT_LLM_MODEL])].map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
+          {modelOptions.map((model) => (
+            <option key={model} value={model}>
+              {model}
+            </option>
+          ))}
           </select>
           <p className={styles.fieldHint}>
             {usesGoogleTranslate
@@ -217,6 +230,30 @@ export default function VideoDubbingOptionsPanel({
           </p>
           {isLoadingModels ? <p className={styles.status}>Loading models…</p> : null}
           {modelError ? <p className={styles.error}>{modelError}</p> : null}
+        </label>
+        <label className={styles.field}>
+          <span>Transliteration model</span>
+          <select
+            className={styles.input}
+            value={transliterationModel}
+            onChange={(event) => onTransliterationModelChange(event.target.value)}
+            disabled={
+              !allowTransliterationModel ||
+              (isLoadingModels && llmModels.length === 0 && llmModel.trim().length === 0)
+            }
+          >
+            <option value="">Use translation model</option>
+            {transliterationModelOptions.map((model) => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
+          <p className={styles.fieldHint}>
+            {allowTransliterationModel
+              ? 'Overrides the model used for transliteration. Leave blank to reuse the translation model.'
+              : 'Transliteration model selection is disabled when using the python module.'}
+          </p>
         </label>
         <label className={styles.field}>
           <span>Transliteration mode</span>

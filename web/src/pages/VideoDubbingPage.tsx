@@ -132,6 +132,7 @@ export default function VideoDubbingPage({
   const [targetHeight, setTargetHeight] = useState(480);
   const [preserveAspectRatio, setPreserveAspectRatio] = useState(true);
   const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
+  const [transliterationModel, setTransliterationModel] = useState('');
   const [translationProvider, setTranslationProvider] = useState('llm');
   const [transliterationMode, setTransliterationMode] = useState('default');
   const [splitBatches, setSplitBatches] = useState(true);
@@ -711,6 +712,9 @@ export default function VideoDubbingPage({
     if (prefillParameters.transliteration_mode && typeof prefillParameters.transliteration_mode === 'string') {
       setTransliterationMode(prefillParameters.transliteration_mode.trim());
     }
+    if (prefillParameters.transliteration_model && typeof prefillParameters.transliteration_model === 'string') {
+      setTransliterationModel(prefillParameters.transliteration_model.trim());
+    }
     if (typeof prefillParameters.include_transliteration === 'boolean') {
       setIncludeTransliteration(prefillParameters.include_transliteration);
     } else {
@@ -1010,6 +1014,7 @@ export default function VideoDubbingPage({
         translation_provider: translationProvider || undefined,
         translation_batch_size: translationBatchSize,
         transliteration_mode: transliterationMode || undefined,
+        transliteration_model: transliterationModel || undefined,
         split_batches: splitBatches,
         stitch_batches: stitchBatches,
         include_transliteration: includeTransliteration,
@@ -1041,6 +1046,7 @@ export default function VideoDubbingPage({
     llmModel,
     translationProvider,
     transliterationMode,
+    transliterationModel,
     splitBatches,
     stitchBatches,
     includeTransliteration,
@@ -1215,6 +1221,7 @@ export default function VideoDubbingPage({
           isPreviewing={isPreviewing}
           previewError={previewError}
           llmModel={llmModel}
+          transliterationModel={transliterationModel}
           llmModels={llmModels}
           isLoadingModels={isLoadingModels}
           modelError={modelError}
@@ -1234,6 +1241,7 @@ export default function VideoDubbingPage({
           onModelChange={setLlmModel}
           onTranslationProviderChange={setTranslationProvider}
           onTransliterationModeChange={setTransliterationMode}
+          onTransliterationModelChange={setTransliterationModel}
           onTargetHeightChange={setTargetHeight}
           onPreserveAspectRatioChange={setPreserveAspectRatio}
           onSplitBatchesChange={setSplitBatches}

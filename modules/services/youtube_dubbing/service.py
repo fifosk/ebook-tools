@@ -220,6 +220,7 @@ def _run_dub_job(
     translation_provider: Optional[str] = None,
     translation_batch_size: Optional[int] = None,
     transliteration_mode: Optional[str] = None,
+    transliteration_model: Optional[str] = None,
     split_batches: bool = False,
     stitch_batches: bool = True,
     include_transliteration: Optional[bool] = None,
@@ -264,6 +265,12 @@ def _run_dub_job(
         resolved_transliteration_mode = (
             _normalize_transliteration_mode(transliteration_mode) or "default"
         )
+        resolved_transliteration_model = (transliteration_model or "").strip() or None
+        if resolved_transliteration_mode == "default":
+            if not resolved_transliteration_model:
+                resolved_transliteration_model = llm_model
+        else:
+            resolved_transliteration_model = None
         requested_transliteration = (
             _language_uses_non_latin(language_code)
             if include_transliteration is None
@@ -334,7 +341,7 @@ def _run_dub_job(
                 include_transliteration=False,
                 transliterator=None,
                 transliteration_mode=resolved_transliteration_mode,
-                llm_model=llm_model,
+                transliteration_model=resolved_transliteration_model,
             )
             if vtt_variant:
                 subtitle_artifacts.append(vtt_variant)
@@ -409,7 +416,7 @@ def _run_dub_job(
                                 include_transliteration=include_transliteration_resolved,
                                 transliterator=transliterator if include_transliteration_resolved else None,
                                 transliteration_mode=resolved_transliteration_mode,
-                                llm_model=llm_model,
+                                transliteration_model=resolved_transliteration_model,
                             )
                             if vtt_variant:
                                 if vtt_variant not in subtitle_artifacts:
@@ -424,7 +431,7 @@ def _run_dub_job(
                                 include_transliteration=include_transliteration_resolved,
                                 transliterator=transliterator if include_transliteration_resolved else None,
                                 transliteration_mode=resolved_transliteration_mode,
-                                llm_model=llm_model,
+                                transliteration_model=resolved_transliteration_model,
                             )
                             if aligned_variant:
                                 if aligned_variant not in subtitle_artifacts:
@@ -504,6 +511,7 @@ def _run_dub_job(
             translation_provider=resolved_translation_provider,
             translation_batch_size=resolved_translation_batch_size,
             transliteration_mode=resolved_transliteration_mode,
+            transliteration_model=resolved_transliteration_model,
             split_batches=split_batches,
             include_transliteration=include_transliteration_resolved,
             on_batch_written=_register_written_path,
@@ -544,7 +552,7 @@ def _run_dub_job(
                         include_transliteration=include_transliteration_resolved,
                         transliterator=transliterator if include_transliteration_resolved else None,
                         transliteration_mode=resolved_transliteration_mode,
-                        llm_model=llm_model,
+                        transliteration_model=resolved_transliteration_model,
                         target_height=target_height_resolved,
                         preserve_aspect_ratio=preserve_aspect_ratio,
                     )
@@ -696,7 +704,7 @@ def _run_dub_job(
         translation_provider=resolved_translation_provider,
         translation_batch_size=resolved_translation_batch_size,
         transliteration_mode=resolved_transliteration_mode,
-        transliteration_model=llm_model if resolved_transliteration_mode == "default" else None,
+        transliteration_model=resolved_transliteration_model,
         transliteration_module=resolve_local_transliteration_module(language_code)
         if resolved_transliteration_mode == "python"
         else None,
@@ -753,6 +761,7 @@ class YoutubeDubbingService:
         translation_provider: Optional[str] = None,
         translation_batch_size: Optional[int] = None,
         transliteration_mode: Optional[str] = None,
+        transliteration_model: Optional[str] = None,
         split_batches: Optional[bool] = None,
         stitch_batches: Optional[bool] = None,
         include_transliteration: Optional[bool] = None,
@@ -799,6 +808,7 @@ class YoutubeDubbingService:
         resolved_transliteration_mode = (
             _normalize_transliteration_mode(transliteration_mode) or "default"
         )
+        resolved_transliteration_model = (transliteration_model or "").strip() or None
         payload = {
             "video_path": resolved_video.as_posix(),
             "subtitle_path": resolved_subtitle.as_posix(),
@@ -818,6 +828,7 @@ class YoutubeDubbingService:
             "translation_provider": resolved_translation_provider,
             "translation_batch_size": resolved_translation_batch_size,
             "transliteration_mode": resolved_transliteration_mode,
+            "transliteration_model": resolved_transliteration_model,
             "split_batches": bool(split_batches) if split_batches is not None else False,
             "stitch_batches": True if stitch_batches is None else bool(stitch_batches),
             "include_transliteration": include_transliteration,
@@ -847,6 +858,7 @@ class YoutubeDubbingService:
                     translation_provider=resolved_translation_provider,
                     translation_batch_size=resolved_translation_batch_size,
                     transliteration_mode=resolved_transliteration_mode,
+                    transliteration_model=resolved_transliteration_model,
                     split_batches=bool(split_batches) if split_batches is not None else False,
                     stitch_batches=True if stitch_batches is None else bool(stitch_batches),
                     include_transliteration=include_transliteration,

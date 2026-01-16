@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import threading
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
@@ -49,6 +50,13 @@ class PipelineState:
         default_factory=dict
     )
     image_state: Any = None
+    media_batch_total: int = 0
+    media_batch_completed: int = 0
+    media_batch_items_total: int = 0
+    media_batch_items_completed: int = 0
+    media_batch_size: int = 0
+    media_batch_first_size: Optional[int] = None
+    media_batch_ids: Set[str] = field(default_factory=set)
 
 
 class RenderPipeline:
@@ -92,6 +100,7 @@ class RenderPipeline:
         translation_provider: Optional[str] = None,
         translation_batch_size: Optional[int] = None,
         transliteration_mode: Optional[str] = None,
+        transliteration_model: Optional[str] = None,
         book_metadata: Optional[dict] = None,
     ) -> Tuple[
         List[str],
@@ -194,9 +203,12 @@ class RenderPipeline:
         normalized_transliteration_mode = self._normalize_transliteration_mode(
             transliteration_mode
         )
-        transliteration_client = self._resolve_transliteration_client(
-            normalized_transliteration_mode,
-            translation_client,
+        transliteration_client, owns_transliteration_client = (
+            self._resolve_transliteration_client(
+                normalized_transliteration_mode,
+                translation_client,
+                transliteration_model,
+            )
         )
         worker_count = max(1, self._config.thread_count)
         active_translation_pool = self._external_translation_pool
@@ -266,6 +278,8 @@ class RenderPipeline:
         finally:
             if own_pool and active_translation_pool is not None:
                 active_translation_pool.shutdown()
+            if owns_transliteration_client and transliteration_client is not None:
+                transliteration_client.close()
 
         if state.written_blocks and not self._should_stop():
             audio_tracks: Dict[str, List[AudioSegment]] = {}
@@ -326,6 +340,7 @@ class RenderPipeline:
         if video_path:
             state.batch_video_files.append(video_path)
         if self._progress is not None:
+            self._record_media_batch_progress(state, result)
             self._progress.record_generated_chunk(
                 chunk_id=result.chunk_id,
                 start_sentence=result.start_sentence,
@@ -353,6 +368,43 @@ class RenderPipeline:
                             audio_tracks=snapshot.get("audio_tracks") or result.audio_tracks,
                             timing_tracks=snapshot.get("timing_tracks") or result.timing_tracks,
                         )
+
+    def _record_media_batch_progress(
+        self,
+        state: PipelineState,
+        result: BatchExportResult,
+    ) -> None:
+        if self._progress is None:
+            return
+        if state.media_batch_total <= 0:
+            return
+        chunk_id = str(result.chunk_id or "")
+        if not chunk_id:
+            return
+        if chunk_id in state.media_batch_ids:
+            return
+        state.media_batch_ids.add(chunk_id)
+        if result.sentences:
+            item_count = len(result.sentences)
+        else:
+            try:
+                item_count = int(result.end_sentence) - int(result.start_sentence) + 1
+            except (TypeError, ValueError):
+                item_count = 0
+        state.media_batch_completed += 1
+        state.media_batch_items_completed += max(0, item_count)
+        payload: Dict[str, object] = {
+            "batch_size": state.media_batch_size,
+            "batches_total": state.media_batch_total,
+            "batches_completed": state.media_batch_completed,
+            "items_total": state.media_batch_items_total,
+            "items_completed": state.media_batch_items_completed,
+            "last_updated": round(time.time(), 3),
+        }
+        if state.media_batch_first_size:
+            payload["first_batch_size"] = state.media_batch_first_size
+        self._progress.update_generated_files_metadata({"media_batch_stats": payload})
+
 
     def _handle_export_future_completion(
         self,
@@ -419,10 +471,31 @@ class RenderPipeline:
             return "default"
         return "default"
 
-    def _resolve_transliteration_client(self, mode: str, translation_client):
+    def _resolve_transliteration_client(
+        self,
+        mode: str,
+        translation_client,
+        transliteration_model: Optional[str],
+    ):
         if mode == "python":
-            return None
-        return translation_client
+            return None, False
+        resolved_model = (transliteration_model or "").strip()
+        if not resolved_model:
+            return translation_client, False
+        if resolved_model == translation_client.model:
+            return translation_client, False
+        client = create_client(
+            model=resolved_model,
+            api_url=self._config.ollama_url,
+            debug=self._config.debug,
+            api_key=self._config.ollama_api_key,
+            llm_source=self._config.llm_source,
+            local_api_url=self._config.local_ollama_url,
+            cloud_api_url=self._config.cloud_ollama_url,
+            lmstudio_api_url=self._config.lmstudio_url,
+            cloud_api_key=self._config.ollama_api_key,
+        )
+        return client, True
 
     def _load_cover_image(
         self,

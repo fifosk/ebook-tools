@@ -76,6 +76,7 @@ def generate_dubbed_video(
     llm_model: Optional[str] = None,
     translation_provider: Optional[str] = None,
     transliteration_mode: Optional[str] = None,
+    transliteration_model: Optional[str] = None,
     output_dir: Optional[Path] = None,
     tracker: Optional[ProgressTracker] = None,
     stop_event: Optional[threading.Event] = None,
@@ -346,7 +347,7 @@ def generate_dubbed_video(
                         include_transliteration=include_transliteration_resolved,
                         transliterator=transliterator if include_transliteration_resolved else None,
                         transliteration_mode=transliteration_mode,
-                        llm_model=llm_model,
+                        transliteration_model=transliteration_model,
                     )
                 except Exception:
                     logger.debug("Unable to write batch-aligned VTT for %s", batch_path, exc_info=True)
@@ -367,7 +368,7 @@ def generate_dubbed_video(
                             include_transliteration=include_transliteration_resolved,
                             transliterator=transliterator,
                             transliteration_mode=transliteration_mode,
-                            llm_model=llm_model,
+                            transliteration_model=transliteration_model,
                             language_code=language_code,
                             ass_renderer=ass_renderer,
                         )
@@ -475,6 +476,7 @@ def generate_dubbed_video(
                 transliterator=transliterator,
                 llm_model=llm_model,
                 transliteration_mode=transliteration_mode,
+                transliteration_model=transliteration_model,
                 tracker=tracker,
                 offset=block_index,
                 total_dialogues=total_dialogues,
@@ -568,7 +570,7 @@ def generate_dubbed_video(
                     include_transliteration=include_transliteration_resolved,
                     transliterator=transliterator,
                     transliteration_mode=transliteration_mode,
-                    llm_model=llm_model,
+                    transliteration_model=transliteration_model,
                     language_code=language_code,
                     ass_renderer=ass_renderer,
                 )
@@ -879,7 +881,7 @@ def generate_dubbed_video(
                     include_transliteration=include_transliteration_resolved,
                     transliterator=transliterator if include_transliteration_resolved else None,
                     transliteration_mode=transliteration_mode,
-                    llm_model=llm_model,
+                    transliteration_model=transliteration_model,
                 )
             except Exception:
                 logger.debug("Unable to create WebVTT subtitles for %s", output_path, exc_info=True)

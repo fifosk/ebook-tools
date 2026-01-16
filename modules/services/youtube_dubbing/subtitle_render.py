@@ -19,7 +19,7 @@ def render_ass_for_block(
     include_transliteration: bool,
     transliterator: Optional[TransliterationService],
     transliteration_mode: Optional[str] = None,
-    llm_model: Optional[str] = None,
+    transliteration_model: Optional[str] = None,
     language_code: str,
     ass_renderer: CueTextRenderer,
 ) -> int:
@@ -35,7 +35,7 @@ def render_ass_for_block(
                     entry.translation,
                     language_code,
                     transliteration_mode=transliteration_mode,
-                    llm_model=llm_model,
+                    transliteration_model=transliteration_model,
                 )
             except Exception:
                 transliteration = ""

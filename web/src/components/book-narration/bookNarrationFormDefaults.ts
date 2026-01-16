@@ -52,6 +52,7 @@ export const DEFAULT_FORM_STATE: FormState = {
   translation_provider: 'llm',
   translation_batch_size: 10,
   transliteration_mode: 'default',
+  transliteration_model: '',
   tempo: 1,
   thread_count: '',
   queue_size: '',

@@ -59,6 +59,7 @@ type BookNarrationLanguageSectionProps = {
   ollamaModel: string;
   translationProvider: string;
   transliterationMode: string;
+  transliterationModel: string;
   llmModels: string[];
   llmModelsLoading: boolean;
   llmModelsError: string | null;
@@ -84,6 +85,7 @@ type BookNarrationLanguageSectionProps = {
   onOllamaModelChange: (value: string) => void;
   onTranslationProviderChange: (value: string) => void;
   onTransliterationModeChange: (value: string) => void;
+  onTransliterationModelChange: (value: string) => void;
   onSentencesPerOutputFileChange: (value: number) => void;
   onStartSentenceChange: (value: number) => void;
   onEndSentenceChange: (value: string) => void;
@@ -106,6 +108,7 @@ const BookNarrationLanguageSection = ({
   ollamaModel,
   translationProvider,
   transliterationMode,
+  transliterationModel,
   llmModels,
   llmModelsLoading,
   llmModelsError,
@@ -130,6 +133,7 @@ const BookNarrationLanguageSection = ({
   onOllamaModelChange,
   onTranslationProviderChange,
   onTransliterationModeChange,
+  onTransliterationModelChange,
   onSentencesPerOutputFileChange,
   onStartSentenceChange,
   onEndSentenceChange,
@@ -165,6 +169,11 @@ const BookNarrationLanguageSection = ({
   const resolvedTranslationProvider = normalizeTranslationProvider(translationProvider);
   const usesGoogleTranslate = resolvedTranslationProvider === 'googletrans';
   const resolvedTransliterationMode = normalizeTransliterationMode(transliterationMode);
+  const allowTransliterationModel = resolvedTransliterationMode !== 'python';
+  const transliterationModelValue = transliterationModel.trim();
+  const transliterationModelOptions = Array.from(
+    new Set([...(transliterationModelValue ? [transliterationModelValue] : []), ...modelOptions])
+  );
   const selectedTransliterationOption =
     TRANSLITERATION_MODE_OPTIONS.find((option) => option.value === resolvedTransliterationMode) ??
     TRANSLITERATION_MODE_OPTIONS[0];
@@ -228,6 +237,29 @@ const BookNarrationLanguageSection = ({
             : usesGoogleTranslate
             ? 'Leave blank to use the default server model for transliteration.'
             : 'Leave blank to use the default server model.'}
+        </small>
+        <label htmlFor="transliteration_model">Transliteration model (optional)</label>
+        <select
+          id="transliteration_model"
+          name="transliteration_model"
+          value={transliterationModel}
+          onChange={(event) => onTransliterationModelChange(event.target.value)}
+          disabled={
+            !allowTransliterationModel ||
+            (llmModelsLoading && llmModels.length === 0 && currentModel.length === 0)
+          }
+        >
+          <option value="">Use translation model</option>
+          {transliterationModelOptions.map((model) => (
+            <option key={model} value={model}>
+              {model}
+            </option>
+          ))}
+        </select>
+        <small className="form-help-text">
+          {allowTransliterationModel
+            ? 'Overrides the model used for transliteration. Leave blank to reuse the translation model.'
+            : 'Transliteration model selection is disabled when using the python module.'}
         </small>
         <label htmlFor="transliteration_mode">Transliteration mode</label>
         <select

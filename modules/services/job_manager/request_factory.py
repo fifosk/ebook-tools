@@ -92,6 +92,9 @@ def _build_pipeline_input(payload: Mapping[str, Any]) -> PipelineInput:
         include_transliteration=_coerce_bool(data.get("include_transliteration"), True),
         translation_provider=str(data.get("translation_provider") or "llm"),
         transliteration_mode=str(data.get("transliteration_mode") or "default"),
+        transliteration_model=(
+            str(data.get("transliteration_model") or "").strip() or None
+        ),
         tempo=_coerce_float(data.get("tempo"), 1.0),
         book_metadata=PipelineMetadata.from_mapping(book_metadata),
     )

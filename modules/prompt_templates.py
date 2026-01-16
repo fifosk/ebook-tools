@@ -64,6 +64,86 @@ _LANGUAGE_NAME_TO_CODE = {name.casefold(): code for name, code in LANGUAGE_CODES
 _LANGUAGE_CODE_TO_NAME = {code.casefold(): name for name, code in LANGUAGE_CODES.items()}
 _LANG_CODE_PATTERN = regex.compile(r"^[a-z]{2,3}(?:[_-][a-z0-9]{2,4})?$", regex.IGNORECASE)
 _LANG_CODE_IN_PARENS = regex.compile(r"\(([a-z]{2,3}(?:[_-][a-z0-9]{2,4})?)\)", regex.IGNORECASE)
+_TRANSLATEGEMMA_MODEL_HINTS = ("translategemma", "translate-gemma", "translate_gemma")
+_TRANSLATEGEMMA_LANG_CODE_PATTERN = regex.compile(r"^[a-z]{2}(?:[_-][a-z]{2})?$", regex.IGNORECASE)
+
+
+def is_translategemma_model(model: Optional[str]) -> bool:
+    if not isinstance(model, str):
+        return False
+    normalized = model.strip().lower()
+    if not normalized:
+        return False
+    return any(hint in normalized for hint in _TRANSLATEGEMMA_MODEL_HINTS)
+
+
+def resolve_translategemma_language_code(language: Optional[str]) -> Optional[str]:
+    if not isinstance(language, str):
+        return None
+    cleaned = language.strip()
+    if not cleaned:
+        return None
+    match = _LANG_CODE_IN_PARENS.search(cleaned)
+    candidate = match.group(1) if match else cleaned
+    normalized = candidate.strip().replace("_", "-")
+    if not normalized:
+        return None
+    if not _LANG_CODE_PATTERN.match(normalized):
+        mapped = _LANGUAGE_NAME_TO_CODE.get(normalized.casefold())
+        if not mapped:
+            return None
+        normalized = mapped.replace("_", "-")
+    if not _TRANSLATEGEMMA_LANG_CODE_PATTERN.match(normalized):
+        return None
+    base, sep, region = normalized.partition("-")
+    if not region:
+        return base.lower()
+    return f"{base.lower()}-{region.upper()}"
+
+
+def _resolve_language_code_for_prompt(language: Optional[str]) -> Optional[str]:
+    if not isinstance(language, str):
+        return None
+    cleaned = language.strip()
+    if not cleaned:
+        return None
+    match = _LANG_CODE_IN_PARENS.search(cleaned)
+    candidate = match.group(1) if match else cleaned
+    normalized = candidate.strip().replace("_", "-")
+    if not normalized:
+        return None
+    if not _LANG_CODE_PATTERN.match(normalized):
+        mapped = _LANGUAGE_NAME_TO_CODE.get(normalized.casefold())
+        if not mapped:
+            return None
+        normalized = mapped.replace("_", "-")
+    base, _sep, region = normalized.partition("-")
+    if not region:
+        return base.lower()
+    return f"{base.lower()}-{region.upper()}"
+
+
+def resolve_translategemma_language_name(
+    language: Optional[str],
+    code: Optional[str],
+) -> str:
+    if isinstance(language, str):
+        cleaned = language.strip()
+        if cleaned:
+            normalized = cleaned.replace("_", "-")
+            if not _LANG_CODE_PATTERN.match(normalized):
+                return cleaned
+    if code:
+        normalized_code = code.replace("_", "-").lower()
+        name = _LANGUAGE_CODE_TO_NAME.get(normalized_code)
+        if name is None and "-" in normalized_code:
+            base = normalized_code.split("-", 1)[0]
+            name = _LANGUAGE_CODE_TO_NAME.get(base)
+        if name:
+            return name
+    if isinstance(language, str) and language.strip():
+        return language.strip()
+    return code or "Unknown"
 
 
 def _format_language_descriptor(language: str) -> str:
@@ -280,6 +360,122 @@ def make_translation_batch_prompt(
     return "\n".join(instructions)
 
 
+def translation_supports_json_batch(model: Optional[str]) -> bool:
+    return not is_translategemma_model(model)
+
+
+def transliteration_supports_json_batch(model: Optional[str]) -> bool:
+    return not is_translategemma_model(model)
+
+
+def make_translation_payload(
+    sentence: str,
+    source_language: str,
+    target_language: str,
+    *,
+    model: Optional[str] = None,
+    stream: bool = True,
+    include_transliteration: bool = False,
+    llm_source: Optional[str] = None,
+) -> tuple[Dict[str, object], Optional[str], str]:
+    if is_translategemma_model(model) and (llm_source or "").strip().lower() == "lmstudio":
+        completion_payload = make_translategemma_completion_payload(
+            sentence,
+            source_language,
+            target_language,
+            model=model,
+        )
+        if completion_payload is not None:
+            return completion_payload, None, "completion"
+
+    if is_translategemma_model(model):
+        source_code = resolve_translategemma_language_code(source_language)
+        target_code = resolve_translategemma_language_code(target_language)
+        if source_code and target_code:
+            content = [
+                {
+                    "type": "text",
+                    "source_lang_code": source_code,
+                    "target_lang_code": target_code,
+                    "text": sentence,
+                }
+            ]
+            payload = make_sentence_payload(
+                content,
+                model=model,
+                stream=stream,
+            )
+            return payload, None, "chat"
+
+    wrapped_sentence = f"{SOURCE_START}\n{sentence}\n{SOURCE_END}"
+    system_prompt = make_translation_prompt(
+        source_language,
+        target_language,
+        include_transliteration=include_transliteration,
+    )
+    payload = make_sentence_payload(
+        wrapped_sentence,
+        model=model,
+        stream=stream,
+        system_prompt=system_prompt,
+    )
+    return payload, system_prompt, "chat"
+
+
+def make_translategemma_completion_payload(
+    sentence: str,
+    source_language: str,
+    target_language: str,
+    *,
+    model: Optional[str] = None,
+) -> Optional[Dict[str, object]]:
+    prompt = make_translategemma_completion_prompt(
+        sentence,
+        source_language,
+        target_language,
+    )
+    if prompt is None:
+        return None
+    resolved_model = model or cfg.DEFAULT_MODEL
+    return {
+        "model": resolved_model,
+        "prompt": prompt,
+        "stream": False,
+        "stop": ["<end_of_turn>"],
+    }
+
+
+def make_translategemma_completion_prompt(
+    sentence: str,
+    source_language: str,
+    target_language: str,
+) -> Optional[str]:
+    source_code = resolve_translategemma_language_code(source_language)
+    target_code = resolve_translategemma_language_code(target_language)
+    if not source_code:
+        source_code = _resolve_language_code_for_prompt(source_language)
+    if not target_code:
+        target_code = _resolve_language_code_for_prompt(target_language)
+    if not source_code:
+        source_code = "xx"
+    if not target_code:
+        target_code = "xx"
+    source_name = resolve_translategemma_language_name(source_language, source_code)
+    target_name = resolve_translategemma_language_name(target_language, target_code)
+    cleaned_sentence = (sentence or "").strip()
+    return (
+        "<bos><start_of_turn>user\n"
+        f"You are a professional {source_name} ({source_code}) to {target_name} ({target_code}) translator. "
+        "Your goal is to accurately convey the meaning and nuances of the original "
+        f"{source_name} text while adhering to {target_name} grammar, vocabulary, and cultural sensitivities.\n"
+        f"Produce only the {target_name} translation, without any additional explanations or commentary. "
+        f"Please translate the following {source_name} text into {target_name}:\n\n\n"
+        f"{cleaned_sentence}\n"
+        "<end_of_turn>\n"
+        "<start_of_turn>model\n"
+    )
+
+
 def make_transliteration_prompt(target_language: str) -> str:
     """Prompt for requesting a transliteration from the model."""
 
@@ -300,20 +496,68 @@ def make_transliteration_prompt(target_language: str) -> str:
     return "\n".join(instructions)
 
 
+def make_transliteration_batch_prompt(target_language: str) -> str:
+    """Build a transliteration prompt for JSON batch requests."""
+
+    target_lower = (target_language or "").lower()
+    target_descriptor = _format_language_descriptor(target_language)
+
+    instructions = [
+        f"Transliterate each item in {target_descriptor} into Latin script for English pronunciation.",
+        "The input is a JSON object with an `items` array; each item includes an `id` and `text`.",
+        "Return ONLY valid JSON with an `items` array of objects.",
+        "Never include markdown, code fences, commentary, or labels.",
+        "Do not include the source text in the response.",
+        "Each output item MUST include `id` and `transliteration` fields.",
+        "The `transliteration` value must be a single-line string without line breaks.",
+        "Preserve word boundaries with spaces; avoid labels or extra commentary.",
+        "If you cannot transliterate an item, return an empty string for `transliteration`.",
+        "Use Latin script only for the transliteration output.",
+    ]
+
+    if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["thai"]["aliases"]):
+        instructions.append(
+            "When providing the Thai transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
+        )
+    if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["burmese"]["aliases"]):
+        instructions.append(
+            "When providing the Burmese transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
+        )
+    if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["japanese"]["aliases"]):
+        instructions.append(
+            "When providing the Japanese transliteration (romaji), keep it on ONE LINE, separate words or phrases with SPACES (NOT per-character or per-syllable), avoid labels, and mimic natural phrase boundaries."
+        )
+    if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["khmer"]["aliases"]):
+        instructions.append(
+            "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
+        )
+
+    for requirement in _DIACRITIC_REQUIREMENTS.values():
+        if any(alias in target_lower for alias in requirement["aliases"]):
+            instructions.append(
+                "Honor the vowel marks present in the source (tashkil/niqqud) and reflect them in the transliteration so the vowels are explicit; if marks are missing, infer a fully vowelled reading."
+            )
+
+    return "\n".join(instructions)
+
+
 def make_sentence_payload(
-    sentence: str,
+    sentence: object,
     *,
     model: Optional[str] = None,
     stream: bool = True,
     system_prompt: Optional[str] = None,
-    additional_messages: Optional[List[Dict[str, str]]] = None,
+    additional_messages: Optional[List[Dict[str, object]]] = None,
 ) -> Dict[str, object]:
-    """Build a chat payload using the configured defaults."""
+    """Build a chat payload using the configured defaults.
+
+    ``sentence`` can be a string or structured content payload (e.g., a list of content blocks).
+    """
 
     if model is None:
         model = cfg.DEFAULT_MODEL
 
-    messages: List[Dict[str, str]] = []
+    messages: List[Dict[str, object]] = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     if additional_messages:

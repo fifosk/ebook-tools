@@ -40,7 +40,7 @@ enum VideoSubtitleDisplayBuilder {
         time: Double,
         visibility: SubtitleVisibility
     ) -> VideoSubtitleDisplay? {
-        guard let activeIndex = cues.lastIndex(where: { time >= $0.start && time <= $0.end }) else {
+        guard let activeIndex = activeCueIndex(cues: cues, time: time) else {
             return nil
         }
         let cue = cues[activeIndex]
@@ -99,6 +99,26 @@ enum VideoSubtitleDisplayBuilder {
             ? [VideoSubtitleLine(text: cue.text, spans: cue.spans, kind: .translation)]
             : cue.lines
         return lines.filter { !($0.text.isEmpty) && visibility.allows($0.kind) }
+    }
+
+    // Uses start-sorted cues to avoid linear scans on large subtitle sets.
+    private static func activeCueIndex(cues: [VideoSubtitleCue], time: Double) -> Int? {
+        guard !cues.isEmpty, time.isFinite else { return nil }
+        var low = 0
+        var high = cues.count
+        while low < high {
+            let mid = (low + high) / 2
+            if cues[mid].start <= time {
+                low = mid + 1
+            } else {
+                high = mid
+            }
+        }
+        let index = low - 1
+        guard index >= 0 else { return nil }
+        let cue = cues[index]
+        guard time <= cue.end else { return nil }
+        return index
     }
 
     private static func tokenize(

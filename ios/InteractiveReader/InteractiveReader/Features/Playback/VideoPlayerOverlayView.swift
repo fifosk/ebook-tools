@@ -56,6 +56,7 @@ struct VideoPlayerOverlayView: View {
     let onSubtitleLookup: () -> Void
     let onSubtitleTokenLookup: (VideoSubtitleTokenReference) -> Void
     let onSubtitleTokenSeek: (VideoSubtitleTokenReference) -> Void
+    let onToggleTransliteration: () -> Void
     let onIncreaseSubtitleLinguistFont: () -> Void
     let onDecreaseSubtitleLinguistFont: () -> Void
     let onSelectSegment: ((String) -> Void)?
@@ -367,6 +368,9 @@ struct VideoPlayerOverlayView: View {
             .focused($focusTarget, equals: .subtitles)
             .focusSection()
             .focusEffectDisabled()
+            .onLongPressGesture(minimumDuration: 0.6) {
+                onToggleTransliteration()
+            }
             .onMoveCommand { direction in
                 guard !showSubtitleSettings else { return }
                 switch direction {

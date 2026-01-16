@@ -236,6 +236,10 @@ export function JobProgress({
     });
     return sortTuningEntries(filtered);
   }, [status?.tuning]);
+  const translationProviderRaw =
+    status?.parameters?.translation_provider ?? metadata['translation_provider'] ?? null;
+  const translationProvider = normalizeTranslationProvider(translationProviderRaw) ?? 'llm';
+  const configuredBatchSize = coerceNumber(status?.parameters?.translation_batch_size);
   const parallelismEntries = useMemo(() => {
     const entries: Array<{ label: string; value: string; hint?: string }> = [];
     const tuning = status?.tuning ?? null;
@@ -244,9 +248,6 @@ export function JobProgress({
       coerceNumber(tuningRecord?.thread_count) ?? coerceNumber(pipelineConfig?.thread_count);
     const translationPool =
       coerceNumber(tuningRecord?.translation_pool_workers) ?? threadCount;
-    const translationProviderRaw =
-      status?.parameters?.translation_provider ?? metadata['translation_provider'] ?? null;
-    const translationProvider = normalizeTranslationProvider(translationProviderRaw);
     const translationModel = normalizeTextValue(metadata['translation_model']);
     const llmModel =
       normalizeTextValue(status?.parameters?.llm_model) ??
@@ -270,7 +271,7 @@ export function JobProgress({
         translationModel,
         llmModel
       ) ?? 'Text translation';
-    const batchSize = coerceNumber(status?.parameters?.translation_batch_size);
+    const batchSize = configuredBatchSize;
     if (translationPool !== null) {
       const hintParts = ['Controlled by Worker threads'];
       if (translationProvider === 'llm' && modelName) {
@@ -334,6 +335,7 @@ export function JobProgress({
     }
     return entries;
   }, [
+    configuredBatchSize,
     metadata,
     pipelineConfig?.generate_audio,
     pipelineConfig?.ollama_model,
@@ -341,9 +343,8 @@ export function JobProgress({
     pipelineConfig?.thread_count,
     status?.parameters?.llm_model,
     status?.parameters?.selected_voice,
-    status?.parameters?.translation_batch_size,
-    status?.parameters?.translation_provider,
-    status?.tuning
+    status?.tuning,
+    translationProvider
   ]);
   const fallbackEntries = useMemo(() => {
     const generated = coerceRecord(status?.generated_files);
@@ -378,8 +379,57 @@ export function JobProgress({
       })
     : false;
 
+  const translationBatchStats = useMemo(() => {
+    const generated = status?.generated_files;
+    if (!generated || typeof generated !== 'object') {
+      return null;
+    }
+    return coerceRecord((generated as Record<string, unknown>)['translation_batch_stats']);
+  }, [status?.generated_files]);
+  const transliterationBatchStats = useMemo(() => {
+    const generated = status?.generated_files;
+    if (!generated || typeof generated !== 'object') {
+      return null;
+    }
+    return coerceRecord((generated as Record<string, unknown>)['transliteration_batch_stats']);
+  }, [status?.generated_files]);
+  const mediaBatchStats = useMemo(() => {
+    const generated = status?.generated_files;
+    if (!generated || typeof generated !== 'object') {
+      return null;
+    }
+    return coerceRecord((generated as Record<string, unknown>)['media_batch_stats']);
+  }, [status?.generated_files]);
+  const translationBatchSize =
+    coerceNumber(translationBatchStats?.['batch_size']) ?? configuredBatchSize;
+  const useBatchProgress =
+    Boolean(translationBatchStats || transliterationBatchStats || mediaBatchStats) ||
+    (translationBatchSize !== null && translationBatchSize > 1 && translationProvider === 'llm');
+  const buildBatchProgress = useCallback((stats: Record<string, unknown> | null) => {
+    if (!stats) {
+      return null;
+    }
+    const completed = coerceNumber(stats['batches_completed']);
+    if (completed === null) {
+      return null;
+    }
+    const total = coerceNumber(stats['batches_total']);
+    return { completed, total };
+  }, []);
+  const translationBatchProgress = useMemo(
+    () => (useBatchProgress ? buildBatchProgress(translationBatchStats) : null),
+    [buildBatchProgress, translationBatchStats, useBatchProgress]
+  );
+  const transliterationBatchProgress = useMemo(
+    () => (useBatchProgress ? buildBatchProgress(transliterationBatchStats) : null),
+    [buildBatchProgress, transliterationBatchStats, useBatchProgress]
+  );
+  const mediaBatchProgress = useMemo(
+    () => (useBatchProgress ? buildBatchProgress(mediaBatchStats) : null),
+    [buildBatchProgress, mediaBatchStats, useBatchProgress]
+  );
   const translationProgress = useMemo(() => {
-    if (!translationEvent) {
+    if (useBatchProgress || !translationEvent) {
       return null;
     }
     const meta = translationEvent.metadata;
@@ -388,14 +438,14 @@ export function JobProgress({
       coerceNumber(metaRecord?.translation_completed) ?? translationEvent.snapshot.completed;
     const total = coerceNumber(metaRecord?.translation_total) ?? translationEvent.snapshot.total;
     return { completed, total };
-  }, [translationEvent]);
+  }, [translationEvent, useBatchProgress]);
   const mediaProgress = useMemo(() => {
-    if (!mediaEvent) {
+    if (useBatchProgress || !mediaEvent) {
       return null;
     }
     const { completed, total } = mediaEvent.snapshot;
     return { completed, total };
-  }, [mediaEvent]);
+  }, [mediaEvent, useBatchProgress]);
   const formatProgressValue = useCallback((progress: { completed: number; total: number | null }) => {
     const completedLabel =
       typeof progress.completed === 'number' && Number.isFinite(progress.completed)
@@ -430,53 +480,49 @@ export function JobProgress({
       : undefined;
   const showLibraryReadyNotice = canManage && isLibraryCandidate;
   const jobParameterEntries = useMemo(() => buildJobParameterEntries(status), [status]);
-  const batchStats = useMemo(() => {
-    const generated = status?.generated_files;
-    if (!generated || typeof generated !== 'object') {
-      return null;
-    }
-    return coerceRecord((generated as Record<string, unknown>)['translation_batch_stats']);
-  }, [status?.generated_files]);
   const batchStatEntries = useMemo(() => {
     const entries: [string, string][] = [];
-    const configuredBatchSize = coerceNumber(status?.parameters?.translation_batch_size);
-    const statsBatchSize = coerceNumber(batchStats?.['batch_size']);
-    const resolvedBatchSize = statsBatchSize ?? configuredBatchSize;
+    const resolvedBatchSize = translationBatchSize;
     if (resolvedBatchSize !== null && resolvedBatchSize > 1) {
       entries.push(['Batch size', resolvedBatchSize.toString()]);
     }
-    if (!batchStats) {
+    if (!translationBatchStats) {
       if (resolvedBatchSize !== null && resolvedBatchSize > 1) {
         entries.push(['Batches completed', '0']);
         entries.push(['Items translated', '0']);
       }
       return entries;
     }
-    const batches = coerceNumber(batchStats['batches_completed']);
+    const batches = coerceNumber(translationBatchStats['batches_completed']);
     if (batches !== null) {
       entries.push(['Batches completed', batches.toString()]);
     }
-    const items = coerceNumber(batchStats['items_completed']);
+    const items = coerceNumber(translationBatchStats['items_completed']);
     if (items !== null) {
       entries.push(['Items translated', items.toString()]);
     }
-    const avgBatch = coerceNumber(batchStats['avg_batch_seconds']);
+    const avgBatch = coerceNumber(translationBatchStats['avg_batch_seconds']);
     if (avgBatch !== null) {
       entries.push(['Avg batch time', formatSeconds(avgBatch, 's/batch')]);
     }
-    const avgItem = coerceNumber(batchStats['avg_item_seconds']);
+    const avgItem = coerceNumber(translationBatchStats['avg_item_seconds']);
     if (avgItem !== null) {
       entries.push(['Avg item time', formatSeconds(avgItem, 's/item')]);
     }
-    const lastBatch = coerceNumber(batchStats['last_batch_seconds']);
-    const lastItems = coerceNumber(batchStats['last_batch_items']);
+    const lastBatch = coerceNumber(translationBatchStats['last_batch_seconds']);
+    const lastItems = coerceNumber(translationBatchStats['last_batch_items']);
     if (lastBatch !== null) {
       const suffix =
         lastItems !== null ? ` (${lastItems} sentence${lastItems === 1 ? '' : 's'})` : '';
       entries.push(['Last batch time', `${formatSeconds(lastBatch, 's/batch')}${suffix}`]);
     }
     return entries;
-  }, [batchStats, status?.parameters?.translation_batch_size]);
+  }, [translationBatchSize, translationBatchStats]);
+  const showBatchStageProgress =
+    useBatchProgress &&
+    Boolean(translationBatchProgress || transliterationBatchProgress || mediaBatchProgress);
+  const showSentenceStageProgress =
+    !useBatchProgress && Boolean(translationProgress || mediaProgress);
   const statusGlyph = getStatusGlyph(statusValue);
   const jobLabel = useMemo(() => normalizeTextValue(status?.job_label) ?? null, [status?.job_label]);
   const ownerId = typeof status?.user_id === 'string' ? status.user_id : null;
@@ -729,18 +775,43 @@ export function JobProgress({
           </div>
         </div>
       ) : null}
-      {showOverviewSections && (translationProgress || mediaProgress) ? (
+      {showOverviewSections && (showBatchStageProgress || showSentenceStageProgress) ? (
         <div>
           <h4>Stage progress</h4>
           <div className="progress-grid">
-            {translationProgress ? (
+            {showBatchStageProgress ? (
+              <>
+                {translationBatchProgress ? (
+                  <div className="progress-metric">
+                    <strong>Translation batches</strong>
+                    <span>{formatProgressValue(translationBatchProgress)}</span>
+                    <p className="progress-metric__hint">Counts completed translation batches.</p>
+                  </div>
+                ) : null}
+                {transliterationBatchProgress ? (
+                  <div className="progress-metric">
+                    <strong>Transliteration batches</strong>
+                    <span>{formatProgressValue(transliterationBatchProgress)}</span>
+                    <p className="progress-metric__hint">Counts completed transliteration batches.</p>
+                  </div>
+                ) : null}
+                {mediaBatchProgress ? (
+                  <div className="progress-metric">
+                    <strong>Media batches</strong>
+                    <span>{formatProgressValue(mediaBatchProgress)}</span>
+                    <p className="progress-metric__hint">Counts batches with finished media output.</p>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+            {!showBatchStageProgress && translationProgress ? (
               <div className="progress-metric">
                 <strong>Translation progress</strong>
                 <span>{formatProgressValue(translationProgress)}</span>
                 <p className="progress-metric__hint">Counts translated sentences (LLM/googletrans).</p>
               </div>
             ) : null}
-            {mediaProgress ? (
+            {!showBatchStageProgress && mediaProgress ? (
               <div className="progress-metric">
                 <strong>Media progress</strong>
                 <span>{formatProgressValue(mediaProgress)}</span>

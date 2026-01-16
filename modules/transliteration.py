@@ -217,6 +217,13 @@ def get_transliterator() -> TransliterationService:
     return _default_transliterator
 
 
+def is_python_transliteration_mode(mode: Optional[str]) -> bool:
+    """Return True when the transliteration mode disables LLM usage."""
+
+    mode_label = (mode or "").strip().lower()
+    return mode_label in _PYTHON_ONLY_MODES
+
+
 def resolve_local_transliteration_module(target_language: str) -> Optional[str]:
     """Return the python-module transliteration label for ``target_language`` when supported."""
 

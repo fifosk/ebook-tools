@@ -172,14 +172,23 @@ final class NowPlayingCoordinator: ObservableObject {
     func updatePlaybackState(isPlaying: Bool, position: Double, duration: Double) {
         #if canImport(MediaPlayer)
         let clamped = max(0, position)
+        var didUpdate = false
         if abs(clamped - lastElapsedUpdate) > 0.5 || duration != lastDuration {
             metadata[MPNowPlayingInfoPropertyElapsedPlaybackTime] = clamped
             metadata[MPMediaItemPropertyPlaybackDuration] = max(duration, 0)
             lastElapsedUpdate = clamped
             lastDuration = duration
+            didUpdate = true
         }
-        metadata[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
-        applyNowPlaying()
+        let playbackRate = isPlaying ? 1.0 : 0.0
+        let storedRate = (metadata[MPNowPlayingInfoPropertyPlaybackRate] as? NSNumber)?.doubleValue
+        if storedRate != playbackRate {
+            metadata[MPNowPlayingInfoPropertyPlaybackRate] = playbackRate
+            didUpdate = true
+        }
+        if didUpdate {
+            applyNowPlaying()
+        }
         #endif
     }
 

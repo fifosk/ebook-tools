@@ -99,8 +99,12 @@ struct InteractiveTranscriptView: View {
                     .contentShape(Rectangle())
                     .focusable(!isMenuVisible)
                     .focused($focusedArea, equals: .transcript)
+                    .focusEffectDisabled()
                     .onTapGesture {
                         onLookup()
+                    }
+                    .onLongPressGesture(minimumDuration: 0.6) {
+                        onToggleTrack(.transliteration)
                     }
                     .accessibilityAddTraits(.isButton)
 

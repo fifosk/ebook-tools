@@ -224,14 +224,33 @@ def process_subtitle_file(
                         if options.llm_model
                         else contextlib.nullcontext()
                     )
+                    transliteration_model = (
+                        options.transliteration_model
+                        if allow_llm_transliteration
+                        else None
+                    )
+                    transliteration_context = (
+                        create_client(model=transliteration_model)
+                        if transliteration_model
+                        and transliteration_model != options.llm_model
+                        else contextlib.nullcontext()
+                    )
                     try:
-                        with client_context as client:
+                        with client_context as client, transliteration_context as translit_client:
                             resolved_client = client if options.llm_model else None
+                            resolved_transliteration_client = (
+                                translit_client
+                                if transliteration_model
+                                and transliteration_model != options.llm_model
+                                else None
+                            )
                             translations = translate_batch(
                                 batch_sentences,
                                 language_context.translation_source_language,
                                 options.target_language,
                                 include_transliteration=allow_llm_transliteration,
+                                transliteration_mode=options.transliteration_mode,
+                                transliteration_client=resolved_transliteration_client,
                                 translation_provider=options.translation_provider,
                                 llm_batch_size=translation_batch_size,
                                 client=resolved_client,
@@ -434,9 +453,11 @@ def process_subtitle_file(
         "highlight": options.highlight,
         "transliteration": transliteration_enabled,
         "transliteration_mode": options.transliteration_mode,
-        "transliteration_model": options.llm_model
-        if options.transliteration_mode == "default"
-        else None,
+        "transliteration_model": (
+            options.transliteration_model or options.llm_model
+            if options.transliteration_mode == "default"
+            else None
+        ),
         "transliteration_module": resolve_local_transliteration_module(options.target_language)
         if options.transliteration_mode == "python"
         else None,
@@ -559,12 +580,21 @@ def _process_cue(
                     candidate_override = ""
             if candidate_override:
                 transliteration_text = candidate_override
-            elif options.llm_model and options.transliteration_mode != "python":
-                with create_client(model=options.llm_model) as client:
+            elif options.transliteration_mode != "python":
+                transliteration_model = options.transliteration_model or options.llm_model
+                if transliteration_model:
+                    with create_client(model=transliteration_model) as client:
+                        transliteration_result = transliterator.transliterate(
+                            translation,
+                            options.target_language,
+                            client=client,
+                            mode=options.transliteration_mode,
+                            progress_tracker=tracker,
+                        )
+                else:
                     transliteration_result = transliterator.transliterate(
                         translation,
                         options.target_language,
-                        client=client,
                         mode=options.transliteration_mode,
                         progress_tracker=tracker,
                     )

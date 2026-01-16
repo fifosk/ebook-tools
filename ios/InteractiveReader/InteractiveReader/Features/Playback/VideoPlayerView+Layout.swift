@@ -167,6 +167,9 @@ extension VideoPlayerView {
             onSubtitleTokenSeek: { token in
                 handleSubtitleTokenSeek(token)
             },
+            onToggleTransliteration: {
+                handleTransliterationToggle()
+            },
             onIncreaseSubtitleLinguistFont: {
                 adjustSubtitleLinguistFontScale(by: subtitleLinguistFontScaleStep)
             },

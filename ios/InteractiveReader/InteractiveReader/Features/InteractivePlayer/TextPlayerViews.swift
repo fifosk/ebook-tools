@@ -347,29 +347,7 @@ struct TextPlayerVariantView: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            Button(action: {
-                onToggleVisibility?()
-            }) {
-                HStack(spacing: 6) {
-                    Text(variant.label)
-                        .font(labelFont)
-                        .textCase(.uppercase)
-                        .tracking(1.2)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .allowsTightening(true)
-                    Image(systemName: isVisible ? "chevron.up" : "chevron.down")
-                        .font(labelFont.weight(.semibold))
-                }
-                .foregroundStyle(TextPlayerTheme.lineLabel)
-                .opacity(isVisible ? 1 : 0.55)
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.plain)
-            .disabled(onToggleVisibility == nil)
-            #if os(tvOS)
-            .focusable(false)
-            #endif
+            headerControl
             Group {
                 if isVisible {
                     tokenFlow
@@ -382,6 +360,39 @@ struct TextPlayerVariantView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var headerControl: some View {
+        #if os(tvOS)
+        headerLabel
+            .focusEffectDisabled()
+        #else
+        Button(action: {
+            onToggleVisibility?()
+        }) {
+            headerLabel
+        }
+        .buttonStyle(.plain)
+        .disabled(onToggleVisibility == nil)
+        #endif
+    }
+
+    private var headerLabel: some View {
+        HStack(spacing: 6) {
+            Text(variant.label)
+                .font(labelFont)
+                .textCase(.uppercase)
+                .tracking(1.2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .allowsTightening(true)
+            Image(systemName: isVisible ? "chevron.up" : "chevron.down")
+                .font(labelFont.weight(.semibold))
+        }
+        .foregroundStyle(TextPlayerTheme.lineLabel)
+        .opacity(isVisible ? 1 : 0.55)
+        .frame(maxWidth: .infinity)
     }
 
     private var labelFont: Font {

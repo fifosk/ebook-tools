@@ -41,6 +41,7 @@ struct VideoPlayerView: View {
     @State var subtitleCache: [String: [VideoSubtitleCue]] = [:]
     @State var subtitleTask: Task<Void, Never>?
     @State var subtitleLoadToken = UUID()
+    @State var subtitleLoadingKey: String?
     @State var subtitleVisibility = SubtitleVisibility()
     @State var showSubtitleSettings = false
     @State var showTVControls = true

@@ -281,8 +281,22 @@ class LLMClient:
         except (TypeError, ValueError):
             return None
 
+    def _completion_url(self, url: str) -> str:
+        if "/chat/completions" in url:
+            return url.replace("/chat/completions", "/completions")
+        return url
+
+    def _resolve_request_url(self, endpoint: ResolvedEndpoint, request_mode: str) -> str:
+        if request_mode == "completion":
+            return self._completion_url(endpoint.url)
+        return endpoint.url
+
     def _execute_request(
-        self, payload: Dict[str, Any], *, timeout: Optional[int] = None
+        self,
+        payload: Dict[str, Any],
+        *,
+        timeout: Optional[int] = None,
+        request_mode: str = "chat",
     ) -> LLMResponse:
         timeout = timeout or 90
         base_payload = dict(payload)
@@ -306,10 +320,11 @@ class LLMClient:
                 attempt_payload["stream"] = False
 
             headers = dict(endpoint.headers)
+            endpoint_url = self._resolve_request_url(endpoint, request_mode)
 
             self._log_debug(
                 "Dispatching LLM request to %s (%s) with stream=%s",
-                endpoint.url,
+                endpoint_url,
                 endpoint.source.value,
                 attempt_stream,
             )
@@ -320,7 +335,7 @@ class LLMClient:
 
             try:
                 response = self._session.post(
-                    endpoint.url,
+                    endpoint_url,
                     json=attempt_payload,
                     headers=headers or None,
                     stream=attempt_stream,
@@ -384,24 +399,27 @@ class LLMClient:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def send_chat_request(
+    def _send_request(
         self,
         payload: Dict[str, Any],
         *,
+        request_mode: str,
         max_attempts: int = 3,
         timeout: Optional[int] = None,
         validator: Optional[Validator] = None,
         backoff_seconds: float = 1.0,
     ) -> LLMResponse:
-        """Send a chat request with retries and optional response validation."""
-
         working_payload = dict(payload)
         working_payload.setdefault("model", self.model)
         last_error: Optional[str] = None
 
         for attempt in range(1, max_attempts + 1):
             try:
-                result = self._execute_request(working_payload, timeout=timeout)
+                result = self._execute_request(
+                    working_payload,
+                    timeout=timeout,
+                    request_mode=request_mode,
+                )
             except requests.exceptions.RequestException as exc:
                 last_error = str(exc)
                 self._log_debug("Request error on attempt %s/%s: %s", attempt, max_attempts, exc)
@@ -443,6 +461,46 @@ class LLMClient:
             token_usage={},
             raw=None,
             error=last_error,
+        )
+
+    def send_chat_request(
+        self,
+        payload: Dict[str, Any],
+        *,
+        max_attempts: int = 3,
+        timeout: Optional[int] = None,
+        validator: Optional[Validator] = None,
+        backoff_seconds: float = 1.0,
+    ) -> LLMResponse:
+        """Send a chat request with retries and optional response validation."""
+
+        return self._send_request(
+            payload,
+            request_mode="chat",
+            max_attempts=max_attempts,
+            timeout=timeout,
+            validator=validator,
+            backoff_seconds=backoff_seconds,
+        )
+
+    def send_completion_request(
+        self,
+        payload: Dict[str, Any],
+        *,
+        max_attempts: int = 3,
+        timeout: Optional[int] = None,
+        validator: Optional[Validator] = None,
+        backoff_seconds: float = 1.0,
+    ) -> LLMResponse:
+        """Send a completion request with retries and optional response validation."""
+
+        return self._send_request(
+            payload,
+            request_mode="completion",
+            max_attempts=max_attempts,
+            timeout=timeout,
+            validator=validator,
+            backoff_seconds=backoff_seconds,
         )
 
     def list_available_tags(self) -> Optional[Dict[str, Any]]:

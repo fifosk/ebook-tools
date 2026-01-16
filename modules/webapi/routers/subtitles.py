@@ -892,6 +892,7 @@ def generate_youtube_dub(
             translation_provider=payload.translation_provider,
             translation_batch_size=payload.translation_batch_size,
             transliteration_mode=payload.transliteration_mode,
+            transliteration_model=payload.transliteration_model,
             split_batches=split_batches,
             stitch_batches=stitch_batches,
             include_transliteration=include_transliteration,
@@ -951,6 +952,7 @@ async def submit_subtitle_job(
     llm_model: Optional[str] = Form(None),
     translation_provider: Optional[str] = Form(None),
     transliteration_mode: Optional[str] = Form(None),
+    transliteration_model: Optional[str] = Form(None),
     enable_transliteration: Union[str, bool] = Form(False),
     highlight: Union[str, bool] = Form(True),
     show_original: Union[str, bool] = Form(True),
@@ -1017,6 +1019,7 @@ async def submit_subtitle_job(
         resolved_llm_model = (llm_model or "").strip() or None
         resolved_translation_provider = (translation_provider or "").strip() or None
         resolved_transliteration_mode = (transliteration_mode or "").strip() or None
+        resolved_transliteration_model = (transliteration_model or "").strip() or None
         options_model = SubtitleJobOptions(
             input_language=resolved_input_language,
             target_language=resolved_target_language,
@@ -1034,6 +1037,7 @@ async def submit_subtitle_job(
             output_format=output_format,
             color_palette=palette,
             llm_model=resolved_llm_model,
+            transliteration_model=resolved_transliteration_model,
             translation_provider=resolved_translation_provider,
             transliteration_mode=resolved_transliteration_mode,
             ass_font_size=_parse_ass_font_size(ass_font_size),

@@ -62,6 +62,7 @@ type SubtitleOptionsPanelProps = {
   targetLanguage: string;
   sortedLanguageOptions: string[];
   selectedModel: string;
+  transliterationModel: string;
   availableModels: string[];
   modelsLoading: boolean;
   modelsError: string | null;
@@ -83,6 +84,7 @@ type SubtitleOptionsPanelProps = {
   onModelChange: (value: string) => void;
   onTranslationProviderChange: (value: string) => void;
   onTransliterationModeChange: (value: string) => void;
+  onTransliterationModelChange: (value: string) => void;
   onEnableTransliterationChange: (value: boolean) => void;
   onEnableHighlightChange: (value: boolean) => void;
   onGenerateAudioBookChange: (value: boolean) => void;
@@ -100,6 +102,7 @@ export default function SubtitleOptionsPanel({
   targetLanguage,
   sortedLanguageOptions,
   selectedModel,
+  transliterationModel,
   availableModels,
   modelsLoading,
   modelsError,
@@ -121,6 +124,7 @@ export default function SubtitleOptionsPanel({
   onModelChange,
   onTranslationProviderChange,
   onTransliterationModeChange,
+  onTransliterationModelChange,
   onEnableTransliterationChange,
   onEnableHighlightChange,
   onGenerateAudioBookChange,
@@ -135,6 +139,17 @@ export default function SubtitleOptionsPanel({
   const resolvedTranslationProvider = normalizeTranslationProvider(translationProvider);
   const usesGoogleTranslate = resolvedTranslationProvider === 'googletrans';
   const resolvedTransliterationMode = normalizeTransliterationMode(transliterationMode);
+  const allowTransliterationModel = resolvedTransliterationMode !== 'python';
+  const modelOptions = Array.from(
+    new Set([
+      ...(selectedModel.trim() ? [selectedModel.trim()] : []),
+      ...(availableModels.length ? availableModels : [DEFAULT_LLM_MODEL])
+    ])
+  );
+  const transliterationModelValue = transliterationModel.trim();
+  const transliterationModelOptions = Array.from(
+    new Set([...(transliterationModelValue ? [transliterationModelValue] : []), ...modelOptions])
+  );
   const selectedTransliterationOption =
     TRANSLITERATION_MODE_OPTIONS.find((option) => option.value === resolvedTransliterationMode) ??
     TRANSLITERATION_MODE_OPTIONS[0];
@@ -190,12 +205,7 @@ export default function SubtitleOptionsPanel({
             disabled={modelsLoading && availableModels.length === 0 && selectedModel.trim().length === 0}
           >
             <option value="">Use server default</option>
-            {Array.from(
-              new Set([
-                ...(selectedModel.trim() ? [selectedModel.trim()] : []),
-                ...(availableModels.length ? availableModels : [DEFAULT_LLM_MODEL])
-              ])
-            ).map((model) => (
+            {modelOptions.map((model) => (
               <option key={model} value={model}>
                 {model}
               </option>
@@ -209,6 +219,30 @@ export default function SubtitleOptionsPanel({
               : usesGoogleTranslate
               ? 'Leave blank to use the default server model for transliteration.'
               : 'Leave blank to use the default server model.'}
+          </small>
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="subtitle-transliteration-model">Transliteration model (optional)</label>
+          <select
+            id="subtitle-transliteration-model"
+            value={transliterationModel}
+            onChange={(event) => onTransliterationModelChange(event.target.value)}
+            disabled={
+              !allowTransliterationModel ||
+              (modelsLoading && availableModels.length === 0 && selectedModel.trim().length === 0)
+            }
+          >
+            <option value="">Use translation model</option>
+            {transliterationModelOptions.map((model) => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
+          <small className="field-note">
+            {allowTransliterationModel
+              ? 'Overrides the model used for transliteration. Leave blank to reuse the translation model.'
+              : 'Transliteration model selection is disabled when using the python module.'}
           </small>
         </div>
         <div className="field">

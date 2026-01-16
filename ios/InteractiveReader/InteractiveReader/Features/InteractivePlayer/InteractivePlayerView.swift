@@ -5,6 +5,7 @@ import UIKit
 
 struct InteractivePlayerView: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: InteractivePlayerViewModel
     @ObservedObject var audioCoordinator: AudioPlayerCoordinator
     let showImageReel: Binding<Bool>?
@@ -176,9 +177,33 @@ struct InteractivePlayerView: View {
                     break
                 }
             }
+            .onExitCommand {
+                handleExitCommand()
+            }
         #else
         baseContent
         #endif
     }
 
+    #if os(tvOS)
+    private func handleExitCommand() {
+        if linguistBubble != nil {
+            closeLinguistBubble()
+            focusedArea = .transcript
+            if !audioCoordinator.isPlaying {
+                audioCoordinator.play()
+            }
+            return
+        }
+        if isMenuVisible {
+            hideMenu()
+            return
+        }
+        if !audioCoordinator.isPlaying {
+            audioCoordinator.play()
+            return
+        }
+        dismiss()
+    }
+    #endif
 }

@@ -31,6 +31,7 @@ def translate_dialogues(
     transliterator: Optional[TransliterationService],
     llm_model: Optional[str],
     transliteration_mode: Optional[str] = None,
+    transliteration_model: Optional[str] = None,
     tracker: Optional[ProgressTracker],
     offset: int,
     total_dialogues: int,
@@ -60,6 +61,7 @@ def translate_dialogues(
         and transliterator is not None
         and resolved_transliteration_mode != "python"
     )
+    resolved_transliteration_model = transliteration_model or llm_model
     use_llm_batching = (
         needs_translation
         and (translation_provider or "llm") == "llm"
@@ -73,14 +75,30 @@ def translate_dialogues(
         client_context = (
             create_client(model=llm_model) if llm_model else contextlib.nullcontext()
         )
+        transliteration_context = (
+            create_client(model=resolved_transliteration_model)
+            if allow_llm_transliteration
+            and resolved_transliteration_model
+            and resolved_transliteration_model != llm_model
+            else contextlib.nullcontext()
+        )
         try:
-            with client_context as client:
+            with client_context as client, transliteration_context as translit_client:
                 resolved_client = client if llm_model else None
+                resolved_transliteration_client = (
+                    translit_client
+                    if allow_llm_transliteration
+                    and resolved_transliteration_model
+                    and resolved_transliteration_model != llm_model
+                    else None
+                )
                 translations = translate_batch(
                     sentences,
                     source_language or target_language,
                     target_language,
                     include_transliteration=allow_llm_transliteration,
+                    transliteration_mode=transliteration_mode,
+                    transliteration_client=resolved_transliteration_client,
                     translation_provider=translation_provider,
                     llm_batch_size=translation_batch_size,
                     client=resolved_client,
@@ -143,7 +161,7 @@ def translate_dialogues(
                                 translated_text or entry.translation,
                                 target_language,
                                 transliteration_mode=transliteration_mode,
-                                llm_model=llm_model,
+                                transliteration_model=resolved_transliteration_model,
                                 progress_tracker=tracker,
                             )
                     except Exception:
@@ -196,7 +214,7 @@ def translate_dialogues(
                     translated_text or entry.translation,
                     target_language,
                     transliteration_mode=transliteration_mode,
-                    llm_model=llm_model,
+                    transliteration_model=resolved_transliteration_model,
                     progress_tracker=tracker,
                 )
             except Exception:

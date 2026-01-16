@@ -425,6 +425,10 @@ export function applyConfigDefaults(previous: FormState, config: Record<string, 
   if (typeof transliterationMode === 'string' && transliterationMode.trim()) {
     next.transliteration_mode = transliterationMode.trim();
   }
+  const transliterationModel = config['transliteration_model'];
+  if (typeof transliterationModel === 'string' && transliterationModel.trim()) {
+    next.transliteration_model = transliterationModel.trim();
+  }
 
   const tempo = coerceNumber(config['tempo']);
   if (tempo !== undefined) {

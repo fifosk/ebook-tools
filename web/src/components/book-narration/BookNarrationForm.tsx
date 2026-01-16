@@ -504,6 +504,11 @@ export function BookNarrationForm({
         typeof prefillParameters.transliteration_mode === 'string' && prefillParameters.transliteration_mode.trim()
           ? prefillParameters.transliteration_mode.trim()
           : previous.transliteration_mode;
+      const transliterationModel =
+        typeof prefillParameters.transliteration_model === 'string' &&
+        prefillParameters.transliteration_model.trim()
+          ? prefillParameters.transliteration_model.trim()
+          : previous.transliteration_model;
       const addImages =
         typeof prefillParameters.add_images === 'boolean' ? prefillParameters.add_images : previous.add_images;
       const voiceOverrides =
@@ -529,6 +534,7 @@ export function BookNarrationForm({
         translation_provider: translationProvider,
         translation_batch_size: translationBatchSize,
         transliteration_mode: transliterationMode,
+        transliteration_model: transliterationModel,
         add_images: addImages,
         voice_overrides: voiceOverrides
       };

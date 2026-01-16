@@ -140,7 +140,13 @@ const mergeGeneratedFiles = (
     ...currentRecord,
     ...incomingRecord
   };
-  const stickyKeys = ['translation_batch_stats', 'translation_fallback', 'tts_fallback'];
+  const stickyKeys = [
+    'translation_batch_stats',
+    'transliteration_batch_stats',
+    'media_batch_stats',
+    'translation_fallback',
+    'tts_fallback'
+  ];
   stickyKeys.forEach((key) => {
     if (!(key in incomingRecord) && key in currentRecord) {
       merged[key] = currentRecord[key];
