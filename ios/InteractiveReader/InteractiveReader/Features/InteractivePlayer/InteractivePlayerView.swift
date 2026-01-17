@@ -41,6 +41,7 @@ struct InteractivePlayerView: View {
     @State var readingBedPauseTask: Task<Void, Never>?
     @AppStorage("interactive.trackFontScale") var trackFontScaleValue: Double =
         Double(InteractivePlayerView.defaultTrackFontScale)
+    @AppStorage("interactive.autoScaleEnabled") var autoScaleEnabled: Bool = true
     @AppStorage("interactive.linguistFontScale") var linguistFontScaleValue: Double =
         Double(InteractivePlayerView.defaultLinguistFontScale)
     @StateObject var pronunciationSpeaker = PronunciationSpeaker()

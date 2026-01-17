@@ -324,13 +324,17 @@ extension InteractivePlayerViewModel {
         let currentTime = highlightingTime.isFinite ? highlightingTime : audioCoordinator.currentTime
         guard currentTime.isFinite else { return }
         let epsilon = 0.05
+        let activeTimingTrack = activeTimingTrack(for: chunk)
+        let playbackDuration = playbackDuration(for: chunk)
+        let useCombinedPhases = useCombinedPhases(for: chunk)
+        let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
+            sentences: chunk.sentences,
+            activeTimingTrack: activeTimingTrack,
+            audioDuration: playbackDuration,
+            useCombinedPhases: useCombinedPhases
+        )
         let sorted: [(Int, Double)] = {
-            if let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
-                sentences: chunk.sentences,
-                activeTimingTrack: activeTimingTrack(for: chunk),
-                audioDuration: playbackDuration(for: chunk),
-                useCombinedPhases: useCombinedPhases(for: chunk)
-            ) {
+            if let timelineSentences {
                 return timelineSentences.map { ($0.index, $0.startTime) }.sorted { $0.1 < $1.1 }
             }
             let entries = chunk.sentences.compactMap { sentence -> (Int, Double)? in
@@ -353,7 +357,23 @@ extension InteractivePlayerViewModel {
                 selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
             }
         } else {
-            if let previous = sorted.last(where: { $0.1 < currentTime - epsilon }) {
+            let anchorTime: Double = {
+                if let timelineSentences,
+                   let activeIndex = TextPlayerTimeline.resolveActiveIndex(
+                       timelineSentences: timelineSentences,
+                       chunkTime: currentTime,
+                       audioDuration: playbackDuration
+                   ),
+                   let activeRuntime = timelineSentences.first(where: { $0.index == activeIndex }) {
+                    return activeRuntime.startTime - epsilon
+                }
+                if let activeSentence = activeSentence(at: currentTime),
+                   let start = activeSentence.startTime {
+                    return start - epsilon
+                }
+                return currentTime - epsilon
+            }()
+            if let previous = sorted.last(where: { $0.1 < anchorTime }) {
                 seekPlayback(to: previous.1, in: chunk)
                 return
             }

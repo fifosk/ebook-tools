@@ -11,7 +11,7 @@ struct InteractiveBubbleHeightKey: PreferenceKey {
     }
 }
 
-struct InteractiveTrackHeightKey: PreferenceKey {
+struct InteractiveAutoScaleTrackHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
@@ -37,6 +37,8 @@ struct InteractiveTranscriptView: View {
     let isMenuVisible: Bool
     let trackFontScale: CGFloat
     let minTrackFontScale: CGFloat
+    let maxTrackFontScale: CGFloat
+    let autoScaleEnabled: Bool
     let linguistFontScale: CGFloat
     let canIncreaseLinguistFont: Bool
     let canDecreaseLinguistFont: Bool
@@ -62,6 +64,7 @@ struct InteractiveTranscriptView: View {
     @State private var bubbleHeight: CGFloat = 0
     @State private var trackHeight: CGFloat = 0
     @State private var effectiveTrackFontScale: CGFloat = 0
+    private let autoScaleHeightTolerance: CGFloat = 4
 
     var body: some View {
         transcriptContent
@@ -87,7 +90,7 @@ struct InteractiveTranscriptView: View {
             let preferredTextHeight = (isPad && bubble != nil) ? availableHeight * 0.7 : availableHeight
             let textHeight = max(min(preferredTextHeight, availableHeight - bubbleReserve), 0)
             let textHeightLimit = isPhone ? availableHeight : textHeight
-            let shouldAutoScaleTracks = isPad
+            let shouldAutoScaleTracks = !isTV && autoScaleEnabled
             let bubbleFocusEnabled: Bool = {
                 #if os(tvOS)
                 return focusedArea == .bubble
@@ -97,7 +100,7 @@ struct InteractiveTranscriptView: View {
             }()
             let resolvedTrackFontScale = (isTV || !shouldAutoScaleTracks) ? trackFontScale : {
                 let current = effectiveTrackFontScale == 0 ? trackFontScale : effectiveTrackFontScale
-                return min(current, trackFontScale)
+                return min(current, maxTrackFontScale)
             }()
             let baseTrackView = TextPlayerFrame(
                 sentences: sentences,
@@ -109,13 +112,15 @@ struct InteractiveTranscriptView: View {
                 visibleTracks: visibleTracks,
                 onToggleTrack: onToggleTrack
             )
-            let trackView = shouldAutoScaleTracks
-                ? AnyView(baseTrackView.background(GeometryReader { trackProxy in
+            let measuredTrackView = baseTrackView
+                .background(GeometryReader { trackProxy in
                     Color.clear.preference(
-                        key: InteractiveTrackHeightKey.self,
+                        key: InteractiveAutoScaleTrackHeightKey.self,
                         value: trackProxy.size.height
                     )
-                }))
+                })
+            let trackView: AnyView = shouldAutoScaleTracks
+                ? AnyView(measuredTrackView)
                 : AnyView(baseTrackView)
 
             Group {
@@ -257,23 +262,25 @@ struct InteractiveTranscriptView: View {
                     bubbleHeight = value
                 }
             }
-            .onPreferenceChange(InteractiveTrackHeightKey.self) { value in
+            .onPreferenceChange(InteractiveAutoScaleTrackHeightKey.self) { value in
                 guard shouldAutoScaleTracks else { return }
                 trackHeight = value
                 updateEffectiveTrackFontScale(measuredHeight: value, availableHeight: textHeightLimit)
             }
-            .onChange(of: bubbleHeight) { _, _ in
-                guard shouldAutoScaleTracks else { return }
-                updateEffectiveTrackFontScale(measuredHeight: trackHeight, availableHeight: textHeightLimit)
-            }
-            .onChange(of: proxy.size) { _, _ in
-                guard shouldAutoScaleTracks else { return }
-                updateEffectiveTrackFontScale(measuredHeight: trackHeight, availableHeight: textHeightLimit)
-            }
             .onChange(of: trackFontScale) { _, _ in
                 guard shouldAutoScaleTracks else { return }
                 effectiveTrackFontScale = trackFontScale
-                updateEffectiveTrackFontScale(measuredHeight: trackHeight, availableHeight: textHeightLimit)
+            }
+            .onChange(of: visibleTracks) { _, _ in
+                guard shouldAutoScaleTracks else { return }
+                effectiveTrackFontScale = effectiveTrackFontScale == 0 ? trackFontScale : effectiveTrackFontScale
+            }
+            .onChange(of: autoScaleEnabled) { _, enabled in
+                if enabled {
+                    effectiveTrackFontScale = trackFontScale
+                } else {
+                    effectiveTrackFontScale = trackFontScale
+                }
             }
         }
     }
@@ -345,7 +352,7 @@ struct InteractiveTranscriptView: View {
     #endif
 
     private func updateEffectiveTrackFontScale(measuredHeight: CGFloat, availableHeight: CGFloat) {
-        guard !isTV, !isPhone else { return }
+        guard !isTV else { return }
         guard measuredHeight > 0, availableHeight > 0 else {
             if effectiveTrackFontScale != trackFontScale {
                 effectiveTrackFontScale = trackFontScale
@@ -353,10 +360,11 @@ struct InteractiveTranscriptView: View {
             return
         }
         let currentScale = effectiveTrackFontScale == 0 ? trackFontScale : effectiveTrackFontScale
-        let ratio = availableHeight / measuredHeight
-        let proposed = min(trackFontScale, currentScale * ratio)
-        let clamped = max(minTrackFontScale, proposed)
-        if abs(clamped - currentScale) > 0.01 {
+        let fitHeight = max(availableHeight - autoScaleHeightTolerance, 0)
+        let ratio = fitHeight / measuredHeight
+        let proposed = currentScale * ratio
+        let clamped = max(autoScaleFloor, min(maxTrackFontScale, proposed))
+        if abs(clamped - currentScale) > 0.02 {
             effectiveTrackFontScale = clamped
         }
     }
@@ -383,5 +391,10 @@ struct InteractiveTranscriptView: View {
         #else
         return false
         #endif
+    }
+
+    private var autoScaleFloor: CGFloat {
+        guard isPhone else { return minTrackFontScale }
+        return max(0.75, minTrackFontScale * 0.75)
     }
 }

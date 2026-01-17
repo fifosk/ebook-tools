@@ -9,6 +9,7 @@ struct LibraryShellView: View {
     @State private var libraryAutoPlay = false
     @State private var jobsAutoPlay = false
     @State private var activeSection: BrowseSection = .jobs
+    @State private var lastBrowseSection: BrowseSection = .jobs
     #if !os(tvOS)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     #endif
@@ -17,6 +18,7 @@ struct LibraryShellView: View {
     private enum BrowseSection: String, CaseIterable, Identifiable {
         case jobs = "Jobs"
         case library = "Library"
+        case settings = "Settings"
         case search = "Search"
 
         var id: String { rawValue }
@@ -137,6 +139,8 @@ struct LibraryShellView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        case .settings:
+            PlaybackSettingsView()
         }
     }
 
@@ -209,6 +213,22 @@ struct LibraryShellView: View {
                     resumeUserId: resumeUserId,
                     sectionPicker: sectionPickerForHeader
                 )
+            case .settings:
+                if isSplitLayout {
+                    VStack(spacing: 12) {
+                        Text("Settings")
+                            .font(.title3)
+                        Text("Adjust playback options in the detail panel.")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    PlaybackSettingsView(
+                        sectionPicker: sectionPickerForHeader,
+                        backTitle: isCompactLayout ? lastBrowseSection.rawValue : nil,
+                        onBack: isCompactLayout ? { activeSection = lastBrowseSection } : nil
+                    )
+                }
             }
         }
         #if !os(tvOS)
@@ -242,7 +262,7 @@ struct LibraryShellView: View {
     }
 
     private var orderedSections: [BrowseSection] {
-        return [.jobs, .library, .search]
+        return [.jobs, .library, .settings, .search]
     }
 
     private func coverURL(for item: LibraryItem) -> URL? {
@@ -256,6 +276,9 @@ struct LibraryShellView: View {
     }
 
     private func handleSectionChange(_ newValue: BrowseSection) {
+        if newValue != .settings {
+            lastBrowseSection = newValue
+        }
         switch newValue {
         case .library:
             jobsViewModel.stopAutoRefresh()
@@ -264,6 +287,10 @@ struct LibraryShellView: View {
             jobsViewModel.startAutoRefresh(using: appState)
             libraryAutoPlay = false
         case .search:
+            jobsViewModel.stopAutoRefresh()
+            libraryAutoPlay = false
+            jobsAutoPlay = false
+        case .settings:
             jobsViewModel.stopAutoRefresh()
             libraryAutoPlay = false
             jobsAutoPlay = false
@@ -281,6 +308,8 @@ struct LibraryShellView: View {
                 await viewModel.load(using: appState)
                 await jobsViewModel.load(using: appState)
             }
+        case .settings:
+            return
         }
     }
 
@@ -303,6 +332,9 @@ struct LibraryShellView: View {
         case .search:
             Image(systemName: "magnifyingglass")
                 .accessibilityLabel("Search")
+        case .settings:
+            Image(systemName: "gearshape")
+                .accessibilityLabel("Settings")
         }
     }
 }
@@ -333,6 +365,55 @@ struct SidebarSwipeDismissLayer: View {
             )
             .accessibilityHidden(true)
         #endif
+    }
+}
+
+private struct PlaybackSettingsView: View {
+    let sectionPicker: AnyView?
+    let backTitle: String?
+    let onBack: (() -> Void)?
+    @AppStorage("interactive.autoScaleEnabled") private var autoScaleEnabled: Bool = true
+
+    init(sectionPicker: AnyView? = nil, backTitle: String? = nil, onBack: (() -> Void)? = nil) {
+        self.sectionPicker = sectionPicker
+        self.backTitle = backTitle
+        self.onBack = onBack
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let onBack, let backTitle {
+                Button(action: onBack) {
+                    Label("Back to \(backTitle)", systemImage: "chevron.left")
+                }
+                .padding(.horizontal)
+            }
+            if let sectionPicker {
+                sectionPicker
+            } else {
+                Text("Settings")
+                    .font(.title3)
+                    .padding(.horizontal)
+            }
+            List {
+                Section("Playback") {
+                    Toggle(isOn: $autoScaleEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Auto-fit transcript")
+                            Text("Scale active sentences to fit the screen on rotation or font changes.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            #if os(tvOS)
+            .listStyle(.plain)
+            #else
+            .listStyle(.insetGrouped)
+            #endif
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 

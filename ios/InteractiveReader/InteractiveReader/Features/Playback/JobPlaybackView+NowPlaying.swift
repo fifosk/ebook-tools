@@ -9,8 +9,8 @@ extension JobPlaybackView {
             onPrevious: { viewModel.skipSentence(forward: false) },
             onSeek: { viewModel.audioCoordinator.seek(to: $0) },
             onToggle: { viewModel.audioCoordinator.togglePlayback() },
-            onSkipForward: nil,
-            onSkipBackward: nil
+            onSkipForward: { viewModel.skipSentence(forward: true) },
+            onSkipBackward: { viewModel.skipSentence(forward: false) }
         )
     }
 

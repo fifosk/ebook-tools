@@ -206,6 +206,8 @@ extension InteractivePlayerView {
             isMenuVisible: isMenuVisible,
             trackFontScale: trackFontScale,
             minTrackFontScale: trackFontScaleMin,
+            maxTrackFontScale: trackFontScaleMax,
+            autoScaleEnabled: autoScaleEnabled,
             linguistFontScale: linguistFontScale,
             canIncreaseLinguistFont: linguistFontScale < linguistFontScaleMax - 0.001,
             canDecreaseLinguistFont: linguistFontScale > linguistFontScaleMin + 0.001,

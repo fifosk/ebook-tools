@@ -36,6 +36,7 @@ extension VideoPlayerView {
                 let appliedAdditional = min(max(dragAdditional, minAdditional), maxAdditional)
                 let appliedTop = baseOffset + appliedAdditional
                 let videoBottom = appliedTop + videoHeight
+                #if os(iOS)
                 let videoRepositionGesture = DragGesture(minimumDistance: 12, coordinateSpace: .local)
                     .onChanged { value in
                         guard isPhonePortrait else { return }
@@ -63,6 +64,7 @@ extension VideoPlayerView {
                         let clamped = min(max(proposed, minAdditional), maxAdditional)
                         videoVerticalOffsetValue = Double(clamped)
                     }
+                #endif
                 ZStack(alignment: .top) {
                     Color.black.ignoresSafeArea()
                     playerSurface(player)
@@ -83,6 +85,7 @@ extension VideoPlayerView {
                     )
                     #if os(iOS)
                         .simultaneousGesture(videoScrubGesture, including: .gesture)
+                        .simultaneousGesture(videoRepositionGesture, including: .gesture)
                     #endif
                     #if os(iOS)
                     if isPad {
@@ -129,7 +132,6 @@ extension VideoPlayerView {
                 }
                 #if os(iOS)
                 .contentShape(Rectangle())
-                .simultaneousGesture(videoRepositionGesture, including: .gesture)
                 #endif
             }
         } else {

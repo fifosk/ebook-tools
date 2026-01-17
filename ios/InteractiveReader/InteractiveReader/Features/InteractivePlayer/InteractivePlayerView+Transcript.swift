@@ -109,6 +109,7 @@ extension InteractivePlayerView {
         return TextPlayerTimeline.selectActiveSentence(from: staticDisplay)
     }
 
+
     func activeSentenceDisplay(for chunk: InteractiveChunk) -> TextPlayerSentenceDisplay? {
         let sentences = frozenTranscriptSentences ?? transcriptSentences(for: chunk)
         return sentences.first
