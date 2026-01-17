@@ -178,11 +178,18 @@ struct TextPlayerSentenceView: View {
 struct TokenFlowLayout: Layout {
     let itemSpacing: CGFloat
     let lineSpacing: CGFloat
+    let alignment: HorizontalAlignment
 
     private struct Line {
         var indices: [Int] = []
         var width: CGFloat = 0
         var height: CGFloat = 0
+    }
+
+    init(itemSpacing: CGFloat, lineSpacing: CGFloat, alignment: HorizontalAlignment = .center) {
+        self.itemSpacing = itemSpacing
+        self.lineSpacing = lineSpacing
+        self.alignment = alignment
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
@@ -200,7 +207,16 @@ struct TokenFlowLayout: Layout {
         var y = bounds.minY
         for line in lines {
             let lineWidth = line.width
-            let xStart = bounds.minX + max(0, (bounds.width - lineWidth) / 2)
+            let xStart: CGFloat = {
+                switch alignment {
+                case .leading:
+                    return bounds.minX
+                case .trailing:
+                    return bounds.minX + max(0, bounds.width - lineWidth)
+                default:
+                    return bounds.minX + max(0, (bounds.width - lineWidth) / 2)
+                }
+            }()
             var x = xStart
             for index in line.indices {
                 let subview = subviews[index]

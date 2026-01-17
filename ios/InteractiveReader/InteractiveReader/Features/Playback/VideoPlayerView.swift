@@ -61,6 +61,9 @@ struct VideoPlayerView: View {
     @State var subtitleLookupTask: Task<Void, Never>?
     @State var subtitleSpeechTask: Task<Void, Never>?
     @State var subtitleAutoLookupTask: Task<Void, Never>?
+    @AppStorage("video.player.verticalOffset") var videoVerticalOffsetValue: Double = 0
+    @State var videoDragTranslation: CGFloat = 0
+    @State var isVideoDragGestureActive = false
     @AppStorage(MyLinguistPreferences.lookupLanguageKey) var storedLookupLanguage: String = ""
     @AppStorage(MyLinguistPreferences.llmModelKey) var storedLlmModel: String =
         MyLinguistPreferences.defaultLlmModel
@@ -188,6 +191,15 @@ struct VideoPlayerView: View {
         ZStack {
             playerContent
         }
+        #if os(iOS)
+        .overlay(alignment: .leading) {
+            if isPhone {
+                EdgeSwipeBackOverlay {
+                    dismiss()
+                }
+            }
+        }
+        #endif
         #if os(tvOS)
         .onExitCommand {
             handleExitCommand()

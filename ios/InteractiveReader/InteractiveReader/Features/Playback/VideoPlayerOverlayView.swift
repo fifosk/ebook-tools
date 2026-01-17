@@ -28,6 +28,11 @@ struct VideoPlayerOverlayView: View {
     let isPlaying: Bool
     let subtitleSelection: VideoSubtitleWordSelection?
     let subtitleBubble: VideoLinguistBubbleState?
+    let subtitleAlignment: HorizontalAlignment
+    let subtitleMaxWidth: CGFloat?
+    let subtitleLeadingInset: CGFloat
+    let headerTopInset: CGFloat
+    let allowSubtitleDownwardDrag: Bool
     let lookupLanguage: String
     let lookupLanguageOptions: [String]
     let onLookupLanguageChange: (String) -> Void
@@ -238,10 +243,13 @@ struct VideoPlayerOverlayView: View {
     }
 
     private var iosOverlay: some View {
-        VStack {
-            topBar
-            Spacer()
-            subtitleStack
+        ZStack {
+            VStack {
+                topBar
+                Spacer()
+                subtitleStack
+            }
+            subtitleBubbleOverlay
         }
     }
 
@@ -279,67 +287,25 @@ struct VideoPlayerOverlayView: View {
 
     @ViewBuilder
     private var subtitleStack: some View {
-        let stack = VStack(spacing: 6) {
-            if let subtitleBubble {
-                Group {
+        let stack = VStack(alignment: subtitleAlignment, spacing: 6) {
+            if includeBubbleInSubtitleStack, let subtitleBubble {
+                subtitleBubbleContent(subtitleBubble)
+                    .padding(.bottom, 6)
                     #if os(tvOS)
-                    VideoLinguistBubbleView(
-                        bubble: subtitleBubble,
-                        fontScale: subtitleLinguistFontScale,
-                        canIncreaseFont: canIncreaseSubtitleLinguistFont,
-                        canDecreaseFont: canDecreaseSubtitleLinguistFont,
-                        lookupLanguage: lookupLanguage,
-                        isFocusEnabled: focusTarget == .bubble,
-                        onBubbleFocus: {
-                            focusTarget = .bubble
-                        },
-                        lookupLanguageOptions: lookupLanguageOptions,
-                        onLookupLanguageChange: onLookupLanguageChange,
-                        llmModel: llmModel,
-                        llmModelOptions: llmModelOptions,
-                        onLlmModelChange: onLlmModelChange,
-                        onIncreaseFont: onIncreaseSubtitleLinguistFont,
-                        onDecreaseFont: onDecreaseSubtitleLinguistFont,
-                        onResetFont: onResetSubtitleBubbleFont,
-                        onClose: onCloseSubtitleBubble,
-                        onMagnify: onSetSubtitleBubbleFont
-                    )
-                    #else
-                    VideoLinguistBubbleView(
-                        bubble: subtitleBubble,
-                        fontScale: subtitleLinguistFontScale,
-                        canIncreaseFont: canIncreaseSubtitleLinguistFont,
-                        canDecreaseFont: canDecreaseSubtitleLinguistFont,
-                        lookupLanguage: lookupLanguage,
-                        lookupLanguageOptions: lookupLanguageOptions,
-                        onLookupLanguageChange: onLookupLanguageChange,
-                        llmModel: llmModel,
-                        llmModelOptions: llmModelOptions,
-                        onLlmModelChange: onLlmModelChange,
-                        onIncreaseFont: onIncreaseSubtitleLinguistFont,
-                        onDecreaseFont: onDecreaseSubtitleLinguistFont,
-                        onResetFont: onResetSubtitleBubbleFont,
-                        onClose: onCloseSubtitleBubble,
-                        onMagnify: onSetSubtitleBubbleFont
-                    )
-                    #endif
-                }
-                .padding(.bottom, 6)
-                #if os(tvOS)
-                .focusSection()
-                .focused($focusTarget, equals: .bubble)
-                .onMoveCommand { direction in
-                    guard focusTarget == .bubble else { return }
-                    switch direction {
-                    case .up:
-                        focusTarget = .control(.header)
-                    case .down:
-                        focusTarget = .subtitles
-                    default:
-                        break
+                    .focusSection()
+                    .focused($focusTarget, equals: .bubble)
+                    .onMoveCommand { direction in
+                        guard focusTarget == .bubble else { return }
+                        switch direction {
+                        case .up:
+                            focusTarget = .control(.header)
+                        case .down:
+                            focusTarget = .subtitles
+                        default:
+                            break
+                        }
                     }
-                }
-                #endif
+                    #endif
             }
             SubtitleOverlayView(
                 cues: cues,
@@ -348,21 +314,22 @@ struct VideoPlayerOverlayView: View {
                 visibility: subtitleVisibility,
                 fontScale: subtitleFontScale,
                 selection: subtitleSelection,
+                lineAlignment: subtitleAlignment,
                 onTokenLookup: onSubtitleTokenLookup,
                 onTokenSeek: onSubtitleTokenSeek,
                 onResetFont: onResetSubtitleFont,
                 onMagnify: onSetSubtitleFont
             )
-            .padding(.horizontal)
         }
+        let alignedStack = alignedSubtitleStack(stack)
         #if os(iOS)
-        stack
+        alignedStack
             .padding(.bottom, subtitleBottomPadding)
             .contentShape(Rectangle())
             .offset(subtitleDragOffset)
             .simultaneousGesture(subtitleDragGesture, including: .gesture)
         #elseif os(tvOS)
-        stack
+        alignedStack
             .contentShape(Rectangle())
             .focusable(!showSubtitleSettings)
             .focused($focusTarget, equals: .subtitles)
@@ -446,6 +413,78 @@ struct VideoPlayerOverlayView: View {
                 .padding(.bottom, 12)
                 .allowsHitTesting(false)
         }
+    }
+
+    @ViewBuilder
+    private var subtitleBubbleOverlay: some View {
+        #if os(iOS)
+        if shouldOverlayBubbleOnPhone, let subtitleBubble {
+            ZStack {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onCloseSubtitleBubble()
+                        if !isPlaying {
+                            onPlayPause()
+                        }
+                    }
+                GeometryReader { proxy in
+                    subtitleBubbleContent(subtitleBubble)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        .position(x: proxy.size.width * 0.5, y: proxy.size.height * 0.5)
+                }
+            }
+            .ignoresSafeArea()
+            .zIndex(1)
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+
+    @ViewBuilder
+    private func subtitleBubbleContent(_ subtitleBubble: VideoLinguistBubbleState) -> some View {
+        #if os(tvOS)
+        VideoLinguistBubbleView(
+            bubble: subtitleBubble,
+            fontScale: subtitleLinguistFontScale,
+            canIncreaseFont: canIncreaseSubtitleLinguistFont,
+            canDecreaseFont: canDecreaseSubtitleLinguistFont,
+            lookupLanguage: lookupLanguage,
+            isFocusEnabled: focusTarget == .bubble,
+            onBubbleFocus: {
+                focusTarget = .bubble
+            },
+            lookupLanguageOptions: lookupLanguageOptions,
+            onLookupLanguageChange: onLookupLanguageChange,
+            llmModel: llmModel,
+            llmModelOptions: llmModelOptions,
+            onLlmModelChange: onLlmModelChange,
+            onIncreaseFont: onIncreaseSubtitleLinguistFont,
+            onDecreaseFont: onDecreaseSubtitleLinguistFont,
+            onResetFont: onResetSubtitleBubbleFont,
+            onClose: onCloseSubtitleBubble,
+            onMagnify: onSetSubtitleBubbleFont
+        )
+        #else
+        VideoLinguistBubbleView(
+            bubble: subtitleBubble,
+            fontScale: subtitleLinguistFontScale,
+            canIncreaseFont: canIncreaseSubtitleLinguistFont,
+            canDecreaseFont: canDecreaseSubtitleLinguistFont,
+            lookupLanguage: lookupLanguage,
+            lookupLanguageOptions: lookupLanguageOptions,
+            onLookupLanguageChange: onLookupLanguageChange,
+            llmModel: llmModel,
+            llmModelOptions: llmModelOptions,
+            onLlmModelChange: onLlmModelChange,
+            onIncreaseFont: onIncreaseSubtitleLinguistFont,
+            onDecreaseFont: onDecreaseSubtitleLinguistFont,
+            onResetFont: onResetSubtitleBubbleFont,
+            onClose: onCloseSubtitleBubble,
+            onMagnify: onSetSubtitleBubbleFont
+        )
+        #endif
     }
 
     @ViewBuilder
@@ -535,7 +574,7 @@ struct VideoPlayerOverlayView: View {
                         summaryTickerView
                     }
                 }
-                .padding(.top, 10 + iPadHeaderOffset)
+                .padding(.top, 10 + iPadHeaderOffset + headerTopInset)
                 .padding(.horizontal, 12)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
@@ -584,7 +623,7 @@ struct VideoPlayerOverlayView: View {
                         summaryTickerView
                     }
                 }
-                .padding(.top, 10)
+                .padding(.top, 10 + headerTopInset)
                 .padding(.horizontal, 12)
             }
         }
@@ -607,7 +646,8 @@ struct VideoPlayerOverlayView: View {
     #if os(iOS)
     private var subtitleDragOffset: CGSize {
         let rawHeight = subtitleVerticalOffset + subtitleDragTranslation
-        let clampedHeight = min(rawHeight, 0)
+        let maxHeight = allowSubtitleDownwardDrag ? subtitleBottomPadding : 0
+        let clampedHeight = min(rawHeight, maxHeight)
         return CGSize(width: 0, height: clampedHeight)
     }
 
@@ -630,7 +670,8 @@ struct VideoPlayerOverlayView: View {
                     return
                 }
                 let proposedHeight = subtitleVerticalOffset + value.translation.height
-                subtitleVerticalOffset = min(proposedHeight, 0)
+                let maxHeight = allowSubtitleDownwardDrag ? subtitleBottomPadding : 0
+                subtitleVerticalOffset = min(proposedHeight, maxHeight)
                 subtitleDragTranslation = 0
             }
     }
@@ -1220,6 +1261,37 @@ struct VideoPlayerOverlayView: View {
         #else
         return false
         #endif
+    }
+
+    private var includeBubbleInSubtitleStack: Bool {
+        !shouldOverlayBubbleOnPhone
+    }
+
+    private var shouldOverlayBubbleOnPhone: Bool {
+        isPhone
+    }
+
+    private var subtitleFrameAlignment: Alignment {
+        switch subtitleAlignment {
+        case .leading:
+            return .leading
+        case .trailing:
+            return .trailing
+        default:
+            return .center
+        }
+    }
+
+    @ViewBuilder
+    private func alignedSubtitleStack<Content: View>(_ stack: Content) -> some View {
+        if let subtitleMaxWidth {
+            stack
+                .frame(maxWidth: subtitleMaxWidth, alignment: subtitleFrameAlignment)
+                .padding(.leading, subtitleLeadingInset)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            stack
+        }
     }
 
     private var iPadHeaderOffset: CGFloat {

@@ -248,6 +248,7 @@ struct SubtitleOverlayView: View {
     let visibility: SubtitleVisibility
     let fontScale: CGFloat
     let selection: VideoSubtitleWordSelection?
+    let lineAlignment: HorizontalAlignment
     let onTokenLookup: ((VideoSubtitleTokenReference) -> Void)?
     let onTokenSeek: ((VideoSubtitleTokenReference) -> Void)?
     let onResetFont: (() -> Void)?
@@ -269,8 +270,8 @@ struct SubtitleOverlayView: View {
                 in: display
             )
             let shadowSelectionValue = shadowSelection(from: selection, in: display)
-            ZStack(alignment: .topTrailing) {
-                VStack(spacing: 8) {
+            let content = ZStack(alignment: .topTrailing) {
+                VStack(alignment: lineAlignment, spacing: 8) {
                     ForEach(display.lines) { line in
                         SubtitleTokenLineView(
                             line: line,
@@ -282,6 +283,7 @@ struct SubtitleOverlayView: View {
                             playbackHighlight: playbackHighlight,
                             playbackShadowHighlight: playbackShadowHighlight,
                             fontScale: clampedFontScale,
+                            alignment: lineAlignment,
                             onTokenLookup: onTokenLookup,
                             onTokenSeek: onTokenSeek
                         )
@@ -304,8 +306,25 @@ struct SubtitleOverlayView: View {
             .padding(.vertical, 10)
             .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
             .padding(.bottom, 24)
-            .frame(maxWidth: .infinity)
             .transition(.opacity)
+            Group {
+                if lineAlignment == .leading {
+                    HStack(spacing: 0) {
+                        content
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else if lineAlignment == .trailing {
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        content
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                } else {
+                    content
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+            }
             #if os(iOS)
             .simultaneousGesture(magnifyGesture, including: .gesture)
             #endif
@@ -460,11 +479,16 @@ private struct SubtitleTokenLineView: View {
     let playbackHighlight: SubtitlePlaybackHighlight?
     let playbackShadowHighlight: SubtitlePlaybackHighlight?
     let fontScale: CGFloat
+    let alignment: HorizontalAlignment
     let onTokenLookup: ((VideoSubtitleTokenReference) -> Void)?
     let onTokenSeek: ((VideoSubtitleTokenReference) -> Void)?
 
     var body: some View {
-        TokenFlowLayout(itemSpacing: tokenItemSpacing, lineSpacing: tokenLineSpacing) {
+        TokenFlowLayout(
+            itemSpacing: tokenItemSpacing,
+            lineSpacing: tokenLineSpacing,
+            alignment: alignment
+        ) {
             ForEach(displayTokenIndices, id: \.self) { index in
                 let token = line.tokens[index]
                 SubtitleTokenWordView(
@@ -499,7 +523,18 @@ private struct SubtitleTokenLineView: View {
                 )
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: frameAlignment)
+    }
+
+    private var frameAlignment: Alignment {
+        switch alignment {
+        case .leading:
+            return .leading
+        case .trailing:
+            return .trailing
+        default:
+            return .center
+        }
     }
 
     private var tokenRevealCutoff: Double {

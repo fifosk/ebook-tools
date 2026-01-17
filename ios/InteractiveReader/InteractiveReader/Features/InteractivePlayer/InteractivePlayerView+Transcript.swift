@@ -96,25 +96,17 @@ extension InteractivePlayerView {
             }
             return playbackDuration > 0 ? playbackDuration : nil
         }()
-        let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
+        if let activeSentence = TextPlayerTimeline.buildActiveSentenceDisplay(
             sentences: chunk.sentences,
             activeTimingTrack: activeTimingTrack,
+            chunkTime: playbackTime,
             audioDuration: durationValue,
             useCombinedPhases: useCombinedPhases
-        )
-        let timelineDisplay = timelineSentences.flatMap { runtime in
-            TextPlayerTimeline.buildTimelineDisplay(
-                timelineSentences: runtime,
-                chunkTime: playbackTime,
-                audioDuration: durationValue
-            )
+        ) {
+            return [activeSentence]
         }
-        let staticDisplay = TextPlayerTimeline.buildStaticDisplay(
-            sentences: chunk.sentences
-        )
-        return TextPlayerTimeline.selectActiveSentence(
-            from: timelineDisplay?.sentences ?? staticDisplay
-        )
+        let staticDisplay = TextPlayerTimeline.buildStaticDisplay(sentences: chunk.sentences)
+        return TextPlayerTimeline.selectActiveSentence(from: staticDisplay)
     }
 
     func activeSentenceDisplay(for chunk: InteractiveChunk) -> TextPlayerSentenceDisplay? {

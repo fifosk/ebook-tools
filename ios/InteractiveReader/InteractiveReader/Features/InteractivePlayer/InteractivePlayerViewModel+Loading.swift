@@ -48,7 +48,7 @@ extension InteractivePlayerViewModel {
         do {
             if let mediaOverride {
                 let resolver = try (resolverOverride ?? makeResolver(origin: origin, configuration: configuration))
-                let context = try JobContextBuilder.build(
+                let context = try await buildContextInBackground(
                     jobId: trimmedJobId,
                     media: mediaOverride,
                     timing: timingOverride,
@@ -67,18 +67,18 @@ extension InteractivePlayerViewModel {
             }
 
             let client = APIClient(configuration: configuration)
-            async let mediaTask: PipelineMediaResponse = {
+            async let mediaTask: Data = {
                 switch origin {
                 case .library:
-                    return try await client.fetchLibraryMedia(jobId: trimmedJobId)
+                    return try await client.fetchLibraryMediaData(jobId: trimmedJobId)
                 case .job:
                     if preferLiveMedia {
-                        return try await client.fetchJobMediaLive(jobId: trimmedJobId)
+                        return try await client.fetchJobMediaLiveData(jobId: trimmedJobId)
                     }
-                    return try await client.fetchJobMedia(jobId: trimmedJobId)
+                    return try await client.fetchJobMediaData(jobId: trimmedJobId)
                 }
             }()
-            async let timingTask = client.fetchJobTiming(jobId: trimmedJobId)
+            async let timingTask: Data? = client.fetchJobTimingData(jobId: trimmedJobId)
             async let readingBedsTask: ReadingBedListResponse? = {
                 do {
                     return try await client.fetchReadingBeds()
@@ -86,13 +86,13 @@ extension InteractivePlayerViewModel {
                     return nil
                 }
             }()
-            let (media, timing) = try await (mediaTask, timingTask)
+            let (mediaData, timingData) = try await (mediaTask, timingTask)
             let readingBeds = await readingBedsTask
             let resolver = try makeResolver(origin: origin, configuration: configuration)
-            let context = try JobContextBuilder.build(
+            let (media, timing, context) = try await decodeAndBuildContextInBackground(
                 jobId: trimmedJobId,
-                media: media,
-                timing: timing,
+                mediaData: mediaData,
+                timingData: timingData,
                 resolver: resolver
             )
             jobContext = context
@@ -140,7 +140,7 @@ extension InteractivePlayerViewModel {
             let liveMedia = try await client.fetchJobMediaLive(jobId: jobId)
             guard shouldApplyLiveUpdate(current: mediaResponse, incoming: liveMedia) else { return }
             let mergedMedia = mergeLiveMedia(current: mediaResponse, incoming: liveMedia)
-            let context = try JobContextBuilder.build(
+            let context = try await buildContextInBackground(
                 jobId: jobId,
                 media: mergedMedia,
                 timing: timingResponse,
@@ -263,7 +263,9 @@ extension InteractivePlayerViewModel {
             for candidate in candidates {
                 guard let url = resolver.resolvePath(jobId: jobId, relativePath: candidate) else { continue }
                 if url.isFileURL {
-                    payloadData = try Data(contentsOf: url)
+                    payloadData = try await Task.detached(priority: .utility) {
+                        try Data(contentsOf: url, options: .mappedIfSafe)
+                    }.value
                     break
                 }
                 var request = URLRequest(url: url)
@@ -277,18 +279,16 @@ extension InteractivePlayerViewModel {
                 break
             }
             guard let payloadData else { return }
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            let sentences: [ChunkSentenceMetadata]
-            if let payload = try? decoder.decode(ChunkMetadataPayload.self, from: payloadData) {
-                sentences = payload.sentences
-            } else if let payload = try? decoder.decode([ChunkSentenceMetadata].self, from: payloadData) {
-                sentences = payload
-            } else {
+            let sentences = try await decodeChunkMetadataInBackground(payloadData)
+            guard let sentences, !sentences.isEmpty else { return }
+
+            guard jobId == self.jobId, let currentMediaResponse = mediaResponse else { return }
+            guard let index = resolveChunkIndex(chunkID, chunks: currentMediaResponse.chunks) else { return }
+            let chunk = currentMediaResponse.chunks[index]
+            if !chunk.sentences.isEmpty {
+                chunkMetadataLoaded.insert(chunkID)
                 return
             }
-            guard !sentences.isEmpty else { return }
-
             var updatedChunks = currentMediaResponse.chunks
             let updatedChunk = PipelineMediaChunk(
                 chunkID: chunk.chunkID,
@@ -308,7 +308,7 @@ extension InteractivePlayerViewModel {
                 chunks: updatedChunks,
                 complete: currentMediaResponse.complete
             )
-            let context = try JobContextBuilder.build(
+            let context = try await buildContextInBackground(
                 jobId: jobId,
                 media: refreshedMedia,
                 timing: timingResponse,
@@ -336,6 +336,58 @@ extension InteractivePlayerViewModel {
             }
         }
         return nil
+    }
+
+    private func decodeAndBuildContextInBackground(
+        jobId: String,
+        mediaData: Data,
+        timingData: Data?,
+        resolver: MediaURLResolver
+    ) async throws -> (PipelineMediaResponse, JobTimingResponse?, JobContext) {
+        try await Task.detached(priority: .userInitiated) { () -> (PipelineMediaResponse, JobTimingResponse?, JobContext) in
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            decoder.dateDecodingStrategy = .iso8601
+            let media = try decoder.decode(PipelineMediaResponse.self, from: mediaData)
+            let timing = try timingData.map { try decoder.decode(JobTimingResponse.self, from: $0) }
+            let context = try JobContextBuilder.build(
+                jobId: jobId,
+                media: media,
+                timing: timing,
+                resolver: resolver
+            )
+            return (media, timing, context)
+        }.value
+    }
+
+    private func buildContextInBackground(
+        jobId: String,
+        media: PipelineMediaResponse,
+        timing: JobTimingResponse?,
+        resolver: MediaURLResolver
+    ) async throws -> JobContext {
+        try await Task.detached(priority: .userInitiated) {
+            try JobContextBuilder.build(
+                jobId: jobId,
+                media: media,
+                timing: timing,
+                resolver: resolver
+            )
+        }.value
+    }
+
+    private func decodeChunkMetadataInBackground(_ payloadData: Data) async throws -> [ChunkSentenceMetadata]? {
+        try await Task.detached(priority: .utility) { () -> [ChunkSentenceMetadata]? in
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            if let payload = try? decoder.decode(ChunkMetadataPayload.self, from: payloadData) {
+                return payload.sentences
+            }
+            if let payload = try? decoder.decode([ChunkSentenceMetadata].self, from: payloadData) {
+                return payload
+            }
+            return nil
+        }.value
     }
 
     private func makeResolver(origin: MediaOrigin, configuration: APIClientConfiguration) throws -> MediaURLResolver {

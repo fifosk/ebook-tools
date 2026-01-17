@@ -15,7 +15,7 @@ extension JobPlaybackView {
         subtitleTvMetadata = nil
         youtubeVideoMetadata = nil
         jobStatus = job
-        let offlinePayload = offlineStore.cachedPayload(for: job.jobId, kind: .job)
+        let offlinePayload = await offlineStore.cachedPayload(for: job.jobId, kind: .job)
         if let offlinePayload,
            let localResolver = offlineStore.localResolver(for: .job, configuration: configuration) {
             let offlineConfig = APIClientConfiguration(

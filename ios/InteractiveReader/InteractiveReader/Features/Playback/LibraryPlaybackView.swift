@@ -823,7 +823,7 @@ struct LibraryPlaybackView: View {
         autoPlayOnLoad = false
         resumeDecisionPending = true
         sentenceIndexTracker.value = nil
-        let offlinePayload = offlineStore.cachedPayload(for: item.jobId, kind: .library)
+        let offlinePayload = await offlineStore.cachedPayload(for: item.jobId, kind: .library)
         if let offlinePayload,
            let localResolver = offlineStore.localResolver(for: .library, configuration: configuration) {
             let offlineConfig = APIClientConfiguration(

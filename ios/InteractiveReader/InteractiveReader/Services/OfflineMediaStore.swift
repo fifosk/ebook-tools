@@ -132,60 +132,72 @@ final class OfflineMediaStore: ObservableObject {
         return SyncStatus(state: .idle, updatedAt: nil, fileCount: nil, totalBytes: nil)
     }
 
-    func cachedPayload(for jobId: String, kind: OfflineMediaKind) -> OfflineMediaPayload? {
+    func cachedPayload(for jobId: String, kind: OfflineMediaKind) async -> OfflineMediaPayload? {
         let key = OfflineMediaKey(jobId: jobId, kind: kind)
         guard let baseURL = storageBaseURL(for: kind) else { return nil }
         guard let manifest = loadManifest(for: key) else { return nil }
         let itemRoot = baseURL.appendingPathComponent(jobId, isDirectory: true)
-        let mediaURL = itemRoot.appendingPathComponent(manifest.mediaFile)
-        guard let mediaData = try? Data(contentsOf: mediaURL),
-              let media = try? decoder.decode(PipelineMediaResponse.self, from: mediaData)
-        else {
-            return nil
-        }
-        var timing: JobTimingResponse? = nil
-        if let timingFile = manifest.timingFile {
-            let timingURL = itemRoot.appendingPathComponent(timingFile)
-            if let timingData = try? Data(contentsOf: timingURL) {
-                timing = try? decoder.decode(JobTimingResponse.self, from: timingData)
+        let readingBedsFileName = readingBedsFileName
+        let defaultReadingBedPath = defaultReadingBedPath
+        let sharedReadingBedsRoot = readingBedsRootURL()
+        return await Task.detached(priority: .utility) {
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            decoder.dateDecodingStrategy = .iso8601
+
+            let mediaURL = itemRoot.appendingPathComponent(manifest.mediaFile)
+            guard let mediaData = try? Data(contentsOf: mediaURL, options: .mappedIfSafe),
+                  let media = try? decoder.decode(PipelineMediaResponse.self, from: mediaData)
+            else {
+                return nil
             }
-        }
-        var readingBeds: ReadingBedListResponse? = nil
-        var readingBedBaseURL: URL? = nil
-        if let sharedRoot = readingBedsRootURL() {
-            let sharedFile = sharedRoot.appendingPathComponent(readingBedsFileName)
-            if let readingBedsData = try? Data(contentsOf: sharedFile) {
-                readingBeds = try? decoder.decode(ReadingBedListResponse.self, from: readingBedsData)
-                readingBedBaseURL = sharedRoot
+
+            var timing: JobTimingResponse? = nil
+            if let timingFile = manifest.timingFile {
+                let timingURL = itemRoot.appendingPathComponent(timingFile)
+                if let timingData = try? Data(contentsOf: timingURL, options: .mappedIfSafe) {
+                    timing = try? decoder.decode(JobTimingResponse.self, from: timingData)
+                }
             }
-        }
-        if readingBeds == nil {
-            let readingBedsFile = manifest.readingBedsFile ?? readingBedsFileName
-            let readingBedsURL = itemRoot.appendingPathComponent(readingBedsFile)
-            if let readingBedsData = try? Data(contentsOf: readingBedsURL) {
-                readingBeds = try? decoder.decode(ReadingBedListResponse.self, from: readingBedsData)
-                readingBedBaseURL = itemRoot
-            }
-        }
-        if readingBedBaseURL == nil {
-            if let sharedRoot = readingBedsRootURL() {
-                let defaultRelative = defaultReadingBedPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                let defaultURL = sharedRoot.appendingPathComponent(defaultRelative)
-                if FileManager.default.fileExists(atPath: defaultURL.path) {
+
+            var readingBeds: ReadingBedListResponse? = nil
+            var readingBedBaseURL: URL? = nil
+            if let sharedRoot = sharedReadingBedsRoot {
+                let sharedFile = sharedRoot.appendingPathComponent(readingBedsFileName)
+                if let readingBedsData = try? Data(contentsOf: sharedFile, options: .mappedIfSafe) {
+                    readingBeds = try? decoder.decode(ReadingBedListResponse.self, from: readingBedsData)
                     readingBedBaseURL = sharedRoot
                 }
             }
-            if readingBedBaseURL == nil {
-                readingBedBaseURL = itemRoot
+            if readingBeds == nil {
+                let readingBedsFile = manifest.readingBedsFile ?? readingBedsFileName
+                let readingBedsURL = itemRoot.appendingPathComponent(readingBedsFile)
+                if let readingBedsData = try? Data(contentsOf: readingBedsURL, options: .mappedIfSafe) {
+                    readingBeds = try? decoder.decode(ReadingBedListResponse.self, from: readingBedsData)
+                    readingBedBaseURL = itemRoot
+                }
             }
-        }
-        return OfflineMediaPayload(
-            media: media,
-            timing: timing,
-            storageBaseURL: baseURL,
-            readingBeds: readingBeds,
-            readingBedBaseURL: readingBedBaseURL
-        )
+            if readingBedBaseURL == nil {
+                if let sharedRoot = sharedReadingBedsRoot {
+                    let defaultRelative = defaultReadingBedPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                    let defaultURL = sharedRoot.appendingPathComponent(defaultRelative)
+                    if FileManager.default.fileExists(atPath: defaultURL.path) {
+                        readingBedBaseURL = sharedRoot
+                    }
+                }
+                if readingBedBaseURL == nil {
+                    readingBedBaseURL = itemRoot
+                }
+            }
+
+            return OfflineMediaPayload(
+                media: media,
+                timing: timing,
+                storageBaseURL: baseURL,
+                readingBeds: readingBeds,
+                readingBedBaseURL: readingBedBaseURL
+            )
+        }.value
     }
 
     func sync(jobId: String, kind: OfflineMediaKind, configuration: APIClientConfiguration) {

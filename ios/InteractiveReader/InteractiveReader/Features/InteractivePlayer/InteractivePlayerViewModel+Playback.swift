@@ -296,19 +296,16 @@ extension InteractivePlayerViewModel {
     func activeSentence(at time: Double) -> InteractiveChunk.Sentence? {
         guard time.isFinite else { return nil }
         guard let chunk = selectedChunk else { return nil }
-        if let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
+        let playbackDuration = playbackDuration(for: chunk)
+        if let activeIndex = TextPlayerTimeline.resolveActiveIndex(
             sentences: chunk.sentences,
             activeTimingTrack: activeTimingTrack(for: chunk),
-            audioDuration: playbackDuration(for: chunk),
+            chunkTime: time,
+            audioDuration: playbackDuration,
             useCombinedPhases: useCombinedPhases(for: chunk)
         ),
-        let display = TextPlayerTimeline.buildTimelineDisplay(
-            timelineSentences: timelineSentences,
-            chunkTime: time,
-            audioDuration: playbackDuration(for: chunk)
-        ),
-        chunk.sentences.indices.contains(display.activeIndex) {
-            return chunk.sentences[display.activeIndex]
+        chunk.sentences.indices.contains(activeIndex) {
+            return chunk.sentences[activeIndex]
         }
         if let match = chunk.sentences.first(where: { $0.contains(time: time) }) {
             return match

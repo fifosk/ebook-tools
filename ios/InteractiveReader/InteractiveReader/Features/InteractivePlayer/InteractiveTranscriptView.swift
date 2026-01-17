@@ -11,6 +11,14 @@ struct InteractiveBubbleHeightKey: PreferenceKey {
     }
 }
 
+struct InteractiveTrackHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 struct InteractiveTranscriptView: View {
     let viewModel: InteractivePlayerViewModel
     @ObservedObject var audioCoordinator: AudioPlayerCoordinator
@@ -28,6 +36,7 @@ struct InteractiveTranscriptView: View {
     let onToggleTrack: (TextPlayerVariantKind) -> Void
     let isMenuVisible: Bool
     let trackFontScale: CGFloat
+    let minTrackFontScale: CGFloat
     let linguistFontScale: CGFloat
     let canIncreaseLinguistFont: Bool
     let canDecreaseLinguistFont: Bool
@@ -51,10 +60,12 @@ struct InteractiveTranscriptView: View {
     @State private var bubbleMagnifyStartScale: CGFloat?
     #endif
     @State private var bubbleHeight: CGFloat = 0
+    @State private var trackHeight: CGFloat = 0
+    @State private var effectiveTrackFontScale: CGFloat = 0
 
     var body: some View {
         transcriptContent
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isTV ? .top : .center)
             .onChange(of: audioCoordinator.duration) { _, newValue in
                 viewModel.recordAudioDuration(newValue, for: audioCoordinator.activeURL)
             }
@@ -75,6 +86,8 @@ struct InteractiveTranscriptView: View {
             let bubbleReserve = bubble == nil ? 0 : max(bubbleHeight + stackSpacing, minBubbleReserve)
             let preferredTextHeight = (isPad && bubble != nil) ? availableHeight * 0.7 : availableHeight
             let textHeight = max(min(preferredTextHeight, availableHeight - bubbleReserve), 0)
+            let textHeightLimit = isPhone ? availableHeight : textHeight
+            let shouldAutoScaleTracks = isPad
             let bubbleFocusEnabled: Bool = {
                 #if os(tvOS)
                 return focusedArea == .bubble
@@ -82,167 +95,186 @@ struct InteractiveTranscriptView: View {
                 return true
                 #endif
             }()
-
-            #if os(tvOS)
-            VStack(alignment: .leading, spacing: stackSpacing) {
-                TextPlayerFrame(
-                    sentences: sentences,
-                    selection: selection,
-                    onTokenLookup: onLookupToken,
-                    onTokenSeek: onSeekToken,
-                    fontScale: trackFontScale,
-                    playbackPrimaryKind: playbackPrimaryKind,
-                    visibleTracks: visibleTracks,
-                    onToggleTrack: onToggleTrack
-                )
-                    .frame(maxWidth: .infinity, maxHeight: textHeight, alignment: .top)
-                    .contentShape(Rectangle())
-                    .focusable(!isMenuVisible)
-                    .focused($focusedArea, equals: .transcript)
-                    .focusEffectDisabled()
-                    .onTapGesture {
-                        onLookup()
-                    }
-                    .onLongPressGesture(minimumDuration: 0.6) {
-                        onToggleTrack(.transliteration)
-                    }
-                    .accessibilityAddTraits(.isButton)
-
-                if let bubble {
-                    MyLinguistBubbleView(
-                        bubble: bubble,
-                        fontScale: linguistFontScale,
-                        canIncreaseFont: canIncreaseLinguistFont,
-                        canDecreaseFont: canDecreaseLinguistFont,
-                        lookupLanguage: lookupLanguage,
-                        lookupLanguageOptions: lookupLanguageOptions,
-                        onLookupLanguageChange: onLookupLanguageChange,
-                        llmModel: llmModel,
-                        llmModelOptions: llmModelOptions,
-                        onLlmModelChange: onLlmModelChange,
-                        onIncreaseFont: onIncreaseLinguistFont,
-                        onDecreaseFont: onDecreaseLinguistFont,
-                        onClose: onCloseBubble,
-                        isFocusEnabled: bubbleFocusEnabled,
-                        focusBinding: $focusedArea
+            let resolvedTrackFontScale = (isTV || !shouldAutoScaleTracks) ? trackFontScale : {
+                let current = effectiveTrackFontScale == 0 ? trackFontScale : effectiveTrackFontScale
+                return min(current, trackFontScale)
+            }()
+            let baseTrackView = TextPlayerFrame(
+                sentences: sentences,
+                selection: selection,
+                onTokenLookup: onLookupToken,
+                onTokenSeek: onSeekToken,
+                fontScale: resolvedTrackFontScale,
+                playbackPrimaryKind: playbackPrimaryKind,
+                visibleTracks: visibleTracks,
+                onToggleTrack: onToggleTrack
+            )
+            let trackView = shouldAutoScaleTracks
+                ? AnyView(baseTrackView.background(GeometryReader { trackProxy in
+                    Color.clear.preference(
+                        key: InteractiveTrackHeightKey.self,
+                        value: trackProxy.size.height
                     )
-                    .background(GeometryReader { bubbleProxy in
-                        Color.clear.preference(
-                            key: InteractiveBubbleHeightKey.self,
-                            value: bubbleProxy.size.height
-                        )
-                    })
-                }
-            }
-            #else
-            if isPhone {
-                ZStack(alignment: .bottom) {
-                    TextPlayerFrame(
-                        sentences: sentences,
-                        selection: selection,
-                        onTokenLookup: onLookupToken,
-                        onTokenSeek: onSeekToken,
-                        fontScale: trackFontScale,
-                        playbackPrimaryKind: playbackPrimaryKind,
-                        visibleTracks: visibleTracks,
-                        onToggleTrack: onToggleTrack
-                    )
-                        .frame(
-                            maxWidth: .infinity,
-                            maxHeight: bubble == nil ? .infinity : textHeight,
-                            alignment: .top
-                        )
+                }))
+                : AnyView(baseTrackView)
+
+            Group {
+                #if os(tvOS)
+                VStack(alignment: .leading, spacing: stackSpacing) {
+                    trackView
+                        .frame(maxWidth: .infinity, maxHeight: textHeight, alignment: .top)
                         .contentShape(Rectangle())
-                        .gesture(swipeGesture)
-                        .simultaneousGesture(doubleTapGesture, including: .gesture)
-                        .highPriorityGesture(trackMagnifyGesture, including: .all)
+                        .focusable(!isMenuVisible)
+                        .focused($focusedArea, equals: .transcript)
+                        .focusEffectDisabled()
+                        .onTapGesture {
+                            onLookup()
+                        }
+                        .onLongPressGesture(minimumDuration: 0.6) {
+                            onToggleTrack(.transliteration)
+                        }
+                        .accessibilityAddTraits(.isButton)
 
                     if let bubble {
                         MyLinguistBubbleView(
                             bubble: bubble,
                             fontScale: linguistFontScale,
-                        canIncreaseFont: canIncreaseLinguistFont,
-                        canDecreaseFont: canDecreaseLinguistFont,
-                        lookupLanguage: lookupLanguage,
-                        lookupLanguageOptions: lookupLanguageOptions,
-                        onLookupLanguageChange: onLookupLanguageChange,
-                        llmModel: llmModel,
-                        llmModelOptions: llmModelOptions,
-                        onLlmModelChange: onLlmModelChange,
-                        onIncreaseFont: onIncreaseLinguistFont,
-                        onDecreaseFont: onDecreaseLinguistFont,
-                        onClose: onCloseBubble,
-                        isFocusEnabled: bubbleFocusEnabled,
-                        focusBinding: $focusedArea
-                    )
-                    .frame(maxWidth: .infinity, alignment: .top)
-                    .padding(.horizontal)
-                    .padding(.bottom, 6)
+                            canIncreaseFont: canIncreaseLinguistFont,
+                            canDecreaseFont: canDecreaseLinguistFont,
+                            lookupLanguage: lookupLanguage,
+                            lookupLanguageOptions: lookupLanguageOptions,
+                            onLookupLanguageChange: onLookupLanguageChange,
+                            llmModel: llmModel,
+                            llmModelOptions: llmModelOptions,
+                            onLlmModelChange: onLlmModelChange,
+                            onIncreaseFont: onIncreaseLinguistFont,
+                            onDecreaseFont: onDecreaseLinguistFont,
+                            onClose: onCloseBubble,
+                            isFocusEnabled: bubbleFocusEnabled,
+                            focusBinding: $focusedArea
+                        )
                         .background(GeometryReader { bubbleProxy in
                             Color.clear.preference(
                                 key: InteractiveBubbleHeightKey.self,
                                 value: bubbleProxy.size.height
                             )
                         })
-                        .simultaneousGesture(bubbleMagnifyGesture, including: .all)
                     }
                 }
-            } else {
-                VStack(alignment: .leading, spacing: stackSpacing) {
-                    TextPlayerFrame(
-                        sentences: sentences,
-                        selection: selection,
-                        onTokenLookup: onLookupToken,
-                        onTokenSeek: onSeekToken,
-                        fontScale: trackFontScale,
-                        playbackPrimaryKind: playbackPrimaryKind,
-                        visibleTracks: visibleTracks,
-                        onToggleTrack: onToggleTrack
-                    )
-                        .frame(
-                            maxWidth: .infinity,
-                            minHeight: bubble == nil ? textHeight : 0,
-                            maxHeight: textHeight,
-                            alignment: .top
-                        )
+                #else
+                if isPhone {
+                    ZStack(alignment: .bottom) {
+                        VStack {
+                            Spacer(minLength: 0)
+                            trackView
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(Rectangle())
                         .gesture(swipeGesture)
                         .simultaneousGesture(doubleTapGesture, including: .gesture)
                         .highPriorityGesture(trackMagnifyGesture, including: .all)
 
-                    if let bubble {
-                        MyLinguistBubbleView(
-                            bubble: bubble,
-                            fontScale: linguistFontScale,
-                        canIncreaseFont: canIncreaseLinguistFont,
-                        canDecreaseFont: canDecreaseLinguistFont,
-                        lookupLanguage: lookupLanguage,
-                        lookupLanguageOptions: lookupLanguageOptions,
-                        onLookupLanguageChange: onLookupLanguageChange,
-                        llmModel: llmModel,
-                        llmModelOptions: llmModelOptions,
-                        onLlmModelChange: onLlmModelChange,
-                        onIncreaseFont: onIncreaseLinguistFont,
-                        onDecreaseFont: onDecreaseLinguistFont,
-                        onClose: onCloseBubble,
-                        isFocusEnabled: bubbleFocusEnabled,
-                        focusBinding: $focusedArea
-                    )
-                    .frame(maxWidth: .infinity, alignment: .top)
-                    .background(GeometryReader { bubbleProxy in
-                        Color.clear.preference(
-                            key: InteractiveBubbleHeightKey.self,
-                                value: bubbleProxy.size.height
+                        if bubble != nil {
+                            Color.clear
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    onCloseBubble()
+                                    if !audioCoordinator.isPlaying {
+                                        onTogglePlayback()
+                                    }
+                                }
+                        }
+
+                        if let bubble {
+                            MyLinguistBubbleView(
+                                bubble: bubble,
+                                fontScale: linguistFontScale,
+                                canIncreaseFont: canIncreaseLinguistFont,
+                                canDecreaseFont: canDecreaseLinguistFont,
+                                lookupLanguage: lookupLanguage,
+                                lookupLanguageOptions: lookupLanguageOptions,
+                                onLookupLanguageChange: onLookupLanguageChange,
+                                llmModel: llmModel,
+                                llmModelOptions: llmModelOptions,
+                                onLlmModelChange: onLlmModelChange,
+                                onIncreaseFont: onIncreaseLinguistFont,
+                                onDecreaseFont: onDecreaseLinguistFont,
+                                onClose: onCloseBubble,
+                                isFocusEnabled: bubbleFocusEnabled,
+                                focusBinding: $focusedArea
                             )
-                        })
-                        .simultaneousGesture(bubbleMagnifyGesture, including: .all)
+                            .frame(maxWidth: .infinity, alignment: .top)
+                            .padding(.horizontal)
+                            .padding(.bottom, 6)
+                            .simultaneousGesture(bubbleMagnifyGesture, including: .all)
+                        }
                     }
+                } else {
+                    VStack(alignment: .leading, spacing: stackSpacing) {
+                        Spacer(minLength: 0)
+                        trackView
+                        if let bubble {
+                            MyLinguistBubbleView(
+                                bubble: bubble,
+                                fontScale: linguistFontScale,
+                                canIncreaseFont: canIncreaseLinguistFont,
+                                canDecreaseFont: canDecreaseLinguistFont,
+                                lookupLanguage: lookupLanguage,
+                                lookupLanguageOptions: lookupLanguageOptions,
+                                onLookupLanguageChange: onLookupLanguageChange,
+                                llmModel: llmModel,
+                                llmModelOptions: llmModelOptions,
+                                onLlmModelChange: onLlmModelChange,
+                                onIncreaseFont: onIncreaseLinguistFont,
+                                onDecreaseFont: onDecreaseLinguistFont,
+                                onClose: onCloseBubble,
+                                isFocusEnabled: bubbleFocusEnabled,
+                                focusBinding: $focusedArea
+                            )
+                            .frame(maxWidth: .infinity, alignment: .top)
+                            .background(GeometryReader { bubbleProxy in
+                                Color.clear.preference(
+                                    key: InteractiveBubbleHeightKey.self,
+                                    value: bubbleProxy.size.height
+                                )
+                            })
+                            .simultaneousGesture(bubbleMagnifyGesture, including: .all)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                    .gesture(swipeGesture)
+                    .simultaneousGesture(doubleTapGesture, including: .gesture)
+                    .highPriorityGesture(trackMagnifyGesture, including: .all)
+                }
+                #endif
+            }
+            .onPreferenceChange(InteractiveBubbleHeightKey.self) { value in
+                if !isPhone {
+                    bubbleHeight = value
                 }
             }
-            #endif
-        }
-        .onPreferenceChange(InteractiveBubbleHeightKey.self) { value in
-            bubbleHeight = value
+            .onPreferenceChange(InteractiveTrackHeightKey.self) { value in
+                guard shouldAutoScaleTracks else { return }
+                trackHeight = value
+                updateEffectiveTrackFontScale(measuredHeight: value, availableHeight: textHeightLimit)
+            }
+            .onChange(of: bubbleHeight) { _, _ in
+                guard shouldAutoScaleTracks else { return }
+                updateEffectiveTrackFontScale(measuredHeight: trackHeight, availableHeight: textHeightLimit)
+            }
+            .onChange(of: proxy.size) { _, _ in
+                guard shouldAutoScaleTracks else { return }
+                updateEffectiveTrackFontScale(measuredHeight: trackHeight, availableHeight: textHeightLimit)
+            }
+            .onChange(of: trackFontScale) { _, _ in
+                guard shouldAutoScaleTracks else { return }
+                effectiveTrackFontScale = trackFontScale
+                updateEffectiveTrackFontScale(measuredHeight: trackHeight, availableHeight: textHeightLimit)
+            }
         }
     }
 
@@ -311,6 +343,23 @@ struct InteractiveTranscriptView: View {
             }
     }
     #endif
+
+    private func updateEffectiveTrackFontScale(measuredHeight: CGFloat, availableHeight: CGFloat) {
+        guard !isTV, !isPhone else { return }
+        guard measuredHeight > 0, availableHeight > 0 else {
+            if effectiveTrackFontScale != trackFontScale {
+                effectiveTrackFontScale = trackFontScale
+            }
+            return
+        }
+        let currentScale = effectiveTrackFontScale == 0 ? trackFontScale : effectiveTrackFontScale
+        let ratio = availableHeight / measuredHeight
+        let proposed = min(trackFontScale, currentScale * ratio)
+        let clamped = max(minTrackFontScale, proposed)
+        if abs(clamped - currentScale) > 0.01 {
+            effectiveTrackFontScale = clamped
+        }
+    }
 
     private var isPad: Bool {
         #if os(iOS)
