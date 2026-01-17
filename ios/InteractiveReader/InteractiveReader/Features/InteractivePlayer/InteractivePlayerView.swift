@@ -34,6 +34,7 @@ struct InteractivePlayerView: View {
     @State var availableLlmModels: [String] = []
     @State var didLoadLlmModels = false
     @State var isMenuVisible = false
+    @State var resumePlaybackAfterMenu = false
     @AppStorage("player.headerCollapsed") var isHeaderCollapsed = false
     @State var frozenTranscriptSentences: [TextPlayerSentenceDisplay]?
     @State var isShortcutHelpPinned = false

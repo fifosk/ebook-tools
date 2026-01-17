@@ -446,11 +446,26 @@ struct EdgeSwipeBackOverlay: View {
     var minimumDistance: CGFloat = 18
     var requiredTranslation: CGFloat = 60
     var maxVerticalTranslation: CGFloat = 40
+    #if os(iOS)
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    #endif
+
+    private var resolvedEdgeWidth: CGFloat {
+        #if os(iOS)
+        guard UIDevice.current.userInterfaceIdiom == .phone else { return edgeWidth }
+        if verticalSizeClass == .compact {
+            return max(edgeWidth, 44)
+        }
+        return edgeWidth
+        #else
+        return edgeWidth
+        #endif
+    }
 
     var body: some View {
         #if os(tvOS)
         Color.clear
-            .frame(width: edgeWidth)
+            .frame(width: resolvedEdgeWidth)
             .frame(maxHeight: .infinity, alignment: .leading)
             .accessibilityHidden(true)
         #else
@@ -464,9 +479,10 @@ struct EdgeSwipeBackOverlay: View {
                         onBack()
                     }
             )
-            .frame(width: edgeWidth)
+            .frame(width: resolvedEdgeWidth)
             .frame(maxHeight: .infinity, alignment: .leading)
             .accessibilityHidden(true)
+            .ignoresSafeArea(edges: .leading)
         #endif
     }
 }

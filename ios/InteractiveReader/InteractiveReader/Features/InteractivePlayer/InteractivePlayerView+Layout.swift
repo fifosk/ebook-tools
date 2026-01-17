@@ -262,12 +262,8 @@ extension InteractivePlayerView {
     @ViewBuilder
     func menuOverlay(for chunk: InteractiveChunk) -> some View {
         if isMenuVisible {
-            let reelURLs = imageReelURLs(for: chunk)
             VStack(alignment: .leading, spacing: 12) {
                 menuDragHandle
-                if let headerInfo {
-                    menuHeader(info: headerInfo, reelURLs: reelURLs)
-                }
                 if let summary = viewModel.highlightingSummary {
                     Text(summary)
                         .font(.footnote)
@@ -396,6 +392,10 @@ extension InteractivePlayerView {
     func showMenu() {
         guard !isMenuVisible else { return }
         guard viewModel.selectedChunk != nil else { return }
+        resumePlaybackAfterMenu = audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying
+        if resumePlaybackAfterMenu {
+            audioCoordinator.pause()
+        }
         withAnimation(.easeOut(duration: 0.2)) {
             isMenuVisible = true
         }
@@ -409,6 +409,10 @@ extension InteractivePlayerView {
         withAnimation(.easeOut(duration: 0.2)) {
             isMenuVisible = false
         }
+        if resumePlaybackAfterMenu {
+            audioCoordinator.play()
+        }
+        resumePlaybackAfterMenu = false
         #if os(tvOS)
         focusedArea = .transcript
         #endif
@@ -437,6 +441,8 @@ extension InteractivePlayerView {
                         if let timelineLabel {
                             audioTimelineView(label: timelineLabel)
                         }
+                    } else if let timelineLabel {
+                        audioTimelineView(label: timelineLabel)
                     }
                     #if os(tvOS)
                     tvHeaderTogglePill
@@ -574,16 +580,22 @@ extension InteractivePlayerView {
     @ViewBuilder
     var headerToggleButton: some View {
         #if os(iOS)
-        if viewModel.selectedChunk != nil {
-            Button(action: toggleHeaderCollapsed) {
-                Image(systemName: isHeaderCollapsed ? "chevron.down" : "chevron.up")
-                    .font(.caption.weight(.semibold))
-                    .padding(6)
-                    .background(Color.black.opacity(0.45), in: Circle())
-                    .foregroundStyle(.white)
+        if let chunk = viewModel.selectedChunk {
+            let timelineLabel = audioTimelineLabel(for: chunk)
+            HStack(spacing: 8) {
+                if isHeaderCollapsed, let timelineLabel {
+                    audioTimelineView(label: timelineLabel)
+                }
+                Button(action: toggleHeaderCollapsed) {
+                    Image(systemName: isHeaderCollapsed ? "chevron.down" : "chevron.up")
+                        .font(.caption.weight(.semibold))
+                        .padding(6)
+                        .background(Color.black.opacity(0.45), in: Circle())
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isHeaderCollapsed ? "Show info header" : "Hide info header")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isHeaderCollapsed ? "Show info header" : "Hide info header")
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             .padding(.top, 6)
             .padding(.trailing, 6)

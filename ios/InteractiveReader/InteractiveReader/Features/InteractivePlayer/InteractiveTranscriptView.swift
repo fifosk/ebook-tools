@@ -64,7 +64,16 @@ struct InteractiveTranscriptView: View {
     @State private var bubbleHeight: CGFloat = 0
     @State private var trackHeight: CGFloat = 0
     @State private var effectiveTrackFontScale: CGFloat = 0
-    private let autoScaleHeightTolerance: CGFloat = 4
+    @State private var suppressPlaybackToggle = false
+    @State private var suppressPlaybackTask: Task<Void, Never>?
+    @State private var autoScaleNeedsUpdate = false
+    @State private var autoScaleTask: Task<Void, Never>?
+    @State private var lastMeasuredTrackHeight: CGFloat = 0
+    @State private var lastAvailableTrackHeight: CGFloat = 0
+    @State private var lastLayoutSize: CGSize = .zero
+    private var autoScaleHeightTolerance: CGFloat {
+        isPhone ? 8 : 4
+    }
 
     var body: some View {
         transcriptContent
@@ -89,7 +98,14 @@ struct InteractiveTranscriptView: View {
             let bubbleReserve = bubble == nil ? 0 : max(bubbleHeight + stackSpacing, minBubbleReserve)
             let preferredTextHeight = (isPad && bubble != nil) ? availableHeight * 0.7 : availableHeight
             let textHeight = max(min(preferredTextHeight, availableHeight - bubbleReserve), 0)
-            let textHeightLimit = isPhone ? availableHeight : textHeight
+            let safeAreaBottom: CGFloat = {
+                #if os(iOS)
+                return isPhone ? proxy.safeAreaInsets.bottom : 0
+                #else
+                return 0
+                #endif
+            }()
+            let textHeightLimit = isPhone ? max(availableHeight - safeAreaBottom, 0) : textHeight
             let shouldAutoScaleTracks = !isTV && autoScaleEnabled
             let bubbleFocusEnabled: Bool = {
                 #if os(tvOS)
@@ -98,6 +114,16 @@ struct InteractiveTranscriptView: View {
                 return true
                 #endif
             }()
+            let tokenLookupHandler: (Int, TextPlayerVariantKind, Int, String) -> Void = {
+                sentenceIndex, variantKind, tokenIndex, token in
+                suppressPlaybackTask?.cancel()
+                suppressPlaybackToggle = true
+                suppressPlaybackTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 350_000_000)
+                    suppressPlaybackToggle = false
+                }
+                onLookupToken(sentenceIndex, variantKind, tokenIndex, token)
+            }
             let resolvedTrackFontScale = (isTV || !shouldAutoScaleTracks) ? trackFontScale : {
                 let current = effectiveTrackFontScale == 0 ? trackFontScale : effectiveTrackFontScale
                 return min(current, maxTrackFontScale)
@@ -105,7 +131,7 @@ struct InteractiveTranscriptView: View {
             let baseTrackView = TextPlayerFrame(
                 sentences: sentences,
                 selection: selection,
-                onTokenLookup: onLookupToken,
+                onTokenLookup: tokenLookupHandler,
                 onTokenSeek: onSeekToken,
                 fontScale: resolvedTrackFontScale,
                 playbackPrimaryKind: playbackPrimaryKind,
@@ -265,22 +291,49 @@ struct InteractiveTranscriptView: View {
             .onPreferenceChange(InteractiveAutoScaleTrackHeightKey.self) { value in
                 guard shouldAutoScaleTracks else { return }
                 trackHeight = value
-                updateEffectiveTrackFontScale(measuredHeight: value, availableHeight: textHeightLimit)
+                lastMeasuredTrackHeight = value
+                lastAvailableTrackHeight = textHeightLimit
+                if effectiveTrackFontScale == 0 {
+                    autoScaleNeedsUpdate = true
+                }
+                applyAutoScaleIfNeeded()
+            }
+            .onChange(of: proxy.size) { _, newSize in
+                guard shouldAutoScaleTracks else { return }
+                guard newSize != lastLayoutSize else { return }
+                lastLayoutSize = newSize
+                lastAvailableTrackHeight = textHeightLimit
+                requestAutoScaleUpdate(delay: 250_000_000)
             }
             .onChange(of: trackFontScale) { _, _ in
                 guard shouldAutoScaleTracks else { return }
                 effectiveTrackFontScale = trackFontScale
+                requestAutoScaleUpdate()
             }
             .onChange(of: visibleTracks) { _, _ in
                 guard shouldAutoScaleTracks else { return }
-                effectiveTrackFontScale = effectiveTrackFontScale == 0 ? trackFontScale : effectiveTrackFontScale
+                autoScaleNeedsUpdate = true
+                requestAutoScaleUpdate()
+            }
+            .onChange(of: sentenceSignature) { _, _ in
+                guard shouldAutoScaleTracks else { return }
+                autoScaleNeedsUpdate = true
+                requestAutoScaleUpdate()
             }
             .onChange(of: autoScaleEnabled) { _, enabled in
+                effectiveTrackFontScale = trackFontScale
+                autoScaleTask?.cancel()
+                autoScaleTask = nil
+                autoScaleNeedsUpdate = enabled
                 if enabled {
-                    effectiveTrackFontScale = trackFontScale
-                } else {
-                    effectiveTrackFontScale = trackFontScale
+                    requestAutoScaleUpdate()
                 }
+            }
+            .onDisappear {
+                suppressPlaybackTask?.cancel()
+                suppressPlaybackTask = nil
+                autoScaleTask?.cancel()
+                autoScaleTask = nil
             }
         }
     }
@@ -316,6 +369,7 @@ struct InteractiveTranscriptView: View {
     private var doubleTapGesture: some Gesture {
         TapGesture(count: 2)
             .onEnded {
+                guard !suppressPlaybackToggle else { return }
                 onTogglePlayback()
             }
     }
@@ -369,6 +423,26 @@ struct InteractiveTranscriptView: View {
         }
     }
 
+    private func requestAutoScaleUpdate(delay: UInt64 = 120_000_000) {
+        guard autoScaleEnabled, !isTV else { return }
+        autoScaleNeedsUpdate = true
+        autoScaleTask?.cancel()
+        autoScaleTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: delay)
+            applyAutoScaleIfNeeded()
+        }
+    }
+
+    private func applyAutoScaleIfNeeded() {
+        guard autoScaleNeedsUpdate else { return }
+        guard lastMeasuredTrackHeight > 0, lastAvailableTrackHeight > 0 else { return }
+        updateEffectiveTrackFontScale(
+            measuredHeight: lastMeasuredTrackHeight,
+            availableHeight: lastAvailableTrackHeight
+        )
+        autoScaleNeedsUpdate = false
+    }
+
     private var isPad: Bool {
         #if os(iOS)
         return UIDevice.current.userInterfaceIdiom == .pad
@@ -396,5 +470,9 @@ struct InteractiveTranscriptView: View {
     private var autoScaleFloor: CGFloat {
         guard isPhone else { return minTrackFontScale }
         return max(0.75, minTrackFontScale * 0.75)
+    }
+
+    private var sentenceSignature: String {
+        sentences.map(\.id).joined(separator: "|")
     }
 }

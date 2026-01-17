@@ -111,7 +111,7 @@ enum SubtitleParser {
             }
             if trimmed.contains("-->") {
                 let pendingCue = finalizeCue()
-                parseTimecodeLine(trimmed)
+                _ = parseTimecodeLine(trimmed)
                 return pendingCue
             }
             guard currentStart != nil else {

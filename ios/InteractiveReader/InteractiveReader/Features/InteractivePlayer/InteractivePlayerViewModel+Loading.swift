@@ -377,7 +377,7 @@ extension InteractivePlayerViewModel {
     }
 
     private func decodeChunkMetadataInBackground(_ payloadData: Data) async throws -> [ChunkSentenceMetadata]? {
-        try await Task.detached(priority: .utility) { () -> [ChunkSentenceMetadata]? in
+        await Task.detached(priority: .utility) { () -> [ChunkSentenceMetadata]? in
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             if let payload = try? decoder.decode(ChunkMetadataPayload.self, from: payloadData) {

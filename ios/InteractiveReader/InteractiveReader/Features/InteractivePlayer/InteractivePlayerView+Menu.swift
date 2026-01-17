@@ -151,13 +151,6 @@ extension InteractivePlayerView {
                 #if os(tvOS)
                 trackFontControls
                 #endif
-                Spacer(minLength: 8)
-                PlaybackButtonRow(
-                    coordinator: audioCoordinator,
-                    focusBinding: $focusedArea,
-                    onPrevious: { viewModel.skipSentence(forward: false) },
-                    onNext: { viewModel.skipSentence(forward: true) }
-                )
             }
             #if os(tvOS)
             .transaction { transaction in

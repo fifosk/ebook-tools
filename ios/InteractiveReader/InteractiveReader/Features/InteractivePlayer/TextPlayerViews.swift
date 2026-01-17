@@ -61,7 +61,22 @@ struct TextPlayerSentenceView: View {
     let fontScale: CGFloat
 
     var body: some View {
+        Group {
+            variantContent
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity)
+        .background(sentenceBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: sentenceShadow, radius: sentenceShadowRadius, x: 0, y: 6)
+        .opacity(sentenceOpacity)
+    }
+
+    @ViewBuilder
+    private var variantContent: some View {
         let playbackPrimaryIndex = playbackPrimaryTokenIndex()
+        #if os(tvOS)
         VStack(spacing: 8) {
             ForEach(sentence.variants) { variant in
                 TextPlayerVariantView(
@@ -85,13 +100,39 @@ struct TextPlayerSentenceView: View {
                 )
             }
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity)
-        .background(sentenceBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: sentenceShadow, radius: sentenceShadowRadius, x: 0, y: 6)
-        .opacity(sentenceOpacity)
+        #else
+        let visibleVariants = sentence.variants.filter { visibleTracks.contains($0.kind) }
+        let hiddenVariants = sentence.variants.filter { !visibleTracks.contains($0.kind) }
+        VStack(spacing: 8) {
+            if !hiddenVariants.isEmpty {
+                HStack {
+                    Spacer()
+                    hiddenTrackHeaderRow(for: hiddenVariants)
+                }
+            }
+            ForEach(visibleVariants) { variant in
+                TextPlayerVariantView(
+                    variant: variant,
+                    sentenceState: sentence.state,
+                    selectedTokenIndex: selectedTokenIndex(for: variant),
+                    shadowTokenIndex: shadowTokenIndex(for: variant),
+                    playbackTokenIndex: playbackTokenIndex(for: variant, primaryIndex: playbackPrimaryIndex),
+                    playbackShadowIndex: playbackShadowIndex(for: variant, primaryIndex: playbackPrimaryIndex),
+                    isVisible: true,
+                    onToggleVisibility: {
+                        onToggleTrack?(variant.kind)
+                    },
+                    fontScale: fontScale,
+                    onTokenLookup: { tokenIndex, token in
+                        onTokenLookup?(sentence.index, variant.kind, tokenIndex, token)
+                    },
+                    onTokenSeek: { tokenIndex, seekTime in
+                        onTokenSeek?(sentence.index, sentence.sentenceNumber, variant.kind, tokenIndex, seekTime)
+                    }
+                )
+            }
+        }
+        #endif
     }
 
     private var sentenceBackground: Color {
@@ -116,6 +157,38 @@ struct TextPlayerSentenceView: View {
             return 1.0
         }
     }
+
+    #if !os(tvOS)
+    private func hiddenTrackHeaderRow(for hiddenVariants: [TextPlayerVariantDisplay]) -> some View {
+        HStack(spacing: 8) {
+            ForEach(hiddenVariants) { variant in
+                Button(action: {
+                    onToggleTrack?(variant.kind)
+                }) {
+                    compactHeaderLabel(for: variant)
+                }
+                .buttonStyle(.plain)
+                .disabled(onToggleTrack == nil)
+            }
+        }
+    }
+
+    private func compactHeaderLabel(for variant: TextPlayerVariantDisplay) -> some View {
+        HStack(spacing: 4) {
+            Text(variant.label)
+                .font(.caption2)
+                .textCase(.uppercase)
+                .tracking(1.0)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .allowsTightening(true)
+            Image(systemName: "chevron.down")
+                .font(.caption2.weight(.semibold))
+        }
+        .foregroundStyle(TextPlayerTheme.lineLabel)
+        .opacity(0.6)
+    }
+    #endif
 
     private func selectedTokenIndex(for variant: TextPlayerVariantDisplay) -> Int? {
         guard let selection, selection.sentenceIndex == sentence.index else { return nil }
