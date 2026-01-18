@@ -370,6 +370,7 @@ struct LanguageFlagEntry: Identifiable, Equatable {
     let role: LanguageFlagRole
     let emoji: String
     let label: String
+    let shortLabel: String
     let accessibilityLabel: String
 
     var id: String {
@@ -381,17 +382,21 @@ enum LanguageFlagResolver {
     static func resolveFlags(originalLanguage: String?, translationLanguage: String?) -> [LanguageFlagEntry] {
         let originalLabel = resolveLanguageLabel(for: originalLanguage)
         let translationLabel = resolveLanguageLabel(for: translationLanguage)
+        let originalCode = resolveLanguageShortCode(for: originalLanguage) ?? originalLabel
+        let translationCode = resolveLanguageShortCode(for: translationLanguage) ?? translationLabel
         return [
             LanguageFlagEntry(
                 role: .original,
                 emoji: resolveFlag(for: originalLanguage) ?? defaultFlag,
                 label: originalLabel,
+                shortLabel: originalCode,
                 accessibilityLabel: "Original language: \(originalLabel)"
             ),
             LanguageFlagEntry(
                 role: .translation,
                 emoji: resolveFlag(for: translationLanguage) ?? defaultFlag,
                 label: translationLabel,
+                shortLabel: translationCode,
                 accessibilityLabel: "Translation language: \(translationLabel)"
             )
         ]
@@ -399,10 +404,12 @@ enum LanguageFlagResolver {
 
     static func flagEntry(for language: String?, role: LanguageFlagRole = .translation) -> LanguageFlagEntry {
         let label = resolveLanguageLabel(for: language)
+        let shortLabel = resolveLanguageShortCode(for: language) ?? label
         return LanguageFlagEntry(
             role: role,
             emoji: resolveFlag(for: language) ?? defaultFlag,
             label: label,
+            shortLabel: shortLabel,
             accessibilityLabel: label
         )
     }
@@ -479,6 +486,20 @@ enum LanguageFlagResolver {
             return name
         }
         return trimmed
+    }
+
+    private static func resolveLanguageShortCode(for language: String?) -> String? {
+        let trimmed = language?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmed.isEmpty else { return nil }
+        let resolved = resolveLanguageCode(trimmed) ?? trimmed
+        let normalized = resolved
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "-")
+        guard !normalized.isEmpty else { return nil }
+        return normalized
+            .split(separator: "-")
+            .map { $0.uppercased() }
+            .joined(separator: "-")
     }
 
     private static func normalizeFlagKey(_ value: String) -> String {
@@ -768,25 +789,69 @@ struct PlayerLanguageFlagRow: View {
     let flags: [LanguageFlagEntry]
     let modelLabel: String?
     let isTV: Bool
+    let sizeScale: CGFloat
+    let activeRoles: Set<LanguageFlagRole>
+    let availableRoles: Set<LanguageFlagRole>
+    let onToggleRole: ((LanguageFlagRole) -> Void)?
+
+    init(
+        flags: [LanguageFlagEntry],
+        modelLabel: String?,
+        isTV: Bool,
+        sizeScale: CGFloat = 1.0,
+        activeRoles: Set<LanguageFlagRole> = [],
+        availableRoles: Set<LanguageFlagRole> = [.original, .translation],
+        onToggleRole: ((LanguageFlagRole) -> Void)? = nil
+    ) {
+        self.flags = flags
+        self.modelLabel = modelLabel
+        self.isTV = isTV
+        self.sizeScale = sizeScale
+        self.activeRoles = activeRoles
+        self.availableRoles = availableRoles
+        self.onToggleRole = onToggleRole
+    }
 
     var body: some View {
         if !flags.isEmpty {
             HStack(spacing: badgeSpacing) {
                 ForEach(Array(orderedFlags.enumerated()), id: \.element.id) { index, flag in
-                    LanguageFlagBadge(entry: flag, isTV: isTV, showsLabel: shouldShowLabel)
+                    let role = flag.role
+                    let isAvailable = availableRoles.contains(role)
+                    let badge = LanguageFlagBadge(
+                        entry: flag,
+                        isTV: isTV,
+                        showsLabel: shouldShowLabel,
+                        sizeScale: sizeScale
+                    )
+                    .opacity(flagOpacity(isAvailable: isAvailable, role: role))
+                    if let onToggleRole, isAvailable {
+                        Button(action: { onToggleRole(role) }) {
+                            badge
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        badge
+                    }
                     if index < orderedFlags.count - 1 {
-                        LanguageConnectorBadge(label: connectorLabel, isTV: isTV)
+                        LanguageConnectorBadge(label: connectorLabel, isTV: isTV, sizeScale: sizeScale)
                     }
                 }
                 if let modelBadgeLabel {
-                    LanguageModelBadge(label: modelBadgeLabel, isTV: isTV)
+                    LanguageModelBadge(label: modelBadgeLabel, isTV: isTV, sizeScale: sizeScale)
                 }
             }
         }
     }
 
     private var badgeSpacing: CGFloat {
-        isTV ? 6 : 4
+        (isTV ? 6 : 4) * sizeScale
+    }
+
+    private func flagOpacity(isAvailable: Bool, role: LanguageFlagRole) -> Double {
+        guard isAvailable else { return 0.3 }
+        guard !activeRoles.isEmpty else { return 1.0 }
+        return activeRoles.contains(role) ? 1.0 : 0.55
     }
 
     private var orderedFlags: [LanguageFlagEntry] {
@@ -931,18 +996,20 @@ private struct LanguageFlagBadge: View {
     let entry: LanguageFlagEntry
     let isTV: Bool
     let showsLabel: Bool
+    let sizeScale: CGFloat
 
     var body: some View {
-        HStack(spacing: showsLabel ? 4 : 0) {
+        HStack(spacing: labelSpacing) {
             Text(entry.emoji)
+                .font(emojiFont)
             if showsLabel {
-                Text(entry.label)
+                Text(entry.shortLabel.isEmpty ? entry.label : entry.shortLabel)
                     .font(labelFont)
                     .foregroundStyle(Color.white.opacity(0.85))
             }
         }
-        .padding(.horizontal, showsLabel ? 6 : 4)
-        .padding(.vertical, 3)
+        .padding(.horizontal, labelPaddingHorizontal)
+        .padding(.vertical, labelPaddingVertical)
         .background(
             Capsule()
                 .fill(Color.black.opacity(0.55))
@@ -953,11 +1020,40 @@ private struct LanguageFlagBadge: View {
         .accessibilityLabel(entry.accessibilityLabel)
     }
 
+    private var labelSpacing: CGFloat {
+        (showsLabel ? 4 : 0) * sizeScale
+    }
+
+    private var labelPaddingHorizontal: CGFloat {
+        (showsLabel ? 6 : 4) * sizeScale
+    }
+
+    private var labelPaddingVertical: CGFloat {
+        3 * sizeScale
+    }
+
     private var labelFont: Font {
         #if os(tvOS)
-        return .caption.weight(.semibold)
+        return scaledFont(style: .caption1, weight: .semibold)
         #else
-        return .caption2.weight(.semibold)
+        return scaledFont(style: .caption2, weight: .semibold)
+        #endif
+    }
+
+    private var emojiFont: Font {
+        #if os(tvOS)
+        return scaledFont(style: .caption1, weight: .semibold)
+        #else
+        return scaledFont(style: .caption1, weight: .semibold)
+        #endif
+    }
+
+    private func scaledFont(style: UIFont.TextStyle, weight: Font.Weight) -> Font {
+        #if os(iOS) || os(tvOS)
+        let base = UIFont.preferredFont(forTextStyle: style).pointSize
+        return .system(size: base * sizeScale, weight: weight)
+        #else
+        return .system(size: 12 * sizeScale, weight: weight)
         #endif
     }
 }
@@ -965,6 +1061,7 @@ private struct LanguageFlagBadge: View {
 private struct LanguageConnectorBadge: View {
     let label: String
     let isTV: Bool
+    let sizeScale: CGFloat
 
     var body: some View {
         Text(label)
@@ -972,8 +1069,8 @@ private struct LanguageConnectorBadge: View {
             .foregroundStyle(Color.white.opacity(0.7))
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+            .padding(.horizontal, 6 * sizeScale)
+            .padding(.vertical, 2 * sizeScale)
             .background(
                 Capsule()
                     .fill(Color.black.opacity(0.45))
@@ -986,9 +1083,18 @@ private struct LanguageConnectorBadge: View {
 
     private var labelFont: Font {
         #if os(tvOS)
-        return .caption.weight(.semibold)
+        return scaledFont(style: .caption1, weight: .semibold)
         #else
-        return .caption2.weight(.semibold)
+        return scaledFont(style: .caption2, weight: .semibold)
+        #endif
+    }
+
+    private func scaledFont(style: UIFont.TextStyle, weight: Font.Weight) -> Font {
+        #if os(iOS) || os(tvOS)
+        let base = UIFont.preferredFont(forTextStyle: style).pointSize
+        return .system(size: base * sizeScale, weight: weight)
+        #else
+        return .system(size: 12 * sizeScale, weight: weight)
         #endif
     }
 }
@@ -996,6 +1102,7 @@ private struct LanguageConnectorBadge: View {
 private struct LanguageModelBadge: View {
     let label: String
     let isTV: Bool
+    let sizeScale: CGFloat
 
     var body: some View {
         Text(label)
@@ -1003,8 +1110,8 @@ private struct LanguageModelBadge: View {
             .foregroundStyle(Color.white.opacity(0.7))
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .padding(.horizontal, 8 * sizeScale)
+            .padding(.vertical, 3 * sizeScale)
             .background(
                 Capsule()
                     .fill(Color.black.opacity(0.55))
@@ -1017,9 +1124,18 @@ private struct LanguageModelBadge: View {
 
     private var labelFont: Font {
         #if os(tvOS)
-        return .caption.weight(.semibold)
+        return scaledFont(style: .caption1, weight: .semibold)
         #else
-        return .caption2.weight(.semibold)
+        return scaledFont(style: .caption2, weight: .semibold)
+        #endif
+    }
+
+    private func scaledFont(style: UIFont.TextStyle, weight: Font.Weight) -> Font {
+        #if os(iOS) || os(tvOS)
+        let base = UIFont.preferredFont(forTextStyle: style).pointSize
+        return .system(size: base * sizeScale, weight: weight)
+        #else
+        return .system(size: 12 * sizeScale, weight: weight)
         #endif
     }
 }

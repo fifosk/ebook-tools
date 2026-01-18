@@ -43,8 +43,12 @@ struct InteractivePlayerView: View {
     @AppStorage("interactive.trackFontScale") var trackFontScaleValue: Double =
         Double(InteractivePlayerView.defaultTrackFontScale)
     @AppStorage("interactive.autoScaleEnabled") var autoScaleEnabled: Bool = true
+    @AppStorage("player.headerScale") var headerScaleValue: Double = 1.0
     @AppStorage("interactive.linguistFontScale") var linguistFontScaleValue: Double =
         Double(InteractivePlayerView.defaultLinguistFontScale)
+    #if os(iOS)
+    @State var headerMagnifyStartScale: CGFloat?
+    #endif
     @StateObject var pronunciationSpeaker = PronunciationSpeaker()
     @State var bookmarks: [PlaybackBookmarkEntry] = []
     #if os(tvOS)
@@ -59,6 +63,9 @@ struct InteractivePlayerView: View {
     let trackFontScaleStep: CGFloat = 0.1
     let trackFontScaleMin: CGFloat = 1.0
     let trackFontScaleMax: CGFloat = 3.0
+    let headerScaleStep: CGFloat = 0.1
+    let headerScaleMin: CGFloat = 0.7
+    let headerScaleMax: CGFloat = 1.6
     let linguistFontScaleMin: CGFloat = 0.8
     var linguistFontScaleMax: CGFloat {
         #if os(iOS)

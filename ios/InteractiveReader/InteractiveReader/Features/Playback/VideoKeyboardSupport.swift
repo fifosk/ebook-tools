@@ -47,54 +47,222 @@ struct VideoShortcutHelpOverlayView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.55)
+            Color.black.opacity(0.35)
                 .ignoresSafeArea()
                 .onTapGesture {
                     onDismiss()
                 }
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text("Keyboard Shortcuts")
-                        .font(.title3.weight(.semibold))
-                    Spacer()
-                    Button(action: onDismiss) {
-                        Image(systemName: "xmark")
-                            .font(.caption.weight(.semibold))
-                            .padding(6)
-                            .background(.black.opacity(0.3), in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                }
+            VStack(alignment: .leading, spacing: 12) {
+                header
+                Divider()
+                    .overlay(Color.white.opacity(0.12))
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
+                    LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 16) {
                         ForEach(sections) { section in
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(section.title)
-                                    .font(.caption)
+                            ShortcutHelpSectionView(section: section, keycapWidth: keycapColumnWidth)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: isPad ? 360 : 300)
+            }
+            .padding(20)
+            .frame(maxWidth: isPad ? 640 : 520)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.2), radius: 14, x: 0, y: 8)
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            Label("Keyboard Shortcuts", systemImage: "keyboard")
+                .font(.headline.weight(.semibold))
+            Spacer()
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.semibold))
+                    .padding(8)
+                    .background(.black.opacity(0.15), in: Circle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var gridColumns: [GridItem] {
+        if isPad {
+            return [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
+        }
+        return [GridItem(.flexible())]
+    }
+
+    private var keycapColumnWidth: CGFloat {
+        isPad ? 150 : 170
+    }
+
+    private var isPad: Bool {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .pad
+        #else
+        return false
+        #endif
+    }
+
+    private struct ShortcutHelpSectionView: View {
+        let section: ShortcutHelpSection
+        let keycapWidth: CGFloat
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(section.title.uppercased())
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                ForEach(section.items) { item in
+                    ShortcutHelpRow(item: item, keycapWidth: keycapWidth)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private struct ShortcutHelpRow: View {
+        let item: ShortcutHelpItem
+        let keycapWidth: CGFloat
+
+        var body: some View {
+            HStack(alignment: .top, spacing: 12) {
+                KeycapGroup(keys: item.keys)
+                    .frame(width: keycapWidth, alignment: .leading)
+                Text(item.action)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private struct KeycapGroup: View {
+        let keys: String
+
+        var body: some View {
+            let (base, context) = splitContext(keys)
+            HStack(spacing: 6) {
+                keycapContent(base)
+                if let context {
+                    ContextPill(label: context)
+                }
+            }
+        }
+
+        @ViewBuilder
+        private func keycapContent(_ value: String) -> some View {
+            let alternatives = value.split(separator: "/").map { $0.trimmingCharacters(in: .whitespaces) }
+            HStack(spacing: 4) {
+                ForEach(Array(alternatives.enumerated()), id: \.offset) { index, alternative in
+                    if index > 0 {
+                        Text("/")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    let combo = alternative.split(separator: "+").map { $0.trimmingCharacters(in: .whitespaces) }
+                    HStack(spacing: 4) {
+                        ForEach(Array(combo.enumerated()), id: \.offset) { comboIndex, token in
+                            if comboIndex > 0 {
+                                Text("+")
+                                    .font(.caption2.weight(.semibold))
                                     .foregroundStyle(.secondary)
-                                ForEach(section.items) { item in
-                                    HStack(alignment: .top, spacing: 12) {
-                                        Text(item.keys)
-                                            .font(.callout.monospaced())
-                                            .frame(width: 170, alignment: .leading)
-                                        Text(item.action)
-                                            .font(.callout)
-                                        Spacer(minLength: 0)
-                                    }
-                                }
                             }
+                            KeycapView(label: keyLabel(String(token)))
                         }
                     }
                 }
-                .frame(maxHeight: 320)
             }
-            .padding(20)
-            .frame(maxWidth: 520)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
-            )
+        }
+
+        private func splitContext(_ value: String) -> (String, String?) {
+            guard let openRange = value.range(of: " ("),
+                  value.hasSuffix(")") else {
+                return (value, nil)
+            }
+            let base = value[..<openRange.lowerBound]
+            let contextStart = value.index(openRange.lowerBound, offsetBy: 2)
+            let contextEnd = value.index(before: value.endIndex)
+            let context = value[contextStart..<contextEnd]
+            return (String(base), String(context))
+        }
+
+        private func keyLabel(_ raw: String) -> String {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lower = trimmed.lowercased()
+            switch lower {
+            case "left arrow":
+                return "←"
+            case "right arrow":
+                return "→"
+            case "up arrow":
+                return "↑"
+            case "down arrow":
+                return "↓"
+            case "option":
+                return "⌥"
+            case "shift":
+                return "⇧"
+            case "ctrl", "control":
+                return "⌃"
+            case "command", "cmd":
+                return "⌘"
+            case "enter", "return":
+                return "↩︎"
+            case "backspace":
+                return "⌫"
+            case "delete":
+                return "⌦"
+            case "+/-":
+                return "±"
+            case "space":
+                return "Space"
+            default:
+                return trimmed
+            }
+        }
+    }
+
+    private struct KeycapView: View {
+        let label: String
+
+        var body: some View {
+            Text(label)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.primary.opacity(0.12))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(Color.primary.opacity(0.22), lineWidth: 1)
+                )
+        }
+    }
+
+    private struct ContextPill: View {
+        let label: String
+
+        var body: some View {
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule()
+                        .fill(Color.primary.opacity(0.08))
+                )
         }
     }
 

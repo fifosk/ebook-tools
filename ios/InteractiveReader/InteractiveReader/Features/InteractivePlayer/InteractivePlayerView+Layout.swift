@@ -316,9 +316,13 @@ extension InteractivePlayerView {
                 onToggleTranslation: { toggleTrackIfAvailable(.translation) },
                 onToggleOriginalAudio: { toggleAudioTrack(.original) },
                 onToggleTranslationAudio: { toggleAudioTrack(.translation) },
+                onToggleReadingBed: { toggleReadingBed() },
                 onIncreaseLinguistFont: { handleKeyboardFontAdjust(increase: true) },
                 onDecreaseLinguistFont: { handleKeyboardFontAdjust(increase: false) },
                 onToggleShortcutHelp: { toggleShortcutHelp() },
+                onToggleHeader: { toggleHeaderCollapsed() },
+                onIncreaseHeaderScale: { adjustHeaderScale(by: headerScaleStep) },
+                onDecreaseHeaderScale: { adjustHeaderScale(by: -headerScaleStep) },
                 onOptionKeyDown: { showShortcutHelpModifier() },
                 onOptionKeyUp: { hideShortcutHelpModifier() },
                 onShowMenu: {
@@ -432,11 +436,11 @@ extension InteractivePlayerView {
         let slideLabel = slideIndicatorLabel(for: chunk)
         let timelineLabel = audioTimelineLabel(for: chunk)
         let showHeaderContent = !isHeaderCollapsed
-        return HStack(alignment: .top, spacing: 12) {
+        let headerView = HStack(alignment: .top, spacing: 12) {
             if showHeaderContent {
                 PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
                 if let headerInfo {
-                    infoBadgeView(info: headerInfo)
+                    infoBadgeView(info: headerInfo, chunk: chunk)
                 }
             }
             Spacer(minLength: 12)
@@ -461,12 +465,15 @@ extension InteractivePlayerView {
         .padding(.horizontal, 6)
         .padding(.top, 6)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .allowsHitTesting(isTV)
+        .allowsHitTesting(true)
         .zIndex(1)
+        return headerMagnifyWrapper(headerView)
     }
 
-    func infoBadgeView(info: InteractivePlayerHeaderInfo) -> some View {
-        HStack(alignment: .top, spacing: 8) {
+    func infoBadgeView(info: InteractivePlayerHeaderInfo, chunk: InteractiveChunk) -> some View {
+        let availableRoles = availableAudioRoles(for: chunk)
+        let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
+        return HStack(alignment: .top, spacing: 8) {
             if info.coverURL != nil || info.secondaryCoverURL != nil {
                 PlayerCoverStackView(
                     primaryURL: info.coverURL,
@@ -492,7 +499,13 @@ extension InteractivePlayerView {
                     PlayerLanguageFlagRow(
                         flags: info.languageFlags,
                         modelLabel: info.translationModel,
-                        isTV: isTV
+                        isTV: isTV,
+                        sizeScale: infoHeaderScale,
+                        activeRoles: activeRoles,
+                        availableRoles: availableRoles,
+                        onToggleRole: { role in
+                            toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
+                        }
                     )
                 }
             }
@@ -576,7 +589,8 @@ extension InteractivePlayerView {
 
     private var infoHeaderScale: CGFloat {
         #if os(iOS)
-        return isPad ? 2.0 : 1.0
+        let base: CGFloat = isPad ? 2.0 : 1.0
+        return base * headerScale
         #else
         return 1.0
         #endif
@@ -590,6 +604,51 @@ extension InteractivePlayerView {
         return .system(size: 16 * infoHeaderScale, weight: weight)
         #endif
     }
+
+    var headerScale: CGFloat {
+        get { CGFloat(headerScaleValue) }
+        nonmutating set { headerScaleValue = Double(newValue) }
+    }
+
+    func adjustHeaderScale(by delta: CGFloat) {
+        setHeaderScale(headerScale + delta)
+    }
+
+    func setHeaderScale(_ value: CGFloat) {
+        let updated = min(max(value, headerScaleMin), headerScaleMax)
+        if updated != headerScale {
+            headerScale = updated
+        }
+    }
+
+    @ViewBuilder
+    private func headerMagnifyWrapper<Content: View>(_ content: Content) -> some View {
+        #if os(iOS)
+        if isPad {
+            content.simultaneousGesture(headerMagnifyGesture, including: .all)
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
+
+    #if os(iOS)
+    private var headerMagnifyGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                if headerMagnifyStartScale == nil {
+                    headerMagnifyStartScale = headerScale
+                }
+                let startScale = headerMagnifyStartScale ?? headerScale
+                setHeaderScale(startScale * value)
+            }
+            .onEnded { _ in
+                headerMagnifyStartScale = nil
+            }
+    }
+    #endif
 
     var infoHeaderReservedHeight: CGFloat {
         #if os(tvOS)
@@ -781,6 +840,89 @@ extension InteractivePlayerView {
             return option.kind
         }
         return chunk.audioOptions.first?.kind
+    }
+
+    func availableAudioRoles(for chunk: InteractiveChunk) -> Set<LanguageFlagRole> {
+        let kinds = Set(chunk.audioOptions.map(\.kind))
+        var roles: Set<LanguageFlagRole> = []
+        if kinds.contains(.original) {
+            roles.insert(.original)
+        }
+        if kinds.contains(.translation) {
+            roles.insert(.translation)
+        }
+        if roles.isEmpty, kinds.contains(.combined) {
+            roles = [.original, .translation]
+        }
+        return roles
+    }
+
+    func activeAudioRoles(
+        for chunk: InteractiveChunk,
+        availableRoles: Set<LanguageFlagRole>
+    ) -> Set<LanguageFlagRole> {
+        guard let kind = selectedAudioKind(for: chunk) else { return [] }
+        switch kind {
+        case .original:
+            return availableRoles.contains(.original) ? [.original] : []
+        case .translation:
+            return availableRoles.contains(.translation) ? [.translation] : []
+        case .combined, .other:
+            return availableRoles.intersection([.original, .translation])
+        }
+    }
+
+    func toggleHeaderAudioRole(
+        _ role: LanguageFlagRole,
+        for chunk: InteractiveChunk,
+        availableRoles: Set<LanguageFlagRole>
+    ) {
+        guard !availableRoles.isEmpty else { return }
+        var activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
+        if activeRoles.isEmpty {
+            activeRoles = availableRoles
+        }
+        if activeRoles.contains(role) {
+            if activeRoles.count > 1 {
+                activeRoles.remove(role)
+            } else {
+                return
+            }
+        } else {
+            activeRoles.insert(role)
+        }
+        selectAudioTrack(for: chunk, preferredRoles: activeRoles, availableRoles: availableRoles)
+    }
+
+    func selectAudioTrack(
+        for chunk: InteractiveChunk,
+        preferredRoles: Set<LanguageFlagRole>,
+        availableRoles: Set<LanguageFlagRole>
+    ) {
+        let options = chunk.audioOptions
+        guard !options.isEmpty else { return }
+        let combinedOption = options.first(where: { $0.kind == .combined })
+        let originalOption = options.first(where: { $0.kind == .original })
+        let translationOption = options.first(where: { $0.kind == .translation })
+        var desiredRoles = preferredRoles.intersection(availableRoles)
+        if desiredRoles.isEmpty {
+            desiredRoles = availableRoles
+        }
+        let targetOption: InteractiveChunk.AudioOption?
+        if desiredRoles.contains(.original), desiredRoles.contains(.translation), let combinedOption {
+            targetOption = combinedOption
+        } else if desiredRoles.contains(.original), let originalOption {
+            targetOption = originalOption
+        } else if desiredRoles.contains(.translation), let translationOption {
+            targetOption = translationOption
+        } else if let combinedOption {
+            targetOption = combinedOption
+        } else {
+            targetOption = translationOption ?? originalOption ?? options.first
+        }
+        if let targetOption, targetOption.id != viewModel.selectedAudioTrackID {
+            viewModel.selectAudioTrack(id: targetOption.id)
+        }
     }
 
     func resolvedAudioDuration(

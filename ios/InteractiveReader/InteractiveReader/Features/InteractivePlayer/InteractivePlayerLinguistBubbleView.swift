@@ -156,16 +156,23 @@ struct MyLinguistBubbleView: View {
                     onLookupLanguageChange(option.label)
                 } label: {
                     if option.label == entry.label {
-                        Label("\(option.emoji) \(option.label)", systemImage: "checkmark")
+                        Label {
+                            Text("\(option.emoji) \(option.label)")
+                                .font(bubbleMenuFont)
+                        } icon: {
+                            Image(systemName: "checkmark")
+                                .font(bubbleMenuFont)
+                        }
                     } else {
                         Text("\(option.emoji) \(option.label)")
+                            .font(bubbleMenuFont)
                     }
                 }
             }
         } label: {
             Text(entry.emoji)
-                .font(.caption)
-                .padding(6)
+                .font(bubbleIconFont)
+                .padding(bubbleControlPadding)
                 .background(.black.opacity(0.3), in: Capsule())
         }
         .buttonStyle(.plain)
@@ -192,21 +199,28 @@ struct MyLinguistBubbleView: View {
                 } label: {
                     if model == llmModel {
                         Label(
-                            title: { Text(verbatim: model) },
-                            icon: { Image(systemName: "checkmark") }
+                            title: {
+                                Text(verbatim: model)
+                                    .font(bubbleMenuFont)
+                            },
+                            icon: {
+                                Image(systemName: "checkmark")
+                                    .font(bubbleMenuFont)
+                            }
                         )
                     } else {
                         Text(verbatim: model)
+                            .font(bubbleMenuFont)
                     }
                 }
             }
         } label: {
             Text(verbatim: llmModel)
-                .font(.caption2)
+                .font(bubbleModelFont)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, bubbleControlPadding * 1.4)
+                .padding(.vertical, bubbleControlPadding * 0.7)
                 .background(.black.opacity(0.3), in: Capsule())
         }
         .buttonStyle(.plain)
@@ -267,18 +281,18 @@ struct MyLinguistBubbleView: View {
         HStack(spacing: 4) {
             Button(action: onDecreaseFont) {
                 Text("A-")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
+                    .font(bubbleControlFont)
+                    .padding(.horizontal, bubbleControlPadding)
+                    .padding(.vertical, bubbleControlPadding * 0.7)
                     .background(.black.opacity(0.3), in: Capsule())
             }
             .buttonStyle(.plain)
             .disabled(!canDecreaseFont)
             Button(action: onIncreaseFont) {
                 Text("A+")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
+                    .font(bubbleControlFont)
+                    .padding(.horizontal, bubbleControlPadding)
+                    .padding(.vertical, bubbleControlPadding * 0.7)
                     .background(.black.opacity(0.3), in: Capsule())
             }
             .buttonStyle(.plain)
@@ -295,8 +309,8 @@ struct MyLinguistBubbleView: View {
         #else
         Button(action: onClose) {
             Image(systemName: "xmark")
-                .font(.caption.weight(.semibold))
-                .padding(6)
+                .font(bubbleIconFont)
+                .padding(bubbleControlPadding)
                 .background(.black.opacity(0.3), in: Circle())
         }
         .buttonStyle(.plain)
@@ -491,12 +505,41 @@ struct MyLinguistBubbleView: View {
         scaledFont(textStyle: .callout, weight: .regular)
     }
 
+    private var bubbleControlFont: Font {
+        scaledUiFont(textStyle: .caption1, weight: .semibold)
+    }
+
+    private var bubbleModelFont: Font {
+        scaledUiFont(textStyle: .caption2, weight: .regular)
+    }
+
+    private var bubbleMenuFont: Font {
+        scaledUiFont(textStyle: .callout, weight: .regular)
+    }
+
+    private var bubbleIconFont: Font {
+        scaledUiFont(textStyle: .caption1, weight: .semibold)
+    }
+
+    private var bubbleControlPadding: CGFloat {
+        6 * bubbleUiScale
+    }
+
     private func scaledFont(textStyle: UIFont.TextStyle, weight: Font.Weight) -> Font {
         #if os(iOS) || os(tvOS)
         let baseSize = UIFont.preferredFont(forTextStyle: textStyle).pointSize
         return .system(size: baseSize * fontScale, weight: weight)
         #else
         return .system(size: 16 * fontScale, weight: weight)
+        #endif
+    }
+
+    private func scaledUiFont(textStyle: UIFont.TextStyle, weight: Font.Weight) -> Font {
+        #if os(iOS) || os(tvOS)
+        let baseSize = UIFont.preferredFont(forTextStyle: textStyle).pointSize
+        return .system(size: baseSize * bubbleUiScale, weight: weight)
+        #else
+        return .system(size: 16 * bubbleUiScale, weight: weight)
         #endif
     }
 
@@ -533,6 +576,14 @@ struct MyLinguistBubbleView: View {
         return UIDevice.current.userInterfaceIdiom == .pad
         #else
         return false
+        #endif
+    }
+
+    private var bubbleUiScale: CGFloat {
+        #if os(iOS)
+        return isPad ? 2.0 : 1.0
+        #else
+        return 1.0
         #endif
     }
 }

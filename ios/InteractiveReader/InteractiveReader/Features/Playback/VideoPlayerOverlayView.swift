@@ -67,6 +67,7 @@ struct VideoPlayerOverlayView: View {
     let onSelectSegment: ((String) -> Void)?
     let onCloseSubtitleBubble: () -> Void
     let onUserInteraction: () -> Void
+    @AppStorage("player.headerScale") private var headerScaleValue: Double = 1.0
     #if !os(tvOS)
     @Environment(\.dismiss) private var dismiss
     @AppStorage("video.subtitle.verticalOffset") private var subtitleVerticalOffsetValue: Double = 0
@@ -712,7 +713,8 @@ struct VideoPlayerOverlayView: View {
                     PlayerLanguageFlagRow(
                         flags: metadata.languageFlags,
                         modelLabel: metadata.translationModel,
-                        isTV: isTV
+                        isTV: isTV,
+                        sizeScale: infoHeaderScale
                     )
                 }
             }
@@ -1234,7 +1236,8 @@ struct VideoPlayerOverlayView: View {
 
     private var infoHeaderScale: CGFloat {
         #if os(iOS)
-        return isPad ? 2.0 : 1.0
+        let base: CGFloat = isPad ? 2.0 : 1.0
+        return base * CGFloat(headerScaleValue)
         #else
         return 1.0
         #endif
