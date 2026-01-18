@@ -230,7 +230,7 @@ struct MyLinguistBubbleView: View {
                 .font(bodyFont)
                 .foregroundStyle(.red)
         case .ready:
-            ScrollView {
+            if isPad {
                 Text(bubble.answer ?? "")
                     .font(bodyFont)
                     .foregroundStyle(.primary)
@@ -238,8 +238,18 @@ struct MyLinguistBubbleView: View {
                     #if os(iOS)
                     .textSelection(.enabled)
                     #endif
+            } else {
+                ScrollView {
+                    Text(bubble.answer ?? "")
+                        .font(bodyFont)
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        #if os(iOS)
+                        .textSelection(.enabled)
+                        #endif
+                }
+                .frame(maxHeight: bubbleMaxHeight)
             }
-            .frame(maxHeight: bubbleMaxHeight)
         }
     }
 
@@ -515,6 +525,14 @@ struct MyLinguistBubbleView: View {
         return UIScreen.main.bounds.width * 0.66
         #else
         return 420
+        #endif
+    }
+
+    private var isPad: Bool {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .pad
+        #else
+        return false
         #endif
     }
 }

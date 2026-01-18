@@ -245,8 +245,8 @@ extension InteractivePlayerView {
                     in: chunk
                 )
             },
-            onIncreaseLinguistFont: { adjustLinguistFontScale(by: linguistFontScaleStep) },
-            onDecreaseLinguistFont: { adjustLinguistFontScale(by: -linguistFontScaleStep) },
+            onIncreaseLinguistFont: { handleKeyboardFontAdjust(increase: true) },
+            onDecreaseLinguistFont: { handleKeyboardFontAdjust(increase: false) },
             onSetTrackFontScale: { setTrackFontScale($0) },
             onSetLinguistFontScale: { setLinguistFontScale($0) },
             onCloseBubble: {
@@ -316,8 +316,8 @@ extension InteractivePlayerView {
                 onToggleTranslation: { toggleTrackIfAvailable(.translation) },
                 onToggleOriginalAudio: { toggleAudioTrack(.original) },
                 onToggleTranslationAudio: { toggleAudioTrack(.translation) },
-                onIncreaseLinguistFont: { adjustLinguistFontScale(by: linguistFontScaleStep) },
-                onDecreaseLinguistFont: { adjustLinguistFontScale(by: -linguistFontScaleStep) },
+                onIncreaseLinguistFont: { handleKeyboardFontAdjust(increase: true) },
+                onDecreaseLinguistFont: { handleKeyboardFontAdjust(increase: false) },
                 onToggleShortcutHelp: { toggleShortcutHelp() },
                 onOptionKeyDown: { showShortcutHelpModifier() },
                 onOptionKeyUp: { hideShortcutHelpModifier() },
@@ -358,6 +358,14 @@ extension InteractivePlayerView {
         #else
         EmptyView()
         #endif
+    }
+
+    func handleKeyboardFontAdjust(increase: Bool) {
+        if linguistBubble != nil {
+            adjustLinguistFontScale(by: increase ? linguistFontScaleStep : -linguistFontScaleStep)
+        } else {
+            adjustTrackFontScale(by: increase ? trackFontScaleStep : -trackFontScaleStep)
+        }
     }
 
     @ViewBuilder
@@ -426,7 +434,7 @@ extension InteractivePlayerView {
         let showHeaderContent = !isHeaderCollapsed
         return HStack(alignment: .top, spacing: 12) {
             if showHeaderContent {
-                PlayerChannelBugView(variant: variant, label: label)
+                PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
                 if let headerInfo {
                     infoBadgeView(info: headerInfo)
                 }
@@ -526,17 +534,20 @@ extension InteractivePlayerView {
     }
 
     var infoCoverWidth: CGFloat {
-        PlayerInfoMetrics.coverWidth(isTV: isTV)
+        PlayerInfoMetrics.coverWidth(isTV: isTV) * infoHeaderScale
     }
 
     var infoCoverHeight: CGFloat {
-        PlayerInfoMetrics.coverHeight(isTV: isTV)
+        PlayerInfoMetrics.coverHeight(isTV: isTV) * infoHeaderScale
     }
 
     var infoTitleFont: Font {
         #if os(tvOS)
         return .headline
         #else
+        if isPad {
+            return scaledHeaderFont(style: .subheadline, weight: .semibold)
+        }
         return .subheadline.weight(.semibold)
         #endif
     }
@@ -545,6 +556,9 @@ extension InteractivePlayerView {
         #if os(tvOS)
         return .callout
         #else
+        if isPad {
+            return scaledHeaderFont(style: .caption1, weight: .regular)
+        }
         return .caption
         #endif
     }
@@ -553,7 +567,27 @@ extension InteractivePlayerView {
         #if os(tvOS)
         return .callout.weight(.semibold)
         #else
+        if isPad {
+            return scaledHeaderFont(style: .caption1, weight: .semibold)
+        }
         return .caption.weight(.semibold)
+        #endif
+    }
+
+    private var infoHeaderScale: CGFloat {
+        #if os(iOS)
+        return isPad ? 2.0 : 1.0
+        #else
+        return 1.0
+        #endif
+    }
+
+    private func scaledHeaderFont(style: UIFont.TextStyle, weight: Font.Weight) -> Font {
+        #if os(iOS) || os(tvOS)
+        let baseSize = UIFont.preferredFont(forTextStyle: style).pointSize
+        return .system(size: baseSize * infoHeaderScale, weight: weight)
+        #else
+        return .system(size: 16 * infoHeaderScale, weight: weight)
         #endif
     }
 
@@ -561,7 +595,9 @@ extension InteractivePlayerView {
         #if os(tvOS)
         return PlayerInfoMetrics.badgeHeight(isTV: true) + 24
         #else
-        return PlayerInfoMetrics.badgeHeight(isTV: false) + (isPad ? 20 : 16)
+        let baseHeight = PlayerInfoMetrics.badgeHeight(isTV: false) * infoHeaderScale
+        let padding = isPad ? 20 * infoHeaderScale : 16
+        return baseHeight + padding
         #endif
     }
 

@@ -244,7 +244,6 @@ struct InteractiveTranscriptView: View {
                     }
                 } else {
                     VStack(alignment: .leading, spacing: stackSpacing) {
-                        Spacer(minLength: 0)
                         trackView
                         if let bubble {
                             MyLinguistBubbleView(
@@ -273,9 +272,8 @@ struct InteractiveTranscriptView: View {
                             })
                             .simultaneousGesture(bubbleMagnifyGesture, including: .all)
                         }
-                        Spacer(minLength: 0)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .contentShape(Rectangle())
                     .gesture(swipeGesture)
                     .simultaneousGesture(doubleTapGesture, including: .gesture)

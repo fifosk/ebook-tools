@@ -636,7 +636,11 @@ struct VideoPlayerOverlayView: View {
 
     private var infoHeaderContent: some View {
         HStack(alignment: .top, spacing: 12) {
-            PlayerChannelBugView(variant: metadata.channelVariant, label: metadata.channelLabel)
+            PlayerChannelBugView(
+                variant: metadata.channelVariant,
+                label: metadata.channelLabel,
+                sizeScale: infoHeaderScale
+            )
             if hasInfoBadge {
                 infoBadgeView
             }
@@ -1188,17 +1192,20 @@ struct VideoPlayerOverlayView: View {
     }
 
     private var infoCoverWidth: CGFloat {
-        PlayerInfoMetrics.coverWidth(isTV: isTV)
+        PlayerInfoMetrics.coverWidth(isTV: isTV) * infoHeaderScale
     }
 
     private var infoCoverHeight: CGFloat {
-        PlayerInfoMetrics.coverHeight(isTV: isTV)
+        PlayerInfoMetrics.coverHeight(isTV: isTV) * infoHeaderScale
     }
 
     private var infoTitleFont: Font {
         #if os(tvOS)
         return .headline
         #else
+        if isPad {
+            return scaledHeaderFont(style: .subheadline, weight: .semibold)
+        }
         return .subheadline.weight(.semibold)
         #endif
     }
@@ -1207,6 +1214,9 @@ struct VideoPlayerOverlayView: View {
         #if os(tvOS)
         return .callout
         #else
+        if isPad {
+            return scaledHeaderFont(style: .caption1, weight: .regular)
+        }
         return .caption
         #endif
     }
@@ -1215,7 +1225,27 @@ struct VideoPlayerOverlayView: View {
         #if os(tvOS)
         return .callout.weight(.semibold)
         #else
+        if isPad {
+            return scaledHeaderFont(style: .caption1, weight: .semibold)
+        }
         return .caption.weight(.semibold)
+        #endif
+    }
+
+    private var infoHeaderScale: CGFloat {
+        #if os(iOS)
+        return isPad ? 2.0 : 1.0
+        #else
+        return 1.0
+        #endif
+    }
+
+    private func scaledHeaderFont(style: UIFont.TextStyle, weight: Font.Weight) -> Font {
+        #if os(iOS) || os(tvOS)
+        let baseSize = UIFont.preferredFont(forTextStyle: style).pointSize
+        return .system(size: baseSize * infoHeaderScale, weight: weight)
+        #else
+        return .system(size: 16 * infoHeaderScale, weight: weight)
         #endif
     }
 

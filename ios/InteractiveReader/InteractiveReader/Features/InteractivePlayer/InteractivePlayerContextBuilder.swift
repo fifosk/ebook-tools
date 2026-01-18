@@ -27,6 +27,8 @@ enum JobContextBuilder {
                 fallbackStart = start + chunk.sentences.count
             } else if !chunk.sentences.isEmpty {
                 fallbackStart = effectiveStart + chunk.sentences.count
+            } else if let count = chunk.sentenceCount, count > 0 {
+                fallbackStart = effectiveStart + count
             }
             return built
         }
@@ -113,7 +115,25 @@ enum JobContextBuilder {
             }
         }
 
-        guard let start = chunk.startSentence, let end = chunk.endSentence else {
+        let resolvedStart: Int? = {
+            if let start = chunk.startSentence {
+                return start
+            }
+            if let count = chunk.sentenceCount, count > 0 {
+                return fallbackStart
+            }
+            return nil
+        }()
+        let resolvedEnd: Int? = {
+            if let end = chunk.endSentence {
+                return end
+            }
+            if let count = chunk.sentenceCount, count > 0, let start = resolvedStart {
+                return start + max(count - 1, 0)
+            }
+            return nil
+        }()
+        guard let start = resolvedStart, let end = resolvedEnd, end >= start else {
             return []
         }
 

@@ -140,7 +140,7 @@ struct LibraryShellView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         case .settings:
-            PlaybackSettingsView()
+            PlaybackSettingsView(sectionPicker: sectionPickerForHeader)
         }
     }
 

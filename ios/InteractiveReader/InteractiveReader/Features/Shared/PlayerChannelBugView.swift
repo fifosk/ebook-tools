@@ -76,6 +76,13 @@ enum PlayerInfoMetrics {
 struct PlayerChannelBugView: View {
     let variant: PlayerChannelVariant
     let label: String?
+    let sizeScale: CGFloat
+
+    init(variant: PlayerChannelVariant, label: String?, sizeScale: CGFloat = 1.0) {
+        self.variant = variant
+        self.label = label
+        self.sizeScale = sizeScale
+    }
 
     private static let hourFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -200,31 +207,38 @@ struct PlayerChannelBugView: View {
     }
 
     private var logoSize: CGFloat {
-        PlayerInfoMetrics.logoSize(isTV: isTV)
+        PlayerInfoMetrics.logoSize(isTV: isTV) * sizeScale
     }
 
     private var iconSize: CGFloat {
-        PlayerInfoMetrics.iconSize(isTV: isTV)
+        PlayerInfoMetrics.iconSize(isTV: isTV) * sizeScale
     }
 
     private var cornerRadius: CGFloat {
-        PlayerInfoMetrics.cornerRadius(isTV: isTV)
+        PlayerInfoMetrics.cornerRadius(isTV: isTV) * sizeScale
     }
 
     private var clockFont: Font {
-        PlayerInfoMetrics.clockFont(isTV: isTV)
+        #if os(iOS) || os(tvOS)
+        let style: UIFont.TextStyle = isTV ? .callout : .caption2
+        let baseSize = UIFont.preferredFont(forTextStyle: style).pointSize
+        return .system(size: baseSize * sizeScale, weight: .bold)
+        #else
+        let baseSize: CGFloat = isTV ? 16 : 11
+        return .system(size: baseSize * sizeScale, weight: .bold)
+        #endif
     }
 
     private var clockHorizontalPadding: CGFloat {
-        PlayerInfoMetrics.clockHorizontalPadding(isTV: isTV)
+        PlayerInfoMetrics.clockHorizontalPadding(isTV: isTV) * sizeScale
     }
 
     private var clockVerticalPadding: CGFloat {
-        PlayerInfoMetrics.clockVerticalPadding(isTV: isTV)
+        PlayerInfoMetrics.clockVerticalPadding(isTV: isTV) * sizeScale
     }
 
     private var clockSpacing: CGFloat {
-        PlayerInfoMetrics.clockSpacing(isTV: isTV)
+        PlayerInfoMetrics.clockSpacing(isTV: isTV) * sizeScale
     }
 
     private var isTV: Bool {

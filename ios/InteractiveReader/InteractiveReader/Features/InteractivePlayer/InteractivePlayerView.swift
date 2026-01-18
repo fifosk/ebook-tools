@@ -60,7 +60,13 @@ struct InteractivePlayerView: View {
     let trackFontScaleMin: CGFloat = 1.0
     let trackFontScaleMax: CGFloat = 3.0
     let linguistFontScaleMin: CGFloat = 0.8
-    let linguistFontScaleMax: CGFloat = 1.6
+    var linguistFontScaleMax: CGFloat {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .pad ? 3.2 : 1.6
+        #else
+        return 1.6
+        #endif
+    }
     let linguistFontScaleStep: CGFloat = 0.05
     private static var defaultTrackFontScale: CGFloat {
         #if os(iOS)
