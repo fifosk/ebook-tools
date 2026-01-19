@@ -18,6 +18,7 @@ struct VideoShortcutHelpOverlayView: View {
             title: "Subtitles",
             items: [
                 ShortcutHelpItem(keys: "Left / Right Arrow (paused)", action: "Previous or next word"),
+                ShortcutHelpItem(keys: "Shift + Left / Right Arrow (paused)", action: "Extend selection"),
                 ShortcutHelpItem(keys: "Up / Down Arrow (paused)", action: "Switch subtitle line"),
                 ShortcutHelpItem(keys: "Enter", action: "Lookup word"),
                 ShortcutHelpItem(keys: "O", action: "Toggle original line"),
@@ -40,6 +41,7 @@ struct VideoShortcutHelpOverlayView: View {
             title: "Help",
             items: [
                 ShortcutHelpItem(keys: "H", action: "Toggle this overlay"),
+                ShortcutHelpItem(keys: "Shift + H", action: "Toggle header"),
                 ShortcutHelpItem(keys: "Option (hold)", action: "Show shortcuts overlay")
             ]
         )
@@ -285,6 +287,8 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
     let onSkipForward: () -> Void
     let onNavigateLineUp: () -> Void
     let onNavigateLineDown: () -> Void
+    let onExtendSelectionBackward: () -> Void
+    let onExtendSelectionForward: () -> Void
     let onLookup: () -> Void
     let onIncreaseFont: () -> Void
     let onDecreaseFont: () -> Void
@@ -292,6 +296,7 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
     let onToggleTransliteration: () -> Void
     let onToggleTranslation: () -> Void
     let onToggleShortcutHelp: () -> Void
+    let onToggleHeader: () -> Void
     let onOptionKeyDown: () -> Void
     let onOptionKeyUp: () -> Void
 
@@ -302,6 +307,8 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         controller.onSkipForward = onSkipForward
         controller.onNavigateLineUp = onNavigateLineUp
         controller.onNavigateLineDown = onNavigateLineDown
+        controller.onExtendSelectionBackward = onExtendSelectionBackward
+        controller.onExtendSelectionForward = onExtendSelectionForward
         controller.onLookup = onLookup
         controller.onIncreaseFont = onIncreaseFont
         controller.onDecreaseFont = onDecreaseFont
@@ -309,6 +316,7 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         controller.onToggleTransliteration = onToggleTransliteration
         controller.onToggleTranslation = onToggleTranslation
         controller.onToggleShortcutHelp = onToggleShortcutHelp
+        controller.onToggleHeader = onToggleHeader
         controller.onOptionKeyDown = onOptionKeyDown
         controller.onOptionKeyUp = onOptionKeyUp
         return controller
@@ -320,6 +328,8 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         uiViewController.onSkipForward = onSkipForward
         uiViewController.onNavigateLineUp = onNavigateLineUp
         uiViewController.onNavigateLineDown = onNavigateLineDown
+        uiViewController.onExtendSelectionBackward = onExtendSelectionBackward
+        uiViewController.onExtendSelectionForward = onExtendSelectionForward
         uiViewController.onLookup = onLookup
         uiViewController.onIncreaseFont = onIncreaseFont
         uiViewController.onDecreaseFont = onDecreaseFont
@@ -327,6 +337,7 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         uiViewController.onToggleTransliteration = onToggleTransliteration
         uiViewController.onToggleTranslation = onToggleTranslation
         uiViewController.onToggleShortcutHelp = onToggleShortcutHelp
+        uiViewController.onToggleHeader = onToggleHeader
         uiViewController.onOptionKeyDown = onOptionKeyDown
         uiViewController.onOptionKeyUp = onOptionKeyUp
     }
@@ -337,6 +348,8 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         var onSkipForward: (() -> Void)?
         var onNavigateLineUp: (() -> Void)?
         var onNavigateLineDown: (() -> Void)?
+        var onExtendSelectionBackward: (() -> Void)?
+        var onExtendSelectionForward: (() -> Void)?
         var onLookup: (() -> Void)?
         var onIncreaseFont: (() -> Void)?
         var onDecreaseFont: (() -> Void)?
@@ -344,6 +357,7 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         var onToggleTransliteration: (() -> Void)?
         var onToggleTranslation: (() -> Void)?
         var onToggleShortcutHelp: (() -> Void)?
+        var onToggleHeader: (() -> Void)?
         var onOptionKeyDown: (() -> Void)?
         var onOptionKeyUp: (() -> Void)?
         private var isOptionKeyDown = false
@@ -362,6 +376,16 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
                 makeCommand(input: " ", action: #selector(handlePlayPause)),
                 makeCommand(input: UIKeyCommand.inputLeftArrow, action: #selector(handleSkipBackward)),
                 makeCommand(input: UIKeyCommand.inputRightArrow, action: #selector(handleSkipForward)),
+                makeCommand(
+                    input: UIKeyCommand.inputLeftArrow,
+                    modifiers: [.shift],
+                    action: #selector(handleExtendSelectionBackward)
+                ),
+                makeCommand(
+                    input: UIKeyCommand.inputRightArrow,
+                    modifiers: [.shift],
+                    action: #selector(handleExtendSelectionForward)
+                ),
                 makeCommand(input: UIKeyCommand.inputUpArrow, action: #selector(handleLineUp)),
                 makeCommand(input: UIKeyCommand.inputDownArrow, action: #selector(handleLineDown)),
                 makeCommand(input: "\r", action: #selector(handleLookup)),
@@ -377,7 +401,7 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
                 makeCommand(input: "+", action: #selector(handleIncreaseFont)),
                 makeCommand(input: "-", action: #selector(handleDecreaseFont)),
                 makeCommand(input: "h", action: #selector(handleToggleHelp)),
-                makeCommand(input: "h", modifiers: [.shift], action: #selector(handleToggleHelp))
+                makeCommand(input: "h", modifiers: [.shift], action: #selector(handleToggleHeader))
             ]
         }
 
@@ -399,6 +423,14 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
 
         @objc private func handleLineDown() {
             onNavigateLineDown?()
+        }
+
+        @objc private func handleExtendSelectionBackward() {
+            onExtendSelectionBackward?()
+        }
+
+        @objc private func handleExtendSelectionForward() {
+            onExtendSelectionForward?()
         }
 
         @objc private func handleLookup() {
@@ -427,6 +459,10 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
 
         @objc private func handleToggleHelp() {
             onToggleShortcutHelp?()
+        }
+
+        @objc private func handleToggleHeader() {
+            onToggleHeader?()
         }
 
         override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {

@@ -57,7 +57,9 @@ struct VideoPlayerView: View {
     @State var isShortcutHelpPinned = false
     @State var isShortcutHelpModifierActive = false
     @State var subtitleSelection: VideoSubtitleWordSelection?
+    @State var subtitleSelectionRange: VideoSubtitleWordSelectionRange?
     @State var subtitleBubble: VideoLinguistBubbleState?
+    @State var subtitleInteractionFrame: CGRect = .null
     @State var subtitleLookupTask: Task<Void, Never>?
     @State var subtitleSpeechTask: Task<Void, Never>?
     @State var subtitleAutoLookupTask: Task<Void, Never>?
@@ -240,6 +242,7 @@ struct VideoPlayerView: View {
         .onChange(of: videoURL) { _, newURL in
             isTearingDown = false
             subtitleSelection = nil
+            subtitleSelectionRange = nil
             subtitleCache.removeAll()
             pendingResumeTime = resumeTime
             let resolvedRate = Self.clampPlaybackRate(playbackRateValue)
@@ -359,6 +362,7 @@ struct VideoPlayerView: View {
                 isManualSubtitleNavigation = false
                 subtitleActiveCueID = nil
                 subtitleSelection = nil
+                subtitleSelectionRange = nil
                 closeSubtitleBubble()
             } else {
                 syncSubtitleSelectionIfNeeded(force: true)

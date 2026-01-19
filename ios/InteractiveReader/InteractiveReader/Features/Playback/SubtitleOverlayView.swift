@@ -10,6 +10,40 @@ struct VideoSubtitleWordSelection: Equatable {
     let tokenIndex: Int
 }
 
+struct VideoSubtitleWordSelectionRange: Equatable {
+    let lineKind: VideoSubtitleLineKind
+    let lineIndex: Int
+    let anchorIndex: Int
+    let focusIndex: Int
+
+    var startIndex: Int {
+        min(anchorIndex, focusIndex)
+    }
+
+    var endIndex: Int {
+        max(anchorIndex, focusIndex)
+    }
+}
+
+enum VideoSubtitleTokenCoordinateSpace {
+    static let name = "VideoSubtitleTokens"
+}
+
+struct VideoSubtitleTokenFrame: Equatable {
+    let lineKind: VideoSubtitleLineKind
+    let lineIndex: Int
+    let tokenIndex: Int
+    let frame: CGRect
+}
+
+struct VideoSubtitleTokenFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [VideoSubtitleTokenFrame] = []
+
+    static func reduce(value: inout [VideoSubtitleTokenFrame], nextValue: () -> [VideoSubtitleTokenFrame]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
 struct VideoSubtitleTokenReference: Equatable {
     let lineKind: VideoSubtitleLineKind
     let lineIndex: Int
@@ -248,9 +282,12 @@ struct SubtitleOverlayView: View {
     let visibility: SubtitleVisibility
     let fontScale: CGFloat
     let selection: VideoSubtitleWordSelection?
+    let selectionRange: VideoSubtitleWordSelectionRange?
     let lineAlignment: HorizontalAlignment
     let onTokenLookup: ((VideoSubtitleTokenReference) -> Void)?
     let onTokenSeek: ((VideoSubtitleTokenReference) -> Void)?
+    let onTokenFramesChange: (([VideoSubtitleTokenFrame]) -> Void)?
+    let shouldReportTokenFrames: Bool
     let onResetFont: (() -> Void)?
     let onMagnify: ((CGFloat) -> Void)?
 
@@ -279,13 +316,15 @@ struct SubtitleOverlayView: View {
                             highlightEnd: display.highlightEnd,
                             currentTime: currentTime,
                             selection: selection,
+                            selectionRange: selectionRange,
                             shadowSelection: shadowSelectionValue,
                             playbackHighlight: playbackHighlight,
                             playbackShadowHighlight: playbackShadowHighlight,
                             fontScale: clampedFontScale,
                             alignment: lineAlignment,
                             onTokenLookup: onTokenLookup,
-                            onTokenSeek: onTokenSeek
+                            onTokenSeek: onTokenSeek,
+                            shouldReportTokenFrames: shouldReportTokenFrames
                         )
                     }
                 }
@@ -307,6 +346,11 @@ struct SubtitleOverlayView: View {
             .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
             .padding(.bottom, 24)
             .transition(.opacity)
+            .applyIf(shouldReportTokenFrames) { view in
+                view.onPreferenceChange(VideoSubtitleTokenFramePreferenceKey.self) { frames in
+                    onTokenFramesChange?(frames)
+                }
+            }
             Group {
                 if lineAlignment == .leading {
                     HStack(spacing: 0) {
@@ -328,6 +372,11 @@ struct SubtitleOverlayView: View {
             #if os(iOS)
             .simultaneousGesture(magnifyGesture, including: .gesture)
             #endif
+        } else {
+            Color.clear
+                .onAppear {
+                    onTokenFramesChange?([])
+                }
         }
     }
 
@@ -475,6 +524,7 @@ private struct SubtitleTokenLineView: View {
     let highlightEnd: Double
     let currentTime: Double
     let selection: VideoSubtitleWordSelection?
+    let selectionRange: VideoSubtitleWordSelectionRange?
     let shadowSelection: VideoSubtitleWordSelection?
     let playbackHighlight: SubtitlePlaybackHighlight?
     let playbackShadowHighlight: SubtitlePlaybackHighlight?
@@ -482,6 +532,7 @@ private struct SubtitleTokenLineView: View {
     let alignment: HorizontalAlignment
     let onTokenLookup: ((VideoSubtitleTokenReference) -> Void)?
     let onTokenSeek: ((VideoSubtitleTokenReference) -> Void)?
+    let shouldReportTokenFrames: Bool
 
     var body: some View {
         TokenFlowLayout(
@@ -491,10 +542,11 @@ private struct SubtitleTokenLineView: View {
         ) {
             ForEach(displayTokenIndices, id: \.self) { index in
                 let token = line.tokens[index]
+                let isRangeSelected = selectedTokenRange?.contains(index) ?? false
                 SubtitleTokenWordView(
                     text: token,
                     color: tokenColor(for: tokenState(for: index)),
-                    isSelected: isSelectedToken(index),
+                    isSelected: isSelectedToken(index) || isRangeSelected,
                     isShadowSelected: isShadowSelectedToken(index),
                     isPlaybackSelected: isPlaybackSelectedToken(index),
                     isPlaybackShadowSelected: isPlaybackShadowSelectedToken(index),
@@ -521,6 +573,23 @@ private struct SubtitleTokenLineView: View {
                         ))
                     }
                 )
+                .applyIf(shouldReportTokenFrames) { view in
+                    view.background(
+                        GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: VideoSubtitleTokenFramePreferenceKey.self,
+                                value: [
+                                    VideoSubtitleTokenFrame(
+                                        lineKind: line.kind,
+                                        lineIndex: line.index,
+                                        tokenIndex: index,
+                                        frame: proxy.frame(in: .named(VideoSubtitleTokenCoordinateSpace.name))
+                                    )
+                                ]
+                            )
+                        }
+                    )
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: frameAlignment)
@@ -567,6 +636,18 @@ private struct SubtitleTokenLineView: View {
         return shadowSelection.lineKind == line.kind
             && shadowSelection.lineIndex == line.index
             && shadowSelection.tokenIndex == index
+    }
+
+    private var selectedTokenRange: ClosedRange<Int>? {
+        guard let selectionRange,
+              selectionRange.lineKind == line.kind,
+              selectionRange.lineIndex == line.index else { return nil }
+        guard !line.tokens.isEmpty else { return nil }
+        let maxIndex = line.tokens.count - 1
+        let startIndex = max(0, min(selectionRange.startIndex, maxIndex))
+        let endIndex = max(0, min(selectionRange.endIndex, maxIndex))
+        guard startIndex <= endIndex else { return nil }
+        return startIndex...endIndex
     }
 
     private func isPlaybackSelectedToken(_ index: Int) -> Bool {

@@ -135,7 +135,7 @@ struct InteractiveTranscriptView: View {
                 let current = effectiveTrackFontScale == 0 ? trackFontScale : effectiveTrackFontScale
                 return min(current, maxTrackFontScale)
             }()
-            let shouldReportTokenFrames = isPad
+            let shouldReportTokenFrames = isPad || isPhone
             let baseTrackView = TextPlayerFrame(
                 sentences: sentences,
                 selection: selection,
@@ -207,15 +207,19 @@ struct InteractiveTranscriptView: View {
                 #else
                 if isPhone {
                     ZStack(alignment: .bottom) {
+                        let trackViewWithPlayback = AnyView(
+                            trackView
+                                .contentShape(Rectangle())
+                                .simultaneousGesture(playbackSingleTapGesture, including: .gesture)
+                        )
                         VStack {
                             Spacer(minLength: 0)
-                            trackView
+                            trackViewWithPlayback
                             Spacer(minLength: 0)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(Rectangle())
                         .gesture(swipeGesture)
-                        .simultaneousGesture(doubleTapGesture, including: .gesture)
                         .highPriorityGesture(trackMagnifyGesture, including: .all)
 
                         if bubble != nil {
@@ -254,6 +258,7 @@ struct InteractiveTranscriptView: View {
                             .simultaneousGesture(bubbleMagnifyGesture, including: .all)
                         }
                     }
+                    .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
                 } else {
                     let trackViewWithPlayback = isPad
                         ? AnyView(
@@ -437,6 +442,9 @@ struct InteractiveTranscriptView: View {
         DragGesture(minimumDistance: 0, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
             .onEnded { value in
                 guard !suppressPlaybackToggle else { return }
+                if isPhone, bubble != nil {
+                    return
+                }
                 let distance = hypot(value.translation.width, value.translation.height)
                 guard distance < 8 else { return }
                 let location = value.location

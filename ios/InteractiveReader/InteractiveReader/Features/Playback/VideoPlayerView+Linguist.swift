@@ -9,6 +9,28 @@ extension VideoPlayerView {
         let selection = normalizedSelection(from: subtitleSelection, in: display)
             ?? defaultSubtitleSelection(in: display)
         guard let selection, let line = lineForSelection(selection, in: display) else { return }
+        if let range = subtitleSelectionRange,
+           range.lineKind == selection.lineKind,
+           range.lineIndex == selection.lineIndex,
+           !line.tokens.isEmpty {
+            let maxIndex = line.tokens.count - 1
+            let startIndex = max(0, min(range.startIndex, maxIndex))
+            let endIndex = max(0, min(range.endIndex, maxIndex))
+            guard startIndex <= endIndex else { return }
+            let queryText = line.tokens[startIndex...endIndex]
+                .joined(separator: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let query = sanitizeLookupQuery(queryText) else { return }
+            let focusIndex = max(0, min(range.focusIndex, maxIndex))
+            isManualSubtitleNavigation = true
+            subtitleSelection = VideoSubtitleWordSelection(
+                lineKind: line.kind,
+                lineIndex: line.index,
+                tokenIndex: focusIndex
+            )
+            startSubtitleLookup(query: query, lineKind: line.kind)
+            return
+        }
         guard line.tokens.indices.contains(selection.tokenIndex) else { return }
         let rawToken = line.tokens[selection.tokenIndex]
         guard let query = sanitizeLookupQuery(rawToken) else { return }
@@ -22,6 +44,7 @@ extension VideoPlayerView {
             coordinator.pause()
         }
         isManualSubtitleNavigation = true
+        subtitleSelectionRange = nil
         subtitleSelection = VideoSubtitleWordSelection(
             lineKind: token.lineKind,
             lineIndex: token.lineIndex,
@@ -33,6 +56,7 @@ extension VideoPlayerView {
 
     func handleSubtitleTokenSeek(_ token: VideoSubtitleTokenReference) {
         isManualSubtitleNavigation = true
+        subtitleSelectionRange = nil
         subtitleSelection = VideoSubtitleWordSelection(
             lineKind: token.lineKind,
             lineIndex: token.lineIndex,

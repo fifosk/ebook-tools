@@ -31,6 +31,26 @@ extension VideoPlayerView {
             }
     }
 
+    var overlayScrubGesture: some Gesture {
+        DragGesture(minimumDistance: 12, coordinateSpace: .named(VideoSubtitleTokenCoordinateSpace.name))
+            .onChanged { value in
+                guard !showSubtitleSettings else { return }
+                guard abs(value.translation.width) >= abs(value.translation.height) else { return }
+                guard shouldAllowOverlayScrub(at: value.startLocation) else { return }
+                beginVideoScrubGestureIfNeeded()
+                let duration = coordinator.duration
+                guard duration > 0 else { return }
+                let width = max(videoScrubWidth, 1)
+                let delta = Double(value.translation.width / width) * duration
+                let target = min(max(videoScrubStartTime + delta, 0), duration)
+                scrubberValue = target
+                coordinator.seek(to: target)
+            }
+            .onEnded { _ in
+                endVideoScrubGesture()
+            }
+    }
+
     var videoViewportReader: some View {
         GeometryReader { proxy in
             Color.clear
@@ -64,6 +84,16 @@ extension VideoPlayerView {
         isVideoScrubGestureActive = false
         isScrubbing = false
         coordinator.seek(to: scrubberValue)
+    }
+
+    func shouldAllowOverlayScrub(at location: CGPoint) -> Bool {
+        if subtitleInteractionFrame.isNull {
+            return true
+        }
+        if subtitleInteractionFrame == .zero {
+            return true
+        }
+        return !subtitleInteractionFrame.contains(location)
     }
     #endif
 }

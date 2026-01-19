@@ -32,7 +32,7 @@ struct ShortcutHelpOverlayView: View {
             title: "Touch",
             items: [
                 ShortcutHelpItem(keys: "Tap word", action: "Jump to word"),
-                ShortcutHelpItem(keys: "Double tap background", action: "Play or pause"),
+                ShortcutHelpItem(keys: "Tap background", action: "Play or pause"),
                 ShortcutHelpItem(keys: "Swipe left", action: "Next sentence"),
                 ShortcutHelpItem(keys: "Swipe right", action: "Previous sentence"),
                 ShortcutHelpItem(keys: "Pinch text", action: "Resize tracks"),

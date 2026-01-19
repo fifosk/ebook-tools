@@ -41,6 +41,7 @@ extension VideoPlayerView {
         subtitleLoadingKey = loadingKey
         subtitleError = nil
         subtitleSelection = nil
+        subtitleSelectionRange = nil
         subtitleActiveCueID = nil
         isManualSubtitleNavigation = false
         closeSubtitleBubble()
@@ -257,6 +258,7 @@ extension VideoPlayerView {
         guard !coordinator.isPlaying else { return }
         guard let display = currentSubtitleDisplay() else {
             subtitleSelection = nil
+            subtitleSelectionRange = nil
             subtitleActiveCueID = nil
             return
         }
@@ -269,15 +271,18 @@ extension VideoPlayerView {
         if force || subtitleActiveCueID != display.cue.id {
             subtitleActiveCueID = display.cue.id
             subtitleSelection = defaultSubtitleSelection(in: display)
+            subtitleSelectionRange = nil
             return
         }
         if let normalized = normalizedSelection(from: subtitleSelection, in: display),
            normalized != subtitleSelection {
             subtitleSelection = normalized
+            subtitleSelectionRange = nil
             return
         }
         if subtitleSelection == nil {
             subtitleSelection = defaultSubtitleSelection(in: display)
+            subtitleSelectionRange = nil
         }
     }
 
@@ -379,12 +384,47 @@ extension VideoPlayerView {
             direction: direction
         ) else { return }
         isManualSubtitleNavigation = true
+        subtitleSelectionRange = nil
         subtitleSelection = VideoSubtitleWordSelection(
             lineKind: line.kind,
             lineIndex: line.index,
             tokenIndex: nextIndex
         )
         scheduleAutoSubtitleLookup()
+    }
+
+    func handleSubtitleWordRangeSelection(_ delta: Int) {
+        guard !coordinator.isPlaying else { return }
+        guard let display = currentSubtitleDisplay() else { return }
+        let selection = normalizedSelection(from: subtitleSelection, in: display)
+            ?? defaultSubtitleSelection(in: display)
+        guard let selection, let line = lineForSelection(selection, in: display) else { return }
+        guard !line.tokens.isEmpty else { return }
+        let direction = delta >= 0 ? 1 : -1
+        let anchorIndex: Int
+        let focusIndex: Int
+        if let range = subtitleSelectionRange,
+           range.lineKind == line.kind,
+           range.lineIndex == line.index {
+            anchorIndex = range.anchorIndex
+            focusIndex = range.focusIndex
+        } else {
+            anchorIndex = selection.tokenIndex
+            focusIndex = selection.tokenIndex
+        }
+        let nextIndex = max(0, min(focusIndex + direction, line.tokens.count - 1))
+        subtitleSelectionRange = VideoSubtitleWordSelectionRange(
+            lineKind: line.kind,
+            lineIndex: line.index,
+            anchorIndex: anchorIndex,
+            focusIndex: nextIndex
+        )
+        subtitleSelection = VideoSubtitleWordSelection(
+            lineKind: line.kind,
+            lineIndex: line.index,
+            tokenIndex: nextIndex
+        )
+        isManualSubtitleNavigation = true
     }
 
     func handleSubtitleTrackNavigation(_ delta: Int) -> Bool {
@@ -416,6 +456,7 @@ extension VideoPlayerView {
             return nearestLookupTokenIndex(in: line.tokens, startingAt: clampedIndex) ?? clampedIndex
         }()
         isManualSubtitleNavigation = true
+        subtitleSelectionRange = nil
         subtitleSelection = VideoSubtitleWordSelection(
             lineKind: line.kind,
             lineIndex: line.index,

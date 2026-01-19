@@ -84,7 +84,7 @@ extension VideoPlayerView {
                         allowSubtitleDownwardDrag: allowSubtitleDownwardDrag
                     )
                     #if os(iOS)
-                        .simultaneousGesture(videoScrubGesture, including: .gesture)
+                        .simultaneousGesture(overlayScrubGesture, including: .gesture)
                         .simultaneousGesture(videoRepositionGesture, including: .gesture)
                     #endif
                     #if os(iOS)
@@ -107,6 +107,8 @@ extension VideoPlayerView {
                             },
                             onNavigateLineUp: { _ = handleSubtitleTrackNavigation(-1) },
                             onNavigateLineDown: { _ = handleSubtitleTrackNavigation(1) },
+                            onExtendSelectionBackward: { handleSubtitleWordRangeSelection(-1) },
+                            onExtendSelectionForward: { handleSubtitleWordRangeSelection(1) },
                             onLookup: {
                                 guard !coordinator.isPlaying else { return }
                                 handleSubtitleLookup()
@@ -117,6 +119,7 @@ extension VideoPlayerView {
                             onToggleTransliteration: { toggleSubtitleVisibility(.transliteration) },
                             onToggleTranslation: { toggleSubtitleVisibility(.translation) },
                             onToggleShortcutHelp: { toggleShortcutHelp() },
+                            onToggleHeader: { toggleHeaderCollapsed() },
                             onOptionKeyDown: { showShortcutHelpModifier() },
                             onOptionKeyUp: { hideShortcutHelpModifier() }
                         )
@@ -187,6 +190,7 @@ extension VideoPlayerView {
             subtitleFontScale: subtitleFontScale,
             isPlaying: coordinator.isPlaying,
             subtitleSelection: subtitleSelection,
+            subtitleSelectionRange: subtitleSelectionRange,
             subtitleBubble: subtitleBubble,
             subtitleAlignment: subtitleAlignment,
             subtitleMaxWidth: subtitleMaxWidth,
@@ -254,6 +258,14 @@ extension VideoPlayerView {
             },
             onSubtitleTokenSeek: { token in
                 handleSubtitleTokenSeek(token)
+            },
+            onUpdateSubtitleSelectionRange: { range, selection in
+                subtitleSelectionRange = range
+                subtitleSelection = selection
+                isManualSubtitleNavigation = true
+            },
+            onSubtitleInteractionFrameChange: { frame in
+                subtitleInteractionFrame = frame
             },
             onToggleTransliteration: {
                 handleTransliterationToggle()

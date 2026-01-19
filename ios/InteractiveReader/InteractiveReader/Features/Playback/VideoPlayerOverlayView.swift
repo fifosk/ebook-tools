@@ -27,6 +27,7 @@ struct VideoPlayerOverlayView: View {
     let subtitleFontScale: CGFloat
     let isPlaying: Bool
     let subtitleSelection: VideoSubtitleWordSelection?
+    let subtitleSelectionRange: VideoSubtitleWordSelectionRange?
     let subtitleBubble: VideoLinguistBubbleState?
     let subtitleAlignment: HorizontalAlignment
     let subtitleMaxWidth: CGFloat?
@@ -61,6 +62,8 @@ struct VideoPlayerOverlayView: View {
     let onSubtitleLookup: () -> Void
     let onSubtitleTokenLookup: (VideoSubtitleTokenReference) -> Void
     let onSubtitleTokenSeek: (VideoSubtitleTokenReference) -> Void
+    let onUpdateSubtitleSelectionRange: (VideoSubtitleWordSelectionRange, VideoSubtitleWordSelection) -> Void
+    let onSubtitleInteractionFrameChange: (CGRect) -> Void
     let onToggleTransliteration: () -> Void
     let onIncreaseSubtitleLinguistFont: () -> Void
     let onDecreaseSubtitleLinguistFont: () -> Void
@@ -73,6 +76,12 @@ struct VideoPlayerOverlayView: View {
     @AppStorage("video.subtitle.verticalOffset") private var subtitleVerticalOffsetValue: Double = 0
     @State private var subtitleDragTranslation: CGFloat = 0
     private let subtitleBottomPadding: CGFloat = 72
+    #endif
+    #if os(iOS)
+    @State private var subtitleTokenFrames: [VideoSubtitleTokenFrame] = []
+    @State private var dragSelectionAnchor: VideoSubtitleWordSelection?
+    @State private var dragLookupTask: Task<Void, Never>?
+    private let dragLookupDelayNanos: UInt64 = 350_000_000
     #endif
     #if os(tvOS)
     @FocusState private var focusTarget: VideoPlayerFocusTarget?
@@ -106,6 +115,7 @@ struct VideoPlayerOverlayView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(.easeInOut(duration: 0.2), value: showSubtitleSettings)
+        .coordinateSpace(name: VideoSubtitleTokenCoordinateSpace.name)
         #if os(tvOS)
         .onAppear {
             if showTVControls {
@@ -288,6 +298,7 @@ struct VideoPlayerOverlayView: View {
 
     @ViewBuilder
     private var subtitleStack: some View {
+        let shouldReportTokenFrames = isPad
         let stack = VStack(alignment: subtitleAlignment, spacing: 6) {
             if includeBubbleInSubtitleStack, let subtitleBubble {
                 subtitleBubbleContent(subtitleBubble)
@@ -315,9 +326,12 @@ struct VideoPlayerOverlayView: View {
                 visibility: subtitleVisibility,
                 fontScale: subtitleFontScale,
                 selection: subtitleSelection,
+                selectionRange: subtitleSelectionRange,
                 lineAlignment: subtitleAlignment,
                 onTokenLookup: onSubtitleTokenLookup,
                 onTokenSeek: onSubtitleTokenSeek,
+                onTokenFramesChange: shouldReportTokenFrames ? { subtitleTokenFrames = $0 } : nil,
+                shouldReportTokenFrames: shouldReportTokenFrames,
                 onResetFont: onResetSubtitleFont,
                 onMagnify: onSetSubtitleFont
             )
@@ -329,6 +343,18 @@ struct VideoPlayerOverlayView: View {
             .contentShape(Rectangle())
             .offset(subtitleDragOffset)
             .simultaneousGesture(subtitleDragGesture, including: .gesture)
+            .simultaneousGesture(subtitleSelectionDragGesture, including: .gesture)
+            .onChange(of: isPlaying) { _, playing in
+                if playing {
+                    resetSubtitleSelectionDrag()
+                }
+            }
+            .onDisappear {
+                resetSubtitleSelectionDrag()
+            }
+            .onChange(of: subtitleTokenFrames) { _, newFrames in
+                onSubtitleInteractionFrameChange(resolveSubtitleInteractionFrame(from: newFrames))
+            }
         #elseif os(tvOS)
         alignedStack
             .contentShape(Rectangle())
@@ -679,6 +705,102 @@ struct VideoPlayerOverlayView: View {
                 subtitleVerticalOffset = min(proposedHeight, maxHeight)
                 subtitleDragTranslation = 0
             }
+    }
+
+    private var subtitleSelectionDragGesture: some Gesture {
+        DragGesture(minimumDistance: 8, coordinateSpace: .named(VideoSubtitleTokenCoordinateSpace.name))
+            .onChanged { value in
+                guard isPad else { return }
+                guard !isPlaying else { return }
+                if dragSelectionAnchor == nil {
+                    guard let anchorToken = tokenFrameContaining(value.startLocation) else { return }
+                    dragSelectionAnchor = VideoSubtitleWordSelection(
+                        lineKind: anchorToken.lineKind,
+                        lineIndex: anchorToken.lineIndex,
+                        tokenIndex: anchorToken.tokenIndex
+                    )
+                }
+                updateSubtitleSelectionRange(at: value.location)
+            }
+            .onEnded { _ in
+                dragSelectionAnchor = nil
+            }
+    }
+
+    private func updateSubtitleSelectionRange(at location: CGPoint) {
+        guard let anchor = dragSelectionAnchor else { return }
+        guard let token = nearestTokenFrame(at: location) else { return }
+        let selection = VideoSubtitleWordSelection(
+            lineKind: token.lineKind,
+            lineIndex: token.lineIndex,
+            tokenIndex: token.tokenIndex
+        )
+        guard anchor.lineKind == selection.lineKind,
+              anchor.lineIndex == selection.lineIndex else {
+            return
+        }
+        let range = VideoSubtitleWordSelectionRange(
+            lineKind: anchor.lineKind,
+            lineIndex: anchor.lineIndex,
+            anchorIndex: anchor.tokenIndex,
+            focusIndex: selection.tokenIndex
+        )
+        onUpdateSubtitleSelectionRange(range, selection)
+        scheduleSubtitleDragLookup()
+    }
+
+    private func nearestTokenFrame(at location: CGPoint) -> VideoSubtitleTokenFrame? {
+        let candidates: [VideoSubtitleTokenFrame]
+        if let anchor = dragSelectionAnchor {
+            candidates = subtitleTokenFrames.filter {
+                $0.lineKind == anchor.lineKind && $0.lineIndex == anchor.lineIndex
+            }
+        } else {
+            candidates = subtitleTokenFrames
+        }
+        guard !candidates.isEmpty else { return nil }
+        if let exact = candidates.first(where: { $0.frame.contains(location) }) {
+            return exact
+        }
+        let sorted = candidates.sorted { lhs, rhs in
+            let lhsCenter = CGPoint(x: lhs.frame.midX, y: lhs.frame.midY)
+            let rhsCenter = CGPoint(x: rhs.frame.midX, y: rhs.frame.midY)
+            let lhsDistance = hypot(lhsCenter.x - location.x, lhsCenter.y - location.y)
+            let rhsDistance = hypot(rhsCenter.x - location.x, rhsCenter.y - location.y)
+            return lhsDistance < rhsDistance
+        }
+        return sorted.first
+    }
+
+    private func tokenFrameContaining(_ location: CGPoint) -> VideoSubtitleTokenFrame? {
+        let candidates = subtitleTokenFrames
+        guard !candidates.isEmpty else { return nil }
+        return candidates.first(where: { $0.frame.contains(location) })
+    }
+
+    private func scheduleSubtitleDragLookup() {
+        dragLookupTask?.cancel()
+        dragLookupTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: dragLookupDelayNanos)
+            guard !Task.isCancelled else { return }
+            guard !isPlaying else { return }
+            onSubtitleLookup()
+        }
+    }
+
+    private func resetSubtitleSelectionDrag() {
+        dragSelectionAnchor = nil
+        dragLookupTask?.cancel()
+        dragLookupTask = nil
+    }
+
+    private func resolveSubtitleInteractionFrame(from frames: [VideoSubtitleTokenFrame]) -> CGRect {
+        guard !frames.isEmpty else { return .null }
+        let union = frames.reduce(CGRect.null) { result, frame in
+            result.union(frame.frame)
+        }
+        guard !union.isNull else { return union }
+        return union.insetBy(dx: -8, dy: -8)
     }
 
     #endif
