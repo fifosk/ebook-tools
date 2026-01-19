@@ -18,6 +18,13 @@ export type TextPlayerTokenSelection = {
   variantKind: TextPlayerVariantKind;
 };
 
+export type TextPlayerTokenRange = {
+  sentenceIndex: number;
+  variantKind: TextPlayerVariantKind;
+  startIndex: number;
+  endIndex: number;
+};
+
 export interface TextPlayerSentence {
   id: string;
   index: number;
@@ -32,6 +39,7 @@ interface TextPlayerProps {
   sentences: TextPlayerSentence[];
   onSeek?: (time: number) => void;
   selection?: TextPlayerTokenSelection | null;
+  selectionRange?: TextPlayerTokenRange | null;
   shadowSelection?: TextPlayerTokenSelection | null;
   variantVisibility?: VariantVisibility;
   onToggleVariant?: (variant: TextPlayerVariantKind) => void;
@@ -99,6 +107,7 @@ function renderVariant(
   variant: TextPlayerVariantDisplay,
   onSeek?: (time: number) => void,
   selection?: TextPlayerTokenSelection | null,
+  selectionRange?: TextPlayerTokenRange | null,
   shadowSelection?: TextPlayerTokenSelection | null,
   variantVisibility?: VariantVisibility,
   onToggleVariant?: (variant: TextPlayerVariantKind) => void,
@@ -134,6 +143,11 @@ function renderVariant(
         selection?.sentenceIndex === sentenceIndex &&
         selection.variantKind === variant.baseClass &&
         selection.tokenIndex === index;
+      const isRangeSelected =
+        selectionRange?.sentenceIndex === sentenceIndex &&
+        selectionRange.variantKind === variant.baseClass &&
+        index >= selectionRange.startIndex &&
+        index <= selectionRange.endIndex;
       const isShadow =
         shadowSelection?.sentenceIndex === sentenceIndex &&
         shadowSelection.variantKind === variant.baseClass &&
@@ -153,7 +167,7 @@ function renderVariant(
         classNames.push(futureClassName);
       }
 
-      if (isSelected) {
+      if (isSelected || isRangeSelected) {
         classNames.push(styles.wordSelected);
       }
       if (isShadow) {
@@ -242,6 +256,7 @@ const TextPlayer: React.FC<TextPlayerProps> = ({
   sentences,
   onSeek,
   selection = null,
+  selectionRange = null,
   shadowSelection = null,
   variantVisibility,
   onToggleVariant,
@@ -285,6 +300,7 @@ const TextPlayer: React.FC<TextPlayerProps> = ({
                 variant,
                 onSeek,
                 selection,
+                selectionRange,
                 shadowSelection,
                 variantVisibility,
                 onToggleVariant,

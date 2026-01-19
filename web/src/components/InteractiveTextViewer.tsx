@@ -16,6 +16,7 @@ import type { LiveMediaChunk } from '../hooks/useLiveMedia';
 import { DebugOverlay } from '../player/DebugOverlay';
 import '../styles/debug-overlay.css';
 import TextPlayer, {
+  type TextPlayerTokenRange,
   type TextPlayerTokenSelection,
   type TextPlayerVariantKind,
 } from '../text-player/TextPlayer';
@@ -40,6 +41,13 @@ import { useSequenceDebug } from './interactive-text/useSequenceDebug';
 type InlineAudioControls = {
   pause: () => void;
   play: () => void;
+};
+
+type TextPlayerMultiSelection = {
+  sentenceIndex: number;
+  variantKind: TextPlayerVariantKind;
+  anchorIndex: number;
+  focusIndex: number;
 };
 
 const PREFETCH_RADIUS = 2;
@@ -515,6 +523,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   });
   const { legacyWordSyncEnabled, shouldUseWordSync, wordSyncSentences } = wordSync;
   const [manualSelection, setManualSelection] = useState<TextPlayerTokenSelection | null>(null);
+  const [multiSelection, setMultiSelection] = useState<TextPlayerMultiSelection | null>(null);
   const activeTextSentence =
     textPlayerSentences && textPlayerSentences.length > 0 ? textPlayerSentences[0] : null;
   const prefetchChunkMetadata = useCallback(
@@ -746,11 +755,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
   useEffect(() => {
     setManualSelection(null);
+    setMultiSelection(null);
   }, [activeTextSentence?.id]);
 
   useEffect(() => {
     if (isInlineAudioPlaying) {
       setManualSelection(null);
+      setMultiSelection(null);
     }
   }, [isInlineAudioPlaying]);
 
@@ -775,6 +786,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       variantKind: navigation.variantKind,
       tokenIndex: clampedIndex,
     });
+    setMultiSelection(null);
   }, [activeTextSentence, isInlineAudioPlaying, isVariantVisible, linguistBubble?.navigation]);
 
   const fullscreenRequestedRef = useRef(false);
@@ -1139,6 +1151,33 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
     return { selection, shadowSelection };
   }, [activeTextSentence, isInlineAudioPlaying, isVariantVisible, linguistBubble?.navigation, manualSelection]);
+
+  const textPlayerSelectionRange = useMemo<TextPlayerTokenRange | null>(() => {
+    if (!activeTextSentence || isInlineAudioPlaying || !multiSelection) {
+      return null;
+    }
+    if (multiSelection.sentenceIndex !== activeTextSentence.index) {
+      return null;
+    }
+    if (!isVariantVisible(multiSelection.variantKind)) {
+      return null;
+    }
+    const variant = activeTextSentence.variants.find(
+      (entry) => entry.baseClass === multiSelection.variantKind,
+    );
+    if (!variant || variant.tokens.length === 0) {
+      return null;
+    }
+    const maxIndex = variant.tokens.length - 1;
+    const anchorIndex = Math.max(0, Math.min(multiSelection.anchorIndex, maxIndex));
+    const focusIndex = Math.max(0, Math.min(multiSelection.focusIndex, maxIndex));
+    return {
+      sentenceIndex: activeTextSentence.index,
+      variantKind: variant.baseClass,
+      startIndex: Math.min(anchorIndex, focusIndex),
+      endIndex: Math.max(anchorIndex, focusIndex),
+    };
+  }, [activeTextSentence, isInlineAudioPlaying, isVariantVisible, multiSelection]);
   const handleTextPlayerKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
       if (isInlineAudioPlaying || !activeTextSentence) {
@@ -1147,6 +1186,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       const key = event.key;
       const isArrow =
         key === 'ArrowLeft' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowDown';
+      const isShift = event.shiftKey;
+      const isHorizontal = key === 'ArrowLeft' || key === 'ArrowRight';
       if (key !== 'Enter' && !isArrow) {
         return;
       }
@@ -1168,42 +1209,86 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       if (tokenCount === 0) {
         return;
       }
+      const clampIndex = (value: number) => Math.max(0, Math.min(value, tokenCount - 1));
+      const activeMultiSelection =
+        multiSelection &&
+        multiSelection.sentenceIndex === activeTextSentence.index &&
+        multiSelection.variantKind === currentVariant.baseClass
+          ? multiSelection
+          : null;
 
       if (key === 'Enter') {
-        const tokenText = currentVariant.tokens[current.tokenIndex] ?? '';
-        if (!tokenText.trim()) {
+        const anchorIndex = activeMultiSelection
+          ? clampIndex(activeMultiSelection.anchorIndex)
+          : clampIndex(current.tokenIndex);
+        const focusIndex = activeMultiSelection
+          ? clampIndex(activeMultiSelection.focusIndex)
+          : clampIndex(current.tokenIndex);
+        const rangeStart = Math.min(anchorIndex, focusIndex);
+        const rangeEnd = Math.max(anchorIndex, focusIndex);
+        const selectedTokens = activeMultiSelection
+          ? currentVariant.tokens.slice(rangeStart, rangeEnd + 1)
+          : [currentVariant.tokens[focusIndex]];
+        const tokenText = selectedTokens.join(' ').trim();
+        if (!tokenText) {
           return;
         }
         const selector = [
           `[data-sentence-index="${current.sentenceIndex}"]`,
-          `[data-text-player-token="true"][data-text-player-variant="${current.variantKind}"][data-text-player-token-index="${current.tokenIndex}"]`,
+          `[data-text-player-token="true"][data-text-player-variant="${currentVariant.baseClass}"][data-text-player-token-index="${focusIndex}"]`,
         ].join(' ');
         const candidate = containerRef.current?.querySelector(selector);
         const anchorElement = candidate instanceof HTMLElement ? candidate : null;
-        openLinguistTokenLookup(tokenText, current.variantKind, anchorElement, {
-          sentenceIndex: current.sentenceIndex,
-          tokenIndex: current.tokenIndex,
-          variantKind: current.variantKind,
+        openLinguistTokenLookup(tokenText, currentVariant.baseClass, anchorElement, {
+          sentenceIndex: activeTextSentence.index,
+          tokenIndex: focusIndex,
+          variantKind: currentVariant.baseClass,
         });
         event.preventDefault();
         event.stopPropagation();
         return;
       }
 
+      if (!isShift || !isHorizontal) {
+        setMultiSelection(null);
+      }
+
       let nextSelection: TextPlayerTokenSelection | null = null;
-      if (key === 'ArrowLeft' || key === 'ArrowRight') {
+      if (isHorizontal) {
         const delta = key === 'ArrowRight' ? 1 : -1;
-        let nextIndex = current.tokenIndex + delta;
-        if (nextIndex < 0) {
-          nextIndex = tokenCount - 1;
-        } else if (nextIndex >= tokenCount) {
-          nextIndex = 0;
+        const baseFocusIndex = activeMultiSelection
+          ? clampIndex(activeMultiSelection.focusIndex)
+          : clampIndex(current.tokenIndex);
+        const anchorIndex = activeMultiSelection
+          ? clampIndex(activeMultiSelection.anchorIndex)
+          : clampIndex(current.tokenIndex);
+        let nextIndex = baseFocusIndex + delta;
+        if (isShift) {
+          if (nextIndex < 0) {
+            nextIndex = 0;
+          } else if (nextIndex >= tokenCount) {
+            nextIndex = tokenCount - 1;
+          }
+        } else {
+          if (nextIndex < 0) {
+            nextIndex = tokenCount - 1;
+          } else if (nextIndex >= tokenCount) {
+            nextIndex = 0;
+          }
         }
         nextSelection = {
           sentenceIndex: activeTextSentence.index,
           variantKind: currentVariant.baseClass,
           tokenIndex: nextIndex,
         };
+        if (isShift) {
+          setMultiSelection({
+            sentenceIndex: activeTextSentence.index,
+            variantKind: currentVariant.baseClass,
+            anchorIndex,
+            focusIndex: nextIndex,
+          });
+        }
       } else {
         const order = variants.map((variant) => variant.baseClass);
         const currentPos = order.indexOf(currentVariant.baseClass);
@@ -1224,7 +1309,14 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       event.preventDefault();
       event.stopPropagation();
     },
-    [activeTextSentence, isInlineAudioPlaying, isVariantVisible, openLinguistTokenLookup, textPlayerSelection],
+    [
+      activeTextSentence,
+      isInlineAudioPlaying,
+      isVariantVisible,
+      multiSelection,
+      openLinguistTokenLookup,
+      textPlayerSelection,
+    ],
   );
   const showTextPlayer =
     !(legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0) &&
@@ -1451,6 +1543,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
                   sentences={textPlayerSentences ?? []}
                   onSeek={handleTokenSeek}
                   selection={textPlayerSelection}
+                  selectionRange={textPlayerSelectionRange}
                   shadowSelection={textPlayerShadowSelection}
                   variantVisibility={resolvedVariantVisibility}
                   onToggleVariant={onToggleCueVisibility ? handleToggleVariant : undefined}
