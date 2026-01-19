@@ -13,6 +13,33 @@ SCRIPT_ENFORCEMENT_SUFFIX = (
     "If unsure, still answer in the target script; never substitute another script."
 )
 
+_LANGUAGE_ALIAS_TOKEN_PATTERN = regex.compile(r"[a-z0-9]+")
+_LANGUAGE_ALIAS_SAFE_PATTERN = regex.compile(r"^[a-z0-9_-]+$")
+
+
+def _language_alias_tokens(value: Optional[str]) -> set[str]:
+    if not value:
+        return set()
+    return set(_LANGUAGE_ALIAS_TOKEN_PATTERN.findall(value.lower()))
+
+
+def _language_matches_alias(
+    target_lower: str,
+    target_tokens: set[str],
+    alias: str,
+) -> bool:
+    alias_lower = (alias or "").lower()
+    if not alias_lower:
+        return False
+    if _LANGUAGE_ALIAS_SAFE_PATTERN.match(alias_lower):
+        if alias_lower in target_tokens:
+            return True
+        if "-" in alias_lower or "_" in alias_lower:
+            alias_tokens = _LANGUAGE_ALIAS_TOKEN_PATTERN.findall(alias_lower)
+            return bool(alias_tokens) and all(token in target_tokens for token in alias_tokens)
+        return False
+    return alias_lower in target_lower
+
 
 @dataclass(frozen=True)
 class ScriptPolicy:
@@ -340,7 +367,11 @@ def is_non_latin_language_hint(target_language: str) -> bool:
     """Return True when the target language normally expects non-Latin script."""
 
     target_lower = (target_language or "").lower()
-    return any(alias in target_lower for alias in NON_LATIN_LANGUAGE_HINTS)
+    target_tokens = _language_alias_tokens(target_language)
+    return any(
+        _language_matches_alias(target_lower, target_tokens, alias)
+        for alias in NON_LATIN_LANGUAGE_HINTS
+    )
 
 
 __all__ = [

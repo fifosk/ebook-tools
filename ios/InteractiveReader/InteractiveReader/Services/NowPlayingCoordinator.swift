@@ -21,6 +21,7 @@ final class NowPlayingCoordinator: ObservableObject {
     private var seekHandler: ((Double) -> Void)?
     private var skipForwardHandler: (() -> Void)?
     private var skipBackwardHandler: (() -> Void)?
+    private var bookmarkHandler: (() -> Void)?
     private var skipIntervalSeconds: Double = 15
     #endif
 
@@ -33,6 +34,7 @@ final class NowPlayingCoordinator: ObservableObject {
         onToggle: (() -> Void)? = nil,
         onSkipForward: (() -> Void)? = nil,
         onSkipBackward: (() -> Void)? = nil,
+        onBookmark: (() -> Void)? = nil,
         skipIntervalSeconds: Double = 15
     ) {
         #if canImport(MediaPlayer)
@@ -44,6 +46,7 @@ final class NowPlayingCoordinator: ObservableObject {
         seekHandler = onSeek
         skipForwardHandler = onSkipForward
         skipBackwardHandler = onSkipBackward
+        bookmarkHandler = onBookmark
         self.skipIntervalSeconds = skipIntervalSeconds
 
         if !isConfigured {
@@ -91,6 +94,12 @@ final class NowPlayingCoordinator: ObservableObject {
                 self?.invokeHandler(self?.skipBackwardHandler)
                 return .success
             }
+            #if os(iOS)
+            center.bookmarkCommand.addTarget { [weak self] _ in
+                self?.invokeHandler(self?.bookmarkHandler)
+                return .success
+            }
+            #endif
         }
 
         let center = MPRemoteCommandCenter.shared()
@@ -105,6 +114,13 @@ final class NowPlayingCoordinator: ObservableObject {
         center.skipBackwardCommand.isEnabled = onSkipBackward != nil
         center.skipForwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
         center.skipBackwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
+        #if os(iOS)
+        center.bookmarkCommand.isEnabled = onBookmark != nil
+        if onBookmark != nil {
+            center.bookmarkCommand.localizedTitle = "Bookmark"
+            center.bookmarkCommand.localizedShortTitle = "Bookmark"
+        }
+        #endif
 
         #if os(iOS)
         UIApplication.shared.beginReceivingRemoteControlEvents()

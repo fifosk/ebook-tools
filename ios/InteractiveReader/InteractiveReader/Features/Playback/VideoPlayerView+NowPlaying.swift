@@ -11,6 +11,7 @@ extension VideoPlayerView {
             onToggle: { coordinator.togglePlayback() },
             onSkipForward: { coordinator.skip(by: 15) },
             onSkipBackward: { coordinator.skip(by: -15) },
+            onBookmark: { addBookmark() },
             skipIntervalSeconds: 15
         )
     }

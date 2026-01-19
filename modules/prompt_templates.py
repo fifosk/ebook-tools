@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 import regex
 
@@ -66,6 +66,42 @@ _LANG_CODE_PATTERN = regex.compile(r"^[a-z]{2,3}(?:[_-][a-z0-9]{2,4})?$", regex.
 _LANG_CODE_IN_PARENS = regex.compile(r"\(([a-z]{2,3}(?:[_-][a-z0-9]{2,4})?)\)", regex.IGNORECASE)
 _TRANSLATEGEMMA_MODEL_HINTS = ("translategemma", "translate-gemma", "translate_gemma")
 _TRANSLATEGEMMA_LANG_CODE_PATTERN = regex.compile(r"^[a-z]{2}(?:[_-][a-z]{2})?$", regex.IGNORECASE)
+_LANGUAGE_ALIAS_TOKEN_PATTERN = regex.compile(r"[a-z0-9]+")
+_LANGUAGE_ALIAS_SAFE_PATTERN = regex.compile(r"^[a-z0-9_-]+$")
+
+
+def _language_alias_tokens(value: Optional[str]) -> set[str]:
+    if not value:
+        return set()
+    return set(_LANGUAGE_ALIAS_TOKEN_PATTERN.findall(value.lower()))
+
+
+def _language_matches_alias(
+    target_lower: str,
+    target_tokens: set[str],
+    alias: str,
+) -> bool:
+    alias_lower = (alias or "").lower()
+    if not alias_lower:
+        return False
+    if _LANGUAGE_ALIAS_SAFE_PATTERN.match(alias_lower):
+        if alias_lower in target_tokens:
+            return True
+        if "-" in alias_lower or "_" in alias_lower:
+            alias_tokens = _LANGUAGE_ALIAS_TOKEN_PATTERN.findall(alias_lower)
+            return bool(alias_tokens) and all(token in target_tokens for token in alias_tokens)
+        return False
+    return alias_lower in target_lower
+
+
+def _language_matches_any(
+    target_lower: str,
+    target_tokens: set[str],
+    aliases: Iterable[str],
+) -> bool:
+    return any(
+        _language_matches_alias(target_lower, target_tokens, alias) for alias in aliases
+    )
 
 
 def is_translategemma_model(model: Optional[str]) -> bool:
@@ -176,6 +212,7 @@ def make_translation_prompt(
     """Build a translation prompt tailored to the desired mode."""
 
     target_lower = (target_language or "").lower()
+    target_tokens = _language_alias_tokens(target_language)
     source_descriptor = _format_language_descriptor(source_language)
     target_descriptor = _format_language_descriptor(target_language)
 
@@ -196,7 +233,7 @@ def make_translation_prompt(
         instructions.append("Focus on producing a fluent, idiomatic translation that reads naturally.")
 
     for lang_name, config in _SEGMENTATION_REQUIREMENTS.items():
-        if any(alias in target_lower for alias in config["aliases"]):
+        if _language_matches_any(target_lower, target_tokens, config["aliases"]):
             example = config.get("example")
             example_suffix = f' EXAMPLE: "{example}"' if example else ""
             instructions.append(
@@ -220,19 +257,35 @@ def make_translation_prompt(
             instructions.append(
                 "If a transliteration is appropriate, append ONLY the transliteration on the SECOND LINE, without prefixes, labels, commentary, or delimiter characters."
             )
-        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["thai"]["aliases"]):
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["thai"]["aliases"],
+        ):
             instructions.append(
                 "When providing the Thai transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
             )
-        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["burmese"]["aliases"]):
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["burmese"]["aliases"],
+        ):
             instructions.append(
                 "When providing the Burmese transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
             )
-        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["japanese"]["aliases"]):
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["japanese"]["aliases"],
+        ):
             instructions.append(
                 "When providing the Japanese transliteration (romaji), keep it on ONE LINE, separate words or phrases with SPACES (NOT per-character or per-syllable), avoid labels, and mimic the segmentation in the translation line."
             )
-        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["khmer"]["aliases"]):
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["khmer"]["aliases"],
+        ):
             instructions.append(
                 "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
             )
@@ -254,7 +307,7 @@ def make_translation_prompt(
         )
 
     for requirement in _DIACRITIC_REQUIREMENTS.values():
-        if any(alias in target_lower for alias in requirement["aliases"]):
+        if _language_matches_any(target_lower, target_tokens, requirement["aliases"]):
             instructions.append(requirement["instruction"])
 
     return "\n".join(instructions)
@@ -270,6 +323,7 @@ def make_translation_batch_prompt(
     """Build a translation prompt for JSON batch requests."""
 
     target_lower = (target_language or "").lower()
+    target_tokens = _language_alias_tokens(target_language)
     source_descriptor = _format_language_descriptor(source_language)
     target_descriptor = _format_language_descriptor(target_language)
 
@@ -289,7 +343,7 @@ def make_translation_batch_prompt(
         instructions.append("Focus on producing a fluent, idiomatic translation that reads naturally.")
 
     for lang_name, config in _SEGMENTATION_REQUIREMENTS.items():
-        if any(alias in target_lower for alias in config["aliases"]):
+        if _language_matches_any(target_lower, target_tokens, config["aliases"]):
             example = config.get("example")
             example_suffix = f' EXAMPLE: "{example}"' if example else ""
             instructions.append(
@@ -317,19 +371,35 @@ def make_translation_batch_prompt(
             instructions.append(
                 "Populate the `transliteration` field ONLY when a transliteration is appropriate; otherwise use an empty string."
             )
-        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["thai"]["aliases"]):
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["thai"]["aliases"],
+        ):
             instructions.append(
                 "When providing the Thai transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
             )
-        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["burmese"]["aliases"]):
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["burmese"]["aliases"],
+        ):
             instructions.append(
                 "When providing the Burmese transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
             )
-        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["japanese"]["aliases"]):
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["japanese"]["aliases"],
+        ):
             instructions.append(
                 "When providing the Japanese transliteration (romaji), keep it on ONE LINE, separate words or phrases with SPACES (NOT per-character or per-syllable), avoid labels, and mimic the segmentation in the translation field."
             )
-        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["khmer"]["aliases"]):
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["khmer"]["aliases"],
+        ):
             instructions.append(
                 "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
             )
@@ -354,7 +424,7 @@ def make_translation_batch_prompt(
         )
 
     for requirement in _DIACRITIC_REQUIREMENTS.values():
-        if any(alias in target_lower for alias in requirement["aliases"]):
+        if _language_matches_any(target_lower, target_tokens, requirement["aliases"]):
             instructions.append(requirement["instruction"])
 
     return "\n".join(instructions)
@@ -480,6 +550,7 @@ def make_transliteration_prompt(target_language: str) -> str:
     """Prompt for requesting a transliteration from the model."""
 
     target_lower = (target_language or "").lower()
+    target_tokens = _language_alias_tokens(target_language)
     target_descriptor = _format_language_descriptor(target_language)
     instructions = [
         f"Transliterate the following sentence in {target_descriptor} for English pronunciation.",
@@ -488,7 +559,7 @@ def make_transliteration_prompt(target_language: str) -> str:
     ]
 
     for requirement in _DIACRITIC_REQUIREMENTS.values():
-        if any(alias in target_lower for alias in requirement["aliases"]):
+        if _language_matches_any(target_lower, target_tokens, requirement["aliases"]):
             instructions.append(
                 "Honor the vowel marks present in the source (tashkil/niqqud) and reflect them in the transliteration so the vowels are explicit; if marks are missing, infer a fully vowelled reading."
             )
@@ -500,6 +571,7 @@ def make_transliteration_batch_prompt(target_language: str) -> str:
     """Build a transliteration prompt for JSON batch requests."""
 
     target_lower = (target_language or "").lower()
+    target_tokens = _language_alias_tokens(target_language)
     target_descriptor = _format_language_descriptor(target_language)
 
     instructions = [
@@ -515,25 +587,33 @@ def make_transliteration_batch_prompt(target_language: str) -> str:
         "Use Latin script only for the transliteration output.",
     ]
 
-    if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["thai"]["aliases"]):
+    if _language_matches_any(
+        target_lower, target_tokens, _SEGMENTATION_REQUIREMENTS["thai"]["aliases"]
+    ):
         instructions.append(
             "When providing the Thai transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
         )
-    if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["burmese"]["aliases"]):
+    if _language_matches_any(
+        target_lower, target_tokens, _SEGMENTATION_REQUIREMENTS["burmese"]["aliases"]
+    ):
         instructions.append(
             "When providing the Burmese transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
         )
-    if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["japanese"]["aliases"]):
+    if _language_matches_any(
+        target_lower, target_tokens, _SEGMENTATION_REQUIREMENTS["japanese"]["aliases"]
+    ):
         instructions.append(
             "When providing the Japanese transliteration (romaji), keep it on ONE LINE, separate words or phrases with SPACES (NOT per-character or per-syllable), avoid labels, and mimic natural phrase boundaries."
         )
-    if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["khmer"]["aliases"]):
+    if _language_matches_any(
+        target_lower, target_tokens, _SEGMENTATION_REQUIREMENTS["khmer"]["aliases"]
+    ):
         instructions.append(
             "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
         )
 
     for requirement in _DIACRITIC_REQUIREMENTS.values():
-        if any(alias in target_lower for alias in requirement["aliases"]):
+        if _language_matches_any(target_lower, target_tokens, requirement["aliases"]):
             instructions.append(
                 "Honor the vowel marks present in the source (tashkil/niqqud) and reflect them in the transliteration so the vowels are explicit; if marks are missing, infer a fully vowelled reading."
             )

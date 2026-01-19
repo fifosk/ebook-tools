@@ -114,6 +114,16 @@ _LLM_BATCH_TRANSLATION_SUBDIR = "translation"
 _LLM_BATCH_TRANSLITERATION_SUBDIR = "transliteration"
 
 
+def _should_include_transliteration(
+    include_transliteration: bool,
+    target_language: str,
+) -> bool:
+    return bool(
+        include_transliteration
+        and language_policies.is_non_latin_language_hint(target_language)
+    )
+
+
 class _BatchStatsRecorder:
     def __init__(
         self,
@@ -942,6 +952,9 @@ def translate_sentence_simple(
 ) -> str:
     """Translate a sentence using the configured translation provider."""
 
+    include_transliteration = _should_include_transliteration(
+        include_transliteration, target_language
+    )
     provider = _normalize_translation_provider(translation_provider)
     timeout_seconds = cfg.get_translation_llm_timeout_seconds()
     fallback_model = cfg.get_translation_fallback_model()
@@ -1599,6 +1612,9 @@ def translate_batch(
     worker_count = max(1, min(worker_count, len(sentences)))
     provider = _normalize_translation_provider(translation_provider)
     transliterator = transliterator or get_transliterator()
+    include_transliteration_any = include_transliteration and any(
+        language_policies.is_non_latin_language_hint(target) for target in targets
+    )
 
     results: List[str] = ["" for _ in sentences]
     sentence_ids: Optional[List[int]] = None
@@ -1625,7 +1641,7 @@ def translate_batch(
             batch_size = None
         batch_log_dir = _resolve_llm_batch_log_dir() if batch_size else None
         transliteration_batch_size = (
-            _normalize_llm_batch_size(llm_batch_size) if include_transliteration else None
+            _normalize_llm_batch_size(llm_batch_size) if include_transliteration_any else None
         )
         transliteration_batch_log_dir = (
             _resolve_llm_batch_log_dir(_LLM_BATCH_TRANSLITERATION_SUBDIR)
@@ -1664,11 +1680,14 @@ def translate_batch(
             def _translate_batch(
                 target: str, items: Sequence[Tuple[int, str]]
             ) -> List[Tuple[int, str]]:
+                include_transliteration_for_target = _should_include_transliteration(
+                    include_transliteration_any, target
+                )
                 translation_map, _error, elapsed = _translate_llm_batch_items(
                     items,
                     input_language,
                     target,
-                    include_transliteration=include_transliteration,
+                    include_transliteration=include_transliteration_for_target,
                     resolved_client=resolved_client,
                     progress_tracker=progress_tracker,
                     timeout_seconds=cfg.get_translation_llm_timeout_seconds(),
@@ -1697,7 +1716,7 @@ def translate_batch(
                             sentence,
                             input_language,
                             target,
-                            include_transliteration=include_transliteration,
+                            include_transliteration=include_transliteration_for_target,
                             translation_provider=translation_provider,
                             client=resolved_client,
                             progress_tracker=progress_tracker,
@@ -1713,7 +1732,7 @@ def translate_batch(
                         )
                     resolved_items[idx] = (translation, transliteration)
                     if (
-                        include_transliteration
+                        include_transliteration_for_target
                         and translation
                         and not transliteration
                         and not text_norm.is_placeholder_translation(translation)
@@ -1722,7 +1741,7 @@ def translate_batch(
                         pending_transliteration.append((idx, translation))
 
                 transliteration_map: Dict[int, str] = {}
-                if include_transliteration and pending_transliteration:
+                if include_transliteration_for_target and pending_transliteration:
                     transliteration_map = _resolve_batch_transliterations(
                         pending_transliteration,
                         target,
@@ -1739,9 +1758,9 @@ def translate_batch(
                 batch_results: List[Tuple[int, str]] = []
                 for idx, _sentence in items:
                     translation, transliteration = resolved_items.get(idx, ("", ""))
-                    if include_transliteration and not transliteration:
+                    if include_transliteration_for_target and not transliteration:
                         transliteration = transliteration_map.get(idx, "")
-                    if include_transliteration and transliteration:
+                    if include_transliteration_for_target and transliteration:
                         combined = f"{translation}\n{transliteration}"
                     else:
                         combined = translation
@@ -1878,6 +1897,9 @@ def start_translation_pipeline(
         own_pool = worker_pool is None
         pool_mode = getattr(pool, "mode", "thread")
         provider = _normalize_translation_provider(translation_provider)
+        include_transliteration_any = include_transliteration and any(
+            language_policies.is_non_latin_language_hint(target) for target in target_language
+        )
         batch_size = (
             _normalize_llm_batch_size(llm_batch_size) if provider == "llm" else None
         )
@@ -1892,7 +1914,7 @@ def start_translation_pipeline(
             batch_size = None
         batch_log_dir = _resolve_llm_batch_log_dir() if batch_size else None
         transliteration_batch_size = (
-            _normalize_llm_batch_size(llm_batch_size) if include_transliteration else None
+            _normalize_llm_batch_size(llm_batch_size) if include_transliteration_any else None
         )
         transliteration_batch_log_dir = (
             _resolve_llm_batch_log_dir(_LLM_BATCH_TRANSLITERATION_SUBDIR)
@@ -1934,19 +1956,22 @@ def start_translation_pipeline(
 
             def _translate(index: int, sentence: str, target: str) -> TranslationTask:
                 start_time = time.perf_counter()
+                include_transliteration_for_target = _should_include_transliteration(
+                    include_transliteration_any, target
+                )
                 try:
                     translation = translate_sentence_simple(
                         sentence,
                         input_language,
                         target,
-                        include_transliteration=include_transliteration,
+                        include_transliteration=include_transliteration_for_target,
                         translation_provider=translation_provider,
                         client=local_client,
                         progress_tracker=progress_tracker,
                     )
                     transliteration_text = ""
                     if (
-                        include_transliteration
+                        include_transliteration_for_target
                         and not text_norm.is_placeholder_translation(translation)
                         and not is_failure_annotation(translation)
                     ):
@@ -1979,11 +2004,14 @@ def start_translation_pipeline(
             def _translate_batch(
                 target: str, items: Sequence[Tuple[int, str]]
             ) -> List[TranslationTask]:
+                include_transliteration_for_target = _should_include_transliteration(
+                    include_transliteration_any, target
+                )
                 translation_map, _error, elapsed = _translate_llm_batch_items(
                     items,
                     input_language,
                     target,
-                    include_transliteration=include_transliteration,
+                    include_transliteration=include_transliteration_for_target,
                     resolved_client=local_client,
                     progress_tracker=progress_tracker,
                     timeout_seconds=cfg.get_translation_llm_timeout_seconds(),
@@ -2014,7 +2042,7 @@ def start_translation_pipeline(
                             sentence,
                             input_language,
                             target,
-                            include_transliteration=include_transliteration,
+                            include_transliteration=include_transliteration_for_target,
                             translation_provider=translation_provider,
                             client=local_client,
                             progress_tracker=progress_tracker,
@@ -2030,7 +2058,7 @@ def start_translation_pipeline(
                         )
                     resolved_items[idx] = (translation, transliteration)
                     if (
-                        include_transliteration
+                        include_transliteration_for_target
                         and translation
                         and not transliteration
                         and not text_norm.is_placeholder_translation(translation)
@@ -2039,7 +2067,7 @@ def start_translation_pipeline(
                         pending_transliteration.append((idx, translation))
 
                 transliteration_map: Dict[int, str] = {}
-                if include_transliteration and pending_transliteration:
+                if include_transliteration_for_target and pending_transliteration:
                     transliteration_map = _resolve_batch_transliterations(
                         pending_transliteration,
                         target,
@@ -2056,7 +2084,7 @@ def start_translation_pipeline(
                 tasks: List[TranslationTask] = []
                 for idx, sentence in items:
                     translation, transliteration = resolved_items.get(idx, ("", ""))
-                    if include_transliteration and not transliteration:
+                    if include_transliteration_for_target and not transliteration:
                         transliteration = transliteration_map.get(idx, "")
                     tasks.append(
                         TranslationTask(
