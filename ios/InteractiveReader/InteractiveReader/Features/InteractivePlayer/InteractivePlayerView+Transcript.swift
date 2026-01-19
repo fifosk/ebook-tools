@@ -208,6 +208,7 @@ extension InteractivePlayerView {
         if audioCoordinator.isPlaying {
             audioCoordinator.pause()
         }
+        linguistSelectionRange = nil
         guard let sentence = activeSentenceDisplay(for: chunk),
               let selection = resolvedSelection(for: chunk),
               let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }) else {
@@ -226,11 +227,47 @@ extension InteractivePlayerView {
         scheduleAutoLinguistLookup(in: chunk)
     }
 
+    func handleWordRangeSelection(_ delta: Int, in chunk: InteractiveChunk) {
+        guard !audioCoordinator.isPlaying else { return }
+        guard let sentence = activeSentenceDisplay(for: chunk),
+              let selection = resolvedSelection(for: chunk),
+              let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }) else {
+            return
+        }
+        guard !variant.tokens.isEmpty else { return }
+        let direction = delta >= 0 ? 1 : -1
+        let tokenCount = variant.tokens.count
+        let anchorIndex: Int
+        let focusIndex: Int
+        if let range = linguistSelectionRange,
+           range.sentenceIndex == sentence.index,
+           range.variantKind == selection.variantKind {
+            anchorIndex = range.anchorIndex
+            focusIndex = range.focusIndex
+        } else {
+            anchorIndex = selection.tokenIndex
+            focusIndex = selection.tokenIndex
+        }
+        let nextIndex = max(0, min(focusIndex + direction, tokenCount - 1))
+        linguistSelectionRange = TextPlayerWordSelectionRange(
+            sentenceIndex: sentence.index,
+            variantKind: selection.variantKind,
+            anchorIndex: anchorIndex,
+            focusIndex: nextIndex
+        )
+        linguistSelection = TextPlayerWordSelection(
+            sentenceIndex: sentence.index,
+            variantKind: selection.variantKind,
+            tokenIndex: nextIndex
+        )
+    }
+
     @discardableResult
     func handleTrackNavigation(_ delta: Int, in chunk: InteractiveChunk) -> Bool {
         if audioCoordinator.isPlaying {
             audioCoordinator.pause()
         }
+        linguistSelectionRange = nil
         guard let sentence = activeSentenceDisplay(for: chunk) else { return false }
         let variants = sentence.variants.filter { variant in
             visibleTracks.contains(variant.kind) && !variant.tokens.isEmpty
@@ -271,6 +308,7 @@ extension InteractivePlayerView {
         seekTime: Double?,
         in chunk: InteractiveChunk
     ) {
+        linguistSelectionRange = nil
         linguistSelection = TextPlayerWordSelection(
             sentenceIndex: sentenceIndex,
             variantKind: variantKind,

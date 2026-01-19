@@ -54,6 +54,21 @@ struct TextPlayerWordSelection: Hashable {
     let tokenIndex: Int
 }
 
+struct TextPlayerWordSelectionRange: Hashable {
+    let sentenceIndex: Int
+    let variantKind: TextPlayerVariantKind
+    let anchorIndex: Int
+    let focusIndex: Int
+
+    var startIndex: Int {
+        min(anchorIndex, focusIndex)
+    }
+
+    var endIndex: Int {
+        max(anchorIndex, focusIndex)
+    }
+}
+
 struct SentenceOption: Identifiable, Hashable {
     let id: Int
     let label: String

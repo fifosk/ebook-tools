@@ -24,6 +24,7 @@ struct InteractiveTranscriptView: View {
     @ObservedObject var audioCoordinator: AudioPlayerCoordinator
     let sentences: [TextPlayerSentenceDisplay]
     let selection: TextPlayerWordSelection?
+    let selectionRange: TextPlayerWordSelectionRange?
     let bubble: MyLinguistBubbleState?
     let lookupLanguage: String
     let lookupLanguageOptions: [String]
@@ -50,6 +51,7 @@ struct InteractiveTranscriptView: View {
     let onLookup: () -> Void
     let onLookupToken: (Int, TextPlayerVariantKind, Int, String) -> Void
     let onSeekToken: (Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void
+    let onUpdateSelectionRange: (TextPlayerWordSelectionRange, TextPlayerWordSelection) -> Void
     let onIncreaseLinguistFont: () -> Void
     let onDecreaseLinguistFont: () -> Void
     let onSetTrackFontScale: (CGFloat) -> Void
@@ -71,6 +73,11 @@ struct InteractiveTranscriptView: View {
     @State private var lastMeasuredTrackHeight: CGFloat = 0
     @State private var lastAvailableTrackHeight: CGFloat = 0
     @State private var lastLayoutSize: CGSize = .zero
+    @State private var tokenFrames: [TextPlayerTokenFrame] = []
+    @State private var tapExclusionFrames: [CGRect] = []
+    @State private var dragSelectionAnchor: TextPlayerWordSelection?
+    @State private var dragLookupTask: Task<Void, Never>?
+    private let dragLookupDelayNanos: UInt64 = 350_000_000
     private var autoScaleHeightTolerance: CGFloat {
         isPhone ? 8 : 4
     }
@@ -128,15 +135,20 @@ struct InteractiveTranscriptView: View {
                 let current = effectiveTrackFontScale == 0 ? trackFontScale : effectiveTrackFontScale
                 return min(current, maxTrackFontScale)
             }()
+            let shouldReportTokenFrames = isPad
             let baseTrackView = TextPlayerFrame(
                 sentences: sentences,
                 selection: selection,
+                selectionRange: selectionRange,
                 onTokenLookup: tokenLookupHandler,
                 onTokenSeek: onSeekToken,
                 fontScale: resolvedTrackFontScale,
                 playbackPrimaryKind: playbackPrimaryKind,
                 visibleTracks: visibleTracks,
-                onToggleTrack: onToggleTrack
+                onToggleTrack: onToggleTrack,
+                onTokenFramesChange: shouldReportTokenFrames ? { tokenFrames = $0 } : nil,
+                onTapExclusionFramesChange: shouldReportTokenFrames ? { tapExclusionFrames = $0 } : nil,
+                shouldReportTokenFrames: shouldReportTokenFrames
             )
             let measuredTrackView = baseTrackView
                 .background(GeometryReader { trackProxy in
@@ -243,8 +255,19 @@ struct InteractiveTranscriptView: View {
                         }
                     }
                 } else {
+                    let trackViewWithPlayback = isPad
+                        ? AnyView(
+                            trackView
+                                .contentShape(Rectangle())
+                                .simultaneousGesture(playbackSingleTapGesture, including: .gesture)
+                        )
+                        : AnyView(
+                            trackView
+                                .contentShape(Rectangle())
+                                .simultaneousGesture(doubleTapGesture, including: .gesture)
+                        )
                     VStack(alignment: .leading, spacing: stackSpacing) {
-                        trackView
+                        trackViewWithPlayback
                         if let bubble {
                             MyLinguistBubbleView(
                                 bubble: bubble,
@@ -275,8 +298,9 @@ struct InteractiveTranscriptView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .contentShape(Rectangle())
+                    .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
                     .gesture(swipeGesture)
-                    .simultaneousGesture(doubleTapGesture, including: .gesture)
+                    .simultaneousGesture(selectionDragGesture, including: .gesture)
                     .highPriorityGesture(trackMagnifyGesture, including: .all)
                 }
                 #endif
@@ -327,11 +351,20 @@ struct InteractiveTranscriptView: View {
                     requestAutoScaleUpdate()
                 }
             }
+            .onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
+                if isPlaying {
+                    dragSelectionAnchor = nil
+                    dragLookupTask?.cancel()
+                    dragLookupTask = nil
+                }
+            }
             .onDisappear {
                 suppressPlaybackTask?.cancel()
                 suppressPlaybackTask = nil
                 autoScaleTask?.cancel()
                 autoScaleTask = nil
+                dragLookupTask?.cancel()
+                dragLookupTask = nil
             }
         }
     }
@@ -363,11 +396,56 @@ struct InteractiveTranscriptView: View {
     }
     #endif
 
+    #if os(iOS)
+    private var selectionDragGesture: some Gesture {
+        DragGesture(minimumDistance: 8, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
+            .onChanged { value in
+                guard isPad else { return }
+                guard !audioCoordinator.isPlaying else { return }
+                if dragSelectionAnchor == nil {
+                    guard let anchorToken = tokenFrameContaining(value.startLocation) else { return }
+                    dragSelectionAnchor = TextPlayerWordSelection(
+                        sentenceIndex: anchorToken.sentenceIndex,
+                        variantKind: anchorToken.variantKind,
+                        tokenIndex: anchorToken.tokenIndex
+                    )
+                }
+                updateSelectionRange(at: value.location)
+            }
+            .onEnded { _ in
+                dragSelectionAnchor = nil
+            }
+    }
+    #else
+    private var selectionDragGesture: some Gesture {
+        DragGesture(minimumDistance: 8, coordinateSpace: .local)
+    }
+    #endif
+
     #if !os(tvOS)
     private var doubleTapGesture: some Gesture {
         TapGesture(count: 2)
             .onEnded {
                 guard !suppressPlaybackToggle else { return }
+                onTogglePlayback()
+            }
+    }
+    #endif
+
+    #if os(iOS)
+    private var playbackSingleTapGesture: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
+            .onEnded { value in
+                guard !suppressPlaybackToggle else { return }
+                let distance = hypot(value.translation.width, value.translation.height)
+                guard distance < 8 else { return }
+                let location = value.location
+                if tokenFrames.contains(where: { $0.frame.contains(location) }) {
+                    return
+                }
+                if tapExclusionFrames.contains(where: { $0.contains(location) }) {
+                    return
+                }
                 onTogglePlayback()
             }
     }
@@ -439,6 +517,70 @@ struct InteractiveTranscriptView: View {
             availableHeight: lastAvailableTrackHeight
         )
         autoScaleNeedsUpdate = false
+    }
+
+    private func updateSelectionRange(at location: CGPoint) {
+        guard let anchor = dragSelectionAnchor else { return }
+        guard let token = nearestTokenFrame(at: location) else { return }
+        let selection = TextPlayerWordSelection(
+            sentenceIndex: token.sentenceIndex,
+            variantKind: token.variantKind,
+            tokenIndex: token.tokenIndex
+        )
+        guard anchor.sentenceIndex == selection.sentenceIndex,
+              anchor.variantKind == selection.variantKind else {
+            return
+        }
+        let range = TextPlayerWordSelectionRange(
+            sentenceIndex: anchor.sentenceIndex,
+            variantKind: anchor.variantKind,
+            anchorIndex: anchor.tokenIndex,
+            focusIndex: selection.tokenIndex
+        )
+        onUpdateSelectionRange(range, selection)
+        scheduleDragLookup()
+    }
+
+    private func nearestTokenFrame(at location: CGPoint) -> TextPlayerTokenFrame? {
+        let candidates: [TextPlayerTokenFrame]
+        if let anchor = dragSelectionAnchor {
+            candidates = tokenFrames.filter { frame in
+                frame.sentenceIndex == anchor.sentenceIndex && frame.variantKind == anchor.variantKind
+            }
+        } else {
+            candidates = tokenFrames
+        }
+        guard !candidates.isEmpty else { return nil }
+        if let exact = candidates.first(where: { $0.frame.contains(location) }) {
+            return exact
+        }
+        let sorted = candidates.sorted { lhs, rhs in
+            let lhsCenter = CGPoint(x: lhs.frame.midX, y: lhs.frame.midY)
+            let rhsCenter = CGPoint(x: rhs.frame.midX, y: rhs.frame.midY)
+            let lhsDistance = hypot(lhsCenter.x - location.x, lhsCenter.y - location.y)
+            let rhsDistance = hypot(rhsCenter.x - location.x, rhsCenter.y - location.y)
+            return lhsDistance < rhsDistance
+        }
+        return sorted.first
+    }
+
+    private func tokenFrameContaining(_ location: CGPoint) -> TextPlayerTokenFrame? {
+        let candidates = tokenFrames
+        guard !candidates.isEmpty else { return nil }
+        if let exact = candidates.first(where: { $0.frame.contains(location) }) {
+            return exact
+        }
+        return nil
+    }
+
+    private func scheduleDragLookup() {
+        dragLookupTask?.cancel()
+        dragLookupTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: dragLookupDelayNanos)
+            guard !Task.isCancelled else { return }
+            guard !audioCoordinator.isPlaying else { return }
+            onLookup()
+        }
     }
 
     private var isPad: Bool {

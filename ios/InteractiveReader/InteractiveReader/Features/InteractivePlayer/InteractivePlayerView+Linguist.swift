@@ -11,6 +11,7 @@ extension InteractivePlayerView {
             audioCoordinator.pause()
         }
         guard let query = sanitizeLookupQuery(token) else { return }
+        linguistSelectionRange = nil
         linguistSelection = TextPlayerWordSelection(
             sentenceIndex: sentenceIndex,
             variantKind: variantKind,
@@ -24,8 +25,33 @@ extension InteractivePlayerView {
             audioCoordinator.pause()
         }
         guard let sentence = activeSentenceDisplay(for: chunk),
-              let selection = resolvedSelection(for: chunk),
-              let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }),
+              let selection = resolvedSelection(for: chunk) else {
+            return
+        }
+        if let range = linguistSelectionRange,
+           range.sentenceIndex == sentence.index,
+           range.variantKind == selection.variantKind,
+           let variant = sentence.variants.first(where: { $0.kind == range.variantKind }),
+           visibleTracks.contains(variant.kind),
+           !variant.tokens.isEmpty {
+            let maxIndex = variant.tokens.count - 1
+            let startIndex = max(0, min(range.startIndex, maxIndex))
+            let endIndex = max(0, min(range.endIndex, maxIndex))
+            guard startIndex <= endIndex else { return }
+            let queryText = variant.tokens[startIndex...endIndex]
+                .joined(separator: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let query = sanitizeLookupQuery(queryText) else { return }
+            let focusIndex = max(0, min(range.focusIndex, maxIndex))
+            linguistSelection = TextPlayerWordSelection(
+                sentenceIndex: sentence.index,
+                variantKind: range.variantKind,
+                tokenIndex: focusIndex
+            )
+            startLinguistLookup(query: query, variantKind: range.variantKind)
+            return
+        }
+        guard let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }),
               variant.tokens.indices.contains(selection.tokenIndex) else {
             return
         }
@@ -175,6 +201,7 @@ extension InteractivePlayerView {
         linguistAutoLookupTask = nil
         linguistBubble = nil
         linguistSelection = nil
+        linguistSelectionRange = nil
         pronunciationSpeaker.stop()
     }
 

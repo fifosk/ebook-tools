@@ -3,15 +3,46 @@ import SwiftUI
 import UIKit
 #endif
 
+enum TextPlayerTokenCoordinateSpace {
+    static let name = "TextPlayerTokens"
+}
+
+struct TextPlayerTokenFrame: Equatable {
+    let sentenceIndex: Int
+    let variantKind: TextPlayerVariantKind
+    let tokenIndex: Int
+    let frame: CGRect
+}
+
+struct TextPlayerTokenFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [TextPlayerTokenFrame] = []
+
+    static func reduce(value: inout [TextPlayerTokenFrame], nextValue: () -> [TextPlayerTokenFrame]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+struct TextPlayerTapExclusionPreferenceKey: PreferenceKey {
+    static var defaultValue: [CGRect] = []
+
+    static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
 struct TextPlayerFrame: View {
     let sentences: [TextPlayerSentenceDisplay]
     let selection: TextPlayerWordSelection?
+    let selectionRange: TextPlayerWordSelectionRange?
     let onTokenLookup: ((Int, TextPlayerVariantKind, Int, String) -> Void)?
     let onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void)?
     let fontScale: CGFloat
     let playbackPrimaryKind: TextPlayerVariantKind?
     let visibleTracks: Set<TextPlayerVariantKind>
     let onToggleTrack: ((TextPlayerVariantKind) -> Void)?
+    let onTokenFramesChange: (([TextPlayerTokenFrame]) -> Void)?
+    let onTapExclusionFramesChange: (([CGRect]) -> Void)?
+    let shouldReportTokenFrames: Bool
 
     var body: some View {
         VStack(spacing: 10) {
@@ -25,12 +56,14 @@ struct TextPlayerFrame: View {
                     TextPlayerSentenceView(
                         sentence: sentence,
                         selection: selection,
+                        selectionRange: selectionRange,
                         playbackPrimaryKind: playbackPrimaryKind,
                         visibleTracks: visibleTracks,
                         onToggleTrack: onToggleTrack,
                         onTokenLookup: onTokenLookup,
                         onTokenSeek: onTokenSeek,
-                        fontScale: fontScale
+                        fontScale: fontScale,
+                        shouldReportTokenFrames: shouldReportTokenFrames
                     )
                 }
             }
@@ -39,6 +72,12 @@ struct TextPlayerFrame: View {
         .frame(maxWidth: .infinity)
         .background(TextPlayerTheme.frameBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .onPreferenceChange(TextPlayerTokenFramePreferenceKey.self) { frames in
+            onTokenFramesChange?(frames)
+        }
+        .onPreferenceChange(TextPlayerTapExclusionPreferenceKey.self) { frames in
+            onTapExclusionFramesChange?(frames)
+        }
     }
 
     private var framePadding: CGFloat {
@@ -53,12 +92,14 @@ struct TextPlayerFrame: View {
 struct TextPlayerSentenceView: View {
     let sentence: TextPlayerSentenceDisplay
     let selection: TextPlayerWordSelection?
+    let selectionRange: TextPlayerWordSelectionRange?
     let playbackPrimaryKind: TextPlayerVariantKind?
     let visibleTracks: Set<TextPlayerVariantKind>
     let onToggleTrack: ((TextPlayerVariantKind) -> Void)?
     let onTokenLookup: ((Int, TextPlayerVariantKind, Int, String) -> Void)?
     let onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void)?
     let fontScale: CGFloat
+    let shouldReportTokenFrames: Bool
 
     var body: some View {
         Group {
@@ -81,8 +122,10 @@ struct TextPlayerSentenceView: View {
             ForEach(sentence.variants) { variant in
                 TextPlayerVariantView(
                     variant: variant,
+                    sentenceIndex: sentence.index,
                     sentenceState: sentence.state,
                     selectedTokenIndex: selectedTokenIndex(for: variant),
+                    selectedTokenRange: selectedTokenRange(for: variant),
                     shadowTokenIndex: shadowTokenIndex(for: variant),
                     playbackTokenIndex: playbackTokenIndex(for: variant, primaryIndex: playbackPrimaryIndex),
                     playbackShadowIndex: playbackShadowIndex(for: variant, primaryIndex: playbackPrimaryIndex),
@@ -96,7 +139,8 @@ struct TextPlayerSentenceView: View {
                     },
                     onTokenSeek: { tokenIndex, seekTime in
                         onTokenSeek?(sentence.index, sentence.sentenceNumber, variant.kind, tokenIndex, seekTime)
-                    }
+                    },
+                    shouldReportTokenFrames: shouldReportTokenFrames
                 )
             }
         }
@@ -113,8 +157,10 @@ struct TextPlayerSentenceView: View {
             ForEach(visibleVariants) { variant in
                 TextPlayerVariantView(
                     variant: variant,
+                    sentenceIndex: sentence.index,
                     sentenceState: sentence.state,
                     selectedTokenIndex: selectedTokenIndex(for: variant),
+                    selectedTokenRange: selectedTokenRange(for: variant),
                     shadowTokenIndex: shadowTokenIndex(for: variant),
                     playbackTokenIndex: playbackTokenIndex(for: variant, primaryIndex: playbackPrimaryIndex),
                     playbackShadowIndex: playbackShadowIndex(for: variant, primaryIndex: playbackPrimaryIndex),
@@ -128,7 +174,8 @@ struct TextPlayerSentenceView: View {
                     },
                     onTokenSeek: { tokenIndex, seekTime in
                         onTokenSeek?(sentence.index, sentence.sentenceNumber, variant.kind, tokenIndex, seekTime)
-                    }
+                    },
+                    shouldReportTokenFrames: shouldReportTokenFrames
                 )
             }
         }
@@ -187,6 +234,16 @@ struct TextPlayerSentenceView: View {
         }
         .foregroundStyle(TextPlayerTheme.lineLabel)
         .opacity(0.6)
+        .applyIf(shouldReportTokenFrames) { view in
+            view.background(
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: TextPlayerTapExclusionPreferenceKey.self,
+                        value: [proxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))]
+                    )
+                }
+            )
+        }
     }
     #endif
 
@@ -194,6 +251,17 @@ struct TextPlayerSentenceView: View {
         guard let selection, selection.sentenceIndex == sentence.index else { return nil }
         guard selection.variantKind == variant.kind else { return nil }
         return selection.tokenIndex
+    }
+
+    private func selectedTokenRange(for variant: TextPlayerVariantDisplay) -> ClosedRange<Int>? {
+        guard let selectionRange, selectionRange.sentenceIndex == sentence.index else { return nil }
+        guard selectionRange.variantKind == variant.kind else { return nil }
+        guard !variant.tokens.isEmpty else { return nil }
+        let maxIndex = variant.tokens.count - 1
+        let startIndex = max(0, min(selectionRange.startIndex, maxIndex))
+        let endIndex = max(0, min(selectionRange.endIndex, maxIndex))
+        guard startIndex <= endIndex else { return nil }
+        return startIndex...endIndex
     }
 
     private func shadowTokenIndex(for variant: TextPlayerVariantDisplay) -> Int? {
@@ -423,8 +491,10 @@ enum DictionaryLookupPresenter {
 
 struct TextPlayerVariantView: View {
     let variant: TextPlayerVariantDisplay
+    let sentenceIndex: Int
     let sentenceState: TextPlayerSentenceState
     let selectedTokenIndex: Int?
+    let selectedTokenRange: ClosedRange<Int>?
     let shadowTokenIndex: Int?
     let playbackTokenIndex: Int?
     let playbackShadowIndex: Int?
@@ -433,6 +503,7 @@ struct TextPlayerVariantView: View {
     let fontScale: CGFloat
     let onTokenLookup: ((Int, String) -> Void)?
     let onTokenSeek: ((Int, Double?) -> Void)?
+    let shouldReportTokenFrames: Bool
 
     var body: some View {
         VStack(spacing: 6) {
@@ -482,6 +553,16 @@ struct TextPlayerVariantView: View {
         .foregroundStyle(TextPlayerTheme.lineLabel)
         .opacity(isVisible ? 1 : 0.55)
         .frame(maxWidth: .infinity)
+        .applyIf(shouldReportTokenFrames) { view in
+            view.background(
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: TextPlayerTapExclusionPreferenceKey.self,
+                        value: [proxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))]
+                    )
+                }
+            )
+        }
     }
 
     private var labelFont: Font {
@@ -514,10 +595,11 @@ struct TextPlayerVariantView: View {
         TokenFlowLayout(itemSpacing: tokenItemSpacing, lineSpacing: tokenLineSpacing) {
             ForEach(displayTokenIndices, id: \.self) { index in
                 let token = variant.tokens[index]
+                let isRangeSelected = selectedTokenRange?.contains(index) ?? false
                 TokenWordView(
                     text: token,
                     color: tokenColor(for: tokenState(for: index)),
-                    isSelected: index == selectedTokenIndex,
+                    isSelected: index == selectedTokenIndex || isRangeSelected,
                     isShadowSelected: index == shadowTokenIndex,
                     isPlaybackSelected: index == playbackTokenIndex,
                     isPlaybackShadowSelected: index == playbackShadowIndex,
@@ -531,6 +613,23 @@ struct TextPlayerVariantView: View {
                         onTokenLookup?(index, token)
                     }
                 )
+                .applyIf(shouldReportTokenFrames) { view in
+                    view.background(
+                        GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: TextPlayerTokenFramePreferenceKey.self,
+                                value: [
+                                    TextPlayerTokenFrame(
+                                        sentenceIndex: sentenceIndex,
+                                        variantKind: variant.kind,
+                                        tokenIndex: index,
+                                        frame: proxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
+                                    )
+                                ]
+                            )
+                        }
+                    )
+                }
             }
         }
     }

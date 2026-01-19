@@ -24,6 +24,7 @@ struct InteractivePlayerView: View {
     @State var hasCustomTrackSelection = false
     @State var selectedSentenceID: Int?
     @State var linguistSelection: TextPlayerWordSelection?
+    @State var linguistSelectionRange: TextPlayerWordSelectionRange?
     @State var linguistBubble: MyLinguistBubbleState?
     @State var linguistLookupTask: Task<Void, Never>?
     @State var linguistSpeechTask: Task<Void, Never>?

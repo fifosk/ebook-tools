@@ -191,6 +191,7 @@ extension InteractivePlayerView {
             audioCoordinator: audioCoordinator,
             sentences: transcriptSentences,
             selection: linguistSelection,
+            selectionRange: linguistSelectionRange,
             bubble: linguistBubble,
             lookupLanguage: resolvedLookupLanguage,
             lookupLanguageOptions: lookupLanguageOptions,
@@ -244,6 +245,10 @@ extension InteractivePlayerView {
                     seekTime: seekTime,
                     in: chunk
                 )
+            },
+            onUpdateSelectionRange: { range, selection in
+                linguistSelection = selection
+                linguistSelectionRange = range
             },
             onIncreaseLinguistFont: { handleKeyboardFontAdjust(increase: true) },
             onDecreaseLinguistFont: { handleKeyboardFontAdjust(increase: false) },
@@ -304,6 +309,14 @@ extension InteractivePlayerView {
                 },
                 onPreviousWord: { handleWordNavigation(-1, in: viewModel.selectedChunk) },
                 onNextWord: { handleWordNavigation(1, in: viewModel.selectedChunk) },
+                onExtendSelectionBackward: {
+                    guard let chunk = viewModel.selectedChunk else { return }
+                    handleWordRangeSelection(-1, in: chunk)
+                },
+                onExtendSelectionForward: {
+                    guard let chunk = viewModel.selectedChunk else { return }
+                    handleWordRangeSelection(1, in: chunk)
+                },
                 onLookup: {
                     guard !audioCoordinator.isPlaying else { return }
                     guard let chunk = viewModel.selectedChunk else { return }

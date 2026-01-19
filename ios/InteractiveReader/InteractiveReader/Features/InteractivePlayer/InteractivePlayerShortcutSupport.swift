@@ -19,6 +19,7 @@ struct ShortcutHelpOverlayView: View {
                 ShortcutHelpItem(keys: "Left Arrow (playing)", action: "Previous sentence"),
                 ShortcutHelpItem(keys: "Right Arrow (playing)", action: "Next sentence"),
                 ShortcutHelpItem(keys: "Left / Right Arrow (paused)", action: "Previous or next word"),
+                ShortcutHelpItem(keys: "Shift + Left / Right Arrow (paused)", action: "Extend selection"),
                 ShortcutHelpItem(keys: "Ctrl + Left Arrow", action: "Previous word"),
                 ShortcutHelpItem(keys: "Ctrl + Right Arrow", action: "Next word"),
                 ShortcutHelpItem(keys: "Enter", action: "Lookup word"),
@@ -376,6 +377,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
     let onNext: () -> Void
     let onPreviousWord: () -> Void
     let onNextWord: () -> Void
+    let onExtendSelectionBackward: () -> Void
+    let onExtendSelectionForward: () -> Void
     let onLookup: () -> Void
     let onIncreaseFont: () -> Void
     let onDecreaseFont: () -> Void
@@ -403,6 +406,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         controller.onNext = onNext
         controller.onPreviousWord = onPreviousWord
         controller.onNextWord = onNextWord
+        controller.onExtendSelectionBackward = onExtendSelectionBackward
+        controller.onExtendSelectionForward = onExtendSelectionForward
         controller.onLookup = onLookup
         controller.onIncreaseFont = onIncreaseFont
         controller.onDecreaseFont = onDecreaseFont
@@ -431,6 +436,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         uiViewController.onNext = onNext
         uiViewController.onPreviousWord = onPreviousWord
         uiViewController.onNextWord = onNextWord
+        uiViewController.onExtendSelectionBackward = onExtendSelectionBackward
+        uiViewController.onExtendSelectionForward = onExtendSelectionForward
         uiViewController.onLookup = onLookup
         uiViewController.onIncreaseFont = onIncreaseFont
         uiViewController.onDecreaseFont = onDecreaseFont
@@ -458,6 +465,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         var onNext: (() -> Void)?
         var onPreviousWord: (() -> Void)?
         var onNextWord: (() -> Void)?
+        var onExtendSelectionBackward: (() -> Void)?
+        var onExtendSelectionForward: (() -> Void)?
         var onLookup: (() -> Void)?
         var onIncreaseFont: (() -> Void)?
         var onDecreaseFont: (() -> Void)?
@@ -495,6 +504,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
                 makeCommand(input: UIKeyCommand.inputRightArrow, action: #selector(handleNext)),
                 makeCommand(input: UIKeyCommand.inputLeftArrow, modifiers: [.control], action: #selector(handlePreviousWord)),
                 makeCommand(input: UIKeyCommand.inputRightArrow, modifiers: [.control], action: #selector(handleNextWord)),
+                makeCommand(input: UIKeyCommand.inputLeftArrow, modifiers: [.shift], action: #selector(handleExtendSelectionBackward)),
+                makeCommand(input: UIKeyCommand.inputRightArrow, modifiers: [.shift], action: #selector(handleExtendSelectionForward)),
                 makeCommand(input: "\r", action: #selector(handleLookup)),
                 makeCommand(input: "\n", action: #selector(handleLookup)),
                 makeCommand(input: UIKeyCommand.inputDownArrow, action: #selector(handleShowMenu)),
@@ -540,6 +551,14 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
 
         @objc private func handleNextWord() {
             onNextWord?()
+        }
+
+        @objc private func handleExtendSelectionBackward() {
+            onExtendSelectionBackward?()
+        }
+
+        @objc private func handleExtendSelectionForward() {
+            onExtendSelectionForward?()
         }
 
         @objc private func handleLookup() {
