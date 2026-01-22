@@ -346,6 +346,163 @@ def _serialize_media_entries(
     return media_map, chunk_records, complete
 
 
+def _resolve_chunk_entry(
+    chunks: Sequence[Any],
+    chunk_id: str,
+) -> Optional[Mapping[str, Any]]:
+    chunk_id = chunk_id.strip()
+    if not chunk_id:
+        return None
+    if chunk_id.startswith("chunk-"):
+        raw_index = chunk_id.replace("chunk-", "", 1)
+        try:
+            index = int(raw_index)
+        except ValueError:
+            index = None
+        if index is not None and 0 <= index < len(chunks):
+            entry = chunks[index]
+            if isinstance(entry, Mapping):
+                return entry
+    for entry in chunks:
+        if not isinstance(entry, Mapping):
+            continue
+        raw_id = entry.get("chunk_id") or entry.get("chunkId")
+        if raw_id is not None and str(raw_id) == chunk_id:
+            return entry
+        range_fragment = entry.get("range_fragment") or entry.get("rangeFragment")
+        if range_fragment is not None and str(range_fragment) == chunk_id:
+            return entry
+    return None
+
+
+def _serialize_chunk_entry(
+    job_id: str,
+    chunk: Mapping[str, Any],
+    locator: FileLocator,
+    *,
+    source: str,
+    include_sentences: bool,
+    metadata_loader: Optional[MetadataLoader] = None,
+) -> Optional[PipelineMediaChunk]:
+    job_root = locator.resolve_path(job_id)
+    chunk_files: List[PipelineMediaFile] = []
+    files_raw = chunk.get("files")
+    if not isinstance(files_raw, list):
+        files_raw = []
+    for file_entry in files_raw:
+        if not isinstance(file_entry, Mapping):
+            continue
+        enriched_entry = dict(file_entry)
+        enriched_entry.setdefault("chunk_id", chunk.get("chunk_id"))
+        enriched_entry.setdefault("range_fragment", chunk.get("range_fragment"))
+        enriched_entry.setdefault("start_sentence", chunk.get("start_sentence"))
+        enriched_entry.setdefault("end_sentence", chunk.get("end_sentence"))
+        record, _file_type, _signature = _build_media_file(
+            job_id,
+            enriched_entry,
+            locator,
+            job_root,
+            source=source,
+        )
+        if record is None:
+            continue
+        chunk_files.append(record)
+
+    summary: Mapping[str, Any] = chunk
+    if metadata_loader is not None:
+        try:
+            summary = metadata_loader.load_chunk(chunk, include_sentences=include_sentences)
+        except Exception:  # pragma: no cover - defensive logging
+            summary = chunk
+
+    metadata_path = summary.get("metadata_path")
+    metadata_url = summary.get("metadata_url")
+    sentence_count = _coerce_int(summary.get("sentence_count"))
+
+    sentences_payload: List[Any] = []
+    if include_sentences:
+        if metadata_loader is not None:
+            sentences_payload = metadata_loader.load_chunk_sentences(chunk)
+        else:
+            inline_sentences = summary.get("sentences") or chunk.get("sentences")
+            if isinstance(inline_sentences, list):
+                sentences_payload = copy.deepcopy(inline_sentences)
+        if sentence_count is None:
+            sentence_count = len(sentences_payload)
+
+    audio_tracks_payload: Dict[str, Dict[str, Any]] = {}
+
+    def _register_track(raw_key: Any, raw_value: Any) -> None:
+        if not isinstance(raw_key, str):
+            return
+        key = raw_key.strip()
+        if not key:
+            return
+
+        entry: Dict[str, Any] = {}
+        if isinstance(raw_value, str):
+            value = raw_value.strip()
+            if not value:
+                return
+            entry["path"] = value
+        elif isinstance(raw_value, Mapping):
+            path_value = raw_value.get("path")
+            url_value = raw_value.get("url")
+            duration_value = raw_value.get("duration")
+            sample_rate_value = raw_value.get("sampleRate")
+            if isinstance(path_value, str) and path_value.strip():
+                entry["path"] = path_value.strip()
+            if isinstance(url_value, str) and url_value.strip():
+                entry["url"] = url_value.strip()
+            try:
+                entry["duration"] = round(float(duration_value), 6)
+            except (TypeError, ValueError):
+                pass
+            try:
+                entry["sampleRate"] = int(sample_rate_value)
+            except (TypeError, ValueError):
+                pass
+        if not entry:
+            return
+
+        existing = audio_tracks_payload.get(key, {})
+        merged = dict(existing)
+        merged.update(entry)
+        audio_tracks_payload[key] = merged
+
+    def _ingest_tracks(candidate: Any) -> None:
+        if isinstance(candidate, Mapping):
+            for track_key, track_value in candidate.items():
+                _register_track(track_key, track_value)
+        elif isinstance(candidate, Sequence) and not isinstance(candidate, (str, bytes)):
+            for entry in candidate:
+                if not isinstance(entry, Mapping):
+                    continue
+                track_key = entry.get("key") or entry.get("kind")
+                track_value = entry.get("url") or entry.get("path")
+                if track_value is None:
+                    track_value = entry.get("source")
+                _register_track(track_key, track_value)
+
+    _ingest_tracks(summary.get("audio_tracks"))
+    _ingest_tracks(summary.get("audioTracks"))
+    _ingest_tracks(chunk.get("audio_tracks"))
+    _ingest_tracks(chunk.get("audioTracks"))
+
+    return PipelineMediaChunk(
+        chunk_id=str(summary.get("chunk_id")) if summary.get("chunk_id") else None,
+        range_fragment=str(summary.get("range_fragment")) if summary.get("range_fragment") else None,
+        start_sentence=_coerce_int(summary.get("start_sentence")),
+        end_sentence=_coerce_int(summary.get("end_sentence")),
+        files=chunk_files,
+        sentences=sentences_payload,
+        metadata_path=metadata_path if isinstance(metadata_path, str) else None,
+        metadata_url=metadata_url if isinstance(metadata_url, str) else None,
+        sentence_count=sentence_count,
+        audio_tracks=audio_tracks_payload,
+    )
+
+
 @router.get("/jobs/{job_id}/media", response_model=PipelineMediaResponse)
 async def get_job_media(
     job_id: str,
@@ -381,6 +538,69 @@ async def get_job_media(
         source="completed",
     )
     return PipelineMediaResponse(media=media_entries, chunks=chunk_entries, complete=complete)
+
+
+@router.get(
+    "/jobs/{job_id}/media/chunks/{chunk_id}",
+    response_model=PipelineMediaChunk,
+    status_code=status.HTTP_200_OK,
+)
+async def get_job_media_chunk(
+    job_id: str,
+    chunk_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    file_locator: FileLocator = Depends(get_file_locator),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> PipelineMediaChunk:
+    """Return sentence metadata for a single chunk."""
+
+    try:
+        job = pipeline_service.get_job(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    generated_payload: Optional[Mapping[str, Any]] = None
+    if job.media_completed and job.generated_files is not None:
+        generated_payload = job.generated_files
+    elif job.tracker is not None:
+        generated_payload = job.tracker.get_generated_files()
+    elif job.generated_files is not None:
+        generated_payload = job.generated_files
+
+    if not isinstance(generated_payload, Mapping):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chunk not found")
+
+    chunks_section = generated_payload.get("chunks")
+    if not isinstance(chunks_section, list):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chunk not found")
+
+    chunk_entry = _resolve_chunk_entry(chunks_section, chunk_id)
+    if not isinstance(chunk_entry, Mapping):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chunk not found")
+
+    loader: Optional[MetadataLoader] = None
+    try:
+        loader = MetadataLoader(file_locator.resolve_path(job_id))
+    except Exception:  # pragma: no cover - defensive logging
+        loader = None
+
+    serialized = _serialize_chunk_entry(
+        job_id,
+        chunk_entry,
+        file_locator,
+        source="completed",
+        include_sentences=True,
+        metadata_loader=loader,
+    )
+    if serialized is None or not serialized.sentences:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chunk metadata unavailable")
+    return serialized
 
 
 @router.get("/jobs/{job_id}/media/live", response_model=PipelineMediaResponse)

@@ -40,7 +40,7 @@ const STORAGE_KEYS = {
 } as const;
 
 const DEFAULT_LOOKUP_LANGUAGE = 'English';
-const DEFAULT_LLM_MODEL = 'ollama_cloud:gpt-oss:120b-cloud';
+const DEFAULT_LLM_MODEL = 'ollama_cloud:mistral-large-3:675b-cloud';
 const EMPTY_SENTINEL = '__EMPTY__';
 
 function nowId(prefix: string): string {

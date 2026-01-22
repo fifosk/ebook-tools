@@ -262,51 +262,62 @@ extension InteractivePlayerViewModel {
             var payloadData: Data? = nil
             for candidate in candidates {
                 guard let url = resolver.resolvePath(jobId: jobId, relativePath: candidate) else { continue }
-                if url.isFileURL {
-                    payloadData = try await Task.detached(priority: .utility) {
-                        try Data(contentsOf: url, options: .mappedIfSafe)
-                    }.value
+                do {
+                    if url.isFileURL {
+                        payloadData = try await Task.detached(priority: .utility) {
+                            try Data(contentsOf: url, options: .mappedIfSafe)
+                        }.value
+                        break
+                    }
+                    var request = URLRequest(url: url)
+                    request.setValue("application/json", forHTTPHeaderField: "Accept")
+                    let (data, response) = try await URLSession.shared.data(for: request)
+                    if let httpResponse = response as? HTTPURLResponse,
+                       !(200..<300).contains(httpResponse.statusCode) {
+                        continue
+                    }
+                    payloadData = data
                     break
-                }
-                var request = URLRequest(url: url)
-                request.setValue("application/json", forHTTPHeaderField: "Accept")
-                let (data, response) = try await URLSession.shared.data(for: request)
-                if let httpResponse = response as? HTTPURLResponse,
-                   !(200..<300).contains(httpResponse.statusCode) {
+                } catch {
                     continue
                 }
-                payloadData = data
-                break
             }
-            guard let payloadData else { return }
-            let sentences = try await decodeChunkMetadataInBackground(payloadData)
+            var sentences: [ChunkSentenceMetadata]? = nil
+            if let payloadData {
+                sentences = try await decodeChunkMetadataInBackground(payloadData)
+            }
+            if sentences == nil || sentences?.isEmpty == true {
+                if let fallbackChunk = await fetchChunkMetadataFromAPI(jobId: jobId, chunkID: chunkID) {
+                    sentences = fallbackChunk.sentences
+                }
+            }
             guard let sentences, !sentences.isEmpty else { return }
 
-            guard jobId == self.jobId, let currentMediaResponse = mediaResponse else { return }
-            guard let index = resolveChunkIndex(chunkID, chunks: currentMediaResponse.chunks) else { return }
-            let chunk = currentMediaResponse.chunks[index]
-            if !chunk.sentences.isEmpty {
+            guard jobId == self.jobId, let latestMediaResponse = mediaResponse else { return }
+            guard let index = resolveChunkIndex(chunkID, chunks: latestMediaResponse.chunks) else { return }
+            let latestChunk = latestMediaResponse.chunks[index]
+            if !latestChunk.sentences.isEmpty {
                 chunkMetadataLoaded.insert(chunkID)
                 return
             }
-            var updatedChunks = currentMediaResponse.chunks
+            var updatedChunks = latestMediaResponse.chunks
             let updatedChunk = PipelineMediaChunk(
-                chunkID: chunk.chunkID,
-                rangeFragment: chunk.rangeFragment,
-                startSentence: chunk.startSentence,
-                endSentence: chunk.endSentence,
-                files: chunk.files,
+                chunkID: latestChunk.chunkID,
+                rangeFragment: latestChunk.rangeFragment,
+                startSentence: latestChunk.startSentence,
+                endSentence: latestChunk.endSentence,
+                files: latestChunk.files,
                 sentences: sentences,
-                metadataPath: chunk.metadataPath,
-                metadataURL: chunk.metadataURL,
-                sentenceCount: chunk.sentenceCount ?? sentences.count,
-                audioTracks: chunk.audioTracks
+                metadataPath: latestChunk.metadataPath,
+                metadataURL: latestChunk.metadataURL,
+                sentenceCount: latestChunk.sentenceCount ?? sentences.count,
+                audioTracks: latestChunk.audioTracks
             )
             updatedChunks[index] = updatedChunk
             let refreshedMedia = PipelineMediaResponse(
-                media: currentMediaResponse.media,
+                media: latestMediaResponse.media,
                 chunks: updatedChunks,
-                complete: currentMediaResponse.complete
+                complete: latestMediaResponse.complete
             )
             let context = try await buildContextInBackground(
                 jobId: jobId,
@@ -388,6 +399,17 @@ extension InteractivePlayerViewModel {
             }
             return nil
         }.value
+    }
+
+    private func fetchChunkMetadataFromAPI(jobId: String, chunkID: String) async -> PipelineMediaChunk? {
+        guard mediaOrigin == .job else { return nil }
+        guard let configuration = apiConfiguration else { return nil }
+        let client = APIClient(configuration: configuration)
+        do {
+            return try await client.fetchJobMediaChunk(jobId: jobId, chunkId: chunkID)
+        } catch {
+            return nil
+        }
     }
 
     private func makeResolver(origin: MediaOrigin, configuration: APIClientConfiguration) throws -> MediaURLResolver {

@@ -315,12 +315,128 @@ extension InteractivePlayerView {
             tokenIndex: tokenIndex
         )
         linguistBubble = nil
-        if let seekTime, seekTime.isFinite {
-            viewModel.seekPlayback(to: seekTime, in: chunk)
+        let desiredAudioKind = audioKind(for: variantKind)
+        let currentOption = viewModel.selectedAudioOption(for: chunk)
+
+        var resolvedSeekTime = seekTime
+        var shouldSwitch = false
+        if let currentOption, currentOption.kind == .combined {
+            let isCombinedQueue = currentOption.streamURLs.count > 1
+            let useCombinedPhases = !isCombinedQueue
+            let timingTrack: TextPlayerTimingTrack = useCombinedPhases ? .mix : timingTrack(for: desiredAudioKind)
+            if resolvedSeekTime == nil {
+                let durationKind: InteractiveChunk.AudioOption.Kind = useCombinedPhases ? .combined : desiredAudioKind
+                let audioDuration = estimatedDuration(for: durationKind, in: chunk)
+                resolvedSeekTime = tokenSeekTime(
+                    sentenceIndex: sentenceIndex,
+                    variantKind: variantKind,
+                    tokenIndex: tokenIndex,
+                    timingTrack: timingTrack,
+                    audioDuration: audioDuration,
+                    useCombinedPhases: useCombinedPhases,
+                    in: chunk
+                )
+            }
+            if isCombinedQueue, desiredAudioKind == .translation {
+                let offset = estimatedDuration(for: .original, in: chunk) ?? 0
+                if let value = resolvedSeekTime {
+                    resolvedSeekTime = value + offset
+                } else if offset > 0 {
+                    resolvedSeekTime = offset
+                }
+            }
+        } else if let targetOption = chunk.audioOptions.first(where: { $0.kind == desiredAudioKind }) {
+            shouldSwitch = targetOption.id != currentOption?.id
+            let useCombinedPhases = targetOption.kind == .combined && targetOption.streamURLs.count == 1
+            let timingTrack: TextPlayerTimingTrack = useCombinedPhases ? .mix : timingTrack(for: desiredAudioKind)
+            if resolvedSeekTime == nil || shouldSwitch {
+                let audioDuration = estimatedDuration(for: desiredAudioKind, in: chunk)
+                resolvedSeekTime = tokenSeekTime(
+                    sentenceIndex: sentenceIndex,
+                    variantKind: variantKind,
+                    tokenIndex: tokenIndex,
+                    timingTrack: timingTrack,
+                    audioDuration: audioDuration,
+                    useCombinedPhases: useCombinedPhases,
+                    in: chunk
+                )
+            }
+        }
+
+        if shouldSwitch, let targetOption = chunk.audioOptions.first(where: { $0.kind == desiredAudioKind }) {
+            viewModel.selectAudioTrack(id: targetOption.id)
+        }
+
+        if let resolvedSeekTime, resolvedSeekTime.isFinite {
+            viewModel.seekPlayback(to: resolvedSeekTime, in: chunk)
             return
         }
         if let sentenceNumber, sentenceNumber > 0 {
             viewModel.jumpToSentence(sentenceNumber, autoPlay: audioCoordinator.isPlaybackRequested)
         }
+    }
+
+    private func audioKind(for variantKind: TextPlayerVariantKind) -> InteractiveChunk.AudioOption.Kind {
+        switch variantKind {
+        case .original:
+            return .original
+        case .translation, .transliteration:
+            return .translation
+        }
+    }
+
+    private func timingTrack(for audioKind: InteractiveChunk.AudioOption.Kind) -> TextPlayerTimingTrack {
+        switch audioKind {
+        case .original:
+            return .original
+        case .translation, .combined, .other:
+            return .translation
+        }
+    }
+
+    private func estimatedDuration(
+        for kind: InteractiveChunk.AudioOption.Kind,
+        in chunk: InteractiveChunk
+    ) -> Double? {
+        if let duration = viewModel.durationForOption(kind: kind, in: chunk), duration > 0 {
+            return duration
+        }
+        if let duration = viewModel.combinedTrackDuration(kind: kind, in: chunk), duration > 0 {
+            return duration
+        }
+        if let duration = viewModel.fallbackDuration(for: chunk, kind: kind), duration > 0 {
+            return duration
+        }
+        return nil
+    }
+
+    private func tokenSeekTime(
+        sentenceIndex: Int,
+        variantKind: TextPlayerVariantKind,
+        tokenIndex: Int,
+        timingTrack: TextPlayerTimingTrack,
+        audioDuration: Double?,
+        useCombinedPhases: Bool,
+        in chunk: InteractiveChunk
+    ) -> Double? {
+        guard let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
+            sentences: chunk.sentences,
+            activeTimingTrack: timingTrack,
+            audioDuration: audioDuration,
+            useCombinedPhases: useCombinedPhases
+        ),
+        let runtime = timelineSentences.first(where: { $0.index == sentenceIndex }) else {
+            return nil
+        }
+        guard let variantRuntime = runtime.variants[variantKind] else {
+            return runtime.startTime
+        }
+        let revealTimes = variantRuntime.revealTimes
+        guard !revealTimes.isEmpty else {
+            return runtime.startTime
+        }
+        let clampedIndex = max(0, min(tokenIndex, revealTimes.count - 1))
+        let value = revealTimes[clampedIndex]
+        return value.isFinite ? value : runtime.startTime
     }
 }

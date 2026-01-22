@@ -226,7 +226,7 @@ export default function VideoDubbingOptionsPanel({
           <p className={styles.fieldHint}>
             {usesGoogleTranslate
               ? 'Model used for transliteration when googletrans is enabled.'
-              : 'Model used when translating subtitles before TTS (defaults to ollama_cloud:kimi-k2-thinking:cloud).'}
+              : `Model used when translating subtitles before TTS (defaults to ${DEFAULT_LLM_MODEL}).`}
           </p>
           {isLoadingModels ? <p className={styles.status}>Loading models…</p> : null}
           {modelError ? <p className={styles.error}>{modelError}</p> : null}

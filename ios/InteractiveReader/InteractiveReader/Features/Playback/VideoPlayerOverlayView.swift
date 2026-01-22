@@ -298,7 +298,15 @@ struct VideoPlayerOverlayView: View {
 
     @ViewBuilder
     private var subtitleStack: some View {
-        let shouldReportTokenFrames = isPad
+        #if os(iOS)
+        let shouldReportTokenFramesLocal = isPad
+        let tokenFramesHandler: (([VideoSubtitleTokenFrame]) -> Void)? = shouldReportTokenFramesLocal
+            ? { subtitleTokenFrames = $0 }
+            : nil
+        #else
+        let shouldReportTokenFramesLocal = false
+        let tokenFramesHandler: (([VideoSubtitleTokenFrame]) -> Void)? = nil
+        #endif
         let stack = VStack(alignment: subtitleAlignment, spacing: 6) {
             if includeBubbleInSubtitleStack, let subtitleBubble {
                 subtitleBubbleContent(subtitleBubble)
@@ -330,8 +338,8 @@ struct VideoPlayerOverlayView: View {
                 lineAlignment: subtitleAlignment,
                 onTokenLookup: onSubtitleTokenLookup,
                 onTokenSeek: onSubtitleTokenSeek,
-                onTokenFramesChange: shouldReportTokenFrames ? { subtitleTokenFrames = $0 } : nil,
-                shouldReportTokenFrames: shouldReportTokenFrames,
+                onTokenFramesChange: tokenFramesHandler,
+                shouldReportTokenFrames: shouldReportTokenFramesLocal,
                 onResetFont: onResetSubtitleFont,
                 onMagnify: onSetSubtitleFont
             )

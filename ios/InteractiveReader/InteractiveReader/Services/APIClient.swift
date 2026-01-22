@@ -65,6 +65,13 @@ final class APIClient {
         return try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/media/live")
     }
 
+    func fetchJobMediaChunk(jobId: String, chunkId: String) async throws -> PipelineMediaChunk {
+        let encodedJob = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encodedChunk = chunkId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? chunkId
+        let data = try await sendRequest(path: "/api/pipelines/jobs/\(encodedJob)/media/chunks/\(encodedChunk)")
+        return try decode(PipelineMediaChunk.self, from: data)
+    }
+
     func fetchLibraryMedia(jobId: String) async throws -> PipelineMediaResponse {
         let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
         let data = try await sendRequest(path: "/api/library/media/\(encoded)")

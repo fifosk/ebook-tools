@@ -3,6 +3,13 @@ import Foundation
 extension InteractivePlayerViewModel {
     func prefetchAdjacentSentencesIfNeeded(isPlaying: Bool) {
         guard let context = jobContext, let chunk = selectedChunk else { return }
+        if chunkNeedsTranscriptLoad(chunk),
+           !chunkMetadataLoaded.contains(chunk.id),
+           !chunkMetadataLoading.contains(chunk.id) {
+            Task { [weak self] in
+                await self?.loadChunkMetadataIfNeeded(for: chunk.id)
+            }
+        }
         guard let activeNumber = activeSentenceNumber(in: chunk) else { return }
         if !isPlaying && !chunk.sentences.isEmpty {
             return
@@ -26,6 +33,15 @@ extension InteractivePlayerViewModel {
             return start
         }
         return nil
+    }
+
+    private func chunkNeedsTranscriptLoad(_ chunk: InteractiveChunk) -> Bool {
+        guard !chunk.sentences.isEmpty else { return true }
+        return !chunk.sentences.contains { sentence in
+            !sentence.originalTokens.isEmpty
+                || !sentence.translationTokens.isEmpty
+                || !sentence.transliterationTokens.isEmpty
+        }
     }
 
     private func prefetchAdjacentSentences(

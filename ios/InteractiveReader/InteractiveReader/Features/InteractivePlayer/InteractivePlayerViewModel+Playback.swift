@@ -345,6 +345,15 @@ extension InteractivePlayerViewModel {
         }()
 
         if sorted.isEmpty {
+            if forward {
+                if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
+                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                }
+            } else {
+                if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
+                    selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                }
+            }
             return
         }
 

@@ -19,6 +19,14 @@ struct InteractiveAutoScaleTrackHeightKey: PreferenceKey {
     }
 }
 
+struct InteractiveBubbleFrameKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
+    }
+}
+
 struct InteractiveTranscriptView: View {
     let viewModel: InteractivePlayerViewModel
     @ObservedObject var audioCoordinator: AudioPlayerCoordinator
@@ -75,6 +83,7 @@ struct InteractiveTranscriptView: View {
     @State private var lastLayoutSize: CGSize = .zero
     @State private var tokenFrames: [TextPlayerTokenFrame] = []
     @State private var tapExclusionFrames: [CGRect] = []
+    @State private var bubbleFrame: CGRect = .zero
     @State private var dragSelectionAnchor: TextPlayerWordSelection?
     @State private var dragLookupTask: Task<Void, Never>?
     private let dragLookupDelayNanos: UInt64 = 350_000_000
@@ -157,9 +166,7 @@ struct InteractiveTranscriptView: View {
                         value: trackProxy.size.height
                     )
                 })
-            let trackView: AnyView = shouldAutoScaleTracks
-                ? AnyView(measuredTrackView)
-                : AnyView(baseTrackView)
+            let trackView: AnyView = AnyView(measuredTrackView)
 
             Group {
                 #if os(tvOS)
@@ -210,7 +217,6 @@ struct InteractiveTranscriptView: View {
                         let trackViewWithPlayback = AnyView(
                             trackView
                                 .contentShape(Rectangle())
-                                .simultaneousGesture(playbackSingleTapGesture, including: .gesture)
                         )
                         VStack {
                             Spacer(minLength: 0)
@@ -219,7 +225,8 @@ struct InteractiveTranscriptView: View {
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(Rectangle())
-                        .gesture(swipeGesture)
+                        .simultaneousGesture(swipeGesture, including: .all)
+                        .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
                         .highPriorityGesture(trackMagnifyGesture, including: .all)
 
                         if bubble != nil {
@@ -255,22 +262,27 @@ struct InteractiveTranscriptView: View {
                             .frame(maxWidth: .infinity, alignment: .top)
                             .padding(.horizontal)
                             .padding(.bottom, 6)
+                            .background(GeometryReader { bubbleProxy in
+                                Color.clear.preference(
+                                    key: InteractiveBubbleFrameKey.self,
+                                    value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
+                                )
+                            })
                             .simultaneousGesture(bubbleMagnifyGesture, including: .all)
                         }
                     }
                     .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
                 } else {
-                    let trackViewWithPlayback = isPad
-                        ? AnyView(
-                            trackView
-                                .contentShape(Rectangle())
-                                .simultaneousGesture(playbackSingleTapGesture, including: .gesture)
-                        )
-                        : AnyView(
+                    let trackViewWithPlayback: AnyView = {
+                        if isPad {
+                            return AnyView(trackView.contentShape(Rectangle()))
+                        }
+                        return AnyView(
                             trackView
                                 .contentShape(Rectangle())
                                 .simultaneousGesture(doubleTapGesture, including: .gesture)
                         )
+                    }()
                     VStack(alignment: .leading, spacing: stackSpacing) {
                         trackViewWithPlayback
                         if let bubble {
@@ -297,6 +309,10 @@ struct InteractiveTranscriptView: View {
                                     key: InteractiveBubbleHeightKey.self,
                                     value: bubbleProxy.size.height
                                 )
+                                .preference(
+                                    key: InteractiveBubbleFrameKey.self,
+                                    value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
+                                )
                             })
                             .simultaneousGesture(bubbleMagnifyGesture, including: .all)
                         }
@@ -305,7 +321,10 @@ struct InteractiveTranscriptView: View {
                     .contentShape(Rectangle())
                     .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
                     .gesture(swipeGesture)
+                    #if os(iOS)
                     .simultaneousGesture(selectionDragGesture, including: .gesture)
+                    .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
+                    #endif
                     .highPriorityGesture(trackMagnifyGesture, including: .all)
                 }
                 #endif
@@ -324,6 +343,9 @@ struct InteractiveTranscriptView: View {
                     autoScaleNeedsUpdate = true
                 }
                 applyAutoScaleIfNeeded()
+            }
+            .onPreferenceChange(InteractiveBubbleFrameKey.self) { value in
+                bubbleFrame = value
             }
             .onChange(of: proxy.size) { _, newSize in
                 guard shouldAutoScaleTracks else { return }
@@ -421,10 +443,6 @@ struct InteractiveTranscriptView: View {
                 dragSelectionAnchor = nil
             }
     }
-    #else
-    private var selectionDragGesture: some Gesture {
-        DragGesture(minimumDistance: 8, coordinateSpace: .local)
-    }
     #endif
 
     #if !os(tvOS)
@@ -455,6 +473,33 @@ struct InteractiveTranscriptView: View {
                     return
                 }
                 onTogglePlayback()
+            }
+    }
+
+    private var backgroundPlaybackTapGesture: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
+            .onEnded { value in
+                guard !suppressPlaybackToggle else { return }
+                let distance = hypot(value.translation.width, value.translation.height)
+                guard distance < 8 else { return }
+                let location = value.location
+                if bubble != nil, bubbleFrame.contains(location) {
+                    return
+                }
+                if tokenFrames.contains(where: { $0.frame.contains(location) }) {
+                    return
+                }
+                if tapExclusionFrames.contains(where: { $0.contains(location) }) {
+                    return
+                }
+                if bubble != nil {
+                    onCloseBubble()
+                    if !audioCoordinator.isPlaying {
+                        onTogglePlayback()
+                    }
+                } else {
+                    onTogglePlayback()
+                }
             }
     }
     #endif
