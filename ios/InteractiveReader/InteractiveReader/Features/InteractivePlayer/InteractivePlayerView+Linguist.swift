@@ -200,6 +200,7 @@ extension InteractivePlayerView {
         linguistAutoLookupTask?.cancel()
         linguistAutoLookupTask = nil
         linguistBubble = nil
+        bubbleFocusEnabled = false
         linguistSelection = nil
         linguistSelectionRange = nil
         pronunciationSpeaker.stop()
@@ -213,6 +214,7 @@ extension InteractivePlayerView {
         linguistAutoLookupTask?.cancel()
         linguistAutoLookupTask = nil
         linguistBubble = nil
+        bubbleFocusEnabled = false
         pronunciationSpeaker.stop()
     }
 

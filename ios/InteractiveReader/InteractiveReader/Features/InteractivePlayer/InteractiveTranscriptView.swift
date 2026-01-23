@@ -42,6 +42,7 @@ struct InteractiveTranscriptView: View {
     let onLlmModelChange: (String) -> Void
     let playbackPrimaryKind: TextPlayerVariantKind?
     let visibleTracks: Set<TextPlayerVariantKind>
+    let isBubbleFocusEnabled: Bool
     let onToggleTrack: (TextPlayerVariantKind) -> Void
     let isMenuVisible: Bool
     let trackFontScale: CGFloat
@@ -109,11 +110,19 @@ struct InteractiveTranscriptView: View {
     private var transcriptContent: some View {
         GeometryReader { proxy in
             let availableHeight = proxy.size.height
+            let tvBubbleSplit = isTV && bubble != nil
             let stackSpacing: CGFloat = bubble == nil ? 12 : (isTV ? 10 : (isPad ? 0 : 6))
-            let minBubbleReserve: CGFloat = availableHeight * (isTV ? 0.3 : (isPad ? 0.35 : 0.4))
-            let bubbleReserve = bubble == nil ? 0 : max(bubbleHeight + stackSpacing, minBubbleReserve)
-            let preferredTextHeight = (isPad && bubble != nil) ? availableHeight * 0.7 : availableHeight
+            let minBubbleReserve: CGFloat = tvBubbleSplit
+                ? availableHeight * 0.5
+                : availableHeight * (isPad ? 0.35 : 0.4)
+            let bubbleReserve = bubble == nil
+                ? 0
+                : max(bubbleHeight + stackSpacing, minBubbleReserve)
+            let preferredTextHeight = (isPad && bubble != nil && !tvBubbleSplit)
+                ? availableHeight * 0.7
+                : availableHeight
             let textHeight = max(min(preferredTextHeight, availableHeight - bubbleReserve), 0)
+            let tvBubbleHeight = tvBubbleSplit ? max(bubbleReserve - stackSpacing, 0) : 0
             let safeAreaBottom: CGFloat = {
                 #if os(iOS)
                 return isPhone ? proxy.safeAreaInsets.bottom : 0
@@ -125,7 +134,7 @@ struct InteractiveTranscriptView: View {
             let shouldAutoScaleTracks = !isTV && autoScaleEnabled
             let bubbleFocusEnabled: Bool = {
                 #if os(tvOS)
-                return focusedArea == .bubble
+                return isBubbleFocusEnabled
                 #else
                 return true
                 #endif
@@ -140,9 +149,16 @@ struct InteractiveTranscriptView: View {
                 }
                 onLookupToken(sentenceIndex, variantKind, tokenIndex, token)
             }
-            let resolvedTrackFontScale = (isTV || !shouldAutoScaleTracks) ? trackFontScale : {
+            let resolvedTrackFontScale = isTV ? {
+                guard bubble != nil else { return trackFontScale }
+                return max(trackFontScale * 0.85, 0.85)
+            }() : (shouldAutoScaleTracks ? {
                 let current = effectiveTrackFontScale == 0 ? trackFontScale : effectiveTrackFontScale
                 return min(current, maxTrackFontScale)
+            }() : trackFontScale)
+            let resolvedLinguistFontScale: CGFloat = {
+                guard isTV, bubble != nil else { return linguistFontScale }
+                return max(linguistFontScale * 0.9, 0.9)
             }()
             let shouldReportTokenFrames = isPad || isPhone
             let baseTrackView = TextPlayerFrame(
@@ -188,7 +204,7 @@ struct InteractiveTranscriptView: View {
                     if let bubble {
                         MyLinguistBubbleView(
                             bubble: bubble,
-                            fontScale: linguistFontScale,
+                            fontScale: resolvedLinguistFontScale,
                             canIncreaseFont: canIncreaseLinguistFont,
                             canDecreaseFont: canDecreaseLinguistFont,
                             lookupLanguage: lookupLanguage,
@@ -203,6 +219,9 @@ struct InteractiveTranscriptView: View {
                             isFocusEnabled: bubbleFocusEnabled,
                             focusBinding: $focusedArea
                         )
+                        .frame(maxWidth: .infinity, maxHeight: tvBubbleHeight, alignment: .bottom)
+                        .padding(.horizontal, 36)
+                        .padding(.bottom, 12)
                         .background(GeometryReader { bubbleProxy in
                             Color.clear.preference(
                                 key: InteractiveBubbleHeightKey.self,
@@ -244,7 +263,7 @@ struct InteractiveTranscriptView: View {
                         if let bubble {
                             MyLinguistBubbleView(
                                 bubble: bubble,
-                                fontScale: linguistFontScale,
+                                fontScale: resolvedLinguistFontScale,
                                 canIncreaseFont: canIncreaseLinguistFont,
                                 canDecreaseFont: canDecreaseLinguistFont,
                                 lookupLanguage: lookupLanguage,
@@ -288,7 +307,7 @@ struct InteractiveTranscriptView: View {
                         if let bubble {
                             MyLinguistBubbleView(
                                 bubble: bubble,
-                                fontScale: linguistFontScale,
+                                fontScale: resolvedLinguistFontScale,
                                 canIncreaseFont: canIncreaseLinguistFont,
                                 canDecreaseFont: canDecreaseLinguistFont,
                                 lookupLanguage: lookupLanguage,

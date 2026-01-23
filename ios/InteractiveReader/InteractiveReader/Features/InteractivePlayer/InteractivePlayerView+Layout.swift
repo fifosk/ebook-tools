@@ -201,6 +201,7 @@ extension InteractivePlayerView {
             onLlmModelChange: { storedLlmModel = $0 },
             playbackPrimaryKind: playbackPrimaryKind(for: chunk),
             visibleTracks: visibleTracks,
+            isBubbleFocusEnabled: bubbleFocusEnabled,
             onToggleTrack: { kind in
                 toggleTrackIfAvailable(kind)
             },

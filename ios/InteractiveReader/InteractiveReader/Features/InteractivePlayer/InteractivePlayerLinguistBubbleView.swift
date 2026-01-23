@@ -90,12 +90,12 @@ struct MyLinguistBubbleView: View {
         .focusEffectDisabled()
         .focusSection()
         .onAppear {
-            if focusedControl == nil {
+            if isFocusEnabled, focusedControl == nil {
                 focusedControl = .language
             }
         }
         .onChange(of: focusedControl) { _, newValue in
-            guard newValue != nil else { return }
+            guard isFocusEnabled, newValue != nil else { return }
             if focusBinding.wrappedValue != .bubble {
                 focusBinding.wrappedValue = .bubble
             }
@@ -427,7 +427,7 @@ struct MyLinguistBubbleView: View {
         action: @escaping () -> Void,
         @ViewBuilder label: () -> some View
     ) -> some View {
-        let canFocus = isEnabled && activePicker == nil
+        let canFocus = isEnabled && activePicker == nil && isFocusEnabled
         return bubbleControlLabel(isFocused: focusedControl == control) {
             label()
         }
@@ -557,7 +557,7 @@ struct MyLinguistBubbleView: View {
 
     private var bubbleMaxHeight: CGFloat {
         #if os(tvOS)
-        return 220
+        return UIScreen.main.bounds.height * 0.5
         #else
         return 180
         #endif
@@ -565,7 +565,11 @@ struct MyLinguistBubbleView: View {
 
     private var bubbleWidth: CGFloat {
         #if os(iOS) || os(tvOS)
+        #if os(tvOS)
+        return UIScreen.main.bounds.width * 0.95
+        #else
         return UIScreen.main.bounds.width * 0.66
+        #endif
         #else
         return 420
         #endif

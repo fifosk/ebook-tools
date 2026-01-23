@@ -36,6 +36,7 @@ struct InteractivePlayerView: View {
     @State var didLoadLlmModels = false
     @State var isMenuVisible = false
     @State var resumePlaybackAfterMenu = false
+    @State var bubbleFocusEnabled = false
     @AppStorage("player.headerCollapsed") var isHeaderCollapsed = false
     @State var frozenTranscriptSentences: [TextPlayerSentenceDisplay]?
     @State var isShortcutHelpPinned = false
@@ -136,6 +137,7 @@ struct InteractivePlayerView: View {
                 guard let chunk = viewModel.selectedChunk else { return }
                 if focusedArea == .bubble {
                     if direction == .up {
+                        bubbleFocusEnabled = false
                         focusedArea = .transcript
                     }
                     return
@@ -171,8 +173,10 @@ struct InteractivePlayerView: View {
                     } else {
                         let moved = handleTrackNavigation(-1, in: chunk)
                         if moved {
+                            bubbleFocusEnabled = false
                             focusedArea = .transcript
                         } else {
+                            bubbleFocusEnabled = false
                             focusedArea = .controls
                         }
                     }
@@ -182,10 +186,13 @@ struct InteractivePlayerView: View {
                     } else {
                         let moved = handleTrackNavigation(1, in: chunk)
                         if moved {
+                            bubbleFocusEnabled = false
                             focusedArea = .transcript
                         } else if linguistBubble != nil {
+                            bubbleFocusEnabled = true
                             focusedArea = .bubble
                         } else {
+                            bubbleFocusEnabled = false
                             focusedArea = .transcript
                         }
                     }

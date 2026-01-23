@@ -315,6 +315,7 @@ extension InteractivePlayerView {
             tokenIndex: tokenIndex
         )
         linguistBubble = nil
+        bubbleFocusEnabled = false
         let desiredAudioKind = audioKind(for: variantKind)
         let currentOption = viewModel.selectedAudioOption(for: chunk)
 
