@@ -243,14 +243,34 @@ export function App() {
   } = useUIStore();
 
   // Convert store Map to Record for backward compatibility with existing code
-  const jobs = useMemo(() => {
-    const allJobs = getAllJobs();
-    const record: Record<string, JobRegistryEntry> = {};
-    for (const job of allJobs) {
-      record[job.status.job_id] = job;
+  // Use shallow comparison to prevent unnecessary re-renders
+  const jobs = useJobsStore(
+    (state) => {
+      const allJobs = state.getAllJobs();
+      const record: Record<string, JobRegistryEntry> = {};
+      for (const job of allJobs) {
+        record[job.status.job_id] = job;
+      }
+      return record;
+    },
+    (prev, next) => {
+      const prevIds = Object.keys(prev);
+      const nextIds = Object.keys(next);
+
+      // Quick check: different number of jobs
+      if (prevIds.length !== nextIds.length) return false;
+
+      // Check if job IDs are the same
+      if (!prevIds.every(id => nextIds.includes(id))) return false;
+
+      // Check if job data is the same (shallow comparison)
+      for (const id of prevIds) {
+        if (prev[id] !== next[id]) return false;
+      }
+
+      return true;
     }
-    return record;
-  }, [getAllJobs]);
+  );
   const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
   const pipelineJobTypes = useMemo(() => new Set(['pipeline', 'book']), []);
   const recentPipelineJobs = useMemo(() => {
@@ -979,6 +999,9 @@ export function App() {
   );
 
   const jobList: JobState[] = useMemo(() => {
+    // Get all loading states once instead of in the loop
+    const storeState = useJobsStore.getState();
+
     return Object.entries(jobs).map(([jobId, entry]) => {
       const { canView, canManage } = resolveJobPermissions(entry.status);
       const resolvedStatus = entry.status
@@ -988,14 +1011,18 @@ export function App() {
               resolveMediaCompletion(entry.status) ?? entry.status.media_completed ?? null
           }
         : entry.status;
+
+      // Get loading states from pre-fetched store state
+      const loadingState = storeState.getJobWithLoading(jobId);
+
       return {
         jobId,
         status: resolvedStatus,
         latestEvent: entry.latestEvent,
         latestTranslationEvent: entry.latestTranslationEvent,
         latestMediaEvent: entry.latestMediaEvent,
-        isReloading: useJobsStore.getState().getJobWithLoading(jobId)?.isReloading ?? false,
-        isMutating: useJobsStore.getState().getJobWithLoading(jobId)?.isMutating ?? false,
+        isReloading: loadingState?.isReloading ?? false,
+        isMutating: loadingState?.isMutating ?? false,
         canManage,
         canView
       };

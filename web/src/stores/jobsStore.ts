@@ -44,6 +44,8 @@ interface JobsState {
   getJobWithLoading: (jobId: string) => (JobEntry & LoadingFlags) | undefined;
   getAllJobs: () => JobEntry[];
   getJobIds: () => string[];
+  getSortedJobs: () => JobEntry[];
+  getJobsByType: (jobType: string) => JobEntry[];
 
   // Mutations
   setJobs: (jobs: PipelineStatusResponse[]) => void;
@@ -115,6 +117,21 @@ export const useJobsStore = create<JobsState>()(
 
       getJobIds: () => {
         return Array.from(get().jobs.keys());
+      },
+
+      // Computed selectors (sorted, filtered)
+      getSortedJobs: () => {
+        const jobs = Array.from(get().jobs.values());
+        return jobs.sort((a, b) => {
+          const left = new Date(a.status.created_at).getTime();
+          const right = new Date(b.status.created_at).getTime();
+          return right - left; // Newest first
+        });
+      },
+
+      getJobsByType: (jobType: string) => {
+        const jobs = get().getAllJobs();
+        return jobs.filter((job) => job.status.job_type === jobType);
       },
 
       // Mutations
@@ -383,3 +400,64 @@ export const useJobsStore = create<JobsState>()(
     { name: 'JobsStore' }
   )
 );
+
+// Selective subscription hooks for performance
+// These hooks prevent unnecessary re-renders by subscribing only to specific slices of state
+
+/**
+ * Subscribe to a specific job's data
+ * Only re-renders when the specified job changes
+ */
+export const useJobData = (jobId: string | null) => {
+  return useJobsStore(
+    (state) => (jobId ? state.getJob(jobId) : undefined),
+    (a, b) => {
+      if (!a && !b) return true; // Both undefined
+      if (!a || !b) return false; // One undefined
+      // Compare job data shallowly
+      return (
+        a.status === b.status &&
+        a.latestEvent === b.latestEvent &&
+        a.latestTranslationEvent === b.latestTranslationEvent &&
+        a.latestMediaEvent === b.latestMediaEvent
+      );
+    }
+  );
+};
+
+/**
+ * Subscribe to a specific job's loading states
+ * Only re-renders when loading states change
+ */
+export const useJobLoading = (jobId: string | null) => {
+  return useJobsStore(
+    (state) => {
+      if (!jobId) return { isReloading: false, isMutating: false };
+      const loading = state.loadingStates.get(jobId);
+      return loading || { isReloading: false, isMutating: false };
+    },
+    (a, b) => a.isReloading === b.isReloading && a.isMutating === b.isMutating
+  );
+};
+
+/**
+ * Subscribe to all job IDs (for lists)
+ * Only re-renders when the set of job IDs changes
+ */
+export const useJobIds = () => {
+  return useJobsStore(
+    (state) => state.getJobIds(),
+    (a, b) => {
+      if (a.length !== b.length) return false;
+      return a.every((id, i) => id === b[i]);
+    }
+  );
+};
+
+/**
+ * Subscribe to active job ID only
+ * Only re-renders when active job changes
+ */
+export const useActiveJobId = () => {
+  return useJobsStore((state) => state.activeJobId);
+};
