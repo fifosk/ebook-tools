@@ -40,6 +40,28 @@ import { extractJobType } from '../utils/jobGlyphs';
 import type { ExportPlayerManifest } from '../types/exportPlayer';
 import { extractMetadataFirstString, extractMetadataText } from './player-panel/helpers';
 import { useMyLinguist } from '../context/MyLinguistProvider';
+import { replaceUrlExtension, readNestedValue, coerceRecord, readStringValue } from './youtube-player/utils';
+import {
+  extractLanguagesFromResult,
+  resolveLibraryAssetUrl,
+  extractTvMediaMetadataFromLibrary,
+  extractTvMediaMetadataFromPayload,
+  resolveTvImage,
+  extractYoutubeVideoMetadataFromTv,
+  resolveYoutubeThumbnail,
+  resolveYoutubeTitle,
+  resolveYoutubeChannel,
+  normaliseSummary,
+  resolveYoutubeSummary,
+  resolveTvSummary,
+  formatTvEpisodeLabel,
+} from './youtube-player/metadataResolvers';
+import {
+  normalizeInlineSubtitleKey,
+  resolveInlineSubtitlePayload,
+  buildSubtitleDataUrl,
+  extractFileSuffix,
+} from './youtube-player/subtitleHelpers';
 
 type PlaybackControls = { pause: () => void; play: () => void; ensureFullscreen?: () => void; seek?: (time: number) => void };
 
@@ -68,254 +90,6 @@ const SUBTITLE_SCALE_FULLSCREEN_MIN = 0.75;
 const SUBTITLE_SCALE_FULLSCREEN_MAX = 4;
 const SUBTITLE_SCALE_STEP = FONT_SCALE_STEP / 100;
 const FULLSCREEN_LINGUIST_SCALE_MULTIPLIER = 1.25;
-
-function replaceUrlExtension(value: string, suffix: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  const [pathPart, hashPart] = trimmed.split('#', 2);
-  const [pathOnly, queryPart] = pathPart.split('?', 2);
-  if (!pathOnly || !/\.[^/.]+$/.test(pathOnly)) {
-    return null;
-  }
-  let result = pathOnly.replace(/\.[^/.]+$/, suffix);
-  if (queryPart) {
-    result += `?${queryPart}`;
-  }
-  if (hashPart) {
-    result += `#${hashPart}`;
-  }
-  return result;
-}
-
-function readNestedValue(source: unknown, path: string[]): unknown {
-  let current: unknown = source;
-  for (const key of path) {
-    if (!current || typeof current !== 'object') {
-      return null;
-    }
-    current = (current as Record<string, unknown>)[key];
-  }
-  return current;
-}
-
-function coerceRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
-}
-
-function readStringValue(source: Record<string, unknown> | null | undefined, key: string): string | null {
-  if (!source) {
-    return null;
-  }
-  const value = source[key];
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
-}
-
-function extractLanguagesFromResult(result: unknown): { original: string | null; translation: string | null } {
-  const record = coerceRecord(result);
-  if (!record) {
-    return { original: null, translation: null };
-  }
-  const dubPayload = coerceRecord(record['youtube_dub']);
-  const dubOriginal =
-    readStringValue(dubPayload, 'source_language') ??
-    readStringValue(dubPayload, 'translation_source_language') ??
-    readStringValue(dubPayload, 'source');
-  const dubTranslation =
-    readStringValue(dubPayload, 'language') ??
-    readStringValue(dubPayload, 'target_language') ??
-    readStringValue(dubPayload, 'translation_language');
-  const bookMetadata = coerceRecord(record['book_metadata']);
-  const metadataOriginal =
-    extractMetadataText(bookMetadata, [
-      'input_language',
-      'original_language',
-      'source_language',
-      'translation_source_language',
-      'language',
-      'lang',
-    ]) ?? null;
-  const metadataTranslation =
-    extractMetadataFirstString(bookMetadata, ['target_language', 'translation_language', 'target_languages']) ?? null;
-  return {
-    original: dubOriginal ?? metadataOriginal,
-    translation: dubTranslation ?? metadataTranslation,
-  };
-}
-
-function resolveLibraryAssetUrl(jobId: string, value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  if (/^[a-z]+:\/\//i.test(trimmed)) {
-    return trimmed;
-  }
-  if (trimmed.startsWith('/api/')) {
-    return appendAccessToken(trimmed);
-  }
-  if (trimmed.startsWith('/')) {
-    return trimmed;
-  }
-  return resolveLibraryMediaUrl(jobId, trimmed);
-}
-
-function extractTvMediaMetadataFromLibrary(item: LibraryItem | null | undefined): Record<string, unknown> | null {
-  const payload = item?.metadata ?? null;
-  if (!payload || typeof payload !== 'object') {
-    return null;
-  }
-  const candidate =
-    readNestedValue(payload, ['result', 'youtube_dub', 'media_metadata']) ??
-    readNestedValue(payload, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
-    readNestedValue(payload, ['request', 'media_metadata']) ??
-    readNestedValue(payload, ['media_metadata']) ??
-    null;
-  return coerceRecord(candidate);
-}
-
-function extractTvMediaMetadataFromPayload(payload: Record<string, unknown> | null): Record<string, unknown> | null {
-  if (!payload) {
-    return null;
-  }
-  const candidate =
-    readNestedValue(payload, ['result', 'youtube_dub', 'media_metadata']) ??
-    readNestedValue(payload, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
-    readNestedValue(payload, ['request', 'media_metadata']) ??
-    readNestedValue(payload, ['media_metadata']) ??
-    null;
-  return coerceRecord(candidate);
-}
-
-function resolveTvImage(
-  jobId: string,
-  tvMetadata: Record<string, unknown> | null,
-  path: 'show' | 'episode',
-  resolver: (jobId: string, value: unknown) => string | null,
-): string | null {
-  const section = coerceRecord(tvMetadata?.[path]);
-  if (!section) {
-    return null;
-  }
-  const image = section['image'];
-  if (!image) {
-    return null;
-  }
-  if (typeof image === 'string') {
-    return resolver(jobId, image);
-  }
-  const record = coerceRecord(image);
-  if (!record) {
-    return null;
-  }
-  return resolver(jobId, record['medium']) ?? resolver(jobId, record['original']);
-}
-
-function extractYoutubeVideoMetadataFromTv(tvMetadata: Record<string, unknown> | null): Record<string, unknown> | null {
-  return coerceRecord(tvMetadata?.['youtube']);
-}
-
-function resolveYoutubeThumbnail(
-  jobId: string,
-  youtubeMetadata: Record<string, unknown> | null,
-  resolver: (jobId: string, value: unknown) => string | null,
-): string | null {
-  if (!youtubeMetadata) {
-    return null;
-  }
-  return resolver(jobId, youtubeMetadata['thumbnail']);
-}
-
-function resolveYoutubeTitle(youtubeMetadata: Record<string, unknown> | null): string | null {
-  const title = youtubeMetadata?.['title'];
-  return typeof title === 'string' && title.trim() ? title.trim() : null;
-}
-
-function resolveYoutubeChannel(youtubeMetadata: Record<string, unknown> | null): string | null {
-  const channel = youtubeMetadata?.['channel'];
-  if (typeof channel === 'string' && channel.trim()) {
-    return channel.trim();
-  }
-  const uploader = youtubeMetadata?.['uploader'];
-  return typeof uploader === 'string' && uploader.trim() ? uploader.trim() : null;
-}
-
-const SUMMARY_LENGTH_LIMIT = 320;
-
-function normaliseSummary(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  let text = value.trim();
-  if (!text) {
-    return null;
-  }
-  text = text.replace(/<[^>]+>/g, ' ');
-  text = text.replace(/\s+/g, ' ').trim();
-  if (!text) {
-    return null;
-  }
-  if (text.length > SUMMARY_LENGTH_LIMIT) {
-    const cutoff = Math.max(SUMMARY_LENGTH_LIMIT - 3, 0);
-    text = `${text.slice(0, cutoff).trim()}...`;
-  }
-  return text;
-}
-
-function resolveYoutubeSummary(youtubeMetadata: Record<string, unknown> | null): string | null {
-  if (!youtubeMetadata) {
-    return null;
-  }
-  return normaliseSummary(youtubeMetadata['summary'] ?? youtubeMetadata['description']);
-}
-
-function resolveTvSummary(tvMetadata: Record<string, unknown> | null): string | null {
-  if (!tvMetadata) {
-    return null;
-  }
-  const episode = coerceRecord(tvMetadata['episode']);
-  const episodeSummary = normaliseSummary(episode?.['summary']);
-  if (episodeSummary) {
-    return episodeSummary;
-  }
-  const show = coerceRecord(tvMetadata['show']);
-  return normaliseSummary(show?.['summary']);
-}
-
-function formatTvEpisodeLabel(tvMetadata: Record<string, unknown> | null): string | null {
-  const kind = typeof tvMetadata?.['kind'] === 'string' ? (tvMetadata?.['kind'] as string).trim().toLowerCase() : '';
-  if (kind !== 'tv_episode') {
-    return null;
-  }
-  const episode = coerceRecord(tvMetadata?.['episode']);
-  const season = episode?.['season'];
-  const number = episode?.['number'];
-  const episodeName = typeof episode?.['name'] === 'string' && episode.name.trim() ? episode.name.trim() : null;
-  const code =
-    typeof season === 'number' &&
-    typeof number === 'number' &&
-    Number.isFinite(season) &&
-    Number.isFinite(number) &&
-    season > 0 &&
-    number > 0
-      ? `S${Math.trunc(season).toString().padStart(2, '0')}E${Math.trunc(number).toString().padStart(2, '0')}`
-      : null;
-  if (code && episodeName) {
-    return `${code} - ${episodeName}`;
-  }
-  return episodeName ?? code;
-}
 
 export default function YoutubeDubPlayer({
   jobId,
@@ -359,46 +133,20 @@ export default function YoutubeDubPlayer({
     },
     [appendAccessToken, isExportMode, jobId],
   );
-  const normalizeInlineSubtitleKey = useCallback((value: string): string => {
-    const trimmed = value.trim().replace(/\\+/g, '/');
-    const pathOnly = trimmed.split(/[?#]/)[0] ?? trimmed;
-    let normalized = pathOnly.replace(/^\.?\//, '');
-    try {
-      normalized = decodeURIComponent(normalized);
-    } catch {
-      // Keep normalized as-is when decoding fails.
-    }
-    return normalized;
-  }, []);
-  const resolveInlineSubtitlePayload = useCallback(
-    (value: string): string | null => {
-      if (!inlineSubtitles) {
-        return null;
-      }
-      const normalized = normalizeInlineSubtitleKey(value);
-      return inlineSubtitles[normalized] ?? inlineSubtitles[normalized.replace(/^\/+/, '')] ?? null;
-    },
-    [inlineSubtitles, normalizeInlineSubtitleKey],
-  );
-  const buildSubtitleDataUrl = useCallback((payload: string, format?: string | null): string => {
-    const normalizedFormat = (format ?? '').toLowerCase();
-    const mime = normalizedFormat === 'vtt' ? 'text/vtt' : 'text/plain';
-    return `data:${mime};charset=utf-8,${encodeURIComponent(payload)}`;
-  }, []);
   const resolveSubtitleUrl = useCallback(
     (url: string, format?: string | null): string => {
       const resolved = resolveMediaUrl(url);
       if (!isExportMode) {
         return resolved;
       }
-      const payload = resolveInlineSubtitlePayload(resolved);
+      const payload = resolveInlineSubtitlePayload(resolved, inlineSubtitles);
       if (!payload) {
         return resolved;
       }
       const inferredFormat = format || subtitleFormatFromPath(resolved);
       return buildSubtitleDataUrl(payload, inferredFormat);
     },
-    [buildSubtitleDataUrl, isExportMode, resolveInlineSubtitlePayload, resolveMediaUrl],
+    [inlineSubtitles, isExportMode, resolveMediaUrl],
   );
   const exportTvMetadata = useMemo(
     () => (isExportMode ? extractTvMediaMetadataFromPayload(coerceRecord(bookMetadata)) : null),
@@ -565,20 +313,8 @@ export default function YoutubeDubPlayer({
   }, [bookMetadata, isExportMode, jobId, libraryItem]);
   const subtitleMap = useMemo(() => {
     const priorities = ['ass', 'vtt', 'srt', 'text'];
-    const resolveSuffix = (value: string | null | undefined) => {
-      if (!value) {
-        return '';
-      }
-      const cleaned = value.split(/[?#]/)[0] ?? '';
-      const leaf = cleaned.split('/').pop() ?? cleaned;
-      const parts = leaf.split('.');
-      if (parts.length <= 1) {
-        return '';
-      }
-      return parts.pop()?.toLowerCase() ?? '';
-    };
     const formatRank = (entry: (typeof media.text)[number]) => {
-      const suffix = resolveSuffix(entry.url) || resolveSuffix(entry.name) || resolveSuffix(entry.path);
+      const suffix = extractFileSuffix(entry.url) || extractFileSuffix(entry.name) || extractFileSuffix(entry.path);
       const score = priorities.indexOf(suffix);
       return score >= 0 ? score : priorities.length;
     };
