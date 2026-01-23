@@ -11,6 +11,7 @@ class StubLLMClient:
         self.responses = list(responses)
         self.model = "stub-model"
         self.debug_enabled = False
+        self.llm_source = "local"
 
     def send_chat_request(
         self,

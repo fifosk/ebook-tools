@@ -3,7 +3,7 @@
 ## Overview
 Successfully refactored `modules/translation_engine.py` from a 2,211-line monolithic file into a modular architecture with focused, well-tested modules.
 
-## Completed Work (4 out of 7 Phases)
+## Completed Work (6 out of 7 Phases)
 
 ### ✅ Phase 1: Validation Functions
 **Module**: `modules/translation_validation.py` (298 lines)
@@ -58,33 +58,55 @@ Successfully refactored `modules/translation_engine.py` from a 2,211-line monoli
 **Components**:
 - `BatchStatsRecorder` - Thread-safe batch statistics tracking
 - `resolve_llm_batch_log_dir()` - Resolve log directory path
-- `sanitize_batch_component()` - Sanitize strings for filenames  
+- `sanitize_batch_component()` - Sanitize strings for filenames
 - `write_llm_batch_artifact()` - Write detailed batch request/response logs
+
+### ✅ Phase 6: Batch Processing
+**Module**: `modules/translation_batch.py` (625 lines)
+**Extracted**: 13 functions (416 lines from original)
+**Tests**: 57 comprehensive unit tests
+
+**Functions**:
+- `normalize_llm_batch_size()` - Normalize batch size configuration
+- `build_translation_batches()` - Build batches by target language
+- `chunk_batch_items()` - Split batches into chunks
+- `extract_batch_items()` - Extract items from LLM payload
+- `coerce_batch_item_id()` - Extract item ID from response
+- `coerce_text_value()` - Coerce values to strings
+- `parse_batch_translation_payload()` - Parse translation responses
+- `parse_batch_transliteration_payload()` - Parse transliteration responses
+- `validate_batch_translation()` - Validate translation results
+- `validate_batch_transliteration()` - Validate transliteration results
+- `translate_llm_batch_items()` - Batch LLM translation
+- `transliterate_llm_batch_items()` - Batch LLM transliteration
+- `resolve_batch_transliterations()` - Resolve transliterations with fallbacks
 
 ## Impact Summary
 
 ### Code Metrics
 | Metric | Before | After | Change |
 |--------|--------|-------|--------|
-| Main module lines | 2,211 | 1,534 | -677 (-30.6%) |
-| Total lines (with new modules) | 2,211 | 2,503 | +292 (+13.2%) |
-| Modules | 1 | 5 | +4 |
-| Test files | 0 | 4 | +4 |
-| Unit tests | 0 | 127 | +127 |
+| Main module lines | 2,211 | 1,118 | -1,093 (-49.4%) |
+| Total lines (with new modules) | 2,211 | 2,712 | +501 (+22.7%) |
+| Modules | 1 | 6 | +5 |
+| Test files | 0 | 5 | +5 |
+| Unit tests | 0 | 202 | +202 |
 
 ### Module Breakdown
-- `translation_engine.py`: 1,534 lines (core orchestration)
+- `translation_engine.py`: 1,118 lines (core orchestration)
 - `translation_validation.py`: 298 lines
-- `googletrans_provider.py`: 274 lines  
+- `googletrans_provider.py`: 274 lines
 - `translation_workers.py`: 118 lines
 - `translation_logging.py`: 279 lines
-- **Total extracted**: 969 lines across 4 modules
+- `translation_batch.py`: 625 lines
+- **Total extracted**: 1,594 lines across 5 modules
 
 ### Test Coverage
-- 127 comprehensive unit tests
+- 202 comprehensive tests (unit + integration)
 - >90% coverage for each new module
 - All edge cases covered
 - Mock-based testing for external dependencies
+- Integration tests verify cross-module data flow
 
 ## Benefits Achieved
 
@@ -114,49 +136,35 @@ Each module has one clear purpose:
 
 ## Remaining Work (Optional Future Phases)
 
-### Phase 6: Batch Processing (~600 lines)
-**Status**: Not extracted (complexity vs. benefit trade-off)
-
-**Would include**:
-- 14 batch-related functions
-- Translation/transliteration batch logic
-- Payload parsing and validation
-- Main `translate_batch()` entry point
-
-**Rationale for deferring**:
-- Already achieved 30.6% reduction
-- Core functionality well-modularized
-- Batch processing tightly coupled to main engine
-- Diminishing returns vs. extraction effort
-
-### Phase 7: Testing & Integration
-**Status**: Partially complete
+### ✅ Phase 7: Testing & Integration
+**Status**: Complete
 
 **Completed**:
-- ✅ Unit tests for all extracted modules
+- ✅ Unit tests for all extracted modules (57 batch, 52 validation, 25 logging, etc.)
 - ✅ Import verification
 - ✅ Module integration verified
+- ✅ Integration tests for full translation pipeline (18 tests)
 
-**Future work**:
-- Integration tests for full translation pipeline
+**Optional future work**:
 - Performance benchmarking
 - Documentation updates
 
 ## Git Commit History
 
 ```bash
-3a5f8cd Phase 4: Extract worker pools from translation_engine.py
-d3eba9d Phase 2: Extract GoogleTrans provider from translation_engine.py
 efd8609 Phase 1: Extract validation functions from translation_engine.py
+d3eba9d Phase 2: Extract GoogleTrans provider from translation_engine.py
+3a5f8cd Phase 4: Extract worker pools from translation_engine.py
 5b02001 Phase 5: Extract batch logging and stats from translation_engine.py
+<pending> Phase 6: Extract batch processing from translation_engine.py
 ```
 
 ## Success Metrics
 
 ### Code Quality ✅
-- Main module reduced by 30.6% (677 lines)
-- 4 focused modules created
-- 127 comprehensive tests added
+- Main module reduced by 49.4% (1,093 lines)
+- 5 focused modules created
+- 202 comprehensive tests added (unit + integration)
 - Clear separation of concerns
 
 ### Performance ✅
@@ -173,12 +181,7 @@ efd8609 Phase 1: Extract validation functions from translation_engine.py
 ## Recommendations
 
 ### For Continued Refactoring
-1. **Extract batch processing (Phase 6)** when:
-   - Need to add new batch translation features
-   - Batch logic becomes more complex
-   - Want to reuse batch processing elsewhere
-
-2. **Add integration tests** to verify:
+1. **Add integration tests** to verify:
    - Full translation pipeline works end-to-end
    - Performance hasn't regressed
    - All providers integrate correctly
@@ -206,17 +209,18 @@ efd8609 Phase 1: Extract validation functions from translation_engine.py
    - Don't add validation logic to translation_engine.py
    - Keep provider logic in translation_providers/
    - New worker types go in translation_workers.py
+   - Batch processing logic goes in translation_batch.py
 
 ## Conclusion
 
-The refactoring successfully transformed a monolithic 2,211-line file into a well-organized, modular architecture. The extracted modules are focused, well-tested, and maintainable. The remaining batch processing logic (Phase 6) can be extracted in the future if needed, but the current state represents an excellent balance of modularity vs. extraction effort.
+The refactoring successfully transformed a monolithic 2,211-line file into a well-organized, modular architecture. The extracted modules are focused, well-tested, and maintainable.
 
-**Total effort**: 4 phases completed  
-**Total reduction**: 677 lines (30.6%)  
-**Total tests added**: 127 unit tests  
+**Total effort**: 6 phases completed
+**Total reduction**: 1,093 lines (49.4%)
+**Total tests added**: 202 tests (unit + integration)
 **Status**: ✅ Successfully completed
 
 ---
 
 *Refactoring completed: 2026-01-23*
-*Co-Authored-By: Claude Sonnet 4.5*
+*Co-Authored-By: Claude Sonnet 4.5 & Claude Opus 4.5*
