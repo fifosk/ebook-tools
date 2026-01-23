@@ -13,6 +13,8 @@ import DualTrackDemoRoute from './routes/DualTrackDemoRoute';
 import Sidebar from './components/Sidebar';
 import MyLinguistAssistant from './components/MyLinguistAssistant';
 import MyPainterAssistant from './components/MyPainterAssistant';
+import { useJobsStore } from './stores/jobsStore';
+import { useUIStore } from './stores/uiStore';
 import {
   AccessPolicyUpdatePayload,
   LibraryItem,
@@ -179,35 +181,75 @@ export function App() {
     logout,
     updatePassword
   } = useAuth();
-  const [jobs, setJobs] = useState<Record<string, JobRegistryEntry>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [reloadingJobs, setReloadingJobs] = useState<Record<string, boolean>>({});
-  const [mutatingJobs, setMutatingJobs] = useState<Record<string, boolean>>({});
-  const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
-  const [subtitleRefreshKey, setSubtitleRefreshKey] = useState<number>(0);
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
-  const [playerContext, setPlayerContext] = useState<PlayerContext | null>(null);
-  const [playerSelection, setPlayerSelection] = useState<MediaSelectionRequest | null>(null);
-  const [libraryFocusRequest, setLibraryFocusRequest] = useState<{
-    jobId: string;
-    itemType: 'book' | 'video' | 'narrated_subtitle';
-    token: number;
-  } | null>(null);
-  const [pendingInputFile, setPendingInputFile] = useState<string | null>(null);
-  const [copiedJobParameters, setCopiedJobParameters] = useState<JobParameterSnapshot | null>(null);
-  const [subtitlePrefillParameters, setSubtitlePrefillParameters] = useState<JobParameterSnapshot | null>(null);
-  const [youtubeDubPrefillParameters, setYoutubeDubPrefillParameters] = useState<JobParameterSnapshot | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isImmersiveMode, setIsImmersiveMode] = useState(false);
-  const [isPlayerFullscreen, setIsPlayerFullscreen] = useState(false);
-  const [isAccountExpanded, setIsAccountExpanded] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
-  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  // Jobs state from store
+  const {
+    getAllJobs,
+    getJob,
+    activeJobId,
+    setActiveJob,
+    handleProgressEvent,
+    refreshJobs,
+    performJobAction,
+    reloadJob,
+    updateJobAccess: updateJobAccessStore,
+  } = useJobsStore();
+
+  // UI state from store
+  const {
+    isSubmitting,
+    submitError,
+    setIsSubmitting,
+    setSubmitError,
+    selectedView,
+    setSelectedView,
+    subtitleRefreshKey,
+    incrementSubtitleRefreshKey,
+    playerContext,
+    playerSelection,
+    setPlayerContext,
+    setPlayerSelection,
+    libraryFocusRequest,
+    setLibraryFocusRequest,
+    pendingInputFile,
+    setPendingInputFile,
+    copiedJobParameters,
+    setCopiedJobParameters,
+    subtitlePrefillParameters,
+    setSubtitlePrefillParameters,
+    youtubeDubPrefillParameters,
+    setYoutubeDubPrefillParameters,
+    isSidebarOpen,
+    setSidebarOpen,
+    isImmersiveMode,
+    setImmersiveMode,
+    isPlayerFullscreen,
+    setPlayerFullscreen,
+    isAccountExpanded,
+    setAccountExpanded,
+    authError,
+    isLoggingIn,
+    showChangePassword,
+    passwordError,
+    passwordMessage,
+    isUpdatingPassword,
+    setAuthError,
+    setIsLoggingIn,
+    setShowChangePassword,
+    setPasswordError,
+    setPasswordMessage,
+    setIsUpdatingPassword,
+  } = useUIStore();
+
+  // Convert store Map to Record for backward compatibility with existing code
+  const jobs = useMemo(() => {
+    const allJobs = getAllJobs();
+    const record: Record<string, JobRegistryEntry> = {};
+    for (const job of allJobs) {
+      record[job.status.job_id] = job;
+    }
+    return record;
+  }, [getAllJobs]);
   const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
   const pipelineJobTypes = useMemo(() => new Set(['pipeline', 'book']), []);
   const recentPipelineJobs = useMemo(() => {
@@ -297,98 +339,49 @@ export function App() {
   const toggleChangePassword = useCallback(() => {
     setPasswordError(null);
     setPasswordMessage(null);
-    setShowChangePassword((previous) => {
-      const next = !previous;
-      if (next) {
-        setIsAccountExpanded(true);
-      }
-      return next;
-    });
-  }, [setIsAccountExpanded]);
+    const next = !showChangePassword;
+    setShowChangePassword(next);
+    if (next) {
+      setAccountExpanded(true);
+    }
+  }, [showChangePassword, setAccountExpanded, setPasswordError, setPasswordMessage, setShowChangePassword]);
 
   const handlePasswordCancel = useCallback(() => {
     setShowChangePassword(false);
     setPasswordError(null);
   }, []);
 
-  const refreshJobs = useCallback(async () => {
+  // Wrap store refreshJobs to check session
+  const refreshJobsIfAuthenticated = useCallback(async () => {
     if (!session) {
       return;
     }
     try {
-      const statuses = await fetchJobs();
-      const knownJobIds = new Set(statuses.map((job) => job.job_id));
-
-      setJobs((previous) => {
-        const next: Record<string, JobRegistryEntry> = {};
-        for (const status of statuses) {
-          const current = previous[status.job_id];
-          const statusStage = resolveProgressStage(status.latest_event);
-          const resolvedCompletion = resolveMediaCompletion(status);
-          const normalizedStatus =
-            resolvedCompletion !== null
-              ? { ...status, media_completed: resolvedCompletion }
-              : status;
-          next[status.job_id] = {
-            status: normalizedStatus,
-            latestEvent: status.latest_event ?? current?.latestEvent,
-            latestTranslationEvent:
-              statusStage === 'translation'
-                ? status.latest_event ?? undefined
-                : current?.latestTranslationEvent,
-            latestMediaEvent:
-              statusStage === 'media'
-                ? status.latest_event ?? undefined
-                : current?.latestMediaEvent
-          };
-        }
-        return next;
-      });
-
-      setReloadingJobs((previous) => {
-        const next = { ...previous };
-        for (const jobId of Object.keys(next)) {
-          if (!knownJobIds.has(jobId)) {
-            delete next[jobId];
-          }
-        }
-        return next;
-      });
-
-      setMutatingJobs((previous) => {
-        const next = { ...previous };
-        for (const jobId of Object.keys(next)) {
-          if (!knownJobIds.has(jobId)) {
-            delete next[jobId];
-          }
-        }
-        return next;
-      });
+      await refreshJobs();
     } catch (error) {
       console.warn('Unable to load persisted jobs', error);
     }
-  }, [session]);
+  }, [session, refreshJobs]);
 
   useEffect(() => {
     if (!session) {
-      setJobs({});
-      setReloadingJobs({});
-      setMutatingJobs({});
-      setActiveJobId(null);
+      // Clear jobs from store on logout
+      useJobsStore.getState().setJobs([]);
+      setActiveJob(null);
       setPlayerContext(null);
       setPlayerSelection(null);
       setSelectedView('pipeline:source');
       return;
     }
 
-    refreshJobs();
+    refreshJobsIfAuthenticated();
     const interval = window.setInterval(() => {
-      void refreshJobs();
+      void refreshJobsIfAuthenticated();
     }, 5000);
     return () => {
       window.clearInterval(interval);
     };
-  }, [refreshJobs, session]);
+  }, [refreshJobsIfAuthenticated, session, setActiveJob, setPlayerContext, setPlayerSelection, setSelectedView]);
 
   const activeJobMetadata = useMemo<Record<string, unknown> | null>(() => {
     if (!activeJobId) {
@@ -434,7 +427,7 @@ export function App() {
     }
     if (selectedView === JOB_PROGRESS_VIEW) {
       if (!activeJobId || !jobs[activeJobId]) {
-        setActiveJobId(null);
+        setActiveJob(null);
         setSelectedView('pipeline:source');
       }
       return;
@@ -481,7 +474,7 @@ export function App() {
 
   useEffect(() => {
     if (selectedView !== JOB_MEDIA_VIEW) {
-      setIsImmersiveMode(false);
+      setImmersiveMode(false);
     }
   }, [selectedView]);
 
@@ -548,17 +541,15 @@ export function App() {
         latest_event: null,
         tuning: null
       };
-      setJobs((previous) => ({
-        ...previous,
-        [submission.job_id]: {
-          status: placeholderStatus,
-          latestEvent: undefined,
-          latestTranslationEvent: undefined,
-          latestMediaEvent: undefined
-        }
-      }));
+      // Add placeholder job to store
+      useJobsStore.getState().updateJob(submission.job_id, {
+        status: placeholderStatus,
+        latestEvent: undefined,
+        latestTranslationEvent: undefined,
+        latestMediaEvent: undefined
+      });
       setPendingInputFile(null);
-      void refreshJobs();
+      void refreshJobsIfAuthenticated();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to submit book job';
       setSubmitError(message);
@@ -567,96 +558,15 @@ export function App() {
     }
   }, [canScheduleJobs, refreshJobs]);
 
-  const handleProgressEvent = useCallback((jobId: string, event: ProgressEventPayload) => {
-    setJobs((previous) => {
-      const current = previous[jobId];
-      if (!current) {
-        return previous;
-      }
-
-      const nextStatus = current.status ? { ...current.status } : undefined;
-      const metadata = event.metadata;
-      const stage = resolveProgressStage(event);
-
-      if (nextStatus && metadata && typeof metadata === 'object') {
-        const generated = (metadata as Record<string, unknown>).generated_files;
-        if (generated && typeof generated === 'object') {
-          nextStatus.generated_files = mergeGeneratedFiles(nextStatus.generated_files, generated);
-        }
-
-        const mediaCompletedMeta = (metadata as Record<string, unknown>).media_completed;
-        if (typeof mediaCompletedMeta === 'boolean') {
-          nextStatus.media_completed = mediaCompletedMeta;
-        }
-      }
-
-      if (nextStatus) {
-        const resolvedCompletion = resolveMediaCompletion(nextStatus);
-        if (resolvedCompletion !== null) {
-          nextStatus.media_completed = resolvedCompletion;
-        }
-      }
-
-      return {
-        ...previous,
-        [jobId]: {
-          ...current,
-          status: nextStatus ?? current.status,
-          latestEvent: event,
-          latestTranslationEvent:
-            stage === 'translation' ? event : current.latestTranslationEvent,
-          latestMediaEvent: stage === 'media' ? event : current.latestMediaEvent
-        }
-      };
-    });
-  }, []);
+  // handleProgressEvent is now from the store, no need to redefine
 
   const handleReloadJob = useCallback(async (jobId: string) => {
-    setReloadingJobs((previous) => ({ ...previous, [jobId]: true }));
     try {
-      let status: PipelineStatusResponse;
-      const jobType = jobs[jobId]?.status?.job_type ?? null;
-      if (jobType === 'pipeline' || jobType === 'book') {
-        try {
-          status = await refreshPipelineMetadata(jobId);
-        } catch (refreshError) {
-          console.warn('Unable to force metadata refresh for job', jobId, refreshError);
-          status = await fetchPipelineStatus(jobId);
-        }
-      } else {
-        status = await fetchPipelineStatus(jobId);
-      }
-      const resolvedCompletion = resolveMediaCompletion(status);
-      const normalizedStatus =
-        resolvedCompletion !== null ? { ...status, media_completed: resolvedCompletion } : status;
-      setJobs((previous) => {
-        const current = previous[jobId];
-        if (!current) {
-          return previous;
-        }
-        return {
-          ...previous,
-          [jobId]: {
-            ...current,
-            status: normalizedStatus,
-            latestEvent: status.latest_event ?? current.latestEvent
-          }
-        };
-      });
+      await reloadJob(jobId);
     } catch (error) {
       console.warn('Unable to reload job metadata', jobId, error);
-    } finally {
-      setReloadingJobs((previous) => {
-        if (!previous[jobId]) {
-          return previous;
-        }
-        const next = { ...previous };
-        delete next[jobId];
-        return next;
-      });
-      void refreshJobs();
     }
-  }, [jobs, refreshJobs]);
+  }, [reloadJob]);
 
   const resolveJobPermissions = useCallback(
     (status: PipelineStatusResponse | undefined | null) => {
@@ -684,138 +594,50 @@ export function App() {
     [normalizedRole, sessionUsername]
   );
 
-  const performJobAction = useCallback(
+  const performJobActionWrapper = useCallback(
     async (jobId: string, action: JobAction) => {
-      const entry = jobs[jobId];
+      const entry = getJob(jobId);
       const { canManage } = resolveJobPermissions(entry?.status);
       if (!entry || !canManage) {
         console.warn(`Skipping ${action} for unauthorized job`, jobId);
         return;
       }
-      setMutatingJobs((previous) => ({ ...previous, [jobId]: true }));
-      let response: PipelineStatusResponse | null = null;
-      let errorMessage: string | null = null;
 
       try {
-        if (action === 'pause') {
-          const payload = await pauseJob(jobId);
-          response = payload.job;
-          errorMessage = payload.error ?? null;
-        } else if (action === 'resume') {
-          const payload = await resumeJob(jobId);
-          response = payload.job;
-          errorMessage = payload.error ?? null;
-        } else if (action === 'cancel') {
-          const payload = await cancelJob(jobId);
-          response = payload.job;
-          errorMessage = payload.error ?? null;
-        } else if (action === 'delete') {
-          const payload = await deleteJob(jobId);
-          response = payload.job;
-          errorMessage = payload.error ?? null;
-        } else if (action === 'restart') {
-          const payload = await restartJob(jobId);
-          response = payload.job;
-          errorMessage = payload.error ?? null;
-        }
-
-        if (errorMessage) {
-          window.alert(errorMessage);
-        }
-
-        if (response) {
-          const resolvedCompletion = resolveMediaCompletion(response);
-          const normalizedResponse =
-            resolvedCompletion !== null ? { ...response, media_completed: resolvedCompletion } : response;
-          if (action === 'delete') {
-            setJobs((previous) => {
-              if (!previous[jobId]) {
-                return previous;
-              }
-              const next = { ...previous };
-              delete next[jobId];
-              return next;
-            });
-          } else {
-            setJobs((previous) => {
-              const current = previous[jobId];
-              const nextLatestEvent = response?.latest_event ?? current?.latestEvent;
-              return {
-                ...previous,
-                [jobId]: {
-                  status: normalizedResponse!,
-                  latestEvent: nextLatestEvent
-                }
-              };
-            });
-          }
-        }
+        await performJobAction(jobId, action);
+        // Note: Store handles error display via console, but we keep alert for now
+        // TODO: Consider moving to toast notifications in future
       } catch (error) {
         console.warn(`Unable to ${action} job`, jobId, error);
-      } finally {
-        setMutatingJobs((previous) => {
-          if (!previous[jobId]) {
-            return previous;
-          }
-          const next = { ...previous };
-          delete next[jobId];
-          return next;
-        });
-        await refreshJobs();
       }
     },
-    [jobs, refreshJobs, resolveJobPermissions]
+    [getJob, performJobAction, resolveJobPermissions]
   );
 
   const handleUpdateJobAccess = useCallback(
     async (jobId: string, payload: AccessPolicyUpdatePayload) => {
-      const entry = jobs[jobId];
+      const entry = getJob(jobId);
       const { canManage } = resolveJobPermissions(entry?.status);
       if (!entry || !canManage) {
         window.alert('You are not authorized to update this job.');
         return;
       }
-      setMutatingJobs((previous) => ({ ...previous, [jobId]: true }));
+
       try {
-        const updated = await updateJobAccess(jobId, payload);
-        const resolvedCompletion = resolveMediaCompletion(updated);
-        const normalizedStatus =
-          resolvedCompletion !== null ? { ...updated, media_completed: resolvedCompletion } : updated;
-        setJobs((previous) => {
-          const current = previous[jobId];
-          if (!current) {
-            return previous;
-          }
-          return {
-            ...previous,
-            [jobId]: {
-              ...current,
-              status: normalizedStatus
-            }
-          };
-        });
+        await updateJobAccessStore(jobId, payload);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to update job access.';
         window.alert(message);
-      } finally {
-        setMutatingJobs((previous) => {
-          if (!previous[jobId]) {
-            return previous;
-          }
-          const next = { ...previous };
-          delete next[jobId];
-          return next;
-        });
       }
     },
-    [jobs, resolveJobPermissions]
+    [getJob, updateJobAccessStore, resolveJobPermissions]
   );
 
   const handleVideoPlaybackStateChange = useCallback(
     (_isPlaying: boolean) => {
       // Keep sidebar visible during regular playback; immersive mode is driven by fullscreen.
       if (!isPlayerFullscreen) {
-        setIsImmersiveMode(false);
+        setImmersiveMode(false);
       }
     },
     [isPlayerFullscreen]
@@ -825,13 +647,13 @@ export function App() {
     if (isPlayerFullscreen) {
       return;
     }
-    setIsSidebarOpen((previous) => !previous);
-  }, [isPlayerFullscreen]);
+    setSidebarOpen(!isSidebarOpen);
+  }, [isPlayerFullscreen, isSidebarOpen, setSidebarOpen]);
 
   const handlePlayerFullscreenChange = useCallback(
     (isFullscreen: boolean) => {
-      setIsPlayerFullscreen(isFullscreen);
-      setIsImmersiveMode(isFullscreen);
+      setPlayerFullscreen(isFullscreen);
+      setImmersiveMode(isFullscreen);
     },
     []
   );
@@ -892,7 +714,7 @@ export function App() {
 
       if (jobType === 'subtitle') {
         setSubtitlePrefillParameters(parameters);
-        setSubtitleRefreshKey((value) => value + 1);
+        incrementSubtitleRefreshKey();
         setSelectedView(SUBTITLES_VIEW);
         return;
       }
@@ -957,7 +779,8 @@ export function App() {
       }
 
       const statusOverride: 'finished' | 'paused' = isCompleted ? 'finished' : 'paused';
-      setMutatingJobs((previous) => ({ ...previous, [jobId]: true }));
+      const { setLoading } = useJobsStore.getState();
+      setLoading(jobId, 'isMutating', true);
       try {
         await moveJobToLibrary(jobId, statusOverride);
         window.alert(`Job ${jobId} has been moved into the library.`);
@@ -966,15 +789,8 @@ export function App() {
           error instanceof Error ? error.message : 'Unable to move the job into the library.';
         window.alert(message);
       } finally {
-        setMutatingJobs((previous) => {
-          if (!previous[jobId]) {
-            return previous;
-          }
-          const next = { ...previous };
-          delete next[jobId];
-          return next;
-        });
-        await refreshJobs();
+        setLoading(jobId, 'isMutating', false);
+        await refreshJobsIfAuthenticated();
       }
     },
     [jobs, refreshJobs, resolveJobPermissions]
@@ -986,7 +802,7 @@ export function App() {
       return;
     }
     if (resolvedJobId !== activeJobId) {
-      setActiveJobId(resolvedJobId);
+      setActiveJob(resolvedJobId);
     }
     const entry = jobs[resolvedJobId];
     const jobType = entry?.status?.job_type ?? null;
@@ -1002,8 +818,8 @@ export function App() {
       setPlayerSelection(null);
     }
     setSelectedView(JOB_MEDIA_VIEW);
-    setIsImmersiveMode(false);
-  }, [activeJobId, jobs, setActiveJobId]);
+    setImmersiveMode(false);
+  }, [activeJobId, jobs, setActiveJob]);
 
   const handlePlayLibraryItem = useCallback(
     (entry: LibraryOpenInput) => {
@@ -1054,9 +870,9 @@ export function App() {
             }
           : null
       );
-      setActiveJobId(null);
+      setActiveJob(null);
       setSelectedView(JOB_MEDIA_VIEW);
-      setIsImmersiveMode(false);
+      setImmersiveMode(false);
     },
     []
   );
@@ -1070,7 +886,7 @@ export function App() {
       const itemType = payload.itemType ?? 'book';
       setLibraryFocusRequest({ jobId, itemType, token: Date.now() });
       setSelectedView(LIBRARY_VIEW);
-      setIsImmersiveMode(false);
+      setImmersiveMode(false);
     },
     []
   );
@@ -1081,10 +897,10 @@ export function App() {
 
   const handleSelectSidebarJob = useCallback(
     (jobId: string) => {
-      setActiveJobId(jobId);
+      setActiveJob(jobId);
       setSelectedView(JOB_PROGRESS_VIEW);
     },
-    [setActiveJobId, setSelectedView]
+    [setActiveJob, setSelectedView]
   );
 
   const handleImmersiveSectionChange = useCallback(
@@ -1109,16 +925,16 @@ export function App() {
         return;
       }
       if (view === SUBTITLES_VIEW) {
-        setSubtitleRefreshKey((value) => value + 1);
+        incrementSubtitleRefreshKey();
       }
       setSelectedView(view);
     },
-    [canScheduleJobs, isAdmin, setSelectedView, setSubtitleRefreshKey]
+    [canScheduleJobs, isAdmin, setSelectedView, incrementSubtitleRefreshKey]
   );
 
   const handleSubtitleJobCreated = useCallback(
     (jobId: string) => {
-      setActiveJobId(jobId);
+      setActiveJob(jobId);
       void refreshJobs();
     },
     [refreshJobs]
@@ -1126,7 +942,7 @@ export function App() {
 
   const handleSubtitleJobSelected = useCallback(
     (jobId: string) => {
-      setActiveJobId(jobId);
+      setActiveJob(jobId);
       setSelectedView(JOB_PROGRESS_VIEW);
     },
     [setSelectedView]
@@ -1134,7 +950,7 @@ export function App() {
 
   const handleYoutubeDubJobCreated = useCallback(
     (jobId: string) => {
-      setActiveJobId(jobId);
+      setActiveJob(jobId);
       void refreshJobs();
     },
     [refreshJobs]
@@ -1142,7 +958,7 @@ export function App() {
 
   const handleYoutubeDubJobSelected = useCallback(
     (jobId: string) => {
-      setActiveJobId(jobId);
+      setActiveJob(jobId);
       setSelectedView(JOB_PROGRESS_VIEW);
     },
     [setSelectedView]
@@ -1150,13 +966,13 @@ export function App() {
 
   const handleOpenYoutubeDubMedia = useCallback(
     (jobId: string) => {
-      setActiveJobId(jobId);
+      setActiveJob(jobId);
       const entry = jobs[jobId];
       const jobType = entry?.status?.job_type ?? 'youtube_dub';
       setPlayerContext({ type: 'job', jobId, jobType });
       setPlayerSelection(null);
       setSelectedView(JOB_MEDIA_VIEW);
-      setIsImmersiveMode(false);
+      setImmersiveMode(false);
     },
     [jobs]
   );
@@ -1177,13 +993,13 @@ export function App() {
         latestEvent: entry.latestEvent,
         latestTranslationEvent: entry.latestTranslationEvent,
         latestMediaEvent: entry.latestMediaEvent,
-        isReloading: Boolean(reloadingJobs[jobId]),
-        isMutating: Boolean(mutatingJobs[jobId]),
+        isReloading: useJobsStore.getState().getJobWithLoading(jobId)?.isReloading ?? false,
+        isMutating: useJobsStore.getState().getJobWithLoading(jobId)?.isMutating ?? false,
         canManage,
         canView
       };
     });
-  }, [jobs, mutatingJobs, reloadingJobs, resolveJobPermissions]);
+  }, [jobs, resolveJobPermissions]);
 
   const sortedJobs = useMemo(() => {
     return [...jobList].sort((a, b) => {
@@ -1259,20 +1075,14 @@ export function App() {
         if (cancelled) {
           return;
         }
-        setJobs((previous) => {
-          const current = previous[activeJobId];
-          if (!current) {
-            return previous;
-          }
-          return {
-            ...previous,
-            [activeJobId]: {
-              ...current,
-              status,
-              latestEvent: status.latest_event ?? current.latestEvent
-            }
-          };
-        });
+        // Update job status in store
+        const current = getJob(activeJobId);
+        if (current) {
+          useJobsStore.getState().updateJob(activeJobId, {
+            status,
+            latestEvent: status.latest_event ?? current.latestEvent
+          });
+        }
       } catch (error) {
         if (!cancelled) {
           console.warn('Unable to refresh job metadata for job detail view', activeJobId, error);
@@ -1294,7 +1104,7 @@ export function App() {
 
   useEffect(() => {
     if (!selectedJob) {
-      setIsImmersiveMode(false);
+      setImmersiveMode(false);
     }
   }, [selectedJob]);
 
@@ -1435,7 +1245,7 @@ export function App() {
             <button
               type="button"
               className="session-info__summary"
-              onClick={() => setIsAccountExpanded((previous) => !previous)}
+              onClick={() => setAccountExpanded(!isAccountExpanded)}
               aria-expanded={isAccountExpanded}
               aria-controls="session-info-content"
             >
@@ -1580,9 +1390,9 @@ export function App() {
               <CreateBookPage
                 onJobSubmitted={(jobId) => {
                   if (jobId) {
-                    setActiveJobId(jobId);
+                    setActiveJob(jobId);
                     setSelectedView(JOB_PROGRESS_VIEW);
-                    setIsImmersiveMode(false);
+                    setImmersiveMode(false);
                   }
                 }}
                 recentJobs={recentPipelineJobs}
