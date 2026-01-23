@@ -564,3 +564,72 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 8. **Metadata is chunked** - Modern jobs use `chunk_XXXX.json`, not single files
 9. **Use MetadataLoader** - Abstracts chunked vs legacy metadata format
 10. **HTTPS requires certs** - Both backend and frontend support TLS with cert files
+
+## Frontend State Management Architecture
+
+The React frontend uses **Zustand** for state management with a clean separation of concerns:
+
+### State Stores
+
+1. **jobsStore** (`web/src/stores/jobsStore.ts`)
+   - Manages all job-related state (pipeline jobs, status, progress events)
+   - Map-based storage for O(1) lookups
+   - Separate loading state tracking (isReloading, isMutating)
+   - Request deduplication for API calls
+   - Atomic updates prevent race conditions
+   - Computed selectors: `getSortedJobs()`, `getJobsByType()`
+
+2. **uiStore** (`web/src/stores/uiStore.ts`)
+   - Manages all UI state (selected view, sidebar, player, modals)
+   - Persists user preferences to localStorage
+   - No business logic - pure UI state
+
+### Selective Subscriptions
+
+Use granular hooks to prevent unnecessary re-renders:
+
+```typescript
+// Subscribe to specific job (only re-renders when this job changes)
+const job = useJobData(jobId);
+
+// Subscribe to loading states only
+const { isReloading, isMutating } = useJobLoading(jobId);
+
+// Subscribe to job IDs list only
+const jobIds = useJobIds();
+
+// Subscribe to active job ID only
+const activeJobId = useActiveJobId();
+```
+
+### SSE with Retry Logic
+
+The `useJobEventsWithRetry` hook provides resilient SSE connections:
+- Exponential backoff: 2s, 4s, 8s, 16s, 32s
+- Max 5 retries (configurable)
+- Automatic retry count reset on successful connection
+- Graceful degradation on persistent failures
+
+### Error Boundaries
+
+Components are wrapped with `<ErrorBoundary>` for graceful error recovery:
+- Auto-reset when navigating (via `resetKeys` prop)
+- Custom fallback UI
+- Error logging callback
+- Prevents entire app crashes
+
+### Performance Optimizations
+
+- **Shallow comparison** - Custom equality functions prevent unnecessary updates
+- **Computed selectors** - Memoized derived state in the store
+- **Selective subscriptions** - Components subscribe to minimal state slices
+- **Request deduplication** - Concurrent API calls reuse single promise
+- **Map-based storage** - O(1) performance for job lookups
+
+### Migration Notes
+
+If you encounter old patterns:
+- `useState` for jobs → Use `useJobsStore()`
+- `useState` for UI state → Use `useUIStore()`
+- `usePipelineEvents` → Use `useJobEventsWithRetry()`
+- Direct API calls → Use store actions (`performJobAction`, `refreshJobs`)

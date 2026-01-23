@@ -27,17 +27,9 @@ import {
 } from './api/dtos';
 import {
   API_BASE_URL,
-  cancelJob,
-  deleteJob,
-  fetchJobs,
   fetchPipelineStatus,
   moveJobToLibrary,
-  pauseJob,
-  refreshPipelineMetadata,
-  resumeJob,
-  restartJob,
-  submitPipeline,
-  updateJobAccess
+  submitPipeline
 } from './api/client';
 import { useTheme } from './components/ThemeProvider';
 import type { ThemeMode } from './components/ThemeProvider';
