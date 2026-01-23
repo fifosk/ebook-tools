@@ -26,6 +26,7 @@ from modules import llm_batch
 from modules import llm_client_manager
 from modules import language_policies
 from modules import text_normalization as text_norm
+from modules import translation_validation as tv
 from modules.text import split_highlight_tokens
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.llm_client import LLMClient
@@ -59,48 +60,6 @@ _GOOGLETRANS_PSEUDO_SUFFIXES = {
 }
 _LANG_CODE_PATTERN = regex.compile(r"^[a-z]{2,3}([_-][a-z0-9]{2,4})?$", regex.IGNORECASE)
 _BATCH_LOG_FILENAME_SAFE = regex.compile(r"[^A-Za-z0-9._-]+")
-_SEGMENTATION_LANGS = {
-    # Thai family
-    "thai",
-    "th",
-    # Khmer / Cambodian
-    "khmer",
-    "km",
-    "cambodian",
-    # Burmese / Myanmar
-    "burmese",
-    "myanmar",
-    "my",
-    # Japanese
-    "japanese",
-    "ja",
-    "日本語",
-    # Korean (should already have spaces, but enforce retries if omitted)
-    "korean",
-    "ko",
-    # Chinese (added cautiously; can be removed if character-level is preferred)
-    "chinese",
-    "zh",
-    "zh-cn",
-    "zh-tw",
-}
-_LATIN_LETTER_PATTERN = regex.compile(r"\p{Latin}")
-_NON_LATIN_LETTER_PATTERN = regex.compile(r"(?!\p{Latin})\p{L}")
-_ZERO_WIDTH_SPACE_PATTERN = regex.compile(r"[\u200B\u200C\u200D\u2060]+")
-_DIACRITIC_PATTERNS = {
-    "arabic": {
-        "aliases": ("arabic", "ar"),
-        "pattern": regex.compile(r"[\u064B-\u065F\u0670\u06D6-\u06ED]"),
-        "label": "Arabic diacritics (tashkil)",
-        "script_pattern": regex.compile(r"[\u0600-\u06FF]"),
-    },
-    "hebrew": {
-        "aliases": ("hebrew", "he", "iw"),
-        "pattern": regex.compile(r"[\u0591-\u05C7]"),
-        "label": "Hebrew niqqud",
-        "script_pattern": regex.compile(r"[\u0590-\u05FF]"),
-    },
-}
 
 _GOOGLETRANS_LOCAL = threading.local()
 _GOOGLETRANS_HEALTH_LOCK = threading.Lock()
@@ -797,147 +756,12 @@ def configure_default_client(**kwargs) -> None:
     llm_client_manager.configure_default_client(**kwargs)
 
 
-def _valid_translation(text: str) -> bool:
-    return not text_norm.is_placeholder_translation(text)
-
-
-def _letter_count(value: str) -> int:
-    return sum(1 for char in value if char.isalpha())
-
-
-def _has_non_latin_letters(value: str) -> bool:
-    return bool(_NON_LATIN_LETTER_PATTERN.search(value))
-
-
-def _latin_fraction(value: str) -> float:
-    if not value:
-        return 0.0
-    latin = len(_LATIN_LETTER_PATTERN.findall(value))
-    non_latin = len(_NON_LATIN_LETTER_PATTERN.findall(value))
-    total = latin + non_latin
-    if total == 0:
-        return 0.0
-    return latin / total
-
-
-def _is_probable_transliteration(
-    original_sentence: str, translation_text: str, target_language: str
-) -> bool:
-    """
-    Return True when the response likely contains only a Latin transliteration
-    even though the target language expects non-Latin script output.
-    """
-
-    target_lower = (target_language or "").lower()
-    if not translation_text or not _has_non_latin_letters(original_sentence):
-        return False
-    if not language_policies.is_non_latin_language_hint(target_language):
-        return False
-    return _latin_fraction(translation_text) >= 0.6
-
-
-def _is_translation_too_short(
-    original_sentence: str, translation_text: str
-) -> bool:
-    """
-    Heuristic for truncated translations. Skip very short inputs to avoid
-    over-triggering on single words.
-    """
-
-    translation_text = translation_text or ""
-    original_letters = _letter_count(original_sentence)
-    if original_letters <= 12:
-        return False
-    translation_letters = _letter_count(translation_text)
-    if translation_letters == 0:
-        return True
-    if original_letters >= 80 and translation_letters < 15:
-        return True
-    ratio = translation_letters / float(original_letters)
-    return original_letters >= 30 and ratio < 0.28
-
-
-def _missing_required_diacritics(
-    translation_text: str, target_language: str
-) -> tuple[bool, Optional[str]]:
-    """
-    Return (True, label) when the target language expects diacritics but none
-    are present in the translation.
-    """
-
-    target_lower = (target_language or "").lower()
-    for requirement in _DIACRITIC_PATTERNS.values():
-        if any(alias in target_lower for alias in requirement["aliases"]):
-            pattern = requirement["pattern"]
-            script_pattern = requirement.get("script_pattern")
-            if script_pattern and not script_pattern.search(translation_text or ""):
-                # Skip if the translation doesn't use the expected script; avoids
-                # misfiring when target_language is mismatched.
-                return False, None
-            if not pattern.search(translation_text or ""):
-                return True, requirement["label"]
-            return False, None
-    return False, None
-
-
-def _script_counts(value: str) -> dict[str, int]:
-    """
-    Return counts of matched characters per known script block.
-    """
-
-    return language_policies.script_counts(value)
-
-
-def _unexpected_script_used(
-    translation_text: str, target_language: str
-) -> tuple[bool, Optional[str]]:
-    """
-    Return (True, label) when the translation contains non-Latin script but
-    does not sufficiently include the expected script for the target language.
-    """
-
-    candidate = translation_text or ""
-    if not candidate:
-        return False, None
-    if not _NON_LATIN_LETTER_PATTERN.search(candidate):
-        return False, None
-
-    policy = language_policies.script_policy_for(target_language)
-    if policy is None:
-        return False, None
-
-    script_distribution = _script_counts(candidate)
-    total_non_latin = len(_NON_LATIN_LETTER_PATTERN.findall(candidate))
-
-    expected_pattern = policy.script_pattern
-    expected_label = policy.script_label
-    expected_matches = expected_pattern.findall(candidate)
-    expected_count = len(expected_matches)
-    if expected_count == 0:
-        return True, expected_label
-    if total_non_latin > 0:
-        expected_ratio = expected_count / float(total_non_latin)
-        other_count = total_non_latin - expected_count
-
-        # Reject when other scripts meaningfully appear (e.g., Georgian/Tamil in Kannada)
-        # or when the expected script is not clearly dominant.
-        dominant_script = max(
-            script_distribution.items(), key=lambda item: item[1], default=(None, 0)
-        )
-        dominant_label, dominant_count = dominant_script
-
-        if expected_ratio < 0.85 or other_count > max(2, expected_count * 0.1):
-            offenders = [
-                label
-                for label, count in script_distribution.items()
-                if label != expected_label and count > 0
-            ]
-            offender_label = f" (found {', '.join(offenders)})" if offenders else ""
-            return True, f"{expected_label}{offender_label}"
-
-        if dominant_label and dominant_label != expected_label and dominant_count > expected_count:
-            return True, f"{expected_label} (found {dominant_label})"
-    return False, None
+# Validation functions delegated to translation_validation module
+_valid_translation = tv.is_valid_translation
+_is_probable_transliteration = tv.is_probable_transliteration
+_is_translation_too_short = tv.is_translation_too_short
+_missing_required_diacritics = tv.missing_required_diacritics
+_unexpected_script_used = tv.unexpected_script_used
 
 
 def translate_sentence_simple(
@@ -1076,51 +900,7 @@ def translate_sentence_simple(
     return translation
 
 
-def _is_segmentation_ok(
-    original_sentence: str,
-    translation: str,
-    target_language: str,
-    *,
-    translation_text: Optional[str] = None,
-) -> bool:
-    """
-    Require word-like spacing for select languages; otherwise retry.
-
-    We bypass this check when the original sentence is a single word to avoid
-    retry loops on very short content.
-    """
-
-    def _segmentation_thresholds(lang: str, source_words: int) -> tuple[int, int]:
-        if lang in {"khmer", "km", "cambodian"}:
-            # Khmer: enforce closer parity to source word count.
-            required_min = max(2, int(source_words * 0.6))
-            max_reasonable = max(source_words * 2, required_min + 1)
-            return required_min, max_reasonable
-        return max(4, int(source_words * 0.6)), source_words * 4
-
-    lang = (target_language or "").strip().lower()
-    if lang not in _SEGMENTATION_LANGS:
-        return True
-    original_word_count = max(len(original_sentence.split()), 1)
-    if original_word_count <= 1:
-        return True
-    candidate = translation_text or translation
-    candidate = _ZERO_WIDTH_SPACE_PATTERN.sub(" ", candidate)
-    tokens = split_highlight_tokens(candidate)
-    token_count = len(tokens)
-    if token_count <= 1:
-        return False
-    if lang in {"khmer", "km", "cambodian"} and token_count > 2:
-        short_tokens = sum(1 for token in tokens if len(token) <= 2)
-        if short_tokens / float(token_count) > 0.1:
-            return False
-    # Accept if segmentation yields enough tokens and isn't clearly over-split.
-    required_min, max_reasonable = _segmentation_thresholds(lang, original_word_count)
-    if token_count < required_min:
-        return False
-    if token_count > max_reasonable:
-        return False
-    return True
+_is_segmentation_ok = tv.is_segmentation_ok
 
 
 def _normalize_llm_batch_size(value: Optional[int]) -> Optional[int]:
