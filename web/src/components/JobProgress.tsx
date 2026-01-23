@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePipelineEvents } from '../hooks/usePipelineEvents';
+import { useJobEventsWithRetry } from '../hooks/useJobEventsWithRetry';
 import { appendAccessToken, resolveJobCoverUrl } from '../api/client';
 import {
   AccessPolicyUpdatePayload,
@@ -114,7 +114,16 @@ export function JobProgress({
     return TERMINAL_STATES.includes(status.status);
   }, [status]);
 
-  usePipelineEvents(jobId, !isTerminal, onEvent);
+  useJobEventsWithRetry({
+    jobId,
+    enabled: !isTerminal,
+    onEvent,
+    onError: (error) => {
+      console.error('SSE connection error for job', jobId, error);
+    },
+    maxRetries: 5,
+    retryDelayMs: 2000,
+  });
 
   const pipelineResult =
     isPipelineLikeJob && status?.result && typeof status.result === 'object'

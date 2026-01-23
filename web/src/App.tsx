@@ -15,6 +15,7 @@ import MyLinguistAssistant from './components/MyLinguistAssistant';
 import MyPainterAssistant from './components/MyPainterAssistant';
 import { useJobsStore } from './stores/jobsStore';
 import { useUIStore } from './stores/uiStore';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import {
   AccessPolicyUpdatePayload,
   LibraryItem,
@@ -1445,24 +1446,31 @@ export function App() {
               {selectedView === JOB_PROGRESS_VIEW ? (
                 <section className="job-progress-section">
                   {selectedJob ? (
-                    <JobProgress
-                      jobId={selectedJob.jobId}
-                      status={selectedJob.status}
-                      latestEvent={selectedJob.latestEvent}
-                      onEvent={(event) => handleProgressEvent(selectedJob.jobId, event)}
-                      onPause={() => handlePauseJob(selectedJob.jobId)}
-                      onResume={() => handleResumeJob(selectedJob.jobId)}
-                      onCancel={() => handleCancelJob(selectedJob.jobId)}
-                      onDelete={() => handleDeleteJob(selectedJob.jobId)}
-                      onRestart={() => handleRestartJob(selectedJob.jobId)}
-                      onReload={() => handleReloadJob(selectedJob.jobId)}
-                      onCopy={canScheduleJobs ? () => handleCopyJob(selectedJob.jobId) : undefined}
-                      onMoveToLibrary={() => handleMoveJobToLibrary(selectedJob.jobId)}
-                      onUpdateAccess={(payload) => handleUpdateJobAccess(selectedJob.jobId, payload)}
-                      isReloading={selectedJob.isReloading}
-                      isMutating={selectedJob.isMutating}
-                      canManage={selectedJob.canManage}
-                    />
+                    <ErrorBoundary
+                      resetKeys={[selectedJob.jobId]}
+                      onError={(error, errorInfo) => {
+                        console.error('JobProgress error:', error, errorInfo);
+                      }}
+                    >
+                      <JobProgress
+                        jobId={selectedJob.jobId}
+                        status={selectedJob.status}
+                        latestEvent={selectedJob.latestEvent}
+                        onEvent={(event) => handleProgressEvent(selectedJob.jobId, event)}
+                        onPause={() => handlePauseJob(selectedJob.jobId)}
+                        onResume={() => handleResumeJob(selectedJob.jobId)}
+                        onCancel={() => handleCancelJob(selectedJob.jobId)}
+                        onDelete={() => handleDeleteJob(selectedJob.jobId)}
+                        onRestart={() => handleRestartJob(selectedJob.jobId)}
+                        onReload={() => handleReloadJob(selectedJob.jobId)}
+                        onCopy={canScheduleJobs ? () => handleCopyJob(selectedJob.jobId) : undefined}
+                        onMoveToLibrary={() => handleMoveJobToLibrary(selectedJob.jobId)}
+                        onUpdateAccess={(payload) => handleUpdateJobAccess(selectedJob.jobId, payload)}
+                        isReloading={selectedJob.isReloading}
+                        isMutating={selectedJob.isMutating}
+                        canManage={selectedJob.canManage}
+                      />
+                    </ErrorBoundary>
                   ) : (
                     <div className="job-card job-card--placeholder" aria-live="polite">
                       <h3 style={{ marginTop: 0 }}>No job selected</h3>
