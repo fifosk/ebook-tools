@@ -62,6 +62,7 @@ import {
   buildSubtitleDataUrl,
   extractFileSuffix,
 } from './youtube-player/subtitleHelpers';
+import { buildSiblingSubtitleTracks as buildSiblingSubtitleTracksHelper, createJobMediaResolver } from './youtube-player/mediaHelpers';
 
 type PlaybackControls = { pause: () => void; play: () => void; ensureFullscreen?: () => void; seek?: (time: number) => void };
 
@@ -455,27 +456,11 @@ export default function YoutubeDubPlayer({
     return map;
   }, [deriveBaseId, media.text, media.video, resolveMediaUrl, resolveSubtitleUrl]);
 
-  const buildSiblingSubtitleTracks = useCallback((videoUrl: string | null | undefined): SubtitleTrack[] => {
-    if (!videoUrl) {
-      return [];
-    }
-    const candidates = ['.ass', '.vtt', '.srt']
-      .map((suffix) => replaceUrlExtension(videoUrl, suffix))
-      .filter((candidate): candidate is string => Boolean(candidate));
-    if (candidates.length === 0) {
-      return [];
-    }
-    return candidates.map((candidate, index) => {
-      const format = subtitleFormatFromPath(candidate);
-      return {
-        url: resolveSubtitleUrl(candidate, format),
-        label: index === 0 ? 'Subtitles' : `Subtitles (${index + 1})`,
-        kind: 'subtitles',
-        language: 'und',
-        format: format || undefined,
-      };
-    });
-  }, [resolveSubtitleUrl]);
+  const buildSiblingSubtitleTracks = useCallback(
+    (videoUrl: string | null | undefined): SubtitleTrack[] =>
+      buildSiblingSubtitleTracksHelper(videoUrl, replaceUrlExtension, resolveSubtitleUrl, subtitleFormatFromPath),
+    [resolveSubtitleUrl]
+  );
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -518,25 +503,7 @@ export default function YoutubeDubPlayer({
 
   const infoBadge = useMemo(() => {
     const isLibrary = Boolean(libraryItem);
-    const resolver = isLibrary ? resolveLibraryAssetUrl : (jobIdValue: string, value: unknown) => {
-      if (typeof value !== 'string') {
-        return null;
-      }
-      const trimmed = value.trim();
-      if (!trimmed) {
-        return null;
-      }
-      if (trimmed.startsWith('/api/')) {
-        return appendAccessToken(trimmed);
-      }
-      if (trimmed.startsWith('/')) {
-        return appendAccessToken(trimmed);
-      }
-      if (/^[a-z]+:\/\//i.test(trimmed)) {
-        return trimmed;
-      }
-      return trimmed;
-    };
+    const resolver = isLibrary ? resolveLibraryAssetUrl : createJobMediaResolver(appendAccessToken);
 
     const tvMetadata = isLibrary
       ? extractTvMediaMetadataFromLibrary(libraryItem)
