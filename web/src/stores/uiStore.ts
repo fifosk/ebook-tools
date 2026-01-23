@@ -31,20 +31,38 @@ export interface LibraryFocusRequest {
   token: number;
 }
 
+/**
+ * UI Store - Manages all UI-related state with Zustand + localStorage persistence
+ *
+ * Features:
+ * - Pure UI state (no business logic)
+ * - Persists user preferences (selectedView, isSidebarOpen, isAccountExpanded)
+ * - Transient state for forms and auth (not persisted)
+ * - Simple setters for all state
+ */
 interface UIState {
   // View navigation
+  /** Currently selected view/page in the application */
   selectedView: SelectedView;
+  /** Navigate to a different view */
   setSelectedView: (view: SelectedView) => void;
 
   // Sidebar state
+  /** Whether the sidebar is open or collapsed */
   isSidebarOpen: boolean;
+  /** Toggle sidebar open/closed */
   toggleSidebar: () => void;
+  /** Set sidebar state directly */
   setSidebarOpen: (open: boolean) => void;
 
   // Player state
+  /** Context for the media player (job or library item) */
   playerContext: PlayerContext | null;
+  /** Current media selection request */
   playerSelection: MediaSelectionRequest | null;
+  /** Whether player is in immersive (fullscreen-like) mode */
   isImmersiveMode: boolean;
+  /** Whether player is in actual fullscreen */
   isPlayerFullscreen: boolean;
   setPlayerContext: (context: PlayerContext | null) => void;
   setPlayerSelection: (selection: MediaSelectionRequest | null) => void;

@@ -33,36 +33,65 @@ export interface LoadingFlags {
 
 export type JobAction = 'pause' | 'resume' | 'cancel' | 'delete' | 'restart';
 
+/**
+ * Jobs Store - Manages all job-related state with Zustand
+ *
+ * Features:
+ * - Map-based storage for O(1) job lookups
+ * - Separate loading state tracking (prevents nested object updates)
+ * - Request deduplication for API calls
+ * - Atomic updates prevent race conditions
+ * - Computed selectors for derived state
+ */
 interface JobsState {
   // Data
+  /** Map of job IDs to job entries for O(1) lookup performance */
   jobs: Map<string, JobEntry>;
+  /** Separate map for loading states (isReloading, isMutating) */
   loadingStates: Map<string, LoadingFlags>;
+  /** Currently active/selected job ID */
   activeJobId: string | null;
 
   // Selectors
+  /** Get a specific job by ID */
   getJob: (jobId: string) => JobEntry | undefined;
+  /** Get a job with its loading states merged in */
   getJobWithLoading: (jobId: string) => (JobEntry & LoadingFlags) | undefined;
+  /** Get all jobs as an array */
   getAllJobs: () => JobEntry[];
+  /** Get all job IDs */
   getJobIds: () => string[];
+  /** Get jobs sorted by creation date (newest first) */
   getSortedJobs: () => JobEntry[];
+  /** Get jobs filtered by job type */
   getJobsByType: (jobType: string) => JobEntry[];
 
   // Mutations
+  /** Replace all jobs (used during initial load and refresh) */
   setJobs: (jobs: PipelineStatusResponse[]) => void;
+  /** Update a specific job with partial data */
   updateJob: (jobId: string, updates: Partial<JobEntry>) => void;
+  /** Remove a job from the store */
   removeJob: (jobId: string) => void;
+  /** Set the currently active job */
   setActiveJob: (jobId: string | null) => void;
 
   // Progress events
+  /** Handle incoming SSE progress events for a job */
   handleProgressEvent: (jobId: string, event: ProgressEventPayload) => void;
 
   // Loading states
+  /** Set a specific loading flag for a job */
   setLoading: (jobId: string, key: keyof LoadingFlags, value: boolean) => void;
 
   // Async actions
+  /** Fetch all jobs from API (deduplicated) */
   refreshJobs: () => Promise<void>;
+  /** Perform an action on a job (pause, resume, cancel, delete, restart) */
   performJobAction: (jobId: string, action: JobAction) => Promise<void>;
+  /** Reload metadata for a specific job */
   reloadJob: (jobId: string) => Promise<void>;
+  /** Update access policy for a job */
   updateJobAccess: (jobId: string, payload: AccessPolicyUpdatePayload) => Promise<void>;
 }
 
