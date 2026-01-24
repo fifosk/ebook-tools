@@ -1,6 +1,6 @@
 import type { ProgressEventPayload } from '../api/dtos';
 
-export type ProgressStage = 'translation' | 'media' | string;
+export type ProgressStage = 'translation' | 'media' | 'playable' | string;
 
 export function resolveProgressStage(
   event: ProgressEventPayload | null | undefined,

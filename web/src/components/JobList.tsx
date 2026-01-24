@@ -15,6 +15,8 @@ export interface JobState {
   latestEvent?: ProgressEventPayload;
   latestTranslationEvent?: ProgressEventPayload;
   latestMediaEvent?: ProgressEventPayload;
+  /** Event emitted when a batch is fully exported and playable */
+  latestPlayableEvent?: ProgressEventPayload;
   isReloading: boolean;
   isMutating: boolean;
   canManage: boolean;
@@ -110,6 +112,7 @@ export function JobList({
                   latestEvent={job.latestEvent}
                   latestTranslationEvent={job.latestTranslationEvent}
                   latestMediaEvent={job.latestMediaEvent}
+                  latestPlayableEvent={job.latestPlayableEvent}
                   onEvent={(event) => onProgressEvent(job.jobId, event)}
                   onPause={() => onPauseJob(job.jobId)}
                   onResume={() => onResumeJob(job.jobId)}

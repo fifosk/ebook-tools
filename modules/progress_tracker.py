@@ -122,6 +122,8 @@ class ProgressTracker:
         self._finished_event = threading.Event()
         self._translation_timestamps: Dict[int, float] = {}
         self._media_timestamps: Dict[int, float] = {}
+        self._playable_completed = 0
+        self._playable_total: Optional[int] = None
         self._observers: Sequence[Callable[[ProgressEvent], None]] = []
         self._observers_cache: Optional[Tuple[Callable[[ProgressEvent], None], ...]] = None
         self._started = False
@@ -219,6 +221,70 @@ class ProgressTracker:
         self._emit_event("progress", metadata=metadata)
         if should_emit_completion:
             self._emit_completion(metadata={**metadata, "forced": False})
+
+    def set_playable_total(self, total: int) -> None:
+        """Set the total number of sentences expected to become playable."""
+        with self._lock:
+            self._playable_total = max(0, total)
+
+    def record_playable_sentence(
+        self,
+        sentence_number: int,
+        *,
+        chunk_id: Optional[str] = None,
+    ) -> None:
+        """Record that a single sentence is now playable.
+
+        Call this for each sentence after the batch export completes.
+        Events are throttled to prevent flooding (default 100ms interval).
+        """
+        now = time.perf_counter()
+        should_emit_completion = False
+        with self._lock:
+            self._playable_completed += 1
+            playable_completed = self._playable_completed
+            playable_total = self._playable_total
+            if playable_total is not None and playable_completed >= playable_total:
+                self._finished_event.set()
+                should_emit_completion = True
+
+        # Build snapshot with playable items count
+        playable_snapshot = self._build_progress_snapshot(
+            completed=playable_completed,
+            total=playable_total,
+            now=now,
+        )
+        metadata: Dict[str, object] = {
+            "stage": "playable",
+            "sentence_number": sentence_number,
+            "playable_completed": playable_completed,
+        }
+        if playable_total is not None:
+            metadata["playable_total"] = playable_total
+        if chunk_id:
+            metadata["chunk_id"] = chunk_id
+        # This will be throttled by _emit_event (default 100ms interval)
+        self._emit_event("progress", snapshot=playable_snapshot, metadata=metadata)
+        if should_emit_completion:
+            self._emit_completion(
+                snapshot=playable_snapshot,
+                metadata={**metadata, "forced": False},
+            )
+
+    def record_playable_batch(
+        self,
+        *,
+        start_sentence: int,
+        end_sentence: int,
+        chunk_id: str,
+    ) -> None:
+        """Record that a batch of sentences is now playable.
+
+        This calls record_playable_sentence for each sentence in the range.
+        Events are throttled to prevent flooding.
+        """
+        for sentence_number in range(start_sentence, end_sentence + 1):
+            self.record_playable_sentence(sentence_number, chunk_id=chunk_id)
 
     def publish_start(self, metadata: Optional[Dict[str, object]] = None) -> None:
         """Emit an explicit ``start`` event with optional context metadata."""

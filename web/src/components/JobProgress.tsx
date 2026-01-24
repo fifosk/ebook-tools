@@ -45,6 +45,8 @@ type Props = {
   latestEvent: ProgressEventPayload | undefined;
   latestTranslationEvent?: ProgressEventPayload;
   latestMediaEvent?: ProgressEventPayload;
+  /** Event emitted when a batch is fully exported and playable */
+  latestPlayableEvent?: ProgressEventPayload;
   onEvent: (event: ProgressEventPayload) => void;
   onPause: () => void;
   onResume: () => void;
@@ -67,6 +69,7 @@ export function JobProgress({
   latestEvent,
   latestTranslationEvent,
   latestMediaEvent,
+  latestPlayableEvent,
   onEvent,
   onPause,
   onResume,
@@ -455,6 +458,30 @@ export function JobProgress({
     const { completed, total } = mediaEvent.snapshot;
     return { completed, total };
   }, [mediaEvent, useBatchProgress]);
+  // Playable progress tracks fully exported sentences (ready for interactive player)
+  const playableProgress = useMemo(() => {
+    // First priority: use latestPlayableEvent snapshot
+    if (latestPlayableEvent?.snapshot) {
+      const { completed, total } = latestPlayableEvent.snapshot;
+      if (
+        typeof completed === 'number' &&
+        typeof total === 'number' &&
+        Number.isFinite(completed) &&
+        Number.isFinite(total)
+      ) {
+        return { completed, total };
+      }
+    }
+    // Fallback: use media_batch_stats.items_completed from generated_files
+    if (mediaBatchStats) {
+      const itemsCompleted = coerceNumber(mediaBatchStats['items_completed']);
+      const itemsTotal = coerceNumber(mediaBatchStats['items_total']);
+      if (itemsCompleted !== null && itemsTotal !== null) {
+        return { completed: itemsCompleted, total: itemsTotal };
+      }
+    }
+    return null;
+  }, [latestPlayableEvent, mediaBatchStats]);
   const formatProgressValue = useCallback((progress: { completed: number; total: number | null }) => {
     const completedLabel =
       typeof progress.completed === 'number' && Number.isFinite(progress.completed)
@@ -532,6 +559,8 @@ export function JobProgress({
     Boolean(translationBatchProgress || transliterationBatchProgress || mediaBatchProgress);
   const showSentenceStageProgress =
     !useBatchProgress && Boolean(translationProgress || mediaProgress);
+  // Show playable progress when we have playable events or batch stats
+  const showPlayableProgress = Boolean(playableProgress);
   const statusGlyph = getStatusGlyph(statusValue);
   const jobLabel = useMemo(() => normalizeTextValue(status?.job_label) ?? null, [status?.job_label]);
   const ownerId = typeof status?.user_id === 'string' ? status.user_id : null;
@@ -784,10 +813,17 @@ export function JobProgress({
           </div>
         </div>
       ) : null}
-      {showOverviewSections && (showBatchStageProgress || showSentenceStageProgress) ? (
+      {showOverviewSections && (showPlayableProgress || showBatchStageProgress || showSentenceStageProgress) ? (
         <div>
           <h4>Stage progress</h4>
           <div className="progress-grid">
+            {showPlayableProgress && playableProgress ? (
+              <div className="progress-metric">
+                <strong>Playable sentences</strong>
+                <span>{formatProgressValue(playableProgress)}</span>
+                <p className="progress-metric__hint">Sentences fully processed and ready for playback.</p>
+              </div>
+            ) : null}
             {showBatchStageProgress ? (
               <>
                 {translationBatchProgress ? (
@@ -847,13 +883,18 @@ export function JobProgress({
             <div className="progress-metric">
               <strong>Completed</strong>
               <span>
-                {event.snapshot.completed}
-                {event.snapshot.total !== null ? ` / ${event.snapshot.total}` : ''}
+                {playableProgress
+                  ? `${playableProgress.completed}${playableProgress.total !== null ? ` / ${playableProgress.total}` : ''}`
+                  : `${event.snapshot.completed}${event.snapshot.total !== null ? ` / ${event.snapshot.total}` : ''}`}
               </span>
             </div>
             <div className="progress-metric">
               <strong>Speed</strong>
-              <span>{event.snapshot.speed.toFixed(2)} items/s</span>
+              <span>
+                {latestPlayableEvent?.snapshot
+                  ? `${latestPlayableEvent.snapshot.speed.toFixed(2)} items/s`
+                  : `${event.snapshot.speed.toFixed(2)} items/s`}
+              </span>
             </div>
             <div className="progress-metric">
               <strong>Elapsed</strong>
@@ -862,7 +903,11 @@ export function JobProgress({
             <div className="progress-metric">
               <strong>ETA</strong>
               <span>
-                {event.snapshot.eta !== null ? `${event.snapshot.eta.toFixed(2)} s` : '—'}
+                {latestPlayableEvent?.snapshot?.eta !== null && latestPlayableEvent?.snapshot?.eta !== undefined
+                  ? `${latestPlayableEvent.snapshot.eta.toFixed(2)} s`
+                  : event.snapshot.eta !== null
+                    ? `${event.snapshot.eta.toFixed(2)} s`
+                    : '—'}
               </span>
             </div>
           </div>

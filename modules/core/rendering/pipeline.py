@@ -140,6 +140,7 @@ class RenderPipeline:
         )
         if self._progress is not None:
             self._progress.set_total(total_refined)
+            self._progress.set_playable_total(total_refined)
 
         src_code = LANGUAGE_CODES.get(input_language, "XX").upper()
         tgt_code = (
@@ -404,6 +405,12 @@ class RenderPipeline:
         if state.media_batch_first_size:
             payload["first_batch_size"] = state.media_batch_first_size
         self._progress.update_generated_files_metadata({"media_batch_stats": payload})
+        # Emit per-sentence playable progress events (throttled to prevent flooding)
+        self._progress.record_playable_batch(
+            start_sentence=result.start_sentence,
+            end_sentence=result.end_sentence,
+            chunk_id=chunk_id,
+        )
 
 
     def _handle_export_future_completion(

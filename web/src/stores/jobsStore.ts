@@ -24,6 +24,8 @@ export interface JobEntry {
   latestEvent?: ProgressEventPayload;
   latestTranslationEvent?: ProgressEventPayload;
   latestMediaEvent?: ProgressEventPayload;
+  /** Event emitted when a batch is fully exported and playable */
+  latestPlayableEvent?: ProgressEventPayload;
 }
 
 export interface LoadingFlags {
@@ -195,6 +197,10 @@ export const useJobsStore = create<JobsState>()(
                 statusStage === 'media'
                   ? status.latest_event ?? undefined
                   : current?.latestMediaEvent,
+              latestPlayableEvent:
+                statusStage === 'playable'
+                  ? status.latest_event ?? undefined
+                  : current?.latestPlayableEvent,
             });
 
             // Preserve loading states for known jobs, clean up removed jobs
@@ -287,6 +293,8 @@ export const useJobsStore = create<JobsState>()(
               stage === 'translation' ? event : current.latestTranslationEvent,
             latestMediaEvent:
               stage === 'media' ? event : current.latestMediaEvent,
+            latestPlayableEvent:
+              stage === 'playable' ? event : current.latestPlayableEvent,
           });
 
           return { jobs: newJobs };
@@ -448,7 +456,8 @@ export const useJobData = (jobId: string | null) => {
         a.status === b.status &&
         a.latestEvent === b.latestEvent &&
         a.latestTranslationEvent === b.latestTranslationEvent &&
-        a.latestMediaEvent === b.latestMediaEvent
+        a.latestMediaEvent === b.latestMediaEvent &&
+        a.latestPlayableEvent === b.latestPlayableEvent
       );
     }
   );

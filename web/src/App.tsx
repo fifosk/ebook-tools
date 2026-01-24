@@ -51,6 +51,8 @@ interface JobRegistryEntry {
   latestEvent?: ProgressEventPayload;
   latestTranslationEvent?: ProgressEventPayload;
   latestMediaEvent?: ProgressEventPayload;
+  /** Event emitted when a batch is fully exported and playable */
+  latestPlayableEvent?: ProgressEventPayload;
 }
 
 type JobAction = 'pause' | 'resume' | 'cancel' | 'delete' | 'restart';
@@ -1013,6 +1015,7 @@ export function App() {
         latestEvent: entry.latestEvent,
         latestTranslationEvent: entry.latestTranslationEvent,
         latestMediaEvent: entry.latestMediaEvent,
+        latestPlayableEvent: entry.latestPlayableEvent,
         isReloading: loadingState?.isReloading ?? false,
         isMutating: loadingState?.isMutating ?? false,
         canManage,
@@ -1475,6 +1478,9 @@ export function App() {
                         jobId={selectedJob.jobId}
                         status={selectedJob.status}
                         latestEvent={selectedJob.latestEvent}
+                        latestTranslationEvent={selectedJob.latestTranslationEvent}
+                        latestMediaEvent={selectedJob.latestMediaEvent}
+                        latestPlayableEvent={selectedJob.latestPlayableEvent}
                         onEvent={(event) => handleProgressEvent(selectedJob.jobId, event)}
                         onPause={() => handlePauseJob(selectedJob.jobId)}
                         onResume={() => handleResumeJob(selectedJob.jobId)}

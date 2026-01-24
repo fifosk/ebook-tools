@@ -327,11 +327,12 @@ function resolveSidebarProgress(job: JobState): number | null {
   if (!job.status || job.status.status !== 'running') {
     return null;
   }
-  const generated = coerceRecord(job.status.generated_files);
-  const mediaBatchStats = generated ? coerceRecord(generated['media_batch_stats']) : null;
-  if (mediaBatchStats) {
-    const completed = coerceNumber(mediaBatchStats['batches_completed']);
-    const total = coerceNumber(mediaBatchStats['batches_total']);
+
+  // Priority 1: Use latestPlayableEvent snapshot if available
+  // This tracks sentences that are fully exported and playable
+  const playableEvent = job.latestPlayableEvent ?? null;
+  if (playableEvent?.snapshot) {
+    const { completed, total } = playableEvent.snapshot;
     if (
       typeof completed === 'number' &&
       typeof total === 'number' &&
@@ -345,6 +346,29 @@ function resolveSidebarProgress(job: JobState): number | null {
       }
     }
   }
+
+  // Priority 2: Use media_batch_stats.items_completed from generated_files
+  // This is a fallback for jobs without real-time playable events
+  const generated = coerceRecord(job.status.generated_files);
+  const mediaBatchStats = generated ? coerceRecord(generated['media_batch_stats']) : null;
+  if (mediaBatchStats) {
+    const itemsCompleted = coerceNumber(mediaBatchStats['items_completed']);
+    const itemsTotal = coerceNumber(mediaBatchStats['items_total']);
+    if (
+      typeof itemsCompleted === 'number' &&
+      typeof itemsTotal === 'number' &&
+      Number.isFinite(itemsCompleted) &&
+      Number.isFinite(itemsTotal) &&
+      itemsTotal > 0
+    ) {
+      const ratio = itemsCompleted / itemsTotal;
+      if (Number.isFinite(ratio) && ratio >= 0) {
+        return Math.min(100, Math.max(0, Math.round(ratio * 100)));
+      }
+    }
+  }
+
+  // Priority 3: Fall back to media event snapshot (less accurate - TTS done, not exported)
   const preferredEvent = job.latestMediaEvent ?? null;
   const fallbackEvent = job.latestEvent ?? job.status.latest_event ?? null;
   const fallbackStage = resolveProgressStage(fallbackEvent);
