@@ -167,48 +167,53 @@ extension VideoPlayerView {
         allowSubtitleDownwardDrag: Bool
     ) -> VideoPlayerOverlayView {
         VideoPlayerOverlayView(
+            // Playback State
             cues: cues,
             currentTime: coordinator.currentTime,
             duration: coordinator.duration,
+            isPlaying: coordinator.isPlaying,
+            playbackRate: resolvedPlaybackRate,
+            playbackRateOptions: Self.playbackRateOptions,
+            // Subtitle State
             subtitleError: subtitleError,
             tracks: orderedTracks,
             selectedTrack: $selectedTrack,
             subtitleVisibility: $subtitleVisibility,
             showSubtitleSettings: $showSubtitleSettings,
-            showTVControls: $showTVControls,
-            scrubberValue: $scrubberValue,
-            isScrubbing: $isScrubbing,
+            subtitleFontScale: subtitleFontScale,
+            subtitleSelection: subtitleSelection,
+            subtitleSelectionRange: subtitleSelectionRange,
+            subtitleAlignment: subtitleAlignment,
+            subtitleMaxWidth: subtitleMaxWidth,
+            subtitleLeadingInset: subtitleLeadingInset,
+            allowSubtitleDownwardDrag: allowSubtitleDownwardDrag,
+            // Linguist Bubble
+            subtitleBubble: subtitleBubble,
+            subtitleLinguistFontScale: subtitleLinguistFontScale,
+            canIncreaseSubtitleLinguistFont: canIncreaseSubtitleLinguistFont,
+            canDecreaseSubtitleLinguistFont: canDecreaseSubtitleLinguistFont,
+            lookupLanguage: resolvedLookupLanguage,
+            lookupLanguageOptions: lookupLanguageOptions,
+            llmModel: resolvedLlmModel ?? MyLinguistPreferences.defaultLlmModel,
+            llmModelOptions: llmModelOptions,
+            // Header State
             metadata: metadata,
             segmentOptions: segmentOptions,
             selectedSegmentID: selectedSegmentID,
             jobProgressLabel: jobProgressLabel,
             jobRemainingLabel: jobRemainingLabel,
+            isHeaderCollapsed: isHeaderCollapsed,
+            headerTopInset: headerTopInset,
+            // Bookmarks
             bookmarks: bookmarks,
+            // TV Controls
+            showTVControls: $showTVControls,
+            scrubberValue: $scrubberValue,
+            isScrubbing: $isScrubbing,
+            // Callbacks
             onAddBookmark: canUseBookmarks ? addBookmark : nil,
             onJumpToBookmark: jumpToBookmark,
             onRemoveBookmark: removeBookmark,
-            subtitleFontScale: subtitleFontScale,
-            isPlaying: coordinator.isPlaying,
-            subtitleSelection: subtitleSelection,
-            subtitleSelectionRange: subtitleSelectionRange,
-            subtitleBubble: subtitleBubble,
-            subtitleAlignment: subtitleAlignment,
-            subtitleMaxWidth: subtitleMaxWidth,
-            subtitleLeadingInset: subtitleLeadingInset,
-            headerTopInset: headerTopInset,
-            allowSubtitleDownwardDrag: allowSubtitleDownwardDrag,
-            lookupLanguage: resolvedLookupLanguage,
-            lookupLanguageOptions: lookupLanguageOptions,
-            onLookupLanguageChange: { storedLookupLanguage = $0 },
-            llmModel: resolvedLlmModel ?? MyLinguistPreferences.defaultLlmModel,
-            llmModelOptions: llmModelOptions,
-            onLlmModelChange: { storedLlmModel = $0 },
-            subtitleLinguistFontScale: subtitleLinguistFontScale,
-            canIncreaseSubtitleLinguistFont: canIncreaseSubtitleLinguistFont,
-            canDecreaseSubtitleLinguistFont: canDecreaseSubtitleLinguistFont,
-            isHeaderCollapsed: isHeaderCollapsed,
-            playbackRate: resolvedPlaybackRate,
-            playbackRateOptions: Self.playbackRateOptions,
             onPlaybackRateChange: { rate in
                 playbackRateValue = Self.clampPlaybackRate(rate)
             },
@@ -270,6 +275,8 @@ extension VideoPlayerView {
             onToggleTransliteration: {
                 handleTransliterationToggle()
             },
+            onLookupLanguageChange: { storedLookupLanguage = $0 },
+            onLlmModelChange: { storedLlmModel = $0 },
             onIncreaseSubtitleLinguistFont: {
                 adjustSubtitleLinguistFontScale(by: subtitleLinguistFontScaleStep)
             },

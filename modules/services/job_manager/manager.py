@@ -6,29 +6,18 @@ import copy
 import shutil
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
 from dataclasses import replace as dataclass_replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, ContextManager, Dict, Mapping, Optional
-from uuid import uuid4
+from typing import Any, Callable, Dict, Mapping, Optional
 
 from ... import config_manager as cfg
 from ... import logging_manager as log_mgr
-from ... import observability
 from ...progress_tracker import ProgressEvent, ProgressTracker
 from ...translation_engine import ThreadWorkerPool
 from ..file_locator import FileLocator
-from ..pipeline_service import (
-    PipelineRequest,
-    serialize_pipeline_request,
-)
-from ...permissions import (
-    can_access,
-    default_job_access,
-    is_admin_role,
-    resolve_access_policy,
-)
+from ..pipeline_service import PipelineRequest, serialize_pipeline_request
+from ...permissions import can_access, default_job_access, is_admin_role, resolve_access_policy
 from .dynamic_executor import DynamicThreadPoolExecutor
 from .job import PipelineJob, PipelineJobStatus
 from .lifecycle import compute_resume_context
@@ -51,7 +40,26 @@ from .backpressure import (
     QueueFullError,
 )
 
+# Import from new modular components
+from .job_logging import (
+    _job_correlation_id,
+    _log_context,
+    log_job_started,
+    log_job_finished,
+    log_job_error,
+    log_job_interrupted,
+    log_generic_job_started,
+    log_generic_job_finished,
+    log_generic_job_submitted,
+    log_generic_job_error,
+    pipeline_operation_context,
+    record_job_metric,
+)
+from .source_persistence import persist_source_file
+from .job_submission import apply_backpressure, create_pipeline_job, create_background_job
+
 logger = log_mgr.logger
+
 
 class PipelineJobManager:
     """Orchestrate background execution of pipeline jobs with persistence support."""
@@ -223,58 +231,6 @@ class PipelineJobManager:
         for job_id in pending_jobs:
             self._executor.submit(self._dispatch_execution, job_id)
 
-    def _persist_source_file(self, job_id: str, request: PipelineRequest) -> Optional[str]:
-        """Mirror the pipeline input file into the job's dedicated data directory."""
-
-        input_file = getattr(request.inputs, "input_file", "")
-        if not input_file:
-            return None
-
-        resolved_path: Optional[Path] = None
-        candidate = Path(str(input_file)).expanduser()
-        try:
-            if candidate.is_file():
-                resolved_path = candidate
-        except OSError:
-            resolved_path = None
-
-        if resolved_path is None:
-            base_dir = None
-            context = request.context
-            if context is not None:
-                base_dir = getattr(context, "books_dir", None)
-            resolved = cfg.resolve_file_path(input_file, base_dir)
-            if resolved is not None:
-                resolved_path = Path(resolved)
-
-        if resolved_path is None or not resolved_path.exists():
-            return None
-
-        data_root = self._file_locator.data_root(job_id)
-        data_root.mkdir(parents=True, exist_ok=True)
-
-        destination = data_root / resolved_path.name
-        job_root = self._file_locator.job_root(job_id)
-
-        try:
-            if destination.exists() and destination.resolve() == resolved_path.resolve():
-                return destination.relative_to(job_root).as_posix()
-        except OSError:
-            pass
-
-        try:
-            shutil.copy2(resolved_path, destination)
-        except Exception:  # pragma: no cover - defensive logging
-            logger.debug(
-                "Unable to mirror source file %s for job %s",
-                resolved_path,
-                job_id,
-                exc_info=True,
-            )
-            return None
-
-        return destination.relative_to(job_root).as_posix()
-
     def submit(
         self,
         request: PipelineRequest,
@@ -283,111 +239,28 @@ class PipelineJobManager:
         user_role: Optional[str] = None,
         bypass_backpressure: bool = False,
     ) -> PipelineJob:
-        """Register ``request`` for background execution.
+        """Register ``request`` for background execution."""
 
-        Args:
-            request: The pipeline request to execute.
-            user_id: Optional user ID for access control.
-            user_role: Optional user role for access control.
-            bypass_backpressure: If True, skip backpressure checks.
+        apply_backpressure(self._backpressure, bypass=bypass_backpressure)
 
-        Returns:
-            The created PipelineJob.
-
-        Raises:
-            QueueFullError: If backpressure rejects the submission.
-        """
-        # Apply backpressure if enabled
-        if self._backpressure is not None and not bypass_backpressure:
-            action, delay = self._backpressure.check()
-            if action == BackpressureAction.REJECT:
-                state = self._backpressure.get_state()
-                raise QueueFullError(
-                    "Job queue is full, try again later",
-                    queue_depth=state.queue_depth,
-                    hard_limit=self._backpressure.policy.hard_limit,
-                )
-            elif action == BackpressureAction.DELAY and delay > 0:
-                import time
-                time.sleep(delay)
-
-        job_id = str(uuid4())
-        tracker = request.progress_tracker or ProgressTracker()
-        request.progress_tracker = tracker
-        stop_event = request.stop_event or threading.Event()
-        request.stop_event = stop_event
-
-        request.correlation_id = request.correlation_id or job_id
-        request.job_id = job_id
-
-        job_root = self._file_locator.resolve_path(job_id)
-        job_root.mkdir(parents=True, exist_ok=True)
-
-        media_root = self._file_locator.media_root(job_id)
-        media_root.mkdir(parents=True, exist_ok=True)
-
-        metadata_root = self._file_locator.metadata_root(job_id)
-        metadata_root.mkdir(parents=True, exist_ok=True)
-
-        data_root = self._file_locator.data_root(job_id)
-        data_root.mkdir(parents=True, exist_ok=True)
-
-        source_relative = self._persist_source_file(job_id, request)
-        if source_relative:
-            request.inputs.book_metadata.update(
-                {
-                    "source_path": source_relative,
-                    "source_file": source_relative,
-                }
-            )
-
-        environment_overrides = dict(request.environment_overrides)
-        environment_overrides.setdefault("output_dir", str(media_root))
-        job_storage_url = self._file_locator.resolve_url(job_id, "media")
-        if job_storage_url:
-            environment_overrides.setdefault("job_storage_url", job_storage_url)
-        request.environment_overrides = environment_overrides
-
-        context = request.context
-        if context is not None:
-            context = dataclass_replace(context, output_dir=media_root)
-        else:
-            context = cfg.build_runtime_context(
-                dict(request.config),
-                dict(environment_overrides),
-            )
-            context = dataclass_replace(context, output_dir=media_root)
-        request.context = context
-
-        request_payload = serialize_pipeline_request(request)
-        job = PipelineJob(
-            job_id=job_id,
-            job_type="book",
-            status=PipelineJobStatus.PENDING,
-            created_at=datetime.now(timezone.utc),
-            request=request,
-            tracker=tracker,
-            stop_event=stop_event,
-            request_payload=request_payload,
-            resume_context=copy.deepcopy(request_payload),
+        job = create_pipeline_job(
+            request,
+            file_locator=self._file_locator,
+            tuner=self._tuner,
             user_id=user_id,
             user_role=user_role,
-            access=default_job_access(user_id).to_dict(),
+            event_observer=self._store_event,
         )
-        tuning_summary = self._tuner.build_tuning_summary(request)
-        job.tuning_summary = tuning_summary if tuning_summary else None
-
-        tracker.register_observer(lambda event: self._store_event(job_id, event))
 
         with self._lock:
-            self._jobs[job_id] = job
-            self._register_job_handler(job_id, job)
+            self._jobs[job.job_id] = job
+            self._register_job_handler(job.job_id, job)
             self._store.save(self._persistence.snapshot(job))
 
-        if tuning_summary:
-            tracker.publish_progress({"stage": "configuration", **tuning_summary})
+        if job.tuning_summary and job.tracker:
+            job.tracker.publish_progress({"stage": "configuration", **job.tuning_summary})
 
-        with log_mgr.log_context(job_id=job_id, correlation_id=request.correlation_id):
+        with log_mgr.log_context(job_id=job.job_id, correlation_id=request.correlation_id):
             logger.info(
                 "Pipeline job submitted",
                 extra={
@@ -401,9 +274,8 @@ class PipelineJobManager:
                 },
             )
 
-        self._executor.submit(self._dispatch_execution, job_id)
+        self._executor.submit(self._dispatch_execution, job.job_id)
 
-        # Record submission for backpressure tracking
         if self._backpressure is not None:
             self._backpressure.record_submission()
 
@@ -422,80 +294,32 @@ class PipelineJobManager:
         setup: Optional[Callable[[PipelineJob], None]] = None,
         bypass_backpressure: bool = False,
     ) -> PipelineJob:
-        """Register a non-pipeline job for asynchronous execution.
+        """Register a non-pipeline job for asynchronous execution."""
 
-        Args:
-            job_type: Type identifier for the job.
-            worker: The callable to execute for this job.
-            tracker: Optional progress tracker.
-            stop_event: Optional stop event for cancellation.
-            request_payload: Optional payload to persist with the job.
-            user_id: Optional user ID for access control.
-            user_role: Optional user role for access control.
-            setup: Optional setup callback before execution.
-            bypass_backpressure: If True, skip backpressure checks.
+        apply_backpressure(self._backpressure, bypass=bypass_backpressure)
 
-        Returns:
-            The created PipelineJob.
-
-        Raises:
-            QueueFullError: If backpressure rejects the submission.
-        """
-        # Apply backpressure if enabled
-        if self._backpressure is not None and not bypass_backpressure:
-            action, delay = self._backpressure.check()
-            if action == BackpressureAction.REJECT:
-                state = self._backpressure.get_state()
-                raise QueueFullError(
-                    "Job queue is full, try again later",
-                    queue_depth=state.queue_depth,
-                    hard_limit=self._backpressure.policy.hard_limit,
-                )
-            elif action == BackpressureAction.DELAY and delay > 0:
-                import time
-                time.sleep(delay)
-
-        normalized_type = job_type or "custom"
-        job_id = str(uuid4())
-        tracker = tracker or ProgressTracker()
-        stop_event = stop_event or threading.Event()
-
-        job_root = self._file_locator.resolve_path(job_id)
-        job_root.mkdir(parents=True, exist_ok=True)
-        self._file_locator.metadata_root(job_id).mkdir(parents=True, exist_ok=True)
-        self._file_locator.data_root(job_id).mkdir(parents=True, exist_ok=True)
-
-        job = PipelineJob(
-            job_id=job_id,
-            job_type=normalized_type,
-            status=PipelineJobStatus.PENDING,
-            created_at=datetime.now(timezone.utc),
-            request=None,
+        job = create_background_job(
+            job_type=job_type,
+            file_locator=self._file_locator,
             tracker=tracker,
             stop_event=stop_event,
-            request_payload=dict(request_payload) if request_payload else None,
-            resume_context=None,
+            request_payload=request_payload,
             user_id=user_id,
             user_role=user_role,
-            access=default_job_access(user_id).to_dict(),
+            setup=setup,
+            event_observer=self._store_event,
         )
 
-        if setup is not None:
-            setup(job)
-
-        tracker.register_observer(lambda event: self._store_event(job_id, event))
-
         with self._lock:
-            self._jobs[job_id] = job
-            self._custom_workers[job_id] = worker
-            self._register_job_handler(job_id, job)
+            self._jobs[job.job_id] = job
+            self._custom_workers[job.job_id] = worker
+            self._register_job_handler(job.job_id, job)
             snapshot = self._persistence.snapshot(job)
             self._store.save(snapshot)
 
-        self._log_generic_job_submitted(job)
-        self._executor.submit(self._dispatch_execution, job_id)
+        log_generic_job_submitted(job)
+        self._executor.submit(self._dispatch_execution, job.job_id)
 
-        # Record submission for backpressure tracking
         if self._backpressure is not None:
             self._backpressure.record_submission()
 
@@ -557,8 +381,6 @@ class PipelineJobManager:
 
     def _store_event(self, job_id: str, event: ProgressEvent) -> None:
         metadata = dict(event.metadata)
-        # Build event signature for deduplication
-        # Include fields that indicate meaningful progress change
         stage = metadata.get("stage")
         has_generated = metadata.get("generated_files") is not None
         event_sig = (
@@ -569,21 +391,15 @@ class PipelineJobManager:
             has_generated,
         )
 
-        # Use per-job lock instead of global lock for better concurrency
-        # This allows multiple jobs to process events simultaneously
         with self._job_locks.job_lock(job_id):
-            # Quick check with global lock to get job reference
             with self._lock:
                 job = self._jobs.get(job_id)
                 if job is None:
                     return
 
-            # Skip persistence if event hasn't changed meaningfully
-            # Always persist: complete/error events, events with generated_files
             last_sig = self._last_event_sig.get(job_id)
             is_terminal = event.event_type in ("complete", "error")
             if last_sig == event_sig and not is_terminal and not has_generated:
-                # Update job.last_event but skip expensive persistence
                 job.last_event = event
                 return
 
@@ -595,8 +411,8 @@ class PipelineJobManager:
                     job.resume_context = resume_context
             snapshot = self._persistence.apply_event(job, event)
             self._store.update(snapshot)
-        stage = metadata.get("stage")
-        correlation_id = self._job_correlation_id(job) if job is not None else None
+
+        correlation_id = _job_correlation_id(job) if job is not None else None
         event_name = f"{job.job_type}.job.progress" if job is not None else "pipeline.job.progress"
         with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
             logger.info(
@@ -631,15 +447,27 @@ class PipelineJobManager:
         try:
             handler(job_id)
         finally:
-            # Record completion for backpressure tracking
             if self._backpressure is not None:
                 self._backpressure.record_completion()
 
-    def _job_correlation_id(self, job: PipelineJob) -> Optional[str]:
-        request = job.request
-        if request is None:
-            return None
-        return request.correlation_id
+    # Wrapper methods for logging to maintain backward compatibility
+    def _log_job_started(self, job: PipelineJob) -> None:
+        log_job_started(job)
+
+    def _log_job_finished(self, job: PipelineJob, status: PipelineJobStatus) -> None:
+        log_job_finished(job, status)
+
+    def _log_job_error(self, job: PipelineJob, exc: Exception) -> None:
+        log_job_error(job, exc)
+
+    def _log_job_interrupted(self, job: PipelineJob, status: PipelineJobStatus) -> None:
+        log_job_interrupted(job, status)
+
+    def _pipeline_operation_context(self, job: PipelineJob):
+        return pipeline_operation_context(job)
+
+    def _record_job_metric(self, name: str, value: float, attributes: Mapping[str, str]) -> None:
+        record_job_metric(name, value, dict(attributes))
 
     def _execute_pipeline(self, job_id: str) -> None:
         self._job_executor.execute(job_id)
@@ -660,11 +488,11 @@ class PipelineJobManager:
             snapshot = self._persistence.snapshot(job)
         self._store.update(snapshot)
 
-        self._log_generic_job_started(job)
+        log_generic_job_started(job)
 
         try:
             worker(job)
-        except Exception as exc:  # pragma: no cover - defensive guard
+        except Exception as exc:
             with self._lock:
                 job.status = PipelineJobStatus.FAILED
                 job.error_message = str(exc)
@@ -673,7 +501,7 @@ class PipelineJobManager:
             self._store.update(snapshot)
             if job.tracker is not None:
                 job.tracker.record_error(exc, {"stage": job.job_type})
-            self._log_generic_job_error(job, exc)
+            log_generic_job_error(job, exc)
         else:
             terminal_states = {
                 PipelineJobStatus.COMPLETED,
@@ -689,7 +517,7 @@ class PipelineJobManager:
                     job.completed_at = datetime.now(timezone.utc)
                 snapshot = self._persistence.snapshot(job)
             self._store.update(snapshot)
-            self._log_generic_job_finished(job, job.status)
+            log_generic_job_finished(job, job.status)
         finally:
             with self._lock:
                 self._custom_workers.pop(job_id, None)
@@ -730,129 +558,7 @@ class PipelineJobManager:
         self._job_handlers.pop(job_id, None)
         if job.tracker is not None:
             job.tracker.mark_finished(reason="failed", forced=True)
-        self._log_generic_job_error(job, RuntimeError(message))
-
-    @contextmanager
-    def _log_context(self, job: PipelineJob):
-        with log_mgr.log_context(
-            job_id=job.job_id,
-            correlation_id=self._job_correlation_id(job),
-        ):
-            yield
-
-    def _log_job_started(self, job: PipelineJob) -> None:
-        with self._log_context(job):
-            logger.info(
-                "Pipeline job started",
-                extra={
-                    "event": "pipeline.job.started",
-                    "status": PipelineJobStatus.RUNNING.value,
-                    "console_suppress": True,
-                },
-            )
-
-    def _log_job_finished(self, job: PipelineJob, status: PipelineJobStatus) -> None:
-        with self._log_context(job):
-            if status == PipelineJobStatus.PAUSED:
-                logger.info(
-                    "Pipeline job paused",
-                    extra={
-                        "event": "pipeline.job.paused",
-                        "status": status.value,
-                        "console_suppress": True,
-                    },
-                )
-            else:
-                logger.info(
-                    "Pipeline job finished",
-                    extra={
-                        "event": "pipeline.job.finished",
-                        "status": status.value,
-                        "console_suppress": True,
-                    },
-                )
-
-    def _log_job_error(self, job: PipelineJob, exc: Exception) -> None:
-        with self._log_context(job):
-            logger.error(
-                "Pipeline job encountered an error",
-                extra={
-                    "event": "pipeline.job.error",
-                    "status": PipelineJobStatus.FAILED.value,
-                    "attributes": {"error": str(exc)},
-                },
-            )
-
-    def _log_job_interrupted(self, job: PipelineJob, status: PipelineJobStatus) -> None:
-        with self._log_context(job):
-            logger.info(
-                "Pipeline job interrupted",
-                extra={
-                    "event": "pipeline.job.interrupted",
-                    "status": status.value,
-                    "console_suppress": True,
-                },
-            )
-
-    def _log_generic_job_started(self, job: PipelineJob) -> None:
-        with self._log_context(job):
-            logger.info(
-                "Background job started",
-                extra={
-                    "event": f"{job.job_type}.job.started",
-                    "status": PipelineJobStatus.RUNNING.value,
-                    "console_suppress": True,
-                },
-            )
-
-    def _log_generic_job_finished(self, job: PipelineJob, status: PipelineJobStatus) -> None:
-        with self._log_context(job):
-            logger.info(
-                "Background job finished",
-                extra={
-                    "event": f"{job.job_type}.job.finished",
-                    "status": status.value,
-                    "console_suppress": True,
-                },
-            )
-
-    def _log_generic_job_submitted(self, job: PipelineJob) -> None:
-        with self._log_context(job):
-            logger.info(
-                "Background job submitted",
-                extra={
-                    "event": f"{job.job_type}.job.submitted",
-                    "status": job.status.value,
-                    "console_suppress": True,
-                },
-            )
-
-    def _log_generic_job_error(self, job: PipelineJob, exc: Exception) -> None:
-        with self._log_context(job):
-            logger.error(
-                "Background job encountered an error",
-                extra={
-                    "event": f"{job.job_type}.job.error",
-                    "status": PipelineJobStatus.FAILED.value,
-                    "attributes": {"error": str(exc)},
-                },
-            )
-
-    def _pipeline_operation_context(
-        self, job: PipelineJob
-    ) -> ContextManager[object]:
-        return observability.pipeline_operation(
-            "job",
-            attributes={
-                "job_id": job.job_id,
-                "correlation_id": self._job_correlation_id(job),
-            },
-        )
-
-    def _record_job_metric(
-        self, name: str, value: float, attributes: Mapping[str, str]
-    ) -> None:
-        observability.record_metric(name, value, attributes)
+        log_generic_job_error(job, RuntimeError(message))
 
     @staticmethod
     def _is_admin(user_role: Optional[str]) -> bool:
@@ -873,7 +579,7 @@ class PipelineJobManager:
                 raise
             try:
                 self._store.save(metadata)
-            except Exception:  # pragma: no cover - best effort cache
+            except Exception:
                 logger.debug("Failed to cache job metadata for %s", job_id, exc_info=True)
         return self._persistence.build_job(metadata)
 
@@ -898,7 +604,7 @@ class PipelineJobManager:
                     continue
                 payload = path.read_text(encoding="utf-8")
                 return PipelineJobMetadata.from_json(payload)
-            except Exception:  # pragma: no cover - defensive fallback
+            except Exception:
                 logger.debug("Failed to load job metadata from %s", path, exc_info=True)
                 continue
 
@@ -987,12 +693,12 @@ class PipelineJobManager:
             try:
                 if path.exists():
                     shutil.rmtree(path)
-            except Exception:  # pragma: no cover - defensive cleanup
+            except Exception:
                 logger.debug("Unable to clean generated path %s for job %s", path, job_id, exc_info=True)
         for path in (media_root, metadata_root, subtitles_root):
             try:
                 path.mkdir(parents=True, exist_ok=True)
-            except Exception:  # pragma: no cover - defensive cleanup
+            except Exception:
                 logger.debug("Unable to recreate generated path %s for job %s", path, job_id, exc_info=True)
 
     def restart_job(
@@ -1018,10 +724,8 @@ class PipelineJobManager:
 
         previous_status = job.status
 
-        # Wipe generated outputs so the rerun can overwrite cleanly.
         self._cleanup_generated_outputs(job_id)
 
-        # Reset state and hydrate a fresh request/tracker.
         with self._lock:
             job.request = None
             job.tracker = None
@@ -1033,7 +737,6 @@ class PipelineJobManager:
             job.generated_files = None
             job.chunk_manifest = None
             job.media_completed = False
-            job.retry_summary = job.retry_summary  # keep retry history for observability
             job.started_at = None
             job.completed_at = None
             job.status = PipelineJobStatus.PENDING
@@ -1041,7 +744,6 @@ class PipelineJobManager:
         stop_event = threading.Event()
         request = self._request_factory.hydrate_request(job, payload, stop_event=stop_event)
 
-        # Ensure output directories are re-established and context reflects current paths.
         media_root = self._file_locator.media_root(job_id)
         request.environment_overrides = dict(request.environment_overrides)
         request.environment_overrides["output_dir"] = str(media_root)
@@ -1102,7 +804,6 @@ class PipelineJobManager:
             user_id=user_id,
             user_role=user_role,
         )
-        # Clean up event deduplication cache and per-job lock
         self._last_event_sig.pop(job_id, None)
         self._job_locks.remove_job_lock(job_id)
         job_root = self._file_locator.job_root(job.job_id)
@@ -1110,7 +811,7 @@ class PipelineJobManager:
             shutil.rmtree(job_root)
         except FileNotFoundError:
             pass
-        except OSError:  # pragma: no cover - defensive logging
+        except OSError:
             logger.debug(
                 "Unable to remove job directory %s during delete", job_root,
                 exc_info=True,
@@ -1147,16 +848,10 @@ class PipelineJobManager:
         user_id: Optional[str] = None,
         user_role: Optional[str] = None,
     ) -> int:
-        """Return total number of jobs visible to the user.
-
-        For admins, returns total count. For other users, returns count of
-        jobs they can view (which requires loading all jobs for filtering).
-        """
+        """Return total number of jobs visible to the user."""
 
         if self._is_admin(user_role):
-            # Fast path for admins: use store count
             return self._store.count()
-        # For non-admins, we need to filter - fall back to full list
         return len(self.list(user_id=user_id, user_role=user_role))
 
     def list(
@@ -1167,20 +862,8 @@ class PipelineJobManager:
         offset: Optional[int] = None,
         limit: Optional[int] = None,
     ) -> Dict[str, PipelineJob]:
-        """Return a snapshot mapping of jobs respecting role-based visibility.
+        """Return a snapshot mapping of jobs respecting role-based visibility."""
 
-        Args:
-            user_id: The requesting user's ID for access control.
-            user_role: The requesting user's role for access control.
-            offset: Number of jobs to skip (pagination). Applied after access filtering.
-            limit: Maximum number of jobs to return. Applied after access filtering.
-
-        Note: For non-admin users, pagination is applied after access filtering,
-        so all jobs must be loaded to determine visible set. For admins, pagination
-        can be applied at the store level for better performance.
-        """
-
-        # For admins, we can use store-level pagination
         if self._is_admin(user_role) and (offset is not None or limit is not None):
             stored = self._store.list(offset=offset, limit=limit)
         else:
@@ -1210,7 +893,6 @@ class PipelineJobManager:
         if self._is_admin(user_role):
             return active_jobs
 
-        # For non-admins, filter by access then paginate
         filtered: Dict[str, PipelineJob] = {}
         for job_id, job in active_jobs.items():
             default_visibility = "private" if job.user_id else "public"
@@ -1224,7 +906,6 @@ class PipelineJobManager:
             ):
                 filtered[job_id] = job
 
-        # Apply pagination after filtering for non-admins
         if offset is not None or limit is not None:
             items = list(filtered.items())
             start = offset or 0
@@ -1272,28 +953,22 @@ class PipelineJobManager:
         return job
 
     def shutdown(self, *, wait: bool = True) -> None:
-        """Shutdown the manager and release all resources.
+        """Shutdown the manager and release all resources."""
 
-        Args:
-            wait: If True, wait for pending jobs to complete before shutting down.
-        """
-        # Shutdown executor
         try:
             self._executor.shutdown(wait=wait)
-        except Exception:  # pragma: no cover - defensive
+        except Exception:
             pass
 
-        # Shutdown tuner (releases cached worker pools)
         try:
             self._tuner.shutdown()
-        except Exception:  # pragma: no cover - defensive
+        except Exception:
             pass
 
-        # Shutdown storage coordinator if it has a shutdown method
         if hasattr(self._storage, "shutdown"):
             try:
                 self._storage.shutdown()
-            except Exception:  # pragma: no cover - defensive
+            except Exception:
                 pass
 
     @property
@@ -1316,10 +991,6 @@ class PipelineJobManager:
         return self._backpressure.is_accepting()
 
     def update_backpressure_policy(self, policy: BackpressurePolicy) -> None:
-        """Update the backpressure policy at runtime.
-
-        Args:
-            policy: The new backpressure policy to apply.
-        """
+        """Update the backpressure policy at runtime."""
         if self._backpressure is not None:
             self._backpressure.update_policy(policy)

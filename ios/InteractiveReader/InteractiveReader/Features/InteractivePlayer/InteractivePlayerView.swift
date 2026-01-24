@@ -223,10 +223,32 @@ struct InteractivePlayerView: View {
             return
         }
         if !audioCoordinator.isPlaying {
+            // If we're on the last chunk and playback has ended, dismiss instead of restarting
+            if isPlaybackFinished {
+                dismiss()
+                return
+            }
             audioCoordinator.play()
             return
         }
         dismiss()
+    }
+
+    private var isPlaybackFinished: Bool {
+        guard let chunk = viewModel.selectedChunk,
+              let context = viewModel.jobContext else {
+            return false
+        }
+        // Check if this is the last chunk
+        let hasNextChunk = context.nextChunk(after: chunk.id) != nil
+        if hasNextChunk {
+            return false
+        }
+        // Check if playback position is near the end (within 1 second of duration)
+        let duration = audioCoordinator.duration
+        let currentTime = audioCoordinator.currentTime
+        guard duration > 0 else { return false }
+        return currentTime >= duration - 1.0
     }
     #endif
 }
