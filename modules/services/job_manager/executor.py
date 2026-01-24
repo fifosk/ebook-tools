@@ -152,12 +152,11 @@ class PipelineJobExecutor:
             elif status_after_error is not None:
                 self._dispatch_hook("on_interrupted", job, status_after_error)
         finally:
-            pool_to_shutdown: Optional[ThreadWorkerPool] = None
+            should_release_pool = False
             with self._lock:
                 status = job.status
-                if job.owns_translation_pool and job.request is not None:
-                    pool_to_shutdown = job.request.translation_pool
-                    job.request.translation_pool = None
+                if job.owns_translation_pool:
+                    should_release_pool = True
                 job.owns_translation_pool = False
                 terminal_states = {
                     PipelineJobStatus.COMPLETED,
@@ -168,12 +167,13 @@ class PipelineJobExecutor:
                     job.completed_at = job.completed_at or datetime.now(timezone.utc)
                 snapshot = self._persistence.snapshot(job)
             self._store.update(snapshot)
-            if pool_to_shutdown is not None:
+            # Release worker pool back to cache for reuse (or shutdown if no cache)
+            if should_release_pool:
                 try:
-                    pool_to_shutdown.shutdown()
+                    self._tuner.release_worker_pool(job)
                 except Exception:  # pragma: no cover - defensive logging
                     self._logger.debug(
-                        "Translation worker pool shutdown raised an exception",
+                        "Translation worker pool release raised an exception",
                         exc_info=True,
                     )
             if job.tracker is not None:

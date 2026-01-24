@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 import logging
 from typing import AsyncIterator, Callable
@@ -69,7 +70,21 @@ def _handle_job_action(
     return _build_action_response(job)
 
 
-async def _event_stream(job: PipelineJob) -> AsyncIterator[bytes]:
+_SSE_HEARTBEAT_INTERVAL = 30.0  # seconds between heartbeat comments
+_SSE_HEARTBEAT_COMMENT = b": heartbeat\n\n"
+
+
+async def _event_stream(
+    job: PipelineJob,
+    *,
+    heartbeat_interval: float = _SSE_HEARTBEAT_INTERVAL,
+) -> AsyncIterator[bytes]:
+    """Stream progress events with heartbeat to keep connections alive.
+
+    Args:
+        job: The pipeline job to stream events from.
+        heartbeat_interval: Seconds between heartbeat comments (default 30s).
+    """
     if job.completed_at and job.last_event is not None:
         payload = ProgressEventPayload.from_event(job.last_event)
         yield f"data: {payload.model_dump_json()}\n\n".encode("utf-8")
@@ -82,11 +97,26 @@ async def _event_stream(job: PipelineJob) -> AsyncIterator[bytes]:
         return
 
     stream = job.tracker.events()
+    last_heartbeat = asyncio.get_event_loop().time()
+
     try:
-        async for event in stream:
-            payload = ProgressEventPayload.from_event(event)
-            yield f"data: {payload.model_dump_json()}\n\n".encode("utf-8")
-            if event.event_type == "complete":
+        while True:
+            try:
+                # Wait for event with timeout for heartbeat
+                event = await asyncio.wait_for(
+                    stream.__anext__(),
+                    timeout=heartbeat_interval,
+                )
+                payload = ProgressEventPayload.from_event(event)
+                yield f"data: {payload.model_dump_json()}\n\n".encode("utf-8")
+                last_heartbeat = asyncio.get_event_loop().time()
+                if event.event_type == "complete":
+                    break
+            except asyncio.TimeoutError:
+                # Send heartbeat comment to keep connection alive
+                yield _SSE_HEARTBEAT_COMMENT
+                last_heartbeat = asyncio.get_event_loop().time()
+            except StopAsyncIteration:
                 break
     finally:
         await stream.aclose()
@@ -94,14 +124,30 @@ async def _event_stream(job: PipelineJob) -> AsyncIterator[bytes]:
 
 @router.get("/jobs", response_model=PipelineJobListResponse)
 async def list_jobs(
+    offset: int | None = None,
+    limit: int | None = None,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
-    """Return all persisted jobs ordered by creation time."""
+    """Return persisted jobs ordered by creation time.
+
+    Supports optional pagination via `offset` and `limit` query parameters.
+    When pagination is used, the response includes `total`, `offset`, and `limit` fields.
+    """
+
+    # Get total count for pagination metadata (only when paginating)
+    total = None
+    if offset is not None or limit is not None:
+        total = pipeline_service.count_jobs(
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
 
     jobs = pipeline_service.list_jobs(
         user_id=request_user.user_id,
         user_role=request_user.user_role,
+        offset=offset,
+        limit=limit,
     ).values()
     ordered = sorted(
         jobs,
@@ -109,7 +155,12 @@ async def list_jobs(
         reverse=True,
     )
     payload = [PipelineStatusResponse.from_job(job) for job in ordered]
-    return PipelineJobListResponse(jobs=payload)
+    return PipelineJobListResponse(
+        jobs=payload,
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @router.post("/", response_model=PipelineSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)

@@ -710,6 +710,18 @@ class PipelineJobListResponse(BaseModel):
     """Response payload describing a collection of pipeline jobs."""
 
     jobs: List[PipelineStatusResponse] = Field(default_factory=list)
+    total: Optional[int] = Field(
+        default=None,
+        description="Total number of jobs (for pagination). Only included when pagination is used.",
+    )
+    offset: Optional[int] = Field(
+        default=None,
+        description="Number of jobs skipped (for pagination).",
+    )
+    limit: Optional[int] = Field(
+        default=None,
+        description="Maximum jobs returned per page.",
+    )
 
 
 class PipelineJobActionResponse(BaseModel):

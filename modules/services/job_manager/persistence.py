@@ -477,45 +477,57 @@ class PipelineJobPersistence:
         self._file_locator = file_locator
 
     def snapshot(self, job: PipelineJob) -> PipelineJobMetadata:
-        """Return a metadata snapshot for ``job``."""
+        """Return a metadata snapshot for ``job``.
 
+        Performance note: This method is called on every progress event update.
+        We avoid unnecessary copy.deepcopy() calls by:
+        1. Using serialization functions that already return fresh dicts
+        2. Using shallow copies where deep isolation isn't needed
+        3. Only deep-copying mutable structures that could be modified externally
+        """
+
+        # serialize_progress_event returns a fresh dict - no copy needed
         last_event = (
             serialize_progress_event(job.last_event)
             if job.last_event is not None
             else None
         )
-        result_payload = (
-            copy.deepcopy(job.result_payload)
-            if job.result_payload is not None
-            else (
-                serialize_pipeline_response(job.result)
-                if job.result is not None
-                else None
-            )
-        )
+
+        # serialize_pipeline_response returns a fresh dict - no copy needed
+        # For result_payload, we only need a shallow copy since it's not modified
+        if job.result_payload is not None:
+            result_payload = job.result_payload  # Already a dict, copied in to_dict()
+        elif job.result is not None:
+            result_payload = serialize_pipeline_response(job.result)
+        else:
+            result_payload = None
+
+        # serialize_pipeline_request returns a fresh dict - no copy needed
         if job.request is not None:
             request_payload = serialize_pipeline_request(job.request)
         else:
-            request_payload = (
-                copy.deepcopy(job.request_payload) if job.request_payload is not None else None
-            )
-        resume_context = (
-            copy.deepcopy(job.resume_context)
-            if job.resume_context is not None
-            else (copy.deepcopy(request_payload) if request_payload is not None else None)
-        )
+            request_payload = job.request_payload  # Will be copied in to_dict()
 
+        # resume_context: use existing or fall back to request_payload
+        # Shallow reference is fine - _stable_copy handles isolation in to_dict()
+        resume_context = job.resume_context if job.resume_context is not None else request_payload
+
+        # _normalize_generated_files already creates new dicts internally
         normalized_files = self._normalize_generated_files(job.job_id, job.generated_files)
-        job.generated_files = copy.deepcopy(normalized_files) if normalized_files is not None else None
+        job.generated_files = normalized_files
         if isinstance(normalized_files, Mapping):
             complete_flag = normalized_files.get("complete")
             if isinstance(complete_flag, bool):
                 job.media_completed = complete_flag
 
+        # Retry summary: shallow dict of dicts with int values - safe to share
         retry_summary = job.retry_summary or (job.tracker.get_retry_counts() if job.tracker else None)
         if retry_summary:
-            job.retry_summary = copy.deepcopy(retry_summary)
+            job.retry_summary = retry_summary
 
+        # Build metadata snapshot - references are safe because:
+        # 1. PipelineJobMetadata.to_dict() uses _stable_copy() for serialization
+        # 2. These dicts are not mutated after creation
         snapshot = PipelineJobMetadata(
             job_id=job.job_id,
             job_type=job.job_type,
@@ -524,49 +536,43 @@ class PipelineJobPersistence:
             started_at=job.started_at,
             completed_at=job.completed_at,
             error_message=job.error_message,
-            last_event=copy.deepcopy(last_event) if last_event is not None else None,
+            last_event=last_event,
             result=result_payload,
             request_payload=request_payload,
             resume_context=resume_context,
-            tuning_summary=copy.deepcopy(job.tuning_summary)
-            if job.tuning_summary is not None
-            else None,
-            retry_summary=copy.deepcopy(retry_summary),
+            tuning_summary=job.tuning_summary,
+            retry_summary=retry_summary,
             user_id=job.user_id,
             user_role=job.user_role,
-            access=copy.deepcopy(job.access) if job.access is not None else None,
-            generated_files=copy.deepcopy(normalized_files)
-            if normalized_files is not None
-            else None,
+            access=job.access,
+            generated_files=normalized_files,
             media_completed=job.media_completed,
         )
         chunk_manifest = self._persist_metadata_files(job, snapshot)
         manifest_source = chunk_manifest if chunk_manifest is not None else snapshot.chunk_manifest
         if manifest_source is not None:
-            snapshot.chunk_manifest = copy.deepcopy(manifest_source)
-            job.chunk_manifest = copy.deepcopy(manifest_source)
+            snapshot.chunk_manifest = manifest_source
+            job.chunk_manifest = manifest_source
         else:
             snapshot.chunk_manifest = None
             job.chunk_manifest = None
         return snapshot
 
     def build_job(self, metadata: PipelineJobMetadata) -> PipelineJob:
-        """Return a :class:`PipelineJob` hydrated from ``metadata``."""
+        """Return a :class:`PipelineJob` hydrated from ``metadata``.
 
-        request_payload = (
-            copy.deepcopy(metadata.request_payload)
-            if metadata.request_payload is not None
-            else None
-        )
-        resume_context = (
-            copy.deepcopy(metadata.resume_context)
-            if metadata.resume_context is not None
-            else (copy.deepcopy(request_payload) if request_payload is not None else None)
-        )
-        result_payload = (
-            copy.deepcopy(metadata.result) if metadata.result is not None else None
-        )
+        Performance note: This creates a new PipelineJob that owns its data.
+        Since the job will be the sole owner of these references after creation,
+        we avoid deepcopy and use the references directly. The metadata object
+        is typically discarded after this call.
+        """
 
+        # Use references directly - the job becomes the owner of this data
+        request_payload = metadata.request_payload
+        resume_context = metadata.resume_context if metadata.resume_context is not None else request_payload
+        result_payload = metadata.result
+
+        # _normalize_generated_files already creates new dicts
         normalized_files = self._normalize_generated_files(
             metadata.job_id, metadata.generated_files
         )
@@ -582,24 +588,14 @@ class PipelineJobPersistence:
             result_payload=result_payload,
             request_payload=request_payload,
             resume_context=resume_context,
-            tuning_summary=copy.deepcopy(metadata.tuning_summary)
-            if metadata.tuning_summary is not None
-            else None,
-            retry_summary=copy.deepcopy(metadata.retry_summary)
-            if metadata.retry_summary is not None
-            else None,
+            tuning_summary=metadata.tuning_summary,
+            retry_summary=metadata.retry_summary,
             user_id=metadata.user_id,
             user_role=metadata.user_role,
-            access=copy.deepcopy(metadata.access) if metadata.access is not None else None,
-            generated_files=copy.deepcopy(normalized_files)
-            if normalized_files is not None
-            else None,
+            access=metadata.access,
+            generated_files=normalized_files,
         )
-        job.chunk_manifest = (
-            copy.deepcopy(metadata.chunk_manifest)
-            if metadata.chunk_manifest is not None
-            else None
-        )
+        job.chunk_manifest = metadata.chunk_manifest
         job.media_completed = bool(metadata.media_completed)
         if isinstance(normalized_files, Mapping):
             complete_flag = normalized_files.get("complete")
@@ -1193,7 +1189,8 @@ class PipelineJobPersistence:
         if not raw:
             return None
         if not isinstance(raw, Mapping):
-            return copy.deepcopy(raw)  # type: ignore[return-value]
+            # Non-mapping values are rare edge cases; return as-is
+            return raw  # type: ignore[return-value]
 
         chunks_raw = raw.get("chunks", [])
         if not isinstance(chunks_raw, list):
@@ -1226,7 +1223,8 @@ class PipelineJobPersistence:
                 chunk_entry["sentence_count"] = sentence_count
             sentences_raw = chunk.get("sentences")
             if isinstance(sentences_raw, list) and not has_metadata_file:
-                chunk_entry["sentences"] = copy.deepcopy(sentences_raw)
+                # Sentences are read-only after normalization; shallow copy suffices
+                chunk_entry["sentences"] = list(sentences_raw)
             files_raw = chunk.get("files", [])
             if not isinstance(files_raw, list):
                 files_raw = []

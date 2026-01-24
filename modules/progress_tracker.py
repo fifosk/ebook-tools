@@ -11,6 +11,16 @@ import copy
 from typing import Any, AsyncIterator, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 
+def _shallow_copy_mapping(m: Mapping[str, Any]) -> Dict[str, Any]:
+    """Create a shallow copy of a mapping, suitable for immutable values."""
+    return dict(m)
+
+
+def _shallow_copy_sequence(s: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+    """Create a shallow copy of a sequence of mappings."""
+    return [dict(item) if isinstance(item, Mapping) else item for item in s]
+
+
 @dataclass(frozen=True)
 class ProgressSnapshot:
     """Immutable view of the current pipeline progress statistics."""
@@ -77,25 +87,52 @@ class ProgressEventStream:
 
 
 class ProgressTracker:
-    """Track progress statistics for the translation/media pipeline."""
+    """Track progress statistics for the translation/media pipeline.
 
-    def __init__(self, total_blocks: Optional[int] = None, *, report_interval: float = 5.0) -> None:
+    Features:
+    - Event throttling: high-frequency progress events are throttled to reduce
+      observer overhead. Important events (start, complete, error) bypass throttling.
+    - Observer caching: observer tuple is cached and only rebuilt on registration changes.
+    """
+
+    # Event types that bypass throttling
+    _PRIORITY_EVENT_TYPES = frozenset({"start", "complete", "error", "file_chunk_generated"})
+
+    def __init__(
+        self,
+        total_blocks: Optional[int] = None,
+        *,
+        report_interval: float = 5.0,
+        throttle_interval: float = 0.1,
+    ) -> None:
+        """Initialize the progress tracker.
+
+        Args:
+            total_blocks: Expected total number of blocks to process.
+            report_interval: Preferred monitoring interval in seconds.
+            throttle_interval: Minimum interval between progress events (seconds).
+        """
         self._lock = threading.Lock()
         self._start_time = time.perf_counter()
         self._completed = 0
         self._translation_completed = 0
         self._total: Optional[int] = total_blocks
         self._report_interval = max(0.1, report_interval)
+        self._throttle_interval = max(0.0, throttle_interval)
         self._finished_event = threading.Event()
         self._translation_timestamps: Dict[int, float] = {}
         self._media_timestamps: Dict[int, float] = {}
         self._observers: Sequence[Callable[[ProgressEvent], None]] = []
+        self._observers_cache: Optional[Tuple[Callable[[ProgressEvent], None], ...]] = None
         self._started = False
         self._completion_emitted = False
         self._generated_chunks: List[Dict[str, object]] = []
         self._generated_files_snapshot: Dict[str, object] = {"chunks": [], "files": []}
         self._generated_files_extras: Dict[str, object] = {}
         self._retry_counts: Dict[str, Dict[str, int]] = {}
+        # Throttling state
+        self._last_progress_emit: float = 0.0
+        self._throttled_event: Optional[ProgressEvent] = None
 
     @property
     def report_interval(self) -> float:
@@ -265,7 +302,8 @@ class ProgressTracker:
                 normalized_entry["type"] = str(file_type)
                 normalized_entry["path"] = str(file_path)
                 normalized_files.append(normalized_entry)
-        normalized_sentences = copy.deepcopy(list(sentences)) if sentences else []
+        # Shallow copy is sufficient - sentence dicts contain only primitives
+        normalized_sentences = _shallow_copy_sequence(sentences) if sentences else []
         normalized_tracks: Dict[str, Dict[str, Any]] = {}
         if audio_tracks:
             for raw_key, raw_value in audio_tracks.items():
@@ -313,7 +351,8 @@ class ProgressTracker:
             if normalized_tracks:
                 chunk_entry["audio_tracks"] = normalized_tracks
             if timing_tracks and isinstance(timing_tracks, Mapping):
-                chunk_entry["timing_tracks"] = copy.deepcopy(dict(timing_tracks))
+                # Shallow copy - timing track values are primitives or already-copied lists
+                chunk_entry["timing_tracks"] = _shallow_copy_mapping(timing_tracks)
             for index, existing in enumerate(self._generated_chunks):
                 if existing.get("chunk_id") == chunk_id:
                     self._generated_chunks[index] = chunk_entry
@@ -345,10 +384,15 @@ class ProgressTracker:
 
         if not payload:
             return
-        event_payload = copy.deepcopy(dict(payload))
+        # Shallow copy for event payload - values are typically primitives
+        event_payload = dict(payload)
         with self._lock:
             for key, value in payload.items():
-                self._generated_files_extras[key] = copy.deepcopy(value)
+                # Only deep copy mutable containers
+                if isinstance(value, (dict, list)):
+                    self._generated_files_extras[key] = copy.copy(value)
+                else:
+                    self._generated_files_extras[key] = value
             self._generated_files_snapshot = self._build_generated_files_snapshot_locked()
         self._emit_event(
             "progress",
@@ -415,6 +459,27 @@ class ProgressTracker:
                 return False
             return self._completed >= self._total
 
+    def flush_throttled_events(self) -> None:
+        """Emit any throttled event that was held back.
+
+        Call this before emitting completion events to ensure the final
+        progress state is communicated to observers.
+        """
+        with self._lock:
+            throttled = self._throttled_event
+            self._throttled_event = None
+            if throttled is None:
+                return
+            if self._observers_cache is None:
+                self._observers_cache = tuple(self._observers)
+            observers = self._observers_cache
+
+        for observer in observers:
+            try:
+                observer(throttled)
+            except Exception:
+                continue
+
     def mark_finished(
         self,
         *,
@@ -424,6 +489,8 @@ class ProgressTracker:
         """Signal that monitoring can stop regardless of completion state."""
 
         self._finished_event.set()
+        # Flush any throttled progress events before completion
+        self.flush_throttled_events()
         with self._lock:
             total = self._total
             completed = self._completed
@@ -453,6 +520,7 @@ class ProgressTracker:
             observers = list(self._observers)
             observers.append(callback)
             self._observers = observers
+            self._observers_cache = None  # Invalidate cache
 
         def _unregister() -> None:
             with self._lock:
@@ -462,6 +530,7 @@ class ProgressTracker:
                 except ValueError:
                     return
                 self._observers = observers_inner
+                self._observers_cache = None  # Invalidate cache
 
         return _unregister
 
@@ -489,17 +558,49 @@ class ProgressTracker:
         metadata: Optional[Dict[str, object]] = None,
         error: Optional[BaseException] = None,
     ) -> None:
+        now = time.perf_counter()
+
+        # Check throttling for non-priority events
+        if event_type not in self._PRIORITY_EVENT_TYPES and self._throttle_interval > 0:
+            with self._lock:
+                elapsed = now - self._last_progress_emit
+                if elapsed < self._throttle_interval:
+                    # Store throttled event for potential later emission
+                    payload_dict: Dict[str, object] = dict(metadata or {})
+                    # Build snapshot inline to avoid deadlock (snapshot() also acquires lock)
+                    if snapshot is not None:
+                        event_snapshot = snapshot
+                    else:
+                        event_snapshot = self._build_progress_snapshot(
+                            completed=self._completed, total=self._total, now=now
+                        )
+                    self._throttled_event = ProgressEvent(
+                        event_type=event_type,
+                        snapshot=event_snapshot,
+                        timestamp=now,
+                        metadata=MappingProxyType(payload_dict),
+                        error=error,
+                    )
+                    return
+                self._last_progress_emit = now
+                self._throttled_event = None
+
         payload: Dict[str, object] = dict(metadata or {})
         event_snapshot = snapshot or self.snapshot()
         event = ProgressEvent(
             event_type=event_type,
             snapshot=event_snapshot,
-            timestamp=time.perf_counter(),
+            timestamp=now,
             metadata=MappingProxyType(payload),
             error=error,
         )
+
+        # Use cached observer tuple
         with self._lock:
-            observers: Tuple[Callable[[ProgressEvent], None], ...] = tuple(self._observers)
+            if self._observers_cache is None:
+                self._observers_cache = tuple(self._observers)
+            observers = self._observers_cache
+
         for observer in observers:
             try:
                 observer(event)
@@ -530,19 +631,25 @@ class ProgressTracker:
         return remaining, complete
 
     def _build_generated_files_snapshot_locked(self) -> Dict[str, object]:
-        chunks_copy = copy.deepcopy(self._generated_chunks)
+        # Use shallow copy for chunks - they contain primitives and already-copied data
+        # Sort in place on the copy to avoid repeated sorting overhead
+        chunks_copy = [dict(chunk) for chunk in self._generated_chunks]
         chunks_copy.sort(
             key=lambda entry: (
                 int(entry.get("start_sentence") or 0),
                 str(entry.get("chunk_id") or ""),
             )
         )
+        # Build files index with deduplication
         files_index: List[Dict[str, object]] = []
         seen_keys: set[tuple] = set()
         for chunk in chunks_copy:
             chunk_id = chunk.get("chunk_id")
             range_fragment = chunk.get("range_fragment")
-            for file_entry in list(chunk.get("files", [])):
+            files = chunk.get("files")
+            if not files:
+                continue
+            for file_entry in files:
                 path_value = file_entry.get("path")
                 file_type = file_entry.get("type")
                 if not path_value:
@@ -565,32 +672,36 @@ class ProgressTracker:
             "files": files_index,
             "complete": complete,
         }
+        # Shallow copy extras - they typically contain primitives
         if self._generated_files_extras:
             for key, value in self._generated_files_extras.items():
-                payload[key] = copy.deepcopy(value)
+                payload[key] = value if not isinstance(value, (dict, list)) else copy.copy(value)
         return payload
 
     def _build_generated_files_delta_locked(
         self,
         chunk_entry: Mapping[str, object],
     ) -> Dict[str, object]:
-        chunk_copy = copy.deepcopy(dict(chunk_entry))
+        # Shallow copy is sufficient for delta - data was already normalized
+        chunk_copy = dict(chunk_entry)
         files_index: List[Dict[str, object]] = []
         chunk_id = chunk_copy.get("chunk_id")
         range_fragment = chunk_copy.get("range_fragment")
-        for file_entry in list(chunk_copy.get("files", [])):
-            path_value = file_entry.get("path")
-            file_type = file_entry.get("type")
-            if not path_value:
-                continue
-            files_index.append(
-                {
-                    "chunk_id": chunk_id,
-                    "range_fragment": range_fragment,
-                    "type": file_type,
-                    "path": path_value,
-                }
-            )
+        files = chunk_copy.get("files")
+        if files:
+            for file_entry in files:
+                path_value = file_entry.get("path")
+                file_type = file_entry.get("type")
+                if not path_value:
+                    continue
+                files_index.append(
+                    {
+                        "chunk_id": chunk_id,
+                        "range_fragment": range_fragment,
+                        "type": file_type,
+                        "path": path_value,
+                    }
+                )
         _, complete = self._compute_completion_flag_locked()
         return {"chunks": [chunk_copy], "files": files_index, "complete": complete}
 

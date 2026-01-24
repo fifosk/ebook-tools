@@ -131,6 +131,11 @@ class PipelineJobTransitionCoordinator:
                 raise ValueError(
                     f"Job {job.job_id} is missing resume context and cannot be resumed"
                 )
+            # Clear old tracker and last_event to ensure fresh state.
+            # The old tracker may have stale state (completed flags, old observers)
+            # that would cause SSE connections to fail or behave unexpectedly.
+            job.tracker = None
+            job.last_event = None
             stop_event = threading.Event()
             request = self._request_factory.hydrate_request(
                 job,

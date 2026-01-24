@@ -144,9 +144,12 @@ def _hardware_tuning_defaults() -> Dict[str, Any]:
 
 
 def get_hardware_tuning_defaults() -> Dict[str, Any]:
-    """Expose cached hardware-aware tuning suggestions for other modules."""
+    """Expose cached hardware-aware tuning suggestions for other modules.
 
-    return dict(_hardware_tuning_defaults())
+    Returns the cached dict directly. Callers should not modify the returned dict.
+    """
+
+    return _hardware_tuning_defaults()
 
 
 @overload

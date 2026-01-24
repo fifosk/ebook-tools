@@ -152,10 +152,11 @@ def load_job(job_id: str) -> "PipelineJobMetadata":
     return PipelineJobMetadata.from_json(payload)
 
 
-def load_all_jobs() -> Dict[str, "PipelineJobMetadata"]:
-    """Return all persisted job metadata keyed by job identifier."""
+def list_job_ids() -> list[str]:
+    """Return all job identifiers without loading full metadata."""
 
-    records: Dict[str, "PipelineJobMetadata"] = {}
+    job_ids: list[str] = []
+    seen: set[str] = set()
     for storage_dir in _candidate_storage_dirs():
         if not storage_dir.exists():
             continue
@@ -163,18 +164,54 @@ def load_all_jobs() -> Dict[str, "PipelineJobMetadata"]:
             if not job_dir.is_dir():
                 continue
             job_id = job_dir.name
-            if job_id in records:
+            if job_id in seen:
                 continue
             metadata_file = job_dir / "metadata" / "job.json"
             if not metadata_file.exists():
                 continue
-            try:
-                records[job_id] = load_job(job_id)
-            except Exception as exc:  # pragma: no cover - defensive logging
-                _LOGGER.warning(
-                    "Failed to load job metadata",
-                    extra={"job_id": job_id, "error": str(exc)},
-                )
+            seen.add(job_id)
+            job_ids.append(job_id)
+    return job_ids
+
+
+def count_jobs() -> int:
+    """Return total number of stored jobs."""
+
+    return len(list_job_ids())
+
+
+def load_all_jobs(
+    *,
+    offset: int | None = None,
+    limit: int | None = None,
+) -> Dict[str, "PipelineJobMetadata"]:
+    """Return persisted job metadata keyed by job identifier.
+
+    Args:
+        offset: Number of jobs to skip (for pagination).
+        limit: Maximum number of jobs to return.
+
+    Returns:
+        Dict mapping job_id to metadata.
+    """
+
+    job_ids = list_job_ids()
+
+    # Apply pagination to job_ids first (lazy loading)
+    if offset is not None or limit is not None:
+        start = offset or 0
+        end = start + limit if limit is not None else None
+        job_ids = job_ids[start:end]
+
+    records: Dict[str, "PipelineJobMetadata"] = {}
+    for job_id in job_ids:
+        try:
+            records[job_id] = load_job(job_id)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            _LOGGER.warning(
+                "Failed to load job metadata",
+                extra={"job_id": job_id, "error": str(exc)},
+            )
     return records
 
 

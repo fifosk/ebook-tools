@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional
+import threading
+import time
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ... import config_manager as cfg
 from ...translation_engine import ThreadWorkerPool
@@ -14,6 +16,115 @@ _LLM_PROVIDER_ALIASES = {"llm", "ollama", "default"}
 _LLM_BATCH_WORKERS = 1
 
 
+class WorkerPoolCache:
+    """Cache and reuse worker pools to reduce thread creation overhead.
+
+    Pools are cached by their configuration (worker count) and reused
+    when available. Idle pools are cleaned up after a timeout.
+    """
+
+    def __init__(
+        self,
+        *,
+        max_cached_pools: int = 4,
+        idle_timeout: float = 300.0,  # 5 minutes
+    ) -> None:
+        self._max_cached = max(1, max_cached_pools)
+        self._idle_timeout = idle_timeout
+        self._lock = threading.Lock()
+        # List of (pool, worker_count, last_used_time, in_use)
+        self._pools: List[Tuple[ThreadWorkerPool, int, float, bool]] = []
+
+    def acquire(self, max_workers: int) -> Tuple[ThreadWorkerPool, bool]:
+        """Acquire a pool with the specified worker count.
+
+        Args:
+            max_workers: Number of workers needed.
+
+        Returns:
+            Tuple of (pool, is_new) where is_new indicates if pool was created.
+        """
+        with self._lock:
+            # Try to find an available pool with matching worker count
+            for i, (pool, workers, _, in_use) in enumerate(self._pools):
+                if workers == max_workers and not in_use:
+                    self._pools[i] = (pool, workers, time.monotonic(), True)
+                    return pool, False
+
+            # Clean up idle pools if at capacity
+            if len(self._pools) >= self._max_cached:
+                self._cleanup_idle_locked()
+
+            # Create new pool if still at capacity, reuse oldest idle
+            if len(self._pools) >= self._max_cached:
+                for i, (pool, workers, _, in_use) in enumerate(self._pools):
+                    if not in_use:
+                        # Shutdown old pool and create new one
+                        try:
+                            pool.shutdown(wait=False)
+                        except Exception:
+                            pass
+                        new_pool = ThreadWorkerPool(max_workers=max_workers)
+                        self._pools[i] = (new_pool, max_workers, time.monotonic(), True)
+                        return new_pool, True
+
+        # Create new pool
+        pool = ThreadWorkerPool(max_workers=max_workers)
+        with self._lock:
+            if len(self._pools) < self._max_cached:
+                self._pools.append((pool, max_workers, time.monotonic(), True))
+        return pool, True
+
+    def release(self, pool: ThreadWorkerPool) -> None:
+        """Release a pool back to the cache for reuse."""
+        with self._lock:
+            for i, (p, workers, _, in_use) in enumerate(self._pools):
+                if p is pool:
+                    self._pools[i] = (p, workers, time.monotonic(), False)
+                    return
+            # Pool not in cache (was created when at capacity), shut it down
+        try:
+            pool.shutdown(wait=False)
+        except Exception:
+            pass
+
+    def _cleanup_idle_locked(self) -> None:
+        """Remove pools that have been idle too long. Must hold lock."""
+        now = time.monotonic()
+        to_remove = []
+        for i, (pool, _, last_used, in_use) in enumerate(self._pools):
+            if not in_use and (now - last_used) > self._idle_timeout:
+                to_remove.append(i)
+                try:
+                    pool.shutdown(wait=False)
+                except Exception:
+                    pass
+        for i in reversed(to_remove):
+            self._pools.pop(i)
+
+    def shutdown_all(self) -> None:
+        """Shutdown all cached pools."""
+        with self._lock:
+            for pool, _, _, _ in self._pools:
+                try:
+                    pool.shutdown(wait=False)
+                except Exception:
+                    pass
+            self._pools.clear()
+
+    @property
+    def cached_count(self) -> int:
+        """Return number of pools in cache."""
+        with self._lock:
+            return len(self._pools)
+
+    @property
+    def in_use_count(self) -> int:
+        """Return number of pools currently in use."""
+        with self._lock:
+            return sum(1 for _, _, _, in_use in self._pools if in_use)
+
+
 class PipelineJobTuner:
     """Encapsulate worker sizing and tuning behaviour for jobs."""
 
@@ -22,9 +133,14 @@ class PipelineJobTuner:
         *,
         worker_pool_factory: Optional[Callable[[PipelineRequest], ThreadWorkerPool]] = None,
         executor_slots_getter: Optional[Callable[[], Optional[int]]] = None,
+        pool_cache: Optional[WorkerPoolCache] = None,
+        enable_pool_caching: bool = True,
     ) -> None:
         self._worker_pool_factory = worker_pool_factory or self._default_worker_pool_factory
         self._executor_slots_getter = executor_slots_getter or (lambda: None)
+        self._pool_cache = pool_cache if enable_pool_caching else None
+        if self._pool_cache is None and enable_pool_caching:
+            self._pool_cache = WorkerPoolCache()
 
     def build_tuning_summary(self, request: PipelineRequest) -> Dict[str, Any]:
         summary: Dict[str, Any] = {}
@@ -74,6 +190,14 @@ class PipelineJobTuner:
     def acquire_worker_pool(
         self, job: PipelineJob
     ) -> tuple[Optional[ThreadWorkerPool], bool]:
+        """Acquire a worker pool for the job, using cache if available.
+
+        Args:
+            job: The pipeline job needing a worker pool.
+
+        Returns:
+            Tuple of (pool, is_new) where is_new indicates if pool was created.
+        """
         request = job.request
         if request is None:
             return None, False
@@ -81,10 +205,49 @@ class PipelineJobTuner:
             pool = request.translation_pool
             self._maybe_update_translation_pool_summary(job, pool)
             return pool, False
-        pool = self._worker_pool_factory(request)
+
+        # Determine required worker count
+        max_workers = self._resolve_thread_count(request)
+        if max_workers is None:
+            max_workers = 4  # Default fallback
+
+        # Try to get pool from cache
+        if self._pool_cache is not None:
+            pool, is_new = self._pool_cache.acquire(max_workers)
+        else:
+            pool = self._worker_pool_factory(request)
+            is_new = True
+
         request.translation_pool = pool
         self._maybe_update_translation_pool_summary(job, pool)
-        return pool, True
+        return pool, is_new
+
+    def release_worker_pool(self, job: PipelineJob) -> None:
+        """Release a job's worker pool back to the cache for reuse.
+
+        Should be called when job completes or is cancelled.
+
+        Args:
+            job: The pipeline job whose pool should be released.
+        """
+        request = job.request
+        if request is None:
+            return
+        pool = request.translation_pool
+        if pool is None:
+            return
+
+        # Clear the reference so pool isn't used after release
+        request.translation_pool = None
+
+        if self._pool_cache is not None:
+            self._pool_cache.release(pool)
+        else:
+            # No cache, shutdown directly
+            try:
+                pool.shutdown(wait=False)
+            except Exception:
+                pass
 
     def _default_worker_pool_factory(self, request: PipelineRequest) -> ThreadWorkerPool:
         max_workers = self._resolve_thread_count(request)
@@ -193,3 +356,19 @@ class PipelineJobTuner:
                 return recommended
             return None
         return value
+
+    def shutdown(self) -> None:
+        """Shutdown the tuner and release all cached resources."""
+        if self._pool_cache is not None:
+            self._pool_cache.shutdown_all()
+
+    @property
+    def pool_cache_stats(self) -> Dict[str, int]:
+        """Return statistics about the worker pool cache."""
+        if self._pool_cache is None:
+            return {"enabled": 0, "cached": 0, "in_use": 0}
+        return {
+            "enabled": 1,
+            "cached": self._pool_cache.cached_count,
+            "in_use": self._pool_cache.in_use_count,
+        }

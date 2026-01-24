@@ -560,10 +560,34 @@ class PipelineService:
         *,
         user_id: Optional[str] = None,
         user_role: Optional[str] = None,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
     ) -> Dict[str, "PipelineJob"]:
-        """Return a mapping of all known job handles."""
+        """Return a mapping of all known job handles.
 
-        return self._job_manager.list(user_id=user_id, user_role=user_role)
+        Args:
+            user_id: User ID for access filtering.
+            user_role: User role for access filtering.
+            offset: Number of jobs to skip (pagination).
+            limit: Maximum number of jobs to return.
+        """
+
+        return self._job_manager.list(
+            user_id=user_id,
+            user_role=user_role,
+            offset=offset,
+            limit=limit,
+        )
+
+    def count_jobs(
+        self,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> int:
+        """Return total number of jobs visible to the user."""
+
+        return self._job_manager.count(user_id=user_id, user_role=user_role)
 
     def pause_job(
         self,

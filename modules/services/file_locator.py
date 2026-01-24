@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from pathlib import Path, PurePosixPath
 from typing import Callable, Optional, Union
 from urllib.parse import quote
@@ -23,8 +24,12 @@ _ALLOWED_FRAGMENT_CHARS = {
 }
 
 
+@lru_cache(maxsize=256)
 def _sanitize_fragment(value: str) -> str:
-    """Return a filesystem-safe fragment for ``value``."""
+    """Return a filesystem-safe fragment for ``value``.
+
+    Cached to avoid repeated string processing for the same job_id.
+    """
 
     if not value:
         return "job"
@@ -42,6 +47,7 @@ class FileLocator:
         storage_dir: Optional[PathLikeStr] = None,
         base_url: Optional[str] = None,
         settings_provider: Optional[Callable[[], object]] = None,
+        path_cache_size: int = 256,
     ) -> None:
         self._settings_provider = settings_provider or cfg.get_settings
         settings = self._settings_provider()
@@ -57,6 +63,9 @@ class FileLocator:
         if base_url_candidate is None:
             base_url_candidate = getattr(settings, "storage_base_url", "")
         self._base_url = (base_url_candidate or "").rstrip("/")
+
+        # Create instance-specific cached job_root method
+        self._job_root_cached = lru_cache(maxsize=path_cache_size)(self._compute_job_root)
 
     @staticmethod
     def _normalize_root(path_value: PathLikeStr) -> Path:
@@ -107,24 +116,31 @@ class FileLocator:
             raise ValueError("file_name must be a relative path inside the metadata directory")
         return base_path / relative
 
-    def job_root(self, job_id: str) -> Path:
+    def _compute_job_root(self, job_id: str) -> Path:
+        """Internal method for computing job root path (cached via lru_cache)."""
         return self._storage_root / _sanitize_fragment(job_id)
 
+    def job_root(self, job_id: str) -> Path:
+        """Return the root directory for ``job_id``. Result is cached."""
+        return self._job_root_cached(job_id)
+
     def media_root(self, job_id: str) -> Path:
-        return self.job_root(job_id) / "media"
+        return self._job_root_cached(job_id) / "media"
 
     def metadata_root(self, job_id: str) -> Path:
-        return self.job_root(job_id) / "metadata"
+        return self._job_root_cached(job_id) / "metadata"
 
     def data_root(self, job_id: str) -> Path:
         """Return the directory that stores source inputs for ``job_id``."""
-
-        return self.job_root(job_id) / "data"
+        return self._job_root_cached(job_id) / "data"
 
     def subtitles_root(self, job_id: str) -> Path:
         """Return the directory that stores generated subtitle files for ``job_id``."""
+        return self._job_root_cached(job_id) / "subtitles"
 
-        return self.job_root(job_id) / "subtitles"
+    def clear_path_cache(self) -> None:
+        """Clear the cached path resolutions."""
+        self._job_root_cached.cache_clear()
 
     def resolve_url(
         self, job_id: str, path: Optional[PathLikeStr] = None

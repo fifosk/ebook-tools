@@ -29,8 +29,10 @@ from ...permissions import (
     is_admin_role,
     resolve_access_policy,
 )
+from .dynamic_executor import DynamicThreadPoolExecutor
 from .job import PipelineJob, PipelineJobStatus
 from .lifecycle import compute_resume_context
+from .locking import JobLockManager
 from .metadata import PipelineJobMetadata
 from .metadata_refresher import PipelineJobMetadataRefresher
 from .persistence import PipelineJobPersistence
@@ -41,6 +43,13 @@ from .execution_adapter import PipelineExecutionAdapter
 from .executor import PipelineJobExecutor, PipelineJobExecutorHooks
 from .request_factory import PipelineRequestFactory
 from .transition_coordinator import PipelineJobTransitionCoordinator
+from .backpressure import (
+    BackpressureAction,
+    BackpressureController,
+    BackpressurePolicy,
+    BackpressureState,
+    QueueFullError,
+)
 
 logger = log_mgr.logger
 
@@ -51,17 +60,26 @@ class PipelineJobManager:
         self,
         *,
         max_workers: Optional[int] = None,
+        min_workers: Optional[int] = None,
+        dynamic_scaling: Optional[bool] = None,
         store: Optional[JobStore] = None,
         worker_pool_factory: Optional[Callable[[PipelineRequest], ThreadWorkerPool]] = None,
         storage_coordinator: Optional[JobStorageCoordinator] = None,
         tuner: Optional[PipelineJobTuner] = None,
         execution_adapter: Optional[PipelineExecutionAdapter] = None,
         file_locator: Optional[FileLocator] = None,
+        backpressure_policy: Optional[BackpressurePolicy] = None,
+        enable_backpressure: bool = True,
     ) -> None:
+        # Fine-grained locking: per-job locks reduce contention
+        self._job_locks = JobLockManager()
+        # Global lock for registry operations (backwards compatibility)
         self._lock = threading.RLock()
         self._jobs: Dict[str, PipelineJob] = {}
         self._job_handlers: Dict[str, Callable[[str], None]] = {}
         self._custom_workers: Dict[str, Callable[[PipelineJob], None]] = {}
+        # Event deduplication: track last stored event signature per job
+        self._last_event_sig: Dict[str, tuple] = {}
         settings = cfg.get_settings()
         configured_workers = max_workers if max_workers is not None else settings.job_max_workers
         if max_workers is None:
@@ -77,7 +95,56 @@ class PipelineJobManager:
             ):
                 configured_workers = recommended_workers
         resolved_workers = max(1, int(configured_workers))
-        self._executor = ThreadPoolExecutor(max_workers=resolved_workers)
+
+        # Determine if dynamic scaling should be used
+        use_dynamic = dynamic_scaling
+        if use_dynamic is None:
+            use_dynamic = getattr(settings, "job_dynamic_scaling", False)
+
+        if use_dynamic:
+            resolved_min = min_workers if min_workers is not None else max(1, resolved_workers // 2)
+            self._executor = DynamicThreadPoolExecutor(
+                min_workers=resolved_min,
+                max_workers=resolved_workers,
+                scale_up_threshold=2,
+                scale_check_interval=1.0,
+            )
+        else:
+            self._executor = ThreadPoolExecutor(max_workers=resolved_workers)
+
+        # Initialize backpressure controller
+        def _get_queue_depth() -> int:
+            if hasattr(self._executor, "queue_depth"):
+                return self._executor.queue_depth
+            # For ThreadPoolExecutor, estimate from pending jobs
+            with self._lock:
+                return sum(
+                    1 for j in self._jobs.values()
+                    if j.status == PipelineJobStatus.PENDING
+                )
+
+        def _get_active_count() -> int:
+            if hasattr(self._executor, "active_count"):
+                return self._executor.active_count
+            with self._lock:
+                return sum(
+                    1 for j in self._jobs.values()
+                    if j.status == PipelineJobStatus.RUNNING
+                )
+
+        if enable_backpressure:
+            policy = backpressure_policy or BackpressurePolicy(
+                soft_limit=resolved_workers * 2,
+                hard_limit=resolved_workers * 10,
+            )
+            self._backpressure = BackpressureController(
+                policy=policy,
+                queue_depth_getter=_get_queue_depth,
+                active_count_getter=_get_active_count,
+            )
+        else:
+            self._backpressure = None
+
         self._storage = storage_coordinator or JobStorageCoordinator(store=store)
         self._store = self._storage.store
         executor_slots_getter = lambda: getattr(self._executor, "_max_workers", None)
@@ -214,8 +281,35 @@ class PipelineJobManager:
         *,
         user_id: Optional[str] = None,
         user_role: Optional[str] = None,
+        bypass_backpressure: bool = False,
     ) -> PipelineJob:
-        """Register ``request`` for background execution."""
+        """Register ``request`` for background execution.
+
+        Args:
+            request: The pipeline request to execute.
+            user_id: Optional user ID for access control.
+            user_role: Optional user role for access control.
+            bypass_backpressure: If True, skip backpressure checks.
+
+        Returns:
+            The created PipelineJob.
+
+        Raises:
+            QueueFullError: If backpressure rejects the submission.
+        """
+        # Apply backpressure if enabled
+        if self._backpressure is not None and not bypass_backpressure:
+            action, delay = self._backpressure.check()
+            if action == BackpressureAction.REJECT:
+                state = self._backpressure.get_state()
+                raise QueueFullError(
+                    "Job queue is full, try again later",
+                    queue_depth=state.queue_depth,
+                    hard_limit=self._backpressure.policy.hard_limit,
+                )
+            elif action == BackpressureAction.DELAY and delay > 0:
+                import time
+                time.sleep(delay)
 
         job_id = str(uuid4())
         tracker = request.progress_tracker or ProgressTracker()
@@ -308,6 +402,11 @@ class PipelineJobManager:
             )
 
         self._executor.submit(self._dispatch_execution, job_id)
+
+        # Record submission for backpressure tracking
+        if self._backpressure is not None:
+            self._backpressure.record_submission()
+
         return job
 
     def submit_background_job(
@@ -321,8 +420,40 @@ class PipelineJobManager:
         user_id: Optional[str] = None,
         user_role: Optional[str] = None,
         setup: Optional[Callable[[PipelineJob], None]] = None,
+        bypass_backpressure: bool = False,
     ) -> PipelineJob:
-        """Register a non-pipeline job for asynchronous execution."""
+        """Register a non-pipeline job for asynchronous execution.
+
+        Args:
+            job_type: Type identifier for the job.
+            worker: The callable to execute for this job.
+            tracker: Optional progress tracker.
+            stop_event: Optional stop event for cancellation.
+            request_payload: Optional payload to persist with the job.
+            user_id: Optional user ID for access control.
+            user_role: Optional user role for access control.
+            setup: Optional setup callback before execution.
+            bypass_backpressure: If True, skip backpressure checks.
+
+        Returns:
+            The created PipelineJob.
+
+        Raises:
+            QueueFullError: If backpressure rejects the submission.
+        """
+        # Apply backpressure if enabled
+        if self._backpressure is not None and not bypass_backpressure:
+            action, delay = self._backpressure.check()
+            if action == BackpressureAction.REJECT:
+                state = self._backpressure.get_state()
+                raise QueueFullError(
+                    "Job queue is full, try again later",
+                    queue_depth=state.queue_depth,
+                    hard_limit=self._backpressure.policy.hard_limit,
+                )
+            elif action == BackpressureAction.DELAY and delay > 0:
+                import time
+                time.sleep(delay)
 
         normalized_type = job_type or "custom"
         job_id = str(uuid4())
@@ -363,6 +494,11 @@ class PipelineJobManager:
 
         self._log_generic_job_submitted(job)
         self._executor.submit(self._dispatch_execution, job_id)
+
+        # Record submission for backpressure tracking
+        if self._backpressure is not None:
+            self._backpressure.record_submission()
+
         return job
 
     @property
@@ -421,10 +557,38 @@ class PipelineJobManager:
 
     def _store_event(self, job_id: str, event: ProgressEvent) -> None:
         metadata = dict(event.metadata)
-        with self._lock:
-            job = self._jobs.get(job_id)
-            if job is None:
+        # Build event signature for deduplication
+        # Include fields that indicate meaningful progress change
+        stage = metadata.get("stage")
+        has_generated = metadata.get("generated_files") is not None
+        event_sig = (
+            event.event_type,
+            event.snapshot.completed,
+            event.snapshot.total,
+            stage,
+            has_generated,
+        )
+
+        # Use per-job lock instead of global lock for better concurrency
+        # This allows multiple jobs to process events simultaneously
+        with self._job_locks.job_lock(job_id):
+            # Quick check with global lock to get job reference
+            with self._lock:
+                job = self._jobs.get(job_id)
+                if job is None:
+                    return
+
+            # Skip persistence if event hasn't changed meaningfully
+            # Always persist: complete/error events, events with generated_files
+            last_sig = self._last_event_sig.get(job_id)
+            is_terminal = event.event_type in ("complete", "error")
+            if last_sig == event_sig and not is_terminal and not has_generated:
+                # Update job.last_event but skip expensive persistence
+                job.last_event = event
                 return
+
+            self._last_event_sig[job_id] = event_sig
+
             if job.status == PipelineJobStatus.RUNNING:
                 resume_context = compute_resume_context(job)
                 if resume_context is not None:
@@ -464,7 +628,12 @@ class PipelineJobManager:
         handler = self._job_handlers.get(job_id)
         if handler is None:
             handler = self._execute_orphaned
-        handler(job_id)
+        try:
+            handler(job_id)
+        finally:
+            # Record completion for backpressure tracking
+            if self._backpressure is not None:
+                self._backpressure.record_completion()
 
     def _job_correlation_id(self, job: PipelineJob) -> Optional[str]:
         request = job.request
@@ -933,6 +1102,9 @@ class PipelineJobManager:
             user_id=user_id,
             user_role=user_role,
         )
+        # Clean up event deduplication cache and per-job lock
+        self._last_event_sig.pop(job_id, None)
+        self._job_locks.remove_job_lock(job_id)
         job_root = self._file_locator.job_root(job.job_id)
         try:
             shutil.rmtree(job_root)
@@ -969,15 +1141,51 @@ class PipelineJobManager:
             result_payload=result_payload,
         )
 
+    def count(
+        self,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> int:
+        """Return total number of jobs visible to the user.
+
+        For admins, returns total count. For other users, returns count of
+        jobs they can view (which requires loading all jobs for filtering).
+        """
+
+        if self._is_admin(user_role):
+            # Fast path for admins: use store count
+            return self._store.count()
+        # For non-admins, we need to filter - fall back to full list
+        return len(self.list(user_id=user_id, user_role=user_role))
+
     def list(
         self,
         *,
         user_id: Optional[str] = None,
         user_role: Optional[str] = None,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
     ) -> Dict[str, PipelineJob]:
-        """Return a snapshot mapping of jobs respecting role-based visibility."""
+        """Return a snapshot mapping of jobs respecting role-based visibility.
 
-        stored = self._store.list()
+        Args:
+            user_id: The requesting user's ID for access control.
+            user_role: The requesting user's role for access control.
+            offset: Number of jobs to skip (pagination). Applied after access filtering.
+            limit: Maximum number of jobs to return. Applied after access filtering.
+
+        Note: For non-admin users, pagination is applied after access filtering,
+        so all jobs must be loaded to determine visible set. For admins, pagination
+        can be applied at the store level for better performance.
+        """
+
+        # For admins, we can use store-level pagination
+        if self._is_admin(user_role) and (offset is not None or limit is not None):
+            stored = self._store.list(offset=offset, limit=limit)
+        else:
+            stored = self._store.list()
+
         with self._lock:
             active_jobs = dict(self._jobs)
             terminal_states = {
@@ -994,11 +1202,15 @@ class PipelineJobManager:
             for job_id in stale_job_ids:
                 self._jobs.pop(job_id, None)
                 active_jobs.pop(job_id, None)
+                self._last_event_sig.pop(job_id, None)
+                self._job_locks.remove_job_lock(job_id)
         for job_id, metadata in stored.items():
             active_jobs.setdefault(job_id, self._persistence.build_job(metadata))
 
         if self._is_admin(user_role):
             return active_jobs
+
+        # For non-admins, filter by access then paginate
         filtered: Dict[str, PipelineJob] = {}
         for job_id, job in active_jobs.items():
             default_visibility = "private" if job.user_id else "public"
@@ -1011,6 +1223,14 @@ class PipelineJobManager:
                 permission="view",
             ):
                 filtered[job_id] = job
+
+        # Apply pagination after filtering for non-admins
+        if offset is not None or limit is not None:
+            items = list(filtered.items())
+            start = offset or 0
+            end = start + limit if limit is not None else None
+            filtered = dict(items[start:end])
+
         return filtered
 
     def refresh_metadata(
@@ -1050,3 +1270,56 @@ class PipelineJobManager:
             self._store.update(self._persistence.snapshot(job))
 
         return job
+
+    def shutdown(self, *, wait: bool = True) -> None:
+        """Shutdown the manager and release all resources.
+
+        Args:
+            wait: If True, wait for pending jobs to complete before shutting down.
+        """
+        # Shutdown executor
+        try:
+            self._executor.shutdown(wait=wait)
+        except Exception:  # pragma: no cover - defensive
+            pass
+
+        # Shutdown tuner (releases cached worker pools)
+        try:
+            self._tuner.shutdown()
+        except Exception:  # pragma: no cover - defensive
+            pass
+
+        # Shutdown storage coordinator if it has a shutdown method
+        if hasattr(self._storage, "shutdown"):
+            try:
+                self._storage.shutdown()
+            except Exception:  # pragma: no cover - defensive
+                pass
+
+    @property
+    def pool_cache_stats(self) -> dict:
+        """Return statistics about the worker pool cache."""
+        return self._tuner.pool_cache_stats
+
+    @property
+    def backpressure_state(self) -> Optional[BackpressureState]:
+        """Return current backpressure state, or None if disabled."""
+        if self._backpressure is None:
+            return None
+        return self._backpressure.get_state()
+
+    @property
+    def is_accepting_jobs(self) -> bool:
+        """Return True if the manager is accepting new job submissions."""
+        if self._backpressure is None:
+            return True
+        return self._backpressure.is_accepting()
+
+    def update_backpressure_policy(self, policy: BackpressurePolicy) -> None:
+        """Update the backpressure policy at runtime.
+
+        Args:
+            policy: The new backpressure policy to apply.
+        """
+        if self._backpressure is not None:
+            self._backpressure.update_policy(policy)
