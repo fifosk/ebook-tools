@@ -2,7 +2,7 @@ import AVFoundation
 import Foundation
 
 @MainActor
-final class VideoPlayerCoordinator: ObservableObject {
+final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
     @Published private(set) var currentTime: Double = 0
     @Published private(set) var duration: Double = 0
     @Published private(set) var isPlaying: Bool = false

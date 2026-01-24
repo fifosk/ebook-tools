@@ -2,6 +2,7 @@ import AVFoundation
 
 final class PronunciationSpeaker: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
+    private let speechQueue = DispatchQueue(label: "com.interactivereader.speech", qos: .userInitiated)
     private var audioPlayer: AVAudioPlayer?
 
     func playAudio(_ data: Data) {
@@ -28,12 +29,16 @@ final class PronunciationSpeaker: NSObject, ObservableObject, AVAudioPlayerDeleg
             utterance.voice = voice
         }
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-        synthesizer.speak(utterance)
+        speechQueue.async { [weak self] in
+            self?.synthesizer.speak(utterance)
+        }
     }
 
     func stop() {
-        if synthesizer.isSpeaking {
-            synthesizer.stopSpeaking(at: .immediate)
+        // Dispatch synthesizer operations to dedicated queue to avoid priority inversion
+        // when called from UI-interactive threads
+        speechQueue.async { [weak self] in
+            self?.synthesizer.stopSpeaking(at: .immediate)
         }
         audioPlayer?.stop()
         audioPlayer = nil

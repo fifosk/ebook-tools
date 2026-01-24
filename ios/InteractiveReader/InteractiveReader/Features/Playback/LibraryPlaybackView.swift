@@ -14,22 +14,12 @@ struct LibraryPlaybackView: View {
 
     @StateObject private var viewModel = InteractivePlayerViewModel()
     @StateObject private var nowPlaying = NowPlayingCoordinator()
+    @State private var resumeManager: PlaybackResumeManager?
     @State private var sentenceIndexTracker = SentenceIndexTracker()
     @State private var showImageReel = true
-    @State private var pendingResumeEntry: PlaybackResumeEntry?
-    @State private var showResumePrompt = false
-    @State private var videoResumeTime: Double?
-    @State private var videoResumeActionID = UUID()
-    @State private var videoAutoPlay = false
-    @State private var lastRecordedSentence: Int?
-    @State private var lastRecordedTimeBucket: Int?
-    @State private var lastVideoTime: Double = 0
-    @State private var resumeDecisionPending = false
     #if !os(tvOS)
     @State private var showVideoPlayer = false
     #endif
-
-    private let summaryLengthLimit: Int = 320
 
     init(item: LibraryItem, autoPlayOnLoad: Binding<Bool> = .constant(true)) {
         self.item = item
@@ -66,7 +56,7 @@ struct LibraryPlaybackView: View {
             guard newPhase != .active else { return }
             persistResumeOnExit()
         }
-        .alert("Resume playback?", isPresented: $showResumePrompt, presenting: pendingResumeEntry) { entry in
+        .alert("Resume playback?", isPresented: resumeShowPromptBinding, presenting: resumeManager?.pendingResumeEntry) { entry in
             Button("Resume") {
                 applyResume(entry)
             }
@@ -74,9 +64,24 @@ struct LibraryPlaybackView: View {
                 startOver()
             }
         } message: { entry in
-            Text(resumePromptMessage(for: entry))
+            if let manager = resumeManager {
+                Text(manager.resumePromptMessage(for: entry))
+            }
         }
     }
+
+    private var resumeShowPromptBinding: Binding<Bool> {
+        Binding(
+            get: { resumeManager?.showResumePrompt ?? false },
+            set: { resumeManager?.showResumePrompt = $0 }
+        )
+    }
+
+    // Computed properties for resume manager values
+    private var videoAutoPlay: Bool { resumeManager?.videoAutoPlay ?? false }
+    private var videoResumeTime: Double? { resumeManager?.videoResumeTime }
+    private var videoResumeActionID: UUID { resumeManager?.videoResumeActionID ?? UUID() }
+    private var resumeUserId: String? { appState.resumeUserKey }
 
     private var navigationTitleText: String {
         shouldHideNavigationTitle ? "" : item.bookTitle
@@ -527,88 +532,37 @@ struct LibraryPlaybackView: View {
 
     private func metadataString(for keys: [String], maxDepth: Int = 4) -> String? {
         guard let metadata = item.metadata else { return nil }
-        return metadataString(in: metadata, keys: keys, maxDepth: maxDepth)
-    }
-
-    private func metadataString(
-        in metadata: [String: JSONValue],
-        keys: [String],
-        maxDepth: Int
-    ) -> String? {
-        for key in keys {
-            if let found = metadataString(in: metadata, key: key, maxDepth: maxDepth) {
-                return found
-            }
-        }
-        return nil
-    }
-
-    private func metadataString(
-        in metadata: [String: JSONValue],
-        key: String,
-        maxDepth: Int
-    ) -> String? {
-        if let value = metadata[key]?.stringValue {
-            return value
-        }
-        guard maxDepth > 0 else { return nil }
-        for value in metadata.values {
-            if let nested = value.objectValue {
-                if let found = metadataString(in: nested, key: key, maxDepth: maxDepth - 1) {
-                    return found
-                }
-            }
-            if case let .array(items) = value {
-                for entry in items {
-                    if let nested = entry.objectValue,
-                       let found = metadataString(in: nested, key: key, maxDepth: maxDepth - 1) {
-                        return found
-                    }
-                }
-            }
-        }
-        return nil
-    }
-
-    private func extractTvMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
-        let paths: [[String]] = [
-            ["result", "youtube_dub", "media_metadata"],
-            ["result", "subtitle", "metadata", "media_metadata"],
-            ["request", "media_metadata"],
-            ["media_metadata"]
-        ]
-        for path in paths {
-            if let value = nestedValue(metadata, path: path)?.objectValue {
-                return value
-            }
-        }
-        return nil
-    }
-
-    private func nestedValue(_ source: [String: JSONValue], path: [String]) -> JSONValue? {
-        var current: JSONValue = .object(source)
-        for key in path {
-            guard let object = current.objectValue, let next = object[key] else { return nil }
-            current = next
-        }
-        return current
+        return PlaybackMetadataHelpers.metadataString(in: metadata, keys: keys, maxDepth: maxDepth)
     }
 
     private func normalizedSummary(_ value: String?) -> String? {
-        guard var value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !value.isEmpty
-        else {
-            return nil
+        PlaybackMetadataHelpers.normalizedSummary(value)
+    }
+
+    private var resolvedTvMetadata: [String: JSONValue]? {
+        guard let metadata = item.metadata else { return nil }
+        return PlaybackMetadataHelpers.extractTvMediaMetadata(from: metadata)
+    }
+
+    private var isTvSeriesMetadata: Bool {
+        PlaybackMetadataHelpers.isTvSeriesMetadata(resolvedTvMetadata)
+    }
+
+    private var resolvedYoutubeMetadata: [String: JSONValue]? {
+        if let tvMetadata = resolvedTvMetadata,
+           let youtube = tvMetadata["youtube"]?.objectValue {
+            return youtube
         }
-        value = value.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
-        value = value.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { return nil }
-        if value.count > summaryLengthLimit {
-            let cutoff = max(summaryLengthLimit - 3, 0)
-            value = String(value.prefix(cutoff)).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
-        }
-        return value
+        guard let metadata = item.metadata else { return nil }
+        return metadata["youtube"]?.objectValue
+    }
+
+    private var resolvedYoutubeSummary: String? {
+        PlaybackMetadataHelpers.youtubeSummary(from: resolvedYoutubeMetadata)
+    }
+
+    private var resolvedTvSummary: String? {
+        PlaybackMetadataHelpers.tvSummary(from: resolvedTvMetadata)
     }
 
     private var imageReelURLs: [URL] {
@@ -668,51 +622,6 @@ struct LibraryPlaybackView: View {
 
     private var translationModelLabel: String? {
         metadataString(for: ["llm_model", "ollama_model"])?.nonEmptyValue
-    }
-
-    private var resolvedTvMetadata: [String: JSONValue]? {
-        guard let metadata = item.metadata else { return nil }
-        return extractTvMediaMetadata(from: metadata)
-    }
-
-    private var isTvSeriesMetadata: Bool {
-        guard let tvMetadata = resolvedTvMetadata else { return false }
-        if let kind = tvMetadata["kind"]?.stringValue?.lowercased(),
-           kind == "tv_episode" {
-            return true
-        }
-        if tvMetadata["show"]?.objectValue != nil || tvMetadata["episode"]?.objectValue != nil {
-            return true
-        }
-        return false
-    }
-
-    private var resolvedYoutubeMetadata: [String: JSONValue]? {
-        if let tvMetadata = resolvedTvMetadata,
-           let youtube = tvMetadata["youtube"]?.objectValue {
-            return youtube
-        }
-        guard let metadata = item.metadata else { return nil }
-        return metadata["youtube"]?.objectValue
-    }
-
-    private var resolvedYoutubeSummary: String? {
-        let summary = resolvedYoutubeMetadata?["summary"]?.stringValue
-        let description = resolvedYoutubeMetadata?["description"]?.stringValue
-        return normalizedSummary(summary ?? description)
-    }
-
-    private var resolvedTvSummary: String? {
-        guard let tvMetadata = resolvedTvMetadata else { return nil }
-        if let episode = tvMetadata["episode"]?.objectValue,
-           let summary = episode["summary"]?.stringValue {
-            return normalizedSummary(summary)
-        }
-        if let show = tvMetadata["show"]?.objectValue,
-           let summary = show["summary"]?.stringValue {
-            return normalizedSummary(summary)
-        }
-        return nil
     }
 
     private var bookSummary: String? {
@@ -818,11 +727,24 @@ struct LibraryPlaybackView: View {
     @MainActor
     private func loadEntry() async {
         guard let configuration = appState.configuration else { return }
-        resetResumeState()
+
+        // Initialize resume manager
+        let manager = PlaybackResumeManager(
+            jobId: item.jobId,
+            itemType: item.itemType,
+            userId: appState.resumeUserKey,
+            userAliases: appState.resumeUserAliases
+        )
+        resumeManager = manager
+        manager.resetState()
+
         let shouldAutoPlay = autoPlayOnLoad
         autoPlayOnLoad = false
-        resumeDecisionPending = true
         sentenceIndexTracker.value = nil
+        #if !os(tvOS)
+        showVideoPlayer = false
+        #endif
+
         let offlinePayload = await offlineStore.cachedPayload(for: item.jobId, kind: .library)
         if let offlinePayload,
            let localResolver = offlineStore.localResolver(for: .library, configuration: configuration) {
@@ -854,18 +776,16 @@ struct LibraryPlaybackView: View {
             updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)
             updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         }
-        if let userId = resumeUserId {
-            await PlaybackResumeStore.shared.syncNow(userId: userId, aliases: appState.resumeUserAliases)
-        }
-        if let resumeEntry = resolveResumeEntry() {
-            pendingResumeEntry = resumeEntry
-            showResumePrompt = true
+        await manager.syncNow()
+        if let resumeEntry = manager.resolveResumeEntry(isVideoPreferred: isVideoPreferred) {
+            manager.pendingResumeEntry = resumeEntry
+            manager.showResumePrompt = true
             if isVideoPreferred {
-                videoAutoPlay = false
+                manager.videoAutoPlay = false
             }
             return
         }
-        resumeDecisionPending = false
+        manager.markResumeDecisionComplete()
         if shouldAutoPlay {
             startPlaybackFromBeginning()
         }
@@ -921,9 +841,7 @@ struct LibraryPlaybackView: View {
                 sentenceIndexTracker.value = resolvedIndex
                 updateNowPlayingMetadata(sentenceIndex: resolvedIndex)
             }
-            if !resumeDecisionPending {
-                recordInteractiveResume(sentenceIndex: resolvedIndex)
-            }
+            resumeManager?.recordInteractiveResume(sentenceIndex: resolvedIndex)
         }
         let playbackDuration = viewModel.selectedChunk.flatMap { viewModel.playbackDuration(for: $0) } ?? viewModel.audioCoordinator.duration
         let playbackTime = highlightTime.isFinite ? highlightTime : time
@@ -937,7 +855,7 @@ struct LibraryPlaybackView: View {
     private func addNowPlayingBookmark() {
         guard let chunk = viewModel.selectedChunk else { return }
         let jobId = item.jobId
-        let userId = resumeUserId?.nonEmptyValue ?? "anonymous"
+        let userId = appState.resumeUserKey?.nonEmptyValue ?? "anonymous"
         let playbackTime = viewModel.playbackTime(for: chunk)
         let activeSentence = viewModel.activeSentence(at: viewModel.highlightingTime)
         let sentenceNumber = activeSentence?.displayIndex ?? activeSentence?.id
@@ -1016,33 +934,7 @@ struct LibraryPlaybackView: View {
         return String(format: "%02d:%02d", minutes, remainingSeconds)
     }
 
-    private var resumeUserId: String? {
-        appState.resumeUserKey
-    }
-
-    private func resetResumeState() {
-        pendingResumeEntry = nil
-        showResumePrompt = false
-        videoResumeTime = nil
-        videoResumeActionID = UUID()
-        videoAutoPlay = false
-        lastRecordedSentence = nil
-        lastRecordedTimeBucket = nil
-        lastVideoTime = 0
-        #if !os(tvOS)
-        showVideoPlayer = false
-        #endif
-    }
-
-    private func resolveResumeEntry() -> PlaybackResumeEntry? {
-        guard let userId = resumeUserId else { return nil }
-        guard let entry = PlaybackResumeStore.shared.entry(for: item.jobId, userId: userId) else { return nil }
-        guard entry.isMeaningful else { return nil }
-        if isVideoPreferred {
-            return entry.kind == .time ? entry : nil
-        }
-        return entry.kind == .sentence ? entry : nil
-    }
+    // MARK: - Resume Actions
 
     private func startPlaybackFromBeginning() {
         if isVideoPreferred {
@@ -1053,9 +945,7 @@ struct LibraryPlaybackView: View {
     }
 
     private func applyResume(_ entry: PlaybackResumeEntry) {
-        showResumePrompt = false
-        pendingResumeEntry = nil
-        resumeDecisionPending = false
+        resumeManager?.applyResume(entry)
         if isVideoPreferred {
             startVideoPlayback(at: entry.playbackTime ?? 0, presentPlayer: true)
         } else {
@@ -1064,10 +954,7 @@ struct LibraryPlaybackView: View {
     }
 
     private func startOver() {
-        showResumePrompt = false
-        pendingResumeEntry = nil
-        resumeDecisionPending = false
-        clearResumeEntry()
+        resumeManager?.startOver()
         if isVideoPreferred {
             startVideoPlayback(at: nil, presentPlayer: true)
         } else {
@@ -1085,9 +972,7 @@ struct LibraryPlaybackView: View {
     }
 
     private func startVideoPlayback(at time: Double?, presentPlayer: Bool) {
-        videoAutoPlay = true
-        videoResumeTime = time
-        videoResumeActionID = UUID()
+        resumeManager?.prepareVideoResume(at: time)
         #if !os(tvOS)
         if presentPlayer {
             showVideoPlayer = true
@@ -1097,194 +982,37 @@ struct LibraryPlaybackView: View {
 
     #if !os(tvOS)
     private func handleVideoPreviewTap() {
-        if let resumeEntry = resolveResumeEntry() {
-            pendingResumeEntry = resumeEntry
-            showResumePrompt = true
-            videoAutoPlay = false
+        guard let manager = resumeManager else {
+            startVideoPlayback(at: 0, presentPlayer: true)
+            return
+        }
+        if let resumeEntry = manager.resolveResumeEntry(isVideoPreferred: isVideoPreferred) {
+            manager.pendingResumeEntry = resumeEntry
+            manager.showResumePrompt = true
+            manager.videoAutoPlay = false
             return
         }
         startVideoPlayback(at: 0, presentPlayer: true)
     }
     #endif
 
-    private func clearResumeEntry() {
-        guard let userId = resumeUserId else { return }
-        PlaybackResumeStore.shared.clearEntry(jobId: item.jobId, userId: userId)
-    }
-
-    private func resumePromptMessage(for entry: PlaybackResumeEntry) -> String {
-        let iCloudNote = iCloudResumeNote()
-        switch entry.kind {
-        case .sentence:
-            let sentence = entry.sentenceNumber ?? 1
-            return "Continue from sentence \(sentence).\n\(iCloudNote)"
-        case .time:
-            let time = entry.playbackTime ?? 0
-            return "Continue from \(formatPlaybackTime(time)).\n\(iCloudNote)"
-        }
-    }
-
-    private func iCloudResumeNote() -> String {
-        let status = PlaybackResumeStore.shared.iCloudStatus()
-        guard status.isAvailable else { return "iCloud: unavailable" }
-        if let lastSync = status.lastSyncAttempt {
-            return "iCloud sync \(formatRelativeTime(lastSync))"
-        }
-        return "iCloud: connected"
-    }
-
-    private func formatRelativeTime(_ timestamp: TimeInterval) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        let date = Date(timeIntervalSince1970: timestamp)
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-
-    private func formatPlaybackTime(_ time: Double) -> String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = time >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
-        formatter.zeroFormattingBehavior = .pad
-        return formatter.string(from: time) ?? "0:00"
-    }
-
-    private func recordInteractiveResume(sentenceIndex: Int, force: Bool = false) {
-        guard let userId = resumeUserId else { return }
-        guard sentenceIndex > 0 else { return }
-        if !force, sentenceIndex == lastRecordedSentence {
-            return
-        }
-        lastRecordedSentence = sentenceIndex
-        let entry = PlaybackResumeEntry(
-            jobId: item.jobId,
-            itemType: item.itemType,
-            kind: .sentence,
-            updatedAt: Date().timeIntervalSince1970,
-            sentenceNumber: sentenceIndex,
-            playbackTime: nil
-        )
-        PlaybackResumeStore.shared.updateEntry(entry, userId: userId)
-    }
-
     private func handleVideoPlaybackProgress(time: Double, isPlaying: Bool) {
-        _ = recordVideoResume(time: time, isPlaying: isPlaying)
+        resumeManager?.recordVideoResume(time: time, isPlaying: isPlaying)
     }
 
     private func resolveResumeSentenceIndex(at highlightTime: Double) -> Int? {
         guard let chunk = viewModel.selectedChunk else { return nil }
-        let resolved = viewModel.activeSentence(at: highlightTime).flatMap { sentence in
-            resolveSentenceNumber(for: sentence, in: chunk)
-        }
-        let fallback = estimateSentenceNumber(for: chunk, at: highlightTime)
-        guard let resolved else { return fallback }
-        guard let fallback else { return resolved }
-        if resolved == fallback {
-            return resolved
-        }
-        if shouldPreferEstimatedIndex(for: chunk, resolved: resolved, estimated: fallback, time: highlightTime) {
-            return fallback
-        }
-        return resolved
-    }
-
-    private func resolveSentenceNumber(for sentence: InteractiveChunk.Sentence, in chunk: InteractiveChunk) -> Int? {
-        if let displayIndex = sentence.displayIndex {
-            return displayIndex
-        }
-        if let index = chunk.sentences.firstIndex(where: { $0.id == sentence.id && $0.displayIndex == sentence.displayIndex }) {
-            if let start = chunk.startSentence {
-                return start + index
-            }
-            if let first = chunk.sentences.first?.id {
-                return first + index
-            }
-        }
-        return sentence.id
-    }
-
-    private func estimateSentenceNumber(for chunk: InteractiveChunk, at time: Double) -> Int? {
-        let count: Int = {
-            if let start = chunk.startSentence, let end = chunk.endSentence, end >= start {
-                return end - start + 1
-            }
-            return chunk.sentences.count
-        }()
-        guard count > 0 else { return nil }
-        let base: Int? = {
-            if let start = chunk.startSentence {
-                return start
-            }
-            if let first = chunk.sentences.first?.displayIndex {
-                return first
-            }
-            return chunk.sentences.first?.id
-        }()
-        guard let base else { return nil }
-        guard count > 1 else { return base }
         let duration = viewModel.playbackDuration(for: chunk) ?? viewModel.audioCoordinator.duration
-        guard duration.isFinite, duration > 0 else { return base }
-        let progress = min(max(time / duration, 0), 1)
-        let offset = Int((Double(count - 1) * progress).rounded(.down))
-        return base + offset
-    }
-
-    private func shouldPreferEstimatedIndex(
-        for chunk: InteractiveChunk,
-        resolved: Int,
-        estimated: Int,
-        time: Double
-    ) -> Bool {
-        let count: Int = {
-            if let start = chunk.startSentence, let end = chunk.endSentence, end >= start {
-                return end - start + 1
-            }
-            return chunk.sentences.count
-        }()
-        guard count > 1 else { return false }
-        let base = chunk.startSentence ?? chunk.sentences.first?.displayIndex ?? chunk.sentences.first?.id
-        guard let base, resolved == base else { return false }
-        let duration = viewModel.playbackDuration(for: chunk) ?? viewModel.audioCoordinator.duration
-        guard duration.isFinite, duration > 0 else { return false }
-        let progress = min(max(time / duration, 0), 1)
-        return progress > 0.1 && estimated > resolved
-    }
-
-    @discardableResult
-    private func recordVideoResume(time: Double, isPlaying: Bool) -> Bool {
-        guard !resumeDecisionPending else { return false }
-        guard let userId = resumeUserId else { return false }
-        guard time.isFinite, time >= 0 else { return false }
-        if !isPlaying, time < 1, lastVideoTime > 5 {
-            return false
-        }
-        lastVideoTime = time
-        let bucket = Int(time / 5)
-        if bucket == lastRecordedTimeBucket, isPlaying {
-            return true
-        }
-        lastRecordedTimeBucket = bucket
-        let entry = PlaybackResumeEntry(
-            jobId: item.jobId,
-            itemType: item.itemType,
-            kind: .time,
-            updatedAt: Date().timeIntervalSince1970,
-            sentenceNumber: nil,
-            playbackTime: time
+        return PlaybackSentenceIndexHelpers.resolveResumeSentenceIndex(
+            at: highlightTime,
+            chunk: chunk,
+            activeSentence: viewModel.activeSentence(at: highlightTime),
+            playbackDuration: duration
         )
-        PlaybackResumeStore.shared.updateEntry(entry, userId: userId)
-        return true
     }
 
     private func persistResumeOnExit() {
-        if isVideoPreferred {
-            recordVideoResume(time: lastVideoTime, isPlaying: false)
-        } else if let sentence = sentenceIndexTracker.value {
-            recordInteractiveResume(sentenceIndex: sentence, force: true)
-        }
-        if let userId = resumeUserId {
-            Task {
-                await PlaybackResumeStore.shared.syncNow(userId: userId, aliases: appState.resumeUserAliases)
-            }
-        }
+        resumeManager?.persistOnExit(isVideoPreferred: isVideoPreferred, sentenceIndex: sentenceIndexTracker.value)
     }
 
     private var totalSentenceCount: Int? {

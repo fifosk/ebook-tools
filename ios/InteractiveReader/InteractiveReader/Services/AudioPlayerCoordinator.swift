@@ -7,7 +7,7 @@ enum AudioPlaybackRole {
 }
 
 @MainActor
-final class AudioPlayerCoordinator: ObservableObject {
+final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     @Published private(set) var isPlaying = false
     @Published private(set) var isPlaybackRequested = false
     @Published private(set) var currentTime: Double = 0

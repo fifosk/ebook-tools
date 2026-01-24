@@ -247,20 +247,7 @@ extension JobPlaybackView {
     }
 
     func normalizedSummary(_ value: String?) -> String? {
-        guard var value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !value.isEmpty
-        else {
-            return nil
-        }
-        value = value.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
-        value = value.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { return nil }
-        if value.count > summaryLengthLimit {
-            let cutoff = max(summaryLengthLimit - 3, 0)
-            value = String(value.prefix(cutoff)).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
-        }
-        return value
+        PlaybackMetadataHelpers.normalizedSummary(value, lengthLimit: summaryLengthLimit)
     }
 
     var jobVariant: PlayerChannelVariant {
@@ -448,48 +435,8 @@ extension JobPlaybackView {
     func metadataString(for keys: [String], maxDepth: Int = 4) -> String? {
         let sources = [currentJob.result?.objectValue, currentJob.parameters?.objectValue].compactMap { $0 }
         for source in sources {
-            if let found = metadataString(in: source, keys: keys, maxDepth: maxDepth) {
+            if let found = PlaybackMetadataHelpers.metadataString(in: source, keys: keys, maxDepth: maxDepth) {
                 return found
-            }
-        }
-        return nil
-    }
-
-    func metadataString(
-        in metadata: [String: JSONValue],
-        keys: [String],
-        maxDepth: Int
-    ) -> String? {
-        for key in keys {
-            if let found = metadataString(in: metadata, key: key, maxDepth: maxDepth) {
-                return found
-            }
-        }
-        return nil
-    }
-
-    func metadataString(
-        in metadata: [String: JSONValue],
-        key: String,
-        maxDepth: Int
-    ) -> String? {
-        if let value = metadata[key]?.stringValue {
-            return value
-        }
-        guard maxDepth > 0 else { return nil }
-        for value in metadata.values {
-            if let nested = value.objectValue {
-                if let found = metadataString(in: nested, key: key, maxDepth: maxDepth - 1) {
-                    return found
-                }
-            }
-            if case let .array(items) = value {
-                for entry in items {
-                    if let nested = entry.objectValue,
-                       let found = metadataString(in: nested, key: key, maxDepth: maxDepth - 1) {
-                        return found
-                    }
-                }
             }
         }
         return nil
@@ -507,18 +454,7 @@ extension JobPlaybackView {
     }
 
     func extractTvMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
-        let paths: [[String]] = [
-            ["result", "youtube_dub", "media_metadata"],
-            ["result", "subtitle", "metadata", "media_metadata"],
-            ["request", "media_metadata"],
-            ["media_metadata"]
-        ]
-        for path in paths {
-            if let value = nestedValue(metadata, path: path)?.objectValue {
-                return value
-            }
-        }
-        return nil
+        PlaybackMetadataHelpers.extractTvMediaMetadata(from: metadata)
     }
 
     func resolveTvImage(from tvMetadata: [String: JSONValue], path: String) -> String? {
@@ -542,32 +478,8 @@ extension JobPlaybackView {
         youtubeMetadata["thumbnail"]?.stringValue
     }
 
-    func nestedValue(_ source: [String: JSONValue], path: [String]) -> JSONValue? {
-        var current: JSONValue = .object(source)
-        for key in path {
-            guard let object = current.objectValue, let next = object[key] else { return nil }
-            current = next
-        }
-        return current
-    }
-
     func intValue(_ value: JSONValue?) -> Int? {
-        guard let value else { return nil }
-        switch value {
-        case let .number(number) where number.isFinite:
-            return Int(number)
-        case .string:
-            return Int(value.stringValue ?? "")
-        case let .array(values):
-            for entry in values {
-                if let parsed = intValue(entry) {
-                    return parsed
-                }
-            }
-            return nil
-        default:
-            return nil
-        }
+        PlaybackMetadataHelpers.intValue(value)
     }
 
     var currentJob: PipelineStatusResponse {
