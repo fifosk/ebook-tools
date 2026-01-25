@@ -296,3 +296,181 @@ def is_segmentation_ok(
     if token_count > max_reasonable:
         return False
     return True
+
+
+def is_token_count_aligned(
+    translation_text: str,
+    transliteration_text: str,
+    target_language: str,
+    *,
+    tolerance: int = 1,
+) -> tuple[bool, int, int]:
+    """Check if translation and transliteration have aligned token counts.
+
+    For languages without standard word delimiters (CJK, Thai, etc.), proper
+    word-level highlighting requires that translation and transliteration
+    tracks have the same number of space-separated tokens.
+
+    Args:
+        translation_text: The translated text (in target script)
+        transliteration_text: The transliteration (in Latin script)
+        target_language: Target language code
+        tolerance: Allowed difference in token count (default 1 for minor variations)
+
+    Returns:
+        Tuple of (is_aligned, translation_token_count, transliteration_token_count)
+    """
+    lang = (target_language or "").strip().lower()
+
+    # Only check for languages that need explicit segmentation
+    if lang not in _SEGMENTATION_LANGS:
+        return True, 0, 0
+
+    # Skip check if either text is empty
+    if not translation_text or not transliteration_text:
+        return True, 0, 0
+
+    # Normalize zero-width spaces
+    translation_clean = _ZERO_WIDTH_SPACE_PATTERN.sub(" ", translation_text)
+    transliteration_clean = _ZERO_WIDTH_SPACE_PATTERN.sub(" ", transliteration_text)
+
+    # Get token counts
+    trans_tokens = split_highlight_tokens(translation_clean)
+    translit_tokens = split_highlight_tokens(transliteration_clean)
+
+    trans_count = len(trans_tokens)
+    translit_count = len(translit_tokens)
+
+    # Check if within tolerance
+    is_aligned = abs(trans_count - translit_count) <= tolerance
+
+    return is_aligned, trans_count, translit_count
+
+
+def get_token_alignment_error(
+    translation_text: str,
+    transliteration_text: str,
+    target_language: str,
+) -> Optional[str]:
+    """Return an error message if token counts are misaligned, None otherwise.
+
+    Args:
+        translation_text: The translated text
+        transliteration_text: The transliteration text
+        target_language: Target language code
+
+    Returns:
+        Error message string if misaligned, None if aligned
+    """
+    is_aligned, trans_count, translit_count = is_token_count_aligned(
+        translation_text,
+        transliteration_text,
+        target_language,
+        tolerance=1,  # Allow 1 token difference for flexibility
+    )
+
+    if not is_aligned:
+        diff = abs(trans_count - translit_count)
+        return (
+            f"Token count mismatch: translation={trans_count}, "
+            f"transliteration={translit_count} (diff={diff})"
+        )
+
+    return None
+
+
+def is_sentence_overflow(
+    original_sentence: str,
+    translation_text: str,
+    *,
+    min_ratio: float = 0.2,
+    max_ratio: float = 5.0,
+) -> tuple[bool, Optional[str]]:
+    """Detect likely sentence overflow or combination in batch translation.
+
+    In batch mode, LLMs may accidentally combine multiple source sentences into
+    one translation, or truncate sentences. This validation catches extreme
+    token count ratios that indicate such issues.
+
+    Works for ALL languages (including space-delimited ones like English,
+    Spanish, French, etc.) by comparing word token counts.
+
+    Args:
+        original_sentence: Original source sentence
+        translation_text: Translated text to validate
+        min_ratio: Minimum translation/original ratio (below = truncated)
+        max_ratio: Maximum translation/original ratio (above = combined)
+
+    Returns:
+        Tuple of (is_overflow, error_message)
+    """
+    if not original_sentence or not translation_text:
+        return False, None
+
+    # Get token counts for both
+    orig_tokens = split_highlight_tokens(original_sentence)
+    trans_tokens = split_highlight_tokens(translation_text)
+
+    orig_count = len(orig_tokens)
+    trans_count = len(trans_tokens)
+
+    # Skip validation for very short sentences (1-2 words)
+    if orig_count <= 2:
+        return False, None
+
+    # Calculate ratio
+    if orig_count == 0:
+        return False, None
+
+    ratio = trans_count / orig_count
+
+    # Check for likely truncation (translation much shorter)
+    if ratio < min_ratio:
+        return True, (
+            f"Translation appears truncated: {trans_count} tokens vs "
+            f"{orig_count} source tokens (ratio={ratio:.2f}, min={min_ratio})"
+        )
+
+    # Check for likely sentence combination (translation much longer)
+    if ratio > max_ratio:
+        return True, (
+            f"Translation appears to combine sentences: {trans_count} tokens vs "
+            f"{orig_count} source tokens (ratio={ratio:.2f}, max={max_ratio})"
+        )
+
+    return False, None
+
+
+def validate_batch_sentence_boundaries(
+    original_sentence: str,
+    translation_text: str,
+    *,
+    strict: bool = False,
+) -> Optional[str]:
+    """Validate that batch translation preserves sentence boundaries.
+
+    This is a higher-level validation that catches common batch mode issues:
+    - Sentences getting combined (overflow)
+    - Sentences getting truncated
+    - Content from adjacent sentences leaking in
+
+    Args:
+        original_sentence: Original source sentence
+        translation_text: Translated text to validate
+        strict: Use stricter ratio thresholds
+
+    Returns:
+        Error message if validation fails, None if valid
+    """
+    # Use stricter thresholds in strict mode
+    min_ratio = 0.3 if strict else 0.2
+    max_ratio = 4.0 if strict else 5.0
+
+    is_overflow, error = is_sentence_overflow(
+        original_sentence,
+        translation_text,
+        min_ratio=min_ratio,
+        max_ratio=max_ratio,
+    )
+
+    return error

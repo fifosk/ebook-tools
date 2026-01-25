@@ -14,30 +14,40 @@ SOURCE_START = "<<<BEGIN_SOURCE_TEXT>>>"
 SOURCE_END = "<<<END_SOURCE_TEXT>>>"
 
 # Languages where we want explicit word/phrase spacing in the translation.
+# Each config includes:
+# - aliases: language identifiers
+# - example: example with proper spacing
+# - translit_example: matching transliteration example (for token alignment)
 _SEGMENTATION_REQUIREMENTS = {
     "thai": {
         "aliases": ("thai", "th"),
         "example": "ข้าม กัน อย่าง น่าสนใจ เมื่อ เกือบ ศตวรรษ ที่ แล้ว",
+        "translit_example": "kham kan yang na-son-jai muea kuap sat-ta-wat thi laeo",
     },
     "burmese": {
         "aliases": ("burmese", "myanmar", "my"),
-        "example": None,
+        "example": "ကျော် ခဲ့ စိတ်ဝင်စား နီးပါး ရာစုနှစ် ဖြစ် ခဲ့",
+        "translit_example": "kyaw khe seit-win-sa ni-pa ya-su-hnit phyit khe",
     },
     "japanese": {
         "aliases": ("japanese", "ja", "日本語"),
-        "example": 'その年の 株式市場の 崩壊は 大恐慌を 引き起こし、 彼の遺産を 歴史に 刻み込んだ。',
+        "example": "その年の 株式市場の 崩壊は 大恐慌を 引き起こし 彼の遺産を 歴史に 刻み込んだ",
+        "translit_example": "sono-toshi-no kabushiki-shijou-no houkai-wa daikyoukou-wo hikiokooshi kare-no-isan-wo rekishi-ni kizamikonda",
     },
     "khmer": {
         "aliases": ("khmer", "cambodian", "km"),
-        "example": "អាប្រាហាំ ហ្សឺម៉ង់ស្គី គឺជា អ្នកអភិវឌ្ឍន៍ អចលនទ្រព្យ ដែលមាន ទ្រព្យសម្បត្តិ រាប់លាន ដែលបាន រកបាន ទ្រព្យភាព ក្នុង ទស្សនាទសវត្ស 1920។",
+        "example": "អាប្រាហាំ ហ្សឺម៉ង់ស្គី គឺជា អ្នកអភិវឌ្ឍន៍ អចលនទ្រព្យ ដែលមាន ទ្រព្យសម្បត្តិ រាប់លាន",
+        "translit_example": "abraham zermansky kuochea nak-a-phi-vat achal-na-trop dael-mean trop-som-bat reab-lean",
     },
     "korean": {
         "aliases": ("korean", "ko"),
-        "example": None,
+        "example": "그 해의 주식시장 붕괴는 대공황을 일으켜 그의 유산을 역사에 새겼다",
+        "translit_example": "geu hae-ui jusik-sijang bung-goe-neun daegonghwang-eul il-eukyeo geu-ui yusan-eul yeoksa-e saegyeotda",
     },
     "chinese": {
         "aliases": ("chinese", "zh", "zh-cn", "zh-tw"),
-        "example": None,
+        "example": "罗谢 带领 科勒 通过 无障碍 坡道",
+        "translit_example": "luo-xie dai-ling ke-le tong-guo wu-zhang-ai po-dao",
     },
 }
 
@@ -257,6 +267,25 @@ def make_translation_prompt(
             instructions.append(
                 "If a transliteration is appropriate, append ONLY the transliteration on the SECOND LINE, without prefixes, labels, commentary, or delimiter characters."
             )
+
+        # Add critical token alignment instruction for CJK and spaceless languages
+        for lang_name, config in _SEGMENTATION_REQUIREMENTS.items():
+            if _language_matches_any(target_lower, target_tokens, config["aliases"]):
+                example = config.get("example", "")
+                translit_example = config.get("translit_example", "")
+                if example and translit_example:
+                    instructions.append(
+                        f"CRITICAL: The translation and transliteration MUST have the SAME number of space-separated tokens for synchronized word highlighting. "
+                        f"Each space-separated word/phrase in the translation must correspond exactly to one space-separated romanization in the transliteration. "
+                        f'EXAMPLE alignment:\n  Translation: "{example}"\n  Transliteration: "{translit_example}"'
+                    )
+                else:
+                    instructions.append(
+                        "CRITICAL: The translation and transliteration MUST have the SAME number of space-separated tokens. "
+                        "Each space-separated word/phrase in the translation must correspond exactly to one space-separated romanization in the transliteration."
+                    )
+                break
+
         if _language_matches_any(
             target_lower,
             target_tokens,
@@ -279,7 +308,7 @@ def make_translation_prompt(
             _SEGMENTATION_REQUIREMENTS["japanese"]["aliases"],
         ):
             instructions.append(
-                "When providing the Japanese transliteration (romaji), keep it on ONE LINE, separate words or phrases with SPACES (NOT per-character or per-syllable), avoid labels, and mimic the segmentation in the translation line."
+                "When providing the Japanese transliteration (romaji), keep it on ONE LINE, separate words or phrases with SPACES (NOT per-character or per-syllable), avoid labels, and MATCH the segmentation in the translation line exactly."
             )
         if _language_matches_any(
             target_lower,
@@ -288,6 +317,28 @@ def make_translation_prompt(
         ):
             instructions.append(
                 "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
+            )
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["chinese"]["aliases"],
+        ):
+            instructions.append(
+                "PINYIN FORMATTING: Join ALL syllables of each Chinese word with HYPHENS, then separate different words with SPACES. "
+                "The pinyin token count MUST match the Chinese word count. "
+                "WRONG: 罗谢 带领 → luo xie dai ling (4 tokens). "
+                "CORRECT: 罗谢 带领 → luo-xie dai-ling (2 tokens)."
+            )
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["korean"]["aliases"],
+        ):
+            instructions.append(
+                "ROMANIZATION: Join ALL syllables of each Korean word with HYPHENS, then separate different words with SPACES. "
+                "The romanization token count MUST match the Korean word count. "
+                "WRONG: 안녕 하세요 → an nyeong ha se yo (5 tokens). "
+                "CORRECT: 안녕 하세요 → an-nyeong ha-se-yo (2 tokens)."
             )
 
     instructions.extend(
@@ -335,6 +386,10 @@ def make_translation_batch_prompt(
         "Do not include the source text in the response.",
         "The `translation` value must be a single-line string without line breaks.",
         "If you cannot translate an item, return an empty string for `translation`.",
+        "CRITICAL: Each input sentence MUST produce EXACTLY ONE translation. "
+        "Never combine multiple sentences into one translation. "
+        "Never split one sentence into multiple translations. "
+        "Preserve the 1:1 correspondence between input and output items.",
     ]
 
     if mode == "literal":
@@ -371,6 +426,25 @@ def make_translation_batch_prompt(
             instructions.append(
                 "Populate the `transliteration` field ONLY when a transliteration is appropriate; otherwise use an empty string."
             )
+
+        # Add critical token alignment instruction for CJK and spaceless languages
+        for lang_name, config in _SEGMENTATION_REQUIREMENTS.items():
+            if _language_matches_any(target_lower, target_tokens, config["aliases"]):
+                example = config.get("example", "")
+                translit_example = config.get("translit_example", "")
+                if example and translit_example:
+                    instructions.append(
+                        f"CRITICAL: The `translation` and `transliteration` fields MUST have the SAME number of space-separated tokens for synchronized word highlighting. "
+                        f"Each space-separated word/phrase in translation must correspond exactly to one space-separated romanization in transliteration. "
+                        f'EXAMPLE alignment:\n  translation: "{example}"\n  transliteration: "{translit_example}"'
+                    )
+                else:
+                    instructions.append(
+                        "CRITICAL: The `translation` and `transliteration` fields MUST have the SAME number of space-separated tokens. "
+                        "Each space-separated word/phrase in translation must correspond exactly to one space-separated romanization in transliteration."
+                    )
+                break
+
         if _language_matches_any(
             target_lower,
             target_tokens,
@@ -393,7 +467,7 @@ def make_translation_batch_prompt(
             _SEGMENTATION_REQUIREMENTS["japanese"]["aliases"],
         ):
             instructions.append(
-                "When providing the Japanese transliteration (romaji), keep it on ONE LINE, separate words or phrases with SPACES (NOT per-character or per-syllable), avoid labels, and mimic the segmentation in the translation field."
+                "When providing the Japanese transliteration (romaji), keep it on ONE LINE, separate words or phrases with SPACES (NOT per-character or per-syllable), avoid labels, and MATCH the segmentation in the translation field exactly."
             )
         if _language_matches_any(
             target_lower,
@@ -402,6 +476,28 @@ def make_translation_batch_prompt(
         ):
             instructions.append(
                 "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
+            )
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["chinese"]["aliases"],
+        ):
+            instructions.append(
+                "PINYIN FORMATTING: Join ALL syllables of each Chinese word with HYPHENS, then separate different words with SPACES. "
+                "The pinyin token count MUST match the Chinese word count. "
+                "WRONG: 罗谢 带领 → luo xie dai ling (4 tokens). "
+                "CORRECT: 罗谢 带领 → luo-xie dai-ling (2 tokens)."
+            )
+        if _language_matches_any(
+            target_lower,
+            target_tokens,
+            _SEGMENTATION_REQUIREMENTS["korean"]["aliases"],
+        ):
+            instructions.append(
+                "ROMANIZATION: Join ALL syllables of each Korean word with HYPHENS, then separate different words with SPACES. "
+                "The romanization token count MUST match the Korean word count. "
+                "WRONG: 안녕 하세요 → an nyeong ha se yo (5 tokens). "
+                "CORRECT: 안녕 하세요 → an-nyeong ha-se-yo (2 tokens)."
             )
     else:
         instructions.append("Each output item MUST include `id` and `translation` fields.")

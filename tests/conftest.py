@@ -37,6 +37,27 @@ def pytest_addoption(parser: pytest.Parser) -> None:  # type: ignore[attr-define
         help="Topic to describe in the generated sample sentences.",
     )
 
+    # CJK tokenization test options
+    cjk_group = parser.getgroup("cjk-tokenization")
+    cjk_group.addoption(
+        "--run-llm",
+        action="store_true",
+        default=False,
+        help="Run tests that require a real LLM connection",
+    )
+    cjk_group.addoption(
+        "--llm-model",
+        action="store",
+        default=None,
+        help="LLM model to use for translation (e.g., mistral:latest)",
+    )
+    cjk_group.addoption(
+        "--save-report",
+        action="store",
+        default=None,
+        help="Path to save JSON test report",
+    )
+
 
 @pytest.fixture(scope="session")
 def epub_job_cli_overrides(pytestconfig: pytest.Config) -> Dict[str, Any]:

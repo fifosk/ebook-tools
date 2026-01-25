@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 from modules import config_manager as cfg, logging_manager as log_mgr
 from modules import llm_batch, prompt_templates, text_normalization as text_norm
 from modules import translation_validation as tv
+from modules.text import align_token_counts
 from modules.llm_client import LLMClient
 from modules.retry_annotations import is_failure_annotation
 from modules.translation_logging import (
@@ -184,6 +185,8 @@ def parse_batch_translation_payload(
     *,
     input_ids: Sequence[int],
     include_transliteration: bool,
+    target_language: Optional[str] = None,
+    align_tokens: bool = True,
 ) -> Dict[int, Tuple[str, str]]:
     """Parse LLM batch translation response into results dict.
 
@@ -194,6 +197,8 @@ def parse_batch_translation_payload(
         payload: LLM response payload
         input_ids: Input item IDs for positional fallback
         include_transliteration: Whether to extract transliteration
+        target_language: Target language code (for token alignment)
+        align_tokens: Whether to attempt token count alignment
 
     Returns:
         Dict mapping item_id -> (translation, transliteration)
@@ -223,6 +228,22 @@ def parse_batch_translation_payload(
         transliteration = text_norm.collapse_whitespace(raw_transliteration.strip())
         if include_transliteration and transliteration and not text_norm.is_latin_heavy(transliteration):
             transliteration = ""
+
+        # Apply token alignment post-processing for CJK languages
+        if (
+            align_tokens
+            and include_transliteration
+            and translation
+            and transliteration
+            and target_language
+        ):
+            aligned_trans, aligned_translit, was_modified = align_token_counts(
+                translation, transliteration, target_language
+            )
+            if was_modified:
+                translation = aligned_trans
+                transliteration = aligned_translit
+
         results[item_id] = (translation, transliteration)
     return results
 
@@ -263,16 +284,19 @@ def validate_batch_translation(
     original_sentence: str,
     translation_text: str,
     target_language: str,
+    *,
+    check_sentence_boundaries: bool = True,
 ) -> Optional[str]:
     """Validate a batch translation result.
 
     Checks for common translation issues like transliteration, truncation,
-    missing diacritics, and script mismatches.
+    missing diacritics, script mismatches, and sentence boundary violations.
 
     Args:
         original_sentence: Original sentence
         translation_text: Translation to validate
         target_language: Target language
+        check_sentence_boundaries: Whether to validate token ratio for overflow detection
 
     Returns:
         Error message if validation fails, None if valid
@@ -289,6 +313,15 @@ def validate_batch_translation(
     script_mismatch, script_label = tv.unexpected_script_used(translation_text, target_language)
     if script_mismatch:
         return f"Unexpected script used; expected {script_label or 'target script'}"
+
+    # Check for sentence overflow/combination (works for ALL languages)
+    if check_sentence_boundaries:
+        boundary_error = tv.validate_batch_sentence_boundaries(
+            original_sentence, translation_text
+        )
+        if boundary_error:
+            return boundary_error
+
     return None
 
 
@@ -390,6 +423,8 @@ def translate_llm_batch_items(
                 response.payload,
                 input_ids=input_ids,
                 include_transliteration=include_transliteration,
+                target_language=target_language,
+                align_tokens=True,
             )
             if parsed:
                 elapsed = time.perf_counter() - start_time

@@ -60,6 +60,12 @@ def split_highlight_tokens(text: str) -> List[str]:
     """
     Return highlight tokens handling languages without whitespace boundaries.
 
+    For CJK text with explicit spaces (from LLM translation), the spaces are
+    treated as intentional word boundaries and preserved. Morphological
+    re-tokenization is only applied when:
+    - Text has no spaces (needs segmentation)
+    - Text has per-character spacing (needs re-segmentation)
+
     Fallback to grapheme clusters when the payload mixes continuous scripts
     (Chinese, Japanese, Thai, etc.) so each character can be highlighted.
     """
@@ -69,6 +75,23 @@ def split_highlight_tokens(text: str) -> List[str]:
 
     stripped = text.strip()
     whitespace_tokens = [token for token in text.split() if token]
+
+    # Check if text has meaningful space segmentation (>= 2 tokens, avg length > 1 char)
+    has_meaningful_spaces = (
+        len(whitespace_tokens) >= 2
+        and sum(len(tok) for tok in whitespace_tokens) / len(whitespace_tokens) > 1.5
+    )
+
+    # For CJK text with explicit meaningful spaces, respect them as word boundaries
+    # This handles LLM-generated translations that already have proper segmentation
+    if has_meaningful_spaces and _NO_SPACE_SCRIPT_PATTERN.search(stripped):
+        # Check if it looks like per-CHARACTER spacing (most tokens are SINGLE char)
+        # Chinese words are typically 2+ chars, so 1-char tokens indicate per-char spacing
+        single_char_ratio = sum(1 for tok in whitespace_tokens if len(tok) == 1) / len(whitespace_tokens)
+        if single_char_ratio < 0.5:
+            # Meaningful word-level segmentation - return as-is
+            return whitespace_tokens
+
     # Japanese often arrives with per-character spacing/newlines; re-segment before returning raw whitespace tokens.
     if _JAPANESE_PATTERN.search(stripped):
         # If whitespace tokens look like per-character segmentation, collapse and retokenize.
@@ -77,26 +100,28 @@ def split_highlight_tokens(text: str) -> List[str]:
             and sum(len(tok) <= 2 for tok in whitespace_tokens)
             >= max(1, len(whitespace_tokens) // 2)
         )
-        compact = "".join(whitespace_tokens) if whitespace_tokens else stripped
-        if _jp_tagger is not None:
-            try:
-                jp_tokens = [token.surface for token in _jp_tagger(compact) if token.surface.strip()]
-                if len(jp_tokens) > 1:
-                    return jp_tokens
-            except Exception:  # pragma: no cover - optional helper
-                pass
-        if _tiny_segmenter is not None:
-            try:
-                seg_tokens = [tok.strip() for tok in _tiny_segmenter.tokenize(compact) if tok.strip()]
-                if len(seg_tokens) > 1:
-                    return seg_tokens
-            except Exception:  # pragma: no cover - optional helper
-                pass
-        jp_run_tokens = [
-            match.group() for match in _JAPANESE_RUN_PATTERN.finditer(compact) if match.group().strip()
-        ]
-        if len(jp_run_tokens) > 1:
-            return jp_run_tokens
+        # Only collapse and re-tokenize if spacing looks wrong (per-char or no spaces)
+        if looks_char_spaced or len(whitespace_tokens) <= 1:
+            compact = "".join(whitespace_tokens) if whitespace_tokens else stripped
+            if _jp_tagger is not None:
+                try:
+                    jp_tokens = [token.surface for token in _jp_tagger(compact) if token.surface.strip()]
+                    if len(jp_tokens) > 1:
+                        return jp_tokens
+                except Exception:  # pragma: no cover - optional helper
+                    pass
+            if _tiny_segmenter is not None:
+                try:
+                    seg_tokens = [tok.strip() for tok in _tiny_segmenter.tokenize(compact) if tok.strip()]
+                    if len(seg_tokens) > 1:
+                        return seg_tokens
+                except Exception:  # pragma: no cover - optional helper
+                    pass
+            jp_run_tokens = [
+                match.group() for match in _JAPANESE_RUN_PATTERN.finditer(compact) if match.group().strip()
+            ]
+            if len(jp_run_tokens) > 1:
+                return jp_run_tokens
         if not looks_char_spaced and len(whitespace_tokens) > 1:
             return whitespace_tokens
 

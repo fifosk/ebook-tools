@@ -28,6 +28,7 @@ from modules.core.translation import (
 )
 from modules.transliteration import TransliterationService
 from modules.retry_annotations import is_failure_annotation
+from modules.text import align_token_counts
 
 from .blocks import build_written_and_video_blocks
 from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
@@ -230,6 +231,12 @@ def process_sequential(
                     candidate = remove_quotes(candidate or "").strip()
                 if candidate:
                     transliteration_result = candidate
+            # Apply token alignment for CJK languages
+            if fluent and transliteration_result:
+                _, aligned_translit, _ = align_token_counts(
+                    fluent, transliteration_result, current_target
+                )
+                transliteration_result = aligned_translit
             audio_segment: Optional[AudioSegment] = None
             original_audio_segment: Optional[AudioSegment] = None
             voice_metadata: Optional[Mapping[str, Mapping[str, str]]] = None
@@ -463,6 +470,12 @@ def process_pipeline(
                         )
                     if candidate:
                         transliteration_result = candidate
+                # Apply token alignment for CJK languages
+                if fluent and transliteration_result:
+                    _, aligned_translit, _ = align_token_counts(
+                        fluent, transliteration_result, item.target_language
+                    )
+                    transliteration_result = aligned_translit
                 audio_segment = None
                 original_audio_segment: Optional[AudioSegment] = None
                 if generate_audio:

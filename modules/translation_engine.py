@@ -27,7 +27,7 @@ from modules import llm_client_manager
 from modules import language_policies
 from modules import text_normalization as text_norm
 from modules import translation_validation as tv
-from modules.text import split_highlight_tokens
+from modules.text import split_highlight_tokens, align_token_counts
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.llm_client import LLMClient
 from modules.transliteration import (
@@ -220,8 +220,23 @@ def _translate_with_llm(
                 if not attempt_error and _is_segmentation_ok(
                     sentence, cleaned_text, target_language, translation_text=translation_text
                 ):
-                    elapsed = time.perf_counter() - start_time
-                    return cleaned_text, None, elapsed
+                    # Check token alignment between translation and transliteration
+                    if include_transliteration and transliteration_text:
+                        token_alignment_error = tv.get_token_alignment_error(
+                            translation_text, transliteration_text, target_language
+                        )
+                        if token_alignment_error:
+                            attempt_error = token_alignment_error
+                            if resolved_client.debug_enabled:
+                                logger.debug(
+                                    "Retrying translation due to token count mismatch (%s/%s): %s",
+                                    attempt,
+                                    _TRANSLATION_RESPONSE_ATTEMPTS,
+                                    token_alignment_error,
+                                )
+                    if not attempt_error:
+                        elapsed = time.perf_counter() - start_time
+                        return cleaned_text, None, elapsed
                 if not attempt_error:
                     attempt_error = "Unsegmented translation received"
                     if resolved_client.debug_enabled:
@@ -899,6 +914,12 @@ def start_translation_pipeline(
                 finally:
                     elapsed = time.perf_counter() - start_time
                     _log_translation_timing(start_sentence + index, elapsed, pool_mode)
+                # Apply token alignment for CJK languages
+                if translation and transliteration_text:
+                    _, aligned_translit, _ = align_token_counts(
+                        translation, transliteration_text, target
+                    )
+                    transliteration_text = aligned_translit
                 return TranslationTask(
                     index=index,
                     sentence_number=start_sentence + index,
@@ -993,6 +1014,12 @@ def start_translation_pipeline(
                     translation, transliteration = resolved_items.get(idx, ("", ""))
                     if include_transliteration_for_target and not transliteration:
                         transliteration = transliteration_map.get(idx, "")
+                    # Apply token alignment for CJK languages
+                    if translation and transliteration:
+                        _, aligned_translit, _ = align_token_counts(
+                            translation, transliteration, target
+                        )
+                        transliteration = aligned_translit
                     tasks.append(
                         TranslationTask(
                             index=idx,
@@ -1041,18 +1068,26 @@ def start_translation_pipeline(
                                 translation_only, inline_transliteration = text_norm.split_translation_and_transliteration(
                                     fallback
                                 )
+                                translation_text = text_norm.collapse_whitespace(
+                                    (translation_only or fallback).strip()
+                                )
+                                transliteration_text = text_norm.collapse_whitespace(
+                                    (inline_transliteration or "").strip()
+                                )
+                                # Apply token alignment for CJK languages
+                                if translation_text and transliteration_text:
+                                    _, aligned_translit, _ = align_token_counts(
+                                        translation_text, transliteration_text, target
+                                    )
+                                    transliteration_text = aligned_translit
                                 tasks.append(
                                     TranslationTask(
                                         index=idx,
                                         sentence_number=start_sentence + idx,
                                         sentence=sentence,
                                         target_language=target,
-                                        translation=text_norm.collapse_whitespace(
-                                            (translation_only or fallback).strip()
-                                        ),
-                                        transliteration=text_norm.collapse_whitespace(
-                                            (inline_transliteration or "").strip()
-                                        ),
+                                        translation=translation_text,
+                                        transliteration=transliteration_text,
                                     )
                                 )
                         for task in tasks:
