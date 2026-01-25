@@ -87,10 +87,12 @@ extension VideoPlayerView {
         let selectedModel = resolvedLlmModel
         let pronunciationLanguage = inputLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedPronunciationLanguage = pronunciationLanguage.isEmpty ? nil : pronunciationLanguage
-        let fallbackLanguage = SpeechLanguageResolver.resolveSpeechLanguage(resolvedPronunciationLanguage ?? "")
+        let resolvedApiLanguage = SpeechLanguageResolver.resolveSpeechLanguage(resolvedPronunciationLanguage ?? "")
+        let apiLanguage = resolvedApiLanguage ?? resolvedPronunciationLanguage
+        let fallbackLanguage = resolvedApiLanguage
         startSubtitlePronunciation(
             text: query,
-            apiLanguage: resolvedPronunciationLanguage,
+            apiLanguage: apiLanguage,
             fallbackLanguage: fallbackLanguage
         )
         subtitleLookupTask = Task { @MainActor in

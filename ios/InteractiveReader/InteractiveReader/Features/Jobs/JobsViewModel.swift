@@ -17,7 +17,10 @@ final class JobsViewModel: ObservableObject {
     @Published var activeFilter: JobFilter = .video
 
     private var refreshTask: Task<Void, Never>?
-    private let refreshInterval: UInt64 = 6_000_000_000
+
+    /// Polling intervals in nanoseconds
+    private let activePollingInterval: UInt64 = 5_000_000_000  // 5 seconds
+    private let idlePollingInterval: UInt64 = 10_000_000_000   // 10 seconds
 
     func load(using appState: AppState, isBackground: Bool = false) async {
         guard let configuration = appState.configuration else {
@@ -79,13 +82,20 @@ final class JobsViewModel: ObservableObject {
         }
     }
 
+    /// Start auto-refresh with adaptive polling intervals.
+    /// Uses 5-second intervals when active jobs exist, 10 seconds when idle.
     func startAutoRefresh(using appState: AppState) {
-        refreshTask?.cancel()
+        stopAutoRefresh()
+
         refreshTask = Task { [weak self] in
             guard let self else { return }
+
             while !Task.isCancelled {
                 await self.load(using: appState, isBackground: true)
-                try? await Task.sleep(nanoseconds: refreshInterval)
+
+                // Adaptive polling: faster when jobs are active
+                let interval = self.hasActiveJobs ? self.activePollingInterval : self.idlePollingInterval
+                try? await Task.sleep(nanoseconds: interval)
             }
         }
     }
@@ -94,6 +104,12 @@ final class JobsViewModel: ObservableObject {
         refreshTask?.cancel()
         refreshTask = nil
     }
+
+    private var hasActiveJobs: Bool {
+        jobs.contains { $0.isActiveForDisplay }
+    }
+
+    // MARK: - Filtering & Sorting
 
     var filteredJobs: [PipelineStatusResponse] {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)

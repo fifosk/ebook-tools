@@ -23,6 +23,10 @@ enum SpeechLanguageResolver {
             return "it-IT"
         case "portuguese":
             return "pt-PT"
+        case "chinese (simplified)", "chinese simplified", "simplified chinese":
+            return "zh-CN"
+        case "chinese (traditional)", "chinese traditional", "traditional chinese":
+            return "zh-TW"
         case "chinese":
             return "zh-CN"
         case "korean":

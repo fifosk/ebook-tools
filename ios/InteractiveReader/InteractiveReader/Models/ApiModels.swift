@@ -151,10 +151,39 @@ struct PipelineStatusResponse: Decodable, Identifiable, Hashable {
 
     static func == (lhs: PipelineStatusResponse, rhs: PipelineStatusResponse) -> Bool {
         lhs.jobId == rhs.jobId
+            && lhs.status == rhs.status
+            && lhs.completedAt == rhs.completedAt
+            && lhs.error == rhs.error
+            && lhs.progressSignature == rhs.progressSignature
     }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(jobId)
+        hasher.combine(status.rawValue)
+        hasher.combine(completedAt)
+        hasher.combine(error)
+        if let signature = progressSignature {
+            hasher.combine(signature.completed)
+            hasher.combine(signature.total ?? -1)
+            hasher.combine(signature.timestamp)
+        } else {
+            hasher.combine(0)
+        }
+    }
+
+    private struct ProgressSignature: Hashable {
+        let completed: Int
+        let total: Int?
+        let timestamp: Double
+    }
+
+    private var progressSignature: ProgressSignature? {
+        guard let latestEvent else { return nil }
+        return ProgressSignature(
+            completed: latestEvent.snapshot.completed,
+            total: latestEvent.snapshot.total,
+            timestamp: latestEvent.timestamp
+        )
     }
 }
 

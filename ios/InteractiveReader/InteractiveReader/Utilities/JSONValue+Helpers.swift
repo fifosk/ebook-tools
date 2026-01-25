@@ -35,4 +35,25 @@ extension JSONValue {
             return nil
         }
     }
+
+    var intValue: Int? {
+        switch self {
+        case let .number(value):
+            guard value.isFinite else { return nil }
+            return Int(value)
+        case let .string(value):
+            return Int(value)
+        case let .bool(value):
+            return value ? 1 : 0
+        case let .array(values):
+            for value in values {
+                if let intValue = value.intValue {
+                    return intValue
+                }
+            }
+            return nil
+        default:
+            return nil
+        }
+    }
 }

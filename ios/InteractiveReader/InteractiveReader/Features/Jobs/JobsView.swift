@@ -84,9 +84,7 @@ struct JobsView: View {
         }
         .onAppear {
             refreshResumeStatus()
-            #if os(tvOS)
             viewModel.startAutoRefresh(using: appState)
-            #endif
         }
         .onChange(of: resumeUserId) { _, _ in
             refreshResumeStatus()
@@ -100,11 +98,9 @@ struct JobsView: View {
                 iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
             }
         }
-        #if os(tvOS)
         .onDisappear {
             viewModel.stopAutoRefresh()
         }
-        #endif
     }
 
     @ViewBuilder

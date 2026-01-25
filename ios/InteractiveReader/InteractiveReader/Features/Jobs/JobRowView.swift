@@ -153,7 +153,7 @@ struct JobRowView: View {
 
     private var progressLabel: String? {
         guard job.isActiveForDisplay else { return nil }
-        guard let snapshot = job.latestEvent?.snapshot else { return "Progress: preparing" }
+        guard let snapshot = job.readyProgressSnapshot else { return "Progress: preparing" }
         if let total = snapshot.total, total > 0 {
             let percent = Int((Double(snapshot.completed) / Double(total)) * 100)
             return "Progress \(snapshot.completed)/\(total) · \(percent)%"
@@ -163,7 +163,7 @@ struct JobRowView: View {
 
     private var progressValue: Double? {
         guard job.isActiveForDisplay else { return nil }
-        guard let snapshot = job.latestEvent?.snapshot else { return nil }
+        guard let snapshot = job.readyProgressSnapshot else { return nil }
         guard let total = snapshot.total, total > 0 else { return nil }
         return Double(snapshot.completed) / Double(total)
     }

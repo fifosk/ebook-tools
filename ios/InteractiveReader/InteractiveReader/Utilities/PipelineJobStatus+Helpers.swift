@@ -72,6 +72,34 @@ extension PipelineStatusResponse {
         }
         return false
     }
+
+    struct ReadyProgressSnapshot: Hashable {
+        let completed: Int
+        let total: Int?
+    }
+
+    var readyProgressSnapshot: ReadyProgressSnapshot? {
+        if let snapshot = mediaBatchProgressSnapshot {
+            return snapshot
+        }
+        guard let event = latestEvent else { return nil }
+        guard event.isReadyStage else { return nil }
+        return ReadyProgressSnapshot(
+            completed: event.snapshot.completed,
+            total: event.snapshot.total
+        )
+    }
+
+    private var mediaBatchProgressSnapshot: ReadyProgressSnapshot? {
+        guard let generatedFiles,
+              let stats = generatedFiles["media_batch_stats"]?.objectValue
+        else {
+            return nil
+        }
+        guard let completed = stats["items_completed"]?.intValue else { return nil }
+        let total = stats["items_total"]?.intValue
+        return ReadyProgressSnapshot(completed: completed, total: total)
+    }
 }
 
 private extension JSONValue {
@@ -80,5 +108,23 @@ private extension JSONValue {
             return true
         }
         return false
+    }
+}
+
+private extension ProgressEventPayload {
+    var progressStage: String? {
+        if let stage = metadata["stage"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !stage.isEmpty {
+            return stage.lowercased()
+        }
+        if eventType == "complete" {
+            return "media"
+        }
+        return nil
+    }
+
+    var isReadyStage: Bool {
+        guard let stage = progressStage else { return true }
+        return stage == "media" || stage == "playable"
     }
 }

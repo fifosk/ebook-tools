@@ -86,7 +86,7 @@ extension JobPlaybackView {
         if currentJob.isFinishedForDisplay {
             return 100
         }
-        guard let snapshot = currentJob.latestEvent?.snapshot,
+        guard let snapshot = currentJob.readyProgressSnapshot,
               let total = snapshot.total,
               total > 0
         else {

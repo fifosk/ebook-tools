@@ -89,8 +89,9 @@ extension InteractivePlayerView {
             inputLanguage: originalLanguage,
             lookupLanguage: translationLanguage
         )
-        let fallbackLanguage = SpeechLanguageResolver.resolveSpeechLanguage(pronunciationLanguage ?? "")
-        startPronunciation(text: query, apiLanguage: pronunciationLanguage, fallbackLanguage: fallbackLanguage)
+        let resolvedPronunciationLanguage = SpeechLanguageResolver.resolveSpeechLanguage(pronunciationLanguage ?? "")
+        let apiLanguage = resolvedPronunciationLanguage ?? pronunciationLanguage
+        startPronunciation(text: query, apiLanguage: apiLanguage, fallbackLanguage: resolvedPronunciationLanguage)
         linguistLookupTask = Task { @MainActor in
             do {
                 let response = try await viewModel.lookupAssistant(
