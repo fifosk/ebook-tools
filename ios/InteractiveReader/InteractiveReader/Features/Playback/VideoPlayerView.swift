@@ -78,6 +78,10 @@ struct VideoPlayerView: View {
     @StateObject var pronunciationSpeaker = PronunciationSpeaker()
     @State var isTearingDown = false
     @State var bookmarks: [PlaybackBookmarkEntry] = []
+    @StateObject var searchViewModel = MediaSearchViewModel()
+    #if os(tvOS)
+    @Namespace var searchFocusNamespace
+    #endif
     #if os(iOS)
     @State var isVideoScrubGestureActive = false
     @State var videoScrubStartTime: Double = 0

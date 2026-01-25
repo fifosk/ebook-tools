@@ -53,8 +53,10 @@ struct InteractivePlayerView: View {
     #endif
     @StateObject var pronunciationSpeaker = PronunciationSpeaker()
     @State var bookmarks: [PlaybackBookmarkEntry] = []
+    @StateObject var searchViewModel = MediaSearchViewModel()
     #if os(tvOS)
     @State var didSetInitialFocus = false
+    @Namespace var searchFocusNamespace
     #endif
     @FocusState var focusedArea: InteractivePlayerFocusArea?
 

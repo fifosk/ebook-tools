@@ -165,7 +165,30 @@ extension VideoPlayerView {
         subtitleLeadingInset: CGFloat,
         headerTopInset: CGFloat,
         allowSubtitleDownwardDrag: Bool
-    ) -> VideoPlayerOverlayView {
+    ) -> some View {
+        ZStack {
+            videoPlayerOverlayContent(
+                subtitleAlignment: subtitleAlignment,
+                subtitleMaxWidth: subtitleMaxWidth,
+                subtitleLeadingInset: subtitleLeadingInset,
+                headerTopInset: headerTopInset,
+                allowSubtitleDownwardDrag: allowSubtitleDownwardDrag
+            )
+            #if os(tvOS)
+            .disabled(searchViewModel.isExpanded)
+            #endif
+            videoSearchOverlayContainer
+        }
+    }
+
+    @ViewBuilder
+    private func videoPlayerOverlayContent(
+        subtitleAlignment: HorizontalAlignment,
+        subtitleMaxWidth: CGFloat?,
+        subtitleLeadingInset: CGFloat,
+        headerTopInset: CGFloat,
+        allowSubtitleDownwardDrag: Bool
+    ) -> some View {
         VideoPlayerOverlayView(
             // Playback State
             cues: cues,
@@ -206,6 +229,8 @@ extension VideoPlayerView {
             headerTopInset: headerTopInset,
             // Bookmarks
             bookmarks: bookmarks,
+            // Search
+            searchPill: videoSearchPillView,
             // TV Controls
             showTVControls: $showTVControls,
             scrubberValue: $scrubberValue,

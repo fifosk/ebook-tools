@@ -132,6 +132,9 @@ extension InteractivePlayerView {
     private var playerStack: some View {
         ZStack(alignment: .top) {
             playerMainLayer
+                #if os(tvOS)
+                .disabled(searchViewModel.isExpanded)
+                #endif
             playerOverlayLayer
         }
     }
@@ -151,16 +154,65 @@ extension InteractivePlayerView {
 
     @ViewBuilder
     private var playerOverlayLayer: some View {
-        if let chunk = viewModel.selectedChunk, (shouldShowHeaderOverlay || isTV) {
-            playerInfoOverlay(for: chunk)
+        // Background overlays - disabled when search is active on tvOS
+        Group {
+            if let chunk = viewModel.selectedChunk, (shouldShowHeaderOverlay || isTV) {
+                playerInfoOverlay(for: chunk)
+            }
+            if let chunk = viewModel.selectedChunk {
+                menuOverlay(for: chunk)
+            }
+            headerToggleButton
         }
-        if let chunk = viewModel.selectedChunk {
-            menuOverlay(for: chunk)
-        }
-        headerToggleButton
+        #if os(tvOS)
+        .disabled(searchViewModel.isExpanded)
+        #endif
+
+        // Search overlay - on top and captures focus
+        searchOverlayContainer
+
+        // Other layers
         trackpadSwipeLayer
         shortcutHelpOverlay
         keyboardShortcutLayer
+    }
+
+    @ViewBuilder
+    private var searchOverlayContainer: some View {
+        if searchViewModel.isExpanded {
+            ZStack {
+                // Background dismissal area
+                Color.black.opacity(0.3)
+                    #if !os(tvOS)
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            searchViewModel.isExpanded = false
+                        }
+                    }
+                    #endif
+
+                // Search content
+                VStack {
+                    HStack {
+                        Spacer()
+                        searchOverlayView
+                            .padding(.top, infoHeaderReservedHeight + 8)
+                            .padding(.trailing, 8)
+                    }
+                    Spacer()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            #if os(tvOS)
+            .focusScope(searchFocusNamespace)
+            .onExitCommand {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    searchViewModel.isExpanded = false
+                }
+            }
+            #endif
+            .zIndex(3)
+        }
     }
 
     var isPad: Bool {
@@ -510,17 +562,20 @@ extension InteractivePlayerView {
                         .minimumScaleFactor(0.85)
                 }
                 if !info.languageFlags.isEmpty {
-                    PlayerLanguageFlagRow(
-                        flags: info.languageFlags,
-                        modelLabel: info.translationModel,
-                        isTV: isTV,
-                        sizeScale: infoHeaderScale,
-                        activeRoles: activeRoles,
-                        availableRoles: availableRoles,
-                        onToggleRole: { role in
-                            toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
-                        }
-                    )
+                    HStack(spacing: 8 * infoHeaderScale) {
+                        PlayerLanguageFlagRow(
+                            flags: info.languageFlags,
+                            modelLabel: info.translationModel,
+                            isTV: isTV,
+                            sizeScale: infoHeaderScale,
+                            activeRoles: activeRoles,
+                            availableRoles: availableRoles,
+                            onToggleRole: { role in
+                                toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
+                            }
+                        )
+                        searchPillView
+                    }
                 }
             }
         }
@@ -601,7 +656,7 @@ extension InteractivePlayerView {
         #endif
     }
 
-    private var infoHeaderScale: CGFloat {
+    var infoHeaderScale: CGFloat {
         #if os(iOS)
         let base: CGFloat = isPad ? 2.0 : 1.0
         return base * headerScale

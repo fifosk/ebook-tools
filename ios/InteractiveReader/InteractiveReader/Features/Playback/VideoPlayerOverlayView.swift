@@ -5,7 +5,7 @@ import UIKit
 
 /// Video player overlay view using modular components.
 /// Orchestrates header, subtitles, controls, and settings overlays.
-struct VideoPlayerOverlayView: View {
+struct VideoPlayerOverlayView<SearchPill: View>: View {
     // MARK: - Playback State
     let cues: [VideoSubtitleCue]
     let currentTime: Double
@@ -49,6 +49,9 @@ struct VideoPlayerOverlayView: View {
 
     // MARK: - Bookmarks
     let bookmarks: [PlaybackBookmarkEntry]
+
+    // MARK: - Search
+    let searchPill: SearchPill?
 
     // MARK: - TV Controls
     @Binding var showTVControls: Bool
@@ -181,6 +184,7 @@ struct VideoPlayerOverlayView: View {
             playbackRateOptions: playbackRateOptions,
             bookmarks: bookmarks,
             isPlaying: isPlaying,
+            searchPill: searchPill,
             onToggleHeaderCollapsed: onToggleHeaderCollapsed,
             onShowSubtitleSettings: { showSubtitleSettings = true },
             onPlaybackRateChange: onPlaybackRateChange,
@@ -662,13 +666,20 @@ extension VideoPlayerOverlayView {
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                 }
-                if !metadata.languageFlags.isEmpty {
-                    PlayerLanguageFlagRow(
-                        flags: metadata.languageFlags,
-                        modelLabel: metadata.translationModel,
-                        isTV: true,
-                        sizeScale: 1.0
-                    )
+                if !metadata.languageFlags.isEmpty || searchPill != nil {
+                    HStack(spacing: 8) {
+                        if !metadata.languageFlags.isEmpty {
+                            PlayerLanguageFlagRow(
+                                flags: metadata.languageFlags,
+                                modelLabel: metadata.translationModel,
+                                isTV: true,
+                                sizeScale: 1.0
+                            )
+                        }
+                        if let searchPill {
+                            searchPill
+                        }
+                    }
                 }
             }
         }

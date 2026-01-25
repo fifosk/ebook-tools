@@ -6,7 +6,7 @@ import UIKit
 
 // MARK: - Video Player Header View
 
-struct VideoPlayerHeaderView: View {
+struct VideoPlayerHeaderView<SearchPill: View>: View {
     let metadata: VideoPlaybackMetadata
     let isCollapsed: Bool
     let headerTopInset: CGFloat
@@ -23,6 +23,7 @@ struct VideoPlayerHeaderView: View {
     let playbackRateOptions: [Double]
     let bookmarks: [PlaybackBookmarkEntry]
     let isPlaying: Bool
+    let searchPill: SearchPill?
 
     // Callbacks
     let onToggleHeaderCollapsed: () -> Void
@@ -33,6 +34,60 @@ struct VideoPlayerHeaderView: View {
     let onRemoveBookmark: (PlaybackBookmarkEntry) -> Void
     let onUserInteraction: () -> Void
     let onDismiss: () -> Void
+
+    init(
+        metadata: VideoPlaybackMetadata,
+        isCollapsed: Bool,
+        headerTopInset: CGFloat,
+        headerScaleValue: Double,
+        currentTime: Double,
+        duration: Double,
+        segmentOptions: [VideoSegmentOption],
+        selectedSegmentID: String?,
+        jobProgressLabel: String?,
+        jobRemainingLabel: String?,
+        tracks: [VideoSubtitleTrack],
+        selectedTrack: VideoSubtitleTrack?,
+        playbackRate: Double,
+        playbackRateOptions: [Double],
+        bookmarks: [PlaybackBookmarkEntry],
+        isPlaying: Bool,
+        searchPill: SearchPill? = nil,
+        onToggleHeaderCollapsed: @escaping () -> Void,
+        onShowSubtitleSettings: @escaping () -> Void,
+        onPlaybackRateChange: @escaping (Double) -> Void,
+        onAddBookmark: (() -> Void)?,
+        onJumpToBookmark: @escaping (PlaybackBookmarkEntry) -> Void,
+        onRemoveBookmark: @escaping (PlaybackBookmarkEntry) -> Void,
+        onUserInteraction: @escaping () -> Void,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.metadata = metadata
+        self.isCollapsed = isCollapsed
+        self.headerTopInset = headerTopInset
+        self.headerScaleValue = headerScaleValue
+        self.currentTime = currentTime
+        self.duration = duration
+        self.segmentOptions = segmentOptions
+        self.selectedSegmentID = selectedSegmentID
+        self.jobProgressLabel = jobProgressLabel
+        self.jobRemainingLabel = jobRemainingLabel
+        self.tracks = tracks
+        self.selectedTrack = selectedTrack
+        self.playbackRate = playbackRate
+        self.playbackRateOptions = playbackRateOptions
+        self.bookmarks = bookmarks
+        self.isPlaying = isPlaying
+        self.searchPill = searchPill
+        self.onToggleHeaderCollapsed = onToggleHeaderCollapsed
+        self.onShowSubtitleSettings = onShowSubtitleSettings
+        self.onPlaybackRateChange = onPlaybackRateChange
+        self.onAddBookmark = onAddBookmark
+        self.onJumpToBookmark = onJumpToBookmark
+        self.onRemoveBookmark = onRemoveBookmark
+        self.onUserInteraction = onUserInteraction
+        self.onDismiss = onDismiss
+    }
 
     var body: some View {
         #if os(tvOS)
@@ -85,6 +140,9 @@ struct VideoPlayerHeaderView: View {
                 dismissButton
                 Spacer(minLength: 12)
                 HStack(spacing: 8) {
+                    if let searchPill {
+                        searchPill
+                    }
                     if hasOptions {
                         subtitleButton
                     }
@@ -139,6 +197,9 @@ struct VideoPlayerHeaderView: View {
                             VideoTimelinePill(label: timelineLabel, font: infoIndicatorFont)
                         }
                         HStack(spacing: 8) {
+                            if let searchPill {
+                                searchPill
+                            }
                             if hasOptions {
                                 subtitleButton
                             }

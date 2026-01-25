@@ -260,6 +260,26 @@ final class APIClient {
         )
     }
 
+    func searchMedia(jobId: String, query: String, limit: Int = 25) async throws -> MediaSearchResponse {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return MediaSearchResponse(query: "", limit: limit, count: 0, results: [])
+        }
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "query", value: trimmed),
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            URLQueryItem(name: "job_id", value: jobId),
+        ]
+        let suffix = components.percentEncodedQuery.map { "?\($0)" } ?? ""
+        let data = try await sendRequest(path: "/api/pipelines/search\(suffix)")
+        // Debug: always print raw response for search
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("[APIClient] Search response raw JSON:\n\(jsonString)")
+        }
+        return try decode(MediaSearchResponse.self, from: data)
+    }
+
     private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -267,6 +287,13 @@ final class APIClient {
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
+            // Debug: print raw JSON for MediaSearchResponse decode failures
+            if type == MediaSearchResponse.self {
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("[APIClient] MediaSearchResponse decode failed. Raw JSON:\n\(jsonString)")
+                }
+                print("[APIClient] Decode error details: \(error)")
+            }
             throw APIClientError.decoding(error)
         }
     }
