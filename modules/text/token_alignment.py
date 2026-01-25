@@ -23,12 +23,108 @@ _CJK_PATTERN = regex.compile(
 # Pattern for splitting by spaces while preserving structure
 _SPACE_SPLIT_PATTERN = regex.compile(r"\s+")
 
+# Japanese bracket/quote patterns for normalization
+_JP_OPEN_BRACKET = regex.compile(r"^[「『【（《〈]$")
+_JP_CLOSE_BRACKET = regex.compile(r"^[」』】）》〉]$")
+_JP_PUNCTUATION_ONLY = regex.compile(r"^[\p{P}\p{S}]+$")
+
 
 def count_tokens(text: str) -> int:
     """Count the number of tokens in text using the standard tokenizer."""
     if not text:
         return 0
     return len(split_highlight_tokens(text))
+
+
+def _merge_punctuation_tokens(tokens: List[str]) -> Tuple[List[str], bool]:
+    """Merge standalone punctuation tokens with adjacent content.
+
+    Handles Japanese brackets 「」『』 and other punctuation-only tokens
+    by merging them with adjacent content tokens.
+
+    Args:
+        tokens: List of tokens to process
+
+    Returns:
+        Tuple of (merged_tokens, was_modified)
+    """
+    if len(tokens) <= 1:
+        return tokens, False
+
+    modified = False
+    result = list(tokens)
+
+    # First pass: merge opening brackets with following token
+    i = 0
+    while i < len(result) - 1:
+        tok = result[i]
+        if _JP_OPEN_BRACKET.match(tok):
+            result[i] = tok + result[i + 1]
+            del result[i + 1]
+            modified = True
+        else:
+            i += 1
+
+    # Second pass: merge closing brackets with preceding token
+    i = 1
+    while i < len(result):
+        tok = result[i]
+        if _JP_CLOSE_BRACKET.match(tok):
+            result[i - 1] = result[i - 1] + tok
+            del result[i]
+            modified = True
+        else:
+            i += 1
+
+    # Third pass: merge any remaining punctuation-only tokens
+    # This catches things like standalone ！ or 。
+    i = 0
+    while i < len(result):
+        tok = result[i]
+        if _JP_PUNCTUATION_ONLY.match(tok) and len(tok) <= 2:
+            if i > 0:
+                # Merge with preceding token
+                result[i - 1] = result[i - 1] + tok
+                del result[i]
+                modified = True
+            elif i < len(result) - 1:
+                # Merge with following token
+                result[i] = tok + result[i + 1]
+                del result[i + 1]
+                modified = True
+            else:
+                i += 1
+        else:
+            i += 1
+
+    return result, modified
+
+
+def _normalize_japanese_punctuation(
+    trans_tokens: List[str],
+    translit_tokens: List[str],
+) -> Tuple[List[str], List[str], bool]:
+    """Normalize Japanese punctuation tokens to align with romaji.
+
+    Handles cases like:
+    - 「 text 」 (3+ tokens) vs 「 text 」 or 'text' in romaji
+    - Merges standalone Japanese brackets with adjacent content
+    - Merges standalone romaji brackets/quotes similarly
+
+    Args:
+        trans_tokens: Japanese translation tokens
+        translit_tokens: Romaji transliteration tokens
+
+    Returns:
+        Tuple of (normalized_trans, normalized_translit, was_modified)
+    """
+    if len(trans_tokens) == len(translit_tokens):
+        return trans_tokens, translit_tokens, False
+
+    new_trans, trans_modified = _merge_punctuation_tokens(trans_tokens)
+    new_translit, translit_modified = _merge_punctuation_tokens(translit_tokens)
+
+    return new_trans, new_translit, trans_modified or translit_modified
 
 
 def align_token_counts(
@@ -41,10 +137,11 @@ def align_token_counts(
     """Attempt to align token counts between translation and transliteration.
 
     This function tries various strategies to make the token counts match:
-    1. Smart syllable grouping based on translation character counts (best for CJK)
-    2. Join hyphenated syllables in transliteration to reduce token count
-    3. Split compound transliterations to increase token count
-    4. Merge adjacent short translation tokens to reduce count
+    1. Japanese punctuation normalization (merge brackets with content)
+    2. Smart syllable grouping based on translation character counts (best for CJK)
+    3. Join hyphenated syllables in transliteration to reduce token count
+    4. Split compound transliterations to increase token count
+    5. Merge adjacent short translation tokens to reduce count
 
     Args:
         translation: The translated text (in target script)
@@ -67,6 +164,22 @@ def align_token_counts(
     # Already aligned
     if trans_count == translit_count:
         return translation, transliteration, False
+
+    # For Japanese, try punctuation normalization first
+    lang_lower = (target_language or "").strip().lower()
+    if lang_lower in ("japanese", "ja", "jpn"):
+        norm_trans, norm_translit, punct_modified = _normalize_japanese_punctuation(
+            trans_tokens, translit_tokens
+        )
+        if punct_modified:
+            # Use normalized tokens for further processing
+            trans_tokens = norm_trans
+            translit_tokens = norm_translit
+            trans_count = len(trans_tokens)
+            translit_count = len(translit_tokens)
+            # Check if now aligned after punctuation normalization
+            if trans_count == translit_count:
+                return " ".join(trans_tokens), " ".join(translit_tokens), True
 
     # For CJK languages with more transliteration than translation tokens,
     # try smart syllable grouping first (best approach for pinyin, romaji, etc.)
