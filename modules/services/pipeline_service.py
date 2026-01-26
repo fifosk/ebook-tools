@@ -7,7 +7,7 @@ import json
 import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Tuple
 from uuid import uuid4
 
 from .. import config_manager as cfg
@@ -814,6 +814,26 @@ class PipelineService:
 
         return self._job_manager.refresh_metadata(
             job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
+
+    def enrich_metadata(
+        self,
+        job_id: str,
+        *,
+        force: bool = False,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> Tuple["PipelineJob", Dict[str, Any]]:
+        """Enrich job metadata from external sources without re-extracting from EPUB.
+
+        Returns:
+            Tuple of (updated job, enrichment info dict).
+        """
+        return self._job_manager.enrich_metadata(
+            job_id,
+            force=force,
             user_id=user_id,
             user_role=user_role,
         )

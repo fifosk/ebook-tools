@@ -103,3 +103,40 @@ class LibraryIsbnLookupResponse(BaseModel):
     """Metadata fetched from external services using an ISBN."""
 
     metadata: Dict[str, Any]
+
+
+class LibraryMetadataRefreshRequest(BaseModel):
+    """Request payload for refreshing library item metadata."""
+
+    enrich_from_external: bool = Field(
+        default=True,
+        alias="enrichFromExternal",
+        description="Also enrich from external sources (OpenLibrary, TMDB, etc.)",
+    )
+
+    class Config:
+        populate_by_name = True
+
+
+class LibraryMetadataRefreshResponse(BaseModel):
+    """Response for metadata refresh operations."""
+
+    item: LibraryItemPayload
+
+
+class LibraryMetadataEnrichRequest(BaseModel):
+    """Request payload for enriching library item metadata from external sources."""
+
+    force: bool = Field(
+        default=False,
+        description="Force refresh even if enrichment data already exists",
+    )
+
+
+class LibraryMetadataEnrichResponse(BaseModel):
+    """Response for metadata enrichment operations."""
+
+    item: LibraryItemPayload
+    enriched: bool
+    confidence: Optional[str] = None
+    source: Optional[str] = None

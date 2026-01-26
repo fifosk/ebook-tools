@@ -7,6 +7,7 @@ from typing import Any, Dict, Mapping, Optional, Type
 
 from modules import logging_manager
 from modules.library.library_metadata import LibraryMetadataError, LibraryMetadataManager
+from modules.services.metadata import enrich_book_metadata
 
 from . import file_ops, metadata as metadata_utils
 
@@ -21,8 +22,24 @@ def refresh_metadata(
     *,
     error_cls: Type[Exception],
     current_timestamp,
+    enrich_from_external: bool = True,
 ) -> Dict[str, Any]:
-    """Refresh metadata for a library entry using local and remote sources."""
+    """Refresh metadata for a library entry using local and remote sources.
+
+    Args:
+        job_id: The job identifier.
+        job_root: Path to the job directory.
+        metadata: The current metadata dictionary to update.
+        metadata_manager: The metadata manager for EPUB extraction.
+        error_cls: Exception class to raise on errors.
+        current_timestamp: Function returning current timestamp.
+        enrich_from_external: If True, also enrich from external sources
+            (OpenLibrary, Google Books, TMDB, etc.) via the unified
+            metadata pipeline. Defaults to True.
+
+    Returns:
+        Updated metadata dictionary.
+    """
 
     source_relative = file_ops.ensure_source_material(job_root, metadata)
     if source_relative:
@@ -75,6 +92,26 @@ def refresh_metadata(
     )
     if isbn_value:
         updated_metadata["isbn"] = isbn_value
+
+    # Enrich from external sources via unified metadata pipeline
+    if enrich_from_external:
+        enrichment_result = enrich_book_metadata(updated_metadata, force=True)
+        if enrichment_result.enriched:
+            # Merge enrichment results, preferring local/ISBN data for non-empty fields
+            for key, value in enrichment_result.metadata.items():
+                if key.startswith("_"):
+                    # Always include provenance metadata
+                    updated_metadata[key] = value
+                elif key not in updated_metadata or not updated_metadata.get(key):
+                    updated_metadata[key] = value
+            LOGGER.debug(
+                "Enriched metadata for job %s from %s (confidence: %s)",
+                job_id,
+                enrichment_result.confidence,
+                enrichment_result.source_result.primary_source.value
+                if enrichment_result.source_result and enrichment_result.source_result.primary_source
+                else "unknown",
+            )
 
     metadata["book_metadata"] = dict(updated_metadata)
 
@@ -146,8 +183,84 @@ def lookup_isbn_metadata(
     return metadata_manager.fetch_metadata_from_isbn(normalized)
 
 
+def enrich_metadata(
+    job_id: str,
+    job_root: Path,
+    metadata: Dict[str, Any],
+    *,
+    error_cls: Type[Exception],
+    current_timestamp,
+    force: bool = False,
+) -> Dict[str, Any]:
+    """Enrich metadata from external sources without re-parsing EPUB.
+
+    This function only performs external metadata lookup (OpenLibrary, Google
+    Books, TMDB, etc.) using the unified metadata pipeline. It does not
+    re-extract metadata from the source file.
+
+    Args:
+        job_id: The job identifier.
+        job_root: Path to the job directory.
+        metadata: The current metadata dictionary to update.
+        error_cls: Exception class to raise on errors.
+        current_timestamp: Function returning current timestamp.
+        force: Force refresh even if enrichment data already exists.
+
+    Returns:
+        Updated metadata dictionary.
+    """
+    book_metadata_raw = metadata.get("book_metadata")
+    if isinstance(book_metadata_raw, Mapping):
+        existing_metadata = dict(book_metadata_raw)
+    else:
+        existing_metadata = {}
+
+    # Skip if already enriched and not forcing
+    if not force and existing_metadata.get("_enrichment_source"):
+        LOGGER.debug("Skipping enrichment for job %s (already enriched)", job_id)
+        return metadata
+
+    enrichment_result = enrich_book_metadata(existing_metadata, force=force)
+
+    if enrichment_result.enriched:
+        # Update book_metadata with enrichment results
+        updated_metadata = dict(existing_metadata)
+        for key, value in enrichment_result.metadata.items():
+            if key.startswith("_"):
+                # Always include provenance metadata
+                updated_metadata[key] = value
+            elif key not in updated_metadata or not updated_metadata.get(key):
+                updated_metadata[key] = value
+
+        metadata["book_metadata"] = updated_metadata
+
+        # Also update top-level fields
+        if updated_metadata.get("book_title") and not metadata.get("book_title"):
+            metadata["book_title"] = updated_metadata["book_title"]
+        if updated_metadata.get("book_author") and not metadata.get("author"):
+            metadata["author"] = updated_metadata["book_author"]
+        if updated_metadata.get("book_genre") and not metadata.get("genre"):
+            metadata["genre"] = updated_metadata["book_genre"]
+
+        metadata["updated_at"] = current_timestamp()
+
+        LOGGER.debug(
+            "Enriched metadata for job %s from %s (confidence: %s)",
+            job_id,
+            enrichment_result.source_result.primary_source.value
+            if enrichment_result.source_result and enrichment_result.source_result.primary_source
+            else "unknown",
+            enrichment_result.confidence,
+        )
+    else:
+        LOGGER.debug("No enrichment available for job %s", job_id)
+
+    return metadata
+
+
 __all__ = [
     "apply_isbn_metadata",
+    "enrich_metadata",
     "lookup_isbn_metadata",
     "refresh_metadata",
 ]

@@ -40,8 +40,9 @@ export default function SettingsPanel({ currentUser }: SettingsPanelProps) {
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [showSecrets, setShowSecrets] = useState(false);
 
-  const refreshConfig = useCallback(async (mode: RefreshMode = 'subsequent') => {
+  const refreshConfig = useCallback(async (mode: RefreshMode = 'subsequent', secrets = showSecrets) => {
     if (mode === 'initial') {
       setIsLoading(true);
     } else {
@@ -50,7 +51,7 @@ export default function SettingsPanel({ currentUser }: SettingsPanelProps) {
     setError(null);
 
     try {
-      const response = await fetchGroupedConfig();
+      const response = await fetchGroupedConfig({ showSecrets: secrets });
       setGroups(response.groups);
 
       // Set first group as active if none selected
@@ -267,6 +268,19 @@ export default function SettingsPanel({ currentUser }: SettingsPanelProps) {
           </p>
         </div>
         <div className="settings-panel__header-actions">
+          {activeGroup === 'api_keys' && (
+            <label className="settings-panel__toggle-secrets">
+              <input
+                type="checkbox"
+                checked={showSecrets}
+                onChange={e => {
+                  setShowSecrets(e.target.checked);
+                  void refreshConfig('subsequent', e.target.checked);
+                }}
+              />
+              <span>Show API Key Values</span>
+            </label>
+          )}
           <button
             type="button"
             className="settings-panel__secondary"

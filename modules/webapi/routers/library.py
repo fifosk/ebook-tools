@@ -22,6 +22,10 @@ from ..routes.media_routes import _stream_local_file
 from ..schemas import (
     LibraryItemPayload,
     LibraryMediaRemovalResponse,
+    LibraryMetadataEnrichRequest,
+    LibraryMetadataEnrichResponse,
+    LibraryMetadataRefreshRequest,
+    LibraryMetadataRefreshResponse,
     LibraryMetadataUpdateRequest,
     LibraryMoveRequest,
     LibraryMoveResponse,
@@ -360,12 +364,18 @@ async def apply_isbn_metadata(
     return LibraryItemPayload.model_validate(serialized)
 
 
-@router.post("/items/{job_id}/refresh", response_model=LibraryItemPayload)
+@router.post("/items/{job_id}/refresh", response_model=LibraryMetadataRefreshResponse)
 async def refresh_library_metadata(
     job_id: str,
+    payload: LibraryMetadataRefreshRequest | None = None,
     sync: LibrarySync = Depends(get_library_sync),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
+    """Refresh metadata for a library item from source file and external sources.
+
+    This re-extracts metadata from the EPUB and optionally enriches from
+    external sources (OpenLibrary, Google Books, TMDB, etc.).
+    """
     item = sync.get_item(job_id)
     if item is not None:
         _ensure_library_access(item, request_user, permission="edit")
@@ -377,7 +387,54 @@ async def refresh_library_metadata(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     serialized = sync.serialize_item(refreshed_item)
-    return LibraryItemPayload.model_validate(serialized)
+    return LibraryMetadataRefreshResponse(item=LibraryItemPayload.model_validate(serialized))
+
+
+@router.post("/items/{job_id}/enrich", response_model=LibraryMetadataEnrichResponse)
+async def enrich_library_metadata(
+    job_id: str,
+    payload: LibraryMetadataEnrichRequest | None = None,
+    sync: LibrarySync = Depends(get_library_sync),
+    request_user: RequestUserContext = Depends(get_request_user),
+):
+    """Enrich metadata for a library item from external sources.
+
+    This performs a lookup against external metadata sources (OpenLibrary,
+    Google Books, TMDB, etc.) using the unified metadata pipeline and
+    fills in missing metadata fields. It does NOT re-extract from the EPUB.
+
+    Use this endpoint when you have existing metadata (e.g., title/author)
+    and want to fetch additional information like cover images, summaries,
+    genres, ISBNs, etc. from external sources.
+    """
+    item = sync.get_item(job_id)
+    if item is not None:
+        _ensure_library_access(item, request_user, permission="edit")
+
+    force = payload.force if payload else False
+
+    try:
+        enriched_item = sync.enrich_metadata(job_id, force=force)
+    except LibraryNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except LibraryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    serialized = sync.serialize_item(enriched_item)
+    item_payload = LibraryItemPayload.model_validate(serialized)
+
+    # Extract enrichment info from metadata
+    book_metadata = serialized.get("metadata", {}).get("book_metadata", {})
+    enriched = bool(book_metadata.get("_enrichment_source"))
+    confidence = book_metadata.get("_enrichment_confidence")
+    source = book_metadata.get("_enrichment_source")
+
+    return LibraryMetadataEnrichResponse(
+        item=item_payload,
+        enriched=enriched,
+        confidence=confidence,
+        source=source,
+    )
 
 
 @router.get("/isbn/lookup", response_model=LibraryIsbnLookupResponse)

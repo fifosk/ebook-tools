@@ -24,7 +24,14 @@ DEFAULT_LIBRARY_ROOT = Path("/Volumes/Data/Video/Library")
 DERIVED_RUNTIME_DIRNAME = "runtime"
 DERIVED_REFINED_FILENAME_TEMPLATE = "{base_name}_refined_list.json"
 DERIVED_CONFIG_KEYS = {"refined_list"}
-SENSITIVE_CONFIG_KEYS = {"ollama_api_key", "database_url", "job_store_url"}
+SENSITIVE_CONFIG_KEYS = {
+    "ollama_api_key",
+    "tmdb_api_key",
+    "omdb_api_key",
+    "google_books_api_key",
+    "database_url",
+    "job_store_url",
+}
 
 DEFAULT_OLLAMA_URL = os.environ.get(
     "OLLAMA_URL", "http://192.168.1.9:11434/api/chat"

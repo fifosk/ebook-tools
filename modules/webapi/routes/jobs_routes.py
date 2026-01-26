@@ -34,6 +34,7 @@ from ..schemas import (
     BookOpenLibraryMetadataPreviewResponse,
     BookOpenLibraryMetadataResponse,
 )
+from ..schemas.metadata_lookup import JobMetadataEnrichRequest, JobMetadataEnrichResponse
 from ..schemas.access import AccessPolicyPayload, AccessPolicyUpdateRequest
 from modules.permissions import resolve_access_policy
 
@@ -271,6 +272,48 @@ async def refresh_pipeline_metadata(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     return PipelineStatusResponse.from_job(job)
+
+
+@router.post("/{job_id}/metadata/enrich", response_model=JobMetadataEnrichResponse)
+async def enrich_pipeline_metadata(
+    job_id: str,
+    payload: JobMetadataEnrichRequest | None = None,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+):
+    """Enrich job metadata from external sources (OpenLibrary, Google Books, TMDB, etc.).
+
+    This endpoint performs a lookup against external metadata sources using the
+    unified metadata pipeline and fills in missing metadata fields. It does NOT
+    re-extract metadata from the source file (use /metadata/refresh for that).
+
+    Use this endpoint when you have existing metadata (e.g., title/author from EPUB)
+    and want to fetch additional information like cover images, summaries, genres,
+    ISBNs, etc. from external sources.
+    """
+    force = payload.force if payload else False
+
+    try:
+        job, enrichment_info = pipeline_service.enrich_metadata(
+            job_id,
+            force=force,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    return JobMetadataEnrichResponse(
+        job_id=job_id,
+        enriched=enrichment_info.get("enriched", False),
+        confidence=enrichment_info.get("confidence"),
+        source=enrichment_info.get("source"),
+        metadata=enrichment_info.get("metadata", {}),
+    )
 
 
 @router.get("/{job_id}/metadata/book", response_model=BookOpenLibraryMetadataResponse)

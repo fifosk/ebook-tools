@@ -9,6 +9,7 @@ import {
   applyLibraryIsbn,
   appendAccessToken,
   createExport,
+  enrichLibraryMetadata,
   lookupLibraryIsbnMetadata,
   removeLibraryEntry,
   reindexLibrary,
@@ -263,6 +264,13 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
   const [isbnFetchError, setIsbnFetchError] = useState<string | null>(null);
   const [isFetchingIsbn, setIsFetchingIsbn] = useState(false);
   const [pendingFocus, setPendingFocus] = useState<{ jobId: string; itemType: LibraryItemType; token: number } | null>(null);
+  const [isEnriching, setIsEnriching] = useState(false);
+  const [enrichmentError, setEnrichmentError] = useState<string | null>(null);
+  const [enrichmentResult, setEnrichmentResult] = useState<{
+    enriched: boolean;
+    source?: string | null;
+    confidence?: string | null;
+  } | null>(null);
 
   const resolveItemPermissions = useCallback(
     (item: LibraryItem) => {
@@ -387,6 +395,8 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
       setPreviewCoverUrl(null);
       setIsbnFetchError(null);
       setIsFetchingIsbn(false);
+      setEnrichmentError(null);
+      setEnrichmentResult(null);
     }
   }, [selectedItem]);
 
@@ -641,6 +651,43 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
       setIsFetchingIsbn(false);
     }
   }, [editValues.isbn]);
+
+  const handleEnrichMetadata = useCallback(
+    async (force: boolean) => {
+      if (!selectedItem) {
+        return;
+      }
+      const permissions = resolveItemPermissions(selectedItem);
+      if (!permissions.canEdit) {
+        setEnrichmentError('You are not authorized to enrich this entry.');
+        return;
+      }
+      setIsEnriching(true);
+      setEnrichmentError(null);
+      setEnrichmentResult(null);
+      try {
+        const result = await enrichLibraryMetadata(selectedItem.jobId, { force });
+        setEnrichmentResult({
+          enriched: result.enriched,
+          source: result.source,
+          confidence: result.confidence,
+        });
+        if (result.enriched) {
+          // Update local state with enriched item
+          setItems((previous) =>
+            previous.map((entry) => (entry.jobId === result.item.jobId ? result.item : entry))
+          );
+          setSelectedItem(result.item);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to enrich metadata';
+        setEnrichmentError(message);
+      } finally {
+        setIsEnriching(false);
+      }
+    },
+    [resolveItemPermissions, selectedItem]
+  );
 
   const handleEditSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -987,12 +1034,60 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
                 >
                   Edit
                 </button>
+                {selectedItemType === 'book' ? (
+                  <>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={() => handleEnrichMetadata(false)}
+                      disabled={
+                        isEnriching ||
+                        isSaving ||
+                        Boolean(mutating[selectedItem.jobId]) ||
+                        !selectedPermissions?.canEdit
+                      }
+                      title="Fetch cover, summary, and other metadata from OpenLibrary, Google Books, etc."
+                    >
+                      {isEnriching ? 'Enriching…' : 'Enrich from web'}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={() => handleEnrichMetadata(true)}
+                      disabled={
+                        isEnriching ||
+                        isSaving ||
+                        Boolean(mutating[selectedItem.jobId]) ||
+                        !selectedPermissions?.canEdit
+                      }
+                      title="Force refresh metadata from external sources even if already enriched"
+                    >
+                      Force refresh
+                    </button>
+                  </>
+                ) : null}
                 {!selectedItem.mediaCompleted ? (
                   <span className={styles.actionHint}>
                     Media is still finalizing or was previously removed for this entry.
                   </span>
                 ) : null}
               </div>
+              {enrichmentError ? (
+                <div className={styles.editError} role="alert" style={{ marginTop: '0.75rem' }}>
+                  {enrichmentError}
+                </div>
+              ) : null}
+              {enrichmentResult ? (
+                <div
+                  className={enrichmentResult.enriched ? styles.successNotice : styles.infoNotice}
+                  role="status"
+                  style={{ marginTop: '0.75rem', padding: '0.5rem', borderRadius: '4px', backgroundColor: enrichmentResult.enriched ? '#d4edda' : '#e7f3ff' }}
+                >
+                  {enrichmentResult.enriched
+                    ? `Enriched from ${enrichmentResult.source ?? 'external source'} (confidence: ${enrichmentResult.confidence ?? 'unknown'})`
+                    : 'No additional metadata found from external sources'}
+                </div>
+              ) : null}
               <div className={styles.accessPanel}>
                 <AccessPolicyEditor
                   policy={selectedItem.access ?? null}

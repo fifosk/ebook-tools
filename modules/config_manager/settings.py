@@ -111,6 +111,9 @@ class EbookToolsSettings(BaseModel):
     pipeline_mode: bool = False
     use_ramdisk: bool = True
     ollama_api_key: Optional[SecretStr] = None
+    tmdb_api_key: Optional[SecretStr] = None
+    omdb_api_key: Optional[SecretStr] = None
+    google_books_api_key: Optional[SecretStr] = None
     database_url: Optional[SecretStr] = None
     job_store_url: Optional[SecretStr] = None
     job_max_workers: int = DEFAULT_JOB_MAX_WORKERS
@@ -180,6 +183,15 @@ class EnvironmentOverrides(BaseSettings):
     )
     ollama_api_key: Optional[SecretStr] = Field(
         default=None, validation_alias=AliasChoices("OLLAMA_API_KEY", "EBOOK_OLLAMA_API_KEY")
+    )
+    tmdb_api_key: Optional[SecretStr] = Field(
+        default=None, validation_alias=AliasChoices("TMDB_API_KEY", "EBOOK_API_KEY_TMDB")
+    )
+    omdb_api_key: Optional[SecretStr] = Field(
+        default=None, validation_alias=AliasChoices("OMDB_API_KEY", "EBOOK_API_KEY_OMDB")
+    )
+    google_books_api_key: Optional[SecretStr] = Field(
+        default=None, validation_alias=AliasChoices("GOOGLE_BOOKS_API_KEY", "EBOOK_API_KEY_GOOGLE_BOOKS")
     )
     database_url: Optional[SecretStr] = Field(
         default=None, validation_alias=AliasChoices("DATABASE_URL", "EBOOK_DATABASE_URL")
@@ -320,7 +332,14 @@ def load_vault_secrets(path: Path) -> Dict[str, SecretStr]:
         return {}
 
     secrets: Dict[str, SecretStr] = {}
-    for key in ("ollama_api_key", "database_url", "job_store_url"):
+    for key in (
+        "ollama_api_key",
+        "tmdb_api_key",
+        "omdb_api_key",
+        "google_books_api_key",
+        "database_url",
+        "job_store_url",
+    ):
         value = payload.get(key)
         if value:
             secrets[key] = SecretStr(str(value))

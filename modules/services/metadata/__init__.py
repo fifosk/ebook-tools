@@ -16,6 +16,14 @@ from .cache import MetadataCache
 from .registry import MetadataSourceRegistry, create_registry_from_config
 from .pipeline import MetadataLookupPipeline, create_pipeline
 from .normalization import merge_results, deduplicate_genres
+from .enrichment import (
+    EnrichmentResult,
+    detect_media_type,
+    enrich_book_metadata,
+    enrich_metadata,
+    enrich_movie_metadata,
+    enrich_tv_metadata,
+)
 
 __all__ = [
     # Types
@@ -38,4 +46,11 @@ __all__ = [
     # Normalization
     "merge_results",
     "deduplicate_genres",
+    # Enrichment
+    "EnrichmentResult",
+    "detect_media_type",
+    "enrich_book_metadata",
+    "enrich_metadata",
+    "enrich_movie_metadata",
+    "enrich_tv_metadata",
 ]

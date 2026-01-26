@@ -70,17 +70,21 @@ function ConfigKeyField({
           />
         );
 
-      case 'secret':
+      case 'secret': {
+        // Show as text if value is visible (not redacted), otherwise password
+        const isRedacted = value === '***REDACTED***';
+        const inputType = isRedacted ? 'password' : 'text';
         return (
           <input
-            type="password"
+            type={inputType}
             value={value as string ?? ''}
             onChange={e => onChange(e.target.value)}
-            placeholder={config.isSensitive && value === '***REDACTED***' ? '(encrypted)' : ''}
+            placeholder={isRedacted ? '(click Show API Key Values to reveal)' : ''}
             disabled={config.isEnvOverride}
             className="config-field__input"
           />
         );
+      }
 
       case 'string':
       default:

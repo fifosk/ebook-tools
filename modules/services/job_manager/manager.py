@@ -952,6 +952,71 @@ class PipelineJobManager:
 
         return job
 
+    def enrich_metadata(
+        self,
+        job_id: str,
+        *,
+        force: bool = False,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> Tuple[PipelineJob, Dict[str, Any]]:
+        """Enrich metadata for ``job_id`` from external sources.
+
+        This method only performs external metadata lookup using the unified
+        metadata pipeline. It does not re-extract metadata from the source file.
+
+        Args:
+            job_id: The job identifier.
+            force: Force refresh even if enrichment data already exists.
+            user_id: User requesting the enrichment.
+            user_role: Role of the user.
+
+        Returns:
+            Tuple of (updated job, enrichment info dict).
+        """
+        with self._lock:
+            job = self._jobs.get(job_id)
+
+        if job is None:
+            stored_metadata = self._store.get(job_id)
+            job = self._persistence.build_job(stored_metadata)
+        self._assert_job_access(job, user_id=user_id, user_role=user_role, permission="edit")
+
+        if job.job_type not in {"pipeline", "book"}:
+            raise ValueError(f"Metadata enrichment is not available for job type '{job.job_type}'")
+
+        result = self._metadata_refresher.enrich(job, force=force)
+
+        enrichment_info = {
+            "enriched": result.enriched,
+            "confidence": result.confidence,
+            "source": (
+                result.source_result.primary_source.value
+                if result.source_result and result.source_result.primary_source
+                else None
+            ),
+            "metadata": result.metadata,
+        }
+
+        if result.enriched:
+            with log_mgr.log_context(job_id=job_id):
+                logger.info(
+                    "Pipeline job metadata enriched from %s (confidence: %s)",
+                    enrichment_info["source"],
+                    enrichment_info["confidence"],
+                    extra={
+                        "event": "pipeline.job.metadata.enriched",
+                        "console_suppress": True,
+                    },
+                )
+
+            with self._lock:
+                if job_id in self._jobs:
+                    self._jobs[job_id] = job
+                self._store.update(self._persistence.snapshot(job))
+
+        return job, enrichment_info
+
     def shutdown(self, *, wait: bool = True) -> None:
         """Shutdown the manager and release all resources."""
 

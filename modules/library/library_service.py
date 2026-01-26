@@ -93,6 +93,11 @@ class LibraryService:
 
         return self._sync.refresh_metadata(entry_id)
 
+    def enrich_metadata(self, entry_id: str, *, force: bool = False) -> LibraryEntry:
+        """Delegate to :class:`LibrarySync` for metadata enrichment from external sources."""
+
+        return self._sync.enrich_metadata(entry_id, force=force)
+
     def rebuild_index(self) -> int:
         """Rebuild the SQLite index from filesystem state."""
 

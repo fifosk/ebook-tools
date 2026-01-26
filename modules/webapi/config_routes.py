@@ -106,15 +106,17 @@ def _build_key_metadata(
     key: str,
     current_config: Dict[str, Any],
     env_keys: set,
+    *,
+    show_secrets: bool = False,
 ) -> ConfigKeyMetadata:
     """Build metadata for a single configuration key."""
     meta = CONFIG_KEY_METADATA.get(key, {})
     current_value = current_config.get(key)
 
-    # Mask sensitive values
+    # Mask sensitive values unless show_secrets is True
     is_sensitive = meta.get("sensitive", False) or key in get_sensitive_keys()
     display_value = current_value
-    if is_sensitive and current_value:
+    if is_sensitive and current_value and not show_secrets:
         display_value = "***REDACTED***"
 
     validation_rules = {}
@@ -145,6 +147,8 @@ def _build_group_response(
     group: ConfigGroup,
     current_config: Dict[str, Any],
     env_keys: set,
+    *,
+    show_secrets: bool = False,
 ) -> ConfigGroupResponse:
     """Build response for a single configuration group."""
     group_meta = GROUP_METADATA.get(group, {})
@@ -156,7 +160,7 @@ def _build_group_response(
     ]
 
     keys = [
-        _build_key_metadata(key, current_config, env_keys)
+        _build_key_metadata(key, current_config, env_keys, show_secrets=show_secrets)
         for key in sorted(group_keys)
     ]
 
@@ -183,6 +187,7 @@ def _build_group_response(
 
 @router.get("/config", response_model=GroupedConfigResponse)
 def get_current_config(
+    show_secrets: bool = Query(False, description="Show actual secret values (admin only)"),
     authorization: str | None = Header(default=None, alias="Authorization"),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> GroupedConfigResponse:
@@ -192,13 +197,27 @@ def get_current_config(
     config = load_configuration()
     config_state = get_config_state()
 
+    # When showing secrets, we need to get them from the settings object
+    # since load_configuration() excludes sensitive fields
+    if show_secrets:
+        from ..config_manager import get_settings
+        settings = get_settings()
+        # Add secret values back to config dict
+        for key in get_sensitive_keys():
+            secret_value = getattr(settings, key, None)
+            if secret_value is not None:
+                if hasattr(secret_value, "get_secret_value"):
+                    config[key] = secret_value.get_secret_value()
+                else:
+                    config[key] = secret_value
+
     # Determine which keys come from environment
     from ..config_manager.settings import load_environment_overrides
     env_overrides = load_environment_overrides()
     env_keys = set(env_overrides.keys())
 
     groups = [
-        _build_group_response(group, config, env_keys)
+        _build_group_response(group, config, env_keys, show_secrets=show_secrets)
         for group in ConfigGroup
     ]
 
@@ -213,6 +232,7 @@ def get_current_config(
 @router.get("/config/groups/{group_name}", response_model=ConfigGroupResponse)
 def get_config_group(
     group_name: str,
+    show_secrets: bool = Query(False, description="Show actual secret values (admin only)"),
     authorization: str | None = Header(default=None, alias="Authorization"),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> ConfigGroupResponse:
@@ -229,11 +249,23 @@ def get_config_group(
 
     config = load_configuration()
 
+    # When showing secrets, we need to get them from the settings object
+    if show_secrets:
+        from ..config_manager import get_settings
+        settings = get_settings()
+        for key in get_sensitive_keys():
+            secret_value = getattr(settings, key, None)
+            if secret_value is not None:
+                if hasattr(secret_value, "get_secret_value"):
+                    config[key] = secret_value.get_secret_value()
+                else:
+                    config[key] = secret_value
+
     from ..config_manager.settings import load_environment_overrides
     env_overrides = load_environment_overrides()
     env_keys = set(env_overrides.keys())
 
-    return _build_group_response(group, config, env_keys)
+    return _build_group_response(group, config, env_keys, show_secrets=show_secrets)
 
 
 @router.put("/config/groups/{group_name}", response_model=ConfigGroupUpdateResponse)
@@ -266,7 +298,20 @@ def update_config_group(
         )
 
     # Get current config and apply updates
+    # Note: load_configuration() excludes sensitive keys, so we need to add them back
     current_config = load_configuration()
+
+    # Add existing secret values back to config so they're preserved when saving
+    from ..config_manager import get_settings
+    settings = get_settings()
+    for key in get_sensitive_keys():
+        secret_value = getattr(settings, key, None)
+        if secret_value is not None:
+            if hasattr(secret_value, "get_secret_value"):
+                current_config[key] = secret_value.get_secret_value()
+            else:
+                current_config[key] = secret_value
+
     updated_keys = []
     requires_restart = False
     hot_reload_keys = set(get_hot_reload_keys())

@@ -18,6 +18,7 @@ from ..pipeline_service import (
 )
 from ..pipeline_types import PipelineMetadata
 from .job import PipelineJob
+from ..metadata import enrich_book_metadata, EnrichmentResult
 
 
 class PipelineJobMetadataRefresher:
@@ -26,8 +27,20 @@ class PipelineJobMetadataRefresher:
     def __init__(self, file_locator: Optional[FileLocator] = None) -> None:
         self._file_locator = file_locator or FileLocator()
 
-    def refresh(self, job: PipelineJob) -> Dict[str, Any]:
-        """Update ``job`` metadata in-place and return the inferred payload."""
+    def refresh(
+        self,
+        job: PipelineJob,
+        *,
+        enrich_from_external: bool = False,
+    ) -> Dict[str, Any]:
+        """Update ``job`` metadata in-place and return the inferred payload.
+
+        Args:
+            job: The pipeline job to refresh metadata for.
+            enrich_from_external: If True, also enrich metadata from external
+                sources (OpenLibrary, Google Books, TMDB, etc.) using the
+                unified metadata lookup pipeline.
+        """
 
         request_payload = self._resolve_request_payload(job)
         inputs_payload = dict(request_payload.get("inputs", {}))
@@ -79,6 +92,15 @@ class PipelineJobMetadataRefresher:
                 if value is not None:
                     merged_metadata[key] = value
 
+            # Enrich from external sources if requested
+            if enrich_from_external:
+                enrichment_result = enrich_book_metadata(
+                    merged_metadata,
+                    force=True,
+                )
+                if enrichment_result.enriched:
+                    merged_metadata = enrichment_result.metadata
+
             content_index = self._resolve_content_index(
                 job=job,
                 metadata=merged_metadata,
@@ -117,6 +139,65 @@ class PipelineJobMetadataRefresher:
             job.result_payload = result_payload
 
         return dict(merged_metadata)
+
+    def enrich(
+        self,
+        job: PipelineJob,
+        *,
+        force: bool = False,
+    ) -> EnrichmentResult:
+        """Enrich job metadata from external sources without re-parsing the EPUB.
+
+        This method only performs external metadata lookup (OpenLibrary, Google Books,
+        TMDB, etc.) using the unified metadata pipeline. It does not re-extract
+        metadata from the source file.
+
+        Args:
+            job: The pipeline job to enrich metadata for.
+            force: Force refresh even if enrichment data already exists.
+
+        Returns:
+            EnrichmentResult containing the enriched metadata and lookup details.
+        """
+        request_payload = self._resolve_request_payload(job)
+        inputs_payload = dict(request_payload.get("inputs", {}))
+
+        existing_metadata = inputs_payload.get("book_metadata")
+        if not isinstance(existing_metadata, dict):
+            existing_metadata = {}
+
+        # Skip if already enriched and not forcing
+        if not force and existing_metadata.get("_enrichment_source"):
+            return EnrichmentResult(
+                enriched=False,
+                metadata=existing_metadata,
+                source_result=None,
+                confidence=existing_metadata.get("_enrichment_confidence"),
+            )
+
+        result = enrich_book_metadata(existing_metadata, force=force)
+
+        if result.enriched:
+            # Update job with enriched metadata
+            inputs_payload["book_metadata"] = dict(result.metadata)
+            request_payload["inputs"] = inputs_payload
+
+            if job.request is not None:
+                job.request.inputs.book_metadata = PipelineMetadata.from_mapping(
+                    result.metadata
+                )
+            job.request_payload = request_payload
+            job.resume_context = copy.deepcopy(request_payload)
+
+            if job.result is not None:
+                job.result.metadata = PipelineMetadata.from_mapping(result.metadata)
+                job.result_payload = serialize_pipeline_response(job.result)
+            else:
+                result_payload = dict(job.result_payload or {})
+                result_payload["book_metadata"] = dict(result.metadata)
+                job.result_payload = result_payload
+
+        return result
 
     def _resolve_input_path(
         self,

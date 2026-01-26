@@ -159,3 +159,19 @@ class UnifiedMetadataResponse(BaseModel):
 
     # Optional raw responses
     raw_responses: Optional[Dict[str, Any]] = None
+
+
+class JobMetadataEnrichRequest(BaseModel):
+    """Request payload for enriching job metadata from external sources."""
+
+    force: bool = False
+
+
+class JobMetadataEnrichResponse(BaseModel):
+    """Response payload for job metadata enrichment."""
+
+    job_id: str
+    enriched: bool
+    confidence: Optional[str] = None
+    source: Optional[str] = None
+    metadata: Dict[str, Any] = {}

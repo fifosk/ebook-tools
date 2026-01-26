@@ -232,23 +232,29 @@ def load_configuration(
 
     exported = settings.model_dump(
         mode="python",
-        exclude={"ollama_api_key", "database_url", "job_store_url"},
+        exclude={
+            "ollama_api_key",
+            "tmdb_api_key",
+            "omdb_api_key",
+            "google_books_api_key",
+            "database_url",
+            "job_store_url",
+        },
     )
     return exported
 
 
 def _load_active_db_snapshot(verbose: bool = False) -> Dict[str, Any]:
-    """Load configuration from the active database snapshot if enabled.
+    """Load configuration from the active database snapshot if available.
+
+    The database snapshot is always checked for an active configuration.
+    This ensures that settings saved via the admin UI are loaded even
+    if EBOOK_CONFIG_DB_ENABLED is not explicitly set.
 
     Returns:
         Configuration dictionary from active snapshot, or empty dict
     """
     global _ACTIVE_SNAPSHOT_ID
-
-    # Check if database config is enabled
-    db_enabled = os.environ.get(CONFIG_DB_ENABLED_ENV, "").lower() in ("1", "true", "yes")
-    if not db_enabled:
-        return {}
 
     try:
         from .config_repository import ConfigRepository
@@ -391,19 +397,15 @@ def strip_derived_config(config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def get_settings() -> EbookToolsSettings:
-    """Return the currently loaded :class:`EbookToolsSettings` instance."""
+    """Return the currently loaded :class:`EbookToolsSettings` instance.
 
+    If settings haven't been loaded yet, this calls load_configuration()
+    which reads from config files, database snapshots, vault, and env vars.
+    """
     global _ACTIVE_SETTINGS
     if _ACTIVE_SETTINGS is None:
-        settings = EbookToolsSettings()
-        vault_path = os.environ.get(VAULT_FILE_ENV)
-        vault_updates: Dict[str, Any] = {}
-        if vault_path:
-            vault_updates = load_vault_secrets(Path(vault_path).expanduser())
-        env_overrides = load_environment_overrides()
-        settings = apply_settings_updates(settings, dict(vault_updates))
-        settings = apply_settings_updates(settings, env_overrides)
-        _ACTIVE_SETTINGS = settings
+        # Load full configuration which sets _ACTIVE_SETTINGS
+        load_configuration()
     return _ACTIVE_SETTINGS
 
 

@@ -204,17 +204,38 @@ def create_registry_from_config(config: Optional[Dict] = None) -> MetadataSource
         settings = cfg.get_settings()
         api_keys_config = getattr(settings, "api_keys", {}) or {}
         metadata_config = getattr(settings, "metadata_lookup", {}) or {}
+
+        # Also check for flat key format (from settings UI)
+        tmdb_key = getattr(settings, "tmdb_api_key", None)
+        omdb_key = getattr(settings, "omdb_api_key", None)
+        google_books_key = getattr(settings, "google_books_api_key", None)
     else:
         api_keys_config = config.get("api_keys", {})
         metadata_config = config.get("metadata_lookup", {})
+        tmdb_key = config.get("tmdb_api_key")
+        omdb_key = config.get("omdb_api_key")
+        google_books_key = config.get("google_books_api_key")
 
-    # Extract relevant API keys
+    # Extract relevant API keys (check both nested and flat formats)
     api_keys = {}
-    if api_keys_config.get("tmdb"):
+
+    # TMDB key - check flat format first, then nested
+    if tmdb_key:
+        # Handle SecretStr from settings
+        api_keys["tmdb"] = tmdb_key.get_secret_value() if hasattr(tmdb_key, "get_secret_value") else tmdb_key
+    elif api_keys_config.get("tmdb"):
         api_keys["tmdb"] = api_keys_config["tmdb"]
-    if api_keys_config.get("omdb"):
+
+    # OMDb key
+    if omdb_key:
+        api_keys["omdb"] = omdb_key.get_secret_value() if hasattr(omdb_key, "get_secret_value") else omdb_key
+    elif api_keys_config.get("omdb"):
         api_keys["omdb"] = api_keys_config["omdb"]
-    if api_keys_config.get("google_books"):
+
+    # Google Books key
+    if google_books_key:
+        api_keys["google_books"] = google_books_key.get_secret_value() if hasattr(google_books_key, "get_secret_value") else google_books_key
+    elif api_keys_config.get("google_books"):
         api_keys["google_books"] = api_keys_config["google_books"]
 
     # Check for custom chains in config

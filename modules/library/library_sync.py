@@ -673,6 +673,50 @@ class LibrarySync:
         self._repository.add_entry(refreshed_item)
         return refreshed_item
 
+    def enrich_metadata(self, job_id: str, *, force: bool = False) -> LibraryEntry:
+        """Enrich metadata for ``job_id`` from external sources.
+
+        This method only performs external metadata lookup (OpenLibrary, Google
+        Books, TMDB, etc.) using the unified metadata pipeline. It does not
+        re-extract metadata from the source file.
+
+        Args:
+            job_id: The library entry identifier.
+            force: Force refresh even if enrichment data already exists.
+
+        Returns:
+            The updated LibraryEntry.
+        """
+        item = self._repository.get_entry_by_id(job_id)
+        if not item:
+            raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
+
+        job_root = Path(item.library_path)
+        if not job_root.exists():
+            raise LibraryNotFoundError(f"Job {job_id} is missing from the library filesystem")
+
+        with DirectoryLock(job_root):
+            metadata = file_ops.load_metadata(job_root)
+            enriched = remote_sync.enrich_metadata(
+                job_id,
+                job_root,
+                metadata,
+                error_cls=LibraryError,
+                current_timestamp=utils.current_timestamp,
+                force=force,
+            )
+            file_ops.write_metadata(job_root, enriched)
+
+        enriched_item = metadata_utils.build_entry(
+            enriched,
+            job_root,
+            error_cls=LibraryError,
+            normalize_status=lambda value: utils.normalize_status(value, error_cls=LibraryError),
+            current_timestamp=utils.current_timestamp,
+        )
+        self._repository.add_entry(enriched_item)
+        return enriched_item
+
     def reupload_source_from_path(self, job_id: str, source_path: Path) -> LibraryEntry:
         """Replace the stored source file for ``job_id`` using an external path."""
 

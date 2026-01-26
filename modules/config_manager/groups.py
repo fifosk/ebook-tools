@@ -500,6 +500,30 @@ CONFIG_KEY_METADATA: Dict[str, Dict[str, Any]] = {
         "sensitive": True,
         "requires_restart": False,
     },
+    "tmdb_api_key": {
+        "display_name": "TMDB API Key",
+        "description": "API key for The Movie Database (movies/TV metadata)",
+        "group": ConfigGroup.API_KEYS,
+        "type": "secret",
+        "sensitive": True,
+        "requires_restart": False,
+    },
+    "omdb_api_key": {
+        "display_name": "OMDb API Key",
+        "description": "API key for Open Movie Database (movies/TV metadata)",
+        "group": ConfigGroup.API_KEYS,
+        "type": "secret",
+        "sensitive": True,
+        "requires_restart": False,
+    },
+    "google_books_api_key": {
+        "display_name": "Google Books API Key",
+        "description": "API key for Google Books (book metadata)",
+        "group": ConfigGroup.API_KEYS,
+        "type": "secret",
+        "sensitive": True,
+        "requires_restart": False,
+    },
     "database_url": {
         "display_name": "Database URL",
         "description": "Database connection URL",
@@ -643,6 +667,9 @@ class ApiKeysConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ollama_api_key: Optional[SecretStr] = None
+    tmdb_api_key: Optional[SecretStr] = None
+    omdb_api_key: Optional[SecretStr] = None
+    google_books_api_key: Optional[SecretStr] = None
     database_url: Optional[SecretStr] = None
     job_store_url: Optional[SecretStr] = None
 
@@ -740,10 +767,16 @@ def flat_to_grouped(flat_config: Dict[str, Any]) -> GroupedConfiguration:
             group = CONFIG_KEY_METADATA[key]["group"].value
             grouped_data[group][key] = value
         elif key == "api_keys" and isinstance(value, dict):
-            # Handle nested api_keys from old format
+            # Handle nested api_keys from config.json format
             for sub_key, sub_value in value.items():
                 if sub_key == "ollama":
                     grouped_data["api_keys"]["ollama_api_key"] = sub_value
+                elif sub_key == "tmdb":
+                    grouped_data["api_keys"]["tmdb_api_key"] = sub_value
+                elif sub_key == "omdb":
+                    grouped_data["api_keys"]["omdb_api_key"] = sub_value
+                elif sub_key == "google_books":
+                    grouped_data["api_keys"]["google_books_api_key"] = sub_value
 
     return GroupedConfiguration(
         backend=BackendConfig(**grouped_data["backend"]) if grouped_data["backend"] else BackendConfig(),
@@ -782,6 +815,12 @@ def grouped_to_flat(grouped: GroupedConfiguration) -> Dict[str, Any]:
     api_keys_nested: Dict[str, str] = {}
     if grouped.api_keys.ollama_api_key:
         api_keys_nested["ollama"] = grouped.api_keys.ollama_api_key.get_secret_value()
+    if grouped.api_keys.tmdb_api_key:
+        api_keys_nested["tmdb"] = grouped.api_keys.tmdb_api_key.get_secret_value()
+    if grouped.api_keys.omdb_api_key:
+        api_keys_nested["omdb"] = grouped.api_keys.omdb_api_key.get_secret_value()
+    if grouped.api_keys.google_books_api_key:
+        api_keys_nested["google_books"] = grouped.api_keys.google_books_api_key.get_secret_value()
     if api_keys_nested:
         flat["api_keys"] = api_keys_nested
 

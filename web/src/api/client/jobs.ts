@@ -11,6 +11,8 @@ import type {
   BookOpenLibraryMetadataResponse,
   ImageNodeAvailabilityRequestPayload,
   ImageNodeAvailabilityResponse,
+  JobMetadataEnrichRequest,
+  JobMetadataEnrichResponse,
   JobTimingResponse,
   LlmModelListResponse,
   PipelineDefaultsResponse,
@@ -80,6 +82,18 @@ export async function refreshPipelineMetadata(jobId: string): Promise<PipelineSt
     method: 'POST'
   });
   return handleResponse<PipelineStatusResponse>(response);
+}
+
+export async function enrichPipelineMetadata(
+  jobId: string,
+  payload: JobMetadataEnrichRequest = {}
+): Promise<JobMetadataEnrichResponse> {
+  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}/metadata/enrich`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ force: Boolean(payload.force) })
+  });
+  return handleResponse<JobMetadataEnrichResponse>(response);
 }
 
 export async function updateJobAccess(

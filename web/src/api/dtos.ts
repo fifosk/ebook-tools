@@ -673,6 +673,29 @@ export interface LibraryIsbnLookupResponse {
   metadata: Record<string, unknown>;
 }
 
+export interface JobMetadataEnrichRequest {
+  force?: boolean;
+}
+
+export interface JobMetadataEnrichResponse {
+  job_id: string;
+  enriched: boolean;
+  confidence?: string | null;
+  source?: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface LibraryMetadataEnrichRequest {
+  force?: boolean;
+}
+
+export interface LibraryMetadataEnrichResponse {
+  item: LibraryItem;
+  enriched: boolean;
+  confidence?: string | null;
+  source?: string | null;
+}
+
 export interface UserPasswordResetRequestPayload {
   password: string;
 }

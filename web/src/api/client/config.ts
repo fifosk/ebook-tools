@@ -222,13 +222,28 @@ export interface SetSecretResponse {
 // Configuration Endpoints
 // -----------------------------------------------------------------------------
 
-export async function fetchGroupedConfig(signal?: AbortSignal): Promise<GroupedConfigResponse> {
-  const response = await apiFetch('/api/admin/config', { signal });
+export async function fetchGroupedConfig(
+  options?: { showSecrets?: boolean; signal?: AbortSignal }
+): Promise<GroupedConfigResponse> {
+  const params = new URLSearchParams();
+  if (options?.showSecrets) params.set('show_secrets', 'true');
+  const queryString = params.toString();
+  const url = queryString ? `/api/admin/config?${queryString}` : '/api/admin/config';
+  const response = await apiFetch(url, { signal: options?.signal });
   return handleResponse<GroupedConfigResponse>(response);
 }
 
-export async function fetchConfigGroup(groupName: string, signal?: AbortSignal): Promise<ConfigGroup> {
-  const response = await apiFetch(`/api/admin/config/groups/${encodeURIComponent(groupName)}`, { signal });
+export async function fetchConfigGroup(
+  groupName: string,
+  options?: { showSecrets?: boolean; signal?: AbortSignal }
+): Promise<ConfigGroup> {
+  const params = new URLSearchParams();
+  if (options?.showSecrets) params.set('show_secrets', 'true');
+  const queryString = params.toString();
+  const url = queryString
+    ? `/api/admin/config/groups/${encodeURIComponent(groupName)}?${queryString}`
+    : `/api/admin/config/groups/${encodeURIComponent(groupName)}`;
+  const response = await apiFetch(url, { signal: options?.signal });
   return handleResponse<ConfigGroup>(response);
 }
 

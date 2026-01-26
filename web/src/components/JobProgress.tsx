@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useJobEventsWithRetry } from '../hooks/useJobEventsWithRetry';
-import { appendAccessToken, resolveJobCoverUrl } from '../api/client';
+import { appendAccessToken, enrichPipelineMetadata, resolveJobCoverUrl } from '../api/client';
 import {
   AccessPolicyUpdatePayload,
   PipelineResponsePayload,
@@ -588,6 +588,37 @@ export function JobProgress({
   const showOverviewSections = jobTab === 'overview';
   const showPermissionsSections = jobTab === 'permissions';
 
+  // Enrichment state
+  const [isEnriching, setIsEnriching] = useState(false);
+  const [enrichmentError, setEnrichmentError] = useState<string | null>(null);
+  const [enrichmentResult, setEnrichmentResult] = useState<{
+    enriched: boolean;
+    source?: string | null;
+    confidence?: string | null;
+  } | null>(null);
+
+  const handleEnrichMetadata = useCallback(async (force: boolean) => {
+    setIsEnriching(true);
+    setEnrichmentError(null);
+    setEnrichmentResult(null);
+    try {
+      const result = await enrichPipelineMetadata(jobId, { force });
+      setEnrichmentResult({
+        enriched: result.enriched,
+        source: result.source,
+        confidence: result.confidence,
+      });
+      if (result.enriched) {
+        onReload();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to enrich metadata';
+      setEnrichmentError(message);
+    } finally {
+      setIsEnriching(false);
+    }
+  }, [jobId, onReload]);
+
   return (
     <div className="job-card" aria-live="polite">
       <div className="job-card__header">
@@ -991,16 +1022,58 @@ export function JobProgress({
           ) : (
             <p className="job-card__metadata-empty">Metadata is not available yet.</p>
           )}
-          <button
-            type="button"
-            className="link-button"
-            onClick={onReload}
-            disabled={!canManage || isReloading || isMutating}
-            aria-busy={isReloading || isMutating}
-            data-variant="metadata-action"
-          >
-            {isReloading ? 'Reloading…' : isSubtitleJob ? 'Reload job' : 'Reload metadata'}
-          </button>
+          {enrichmentError ? (
+            <div className="notice notice--warning" role="alert" style={{ marginBottom: '0.75rem' }}>
+              {enrichmentError}
+            </div>
+          ) : null}
+          {enrichmentResult ? (
+            <div
+              className={`notice ${enrichmentResult.enriched ? 'notice--success' : 'notice--info'}`}
+              role="status"
+              style={{ marginBottom: '0.75rem' }}
+            >
+              {enrichmentResult.enriched
+                ? `Enriched from ${enrichmentResult.source ?? 'external source'} (confidence: ${enrichmentResult.confidence ?? 'unknown'})`
+                : 'No additional metadata found from external sources'}
+            </div>
+          ) : null}
+          <div className="job-card__tab-actions">
+            <button
+              type="button"
+              className="link-button"
+              onClick={onReload}
+              disabled={!canManage || isReloading || isMutating || isEnriching}
+              aria-busy={isReloading || isMutating}
+              data-variant="metadata-action"
+            >
+              {isReloading ? 'Reloading…' : isSubtitleJob ? 'Reload job' : 'Reload metadata'}
+            </button>
+            {isBookJob ? (
+              <>
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => handleEnrichMetadata(false)}
+                  disabled={!canManage || isReloading || isMutating || isEnriching}
+                  aria-busy={isEnriching}
+                  title="Fetch additional metadata (cover, summary, etc.) from OpenLibrary, Google Books, and other sources"
+                >
+                  {isEnriching ? 'Enriching…' : 'Enrich from web'}
+                </button>
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => handleEnrichMetadata(true)}
+                  disabled={!canManage || isReloading || isMutating || isEnriching}
+                  aria-busy={isEnriching}
+                  title="Force refresh metadata from external sources even if already enriched"
+                >
+                  Force refresh
+                </button>
+              </>
+            ) : null}
+          </div>
         </div>
       )}
     </div>
