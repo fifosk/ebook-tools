@@ -15,6 +15,7 @@ from typing import Tuple
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from ..config_manager.config_repository import ConfigRepository
+from ..config_manager.constants import DEFAULT_CONFIG_DB_DIR, DEFAULT_LIBRARY_ROOT
 from ..config_manager.loader import (
     get_config_state,
     reload_configuration,
@@ -111,11 +112,17 @@ def get_system_status(
     config_state = get_config_state()
     uptime = time.time() - _START_TIME
 
+    # Resolve database paths
+    config_db_path = str(DEFAULT_CONFIG_DB_DIR / "config.db")
+    library_db_path = str(DEFAULT_LIBRARY_ROOT / ".library" / "library.db")
+
     return SystemStatusResponse(
         uptime_seconds=uptime,
         config_loaded_at=config_state.get("loaded_at"),
         active_snapshot_id=config_state.get("active_snapshot_id"),
         db_enabled=config_state.get("db_enabled", False),
+        config_db_path=config_db_path,
+        library_db_path=library_db_path,
         pending_changes=False,  # Could track pending changes
         restart_required=_RESTART_SCHEDULED or len(_PENDING_RESTART_KEYS) > 0,
         restart_keys=list(_PENDING_RESTART_KEYS),

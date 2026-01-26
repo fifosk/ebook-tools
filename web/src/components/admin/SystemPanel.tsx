@@ -210,6 +210,12 @@ export default function SystemPanel({ currentUser }: SystemPanelProps) {
 
               <dt>Active Snapshot</dt>
               <dd>{status.activeSnapshotId || 'None'}</dd>
+
+              <dt>Config DB Path</dt>
+              <dd className="system-panel__path">{status.configDbPath || 'N/A'}</dd>
+
+              <dt>Library DB Path</dt>
+              <dd className="system-panel__path">{status.libraryDbPath || 'N/A'}</dd>
             </dl>
 
             {status.restartRequired && (

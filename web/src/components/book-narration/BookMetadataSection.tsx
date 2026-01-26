@@ -118,6 +118,7 @@ export default function BookMetadataSection({
   const summary = normalizeTextValue(parsedMetadata?.['book_summary']);
   const coverAssetUrl = normalizeTextValue(parsedMetadata?.['job_cover_asset_url']);
   const coverUrl = normalizeTextValue(parsedMetadata?.['cover_url']);
+  const bookCoverUrl = normalizeTextValue(parsedMetadata?.['book_cover_url']);
   const coverFile = normalizeTextValue(parsedMetadata?.['book_cover_file']);
   const openlibraryWorkUrl = normalizeTextValue(parsedMetadata?.['openlibrary_work_url']);
   const openlibraryBookUrl = normalizeTextValue(parsedMetadata?.['openlibrary_book_url']);
@@ -134,11 +135,28 @@ export default function BookMetadataSection({
     normalizeTextValue(lookupBook?.['cover_url']) || normalizeTextValue(lookup?.['cover_url']);
   const lookupCoverFile =
     normalizeTextValue(lookupBook?.['cover_file']) || normalizeTextValue(lookup?.['cover_file']);
+  // Resolve local cover file path to URL (may fail if server doesn't serve /storage/covers/)
+  const resolvedCoverFile = resolveCoverPreviewUrlFromCoverFile(coverFile);
+  const resolvedLookupCoverFile = resolveCoverPreviewUrlFromCoverFile(lookupCoverFile);
+
+  // Check if we have external URLs (https://...) which are more reliable than local API endpoints
+  const hasExternalLookupCover = lookupCoverUrl?.startsWith('https://');
+  const hasExternalBookCover = bookCoverUrl?.startsWith('https://');
+
+  // Cover priority:
+  // 1. External lookup cover URL (https:// from OpenLibrary etc - most reliable)
+  // 2. External book cover URL from enrichment (https:// from OpenLibrary etc)
+  // 3. Job cover asset URL (API-served, may fail if cover not mirrored to job directory)
+  // 4. Local cover file path (requires backend to serve /storage/covers/)
+  // 5. Legacy cover_url field
   const coverPreviewUrl =
+    (hasExternalLookupCover ? lookupCoverUrl : null) ||
+    (hasExternalBookCover ? bookCoverUrl : null) ||
     (coverAssetUrl ? appendAccessToken(coverAssetUrl) : null) ||
-    resolveCoverPreviewUrlFromCoverFile(coverFile) ||
-    resolveCoverPreviewUrlFromCoverFile(lookupCoverFile) ||
     lookupCoverUrl ||
+    bookCoverUrl ||
+    resolvedCoverFile ||
+    resolvedLookupCoverFile ||
     coverUrl;
   const coverPreviewUrlWithRefresh =
     coverPreviewUrl && coverPreviewUrl.includes('/storage/covers/')
@@ -296,7 +314,7 @@ export default function BookMetadataSection({
         </p>
       ) : null}
 
-      {bookTitle || bookAuthor || bookYear || isbn || openlibraryLink || coverUrl || coverFile ? (
+      {bookTitle || bookAuthor || bookYear || isbn || openlibraryLink || bookCoverUrl || coverUrl || coverFile ? (
         <dl className="metadata-grid">
           {jobLabel ? (
             <div className="metadata-grid__row">
@@ -336,6 +354,12 @@ export default function BookMetadataSection({
                   {openlibraryLink}
                 </a>
               </dd>
+            </div>
+          ) : null}
+          {bookCoverUrl ? (
+            <div className="metadata-grid__row">
+              <dt>Book cover URL</dt>
+              <dd>{bookCoverUrl}</dd>
             </div>
           ) : null}
           {coverUrl ? (

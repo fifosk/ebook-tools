@@ -6,7 +6,9 @@ import shutil
 from pathlib import Path
 
 MODULE_DIR = Path(__file__).resolve().parent
-SCRIPT_DIR = MODULE_DIR.parent.resolve()
+# SCRIPT_DIR is the project root (ebook-tools/), not the modules/ directory
+# This ensures storage paths like storage/covers/ are relative to project root
+SCRIPT_DIR = MODULE_DIR.parent.parent.resolve()
 DEFAULT_WORKING_RELATIVE = Path("output")
 DEFAULT_OUTPUT_RELATIVE = DEFAULT_WORKING_RELATIVE / "ebook"
 DEFAULT_TMP_RELATIVE = Path("tmp")
@@ -20,6 +22,15 @@ CONF_DIR = SCRIPT_DIR / "conf"
 DEFAULT_CONFIG_PATH = CONF_DIR / "config.json"
 DEFAULT_LOCAL_CONFIG_PATH = CONF_DIR / "config.local.json"
 DEFAULT_LIBRARY_ROOT = Path("/Volumes/Data/Video/Library")
+
+# Config DB defaults to NAS location next to Library DB
+# Can be overridden via EBOOK_CONFIG_DB_PATH environment variable
+CONFIG_DB_PATH_ENV = "EBOOK_CONFIG_DB_PATH"
+_config_db_env = os.environ.get(CONFIG_DB_PATH_ENV)
+DEFAULT_CONFIG_DB_DIR = (
+    Path(_config_db_env).parent if _config_db_env
+    else DEFAULT_LIBRARY_ROOT / ".config"
+)
 
 DERIVED_RUNTIME_DIRNAME = "runtime"
 DERIVED_REFINED_FILENAME_TEMPLATE = "{base_name}_refined_list.json"
@@ -65,6 +76,8 @@ __all__ = [
     "DEFAULT_BOOKS_RELATIVE",
     "DEFAULT_COVERS_RELATIVE",
     "DEFAULT_LIBRARY_ROOT",
+    "CONFIG_DB_PATH_ENV",
+    "DEFAULT_CONFIG_DB_DIR",
     "DEFAULT_SMB_SHARE_ROOT",
     "DEFAULT_SMB_OUTPUT_PATH",
     "DEFAULT_SMB_BOOKS_PATH",

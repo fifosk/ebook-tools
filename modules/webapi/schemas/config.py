@@ -258,6 +258,8 @@ class SystemStatusResponse(CamelModel):
     config_loaded_at: Optional[str]
     active_snapshot_id: Optional[str]
     db_enabled: bool
+    config_db_path: Optional[str] = Field(None, description="Path to the configuration database")
+    library_db_path: Optional[str] = Field(None, description="Path to the library database")
     pending_changes: bool = Field(False, description="Whether there are unapplied changes")
     restart_required: bool = Field(False, description="Whether a restart is required")
     restart_keys: List[str] = Field(

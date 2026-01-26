@@ -6,6 +6,7 @@ external sources via the unified metadata lookup pipeline.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Optional
 
@@ -15,6 +16,46 @@ from .services.unified_service import UnifiedMetadataService
 from .types import ConfidenceLevel, MediaType, UnifiedMetadataResult
 
 LOGGER = logging_manager.get_logger().getChild("metadata.enrichment")
+
+
+# Common source/library tags that should not be treated as author names
+_SOURCE_TAG_PATTERN = re.compile(
+    r"^(z-?library|libgen|lib\.?gen|epub|mobi|pdf|calibre|"
+    r"ebook|e-?book|kindle|retail|scan|ocr|fixed|converted|"
+    r"original|repack|proper|www\..+|unknown)$",
+    re.IGNORECASE,
+)
+
+# Placeholder values that should be replaced by enrichment
+_PLACEHOLDER_VALUES = {
+    "book_title": {"", "unknown", "unknown title", "untitled", "book"},
+    "book_author": {"", "unknown", "unknown author"},
+    "book_summary": {"", "no summary provided.", "no summary provided", "summary unavailable.", "no description available"},
+    "book_year": {"", "unknown", "unknown year"},
+    "book_cover_file": set(),  # Empty local paths not considered placeholders
+    "book_cover_url": set(),
+}
+
+
+def _is_placeholder_value(key: str, value: Any) -> bool:
+    """Check if a value is a placeholder that should be replaced.
+
+    For author fields, also checks if the value is a source tag like
+    "Z-Library" or "libgen" which should be treated as placeholders.
+    """
+    if value is None:
+        return True
+    if not isinstance(value, str):
+        return False
+    cleaned = value.strip().lower()
+    if not cleaned:
+        return True
+    if cleaned in _PLACEHOLDER_VALUES.get(key, set()):
+        return True
+    # For author fields, also check if it's a source tag
+    if key in ("book_author", "author") and _SOURCE_TAG_PATTERN.match(value.strip()):
+        return True
+    return False
 
 
 @dataclass(slots=True)
@@ -413,11 +454,19 @@ def _extract_title(metadata: Mapping[str, Any]) -> Optional[str]:
 
 
 def _extract_author(metadata: Mapping[str, Any]) -> Optional[str]:
-    """Extract author from various metadata field names."""
+    """Extract author from various metadata field names.
+
+    Filters out common source/library tags that may have been incorrectly
+    parsed as author names from filenames (e.g., "Z-Library", "libgen").
+    """
     for key in ("book_author", "author", "creator", "director"):
         value = metadata.get(key)
         if isinstance(value, str) and value.strip():
-            return value.strip()
+            cleaned = value.strip()
+            # Skip if it looks like a source tag, not a real author
+            if _SOURCE_TAG_PATTERN.match(cleaned):
+                continue
+            return cleaned
     return None
 
 
@@ -453,30 +502,40 @@ def _merge_book_metadata(
     existing: Dict[str, Any],
     result: UnifiedMetadataResult,
 ) -> Dict[str, Any]:
-    """Merge book lookup result into existing metadata."""
+    """Merge book lookup result into existing metadata.
+
+    Replaces placeholder values (like "Unknown Title", "No summary provided.")
+    with enriched data from the lookup result.
+    """
     merged = dict(existing)
 
     # Map unified result fields to book metadata fields
-    if result.title and not existing.get("book_title"):
+    # Replace if source has value AND existing is missing/placeholder
+    if result.title and _is_placeholder_value("book_title", existing.get("book_title")):
         merged["book_title"] = result.title
 
-    if result.author and not existing.get("book_author"):
+    if result.author and _is_placeholder_value("book_author", existing.get("book_author")):
         merged["book_author"] = result.author
 
-    if result.year is not None and not existing.get("book_year"):
+    if result.year is not None and _is_placeholder_value("book_year", existing.get("book_year")):
         merged["book_year"] = str(result.year)
 
-    if result.summary and not existing.get("book_summary"):
+    if result.summary and _is_placeholder_value("book_summary", existing.get("book_summary")):
         merged["book_summary"] = result.summary
 
     if result.genres and not existing.get("book_genre"):
         merged["book_genre"] = ", ".join(result.genres)
 
-    # Cover handling
+    # Cover handling: always store cover URL from enrichment if available
+    # This provides a fallback if local cover isn't suitable
     cover_url = result.cover_url or result.cover_file
-    if cover_url and not existing.get("book_cover_file"):
-        merged["book_cover_file"] = cover_url
+    if cover_url:
+        # Always store the enrichment cover URL (useful for fallback/comparison)
         merged["book_cover_url"] = cover_url
+
+        # Only replace book_cover_file if it's a placeholder or empty
+        if _is_placeholder_value("book_cover_file", existing.get("book_cover_file")):
+            merged["book_cover_file"] = cover_url
 
     # Source IDs
     source_ids = result.source_ids.to_dict()

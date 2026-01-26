@@ -160,6 +160,8 @@ export interface SystemStatusResponse {
   configLoadedAt?: string;
   activeSnapshotId?: string;
   dbEnabled: boolean;
+  configDbPath?: string;
+  libraryDbPath?: string;
   pendingChanges: boolean;
   restartRequired: boolean;
   restartKeys: string[];

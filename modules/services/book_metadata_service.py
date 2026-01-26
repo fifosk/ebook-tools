@@ -17,6 +17,8 @@ from modules import logging_manager as log_mgr
 
 from .job_manager import PipelineJob, PipelineJobManager
 from .pipeline_types import PipelineMetadata
+from .metadata.types import LookupOptions, LookupQuery, MediaType
+from .metadata.clients.google_books import GoogleBooksClient
 
 logger = log_mgr.get_logger().getChild("services.book_metadata")
 
@@ -26,6 +28,17 @@ _OPENLIBRARY_SEARCH_URL = f"{_OPENLIBRARY_BASE_URL}/search.json"
 _OPENLIBRARY_COVER_TEMPLATE = "https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
 
 _FILENAME_YEAR_PATTERN = re.compile(r"(18|19|20|21)\d{2}")
+
+# Patterns that indicate series numbering (e.g., "Housemaid 1: The Housemaid")
+# These should be stripped when searching to improve match quality
+_SERIES_PREFIX_PATTERNS = [
+    re.compile(r"^[^:]+\s+\d+\s*:\s*", re.IGNORECASE),  # "Series Name 1: " -> ""
+    re.compile(r"^\d+\s*[-–—]\s*", re.IGNORECASE),  # "1 - Title" -> "Title"
+    re.compile(r"^(?:book|volume|vol\.?|part|episode|ep\.?)\s*\d+\s*[-–—:]\s*", re.IGNORECASE),  # "Book 1: " -> ""
+    re.compile(r"^#\d+\s*[-–—:]\s*", re.IGNORECASE),  # "#1: Title" -> "Title"
+]
+_SERIES_COLON_PATTERN = re.compile(r"^.+?\d+\s*:\s*(.+)$")
+
 _ISBN_CANDIDATE_PATTERN = re.compile(
     r"(?ix)"
     r"(?:isbn(?:-1[03])?[\s:#-]*)?"
@@ -80,29 +93,167 @@ def _normalize_title(value: str) -> Optional[str]:
     return cleaned or None
 
 
+def _normalize_title_for_search(title: str) -> str:
+    """Normalize a book title for better search results.
+
+    Strips common series numbering patterns like:
+    - "Housemaid 1: The Housemaid" -> "The Housemaid"
+    - "Book 3: The Final Chapter" -> "The Final Chapter"
+    - "#1 - First Story" -> "First Story"
+    - "The Housemaid Housemaid 1" -> "The Housemaid" (duplicate title with series num)
+
+    Also handles parenthetical series info like "(Book 1)" suffix.
+    """
+    cleaned = title.strip()
+
+    # Try to extract title after "Series N:" pattern
+    match = _SERIES_COLON_PATTERN.match(cleaned)
+    if match:
+        extracted = match.group(1).strip()
+        if len(extracted) >= 3:  # Ensure we have a meaningful title
+            return extracted
+
+    # Try other prefix patterns
+    for pattern in _SERIES_PREFIX_PATTERNS:
+        result = pattern.sub("", cleaned)
+        if result != cleaned and len(result) >= 3:
+            return result.strip()
+
+    # Remove trailing parenthetical series info like "(Book 1)" or "(Series Name #2)"
+    result = re.sub(r"\s*\([^)]*(?:book|volume|vol\.?|part|#)\s*\d+[^)]*\)\s*$", "", cleaned, flags=re.IGNORECASE)
+    if result != cleaned and len(result) >= 3:
+        return result.strip()
+
+    # Handle "Title Series N" pattern - remove trailing series info
+    # e.g., "The Housemaid Housemaid 1" -> "The Housemaid"
+    # Pattern: look for a word/phrase that repeats followed by a number
+    series_suffix_match = re.search(r"(\b\w+(?:\s+\w+)?)\s+\1\s+\d+\s*$", cleaned, re.IGNORECASE)
+    if series_suffix_match:
+        # Remove the duplicate series name and number, keep just the title
+        result = cleaned[: series_suffix_match.start()].strip() + " " + series_suffix_match.group(1)
+        result = result.strip()
+        if len(result) >= 3:
+            return result
+
+    # Handle "Title - SeriesName N" pattern (trailing dash with series info)
+    # e.g., "The Housemaid - Housemaid 1" -> "The Housemaid"
+    # This must come before duplicate word check to handle dashes properly
+    dash_series_match = re.search(r"(.+?)\s*[-–—]\s*\S+\s+\d+\s*$", cleaned)
+    if dash_series_match:
+        result = dash_series_match.group(1).strip()
+        if len(result) >= 3:
+            return result
+
+    # Also try: remove trailing "SeriesName N" where SeriesName is part of the title
+    # e.g., "The Housemaid Housemaid 1" - detect that "Housemaid" appears twice
+    words = cleaned.split()
+    if len(words) >= 3:
+        last_word = words[-1]
+        if last_word.isdigit():
+            # Check if second-to-last word appears earlier in the title
+            second_last = words[-2].lower()
+            title_words_lower = [w.lower() for w in words[:-2]]
+            if second_last in title_words_lower:
+                # Remove the duplicate series info
+                result = " ".join(words[:-2])
+                # Strip trailing dashes/punctuation
+                result = re.sub(r"[\s\-–—]+$", "", result).strip()
+                if len(result) >= 3:
+                    return result
+
+    return cleaned
+
+
+_SOURCE_TAG_PATTERNS = re.compile(
+    r"^(z-?library|libgen|lib\.?gen|epub|mobi|pdf|calibre|"
+    r"ebook|e-?book|kindle|retail|scan|ocr|fixed|converted|"
+    r"original|repack|proper|www\..+|\.com|\.org|\.net)$",
+    re.IGNORECASE,
+)
+
+
 def _parse_filename_title_author(source_name: str) -> Dict[str, Optional[str]]:
-    """Best-effort title/author extraction from a filename."""
+    """Best-effort title/author extraction from a filename.
+
+    Handles common formats:
+    - "Title - Author.epub"
+    - "Title (Author).epub"
+    - "Title by Author.epub"
+    - "Series Name 1: Title (Author).epub"
+    - "Title (Author) (Z-Library).epub" - skips source tags like Z-Library
+    """
 
     basename = _basename(source_name)
     if not basename:
         return {}
     stem = Path(basename).stem
-    cleaned = _normalize_title(stem) or stem.strip()
 
+    # First, try to extract author from trailing parentheses BEFORE normalizing
+    # Pattern: "Title (Author)" or "Title - Subtitle (Author)"
+    # Skip common source/library tags like "(Z-Library)", "(libgen)", "(epub)", etc.
+    author_from_parens = None
+    title_without_author_parens = stem
+
+    # Find all parenthetical groups and check from right to left
+    paren_matches = list(re.finditer(r"\(([^()]+)\)", stem))
+    for match in reversed(paren_matches):
+        candidate = match.group(1).strip()
+        # Skip if it looks like a source/library tag
+        if _SOURCE_TAG_PATTERNS.match(candidate):
+            # Remove the source tag from the title
+            title_without_author_parens = (
+                stem[: match.start()].strip() + stem[match.end() :].strip()
+            ).strip()
+            continue
+        # Skip if it looks like series info (e.g., "Book 1")
+        if re.match(r"^(book|vol|volume|part|#)?\s*\d+", candidate, re.IGNORECASE):
+            continue
+        # This looks like an author name
+        if candidate and len(candidate) >= 2:
+            author_from_parens = candidate
+            title_without_author_parens = stem[: match.start()].strip()
+            # Remove any source tags that might follow
+            title_without_author_parens = re.sub(
+                r"\s*\([^)]*(?:z-?library|libgen|epub|mobi|pdf)[^)]*\)\s*$",
+                "",
+                title_without_author_parens,
+                flags=re.IGNORECASE,
+            ).strip()
+            break
+
+    # Try delimiter-based extraction BEFORE normalizing (since normalize converts dashes to spaces)
+    # Only do this if we don't already have an author from parentheses
+    if not author_from_parens:
+        for delimiter in (" - ", " by ", " : "):
+            if delimiter in title_without_author_parens:
+                left, right = (part.strip() for part in title_without_author_parens.split(delimiter, 1))
+                if len(left) > 2 and len(right) > 2:
+                    # Normalize the title part
+                    normalized_left = _normalize_title(left) or left.strip()
+                    return {
+                        "book_title": normalized_left,
+                        "book_author": right,
+                    }
+                break
+
+    # Now normalize the title (this removes any remaining brackets/parens)
+    cleaned = _normalize_title(title_without_author_parens) or title_without_author_parens.strip()
+
+    # Only remove year if it's not the entire title (e.g., "1984" is a valid book title)
     year_match = _FILENAME_YEAR_PATTERN.search(cleaned)
     if year_match:
-        cleaned = cleaned.replace(year_match.group(0), " ")
-        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        candidate_cleaned = cleaned.replace(year_match.group(0), " ")
+        candidate_cleaned = re.sub(r"\s+", " ", candidate_cleaned).strip()
+        # Only use the year-stripped version if we still have meaningful content
+        if candidate_cleaned and len(candidate_cleaned) >= 2:
+            cleaned = candidate_cleaned
 
-    for delimiter in (" - ", " by ", " : "):
-        if delimiter in cleaned:
-            left, right = (part.strip() for part in cleaned.split(delimiter, 1))
-            if len(left) > 2 and len(right) > 2:
-                return {
-                    "book_title": left,
-                    "book_author": right,
-                }
-            break
+    # If we have author from parens, return with the cleaned title
+    if author_from_parens:
+        return {
+            "book_title": cleaned or None,
+            "book_author": author_from_parens,
+        }
 
     return {"book_title": cleaned or None}
 
@@ -309,6 +460,9 @@ def _resolve_input_file(job: PipelineJob) -> Optional[str]:
     return None
 
 
+_VALID_BOOK_PROVIDERS = {"openlibrary", "google_books"}
+
+
 def _extract_existing_lookup(job: PipelineJob) -> Optional[Mapping[str, Any]]:
     for payload in (job.request_payload, job.result_payload):
         if not isinstance(payload, Mapping):
@@ -316,13 +470,13 @@ def _extract_existing_lookup(job: PipelineJob) -> Optional[Mapping[str, Any]]:
         lookup = payload.get("book_metadata_lookup")
         if isinstance(lookup, Mapping):
             provider = lookup.get("provider")
-            if isinstance(provider, str) and provider.strip().lower() == "openlibrary":
+            if isinstance(provider, str) and provider.strip().lower() in _VALID_BOOK_PROVIDERS:
                 return lookup
     book_metadata = _extract_existing_book_metadata(job)
     lookup = book_metadata.get("book_metadata_lookup")
     if isinstance(lookup, Mapping):
         provider = lookup.get("provider")
-        if isinstance(provider, str) and provider.strip().lower() == "openlibrary":
+        if isinstance(provider, str) and provider.strip().lower() in _VALID_BOOK_PROVIDERS:
             return lookup
     return None
 
@@ -349,8 +503,8 @@ def _infer_lookup_query(source_name: Optional[str], metadata: Mapping[str, Any])
             isbn_candidate = isbn_candidates[0]
 
     return BookLookupQuery(
-        title=_normalize_title(parsed_title) if parsed_title else None,
-        author=_normalize_title(parsed_author) if parsed_author else None,
+        title=_normalize_title_for_search(parsed_title) if parsed_title else None,
+        author=_normalize_text(parsed_author),  # Don't strip periods from author names
         isbn=isbn_candidate,
         source_name=_basename(source_name) if source_name else None,
     )
@@ -376,16 +530,45 @@ def _build_job_label(
 
 
 class BookMetadataService:
-    """Lazy metadata enrichment for pipeline/book jobs using Open Library."""
+    """Lazy metadata enrichment for pipeline/book jobs using Open Library with Google Books fallback."""
 
     def __init__(
         self,
         *,
         job_manager: PipelineJobManager,
         openlibrary_client: Optional[OpenLibraryClient] = None,
+        google_books_api_key: Optional[str] = None,
     ) -> None:
         self._job_manager = job_manager
         self._openlibrary = openlibrary_client or OpenLibraryClient()
+        # Initialize Google Books client if API key is available
+        self._google_books: Optional[GoogleBooksClient] = None
+        api_key = google_books_api_key or self._get_google_books_api_key()
+        if api_key:
+            self._google_books = GoogleBooksClient(api_key=api_key)
+            logger.info("Google Books API initialized (fallback enabled)")
+        else:
+            logger.debug("No Google Books API key - fallback disabled")
+
+    @staticmethod
+    def _get_google_books_api_key() -> Optional[str]:
+        """Get Google Books API key from config."""
+        try:
+            settings = cfg.get_settings()
+            if settings and hasattr(settings, "google_books_api_key") and settings.google_books_api_key:
+                return settings.google_books_api_key.get_secret_value()
+        except Exception:
+            pass
+        try:
+            config = cfg.load_json_config()
+            api_keys = config.get("api_keys", {})
+            if isinstance(api_keys, dict):
+                key = api_keys.get("google_books")
+                if isinstance(key, str) and key.strip():
+                    return key.strip()
+        except Exception:
+            pass
+        return None
 
     def get_openlibrary_metadata(
         self,
@@ -461,6 +644,82 @@ class BookMetadataService:
         self._persist_lookup_result(job_id, payload, user_id=user_id, user_role=user_role)
         return self.get_openlibrary_metadata(job_id, user_id=user_id, user_role=user_role)
 
+    def _try_google_books_fallback(
+        self,
+        query: BookLookupQuery,
+        job_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """Try Google Books API as fallback when OpenLibrary fails."""
+        if self._google_books is None:
+            return None
+
+        logger.info(
+            "Trying Google Books fallback for %s",
+            query.isbn or query.title or query.source_name or "unknown",
+        )
+
+        try:
+            lookup_query = LookupQuery(
+                media_type=MediaType.BOOK,
+                title=query.title,
+                author=query.author,
+                isbn=query.isbn,
+            )
+            options = LookupOptions(timeout_seconds=15.0)
+            result = self._google_books.lookup(lookup_query, options)
+        except Exception as exc:
+            logger.warning("Google Books fallback failed: %s", exc)
+            return None
+
+        if result is None:
+            logger.debug("Google Books returned no results")
+            return None
+
+        timestamp = datetime.now(timezone.utc).isoformat()
+        source_name = query.source_name
+
+        # Download cover image if available
+        cover_file = None
+        cover_url = result.cover_url
+        if cover_url:
+            # Use Google Books ID or title for destination
+            dest_key = result.source_ids.google_books_id or (query.title or "book")
+            destination = _cover_destination(f"gbooks_{dest_key}")
+            if _download_cover(cover_url, destination):
+                cover_file = str(destination)
+
+        job_label = _build_job_label(
+            title=result.title,
+            author=result.author,
+            fallback=source_name,
+        )
+
+        # Extract ISBN from result
+        isbn = result.source_ids.isbn_13 or result.source_ids.isbn
+
+        return {
+            "kind": "book",
+            "provider": "google_books",
+            "queried_at": timestamp,
+            "source_name": source_name,
+            "query": {
+                "title": query.title,
+                "author": query.author,
+                "isbn": query.isbn,
+            },
+            "job_label": job_label,
+            "book": {
+                "title": result.title,
+                "author": result.author,
+                "year": str(result.year) if result.year else None,
+                "summary": result.summary,
+                "isbn": isbn,
+                "cover_url": cover_url,
+                "cover_file": cover_file,
+                "google_books_id": result.source_ids.google_books_id,
+            },
+        }
+
     def _build_openlibrary_payload(
         self,
         query: BookLookupQuery,
@@ -505,8 +764,16 @@ class BookMetadataService:
             try:
                 isbn_payload = self._openlibrary.lookup_isbn(query.isbn)
             except Exception as exc:
+                # Try Google Books fallback for ISBN
+                google_result = self._try_google_books_fallback(query, job_id)
+                if google_result is not None:
+                    return google_result
                 return _error_payload(f"Open Library ISBN lookup failed: {exc}")
             if not isbn_payload:
+                # Try Google Books fallback for ISBN
+                google_result = self._try_google_books_fallback(query, job_id)
+                if google_result is not None:
+                    return google_result
                 return _error_payload("Open Library did not return a matching ISBN record.")
 
             title = _normalize_text(isbn_payload.get("title")) or query.title
@@ -579,13 +846,31 @@ class BookMetadataService:
         if not title_query.strip():
             return _error_payload("A title or ISBN is required for Open Library lookup.")
 
+        # Normalize title to strip series numbering patterns for better search results
+        normalized_title = _normalize_title_for_search(title_query)
+        logger.debug("Normalized title '%s' -> '%s' for OpenLibrary search", title_query, normalized_title)
+
         try:
-            docs = self._openlibrary.search(title=title_query, author=query.author)
+            docs = self._openlibrary.search(title=normalized_title, author=query.author)
         except Exception as exc:
             return _error_payload(f"Open Library search failed: {exc}")
 
-        best_doc = _select_best_doc(docs, title_query, query.author)
+        best_doc = _select_best_doc(docs, normalized_title, query.author)
+
+        # If normalized search failed, try with original title as fallback
+        if best_doc is None and normalized_title != title_query:
+            logger.debug("Normalized search failed, trying original title: %s", title_query)
+            try:
+                docs = self._openlibrary.search(title=title_query, author=query.author)
+                best_doc = _select_best_doc(docs, title_query, query.author)
+            except Exception:
+                pass  # Keep the original error
+
         if best_doc is None:
+            # Try Google Books fallback if available
+            google_result = self._try_google_books_fallback(query, job_id)
+            if google_result is not None:
+                return google_result
             return _error_payload("Open Library returned no matching works.")
 
         title = _normalize_text(best_doc.get("title")) or query.title
@@ -727,6 +1012,7 @@ class BookMetadataService:
                     book_metadata["book_cover_file"] = cover_file
                     config_payload["book_cover_file"] = cover_file
 
+                # OpenLibrary-specific fields
                 openlibrary_work_key = _normalize_text(book_section.get("openlibrary_work_key"))
                 openlibrary_work_url = _normalize_text(book_section.get("openlibrary_work_url"))
                 openlibrary_book_key = _normalize_text(book_section.get("openlibrary_book_key"))
@@ -740,13 +1026,25 @@ class BookMetadataService:
                 if openlibrary_book_url:
                     book_metadata["openlibrary_book_url"] = openlibrary_book_url
 
+                # Google Books-specific fields
+                google_books_id = _normalize_text(book_section.get("google_books_id"))
+                if google_books_id:
+                    book_metadata["google_books_id"] = google_books_id
+
             job_label = payload.get("job_label")
             if isinstance(job_label, str) and job_label.strip():
                 book_metadata["job_label"] = job_label.strip()
 
             queried_at = payload.get("queried_at")
+            provider = payload.get("provider", "openlibrary")
             if isinstance(queried_at, str) and queried_at.strip():
-                book_metadata["openlibrary_queried_at"] = queried_at.strip()
+                # Store provider-specific timestamp
+                if provider == "google_books":
+                    book_metadata["google_books_queried_at"] = queried_at.strip()
+                else:
+                    book_metadata["openlibrary_queried_at"] = queried_at.strip()
+                # Also store generic timestamp
+                book_metadata["metadata_queried_at"] = queried_at.strip()
 
             book_metadata["book_metadata_lookup"] = dict(payload)
 

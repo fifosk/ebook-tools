@@ -32,3 +32,9 @@ books/*
 config/users/users.json
 config/default/users.json
 modules/storage/
+
+# SQLite database files (may contain secrets)
+*.db
+*.db-shm
+*.db-wal
+config/.settings/

@@ -203,6 +203,8 @@ export function resolveLibraryCoverUrl(
     pushCandidate(bookMetadata['job_cover_asset']);
     pushCandidate(bookMetadata['book_cover_file']);
     pushCandidate(bookMetadata['job_cover_asset_url']);
+    // Fallback to enrichment cover URL if local covers aren't available
+    pushCandidate(bookMetadata['book_cover_url']);
   }
 
   const metadataRecord = item.metadata ?? {};

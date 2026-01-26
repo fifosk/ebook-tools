@@ -32,6 +32,18 @@ _OPENLIBRARY_COVER_TEMPLATE = "https://covers.openlibrary.org/b/id/{cover_id}-L.
 
 _FILENAME_YEAR_PATTERN = re.compile(r"(18|19|20|21)\d{2}")
 
+# Patterns that indicate series numbering (e.g., "Housemaid 1: The Housemaid")
+# These should be stripped when searching to improve match quality
+_SERIES_PREFIX_PATTERNS = [
+    re.compile(r"^[^:]+\s+\d+\s*:\s*", re.IGNORECASE),  # "Series Name 1: " -> ""
+    re.compile(r"^\d+\s*[-–—]\s*", re.IGNORECASE),  # "1 - Title" -> "Title"
+    re.compile(r"^(?:book|volume|vol\.?|part|episode|ep\.?)\s*\d+\s*[-–—:]\s*", re.IGNORECASE),  # "Book 1: " -> ""
+    re.compile(r"^#\d+\s*[-–—:]\s*", re.IGNORECASE),  # "#1: Title" -> "Title"
+]
+
+# Pattern to extract the actual title from "Series N: Title" format
+_SERIES_COLON_PATTERN = re.compile(r"^.+?\d+\s*:\s*(.+)$")
+
 _SUMMARY_MAX_SENTENCES = 4
 _SUMMARY_MAX_CHARACTERS = 600
 
@@ -60,6 +72,42 @@ def _normalize_for_matching(value: Any) -> Optional[str]:
         return None
     cleaned = re.sub(r"\s+", " ", value).strip().lower()
     return cleaned or None
+
+
+def _normalize_title_for_search(title: str) -> str:
+    """Normalize a book title for better search results.
+
+    Strips common series numbering patterns like:
+    - "Housemaid 1: The Housemaid" -> "The Housemaid"
+    - "Book 3: The Final Chapter" -> "The Final Chapter"
+    - "#1 - First Story" -> "First Story"
+
+    Also handles parenthetical series info like "(Book 1)" suffix.
+    """
+    cleaned = title.strip()
+
+    # Try to extract title after "Series N:" pattern
+    match = _SERIES_COLON_PATTERN.match(cleaned)
+    if match:
+        extracted = match.group(1).strip()
+        if len(extracted) >= 3:  # Ensure we have a meaningful title
+            logger.debug("Normalized title '%s' -> '%s' (series colon pattern)", title, extracted)
+            return extracted
+
+    # Try other prefix patterns
+    for pattern in _SERIES_PREFIX_PATTERNS:
+        result = pattern.sub("", cleaned)
+        if result != cleaned and len(result) >= 3:
+            logger.debug("Normalized title '%s' -> '%s' (prefix pattern)", title, result)
+            return result.strip()
+
+    # Remove trailing parenthetical series info like "(Book 1)" or "(Series Name #2)"
+    result = re.sub(r"\s*\([^)]*(?:book|volume|vol\.?|part|#)\s*\d+[^)]*\)\s*$", "", cleaned, flags=re.IGNORECASE)
+    if result != cleaned and len(result) >= 3:
+        logger.debug("Normalized title '%s' -> '%s' (parenthetical suffix)", title, result)
+        return result.strip()
+
+    return cleaned
 
 
 def _limit_summary_length(summary: str) -> str:
@@ -232,14 +280,21 @@ class OpenLibraryClient(BaseMetadataClient):
         query: LookupQuery,
         options: LookupOptions,
     ) -> Optional[UnifiedMetadataResult]:
-        """Look up book by title and optional author."""
+        """Look up book by title and optional author.
+
+        Normalizes title to strip series numbering patterns for better search results.
+        If the normalized search fails, falls back to the original title.
+        """
         title = query.title
         if not title:
             return None
 
-        logger.info("Searching OpenLibrary: title=%s, author=%s", title, query.author)
+        # Try with normalized title first (strips series numbering)
+        normalized_title = _normalize_title_for_search(title)
 
-        params: Dict[str, str] = {"title": title}
+        logger.info("Searching OpenLibrary: title=%s, author=%s", normalized_title, query.author)
+
+        params: Dict[str, str] = {"title": normalized_title}
         if query.author:
             params["author"] = query.author
 
@@ -249,18 +304,31 @@ class OpenLibraryClient(BaseMetadataClient):
             timeout=options.timeout_seconds,
         )
 
-        if not payload:
-            return None
+        docs = payload.get("docs", []) if payload else []
+        if isinstance(docs, list) and docs:
+            best_doc = _select_best_doc(docs, normalized_title, query.author)
+            if best_doc:
+                return self._parse_search_response(best_doc, query, options)
 
-        docs = payload.get("docs", [])
-        if not isinstance(docs, list) or not docs:
-            return None
+        # If normalized title search failed and we actually normalized it,
+        # try again with the original title as fallback
+        if normalized_title != title:
+            logger.debug("Normalized search failed, trying original title: %s", title)
+            params["title"] = title
 
-        best_doc = _select_best_doc(docs, title, query.author)
-        if not best_doc:
-            return None
+            payload = self._get(
+                _OPENLIBRARY_SEARCH_URL,
+                params=params,
+                timeout=options.timeout_seconds,
+            )
 
-        return self._parse_search_response(best_doc, query, options)
+            docs = payload.get("docs", []) if payload else []
+            if isinstance(docs, list) and docs:
+                best_doc = _select_best_doc(docs, title, query.author)
+                if best_doc:
+                    return self._parse_search_response(best_doc, query, options)
+
+        return None
 
     def _parse_isbn_response(
         self,

@@ -20,6 +20,8 @@ from uuid import uuid4
 
 from modules import logging_manager
 
+from .constants import DEFAULT_CONFIG_DB_DIR
+
 logger = logging_manager.get_logger()
 
 # Optional cryptography dependency for encryption
@@ -35,7 +37,6 @@ except ImportError:
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
 CONFIG_SECRET_ENV = "EBOOK_CONFIG_SECRET"
-DEFAULT_CONFIG_DB_DIR = Path("config/.settings")
 
 
 @dataclass
@@ -153,13 +154,12 @@ class ConfigRepository:
     def _apply_migrations(self, connection: sqlite3.Connection) -> None:
         """Apply pending database migrations."""
         connection.execute("PRAGMA foreign_keys = ON;")
+        # Use DELETE journal mode for better compatibility with network filesystems (NAS/SMB).
+        # WAL mode requires shared memory and file locking that often fails on network mounts.
         try:
-            connection.execute("PRAGMA journal_mode = WAL;")
+            connection.execute("PRAGMA journal_mode = DELETE;")
         except sqlite3.OperationalError:
-            try:
-                connection.execute("PRAGMA journal_mode = DELETE;")
-            except sqlite3.OperationalError:
-                pass
+            pass
 
         connection.execute(
             "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY)"
@@ -1017,5 +1017,4 @@ __all__ = [
     "SnapshotMetadata",
     "AuditLogEntry",
     "CONFIG_SECRET_ENV",
-    "DEFAULT_CONFIG_DB_DIR",
 ]
