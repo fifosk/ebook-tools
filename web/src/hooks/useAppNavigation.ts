@@ -15,6 +15,8 @@ import {
   LIBRARY_VIEW,
   ADMIN_USER_MANAGEMENT_VIEW,
   ADMIN_READING_BEDS_VIEW,
+  ADMIN_SETTINGS_VIEW,
+  ADMIN_SYSTEM_VIEW,
   SUBTITLES_VIEW,
   isJobCreationView
 } from '../constants/appViews';
@@ -239,7 +241,7 @@ export function useAppNavigation(options: UseAppNavigationOptions) {
         window.alert('You need editor access to submit jobs.');
         return;
       }
-      if (!isAdmin && (view === ADMIN_USER_MANAGEMENT_VIEW || view === ADMIN_READING_BEDS_VIEW)) {
+      if (!isAdmin && (view === ADMIN_USER_MANAGEMENT_VIEW || view === ADMIN_READING_BEDS_VIEW || view === ADMIN_SETTINGS_VIEW || view === ADMIN_SYSTEM_VIEW)) {
         window.alert('Administrator access required.');
         return;
       }

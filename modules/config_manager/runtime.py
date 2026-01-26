@@ -152,6 +152,15 @@ def get_hardware_tuning_defaults() -> Dict[str, Any]:
     return _hardware_tuning_defaults()
 
 
+def clear_hardware_tuning_cache() -> None:
+    """Clear the cached hardware tuning defaults.
+
+    Call this when reloading configuration to force re-evaluation of hardware-based
+    defaults on the next access.
+    """
+    _hardware_tuning_defaults.cache_clear()
+
+
 @overload
 def get_runtime_context() -> RuntimeContext:
     ...
@@ -540,9 +549,11 @@ __all__ = [
     "RuntimeContext",
     "build_runtime_context",
     "cleanup_environment",
+    "clear_hardware_tuning_cache",
     "clear_runtime_context",
     "register_tmp_dir_preservation",
     "release_tmp_dir_preservation",
+    "get_hardware_tuning_defaults",
     "get_queue_size",
     "get_runtime_context",
     "get_thread_count",

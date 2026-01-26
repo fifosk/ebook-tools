@@ -37,6 +37,8 @@ interface SidebarProps {
   youtubeDubView: SelectedView;
   adminUserManagementView: SelectedView;
   adminReadingBedsView: SelectedView;
+  adminSettingsView: SelectedView;
+  adminSystemView: SelectedView;
 }
 
 function isPipelineView(view: SelectedView): boolean {
@@ -455,7 +457,9 @@ export function Sidebar({
   youtubeDubView,
   jobMediaView,
   adminUserManagementView,
-  adminReadingBedsView
+  adminReadingBedsView,
+  adminSettingsView,
+  adminSystemView
 }: SidebarProps) {
   const isAddBookActive = isPipelineView(selectedView);
   const canOpenPlayer = Boolean(activeJobId);
@@ -901,6 +905,20 @@ export function Sidebar({
             onClick={() => onSelectView(adminReadingBedsView)}
           >
             🎶 Reading music
+          </button>
+          <button
+            type="button"
+            className={`sidebar__link ${selectedView === adminSettingsView ? 'is-active' : ''}`}
+            onClick={() => onSelectView(adminSettingsView)}
+          >
+            ⚙️ Settings
+          </button>
+          <button
+            type="button"
+            className={`sidebar__link ${selectedView === adminSystemView ? 'is-active' : ''}`}
+            onClick={() => onSelectView(adminSystemView)}
+          >
+            🖥️ System
           </button>
         </details>
       ) : null}

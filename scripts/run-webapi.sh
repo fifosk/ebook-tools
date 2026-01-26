@@ -7,6 +7,14 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "$REPO_ROOT"
 
+# Source .env.local if it exists (for local environment variables)
+if [ -f "${REPO_ROOT}/.env.local" ]; then
+  set -a  # Export all variables defined below
+  # shellcheck disable=SC1091
+  source "${REPO_ROOT}/.env.local"
+  set +a
+fi
+
 if [ -z "${JOB_STORAGE_DIR:-}" ]; then
   export JOB_STORAGE_DIR="${REPO_ROOT}/storage"
 fi
@@ -200,16 +208,122 @@ if [ -n "$TV_HTTP_PORT" ]; then
       TV_ARGS+=("$arg")
     done
     TV_ARGS+=(--host "$TV_HTTP_HOST" --port "$TV_HTTP_PORT")
-    echo "Starting Apple TV HTTP API on ${TV_HTTP_HOST}:${TV_HTTP_PORT}." >&2
-    EBOOK_USE_RAMDISK=0 "${RUNNER[@]}" "${TV_ARGS[@]}" &
-    TV_HTTP_PID=$!
-    trap 'if [ -n "${TV_HTTP_PID}" ] && kill -0 "${TV_HTTP_PID}" 2>/dev/null; then kill "${TV_HTTP_PID}"; fi' EXIT INT TERM
   fi
 fi
 
-if [ -n "$TV_HTTP_PID" ]; then
-  "${RUNNER[@]}" "${MAIN_ARGS[@]}"
-  exit $?
+# Auto-restart support: if EBOOK_API_AUTO_RESTART=1, restart the server when it exits gracefully
+AUTO_RESTART="${EBOOK_API_AUTO_RESTART:-1}"
+RESTART_DELAY="${EBOOK_API_RESTART_DELAY:-2}"
+
+# Helper to kill any existing processes on a port (cleanup orphans from previous runs)
+kill_port() {
+  local port="$1"
+  local pids
+  pids=$(lsof -ti:"$port" 2>/dev/null || true)
+  if [ -n "$pids" ]; then
+    echo "Killing existing process(es) on port $port: $pids" >&2
+    echo "$pids" | xargs kill 2>/dev/null || true
+    sleep 0.5
+  fi
+}
+
+# Clean up any orphaned processes from previous runs
+if [ -n "${MAIN_PORT:-}" ]; then
+  kill_port "$MAIN_PORT"
+fi
+if [ -n "${TV_HTTP_PORT:-}" ] && [ "$TV_HTTP_PORT" != "${MAIN_PORT:-}" ]; then
+  kill_port "$TV_HTTP_PORT"
 fi
 
-exec "${RUNNER[@]}" "${MAIN_ARGS[@]}"
+# Helper to start TV HTTP server
+start_tv_server() {
+  if [ -n "${TV_HTTP_PORT:-}" ] && [ "$TV_HTTP_PORT" != "$MAIN_PORT" ]; then
+    echo "Starting Apple TV HTTP API on ${TV_HTTP_HOST}:${TV_HTTP_PORT}." >&2
+    EBOOK_USE_RAMDISK=0 "${RUNNER[@]}" "${TV_ARGS[@]}" &
+    TV_HTTP_PID=$!
+  fi
+}
+
+# Helper to stop TV HTTP server
+stop_tv_server() {
+  if [ -n "${TV_HTTP_PID:-}" ] && kill -0 "${TV_HTTP_PID}" 2>/dev/null; then
+    kill "${TV_HTTP_PID}" 2>/dev/null || true
+    wait "${TV_HTTP_PID}" 2>/dev/null || true
+  fi
+  TV_HTTP_PID=""
+}
+
+# Cleanup function for final exit
+cleanup_and_exit() {
+  # Kill the main server if running
+  if [ -n "${SERVER_PID:-}" ] && kill -0 "${SERVER_PID}" 2>/dev/null; then
+    kill "${SERVER_PID}" 2>/dev/null || true
+    wait "${SERVER_PID}" 2>/dev/null || true
+  fi
+  stop_tv_server
+  exit 0
+}
+
+if [ "$AUTO_RESTART" = "1" ] || [ "$AUTO_RESTART" = "true" ]; then
+
+  # Trap INT for user interrupt (Ctrl+C) - this should exit the script
+  trap 'cleanup_and_exit' INT
+
+  # Ignore TERM on the parent script - we want the Python process to receive it
+  # but the bash loop should continue running
+  trap '' TERM
+
+  # Start TV server initially
+  start_tv_server
+
+  while true; do
+    # Run the server in foreground - it will receive SIGTERM directly
+    "${RUNNER[@]}" "${MAIN_ARGS[@]}" &
+    SERVER_PID=$!
+
+    # Wait for the server to exit
+    wait $SERVER_PID
+    exit_code=$?
+
+    # Exit code 0 = graceful shutdown (SIGTERM), restart
+    # Exit code 130 = Ctrl+C (SIGINT), don't restart
+    # Exit code 143 = SIGTERM from kill command, restart
+    # Other codes = error, don't restart
+    case $exit_code in
+      0|143)
+        echo "Server exited with code $exit_code. Restarting in ${RESTART_DELAY}s..." >&2
+        # Stop TV server before restart
+        stop_tv_server
+        sleep "$RESTART_DELAY"
+        # Kill any orphaned processes on ports before restart
+        kill_port "$MAIN_PORT"
+        if [ -n "${TV_HTTP_PORT:-}" ] && [ "$TV_HTTP_PORT" != "$MAIN_PORT" ]; then
+          kill_port "$TV_HTTP_PORT"
+        fi
+        # Restart TV server
+        start_tv_server
+        continue
+        ;;
+      130)
+        echo "Server interrupted (Ctrl+C). Exiting." >&2
+        cleanup_and_exit
+        ;;
+      *)
+        echo "Server exited with error code $exit_code. Not restarting." >&2
+        stop_tv_server
+        exit $exit_code
+        ;;
+    esac
+  done
+else
+  # Original behavior: run once and exit
+  # Set up trap for cleanup on exit
+  if [ -n "${TV_HTTP_PORT:-}" ] && [ "$TV_HTTP_PORT" != "$MAIN_PORT" ]; then
+    echo "Starting Apple TV HTTP API on ${TV_HTTP_HOST}:${TV_HTTP_PORT}." >&2
+    EBOOK_USE_RAMDISK=0 "${RUNNER[@]}" "${TV_ARGS[@]}" &
+    TV_HTTP_PID=$!
+    trap 'stop_tv_server' EXIT INT TERM
+  fi
+
+  exec "${RUNNER[@]}" "${MAIN_ARGS[@]}"
+fi

@@ -101,6 +101,8 @@ describe('Sidebar', () => {
 	        jobMediaView="job:media"
 	        adminUserManagementView="admin:users"
 	        adminReadingBedsView="admin:reading-beds"
+	        adminSettingsView="admin:settings"
+	        adminSystemView="admin:system"
 	      />
 	    );
 
@@ -135,6 +137,8 @@ describe('Sidebar', () => {
 	        jobMediaView="job:media"
 	        adminUserManagementView="admin:users"
 	        adminReadingBedsView="admin:reading-beds"
+	        adminSettingsView="admin:settings"
+	        adminSystemView="admin:system"
 	      />
 	    );
 
@@ -165,6 +169,8 @@ describe('Sidebar', () => {
 	        jobMediaView="job:media"
 	        adminUserManagementView="admin:users"
 	        adminReadingBedsView="admin:reading-beds"
+	        adminSettingsView="admin:settings"
+	        adminSystemView="admin:system"
 	      />
 	    );
 

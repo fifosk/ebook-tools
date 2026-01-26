@@ -3,6 +3,8 @@ import type { BookNarrationFormSection } from '../components/book-narration/Book
 // View type constants
 export const ADMIN_USER_MANAGEMENT_VIEW = 'admin:users' as const;
 export const ADMIN_READING_BEDS_VIEW = 'admin:reading-beds' as const;
+export const ADMIN_SETTINGS_VIEW = 'admin:settings' as const;
+export const ADMIN_SYSTEM_VIEW = 'admin:system' as const;
 export const JOB_PROGRESS_VIEW = 'job:progress' as const;
 export const JOB_MEDIA_VIEW = 'job:media' as const;
 export const LIBRARY_VIEW = 'library:list' as const;
@@ -24,6 +26,8 @@ export type SelectedView =
   | PipelineMenuView
   | typeof ADMIN_USER_MANAGEMENT_VIEW
   | typeof ADMIN_READING_BEDS_VIEW
+  | typeof ADMIN_SETTINGS_VIEW
+  | typeof ADMIN_SYSTEM_VIEW
   | typeof JOB_PROGRESS_VIEW
   | typeof JOB_MEDIA_VIEW
   | typeof LIBRARY_VIEW

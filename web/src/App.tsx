@@ -22,6 +22,8 @@ import {
   YOUTUBE_DUB_VIEW,
   ADMIN_USER_MANAGEMENT_VIEW,
   ADMIN_READING_BEDS_VIEW,
+  ADMIN_SETTINGS_VIEW,
+  ADMIN_SYSTEM_VIEW,
   isJobCreationView
 } from './constants/appViews';
 
@@ -372,6 +374,8 @@ export function App() {
           jobMediaView={JOB_MEDIA_VIEW}
           adminUserManagementView={ADMIN_USER_MANAGEMENT_VIEW}
           adminReadingBedsView={ADMIN_READING_BEDS_VIEW}
+          adminSettingsView={ADMIN_SETTINGS_VIEW}
+          adminSystemView={ADMIN_SYSTEM_VIEW}
         />
         <AccountPanel
           sessionUser={sessionUser}

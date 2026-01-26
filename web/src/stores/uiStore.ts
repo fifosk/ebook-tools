@@ -17,6 +17,8 @@ export type SelectedView =
   | PipelineMenuView
   | 'admin:users'
   | 'admin:reading-beds'
+  | 'admin:settings'
+  | 'admin:system'
   | 'job:progress'
   | 'job:media'
   | 'library:list'

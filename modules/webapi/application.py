@@ -22,6 +22,8 @@ from modules import config_manager as cfg
 from modules import load_environment
 
 from .admin_routes import router as admin_router
+from .config_routes import router as config_router
+from .system_routes import router as system_router
 from .routers.audio import router as audio_router
 from .routers.create_book import router as create_book_router
 from .routers.exports import router as exports_router
@@ -519,6 +521,8 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
     app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+    app.include_router(config_router, prefix="/api/admin", tags=["config"])
+    app.include_router(system_router, prefix="/api/admin", tags=["system"])
     app.include_router(audio_router)
     app.include_router(create_book_router)
     app.include_router(library_router)

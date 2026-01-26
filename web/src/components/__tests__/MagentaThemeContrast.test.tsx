@@ -114,6 +114,8 @@ describe('Magenta theme contrast', () => {
 	        jobMediaView={'job:media' as SelectedView}
 	        adminUserManagementView={'admin:users' as SelectedView}
 	        adminReadingBedsView={'admin:reading-beds' as SelectedView}
+	        adminSettingsView={'admin:settings' as SelectedView}
+	        adminSystemView={'admin:system' as SelectedView}
 	      />
 	    );
 

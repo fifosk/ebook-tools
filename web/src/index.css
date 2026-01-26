@@ -7149,6 +7149,862 @@ button[data-variant='metadata-action'] {
   color: var(--color-status-neutral-text);
 }
 
+/* ============================================================================
+   Settings Panel - Configuration management UI
+   ============================================================================ */
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.settings-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.settings-panel__header h2 {
+  margin: 0;
+}
+
+.settings-panel__description {
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  max-width: 60ch;
+}
+
+.settings-panel__header-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.settings-panel__alert,
+.settings-panel__notice {
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+}
+
+.settings-panel__alert {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-text);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.settings-panel__notice {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-text);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.settings-panel__loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.settings-panel__content {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1.5rem;
+  min-height: 400px;
+}
+
+@media (max-width: 768px) {
+  .settings-panel__content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Settings Navigation */
+.settings-panel__nav {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 14px;
+  padding: 1rem;
+  backdrop-filter: blur(18px);
+  height: fit-content;
+}
+
+.settings-panel__nav h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  padding: 0 0.5rem;
+}
+
+.settings-panel__nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings-panel__nav-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.settings-panel__nav-item:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.settings-panel__nav-item--active {
+  background: var(--color-sidebar-link-active-bg);
+  color: var(--color-sidebar-link-active-text);
+}
+
+.settings-panel__nav-label {
+  text-align: left;
+}
+
+.settings-panel__nav-count {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  background: rgba(148, 163, 184, 0.15);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.settings-panel__nav-item--active .settings-panel__nav-count {
+  background: rgba(129, 140, 248, 0.3);
+  color: var(--color-sidebar-link-active-text);
+}
+
+/* Settings Editor */
+.settings-panel__editor {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 18px;
+  padding: 1.5rem;
+  backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.settings-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border-subtle);
+  flex-wrap: wrap;
+}
+
+.settings-panel__changes-indicator {
+  font-size: 0.85rem;
+  color: var(--color-status-warning-text);
+  margin-right: auto;
+}
+
+/* Buttons */
+.settings-panel__primary,
+.settings-panel__secondary {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.settings-panel__primary {
+  background: var(--color-button-primary-gradient);
+  color: var(--color-button-primary-text);
+  border: none;
+}
+
+.settings-panel__primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.settings-panel__secondary {
+  background: var(--color-button-secondary-bg);
+  color: var(--color-button-secondary-text);
+  border: 1px solid var(--color-button-secondary-border);
+}
+
+.settings-panel__secondary:hover:not(:disabled) {
+  background: var(--color-button-secondary-hover-bg);
+  border-color: var(--color-button-secondary-hover-border);
+}
+
+.settings-panel__secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Backups Section */
+.settings-panel__backups {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 18px;
+  padding: 1.25rem 1.5rem;
+  backdrop-filter: blur(18px);
+}
+
+.settings-panel__backups-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.settings-panel__backups-header h3 {
+  margin: 0;
+}
+
+.settings-panel__backups-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.settings-panel__import-label {
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.settings-panel__import-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.settings-panel__import-label span {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: var(--color-button-secondary-bg);
+  color: var(--color-button-secondary-text);
+  border: 1px solid var(--color-button-secondary-border);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.settings-panel__import-label:hover span {
+  background: var(--color-button-secondary-hover-bg);
+  border-color: var(--color-button-secondary-hover-border);
+}
+
+.settings-panel__snapshots {
+  margin-top: 1rem;
+}
+
+.settings-panel__empty {
+  padding: 1rem 0;
+  color: var(--color-text-muted);
+}
+
+/* Snapshots Table */
+.settings-panel__table-wrapper {
+  overflow-x: auto;
+}
+
+.settings-panel__table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.settings-panel__table th,
+.settings-panel__table td {
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.settings-panel__table th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.settings-panel__table tbody tr:hover {
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.settings-panel__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.settings-panel__badge--active {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-text);
+}
+
+.settings-panel__row-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.settings-panel__link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-button-link-text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.settings-panel__link:hover {
+  opacity: 0.8;
+}
+
+.settings-panel__link:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.settings-panel__link--danger {
+  color: var(--color-status-danger-text);
+}
+
+/* ============================================================================
+   Config Group Editor - Individual config group forms
+   ============================================================================ */
+
+.config-group-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.config-group-editor__header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.config-group-editor__description {
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.config-group-editor__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.config-group-editor__empty {
+  padding: 1rem 0;
+  color: var(--color-text-muted);
+}
+
+/* Config Field */
+.config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.config-field:hover {
+  background: rgba(148, 163, 184, 0.04);
+}
+
+.config-field--error {
+  background: rgba(248, 113, 113, 0.06);
+  border-color: rgba(248, 113, 113, 0.25);
+}
+
+.config-field__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.config-field__label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.config-field__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.config-field__badge--restart {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-text);
+}
+
+.config-field__badge--sensitive {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+}
+
+.config-field__badge--env {
+  background: var(--color-status-info-bg);
+  color: var(--color-status-info-text);
+}
+
+.config-field__description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.config-field__input-wrapper {
+  margin-top: 0.25rem;
+}
+
+.config-field__input,
+.config-field__select {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-input-border);
+  background: var(--color-input-bg);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.config-field__input:focus,
+.config-field__select:focus {
+  outline: none;
+  border-color: var(--color-border-accent);
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.15);
+}
+
+.config-field__input:disabled,
+.config-field__select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.config-field__input[type="number"] {
+  max-width: 160px;
+}
+
+/* Toggle Checkbox */
+.config-field__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.config-field__toggle input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-input-border);
+  background: var(--color-input-bg);
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
+.config-field__toggle input[type="checkbox"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.config-field__toggle-label {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.config-field__error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-status-danger-text);
+  font-weight: 500;
+}
+
+.config-field__warning {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-status-warning-text);
+}
+
+.config-field__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.config-field__dynamic-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.config-field__loading {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.config-field__dynamic-error {
+  font-size: 0.8rem;
+  color: var(--color-status-error-text);
+}
+
+/* ============================================================================
+   System Panel - System status, reload, restart controls
+   ============================================================================ */
+
+.system-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.system-panel__header {
+  margin-bottom: 0.5rem;
+}
+
+.system-panel__header h2 {
+  margin: 0;
+}
+
+.system-panel__description {
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  max-width: 60ch;
+}
+
+.system-panel__alert,
+.system-panel__notice {
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+}
+
+.system-panel__alert {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-text);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.system-panel__notice {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-text);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.system-panel__section {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 18px;
+  padding: 1.25rem 1.5rem;
+  backdrop-filter: blur(18px);
+}
+
+.system-panel__section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+}
+
+.system-panel__loading {
+  padding: 1rem 0;
+  color: var(--color-text-muted);
+}
+
+.system-panel__error {
+  padding: 1rem 0;
+  color: var(--color-status-danger-text);
+}
+
+/* System Status Grid */
+.system-panel__status-grid dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem 1.5rem;
+  margin: 0;
+}
+
+.system-panel__status-grid dt {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.system-panel__status-grid dd {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+}
+
+.system-panel__warning {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  background: var(--color-status-warning-bg);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.system-panel__warning strong {
+  display: block;
+  color: var(--color-status-warning-text);
+  margin-bottom: 0.25rem;
+}
+
+.system-panel__warning p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+/* System Actions */
+.system-panel__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.system-panel__action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.system-panel__action-description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  max-width: 50ch;
+}
+
+.system-panel__button {
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--color-button-secondary-border);
+  background: var(--color-button-secondary-bg);
+  color: var(--color-button-secondary-text);
+  width: fit-content;
+  transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.system-panel__button:hover:not(:disabled) {
+  background: var(--color-button-secondary-hover-bg);
+  border-color: var(--color-button-secondary-hover-border);
+}
+
+.system-panel__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.system-panel__button--danger {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-text);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.system-panel__button--danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.3);
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.system-panel__button--secondary {
+  background: var(--color-button-secondary-bg);
+  color: var(--color-button-secondary-text);
+  border-color: var(--color-button-secondary-border);
+}
+
+/* Restart Pending State */
+.system-panel__restart-pending {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.system-panel__countdown {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-status-warning-text);
+  padding: 0.5rem 1rem;
+  background: var(--color-status-warning-bg);
+  border-radius: 8px;
+}
+
+/* Audit Log Table */
+.system-panel__table-wrapper {
+  overflow-x: auto;
+}
+
+.system-panel__table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 500px;
+}
+
+.system-panel__table th,
+.system-panel__table td {
+  padding: 0.6rem 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.system-panel__table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.system-panel__table td {
+  font-size: 0.9rem;
+}
+
+.system-panel__table tbody tr:hover {
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.system-panel__empty {
+  padding: 1rem 0;
+  color: var(--color-text-muted);
+}
+
+/* Action Badges for Audit Log */
+.system-panel__action-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.system-panel__action-badge--create {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-text);
+}
+
+.system-panel__action-badge--update {
+  background: var(--color-status-info-bg);
+  color: var(--color-status-info-text);
+}
+
+.system-panel__action-badge--delete {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-text);
+}
+
+.system-panel__action-badge--restore {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+}
+
+.system-panel__action-badge--reload {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-text);
+}
+
+.system-panel__action-badge--export,
+.system-panel__action-badge--import {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-text);
+}
+
+.system-panel__changes-cell {
+  max-width: 300px;
+}
+
+.system-panel__changes {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.system-panel__change-old {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-status-error-text);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  text-decoration: line-through;
+  word-break: break-word;
+}
+
+.system-panel__change-new {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--color-status-success-text);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  word-break: break-word;
+}
+
+.system-panel__change-arrow {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
 .video-panel {
   margin-top: var(--space-lg);
   background: var(--color-card-bg);

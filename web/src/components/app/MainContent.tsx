@@ -22,12 +22,16 @@ import YoutubeVideoPage from '../../pages/YoutubeVideoPage';
 import VideoDubbingPage from '../../pages/VideoDubbingPage';
 import UserManagementPanel from '../admin/UserManagementPanel';
 import ReadingBedsPanel from '../admin/ReadingBedsPanel';
+import SettingsPanel from '../admin/SettingsPanel';
+import SystemPanel from '../admin/SystemPanel';
 import {
   SelectedView,
   PipelineMenuView,
   BOOK_NARRATION_SECTION_MAP,
   ADMIN_USER_MANAGEMENT_VIEW,
   ADMIN_READING_BEDS_VIEW,
+  ADMIN_SETTINGS_VIEW,
+  ADMIN_SYSTEM_VIEW,
   JOB_PROGRESS_VIEW,
   JOB_MEDIA_VIEW,
   LIBRARY_VIEW,
@@ -146,6 +150,8 @@ export function MainContent({
 }: MainContentProps) {
   const isAdminUsersView = selectedView === ADMIN_USER_MANAGEMENT_VIEW;
   const isAdminReadingBedsView = selectedView === ADMIN_READING_BEDS_VIEW;
+  const isAdminSettingsView = selectedView === ADMIN_SETTINGS_VIEW;
+  const isAdminSystemView = selectedView === ADMIN_SYSTEM_VIEW;
   const isLibraryView = selectedView === LIBRARY_VIEW;
   const isCreateBookView = selectedView === CREATE_BOOK_VIEW;
   const isSubtitlesView = selectedView === SUBTITLES_VIEW;
@@ -170,6 +176,16 @@ export function MainContent({
           <h1>Reading music</h1>
           <p>Manage background music tracks shown in the interactive player.</p>
         </header>
+      ) : isAdminSettingsView ? (
+        <header className="dashboard__header">
+          <h1>System Settings</h1>
+          <p>Configure system settings, manage backups, and control server behavior.</p>
+        </header>
+      ) : isAdminSystemView ? (
+        <header className="dashboard__header">
+          <h1>System Control</h1>
+          <p>Monitor system status, reload configuration, and manage server restarts.</p>
+        </header>
       ) : null}
 
       {/* Admin views */}
@@ -180,6 +196,14 @@ export function MainContent({
       ) : isAdminReadingBedsView ? (
         <section>
           <ReadingBedsPanel />
+        </section>
+      ) : isAdminSettingsView ? (
+        <section>
+          <SettingsPanel currentUser={sessionUsername} />
+        </section>
+      ) : isAdminSystemView ? (
+        <section>
+          <SystemPanel currentUser={sessionUsername} />
         </section>
       ) : isLibraryView ? (
         <LibraryPage

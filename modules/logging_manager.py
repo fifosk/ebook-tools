@@ -111,6 +111,38 @@ class ConsoleSuppressionFilter(logging.Filter):
         return not getattr(record, "console_suppress", False)
 
 
+# Global flag for quiet mode - suppresses INFO console output
+_console_quiet_mode: bool = False
+
+
+class ConsoleQuietFilter(logging.Filter):
+    """In quiet mode, only allow WARNING and above to console."""
+
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: D401
+        if not _console_quiet_mode:
+            return True
+        # In quiet mode, suppress INFO and DEBUG unless marked as important
+        if record.levelno >= logging.WARNING:
+            return True
+        # Allow records explicitly marked as console_important
+        return getattr(record, "console_important", False)
+
+
+def set_console_quiet_mode(enabled: bool) -> None:
+    """Enable or disable quiet mode for console output.
+
+    When enabled, INFO and DEBUG level messages are suppressed from console
+    (but still written to log files). Warnings and errors are always shown.
+    """
+    global _console_quiet_mode
+    _console_quiet_mode = enabled
+
+
+def is_console_quiet_mode() -> bool:
+    """Return whether quiet mode is currently enabled."""
+    return _console_quiet_mode
+
+
 def _configure_handlers(logger: logging.Logger) -> None:
     formatter = JSONLogFormatter()
 
@@ -120,6 +152,7 @@ def _configure_handlers(logger: logging.Logger) -> None:
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
     stream_handler.addFilter(ConsoleSuppressionFilter())
+    stream_handler.addFilter(ConsoleQuietFilter())
 
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)

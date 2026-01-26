@@ -210,6 +210,11 @@ class RuntimeContextProvider:
     """Factory responsible for building runtime contexts for requests."""
 
     def __init__(self) -> None:
+        self._base_config: Dict[str, Any] = {}
+        self._load_config()
+
+    def _load_config(self) -> None:
+        """Load or reload configuration from all sources."""
         try:
             self._base_config = cfg.load_configuration(verbose=False)
         except Exception as exc:  # pragma: no cover - defensive logging
@@ -218,7 +223,15 @@ class RuntimeContextProvider:
                 exc_info=exc,
                 extra={"event": "config.load.failed", "console_suppress": True},
             )
-            self._base_config: Dict[str, Any] = {}
+            self._base_config = {}
+
+    def refresh_config(self) -> None:
+        """Reload configuration from all sources including database."""
+        self._load_config()
+        logger.info(
+            "Configuration refreshed",
+            extra={"event": "config.refreshed", "console_important": True},
+        )
 
     def resolve_config(self, updates: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
         """Return the default configuration merged with ``updates``."""
@@ -271,6 +284,17 @@ def get_runtime_context_provider() -> RuntimeContextProvider:
     """Return a singleton :class:`RuntimeContextProvider`."""
 
     return RuntimeContextProvider()
+
+
+def refresh_runtime_config() -> None:
+    """Refresh configuration in the RuntimeContextProvider singleton.
+
+    Call this after configuration has been updated (e.g., via admin UI)
+    to ensure subsequent requests use the updated configuration.
+    """
+    provider = get_runtime_context_provider()
+    provider.refresh_config()
+
 
 @lru_cache
 def get_pipeline_job_manager() -> PipelineJobManager:

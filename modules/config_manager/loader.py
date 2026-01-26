@@ -1,10 +1,23 @@
-"""Configuration loading utilities."""
+"""Configuration loading utilities.
+
+This module implements a layered configuration system with the following priority
+(highest to lowest):
+
+1. CLI flags (runtime overrides)
+2. Environment variables (EBOOK_*)
+3. Hardware tuning defaults
+4. Vault secrets ($EBOOK_VAULT_FILE)
+5. Active database snapshot (if enabled)
+6. Local config file (config/config.local.json)
+7. Default config file (conf/config.json)
+"""
 from __future__ import annotations
 
 import json
 import os
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from pydantic import ValidationError
 from pydub import AudioSegment
@@ -29,7 +42,7 @@ from .settings import (
     load_environment_overrides,
     load_vault_secrets,
 )
-from .runtime import get_hardware_tuning_defaults
+from .runtime import clear_hardware_tuning_cache, get_hardware_tuning_defaults
 
 logger = logging_manager.get_logger()
 console_info = logging_manager.console_info
@@ -40,6 +53,12 @@ AudioSegment.converter = DEFAULT_FFMPEG_PATH
 
 
 _ACTIVE_SETTINGS: Optional[EbookToolsSettings] = None
+_CONFIG_LOADED_AT: Optional[str] = None
+_ACTIVE_SNAPSHOT_ID: Optional[str] = None
+
+
+# Environment variable to enable/disable database-backed configuration
+CONFIG_DB_ENABLED_ENV = "EBOOK_CONFIG_DB_ENABLED"
 
 
 def _read_config_json(path, verbose: bool = False, label: str = "configuration") -> Dict[str, Any]:
@@ -121,6 +140,11 @@ def load_configuration(
                 logger_obj=logger,
             )
 
+    # Layer 3: Active database snapshot (if enabled)
+    db_config = _load_active_db_snapshot(verbose=verbose)
+    if db_config:
+        base_payload = _deep_merge_dict(base_payload, db_config)
+
     try:
         settings = EbookToolsSettings.model_validate(base_payload)
     except ValidationError as exc:
@@ -201,11 +225,162 @@ def load_configuration(
 
     _ACTIVE_SETTINGS = settings
 
+    # Track when config was loaded
+    global _CONFIG_LOADED_AT
+    from datetime import datetime, timezone
+    _CONFIG_LOADED_AT = datetime.now(timezone.utc).isoformat()
+
     exported = settings.model_dump(
         mode="python",
         exclude={"ollama_api_key", "database_url", "job_store_url"},
     )
     return exported
+
+
+def _load_active_db_snapshot(verbose: bool = False) -> Dict[str, Any]:
+    """Load configuration from the active database snapshot if enabled.
+
+    Returns:
+        Configuration dictionary from active snapshot, or empty dict
+    """
+    global _ACTIVE_SNAPSHOT_ID
+
+    # Check if database config is enabled
+    db_enabled = os.environ.get(CONFIG_DB_ENABLED_ENV, "").lower() in ("1", "true", "yes")
+    if not db_enabled:
+        return {}
+
+    try:
+        from .config_repository import ConfigRepository
+
+        repo = ConfigRepository()
+        result = repo.get_active_snapshot()
+
+        if result:
+            metadata, config = result
+            _ACTIVE_SNAPSHOT_ID = metadata.snapshot_id
+            if verbose:
+                console_info(
+                    "Loaded active config snapshot %s (%s)",
+                    metadata.snapshot_id,
+                    metadata.label or "no label",
+                    logger_obj=logger,
+                )
+            return config
+
+    except Exception as e:
+        if verbose:
+            console_warning(
+                "Failed to load config from database: %s",
+                e,
+                logger_obj=logger,
+            )
+        logger.warning(
+            "Failed to load config from database",
+            extra={
+                "event": "config.db.load_failed",
+                "error": str(e),
+                "console_suppress": True,
+            },
+        )
+
+    return {}
+
+
+def reload_configuration(
+    verbose: bool = False,
+    default_model: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Hot-reload configuration from all sources.
+
+    This clears cached settings and reloads from all configuration sources.
+    Use this for hot-reloading settings that don't require a restart.
+
+    Args:
+        verbose: Whether to log detailed loading information
+        default_model: Default model to use if not specified
+
+    Returns:
+        The reloaded configuration dictionary
+    """
+    global _ACTIVE_SETTINGS, _ACTIVE_SNAPSHOT_ID
+
+    # Clear cached settings
+    _ACTIVE_SETTINGS = None
+    _ACTIVE_SNAPSHOT_ID = None
+
+    # Clear hardware tuning cache
+    clear_hardware_tuning_cache()
+
+    # Reload and return new configuration
+    config = load_configuration(verbose=verbose, default_model=default_model)
+
+    logger.info(
+        "Configuration reloaded",
+        extra={"event": "config.reloaded", "console_suppress": True},
+    )
+
+    return config
+
+
+def get_config_state() -> Dict[str, Any]:
+    """Get information about the current configuration state.
+
+    Returns:
+        Dictionary with config state information:
+        - loaded_at: When config was last loaded
+        - active_snapshot_id: ID of active DB snapshot (if any)
+        - db_enabled: Whether DB config is enabled
+    """
+    return {
+        "loaded_at": _CONFIG_LOADED_AT,
+        "active_snapshot_id": _ACTIVE_SNAPSHOT_ID,
+        "db_enabled": os.environ.get(CONFIG_DB_ENABLED_ENV, "").lower() in ("1", "true", "yes"),
+    }
+
+
+def save_current_config_to_db(
+    *,
+    label: Optional[str] = None,
+    description: Optional[str] = None,
+    created_by: Optional[str] = None,
+    activate: bool = False,
+) -> Optional[str]:
+    """Save the current effective configuration to the database.
+
+    Args:
+        label: Optional label for the snapshot
+        description: Optional description
+        created_by: Username creating the snapshot
+        activate: Whether to activate this snapshot
+
+    Returns:
+        The snapshot_id if successful, None if DB is not available
+    """
+    try:
+        from .config_repository import ConfigRepository
+
+        config = load_configuration()
+        repo = ConfigRepository()
+
+        snapshot_id = repo.save_snapshot(
+            config,
+            label=label,
+            description=description,
+            created_by=created_by,
+            source="current",
+            activate=activate,
+        )
+
+        return snapshot_id
+
+    except Exception as e:
+        logger.warning(
+            "Failed to save config to database: %s",
+            e,
+            extra={"event": "config.db.save_failed", "error": str(e)},
+        )
+        return None
 
 
 def strip_derived_config(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -232,4 +407,12 @@ def get_settings() -> EbookToolsSettings:
     return _ACTIVE_SETTINGS
 
 
-__all__ = ["get_settings", "load_configuration", "strip_derived_config"]
+__all__ = [
+    "get_settings",
+    "load_configuration",
+    "reload_configuration",
+    "strip_derived_config",
+    "get_config_state",
+    "save_current_config_to_db",
+    "CONFIG_DB_ENABLED_ENV",
+]
