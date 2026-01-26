@@ -1069,36 +1069,20 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
                       Edit
                     </button>
                     {selectedItemType === 'book' ? (
-                      <>
-                        <button
-                          type="button"
-                          className={styles.secondaryButton}
-                          onClick={() => handleEnrichMetadata(false)}
-                          disabled={
-                            isEnriching ||
-                            isSaving ||
-                            Boolean(mutating[selectedItem.jobId]) ||
-                            !selectedPermissions?.canEdit
-                          }
-                          title="Fetch cover, summary, and other metadata from OpenLibrary, Google Books, etc."
-                        >
-                          {isEnriching ? 'Enriching…' : 'Enrich from web'}
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.secondaryButton}
-                          onClick={() => handleEnrichMetadata(true)}
-                          disabled={
-                            isEnriching ||
-                            isSaving ||
-                            Boolean(mutating[selectedItem.jobId]) ||
-                            !selectedPermissions?.canEdit
-                          }
-                          title="Force refresh metadata from external sources even if already enriched"
-                        >
-                          Force refresh
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={(e) => handleEnrichMetadata(e.shiftKey)}
+                        disabled={
+                          isEnriching ||
+                          isSaving ||
+                          Boolean(mutating[selectedItem.jobId]) ||
+                          !selectedPermissions?.canEdit
+                        }
+                        title="Fetch metadata from OpenLibrary, Google Books, etc. Hold Shift to force refresh."
+                      >
+                        {isEnriching ? 'Refreshing…' : 'Refresh metadata'}
+                      </button>
                     ) : null}
                     {!selectedItem.mediaCompleted ? (
                       <span className={styles.actionHint}>

@@ -17,8 +17,9 @@ from modules import logging_manager as log_mgr
 
 from .job_manager import PipelineJob, PipelineJobManager
 from .pipeline_types import PipelineMetadata
-from .metadata.types import LookupOptions, LookupQuery, MediaType
+from .metadata.types import LookupOptions, LookupQuery, MediaType, UnifiedMetadataResult
 from .metadata.clients.google_books import GoogleBooksClient
+from .metadata.pipeline import create_pipeline
 
 logger = log_mgr.get_logger().getChild("services.book_metadata")
 
@@ -601,12 +602,38 @@ class BookMetadataService:
         }
 
     def lookup_openlibrary_metadata_for_query(self, query: str, *, force: bool = False) -> Dict[str, Any]:
-        """Lookup Open Library metadata for a filename/title/ISBN without persisting anything."""
+        """Lookup book metadata for a filename/title/ISBN using the unified pipeline.
 
+        The pipeline tries sources in order (OpenLibrary → Google Books → Wikipedia)
+        and continues to fallbacks if required fields (title, year, genres, summary, cover) are missing.
+        """
         normalized_source = _basename(query)
         seed = _parse_filename_title_author(query) if query else {}
         inferred = _infer_lookup_query(normalized_source or query, seed)
-        lookup_payload = self._build_openlibrary_payload(inferred, job_id=None)
+
+        # Use unified metadata pipeline for proper fallback handling
+        lookup_query = LookupQuery(
+            media_type=MediaType.BOOK,
+            title=inferred.title,
+            author=inferred.author,
+            isbn=inferred.isbn,
+            source_filename=inferred.source_name,
+        )
+        options = LookupOptions(
+            force_refresh=force,
+            max_sources=3,
+            timeout_seconds=15.0,
+            download_cover=True,
+        )
+
+        try:
+            with create_pipeline(cache_enabled=not force) as pipeline:
+                result = pipeline.lookup(lookup_query, options)
+        except Exception as exc:
+            logger.warning("Pipeline lookup failed: %s", exc)
+            result = None
+
+        lookup_payload = self._convert_pipeline_result_to_payload(result, inferred)
         return {
             "source_name": normalized_source or None,
             "query": {
@@ -619,6 +646,72 @@ class BookMetadataService:
             "book_metadata_lookup": dict(lookup_payload),
         }
 
+    def _convert_pipeline_result_to_payload(
+        self,
+        result: Optional[UnifiedMetadataResult],
+        query: BookLookupQuery,
+    ) -> Dict[str, Any]:
+        """Convert unified pipeline result to legacy payload format."""
+        timestamp = datetime.now(timezone.utc).isoformat()
+        source_name = query.source_name
+
+        if result is None or result.error:
+            job_label = _build_job_label(title=query.title, author=query.author, fallback=source_name)
+            return {
+                "kind": "book",
+                "provider": result.primary_source.value if result and result.primary_source else "openlibrary",
+                "queried_at": result.queried_at.isoformat() if result and result.queried_at else timestamp,
+                "source_name": source_name,
+                "query": {
+                    "title": query.title,
+                    "author": query.author,
+                    "isbn": query.isbn,
+                }
+                if (query.title or query.author or query.isbn)
+                else None,
+                "job_label": job_label,
+                "error": result.error if result else "No metadata found from any source",
+            }
+
+        job_label = _build_job_label(title=result.title, author=result.author, fallback=source_name)
+
+        # Build provider-specific keys
+        book_payload: Dict[str, Any] = {
+            "title": result.title,
+            "author": result.author,
+            "year": str(result.year) if result.year else None,
+            "summary": result.summary,
+            "isbn": result.source_ids.isbn or result.source_ids.isbn_13,
+            "cover_url": result.cover_url,
+            "cover_file": result.cover_file,
+            "genre": ", ".join(result.genres) if result.genres else None,
+        }
+
+        # Add source-specific identifiers
+        if result.source_ids.openlibrary_work_key:
+            book_payload["openlibrary_work_key"] = result.source_ids.openlibrary_work_key
+            book_payload["openlibrary_work_url"] = f"{_OPENLIBRARY_BASE_URL}{result.source_ids.openlibrary_work_key}"
+        if result.source_ids.openlibrary_book_key:
+            book_payload["openlibrary_book_key"] = result.source_ids.openlibrary_book_key
+        if result.source_ids.google_books_id:
+            book_payload["google_books_id"] = result.source_ids.google_books_id
+
+        return {
+            "kind": "book",
+            "provider": result.primary_source.value if result.primary_source else "openlibrary",
+            "queried_at": result.queried_at.isoformat() if result.queried_at else timestamp,
+            "source_name": source_name,
+            "query": {
+                "title": query.title,
+                "author": query.author,
+                "isbn": query.isbn,
+            },
+            "job_label": job_label,
+            "book": book_payload,
+            "confidence": result.confidence.value,
+            "contributing_sources": [s.value for s in result.contributing_sources] if result.contributing_sources else [],
+        }
+
     def lookup_openlibrary_metadata(
         self,
         job_id: str,
@@ -627,6 +720,11 @@ class BookMetadataService:
         user_id: Optional[str] = None,
         user_role: Optional[str] = None,
     ) -> Dict[str, Any]:
+        """Lookup and persist book metadata for an existing job using the unified pipeline.
+
+        The pipeline tries sources in order (OpenLibrary → Google Books → Wikipedia)
+        and continues to fallbacks if required fields (title, year, genres, summary, cover) are missing.
+        """
         job = self._job_manager.get(job_id, user_id=user_id, user_role=user_role)
         if job.job_type not in {"pipeline", "book"}:
             raise KeyError("Book job not found")
@@ -640,7 +738,29 @@ class BookMetadataService:
         book_metadata = _extract_existing_book_metadata(job)
         query = _infer_lookup_query(source_name, book_metadata)
 
-        payload = self._build_openlibrary_payload(query, job_id=job_id)
+        # Use unified metadata pipeline for proper fallback handling
+        lookup_query = LookupQuery(
+            media_type=MediaType.BOOK,
+            title=query.title,
+            author=query.author,
+            isbn=query.isbn,
+            source_filename=query.source_name,
+        )
+        options = LookupOptions(
+            force_refresh=force,
+            max_sources=3,
+            timeout_seconds=15.0,
+            download_cover=True,
+        )
+
+        try:
+            with create_pipeline(cache_enabled=not force) as pipeline:
+                result = pipeline.lookup(lookup_query, options)
+        except Exception as exc:
+            logger.warning("Pipeline lookup failed for job %s: %s", job_id, exc)
+            result = None
+
+        payload = self._convert_pipeline_result_to_payload(result, query)
         self._persist_lookup_result(job_id, payload, user_id=user_id, user_role=user_role)
         return self.get_openlibrary_metadata(job_id, user_id=user_id, user_role=user_role)
 
@@ -818,6 +938,20 @@ class BookMetadataService:
             book_url = _normalize_text(isbn_payload.get("url"))
             book_key = _normalize_text(isbn_payload.get("key"))
 
+            # Extract subjects/genres from ISBN response
+            subjects_raw = isbn_payload.get("subjects")
+            genres: list[str] = []
+            if isinstance(subjects_raw, list):
+                for subj in subjects_raw:
+                    if isinstance(subj, Mapping):
+                        name = _normalize_text(subj.get("name"))
+                        if name:
+                            genres.append(name)
+                    elif isinstance(subj, str) and subj.strip():
+                        genres.append(subj.strip())
+            # Limit to reasonable number of genres
+            genres = genres[:10]
+
             return {
                 "kind": "book",
                 "provider": "openlibrary",
@@ -837,6 +971,7 @@ class BookMetadataService:
                     "isbn": query.isbn,
                     "cover_url": cover_url,
                     "cover_file": cover_file,
+                    "genre": ", ".join(genres) if genres else None,
                     "openlibrary_book_key": book_key,
                     "openlibrary_book_url": book_url,
                 },
@@ -927,6 +1062,16 @@ class BookMetadataService:
                     isbn = normalized
                     break
 
+        # Extract subjects/genres from search response
+        subjects_raw = best_doc.get("subject", [])
+        genres: list[str] = []
+        if isinstance(subjects_raw, list):
+            for subj in subjects_raw:
+                if isinstance(subj, str) and subj.strip():
+                    genres.append(subj.strip())
+        # Limit to reasonable number of genres
+        genres = genres[:10]
+
         job_label = _build_job_label(title=title, author=author, fallback=source_name)
 
         return {
@@ -948,6 +1093,7 @@ class BookMetadataService:
                 "isbn": isbn,
                 "cover_url": cover_url,
                 "cover_file": cover_file,
+                "genre": ", ".join(genres) if genres else None,
                 "openlibrary_work_key": work_key,
                 "openlibrary_work_url": work_url,
                 "openlibrary_cover_id": cover_id if isinstance(cover_id, int) else None,
@@ -1011,6 +1157,12 @@ class BookMetadataService:
                 if cover_file:
                     book_metadata["book_cover_file"] = cover_file
                     config_payload["book_cover_file"] = cover_file
+
+                # Genre field (from unified pipeline or direct lookup)
+                genre = _normalize_text(book_section.get("genre"))
+                if genre:
+                    book_metadata["book_genre"] = genre
+                    config_payload["book_genre"] = genre
 
                 # OpenLibrary-specific fields
                 openlibrary_work_key = _normalize_text(book_section.get("openlibrary_work_key"))

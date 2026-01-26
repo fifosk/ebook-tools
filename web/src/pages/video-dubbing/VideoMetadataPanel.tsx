@@ -107,20 +107,12 @@ export default function VideoMetadataPanel({
                 <button
                   type="button"
                   className={styles.secondaryButton}
-                  onClick={() => void onLookupMetadata(metadataLookupSourceName, false)}
+                  onClick={(e) => void onLookupMetadata(metadataLookupSourceName, e.shiftKey)}
                   disabled={!metadataLookupSourceName.trim() || metadataLoading}
                   aria-busy={metadataLoading}
+                  title="Lookup TV metadata from TMDB/OMDb/TVMaze. Hold Shift to force refresh."
                 >
                   {metadataLoading ? 'Looking up…' : 'Lookup'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={() => void onLookupMetadata(metadataLookupSourceName, true)}
-                  disabled={!metadataLookupSourceName.trim() || metadataLoading}
-                  aria-busy={metadataLoading}
-                >
-                  Refresh
                 </button>
                 <button
                   type="button"
@@ -147,6 +139,10 @@ export default function VideoMetadataPanel({
                   const airdate = normalizeTextValue(episode ? episode['airdate'] : null);
                   const episodeUrl = normalizeTextValue(episode ? episode['url'] : null);
                   const jobLabel = normalizeTextValue(media ? media['job_label'] : null);
+
+                  // External IDs for direct lookup
+                  const tmdbId = typeof show?.tmdb_id === 'number' ? show.tmdb_id : typeof media?.tmdb_id === 'number' ? media.tmdb_id : null;
+                  const imdbId = normalizeTextValue(show ? show['imdb_id'] : null) ?? normalizeTextValue(media ? media['imdb_id'] : null);
 
                   const showImage = show ? coerceRecord(show['image']) : null;
                   const showImageMedium = normalizeTextValue(showImage ? showImage['medium'] : null);
@@ -368,6 +364,48 @@ export default function VideoMetadataPanel({
                               placeholder="YYYY-MM-DD"
                             />
                           </label>
+                          <label>
+                            TMDB ID
+                            <input
+                              type="number"
+                              min={1}
+                              value={tmdbId ?? ''}
+                              onChange={(event) => {
+                                const raw = event.target.value;
+                                onUpdateMediaMetadataSection('show', (section) => {
+                                  if (!raw.trim()) {
+                                    delete section['tmdb_id'];
+                                    return;
+                                  }
+                                  const parsed = Number(raw);
+                                  if (!Number.isFinite(parsed) || parsed <= 0) {
+                                    return;
+                                  }
+                                  section['tmdb_id'] = Math.trunc(parsed);
+                                });
+                              }}
+                              placeholder="e.g. 1396 for Breaking Bad"
+                            />
+                          </label>
+                          <label>
+                            IMDb ID
+                            <input
+                              type="text"
+                              value={imdbId ?? ''}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                onUpdateMediaMetadataSection('show', (section) => {
+                                  const trimmed = value.trim();
+                                  if (trimmed) {
+                                    section['imdb_id'] = trimmed;
+                                  } else {
+                                    delete section['imdb_id'];
+                                  }
+                                });
+                              }}
+                              placeholder="e.g. tt0903747 for Breaking Bad"
+                            />
+                          </label>
                         </div>
                       </fieldset>
 
@@ -403,20 +441,12 @@ export default function VideoMetadataPanel({
                 <button
                   type="button"
                   className={styles.secondaryButton}
-                  onClick={() => void onLookupYoutubeMetadata(youtubeLookupSourceName, false)}
+                  onClick={(e) => void onLookupYoutubeMetadata(youtubeLookupSourceName, e.shiftKey)}
                   disabled={!youtubeLookupSourceName.trim() || youtubeMetadataLoading}
                   aria-busy={youtubeMetadataLoading}
+                  title="Lookup YouTube metadata via yt-dlp. Hold Shift to force refresh."
                 >
                   {youtubeMetadataLoading ? 'Looking up…' : 'Lookup'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={() => void onLookupYoutubeMetadata(youtubeLookupSourceName, true)}
-                  disabled={!youtubeLookupSourceName.trim() || youtubeMetadataLoading}
-                  aria-busy={youtubeMetadataLoading}
-                >
-                  Refresh
                 </button>
                 <button
                   type="button"
@@ -444,7 +474,10 @@ export default function VideoMetadataPanel({
                   const likes = formatCount(youtube ? youtube['like_count'] : null);
                   const uploaded = normalizeTextValue(youtube ? youtube['upload_date'] : null);
                   const duration = formatDurationSeconds(youtube ? youtube['duration_seconds'] : null);
-                  const errorMessage = normalizeTextValue(youtube ? youtube['error'] : null);
+                  const rawErrorMessage = normalizeTextValue(youtube ? youtube['error'] : null);
+                  // Don't show the "no video ID" error - it's expected for TV content without YouTube IDs
+                  const isExpectedNoIdError = rawErrorMessage?.includes('Unable to locate a YouTube video id');
+                  const errorMessage = isExpectedNoIdError ? null : rawErrorMessage;
                   const rawPayload = youtube ? youtube['raw_payload'] : null;
 
                   return (

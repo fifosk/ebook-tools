@@ -96,6 +96,7 @@ class MetadataLookupPipeline:
 
         # Get available sources for this media type
         available_sources = self._registry.get_available_sources(query.media_type)
+        logger.info("Available sources for %s: %s", query.media_type.value, [s.value for s in available_sources])
         if not available_sources:
             logger.warning("No available sources for media type %s", query.media_type)
             return None
@@ -137,15 +138,27 @@ class MetadataLookupPipeline:
             if primary_source is None:
                 primary_source = source
 
-            # Stop early if we have high confidence
-            if result.confidence == ConfidenceLevel.HIGH:
-                logger.info("High confidence result from %s, stopping chain", source.value)
-                break
+            logger.info(
+                "Source %s returned: title=%s, genres=%s, has_required=%s",
+                source.value,
+                result.title,
+                result.genres[:3] if result.genres else [],
+                result.has_required_fields(),
+            )
 
-            # Check if we have all required fields
+            # Check if we have all required fields (title, year, genres, summary, cover)
+            # This takes precedence over confidence level to ensure we get complete metadata
             if result.has_required_fields():
                 logger.debug("All required fields found after %s", source.value)
                 break
+
+            # Only stop on high confidence if we also have required fields
+            # Otherwise continue to fill missing fields from fallback sources
+            if result.confidence == ConfidenceLevel.HIGH:
+                logger.info(
+                    "High confidence result from %s but missing fields, continuing to fallbacks",
+                    source.value,
+                )
 
         if not results:
             logger.info("No results found from any source")
@@ -159,6 +172,13 @@ class MetadataLookupPipeline:
 
         # Post-process
         merged.genres = deduplicate_genres(merged.genres)
+
+        logger.info(
+            "Merged result: title=%s, genres=%s, sources=%s",
+            merged.title,
+            merged.genres[:5] if merged.genres else [],
+            [s.value for s in merged.contributing_sources],
+        )
 
         # Cache result
         if self._cache and not opts.skip_cache:
@@ -243,12 +263,11 @@ def create_pipeline(
     Returns:
         Configured MetadataLookupPipeline.
     """
-    # Load API keys from config if not provided
+    # Use the registry's config-aware factory which properly reads flat API key settings
     if api_keys is None:
-        settings = cfg.get_settings()
-        api_keys = getattr(settings, "api_keys", {}) or {}
-
-    registry = MetadataSourceRegistry(api_keys=api_keys)
+        registry = create_registry_from_config()
+    else:
+        registry = MetadataSourceRegistry(api_keys=api_keys)
 
     # Create cache if enabled
     cache = None

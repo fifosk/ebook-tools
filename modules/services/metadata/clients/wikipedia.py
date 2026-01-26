@@ -241,6 +241,7 @@ class WikipediaClient(BaseMetadataClient):
         source_ids = SourceIds(wikidata_qid=wikidata_qid)
 
         # Try to get more structured data from Wikidata
+        genres: List[str] = []
         if wikidata_qid:
             wikidata_info = self._get_wikidata_info(wikidata_qid, options.timeout_seconds)
             if wikidata_info:
@@ -254,12 +255,16 @@ class WikipediaClient(BaseMetadataClient):
                         wikidata_qid=wikidata_qid,
                         imdb_id=wikidata_info["imdb_id"],
                     )
+                # Resolve genre QIDs to labels
+                genre_qids = wikidata_info.get("genre_qids", [])
+                if genre_qids:
+                    genres = self._resolve_genre_qids(genre_qids, options.timeout_seconds)
 
         return UnifiedMetadataResult(
             title=title_clean,
             type=media_type,
             year=year,
-            genres=[],  # Wikipedia doesn't provide structured genres
+            genres=genres,  # Now populated from Wikidata if available
             summary=summary,
             cover_url=cover_url,
             source_ids=source_ids,
@@ -344,11 +349,66 @@ class WikipediaClient(BaseMetadataClient):
                         )
                         break
 
+            # P136 = genre (returns QIDs that need label resolution)
+            genres = claims.get("P136", [])
+            if genres and isinstance(genres, list):
+                genre_qids = []
+                for claim in genres:
+                    mainsnak = claim.get("mainsnak", {})
+                    datavalue = mainsnak.get("datavalue", {})
+                    value = datavalue.get("value", {})
+                    genre_qid = value.get("id")
+                    if genre_qid and isinstance(genre_qid, str):
+                        genre_qids.append(genre_qid)
+                if genre_qids:
+                    result["genre_qids"] = genre_qids[:10]
+
             return result if result else None
 
         except Exception as exc:
             logger.debug("Wikidata API error for '%s': %s", qid, exc)
             return None
+
+    def _resolve_genre_qids(
+        self,
+        qids: List[str],
+        timeout: float,
+    ) -> List[str]:
+        """Resolve Wikidata QIDs to genre labels."""
+        if not qids:
+            return []
+
+        try:
+            response = self._session.get(
+                _WIKIDATA_API,
+                params={
+                    "action": "wbgetentities",
+                    "ids": "|".join(qids),
+                    "format": "json",
+                    "props": "labels",
+                    "languages": "en",
+                },
+                headers={"User-Agent": "ebook-tools/1.0 (metadata lookup)"},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            genres: List[str] = []
+            entities = data.get("entities", {})
+            for qid in qids:
+                entity = entities.get(qid, {})
+                labels = entity.get("labels", {})
+                en_label = labels.get("en", {})
+                label = _normalize_text(en_label.get("value"))
+                if label:
+                    genres.append(label)
+
+            return genres
+
+        except Exception as exc:
+            logger.debug("Failed to resolve genre QIDs: %s", exc)
+            return []
 
 
 __all__ = ["WikipediaClient"]

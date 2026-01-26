@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useJobEventsWithRetry } from '../hooks/useJobEventsWithRetry';
-import { appendAccessToken, enrichPipelineMetadata, resolveJobCoverUrl } from '../api/client';
+import { appendAccessToken, lookupBookOpenLibraryMetadata, resolveJobCoverUrl } from '../api/client';
 import {
   AccessPolicyUpdatePayload,
   PipelineResponsePayload,
@@ -16,7 +16,9 @@ import { JobProgressMediaMetadata } from './job-progress/JobProgressMediaMetadat
 import { resolveProgressStage } from '../utils/progressEvents';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
 import {
+  BOOK_METADATA_DISPLAY_KEYS,
   CREATION_METADATA_KEYS,
+  TECHNICAL_METADATA_KEYS,
   TERMINAL_STATES,
   buildImageClusterNodes,
   coerceNumber,
@@ -32,6 +34,7 @@ import {
   formatTuningValue,
   formatTranslationProviderLabel,
   normaliseStringList,
+  normalizeIsbnCandidate,
   normalizeMetadataValue,
   normalizeTranslationProvider,
   normalizeTextValue,
@@ -89,8 +92,9 @@ export function JobProgress({
   const isBookJob = jobType === 'pipeline' || jobType === 'book';
   const isPipelineLikeJob = isBookJob;
   const isSubtitleJob = jobType === 'subtitle';
-  const supportsTvMetadata = isSubtitleJob || jobType === 'youtube_dub';
-  const supportsYoutubeMetadata = jobType === 'youtube_dub';
+  const isVideoDubJob = jobType === 'youtube_dub';
+  const supportsTvMetadata = isSubtitleJob || isVideoDubJob;
+  const supportsYoutubeMetadata = isVideoDubJob;
   const isNarratedSubtitleJob = useMemo(() => {
     if (jobType !== 'subtitle') {
       return false;
@@ -109,7 +113,7 @@ export function JobProgress({
     }
     return (subtitleMetadata as Record<string, unknown>)['generate_audio_book'] === true;
   }, [jobType, status?.result]);
-  const isLibraryMovableJob = isPipelineLikeJob || jobType === 'youtube_dub' || isNarratedSubtitleJob;
+  const isLibraryMovableJob = isPipelineLikeJob || isVideoDubJob || isNarratedSubtitleJob;
   const isTerminal = useMemo(() => {
     if (!status) {
       return false;
@@ -205,7 +209,8 @@ export function JobProgress({
     return 'Book cover';
   }, [bookAuthor, bookTitle]);
   const creationSummaryRaw = metadata['creation_summary'];
-  const metadataEntries = Object.entries(metadata).filter(([key, value]) => {
+  // Split metadata into display (interesting) and technical entries
+  const allMetadataEntries = Object.entries(metadata).filter(([key, value]) => {
     if (key === 'job_cover_asset' || key === 'book_metadata_lookup' || CREATION_METADATA_KEYS.has(key)) {
       return false;
     }
@@ -215,6 +220,10 @@ export function JobProgress({
     const normalized = normalizeMetadataValue(value);
     return normalized.length > 0;
   });
+  // Display entries: show prominently (book metadata fields)
+  const metadataEntries = allMetadataEntries.filter(([key]) => BOOK_METADATA_DISPLAY_KEYS.has(key));
+  // Technical entries: show in collapsed "Raw payload" section
+  const technicalMetadataEntries = allMetadataEntries.filter(([key]) => !BOOK_METADATA_DISPLAY_KEYS.has(key));
   const creationSummary = useMemo(() => {
     if (!creationSummaryRaw || typeof creationSummaryRaw !== 'object') {
       return null;
@@ -588,34 +597,78 @@ export function JobProgress({
   const showOverviewSections = jobTab === 'overview';
   const showPermissionsSections = jobTab === 'permissions';
 
-  // Enrichment state
-  const [isEnriching, setIsEnriching] = useState(false);
-  const [enrichmentError, setEnrichmentError] = useState<string | null>(null);
-  const [enrichmentResult, setEnrichmentResult] = useState<{
-    enriched: boolean;
+  // Metadata lookup state (unified - replaces separate enrichment and lookup states)
+  const [isbnLookupQuery, setIsbnLookupQuery] = useState('');
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookupResult, setLookupResult] = useState<{
+    success: boolean;
     source?: string | null;
     confidence?: string | null;
   } | null>(null);
 
-  const handleEnrichMetadata = useCallback(async (force: boolean) => {
-    setIsEnriching(true);
-    setEnrichmentError(null);
-    setEnrichmentResult(null);
+  // Extract ISBN from existing metadata for auto-populating lookup
+  const existingIsbn = useMemo(() => {
+    return normalizeTextValue(metadata['book_isbn']) ?? normalizeTextValue(metadata['isbn']) ?? null;
+  }, [metadata]);
+
+  // Resolve final lookup query (ISBN input or existing ISBN from metadata)
+  const resolvedLookupQuery = useMemo(() => {
+    const inputIsbn = normalizeIsbnCandidate(isbnLookupQuery);
+    if (inputIsbn) {
+      return inputIsbn;
+    }
+    const metadataIsbn = normalizeIsbnCandidate(existingIsbn);
+    if (metadataIsbn) {
+      return metadataIsbn;
+    }
+    return isbnLookupQuery.trim();
+  }, [isbnLookupQuery, existingIsbn]);
+
+  const handleLookupMetadata = useCallback(async (force: boolean) => {
+    setIsLookingUp(true);
+    setLookupError(null);
+    setLookupResult(null);
     try {
-      const result = await enrichPipelineMetadata(jobId, { force });
-      setEnrichmentResult({
-        enriched: result.enriched,
-        source: result.source,
-        confidence: result.confidence,
-      });
-      if (result.enriched) {
+      const result = await lookupBookOpenLibraryMetadata(jobId, { force });
+      const bookMetadata = result.book_metadata_lookup;
+      const lookupBook = bookMetadata && typeof bookMetadata === 'object'
+        ? (bookMetadata as Record<string, unknown>)['book']
+        : null;
+      const hasTitle = lookupBook && typeof lookupBook === 'object'
+        ? Boolean((lookupBook as Record<string, unknown>)['title'])
+        : false;
+      const lookupErr = bookMetadata && typeof bookMetadata === 'object'
+        ? (bookMetadata as Record<string, unknown>)['error']
+        : null;
+      // Extract source and confidence from response
+      const provider = bookMetadata && typeof bookMetadata === 'object'
+        ? (bookMetadata as Record<string, unknown>)['provider']
+        : null;
+      const confidence = bookMetadata && typeof bookMetadata === 'object'
+        ? (bookMetadata as Record<string, unknown>)['confidence']
+        : null;
+
+      if (lookupErr && typeof lookupErr === 'string') {
+        setLookupError(lookupErr);
+        setLookupResult({ success: false });
+      } else if (hasTitle) {
+        setLookupResult({
+          success: true,
+          source: typeof provider === 'string' ? provider : null,
+          confidence: typeof confidence === 'string' ? confidence : null,
+        });
         onReload();
+      } else {
+        setLookupError('No book metadata found.');
+        setLookupResult({ success: false });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to enrich metadata';
-      setEnrichmentError(message);
+      const message = error instanceof Error ? error.message : 'Failed to lookup metadata';
+      setLookupError(message);
+      setLookupResult(null);
     } finally {
-      setIsEnriching(false);
+      setIsLookingUp(false);
     }
   }, [jobId, onReload]);
 
@@ -978,7 +1031,7 @@ export function JobProgress({
           ) : null}
         </div>
       ) : null}
-      {!showMetadataSections ? null : (
+      {!showMetadataSections || isVideoDubJob ? null : (
         <div className="job-card__section">
           <h4>{isSubtitleJob ? 'Subtitle metadata' : 'Book metadata'}</h4>
           {shouldShowCoverPreview && coverUrl && !coverFailed ? (
@@ -1022,57 +1075,71 @@ export function JobProgress({
           ) : (
             <p className="job-card__metadata-empty">Metadata is not available yet.</p>
           )}
-          {enrichmentError ? (
-            <div className="notice notice--warning" role="alert" style={{ marginBottom: '0.75rem' }}>
-              {enrichmentError}
+          {isBookJob ? (
+            <div className="metadata-loader-row">
+              <label style={{ marginBottom: 0 }}>
+                Lookup query
+                <input
+                  type="text"
+                  value={isbnLookupQuery}
+                  onChange={(event) => setIsbnLookupQuery(event.target.value)}
+                  placeholder={existingIsbn ? existingIsbn : 'Title, author, or ISBN'}
+                />
+              </label>
+              <div className="metadata-loader-actions">
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={(e) => void handleLookupMetadata(e.shiftKey)}
+                  disabled={!canManage || isReloading || isMutating || isLookingUp}
+                  aria-busy={isLookingUp}
+                  title="Lookup book metadata from OpenLibrary, Google Books, etc. Hold Shift to force refresh."
+                >
+                  {isLookingUp ? 'Looking up…' : 'Lookup'}
+                </button>
+              </div>
             </div>
           ) : null}
-          {enrichmentResult ? (
-            <div
-              className={`notice ${enrichmentResult.enriched ? 'notice--success' : 'notice--info'}`}
-              role="status"
-              style={{ marginBottom: '0.75rem' }}
-            >
-              {enrichmentResult.enriched
-                ? `Enriched from ${enrichmentResult.source ?? 'external source'} (confidence: ${enrichmentResult.confidence ?? 'unknown'})`
-                : 'No additional metadata found from external sources'}
+          {lookupError ? (
+            <div className="notice notice--warning" role="alert" style={{ marginBottom: '0.75rem' }}>
+              {lookupError}
             </div>
+          ) : null}
+          {lookupResult?.success ? (
+            <div className="notice notice--success" role="status" style={{ marginBottom: '0.75rem' }}>
+              {`Metadata found from ${lookupResult.source ?? 'external source'}${lookupResult.confidence ? ` (confidence: ${lookupResult.confidence})` : ''}`}
+            </div>
+          ) : null}
+          {technicalMetadataEntries.length > 0 ? (
+            <details className="job-card__details">
+              <summary>Technical parameters</summary>
+              <dl className="metadata-grid">
+                {technicalMetadataEntries.map(([key, value]) => {
+                  const formatted = formatMetadataValue(key, value);
+                  if (!formatted) {
+                    return null;
+                  }
+                  return (
+                    <div key={key} className="metadata-grid__row">
+                      <dt>{formatMetadataLabel(key)}</dt>
+                      <dd>{formatted}</dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            </details>
           ) : null}
           <div className="job-card__tab-actions">
             <button
               type="button"
               className="link-button"
               onClick={onReload}
-              disabled={!canManage || isReloading || isMutating || isEnriching}
+              disabled={!canManage || isReloading || isMutating || isLookingUp}
               aria-busy={isReloading || isMutating}
               data-variant="metadata-action"
             >
-              {isReloading ? 'Reloading…' : isSubtitleJob ? 'Reload job' : 'Reload metadata'}
+              {isReloading ? 'Reloading…' : 'Reload job'}
             </button>
-            {isBookJob ? (
-              <>
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => handleEnrichMetadata(false)}
-                  disabled={!canManage || isReloading || isMutating || isEnriching}
-                  aria-busy={isEnriching}
-                  title="Fetch additional metadata (cover, summary, etc.) from OpenLibrary, Google Books, and other sources"
-                >
-                  {isEnriching ? 'Enriching…' : 'Enrich from web'}
-                </button>
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => handleEnrichMetadata(true)}
-                  disabled={!canManage || isReloading || isMutating || isEnriching}
-                  aria-busy={isEnriching}
-                  title="Force refresh metadata from external sources even if already enriched"
-                >
-                  Force refresh
-                </button>
-              </>
-            ) : null}
           </div>
         </div>
       )}

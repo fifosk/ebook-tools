@@ -3,6 +3,7 @@ import type { BookOpenLibraryMetadataPreviewResponse } from '../../api/dtos';
 import { appendAccessToken, uploadCoverFile } from '../../api/client';
 import {
   coerceRecord,
+  formatGenreValue,
   normalizeIsbnCandidate,
   normalizeTextValue,
   parseJsonField,
@@ -115,6 +116,10 @@ export default function BookMetadataSection({
   const bookYear = normalizeTextValue(parsedMetadata?.['book_year']);
   const isbn =
     normalizeTextValue(parsedMetadata?.['isbn']) || normalizeTextValue(parsedMetadata?.['book_isbn']);
+  const genre =
+    formatGenreValue(parsedMetadata?.['book_genre']) ||
+    formatGenreValue(parsedMetadata?.['book_genres']) ||
+    formatGenreValue(parsedMetadata?.['genre']);
   const summary = normalizeTextValue(parsedMetadata?.['book_summary']);
   const coverAssetUrl = normalizeTextValue(parsedMetadata?.['job_cover_asset_url']);
   const coverUrl = normalizeTextValue(parsedMetadata?.['cover_url']);
@@ -135,6 +140,10 @@ export default function BookMetadataSection({
     normalizeTextValue(lookupBook?.['cover_url']) || normalizeTextValue(lookup?.['cover_url']);
   const lookupCoverFile =
     normalizeTextValue(lookupBook?.['cover_file']) || normalizeTextValue(lookup?.['cover_file']);
+  // Genre from lookup preview (new job form) or stored metadata (existing job)
+  const lookupGenre = formatGenreValue(lookupBook?.['genre']);
+  // Resolved genre: prefer stored metadata, fall back to lookup preview
+  const resolvedGenre = genre || lookupGenre;
   // Resolve local cover file path to URL (may fail if server doesn't serve /storage/covers/)
   const resolvedCoverFile = resolveCoverPreviewUrlFromCoverFile(coverFile);
   const resolvedLookupCoverFile = resolveCoverPreviewUrlFromCoverFile(lookupCoverFile);
@@ -201,20 +210,12 @@ export default function BookMetadataSection({
           <button
             type="button"
             className="link-button"
-            onClick={() => void onLookupMetadata(resolvedLookupQuery, false)}
+            onClick={(e) => void onLookupMetadata(resolvedLookupQuery, e.shiftKey)}
             disabled={!resolvedLookupQuery || metadataLoading}
             aria-busy={metadataLoading}
+            title="Fetch metadata from OpenLibrary, Google Books, etc. Hold Shift to force refresh."
           >
             {metadataLoading ? 'Looking up…' : 'Lookup'}
-          </button>
-          <button
-            type="button"
-            className="link-button"
-            onClick={() => void onLookupMetadata(resolvedLookupQuery, true)}
-            disabled={!resolvedLookupQuery || metadataLoading}
-            aria-busy={metadataLoading}
-          >
-            Refresh
           </button>
           <button
             type="button"
@@ -314,7 +315,7 @@ export default function BookMetadataSection({
         </p>
       ) : null}
 
-      {bookTitle || bookAuthor || bookYear || isbn || openlibraryLink || bookCoverUrl || coverUrl || coverFile ? (
+      {bookTitle || bookAuthor || bookYear || isbn || resolvedGenre || openlibraryLink ? (
         <dl className="metadata-grid">
           {jobLabel ? (
             <div className="metadata-grid__row">
@@ -346,6 +347,12 @@ export default function BookMetadataSection({
               <dd>{isbn}</dd>
             </div>
           ) : null}
+          {resolvedGenre ? (
+            <div className="metadata-grid__row">
+              <dt>Genre</dt>
+              <dd>{resolvedGenre}</dd>
+            </div>
+          ) : null}
           {openlibraryLink ? (
             <div className="metadata-grid__row">
               <dt>Open Library</dt>
@@ -354,24 +361,6 @@ export default function BookMetadataSection({
                   {openlibraryLink}
                 </a>
               </dd>
-            </div>
-          ) : null}
-          {bookCoverUrl ? (
-            <div className="metadata-grid__row">
-              <dt>Book cover URL</dt>
-              <dd>{bookCoverUrl}</dd>
-            </div>
-          ) : null}
-          {coverUrl ? (
-            <div className="metadata-grid__row">
-              <dt>Cover URL</dt>
-              <dd>{coverUrl}</dd>
-            </div>
-          ) : null}
-          {coverFile ? (
-            <div className="metadata-grid__row">
-              <dt>Cover file</dt>
-              <dd>{coverFile}</dd>
             </div>
           ) : null}
         </dl>
@@ -517,6 +506,24 @@ export default function BookMetadataSection({
               }}
             />
           </label>
+          <label>
+            Genre
+            <input
+              type="text"
+              value={resolvedGenre ?? ''}
+              onChange={(event) => {
+                const value = event.target.value;
+                updateBookMetadata((draft) => {
+                  const trimmed = value.trim();
+                  if (trimmed) {
+                    draft['book_genre'] = trimmed;
+                  } else {
+                    delete draft['book_genre'];
+                  }
+                });
+              }}
+            />
+          </label>
           <label style={{ gridColumn: '1 / -1' }}>
             Summary
             <textarea
@@ -530,42 +537,6 @@ export default function BookMetadataSection({
                     draft['book_summary'] = trimmed;
                   } else {
                     delete draft['book_summary'];
-                  }
-                });
-              }}
-            />
-          </label>
-          <label style={{ gridColumn: '1 / -1' }}>
-            Cover URL
-            <input
-              type="text"
-              value={coverUrl ?? ''}
-              onChange={(event) => {
-                const value = event.target.value;
-                updateBookMetadata((draft) => {
-                  const trimmed = value.trim();
-                  if (trimmed) {
-                    draft['cover_url'] = trimmed;
-                  } else {
-                    delete draft['cover_url'];
-                  }
-                });
-              }}
-            />
-          </label>
-          <label style={{ gridColumn: '1 / -1' }}>
-            Cover file (local)
-            <input
-              type="text"
-              value={coverFile ?? ''}
-              onChange={(event) => {
-                const value = event.target.value;
-                updateBookMetadata((draft) => {
-                  const trimmed = value.trim();
-                  if (trimmed) {
-                    draft['book_cover_file'] = trimmed;
-                  } else {
-                    delete draft['book_cover_file'];
                   }
                 });
               }}

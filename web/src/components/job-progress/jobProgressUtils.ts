@@ -24,7 +24,45 @@ const METADATA_LABELS: Record<string, string> = {
   book_year: 'Publication year',
   book_summary: 'Summary',
   book_cover_file: 'Cover file',
+  book_isbn: 'ISBN',
+  book_genre: 'Genre',
+  book_genres: 'Genres',
+  book_publisher: 'Publisher',
+  book_pages: 'Pages',
+  openlibrary_book_url: 'OpenLibrary',
 };
+
+// Keys that represent interesting book metadata to display prominently
+export const BOOK_METADATA_DISPLAY_KEYS = new Set([
+  'book_title',
+  'book_author',
+  'book_year',
+  'book_summary',
+  'book_isbn',
+  'book_genre',
+  'book_genres',
+  'book_publisher',
+  'book_pages',
+  'openlibrary_book_url',
+]);
+
+// Keys that are technical/internal and should be hidden in raw payload
+export const TECHNICAL_METADATA_KEYS = new Set([
+  'input_language',
+  'target_language',
+  'target_languages',
+  'translation_provider',
+  'translation_model',
+  'translation_language',
+  'transliteration_mode',
+  'original_language',
+  'job_label',
+  'book_cover_file',
+  'job_cover_asset',
+  'book_metadata_lookup',
+  'enrichment_source',
+  'enrichment_confidence',
+]);
 
 export const CREATION_METADATA_KEYS = new Set([
   'creation_summary',
@@ -99,6 +137,12 @@ export function normalizeMetadataValue(value: unknown): string {
   }
   if (typeof value === 'string') {
     return value.trim();
+  }
+  if (Array.isArray(value)) {
+    const items = value
+      .map((entry) => (typeof entry === 'string' ? entry.trim() : String(entry)))
+      .filter((entry) => entry.length > 0);
+    return items.join(', ');
   }
   return String(value);
 }
@@ -249,6 +293,20 @@ export function normaliseStringList(value: unknown): string[] {
     .filter((entry) => entry.length > 0);
 }
 
+/**
+ * Format a list of genres/categories for display.
+ * Returns null if no valid genres, otherwise returns comma-separated string.
+ * Limits to maxItems (default 5) to avoid overly long lists.
+ */
+export function formatGenreList(value: unknown, maxItems: number = 5): string | null {
+  const items = normaliseStringList(value);
+  if (items.length === 0) {
+    return null;
+  }
+  const limited = items.slice(0, maxItems);
+  return limited.join(', ');
+}
+
 export function formatMetadataValue(key: string, value: unknown): string {
   const normalized = normalizeMetadataValue(value);
   if (!normalized) {
@@ -277,6 +335,17 @@ export function formatEpisodeCode(season: number | null, episode: number | null)
     return null;
   }
   return `S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')}`;
+}
+
+export function normalizeIsbnCandidate(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const cleaned = value.replace(/[^0-9Xx]/g, '').toUpperCase();
+  if (cleaned.length === 10 || cleaned.length === 13) {
+    return cleaned;
+  }
+  return null;
 }
 
 export function formatRetryCounts(counts?: Record<string, number> | null): string | null {

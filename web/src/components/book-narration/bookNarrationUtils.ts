@@ -36,6 +36,28 @@ export function normalizeTextValue(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+/**
+ * Format a genre value for display.
+ * Handles both string (comma-separated) and array formats.
+ * Returns null if no valid genre.
+ */
+export function formatGenreValue(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (Array.isArray(value)) {
+    const items = value
+      .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+      .filter((entry) => entry.length > 0);
+    if (items.length === 0) {
+      return null;
+    }
+    return items.slice(0, 5).join(', ');
+  }
+  return null;
+}
+
 export function parseJsonField(label: string, value: string): Record<string, unknown> {
   if (!value.trim()) {
     return {};

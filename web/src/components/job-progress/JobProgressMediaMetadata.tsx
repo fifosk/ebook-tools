@@ -6,7 +6,7 @@ import {
   lookupYoutubeVideoMetadata,
 } from '../../api/client';
 import type { SubtitleTvMetadataResponse, YoutubeVideoMetadataResponse } from '../../api/dtos';
-import { coerceRecord, formatEpisodeCode, normalizeTextValue } from './jobProgressUtils';
+import { coerceRecord, formatEpisodeCode, formatGenreList, normalizeTextValue } from './jobProgressUtils';
 
 type JobProgressMediaMetadataProps = {
   jobId: string;
@@ -98,10 +98,24 @@ export function JobProgressMediaMetadata({
     return null;
   }
 
+  // Determine actual content kind from loaded metadata
+  const tvMedia = tvMetadata?.media_metadata ? coerceRecord(tvMetadata.media_metadata) : null;
+  const tvKind = normalizeTextValue(tvMedia ? tvMedia['kind'] : null);
+  const hasTvShowData = Boolean(tvMedia && coerceRecord(tvMedia['show']));
+  const isTvContent = tvKind === 'tv_episode' || tvKind === 'tv_series' || hasTvShowData;
+
+  const youtubeData = youtubeMetadata?.youtube_metadata ? coerceRecord(youtubeMetadata.youtube_metadata) : null;
+  const hasYoutubeTitle = Boolean(normalizeTextValue(youtubeData ? youtubeData['title'] : null));
+  const hasYoutubeVideoId = Boolean(youtubeMetadata?.parsed?.video_id);
+  const isYoutubeContent = hasYoutubeTitle || hasYoutubeVideoId;
+
+  // Only show YouTube section if it's actually YouTube content (not TV with failed YouTube lookup)
+  const shouldShowYoutubeSection = supportsYoutubeMetadata && !isTvContent && (isYoutubeContent || youtubeMetadataLoading);
+
   return (
     <>
       <div className="job-card__section">
-        <h4>TV metadata</h4>
+        <h4>{isTvContent ? 'TV metadata' : 'Media metadata'}</h4>
         {tvMetadataError ? <div className="alert">{tvMetadataError}</div> : null}
         {tvMetadataLoading ? <p>Loading metadata…</p> : null}
         {!tvMetadataLoading && tvMetadata ? (
@@ -130,6 +144,7 @@ export function JobProgressMediaMetadata({
             const episodeImageOriginal = normalizeTextValue(episodeImage ? episodeImage['original'] : null);
             const episodeImageUrl = episodeImageMedium ?? episodeImageOriginal;
             const episodeImageLink = episodeImageOriginal ?? episodeImageMedium;
+            const showGenres = formatGenreList(show ? show['genres'] : null);
 
             const canLookup = canManage && !tvMetadataMutating;
             const hasLookupResult = Boolean(media && (showName || errorMessage));
@@ -233,6 +248,12 @@ export function JobProgressMediaMetadata({
                       <dd>{networkName}</dd>
                     </div>
                   ) : null}
+                  {showGenres ? (
+                    <div className="metadata-grid__row">
+                      <dt>Genres</dt>
+                      <dd>{showGenres}</dd>
+                    </div>
+                  ) : null}
                   {episodeUrl ? (
                     <div className="metadata-grid__row">
                       <dt>TVMaze</dt>
@@ -277,7 +298,7 @@ export function JobProgressMediaMetadata({
         ) : null}
         {!tvMetadataLoading && !tvMetadata ? <p>Metadata is not available yet.</p> : null}
 
-        {supportsYoutubeMetadata ? (
+        {shouldShowYoutubeSection ? (
           <div style={{ marginTop: '1.5rem' }}>
             <h4>YouTube metadata</h4>
             {youtubeMetadataError ? <div className="alert">{youtubeMetadataError}</div> : null}
@@ -291,8 +312,12 @@ export function JobProgressMediaMetadata({
                   normalizeTextValue(youtube ? youtube['uploader'] : null);
                 const webpageUrl = normalizeTextValue(youtube ? youtube['webpage_url'] : null);
                 const thumbnailUrl = normalizeTextValue(youtube ? youtube['thumbnail'] : null);
+                const categories = formatGenreList(youtube ? youtube['categories'] : null);
                 const summary = normalizeTextValue(youtube ? youtube['summary'] : null);
-                const errorMessage = normalizeTextValue(youtube ? youtube['error'] : null);
+                const rawErrorMessage = normalizeTextValue(youtube ? youtube['error'] : null);
+                // Don't show the "no video ID" error - it's expected for TV content without YouTube IDs
+                const isExpectedNoIdError = rawErrorMessage?.includes('Unable to locate a YouTube video id');
+                const errorMessage = isExpectedNoIdError ? null : rawErrorMessage;
                 const rawPayload = youtube ? youtube['raw_payload'] : null;
 
                 const canLookup = canManage && !youtubeMetadataMutating;
@@ -354,6 +379,12 @@ export function JobProgressMediaMetadata({
                         <div className="metadata-grid__row">
                           <dt>Channel</dt>
                           <dd>{channel}</dd>
+                        </div>
+                      ) : null}
+                      {categories ? (
+                        <div className="metadata-grid__row">
+                          <dt>Categories</dt>
+                          <dd>{categories}</dd>
                         </div>
                       ) : null}
                       {webpageUrl ? (
