@@ -1,5 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { OAuthLoginRequestPayload } from '../api/dtos';
+import { register } from '../api/client/auth';
 import { useAuth } from '../components/AuthProvider';
 import { useUIStore } from '../stores/uiStore';
 
@@ -111,6 +112,34 @@ export function useAppAuth() {
     setPasswordError(null);
   }, [setPasswordError, setShowChangePassword]);
 
+  // Registration state
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
+  const [registrationSuccess, setRegistrationSuccess] = useState<string | null>(null);
+
+  const handleRegister = useCallback(
+    async (email: string, firstName: string, lastName: string) => {
+      setIsRegistering(true);
+      setRegistrationError(null);
+      setRegistrationSuccess(null);
+      try {
+        const response = await register({
+          email,
+          first_name: firstName || null,
+          last_name: lastName || null
+        });
+        setRegistrationSuccess(response.message);
+      } catch (error) {
+        setRegistrationError(
+          error instanceof Error ? error.message : 'Unable to create account. Please try again.'
+        );
+      } finally {
+        setIsRegistering(false);
+      }
+    },
+    []
+  );
+
   return {
     // State
     session,
@@ -135,6 +164,12 @@ export function useAppAuth() {
     toggleChangePassword,
     handlePasswordCancel,
     setAccountExpanded,
-    setAuthError
+    setAuthError,
+
+    // Registration
+    isRegistering,
+    registrationError,
+    registrationSuccess,
+    handleRegister
   };
 }

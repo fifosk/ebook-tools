@@ -6,6 +6,8 @@ import type {
   LoginRequestPayload,
   OAuthLoginRequestPayload,
   PasswordChangeRequestPayload,
+  RegistrationRequestPayload,
+  RegistrationResponse,
   SessionStatusResponse
 } from '../dtos';
 import { apiFetch, handleResponse } from './base';
@@ -61,4 +63,19 @@ export async function changePassword(payload: PasswordChangeRequestPayload): Pro
     body: JSON.stringify(payload)
   });
   await handleResponse<unknown>(response);
+}
+
+export async function register(payload: RegistrationRequestPayload): Promise<RegistrationResponse> {
+  const response = await apiFetch(
+    '/api/auth/register',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    },
+    { skipAuth: true }
+  );
+  return handleResponse<RegistrationResponse>(response);
 }

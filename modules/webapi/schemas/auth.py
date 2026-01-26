@@ -47,3 +47,20 @@ class PasswordChangeRequestPayload(BaseModel):
 
     current_password: str
     new_password: str
+
+
+class RegistrationRequestPayload(BaseModel):
+    """Incoming payload for user self-registration."""
+
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+
+class RegistrationResponse(BaseModel):
+    """Response payload for successful registration."""
+
+    message: str
+    username: str
+    email: str
+    status: str = "pending_activation"

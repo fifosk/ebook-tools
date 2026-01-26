@@ -16,10 +16,17 @@ from ..user_management.oauth_providers import (
 from modules.permissions import normalize_role
 from ..user_management.user_store_base import UserRecord
 from .dependencies import get_auth_service
+from ..user_management.email_service import (
+    EmailService,
+    generate_initial_password,
+    get_email_service,
+)
 from .schemas import (
     LoginRequestPayload,
     OAuthLoginRequestPayload,
     PasswordChangeRequestPayload,
+    RegistrationRequestPayload,
+    RegistrationResponse,
     SessionStatusResponse,
     SessionUserPayload,
 )
@@ -151,8 +158,15 @@ def _build_session_response(token: str, record: UserRecord, session_data: dict[s
     )
 
 
+def _is_user_suspended(record: UserRecord) -> bool:
+    """Check if user account is suspended."""
+    metadata = record.metadata or {}
+    return bool(metadata.get("suspended", False))
+
+
 @router.post("/login", response_model=SessionStatusResponse)
 def login(payload: LoginRequestPayload, auth_service: AuthService = Depends(get_auth_service)) -> SessionStatusResponse:
+    # First verify credentials
     try:
         token = auth_service.login(payload.username, payload.password)
     except ValueError as exc:  # Invalid credentials
@@ -161,6 +175,15 @@ def login(payload: LoginRequestPayload, auth_service: AuthService = Depends(get_
     record = auth_service.user_store.get_user(payload.username)
     if record is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User record not found")
+
+    # Check if user is suspended
+    if _is_user_suspended(record):
+        # Invalidate the session we just created
+        auth_service.logout(token)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending activation. Please wait for administrator approval.",
+        )
 
     metadata = dict(record.metadata)
     now = datetime.now(timezone.utc).isoformat()
@@ -278,3 +301,102 @@ def change_password(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Current password is incorrect")
 
     auth_service.user_store.update_user(record.username, password=payload.new_password)
+
+
+def _get_email_service_or_error() -> EmailService:
+    """Get email service or raise HTTP error if not configured."""
+    service = get_email_service()
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email service is not configured. Please contact the administrator.",
+        )
+    return service
+
+
+@router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
+def register(
+    payload: RegistrationRequestPayload,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> RegistrationResponse:
+    """Register a new user account.
+
+    Creates a new user with:
+    - Email address as username
+    - Auto-generated initial password (sent via email)
+    - Default 'viewer' role
+    - Suspended status (requires admin activation)
+
+    The user will receive an email with their initial password.
+    Account must be activated by an administrator before login is possible.
+    """
+    email_service = _get_email_service_or_error()
+
+    email = _normalise_email(payload.email)
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Valid email address is required.",
+        )
+
+    # Check if user already exists
+    existing = _find_user_by_email(auth_service, email)
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email address already exists.",
+        )
+
+    # Generate initial password
+    initial_password = generate_initial_password()
+
+    # Build user metadata
+    metadata: dict[str, object] = {
+        "email": email,
+        "suspended": True,
+        "registration_method": "email",
+    }
+    if payload.first_name:
+        metadata["first_name"] = _normalise_name(payload.first_name)
+    if payload.last_name:
+        metadata["last_name"] = _normalise_name(payload.last_name)
+    _touch_timestamp(metadata, "created_at")
+    _touch_timestamp(metadata, "updated_at")
+
+    # Create user account (suspended by default)
+    try:
+        auth_service.user_store.create_user(
+            email,
+            password=initial_password,
+            roles=["viewer"],
+            metadata=metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    # Send registration email with initial password
+    email_sent = email_service.send_registration_email(
+        to_address=email,
+        username=email,
+        initial_password=initial_password,
+        login_url="https://langtools.fifosk.synology.me",
+    )
+
+    if not email_sent:
+        # User was created but email failed - log warning but don't fail
+        # Admin can reset password manually if needed
+        import logging
+        logging.getLogger(__name__).warning(
+            "Registration email failed for user %s - admin may need to reset password",
+            email,
+        )
+
+    return RegistrationResponse(
+        message="Registration successful. Please check your email for login credentials.",
+        username=email,
+        email=email,
+        status="pending_activation",
+    )

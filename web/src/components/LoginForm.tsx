@@ -87,7 +87,7 @@ export default function LoginForm({
     googleApi.renderButton(googleButtonRef.current, {
       theme: 'filled_black',
       size: 'large',
-      text: 'continue_with',
+      text: 'signup_with',
       shape: 'pill',
       logo_alignment: 'left',
       locale: 'en',
@@ -225,7 +225,7 @@ export default function LoginForm({
       </button>
       {hasOAuthProviders ? (
         <>
-          <div className="auth-form__divider">or continue with</div>
+          <div className="auth-form__divider">or register with</div>
           <div className="auth-form__oauth">
             {appleClientId ? (
               <button
@@ -240,15 +240,12 @@ export default function LoginForm({
                     <path d="M20.1 19c-.5 1.1-1.2 2.1-2 3.1-.7.8-1.4 1.7-2.5 1.7-1.1 0-1.4-.6-2.6-.6-1.2 0-1.6.6-2.6.6-1 0-1.7-.9-2.5-1.8-1.7-2-3-5.5-1.2-7.9.9-1.2 2.4-2 4-2 1.1 0 2.1.7 2.6.7.5 0 1.7-.8 3-.7.5 0 1.9.1 2.9 1.4-.1.1-1.7 1-1.7 3 0 2.4 2.1 3.2 2.1 3.2z" />
                   </svg>
                 </span>
-                Continue with Apple
+                Register with Apple
               </button>
             ) : null}
             {googleClientId ? (
               <div className="auth-form__oauth-google-wrap">
                 <div ref={googleButtonRef} className="auth-form__oauth-google" />
-                <p className="auth-form__oauth-hint">
-                  Sign in or sign up as Viewer (user auto-created).
-                </p>
               </div>
             ) : null}
           </div>

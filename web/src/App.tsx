@@ -61,7 +61,11 @@ export function App() {
     toggleChangePassword,
     handlePasswordCancel,
     setAccountExpanded,
-    setAuthError
+    setAuthError,
+    isRegistering,
+    registrationError,
+    registrationSuccess,
+    handleRegister
   } = auth;
 
   // Derived auth state
@@ -305,7 +309,16 @@ export function App() {
 
   // Render loading state
   if (isAuthLoading) {
-    return <AuthScreen isLoading isSubmitting={false} error={null} onSubmit={handleLogin} onOAuthSubmit={handleOAuthLogin} />;
+    return (
+      <AuthScreen
+        isLoading
+        isSubmitting={false}
+        error={null}
+        onSubmit={handleLogin}
+        onOAuthSubmit={handleOAuthLogin}
+        onRegister={handleRegister}
+      />
+    );
   }
 
   // Render login screen
@@ -317,6 +330,10 @@ export function App() {
         notice={logoutReason}
         onSubmit={handleLogin}
         onOAuthSubmit={handleOAuthLogin}
+        onRegister={handleRegister}
+        isRegistering={isRegistering}
+        registrationError={registrationError}
+        registrationSuccess={registrationSuccess}
       />
     );
   }

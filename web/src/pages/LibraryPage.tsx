@@ -271,6 +271,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     source?: string | null;
     confidence?: string | null;
   } | null>(null);
+  const [detailTab, setDetailTab] = useState<'overview' | 'metadata' | 'permissions'>('overview');
 
   const resolveItemPermissions = useCallback(
     (item: LibraryItem) => {
@@ -957,354 +958,401 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
                 <JobTypeGlyphBadge glyph={selectedJobGlyph} className={styles.detailsJobGlyph} />
                 {selectedTitle}
               </h2>
-              {selectedItemType !== 'book' && (tvPoster || tvStill) ? (
-                <div className="tv-metadata-media" aria-label="TV images">
-                  {tvPoster ? (
-                    <a
-                      href={tvPoster.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="tv-metadata-media__poster"
-                    >
-                      <img
-                        src={tvPoster.src}
-                        alt="Show poster"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </a>
+              <div className={styles.detailTabs} role="tablist" aria-label="Detail tabs">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={detailTab === 'overview'}
+                  className={`${styles.detailTab} ${detailTab === 'overview' ? styles.detailTabActive : ''}`}
+                  onClick={() => setDetailTab('overview')}
+                >
+                  Overview
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={detailTab === 'metadata'}
+                  className={`${styles.detailTab} ${detailTab === 'metadata' ? styles.detailTabActive : ''}`}
+                  onClick={() => setDetailTab('metadata')}
+                >
+                  Metadata
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={detailTab === 'permissions'}
+                  className={`${styles.detailTab} ${detailTab === 'permissions' ? styles.detailTabActive : ''}`}
+                  onClick={() => setDetailTab('permissions')}
+                >
+                  Permissions
+                </button>
+              </div>
+
+              {/* Overview Tab */}
+              {detailTab === 'overview' ? (
+                <div className={styles.tabContent}>
+                  {selectedItemType !== 'book' && (tvPoster || tvStill) ? (
+                    <div className="tv-metadata-media" aria-label="TV images">
+                      {tvPoster ? (
+                        <a
+                          href={tvPoster.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="tv-metadata-media__poster"
+                        >
+                          <img
+                            src={tvPoster.src}
+                            alt="Show poster"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </a>
+                      ) : null}
+                      {tvStill ? (
+                        <a
+                          href={tvStill.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="tv-metadata-media__still"
+                        >
+                          <img
+                            src={tvStill.src}
+                            alt="Episode still"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </a>
+                      ) : null}
+                    </div>
                   ) : null}
-                  {tvStill ? (
-                    <a
-                      href={tvStill.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="tv-metadata-media__still"
-                    >
-                      <img
-                        src={tvStill.src}
-                        alt="Episode still"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </a>
+                  {selectedItemType === 'video' && !(tvPoster || tvStill) && youtubeThumbnail ? (
+                    <div className="tv-metadata-media" aria-label="YouTube thumbnail">
+                      <a
+                        href={youtubeThumbnail.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="tv-metadata-media__still"
+                      >
+                        <img
+                          src={youtubeThumbnail.src}
+                          alt="YouTube thumbnail"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </a>
+                    </div>
                   ) : null}
+                  {displayedCoverUrl ? (
+                    <div className={styles.coverWrapper}>
+                      <img
+                        src={displayedCoverUrl}
+                        alt={`Cover art for ${selectedTitle}`}
+                        className={styles.coverImage}
+                      />
+                    </div>
+                  ) : null}
+                  <div className={styles.actionBar}>
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      onClick={handlePlay}
+                      disabled={!selectedPermissions?.canView}
+                    >
+                      Play
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={() => startEditingItem(selectedItem)}
+                      disabled={isSaving || Boolean(mutating[selectedItem.jobId]) || !selectedPermissions?.canEdit}
+                    >
+                      Edit
+                    </button>
+                    {selectedItemType === 'book' ? (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          onClick={() => handleEnrichMetadata(false)}
+                          disabled={
+                            isEnriching ||
+                            isSaving ||
+                            Boolean(mutating[selectedItem.jobId]) ||
+                            !selectedPermissions?.canEdit
+                          }
+                          title="Fetch cover, summary, and other metadata from OpenLibrary, Google Books, etc."
+                        >
+                          {isEnriching ? 'Enriching…' : 'Enrich from web'}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          onClick={() => handleEnrichMetadata(true)}
+                          disabled={
+                            isEnriching ||
+                            isSaving ||
+                            Boolean(mutating[selectedItem.jobId]) ||
+                            !selectedPermissions?.canEdit
+                          }
+                          title="Force refresh metadata from external sources even if already enriched"
+                        >
+                          Force refresh
+                        </button>
+                      </>
+                    ) : null}
+                    {!selectedItem.mediaCompleted ? (
+                      <span className={styles.actionHint}>
+                        Media is still finalizing or was previously removed for this entry.
+                      </span>
+                    ) : null}
+                  </div>
+                  {enrichmentError ? (
+                    <div className={styles.editError} role="alert" style={{ marginTop: '0.75rem' }}>
+                      {enrichmentError}
+                    </div>
+                  ) : null}
+                  {enrichmentResult ? (
+                    <div
+                      className={enrichmentResult.enriched ? styles.successNotice : styles.infoNotice}
+                      role="status"
+                      style={{ marginTop: '0.75rem', padding: '0.5rem', borderRadius: '4px', backgroundColor: enrichmentResult.enriched ? '#d4edda' : '#e7f3ff' }}
+                    >
+                      {enrichmentResult.enriched
+                        ? `Enriched from ${enrichmentResult.source ?? 'external source'} (confidence: ${enrichmentResult.confidence ?? 'unknown'})`
+                        : 'No additional metadata found from external sources'}
+                    </div>
+                  ) : null}
+                  {isEditing ? (
+                    <>
+                      <form className={styles.editForm} onSubmit={handleEditSubmit}>
+                        {editError ? <div className={styles.editError}>{editError}</div> : null}
+                        <div className={styles.fieldGroup}>
+                          <label className={styles.fieldLabel} htmlFor="library-edit-title">Title</label>
+                          <input
+                            id="library-edit-title"
+                            type="text"
+                            className={styles.fieldInput}
+                            value={editValues.title}
+                            onChange={handleEditValueChange('title')}
+                            disabled={isSaving}
+                          />
+                        </div>
+                        <div className={styles.fieldGroup}>
+                          <label className={styles.fieldLabel} htmlFor="library-edit-author">Author / Creator</label>
+                          <input
+                            id="library-edit-author"
+                            type="text"
+                            className={styles.fieldInput}
+                            value={editValues.author}
+                            onChange={handleEditValueChange('author')}
+                            disabled={isSaving}
+                          />
+                        </div>
+                        <div className={styles.fieldGroup}>
+                          <label className={styles.fieldLabel} htmlFor="library-edit-genre">Genre</label>
+                          <input
+                            id="library-edit-genre"
+                            type="text"
+                            className={styles.fieldInput}
+                            value={editValues.genre}
+                            onChange={handleEditValueChange('genre')}
+                            disabled={isSaving}
+                          />
+                        </div>
+                        <div className={styles.fieldGroup}>
+                          <label className={styles.fieldLabel} htmlFor="library-edit-language">Language</label>
+                          <input
+                            id="library-edit-language"
+                            type="text"
+                            className={styles.fieldInput}
+                            value={editValues.language}
+                            onChange={handleEditValueChange('language')}
+                            disabled={isSaving}
+                          />
+                        </div>
+                        <div className={styles.fieldGroup}>
+                          <label className={styles.fieldLabel} htmlFor="library-edit-isbn">ISBN</label>
+                          <div className={styles.inlineFieldRow}>
+                            <input
+                              id="library-edit-isbn"
+                              type="text"
+                              className={styles.fieldInput}
+                              value={editValues.isbn}
+                              onChange={handleEditValueChange('isbn')}
+                              disabled={isSaving || isFetchingIsbn}
+                            />
+                            <button
+                              type="button"
+                              className={styles.secondaryButton}
+                              onClick={handleFetchIsbnMetadata}
+                              disabled={isSaving || isFetchingIsbn || !editValues.isbn.trim()}
+                            >
+                              {isFetchingIsbn ? 'Fetching…' : 'Fetch from ISBN'}
+                            </button>
+                          </div>
+                          {isbnFetchError ? <div className={styles.editError}>{isbnFetchError}</div> : null}
+                        </div>
+                        <div className={styles.fieldGroup}>
+                          <label className={styles.fieldLabel} htmlFor="library-edit-source">Replace Source File</label>
+                          <input
+                            id="library-edit-source"
+                            type="file"
+                            accept=".epub,.pdf,.mp4,.mkv,.mov,.webm"
+                            onChange={handleSourceFileChange}
+                            disabled={isSaving}
+                          />
+                          <span className={styles.fileHint}>
+                            {selectedFile
+                              ? `Selected: ${selectedFile.name}`
+                              : selectedItem.sourcePath
+                              ? `Current: ${selectedItem.sourcePath}`
+                              : 'No source file stored yet.'}
+                          </span>
+                        </div>
+                        <div className={styles.editActions}>
+                          <button type="submit" className={styles.primaryButton} disabled={isSaving}>
+                            Save changes
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={handleEditCancel}
+                            disabled={isSaving}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                      {isbnPreview ? (
+                        <div className={styles.previewBlock}>
+                          <h3>Fetched Metadata Preview</h3>
+                          <pre className={styles.metadataBlock}>
+                            {JSON.stringify(isbnPreview, null, 2)}
+                          </pre>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
+                  <ul className={styles.detailList}>
+                    <li className={styles.detailItem}>
+                      <strong>{selectedItemType === 'video' ? 'Creator:' : 'Author:'}</strong> {selectedAuthor}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>Genre:</strong> {selectedGenre}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>Language:</strong> {selectedItem.language}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>Status:</strong> {selectedItem.status}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>Media finalized:</strong> {selectedItem.mediaCompleted ? 'Yes' : 'No'}
+                    </li>
+                  </ul>
                 </div>
               ) : null}
-              {selectedItemType === 'video' && !(tvPoster || tvStill) && youtubeThumbnail ? (
-                <div className="tv-metadata-media" aria-label="YouTube thumbnail">
-                  <a
-                    href={youtubeThumbnail.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="tv-metadata-media__still"
-                  >
-                    <img
-                      src={youtubeThumbnail.src}
-                      alt="YouTube thumbnail"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </a>
+
+              {/* Metadata Tab */}
+              {detailTab === 'metadata' ? (
+                <div className={styles.tabContent}>
+                  <ul className={styles.detailList}>
+                    <li className={styles.detailItem}>
+                      <strong>Job ID:</strong> {selectedItem.jobId}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>Type:</strong>{' '}
+                      {selectedItemType === 'video'
+                        ? 'Video'
+                        : selectedItemType === 'narrated_subtitle'
+                          ? 'Narrated Subtitle'
+                          : 'Book'}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>Job:</strong>{' '}
+                      <JobTypeGlyphBadge glyph={selectedJobGlyph} className={styles.detailsJobGlyphInline} />{' '}
+                      {selectedJobType ?? '—'}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>ISBN:</strong> {selectedItem.isbn && selectedItem.isbn.trim() ? selectedItem.isbn : '—'}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>
+                        {selectedItemType === 'video'
+                          ? 'Source video:'
+                          : selectedItemType === 'narrated_subtitle'
+                            ? 'Source subtitle:'
+                            : 'Source file:'}
+                      </strong>{' '}
+                      {selectedItem.sourcePath ? selectedItem.sourcePath : '—'}
+                    </li>
+                    {selectedItemType === 'video' && youtubeMetadata ? (
+                      <>
+                        <li className={styles.detailItem}>
+                          <strong>YouTube channel:</strong>{' '}
+                          {typeof youtubeMetadata.channel === 'string' && youtubeMetadata.channel.trim()
+                            ? youtubeMetadata.channel.trim()
+                            : typeof youtubeMetadata.uploader === 'string' && youtubeMetadata.uploader.trim()
+                              ? youtubeMetadata.uploader.trim()
+                              : '—'}
+                        </li>
+                        <li className={styles.detailItem}>
+                          <strong>YouTube views:</strong> {formatCount(youtubeMetadata.view_count) ?? '—'}
+                          {formatCount(youtubeMetadata.like_count) ? ` · 👍 ${formatCount(youtubeMetadata.like_count)}` : ''}
+                        </li>
+                        <li className={styles.detailItem}>
+                          <strong>YouTube uploaded:</strong> {formatYoutubeUploadDate(youtubeMetadata.upload_date) ?? '—'}
+                        </li>
+                        <li className={styles.detailItem}>
+                          <strong>YouTube duration:</strong>{' '}
+                          {typeof youtubeMetadata.duration_seconds === 'number'
+                            ? `${Math.trunc(youtubeMetadata.duration_seconds)}s`
+                            : '—'}
+                        </li>
+                        <li className={styles.detailItem}>
+                          <strong>YouTube link:</strong>{' '}
+                          {typeof youtubeMetadata.webpage_url === 'string' && youtubeMetadata.webpage_url.trim() ? (
+                            <a href={youtubeMetadata.webpage_url.trim()} target="_blank" rel="noopener noreferrer">
+                              Open
+                            </a>
+                          ) : (
+                            '—'
+                          )}
+                        </li>
+                      </>
+                    ) : null}
+                    <li className={styles.detailItem}>
+                      <strong>Created:</strong> {formatTimestamp(selectedItem.createdAt)}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>Updated:</strong> {formatTimestamp(selectedItem.updatedAt)}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>Library path:</strong> {selectedItem.libraryPath}
+                    </li>
+                  </ul>
+                  <div>
+                    <h3>Raw Metadata</h3>
+                    <pre className={styles.metadataBlock}>
+                      {JSON.stringify(selectedItem.metadata, null, 2)}
+                    </pre>
+                  </div>
                 </div>
               ) : null}
-              {displayedCoverUrl ? (
-                <div className={styles.coverWrapper}>
-                  <img
-                    src={displayedCoverUrl}
-                    alt={`Cover art for ${selectedTitle}`}
-                    className={styles.coverImage}
+
+              {/* Permissions Tab */}
+              {detailTab === 'permissions' ? (
+                <div className={styles.tabContent}>
+                  <AccessPolicyEditor
+                    policy={selectedItem.access ?? null}
+                    ownerId={selectedItem.ownerId ?? null}
+                    defaultVisibility="public"
+                    canEdit={Boolean(selectedPermissions?.canEdit)}
+                    onSave={handleUpdateAccess}
+                    title="Sharing"
                   />
                 </div>
               ) : null}
-              <div className={styles.actionBar}>
-                <button
-                  type="button"
-                  className={styles.primaryButton}
-                  onClick={handlePlay}
-                  disabled={!selectedPermissions?.canView}
-                >
-                  Play
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={() => startEditingItem(selectedItem)}
-                  disabled={isSaving || Boolean(mutating[selectedItem.jobId]) || !selectedPermissions?.canEdit}
-                >
-                  Edit
-                </button>
-                {selectedItemType === 'book' ? (
-                  <>
-                    <button
-                      type="button"
-                      className={styles.secondaryButton}
-                      onClick={() => handleEnrichMetadata(false)}
-                      disabled={
-                        isEnriching ||
-                        isSaving ||
-                        Boolean(mutating[selectedItem.jobId]) ||
-                        !selectedPermissions?.canEdit
-                      }
-                      title="Fetch cover, summary, and other metadata from OpenLibrary, Google Books, etc."
-                    >
-                      {isEnriching ? 'Enriching…' : 'Enrich from web'}
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryButton}
-                      onClick={() => handleEnrichMetadata(true)}
-                      disabled={
-                        isEnriching ||
-                        isSaving ||
-                        Boolean(mutating[selectedItem.jobId]) ||
-                        !selectedPermissions?.canEdit
-                      }
-                      title="Force refresh metadata from external sources even if already enriched"
-                    >
-                      Force refresh
-                    </button>
-                  </>
-                ) : null}
-                {!selectedItem.mediaCompleted ? (
-                  <span className={styles.actionHint}>
-                    Media is still finalizing or was previously removed for this entry.
-                  </span>
-                ) : null}
-              </div>
-              {enrichmentError ? (
-                <div className={styles.editError} role="alert" style={{ marginTop: '0.75rem' }}>
-                  {enrichmentError}
-                </div>
-              ) : null}
-              {enrichmentResult ? (
-                <div
-                  className={enrichmentResult.enriched ? styles.successNotice : styles.infoNotice}
-                  role="status"
-                  style={{ marginTop: '0.75rem', padding: '0.5rem', borderRadius: '4px', backgroundColor: enrichmentResult.enriched ? '#d4edda' : '#e7f3ff' }}
-                >
-                  {enrichmentResult.enriched
-                    ? `Enriched from ${enrichmentResult.source ?? 'external source'} (confidence: ${enrichmentResult.confidence ?? 'unknown'})`
-                    : 'No additional metadata found from external sources'}
-                </div>
-              ) : null}
-              <div className={styles.accessPanel}>
-                <AccessPolicyEditor
-                  policy={selectedItem.access ?? null}
-                  ownerId={selectedItem.ownerId ?? null}
-                  defaultVisibility="public"
-                  canEdit={Boolean(selectedPermissions?.canEdit)}
-                  onSave={handleUpdateAccess}
-                  title="Sharing"
-                />
-              </div>
-              {isEditing ? (
-                <>
-                  <form className={styles.editForm} onSubmit={handleEditSubmit}>
-                  {editError ? <div className={styles.editError}>{editError}</div> : null}
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.fieldLabel} htmlFor="library-edit-title">Title</label>
-                    <input
-                      id="library-edit-title"
-                      type="text"
-                      className={styles.fieldInput}
-                      value={editValues.title}
-                      onChange={handleEditValueChange('title')}
-                      disabled={isSaving}
-                    />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.fieldLabel} htmlFor="library-edit-author">Author / Creator</label>
-                    <input
-                      id="library-edit-author"
-                      type="text"
-                      className={styles.fieldInput}
-                      value={editValues.author}
-                      onChange={handleEditValueChange('author')}
-                      disabled={isSaving}
-                    />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.fieldLabel} htmlFor="library-edit-genre">Genre</label>
-                    <input
-                      id="library-edit-genre"
-                      type="text"
-                      className={styles.fieldInput}
-                      value={editValues.genre}
-                      onChange={handleEditValueChange('genre')}
-                      disabled={isSaving}
-                    />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.fieldLabel} htmlFor="library-edit-language">Language</label>
-                    <input
-                      id="library-edit-language"
-                      type="text"
-                      className={styles.fieldInput}
-                      value={editValues.language}
-                      onChange={handleEditValueChange('language')}
-                      disabled={isSaving}
-                    />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.fieldLabel} htmlFor="library-edit-isbn">ISBN</label>
-                    <div className={styles.inlineFieldRow}>
-                      <input
-                        id="library-edit-isbn"
-                        type="text"
-                        className={styles.fieldInput}
-                        value={editValues.isbn}
-                        onChange={handleEditValueChange('isbn')}
-                        disabled={isSaving || isFetchingIsbn}
-                      />
-                      <button
-                        type="button"
-                        className={styles.secondaryButton}
-                        onClick={handleFetchIsbnMetadata}
-                        disabled={isSaving || isFetchingIsbn || !editValues.isbn.trim()}
-                      >
-                        {isFetchingIsbn ? 'Fetching…' : 'Fetch from ISBN'}
-                      </button>
-                    </div>
-                    {isbnFetchError ? <div className={styles.editError}>{isbnFetchError}</div> : null}
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.fieldLabel} htmlFor="library-edit-source">Replace Source File</label>
-                    <input
-                      id="library-edit-source"
-                      type="file"
-                      accept=".epub,.pdf,.mp4,.mkv,.mov,.webm"
-                      onChange={handleSourceFileChange}
-                      disabled={isSaving}
-                    />
-                    <span className={styles.fileHint}>
-                      {selectedFile
-                        ? `Selected: ${selectedFile.name}`
-                        : selectedItem.sourcePath
-                        ? `Current: ${selectedItem.sourcePath}`
-                        : 'No source file stored yet.'}
-                    </span>
-                  </div>
-                  <div className={styles.editActions}>
-                    <button type="submit" className={styles.primaryButton} disabled={isSaving}>
-                      Save changes
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryButton}
-                      onClick={handleEditCancel}
-                      disabled={isSaving}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-                  {isbnPreview ? (
-                    <div className={styles.previewBlock}>
-                      <h3>Fetched Metadata Preview</h3>
-                      <pre className={styles.metadataBlock}>
-                        {JSON.stringify(isbnPreview, null, 2)}
-                      </pre>
-                    </div>
-                  ) : null}
-                </>
-              ) : null}
-              <ul className={styles.detailList}>
-                <li className={styles.detailItem}>
-                  <strong>Job ID:</strong> {selectedItem.jobId}
-                </li>
-                <li className={styles.detailItem}>
-                  <strong>Type:</strong>{' '}
-                  {selectedItemType === 'video'
-                    ? 'Video'
-                    : selectedItemType === 'narrated_subtitle'
-                      ? 'Narrated Subtitle'
-                      : 'Book'}
-                </li>
-                <li className={styles.detailItem}>
-                  <strong>Job:</strong>{' '}
-                  <JobTypeGlyphBadge glyph={selectedJobGlyph} className={styles.detailsJobGlyphInline} />{' '}
-                  {selectedJobType ?? '—'}
-                </li>
-                <li className={styles.detailItem}>
-                  <strong>ISBN:</strong> {selectedItem.isbn && selectedItem.isbn.trim() ? selectedItem.isbn : '—'}
-                </li>
-                <li className={styles.detailItem}>
-                  <strong>
-                    {selectedItemType === 'video'
-                      ? 'Source video:'
-                      : selectedItemType === 'narrated_subtitle'
-                        ? 'Source subtitle:'
-                        : 'Source file:'}
-                  </strong>{' '}
-                  {selectedItem.sourcePath ? selectedItem.sourcePath : '—'}
-                </li>
-                {selectedItemType === 'video' && youtubeMetadata ? (
-                  <>
-                    <li className={styles.detailItem}>
-                      <strong>YouTube channel:</strong>{' '}
-                      {typeof youtubeMetadata.channel === 'string' && youtubeMetadata.channel.trim()
-                        ? youtubeMetadata.channel.trim()
-                        : typeof youtubeMetadata.uploader === 'string' && youtubeMetadata.uploader.trim()
-                          ? youtubeMetadata.uploader.trim()
-                          : '—'}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>YouTube views:</strong> {formatCount(youtubeMetadata.view_count) ?? '—'}
-                      {formatCount(youtubeMetadata.like_count) ? ` · 👍 ${formatCount(youtubeMetadata.like_count)}` : ''}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>YouTube uploaded:</strong> {formatYoutubeUploadDate(youtubeMetadata.upload_date) ?? '—'}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>YouTube duration:</strong>{' '}
-                      {typeof youtubeMetadata.duration_seconds === 'number'
-                        ? `${Math.trunc(youtubeMetadata.duration_seconds)}s`
-                        : '—'}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>YouTube link:</strong>{' '}
-                      {typeof youtubeMetadata.webpage_url === 'string' && youtubeMetadata.webpage_url.trim() ? (
-                        <a href={youtubeMetadata.webpage_url.trim()} target="_blank" rel="noopener noreferrer">
-                          Open
-                        </a>
-                      ) : (
-                        '—'
-                      )}
-                    </li>
-                  </>
-                ) : null}
-                <li className={styles.detailItem}>
-                  <strong>{selectedItemType === 'video' ? 'Creator:' : 'Author:'}</strong> {selectedAuthor}
-                </li>
-                <li className={styles.detailItem}>
-                  <strong>Genre:</strong> {selectedGenre}
-                </li>
-                <li className={styles.detailItem}>
-                  <strong>Language:</strong> {selectedItem.language}
-                </li>
-                <li className={styles.detailItem}>
-                  <strong>Status:</strong> {selectedItem.status}
-                </li>
-                <li className={styles.detailItem}>
-                  <strong>Media finalized:</strong> {selectedItem.mediaCompleted ? 'Yes' : 'No'}
-                </li>
-                <li className={styles.detailItem}>
-                  <strong>Created:</strong> {formatTimestamp(selectedItem.createdAt)}
-                </li>
-                <li className={styles.detailItem}>
-                  <strong>Updated:</strong> {formatTimestamp(selectedItem.updatedAt)}
-                </li>
-                <li className={styles.detailItem}>
-                  <strong>Library path:</strong> {selectedItem.libraryPath}
-                </li>
-              </ul>
-              <div>
-                <h3>Metadata</h3>
-                <pre className={styles.metadataBlock}>
-                  {JSON.stringify(selectedItem.metadata, null, 2)}
-                </pre>
-              </div>
             </>
           ) : (
             <p>Select an entry to inspect its metadata snapshot.</p>

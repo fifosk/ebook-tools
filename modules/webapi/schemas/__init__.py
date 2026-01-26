@@ -8,6 +8,8 @@ from .auth import (
     LoginRequestPayload,
     OAuthLoginRequestPayload,
     PasswordChangeRequestPayload,
+    RegistrationRequestPayload,
+    RegistrationResponse,
     SessionStatusResponse,
     SessionUserPayload,
 )
@@ -201,6 +203,8 @@ __all__ = [
     "PipelineSubmissionResponse",
     "ProgressEventPayload",
     "ProgressSnapshotPayload",
+    "RegistrationRequestPayload",
+    "RegistrationResponse",
     "SessionStatusResponse",
     "SessionUserPayload",
     "SubtitleDeleteRequest",

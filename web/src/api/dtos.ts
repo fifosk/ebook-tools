@@ -574,6 +574,19 @@ export interface PasswordChangeRequestPayload {
   new_password: string;
 }
 
+export interface RegistrationRequestPayload {
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+}
+
+export interface RegistrationResponse {
+  message: string;
+  username: string;
+  email: string;
+  status: 'pending_activation';
+}
+
 export type UserAccountStatus = 'active' | 'suspended' | 'inactive';
 
 export interface ManagedUserMetadata {
