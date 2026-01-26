@@ -49,7 +49,8 @@
         "ollama_cloud_url": "Fallback URL for the Ollama Cloud endpoint.",
         "ollama_model": "Model identifier used for translation requests.",
         "ffmpeg_path": "Path to the ffmpeg executable.",
-        "api_keys": "Holds API keys for external services (store overrides in config.local.json)."
+        "api_keys": "Holds API keys for external services (store overrides in config.local.json).",
+        "metadata_lookup": "Settings for the unified metadata lookup pipeline."
     },
     "input_file": "book.epub",
     "ebooks_dir": "storage/ebooks",
@@ -119,6 +120,16 @@
     "api_keys": {
         "ollama": "",
         "openai": "",
-        "anthropic": ""
+        "anthropic": "",
+        "tmdb": "",
+        "omdb": "",
+        "google_books": ""
+    },
+    "metadata_lookup": {
+        "cache_enabled": true,
+        "cache_ttl_hours": 168,
+        "cache_dir": "storage/cache/metadata",
+        "max_sources_per_lookup": 3,
+        "timeout_seconds": 30
     }
 }

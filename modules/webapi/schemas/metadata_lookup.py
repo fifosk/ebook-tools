@@ -80,3 +80,82 @@ class BookOpenLibraryMetadataPreviewLookupRequest(BaseModel):
 
     query: str
     force: bool = False
+
+
+# Unified metadata lookup schemas
+
+
+class UnifiedMetadataLookupRequest(BaseModel):
+    """Request payload for unified metadata lookup."""
+
+    type: str  # "book", "movie", "tv_series", "tv_episode", "youtube_video"
+
+    # Book fields
+    title: Optional[str] = None
+    author: Optional[str] = None
+    isbn: Optional[str] = None
+
+    # Movie/TV fields
+    movie_title: Optional[str] = None
+    series_name: Optional[str] = None
+    season: Optional[int] = None
+    episode: Optional[int] = None
+    year: Optional[int] = None
+
+    # YouTube fields
+    youtube_video_id: Optional[str] = None
+    youtube_url: Optional[str] = None
+    source_filename: Optional[str] = None
+
+    # Direct lookup IDs
+    tmdb_id: Optional[int] = None
+    imdb_id: Optional[str] = None
+
+    # Options
+    force: bool = False
+    include_raw: bool = False
+
+
+class SeriesInfoResponse(BaseModel):
+    """Series information in metadata response."""
+
+    series_id: Optional[str] = None
+    series_title: Optional[str] = None
+    season: Optional[int] = None
+    episode: Optional[int] = None
+    episode_id: Optional[str] = None
+    episode_title: Optional[str] = None
+
+
+class UnifiedMetadataResponse(BaseModel):
+    """Response payload for unified metadata lookup."""
+
+    title: str
+    type: str
+    year: Optional[int] = None
+    genres: list[str] = []
+    summary: Optional[str] = None
+    cover: Optional[str] = None
+    cover_url: Optional[str] = None
+    cover_file: Optional[str] = None
+    author: Optional[str] = None
+    language: Optional[str] = None
+    runtime_minutes: Optional[int] = None
+    rating: Optional[float] = None
+    votes: Optional[int] = None
+
+    # Series info (for TV)
+    series: Optional[SeriesInfoResponse] = None
+
+    # Source tracking
+    confidence: str = "low"
+    primary_source: Optional[str] = None
+    contributing_sources: list[str] = []
+    source_ids: Dict[str, Any] = {}
+
+    # Metadata
+    queried_at: Optional[str] = None
+    error: Optional[str] = None
+
+    # Optional raw responses
+    raw_responses: Optional[Dict[str, Any]] = None

@@ -9,6 +9,7 @@ from .books_routes import router as books_router
 from .jobs_routes import router as jobs_router, submit_pipeline
 from .library_routes import router as library_router
 from .media_routes import router as media_router, storage_router
+from .metadata_routes import router as metadata_router
 from .system_routes import router as system_router
 from .user_routes import router as user_router
 
@@ -19,6 +20,7 @@ router.include_router(books_router)
 router.include_router(library_router)
 router.include_router(jobs_router)
 router.include_router(media_router)
+router.include_router(metadata_router)
 router.include_router(user_router)
 
 # Provide backwards compatibility for POST /pipelines without the trailing slash.
