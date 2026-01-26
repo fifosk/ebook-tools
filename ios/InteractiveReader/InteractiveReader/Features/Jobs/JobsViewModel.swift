@@ -106,7 +106,11 @@ final class JobsViewModel: ObservableObject {
     }
 
     private var hasActiveJobs: Bool {
-        jobs.contains { $0.isActiveForDisplay }
+        // Check if there are active jobs in the current filter category
+        // This ensures video jobs use 5s refresh when video jobs are active
+        jobs.contains { job in
+            job.isActiveForDisplay && jobCategory(for: job) == activeFilter
+        }
     }
 
     // MARK: - Filtering & Sorting

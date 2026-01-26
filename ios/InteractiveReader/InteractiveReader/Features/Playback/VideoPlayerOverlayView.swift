@@ -127,7 +127,10 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
             #if os(tvOS)
             ZStack(alignment: .top) {
                 tvOverlay
-                tvInfoHeaderOverlay
+                // Hide header when lookup bubble is active to reduce visual clutter
+                if subtitleBubble == nil {
+                    tvInfoHeaderOverlay
+                }
                 if showSubtitleSettings {
                     subtitleSettingsOverlay
                 }
@@ -767,10 +770,10 @@ extension VideoPlayerOverlayView {
     private func handleTVAppear() {
         if showTVControls {
             focusTarget = .control(.playPause)
-        } else if isPlaying {
-            focusTarget = .subtitles
         } else {
-            focusTarget = nil
+            // Keep focus on subtitles whether playing or paused, so single-tap
+            // can trigger lookup immediately without first acquiring focus.
+            focusTarget = .subtitles
         }
     }
 
@@ -779,20 +782,18 @@ extension VideoPlayerOverlayView {
             focusTarget = nil
         } else if showTVControls {
             focusTarget = .control(.playPause)
-        } else if isPlaying {
-            focusTarget = .subtitles
         } else {
-            focusTarget = nil
+            // Keep focus on subtitles whether playing or paused for single-tap lookup.
+            focusTarget = .subtitles
         }
     }
 
     private func handleTVControlsChange(_ isVisible: Bool) {
         if isVisible {
             focusTarget = .control(.playPause)
-        } else if isPlaying {
-            focusTarget = .subtitles
         } else {
-            focusTarget = nil
+            // Keep focus on subtitles whether playing or paused for single-tap lookup.
+            focusTarget = .subtitles
         }
     }
 
@@ -802,7 +803,8 @@ extension VideoPlayerOverlayView {
         } else if showTVControls {
             focusTarget = .control(.playPause)
         } else {
-            focusTarget = nil
+            // Keep focus on subtitles when paused so single-tap triggers lookup.
+            focusTarget = .subtitles
         }
     }
 

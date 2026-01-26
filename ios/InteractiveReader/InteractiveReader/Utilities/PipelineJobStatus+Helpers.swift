@@ -79,14 +79,18 @@ extension PipelineStatusResponse {
     }
 
     var readyProgressSnapshot: ReadyProgressSnapshot? {
+        // Priority 1: Use media_batch_stats from generated_files (most accurate)
         if let snapshot = mediaBatchProgressSnapshot {
             return snapshot
         }
+        // Priority 2: Use latestEvent snapshot if it's in a media/playable stage
+        // Skip if it's in translation stage as that doesn't reflect media progress
         guard let event = latestEvent else { return nil }
         guard event.isReadyStage else { return nil }
+        guard let total = event.snapshot.total, total > 0 else { return nil }
         return ReadyProgressSnapshot(
             completed: event.snapshot.completed,
-            total: event.snapshot.total
+            total: total
         )
     }
 
@@ -125,6 +129,10 @@ private extension ProgressEventPayload {
 
     var isReadyStage: Bool {
         guard let stage = progressStage else { return true }
-        return stage == "media" || stage == "playable"
+        // Accept media, playable stages for progress display
+        // Also accept video-related stages like "tts", "audio", "export"
+        // Exclude translation stage as it doesn't reflect final progress
+        let readyStages: Set<String> = ["media", "playable", "tts", "audio", "export", "stitching"]
+        return readyStages.contains(stage) || !stage.contains("translation")
     }
 }

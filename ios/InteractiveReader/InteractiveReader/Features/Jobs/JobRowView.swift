@@ -153,7 +153,13 @@ struct JobRowView: View {
 
     private var progressLabel: String? {
         guard job.isActiveForDisplay else { return nil }
-        guard let snapshot = job.readyProgressSnapshot else { return "Progress: preparing" }
+        guard let snapshot = job.readyProgressSnapshot else {
+            // Only show "preparing" if job is pending; otherwise omit to avoid flicker
+            if job.status == .pending {
+                return "Progress: preparing"
+            }
+            return nil
+        }
         if let total = snapshot.total, total > 0 {
             let percent = Int((Double(snapshot.completed) / Double(total)) * 100)
             return "Progress \(snapshot.completed)/\(total) · \(percent)%"
