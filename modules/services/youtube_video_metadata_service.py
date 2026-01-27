@@ -15,6 +15,8 @@ from modules import logging_manager as log_mgr
 
 from .job_manager import PipelineJob, PipelineJobManager
 from .youtube_subtitles import _COMMON_YT_OPTS, _extract_with_backoff
+from .metadata.types import LookupOptions, LookupQuery, MediaType, UnifiedMetadataResult
+from .metadata.pipeline import create_pipeline
 
 logger = log_mgr.get_logger().getChild("services.youtube_video_metadata")
 
@@ -189,18 +191,100 @@ class YoutubeVideoMetadataService:
         }
 
     def lookup_youtube_metadata_for_source(self, source_name: str, *, force: bool = False) -> Dict[str, Any]:
+        """Lookup YouTube metadata for a source name without persisting anything.
+
+        Uses the unified metadata pipeline with caching support.
+        """
         normalized_source = _basename(source_name)
         parsed = parse_youtube_video_id(normalized_source) if normalized_source else None
-        youtube_metadata = self._fetch_youtube_metadata(parsed, source_name=normalized_source)
+
+        if parsed is None:
+            return {
+                "source_name": normalized_source or None,
+                "parsed": None,
+                "youtube_metadata": {
+                    "kind": "youtube_video",
+                    "provider": "unified_pipeline",
+                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "source_name": normalized_source,
+                    "error": "Unable to locate a YouTube video id (expected `[VIDEO_ID]` in the filename).",
+                },
+            }
+
+        # Build lookup query for unified pipeline
+        lookup_query = LookupQuery(
+            media_type=MediaType.YOUTUBE_VIDEO,
+            youtube_video_id=parsed.video_id,
+            source_filename=normalized_source,
+        )
+
+        options = LookupOptions(
+            skip_cache=force,
+            force_refresh=force,
+            include_raw_responses=True,
+        )
+
+        # Use unified pipeline with caching
+        try:
+            with create_pipeline(cache_enabled=True) as pipeline:
+                result = pipeline.lookup(lookup_query, options)
+        except Exception as exc:
+            logger.warning("Pipeline lookup failed for %s: %s", normalized_source, exc)
+            result = None
+
+        if result is None:
+            # Fall back to legacy direct lookup
+            youtube_metadata = self._fetch_youtube_metadata(parsed, source_name=normalized_source)
+            return {
+                "source_name": normalized_source or None,
+                "parsed": {
+                    "video_id": parsed.video_id,
+                    "pattern": parsed.pattern,
+                },
+                "youtube_metadata": dict(youtube_metadata) if isinstance(youtube_metadata, Mapping) else None,
+            }
+
+        # Convert unified result to legacy format
+        youtube_metadata = self._convert_unified_result_to_payload(result, parsed, normalized_source)
         return {
             "source_name": normalized_source or None,
             "parsed": {
                 "video_id": parsed.video_id,
                 "pattern": parsed.pattern,
-            }
-            if parsed
-            else None,
-            "youtube_metadata": dict(youtube_metadata) if isinstance(youtube_metadata, Mapping) else None,
+            },
+            "youtube_metadata": youtube_metadata,
+        }
+
+    def _convert_unified_result_to_payload(
+        self,
+        result: UnifiedMetadataResult,
+        parsed: YoutubeVideoIdParse,
+        source_name: Optional[str],
+    ) -> Dict[str, Any]:
+        """Convert unified pipeline result to legacy YouTube metadata format."""
+        sources = [s.value for s in result.contributing_sources] if result.contributing_sources else []
+        primary = result.primary_source.value if result.primary_source else "unified_pipeline"
+
+        return {
+            "kind": "youtube_video",
+            "provider": primary,
+            "contributing_sources": sources,
+            "queried_at": result.queried_at.isoformat() if result.queried_at else datetime.now(timezone.utc).isoformat(),
+            "source_name": source_name,
+            "video_id": parsed.video_id,
+            "title": result.title,
+            "webpage_url": f"https://www.youtube.com/watch?v={parsed.video_id}",
+            "thumbnail": result.cover_url,
+            "channel": result.channel_name,
+            "channel_id": result.source_ids.youtube_channel_id,
+            "duration_seconds": result.runtime_minutes * 60 if result.runtime_minutes else None,
+            "upload_date": result.upload_date,
+            "view_count": result.view_count,
+            "like_count": result.like_count,
+            "categories": result.genres,
+            "summary": result.summary,
+            "confidence": result.confidence.value if result.confidence else None,
+            "error": result.error,
         }
 
     def lookup_youtube_metadata(
@@ -364,4 +448,51 @@ class YoutubeVideoMetadataService:
                 job.result_payload = result_payload
 
         self._job_manager.mutate_job(job_id, _mutate, user_id=user_id, user_role=user_role)
+
+    def clear_metadata_cache_for_query(self, source_name: str) -> Dict[str, Any]:
+        """Clear cached YouTube metadata for a source name.
+
+        This invalidates any cached pipeline results for lookups matching
+        the given source name, allowing a fresh lookup to be performed.
+
+        Args:
+            source_name: The source filename/URL/video ID to clear cache for.
+
+        Returns:
+            Dictionary with cleared cache entry count and query info.
+        """
+        normalized_source = _basename(source_name)
+        parsed = parse_youtube_video_id(normalized_source) if normalized_source else None
+
+        if parsed is None:
+            return {
+                "cleared": 0,
+                "query": {
+                    "source_name": normalized_source,
+                    "video_id": None,
+                },
+            }
+
+        # Build the lookup query to find matching cache entries
+        lookup_query = LookupQuery(
+            media_type=MediaType.YOUTUBE_VIDEO,
+            youtube_video_id=parsed.video_id,
+            source_filename=normalized_source,
+        )
+
+        cleared_count = 0
+        try:
+            with create_pipeline(cache_enabled=True) as pipeline:
+                if pipeline.invalidate_cache(lookup_query):
+                    cleared_count += 1
+        except Exception as exc:
+            logger.warning("Failed to clear metadata cache for %s: %s", source_name, exc)
+
+        return {
+            "cleared": cleared_count,
+            "query": {
+                "source_name": normalized_source,
+                "video_id": parsed.video_id,
+            },
+        }
 

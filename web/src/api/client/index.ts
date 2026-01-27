@@ -59,6 +59,9 @@ export {
   fetchBookOpenLibraryMetadata,
   lookupBookOpenLibraryMetadata,
   lookupBookOpenLibraryMetadataPreview,
+  clearBookMetadataCache,
+  clearTvMetadataCache,
+  clearYoutubeMetadataCache,
   fetchLlmModels,
   buildEventStreamUrl,
   resolveJobCoverUrl

@@ -26,6 +26,12 @@ from ...schemas import (
     YoutubeVideoMetadataPreviewResponse,
     YoutubeVideoMetadataResponse,
 )
+from ...schemas.metadata_lookup import (
+    TvMetadataCacheClearRequest,
+    TvMetadataCacheClearResponse,
+    YoutubeMetadataCacheClearRequest,
+    YoutubeMetadataCacheClearResponse,
+)
 
 router = APIRouter()
 logger = log_mgr.get_logger().getChild("webapi.subtitles.metadata")
@@ -116,6 +122,36 @@ def lookup_subtitle_tv_metadata_preview(
     return SubtitleTvMetadataPreviewResponse(**payload)
 
 
+@router.post(
+    "/metadata/tv/cache/clear",
+    response_model=TvMetadataCacheClearResponse,
+)
+def clear_tv_metadata_cache(
+    request: TvMetadataCacheClearRequest,
+    metadata_service: SubtitleMetadataService = Depends(get_subtitle_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> TvMetadataCacheClearResponse:
+    """Clear cached TV metadata for a query string.
+
+    This allows a fresh lookup to be performed without cached results.
+    """
+    _ensure_editor(request_user)
+    try:
+        result = metadata_service.clear_metadata_cache_for_query(request.query)
+    except Exception as exc:
+        logger.warning(
+            "Failed to clear TV metadata cache for query %s",
+            request.query,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear metadata cache: {exc}",
+        ) from exc
+
+    return TvMetadataCacheClearResponse(**result)
+
+
 @router.get("/jobs/{job_id}/metadata/youtube", response_model=YoutubeVideoMetadataResponse)
 def get_youtube_video_metadata(
     job_id: str,
@@ -192,6 +228,36 @@ def lookup_youtube_video_metadata_preview(
         ) from exc
 
     return YoutubeVideoMetadataPreviewResponse(**payload)
+
+
+@router.post(
+    "/metadata/youtube/cache/clear",
+    response_model=YoutubeMetadataCacheClearResponse,
+)
+def clear_youtube_metadata_cache(
+    request: YoutubeMetadataCacheClearRequest,
+    metadata_service: YoutubeVideoMetadataService = Depends(get_youtube_video_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> YoutubeMetadataCacheClearResponse:
+    """Clear cached YouTube metadata for a query string.
+
+    This allows a fresh lookup to be performed without cached results.
+    """
+    _ensure_editor(request_user)
+    try:
+        result = metadata_service.clear_metadata_cache_for_query(request.query)
+    except Exception as exc:
+        logger.warning(
+            "Failed to clear YouTube metadata cache for query %s",
+            request.query,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear metadata cache: {exc}",
+        ) from exc
+
+    return YoutubeMetadataCacheClearResponse(**result)
 
 
 __all__ = ["router"]

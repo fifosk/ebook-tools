@@ -1243,5 +1243,47 @@ class BookMetadataService:
 
         self._job_manager.mutate_job(job_id, _mutate, user_id=user_id, user_role=user_role)
 
+    def clear_metadata_cache_for_query(self, query: str) -> Dict[str, Any]:
+        """Clear cached metadata for a query string.
+
+        This invalidates any cached pipeline results for lookups matching
+        the given query, allowing a fresh lookup to be performed.
+
+        Args:
+            query: The query string (filename, title, ISBN, etc.)
+
+        Returns:
+            Dictionary with cleared cache entry count.
+        """
+        normalized_source = _basename(query)
+        seed = _parse_filename_title_author(query) if query else {}
+        inferred = _infer_lookup_query(normalized_source or query, seed)
+
+        # Build the lookup query to find matching cache entries
+        lookup_query = LookupQuery(
+            media_type=MediaType.BOOK,
+            title=inferred.title,
+            author=inferred.author,
+            isbn=inferred.isbn,
+            source_filename=inferred.source_name,
+        )
+
+        cleared_count = 0
+        try:
+            with create_pipeline(cache_enabled=True) as pipeline:
+                if pipeline.invalidate_cache(lookup_query):
+                    cleared_count += 1
+        except Exception as exc:
+            logger.warning("Failed to clear metadata cache: %s", exc)
+
+        return {
+            "cleared": cleared_count,
+            "query": {
+                "title": inferred.title,
+                "author": inferred.author,
+                "isbn": inferred.isbn,
+            },
+        }
+
 
 __all__ = ["BookMetadataService", "OpenLibraryClient", "BookLookupQuery"]

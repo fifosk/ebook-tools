@@ -11,7 +11,9 @@ import {
   extractInlineSubtitles,
   deleteNasSubtitle,
   fetchPipelineDefaults,
-  deleteYoutubeVideo
+  deleteYoutubeVideo,
+  clearTvMetadataCache,
+  clearYoutubeMetadataCache
 } from '../api/client';
 import type {
   YoutubeNasLibraryResponse,
@@ -961,19 +963,41 @@ export default function VideoDubbingPage({
     void performSubtitleExtraction(undefined);
   }, [performSubtitleExtraction]);
 
-  const handleClearTvMetadata = useCallback(() => {
+  const handleClearTvMetadata = useCallback(async () => {
+    // Clear frontend state first
     setMetadataPreview(null);
     setMediaMetadataDraft(null);
     setMetadataError(null);
-  }, []);
 
-  const handleClearYoutubeMetadata = useCallback(() => {
+    // Clear backend cache for a fresh lookup
+    const query = metadataLookupSourceName.trim();
+    if (query) {
+      try {
+        await clearTvMetadataCache(query);
+      } catch {
+        // Ignore cache clear failures - frontend state is already cleared
+      }
+    }
+  }, [metadataLookupSourceName]);
+
+  const handleClearYoutubeMetadata = useCallback(async () => {
+    // Clear frontend state first
     setYoutubeMetadataPreview(null);
     setYoutubeMetadataError(null);
     updateMediaMetadataDraft((draft) => {
       delete draft['youtube'];
     });
-  }, [updateMediaMetadataDraft]);
+
+    // Clear backend cache for a fresh lookup
+    const query = metadataLookupSourceName.trim();
+    if (query) {
+      try {
+        await clearYoutubeMetadataCache(query);
+      } catch {
+        // Ignore cache clear failures - frontend state is already cleared
+      }
+    }
+  }, [metadataLookupSourceName, updateMediaMetadataDraft]);
 
   const handleGenerate = useCallback(async () => {
     if (!selectedVideo || !selectedSubtitle) {

@@ -216,6 +216,39 @@ export async function lookupBookOpenLibraryMetadataPreview(
   return handleResponse<BookOpenLibraryMetadataPreviewResponse>(response);
 }
 
+export async function clearBookMetadataCache(
+  query: string
+): Promise<{ cleared: number }> {
+  const response = await apiFetch('/api/pipelines/metadata/book/cache/clear', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query })
+  });
+  return handleResponse<{ cleared: number }>(response);
+}
+
+export async function clearTvMetadataCache(
+  query: string
+): Promise<{ cleared: number }> {
+  const response = await apiFetch('/api/subtitles/metadata/tv/cache/clear', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query })
+  });
+  return handleResponse<{ cleared: number }>(response);
+}
+
+export async function clearYoutubeMetadataCache(
+  query: string
+): Promise<{ cleared: number }> {
+  const response = await apiFetch('/api/subtitles/metadata/youtube/cache/clear', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query })
+  });
+  return handleResponse<{ cleared: number }>(response);
+}
+
 // LLM models
 export async function fetchLlmModels(): Promise<string[]> {
   const response = await apiFetch('/api/pipelines/llm-models', {}, { suppressUnauthorized: true });

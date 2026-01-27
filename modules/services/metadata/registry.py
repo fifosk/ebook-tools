@@ -28,12 +28,13 @@ DEFAULT_CHAINS: Dict[MediaType, List[MetadataSource]] = {
         MetadataSource.WIKIPEDIA,  # Fallback: no API key
     ],
     MediaType.TV_SERIES: [
-        MetadataSource.TMDB,  # Primary: API key required
+        MetadataSource.TMDB,  # Primary: API key required, best metadata
         MetadataSource.OMDB,  # Secondary: API key required
+        MetadataSource.TVMAZE,  # Fallback: no API key
         MetadataSource.WIKIPEDIA,  # Fallback: no API key
     ],
     MediaType.TV_EPISODE: [
-        MetadataSource.TMDB,  # Primary: API key required
+        MetadataSource.TMDB,  # Primary: API key required, best metadata
         MetadataSource.OMDB,  # Secondary: API key required
         MetadataSource.TVMAZE,  # Fallback: no API key
     ],

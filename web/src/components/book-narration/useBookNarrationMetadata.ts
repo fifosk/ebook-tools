@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BookOpenLibraryMetadataPreviewResponse } from '../../api/dtos';
-import { appendAccessToken, lookupBookOpenLibraryMetadataPreview } from '../../api/client';
+import { appendAccessToken, clearBookMetadataCache, lookupBookOpenLibraryMetadataPreview } from '../../api/client';
 import {
   loadCachedBookCoverDataUrl,
   loadCachedBookCoverSourceUrl,
@@ -188,13 +188,24 @@ export function useBookNarrationMetadata({
     [applyMetadataLookupToDraft],
   );
 
-  const handleClearMetadata = useCallback(() => {
+  const handleClearMetadata = useCallback(async () => {
+    // Clear frontend state first
     setMetadataPreview(null);
     setMetadataError(null);
     setMetadataLoading(false);
     markUserEditedField('book_metadata');
     setFormState((previous) => ({ ...previous, book_metadata: '{}' }));
-  }, [markUserEditedField, setFormState]);
+
+    // Clear backend cache for a fresh lookup
+    const query = metadataLookupQuery.trim();
+    if (query) {
+      try {
+        await clearBookMetadataCache(query);
+      } catch {
+        // Ignore cache clear failures - frontend state is already cleared
+      }
+    }
+  }, [markUserEditedField, metadataLookupQuery, setFormState]);
 
   useEffect(() => {
     const normalized = metadataSourceName.trim();

@@ -8,6 +8,9 @@ import {
   normalizeTextValue
 } from './videoDubbingUtils';
 import styles from '../VideoDubbingPage.module.css';
+import { MetadataGrid } from '../../components/metadata/MetadataGrid';
+import { MetadataLookupRow } from '../../components/metadata/MetadataLookupRow';
+import { RawPayloadDetails } from '../../components/metadata/RawPayloadDetails';
 
 type VideoMetadataPanelProps = {
   metadataSourceName: string;
@@ -94,35 +97,17 @@ export default function VideoMetadataPanel({
           {metadataSection === 'tv' ? (
             <>
               {metadataError ? <div className="alert" role="alert">{metadataError}</div> : null}
-              <div className={styles.controlRow}>
-                <label style={{ minWidth: 'min(32rem, 100%)' }}>
-                  Lookup filename
-                  <input
-                    type="text"
-                    className={styles.input}
-                    value={metadataLookupSourceName}
-                    onChange={(event) => onMetadataLookupSourceNameChange(event.target.value)}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={(e) => void onLookupMetadata(metadataLookupSourceName, e.shiftKey)}
-                  disabled={!metadataLookupSourceName.trim() || metadataLoading}
-                  aria-busy={metadataLoading}
-                  title="Lookup TV metadata from TMDB/OMDb/TVMaze. Hold Shift to force refresh."
-                >
-                  {metadataLoading ? 'Looking up…' : 'Lookup'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={onClearTvMetadata}
-                  disabled={metadataLoading}
-                >
-                  Clear
-                </button>
-              </div>
+              <MetadataLookupRow
+                query={metadataLookupSourceName}
+                onQueryChange={onMetadataLookupSourceNameChange}
+                onLookup={(force) => void onLookupMetadata(metadataLookupSourceName, force)}
+                onClear={onClearTvMetadata}
+                isLoading={metadataLoading}
+                placeholder="Filename containing series/episode info"
+                inputLabel="Lookup filename"
+                hasResult={!!metadataPreview}
+                disabled={!metadataLookupSourceName.trim()}
+              />
 
               {metadataLoading ? <p className={styles.status}>Loading metadata…</p> : null}
               {!metadataLoading && metadataPreview ? (
@@ -192,57 +177,27 @@ export default function VideoMetadataPanel({
                         </div>
                       ) : null}
 
-                      <dl className="metadata-grid">
-                        <div className="metadata-grid__row">
-                          <dt>Source</dt>
-                          <dd>{metadataPreview.source_name ?? metadataSourceName}</dd>
-                        </div>
-                        {metadataPreview.parsed ? (
-                          <div className="metadata-grid__row">
-                            <dt>Parsed</dt>
-                            <dd>
-                              {metadataPreview.parsed.series}{' '}
-                              {formatEpisodeCode(metadataPreview.parsed.season, metadataPreview.parsed.episode) ?? ''}
-                            </dd>
-                          </div>
-                        ) : null}
-                        {showName ? (
-                          <div className="metadata-grid__row">
-                            <dt>Show</dt>
-                            <dd>{showName}</dd>
-                          </div>
-                        ) : null}
-                        {episodeCode || episodeName ? (
-                          <div className="metadata-grid__row">
-                            <dt>Episode</dt>
-                            <dd>
-                              {episodeCode ? `${episodeCode}${episodeName ? ` — ${episodeName}` : ''}` : episodeName}
-                            </dd>
-                          </div>
-                        ) : null}
-                        {airdate ? (
-                          <div className="metadata-grid__row">
-                            <dt>Airdate</dt>
-                            <dd>{airdate}</dd>
-                          </div>
-                        ) : null}
-                        {episodeUrl ? (
-                          <div className="metadata-grid__row">
-                            <dt>TVMaze</dt>
-                            <dd>
-                              <a href={episodeUrl} target="_blank" rel="noopener noreferrer">
-                                Open episode page
-                              </a>
-                            </dd>
-                          </div>
-                        ) : null}
-                        {errorMessage ? (
-                          <div className="metadata-grid__row">
-                            <dt>Status</dt>
-                            <dd>{errorMessage}</dd>
-                          </div>
-                        ) : null}
-                      </dl>
+                      <MetadataGrid
+                        rows={[
+                          { label: 'Source', value: metadataPreview.source_name ?? metadataSourceName },
+                          {
+                            label: 'Parsed',
+                            value: metadataPreview.parsed
+                              ? `${metadataPreview.parsed.series} ${formatEpisodeCode(metadataPreview.parsed.season, metadataPreview.parsed.episode) ?? ''}`
+                              : undefined,
+                          },
+                          { label: 'Show', value: showName },
+                          {
+                            label: 'Episode',
+                            value: episodeCode
+                              ? `${episodeCode}${episodeName ? ` — ${episodeName}` : ''}`
+                              : episodeName,
+                          },
+                          { label: 'Airdate', value: airdate },
+                          { label: 'TVMaze', value: episodeUrl ? 'Open episode page' : undefined, href: episodeUrl ?? undefined },
+                          { label: 'Status', value: errorMessage },
+                        ]}
+                      />
 
                       <fieldset className="metadata-fieldset">
                         <legend>Edit metadata</legend>
@@ -409,12 +364,7 @@ export default function VideoMetadataPanel({
                         </div>
                       </fieldset>
 
-                      {media ? (
-                        <details>
-                          <summary>Raw payload</summary>
-                          <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(media, null, 2)}</pre>
-                        </details>
-                      ) : null}
+                      <RawPayloadDetails payload={media} />
                     </>
                   );
                 })()
@@ -427,36 +377,17 @@ export default function VideoMetadataPanel({
           {metadataSection === 'youtube' ? (
             <>
               {youtubeMetadataError ? <div className="alert" role="alert">{youtubeMetadataError}</div> : null}
-              <div className={styles.controlRow}>
-                <label style={{ minWidth: 'min(32rem, 100%)' }}>
-                  Lookup video id / filename
-                  <input
-                    type="text"
-                    className={styles.input}
-                    value={youtubeLookupSourceName}
-                    onChange={(event) => onYoutubeLookupSourceNameChange(event.target.value)}
-                    placeholder="Example: Title [dQw4w9WgXcQ].mp4"
-                  />
-                </label>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={(e) => void onLookupYoutubeMetadata(youtubeLookupSourceName, e.shiftKey)}
-                  disabled={!youtubeLookupSourceName.trim() || youtubeMetadataLoading}
-                  aria-busy={youtubeMetadataLoading}
-                  title="Lookup YouTube metadata via yt-dlp. Hold Shift to force refresh."
-                >
-                  {youtubeMetadataLoading ? 'Looking up…' : 'Lookup'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={onClearYoutubeMetadata}
-                  disabled={youtubeMetadataLoading}
-                >
-                  Clear
-                </button>
-              </div>
+              <MetadataLookupRow
+                query={youtubeLookupSourceName}
+                onQueryChange={onYoutubeLookupSourceNameChange}
+                onLookup={(force) => void onLookupYoutubeMetadata(youtubeLookupSourceName, force)}
+                onClear={onClearYoutubeMetadata}
+                isLoading={youtubeMetadataLoading}
+                placeholder="Example: Title [dQw4w9WgXcQ].mp4"
+                inputLabel="Lookup video id / filename"
+                hasResult={!!youtubeMetadataPreview}
+                disabled={!youtubeLookupSourceName.trim()}
+              />
 
               {youtubeMetadataLoading ? <p className={styles.status}>Loading metadata…</p> : null}
               {!youtubeMetadataLoading && youtubeMetadataPreview ? (
@@ -500,64 +431,19 @@ export default function VideoMetadataPanel({
                         </div>
                       ) : null}
 
-                      <dl className="metadata-grid">
-                        <div className="metadata-grid__row">
-                          <dt>Source</dt>
-                          <dd>{youtubeMetadataPreview.source_name ?? youtubeLookupSourceName}</dd>
-                        </div>
-                        {youtubeMetadataPreview.parsed ? (
-                          <div className="metadata-grid__row">
-                            <dt>Video id</dt>
-                            <dd>{youtubeMetadataPreview.parsed.video_id}</dd>
-                          </div>
-                        ) : null}
-                        {title ? (
-                          <div className="metadata-grid__row">
-                            <dt>Title</dt>
-                            <dd>{title}</dd>
-                          </div>
-                        ) : null}
-                        {channel ? (
-                          <div className="metadata-grid__row">
-                            <dt>Channel</dt>
-                            <dd>{channel}</dd>
-                          </div>
-                        ) : null}
-                        {duration ? (
-                          <div className="metadata-grid__row">
-                            <dt>Duration</dt>
-                            <dd>{duration}</dd>
-                          </div>
-                        ) : null}
-                        {uploaded ? (
-                          <div className="metadata-grid__row">
-                            <dt>Uploaded</dt>
-                            <dd>{uploaded}</dd>
-                          </div>
-                        ) : null}
-                        {views ? (
-                          <div className="metadata-grid__row">
-                            <dt>Views</dt>
-                            <dd>{views}{likes ? ` · 👍 ${likes}` : ''}</dd>
-                          </div>
-                        ) : null}
-                        {webpageUrl ? (
-                          <div className="metadata-grid__row">
-                            <dt>Link</dt>
-                            <dd>
-                              <a href={webpageUrl} target="_blank" rel="noopener noreferrer">
-                                Open on YouTube
-                              </a>
-                            </dd>
-                          </div>
-                        ) : null}
-                        {errorMessage ? (
-                          <div className="metadata-grid__row">
-                            <dt>Status</dt>
-                            <dd>{errorMessage}</dd>
-                          </div>
-                        ) : null}
-                      </dl>
+                      <MetadataGrid
+                        rows={[
+                          { label: 'Source', value: youtubeMetadataPreview.source_name ?? youtubeLookupSourceName },
+                          { label: 'Video id', value: youtubeMetadataPreview.parsed?.video_id },
+                          { label: 'Title', value: title },
+                          { label: 'Channel', value: channel },
+                          { label: 'Duration', value: duration },
+                          { label: 'Uploaded', value: uploaded },
+                          { label: 'Views', value: views ? `${views}${likes ? ` · 👍 ${likes}` : ''}` : undefined },
+                          { label: 'Link', value: webpageUrl ? 'Open on YouTube' : undefined, href: webpageUrl ?? undefined },
+                          { label: 'Status', value: errorMessage },
+                        ]}
+                      />
 
                       {summary ? <p className={styles.status}>{summary}</p> : null}
                       {description ? (
@@ -566,12 +452,7 @@ export default function VideoMetadataPanel({
                           <pre style={{ whiteSpace: 'pre-wrap' }}>{description}</pre>
                         </details>
                       ) : null}
-                      {rawPayload ? (
-                        <details>
-                          <summary>Raw payload</summary>
-                          <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(rawPayload, null, 2)}</pre>
-                        </details>
-                      ) : null}
+                      <RawPayloadDetails payload={rawPayload} />
                     </>
                   );
                 })()

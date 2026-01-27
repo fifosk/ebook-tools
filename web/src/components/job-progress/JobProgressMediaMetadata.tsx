@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
+  clearTvMetadataCache,
+  clearYoutubeMetadataCache,
   fetchSubtitleTvMetadata,
   fetchYoutubeVideoMetadata,
   lookupSubtitleTvMetadata,
@@ -7,6 +9,9 @@ import {
 } from '../../api/client';
 import type { SubtitleTvMetadataResponse, YoutubeVideoMetadataResponse } from '../../api/dtos';
 import { coerceRecord, formatEpisodeCode, formatGenreList, normalizeTextValue } from './jobProgressUtils';
+import { MetadataGrid, type MetadataRow } from '../metadata/MetadataGrid';
+import { MetadataActionButtons } from '../metadata/MetadataActionButtons';
+import { RawPayloadDetails } from '../metadata/RawPayloadDetails';
 
 type JobProgressMediaMetadataProps = {
   jobId: string;
@@ -149,6 +154,24 @@ export function JobProgressMediaMetadata({
             const canLookup = canManage && !tvMetadataMutating;
             const hasLookupResult = Boolean(media && (showName || errorMessage));
 
+            const handleClear = async () => {
+              setTvMetadataMutating(true);
+              setTvMetadataError(null);
+              try {
+                // Clear frontend state
+                setTvMetadata(null);
+                // Clear backend cache using source_name as query
+                const query = tvMetadata.source_name;
+                if (query) {
+                  await clearTvMetadataCache(query);
+                }
+              } catch {
+                // Ignore cache clear failures - frontend state is already cleared
+              } finally {
+                setTvMetadataMutating(false);
+              }
+            };
+
             const handleLookup = async (force: boolean) => {
               setTvMetadataMutating(true);
               setTvMetadataError(null);
@@ -200,98 +223,37 @@ export function JobProgressMediaMetadata({
                     ) : null}
                   </div>
                 ) : null}
-                <dl className="metadata-grid">
-                  {tvMetadata.source_name ? (
-                    <div className="metadata-grid__row">
-                      <dt>Source</dt>
-                      <dd>{tvMetadata.source_name}</dd>
-                    </div>
-                  ) : null}
-                  {tvMetadata.parsed ? (
-                    <div className="metadata-grid__row">
-                      <dt>Parsed</dt>
-                      <dd>
-                        {tvMetadata.parsed.series}{' '}
-                        {formatEpisodeCode(tvMetadata.parsed.season, tvMetadata.parsed.episode) ?? ''}
-                      </dd>
-                    </div>
-                  ) : null}
-                  {showName ? (
-                    <div className="metadata-grid__row">
-                      <dt>Show</dt>
-                      <dd>{showName}</dd>
-                    </div>
-                  ) : null}
-                  {code ? (
-                    <div className="metadata-grid__row">
-                      <dt>Episode</dt>
-                      <dd>
-                        {code}
-                        {episodeName ? ` — ${episodeName}` : ''}
-                      </dd>
-                    </div>
-                  ) : episodeName ? (
-                    <div className="metadata-grid__row">
-                      <dt>Episode</dt>
-                      <dd>{episodeName}</dd>
-                    </div>
-                  ) : null}
-                  {airdate ? (
-                    <div className="metadata-grid__row">
-                      <dt>Airdate</dt>
-                      <dd>{airdate}</dd>
-                    </div>
-                  ) : null}
-                  {networkName ? (
-                    <div className="metadata-grid__row">
-                      <dt>Network</dt>
-                      <dd>{networkName}</dd>
-                    </div>
-                  ) : null}
-                  {showGenres ? (
-                    <div className="metadata-grid__row">
-                      <dt>Genres</dt>
-                      <dd>{showGenres}</dd>
-                    </div>
-                  ) : null}
-                  {episodeUrl ? (
-                    <div className="metadata-grid__row">
-                      <dt>TVMaze</dt>
-                      <dd>
-                        <a href={episodeUrl} target="_blank" rel="noopener noreferrer">
-                          Open episode page
-                        </a>
-                      </dd>
-                    </div>
-                  ) : null}
-                </dl>
+                <MetadataGrid
+                  rows={[
+                    { label: 'Source', value: tvMetadata.source_name },
+                    {
+                      label: 'Parsed',
+                      value: tvMetadata.parsed
+                        ? `${tvMetadata.parsed.series} ${formatEpisodeCode(tvMetadata.parsed.season, tvMetadata.parsed.episode) ?? ''}`
+                        : undefined,
+                    },
+                    { label: 'Show', value: showName },
+                    {
+                      label: 'Episode',
+                      value: code
+                        ? `${code}${episodeName ? ` — ${episodeName}` : ''}`
+                        : episodeName,
+                    },
+                    { label: 'Airdate', value: airdate },
+                    { label: 'Network', value: networkName },
+                    { label: 'Genres', value: showGenres },
+                    { label: 'TVMaze', value: episodeUrl ? 'Open episode page' : undefined, href: episodeUrl ?? undefined },
+                  ]}
+                />
                 {errorMessage ? <div className="notice notice--warning">{errorMessage}</div> : null}
-                <div className="job-card__tab-actions">
-                  <button
-                    type="button"
-                    className="link-button"
-                    onClick={() => handleLookup(false)}
-                    disabled={!canLookup}
-                    aria-busy={tvMetadataMutating}
-                  >
-                    {tvMetadataMutating ? 'Looking up…' : hasLookupResult ? 'Lookup (cached)' : 'Lookup on TVMaze'}
-                  </button>
-                  <button
-                    type="button"
-                    className="link-button"
-                    onClick={() => handleLookup(true)}
-                    disabled={!canLookup}
-                    aria-busy={tvMetadataMutating}
-                  >
-                    Refresh
-                  </button>
-                </div>
-                {media ? (
-                  <details className="job-card__details">
-                    <summary>Raw payload</summary>
-                    <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(media, null, 2)}</pre>
-                  </details>
-                ) : null}
+                <MetadataActionButtons
+                  onLookup={handleLookup}
+                  onClear={handleClear}
+                  isLoading={tvMetadataMutating}
+                  hasResult={hasLookupResult}
+                  disabled={!canManage}
+                />
+                <RawPayloadDetails payload={media} />
               </>
             );
           })()
@@ -321,6 +283,25 @@ export function JobProgressMediaMetadata({
                 const rawPayload = youtube ? youtube['raw_payload'] : null;
 
                 const canLookup = canManage && !youtubeMetadataMutating;
+                const hasYoutubeLookupResult = Boolean(youtube && (title || errorMessage));
+
+                const handleClear = async () => {
+                  setYoutubeMetadataMutating(true);
+                  setYoutubeMetadataError(null);
+                  try {
+                    // Clear frontend state
+                    setYoutubeMetadata(null);
+                    // Clear backend cache using source_name as query
+                    const query = youtubeMetadata.source_name;
+                    if (query) {
+                      await clearYoutubeMetadataCache(query);
+                    }
+                  } catch {
+                    // Ignore cache clear failures - frontend state is already cleared
+                  } finally {
+                    setYoutubeMetadataMutating(false);
+                  }
+                };
 
                 const handleLookup = async (force: boolean) => {
                   setYoutubeMetadataMutating(true);
@@ -356,76 +337,26 @@ export function JobProgressMediaMetadata({
                         </a>
                       </div>
                     ) : null}
-                    <dl className="metadata-grid">
-                      {youtubeMetadata.source_name ? (
-                        <div className="metadata-grid__row">
-                          <dt>Source</dt>
-                          <dd>{youtubeMetadata.source_name}</dd>
-                        </div>
-                      ) : null}
-                      {youtubeMetadata.parsed ? (
-                        <div className="metadata-grid__row">
-                          <dt>Video id</dt>
-                          <dd>{youtubeMetadata.parsed.video_id}</dd>
-                        </div>
-                      ) : null}
-                      {title ? (
-                        <div className="metadata-grid__row">
-                          <dt>Title</dt>
-                          <dd>{title}</dd>
-                        </div>
-                      ) : null}
-                      {channel ? (
-                        <div className="metadata-grid__row">
-                          <dt>Channel</dt>
-                          <dd>{channel}</dd>
-                        </div>
-                      ) : null}
-                      {categories ? (
-                        <div className="metadata-grid__row">
-                          <dt>Categories</dt>
-                          <dd>{categories}</dd>
-                        </div>
-                      ) : null}
-                      {webpageUrl ? (
-                        <div className="metadata-grid__row">
-                          <dt>Link</dt>
-                          <dd>
-                            <a href={webpageUrl} target="_blank" rel="noopener noreferrer">
-                              Open on YouTube
-                            </a>
-                          </dd>
-                        </div>
-                      ) : null}
-                    </dl>
+                    <MetadataGrid
+                      rows={[
+                        { label: 'Source', value: youtubeMetadata.source_name },
+                        { label: 'Video id', value: youtubeMetadata.parsed?.video_id },
+                        { label: 'Title', value: title },
+                        { label: 'Channel', value: channel },
+                        { label: 'Categories', value: categories },
+                        { label: 'Link', value: webpageUrl ? 'Open on YouTube' : undefined, href: webpageUrl ?? undefined },
+                      ]}
+                    />
                     {summary ? <p>{summary}</p> : null}
                     {errorMessage ? <div className="notice notice--warning">{errorMessage}</div> : null}
-                    <div className="job-card__tab-actions">
-                      <button
-                        type="button"
-                        className="link-button"
-                        onClick={() => handleLookup(false)}
-                        disabled={!canLookup}
-                        aria-busy={youtubeMetadataMutating}
-                      >
-                        {youtubeMetadataMutating ? 'Looking up…' : youtube ? 'Lookup (cached)' : 'Lookup via yt-dlp'}
-                      </button>
-                      <button
-                        type="button"
-                        className="link-button"
-                        onClick={() => handleLookup(true)}
-                        disabled={!canLookup}
-                        aria-busy={youtubeMetadataMutating}
-                      >
-                        Refresh
-                      </button>
-                    </div>
-                    {rawPayload ? (
-                      <details className="job-card__details">
-                        <summary>Raw payload</summary>
-                        <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(rawPayload, null, 2)}</pre>
-                      </details>
-                    ) : null}
+                    <MetadataActionButtons
+                      onLookup={handleLookup}
+                      onClear={handleClear}
+                      isLoading={youtubeMetadataMutating}
+                      hasResult={hasYoutubeLookupResult}
+                      disabled={!canManage}
+                    />
+                    <RawPayloadDetails payload={rawPayload} />
                   </>
                 );
               })()

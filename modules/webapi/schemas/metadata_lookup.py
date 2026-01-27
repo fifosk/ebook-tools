@@ -82,6 +82,61 @@ class BookOpenLibraryMetadataPreviewLookupRequest(BaseModel):
     force: bool = False
 
 
+class BookMetadataCacheClearRequest(BaseModel):
+    """Request payload to clear cached metadata for a query."""
+
+    query: str
+
+
+class BookMetadataCacheClearResponse(BaseModel):
+    """Response payload for metadata cache clearing."""
+
+    cleared: int
+    query: Optional[BookOpenLibraryQuery] = None
+
+
+class TvMetadataCacheClearRequest(BaseModel):
+    """Request payload to clear cached TV metadata for a query."""
+
+    query: str
+
+
+class TvMetadataCacheClearQuery(BaseModel):
+    """Query info for TV metadata cache clearing."""
+
+    source_name: Optional[str] = None
+    series: Optional[str] = None
+    season: Optional[int] = None
+    episode: Optional[int] = None
+
+
+class TvMetadataCacheClearResponse(BaseModel):
+    """Response payload for TV metadata cache clearing."""
+
+    cleared: int
+    query: Optional[TvMetadataCacheClearQuery] = None
+
+
+class YoutubeMetadataCacheClearRequest(BaseModel):
+    """Request payload to clear cached YouTube metadata for a query."""
+
+    query: str
+
+
+class YoutubeMetadataCacheClearQuery(BaseModel):
+    """Query info for YouTube metadata cache clearing."""
+
+    source_name: Optional[str] = None
+    video_id: Optional[str] = None
+
+
+class YoutubeMetadataCacheClearResponse(BaseModel):
+    """Response payload for YouTube metadata cache clearing."""
+
+    cleared: int
+    query: Optional[YoutubeMetadataCacheClearQuery] = None
+
+
 # Unified metadata lookup schemas
 
 

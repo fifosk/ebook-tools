@@ -13,6 +13,8 @@ import requests
 from modules import logging_manager as log_mgr
 
 from .job_manager import PipelineJob, PipelineJobManager
+from .metadata.types import LookupOptions, LookupQuery, MediaType, UnifiedMetadataResult
+from .metadata.pipeline import create_pipeline
 
 logger = log_mgr.get_logger().getChild("services.subtitle_metadata")
 
@@ -327,11 +329,73 @@ class SubtitleMetadataService:
         }
 
     def lookup_tv_metadata_for_source(self, source_name: str, *, force: bool = False) -> Dict[str, Any]:
-        """Lookup TV metadata for a subtitle filename without persisting anything."""
+        """Lookup TV metadata for a subtitle filename without persisting anything.
 
+        Uses the unified metadata pipeline with caching support.
+        """
         normalized_source = _basename(source_name)
         parsed = parse_tv_episode_query(normalized_source) if normalized_source else None
-        media_metadata = self._build_tv_episode_metadata_payload(parsed, source_name=normalized_source)
+
+        if parsed is None:
+            # Can't parse episode info, return basic response
+            job_label: Optional[str] = None
+            if normalized_source:
+                try:
+                    job_label = Path(normalized_source).stem or normalized_source
+                except Exception:
+                    job_label = normalized_source
+            return {
+                "source_name": normalized_source or None,
+                "parsed": None,
+                "media_metadata": {
+                    "kind": "tv_episode",
+                    "provider": "unified_pipeline",
+                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "source_name": normalized_source,
+                    "job_label": job_label,
+                    "error": "Unable to parse season/episode from subtitle filename.",
+                },
+            }
+
+        # Build lookup query for unified pipeline
+        lookup_query = LookupQuery(
+            media_type=MediaType.TV_EPISODE,
+            series_name=parsed.series,
+            season=parsed.season,
+            episode=parsed.episode,
+            source_filename=normalized_source,
+        )
+
+        options = LookupOptions(
+            skip_cache=force,
+            force_refresh=force,
+            include_raw_responses=True,
+        )
+
+        # Use unified pipeline with caching
+        try:
+            with create_pipeline(cache_enabled=True) as pipeline:
+                result = pipeline.lookup(lookup_query, options)
+        except Exception as exc:
+            logger.warning("Pipeline lookup failed for %s: %s", normalized_source, exc)
+            result = None
+
+        if result is None:
+            # Fall back to legacy TVMaze direct lookup
+            media_metadata = self._build_tv_episode_metadata_payload(parsed, source_name=normalized_source)
+            return {
+                "source_name": normalized_source or None,
+                "parsed": {
+                    "series": parsed.series,
+                    "season": parsed.season,
+                    "episode": parsed.episode,
+                    "pattern": parsed.pattern,
+                },
+                "media_metadata": dict(media_metadata) if isinstance(media_metadata, Mapping) else None,
+            }
+
+        # Convert unified result to legacy format
+        media_metadata = self._convert_unified_result_to_payload(result, parsed, normalized_source)
         return {
             "source_name": normalized_source or None,
             "parsed": {
@@ -339,10 +403,80 @@ class SubtitleMetadataService:
                 "season": parsed.season,
                 "episode": parsed.episode,
                 "pattern": parsed.pattern,
-            }
-            if parsed
-            else None,
-            "media_metadata": dict(media_metadata) if isinstance(media_metadata, Mapping) else None,
+            },
+            "media_metadata": media_metadata,
+        }
+
+    def _convert_unified_result_to_payload(
+        self,
+        result: UnifiedMetadataResult,
+        parsed: TvEpisodeQuery,
+        source_name: Optional[str],
+    ) -> Dict[str, Any]:
+        """Convert unified pipeline result to legacy media metadata format."""
+        series_info = result.series
+        show_name = result.author or (series_info.series_title if series_info else None) or parsed.series
+        episode_name = series_info.episode_title if series_info else None
+        season = (series_info.season if series_info else None) or parsed.season
+        episode = (series_info.episode if series_info else None) or parsed.episode
+
+        # Build legacy show structure
+        show = {
+            "id": result.source_ids.tvmaze_show_id,
+            "name": show_name,
+            "genres": result.genres,
+            "language": result.language,
+            "summary": result.summary,
+            "image": {"original": result.cover_url, "medium": result.cover_url} if result.cover_url else None,
+            "externals": {"imdb": result.source_ids.imdb_id} if result.source_ids.imdb_id else None,
+            "tmdb_id": result.source_ids.tmdb_id,
+        }
+
+        # Build legacy episode structure
+        episode_data = {
+            "id": result.source_ids.tvmaze_episode_id,
+            "name": episode_name,
+            "season": season,
+            "number": episode,
+            "airdate": None,
+            "runtime": result.runtime_minutes,
+            "summary": result.summary if episode_name else None,
+        }
+
+        job_label = _build_job_label(
+            show_name=show_name,
+            season=season,
+            episode=episode,
+            episode_name=episode_name,
+        )
+
+        sources = [s.value for s in result.contributing_sources] if result.contributing_sources else []
+        primary = result.primary_source.value if result.primary_source else "unified_pipeline"
+
+        return {
+            "kind": "tv_episode",
+            "provider": primary,
+            "contributing_sources": sources,
+            "queried_at": result.queried_at.isoformat() if result.queried_at else datetime.now(timezone.utc).isoformat(),
+            "source_name": source_name,
+            "parsed": {
+                "series": parsed.series,
+                "season": parsed.season,
+                "episode": parsed.episode,
+                "pattern": parsed.pattern,
+            },
+            "job_label": job_label,
+            "show": show,
+            "episode": episode_data,
+            "genres": result.genres,
+            "confidence": result.confidence.value if result.confidence else None,
+            "tvmaze": {
+                "show_id": result.source_ids.tvmaze_show_id,
+                "episode_id": result.source_ids.tvmaze_episode_id,
+            } if result.source_ids.tvmaze_show_id else None,
+            "tmdb_id": result.source_ids.tmdb_id,
+            "imdb_id": result.source_ids.imdb_id,
+            "error": result.error,
         }
 
     def lookup_tv_metadata(
@@ -602,3 +736,56 @@ class SubtitleMetadataService:
                 job.result_payload = result_payload
 
         self._job_manager.mutate_job(job_id, _mutate, user_id=user_id, user_role=user_role)
+
+    def clear_metadata_cache_for_query(self, source_name: str) -> Dict[str, Any]:
+        """Clear cached TV metadata for a source name.
+
+        This invalidates any cached pipeline results for lookups matching
+        the given source name, allowing a fresh lookup to be performed.
+
+        Args:
+            source_name: The source filename to clear cache for.
+
+        Returns:
+            Dictionary with cleared cache entry count and query info.
+        """
+        normalized_source = _basename(source_name)
+        parsed = parse_tv_episode_query(normalized_source) if normalized_source else None
+
+        if parsed is None:
+            return {
+                "cleared": 0,
+                "query": {
+                    "source_name": normalized_source,
+                    "series": None,
+                    "season": None,
+                    "episode": None,
+                },
+            }
+
+        # Build the lookup query to find matching cache entries
+        lookup_query = LookupQuery(
+            media_type=MediaType.TV_EPISODE,
+            series_name=parsed.series,
+            season=parsed.season,
+            episode=parsed.episode,
+            source_filename=normalized_source,
+        )
+
+        cleared_count = 0
+        try:
+            with create_pipeline(cache_enabled=True) as pipeline:
+                if pipeline.invalidate_cache(lookup_query):
+                    cleared_count += 1
+        except Exception as exc:
+            logger.warning("Failed to clear metadata cache for %s: %s", source_name, exc)
+
+        return {
+            "cleared": cleared_count,
+            "query": {
+                "source_name": normalized_source,
+                "series": parsed.series,
+                "season": parsed.season,
+                "episode": parsed.episode,
+            },
+        }

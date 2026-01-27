@@ -9,6 +9,9 @@ import {
   parseJsonField,
   resolveCoverPreviewUrlFromCoverFile
 } from './bookNarrationUtils';
+import { MetadataLookupRow } from '../metadata/MetadataLookupRow';
+import { MetadataGrid, type MetadataRow } from '../metadata/MetadataGrid';
+import { RawPayloadDetails } from '../metadata/RawPayloadDetails';
 
 type BookMetadataSectionProps = {
   headingId: string;
@@ -194,39 +197,19 @@ export default function BookMetadataSection({
         </div>
       ) : null}
 
-      <div className="metadata-loader-row">
-        <label style={{ marginBottom: 0 }}>
-          Lookup query
-          <input
-            type="text"
-            value={metadataLookupQuery}
-            onChange={(event) => onMetadataLookupQueryChange(event.target.value)}
-            placeholder={
-              metadataSourceName ? metadataSourceName : 'Title, ISBN, or filename (ISBN field preferred)'
-            }
-          />
-        </label>
-        <div className="metadata-loader-actions">
-          <button
-            type="button"
-            className="link-button"
-            onClick={(e) => void onLookupMetadata(resolvedLookupQuery, e.shiftKey)}
-            disabled={!resolvedLookupQuery || metadataLoading}
-            aria-busy={metadataLoading}
-            title="Fetch metadata from OpenLibrary, Google Books, etc. Hold Shift to force refresh."
-          >
-            {metadataLoading ? 'Looking up…' : 'Lookup'}
-          </button>
-          <button
-            type="button"
-            className="link-button"
-            onClick={onClearMetadata}
-            disabled={metadataLoading}
-          >
-            Clear
-          </button>
-        </div>
-      </div>
+      <MetadataLookupRow
+        query={metadataLookupQuery}
+        onQueryChange={onMetadataLookupQueryChange}
+        onLookup={(force) => void onLookupMetadata(resolvedLookupQuery, force)}
+        onClear={onClearMetadata}
+        isLoading={metadataLoading}
+        placeholder={
+          metadataSourceName ? metadataSourceName : 'Title, ISBN, or filename (ISBN field preferred)'
+        }
+        inputLabel="Lookup query"
+        hasResult={!!metadataPreview || !!rawPayload}
+        disabled={!resolvedLookupQuery}
+      />
 
       {!metadataSourceName && !metadataLookupQuery.trim() ? (
         <p className="form-help-text" role="status">
@@ -315,95 +298,36 @@ export default function BookMetadataSection({
         </p>
       ) : null}
 
-      {bookTitle || bookAuthor || bookYear || isbn || resolvedGenre || openlibraryLink ? (
-        <dl className="metadata-grid">
-          {jobLabel ? (
-            <div className="metadata-grid__row">
-              <dt>Label</dt>
-              <dd>{jobLabel}</dd>
-            </div>
-          ) : null}
-          {bookTitle ? (
-            <div className="metadata-grid__row">
-              <dt>Title</dt>
-              <dd>{bookTitle}</dd>
-            </div>
-          ) : null}
-          {bookAuthor ? (
-            <div className="metadata-grid__row">
-              <dt>Author</dt>
-              <dd>{bookAuthor}</dd>
-            </div>
-          ) : null}
-          {bookYear ? (
-            <div className="metadata-grid__row">
-              <dt>Year</dt>
-              <dd>{bookYear}</dd>
-            </div>
-          ) : null}
-          {isbn ? (
-            <div className="metadata-grid__row">
-              <dt>ISBN</dt>
-              <dd>{isbn}</dd>
-            </div>
-          ) : null}
-          {resolvedGenre ? (
-            <div className="metadata-grid__row">
-              <dt>Genre</dt>
-              <dd>{resolvedGenre}</dd>
-            </div>
-          ) : null}
-          {openlibraryLink ? (
-            <div className="metadata-grid__row">
-              <dt>Open Library</dt>
-              <dd>
-                <a href={openlibraryLink} target="_blank" rel="noopener noreferrer">
-                  {openlibraryLink}
-                </a>
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-      ) : null}
+      <MetadataGrid
+        rows={[
+          { label: 'Label', value: jobLabel },
+          { label: 'Title', value: bookTitle },
+          { label: 'Author', value: bookAuthor },
+          { label: 'Year', value: bookYear },
+          { label: 'ISBN', value: isbn },
+          { label: 'Genre', value: resolvedGenre },
+          { label: 'Open Library', value: openlibraryLink, href: openlibraryLink ?? undefined },
+        ]}
+      />
 
       {metadataPreview ? (
-        <dl className="metadata-grid">
-          {metadataPreview.source_name ? (
-            <div className="metadata-grid__row">
-              <dt>Source</dt>
-              <dd>{metadataPreview.source_name}</dd>
-            </div>
-          ) : null}
-          {metadataPreview.query?.title ? (
-            <div className="metadata-grid__row">
-              <dt>Query</dt>
-              <dd>
-                {[metadataPreview.query.title, metadataPreview.query.author, metadataPreview.query.isbn]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </dd>
-            </div>
-          ) : metadataPreview.query?.isbn ? (
-            <div className="metadata-grid__row">
-              <dt>Query</dt>
-              <dd>{metadataPreview.query.isbn}</dd>
-            </div>
-          ) : null}
-          {lookupError ? (
-            <div className="metadata-grid__row">
-              <dt>Status</dt>
-              <dd>{lookupError}</dd>
-            </div>
-          ) : null}
-        </dl>
+        <MetadataGrid
+          rows={[
+            { label: 'Source', value: metadataPreview.source_name },
+            {
+              label: 'Query',
+              value: metadataPreview.query?.title
+                ? [metadataPreview.query.title, metadataPreview.query.author, metadataPreview.query.isbn]
+                    .filter(Boolean)
+                    .join(' · ')
+                : metadataPreview.query?.isbn,
+            },
+            { label: 'Status', value: lookupError },
+          ]}
+        />
       ) : null}
 
-      {rawPayload ? (
-        <details>
-          <summary>Raw payload</summary>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(rawPayload, null, 2)}</pre>
-        </details>
-      ) : null}
+      <RawPayloadDetails payload={rawPayload} />
 
       <fieldset>
         <legend>Edit metadata</legend>

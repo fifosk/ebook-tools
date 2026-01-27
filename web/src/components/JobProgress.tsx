@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useJobEventsWithRetry } from '../hooks/useJobEventsWithRetry';
-import { appendAccessToken, lookupBookOpenLibraryMetadata, resolveJobCoverUrl } from '../api/client';
+import { appendAccessToken, clearBookMetadataCache, lookupBookOpenLibraryMetadata, resolveJobCoverUrl } from '../api/client';
 import {
   AccessPolicyUpdatePayload,
   PipelineResponsePayload,
@@ -15,6 +15,7 @@ import AccessPolicyEditor from './access/AccessPolicyEditor';
 import { JobProgressMediaMetadata } from './job-progress/JobProgressMediaMetadata';
 import { resolveProgressStage } from '../utils/progressEvents';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
+import { MetadataLookupRow } from './metadata/MetadataLookupRow';
 import {
   BOOK_METADATA_DISPLAY_KEYS,
   CREATION_METADATA_KEYS,
@@ -672,6 +673,26 @@ export function JobProgress({
     }
   }, [jobId, onReload]);
 
+  const handleClearMetadata = useCallback(async () => {
+    // Clear frontend lookup state
+    setLookupResult(null);
+    setLookupError(null);
+    setIsbnLookupQuery('');
+
+    // Clear backend cache for a fresh lookup
+    const query = resolvedLookupQuery.trim();
+    if (query) {
+      try {
+        await clearBookMetadataCache(query);
+      } catch {
+        // Ignore cache clear failures - frontend state is already cleared
+      }
+    }
+
+    // Reload the job to refresh the display
+    onReload();
+  }, [resolvedLookupQuery, onReload]);
+
   return (
     <div className="job-card" aria-live="polite">
       <div className="job-card__header">
@@ -1076,29 +1097,17 @@ export function JobProgress({
             <p className="job-card__metadata-empty">Metadata is not available yet.</p>
           )}
           {isBookJob ? (
-            <div className="metadata-loader-row">
-              <label style={{ marginBottom: 0 }}>
-                Lookup query
-                <input
-                  type="text"
-                  value={isbnLookupQuery}
-                  onChange={(event) => setIsbnLookupQuery(event.target.value)}
-                  placeholder={existingIsbn ? existingIsbn : 'Title, author, or ISBN'}
-                />
-              </label>
-              <div className="metadata-loader-actions">
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={(e) => void handleLookupMetadata(e.shiftKey)}
-                  disabled={!canManage || isReloading || isMutating || isLookingUp}
-                  aria-busy={isLookingUp}
-                  title="Lookup book metadata from OpenLibrary, Google Books, etc. Hold Shift to force refresh."
-                >
-                  {isLookingUp ? 'Looking up…' : 'Lookup'}
-                </button>
-              </div>
-            </div>
+            <MetadataLookupRow
+              query={isbnLookupQuery}
+              onQueryChange={setIsbnLookupQuery}
+              onLookup={(force) => void handleLookupMetadata(force)}
+              onClear={() => void handleClearMetadata()}
+              isLoading={isLookingUp}
+              placeholder={existingIsbn ? existingIsbn : 'Title, author, or ISBN'}
+              inputLabel="Lookup query"
+              hasResult={!!lookupResult}
+              disabled={!canManage || isReloading || isMutating}
+            />
           ) : null}
           {lookupError ? (
             <div className="notice notice--warning" role="alert" style={{ marginBottom: '0.75rem' }}>

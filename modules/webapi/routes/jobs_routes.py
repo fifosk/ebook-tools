@@ -34,7 +34,12 @@ from ..schemas import (
     BookOpenLibraryMetadataPreviewResponse,
     BookOpenLibraryMetadataResponse,
 )
-from ..schemas.metadata_lookup import JobMetadataEnrichRequest, JobMetadataEnrichResponse
+from ..schemas.metadata_lookup import (
+    JobMetadataEnrichRequest,
+    JobMetadataEnrichResponse,
+    BookMetadataCacheClearRequest,
+    BookMetadataCacheClearResponse,
+)
 from ..schemas.access import AccessPolicyPayload, AccessPolicyUpdateRequest
 from modules.permissions import resolve_access_policy
 
@@ -391,6 +396,35 @@ async def lookup_book_openlibrary_metadata_preview(
         ) from exc
 
     return BookOpenLibraryMetadataPreviewResponse(**payload)
+
+
+@router.post(
+    "/metadata/book/cache/clear",
+    response_model=BookMetadataCacheClearResponse,
+)
+async def clear_book_metadata_cache(
+    request: BookMetadataCacheClearRequest,
+    metadata_service: BookMetadataService = Depends(get_book_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> BookMetadataCacheClearResponse:
+    """Clear cached book metadata for a query string.
+
+    This allows a fresh lookup to be performed without cached results.
+    """
+    try:
+        result = metadata_service.clear_metadata_cache_for_query(request.query)
+    except Exception as exc:
+        logger.warning(
+            "Failed to clear metadata cache for query %s",
+            request.query,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear metadata cache: {exc}",
+        ) from exc
+
+    return BookMetadataCacheClearResponse(**result)
 
 
 @router.get("/{job_id}", response_model=PipelineStatusResponse)
