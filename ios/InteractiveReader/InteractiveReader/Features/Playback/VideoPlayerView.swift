@@ -44,7 +44,7 @@ struct VideoPlayerView: View {
     @State var subtitleLoadingKey: String?
     @State var subtitleVisibility = SubtitleVisibility()
     @State var showSubtitleSettings = false
-    @State var showTVControls = true
+    @State var showTVControls = false
     @AppStorage("player.headerCollapsed") var isHeaderCollapsed = false
     @AppStorage("video.playbackRate") var playbackRateValue: Double = 1.0
     @State var scrubberValue: Double = 0
@@ -235,8 +235,13 @@ struct VideoPlayerView: View {
             selectDefaultTrackIfNeeded()
             scrubberValue = 0
             isScrubbing = false
+            #if os(tvOS)
+            // tvOS: Keep controls hidden by default to maximize screen real estate
+            showTVControls = false
+            #else
             showTVControls = true
             scheduleControlsAutoHide()
+            #endif
             applyPendingResumeIfPossible()
             applyPendingBookmarkIfPossible()
         }
@@ -261,8 +266,13 @@ struct VideoPlayerView: View {
             loadSubtitles()
             scrubberValue = 0
             isScrubbing = false
+            #if os(tvOS)
+            // tvOS: Keep controls hidden by default to maximize screen real estate
+            showTVControls = false
+            #else
             showTVControls = true
             scheduleControlsAutoHide()
+            #endif
             applyPendingResumeIfPossible()
             applyPendingBookmarkIfPossible()
         }
@@ -318,7 +328,8 @@ struct VideoPlayerView: View {
                 showTVControls = true
                 controlsHideTask?.cancel()
             } else {
-                scheduleControlsAutoHide()
+                // When settings close, hide controls again to maximize screen real estate
+                showTVControls = false
             }
             #endif
         }
@@ -328,7 +339,8 @@ struct VideoPlayerView: View {
                 showTVControls = true
                 controlsHideTask?.cancel()
             } else {
-                scheduleControlsAutoHide()
+                // When done scrubbing, hide controls again to maximize screen real estate
+                showTVControls = false
             }
             #endif
         }
@@ -348,18 +360,14 @@ struct VideoPlayerView: View {
             updateNowPlayingPlayback()
             #if os(tvOS)
             if isPlaying {
-                if forceHideControlsOnPlay {
-                    forceHideControlsOnPlay = false
-                    controlsHideTask?.cancel()
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showTVControls = false
-                    }
-                } else {
-                    scheduleControlsAutoHide()
+                // Hide controls during playback to maximize screen real estate
+                controlsHideTask?.cancel()
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showTVControls = false
                 }
             } else {
+                // When paused, controls remain hidden until user swipes down from subtitles
                 controlsHideTask?.cancel()
-                showTVControls = true
             }
             #endif
             if isPlaying {

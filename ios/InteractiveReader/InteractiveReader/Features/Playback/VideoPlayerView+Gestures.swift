@@ -12,6 +12,13 @@ extension VideoPlayerView {
             }
     }
 
+    var videoLongPressGesture: some Gesture {
+        LongPressGesture(minimumDuration: 0.5)
+            .onEnded { _ in
+                handleTransliterationToggle()
+            }
+    }
+
     var videoScrubGesture: some Gesture {
         DragGesture(minimumDistance: 12, coordinateSpace: .local)
             .onChanged { value in

@@ -21,6 +21,10 @@ struct MyLinguistBubbleView: View {
     let onClose: () -> Void
     let isFocusEnabled: Bool
     let focusBinding: FocusState<InteractivePlayerFocusArea?>.Binding
+    var useCompactLayout: Bool = false
+    var fillWidth: Bool = false
+    var hideTitle: Bool = false
+    var edgeToEdgeStyle: Bool = false
 
     private var isPad: Bool {
         #if os(iOS)
@@ -39,7 +43,7 @@ struct MyLinguistBubbleView: View {
     }
 
     private var bubbleConfiguration: LinguistBubbleConfiguration {
-        LinguistBubbleConfiguration(
+        var config = LinguistBubbleConfiguration(
             fontScale: fontScale,
             canIncreaseFont: canIncreaseFont,
             canDecreaseFont: canDecreaseFont,
@@ -48,8 +52,14 @@ struct MyLinguistBubbleView: View {
             llmModel: llmModel,
             llmModelOptions: llmModelOptions,
             uiScale: bubbleUiScale,
-            useCompactLayout: isPad
+            useCompactLayout: isPad || useCompactLayout
         )
+        if fillWidth {
+            config.widthMultiplier = 1.0
+        }
+        config.hideTitle = hideTitle
+        config.edgeToEdgeStyle = edgeToEdgeStyle
+        return config
     }
 
     private var bubbleActions: LinguistBubbleActions {

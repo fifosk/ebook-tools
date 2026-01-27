@@ -175,7 +175,6 @@ struct VideoPlayerControlLabel: View {
         )
         .scaleEffect(isFocused ? 1.06 : 1.0)
         .shadow(color: isFocused ? Color.white.opacity(0.25) : .clear, radius: 6, x: 0, y: 0)
-        .animation(.easeInOut(duration: 0.12), value: isFocused)
     }
 }
 
@@ -261,7 +260,6 @@ struct TVPlaybackControlsBar: View {
         )
         .opacity(showTVControls ? 1 : 0)
         .allowsHitTesting(showTVControls)
-        .animation(.easeInOut(duration: 0.2), value: showTVControls)
         .focusSection()
         .onMoveCommand { direction in
             guard !showSubtitleSettings else { return }

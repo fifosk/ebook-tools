@@ -17,11 +17,7 @@ extension VideoPlayerView {
         // Dismiss search overlay
         searchViewModel.dismiss()
 
-        // Show controls briefly after seeking
-        #if os(tvOS)
-        showTVControls = true
-        scheduleControlsAutoHide()
-        #endif
+        // Keep controls hidden on tvOS to maximize screen real estate
     }
 
     func performVideoSearch() {

@@ -232,64 +232,14 @@ struct InteractiveTranscriptView: View {
                 }
                 #else
                 if isPhone {
-                    ZStack(alignment: .bottom) {
-                        let trackViewWithPlayback = AnyView(
-                            trackView
-                                .contentShape(Rectangle())
-                        )
-                        VStack {
-                            Spacer(minLength: 0)
-                            trackViewWithPlayback
-                            Spacer(minLength: 0)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
-                        .simultaneousGesture(swipeGesture, including: .all)
-                        .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
-                        .highPriorityGesture(trackMagnifyGesture, including: .all)
-
-                        if bubble != nil {
-                            Color.clear
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    onCloseBubble()
-                                    if !audioCoordinator.isPlaying {
-                                        onTogglePlayback()
-                                    }
-                                }
-                        }
-
-                        if let bubble {
-                            MyLinguistBubbleView(
-                                bubble: bubble,
-                                fontScale: resolvedLinguistFontScale,
-                                canIncreaseFont: canIncreaseLinguistFont,
-                                canDecreaseFont: canDecreaseLinguistFont,
-                                lookupLanguage: lookupLanguage,
-                                lookupLanguageOptions: lookupLanguageOptions,
-                                onLookupLanguageChange: onLookupLanguageChange,
-                                llmModel: llmModel,
-                                llmModelOptions: llmModelOptions,
-                                onLlmModelChange: onLlmModelChange,
-                                onIncreaseFont: onIncreaseLinguistFont,
-                                onDecreaseFont: onDecreaseLinguistFont,
-                                onClose: onCloseBubble,
-                                isFocusEnabled: bubbleFocusEnabled,
-                                focusBinding: $focusedArea
-                            )
-                            .frame(maxWidth: .infinity, alignment: .top)
-                            .padding(.horizontal)
-                            .padding(.bottom, 6)
-                            .background(GeometryReader { bubbleProxy in
-                                Color.clear.preference(
-                                    key: InteractiveBubbleFrameKey.self,
-                                    value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
-                                )
-                            })
-                            .simultaneousGesture(bubbleMagnifyGesture, including: .all)
-                        }
-                    }
+                    phoneLayout(
+                        trackView: trackView,
+                        bubble: bubble,
+                        resolvedLinguistFontScale: resolvedLinguistFontScale,
+                        bubbleFocusEnabled: bubbleFocusEnabled,
+                        availableHeight: availableHeight,
+                        layoutSize: proxy.size
+                    )
                     .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
                 } else {
                     let trackViewWithPlayback: AnyView = {
@@ -679,6 +629,15 @@ struct InteractiveTranscriptView: View {
         #endif
     }
 
+    private func isPortraitLayout(size: CGSize) -> Bool {
+        #if os(iOS)
+        guard isPhone else { return false }
+        return size.height > size.width
+        #else
+        return false
+        #endif
+    }
+
     private var autoScaleFloor: CGFloat {
         guard isPhone else { return minTrackFontScale }
         return max(0.75, minTrackFontScale * 0.75)
@@ -687,4 +646,205 @@ struct InteractiveTranscriptView: View {
     private var sentenceSignature: String {
         sentences.map(\.id).joined(separator: "|")
     }
+
+    #if os(iOS)
+    @ViewBuilder
+    private func phoneLayout(
+        trackView: AnyView,
+        bubble: MyLinguistBubbleState?,
+        resolvedLinguistFontScale: CGFloat,
+        bubbleFocusEnabled: Bool,
+        availableHeight: CGFloat,
+        layoutSize: CGSize
+    ) -> some View {
+        let trackViewWithPlayback = AnyView(
+            trackView
+                .contentShape(Rectangle())
+        )
+        let isPortrait = isPortraitLayout(size: layoutSize)
+
+        if bubble != nil {
+            // iPhone with bubble: optimized split layout
+            if isPortrait {
+                // Portrait: tracks in upper half, bubble in lower half
+                phonePortraitBubbleLayout(
+                    trackViewWithPlayback: trackViewWithPlayback,
+                    bubble: bubble,
+                    resolvedLinguistFontScale: resolvedLinguistFontScale,
+                    bubbleFocusEnabled: bubbleFocusEnabled,
+                    availableHeight: availableHeight
+                )
+            } else {
+                // Landscape: bubble on left, tracks on right
+                phoneLandscapeBubbleLayout(
+                    trackViewWithPlayback: trackViewWithPlayback,
+                    bubble: bubble,
+                    resolvedLinguistFontScale: resolvedLinguistFontScale,
+                    bubbleFocusEnabled: bubbleFocusEnabled,
+                    layoutWidth: layoutSize.width
+                )
+            }
+        } else {
+            // No bubble: original centered layout
+            VStack {
+                Spacer(minLength: 0)
+                trackViewWithPlayback
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .simultaneousGesture(swipeGesture, including: .all)
+            .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
+            .highPriorityGesture(trackMagnifyGesture, including: .all)
+        }
+    }
+
+    @ViewBuilder
+    private func phonePortraitBubbleLayout(
+        trackViewWithPlayback: AnyView,
+        bubble: MyLinguistBubbleState?,
+        resolvedLinguistFontScale: CGFloat,
+        bubbleFocusEnabled: Bool,
+        availableHeight: CGFloat
+    ) -> some View {
+        let upperHalfHeight = availableHeight * 0.45
+        let lowerHalfHeight = availableHeight * 0.55
+
+        VStack(spacing: 0) {
+            // Upper half: tracks
+            VStack {
+                Spacer(minLength: 0)
+                trackViewWithPlayback
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: upperHalfHeight)
+            .contentShape(Rectangle())
+            .simultaneousGesture(swipeGesture, including: .all)
+            .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
+            .highPriorityGesture(trackMagnifyGesture, including: .all)
+
+            // Lower half: bubble
+            ZStack(alignment: .top) {
+                // Tap to dismiss area
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onCloseBubble()
+                        if !audioCoordinator.isPlaying {
+                            onTogglePlayback()
+                        }
+                    }
+
+                if let bubble {
+                    MyLinguistBubbleView(
+                        bubble: bubble,
+                        fontScale: resolvedLinguistFontScale,
+                        canIncreaseFont: canIncreaseLinguistFont,
+                        canDecreaseFont: canDecreaseLinguistFont,
+                        lookupLanguage: lookupLanguage,
+                        lookupLanguageOptions: lookupLanguageOptions,
+                        onLookupLanguageChange: onLookupLanguageChange,
+                        llmModel: llmModel,
+                        llmModelOptions: llmModelOptions,
+                        onLlmModelChange: onLlmModelChange,
+                        onIncreaseFont: onIncreaseLinguistFont,
+                        onDecreaseFont: onDecreaseLinguistFont,
+                        onClose: onCloseBubble,
+                        isFocusEnabled: bubbleFocusEnabled,
+                        focusBinding: $focusedArea,
+                        useCompactLayout: true,
+                        fillWidth: true,
+                        hideTitle: true,
+                        edgeToEdgeStyle: true
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .background(GeometryReader { bubbleProxy in
+                        Color.clear.preference(
+                            key: InteractiveBubbleFrameKey.self,
+                            value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
+                        )
+                    })
+                    .simultaneousGesture(bubbleMagnifyGesture, including: .all)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: lowerHalfHeight)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private func phoneLandscapeBubbleLayout(
+        trackViewWithPlayback: AnyView,
+        bubble: MyLinguistBubbleState?,
+        resolvedLinguistFontScale: CGFloat,
+        bubbleFocusEnabled: Bool,
+        layoutWidth: CGFloat
+    ) -> some View {
+        let leftWidth = layoutWidth * 0.45
+        let rightWidth = layoutWidth * 0.55
+
+        HStack(spacing: 0) {
+            // Left side: bubble
+            ZStack(alignment: .topLeading) {
+                // Tap to dismiss area
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onCloseBubble()
+                        if !audioCoordinator.isPlaying {
+                            onTogglePlayback()
+                        }
+                    }
+
+                if let bubble {
+                    MyLinguistBubbleView(
+                        bubble: bubble,
+                        fontScale: resolvedLinguistFontScale,
+                        canIncreaseFont: canIncreaseLinguistFont,
+                        canDecreaseFont: canDecreaseLinguistFont,
+                        lookupLanguage: lookupLanguage,
+                        lookupLanguageOptions: lookupLanguageOptions,
+                        onLookupLanguageChange: onLookupLanguageChange,
+                        llmModel: llmModel,
+                        llmModelOptions: llmModelOptions,
+                        onLlmModelChange: onLlmModelChange,
+                        onIncreaseFont: onIncreaseLinguistFont,
+                        onDecreaseFont: onDecreaseLinguistFont,
+                        onClose: onCloseBubble,
+                        isFocusEnabled: bubbleFocusEnabled,
+                        focusBinding: $focusedArea,
+                        useCompactLayout: true,
+                        fillWidth: true,
+                        hideTitle: true,
+                        edgeToEdgeStyle: true
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .background(GeometryReader { bubbleProxy in
+                        Color.clear.preference(
+                            key: InteractiveBubbleFrameKey.self,
+                            value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
+                        )
+                    })
+                    .simultaneousGesture(bubbleMagnifyGesture, including: .all)
+                }
+            }
+            .frame(width: leftWidth)
+
+            // Right side: tracks
+            VStack {
+                Spacer(minLength: 0)
+                trackViewWithPlayback
+                Spacer(minLength: 0)
+            }
+            .frame(width: rightWidth)
+            .contentShape(Rectangle())
+            .simultaneousGesture(swipeGesture, including: .all)
+            .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
+            .highPriorityGesture(trackMagnifyGesture, including: .all)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    #endif
 }

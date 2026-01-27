@@ -54,6 +54,12 @@ struct LinguistBubbleConfiguration {
 
     /// Width multiplier for bubble (relative to screen width)
     var widthMultiplier: CGFloat = 0.66
+
+    /// Whether to hide the "MyLinguist" title in header
+    var hideTitle: Bool = false
+
+    /// Whether to use edge-to-edge styling (no corner radius, no side margins)
+    var edgeToEdgeStyle: Bool = false
 }
 
 /// Actions that can be performed on the linguist bubble
@@ -202,8 +208,10 @@ struct LinguistBubbleView: View {
         }
         #else
         HStack(spacing: 8) {
-            Text("MyLinguist")
-                .font(.headline)
+            if !configuration.hideTitle {
+                Text("MyLinguist")
+                    .font(.headline)
+            }
             Spacer(minLength: 8)
             lookupLanguageMenu
             modelMenu
@@ -606,7 +614,9 @@ struct LinguistBubbleView: View {
     }
 
     private var bubbleModelFont: Font {
-        scaledUiFont(textStyle: .caption2, weight: .regular)
+        // Use larger font on iPad for better readability
+        let textStyle: UIFont.TextStyle = configuration.uiScale > 1.2 ? .callout : .caption2
+        return scaledUiFont(textStyle: textStyle, weight: .regular)
     }
 
     private var bubbleMenuFont: Font {
@@ -644,6 +654,9 @@ struct LinguistBubbleView: View {
     }
 
     private var bubbleCornerRadius: CGFloat {
+        if configuration.edgeToEdgeStyle {
+            return 0
+        }
         #if os(tvOS)
         return 18
         #else
@@ -804,7 +817,7 @@ struct VideoLinguistBubbleView: View {
     #endif
 
     private var bubbleConfiguration: LinguistBubbleConfiguration {
-        LinguistBubbleConfiguration(
+        var config = LinguistBubbleConfiguration(
             fontScale: fontScale,
             canIncreaseFont: canIncreaseFont,
             canDecreaseFont: canDecreaseFont,
@@ -813,6 +826,12 @@ struct VideoLinguistBubbleView: View {
             llmModel: llmModel,
             llmModelOptions: llmModelOptions
         )
+        #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            config.uiScale = 1.5
+        }
+        #endif
+        return config
     }
 
     private var bubbleActions: LinguistBubbleActions {

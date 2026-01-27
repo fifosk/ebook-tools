@@ -99,7 +99,11 @@ extension InteractivePlayerView {
             } else {
                 frozenTranscriptSentences = nil
             }
-            updateReadingBedPlayback()
+            // Only update reading bed when menu closes, not when it opens
+            // This avoids unnecessary state changes during menu interactions
+            if !visible {
+                updateReadingBedPlayback()
+            }
         })
         view = AnyView(view.onChange(of: bookmarkIdentityKey) { _, _ in
             refreshBookmarks()
@@ -118,6 +122,9 @@ extension InteractivePlayerView {
             guard !isPlaying else { return }
             guard readingBedEnabled else { return }
             guard audioCoordinator.isPlaybackRequested else { return }
+            // Only restart reading bed if narration is actively playing
+            // Avoid restarting during transitions
+            guard audioCoordinator.isPlaying else { return }
             updateReadingBedPlayback()
         })
         view = AnyView(view.onDisappear {
@@ -218,6 +225,14 @@ extension InteractivePlayerView {
     var isPad: Bool {
         #if os(iOS)
         return UIDevice.current.userInterfaceIdiom == .pad
+        #else
+        return false
+        #endif
+    }
+
+    var isPhone: Bool {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .phone
         #else
         return false
         #endif
@@ -736,6 +751,10 @@ extension InteractivePlayerView {
 
     var transcriptTopPadding: CGFloat {
         #if os(iOS) || os(tvOS)
+        // Reduce padding on iPhone when bubble is shown (header is auto-hidden)
+        if isPhone && linguistBubble != nil {
+            return 8
+        }
         return isHeaderCollapsed ? 8 : infoHeaderReservedHeight
         #else
         return infoHeaderReservedHeight
@@ -743,13 +762,19 @@ extension InteractivePlayerView {
     }
 
     var shouldShowHeaderOverlay: Bool {
+        // Hide header on iPhone when bubble is shown to maximize screen space
+        if isPhone && linguistBubble != nil {
+            return false
+        }
         return !isHeaderCollapsed
     }
 
     @ViewBuilder
     var headerToggleButton: some View {
         #if os(iOS)
-        if isHeaderCollapsed, let chunk = viewModel.selectedChunk {
+        // Show timeline pill when header is collapsed OR when bubble is shown on iPhone (auto-minimized)
+        let showButton = isHeaderCollapsed || (isPhone && linguistBubble != nil)
+        if showButton, let chunk = viewModel.selectedChunk {
             let timelineLabel = audioTimelineLabel(for: chunk)
             if let timelineLabel {
                 audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)

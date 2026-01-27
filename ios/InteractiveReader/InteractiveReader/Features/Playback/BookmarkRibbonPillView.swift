@@ -139,7 +139,6 @@ struct TVBookmarkPillButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(scale)
             .brightness(brightness)
-            .animation(.easeInOut(duration: 0.15), value: scale)
     }
 }
 #endif

@@ -96,7 +96,9 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("video.subtitle.verticalOffset") private var subtitleVerticalOffsetValue: Double = 0
     @State private var subtitleDragTranslation: CGFloat = 0
-    private let subtitleBottomPadding: CGFloat = 72
+    private var subtitleBottomPadding: CGFloat {
+        VideoPlayerPlatform.isPad ? 36 : 72
+    }
     #endif
 
     #if os(iOS)
@@ -562,47 +564,60 @@ extension VideoPlayerOverlayView {
         VStack(spacing: 16) {
             Spacer()
             subtitleStack
+            // Use frame with zero height when hidden to collapse the space
             tvBottomBar
+                .frame(height: showTVControls ? nil : 0, alignment: .top)
                 .opacity(showTVControls ? 1 : 0)
                 .allowsHitTesting(showTVControls)
+                .clipped()
+                .transaction { transaction in
+                    // Disable animations for playback-driven updates to prevent flicker
+                    if !showTVControls {
+                        transaction.disablesAnimations = true
+                    }
+                }
         }
         .padding(.horizontal, 60)
-        .padding(.bottom, 36)
+        .padding(.bottom, showTVControls ? 36 : 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .onPlayPauseCommand {
-            onPlayPause()
-            onUserInteraction()
+            // When paused and controls are hidden, tap triggers lookup on current word
+            // This allows single-tap lookup without needing focus to be exactly on subtitles
+            if !isPlaying && !showTVControls && subtitleBubble == nil {
+                onSubtitleLookup()
+            } else {
+                onPlayPause()
+                onUserInteraction()
+            }
         }
-        .animation(.easeInOut(duration: 0.25), value: showTVControls)
     }
 
     @ViewBuilder
     private var tvInfoHeaderOverlay: some View {
         let showHeaderContent = !isHeaderCollapsed
-        if showHeaderContent || true {
-            let timelineLabel = videoTimelineLabel
-            let segmentLabel = segmentHeaderLabel
+        let timelineLabel = videoTimelineLabel
+        let segmentLabel = segmentHeaderLabel
+
+        if isHeaderCollapsed {
+            // Collapsed: show only the timeline pill (like iOS)
+            tvCollapsedHeaderPill(timelineLabel: timelineLabel)
+        } else {
+            // Expanded: show full header with background
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top, spacing: 12) {
-                    if showHeaderContent {
-                        tvInfoHeaderContent
-                    }
+                    tvInfoHeaderContent
                     Spacer(minLength: 12)
                     VStack(alignment: .trailing, spacing: 6) {
-                        if showHeaderContent {
-                            if let segmentLabel {
-                                VideoTimelinePill(label: segmentLabel, font: .callout.weight(.semibold))
-                            }
-                            if let timelineLabel {
-                                VideoTimelinePill(label: timelineLabel, font: .callout.weight(.semibold))
-                            }
+                        if let segmentLabel {
+                            tvTimelinePillButton(label: segmentLabel)
                         }
-                        tvHeaderTogglePill
+                        if let timelineLabel {
+                            tvTimelinePillButton(label: timelineLabel)
+                        }
                     }
+                    .focusSection()
                 }
-                if showHeaderContent {
-                    tvSummaryTickerView
-                }
+                tvSummaryTickerView
             }
             .padding(.top, 6)
             .padding(.horizontal, 6)
@@ -615,6 +630,50 @@ extension VideoPlayerOverlayView {
                     .stroke(Color.white.opacity(0.12), lineWidth: 1)
             )
             .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+    }
+
+    @ViewBuilder
+    private func tvCollapsedHeaderPill(timelineLabel: String?) -> some View {
+        if let timelineLabel {
+            tvTimelinePillButton(label: timelineLabel)
+                .frame(maxWidth: .infinity, alignment: .topTrailing)
+                .padding(.top, 6)
+                .padding(.trailing, 6)
+        }
+    }
+
+    private func tvTimelinePillButton(label: String) -> some View {
+        Button(action: onToggleHeaderCollapsed) {
+            Text(label)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(Color.white.opacity(0.75))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(Color.black.opacity(0.5))
+                        .overlay(
+                            Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
+                        )
+                )
+        }
+        .buttonStyle(TVTimelinePillButtonStyle())
+        .focused($focusTarget, equals: .control(.header))
+        .onMoveCommand { direction in
+            guard focusTarget == .control(.header) else { return }
+            switch direction {
+            case .down:
+                if subtitleBubble != nil {
+                    focusTarget = .bubble
+                } else {
+                    focusTarget = .subtitles
+                }
+            default:
+                break
+            }
         }
     }
 
@@ -699,20 +758,6 @@ extension VideoPlayerOverlayView {
             onRemoveBookmark: onRemoveBookmark,
             onUserInteraction: onUserInteraction
         )
-    }
-
-    private var tvHeaderTogglePill: some View {
-        TVHeaderTogglePill(
-            isCollapsed: isHeaderCollapsed,
-            isFocusable: !showSubtitleSettings,
-            isFocused: focusTarget == .control(.header),
-            onMoveDown: {
-                showTVControls = true
-                focusTarget = .control(.playPause)
-            },
-            onToggle: onToggleHeaderCollapsed
-        )
-        .focused($focusTarget, equals: .control(.header))
     }
 
     private var tvBottomBar: some View {
@@ -803,7 +848,9 @@ extension VideoPlayerOverlayView {
 
     private func handleTVPlayingChange(_ playing: Bool) {
         if playing {
-            focusTarget = showTVControls ? .control(.playPause) : .subtitles
+            // Hide controls during playback to maximize screen real estate
+            showTVControls = false
+            focusTarget = .subtitles
         } else if showTVControls {
             focusTarget = .control(.playPause)
         } else {
@@ -843,8 +890,8 @@ extension VideoPlayerOverlayView {
             focusTarget = .subtitles
         case .up:
             if isPlaying {
-                showTVControls = true
-                focusTarget = .control(.playPause)
+                // During playback, ignore up swipe to keep screen real estate maximized
+                return
             } else {
                 let moved = onNavigateSubtitleTrack(-1)
                 if moved {
@@ -968,3 +1015,20 @@ extension VideoPlayerOverlayView {
         !metadata.title.isEmpty || (metadata.subtitle?.isEmpty == false) || metadata.artworkURL != nil
     }
 }
+
+// MARK: - tvOS Button Style
+
+#if os(tvOS)
+struct TVTimelinePillButtonStyle: ButtonStyle {
+    @Environment(\.isFocused) var isFocused
+
+    func makeBody(configuration: Configuration) -> some View {
+        let scale: CGFloat = configuration.isPressed ? 0.95 : (isFocused ? 1.05 : 1.0)
+        let brightness: Double = isFocused ? 0.1 : 0
+
+        configuration.label
+            .scaleEffect(scale)
+            .brightness(brightness)
+    }
+}
+#endif

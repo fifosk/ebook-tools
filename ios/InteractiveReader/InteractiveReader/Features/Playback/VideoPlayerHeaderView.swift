@@ -107,29 +107,63 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
         let segmentLabel = segmentHeaderLabel
         let shouldShowHeaderInfo = !isCollapsed
 
-        Group {
-            if isPad {
-                padLayout(
-                    timelineLabel: timelineLabel,
-                    segmentLabel: segmentLabel,
-                    shouldShowHeaderInfo: shouldShowHeaderInfo
-                )
-            } else {
-                phoneLayout(
-                    timelineLabel: timelineLabel,
-                    segmentLabel: segmentLabel,
-                    shouldShowHeaderInfo: shouldShowHeaderInfo
-                )
+        if isCollapsed {
+            // When collapsed, show only a minimal timeline pill without the full header bar
+            collapsedHeaderPill(timelineLabel: timelineLabel)
+        } else {
+            Group {
+                if isPad {
+                    padLayout(
+                        timelineLabel: timelineLabel,
+                        segmentLabel: segmentLabel,
+                        shouldShowHeaderInfo: shouldShowHeaderInfo
+                    )
+                } else {
+                    phoneLayout(
+                        timelineLabel: timelineLabel,
+                        segmentLabel: segmentLabel,
+                        shouldShowHeaderInfo: shouldShowHeaderInfo
+                    )
+                }
             }
+            .background(
+                VideoPlayerOverlayStyles.headerBackgroundGradient,
+                in: RoundedRectangle(cornerRadius: VideoPlayerOverlayStyles.headerBackgroundCornerRadius)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: VideoPlayerOverlayStyles.headerBackgroundCornerRadius)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
         }
-        .background(
-            VideoPlayerOverlayStyles.headerBackgroundGradient,
-            in: RoundedRectangle(cornerRadius: VideoPlayerOverlayStyles.headerBackgroundCornerRadius)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: VideoPlayerOverlayStyles.headerBackgroundCornerRadius)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
-        )
+    }
+
+    @ViewBuilder
+    private func collapsedHeaderPill(timelineLabel: String?) -> some View {
+        if let timelineLabel {
+            Button {
+                onToggleHeaderCollapsed()
+            } label: {
+                Text(timelineLabel)
+                    .font(infoIndicatorFont)
+                    .foregroundStyle(Color.white.opacity(0.75))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.black.opacity(0.5))
+                            .overlay(
+                                Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
+                            )
+                    )
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .center)
+            // Position lower to avoid iOS status bar icons (wifi, battery, etc.)
+            .padding(.top, 36 + headerTopInset)
+            .padding(.horizontal, 12)
+        }
     }
 
     @ViewBuilder

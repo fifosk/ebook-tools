@@ -34,17 +34,33 @@ extension InteractivePlayerView {
         readingBedPauseTask?.cancel()
         readingBedPauseTask = nil
         if isPlaying {
-            updateReadingBedPlayback()
+            // Playback started/resumed - ensure reading bed is playing if enabled
+            // Only call update if reading bed isn't already playing correctly
+            if readingBedEnabled,
+               let url = viewModel.readingBedURL,
+               (!readingBedCoordinator.isPlaying || readingBedCoordinator.activeURL != url) {
+                updateReadingBedPlayback()
+            }
             return
         }
+        // Playback stopped - check if this is a definitive pause or a brief transition
         if !audioCoordinator.isPlaybackRequested {
-            updateReadingBedPlayback()
+            // Definitive pause (user stopped playback) - pause reading bed immediately
+            readingBedCoordinator.pause()
             return
         }
+        // Playback requested but not currently playing = likely a transition between chunks
+        // Let reading bed continue playing without interruption
+        // Schedule a delayed check in case this is actually a stalled playback
         readingBedPauseTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: readingBedPauseDelayNanos)
             guard !Task.isCancelled else { return }
-            updateReadingBedPlayback()
+            // After delay, only pause if playback truly stopped (not requested anymore)
+            if !audioCoordinator.isPlaybackRequested {
+                readingBedCoordinator.pause()
+            }
+            // If isPlaybackRequested is still true, assume playback will resume
+            // and let reading bed continue playing
         }
     }
 

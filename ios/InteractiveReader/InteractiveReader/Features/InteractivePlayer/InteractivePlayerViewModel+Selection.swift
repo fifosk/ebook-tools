@@ -17,10 +17,22 @@ extension InteractivePlayerViewModel {
             }
             selectedAudioTrackID = preferred?.id ?? chunk.audioOptions.first?.id
         }
-        prepareAudio(for: chunk, autoPlay: autoPlay)
-        attemptPendingSentenceJump(in: chunk)
+        // If chunk already has sentences, prepare audio immediately
+        if !chunk.sentences.isEmpty {
+            prepareAudio(for: chunk, autoPlay: autoPlay)
+            attemptPendingSentenceJump(in: chunk)
+            return
+        }
+        // Load metadata before starting playback to ensure transcript is ready
         Task { [weak self] in
-            await self?.loadChunkMetadataIfNeeded(for: chunk.id, force: true)
+            guard let self else { return }
+            await self.loadChunkMetadataIfNeeded(for: chunk.id, force: true)
+            // Prepare audio after metadata is loaded
+            guard self.selectedChunkID == id else { return }
+            // Get the UPDATED chunk after metadata loaded (may have new sentences)
+            guard let updatedChunk = self.selectedChunk else { return }
+            self.prepareAudio(for: updatedChunk, autoPlay: autoPlay)
+            self.attemptPendingSentenceJump(in: updatedChunk)
         }
     }
 
@@ -79,9 +91,20 @@ extension InteractivePlayerViewModel {
             } else {
                 selectedAudioTrackID = nil
             }
-            prepareAudio(for: chunk, autoPlay: false)
+            // If chunk already has sentences, prepare audio immediately
+            if !chunk.sentences.isEmpty {
+                prepareAudio(for: chunk, autoPlay: false)
+                return
+            }
+            // Load metadata before preparing audio to ensure transcript is ready
+            let chunkId = chunk.id
             Task { [weak self] in
-                await self?.loadChunkMetadataIfNeeded(for: chunk.id, force: true)
+                guard let self else { return }
+                await self.loadChunkMetadataIfNeeded(for: chunkId, force: true)
+                guard self.selectedChunkID == chunkId else { return }
+                // Get the UPDATED chunk after metadata loaded (may have new sentences)
+                guard let updatedChunk = self.selectedChunk else { return }
+                self.prepareAudio(for: updatedChunk, autoPlay: false)
             }
         } else {
             selectedChunkID = nil

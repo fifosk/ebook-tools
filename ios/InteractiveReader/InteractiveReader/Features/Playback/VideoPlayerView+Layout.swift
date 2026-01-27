@@ -151,6 +151,7 @@ extension VideoPlayerView {
         #if os(iOS)
         .background(videoViewportReader)
         .simultaneousGesture(videoTapGesture, including: .gesture)
+        .simultaneousGesture(videoLongPressGesture, including: .gesture)
         .simultaneousGesture(videoScrubGesture, including: .gesture)
         #endif
         #if os(tvOS)
