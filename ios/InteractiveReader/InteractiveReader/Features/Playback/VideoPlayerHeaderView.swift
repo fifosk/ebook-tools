@@ -24,6 +24,7 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
     let bookmarks: [PlaybackBookmarkEntry]
     let isPlaying: Bool
     let searchPill: SearchPill?
+    let showBookmarkRibbonPill: Bool
 
     // Callbacks
     let onToggleHeaderCollapsed: () -> Void
@@ -53,6 +54,7 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
         bookmarks: [PlaybackBookmarkEntry],
         isPlaying: Bool,
         searchPill: SearchPill? = nil,
+        showBookmarkRibbonPill: Bool = false,
         onToggleHeaderCollapsed: @escaping () -> Void,
         onShowSubtitleSettings: @escaping () -> Void,
         onPlaybackRateChange: @escaping (Double) -> Void,
@@ -79,6 +81,7 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
         self.bookmarks = bookmarks
         self.isPlaying = isPlaying
         self.searchPill = searchPill
+        self.showBookmarkRibbonPill = showBookmarkRibbonPill
         self.onToggleHeaderCollapsed = onToggleHeaderCollapsed
         self.onShowSubtitleSettings = onShowSubtitleSettings
         self.onPlaybackRateChange = onPlaybackRateChange
@@ -143,10 +146,13 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
                     if let searchPill {
                         searchPill
                     }
+                    if showBookmarkRibbonPill && canShowBookmarks {
+                        bookmarkRibbonPill
+                    }
                     if hasOptions {
                         subtitleButton
                     }
-                    if canShowBookmarks {
+                    if canShowBookmarks && !showBookmarkRibbonPill {
                         bookmarkMenu
                     }
                     speedMenu
@@ -158,13 +164,17 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
                 }
                 Spacer(minLength: 12)
                 VStack(alignment: .trailing, spacing: 6) {
-                    if let segmentLabel, shouldShowHeaderInfo {
-                        VideoTimelinePill(label: segmentLabel, font: infoIndicatorFont)
+                    if shouldShowHeaderInfo {
+                        if let segmentLabel {
+                            VideoTimelinePill(label: segmentLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
+                        }
+                        if let timelineLabel {
+                            VideoTimelinePill(label: timelineLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
+                        }
+                    } else if let timelineLabel {
+                        // Show collapsed timeline pill to allow expanding
+                        VideoTimelinePill(label: timelineLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
                     }
-                    if let timelineLabel, shouldShowHeaderInfo {
-                        VideoTimelinePill(label: timelineLabel, font: infoIndicatorFont)
-                    }
-                    headerToggleButton
                 }
             }
             if shouldShowHeaderInfo {
@@ -190,24 +200,31 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
                 Spacer(minLength: 12)
                 if timelineLabel != nil || hasOptions {
                     VStack(alignment: .trailing, spacing: 6) {
-                        if let segmentLabel, shouldShowHeaderInfo {
-                            VideoTimelinePill(label: segmentLabel, font: infoIndicatorFont)
-                        }
-                        if let timelineLabel, shouldShowHeaderInfo {
-                            VideoTimelinePill(label: timelineLabel, font: infoIndicatorFont)
+                        if shouldShowHeaderInfo {
+                            if let segmentLabel {
+                                VideoTimelinePill(label: segmentLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
+                            }
+                            if let timelineLabel {
+                                VideoTimelinePill(label: timelineLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
+                            }
+                        } else if let timelineLabel {
+                            // Show collapsed timeline pill to allow expanding
+                            VideoTimelinePill(label: timelineLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
                         }
                         HStack(spacing: 8) {
                             if let searchPill {
                                 searchPill
                             }
+                            if showBookmarkRibbonPill && canShowBookmarks {
+                                bookmarkRibbonPill
+                            }
                             if hasOptions {
                                 subtitleButton
                             }
-                            if canShowBookmarks {
+                            if canShowBookmarks && !showBookmarkRibbonPill {
                                 bookmarkMenu
                             }
                             speedMenu
-                            headerToggleButton
                         }
                     }
                 }
@@ -256,10 +273,16 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
         )
     }
 
-    private var headerToggleButton: some View {
-        VideoPlayerHeaderToggleButton(
-            isCollapsed: isCollapsed,
-            onToggle: onToggleHeaderCollapsed
+    private var bookmarkRibbonPill: some View {
+        BookmarkRibbonPillView(
+            bookmarkCount: bookmarks.count,
+            isTV: false,
+            sizeScale: isPad ? 1.5 : 1.0,
+            bookmarks: bookmarks,
+            onAddBookmark: onAddBookmark,
+            onJumpToBookmark: onJumpToBookmark,
+            onRemoveBookmark: onRemoveBookmark,
+            onUserInteraction: onUserInteraction
         )
     }
 

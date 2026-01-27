@@ -103,8 +103,23 @@ enum VideoPlayerHeaderFonts {
 struct VideoTimelinePill: View {
     let label: String
     let font: Font
+    var onTap: (() -> Void)?
+
+    init(label: String, font: Font, onTap: (() -> Void)? = nil) {
+        self.label = label
+        self.font = font
+        self.onTap = onTap
+    }
 
     var body: some View {
+        pillContent
+            .contentShape(Capsule())
+            .onTapGesture {
+                onTap?()
+            }
+    }
+
+    private var pillContent: some View {
         Text(label)
             .font(font)
             .foregroundStyle(Color.white.opacity(0.75))

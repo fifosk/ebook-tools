@@ -37,6 +37,22 @@ extension InteractivePlayerView {
         }
     }
 
+    @ViewBuilder
+    var bookmarkRibbonPillView: some View {
+        if canUseBookmarks, let chunk = viewModel.selectedChunk {
+            BookmarkRibbonPillView(
+                bookmarkCount: bookmarks.count,
+                isTV: isTV,
+                sizeScale: infoHeaderScale,
+                bookmarks: bookmarks,
+                onAddBookmark: { addBookmark(for: chunk) },
+                onJumpToBookmark: jumpToBookmark,
+                onRemoveBookmark: removeBookmark,
+                onUserInteraction: {}
+            )
+        }
+    }
+
     func refreshBookmarks() {
         guard let jobId = resolvedBookmarkJobId else {
             bookmarks = []

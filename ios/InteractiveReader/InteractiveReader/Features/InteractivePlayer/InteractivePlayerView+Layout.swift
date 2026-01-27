@@ -517,10 +517,10 @@ extension InteractivePlayerView {
                             slideIndicatorView(label: slideLabel)
                         }
                         if let timelineLabel {
-                            audioTimelineView(label: timelineLabel)
+                            audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
                         }
                     } else if let timelineLabel {
-                        audioTimelineView(label: timelineLabel)
+                        audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
                     }
                     #if os(tvOS)
                     tvHeaderTogglePill
@@ -575,6 +575,7 @@ extension InteractivePlayerView {
                             }
                         )
                         searchPillView
+                        bookmarkRibbonPillView
                     }
                 }
             }
@@ -598,7 +599,7 @@ extension InteractivePlayerView {
             )
     }
 
-    func audioTimelineView(label: String) -> some View {
+    func audioTimelineView(label: String, onTap: (() -> Void)? = nil) -> some View {
         Text(label)
             .font(infoIndicatorFont)
             .foregroundStyle(Color.white.opacity(0.75))
@@ -613,6 +614,10 @@ extension InteractivePlayerView {
                         Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
                     )
             )
+            .contentShape(Capsule())
+            .onTapGesture {
+                onTap?()
+            }
     }
 
     var infoCoverWidth: CGFloat {
@@ -744,26 +749,15 @@ extension InteractivePlayerView {
     @ViewBuilder
     var headerToggleButton: some View {
         #if os(iOS)
-        if let chunk = viewModel.selectedChunk {
+        if isHeaderCollapsed, let chunk = viewModel.selectedChunk {
             let timelineLabel = audioTimelineLabel(for: chunk)
-            HStack(spacing: 8) {
-                if isHeaderCollapsed, let timelineLabel {
-                    audioTimelineView(label: timelineLabel)
-                }
-                Button(action: toggleHeaderCollapsed) {
-                    Image(systemName: isHeaderCollapsed ? "chevron.down" : "chevron.up")
-                        .font(.caption.weight(.semibold))
-                        .padding(6)
-                        .background(Color.black.opacity(0.45), in: Circle())
-                        .foregroundStyle(.white)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isHeaderCollapsed ? "Show info header" : "Hide info header")
+            if let timelineLabel {
+                audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(.top, 6)
+                    .padding(.trailing, 6)
+                    .zIndex(2)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            .padding(.top, 6)
-            .padding(.trailing, 6)
-            .zIndex(2)
         }
         #else
         EmptyView()

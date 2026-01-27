@@ -188,6 +188,7 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
             bookmarks: bookmarks,
             isPlaying: isPlaying,
             searchPill: searchPill,
+            showBookmarkRibbonPill: true,
             onToggleHeaderCollapsed: onToggleHeaderCollapsed,
             onShowSubtitleSettings: { showSubtitleSettings = true },
             onPlaybackRateChange: onPlaybackRateChange,
@@ -558,34 +559,21 @@ extension VideoPlayerOverlayView {
 #if os(tvOS)
 extension VideoPlayerOverlayView {
     private var tvOverlay: some View {
-        Group {
-            if showTVControls {
-                VStack(spacing: 16) {
-                    Spacer()
-                    subtitleStack
-                    tvBottomBar
-                }
-                .padding(.horizontal, 60)
-                .padding(.bottom, 36)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .onPlayPauseCommand {
-                    onPlayPause()
-                    onUserInteraction()
-                }
-            } else {
-                VStack(spacing: 16) {
-                    Spacer()
-                    subtitleStack
-                }
-                .padding(.horizontal, 60)
-                .padding(.bottom, 36)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .onPlayPauseCommand {
-                    onPlayPause()
-                    onUserInteraction()
-                }
-            }
+        VStack(spacing: 16) {
+            Spacer()
+            subtitleStack
+            tvBottomBar
+                .opacity(showTVControls ? 1 : 0)
+                .allowsHitTesting(showTVControls)
         }
+        .padding(.horizontal, 60)
+        .padding(.bottom, 36)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .onPlayPauseCommand {
+            onPlayPause()
+            onUserInteraction()
+        }
+        .animation(.easeInOut(duration: 0.25), value: showTVControls)
     }
 
     @ViewBuilder
@@ -669,7 +657,7 @@ extension VideoPlayerOverlayView {
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                 }
-                if !metadata.languageFlags.isEmpty || searchPill != nil {
+                if !metadata.languageFlags.isEmpty || searchPill != nil || onAddBookmark != nil {
                     HStack(spacing: 8) {
                         if !metadata.languageFlags.isEmpty {
                             PlayerLanguageFlagRow(
@@ -681,6 +669,9 @@ extension VideoPlayerOverlayView {
                         }
                         if let searchPill {
                             searchPill
+                        }
+                        if onAddBookmark != nil {
+                            tvBookmarkRibbonPill
                         }
                     }
                 }
@@ -695,6 +686,19 @@ extension VideoPlayerOverlayView {
            let summary = metadata.summary?.nonEmptyValue {
             SummaryTickerPill(text: summary, isTV: true)
         }
+    }
+
+    private var tvBookmarkRibbonPill: some View {
+        BookmarkRibbonPillView(
+            bookmarkCount: bookmarks.count,
+            isTV: true,
+            sizeScale: 1.0,
+            bookmarks: bookmarks,
+            onAddBookmark: onAddBookmark,
+            onJumpToBookmark: onJumpToBookmark,
+            onRemoveBookmark: onRemoveBookmark,
+            onUserInteraction: onUserInteraction
+        )
     }
 
     private var tvHeaderTogglePill: some View {

@@ -75,6 +75,7 @@
 		3FC9032FD6984A9793C162C5 /* SpeechLanguageResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88828FC12BA646F7B6091C8B /* SpeechLanguageResolver.swift */; };
 		41CC53B900BA4CB48B824F7C /* PlaybackResumeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270E02CDE81B4E849EE6DC88 /* PlaybackResumeManager.swift */; };
 		41E24C34BF7D424A2509CC93 /* VideoPlayerBookmarkMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4084B95A23C18B87E714466 /* VideoPlayerBookmarkMenu.swift */; };
+		BKMKRIBBON001A0001 /* BookmarkRibbonPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BKMKRIBBON002A0001 /* BookmarkRibbonPillView.swift */; };
 		477FFF07110849B4971A7417 /* InteractiveTranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E234209DAADA46AAA744A1CD /* InteractiveTranscriptView.swift */; };
 		4DC80F4A10F24C6699D43879 /* InteractivePlayerView+Transcript.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBD20FB3803E455183097CAC /* InteractivePlayerView+Transcript.swift */; };
 		4E3D531ED5C04B22AE1CAA85 /* LinguistBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFB9B106AB74415AB26FD48B /* LinguistBubbleView.swift */; };
@@ -187,6 +188,7 @@
 		D79F3C7ADC984177BB57B84B /* VideoPlayerView+Linguist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3553CDF2D94848C887BB0711 /* VideoPlayerView+Linguist.swift */; };
 		D94687A54B7C4AB39038A821 /* InteractivePlayerView+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C248D65273844EFBDC49279 /* InteractivePlayerView+Layout.swift */; };
 		DAE84199866DD186336FA1F5 /* VideoPlayerBookmarkMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4084B95A23C18B87E714466 /* VideoPlayerBookmarkMenu.swift */; };
+		BKMKRIBBON001A0002 /* BookmarkRibbonPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BKMKRIBBON002A0001 /* BookmarkRibbonPillView.swift */; };
 		E0D8C9AF34D042DFB492EA98 /* InteractivePlayerView+Linguist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 346822151C1A44D98F7E0E0A /* InteractivePlayerView+Linguist.swift */; };
 		E4FD4617B6BF9B2697E832EC /* TVVideoPlayerControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B94F4E89C8D6FA51187E8C /* TVVideoPlayerControls.swift */; };
 		E5564E2B9A5A32DBBD4682DF /* VideoPlayerOverlayStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDA3471FB4598DAD33C59571 /* VideoPlayerOverlayStyles.swift */; };
@@ -314,6 +316,7 @@
 		E08F6EAE21AC413F0A95EC08 /* InteractivePlayerViewModel+Prefetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerViewModel+Prefetch.swift"; sourceTree = "<group>"; };
 		E234209DAADA46AAA744A1CD /* InteractiveTranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveTranscriptView.swift; sourceTree = "<group>"; };
 		E4084B95A23C18B87E714466 /* VideoPlayerBookmarkMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VideoPlayerBookmarkMenu.swift; path = InteractiveReader/Features/Playback/VideoPlayerBookmarkMenu.swift; sourceTree = SOURCE_ROOT; };
+		BKMKRIBBON002A0001 /* BookmarkRibbonPillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BookmarkRibbonPillView.swift; path = InteractiveReader/Features/Playback/BookmarkRibbonPillView.swift; sourceTree = SOURCE_ROOT; };
 		E6BC125536804A63B0BD4619 /* VideoPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerView.swift; sourceTree = "<group>"; };
 		E6F68E262088593C87E58C1A /* InteractivePlayerViewModel+Media.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerViewModel+Media.swift"; sourceTree = "<group>"; };
 		EA3A539D59C840118551CB0B /* InteractivePlayerView+Bookmarks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+Bookmarks.swift"; sourceTree = "<group>"; };
@@ -418,6 +421,7 @@
 				DDA3471FB4598DAD33C59571 /* VideoPlayerOverlayStyles.swift */,
 				09B94F4E89C8D6FA51187E8C /* TVVideoPlayerControls.swift */,
 				E4084B95A23C18B87E714466 /* VideoPlayerBookmarkMenu.swift */,
+				BKMKRIBBON002A0001 /* BookmarkRibbonPillView.swift */,
 				860C4D8DBFEE8DD01DFC78AD /* VideoPlayerSpeedMenu.swift */,
 				D7024EBBA5632C370AD9C039 /* VideoPlayerHeaderView.swift */,
 			);
@@ -836,6 +840,7 @@
 				59F9425891E66B03D5455EC2 /* VideoPlayerOverlayStyles.swift in Sources */,
 				E4FD4617B6BF9B2697E832EC /* TVVideoPlayerControls.swift in Sources */,
 				41E24C34BF7D424A2509CC93 /* VideoPlayerBookmarkMenu.swift in Sources */,
+				BKMKRIBBON001A0001 /* BookmarkRibbonPillView.swift in Sources */,
 				C753453581005CC793B2B3F2 /* VideoPlayerSpeedMenu.swift in Sources */,
 				531C49E0B5FBBD8EBD771B6A /* VideoPlayerHeaderView.swift in Sources */,
 				MEDIASEARCH001A0001 /* MediaSearchView.swift in Sources */,
@@ -946,6 +951,7 @@
 				E5564E2B9A5A32DBBD4682DF /* VideoPlayerOverlayStyles.swift in Sources */,
 				014C48B2AF765114C22CC145 /* TVVideoPlayerControls.swift in Sources */,
 				DAE84199866DD186336FA1F5 /* VideoPlayerBookmarkMenu.swift in Sources */,
+				BKMKRIBBON001A0002 /* BookmarkRibbonPillView.swift in Sources */,
 				F2574D4A8A01F07A65431AA8 /* VideoPlayerSpeedMenu.swift in Sources */,
 				50BD4304B753A7A8EDB5EBF3 /* VideoPlayerHeaderView.swift in Sources */,
 				MEDIASEARCH001A0002 /* MediaSearchView.swift in Sources */,
