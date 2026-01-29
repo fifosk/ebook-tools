@@ -238,6 +238,14 @@ extension InteractivePlayerView {
         #endif
     }
 
+    var isPhonePortrait: Bool {
+        #if os(iOS)
+        return isPhone && verticalSizeClass == .regular
+        #else
+        return false
+        #endif
+    }
+
     var isTV: Bool {
         #if os(tvOS)
         return true
@@ -273,6 +281,7 @@ extension InteractivePlayerView {
                 toggleTrackIfAvailable(kind)
             },
             isMenuVisible: isMenuVisible,
+            isTranscriptLoading: viewModel.isTranscriptLoading,
             trackFontScale: trackFontScale,
             minTrackFontScale: trackFontScaleMin,
             maxTrackFontScale: trackFontScaleMax,
@@ -327,6 +336,9 @@ extension InteractivePlayerView {
             },
             onTogglePlayback: {
                 audioCoordinator.togglePlayback()
+            },
+            onToggleHeader: {
+                toggleHeaderCollapsed()
             }
         )
         .padding(.top, transcriptTopPadding)
@@ -543,10 +555,15 @@ extension InteractivePlayerView {
                 }
             }
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, isPhonePortrait ? 16 : (isPhone ? 12 : 6))
         .padding(.top, 6)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .allowsHitTesting(true)
+        #if os(tvOS)
+        .onLongPressGesture(minimumDuration: 0.6) {
+            toggleHeaderCollapsed()
+        }
+        #endif
         .zIndex(1)
         return headerMagnifyWrapper(headerView)
     }
@@ -554,44 +571,68 @@ extension InteractivePlayerView {
     func infoBadgeView(info: InteractivePlayerHeaderInfo, chunk: InteractiveChunk) -> some View {
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
-        return HStack(alignment: .top, spacing: 8) {
-            if info.coverURL != nil || info.secondaryCoverURL != nil {
-                PlayerCoverStackView(
-                    primaryURL: info.coverURL,
-                    secondaryURL: info.secondaryCoverURL,
-                    width: infoCoverWidth,
-                    height: infoCoverHeight,
-                    isTV: isTV
-                )
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(info.title.isEmpty ? "Untitled" : info.title)
-                    .font(infoTitleFont)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                if !info.author.isEmpty {
-                    Text(info.author)
-                        .font(infoMetaFont)
-                        .foregroundStyle(Color.white.opacity(0.75))
+        return VStack(alignment: .leading, spacing: isPhonePortrait ? 6 : 0) {
+            HStack(alignment: .top, spacing: 8) {
+                if info.coverURL != nil || info.secondaryCoverURL != nil {
+                    PlayerCoverStackView(
+                        primaryURL: info.coverURL,
+                        secondaryURL: info.secondaryCoverURL,
+                        width: infoCoverWidth,
+                        height: infoCoverHeight,
+                        isTV: isTV
+                    )
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(info.title.isEmpty ? "Untitled" : info.title)
+                        .font(infoTitleFont)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
-                }
-                if !info.languageFlags.isEmpty {
-                    HStack(spacing: 8 * infoHeaderScale) {
-                        PlayerLanguageFlagRow(
-                            flags: info.languageFlags,
-                            modelLabel: info.translationModel,
-                            isTV: isTV,
-                            sizeScale: infoHeaderScale,
-                            activeRoles: activeRoles,
-                            availableRoles: availableRoles,
-                            onToggleRole: { role in
-                                toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
-                            }
-                        )
-                        searchPillView
-                        bookmarkRibbonPillView
+                    if !info.author.isEmpty {
+                        Text(info.author)
+                            .font(infoMetaFont)
+                            .foregroundStyle(Color.white.opacity(0.75))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                     }
+                    // On non-portrait layouts, show flags inline with title/author
+                    if !isPhonePortrait, !info.languageFlags.isEmpty {
+                        HStack(spacing: 8 * infoPillScale) {
+                            PlayerLanguageFlagRow(
+                                flags: info.languageFlags,
+                                modelLabel: isPhone ? nil : info.translationModel,
+                                isTV: isTV,
+                                sizeScale: infoPillScale,
+                                activeRoles: activeRoles,
+                                availableRoles: availableRoles,
+                                onToggleRole: { role in
+                                    toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
+                                },
+                                showConnector: !isPhone
+                            )
+                            searchPillView
+                            bookmarkRibbonPillView
+                        }
+                    }
+                }
+            }
+            // On iPhone portrait, show flags/search/bookmark on separate row, aligned right
+            if isPhonePortrait, !info.languageFlags.isEmpty {
+                HStack(spacing: 6) {
+                    Spacer()
+                    PlayerLanguageFlagRow(
+                        flags: info.languageFlags,
+                        modelLabel: nil,
+                        isTV: isTV,
+                        sizeScale: infoPillScale,
+                        activeRoles: activeRoles,
+                        availableRoles: availableRoles,
+                        onToggleRole: { role in
+                            toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
+                        },
+                        showConnector: false
+                    )
+                    searchPillView
+                    bookmarkRibbonPillView
                 }
             }
         }
@@ -677,6 +718,15 @@ extension InteractivePlayerView {
     }
 
     var infoHeaderScale: CGFloat {
+        #if os(iOS)
+        let base: CGFloat = isPad ? 2.0 : 1.0
+        return base * headerScale
+        #else
+        return 1.0
+        #endif
+    }
+
+    var infoPillScale: CGFloat {
         #if os(iOS)
         let base: CGFloat = isPad ? 2.0 : 1.0
         return base * headerScale
@@ -863,9 +913,10 @@ extension InteractivePlayerView {
         let jobEnd = jobBounds.end
         let displayCurrent = jobEnd.map { min(currentSentence, $0) } ?? currentSentence
 
+        // Unified compact format across all platforms
         var label = jobEnd != nil
-            ? "Playing sentence \(displayCurrent) of \(jobEnd ?? displayCurrent)"
-            : "Playing sentence \(displayCurrent)"
+            ? "S:\(displayCurrent)/\(jobEnd ?? displayCurrent)"
+            : "S:\(displayCurrent)"
 
         var suffixParts: [String] = []
         if let jobEnd {
@@ -873,14 +924,14 @@ extension InteractivePlayerView {
             let ratio = span > 0 ? Double(displayCurrent - jobStart) / Double(span) : 1
             if ratio.isFinite {
                 let percent = min(max(Int(round(ratio * 100)), 0), 100)
-                suffixParts.append("Job \(percent)%")
+                suffixParts.append("J:\(percent)%")
             }
         }
         if let bookTotal = bookTotalSentences(jobEnd: jobEnd) {
             let ratio = bookTotal > 0 ? Double(displayCurrent) / Double(bookTotal) : 1
             if ratio.isFinite {
                 let percent = min(max(Int(round(ratio * 100)), 0), 100)
-                suffixParts.append("Book \(percent)%")
+                suffixParts.append("B:\(percent)%")
             }
         }
         if !suffixParts.isEmpty {
@@ -893,7 +944,7 @@ extension InteractivePlayerView {
         guard let metrics = audioTimelineMetrics(for: chunk) else { return nil }
         let played = formatDurationLabel(metrics.played)
         let remaining = formatDurationLabel(metrics.remaining)
-        return "\(played) / \(remaining) remaining"
+        return "\(played) / \(remaining)"
     }
 
     func audioTimelineMetrics(
@@ -1058,7 +1109,10 @@ extension InteractivePlayerView {
         let hours = total / 3600
         let minutes = (total % 3600) / 60
         let seconds = total % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        if hours > 0 {
+            return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        }
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 
     func currentSentenceNumber(for chunk: InteractiveChunk) -> Int? {

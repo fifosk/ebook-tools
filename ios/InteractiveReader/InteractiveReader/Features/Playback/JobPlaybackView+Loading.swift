@@ -57,17 +57,31 @@ extension JobPlaybackView {
         if let userId = resumeUserId {
             await PlaybackResumeStore.shared.syncNow(userId: userId, aliases: appState.resumeUserAliases)
         }
-        if let resumeEntry = resolveResumeEntry() {
-            pendingResumeEntry = resumeEntry
-            showResumePrompt = true
-            if isVideoPreferred {
-                videoAutoPlay = false
-            }
-            return
-        }
         resumeDecisionPending = false
-        if shouldAutoPlay {
-            startPlaybackFromBeginning()
+
+        // Handle playback based on mode from context menu selection
+        switch playbackMode {
+        case .resume:
+            // Auto-resume from last position if available
+            if let resumeEntry = resolveResumeEntry() {
+                applyResume(resumeEntry)
+                await refreshJobStatus()
+                startJobRefresh()
+                if currentJob.status.isActive {
+                    viewModel.startLiveUpdates()
+                }
+                return
+            }
+            // No resume position, start from beginning
+            if shouldAutoPlay {
+                startPlaybackFromBeginning()
+            }
+        case .startOver:
+            // Clear resume position and start from beginning
+            clearResumeEntry()
+            if shouldAutoPlay {
+                startPlaybackFromBeginning()
+            }
         }
         await refreshJobStatus()
         startJobRefresh()

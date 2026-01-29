@@ -34,6 +34,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     @Published var readingBedCatalog: ReadingBedListResponse?
     @Published var readingBedURL: URL?
     @Published var selectedReadingBedID: String?
+    @Published var isTranscriptLoading: Bool = false
 
     let audioCoordinator = AudioPlayerCoordinator()
 

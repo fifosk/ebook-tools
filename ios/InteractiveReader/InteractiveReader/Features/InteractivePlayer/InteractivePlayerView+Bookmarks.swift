@@ -43,7 +43,7 @@ extension InteractivePlayerView {
             BookmarkRibbonPillView(
                 bookmarkCount: bookmarks.count,
                 isTV: isTV,
-                sizeScale: infoHeaderScale,
+                sizeScale: infoPillScale,
                 bookmarks: bookmarks,
                 onAddBookmark: { addBookmark(for: chunk) },
                 onJumpToBookmark: jumpToBookmark,

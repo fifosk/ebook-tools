@@ -19,10 +19,13 @@ extension InteractivePlayerViewModel {
         }
         // If chunk already has sentences, prepare audio immediately
         if !chunk.sentences.isEmpty {
+            isTranscriptLoading = false
             prepareAudio(for: chunk, autoPlay: autoPlay)
             attemptPendingSentenceJump(in: chunk)
             return
         }
+        // Mark transcript as loading while we fetch metadata
+        isTranscriptLoading = true
         // Load metadata before starting playback to ensure transcript is ready
         Task { [weak self] in
             guard let self else { return }
@@ -31,6 +34,11 @@ extension InteractivePlayerViewModel {
             guard self.selectedChunkID == id else { return }
             // Get the UPDATED chunk after metadata loaded (may have new sentences)
             guard let updatedChunk = self.selectedChunk else { return }
+            // Clear loading state now that we have the transcript
+            self.isTranscriptLoading = false
+            // Only start audio if transcript is now available
+            // This ensures audio doesn't play while showing "Waiting for transcript"
+            guard !updatedChunk.sentences.isEmpty else { return }
             self.prepareAudio(for: updatedChunk, autoPlay: autoPlay)
             self.attemptPendingSentenceJump(in: updatedChunk)
         }
@@ -93,9 +101,12 @@ extension InteractivePlayerViewModel {
             }
             // If chunk already has sentences, prepare audio immediately
             if !chunk.sentences.isEmpty {
+                isTranscriptLoading = false
                 prepareAudio(for: chunk, autoPlay: false)
                 return
             }
+            // Mark transcript as loading while we fetch metadata
+            isTranscriptLoading = true
             // Load metadata before preparing audio to ensure transcript is ready
             let chunkId = chunk.id
             Task { [weak self] in
@@ -104,6 +115,10 @@ extension InteractivePlayerViewModel {
                 guard self.selectedChunkID == chunkId else { return }
                 // Get the UPDATED chunk after metadata loaded (may have new sentences)
                 guard let updatedChunk = self.selectedChunk else { return }
+                // Clear loading state now that we have the transcript
+                self.isTranscriptLoading = false
+                // Only prepare audio if transcript is now available
+                guard !updatedChunk.sentences.isEmpty else { return }
                 self.prepareAudio(for: updatedChunk, autoPlay: false)
             }
         } else {
@@ -112,6 +127,7 @@ extension InteractivePlayerViewModel {
             audioCoordinator.reset()
             selectedTimingURL = nil
             preferredAudioKind = nil
+            isTranscriptLoading = false
         }
     }
 

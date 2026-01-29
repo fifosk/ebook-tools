@@ -13,8 +13,6 @@ extension JobPlaybackView {
     }
 
     func resetResumeState() {
-        pendingResumeEntry = nil
-        showResumePrompt = false
         videoResumeTime = nil
         videoResumeActionID = UUID()
         videoAutoPlay = false
@@ -41,37 +39,19 @@ extension JobPlaybackView {
 
     func startPlaybackFromBeginning() {
         if isVideoPreferred {
-            #if os(iOS)
-            let shouldPresent = UIDevice.current.userInterfaceIdiom == .phone
-            startVideoPlayback(at: nil, presentPlayer: shouldPresent)
-            #else
-            startVideoPlayback(at: nil, presentPlayer: false)
-            #endif
+            // Always present the video player - no cover preview needed
+            startVideoPlayback(at: nil, presentPlayer: true)
         } else if viewModel.jobContext != nil {
             startInteractivePlayback(at: 1)
         }
     }
 
     func applyResume(_ entry: PlaybackResumeEntry) {
-        showResumePrompt = false
-        pendingResumeEntry = nil
         resumeDecisionPending = false
         if isVideoPreferred {
             startVideoPlayback(at: entry.playbackTime, presentPlayer: true)
         } else {
             startInteractivePlayback(at: entry.sentenceNumber)
-        }
-    }
-
-    func startOver() {
-        showResumePrompt = false
-        pendingResumeEntry = nil
-        resumeDecisionPending = false
-        clearResumeEntry()
-        if isVideoPreferred {
-            startVideoPlayback(at: nil, presentPlayer: true)
-        } else {
-            startInteractivePlayback(at: 1)
         }
     }
 
@@ -105,13 +85,12 @@ extension JobPlaybackView {
 
     #if !os(tvOS)
     func handleVideoPreviewTap() {
+        // If there's a resume entry, apply it; otherwise start from beginning
         if let resumeEntry = resolveResumeEntry() {
-            pendingResumeEntry = resumeEntry
-            showResumePrompt = true
-            videoAutoPlay = false
-            return
+            applyResume(resumeEntry)
+        } else {
+            startVideoPlayback(at: nil, presentPlayer: true)
         }
-        startVideoPlayback(at: nil, presentPlayer: true)
     }
     #endif
 

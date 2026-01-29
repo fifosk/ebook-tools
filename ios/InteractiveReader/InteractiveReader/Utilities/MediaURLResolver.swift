@@ -325,26 +325,53 @@ struct LibraryCoverResolver {
         let isSubtitleItem = item.itemType == "narrated_subtitle"
         let metadata = item.metadata
 
+        // For video items, check thumbnail first
         if isVideoItem || isSubtitleItem {
+            addCandidate(searchMetadata(metadata, for: "thumbnail"))
             appendTvCandidates(from: metadata, add: addCandidate)
         }
 
         addCandidate(item.coverPath)
 
         if let metadata {
+            // Check for image object with original/medium
+            if let imageObj = metadata["image"]?.objectValue {
+                addCandidate(imageObj["original"]?.stringValue)
+                addCandidate(imageObj["medium"]?.stringValue)
+            }
+
             if let bookMetadata = extractBookMetadata(from: metadata) {
                 addCandidate(bookMetadata["job_cover_asset"]?.stringValue)
                 addCandidate(bookMetadata["book_cover_file"]?.stringValue)
                 addCandidate(bookMetadata["job_cover_asset_url"]?.stringValue)
             }
             addCandidate(metadata["job_cover_asset"]?.stringValue)
+            addCandidate(metadata["cover_url"]?.stringValue)
+            addCandidate(metadata["poster"]?.stringValue)
         }
 
         if !(isVideoItem || isSubtitleItem) {
+            addCandidate(searchMetadata(metadata, for: "thumbnail"))
             appendTvCandidates(from: metadata, add: addCandidate)
         }
 
         return candidates
+    }
+
+    private func searchMetadata(_ metadata: [String: JSONValue]?, for key: String, maxDepth: Int = 6) -> String? {
+        guard let metadata else { return nil }
+        if let value = metadata[key]?.stringValue {
+            return value
+        }
+        guard maxDepth > 0 else { return nil }
+        for value in metadata.values {
+            if let nested = value.objectValue {
+                if let found = searchMetadata(nested, for: key, maxDepth: maxDepth - 1) {
+                    return found
+                }
+            }
+        }
+        return nil
     }
 
     private func appendTvCandidates(from metadata: [String: JSONValue]?, add: (String?) -> Void) {

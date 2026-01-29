@@ -132,6 +132,7 @@ enum TVPlayerControlTarget: Hashable {
     case speed
     case captions
     case header
+    case headerBookmark
     case scrubber
 }
 

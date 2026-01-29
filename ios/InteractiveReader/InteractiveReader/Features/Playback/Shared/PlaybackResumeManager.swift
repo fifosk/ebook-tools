@@ -4,8 +4,6 @@ import Foundation
 /// This consolidates duplicate resume logic that was previously in both views.
 @MainActor
 final class PlaybackResumeManager: ObservableObject {
-    @Published var pendingResumeEntry: PlaybackResumeEntry?
-    @Published var showResumePrompt = false
     @Published var videoResumeTime: Double?
     @Published var videoResumeActionID = UUID()
     @Published var videoAutoPlay = false
@@ -29,8 +27,6 @@ final class PlaybackResumeManager: ObservableObject {
     // MARK: - State Reset
 
     func resetState() {
-        pendingResumeEntry = nil
-        showResumePrompt = false
         videoResumeTime = nil
         videoResumeActionID = UUID()
         videoAutoPlay = false
@@ -60,16 +56,7 @@ final class PlaybackResumeManager: ObservableObject {
     // MARK: - Resume Actions
 
     func applyResume(_ entry: PlaybackResumeEntry) {
-        showResumePrompt = false
-        pendingResumeEntry = nil
         resumeDecisionPending = false
-    }
-
-    func startOver() {
-        showResumePrompt = false
-        pendingResumeEntry = nil
-        resumeDecisionPending = false
-        clearResumeEntry()
     }
 
     func markResumeDecisionComplete() {

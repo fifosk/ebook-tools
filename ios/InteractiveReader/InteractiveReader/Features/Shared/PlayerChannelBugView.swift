@@ -69,7 +69,7 @@ enum PlayerInfoMetrics {
     }
 
     static func coverWidth(isTV: Bool) -> CGFloat {
-        coverHeight(isTV: isTV) * 0.68
+        CoverMetrics.bookWidth(forHeight: coverHeight(isTV: isTV))
     }
 }
 
@@ -793,6 +793,7 @@ struct PlayerLanguageFlagRow: View {
     let activeRoles: Set<LanguageFlagRole>
     let availableRoles: Set<LanguageFlagRole>
     let onToggleRole: ((LanguageFlagRole) -> Void)?
+    let showConnector: Bool
 
     init(
         flags: [LanguageFlagEntry],
@@ -801,7 +802,8 @@ struct PlayerLanguageFlagRow: View {
         sizeScale: CGFloat = 1.0,
         activeRoles: Set<LanguageFlagRole> = [],
         availableRoles: Set<LanguageFlagRole> = [.original, .translation],
-        onToggleRole: ((LanguageFlagRole) -> Void)? = nil
+        onToggleRole: ((LanguageFlagRole) -> Void)? = nil,
+        showConnector: Bool = true
     ) {
         self.flags = flags
         self.modelLabel = modelLabel
@@ -810,6 +812,7 @@ struct PlayerLanguageFlagRow: View {
         self.activeRoles = activeRoles
         self.availableRoles = availableRoles
         self.onToggleRole = onToggleRole
+        self.showConnector = showConnector
     }
 
     var body: some View {
@@ -833,7 +836,7 @@ struct PlayerLanguageFlagRow: View {
                     } else {
                         badge
                     }
-                    if index < orderedFlags.count - 1 {
+                    if index < orderedFlags.count - 1, showConnector {
                         LanguageConnectorBadge(label: connectorLabel, isTV: isTV, sizeScale: sizeScale)
                     }
                 }
@@ -1025,11 +1028,11 @@ private struct LanguageFlagBadge: View {
     }
 
     private var labelPaddingHorizontal: CGFloat {
-        (showsLabel ? 6 : 4) * sizeScale
+        (showsLabel ? 6 : 5) * sizeScale
     }
 
     private var labelPaddingVertical: CGFloat {
-        3 * sizeScale
+        (showsLabel ? 3 : 3) * sizeScale
     }
 
     private var labelFont: Font {

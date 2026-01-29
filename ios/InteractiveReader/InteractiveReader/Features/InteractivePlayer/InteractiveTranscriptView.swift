@@ -45,6 +45,7 @@ struct InteractiveTranscriptView: View {
     let isBubbleFocusEnabled: Bool
     let onToggleTrack: (TextPlayerVariantKind) -> Void
     let isMenuVisible: Bool
+    let isTranscriptLoading: Bool
     let trackFontScale: CGFloat
     let minTrackFontScale: CGFloat
     let maxTrackFontScale: CGFloat
@@ -67,6 +68,7 @@ struct InteractiveTranscriptView: View {
     let onSetLinguistFontScale: (CGFloat) -> Void
     let onCloseBubble: () -> Void
     let onTogglePlayback: () -> Void
+    var onToggleHeader: (() -> Void)? = nil
 
     #if os(iOS)
     @State private var trackMagnifyStartScale: CGFloat?
@@ -173,7 +175,8 @@ struct InteractiveTranscriptView: View {
                 onToggleTrack: onToggleTrack,
                 onTokenFramesChange: shouldReportTokenFrames ? { tokenFrames = $0 } : nil,
                 onTapExclusionFramesChange: shouldReportTokenFrames ? { tapExclusionFrames = $0 } : nil,
-                shouldReportTokenFrames: shouldReportTokenFrames
+                shouldReportTokenFrames: shouldReportTokenFrames,
+                isLoading: isTranscriptLoading
             )
             let measuredTrackView = baseTrackView
                 .background(GeometryReader { trackProxy in
@@ -197,7 +200,7 @@ struct InteractiveTranscriptView: View {
                             onLookup()
                         }
                         .onLongPressGesture(minimumDuration: 0.6) {
-                            onToggleTrack(.transliteration)
+                            onToggleHeader?()
                         }
                         .accessibilityAddTraits(.isButton)
 
@@ -689,6 +692,7 @@ struct InteractiveTranscriptView: View {
             VStack {
                 Spacer(minLength: 0)
                 trackViewWithPlayback
+                    .padding(.horizontal, 12)
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -715,6 +719,7 @@ struct InteractiveTranscriptView: View {
             VStack {
                 Spacer(minLength: 0)
                 trackViewWithPlayback
+                    .padding(.horizontal, 12)
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, maxHeight: upperHalfHeight)
@@ -836,6 +841,7 @@ struct InteractiveTranscriptView: View {
             VStack {
                 Spacer(minLength: 0)
                 trackViewWithPlayback
+                    .padding(.horizontal, 12)
                 Spacer(minLength: 0)
             }
             .frame(width: rightWidth)

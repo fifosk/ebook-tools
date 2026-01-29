@@ -102,7 +102,7 @@ extension InteractivePlayerView {
             resultCount: searchViewModel.resultCount,
             isSearching: searchViewModel.isSearching,
             isTV: isTV,
-            sizeScale: infoHeaderScale,
+            sizeScale: infoPillScale,
             onTap: {
                 withAnimation(.easeOut(duration: 0.2)) {
                     searchViewModel.isExpanded.toggle()

@@ -1,16 +1,22 @@
 import Foundation
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct LibraryPlaybackView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var offlineStore: OfflineMediaStore
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     #if !os(tvOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     #endif
     let item: LibraryItem
     @Binding var autoPlayOnLoad: Bool
+    let playbackMode: PlaybackStartMode
 
     @StateObject private var viewModel = InteractivePlayerViewModel()
     @StateObject private var nowPlaying = NowPlayingCoordinator()
@@ -20,15 +26,25 @@ struct LibraryPlaybackView: View {
     #if !os(tvOS)
     @State private var showVideoPlayer = false
     #endif
+    #if os(iOS)
+    @AppStorage("videoPreviewVerticalOffset") private var videoVerticalOffset: Double = 80
+    @State private var dragOffset: CGFloat = 0
+    #endif
 
-    init(item: LibraryItem, autoPlayOnLoad: Binding<Bool> = .constant(true)) {
+    init(item: LibraryItem, autoPlayOnLoad: Binding<Bool> = .constant(true), playbackMode: PlaybackStartMode = .resume) {
         self.item = item
         self._autoPlayOnLoad = autoPlayOnLoad
+        self.playbackMode = playbackMode
     }
 
     var body: some View {
         bodyContent
         .navigationTitle(navigationTitleText)
+        #if os(iOS)
+        .toolbarBackground(shouldUseInteractiveBackground ? Color.black : (usesDarkBackground ? AppTheme.lightBackground : Color.clear), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        #endif
         .task(id: item.jobId) {
             @MainActor in
             await loadEntry()
@@ -56,25 +72,6 @@ struct LibraryPlaybackView: View {
             guard newPhase != .active else { return }
             persistResumeOnExit()
         }
-        .alert("Resume playback?", isPresented: resumeShowPromptBinding, presenting: resumeManager?.pendingResumeEntry) { entry in
-            Button("Resume") {
-                applyResume(entry)
-            }
-            Button("Start Over", role: .destructive) {
-                startOver()
-            }
-        } message: { entry in
-            if let manager = resumeManager {
-                Text(manager.resumePromptMessage(for: entry))
-            }
-        }
-    }
-
-    private var resumeShowPromptBinding: Binding<Bool> {
-        Binding(
-            get: { resumeManager?.showResumePrompt ?? false },
-            set: { resumeManager?.showResumePrompt = $0 }
-        )
     }
 
     // Computed properties for resume manager values
@@ -95,6 +92,15 @@ struct LibraryPlaybackView: View {
         viewModel.jobContext != nil && !isVideoPreferred
     }
 
+    /// Whether to use dark background (iPad in light mode, matching tvOS style)
+    private var usesDarkBackground: Bool {
+        #if os(iOS)
+        return horizontalSizeClass != .compact && colorScheme == .light
+        #else
+        return false
+        #endif
+    }
+
     #if os(iOS)
     private var shouldHideInteractiveNavigation: Bool {
         shouldUseInteractiveBackground && UIDevice.current.userInterfaceIdiom == .phone
@@ -110,6 +116,25 @@ struct LibraryPlaybackView: View {
         return shouldUseInteractiveBackground
             ? EdgeInsets()
             : EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
+        #endif
+    }
+
+    /// Whether video preview position can be adjusted by dragging (iPhone portrait only)
+    private var canDragVideoPreview: Bool {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .phone && verticalSizeClass == .regular
+        #else
+        return false
+        #endif
+    }
+
+    /// Extra top padding for video preview on iPhone portrait mode
+    private var videoTopPadding: CGFloat {
+        #if os(iOS)
+        guard canDragVideoPreview else { return 0 }
+        return CGFloat(videoVerticalOffset) + dragOffset
+        #else
+        return 0
         #endif
     }
 
@@ -159,9 +184,25 @@ struct LibraryPlaybackView: View {
                         .frame(maxWidth: .infinity)
                         .aspectRatio(16 / 9, contentMode: .fit)
                     #else
-                    videoPreview
-                        .frame(maxWidth: .infinity)
-                        .aspectRatio(16 / 9, contentMode: .fit)
+                    // Show empty placeholder when video player is presenting/presented
+                    // This avoids showing the preview briefly before fullscreen cover
+                    VStack(spacing: 0) {
+                        Spacer()
+                            .frame(height: max(0, videoTopPadding))
+                        if showVideoPlayer {
+                            Color.black
+                                .frame(maxWidth: .infinity)
+                                .aspectRatio(16 / 9, contentMode: .fit)
+                        } else {
+                            videoPreview
+                                .frame(maxWidth: .infinity)
+                                .aspectRatio(16 / 9, contentMode: .fit)
+                        }
+                        Spacer()
+                    }
+                    .frame(maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                    .simultaneousGesture(videoPreviewDragGesture)
                     #endif
                 } else if viewModel.jobContext != nil {
                     InteractivePlayerView(
@@ -187,10 +228,15 @@ struct LibraryPlaybackView: View {
         .background {
             if shouldUseInteractiveBackground {
                 Color.black.ignoresSafeArea()
+            } else if usesDarkBackground {
+                AppTheme.lightBackground.ignoresSafeArea()
             }
         }
         #if !os(tvOS)
-        .fullScreenCover(isPresented: $showVideoPlayer) {
+        .fullScreenCover(isPresented: $showVideoPlayer, onDismiss: {
+            // When video player is dismissed, also dismiss this view to go back to menu
+            dismiss()
+        }) {
             if let videoURL {
                 VideoPlayerView(
                     videoURL: videoURL,
@@ -302,6 +348,27 @@ struct LibraryPlaybackView: View {
         }
         .buttonStyle(.plain)
     }
+
+    #if os(iOS)
+    private var videoPreviewDragGesture: some Gesture {
+        DragGesture(minimumDistance: 10)
+            .onChanged { value in
+                guard canDragVideoPreview else { return }
+                dragOffset = value.translation.height
+            }
+            .onEnded { value in
+                guard canDragVideoPreview else { return }
+                let newOffset = videoVerticalOffset + Double(value.translation.height)
+                // Clamp between 0 and 300 points
+                videoVerticalOffset = min(max(newOffset, 0), 300)
+                dragOffset = 0
+            }
+    }
+    #else
+    private var videoPreviewDragGesture: some Gesture {
+        DragGesture().onChanged { _ in }
+    }
+    #endif
     #endif
 
     @ViewBuilder
@@ -380,8 +447,9 @@ struct LibraryPlaybackView: View {
     private var loadingView: some View {
         VStack(spacing: 12) {
             ProgressView()
+                .tint(usesDarkBackground ? .white : nil)
             Text("Loading media…")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
         }
         .frame(maxWidth: .infinity, minHeight: 200)
     }
@@ -392,6 +460,7 @@ struct LibraryPlaybackView: View {
                 .foregroundStyle(.red)
             Text(message)
                 .font(.callout)
+                .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
         }
     }
 
@@ -777,17 +846,26 @@ struct LibraryPlaybackView: View {
             updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         }
         await manager.syncNow()
-        if let resumeEntry = manager.resolveResumeEntry(isVideoPreferred: isVideoPreferred) {
-            manager.pendingResumeEntry = resumeEntry
-            manager.showResumePrompt = true
-            if isVideoPreferred {
-                manager.videoAutoPlay = false
-            }
-            return
-        }
         manager.markResumeDecisionComplete()
-        if shouldAutoPlay {
-            startPlaybackFromBeginning()
+
+        // Handle playback based on mode from context menu selection
+        switch playbackMode {
+        case .resume:
+            // Auto-resume from last position if available
+            if let resumeEntry = manager.resolveResumeEntry(isVideoPreferred: isVideoPreferred) {
+                applyResume(resumeEntry)
+                return
+            }
+            // No resume position, start from beginning
+            if shouldAutoPlay {
+                startPlaybackFromBeginning()
+            }
+        case .startOver:
+            // Clear resume position and start from beginning
+            manager.clearResumeEntry()
+            if shouldAutoPlay {
+                startPlaybackFromBeginning()
+            }
         }
     }
 
@@ -938,7 +1016,8 @@ struct LibraryPlaybackView: View {
 
     private func startPlaybackFromBeginning() {
         if isVideoPreferred {
-            startVideoPlayback(at: 0, presentPlayer: false)
+            // Always present the video player - no cover preview needed
+            startVideoPlayback(at: 0, presentPlayer: true)
         } else if viewModel.jobContext != nil {
             startInteractivePlayback(at: 1)
         }
@@ -950,15 +1029,6 @@ struct LibraryPlaybackView: View {
             startVideoPlayback(at: entry.playbackTime ?? 0, presentPlayer: true)
         } else {
             startInteractivePlayback(at: entry.sentenceNumber)
-        }
-    }
-
-    private func startOver() {
-        resumeManager?.startOver()
-        if isVideoPreferred {
-            startVideoPlayback(at: nil, presentPlayer: true)
-        } else {
-            startInteractivePlayback(at: 1)
         }
     }
 
@@ -982,17 +1052,13 @@ struct LibraryPlaybackView: View {
 
     #if !os(tvOS)
     private func handleVideoPreviewTap() {
-        guard let manager = resumeManager else {
+        // If there's a resume entry, apply it; otherwise start from beginning
+        if let manager = resumeManager,
+           let resumeEntry = manager.resolveResumeEntry(isVideoPreferred: isVideoPreferred) {
+            applyResume(resumeEntry)
+        } else {
             startVideoPlayback(at: 0, presentPlayer: true)
-            return
         }
-        if let resumeEntry = manager.resolveResumeEntry(isVideoPreferred: isVideoPreferred) {
-            manager.pendingResumeEntry = resumeEntry
-            manager.showResumePrompt = true
-            manager.videoAutoPlay = false
-            return
-        }
-        startVideoPlayback(at: 0, presentPlayer: true)
     }
     #endif
 

@@ -7,51 +7,64 @@ struct JobRowView: View {
     @EnvironmentObject var appState: AppState
     let job: PipelineStatusResponse
     let resumeStatus: LibraryRowView.ResumeStatus
+    var usesDarkBackground: Bool = false
+
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+    #if os(tvOS)
+    @Environment(\.isFocused) private var isFocused
+    #endif
 
     var body: some View {
-        HStack(spacing: rowSpacing) {
-            if let coverURL {
-                AsyncImage(url: coverURL) { phase in
-                    if let image = phase.image {
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } else if phase.error != nil {
-                        coverPlaceholder
-                    } else {
-                        ProgressView()
-                    }
-                }
-                .frame(width: coverWidth, height: coverHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(iconColor.opacity(0.35), lineWidth: 1)
-                )
-            } else {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(iconColor.opacity(0.2))
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(iconColor.opacity(0.4), lineWidth: 1)
-                    Image(systemName: iconName)
-                        .font(.system(size: iconSize, weight: .semibold))
-                        .foregroundStyle(iconColor)
-                }
-                .frame(width: iconFrame, height: iconFrame)
-            }
+        #if os(tvOS)
+        landscapeLayout
+        #else
+        if isCompactWidth {
+            compactLayout
+        } else {
+            landscapeLayout
+        }
+        #endif
+    }
+
+    // MARK: - Compact Layout (iPhone Portrait)
+
+    private var compactLayout: some View {
+        HStack(alignment: .top, spacing: rowSpacing) {
+            UnifiedCoverView(
+                url: coverURL,
+                variant: jobVariant,
+                height: coverHeight
+            )
 
             VStack(alignment: .leading, spacing: textSpacing) {
                 Text(jobTitle)
                     .font(titleFont)
-                    .lineLimit(titleLineLimit)
-                    .minimumScaleFactor(titleScaleFactor)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.9)
                     .truncationMode(.tail)
-                HStack(spacing: 8) {
+
+                if let summaryText {
+                    Text(summaryText)
+                        .font(summaryFont)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+
+                if let descriptionText {
+                    Text(descriptionText)
+                        .font(metaFont)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                }
+
+                HStack(spacing: 6) {
                     LanguageFlagPairView(flags: languageFlags)
                         .font(metaFont)
-                    JobTypeGlyphBadge(glyph: jobTypeGlyph)
-                        .font(metaFont)
+
                     Text(statusGlyph.icon)
                         .font(statusGlyphFont)
                         .padding(.horizontal, 6)
@@ -59,6 +72,7 @@ struct JobRowView: View {
                         .foregroundStyle(statusColor)
                         .background(statusColor.opacity(0.18), in: Capsule())
                         .accessibilityLabel(statusGlyph.label)
+
                     Text(resumeStatus.label)
                         .font(metaFont)
                         .lineLimit(1)
@@ -68,11 +82,7 @@ struct JobRowView: View {
                         .padding(.vertical, 2)
                         .background(resumeStatus.background, in: Capsule())
                 }
-                Text(jobIdLabel)
-                    .font(metaFont)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+
                 if let progressLabel {
                     Text(progressLabel)
                         .font(metaFont)
@@ -80,9 +90,97 @@ struct JobRowView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                 }
+
                 if let progressValue {
                     ProgressView(value: progressValue)
-                        .tint(iconColor)
+                        .tint(progressTint)
+                }
+            }
+
+            Spacer(minLength: 4)
+
+            VStack {
+                #if !os(tvOS)
+                if job.isFinishedForDisplay {
+                    OfflineSyncBadge(jobId: job.jobId, kind: .job, isEligible: true)
+                }
+                #endif
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+        }
+        .padding(.vertical, rowPadding)
+    }
+
+    // MARK: - Landscape Layout (iPad / tvOS)
+
+    private var landscapeLayout: some View {
+        HStack(spacing: rowSpacing) {
+            UnifiedCoverView(
+                url: coverURL,
+                variant: jobVariant,
+                height: coverHeight
+            )
+
+            VStack(alignment: .leading, spacing: textSpacing) {
+                Text(jobTitle)
+                    .font(titleFont)
+                    .lineLimit(titleLineLimit)
+                    .minimumScaleFactor(titleScaleFactor)
+                    .truncationMode(.tail)
+                    .foregroundStyle(titleColor)
+
+                if let summaryText {
+                    Text(summaryText)
+                        .font(summaryFont)
+                        .foregroundStyle(secondaryTextColor)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+
+                if let descriptionText {
+                    Text(descriptionText)
+                        .font(metaFont)
+                        .foregroundStyle(tertiaryTextColor)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+
+                HStack(spacing: 8) {
+                    LanguageFlagPairView(flags: languageFlags)
+                        .font(metaFont)
+
+                    Text(statusGlyph.icon)
+                        .font(statusGlyphFont)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .foregroundStyle(statusColor)
+                        .background(statusColor.opacity(0.18), in: Capsule())
+                        .accessibilityLabel(statusGlyph.label)
+
+                    Text(resumeStatus.label)
+                        .font(metaFont)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .foregroundStyle(resumeStatus.foreground)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(resumeStatus.background, in: Capsule())
+                }
+
+                if let progressLabel {
+                    Text(progressLabel)
+                        .font(metaFont)
+                        .foregroundStyle(secondaryTextColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+
+                if let progressValue {
+                    ProgressView(value: progressValue)
+                        .tint(progressTint)
                 }
             }
 
@@ -93,10 +191,20 @@ struct JobRowView: View {
                 OfflineSyncBadge(jobId: job.jobId, kind: .job, isEligible: true)
             }
             Image(systemName: "chevron.right")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(secondaryTextColor)
             #endif
         }
         .padding(.vertical, rowPadding)
+    }
+
+    // MARK: - Layout Helpers
+
+    private var isCompactWidth: Bool {
+        #if os(iOS)
+        return horizontalSizeClass == .compact
+        #else
+        return false
+        #endif
     }
 
     private var languageFlags: [LanguageFlagEntry] {
@@ -139,16 +247,156 @@ struct JobRowView: View {
         return "Job \(job.jobId)"
     }
 
-    private var jobTypeGlyph: JobTypeGlyph {
-        let resolved = JobTypeGlyphResolver.glyph(for: job.jobType)
-        if isTvSeries {
-            return JobTypeGlyph(icon: "TV", label: "TV series", variant: .tv)
+    private var summaryText: String? {
+        var parts: [String] = []
+
+        // Author/creator (for non-TV content, since TV shows author in title)
+        if !isTvSeries {
+            if let author = metadataString(for: [
+                "book_author",
+                "bookAuthor",
+                "author",
+                "creator",
+                "channel",
+                "uploader",
+                "channel_title",
+                "channelTitle"
+            ], maxDepth: 6)?.nonEmptyValue {
+                parts.append(author)
+            }
         }
-        return resolved
+
+        // Duration if available
+        if let duration = formattedDuration {
+            parts.append(duration)
+        }
+
+        // Sentence/segment count
+        if let count = sentenceCount {
+            let label = count == 1 ? "sentence" : "sentences"
+            parts.append("\(count) \(label)")
+        }
+
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// Description/summary text for a second line (if available)
+    private var descriptionText: String? {
+        // TV episode summary
+        if isTvSeries {
+            if let summary = tvEpisodeSummary ?? tvShowSummary {
+                return summary
+            }
+        }
+
+        // Book/video description
+        if let desc = metadataString(for: [
+            "description",
+            "book_description",
+            "bookDescription",
+            "summary",
+            "synopsis"
+        ], maxDepth: 6)?.nonEmptyValue {
+            return desc
+        }
+
+        return nil
+    }
+
+    private var tvShowName: String? {
+        guard let metadata = tvMetadata else { return nil }
+        return metadata["show"]?.objectValue?["name"]?.stringValue
+            ?? metadata["show"]?.objectValue?["title"]?.stringValue
+    }
+
+    private var tvSeasonNumber: Int? {
+        guard let metadata = tvMetadata else { return nil }
+        return metadata["episode"]?.objectValue?["season"]?.intValue
+            ?? metadata["season"]?.intValue
+    }
+
+    private var tvEpisodeNumber: Int? {
+        guard let metadata = tvMetadata else { return nil }
+        return metadata["episode"]?.objectValue?["episode"]?.intValue
+            ?? metadata["episode_number"]?.intValue
+    }
+
+    private var tvEpisodeName: String? {
+        guard let metadata = tvMetadata else { return nil }
+        return metadata["episode"]?.objectValue?["name"]?.stringValue
+            ?? metadata["episode"]?.objectValue?["title"]?.stringValue
+    }
+
+    private var tvEpisodeSummary: String? {
+        guard let metadata = tvMetadata else { return nil }
+        return metadata["episode"]?.objectValue?["summary"]?.stringValue
+    }
+
+    private var tvShowSummary: String? {
+        guard let metadata = tvMetadata else { return nil }
+        return metadata["show"]?.objectValue?["summary"]?.stringValue
+    }
+
+    private var formattedDuration: String? {
+        guard let seconds = metadataString(for: [
+            "duration",
+            "duration_seconds",
+            "durationSeconds",
+            "length_seconds",
+            "lengthSeconds",
+            "video_duration",
+            "videoDuration",
+            "audio_duration",
+            "audioDuration"
+        ], maxDepth: 6),
+              let value = Double(seconds), value > 0 else {
+            return nil
+        }
+        let minutes = Int(value) / 60
+        let secs = Int(value) % 60
+        if minutes >= 60 {
+            let hours = minutes / 60
+            let mins = minutes % 60
+            return "\(hours)h \(mins)m"
+        }
+        return "\(minutes):\(String(format: "%02d", secs))"
+    }
+
+    private var sentenceCount: Int? {
+        // Try to get from image_generation summary first (most reliable for active jobs)
+        if let imageGen = job.imageGeneration,
+           let total = imageGen["sentence_total"]?.intValue, total > 0 {
+            return total
+        }
+        // Try to get from latestEvent snapshot total
+        if let total = job.latestEvent?.snapshot.total, total > 0 {
+            return total
+        }
+        // Fallback to searching in result/parameters metadata
+        // Note: metadataString may return "123.0" for numeric values, so parse via Double first
+        if let count = metadataString(for: [
+            "total_sentences",
+            "totalSentences",
+            "book_sentence_count",
+            "bookSentenceCount",
+            "sentence_count",
+            "sentenceCount",
+            "num_sentences",
+            "numSentences"
+        ], maxDepth: 6),
+           let doubleValue = Double(count),
+           doubleValue > 0 {
+            return Int(doubleValue)
+        }
+        return nil
     }
 
     private var jobIdLabel: String {
-        "ID: \(job.jobId)"
+        #if os(iOS)
+        return "J: \(job.jobId)"
+        #else
+        return "ID: \(job.jobId)"
+        #endif
     }
 
     private var progressLabel: String? {
@@ -205,9 +453,17 @@ struct JobRowView: View {
     private var statusColor: Color {
         switch job.displayStatus {
         case .pending, .pausing:
+            #if os(tvOS)
+            return .yellow
+            #else
             return .orange
+            #endif
         case .running:
+            #if os(tvOS)
+            return .cyan  // Better contrast against blue focus background on tvOS
+            #else
             return .blue
+            #endif
         case .paused:
             return .yellow
         case .completed:
@@ -243,58 +499,8 @@ struct JobRowView: View {
         return .job
     }
 
-    private var iconName: String {
-        switch jobVariant {
-        case .book:
-            return "book.closed"
-        case .subtitles:
-            return "captions.bubble"
-        case .video, .youtube:
-            return "play.rectangle"
-        case .tv:
-            return "tv"
-        case .nas:
-            return "tray.2"
-        case .dub:
-            return "waveform"
-        case .job:
-            return "briefcase"
-        }
-    }
-
-    private var iconColor: Color {
-        switch jobVariant {
-        case .book:
-            return Color(red: 0.96, green: 0.62, blue: 0.04)
-        case .subtitles:
-            return Color(red: 0.34, green: 0.55, blue: 0.92)
-        case .video, .youtube:
-            return Color(red: 0.16, green: 0.77, blue: 0.45)
-        case .tv:
-            return Color(red: 0.06, green: 0.45, blue: 0.56)
-        case .nas:
-            return Color(red: 0.5, green: 0.55, blue: 0.63)
-        case .dub:
-            return Color(red: 0.82, green: 0.4, blue: 0.92)
-        case .job:
-            return Color(red: 0.6, green: 0.65, blue: 0.7)
-        }
-    }
-
-    private var iconFrame: CGFloat {
-        #if os(tvOS)
-        return 76
-        #else
-        return 48
-        #endif
-    }
-
-    private var iconSize: CGFloat {
-        #if os(tvOS)
-        return 32
-        #else
-        return 20
-        #endif
+    private var progressTint: Color {
+        CoverStyle.from(variant: jobVariant).iconColor
     }
 
     private var titleFont: Font {
@@ -310,6 +516,14 @@ struct JobRowView: View {
         return scaledTVOSFont(.caption1)
         #else
         return .caption
+        #endif
+    }
+
+    private var summaryFont: Font {
+        #if os(tvOS)
+        return scaledTVOSFont(.subheadline)
+        #else
+        return .subheadline
         #endif
     }
 
@@ -353,10 +567,75 @@ struct JobRowView: View {
         #endif
     }
 
+    // MARK: - Text Colors (tvOS and iPad light mode use custom colors for readability)
+
+    /// Whether to use light-on-dark color scheme (tvOS unfocused)
+    private var useLightOnDarkColors: Bool {
+        #if os(tvOS)
+        return !isFocused
+        #else
+        return false
+        #endif
+    }
+
+    /// Whether to use dark-on-light color scheme (tvOS focused only)
+    private var useDarkOnLightColors: Bool {
+        #if os(tvOS)
+        return isFocused
+        #else
+        return false
+        #endif
+    }
+
+    private var titleColor: Color {
+        #if os(tvOS)
+        if useDarkOnLightColors {
+            return .black
+        } else if useLightOnDarkColors {
+            return .white
+        }
+        return Color.primary
+        #elseif os(iOS)
+        return usesDarkBackground ? .white : Color.primary
+        #else
+        return Color.primary
+        #endif
+    }
+
+    private var secondaryTextColor: Color {
+        #if os(tvOS)
+        if useDarkOnLightColors {
+            return .black.opacity(0.7)
+        } else if useLightOnDarkColors {
+            return .white.opacity(0.75)
+        }
+        return .gray
+        #elseif os(iOS)
+        return usesDarkBackground ? .white.opacity(0.75) : .gray
+        #else
+        return .gray
+        #endif
+    }
+
+    private var tertiaryTextColor: Color {
+        #if os(tvOS)
+        if useDarkOnLightColors {
+            return .black.opacity(0.55)
+        } else if useLightOnDarkColors {
+            return .white.opacity(0.6)
+        }
+        return .gray.opacity(0.6)
+        #elseif os(iOS)
+        return usesDarkBackground ? .white.opacity(0.6) : .gray.opacity(0.8)
+        #else
+        return .gray.opacity(0.6)
+        #endif
+    }
+
     private var coverURL: URL? {
         let youtubeFallback = resolveYoutubeThumbnailFallback()
-        let supportsVideoCover = jobVariant == .youtube || jobVariant == .video || jobVariant == .tv || jobVariant == .dub
-        guard supportsVideoCover || youtubeFallback != nil else { return nil }
+        let supportsCover = jobVariant == .youtube || jobVariant == .video || jobVariant == .tv || jobVariant == .dub || jobVariant == .subtitles || jobVariant == .book
+        guard supportsCover || youtubeFallback != nil else { return nil }
         let candidates = coverCandidates(youtubeFallback: youtubeFallback)
         for candidate in candidates {
             if let url = resolveCoverCandidate(candidate) {
@@ -366,22 +645,16 @@ struct JobRowView: View {
         return nil
     }
 
-    private var coverWidth: CGFloat {
-        coverHeight * 16 / 9
-    }
-
     private var coverHeight: CGFloat {
-        iconFrame
+        CoverMetrics.rowHeight(isTV: isTV)
     }
 
-    private var coverPlaceholder: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(iconColor.opacity(0.15))
-            Image(systemName: iconName)
-                .font(.system(size: iconSize, weight: .semibold))
-                .foregroundStyle(iconColor.opacity(0.85))
-        }
+    private var isTV: Bool {
+        #if os(tvOS)
+        return true
+        #else
+        return false
+        #endif
     }
 
     private func coverCandidates(youtubeFallback: String?) -> [String] {
@@ -395,9 +668,22 @@ struct JobRowView: View {
             candidates.append(trimmed)
         }
 
+        // Video/YouTube thumbnails
         add(metadataString(for: ["thumbnail"], maxDepth: 6))
-        add(metadataString(for: ["cover_url", "cover", "poster"], maxDepth: 4))
-        add(metadataString(for: ["job_cover_asset_url", "job_cover_asset", "book_cover_file"], maxDepth: 4))
+
+        // TV show images (nested under image.original or image.medium)
+        if let imageObj = metadataValue(for: ["image"], maxDepth: 6)?.objectValue {
+            add(imageObj["original"]?.stringValue)
+            add(imageObj["medium"]?.stringValue)
+        }
+
+        // Cover URLs
+        add(metadataString(for: ["cover_url", "cover", "poster", "poster_url"], maxDepth: 6))
+
+        // Job cover assets
+        add(metadataString(for: ["job_cover_asset_url", "job_cover_asset", "book_cover_file"], maxDepth: 6))
+
+        // YouTube fallback
         add(youtubeFallback)
         return candidates
     }
@@ -562,6 +848,48 @@ struct JobRowView: View {
         for source in sources {
             if let found = metadataString(in: source, keys: keys, maxDepth: maxDepth) {
                 return found
+            }
+        }
+        return nil
+    }
+
+    private func metadataValue(for keys: [String], maxDepth: Int = 4) -> JSONValue? {
+        let sources = [job.result?.objectValue, job.parameters?.objectValue].compactMap { $0 }
+        for source in sources {
+            if let found = metadataValue(in: source, keys: keys, maxDepth: maxDepth) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    private func metadataValue(in metadata: [String: JSONValue], keys: [String], maxDepth: Int) -> JSONValue? {
+        for key in keys {
+            if let found = metadataValue(in: metadata, key: key, maxDepth: maxDepth) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    private func metadataValue(in metadata: [String: JSONValue], key: String, maxDepth: Int) -> JSONValue? {
+        if let value = metadata[key] {
+            return value
+        }
+        guard maxDepth > 0 else { return nil }
+        for value in metadata.values {
+            if let nested = value.objectValue {
+                if let found = metadataValue(in: nested, key: key, maxDepth: maxDepth - 1) {
+                    return found
+                }
+            }
+            if case let .array(items) = value {
+                for entry in items {
+                    if let nested = entry.objectValue,
+                       let found = metadataValue(in: nested, key: key, maxDepth: maxDepth - 1) {
+                        return found
+                    }
+                }
             }
         }
         return nil

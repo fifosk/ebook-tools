@@ -4,19 +4,24 @@ import SwiftUI
 import UIKit
 #endif
 
+enum PlaybackStartMode {
+    case resume
+    case startOver
+}
+
 struct LibraryView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var offlineStore: OfflineMediaStore
     @ObservedObject var viewModel: LibraryViewModel
-    let useNavigationLinks: Bool
     let onRefresh: () -> Void
     let onSignOut: () -> Void
-    let onSelect: ((LibraryItem) -> Void)?
+    let onSelect: ((LibraryItem, PlaybackStartMode) -> Void)?
     let coverResolver: (LibraryItem) -> URL?
     let resumeUserId: String?
     let sectionPicker: AnyView?
     let onCollapseSidebar: (() -> Void)?
     let onSearchRequested: (() -> Void)?
+    var usesDarkBackground: Bool = false
 
     @FocusState private var isSearchFocused: Bool
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
@@ -26,6 +31,9 @@ struct LibraryView: View {
     private let listCoordinateSpace = "libraryList"
     #endif
     @Environment(\.colorScheme) private var colorScheme
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
     #if os(tvOS)
     @State private var isSearchPresented = false
     #endif
@@ -41,85 +49,65 @@ struct LibraryView: View {
 
             List {
                 ForEach(viewModel.filteredItems) { item in
-                    if useNavigationLinks {
-                        #if os(tvOS)
-                        NavigationLink(value: item) {
-                            LibraryRowView(
-                                item: item,
-                                coverURL: coverResolver(item),
-                                resumeStatus: resumeStatus(for: item)
-                            )
-                        }
-                        .listRowBackground(Color.clear)
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                Task { await handleDelete(item) }
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        #else
-                        NavigationLink(value: item) {
-                            LibraryRowView(
-                                item: item,
-                                coverURL: coverResolver(item),
-                                resumeStatus: resumeStatus(for: item)
-                            )
-                        }
-                        .background(rowFrameCapture())
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                Task { await handleDelete(item) }
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        #endif
-                    } else {
-                        #if os(tvOS)
-                        Button {
-                            onSelect?(item)
-                        } label: {
-                            LibraryRowView(
-                                item: item,
-                                coverURL: coverResolver(item),
-                                resumeStatus: resumeStatus(for: item)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .listRowBackground(Color.clear)
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                Task { await handleDelete(item) }
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        #else
+                    // Always use programmatic navigation to support context menu actions
+                    #if os(tvOS)
+                    Button {
+                        onSelect?(item, .resume)
+                    } label: {
                         LibraryRowView(
                             item: item,
                             coverURL: coverResolver(item),
                             resumeStatus: resumeStatus(for: item)
                         )
-                            .background(rowFrameCapture())
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                onSelect?(item)
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    Task { await handleDelete(item) }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                        #endif
                     }
+                    .buttonStyle(.plain)
+                    .listRowBackground(Color.clear)
+                    .contextMenu {
+                        playbackContextMenu(for: item)
+                        Button(role: .destructive) {
+                            Task { await handleDelete(item) }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                    #else
+                    LibraryRowView(
+                        item: item,
+                        coverURL: coverResolver(item),
+                        resumeStatus: resumeStatus(for: item),
+                        usesDarkBackground: usesDarkListBackground
+                    )
+                    .background(rowFrameCapture())
+                    .contentShape(Rectangle())
+                    .listRowBackground(usesDarkListBackground ? Color.clear : nil)
+                    .onTapGesture {
+                        onSelect?(item, .resume)
+                    }
+                    .contextMenu {
+                        playbackContextMenu(for: item)
+                        Button(role: .destructive) {
+                            Task { await handleDelete(item) }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            Task { await handleDelete(item) }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                    #endif
                 }
             }
             .listStyle(.plain)
             #if os(tvOS)
             .background(AppTheme.background(for: colorScheme))
+            #elseif os(iOS)
+            .background(usesDarkListBackground ? AppTheme.lightBackground : Color.clear)
+            .scrollContentBackground(usesDarkListBackground ? .hidden : .automatic)
+            .environment(\.colorScheme, usesDarkListBackground ? .dark : colorScheme)
             #endif
             #if os(iOS)
             .coordinateSpace(name: listCoordinateSpace)
@@ -150,6 +138,9 @@ struct LibraryView: View {
             }
             #endif
         }
+        #if os(iOS)
+        .background(usesDarkListBackground ? AppTheme.lightBackground : Color.clear)
+        #endif
         .onAppear {
             refreshResumeStatus()
         }
@@ -171,6 +162,11 @@ struct LibraryView: View {
         Label(message, systemImage: "exclamationmark.triangle.fill")
             .foregroundStyle(.red)
             .font(.callout)
+    }
+
+    /// Whether to use dark background for list (iPad in light mode, aligned with tvOS style)
+    private var usesDarkListBackground: Bool {
+        usesDarkBackground
     }
 
     #if os(iOS)
@@ -231,6 +227,7 @@ struct LibraryView: View {
                 .autocorrectionDisabled()
                 .focused($isSearchFocused)
                 .submitLabel(.search)
+                .foregroundStyle(usesDarkListBackground ? .white : .primary)
                 .onSubmit {
                     handleRefresh()
                     #if os(tvOS)
@@ -241,6 +238,7 @@ struct LibraryView: View {
                 Image(systemName: "magnifyingglass")
             }
             .disabled(viewModel.isLoading)
+            .tint(usesDarkListBackground ? .white : nil)
             #if os(tvOS)
             Button("Cancel") {
                 dismissSearch()
@@ -273,6 +271,15 @@ struct LibraryView: View {
         .onLongPressGesture(minimumDuration: 0.6) {
             handleRefresh()
         }
+        #elseif os(iOS)
+        Picker("Filter", selection: $viewModel.activeFilter) {
+            ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in
+                Text(filter.rawValue).tag(filter)
+            }
+        }
+        .pickerStyle(.segmented)
+        .colorScheme(usesDarkListBackground ? .dark : colorScheme)
+        .padding(.horizontal)
         #else
         Picker("Filter", selection: $viewModel.activeFilter) {
             ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in
@@ -306,15 +313,16 @@ struct LibraryView: View {
             HStack(spacing: 6) {
                 Image(systemName: "globe")
                     .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(Color.blue)
+                    .foregroundStyle(usesDarkListBackground ? .cyan : .blue)
                 Text("Language Tools")
                     .lineLimit(1)
+                    .foregroundStyle(usesDarkListBackground ? .white : .primary)
                 AppVersionBadge()
             }
             HStack(spacing: 6) {
                 Image(systemName: status.isAvailable ? "icloud" : "icloud.slash")
                     .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(status.isAvailable ? Color.blue : Color.secondary)
+                    .foregroundStyle(status.isAvailable ? (usesDarkListBackground ? .cyan : .blue) : (usesDarkListBackground ? .white.opacity(0.6) : .secondary))
             }
             .accessibilityLabel(statusLabel)
             Button(action: handleRefresh) {
@@ -322,6 +330,7 @@ struct LibraryView: View {
             }
             .disabled(viewModel.isLoading)
             .accessibilityLabel("Refresh")
+            .tint(usesDarkListBackground ? .white : nil)
             Spacer()
             Menu {
                 Button("Log Out", action: onSignOut)
@@ -333,6 +342,7 @@ struct LibraryView: View {
                         .truncationMode(.middle)
                 }
             }
+            .tint(usesDarkListBackground ? .white : nil)
         }
         .padding(.horizontal)
         #if os(tvOS)
@@ -428,6 +438,49 @@ struct LibraryView: View {
         formatter.allowedUnits = time >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
         formatter.zeroFormattingBehavior = .pad
         return formatter.string(from: time) ?? "0:00"
+    }
+
+    @ViewBuilder
+    private func playbackContextMenu(for item: LibraryItem) -> some View {
+        let availability = resumeAvailability[item.jobId]
+        let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
+
+        Button {
+            onSelect?(item, .resume)
+        } label: {
+            if hasResume {
+                Label(resumeMenuLabel(for: item), systemImage: "play.fill")
+            } else {
+                Label("Play", systemImage: "play.fill")
+            }
+        }
+
+        if hasResume {
+            Button {
+                onSelect?(item, .startOver)
+            } label: {
+                Label("Start from Beginning", systemImage: "arrow.counterclockwise")
+            }
+        }
+    }
+
+    private func resumeMenuLabel(for item: LibraryItem) -> String {
+        guard let availability = resumeAvailability[item.jobId] else {
+            return "Resume"
+        }
+        let entry = availability.cloudEntry ?? availability.localEntry
+        guard let entry else { return "Resume" }
+        switch entry.kind {
+        case .sentence:
+            if let sentence = entry.sentenceNumber, sentence > 0 {
+                return "Resume from Sentence \(sentence)"
+            }
+        case .time:
+            if let time = entry.playbackTime, time > 0 {
+                return "Resume from \(formatPlaybackTime(time))"
+            }
+        }
+        return "Resume"
     }
 
     @MainActor

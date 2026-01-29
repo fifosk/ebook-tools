@@ -163,6 +163,8 @@
 		B926DA4991B74FBCA7793D10 /* VideoPlayerView+Gestures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 128AF7FE0A734C2CB80C47C1 /* VideoPlayerView+Gestures.swift */; };
 		C0A1B2C3D4E5F60718293A4C /* PlayerChannelBugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */; };
 		C0A1B2C3D4E5F60718293A4D /* PlayerChannelBugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */; };
+		UNIFCOVER001A0001 /* UnifiedCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UNIFCOVER002A0001 /* UnifiedCoverView.swift */; };
+		UNIFCOVER001A0002 /* UnifiedCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UNIFCOVER002A0001 /* UnifiedCoverView.swift */; };
 		C0B122C01D1542EB88C4DDFE /* PlaybackResumeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270E02CDE81B4E849EE6DC88 /* PlaybackResumeManager.swift */; };
 		C4071804A8944B53824E2B45 /* TextPlayerTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E9902ED51249ED8DD110B9 /* TextPlayerTimeline.swift */; };
 		C70D323A1A454F96A1852847 /* InteractiveTranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E234209DAADA46AAA744A1CD /* InteractiveTranscriptView.swift */; };
@@ -298,6 +300,7 @@
 		BA23F5D5E8D347FABACD6126 /* PlayerCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerCoordinating.swift; sourceTree = "<group>"; };
 		C02A242C108796D05E129BEB /* InteractivePlayerViewModel+Lookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerViewModel+Lookup.swift"; sourceTree = "<group>"; };
 		C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerChannelBugView.swift; sourceTree = "<group>"; };
+		UNIFCOVER002A0001 /* UnifiedCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedCoverView.swift; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsViewModel.swift; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsView.swift; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRowView.swift; sourceTree = "<group>"; };
@@ -590,6 +593,7 @@
 				MEDIASEARCH002A0001 /* MediaSearchView.swift */,
 				A1B2C3D4E5F60718293A4E60 /* OfflineSyncBadge.swift */,
 				C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */,
+				UNIFCOVER002A0001 /* UnifiedCoverView.swift */,
 				DFB9B106AB74415AB26FD48B /* LinguistBubbleView.swift */,
 				45427BC75A1642FC994B1A55 /* PlatformAdapter.swift */,
 			);
@@ -787,6 +791,7 @@
 				6FDC3A3702F914D000A1D9A1 /* StorageResolver.swift in Sources */,
 				6FDC3A3202F914D000A1D9A1 /* InteractivePlayerView.swift in Sources */,
 				C0A1B2C3D4E5F60718293A4C /* PlayerChannelBugView.swift in Sources */,
+				UNIFCOVER001A0001 /* UnifiedCoverView.swift in Sources */,
 				6FDC3A3402F914D000A1D9A1 /* ApiModels.swift in Sources */,
 				6FDC3A3802F914D000A1D9A1 /* String+Extras.swift in Sources */,
 				5AEDB61B11084619B145063D /* InteractivePlayerModels.swift in Sources */,
@@ -897,6 +902,7 @@
 				1798B1642EF9F1A00092A8AF /* StorageResolver.swift in Sources */,
 				1798B1652EF9F1A00092A8AF /* InteractivePlayerView.swift in Sources */,
 				C0A1B2C3D4E5F60718293A4D /* PlayerChannelBugView.swift in Sources */,
+				UNIFCOVER001A0002 /* UnifiedCoverView.swift in Sources */,
 				1798B1662EF9F1A00092A8AF /* ApiModels.swift in Sources */,
 				AF457B8C1C4541A8934FD7B3 /* InteractivePlayerActions.swift in Sources */,
 				1798B1672EF9F1A00092A8AF /* String+Extras.swift in Sources */,

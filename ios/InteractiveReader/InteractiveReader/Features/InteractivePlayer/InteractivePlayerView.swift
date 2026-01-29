@@ -6,6 +6,9 @@ import UIKit
 struct InteractivePlayerView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) var dismiss
+    #if os(iOS)
+    @Environment(\.verticalSizeClass) var verticalSizeClass
+    #endif
     @ObservedObject var viewModel: InteractivePlayerViewModel
     @ObservedObject var audioCoordinator: AudioPlayerCoordinator
     let showImageReel: Binding<Bool>?

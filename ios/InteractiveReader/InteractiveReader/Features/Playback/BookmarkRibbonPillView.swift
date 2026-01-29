@@ -18,8 +18,13 @@ struct BookmarkRibbonPillView: View {
     let onRemoveBookmark: (PlaybackBookmarkEntry) -> Void
     let onUserInteraction: () -> Void
 
+    #if os(tvOS)
+    var focusTarget: FocusState<VideoPlayerFocusTarget?>.Binding?
+    var onMoveRight: (() -> Void)?
+    #endif
+
     var body: some View {
-        Menu {
+        let menu = Menu {
             menuContent
         } label: {
             pillLabel
@@ -30,6 +35,23 @@ struct BookmarkRibbonPillView: View {
         .buttonStyle(.plain)
         #endif
         .accessibilityLabel(accessibilityLabel)
+
+        #if os(tvOS)
+        if let focusTarget {
+            menu
+                .focused(focusTarget, equals: .control(.headerBookmark))
+                .onMoveCommand { direction in
+                    guard focusTarget.wrappedValue == .control(.headerBookmark) else { return }
+                    if direction == .right, let onMoveRight {
+                        onMoveRight()
+                    }
+                }
+        } else {
+            menu
+        }
+        #else
+        menu
+        #endif
     }
 
     @ViewBuilder

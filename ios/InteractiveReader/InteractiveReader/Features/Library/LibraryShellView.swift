@@ -8,12 +8,16 @@ struct LibraryShellView: View {
     @State private var selectedJob: PipelineStatusResponse?
     @State private var libraryAutoPlay = false
     @State private var jobsAutoPlay = false
+    @State private var libraryPlaybackMode: PlaybackStartMode = .resume
+    @State private var jobsPlaybackMode: PlaybackStartMode = .resume
     @State private var activeSection: BrowseSection = .jobs
     @State private var lastBrowseSection: BrowseSection = .jobs
+    @State private var navigationPath = NavigationPath()
     #if !os(tvOS)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     #endif
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.colorScheme) private var colorScheme
 
     private enum BrowseSection: String, CaseIterable, Identifiable {
         case jobs = "Jobs"
@@ -40,15 +44,24 @@ struct LibraryShellView: View {
         #endif
     }
 
+    /// Whether to use dark background (iOS in light mode, matching tvOS style)
+    private var usesDarkBackground: Bool {
+        #if os(iOS)
+        return colorScheme == .light
+        #else
+        return false
+        #endif
+    }
+
     var body: some View {
         #if os(tvOS)
-        NavigationStack {
-            browseList(useNavigationLinks: true)
+        NavigationStack(path: $navigationPath) {
+            browseList()
                 .navigationDestination(for: LibraryItem.self) { item in
-                    LibraryPlaybackView(item: item)
+                    LibraryPlaybackView(item: item, autoPlayOnLoad: $libraryAutoPlay, playbackMode: libraryPlaybackMode)
                 }
                 .navigationDestination(for: PipelineStatusResponse.self) { job in
-                    JobPlaybackView(job: job)
+                    JobPlaybackView(job: job, autoPlayOnLoad: $jobsAutoPlay, playbackMode: jobsPlaybackMode)
                 }
         }
         .onAppear {
@@ -64,22 +77,34 @@ struct LibraryShellView: View {
             handleSectionChange(newValue)
         }
         #else
-        Group {
-            if isSplitLayout {
-                NavigationSplitView(columnVisibility: $columnVisibility) {
-                    browseList(useNavigationLinks: false)
-                } detail: {
-                    detailView
-                }
-            } else {
-                NavigationStack {
-                    browseList(useNavigationLinks: true)
-                        .navigationDestination(for: LibraryItem.self) { item in
-                            LibraryPlaybackView(item: item)
-                        }
-                        .navigationDestination(for: PipelineStatusResponse.self) { job in
-                            JobPlaybackView(job: job)
-                        }
+        ZStack {
+            if usesDarkBackground {
+                AppTheme.lightBackground
+                    .ignoresSafeArea()
+            }
+            Group {
+                if isSplitLayout {
+                    NavigationSplitView(columnVisibility: $columnVisibility) {
+                        browseList()
+                            .background(usesDarkBackground ? AppTheme.lightBackground : Color.clear)
+                            .toolbarBackground(usesDarkBackground ? AppTheme.lightBackground : Color.clear, for: .navigationBar)
+                            .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
+                            .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
+                    } detail: {
+                        detailView
+                    }
+                    .navigationSplitViewStyle(.balanced)
+                    .tint(usesDarkBackground ? .white : nil)
+                } else {
+                    NavigationStack(path: $navigationPath) {
+                        browseList()
+                            .navigationDestination(for: LibraryItem.self) { item in
+                                LibraryPlaybackView(item: item, autoPlayOnLoad: $libraryAutoPlay, playbackMode: libraryPlaybackMode)
+                            }
+                            .navigationDestination(for: PipelineStatusResponse.self) { job in
+                                JobPlaybackView(job: job, autoPlayOnLoad: $jobsAutoPlay, playbackMode: jobsPlaybackMode)
+                            }
+                    }
                 }
             }
         }
@@ -103,95 +128,119 @@ struct LibraryShellView: View {
         switch activeSection {
         case .library:
             if let selectedItem {
-                LibraryPlaybackView(item: selectedItem, autoPlayOnLoad: $libraryAutoPlay)
+                LibraryPlaybackView(item: selectedItem, autoPlayOnLoad: $libraryAutoPlay, playbackMode: libraryPlaybackMode)
+                    .id(selectedItem.jobId)
             } else {
-                VStack(spacing: 12) {
-                    Text("Select a library entry")
-                        .font(.title3)
-                    Text("Choose a book, subtitle, or video to start playback.")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                placeholderView(
+                    title: "Select a library entry",
+                    subtitle: "Choose a book, subtitle, or video to start playback."
+                )
             }
         case .jobs:
             if let selectedJob {
-                JobPlaybackView(job: selectedJob, autoPlayOnLoad: $jobsAutoPlay)
+                JobPlaybackView(job: selectedJob, autoPlayOnLoad: $jobsAutoPlay, playbackMode: jobsPlaybackMode)
+                    .id(selectedJob.jobId)
             } else {
-                VStack(spacing: 12) {
-                    Text("Select a job")
-                        .font(.title3)
-                    Text("Choose an active or finished job to start playback.")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                placeholderView(
+                    title: "Select a job",
+                    subtitle: "Choose an active or finished job to start playback."
+                )
             }
         case .search:
             if let selectedItem {
-                LibraryPlaybackView(item: selectedItem, autoPlayOnLoad: $libraryAutoPlay)
+                LibraryPlaybackView(item: selectedItem, autoPlayOnLoad: $libraryAutoPlay, playbackMode: libraryPlaybackMode)
+                    .id(selectedItem.jobId)
             } else if let selectedJob {
-                JobPlaybackView(job: selectedJob, autoPlayOnLoad: $jobsAutoPlay)
+                JobPlaybackView(job: selectedJob, autoPlayOnLoad: $jobsAutoPlay, playbackMode: jobsPlaybackMode)
+                    .id(selectedJob.jobId)
             } else {
-                VStack(spacing: 12) {
-                    Text("Search jobs and library")
-                        .font(.title3)
-                    Text("Use the search field to find items across your library and jobs.")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                placeholderView(
+                    title: "Search jobs and library",
+                    subtitle: "Use the search field to find items across your library and jobs."
+                )
             }
         case .settings:
-            PlaybackSettingsView(sectionPicker: sectionPickerForHeader)
+            PlaybackSettingsView(sectionPicker: sectionPickerForHeader, usesDarkBackground: usesDarkBackground)
         }
     }
 
     @ViewBuilder
-    private func browseList(useNavigationLinks: Bool) -> some View {
+    private func placeholderView(title: String, subtitle: String) -> some View {
+        VStack(spacing: 12) {
+            Text(title)
+                .font(.title3)
+                .foregroundStyle(usesDarkBackground ? .white : .primary)
+            Text(subtitle)
+                .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(usesDarkBackground ? AppTheme.lightBackground : Color.clear)
+        #if os(iOS)
+        .toolbarBackground(usesDarkBackground ? AppTheme.lightBackground : Color.clear, for: .navigationBar)
+        .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
+        .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
+        #endif
+    }
+
+    @ViewBuilder
+    private func browseList() -> some View {
         VStack(spacing: 10) {
             switch activeSection {
             case .library:
                 LibraryView(
                     viewModel: viewModel,
-                    useNavigationLinks: useNavigationLinks,
                     onRefresh: {
                         Task { await viewModel.load(using: appState) }
                     },
                     onSignOut: {
                         appState.signOut()
                     },
-                    onSelect: { item in
+                    onSelect: { item, mode in
                         selectedItem = item
                         libraryAutoPlay = true
+                        libraryPlaybackMode = mode
+                        if isSplitLayout {
+                            collapseSidebar()
+                        } else {
+                            navigationPath.append(item)
+                        }
                     },
                     coverResolver: coverURL(for:),
                     resumeUserId: resumeUserId,
                     sectionPicker: sectionPickerForHeader,
                     onCollapseSidebar: isSplitLayout ? { collapseSidebar() } : nil,
-                    onSearchRequested: { activeSection = .search }
+                    onSearchRequested: { activeSection = .search },
+                    usesDarkBackground: usesDarkBackground
                 )
             case .jobs:
                 JobsView(
                     viewModel: jobsViewModel,
-                    useNavigationLinks: useNavigationLinks,
                     onRefresh: {
                         Task { await jobsViewModel.load(using: appState) }
                     },
                     onSignOut: {
                         appState.signOut()
                     },
-                    onSelect: { job in
+                    onSelect: { job, mode in
                         selectedJob = job
                         jobsAutoPlay = true
+                        jobsPlaybackMode = mode
+                        if isSplitLayout {
+                            collapseSidebar()
+                        } else {
+                            navigationPath.append(job)
+                        }
                     },
                     sectionPicker: sectionPickerForHeader,
                     resumeUserId: resumeUserId,
                     onCollapseSidebar: isSplitLayout ? { collapseSidebar() } : nil,
-                    onSearchRequested: { activeSection = .search }
+                    onSearchRequested: { activeSection = .search },
+                    usesDarkBackground: usesDarkBackground
                 )
             case .search:
                 CombinedSearchView(
                     libraryViewModel: viewModel,
                     jobsViewModel: jobsViewModel,
-                    useNavigationLinks: useNavigationLinks,
                     onRefresh: {
                         Task {
                             await viewModel.load(using: appState)
@@ -201,13 +250,25 @@ struct LibraryShellView: View {
                     onSignOut: {
                         appState.signOut()
                     },
-                    onSelectItem: { item in
+                    onSelectItem: { item, mode in
                         selectedItem = item
                         libraryAutoPlay = true
+                        libraryPlaybackMode = mode
+                        if isSplitLayout {
+                            collapseSidebar()
+                        } else {
+                            navigationPath.append(item)
+                        }
                     },
-                    onSelectJob: { job in
+                    onSelectJob: { job, mode in
                         selectedJob = job
                         jobsAutoPlay = true
+                        jobsPlaybackMode = mode
+                        if isSplitLayout {
+                            collapseSidebar()
+                        } else {
+                            navigationPath.append(job)
+                        }
                     },
                     coverResolver: coverURL(for:),
                     resumeUserId: resumeUserId,
@@ -215,18 +276,16 @@ struct LibraryShellView: View {
                 )
             case .settings:
                 if isSplitLayout {
-                    VStack(spacing: 12) {
-                        Text("Settings")
-                            .font(.title3)
-                        Text("Adjust playback options in the detail panel.")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    placeholderView(
+                        title: "Settings",
+                        subtitle: "Adjust playback options in the detail panel."
+                    )
                 } else {
                     PlaybackSettingsView(
                         sectionPicker: sectionPickerForHeader,
                         backTitle: isCompactLayout ? lastBrowseSection.rawValue : nil,
-                        onBack: isCompactLayout ? { activeSection = lastBrowseSection } : nil
+                        onBack: isCompactLayout ? { activeSection = lastBrowseSection } : nil,
+                        usesDarkBackground: usesDarkBackground
                     )
                 }
             }
@@ -234,6 +293,9 @@ struct LibraryShellView: View {
         #if !os(tvOS)
         .navigationTitle(isCompactLayout ? "" : activeSection.rawValue)
         .navigationBarTitleDisplayMode(isCompactLayout ? .inline : .automatic)
+        .toolbarBackground(usesDarkBackground ? AppTheme.lightBackground : Color.clear, for: .navigationBar)
+        .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
+        .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
         #else
         .navigationTitle("")
         #endif
@@ -251,6 +313,9 @@ struct LibraryShellView: View {
         .onLongPressGesture(minimumDuration: 0.6) {
             handleSectionRefresh()
         }
+        #elseif os(iOS)
+        .pickerStyle(.segmented)
+        .colorScheme(usesDarkBackground ? .dark : colorScheme)
         #else
         .pickerStyle(.segmented)
         #endif
@@ -372,12 +437,14 @@ private struct PlaybackSettingsView: View {
     let sectionPicker: AnyView?
     let backTitle: String?
     let onBack: (() -> Void)?
+    let usesDarkBackground: Bool
     @AppStorage("interactive.autoScaleEnabled") private var autoScaleEnabled: Bool = true
 
-    init(sectionPicker: AnyView? = nil, backTitle: String? = nil, onBack: (() -> Void)? = nil) {
+    init(sectionPicker: AnyView? = nil, backTitle: String? = nil, onBack: (() -> Void)? = nil, usesDarkBackground: Bool = false) {
         self.sectionPicker = sectionPicker
         self.backTitle = backTitle
         self.onBack = onBack
+        self.usesDarkBackground = usesDarkBackground
     }
 
     var body: some View {
@@ -393,6 +460,7 @@ private struct PlaybackSettingsView: View {
             } else {
                 Text("Settings")
                     .font(.title3)
+                    .foregroundStyle(usesDarkBackground ? .white : .primary)
                     .padding(.horizontal)
             }
             List {
@@ -400,9 +468,10 @@ private struct PlaybackSettingsView: View {
                     Toggle(isOn: $autoScaleEnabled) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Auto-fit transcript")
+                                .foregroundStyle(usesDarkBackground ? .white : .primary)
                             Text("Scale active sentences to fit the screen on rotation or font changes.")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
                         }
                     }
                 }
@@ -411,20 +480,26 @@ private struct PlaybackSettingsView: View {
             .listStyle(.plain)
             #else
             .listStyle(.insetGrouped)
+            .scrollContentBackground(usesDarkBackground ? .hidden : .automatic)
             #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(usesDarkBackground ? AppTheme.lightBackground : Color.clear)
+        #if os(iOS)
+        .toolbarBackground(usesDarkBackground ? AppTheme.lightBackground : Color.clear, for: .navigationBar)
+        .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
+        .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
+        #endif
     }
 }
 
 private struct CombinedSearchView: View {
     @ObservedObject var libraryViewModel: LibraryViewModel
     @ObservedObject var jobsViewModel: JobsViewModel
-    let useNavigationLinks: Bool
     let onRefresh: () -> Void
     let onSignOut: () -> Void
-    let onSelectItem: ((LibraryItem) -> Void)?
-    let onSelectJob: ((PipelineStatusResponse) -> Void)?
+    let onSelectItem: ((LibraryItem, PlaybackStartMode) -> Void)?
+    let onSelectJob: ((PipelineStatusResponse, PlaybackStartMode) -> Void)?
     let coverResolver: (LibraryItem) -> URL?
     let resumeUserId: String?
     let sectionPicker: AnyView?
@@ -432,7 +507,20 @@ private struct CombinedSearchView: View {
     @State private var query: String = ""
     @FocusState private var isSearchFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
     @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+    @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
+
+    /// Whether to use dark background (iPad in light mode, matching tvOS style)
+    private var usesDarkListBackground: Bool {
+        #if os(iOS)
+        return horizontalSizeClass != .compact && colorScheme == .light
+        #else
+        return false
+        #endif
+    }
 
     private enum SearchResult: Identifiable {
         case library(LibraryItem)
@@ -454,10 +542,10 @@ private struct CombinedSearchView: View {
             List {
                 if trimmedQuery.isEmpty {
                     Text("Type to search across jobs and library items.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(usesDarkListBackground ? .white.opacity(0.7) : .secondary)
                 } else if results.isEmpty {
                     Text("No matches found.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(usesDarkListBackground ? .white.opacity(0.7) : .secondary)
                 } else {
                     ForEach(results) { result in
                         switch result {
@@ -472,14 +560,26 @@ private struct CombinedSearchView: View {
             .listStyle(.plain)
             #if os(tvOS)
             .background(AppTheme.background(for: colorScheme))
+            #elseif os(iOS)
+            .background(usesDarkListBackground ? AppTheme.lightBackground : Color.clear)
+            .scrollContentBackground(usesDarkListBackground ? .hidden : .automatic)
+            .environment(\.colorScheme, usesDarkListBackground ? .dark : colorScheme)
             #endif
         }
+        #if os(iOS)
+        .background(usesDarkListBackground ? AppTheme.lightBackground : Color.clear)
+        #endif
         .onAppear {
             isSearchFocused = true
             iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+            refreshResumeStatus()
         }
-        .onReceive(NotificationCenter.default.publisher(for: PlaybackResumeStore.didChangeNotification)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: PlaybackResumeStore.didChangeNotification)) { notification in
+            guard let resumeUserId else { return }
+            let userId = notification.userInfo?["userId"] as? String
+            guard userId == resumeUserId else { return }
             iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+            refreshResumeStatus()
         }
     }
 
@@ -518,15 +618,16 @@ private struct CombinedSearchView: View {
             HStack(spacing: 6) {
                 Image(systemName: "globe")
                     .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(Color.blue)
+                    .foregroundStyle(usesDarkListBackground ? .cyan : .blue)
                 Text("Language Tools")
                     .lineLimit(1)
+                    .foregroundStyle(usesDarkListBackground ? .white : .primary)
                 AppVersionBadge()
             }
             HStack(spacing: 6) {
                 Image(systemName: status.isAvailable ? "icloud" : "icloud.slash")
                     .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(status.isAvailable ? Color.blue : Color.secondary)
+                    .foregroundStyle(status.isAvailable ? (usesDarkListBackground ? .cyan : .blue) : (usesDarkListBackground ? .white.opacity(0.6) : .secondary))
             }
             .accessibilityLabel(statusLabel)
             Button(action: onRefresh) {
@@ -534,6 +635,7 @@ private struct CombinedSearchView: View {
             }
             .disabled(libraryViewModel.isLoading || jobsViewModel.isLoading)
             .accessibilityLabel("Refresh")
+            .tint(usesDarkListBackground ? .white : nil)
             Menu {
                 Button("Log Out", action: onSignOut)
             } label: {
@@ -544,6 +646,7 @@ private struct CombinedSearchView: View {
                         .truncationMode(.middle)
                 }
             }
+            .tint(usesDarkListBackground ? .white : nil)
             Spacer()
         }
         .padding(.horizontal)
@@ -563,11 +666,13 @@ private struct CombinedSearchView: View {
                 .autocorrectionDisabled()
                 .focused($isSearchFocused)
                 .submitLabel(.search)
+                .foregroundStyle(usesDarkListBackground ? .white : .primary)
             Button {
                 isSearchFocused = true
             } label: {
                 Image(systemName: "magnifyingglass")
             }
+            .tint(usesDarkListBackground ? .white : nil)
         }
         .padding(.horizontal)
     }
@@ -587,40 +692,149 @@ private struct CombinedSearchView: View {
 
     @ViewBuilder
     private func jobRow(for job: PipelineStatusResponse) -> some View {
-        if useNavigationLinks {
-            NavigationLink(value: job) {
-                JobRowView(job: job, resumeStatus: resumeStatus(for: job))
-            }
-        } else {
+        // Always use programmatic navigation to support context menu actions
+        #if os(tvOS)
+        Button {
+            onSelectJob?(job, .resume)
+        } label: {
             JobRowView(job: job, resumeStatus: resumeStatus(for: job))
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    onSelectJob?(job)
-                }
         }
+        .buttonStyle(.plain)
+        .contextMenu {
+            playbackContextMenu(for: job)
+        }
+        #else
+        JobRowView(job: job, resumeStatus: resumeStatus(for: job), usesDarkBackground: usesDarkListBackground)
+            .contentShape(Rectangle())
+            .listRowBackground(usesDarkListBackground ? Color.clear : nil)
+            .onTapGesture {
+                onSelectJob?(job, .resume)
+            }
+            .contextMenu {
+                playbackContextMenu(for: job)
+            }
+        #endif
     }
 
     @ViewBuilder
     private func libraryRow(for item: LibraryItem) -> some View {
-        if useNavigationLinks {
-            NavigationLink(value: item) {
-                LibraryRowView(
-                    item: item,
-                    coverURL: coverResolver(item),
-                    resumeStatus: resumeStatus(for: item)
-                )
-            }
-        } else {
+        // Always use programmatic navigation to support context menu actions
+        #if os(tvOS)
+        Button {
+            onSelectItem?(item, .resume)
+        } label: {
             LibraryRowView(
                 item: item,
                 coverURL: coverResolver(item),
                 resumeStatus: resumeStatus(for: item)
             )
-            .contentShape(Rectangle())
-            .onTapGesture {
-                onSelectItem?(item)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            playbackContextMenu(for: item)
+        }
+        #else
+        LibraryRowView(
+            item: item,
+            coverURL: coverResolver(item),
+            resumeStatus: resumeStatus(for: item),
+            usesDarkBackground: usesDarkListBackground
+        )
+        .contentShape(Rectangle())
+        .listRowBackground(usesDarkListBackground ? Color.clear : nil)
+        .onTapGesture {
+            onSelectItem?(item, .resume)
+        }
+        .contextMenu {
+            playbackContextMenu(for: item)
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private func playbackContextMenu(for item: LibraryItem) -> some View {
+        let availability = resumeAvailability[item.jobId]
+        let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
+
+        Button {
+            onSelectItem?(item, .resume)
+        } label: {
+            if hasResume {
+                Label(resumeMenuLabel(for: item), systemImage: "play.fill")
+            } else {
+                Label("Play", systemImage: "play.fill")
             }
         }
+
+        if hasResume {
+            Button {
+                onSelectItem?(item, .startOver)
+            } label: {
+                Label("Start from Beginning", systemImage: "arrow.counterclockwise")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func playbackContextMenu(for job: PipelineStatusResponse) -> some View {
+        let availability = resumeAvailability[job.jobId]
+        let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
+
+        Button {
+            onSelectJob?(job, .resume)
+        } label: {
+            if hasResume {
+                Label(resumeMenuLabel(for: job), systemImage: "play.fill")
+            } else {
+                Label("Play", systemImage: "play.fill")
+            }
+        }
+
+        if hasResume {
+            Button {
+                onSelectJob?(job, .startOver)
+            } label: {
+                Label("Start from Beginning", systemImage: "arrow.counterclockwise")
+            }
+        }
+    }
+
+    private func resumeMenuLabel(for item: LibraryItem) -> String {
+        guard let availability = resumeAvailability[item.jobId] else {
+            return "Resume"
+        }
+        let entry = availability.cloudEntry ?? availability.localEntry
+        guard let entry else { return "Resume" }
+        switch entry.kind {
+        case .sentence:
+            if let sentence = entry.sentenceNumber, sentence > 0 {
+                return "Resume from Sentence \(sentence)"
+            }
+        case .time:
+            if let time = entry.playbackTime, time > 0 {
+                return "Resume from \(formatPlaybackTime(time))"
+            }
+        }
+        return "Resume"
+    }
+
+    private func resumeMenuLabel(for job: PipelineStatusResponse) -> String {
+        guard let availability = resumeAvailability[job.jobId] else {
+            return "Resume"
+        }
+        let entry = availability.cloudEntry ?? availability.localEntry
+        guard let entry else { return "Resume" }
+        switch entry.kind {
+        case .sentence:
+            if let sentence = entry.sentenceNumber, sentence > 0 {
+                return "Resume from Sentence \(sentence)"
+            }
+        case .time:
+            if let time = entry.playbackTime, time > 0 {
+                return "Resume from \(formatPlaybackTime(time))"
+            }
+        }
+        return "Resume"
     }
 
     private func matches(job: PipelineStatusResponse, query: String) -> Bool {
@@ -696,8 +910,7 @@ private struct CombinedSearchView: View {
     }()
 
     private func resumeStatus(for job: PipelineStatusResponse) -> LibraryRowView.ResumeStatus {
-        guard let resumeUserId else { return .none() }
-        let availability = PlaybackResumeStore.shared.availability(for: job.jobId, userId: resumeUserId)
+        guard let availability = resumeAvailability[job.jobId] else { return .none() }
         let entry = availability.hasCloud ? availability.cloudEntry : nil
         guard let entry else { return .none() }
         let label = resumeLabel(prefix: "C", entry: entry)
@@ -705,12 +918,19 @@ private struct CombinedSearchView: View {
     }
 
     private func resumeStatus(for item: LibraryItem) -> LibraryRowView.ResumeStatus {
-        guard let resumeUserId else { return .none() }
-        let availability = PlaybackResumeStore.shared.availability(for: item.jobId, userId: resumeUserId)
+        guard let availability = resumeAvailability[item.jobId] else { return .none() }
         let entry = availability.hasCloud ? availability.cloudEntry : nil
         guard let entry else { return .none() }
         let label = resumeLabel(prefix: "C", entry: entry)
         return .cloud(label: label)
+    }
+
+    private func refreshResumeStatus() {
+        guard let resumeUserId else {
+            resumeAvailability = [:]
+            return
+        }
+        resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: resumeUserId)
     }
 
     private func resumeLabel(prefix: String, entry: PlaybackResumeEntry?) -> String {

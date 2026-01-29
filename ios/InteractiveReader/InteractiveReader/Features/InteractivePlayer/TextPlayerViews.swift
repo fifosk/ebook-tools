@@ -43,14 +43,20 @@ struct TextPlayerFrame: View {
     let onTokenFramesChange: (([TextPlayerTokenFrame]) -> Void)?
     let onTapExclusionFramesChange: (([CGRect]) -> Void)?
     let shouldReportTokenFrames: Bool
+    var isLoading: Bool = false
 
     var body: some View {
         VStack(spacing: 10) {
             if sentences.isEmpty {
-                Text("Waiting for transcript...")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
+                if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text("Waiting for transcript...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
             } else {
                 ForEach(sentences) { sentence in
                     TextPlayerSentenceView(

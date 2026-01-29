@@ -270,7 +270,7 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
             .focused($focusTarget, equals: .subtitles)
             .focusSection()
             .focusEffectDisabled()
-            .onLongPressGesture(minimumDuration: 0.6) { onToggleTransliteration() }
+            .onLongPressGesture(minimumDuration: 0.6) { onToggleHeaderCollapsed() }
             .onMoveCommand { direction in handleSubtitleMoveCommand(direction) }
             .onTapGesture { handleSubtitleTap() }
         #else
@@ -630,6 +630,9 @@ extension VideoPlayerOverlayView {
                     .stroke(Color.white.opacity(0.12), lineWidth: 1)
             )
             .frame(maxWidth: .infinity, alignment: .topLeading)
+            .onLongPressGesture(minimumDuration: 0.6) {
+                onToggleHeaderCollapsed()
+            }
         }
     }
 
@@ -640,6 +643,9 @@ extension VideoPlayerOverlayView {
                 .frame(maxWidth: .infinity, alignment: .topTrailing)
                 .padding(.top, 6)
                 .padding(.trailing, 6)
+                .onLongPressGesture(minimumDuration: 0.6) {
+                    onToggleHeaderCollapsed()
+                }
         }
     }
 
@@ -670,6 +676,11 @@ extension VideoPlayerOverlayView {
                     focusTarget = .bubble
                 } else {
                     focusTarget = .subtitles
+                }
+            case .left:
+                // Navigate left to bookmark ribbon pill if available
+                if onAddBookmark != nil {
+                    focusTarget = .control(.headerBookmark)
                 }
             default:
                 break
@@ -756,7 +767,9 @@ extension VideoPlayerOverlayView {
             onAddBookmark: onAddBookmark,
             onJumpToBookmark: onJumpToBookmark,
             onRemoveBookmark: onRemoveBookmark,
-            onUserInteraction: onUserInteraction
+            onUserInteraction: onUserInteraction,
+            focusTarget: $focusTarget,
+            onMoveRight: { focusTarget = .control(.header) }
         )
     }
 
@@ -981,7 +994,8 @@ extension VideoPlayerOverlayView {
         guard duration.isFinite, duration > 0, currentTime.isFinite else { return nil }
         let played = min(max(currentTime, 0), duration)
         let remaining = max(duration - played, 0)
-        let base = "\(VideoPlayerTimeFormatter.formatDuration(played)) / \(VideoPlayerTimeFormatter.formatDuration(remaining)) remaining"
+        // Unified compact format: time / remaining
+        let base = "\(VideoPlayerTimeFormatter.formatDuration(played)) / \(VideoPlayerTimeFormatter.formatDuration(remaining))"
         if let jobRemainingLabel {
             return "\(base) · \(jobRemainingLabel)"
         }
@@ -993,9 +1007,10 @@ extension VideoPlayerOverlayView {
         if segmentOptions.count > 1 {
             if let selectedSegmentID,
                let index = segmentOptions.firstIndex(where: { $0.id == selectedSegmentID }) {
-                chunkLabel = "Chunk \(index + 1) / \(segmentOptions.count)"
+                // Unified compact format: C:current/total
+                chunkLabel = "C:\(index + 1)/\(segmentOptions.count)"
             } else {
-                chunkLabel = "Chunk 1 / \(segmentOptions.count)"
+                chunkLabel = "C:1/\(segmentOptions.count)"
             }
         } else {
             chunkLabel = nil
