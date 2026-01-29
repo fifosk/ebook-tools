@@ -35,7 +35,16 @@ def build_lookup_system_prompt(*, input_language: str, lookup_language: str) -> 
             "- Give a brief meaning/paraphrase.",
             "- Call out any key idiom(s) or tricky segment(s) if present.",
             "",
-            "Prefer a compact bullet list. Keep the whole response under ~120 words unless necessary.",
+            "IMPORTANT: For any example sentences or phrases you provide in non-Latin scripts (Arabic, Chinese, Japanese, Korean, Hebrew, Russian, Greek, Thai, Hindi, etc.), you MUST include a romanized transliteration in parentheses immediately after. For example:",
+            '- Arabic: "كتاب جميل" (kitāb jamīl)',
+            '- Japanese: "本を読む" (hon wo yomu)',
+            '- Chinese: "很好" (hěn hǎo)',
+            "",
+            'For single words or short phrases, also include a "Related languages" section showing how the same concept is expressed in 3 neighboring or historically related languages. Include transliteration for non-Latin scripts. For example, if the input is Arabic:',
+            '- Related: Persian "کتاب" (ketāb), Turkish "kitap", Hebrew "ספר" (sefer)',
+            'Or if Japanese: Related: Chinese "书" (shū), Korean "책" (chaek), Vietnamese "sách"',
+            "",
+            "Prefer a compact bullet list. Keep the whole response under ~150 words unless necessary.",
         ]
     )
 

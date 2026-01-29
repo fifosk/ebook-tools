@@ -25,6 +25,7 @@ struct MyLinguistBubbleView: View {
     var fillWidth: Bool = false
     var hideTitle: Bool = false
     var edgeToEdgeStyle: Bool = false
+    var maxContentHeight: CGFloat? = nil
 
     private var isPad: Bool {
         #if os(iOS)
@@ -59,6 +60,7 @@ struct MyLinguistBubbleView: View {
         }
         config.hideTitle = hideTitle
         config.edgeToEdgeStyle = edgeToEdgeStyle
+        config.maxContentHeight = maxContentHeight
         return config
     }
 

@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		NOTIFY001A0001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIFY002A0001 /* AppDelegate.swift */; };
+		NOTIFY001A0002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIFY002A0001 /* AppDelegate.swift */; };
+		NOTIFY001B0001 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIFY002B0001 /* NotificationManager.swift */; };
+		NOTIFY001B0002 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIFY002B0001 /* NotificationManager.swift */; };
 		014C48B2AF765114C22CC145 /* TVVideoPlayerControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B94F4E89C8D6FA51187E8C /* TVVideoPlayerControls.swift */; };
 		014EC9460ECFE802F7AB1E8A /* InteractivePlayerContextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFC908AF6574D91BDD9A7085 /* InteractivePlayerContextBuilder.swift */; };
 		04338C94978449F3BCA4C541 /* VideoPlayerControllerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7860DE1501394F9B814B84DA /* VideoPlayerControllerView.swift */; };
@@ -224,6 +228,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		NOTIFY002A0001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		NOTIFY002B0001 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		MEDIASEARCH002A0001 /* MediaSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSearchView.swift; sourceTree = "<group>"; };
 		MEDIASEARCH002B0001 /* InteractivePlayerView+Search.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+Search.swift"; sourceTree = "<group>"; };
 		MEDIASEARCH002C0001 /* VideoPlayerView+Search.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoPlayerView+Search.swift"; sourceTree = "<group>"; };
@@ -456,6 +462,7 @@
 			isa = PBXGroup;
 			children = (
 				6FDC3A2002F914D000A1D9A1 /* InteractiveReaderApp.swift */,
+				NOTIFY002A0001 /* AppDelegate.swift */,
 				047AC4516AF7484BA731CF4E /* AppState.swift */,
 				9C52CBAA7D2D4EEA82595A11 /* RootView.swift */,
 			);
@@ -531,6 +538,7 @@
 			children = (
 				6FDC3A2502F914D000A1D9A1 /* APIClient.swift */,
 				6FDC3A2602F914D000A1D9A1 /* AudioPlayerCoordinator.swift */,
+				NOTIFY002B0001 /* NotificationManager.swift */,
 				A1B2C3D4E5F60718293A4E5F /* OfflineMediaStore.swift */,
 				A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */,
 				B2F0F7C9A1B24E3F9C2D1111 /* PlaybackBookmarkStore.swift */,
@@ -754,10 +762,12 @@
 				6FDC3A3602F914D000A1D9A1 /* AudioPlayerCoordinator.swift in Sources */,
 				6FDC3A3102F914D000A1D9A1 /* JobLoaderView.swift in Sources */,
 				6FDC3A3502F914D000A1D9A1 /* APIClient.swift in Sources */,
+				NOTIFY001B0001 /* NotificationManager.swift in Sources */,
 				A1B2C3D4E5F60718293A4E61 /* OfflineMediaStore.swift in Sources */,
 				6FDC3A3302F914D000A1D9A1 /* InteractivePlayerViewModel.swift in Sources */,
 				C4071804A8944B53824E2B45 /* TextPlayerTimeline.swift in Sources */,
 				6FDC3A3002F914D000A1D9A1 /* InteractiveReaderApp.swift in Sources */,
+				NOTIFY001A0001 /* AppDelegate.swift in Sources */,
 				33F2C40709904BACAA2E5070 /* AppState.swift in Sources */,
 				D6CA6C00E95343CEAD94AEE8 /* RootView.swift in Sources */,
 				3F472EF5C5D94254BB3EBC46 /* LoginView.swift in Sources */,
@@ -865,10 +875,12 @@
 				1798B1502EF9F1A00092A8AF /* AudioPlayerCoordinator.swift in Sources */,
 				1798B1512EF9F1A00092A8AF /* JobLoaderView.swift in Sources */,
 				1798B1522EF9F1A00092A8AF /* APIClient.swift in Sources */,
+				NOTIFY001B0002 /* NotificationManager.swift in Sources */,
 				A1B2C3D4E5F60718293A4E62 /* OfflineMediaStore.swift in Sources */,
 				1798B1532EF9F1A00092A8AF /* InteractivePlayerViewModel.swift in Sources */,
 				F0E83C6F391E4B33886B6788 /* TextPlayerTimeline.swift in Sources */,
 				1798B1542EF9F1A00092A8AF /* InteractiveReaderApp.swift in Sources */,
+				NOTIFY001A0002 /* AppDelegate.swift in Sources */,
 				1798B1552EF9F1A00092A8AF /* AppState.swift in Sources */,
 				1798B1562EF9F1A00092A8AF /* RootView.swift in Sources */,
 				1798B1572EF9F1A00092A8AF /* LoginView.swift in Sources */,

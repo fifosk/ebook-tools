@@ -34,9 +34,15 @@ from .routers.bookmarks import router as bookmarks_router
 from .auth_routes import router as auth_router
 from .routers.reading_beds import admin_router as reading_beds_admin_router
 from .routers.reading_beds import router as reading_beds_router
+from .routes.notification_routes import router as notification_router
 from modules.audio.config import load_media_config
 
-from .dependencies import configure_media_services, get_runtime_context_provider
+from .dependencies import (
+    configure_media_services,
+    get_notification_service,
+    get_pipeline_job_manager,
+    get_runtime_context_provider,
+)
 from .routes.media_routes import (
     register_exception_handlers as register_media_exception_handlers,
     router as media_router,
@@ -500,6 +506,20 @@ def create_app() -> FastAPI:
         except Exception:  # pragma: no cover - defensive logging
             LOGGER.exception("Failed to prune empty job folders on startup")
 
+        # Wire up push notification callback
+        try:
+            notification_service = get_notification_service()
+            if notification_service.is_enabled:
+                job_manager = get_pipeline_job_manager()
+                job_manager.set_notification_callback(
+                    notification_service.notify_job_completed
+                )
+                LOGGER.info("Push notifications enabled for job completion events")
+            else:
+                LOGGER.debug("Push notifications disabled (APNs not configured)")
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.debug("Failed to configure push notifications", exc_info=True)
+
     @app.on_event("shutdown")
     async def _cleanup_runtime() -> None:
         try:
@@ -535,6 +555,7 @@ def create_app() -> FastAPI:
     app.include_router(bookmarks_router)
     app.include_router(assistant_router)
     app.include_router(exports_router)
+    app.include_router(notification_router)
     app.include_router(router, prefix="/api/pipelines", tags=["pipelines"])
     app.include_router(router, prefix="/pipelines", tags=["pipelines"], include_in_schema=False)
     app.include_router(storage_router, prefix="/storage", tags=["storage"])

@@ -35,6 +35,7 @@ from ..user_management import AuthService, LocalUserStore, SessionManager
 from ..video.backends import create_video_renderer
 from modules.permissions import normalize_role
 from .jobs import PipelineJobManager
+from ..notifications import APNsConfig, APNsService, NotificationService
 
 
 logger = log_mgr.logger
@@ -465,6 +466,53 @@ def get_auth_service() -> AuthService:
     user_store = LocalUserStore(storage_path=user_store_path)
     session_manager = SessionManager(session_file=session_file)
     return AuthService(user_store, session_manager)
+
+
+def _resolve_apns_configuration() -> APNsConfig | None:
+    """Load APNs configuration from config files."""
+    config = cfg.load_configuration(verbose=False)
+    apns_config = config.get("apns") or {}
+
+    if not apns_config.get("enabled", False):
+        return None
+
+    key_path_str = apns_config.get("key_path", "")
+    if not key_path_str:
+        return None
+
+    key_path = Path(key_path_str).expanduser()
+    if not key_path.is_absolute():
+        # SCRIPT_DIR is already the project root
+        key_path = cfg.SCRIPT_DIR / key_path
+
+    return APNsConfig(
+        key_id=apns_config.get("key_id", ""),
+        team_id=apns_config.get("team_id", ""),
+        bundle_id=apns_config.get("bundle_id", ""),
+        key_path=key_path,
+        environment=apns_config.get("environment", "development"),
+    )
+
+
+@lru_cache
+def get_apns_service() -> APNsService | None:
+    """Return a configured APNs service, or None if not configured."""
+    apns_config = _resolve_apns_configuration()
+    if not apns_config or not apns_config.is_valid():
+        logger.debug("APNs not configured or invalid; push notifications disabled")
+        return None
+    return APNsService(apns_config)
+
+
+@lru_cache
+def get_notification_service() -> NotificationService:
+    """Return the shared NotificationService instance."""
+    apns_service = get_apns_service()
+    auth_service = get_auth_service()
+    return NotificationService(
+        apns_service=apns_service,
+        user_store=auth_service.user_store,
+    )
 
 
 def get_request_user(

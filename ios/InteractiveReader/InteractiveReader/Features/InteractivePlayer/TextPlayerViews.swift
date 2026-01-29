@@ -11,6 +11,7 @@ struct TextPlayerTokenFrame: Equatable {
     let sentenceIndex: Int
     let variantKind: TextPlayerVariantKind
     let tokenIndex: Int
+    let token: String
     let frame: CGRect
 }
 
@@ -629,6 +630,7 @@ struct TextPlayerVariantView: View {
                                         sentenceIndex: sentenceIndex,
                                         variantKind: variant.kind,
                                         tokenIndex: index,
+                                        token: token,
                                         frame: proxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
                                     )
                                 ]

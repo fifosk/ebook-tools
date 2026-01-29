@@ -439,6 +439,12 @@ private struct PlaybackSettingsView: View {
     let onBack: (() -> Void)?
     let usesDarkBackground: Bool
     @AppStorage("interactive.autoScaleEnabled") private var autoScaleEnabled: Bool = true
+    @EnvironmentObject private var appState: AppState
+    @StateObject private var notificationManager = NotificationManager.shared
+    @State private var isRequestingPermission = false
+    @State private var isSendingTestNotification = false
+    @State private var showTestAlert = false
+    @State private var testAlertMessage = ""
 
     init(sectionPicker: AnyView? = nil, backTitle: String? = nil, onBack: (() -> Void)? = nil, usesDarkBackground: Bool = false) {
         self.sectionPicker = sectionPicker
@@ -475,6 +481,68 @@ private struct PlaybackSettingsView: View {
                         }
                     }
                 }
+
+                #if os(iOS)
+                Section("Notifications") {
+                    if notificationManager.isAuthorized {
+                        Toggle(isOn: $notificationManager.notificationsEnabled) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Job Notifications")
+                                    .foregroundStyle(usesDarkBackground ? .white : .primary)
+                                Text("Receive alerts when jobs complete or fail.")
+                                    .font(.caption)
+                                    .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                            }
+                        }
+
+                        Button {
+                            sendTestNotification()
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Send Test Notification")
+                                        .foregroundStyle(usesDarkBackground ? .white : .primary)
+                                    Text("Verify push notifications are working.")
+                                        .font(.caption)
+                                        .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                                }
+                                Spacer()
+                                if isSendingTestNotification {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "bell.badge")
+                                        .foregroundStyle(usesDarkBackground ? .white : .accentColor)
+                                }
+                            }
+                        }
+                        .disabled(isSendingTestNotification || !notificationManager.notificationsEnabled)
+                    } else {
+                        Button {
+                            requestNotificationPermission()
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Enable Notifications")
+                                        .foregroundStyle(usesDarkBackground ? .white : .primary)
+                                    Text("Get alerts when jobs complete or fail.")
+                                        .font(.caption)
+                                        .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                                }
+                                Spacer()
+                                if isRequestingPermission {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "bell")
+                                        .foregroundStyle(usesDarkBackground ? .white : .accentColor)
+                                }
+                            }
+                        }
+                        .disabled(isRequestingPermission)
+                    }
+                }
+                #endif
             }
             #if os(tvOS)
             .listStyle(.plain)
@@ -489,8 +557,49 @@ private struct PlaybackSettingsView: View {
         .toolbarBackground(usesDarkBackground ? AppTheme.lightBackground : Color.clear, for: .navigationBar)
         .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
         .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
+        .alert("Test Notification", isPresented: $showTestAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(testAlertMessage)
+        }
         #endif
     }
+
+    #if os(iOS)
+    private func requestNotificationPermission() {
+        isRequestingPermission = true
+        Task {
+            _ = await notificationManager.requestAuthorization()
+            isRequestingPermission = false
+        }
+    }
+
+    private func sendTestNotification() {
+        guard let config = appState.configuration else {
+            testAlertMessage = "Not signed in. Please log in first."
+            showTestAlert = true
+            return
+        }
+
+        isSendingTestNotification = true
+        Task {
+            do {
+                let result = try await notificationManager.sendTestNotification(using: config)
+                if result.sent > 0 {
+                    testAlertMessage = "Test notification sent to \(result.sent) device(s)!"
+                } else if let message = result.message {
+                    testAlertMessage = message
+                } else {
+                    testAlertMessage = "No devices registered. Make sure notifications are enabled on this device."
+                }
+            } catch {
+                testAlertMessage = "Failed to send: \(error.localizedDescription)"
+            }
+            isSendingTestNotification = false
+            showTestAlert = true
+        }
+    }
+    #endif
 }
 
 private struct CombinedSearchView: View {

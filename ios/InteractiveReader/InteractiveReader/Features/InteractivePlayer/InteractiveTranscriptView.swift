@@ -132,7 +132,26 @@ struct InteractiveTranscriptView: View {
                 return 0
                 #endif
             }()
-            let textHeightLimit = isPhone ? max(availableHeight - safeAreaBottom, 0) : textHeight
+            // Calculate available track height for auto-scaling
+            // For phone with bubble: use the constrained track area height
+            let textHeightLimit: CGFloat = {
+                if isPhone {
+                    let fullHeight = max(availableHeight - safeAreaBottom, 0)
+                    if bubble != nil {
+                        let isPortrait = proxy.size.height > proxy.size.width
+                        if isPortrait {
+                            // Portrait: tracks get 45% of height
+                            return fullHeight * 0.45
+                        } else {
+                            // Landscape: tracks get full height but in a narrower area
+                            // Still use full height for auto-scale calculation
+                            return fullHeight
+                        }
+                    }
+                    return fullHeight
+                }
+                return textHeight
+            }()
             let shouldAutoScaleTracks = !isTV && autoScaleEnabled
             let bubbleFocusEnabled: Bool = {
                 #if os(tvOS)
@@ -243,7 +262,7 @@ struct InteractiveTranscriptView: View {
                         availableHeight: availableHeight,
                         layoutSize: proxy.size
                     )
-                    .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
+                    // Coordinate space is defined inside phoneLayout
                 } else {
                     let trackViewWithPlayback: AnyView = {
                         if isPad {
@@ -350,6 +369,18 @@ struct InteractiveTranscriptView: View {
                     requestAutoScaleUpdate()
                 }
             }
+            .onChange(of: bubble) { oldBubble, newBubble in
+                // Recalculate auto-scale when bubble appears/disappears
+                // as the available track height changes
+                guard shouldAutoScaleTracks, isPhone else { return }
+                let bubbleWasOpen = oldBubble != nil
+                let bubbleIsOpen = newBubble != nil
+                if bubbleWasOpen != bubbleIsOpen {
+                    lastAvailableTrackHeight = textHeightLimit
+                    autoScaleNeedsUpdate = true
+                    requestAutoScaleUpdate(delay: 100_000_000)
+                }
+            }
             .onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
                 if isPlaying {
                     dragSelectionAnchor = nil
@@ -372,6 +403,9 @@ struct InteractiveTranscriptView: View {
     private var swipeGesture: some Gesture {
         DragGesture(minimumDistance: 24, coordinateSpace: .local)
             .onEnded { value in
+                // Don't process swipes if drag selection was/is active
+                guard dragSelectionAnchor == nil else { return }
+                guard !suppressPlaybackToggle else { return }
                 let horizontal = value.translation.width
                 let vertical = value.translation.height
                 if abs(horizontal) > abs(vertical) {
@@ -399,7 +433,7 @@ struct InteractiveTranscriptView: View {
     private var selectionDragGesture: some Gesture {
         DragGesture(minimumDistance: 8, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
             .onChanged { value in
-                guard isPad else { return }
+                // Allow drag selection on both iPad and iPhone when paused
                 guard !audioCoordinator.isPlaying else { return }
                 if dragSelectionAnchor == nil {
                     guard let anchorToken = tokenFrameContaining(value.startLocation) else { return }
@@ -408,11 +442,24 @@ struct InteractiveTranscriptView: View {
                         variantKind: anchorToken.variantKind,
                         tokenIndex: anchorToken.tokenIndex
                     )
+                    // Suppress playback toggle during drag selection to prevent
+                    // background tap gesture from triggering playback on drag end
+                    suppressPlaybackTask?.cancel()
+                    suppressPlaybackToggle = true
                 }
                 updateSelectionRange(at: value.location)
             }
             .onEnded { _ in
                 dragSelectionAnchor = nil
+                // Keep suppression active until lookup completes (350ms delay)
+                // scheduleDragLookup sets up the delayed lookup, so we need to
+                // keep suppression until after that task runs
+                suppressPlaybackTask?.cancel()
+                suppressPlaybackTask = Task { @MainActor in
+                    // Wait for drag lookup delay plus a small buffer
+                    try? await Task.sleep(nanoseconds: dragLookupDelayNanos + 50_000_000)
+                    suppressPlaybackToggle = false
+                }
             }
     }
     #endif
@@ -598,6 +645,29 @@ struct InteractiveTranscriptView: View {
         return nil
     }
 
+    /// Find the nearest token frame within a maximum distance threshold.
+    /// Used for tap-to-lookup to be more forgiving than exact hit testing.
+    private func nearestTokenFrameForTap(at location: CGPoint, maxDistance: CGFloat = 20) -> TextPlayerTokenFrame? {
+        let candidates = tokenFrames
+        guard !candidates.isEmpty else { return nil }
+        // First try exact hit
+        if let exact = candidates.first(where: { $0.frame.contains(location) }) {
+            return exact
+        }
+        // Find nearest within threshold
+        var bestMatch: TextPlayerTokenFrame?
+        var bestDistance: CGFloat = .greatestFiniteMagnitude
+        for candidate in candidates {
+            let center = CGPoint(x: candidate.frame.midX, y: candidate.frame.midY)
+            let distance = hypot(center.x - location.x, center.y - location.y)
+            if distance < bestDistance && distance <= maxDistance {
+                bestDistance = distance
+                bestMatch = candidate
+            }
+        }
+        return bestMatch
+    }
+
     private func scheduleDragLookup() {
         dragLookupTask?.cancel()
         dragLookupTask = Task { @MainActor in
@@ -668,6 +738,7 @@ struct InteractiveTranscriptView: View {
 
         if bubble != nil {
             // iPhone with bubble: optimized split layout
+            // Use stable ID to prevent view recreation when bubble content changes
             if isPortrait {
                 // Portrait: tracks in upper half, bubble in lower half
                 phonePortraitBubbleLayout(
@@ -677,6 +748,7 @@ struct InteractiveTranscriptView: View {
                     bubbleFocusEnabled: bubbleFocusEnabled,
                     availableHeight: availableHeight
                 )
+                .id("phone-portrait-bubble")
             } else {
                 // Landscape: bubble on left, tracks on right
                 phoneLandscapeBubbleLayout(
@@ -686,6 +758,7 @@ struct InteractiveTranscriptView: View {
                     bubbleFocusEnabled: bubbleFocusEnabled,
                     layoutWidth: layoutSize.width
                 )
+                .id("phone-landscape-bubble")
             }
         } else {
             // No bubble: original centered layout
@@ -697,7 +770,9 @@ struct InteractiveTranscriptView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
+            .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
             .simultaneousGesture(swipeGesture, including: .all)
+            .simultaneousGesture(selectionDragGesture, including: .gesture)
             .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
             .highPriorityGesture(trackMagnifyGesture, including: .all)
         }
@@ -715,20 +790,19 @@ struct InteractiveTranscriptView: View {
         let lowerHalfHeight = availableHeight * 0.55
 
         VStack(spacing: 0) {
-            // Upper half: tracks
-            VStack {
-                Spacer(minLength: 0)
-                trackViewWithPlayback
-                    .padding(.horizontal, 12)
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, maxHeight: upperHalfHeight)
-            .contentShape(Rectangle())
-            .simultaneousGesture(swipeGesture, including: .all)
-            .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
-            .highPriorityGesture(trackMagnifyGesture, including: .all)
+            // Upper half: tracks - use fixed frame with center alignment to prevent layout jumps
+            trackViewWithPlayback
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, maxHeight: upperHalfHeight, alignment: .center)
+                .contentShape(Rectangle())
+                .simultaneousGesture(swipeGesture, including: .all)
+                .simultaneousGesture(selectionDragGesture, including: .gesture)
+                .simultaneousGesture(phoneBubbleOpenBackgroundTapGesture, including: .all)
+                .highPriorityGesture(trackMagnifyGesture, including: .all)
 
             // Lower half: bubble
+            // Use bubble! since we know it's non-nil (this layout is only used when bubble exists)
+            // Avoiding `if let` prevents SwiftUI from treating content changes as structural changes
             ZStack(alignment: .top) {
                 // Tap to dismiss area
                 Color.clear
@@ -741,9 +815,11 @@ struct InteractiveTranscriptView: View {
                         }
                     }
 
-                if let bubble {
+                // Use GeometryReader to get available height and pass to bubble
+                GeometryReader { bubbleGeo in
+                    let contentHeight = max(bubbleGeo.size.height - 100, 80)
                     MyLinguistBubbleView(
-                        bubble: bubble,
+                        bubble: bubble!,
                         fontScale: resolvedLinguistFontScale,
                         canIncreaseFont: canIncreaseLinguistFont,
                         canDecreaseFont: canDecreaseLinguistFont,
@@ -758,24 +834,29 @@ struct InteractiveTranscriptView: View {
                         onClose: onCloseBubble,
                         isFocusEnabled: bubbleFocusEnabled,
                         focusBinding: $focusedArea,
-                        useCompactLayout: true,
+                        useCompactLayout: false,
                         fillWidth: true,
                         hideTitle: true,
-                        edgeToEdgeStyle: true
+                        edgeToEdgeStyle: false,
+                        maxContentHeight: contentHeight
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .background(GeometryReader { bubbleProxy in
-                        Color.clear.preference(
-                            key: InteractiveBubbleFrameKey.self,
-                            value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
-                        )
-                    })
+                    .clipped()
                     .simultaneousGesture(bubbleMagnifyGesture, including: .all)
                 }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+                .background(GeometryReader { bubbleProxy in
+                    Color.clear.preference(
+                        key: InteractiveBubbleFrameKey.self,
+                        value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
+                    )
+                })
             }
             .frame(maxWidth: .infinity, maxHeight: lowerHalfHeight)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
     }
 
     @ViewBuilder
@@ -803,9 +884,13 @@ struct InteractiveTranscriptView: View {
                         }
                     }
 
-                if let bubble {
+                // Use bubble! since we know it's non-nil (this layout is only used when bubble exists)
+                // Avoiding `if let` prevents SwiftUI from treating content changes as structural changes
+                // Use GeometryReader to get available height and pass to bubble
+                GeometryReader { bubbleGeo in
+                    let contentHeight = max(bubbleGeo.size.height - 100, 80)
                     MyLinguistBubbleView(
-                        bubble: bubble,
+                        bubble: bubble!,
                         fontScale: resolvedLinguistFontScale,
                         canIncreaseFont: canIncreaseLinguistFont,
                         canDecreaseFont: canDecreaseLinguistFont,
@@ -820,37 +905,76 @@ struct InteractiveTranscriptView: View {
                         onClose: onCloseBubble,
                         isFocusEnabled: bubbleFocusEnabled,
                         focusBinding: $focusedArea,
-                        useCompactLayout: true,
+                        useCompactLayout: false,
                         fillWidth: true,
                         hideTitle: true,
-                        edgeToEdgeStyle: true
+                        edgeToEdgeStyle: false,
+                        maxContentHeight: contentHeight
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .background(GeometryReader { bubbleProxy in
-                        Color.clear.preference(
-                            key: InteractiveBubbleFrameKey.self,
-                            value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
-                        )
-                    })
+                    .clipped()
                     .simultaneousGesture(bubbleMagnifyGesture, including: .all)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(GeometryReader { bubbleProxy in
+                    Color.clear.preference(
+                        key: InteractiveBubbleFrameKey.self,
+                        value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
+                    )
+                })
             }
             .frame(width: leftWidth)
+            .clipped()
 
-            // Right side: tracks
-            VStack {
-                Spacer(minLength: 0)
-                trackViewWithPlayback
-                    .padding(.horizontal, 12)
-                Spacer(minLength: 0)
-            }
-            .frame(width: rightWidth)
-            .contentShape(Rectangle())
-            .simultaneousGesture(swipeGesture, including: .all)
-            .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
-            .highPriorityGesture(trackMagnifyGesture, including: .all)
+            // Right side: tracks - use fixed frame with center alignment to prevent layout jumps
+            trackViewWithPlayback
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .frame(width: rightWidth)
+                .contentShape(Rectangle())
+                .simultaneousGesture(swipeGesture, including: .all)
+                .simultaneousGesture(selectionDragGesture, including: .gesture)
+                .simultaneousGesture(phoneBubbleOpenBackgroundTapGesture, including: .all)
+                .highPriorityGesture(trackMagnifyGesture, including: .all)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
+    }
+
+    /// Background tap gesture for iPhone when bubble is open.
+    /// Tapping on or near a token triggers lookup; tapping elsewhere closes bubble and plays.
+    private var phoneBubbleOpenBackgroundTapGesture: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
+            .onEnded { value in
+                guard !suppressPlaybackToggle else { return }
+                let distance = hypot(value.translation.width, value.translation.height)
+                guard distance < 8 else { return }
+                let location = value.location
+                // Tapping on exclusion frames (track toggles, etc.) - ignore first
+                if tapExclusionFrames.contains(where: { $0.contains(location) }) {
+                    return
+                }
+                // If tapping on or near a token while paused, do lookup
+                // Use nearestTokenFrameForTap for more forgiving hit testing
+                if let tokenFrame = nearestTokenFrameForTap(at: location), !audioCoordinator.isPlaying {
+                    // Suppress playback toggle when doing lookup
+                    suppressPlaybackTask?.cancel()
+                    suppressPlaybackToggle = true
+                    suppressPlaybackTask = Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 350_000_000)
+                        suppressPlaybackToggle = false
+                    }
+                    onLookupToken(tokenFrame.sentenceIndex, tokenFrame.variantKind, tokenFrame.tokenIndex, tokenFrame.token)
+                    return
+                }
+                // Tapping elsewhere - close bubble and resume playback
+                onCloseBubble()
+                if !audioCoordinator.isPlaying {
+                    onTogglePlayback()
+                }
+            }
     }
     #endif
 }
+

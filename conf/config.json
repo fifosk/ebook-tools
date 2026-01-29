@@ -131,5 +131,14 @@
         "cache_dir": "storage/cache/metadata",
         "max_sources_per_lookup": 3,
         "timeout_seconds": 30
+    },
+    "apns": {
+        "_notes": "Apple Push Notification service configuration. Set enabled=true and provide credentials to enable push notifications.",
+        "enabled": true,
+        "key_id": "Y4F63B8ZY2",
+        "team_id": "3Y7288895K",
+        "bundle_id": "com.example.InteractiveReader",
+        "key_path": "conf/certs/AuthKey_Y4F63B8ZY2.p8",
+        "environment": "development"
     }
 }

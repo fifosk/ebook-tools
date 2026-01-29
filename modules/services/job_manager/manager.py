@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import shutil
 import threading
@@ -9,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace as dataclass_replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, Mapping, Optional
+from typing import Any, Awaitable, Callable, Dict, Mapping, Optional, Tuple
 
 from ... import config_manager as cfg
 from ... import logging_manager as log_mgr
@@ -86,6 +87,10 @@ class PipelineJobManager:
         self._jobs: Dict[str, PipelineJob] = {}
         self._job_handlers: Dict[str, Callable[[str], None]] = {}
         self._custom_workers: Dict[str, Callable[[PipelineJob], None]] = {}
+        # Optional notification callback (set via set_notification_callback)
+        self._notification_callback: Optional[
+            Callable[[str, str, Optional[str], str], Awaitable[None]]
+        ] = None
         # Event deduplication: track last stored event signature per job
         self._last_event_sig: Dict[str, tuple] = {}
         settings = cfg.get_settings()
@@ -456,6 +461,8 @@ class PipelineJobManager:
 
     def _log_job_finished(self, job: PipelineJob, status: PipelineJobStatus) -> None:
         log_job_finished(job, status)
+        # Send push notification for terminal states
+        self._dispatch_job_notification(job, status)
 
     def _log_job_error(self, job: PipelineJob, exc: Exception) -> None:
         log_job_error(job, exc)
@@ -518,6 +525,8 @@ class PipelineJobManager:
                 snapshot = self._persistence.snapshot(job)
             self._store.update(snapshot)
             log_generic_job_finished(job, job.status)
+            # Send push notification for custom job completion
+            self._dispatch_job_notification(job, job.status)
         finally:
             with self._lock:
                 self._custom_workers.pop(job_id, None)
@@ -1059,3 +1068,82 @@ class PipelineJobManager:
         """Update the backpressure policy at runtime."""
         if self._backpressure is not None:
             self._backpressure.update_policy(policy)
+
+    def set_notification_callback(
+        self,
+        callback: Callable[[str, str, Optional[str], str], Awaitable[None]],
+    ) -> None:
+        """Set the callback for job completion notifications.
+
+        The callback receives: (user_id, job_id, job_label, status).
+        """
+        self._notification_callback = callback
+
+    def _dispatch_job_notification(
+        self,
+        job: PipelineJob,
+        status: PipelineJobStatus,
+    ) -> None:
+        """Dispatch a push notification for job completion."""
+        if self._notification_callback is None:
+            return
+
+        # Only notify for terminal states
+        if status not in (
+            PipelineJobStatus.COMPLETED,
+            PipelineJobStatus.FAILED,
+        ):
+            return
+
+        # Only notify if the job has an associated user
+        if not job.user_id:
+            return
+
+        # Extract job label from result payload if available
+        job_label: Optional[str] = None
+        if job.result_payload:
+            job_label = job.result_payload.get("title")
+            if not job_label:
+                book_metadata = job.result_payload.get("book_metadata")
+                if isinstance(book_metadata, dict):
+                    job_label = book_metadata.get("title")
+
+        # Schedule the async notification in a background task
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(
+                    self._notification_callback(
+                        job.user_id,
+                        job.job_id,
+                        job_label,
+                        status.value,
+                    )
+                )
+            else:
+                # If no event loop is running, try to get or create one
+                loop.run_until_complete(
+                    self._notification_callback(
+                        job.user_id,
+                        job.job_id,
+                        job_label,
+                        status.value,
+                    )
+                )
+        except RuntimeError:
+            # No event loop available (running in sync context)
+            try:
+                asyncio.run(
+                    self._notification_callback(
+                        job.user_id,
+                        job.job_id,
+                        job_label,
+                        status.value,
+                    )
+                )
+            except Exception as e:
+                logger.debug(
+                    "Failed to dispatch job notification: %s",
+                    e,
+                    exc_info=True,
+                )

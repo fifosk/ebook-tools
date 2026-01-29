@@ -38,3 +38,6 @@ modules/storage/
 *.db-shm
 *.db-wal
 config/.settings/
+
+# APNs authentication keys (sensitive)
+config/apns/

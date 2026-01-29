@@ -24,13 +24,13 @@ extension InteractivePlayerView {
         if audioCoordinator.isPlaying {
             audioCoordinator.pause()
         }
-        guard let sentence = activeSentenceDisplay(for: chunk),
-              let selection = resolvedSelection(for: chunk) else {
+        guard let sentence = activeSentenceDisplay(for: chunk) else {
             return
         }
+        // If we have an active selection range, use it directly (don't rely on resolvedSelection
+        // which may fall back to a different variant)
         if let range = linguistSelectionRange,
            range.sentenceIndex == sentence.index,
-           range.variantKind == selection.variantKind,
            let variant = sentence.variants.first(where: { $0.kind == range.variantKind }),
            visibleTracks.contains(variant.kind),
            !variant.tokens.isEmpty {
@@ -51,7 +51,9 @@ extension InteractivePlayerView {
             startLinguistLookup(query: query, variantKind: range.variantKind)
             return
         }
-        guard let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }),
+        // Fallback to resolved selection for single-word lookup
+        guard let selection = resolvedSelection(for: chunk),
+              let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }),
               variant.tokens.indices.contains(selection.tokenIndex) else {
             return
         }
