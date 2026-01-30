@@ -205,7 +205,8 @@ extension InteractivePlayerViewModel {
                 metadataPath: chunk.metadataPath ?? existing.metadataPath,
                 metadataURL: chunk.metadataURL ?? existing.metadataURL,
                 sentenceCount: chunk.sentenceCount ?? existing.sentenceCount,
-                audioTracks: chunk.audioTracks.isEmpty ? existing.audioTracks : chunk.audioTracks
+                audioTracks: chunk.audioTracks.isEmpty ? existing.audioTracks : chunk.audioTracks,
+                timingTracks: chunk.timingTracks ?? existing.timingTracks
             )
         }
         return PipelineMediaResponse(media: incoming.media, chunks: mergedChunks, complete: incoming.complete)
@@ -263,11 +264,13 @@ extension InteractivePlayerViewModel {
             var payloadData: Data? = nil
             for candidate in candidates {
                 guard let url = resolver.resolvePath(jobId: jobId, relativePath: candidate) else { continue }
+                print("[ChunkMetadata] Fetching from: \(url.absoluteString)")
                 do {
                     if url.isFileURL {
                         payloadData = try await Task.detached(priority: .utility) {
                             try Data(contentsOf: url, options: .mappedIfSafe)
                         }.value
+                        print("[ChunkMetadata] Loaded \(payloadData?.count ?? 0) bytes from file")
                         break
                     }
                     var request = URLRequest(url: url)
@@ -275,11 +278,14 @@ extension InteractivePlayerViewModel {
                     let (data, response) = try await URLSession.shared.data(for: request)
                     if let httpResponse = response as? HTTPURLResponse,
                        !(200..<300).contains(httpResponse.statusCode) {
+                        print("[ChunkMetadata] HTTP \(httpResponse.statusCode) from \(url.lastPathComponent)")
                         continue
                     }
                     payloadData = data
+                    print("[ChunkMetadata] Loaded \(data.count) bytes from HTTP")
                     break
                 } catch {
+                    print("[ChunkMetadata] Error loading \(url.lastPathComponent): \(error.localizedDescription)")
                     continue
                 }
             }
@@ -312,7 +318,8 @@ extension InteractivePlayerViewModel {
                 metadataPath: latestChunk.metadataPath,
                 metadataURL: latestChunk.metadataURL,
                 sentenceCount: latestChunk.sentenceCount ?? sentences.count,
-                audioTracks: latestChunk.audioTracks
+                audioTracks: latestChunk.audioTracks,
+                timingTracks: latestChunk.timingTracks
             )
             updatedChunks[index] = updatedChunk
             let refreshedMedia = PipelineMediaResponse(
@@ -393,11 +400,19 @@ extension InteractivePlayerViewModel {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             if let payload = try? decoder.decode(ChunkMetadataPayload.self, from: payloadData) {
+                // Debug: check if gate fields are present in first sentence
+                if let first = payload.sentences.first {
+                    print("[ChunkMetadata] Decoded \(payload.sentences.count) sentences, first has gates: orig=\(first.originalStartGate != nil), trans=\(first.startGate != nil)")
+                }
                 return payload.sentences
             }
             if let payload = try? decoder.decode([ChunkSentenceMetadata].self, from: payloadData) {
+                if let first = payload.first {
+                    print("[ChunkMetadata] Decoded \(payload.count) sentences (array), first has gates: orig=\(first.originalStartGate != nil), trans=\(first.startGate != nil)")
+                }
                 return payload
             }
+            print("[ChunkMetadata] Failed to decode payload")
             return nil
         }.value
     }

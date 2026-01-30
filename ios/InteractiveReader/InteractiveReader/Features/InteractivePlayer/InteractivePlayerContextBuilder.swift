@@ -51,7 +51,19 @@ enum JobContextBuilder {
     ) -> InteractiveChunk {
         let chunkID = chunk.chunkID ?? "chunk-\(index)"
         let label = chunkID
-        let sentences = buildSentences(for: chunk, groupedTokens: groupedTokens, fallbackStart: fallbackStart)
+
+        // Parse original track timing tokens from chunk.timingTracks
+        let originalGroupedTokens = parseTimingTrackTokens(from: chunk.timingTracks, trackKey: "original")
+        if !originalGroupedTokens.isEmpty {
+            print("[ContextBuilder] Parsed \(originalGroupedTokens.values.flatMap { $0 }.count) original timing tokens for chunk \(chunkID)")
+        }
+
+        let sentences = buildSentences(
+            for: chunk,
+            groupedTokens: groupedTokens,
+            originalGroupedTokens: originalGroupedTokens,
+            fallbackStart: fallbackStart
+        )
         let chunkAudioFiles = filterAudioFiles(from: chunk.files)
         let audioOptions = buildAudioOptions(
             for: chunk,
@@ -82,15 +94,21 @@ enum JobContextBuilder {
     private static func buildSentences(
         for chunk: PipelineMediaChunk,
         groupedTokens: [Int: [WordTimingToken]],
+        originalGroupedTokens: [Int: [WordTimingToken]],
         fallbackStart: Int
     ) -> [InteractiveChunk.Sentence] {
         if !chunk.sentences.isEmpty {
+            // Debug: log gate field presence
+            if let first = chunk.sentences.first {
+                print("[ContextBuilder] Building \(chunk.sentences.count) sentences, first has gates: orig=\(first.originalStartGate != nil)/\(first.originalEndGate != nil), trans=\(first.startGate != nil)/\(first.endGate != nil)")
+            }
             let baseIndex = chunk.startSentence ?? fallbackStart
             return chunk.sentences.enumerated().map { offset, sentence in
                 let explicitIndex = sentence.sentenceNumber
                 let derivedIndex = baseIndex + offset
                 let sentenceIndex = explicitIndex ?? derivedIndex
                 let timingTokens = groupedTokens[sentenceIndex] ?? []
+                let originalTimingTokens = originalGroupedTokens[sentenceIndex] ?? []
                 let originalText = sentence.original.text
                 let translationText = sentence.translation?.text ?? originalText
                 let transliterationText = sentence.transliteration?.text
@@ -108,9 +126,14 @@ enum JobContextBuilder {
                     transliterationTokens: transliterationTokens,
                     imagePath: sentence.imagePath,
                     timingTokens: timingTokens,
+                    originalTimingTokens: originalTimingTokens,
                     timeline: sentence.timeline,
                     totalDuration: sentence.totalDuration,
-                    phaseDurations: sentence.phaseDurations
+                    phaseDurations: sentence.phaseDurations,
+                    startGate: sentence.startGate,
+                    endGate: sentence.endGate,
+                    originalStartGate: sentence.originalStartGate,
+                    originalEndGate: sentence.originalEndGate
                 )
             }
         }
@@ -139,6 +162,7 @@ enum JobContextBuilder {
 
         return (start...end).map { sentenceIndex in
             let timingTokens = groupedTokens[sentenceIndex] ?? []
+            let originalTimingTokens = originalGroupedTokens[sentenceIndex] ?? []
             let tokens = timingTokens.map { $0.displayText }.filter { !$0.isEmpty }
             let text = tokens.joined(separator: " ").trimmingCharacters(in: .whitespaces)
             return InteractiveChunk.Sentence(
@@ -152,9 +176,14 @@ enum JobContextBuilder {
                 transliterationTokens: [],
                 imagePath: nil,
                 timingTokens: timingTokens,
+                originalTimingTokens: originalTimingTokens,
                 timeline: [],
                 totalDuration: nil,
-                phaseDurations: nil
+                phaseDurations: nil,
+                startGate: nil,
+                endGate: nil,
+                originalStartGate: nil,
+                originalEndGate: nil
             )
         }
     }
@@ -222,8 +251,12 @@ enum JobContextBuilder {
         }
 
         for (key, metadata) in chunk.audioTracks {
-            guard let url = resolveAudioURL(jobId: jobId, track: metadata, resolver: resolver) else { continue }
+            guard let url = resolveAudioURL(jobId: jobId, track: metadata, resolver: resolver) else {
+                print("[AudioOptions] Failed to resolve URL for track '\(key)': path=\(metadata.path ?? "nil"), url=\(metadata.url ?? "nil")")
+                continue
+            }
             let kind = audioKind(for: key)
+            print("[AudioOptions] Resolved track '\(key)' (\(kind)) -> \(url.absoluteString)")
             registerOption(
                 kind: kind,
                 id: "\(chunkID)|\(key)",
@@ -430,5 +463,75 @@ enum JobContextBuilder {
         default:
             return key.replacingOccurrences(of: "_", with: " ").capitalized
         }
+    }
+
+    /// Parse timing tokens from chunk.timingTracks for a specific track key
+    /// Returns tokens grouped by sentence index
+    private static func parseTimingTrackTokens(
+        from timingTracks: [String: [[String: JSONValue]]]?,
+        trackKey: String
+    ) -> [Int: [WordTimingToken]] {
+        guard let trackEntries = timingTracks?[trackKey] else {
+            return [:]
+        }
+
+        var tokens: [WordTimingToken] = []
+
+        for entry in trackEntries {
+            // Extract timing values - try multiple possible key names
+            let startTime: Double? = {
+                if case .number(let value) = entry["t0"] { return value }
+                if case .number(let value) = entry["start"] { return value }
+                if case .number(let value) = entry["begin"] { return value }
+                if case .number(let value) = entry["time"] { return value }
+                return nil
+            }()
+
+            let endTime: Double? = {
+                if case .number(let value) = entry["t1"] { return value }
+                if case .number(let value) = entry["end"] { return value }
+                if case .number(let value) = entry["stop"] { return value }
+                if case .number(let value) = entry["time"] { return value }
+                return nil
+            }()
+
+            guard let start = startTime, let end = endTime else {
+                continue
+            }
+
+            // Extract text/token
+            let text: String = {
+                if case .string(let value) = entry["text"], !value.isEmpty { return value }
+                if case .string(let value) = entry["token"], !value.isEmpty { return value }
+                return ""
+            }()
+
+            // Extract sentence index - try multiple possible key names
+            let sentenceIndex: Int? = {
+                if case .number(let value) = entry["sentenceIdx"] { return Int(value) }
+                if case .number(let value) = entry["sentenceId"] { return Int(value) }
+                if case .number(let value) = entry["sentence_idx"] { return Int(value) }
+                if case .number(let value) = entry["sentence_id"] { return Int(value) }
+                if case .string(let value) = entry["sentence_id"], let parsed = Int(value) { return parsed }
+                return nil
+            }()
+
+            // Extract or generate ID
+            let id: String = {
+                if case .string(let value) = entry["id"], !value.isEmpty { return value }
+                return UUID().uuidString
+            }()
+
+            tokens.append(WordTimingToken(
+                id: id,
+                text: text,
+                sentenceIndex: sentenceIndex,
+                startTime: min(start, end),
+                endTime: max(start, end)
+            ))
+        }
+
+        // Group by sentence index
+        return Dictionary(grouping: tokens) { $0.sentenceIndex ?? -1 }
     }
 }

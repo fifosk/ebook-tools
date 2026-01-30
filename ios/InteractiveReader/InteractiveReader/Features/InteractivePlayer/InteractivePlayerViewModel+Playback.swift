@@ -24,6 +24,27 @@ extension InteractivePlayerViewModel {
         guard let chunk = selectedChunk else {
             return audioCoordinator.currentTime
         }
+
+        // During sequence transitions, use the current segment's start time
+        // to prevent stale time values from causing incorrect highlighting
+        if sequenceController.isEnabled && sequenceController.isTransitioning {
+            if let segment = sequenceController.currentSegment {
+                return segment.start
+            }
+        }
+
+        // Right after a transition ends, use the expected position if available.
+        // This provides a stable time value before audioCoordinator.currentTime settles,
+        // preventing visual flicker on track switches.
+        if sequenceController.isEnabled, let expected = sequenceController.expectedPosition {
+            return expected
+        }
+
+        // NOTE: Sequence playback updates are now triggered by the time observer
+        // in AudioPlayerCoordinator, NOT here. Calling updateSequencePlayback from
+        // within a computed property caused side effects during view rendering,
+        // leading to flickering on track switches.
+
         let time = usesCombinedQueue(for: chunk) ? audioCoordinator.currentTime : playbackTime(for: chunk)
         return time.isFinite ? time : audioCoordinator.currentTime
     }
@@ -126,6 +147,13 @@ extension InteractivePlayerViewModel {
 
     func combinedQueuePlaybackTime(for chunk: InteractiveChunk) -> Double {
         let baseTime = audioCoordinator.currentTime
+
+        // In sequence mode, the time is just the current time in the current track
+        // The highlighting system will use the timing track to determine positions
+        if isSequenceModeActive {
+            return baseTime
+        }
+
         guard let track = selectedAudioOption(for: chunk) else { return baseTime }
         guard track.kind == .combined, track.streamURLs.count > 1 else { return baseTime }
         guard let activeURL = audioCoordinator.activeURL,
@@ -177,6 +205,16 @@ extension InteractivePlayerViewModel {
     }
 
     func activeTimingTrack(for chunk: InteractiveChunk) -> TextPlayerTimingTrack {
+        // In sequence mode, use the current sequence track for timing
+        if isSequenceModeActive {
+            switch sequenceController.currentTrack {
+            case .original:
+                return .original
+            case .translation:
+                return .translation
+            }
+        }
+
         guard let track = selectedAudioOption(for: chunk) else { return .translation }
         switch track.kind {
         case .combined:
@@ -205,6 +243,10 @@ extension InteractivePlayerViewModel {
     }
 
     func usesCombinedQueue(for chunk: InteractiveChunk) -> Bool {
+        // When sequence mode is active, use per-sentence switching instead of queue
+        if isSequenceModeActive {
+            return true
+        }
         guard let track = selectedAudioOption(for: chunk) else { return false }
         return track.kind == .combined && track.streamURLs.count > 1
     }
@@ -321,6 +363,13 @@ extension InteractivePlayerViewModel {
 
     func skipSentence(forward: Bool) {
         guard let chunk = selectedChunk else { return }
+
+        // In sequence mode, use sentence-level navigation (skip both tracks per sentence)
+        if isSequenceModeActive {
+            skipSentenceInSequenceMode(forward: forward, chunk: chunk)
+            return
+        }
+
         let currentTime = highlightingTime.isFinite ? highlightingTime : audioCoordinator.currentTime
         guard currentTime.isFinite else { return }
         let epsilon = 0.05
@@ -388,6 +437,44 @@ extension InteractivePlayerViewModel {
             }
             if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
                 selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+            }
+        }
+    }
+
+    /// Skip to next/previous sentence in sequence mode
+    /// This navigates by sentence rather than by track segment
+    private func skipSentenceInSequenceMode(forward: Bool, chunk: InteractiveChunk) {
+        let result: (track: SequenceTrack, time: Double)?
+        if forward {
+            result = sequenceController.nextSentence()
+        } else {
+            result = sequenceController.previousSentence()
+        }
+
+        if let (track, time) = result {
+            print("[Sequence] Skipping to \(forward ? "next" : "previous") sentence: track=\(track.rawValue), time=\(String(format: "%.3f", time))")
+            // If we need to switch tracks, handle that
+            if track != sequenceController.currentTrack {
+                handleSequenceTrackSwitch(track: track, seekTime: time)
+            } else {
+                // Same track, just seek - fire callback before transition
+                onSequenceWillTransition?()
+                sequenceController.beginTransition()
+                audioCoordinator.seek(to: time)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    self?.sequenceController.endTransition(expectedTime: time)
+                }
+            }
+        } else {
+            // No more sentences in this direction, try next/previous chunk
+            if forward {
+                if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
+                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                }
+            } else {
+                if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
+                    selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                }
             }
         }
     }

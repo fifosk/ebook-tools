@@ -82,6 +82,7 @@ extension InteractivePlayerView {
     }
 
     func transcriptSentences(for chunk: InteractiveChunk) -> [TextPlayerSentenceDisplay] {
+        let isTransitioning = viewModel.isSequenceTransitioning
         let playbackTime = viewModel.highlightingTime
         let activeTimingTrack = viewModel.activeTimingTrack(for: chunk)
         let useCombinedPhases = viewModel.useCombinedPhases(for: chunk)
@@ -96,6 +97,12 @@ extension InteractivePlayerView {
             }
             return playbackDuration > 0 ? playbackDuration : nil
         }()
+
+        // Debug logging for sequence transitions
+        if isTransitioning {
+            print("[TranscriptView] Building during transition: track=\(activeTimingTrack), time=\(String(format: "%.3f", playbackTime)), duration=\(durationValue.map { String(format: "%.3f", $0) } ?? "nil")")
+        }
+
         if let activeSentence = TextPlayerTimeline.buildActiveSentenceDisplay(
             sentences: chunk.sentences,
             activeTimingTrack: activeTimingTrack,

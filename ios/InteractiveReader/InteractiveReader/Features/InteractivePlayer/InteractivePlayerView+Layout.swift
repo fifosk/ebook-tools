@@ -30,6 +30,41 @@ extension InteractivePlayerView {
             syncSelectedSentence(for: chunk)
             viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
             configureReadingBed()
+            // Set up callback to freeze transcript BEFORE sequence transitions
+            // This runs synchronously before isTransitioning is set, preventing the race condition
+            // NOTE: We capture viewModel weakly to avoid retain cycles, but @State properties
+            // are backed by external storage so they remain valid across view recreations.
+            print("[TranscriptFreeze] Setting up onSequenceWillTransition callback")
+            viewModel.onSequenceWillTransition = { [weak viewModel] in
+                print("[TranscriptFreeze] onSequenceWillTransition callback invoked")
+                guard let viewModel else {
+                    print("[TranscriptFreeze] ViewModel deallocated")
+                    return
+                }
+                guard viewModel.isSequenceModeActive else {
+                    print("[TranscriptFreeze] Not in sequence mode")
+                    return
+                }
+                guard let chunk = viewModel.selectedChunk else {
+                    print("[TranscriptFreeze] No chunk available")
+                    return
+                }
+                // Build and freeze the transcript and playback primary kind synchronously
+                // This captures the current state BEFORE the transition changes it
+                let sentences = transcriptSentences(for: chunk)
+                if frozenTranscriptSentences == nil {
+                    print("[TranscriptFreeze] PRE-FREEZE: Capturing \(sentences.count) sentences before transition")
+                    frozenTranscriptSentences = sentences
+                } else {
+                    print("[TranscriptFreeze] Already frozen with \(frozenTranscriptSentences?.count ?? 0) sentences")
+                }
+                // Freeze playback primary kind to prevent highlight track from flickering
+                if frozenPlaybackPrimaryKind == nil {
+                    let kind = playbackPrimaryKind(for: chunk)
+                    print("[TranscriptFreeze] PRE-FREEZE: Capturing playbackPrimaryKind=\(kind?.rawValue ?? "nil")")
+                    frozenPlaybackPrimaryKind = kind
+                }
+            }
             #if os(tvOS)
             if !didSetInitialFocus {
                 didSetInitialFocus = true
@@ -47,8 +82,10 @@ extension InteractivePlayerView {
             viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
             if isMenuVisible && !audioCoordinator.isPlaying {
                 frozenTranscriptSentences = transcriptSentences(for: chunk)
+                frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
             } else {
                 frozenTranscriptSentences = nil
+                frozenPlaybackPrimaryKind = nil
             }
         })
         view = AnyView(view.onChange(of: trackAvailabilitySignature) { _, _ in
@@ -77,12 +114,17 @@ extension InteractivePlayerView {
                 clearLinguistState()
             }
             if isPlaying {
-                frozenTranscriptSentences = nil
+                // Don't unfreeze during sequence transitions - let the transition handler manage it
+                if !viewModel.isSequenceTransitioning {
+                    frozenTranscriptSentences = nil
+                    frozenPlaybackPrimaryKind = nil
+                }
                 viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: true)
             } else if let chunk = viewModel.selectedChunk {
                 syncPausedSelection(for: chunk)
                 if isMenuVisible {
                     frozenTranscriptSentences = transcriptSentences(for: chunk)
+                    frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
                 }
             }
         })
@@ -90,19 +132,57 @@ extension InteractivePlayerView {
             clearLinguistState()
             if isMenuVisible, !audioCoordinator.isPlaying, let chunk = viewModel.selectedChunk {
                 frozenTranscriptSentences = transcriptSentences(for: chunk)
+                frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
             }
         })
         view = AnyView(view.onChange(of: isMenuVisible) { _, visible in
             guard let chunk = viewModel.selectedChunk else { return }
             if visible && !audioCoordinator.isPlaying {
                 frozenTranscriptSentences = transcriptSentences(for: chunk)
+                frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
             } else {
                 frozenTranscriptSentences = nil
+                frozenPlaybackPrimaryKind = nil
             }
             // Only update reading bed when menu closes, not when it opens
             // This avoids unnecessary state changes during menu interactions
             if !visible {
                 updateReadingBedPlayback()
+            }
+        })
+        // Freeze transcript during sequence track transitions to prevent flickering
+        view = AnyView(view.onChange(of: viewModel.isSequenceTransitioning) { _, isTransitioning in
+            print("[TranscriptFreeze] isSequenceTransitioning changed to \(isTransitioning)")
+            guard viewModel.isSequenceModeActive else {
+                print("[TranscriptFreeze] Not in sequence mode, skipping")
+                return
+            }
+            guard let chunk = viewModel.selectedChunk else {
+                print("[TranscriptFreeze] No selected chunk, skipping")
+                return
+            }
+            if isTransitioning {
+                // Freeze the current display during transition
+                if frozenTranscriptSentences == nil {
+                    print("[TranscriptFreeze] Freezing transcript")
+                    frozenTranscriptSentences = transcriptSentences(for: chunk)
+                }
+                if frozenPlaybackPrimaryKind == nil {
+                    print("[TranscriptFreeze] Freezing playbackPrimaryKind")
+                    frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
+                }
+            } else {
+                // Unfreeze when transition completes (unless menu is visible)
+                if !isMenuVisible {
+                    // Log the transition for debugging
+                    let frozenKind = frozenPlaybackPrimaryKind?.rawValue ?? "nil"
+                    let newKind = playbackPrimaryKind(for: chunk)?.rawValue ?? "nil"
+                    let expectedPos = viewModel.sequenceController.expectedPosition
+                    let highlightTime = viewModel.highlightingTime
+                    print("[TranscriptFreeze] UNFREEZE: frozenKind=\(frozenKind) -> newKind=\(newKind), highlightTime=\(String(format: "%.3f", highlightTime)), expectedPos=\(expectedPos.map { String(format: "%.3f", $0) } ?? "nil")")
+                    frozenTranscriptSentences = nil
+                    frozenPlaybackPrimaryKind = nil
+                }
             }
         })
         view = AnyView(view.onChange(of: bookmarkIdentityKey) { _, _ in
@@ -132,6 +212,8 @@ extension InteractivePlayerView {
             readingBedPauseTask = nil
             readingBedCoordinator.reset()
             clearLinguistState()
+            // Clear the sequence transition callback to prevent dangling references
+            viewModel.onSequenceWillTransition = nil
         })
         return view
     }
@@ -260,7 +342,51 @@ extension InteractivePlayerView {
 
     @ViewBuilder
     func interactiveContent(for chunk: InteractiveChunk) -> some View {
-        let transcriptSentences = frozenTranscriptSentences ?? transcriptSentences(for: chunk)
+        // Use frozen transcript during sequence transitions to prevent flickering
+        // The frozenTranscriptSentences SHOULD be set by the pre-freeze callback (onSequenceWillTransition)
+        // which runs synchronously BEFORE the transition state changes.
+        //
+        // If we reach this point during a transition without frozen state, the callback either:
+        // - Wasn't set up yet (unlikely if playback has started)
+        // - Failed due to closure capture issues
+        //
+        // In that case, we still build the transcript normally - the highlightingTime getter
+        // returns segment.start during transitions, which provides stable positioning.
+        let isFrozen = frozenTranscriptSentences != nil
+        let isTransitioning = viewModel.isSequenceTransitioning
+        let transcriptSentences: [TextPlayerSentenceDisplay] = {
+            // If already frozen, use the frozen state
+            if let frozen = frozenTranscriptSentences {
+                return frozen
+            }
+            // Build current transcript - during transitions, highlightingTime returns
+            // segment.start which ensures stable highlighting at the start of the new segment
+            return self.transcriptSentences(for: chunk)
+        }()
+        // Use frozen playback primary kind during transitions to prevent highlight flickering
+        let resolvedPlaybackPrimaryKind: TextPlayerVariantKind? = {
+            if let frozen = frozenPlaybackPrimaryKind {
+                return frozen
+            }
+            return playbackPrimaryKind(for: chunk)
+        }()
+        let _ = {
+            // Detailed logging to trace render cycles around unfreeze
+            // This helps identify if there's a brief moment where playbackKind is nil or incorrect
+            let highlightTime = viewModel.highlightingTime
+            let expectedPos = viewModel.sequenceController.expectedPosition
+            let sentenceInfo = transcriptSentences.first.map { sentence -> String in
+                let variants = sentence.variants.map { variant in
+                    "  \(variant.kind.rawValue): revealed=\(variant.revealedCount)/\(variant.tokens.count), current=\(variant.currentIndex.map(String.init) ?? "nil")"
+                }.joined(separator: "\n")
+                return "sentence[\(sentence.index)]:\n\(variants)"
+            } ?? "no sentence"
+
+            if isTransitioning || isFrozen {
+                print("[InteractiveContent] RENDER: transitioning=\(isTransitioning), frozen=\(isFrozen), playbackKind=\(resolvedPlaybackPrimaryKind?.rawValue ?? "nil"), time=\(String(format: "%.3f", highlightTime)), expected=\(expectedPos.map { String(format: "%.3f", $0) } ?? "nil")")
+                print("[InteractiveContent] \(sentenceInfo)")
+            }
+        }()
         InteractiveTranscriptView(
             viewModel: viewModel,
             audioCoordinator: audioCoordinator,
@@ -274,7 +400,7 @@ extension InteractivePlayerView {
             llmModel: resolvedLlmModel ?? MyLinguistPreferences.defaultLlmModel,
             llmModelOptions: llmModelOptions,
             onLlmModelChange: { storedLlmModel = $0 },
-            playbackPrimaryKind: playbackPrimaryKind(for: chunk),
+            playbackPrimaryKind: resolvedPlaybackPrimaryKind,
             visibleTracks: visibleTracks,
             isBubbleFocusEnabled: bubbleFocusEnabled,
             onToggleTrack: { kind in
@@ -864,7 +990,10 @@ extension InteractivePlayerView {
     }
 
     func playbackPrimaryKind(for chunk: InteractiveChunk) -> TextPlayerVariantKind? {
-        guard audioCoordinator.isPlaying else { return nil }
+        // Return a valid kind if playback is active or requested.
+        // Using isPlaybackRequested in addition to isPlaying handles the brief moments
+        // during track switches where isPlaying might be false momentarily.
+        guard audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested else { return nil }
         let activeTrack = viewModel.activeTimingTrack(for: chunk)
         switch activeTrack {
         case .original:

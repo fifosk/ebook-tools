@@ -4,7 +4,7 @@ import type { LiveMediaChunk, MediaClock } from '../../hooks/useLiveMedia';
 import { useMediaClock } from '../../hooks/useLiveMedia';
 import { usePlayerCore } from '../../hooks/usePlayerCore';
 import { timingStore } from '../../stores/timingStore';
-import type { TextPlayerVariantKind } from '../../text-player/TextPlayer';
+import type { TextPlayerVariantKind, TextPlayerSeekInfo } from '../../text-player/TextPlayer';
 import { normaliseTranslationSpeed } from '../player-panel/constants';
 import { buildParagraphs } from './utils';
 import { useTimelineDisplay } from './useTimelineDisplay';
@@ -1195,6 +1195,152 @@ export function useInteractiveAudioPlayback({
     [applySequenceSegment, sequenceDefaultTrack, sequenceEnabled, sequencePlan],
   );
 
+  // Seek to a specific token position, handling sequence mode track switching
+  // When in sequence mode and clicking a token from a different track, switch to that track
+  const handleSequenceAwareTokenSeek = useCallback(
+    (time: number, info?: { variantKind: TextPlayerVariantKind; sentenceIndex: number }) => {
+      if (import.meta.env.DEV) {
+        console.debug('[handleSequenceAwareTokenSeek]', {
+          time,
+          info,
+          sequenceEnabled,
+          currentTrack: sequenceTrackRef.current,
+        });
+      }
+
+      // If not in sequence mode or no info provided, just do a simple seek
+      if (!sequenceEnabled || !info) {
+        const element = audioRef.current;
+        if (!element || !Number.isFinite(time)) {
+          return;
+        }
+        const target = Math.max(
+          0,
+          Math.min(time, Number.isFinite(element.duration) ? element.duration : time),
+        );
+        element.currentTime = target;
+        setChunkTime(target);
+        const maybePlay = element.play?.();
+        if (maybePlay && typeof maybePlay.catch === 'function') {
+          maybePlay.catch(() => undefined);
+        }
+        return;
+      }
+
+      // Map variant kind to sequence track
+      const targetTrack: SequenceTrack | null =
+        info.variantKind === 'original'
+          ? 'original'
+          : info.variantKind === 'translation'
+            ? 'translation'
+            : null;
+
+      if (!targetTrack) {
+        // Transliteration or unknown variant - no dedicated audio track
+        // Just seek in the current track
+        const element = audioRef.current;
+        if (!element || !Number.isFinite(time)) {
+          return;
+        }
+        const target = Math.max(
+          0,
+          Math.min(time, Number.isFinite(element.duration) ? element.duration : time),
+        );
+        element.currentTime = target;
+        setChunkTime(target);
+        const maybePlay = element.play?.();
+        if (maybePlay && typeof maybePlay.catch === 'function') {
+          maybePlay.catch(() => undefined);
+        }
+        return;
+      }
+
+      // Find the segment in the sequence plan for this sentence and track
+      const targetIndex = sequencePlan.findIndex(
+        (seg) => seg.sentenceIndex === info.sentenceIndex && seg.track === targetTrack,
+      );
+
+      if (targetIndex < 0) {
+        // No segment found for this sentence/track combo - fall back to simple seek
+        if (import.meta.env.DEV) {
+          console.debug('[handleSequenceAwareTokenSeek] No segment found for sentence/track', {
+            sentenceIndex: info.sentenceIndex,
+            targetTrack,
+          });
+        }
+        const element = audioRef.current;
+        if (!element || !Number.isFinite(time)) {
+          return;
+        }
+        const target = Math.max(
+          0,
+          Math.min(time, Number.isFinite(element.duration) ? element.duration : time),
+        );
+        element.currentTime = target;
+        setChunkTime(target);
+        const maybePlay = element.play?.();
+        if (maybePlay && typeof maybePlay.catch === 'function') {
+          maybePlay.catch(() => undefined);
+        }
+        return;
+      }
+
+      const targetSegment = sequencePlan[targetIndex];
+      if (!targetSegment) {
+        return;
+      }
+
+      // Update the sequence index
+      sequenceIndexRef.current = targetIndex;
+
+      // If we're already on the correct track, just seek within the current audio
+      if (sequenceTrackRef.current === targetTrack) {
+        if (import.meta.env.DEV) {
+          console.debug('[handleSequenceAwareTokenSeek] Same track, seeking directly', {
+            targetTrack,
+            time,
+          });
+        }
+        const element = audioRef.current;
+        if (!element || !Number.isFinite(time)) {
+          return;
+        }
+        // Use the time from the token, not the segment start
+        const target = Math.max(
+          0,
+          Math.min(time, Number.isFinite(element.duration) ? element.duration : time),
+        );
+        element.currentTime = target;
+        setChunkTime(target);
+        setActiveSentenceIndex(info.sentenceIndex);
+        const maybePlay = element.play?.();
+        if (maybePlay && typeof maybePlay.catch === 'function') {
+          maybePlay.catch(() => undefined);
+        }
+        return;
+      }
+
+      // Different track - need to switch tracks and seek to the token time
+      if (import.meta.env.DEV) {
+        console.debug('[handleSequenceAwareTokenSeek] Switching track', {
+          from: sequenceTrackRef.current,
+          to: targetTrack,
+          sentenceIndex: info.sentenceIndex,
+          seekTime: time,
+        });
+      }
+
+      // Create a modified segment with the token's seek time instead of segment start
+      const modifiedSegment: SequenceSegment = {
+        ...targetSegment,
+        start: time, // Use token time instead of segment start
+      };
+
+      applySequenceSegment(modifiedSegment, { autoPlay: inlineAudioPlayingRef.current });
+    },
+    [applySequenceSegment, audioRef, sequenceEnabled, sequencePlan, setActiveSentenceIndex, setChunkTime],
+  );
+
   const maybeAdvanceSequence = useCallback(
     (mediaTime: number) => {
       // Use ref to get current value - prevents stale closure issues during state transitions
@@ -1421,7 +1567,7 @@ export function useInteractiveAudioPlayback({
     handleAudioPlaying,
     handleAudioRateChange,
     seekInlineAudioToTime,
-    handleTokenSeek,
+    handleTokenSeek: handleSequenceAwareTokenSeek,
     wordSync: {
       legacyWordSyncEnabled,
       shouldUseWordSync,

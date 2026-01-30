@@ -92,6 +92,7 @@ enum TextPlayerTimeline {
 
         var offset = 0.0
         var result: [TimelineSentenceRuntime] = []
+        var usedAbsoluteOriginalTiming = false
 
         for (index, sentence) in sentences.enumerated() {
             let originalTokens = sentence.originalTokens
@@ -104,6 +105,13 @@ enum TextPlayerTimeline {
             let originalPhaseDuration: Double = {
                 if let value = phaseDurations?.original {
                     return max(value, 0)
+                }
+                // When on original track with gate timings, use actual audio duration
+                if isOriginalTrack,
+                   let startGate = sentence.originalStartGate,
+                   let endGate = sentence.originalEndGate,
+                   endGate > startGate {
+                    return endGate - startGate
                 }
                 if !originalTokens.isEmpty {
                     return Double(originalTokens.count) * tokenDuration
@@ -151,7 +159,17 @@ enum TextPlayerTimeline {
                 return fallbackSentenceDuration
             }()
 
-            let sentenceStart = offset
+            // When on original track with gate times, use absolute audio position
+            let useAbsoluteOriginalTiming = isOriginalTrack
+                && sentence.originalStartGate != nil
+                && sentence.originalEndGate != nil
+                && !sentence.originalTimingTokens.isEmpty
+            if useAbsoluteOriginalTiming {
+                usedAbsoluteOriginalTiming = true
+            }
+            let sentenceStart = useAbsoluteOriginalTiming
+                ? (sentence.originalStartGate ?? offset)
+                : offset
 
             let translationPhaseDuration: Double = {
                 if isOriginalTrack {
@@ -246,12 +264,30 @@ enum TextPlayerTimeline {
             }
 
             var originalReveal: [Double] = []
+            var originalRevealIsAbsolute = false
             if highlightOriginal {
-                originalReveal = buildUniformRevealTimes(
-                    count: originalTokens.count,
-                    startTime: sentenceStart,
-                    duration: originalPhaseDuration
-                )
+                // Use actual original timing tokens when on the original track
+                // and the sentence has word-level timing data
+                if isOriginalTrack && !sentence.originalTimingTokens.isEmpty {
+                    originalReveal = sentence.originalTimingTokens.map { $0.startTime }
+                    // Mark as absolute audio times (should not be scaled later)
+                    originalRevealIsAbsolute = true
+                    // Ensure we have the right number of reveal times
+                    if originalReveal.count != originalTokens.count && !originalTokens.isEmpty {
+                        originalReveal = buildUniformRevealTimes(
+                            count: originalTokens.count,
+                            startTime: sentenceStart,
+                            duration: originalPhaseDuration
+                        )
+                        originalRevealIsAbsolute = false
+                    }
+                } else {
+                    originalReveal = buildUniformRevealTimes(
+                        count: originalTokens.count,
+                        startTime: sentenceStart,
+                        duration: originalPhaseDuration
+                    )
+                }
             }
 
             let sentenceDuration: Double = {
@@ -291,7 +327,9 @@ enum TextPlayerTimeline {
             offset = endTime
         }
 
+        // Skip scaling when we used absolute original timing (times are already in audio space)
         if !useCombinedPhases,
+           !usedAbsoluteOriginalTiming,
            let audioDuration,
            audioDuration > 0,
            let totalTimelineDuration = result.last?.endTime,
@@ -624,19 +662,39 @@ enum TextPlayerTimeline {
         }
 
         var originalReveal: [Double] = []
+        var originalRevealIsAbsolute = false
         if highlightOriginal {
-            originalReveal = buildUniformRevealTimes(
-                count: originalTokens.count,
-                startTime: sentenceStart,
-                duration: components.originalPhaseDuration
-            )
+            // Use actual original timing tokens when on the original track
+            // and the sentence has word-level timing data
+            if isOriginalTrack && !sentence.originalTimingTokens.isEmpty {
+                originalReveal = sentence.originalTimingTokens.map { $0.startTime }
+                // Mark that these are absolute audio times (should not be scaled)
+                originalRevealIsAbsolute = true
+                // Ensure we have the right number of reveal times
+                if originalReveal.count != originalTokens.count && !originalTokens.isEmpty {
+                    originalReveal = buildUniformRevealTimes(
+                        count: originalTokens.count,
+                        startTime: sentenceStart,
+                        duration: components.originalPhaseDuration
+                    )
+                    originalRevealIsAbsolute = false
+                }
+            } else {
+                originalReveal = buildUniformRevealTimes(
+                    count: originalTokens.count,
+                    startTime: sentenceStart,
+                    duration: components.originalPhaseDuration
+                )
+            }
         }
 
         let scaledStart = sentenceStart * scale
         let scaledEnd = sentenceEnd * scale
         let scaledTranslationRevealTimes = translationRevealTimes.map { $0 * scale }
         let scaledTransliterationRevealTimes = adjustedTransliteration.map { $0 * scale }
-        let scaledOriginalReveal = originalReveal.map { $0 * scale }
+        // Don't scale original reveal times if they come from actual timing tokens
+        // (they're already in audio-file time)
+        let scaledOriginalReveal = originalRevealIsAbsolute ? originalReveal : originalReveal.map { $0 * scale }
 
         let epsilon = 1e-3
         let state: TextPlayerSentenceState = .active
@@ -788,6 +846,16 @@ enum TextPlayerTimeline {
         useCombinedPhases: Bool
     ) -> ActiveSentenceResolution? {
         guard !sentences.isEmpty else { return nil }
+
+        let isOriginalTrack = activeTimingTrack == .original
+
+        // Check if we're using gate-based timing (absolute audio times)
+        let useAbsoluteOriginalTiming = isOriginalTrack && sentences.allSatisfy { sentence in
+            sentence.originalStartGate != nil
+                && sentence.originalEndGate != nil
+                && !sentence.originalTimingTokens.isEmpty
+        }
+
         var totalDuration = 0.0
         for sentence in sentences {
             let components = computeSentenceTimingComponents(
@@ -799,7 +867,8 @@ enum TextPlayerTimeline {
         }
 
         let audioDurationValue = audioDuration ?? 0
-        let shouldScale = !useCombinedPhases && audioDurationValue > 0 && totalDuration > 0
+        // Skip scaling when using absolute original timing (timeline is already in audio time)
+        let shouldScale = !useCombinedPhases && !useAbsoluteOriginalTiming && audioDurationValue > 0 && totalDuration > 0
         let scale: Double = {
             guard shouldScale else { return 1.0 }
             let computed = audioDurationValue / totalDuration
@@ -810,6 +879,10 @@ enum TextPlayerTimeline {
             if shouldScale {
                 let scaledTotal = totalDuration * scale
                 return min(max(chunkTime, 0), scaledTotal)
+            }
+            // When using absolute timing, use chunkTime directly (it's already in audio time)
+            if useAbsoluteOriginalTiming {
+                return max(chunkTime, 0)
             }
             return resolveEffectiveTime(
                 timelineTotalDuration: totalDuration,
@@ -872,6 +945,13 @@ enum TextPlayerTimeline {
         let originalPhaseDuration: Double = {
             if let value = phaseDurations?.original {
                 return max(value, 0)
+            }
+            // When on original track with gate times, use actual audio duration
+            if isOriginalTrack,
+               let startGate = sentence.originalStartGate,
+               let endGate = sentence.originalEndGate,
+               endGate > startGate {
+                return endGate - startGate
             }
             if !originalTokens.isEmpty {
                 return Double(originalTokens.count) * tokenDuration

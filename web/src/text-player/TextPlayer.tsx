@@ -35,9 +35,16 @@ export interface TextPlayerSentence {
 
 type VariantVisibility = Partial<Record<TextPlayerVariantKind, boolean>>;
 
+export type TextPlayerSeekInfo = {
+  time: number;
+  variantKind: TextPlayerVariantKind;
+  sentenceIndex: number;
+  tokenIndex: number;
+};
+
 interface TextPlayerProps {
   sentences: TextPlayerSentence[];
-  onSeek?: (time: number) => void;
+  onSeek?: (time: number, info?: TextPlayerSeekInfo) => void;
   selection?: TextPlayerTokenSelection | null;
   selectionRange?: TextPlayerTokenRange | null;
   shadowSelection?: TextPlayerTokenSelection | null;
@@ -105,7 +112,7 @@ function renderVariant(
   sentenceState: 'past' | 'active' | 'future',
   sentenceIndex: number,
   variant: TextPlayerVariantDisplay,
-  onSeek?: (time: number) => void,
+  onSeek?: (time: number, info?: TextPlayerSeekInfo) => void,
   selection?: TextPlayerTokenSelection | null,
   selectionRange?: TextPlayerTokenRange | null,
   shadowSelection?: TextPlayerTokenSelection | null,
@@ -132,7 +139,14 @@ function renderVariant(
     if (typeof target !== 'number' || Number.isNaN(target)) {
       return;
     }
-    onSeek(Math.max(target, 0));
+    const seekTime = Math.max(target, 0);
+    const info: TextPlayerSeekInfo = {
+      time: seekTime,
+      variantKind: variant.baseClass,
+      sentenceIndex,
+      tokenIndex,
+    };
+    onSeek(seekTime, info);
   };
 
   const content: React.ReactNode[] = [];

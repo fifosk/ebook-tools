@@ -49,6 +49,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             reset()
             return
         }
+        print("[AudioPlayer] Loading URLs: \(sanitized.map { $0.absoluteString })")
         let shouldAutoPlay = autoPlay || isPlaybackRequested
         if activeURLs == sanitized {
             if player?.currentItem == nil {
@@ -100,6 +101,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         configureAudioSession()
         AudioPlaybackRegistry.shared.beginPlayback(for: self)
         isPlaybackRequested = true
+        print("[AudioPlayer] play() called for URL: \(activeURL?.absoluteString ?? "nil")")
         if #available(iOS 10.0, tvOS 10.0, *) {
             player.playImmediately(atRate: Float(playbackRate))
         } else {
@@ -167,10 +169,20 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
 
     private func configureAudioSession() {
         #if os(iOS) || os(tvOS)
+        // Only configure audio session for primary role to avoid conflicts
+        // The ambient player will piggyback on the primary player's session
+        guard role == .primary else { return }
+
         let session = AVAudioSession.sharedInstance()
-        let options: AVAudioSession.CategoryOptions = [.allowAirPlay]
-        try? session.setCategory(.playback, mode: .spokenAudio, options: options)
-        try? session.setActive(true)
+        do {
+            // Use playback category with spokenAudio mode for the main player
+            // This allows background playback and proper audio routing
+            try session.setCategory(.playback, mode: .spokenAudio, options: [])
+            try session.setActive(true)
+            print("[AudioSession] Configured: category=playback, mode=spokenAudio")
+        } catch {
+            print("[AudioSession] Failed to configure: \(error)")
+        }
         #endif
     }
 
@@ -211,11 +223,20 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             Task { @MainActor in
                 switch observedItem.status {
                 case .readyToPlay:
+                    print("[AudioPlayer] Item ready to play, duration: \(observedItem.duration.seconds)")
                     self.isReady = true
                     if observedItem.duration.isNumeric {
                         self.duration = observedItem.duration.seconds
                     }
                 case .failed:
+                    if let error = observedItem.error as NSError? {
+                        print("[AudioPlayer] Item failed: \(error.domain) (\(error.code)) – \(error.localizedDescription)")
+                        if let underlyingError = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+                            print("[AudioPlayer] Underlying: \(underlyingError.domain) (\(underlyingError.code)) – \(underlyingError.localizedDescription)")
+                        }
+                    } else {
+                        print("[AudioPlayer] Item failed with unknown error")
+                    }
                     self.isReady = false
                     self.isPlaying = false
                 default:
@@ -294,27 +315,42 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     }
 
     private func installErrorObservers(for item: AVPlayerItem) {
+        // Observe failures for ANY item (not just the first one) by passing nil as object
         failureObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemFailedToPlayToEndTime,
-            object: item,
+            object: nil,
             queue: .main
-        ) { notification in
+        ) { [weak self] notification in
             Task { @MainActor in
+                guard let self else { return }
+                // Verify the item belongs to our player
+                guard let failedItem = notification.object as? AVPlayerItem,
+                      self.itemURLMap[ObjectIdentifier(failedItem)] != nil else {
+                    return
+                }
+                let failedURL = self.itemURLMap[ObjectIdentifier(failedItem)]
                 if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? NSError {
-                    print("Audio playback failed: \(error.domain) (\(error.code)) – \(error.localizedDescription)")
+                    print("[AudioPlayer] Playback failed for URL \(failedURL?.absoluteString ?? "unknown"): \(error.domain) (\(error.code)) – \(error.localizedDescription)")
                 } else {
-                    print("Audio playback failed with unknown error")
+                    print("[AudioPlayer] Playback failed for URL \(failedURL?.absoluteString ?? "unknown") with unknown error")
                 }
             }
         }
+        // Observe error logs for ANY item
         errorLogObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemNewErrorLogEntry,
-            object: item,
+            object: nil,
             queue: .main
-        ) { [weak item] _ in
+        ) { [weak self] notification in
             Task { @MainActor in
-                guard let logEvent = item?.errorLog()?.events.last else { return }
-                print("AVPlayer error log: status=\(logEvent.errorStatusCode) uri=\(logEvent.uri ?? "n/a") comment=\(logEvent.errorComment ?? "n/a")")
+                guard let self else { return }
+                guard let errorItem = notification.object as? AVPlayerItem,
+                      self.itemURLMap[ObjectIdentifier(errorItem)] != nil else {
+                    return
+                }
+                guard let logEvent = errorItem.errorLog()?.events.last else { return }
+                let errorURL = self.itemURLMap[ObjectIdentifier(errorItem)]
+                print("[AudioPlayer] Error log for \(errorURL?.absoluteString ?? "unknown"): status=\(logEvent.errorStatusCode) uri=\(logEvent.uri ?? "n/a") comment=\(logEvent.errorComment ?? "n/a")")
             }
         }
     }

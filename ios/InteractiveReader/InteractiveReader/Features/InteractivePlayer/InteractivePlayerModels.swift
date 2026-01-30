@@ -104,10 +104,18 @@ struct InteractiveChunk: Identifiable {
         let translationTokens: [String]
         let transliterationTokens: [String]
         let imagePath: String?
+        /// Word timing tokens for the translation track (default timing source)
         let timingTokens: [WordTimingToken]
+        /// Word timing tokens for the original track (used in sequence mode)
+        let originalTimingTokens: [WordTimingToken]
         let timeline: [ChunkSentenceTimelineEvent]
         let totalDuration: Double?
         let phaseDurations: ChunkSentencePhaseDurations?
+        // Sentence gate fields for sequence playback (time boundaries within audio tracks)
+        let startGate: Double?
+        let endGate: Double?
+        let originalStartGate: Double?
+        let originalEndGate: Double?
     }
 
     struct AudioOption: Identifiable {

@@ -24,6 +24,8 @@
 		0F30A66FF9D34EE187C94C58 /* InteractivePlayerControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0657868686F47FF90870555 /* InteractivePlayerControls.swift */; };
 		132A2508F95E40ED8CBCDEC3 /* VideoPlayerView+Fonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4223049AC0914AA2A6B69C05 /* VideoPlayerView+Fonts.swift */; };
 		1798B1502EF9F1A00092A8AF /* AudioPlayerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2602F914D000A1D9A1 /* AudioPlayerCoordinator.swift */; };
+		SEQPLAY001A0001 /* SequencePlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEQPLAY002A0001 /* SequencePlaybackController.swift */; };
+		SEQPLAY001B0001 /* InteractivePlayerViewModel+Sequence.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEQPLAY002B0001 /* InteractivePlayerViewModel+Sequence.swift */; };
 		1798B1512EF9F1A00092A8AF /* JobLoaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2102F914D000A1D9A1 /* JobLoaderView.swift */; };
 		1798B1522EF9F1A00092A8AF /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2502F914D000A1D9A1 /* APIClient.swift */; };
 		1798B1532EF9F1A00092A8AF /* InteractivePlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2302F914D000A1D9A1 /* InteractivePlayerViewModel.swift */; };
@@ -117,6 +119,8 @@
 		6FDC3A3402F914D000A1D9A1 /* ApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2402F914D000A1D9A1 /* ApiModels.swift */; };
 		6FDC3A3502F914D000A1D9A1 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2502F914D000A1D9A1 /* APIClient.swift */; };
 		6FDC3A3602F914D000A1D9A1 /* AudioPlayerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2602F914D000A1D9A1 /* AudioPlayerCoordinator.swift */; };
+		SEQPLAY001A0002 /* SequencePlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEQPLAY002A0001 /* SequencePlaybackController.swift */; };
+		SEQPLAY001B0002 /* InteractivePlayerViewModel+Sequence.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEQPLAY002B0001 /* InteractivePlayerViewModel+Sequence.swift */; };
 		6FDC3A3702F914D000A1D9A1 /* StorageResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2702F914D000A1D9A1 /* StorageResolver.swift */; };
 		6FDC3A3802F914D000A1D9A1 /* String+Extras.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2802F914D000A1D9A1 /* String+Extras.swift */; };
 		6FDC3A3902F914D000A1D9A1 /* Assets-iOS.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2902F914D000A1D9A1 /* Assets-iOS.xcassets */; };
@@ -277,6 +281,8 @@
 		6FDC3A2402F914D000A1D9A1 /* ApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApiModels.swift; sourceTree = "<group>"; };
 		6FDC3A2502F914D000A1D9A1 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		6FDC3A2602F914D000A1D9A1 /* AudioPlayerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerCoordinator.swift; sourceTree = "<group>"; };
+		SEQPLAY002A0001 /* SequencePlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencePlaybackController.swift; sourceTree = "<group>"; };
+		SEQPLAY002B0001 /* InteractivePlayerViewModel+Sequence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerViewModel+Sequence.swift"; sourceTree = "<group>"; };
 		6FDC3A2702F914D000A1D9A1 /* StorageResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageResolver.swift; sourceTree = "<group>"; };
 		6FDC3A2802F914D000A1D9A1 /* String+Extras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extras.swift"; sourceTree = "<group>"; };
 		6FDC3A2902F914D000A1D9A1 /* Assets-iOS.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets-iOS.xcassets"; sourceTree = "<group>"; };
@@ -511,6 +517,7 @@
 				14485B99AA7E477E5B3E161E /* InteractivePlayerViewModel+Playback.swift */,
 				A76797FB5F7CFF0514E63856 /* InteractivePlayerViewModel+ReadingBed.swift */,
 				349CDBB9E48A4D372AC39F1D /* InteractivePlayerViewModel+Selection.swift */,
+				SEQPLAY002B0001 /* InteractivePlayerViewModel+Sequence.swift */,
 				E08F6EAE21AC413F0A95EC08 /* InteractivePlayerViewModel+Prefetch.swift */,
 				FFC908AF6574D91BDD9A7085 /* InteractivePlayerContextBuilder.swift */,
 				D11352FEF0FF447A9FDB05C0 /* InteractivePlayerModels.swift */,
@@ -543,6 +550,7 @@
 				A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */,
 				B2F0F7C9A1B24E3F9C2D1111 /* PlaybackBookmarkStore.swift */,
 				9DA71448DFFD40C7929AE6AF /* NowPlayingCoordinator.swift */,
+				SEQPLAY002A0001 /* SequencePlaybackController.swift */,
 				CC2B612A42FC410590D84E0A /* VideoPlayerCoordinator.swift */,
 				BA23F5D5E8D347FABACD6126 /* PlayerCoordinating.swift */,
 			);
@@ -760,6 +768,7 @@
 				66F59DFEBD224B47A95D8B3B /* PlaybackMetadataHelpers.swift in Sources */,
 				F22DE10B14DA4BC382BE16BA /* PlaybackSentenceIndexHelpers.swift in Sources */,
 				6FDC3A3602F914D000A1D9A1 /* AudioPlayerCoordinator.swift in Sources */,
+				SEQPLAY001A0002 /* SequencePlaybackController.swift in Sources */,
 				6FDC3A3102F914D000A1D9A1 /* JobLoaderView.swift in Sources */,
 				6FDC3A3502F914D000A1D9A1 /* APIClient.swift in Sources */,
 				NOTIFY001B0001 /* NotificationManager.swift in Sources */,
@@ -843,6 +852,7 @@
 				7741F37229B7EBB7A4712F5D /* InteractivePlayerViewModel+Playback.swift in Sources */,
 				D6835C4FA49248086983CB36 /* InteractivePlayerViewModel+ReadingBed.swift in Sources */,
 				99C55C3D1FC8664296FEC475 /* InteractivePlayerViewModel+Selection.swift in Sources */,
+				SEQPLAY001B0002 /* InteractivePlayerViewModel+Sequence.swift in Sources */,
 				B556D24EAE8A8CE7B53C2CD1 /* InteractivePlayerViewModel+Prefetch.swift in Sources */,
 				057BE1E748E34114DA21343B /* JobPlaybackModels.swift in Sources */,
 				AC874673B2F7C75FBD696E37 /* JobPlaybackView+Loading.swift in Sources */,
@@ -873,6 +883,7 @@
 				2E4340D280AD4D0F8D714073 /* PlaybackMetadataHelpers.swift in Sources */,
 				969A4F6B5B4C448792C40BCE /* PlaybackSentenceIndexHelpers.swift in Sources */,
 				1798B1502EF9F1A00092A8AF /* AudioPlayerCoordinator.swift in Sources */,
+				SEQPLAY001A0001 /* SequencePlaybackController.swift in Sources */,
 				1798B1512EF9F1A00092A8AF /* JobLoaderView.swift in Sources */,
 				1798B1522EF9F1A00092A8AF /* APIClient.swift in Sources */,
 				NOTIFY001B0002 /* NotificationManager.swift in Sources */,
@@ -957,6 +968,7 @@
 				98DA2F2ABB074E6FD995D9DE /* InteractivePlayerViewModel+Playback.swift in Sources */,
 				393FA1A5D66E3EE7C2588FCE /* InteractivePlayerViewModel+ReadingBed.swift in Sources */,
 				1D43548DB67A03981CD7D6A5 /* InteractivePlayerViewModel+Selection.swift in Sources */,
+				SEQPLAY001B0001 /* InteractivePlayerViewModel+Sequence.swift in Sources */,
 				0C1A70D15B90315DB1CF6AC7 /* InteractivePlayerViewModel+Prefetch.swift in Sources */,
 				FDE71A17FAB122E64C7C04B4 /* JobPlaybackModels.swift in Sources */,
 				9ED2C6403ABB8E95F45DE218 /* JobPlaybackView+Loading.swift in Sources */,

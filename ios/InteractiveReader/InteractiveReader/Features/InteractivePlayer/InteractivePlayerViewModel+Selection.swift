@@ -2,6 +2,22 @@ import Foundation
 import SwiftUI
 
 extension InteractivePlayerViewModel {
+    /// Check if chunk sentences have gate data needed for combined (sequence) mode
+    private func sentencesHaveGateData(_ sentences: [InteractiveChunk.Sentence]) -> Bool {
+        guard let first = sentences.first else { return false }
+        // Gate data is required for sequence playback - check if any gate fields are populated
+        return first.originalStartGate != nil || first.startGate != nil
+    }
+
+    /// Check if the currently selected track requires gate data (combined mode)
+    private func selectedTrackRequiresGates(for chunk: InteractiveChunk) -> Bool {
+        guard let trackID = selectedAudioTrackID,
+              let track = chunk.audioOptions.first(where: { $0.id == trackID }) else {
+            return false
+        }
+        return track.kind == .combined
+    }
+
     func selectChunk(id: String, autoPlay: Bool = false) {
         guard selectedChunkID != id else { return }
         selectedChunkID = id
@@ -17,8 +33,11 @@ extension InteractivePlayerViewModel {
             }
             selectedAudioTrackID = preferred?.id ?? chunk.audioOptions.first?.id
         }
-        // If chunk already has sentences, prepare audio immediately
-        if !chunk.sentences.isEmpty {
+        // If chunk has sentences with complete data, prepare audio immediately
+        // For combined mode, we need gate data - if missing, load metadata first
+        let hasGates = sentencesHaveGateData(chunk.sentences)
+        let needsGates = selectedTrackRequiresGates(for: chunk)
+        if !chunk.sentences.isEmpty && (!needsGates || hasGates) {
             isTranscriptLoading = false
             prepareAudio(for: chunk, autoPlay: autoPlay)
             attemptPendingSentenceJump(in: chunk)
@@ -46,10 +65,24 @@ extension InteractivePlayerViewModel {
 
     func selectAudioTrack(id: String) {
         guard selectedAudioTrackID != id else { return }
+        print("[AudioTrack] Selecting track: \(id)")
         selectedAudioTrackID = id
         guard let chunk = selectedChunk else { return }
         if let track = chunk.audioOptions.first(where: { $0.id == id }) {
+            print("[AudioTrack] Found track: kind=\(track.kind), label=\(track.label), urls=\(track.streamURLs.map { $0.lastPathComponent })")
             preferredAudioKind = track.kind
+            // If switching to combined mode and sentences lack gate data, load metadata first
+            if track.kind == .combined && !sentencesHaveGateData(chunk.sentences) {
+                print("[AudioTrack] Combined mode selected but sentences lack gate data, loading metadata...")
+                Task { [weak self] in
+                    guard let self else { return }
+                    await self.loadChunkMetadataIfNeeded(for: chunk.id, force: true)
+                    guard self.selectedAudioTrackID == id else { return }
+                    guard let updatedChunk = self.selectedChunk else { return }
+                    self.prepareAudio(for: updatedChunk, autoPlay: self.audioCoordinator.isPlaybackRequested)
+                }
+                return
+            }
         }
         prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)
     }
@@ -99,8 +132,11 @@ extension InteractivePlayerViewModel {
             } else {
                 selectedAudioTrackID = nil
             }
-            // If chunk already has sentences, prepare audio immediately
-            if !chunk.sentences.isEmpty {
+            // If chunk has sentences with complete data, prepare audio immediately
+            // For combined mode (default), we need gate data - if missing, load metadata first
+            let hasGates = sentencesHaveGateData(chunk.sentences)
+            let needsGates = selectedTrackRequiresGates(for: chunk)
+            if !chunk.sentences.isEmpty && (!needsGates || hasGates) {
                 isTranscriptLoading = false
                 prepareAudio(for: chunk, autoPlay: false)
                 return
@@ -135,9 +171,29 @@ extension InteractivePlayerViewModel {
         guard let trackID = selectedAudioTrackID,
               let track = chunk.audioOptions.first(where: { $0.id == trackID }) else {
             audioCoordinator.reset()
+            sequenceController.reset()
             selectedTimingURL = nil
             return
         }
+
+        // For combined mode, try to use sequence playback (per-sentence switching)
+        if track.kind == .combined {
+            configureSequencePlayback(for: chunk, autoPlay: autoPlay)
+            return
+        }
+
+        // For single-track modes, check if we're already playing the correct track
+        // This prevents unnecessary reloading from SwiftUI re-renders
+        if audioCoordinator.activeURLs == track.streamURLs {
+            // Already playing the correct track, just update autoPlay state if needed
+            if autoPlay && !audioCoordinator.isPlaying {
+                audioCoordinator.play()
+            }
+            return
+        }
+
+        // For single-track modes, use direct loading
+        sequenceController.reset()
         audioCoordinator.load(urls: track.streamURLs, autoPlay: autoPlay)
         selectedTimingURL = track.timingURL ?? track.streamURLs.first
     }

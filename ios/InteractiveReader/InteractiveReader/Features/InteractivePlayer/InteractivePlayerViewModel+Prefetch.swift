@@ -61,7 +61,9 @@ extension InteractivePlayerViewModel {
         if targets.isEmpty {
             targets = prefetchFallbackChunks(from: selectedChunk, in: context)
         }
-        let uniqueTargets = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
+        // Use Dictionary(_:uniquingKeysWith:) to handle duplicate chunk IDs gracefully
+        // (multiple sentence numbers can resolve to the same chunk)
+        let uniqueTargets = Dictionary(targets.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         for chunk in uniqueTargets.values {
             await loadChunkMetadataIfNeeded(for: chunk.id)
             prefetchChunkMediaIfNeeded(for: chunk)

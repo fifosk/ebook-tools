@@ -52,6 +52,8 @@ class ChunkSentenceImagePayload(BaseModel):
 
 
 class ChunkSentenceMetadata(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     sentence_number: Optional[int] = None
     original: ChunkSentenceVariant
     translation: Optional[ChunkSentenceVariant] = None
@@ -64,6 +66,16 @@ class ChunkSentenceMetadata(BaseModel):
     highlight_granularity: Optional[str] = None
     counts: Dict[str, int] = Field(default_factory=dict)
     phase_durations: Dict[str, float] = Field(default_factory=dict)
+    # Gate fields for sequence playback (timing boundaries for each track)
+    start_gate: Optional[float] = None
+    end_gate: Optional[float] = None
+    original_start_gate: Optional[float] = None
+    original_end_gate: Optional[float] = None
+    # camelCase aliases for frontend compatibility
+    startGate: Optional[float] = None
+    endGate: Optional[float] = None
+    originalStartGate: Optional[float] = None
+    originalEndGate: Optional[float] = None
 
 
 class AudioTrackMetadata(BaseModel):

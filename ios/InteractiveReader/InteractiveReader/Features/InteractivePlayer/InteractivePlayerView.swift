@@ -42,6 +42,7 @@ struct InteractivePlayerView: View {
     @State var bubbleFocusEnabled = false
     @AppStorage("player.headerCollapsed") var isHeaderCollapsed = false
     @State var frozenTranscriptSentences: [TextPlayerSentenceDisplay]?
+    @State var frozenPlaybackPrimaryKind: TextPlayerVariantKind?
     @State var isShortcutHelpPinned = false
     @State var isShortcutHelpModifierActive = false
     @State var readingBedPauseTask: Task<Void, Never>?

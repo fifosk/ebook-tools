@@ -440,6 +440,7 @@ struct PipelineMediaChunk: Decodable, Identifiable {
     let metadataURL: String?
     let sentenceCount: Int?
     let audioTracks: [String: AudioTrackMetadata]
+    let timingTracks: [String: [[String: JSONValue]]]?
 
     enum CodingKeys: String, CodingKey {
         case chunkID = "chunkId"
@@ -452,6 +453,7 @@ struct PipelineMediaChunk: Decodable, Identifiable {
         case metadataURL = "metadataUrl"
         case sentenceCount
         case audioTracks
+        case timingTracks
     }
 
     init(
@@ -464,7 +466,8 @@ struct PipelineMediaChunk: Decodable, Identifiable {
         metadataPath: String?,
         metadataURL: String?,
         sentenceCount: Int?,
-        audioTracks: [String: AudioTrackMetadata]
+        audioTracks: [String: AudioTrackMetadata],
+        timingTracks: [String: [[String: JSONValue]]]? = nil
     ) {
         self.chunkID = chunkID
         self.rangeFragment = rangeFragment
@@ -476,6 +479,7 @@ struct PipelineMediaChunk: Decodable, Identifiable {
         self.metadataURL = metadataURL
         self.sentenceCount = sentenceCount
         self.audioTracks = audioTracks
+        self.timingTracks = timingTracks
     }
 
     init(from decoder: Decoder) throws {
@@ -490,6 +494,7 @@ struct PipelineMediaChunk: Decodable, Identifiable {
         metadataURL = try? container.decode(String.self, forKey: .metadataURL)
         sentenceCount = try? container.decode(Int.self, forKey: .sentenceCount)
         audioTracks = (try? container.decode([String: AudioTrackMetadata].self, forKey: .audioTracks)) ?? [:]
+        timingTracks = try? container.decode([String: [[String: JSONValue]]].self, forKey: .timingTracks)
     }
 }
 
@@ -509,6 +514,11 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
     let highlightGranularity: String?
     let counts: [String: Int]
     let phaseDurations: ChunkSentencePhaseDurations?
+    // Sentence gate fields for sequence playback
+    let startGate: Double?
+    let endGate: Double?
+    let originalStartGate: Double?
+    let originalEndGate: Double?
 
     enum CodingKeys: String, CodingKey {
         case sentenceNumber = "sentence_number"
@@ -528,6 +538,15 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
         case totalDurationCamel = "totalDuration"
         case highlightGranularityCamel = "highlightGranularity"
         case phaseDurationsCamel = "phaseDurations"
+        // Gate fields - both snake_case and camelCase
+        case startGate = "start_gate"
+        case startGateCamel = "startGate"
+        case endGate = "end_gate"
+        case endGateCamel = "endGate"
+        case originalStartGate = "original_start_gate"
+        case originalStartGateCamel = "originalStartGate"
+        case originalEndGate = "original_end_gate"
+        case originalEndGateCamel = "originalEndGate"
     }
 
     init(sentenceNumber: Int?, original: ChunkSentenceVariant, translation: ChunkSentenceVariant?, transliteration: ChunkSentenceVariant?) {
@@ -541,6 +560,10 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
         highlightGranularity = nil
         counts = [:]
         phaseDurations = nil
+        startGate = nil
+        endGate = nil
+        originalStartGate = nil
+        originalEndGate = nil
     }
 
     init(from decoder: Decoder) throws {
@@ -556,6 +579,10 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
             highlightGranularity = nil
             counts = [:]
             phaseDurations = nil
+            startGate = nil
+            endGate = nil
+            originalStartGate = nil
+            originalEndGate = nil
             return
         }
 
@@ -599,6 +626,15 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
         counts = (try? container.decode([String: Int].self, forKey: .counts)) ?? [:]
         phaseDurations = (try? container.decode(ChunkSentencePhaseDurations.self, forKey: .phaseDurations))
             ?? (try? container.decode(ChunkSentencePhaseDurations.self, forKey: .phaseDurationsCamel))
+        // Parse sentence gate fields for sequence playback
+        startGate = (try? container.decode(Double.self, forKey: .startGate))
+            ?? (try? container.decode(Double.self, forKey: .startGateCamel))
+        endGate = (try? container.decode(Double.self, forKey: .endGate))
+            ?? (try? container.decode(Double.self, forKey: .endGateCamel))
+        originalStartGate = (try? container.decode(Double.self, forKey: .originalStartGate))
+            ?? (try? container.decode(Double.self, forKey: .originalStartGateCamel))
+        originalEndGate = (try? container.decode(Double.self, forKey: .originalEndGate))
+            ?? (try? container.decode(Double.self, forKey: .originalEndGateCamel))
     }
 }
 
