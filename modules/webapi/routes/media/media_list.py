@@ -304,6 +304,16 @@ def _serialize_media_entries(
             _ingest_tracks(chunk.get("audio_tracks"))
             _ingest_tracks(chunk.get("audioTracks"))
 
+            timing_tracks_payload: Optional[Dict[str, List[Dict[str, Any]]]] = None
+            raw_timing = summary.get("timing_tracks") or summary.get("timingTracks")
+            if raw_timing is None:
+                raw_timing = chunk.get("timing_tracks") or chunk.get("timingTracks")
+            if isinstance(raw_timing, Mapping):
+                timing_tracks_payload = {}
+                for track_key, track_entries in raw_timing.items():
+                    if isinstance(track_key, str) and isinstance(track_entries, list):
+                        timing_tracks_payload[track_key] = copy.deepcopy(track_entries)
+
             chunk_records.append(
                 PipelineMediaChunk(
                     chunk_id=str(summary.get("chunk_id")) if summary.get("chunk_id") else None,
@@ -318,6 +328,7 @@ def _serialize_media_entries(
                     metadata_url=metadata_url if isinstance(metadata_url, str) else None,
                     sentence_count=sentence_count,
                     audio_tracks=audio_tracks_payload,
+                    timing_tracks=timing_tracks_payload,
                 )
             )
 
@@ -489,6 +500,16 @@ def _serialize_chunk_entry(
     _ingest_tracks(chunk.get("audio_tracks"))
     _ingest_tracks(chunk.get("audioTracks"))
 
+    timing_tracks_payload: Optional[Dict[str, List[Dict[str, Any]]]] = None
+    raw_timing = summary.get("timing_tracks") or summary.get("timingTracks")
+    if raw_timing is None:
+        raw_timing = chunk.get("timing_tracks") or chunk.get("timingTracks")
+    if isinstance(raw_timing, Mapping):
+        timing_tracks_payload = {}
+        for track_key, track_entries in raw_timing.items():
+            if isinstance(track_key, str) and isinstance(track_entries, list):
+                timing_tracks_payload[track_key] = copy.deepcopy(track_entries)
+
     return PipelineMediaChunk(
         chunk_id=str(summary.get("chunk_id")) if summary.get("chunk_id") else None,
         range_fragment=str(summary.get("range_fragment")) if summary.get("range_fragment") else None,
@@ -500,6 +521,7 @@ def _serialize_chunk_entry(
         metadata_url=metadata_url if isinstance(metadata_url, str) else None,
         sentence_count=sentence_count,
         audio_tracks=audio_tracks_payload,
+        timing_tracks=timing_tracks_payload,
     )
 
 

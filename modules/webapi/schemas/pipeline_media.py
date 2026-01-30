@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
@@ -88,6 +88,7 @@ class PipelineMediaChunk(BaseModel):
     metadata_url: Optional[str] = None
     sentence_count: Optional[int] = None
     audio_tracks: Dict[str, AudioTrackMetadata] = Field(default_factory=dict)
+    timing_tracks: Optional[Dict[str, List[Dict[str, Any]]]] = Field(default=None)
 
 
 class PipelineMediaResponse(BaseModel):

@@ -152,11 +152,32 @@ function ensureTimeline(payload?: TimingPayload): void {
   if (payloadCache === payload) {
     return;
   }
+  const previousPayload = payloadCache;
+  const previousHit = lastHit;
   payloadCache = payload;
   timelineBundle = buildTimeline(payload);
   timelineCursor = -1;
-  lastHit = null;
-  timingStore.setLast(null);
+
+  // Never preserve hit when trackKind changes - the segments are for a different audio track
+  // with different time ranges
+  const trackKindChanged = previousPayload?.trackKind !== payload?.trackKind;
+
+  // Preserve the last hit only if:
+  // 1. trackKind is the same (same audio track)
+  // 2. segment index is still valid in new payload
+  if (
+    !trackKindChanged &&
+    previousHit &&
+    payload &&
+    previousHit.segIndex >= 0 &&
+    previousHit.segIndex < payload.segments.length
+  ) {
+    lastHit = previousHit;
+    // Don't call setLast(null) - keep the highlight
+  } else {
+    lastHit = null;
+    timingStore.setLast(null);
+  }
 }
 
 function clearLoop(): void {

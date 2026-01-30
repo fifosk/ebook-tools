@@ -11,12 +11,35 @@ export type Gate = {
   pauseAfterMs?: number;
 };
 
+/**
+ * Represents the current state of a playback transition.
+ * Used to coordinate track switches and prevent flickering during transitions.
+ */
+export type PlaybackTransition = {
+  /** Current transition state */
+  type: 'idle' | 'loading' | 'seeking' | 'transitioning';
+  /** Track we're transitioning from (if any) */
+  fromTrack?: 'mix' | 'translation' | 'original';
+  /** Track we're transitioning to (if any) */
+  toTrack?: 'mix' | 'translation' | 'original';
+  /** Target sentence index for the transition */
+  targetSentenceIndex?: number;
+  /** Target seek time for the transition */
+  targetTime?: number;
+  /** Whether to auto-play after transition completes */
+  autoPlay?: boolean;
+  /** Timestamp when transition started (for timeout detection) */
+  startedAt?: number;
+};
+
 export interface TimingState {
   payload?: TimingPayload;
   last: Hit | null;
   rate: number;
   activeGate: Gate | null;
   audioEl: HTMLAudioElement | null;
+  /** Current playback transition state */
+  transition: PlaybackTransition;
 }
 
 const state: TimingState = {
@@ -25,6 +48,7 @@ const state: TimingState = {
   rate: 1,
   activeGate: null,
   audioEl: null,
+  transition: { type: 'idle' },
 };
 
 const listeners = new Set<Listener>();
@@ -40,6 +64,41 @@ export const timingStore = {
     state.payload = payload;
     state.last = null;
     state.activeGate = null;
+    emit();
+  },
+
+  /**
+   * Update the payload while optionally preserving the current hit.
+   * This prevents flickering when transitioning between tracks in sequence mode
+   * where the same segment index remains valid in the new payload.
+   *
+   * Important: When the trackKind changes (e.g., from 'original_only' to 'translation_only'),
+   * we must NOT preserve the hit because the segment indices refer to different content
+   * with different time ranges.
+   */
+  setPayloadPreservingHit(payload: TimingPayload): void {
+    const previousPayload = state.payload;
+    const previousHit = state.last;
+    state.payload = payload;
+    state.activeGate = null;
+
+    // Never preserve hit when trackKind changes - the segments are for a different audio track
+    const trackKindChanged = previousPayload?.trackKind !== payload.trackKind;
+
+    // Preserve hit only if:
+    // 1. trackKind is the same (same audio track)
+    // 2. segment index is still valid in new payload
+    if (
+      !trackKindChanged &&
+      previousHit &&
+      previousHit.segIndex >= 0 &&
+      payload.segments &&
+      previousHit.segIndex < payload.segments.length
+    ) {
+      // Keep the hit - AudioSyncController will update tokIndex as needed
+    } else {
+      state.last = null;
+    }
     emit();
   },
 
@@ -88,6 +147,59 @@ export const timingStore = {
     }
     state.audioEl = element;
     emit();
+  },
+
+  /**
+   * Begin a playback transition. This is used to coordinate track switches
+   * and prevent flickering during transitions.
+   */
+  beginTransition(transition: Omit<PlaybackTransition, 'type' | 'startedAt'> & { type?: PlaybackTransition['type'] }): void {
+    state.transition = {
+      ...transition,
+      type: transition.type ?? 'transitioning',
+      startedAt: Date.now(),
+    };
+    emit();
+  },
+
+  /**
+   * Update the current transition state (e.g., from 'loading' to 'seeking').
+   */
+  updateTransition(updates: Partial<PlaybackTransition>): void {
+    if (state.transition.type === 'idle' && !updates.type) {
+      // Don't update if we're idle and not changing type
+      return;
+    }
+    state.transition = {
+      ...state.transition,
+      ...updates,
+    };
+    emit();
+  },
+
+  /**
+   * Complete the current transition and return to idle state.
+   */
+  completeTransition(): void {
+    if (state.transition.type === 'idle') {
+      return;
+    }
+    state.transition = { type: 'idle' };
+    emit();
+  },
+
+  /**
+   * Check if a transition is currently in progress.
+   */
+  isTransitioning(): boolean {
+    return state.transition.type !== 'idle';
+  },
+
+  /**
+   * Get the current transition state.
+   */
+  getTransition(): PlaybackTransition {
+    return state.transition;
   },
 
   subscribe(listener: Listener): () => void {

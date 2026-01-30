@@ -287,6 +287,7 @@ type BuildInteractiveViewerPropsArgs = {
     onRegisterInlineAudioControls: InteractiveTextViewerProps['onRegisterInlineAudioControls'];
     onInlineAudioPlaybackStateChange: InteractiveTextViewerProps['onInlineAudioPlaybackStateChange'];
     onRequestAdvanceChunk: InteractiveTextViewerProps['onRequestAdvanceChunk'];
+    onRegisterSequenceSkip: InteractiveTextViewerProps['onRegisterSequenceSkip'];
   };
   fullscreen: {
     isFullscreen: InteractiveTextViewerProps['isFullscreen'];
@@ -359,6 +360,7 @@ export function buildInteractiveViewerProps({
     onRegisterInlineAudioControls: core.onRegisterInlineAudioControls,
     onInlineAudioPlaybackStateChange: core.onInlineAudioPlaybackStateChange,
     onRequestAdvanceChunk: core.onRequestAdvanceChunk,
+    onRegisterSequenceSkip: core.onRegisterSequenceSkip,
     isFullscreen: fullscreen.isFullscreen,
     onRequestExitFullscreen: fullscreen.onRequestExitFullscreen,
     fullscreenControls: fullscreen.fullscreenControls,

@@ -15,13 +15,14 @@ export type SelectedAudioTrack = SequenceTrack | 'combined';
 
 type SequenceState = {
   enabled: boolean;
+  enabledRef: React.MutableRefObject<boolean>;
   plan: SequenceSegment[];
   track: SequenceTrack | null;
   setTrack: (track: SequenceTrack | null) => void;
   defaultTrack: SequenceTrack;
   trackRef: React.MutableRefObject<SequenceTrack | null>;
   indexRef: React.MutableRefObject<number>;
-  pendingSeekRef: React.MutableRefObject<{ time: number; autoPlay: boolean } | null>;
+  pendingSeekRef: React.MutableRefObject<{ time: number; autoPlay: boolean; targetSentenceIndex?: number } | null>;
   autoPlayRef: React.MutableRefObject<boolean>;
   pendingChunkAutoPlayRef: React.MutableRefObject<boolean>;
   pendingChunkAutoPlayKeyRef: React.MutableRefObject<string | null>;
@@ -321,8 +322,9 @@ export function useInteractiveAudioSequence({
   );
   const [sequenceTrack, setSequenceTrack] = useState<SequenceTrack | null>(sequenceDefaultTrack);
   const sequenceTrackRef = useRef<SequenceTrack | null>(sequenceTrack);
+  const sequenceEnabledRef = useRef(sequenceEnabled);
   const sequenceIndexRef = useRef(0);
-  const pendingSequenceSeekRef = useRef<{ time: number; autoPlay: boolean } | null>(null);
+  const pendingSequenceSeekRef = useRef<{ time: number; autoPlay: boolean; targetSentenceIndex?: number } | null>(null);
   const sequenceAutoPlayRef = useRef(false);
   const pendingChunkAutoPlayRef = useRef(false);
   const pendingChunkAutoPlayKeyRef = useRef<string | null>(null);
@@ -331,6 +333,10 @@ export function useInteractiveAudioSequence({
   useEffect(() => {
     sequenceTrackRef.current = sequenceTrack;
   }, [sequenceTrack]);
+
+  useEffect(() => {
+    sequenceEnabledRef.current = sequenceEnabled;
+  }, [sequenceEnabled]);
 
   const sequenceChunkKey = useMemo(() => {
     return chunk?.chunkId ?? chunk?.rangeFragment ?? chunk?.metadataPath ?? chunk?.metadataUrl ?? null;
@@ -439,6 +445,7 @@ export function useInteractiveAudioSequence({
   return {
     sequence: {
       enabled: sequenceEnabled,
+      enabledRef: sequenceEnabledRef,
       plan: sequencePlan,
       track: sequenceTrack,
       setTrack: setSequenceTrack,

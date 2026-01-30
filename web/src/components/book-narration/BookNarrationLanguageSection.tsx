@@ -279,15 +279,16 @@ const BookNarrationLanguageSection = ({
           Output.
         </small>
         <div className="field-grid">
-          <label htmlFor="sentences_per_output_file">
-            Sentences per output file
+          <label htmlFor="sentences_per_chunk">
+            Sentences per chunk
             <input
-              id="sentences_per_output_file"
+              id="sentences_per_chunk"
               name="sentences_per_output_file"
               type="number"
               min={1}
               value={sentencesPerOutputFile}
               onChange={(event) => onSentencesPerOutputFileChange(Number(event.target.value))}
+              title="Group N sentences per chunk file. Higher values (e.g., 10) reduce file count."
             />
           </label>
           <label htmlFor="start_sentence">

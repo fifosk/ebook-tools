@@ -38,6 +38,10 @@ export interface LiveMediaChunk {
   sentenceCount?: number | null;
   audioTracks?: Record<string, AudioTrackMetadata> | null;
   timingTracks?: TrackTimingPayload[] | null;
+  /** Timing version - "2" means backend has pre-scaled timing to match audio duration */
+  timingVersion?: string | null;
+  /** Timing validation info from backend scaling */
+  timingValidation?: Record<string, unknown> | null;
 }
 
 export interface UseLiveMediaOptions {

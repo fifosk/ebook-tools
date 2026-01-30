@@ -248,6 +248,26 @@ export function buildInteractiveAudioCatalog(
       }
       register(file, index, chunkLabel);
     });
+    // Also register audio tracks from chunk.audioTracks (used in multi-sentence chunks)
+    const audioTracks = chunk.audioTracks;
+    if (audioTracks && typeof audioTracks === 'object') {
+      Object.entries(audioTracks).forEach(([, trackMeta]) => {
+        if (!trackMeta || typeof trackMeta !== 'object') {
+          return;
+        }
+        const trackUrl = (trackMeta as { url?: string; path?: string }).url ?? (trackMeta as { url?: string; path?: string }).path;
+        if (typeof trackUrl === 'string' && trackUrl.trim()) {
+          // Create a pseudo LiveMediaItem for registration
+          const trackItem: LiveMediaItem = {
+            type: 'audio',
+            url: trackUrl.trim(),
+            name: chunkLabel,
+            source: 'completed',
+          };
+          register(trackItem, index, chunkLabel);
+        }
+      });
+    }
   });
 
   audioMedia.forEach((item) => {

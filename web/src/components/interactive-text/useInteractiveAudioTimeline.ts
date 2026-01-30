@@ -137,6 +137,14 @@ export function useInteractiveAudioTimeline({
   const audioTimelineRef = useRef<AudioTimelineState | null>(null);
   const audioTimelineDisplay = useMemo(() => {
     if (!audioTimeline || !audioTimelineKey) {
+      // Keep previous state if available to avoid flickering when temporarily losing timeline
+      if (audioTimelineRef.current && audioTimelineRef.current.key === audioTimelineKey) {
+        return {
+          played: audioTimelineRef.current.played,
+          remaining: audioTimelineRef.current.remaining,
+          total: audioTimelineRef.current.total,
+        };
+      }
       audioTimelineRef.current = null;
       return null;
     }
@@ -147,10 +155,12 @@ export function useInteractiveAudioTimeline({
       return audioTimeline;
     }
     let played = audioTimeline.played;
+    // Use the larger total to prevent flickering when chunks are being loaded/hydrated
     let total = Math.max(audioTimeline.total, prev.total);
     const backwards = played < prev.played;
     const backstep = prev.played - played;
-    if (backwards && isInlineAudioPlaying && !isSeekingRef.current && backstep < 5) {
+    // Allow larger backsteps (up to 30 seconds) to prevent visible jumps during chunk transitions
+    if (backwards && isInlineAudioPlaying && !isSeekingRef.current && backstep < 30) {
       played = prev.played;
     }
     played = Math.max(0, Math.min(played, total));

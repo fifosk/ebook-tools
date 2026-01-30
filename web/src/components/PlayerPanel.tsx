@@ -15,6 +15,7 @@ import {
   TRANSLATION_SPEED_MAX,
   TRANSLATION_SPEED_MIN,
   TRANSLATION_SPEED_STEP,
+  type NavigationIntent,
 } from './player-panel/constants';
 import MediaSearchPanel from './MediaSearchPanel';
 import type { LibraryItem } from '../api/dtos';
@@ -207,6 +208,14 @@ export default function PlayerPanel({
     chunks,
   });
   const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
+  // Use a ref instead of state to avoid re-renders when the skip function changes
+  const sequenceSkipFnRef = useRef<((direction: 1 | -1) => boolean) | null>(null);
+  const handleRegisterSequenceSkip = useCallback((fn: ((direction: 1 | -1) => boolean) | null) => {
+    if (import.meta.env.DEV) {
+      console.debug('[PlayerPanel] handleRegisterSequenceSkip called, fn is:', fn ? 'function' : 'null');
+    }
+    sequenceSkipFnRef.current = fn;
+  }, []);
   const {
     inlineAudioPlayingRef,
     mediaSessionTimeRef,
@@ -376,6 +385,28 @@ export default function PlayerPanel({
       const mappedIndex = audioChunkIndexMap.get(inlineAudioSelection);
       if (typeof mappedIndex === 'number' && mappedIndex >= 0 && mappedIndex < chunks.length) {
         return chunks[mappedIndex];
+      }
+      // For multi-sentence chunks, check if inlineAudioSelection matches any audioTracks URL
+      // (URLs may have access tokens appended, so we do a substring match)
+      const matchedByAudioTracks = chunks.find((chunk) => {
+        const tracks = chunk.audioTracks;
+        if (!tracks || typeof tracks !== 'object') {
+          return false;
+        }
+        return Object.values(tracks).some((trackMeta) => {
+          if (!trackMeta || typeof trackMeta !== 'object') {
+            return false;
+          }
+          const trackUrl = (trackMeta as { url?: string; path?: string }).url ?? (trackMeta as { url?: string; path?: string }).path;
+          if (!trackUrl) {
+            return false;
+          }
+          // Check if the inlineAudioSelection contains this track URL (handles access tokens)
+          return inlineAudioSelection.includes(trackUrl) || trackUrl.includes(inlineAudioSelection.split('?')[0]);
+        });
+      });
+      if (matchedByAudioTracks) {
+        return matchedByAudioTracks;
       }
     }
     const audioId = selectedItemIds.audio;
@@ -586,12 +617,33 @@ export default function PlayerPanel({
   }, []);
   const handleMediaSessionSentenceSkip = useCallback(
     (direction: -1 | 1) => {
+      const sequenceSkipFn = sequenceSkipFnRef.current;
+      if (import.meta.env.DEV) {
+        console.debug('[PlayerPanel] handleMediaSessionSentenceSkip called, direction:', direction, 'sequenceSkipFn:', sequenceSkipFn ? 'set' : 'null');
+      }
+      // First try sequence skip (for within-chunk sentence navigation in sequence mode)
+      if (sequenceSkipFn) {
+        const result = sequenceSkipFn(direction);
+        if (import.meta.env.DEV) {
+          console.debug('[PlayerPanel] sequenceSkipFn returned:', result);
+        }
+        if (result) {
+          return true;
+        }
+      }
+      // Fall back to chunk-level sentence jump
       if (!canJumpToSentence) {
+        if (import.meta.env.DEV) {
+          console.debug('[PlayerPanel] canJumpToSentence is false, returning false');
+        }
         return false;
       }
       const fallback = direction > 0 ? jobStartSentence : null;
       const current = activeSentenceNumber ?? fallback;
       if (!current || !Number.isFinite(current)) {
+        if (import.meta.env.DEV) {
+          console.debug('[PlayerPanel] activeSentenceNumber invalid, returning false');
+        }
         return false;
       }
       const target = Math.trunc(current) + direction;
@@ -600,6 +652,9 @@ export default function PlayerPanel({
       }
       if (jobEndSentence !== null && target > jobEndSentence) {
         return false;
+      }
+      if (import.meta.env.DEV) {
+        console.debug('[PlayerPanel] Jumping to sentence:', target);
       }
       handleInteractiveSentenceJump(target);
       return true;
@@ -618,6 +673,21 @@ export default function PlayerPanel({
         return;
       }
       handleNavigatePreservingPlayback(direction > 0 ? 'next' : 'previous');
+    },
+    [handleMediaSessionSentenceSkip, handleNavigatePreservingPlayback],
+  );
+  // Keyboard navigation handler that prioritizes sentence skip within chunk
+  const handleKeyboardNavigate = useCallback(
+    (intent: NavigationIntent) => {
+      // For next/previous, try sentence skip first within the current chunk
+      if (intent === 'next' || intent === 'previous') {
+        const direction = intent === 'next' ? 1 : -1;
+        if (handleMediaSessionSentenceSkip(direction)) {
+          return;
+        }
+      }
+      // Fall back to chunk navigation
+      handleNavigatePreservingPlayback(intent);
     },
     [handleMediaSessionSentenceSkip, handleNavigatePreservingPlayback],
   );
@@ -658,7 +728,7 @@ export default function PlayerPanel({
     onToggleReadingBed: handleToggleReadingBed,
     onToggleFullscreen: handleInteractiveFullscreenToggle,
     onTogglePlayback: handleToggleActiveMedia,
-    onNavigate: handleNavigatePreservingPlayback,
+    onNavigate: handleKeyboardNavigate,
     adjustTranslationSpeed,
     adjustFontScale,
     adjustMyLinguistFontScale: handleAdjustMyLinguistFontScale,
@@ -897,6 +967,7 @@ export default function PlayerPanel({
       onRegisterInlineAudioControls: handleInlineAudioControlsRegistration,
       onInlineAudioPlaybackStateChange: handleInlineAudioPlaybackStateChange,
       onRequestAdvanceChunk: handleInlineAudioEnded,
+      onRegisterSequenceSkip: handleRegisterSequenceSkip,
     },
     fullscreen: {
       isFullscreen: isInteractiveFullscreen,

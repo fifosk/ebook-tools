@@ -227,7 +227,7 @@ describe('BookNarrationForm', () => {
     const prefilledTargets = getSelectedTargetLanguages();
     expect(prefilledTargets).toHaveLength(2);
     expect(prefilledTargets).toEqual(expect.arrayContaining(['German', 'French']));
-    expect(screen.getByLabelText(/Sentences per output file/i)).toHaveValue(8);
+    expect(screen.getByLabelText(/Sentences per chunk/i)).toHaveValue(8);
     expect(screen.getByLabelText(/Start sentence/i)).toHaveValue(2);
     expect(screen.getByLabelText(/End sentence/i)).toHaveValue('42');
     expect(screen.getByLabelText(/Stitch full document once complete/i)).toBeChecked();

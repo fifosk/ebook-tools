@@ -20,6 +20,7 @@ from modules.core.rendering.timeline import (
     SentenceTimingSpec,
     build_separate_track_timings,
     build_word_events,
+    scale_timing_to_audio_duration,
 )
 from modules.render.context import RenderBatchContext
 from modules.render.output_writer import DeferredBatchWriter
@@ -395,6 +396,8 @@ class BatchExportResult:
     audio_tracks: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     timing_tracks: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
     highlighting_policy: Optional[str] = None
+    timing_version: str = "2"
+    timing_validation: Dict[str, Any] = field(default_factory=dict)
 
 
 class BatchExporter:
@@ -1036,18 +1039,79 @@ class BatchExporter:
                     return max(raw_value, fallback)
             return fallback
 
+        # Get actual audio durations from exported tracks
+        def _actual_duration_for(track_key: str) -> float:
+            entry = track_artifacts.get(track_key)
+            if isinstance(entry, Mapping):
+                try:
+                    return max(float(entry.get("duration", 0.0)), 0.0)
+                except (TypeError, ValueError):
+                    pass
+            return 0.0
+
+        actual_original_duration = _actual_duration_for("orig")
+        actual_translation_duration = _actual_duration_for("translation")
+
+        # Expected durations from sentence specs (used to build timing)
+        expected_original_duration = original_duration_fallback
+        expected_translation_duration = translation_duration_fallback
+
+        # Use actual duration for track_durations if available, otherwise fallback
         track_durations = {
-            "original": _duration_for("orig", original_duration_fallback),
-            "translation": _duration_for("translation", translation_duration_fallback),
+            "original": actual_original_duration if actual_original_duration > 0 else original_duration_fallback,
+            "translation": actual_translation_duration if actual_translation_duration > 0 else translation_duration_fallback,
         }
+
         timing_tracks: Dict[str, List[Dict[str, Any]]] = {}
+        timing_validation: Dict[str, Any] = {}
         highlighting_policy = _resolve_highlighting_policy(sentence_specs) if sentence_specs else None
+
         if sentence_specs:
-            timing_tracks = build_separate_track_timings(
+            # Use chunk-local indices for multi-sentence chunks so the frontend
+            # can correctly map timing data to displayed sentences
+            raw_timing_tracks = build_separate_track_timings(
                 sentence_specs,
-                original_duration=track_durations["original"],
-                translation_duration=track_durations["translation"],
+                original_duration=expected_original_duration,
+                translation_duration=expected_translation_duration,
+                use_local_indices=True,
             )
+
+            # Scale timing tracks to match actual audio duration if there's a mismatch
+            # This ensures the frontend doesn't need to apply scaling at runtime
+            original_tokens = raw_timing_tracks.get("original", [])
+            translation_tokens = raw_timing_tracks.get("translation", [])
+
+            if actual_original_duration > 0 and original_tokens:
+                scaled_original, original_validation = scale_timing_to_audio_duration(
+                    original_tokens,
+                    expected_original_duration,
+                    actual_original_duration,
+                )
+                timing_tracks["original"] = scaled_original
+                timing_validation["original"] = original_validation
+            else:
+                timing_tracks["original"] = original_tokens
+                timing_validation["original"] = {
+                    "expected_duration": round(expected_original_duration, 6),
+                    "actual_duration": round(actual_original_duration, 6),
+                    "scaling_applied": False,
+                }
+
+            if actual_translation_duration > 0 and translation_tokens:
+                scaled_translation, translation_validation = scale_timing_to_audio_duration(
+                    translation_tokens,
+                    expected_translation_duration,
+                    actual_translation_duration,
+                )
+                timing_tracks["translation"] = scaled_translation
+                timing_validation["translation"] = translation_validation
+            else:
+                timing_tracks["translation"] = translation_tokens
+                timing_validation["translation"] = {
+                    "expected_duration": round(expected_translation_duration, 6),
+                    "actual_duration": round(actual_translation_duration, 6),
+                    "scaling_applied": False,
+                }
         else:
             timing_tracks = {"original": [], "translation": []}
 
@@ -1061,6 +1125,8 @@ class BatchExporter:
             audio_tracks=track_artifacts,
             timing_tracks=timing_tracks,
             highlighting_policy=highlighting_policy,
+            timing_version="2",
+            timing_validation=timing_validation,
         )
 
 

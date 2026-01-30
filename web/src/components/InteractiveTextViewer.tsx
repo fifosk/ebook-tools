@@ -74,6 +74,7 @@ interface InteractiveTextViewerProps {
   onRegisterInlineAudioControls?: (controls: InlineAudioControls | null) => void;
   onInlineAudioPlaybackStateChange?: (state: 'playing' | 'paused') => void;
   onRequestAdvanceChunk?: () => void;
+  onRegisterSequenceSkip?: (skipFn: ((direction: 1 | -1) => boolean) | null) => void;
   isFullscreen?: boolean;
   onRequestExitFullscreen?: () => void;
   fullscreenControls?: ReactNode;
@@ -123,6 +124,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     onRegisterInlineAudioControls,
     onInlineAudioPlaybackStateChange,
     onRequestAdvanceChunk,
+    onRegisterSequenceSkip,
     isFullscreen = false,
     onRequestExitFullscreen,
     fullscreenControls,
@@ -321,6 +323,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     seekInlineAudioToTime,
     handleTokenSeek,
     wordSync,
+    sequencePlayback,
   } = useInteractiveAudioPlayback({
     content,
     chunk: activeChunk,
@@ -349,6 +352,67 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const { legacyWordSyncEnabled, shouldUseWordSync, wordSyncSentences } = wordSync;
   const activeTextSentence =
     textPlayerSentences && textPlayerSentences.length > 0 ? textPlayerSentences[0] : null;
+
+  // Track the skip function in a ref so registration effect doesn't re-run when it changes
+  const skipSentenceRef = useRef(sequencePlayback.skipSentence);
+  useEffect(() => {
+    skipSentenceRef.current = sequencePlayback.skipSentence;
+  }, [sequencePlayback.skipSentence]);
+
+  // Create a stable wrapper function that delegates to the ref
+  const stableSkipSentence = useMemo(() => {
+    const fn = (direction: 1 | -1): boolean => {
+      return skipSentenceRef.current(direction);
+    };
+    return fn;
+  }, []);
+
+  // Track the callback in a ref so we don't depend on it in the effect
+  const onRegisterSequenceSkipRef = useRef(onRegisterSequenceSkip);
+  useEffect(() => {
+    onRegisterSequenceSkipRef.current = onRegisterSequenceSkip;
+  }, [onRegisterSequenceSkip]);
+
+  // Track whether we've registered so we only clear on actual unmount or disable
+  const isRegisteredRef = useRef(false);
+
+  // Register sequence skip function with parent component
+  // Only re-run when enabled state changes
+  useEffect(() => {
+    const register = onRegisterSequenceSkipRef.current;
+    if (!register) {
+      return;
+    }
+    if (sequencePlayback.enabled) {
+      if (import.meta.env.DEV) {
+        console.debug('[InteractiveTextViewer] Registering sequence skip function');
+      }
+      register(stableSkipSentence);
+      isRegisteredRef.current = true;
+    } else if (isRegisteredRef.current) {
+      if (import.meta.env.DEV) {
+        console.debug('[InteractiveTextViewer] Clearing sequence skip function (sequence disabled)');
+      }
+      register(null);
+      isRegisteredRef.current = false;
+    }
+  }, [sequencePlayback.enabled, stableSkipSentence]);
+
+  // Separate cleanup effect that only runs on unmount
+  useEffect(() => {
+    return () => {
+      if (isRegisteredRef.current) {
+        const register = onRegisterSequenceSkipRef.current;
+        if (register) {
+          if (import.meta.env.DEV) {
+            console.debug('[InteractiveTextViewer] Cleanup: clearing sequence skip function on unmount');
+          }
+          register(null);
+        }
+        isRegisteredRef.current = false;
+      }
+    };
+  }, []);
 
   const linguist = useLinguistBubble({
     containerRef,

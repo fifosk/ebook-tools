@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { timingStore } from '../../stores/timingStore';
-import type { WordSyncController } from './types';
+import type { WordSyncController, TimelineSentenceRuntime } from './types';
 
 type InlineAudioControls = {
   pause: () => void;
@@ -17,7 +17,7 @@ type UseInlineAudioHandlersArgs = {
   sequenceEnabled: boolean;
   sequencePlanLength: number;
   sequenceAutoPlayRef: React.MutableRefObject<boolean>;
-  pendingSequenceSeekRef: React.MutableRefObject<{ time: number; autoPlay: boolean } | null>;
+  pendingSequenceSeekRef: React.MutableRefObject<{ time: number; autoPlay: boolean; targetSentenceIndex?: number } | null>;
   pendingChunkAutoPlayRef: React.MutableRefObject<boolean>;
   pendingChunkAutoPlayKeyRef: React.MutableRefObject<string | null>;
   lastSequenceEndedRef: React.MutableRefObject<number | null>;
@@ -40,7 +40,10 @@ type UseInlineAudioHandlersArgs = {
   onRequestAdvanceChunk?: () => void;
   dictionarySuppressSeekRef: React.MutableRefObject<boolean>;
   pendingInitialSeekRef: React.MutableRefObject<number | null>;
+  pendingSequenceExitSeekRef: React.MutableRefObject<{ sentenceIndex: number } | null>;
+  timelineSentences: TimelineSentenceRuntime[] | null;
   isSeekingRef: React.MutableRefObject<boolean>;
+  lastManualSeekTimeRef: React.MutableRefObject<number>;
   wordSyncControllerRef: React.MutableRefObject<WordSyncController | null>;
   effectivePlaybackRate: number;
   chunkTime: number;
@@ -95,7 +98,10 @@ export function useInlineAudioHandlers({
   onRequestAdvanceChunk,
   dictionarySuppressSeekRef,
   pendingInitialSeekRef,
+  pendingSequenceExitSeekRef,
+  timelineSentences,
   isSeekingRef,
+  lastManualSeekTimeRef,
   wordSyncControllerRef,
   effectivePlaybackRate,
   chunkTime,
@@ -199,6 +205,12 @@ export function useInlineAudioHandlers({
         progressTimerRef.current = window.setInterval(() => {
           const mediaEl = audioRef.current;
           if (!mediaEl) {
+            return;
+          }
+          // Skip progress updates while a pending sequence seek is in progress
+          // This prevents overwriting chunkTime with stale values before the seek completes
+          // The pending seek will be cleared by handleLoadedMetadata after the audio loads
+          if (pendingSequenceSeekRef.current) {
             return;
           }
           const { currentTime, duration } = mediaEl;
@@ -364,8 +376,23 @@ export function useInlineAudioHandlers({
     if (initialTime !== (element.currentTime ?? 0)) {
       element.currentTime = initialTime;
     }
-    setChunkTime(initialTime);
     const pendingSequenceSeek = pendingSequenceSeekRef.current;
+    // If there's a pending sequence seek, set chunkTime to the target time, not initialTime
+    // This prevents the timelineDisplay effect from calculating wrong sentence indices
+    if (pendingSequenceSeek) {
+      setChunkTime(pendingSequenceSeek.time);
+    } else {
+      setChunkTime(initialTime);
+    }
+    if (import.meta.env.DEV) {
+      console.debug('[handleLoadedMetadata]', {
+        duration,
+        initialTime,
+        pendingSequenceSeek,
+        sequenceEnabled,
+        sequencePlanLength,
+      });
+    }
     if (pendingSequenceSeek) {
       const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : null;
       const nearEndThreshold =
@@ -393,9 +420,112 @@ export function useInlineAudioHandlers({
           maybePlay.catch(() => undefined);
         }
       }
-      pendingSequenceSeekRef.current = null;
+      // Mark this as a manual seek to prevent backward index movement due to timeline scaling
+      // This protects against the timelineDisplay effect resetting sentence index after track switch
+      lastManualSeekTimeRef.current = Date.now();
+      // Clear the pending seek ref after a brief delay to allow the seek to take effect.
+      // We use requestAnimationFrame to ensure the audio element has processed the seek
+      // before we allow progress updates to resume.
+      // The guard in syncSequenceIndexToTime (checking if current segment is valid for time)
+      // prevents recalculation when handleAudioSeeked fires.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Only clear if we're still at the same pending seek
+          // (avoid clearing a newer pending seek set by a subsequent operation)
+          if (pendingSequenceSeekRef.current?.time === targetSeek) {
+            if (import.meta.env.DEV) {
+              console.debug('[handleLoadedMetadata] Clearing pendingSequenceSeekRef after seek', {
+                targetSeek,
+                currentTime: element.currentTime,
+              });
+            }
+            pendingSequenceSeekRef.current = null;
+            // Complete the transition in the store
+            timingStore.completeTransition();
+          }
+        });
+      });
       wordSyncControllerRef.current?.snap();
       return;
+    }
+    // Handle pending seek when transitioning from sequence mode to single-track mode
+    const pendingSequenceExitSeek = pendingSequenceExitSeekRef.current;
+    if (pendingSequenceExitSeek && timelineSentences && timelineSentences.length > 0) {
+      const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : null;
+      const targetSentenceIndex = Math.min(
+        pendingSequenceExitSeek.sentenceIndex,
+        timelineSentences.length - 1,
+      );
+      const targetSentence = timelineSentences[targetSentenceIndex];
+      if (targetSentence) {
+        // Add a small offset (0.1s) after sentence start to ensure the timeline
+        // agrees this time is within the target sentence, not at the boundary
+        // which might be considered part of the previous sentence
+        let targetSeek = targetSentence.startTime + 0.1;
+        // Clamp to valid range (within the sentence)
+        const sentenceDuration = targetSentence.endTime - targetSentence.startTime;
+        if (sentenceDuration > 0.2) {
+          // If sentence is long enough, keep the offset
+          targetSeek = Math.min(targetSeek, targetSentence.endTime - 0.1);
+        } else {
+          // For very short sentences, seek to the middle
+          targetSeek = (targetSentence.startTime + targetSentence.endTime) / 2;
+        }
+        if (safeDuration !== null) {
+          targetSeek = Math.min(targetSeek, Math.max(safeDuration - 0.1, 0));
+        }
+        if (targetSeek < 0 || !Number.isFinite(targetSeek)) {
+          targetSeek = 0;
+        }
+        if (import.meta.env.DEV) {
+          console.debug('[handleLoadedMetadata] Sequence exit seek', {
+            targetSentenceIndex,
+            targetSeek,
+            sentenceStartTime: targetSentence.startTime,
+          });
+        }
+        element.currentTime = targetSeek;
+        setChunkTime(targetSeek);
+        setActiveSentenceIndex(targetSentenceIndex);
+        // Mark this as a manual seek to prevent backward index movement due to timeline scaling
+        lastManualSeekTimeRef.current = Date.now();
+        if (safeDuration !== null && !hasTimeline) {
+          updateSentenceForTime(targetSeek, safeDuration);
+        }
+        updateActiveGateFromTime(targetSeek);
+        emitAudioProgress(targetSeek);
+        // Delay clearing the ref to allow timelineDisplay effect to see it and skip
+        // Use a longer timeout to ensure React has re-rendered with the new timeline
+        // and the audio element has stabilized at the seek position
+        setTimeout(() => {
+          // Only clear if the current pendingSequenceExitSeekRef matches what we set
+          if (pendingSequenceExitSeekRef.current?.sentenceIndex === targetSentenceIndex) {
+            if (import.meta.env.DEV) {
+              console.debug('[handleLoadedMetadata] Clearing pendingSequenceExitSeekRef', {
+                targetSentenceIndex,
+              });
+            }
+            pendingSequenceExitSeekRef.current = null;
+            // Complete any transition in progress
+            timingStore.completeTransition();
+          }
+        }, 200);
+        wordSyncControllerRef.current?.snap();
+        return;
+      }
+      // Clear pending seek if no target sentence found
+      setTimeout(() => {
+        if (pendingSequenceExitSeekRef.current?.sentenceIndex === pendingSequenceExitSeek.sentenceIndex) {
+          pendingSequenceExitSeekRef.current = null;
+        }
+      }, 200);
+    } else if (pendingSequenceExitSeek) {
+      // Clear pending seek if no timeline sentences available
+      setTimeout(() => {
+        if (pendingSequenceExitSeekRef.current?.sentenceIndex === pendingSequenceExitSeek.sentenceIndex) {
+          pendingSequenceExitSeekRef.current = null;
+        }
+      });
     }
     const seek = pendingInitialSeekRef.current;
     if (typeof seek === 'number' && seek > 0 && Number.isFinite(duration) && duration > 0) {
@@ -428,10 +558,14 @@ export function useInlineAudioHandlers({
     emitAudioProgress,
     hasTimeline,
     pendingInitialSeekRef,
+    pendingSequenceExitSeekRef,
+    lastManualSeekTimeRef,
     pendingSequenceSeekRef,
     sequenceAutoPlayRef,
+    setActiveSentenceIndex,
     setAudioDuration,
     setChunkTime,
+    timelineSentences,
     updateActiveGateFromTime,
     updateSentenceForTime,
     wordSyncControllerRef,
@@ -440,6 +574,14 @@ export function useInlineAudioHandlers({
   const handleTimeUpdate = useCallback(() => {
     const element = audioRef.current;
     if (!element) {
+      return;
+    }
+    // Skip time updates while a pending sequence seek is in progress
+    // This prevents overwriting chunkTime with stale values (e.g., 0) before the seek completes
+    if (pendingSequenceSeekRef.current) {
+      // Still waiting for audio to seek - skip this update
+      // The pending seek will be cleared by handleLoadedMetadata after the audio loads
+      // and seeks to the correct position
       return;
     }
     const { currentTime, duration } = element;
@@ -464,6 +606,7 @@ export function useInlineAudioHandlers({
     emitAudioProgress,
     hasTimeline,
     maybeAdvanceSequence,
+    pendingSequenceSeekRef,
     setAudioDuration,
     setChunkTime,
     updateActiveGateFromTime,
@@ -472,6 +615,13 @@ export function useInlineAudioHandlers({
   ]);
 
   const handleAudioEnded = useCallback(() => {
+    if (import.meta.env.DEV) {
+      console.debug('[handleAudioEnded]', {
+        sequenceEnabled,
+        sequencePlanLength,
+        pendingSequenceSeek: pendingSequenceSeekRef.current,
+      });
+    }
     if (sequenceEnabled) {
       const element = audioRef.current;
       if (element && Number.isFinite(element.currentTime)) {
@@ -479,9 +629,15 @@ export function useInlineAudioHandlers({
       }
     }
     if (sequenceEnabled && pendingSequenceSeekRef.current) {
+      if (import.meta.env.DEV) {
+        console.debug('[handleAudioEnded] Skipping - pending seek exists');
+      }
       return;
     }
     if (sequenceEnabled && advanceSequenceSegment({ autoPlay: true })) {
+      if (import.meta.env.DEV) {
+        console.debug('[handleAudioEnded] Advanced to next segment');
+      }
       return;
     }
     if (onRequestAdvanceChunk) {

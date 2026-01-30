@@ -279,6 +279,33 @@ const PlayerCore = forwardRef<PlayerCoreHandle, PlayerCoreProps>(function Player
     };
   }, [cancelAnimation]);
 
+  // Track previous src to detect changes
+  const prevSrcRef = useRef<string | undefined>(src);
+  useEffect(() => {
+    const element = audioRef.current;
+    if (!element) {
+      prevSrcRef.current = src;
+      return;
+    }
+    // If src changed, we need to explicitly load the new source
+    if (prevSrcRef.current !== src && src) {
+      prevSrcRef.current = src;
+      // Reset state for the new source
+      initialisedRef.current = false;
+      lastSeekTimeRef.current = null;
+      lastEmittedTimeRef.current = null;
+      // Load the new source - this will trigger loadedmetadata when ready
+      element.load();
+      if (import.meta.env.DEV) {
+        console.debug('[PlayerCore] src changed, calling load()', {
+          newSrc: src,
+        });
+      }
+    } else {
+      prevSrcRef.current = src;
+    }
+  }, [src]);
+
   const setAudioRef = useCallback(
     (node: HTMLAudioElement | null) => {
       audioRef.current = node;

@@ -696,8 +696,19 @@ def build_separate_track_timings(
     *,
     original_duration: float,
     translation_duration: float,
+    use_local_indices: bool = False,
 ) -> dict[str, list[dict[str, Any]]]:
-    """Build ORIGINAL + TRANSLATION timing tracks from per-sentence specifications."""
+    """Build ORIGINAL + TRANSLATION timing tracks from per-sentence specifications.
+
+    Args:
+        sentences: Sequence of sentence timing specifications.
+        original_duration: Target duration for the original audio track.
+        translation_duration: Target duration for the translation audio track.
+        use_local_indices: If True, use chunk-local indices (0, 1, 2, ...)
+            in the output sentenceIdx field instead of global sentence numbers.
+            This is preferred for multi-sentence chunks where the frontend
+            expects chunk-local addressing.
+    """
 
     original_tokens: list[dict[str, Any]] = []
     translation_tokens: list[dict[str, Any]] = []
@@ -706,6 +717,12 @@ def build_separate_track_timings(
     sentence_original_spans: dict[int, float] = {}
     sentence_translation_offsets: dict[int, float] = {}
     sentence_translation_spans: dict[int, float] = {}
+
+    # Build a mapping from global sentence_idx to local index if needed
+    global_to_local: dict[int, int] = {}
+    if use_local_indices:
+        for local_idx, spec in enumerate(sentences):
+            global_to_local[spec.sentence_idx] = local_idx
 
     original_cursor = 0.0
     translation_cursor = 0.0
@@ -801,13 +818,18 @@ def build_separate_track_timings(
         translation_start_gate = sentence_translation_offsets.get(spec.sentence_idx, 0.0)
         translation_end_gate = translation_start_gate + translation_target
         translation_word_idx = 0
+        output_sentence_idx = (
+            global_to_local.get(spec.sentence_idx, spec.sentence_idx)
+            if use_local_indices
+            else spec.sentence_idx
+        )
         for token in translation_source_tokens:
             start = translation_start_gate + float(token.get("start", 0.0))
             end = translation_start_gate + float(token.get("end", start))
             translation_tokens.append(
                 {
                     "lane": "trans",
-                    "sentenceIdx": spec.sentence_idx,
+                    "sentenceIdx": output_sentence_idx,
                     "wordIdx": translation_word_idx,
                     "start": _round_to_precision(start),
                     "end": _round_to_precision(end),
@@ -824,7 +846,7 @@ def build_separate_track_timings(
             original_tokens.append(
                 {
                     "lane": "orig",
-                    "sentenceIdx": spec.sentence_idx,
+                    "sentenceIdx": output_sentence_idx,
                     "wordIdx": original_word_idx,
                     "start": _round_to_precision(start),
                     "end": _round_to_precision(end),
@@ -845,6 +867,186 @@ def build_separate_track_timings(
     }
 
 
+def scale_timing_to_audio_duration(
+    tokens: list[dict[str, Any]],
+    expected_duration: float,
+    actual_duration: float,
+    *,
+    tolerance: float = 0.02,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """
+    Scale timing tokens to match actual audio duration.
+
+    When the timing track's expected duration differs from the actual audio
+    duration by more than ``tolerance`` (default 2%), this function linearly
+    scales all token start/end times to fit the actual duration.
+
+    Args:
+        tokens: List of timing tokens with 'start' and 'end' fields.
+        expected_duration: The duration the timing was originally computed for.
+        actual_duration: The actual audio file duration.
+        tolerance: Relative tolerance for triggering scaling (0.02 = 2%).
+
+    Returns:
+        A tuple of (scaled_tokens, validation_info) where validation_info
+        contains details about whether scaling was applied.
+    """
+    validation_info: dict[str, Any] = {
+        "expected_duration": round(expected_duration, 6),
+        "actual_duration": round(actual_duration, 6),
+        "scaling_applied": False,
+        "scale_factor": 1.0,
+        "drift_ms": 0.0,
+    }
+
+    if not tokens:
+        return [], validation_info
+
+    if expected_duration <= 0 or actual_duration <= 0:
+        return tokens, validation_info
+
+    relative_diff = abs(expected_duration - actual_duration) / max(expected_duration, 0.001)
+    drift_ms = abs(expected_duration - actual_duration) * 1000
+    validation_info["drift_ms"] = round(drift_ms, 3)
+
+    if relative_diff <= tolerance:
+        # Within tolerance - just clamp the last token to actual duration
+        if tokens and actual_duration > 0:
+            scaled = [{**t} for t in tokens]  # Shallow copy
+            last_end = float(scaled[-1].get("end", 0.0))
+            if last_end > actual_duration:
+                scaled[-1]["end"] = _round_to_precision(actual_duration)
+            return scaled, validation_info
+        return tokens, validation_info
+
+    # Apply scaling
+    scale = actual_duration / expected_duration
+    validation_info["scaling_applied"] = True
+    validation_info["scale_factor"] = round(scale, 6)
+
+    scaled: list[dict[str, Any]] = []
+    for token in tokens:
+        start = float(token.get("start", 0.0)) * scale
+        end = float(token.get("end", 0.0)) * scale
+        scaled_token = {
+            **token,
+            "start": _round_to_precision(start),
+            "end": _round_to_precision(min(end, actual_duration)),
+        }
+        scaled.append(scaled_token)
+
+    # Ensure last token ends exactly at actual_duration
+    if scaled:
+        scaled[-1]["end"] = _round_to_precision(actual_duration)
+
+    return scaled, validation_info
+
+
+def validate_cross_sentence_continuity(
+    sentence_specs: Sequence[SentenceTimingSpec],
+    *,
+    tolerance_ms: float = 10.0,
+) -> dict[str, Any]:
+    """
+    Validate timing continuity at sentence boundaries.
+
+    Returns a summary dict with validation results and any gaps found.
+    """
+
+    if len(sentence_specs) < 2:
+        return {"valid": True, "sentence_count": len(sentence_specs), "issues": []}
+
+    issues: list[dict[str, Any]] = []
+    sorted_specs = sorted(sentence_specs, key=lambda s: s.start_gate)
+
+    for i in range(len(sorted_specs) - 1):
+        current = sorted_specs[i]
+        next_spec = sorted_specs[i + 1]
+
+        current_end = float(current.end_gate)
+        next_start = float(next_spec.start_gate)
+        gap_ms = (next_start - current_end) * 1000
+
+        if abs(gap_ms) > tolerance_ms:
+            issues.append({
+                "boundary_index": i,
+                "current_sentence": current.sentence_idx,
+                "next_sentence": next_spec.sentence_idx,
+                "current_end": current_end,
+                "next_start": next_start,
+                "gap_ms": round(gap_ms, 3),
+            })
+
+    return {
+        "valid": len(issues) == 0,
+        "sentence_count": len(sentence_specs),
+        "issues": issues,
+    }
+
+
+def validate_chunk_timing_alignment(
+    tokens: Sequence[Mapping[str, Any]],
+    expected_duration: float,
+    *,
+    start_tolerance_ms: float = 10.0,
+    end_tolerance_ms: float = 50.0,
+) -> dict[str, Any]:
+    """
+    Validate that timing tokens align with expected audio duration.
+
+    Checks that:
+    - First token starts near 0
+    - Last token ends near expected_duration
+    - No significant drift has accumulated
+
+    Returns validation summary with drift measurements.
+    """
+
+    if not tokens:
+        return {
+            "valid": False,
+            "error": "no_tokens",
+            "token_count": 0,
+            "expected_duration": expected_duration,
+        }
+
+    sorted_tokens = sorted(tokens, key=lambda t: float(t.get("start", 0)))
+    first_start = float(sorted_tokens[0].get("start", 0))
+    last_end = float(sorted_tokens[-1].get("end", 0))
+
+    start_drift_ms = abs(first_start) * 1000
+    end_drift_ms = abs(last_end - expected_duration) * 1000
+
+    valid = start_drift_ms <= start_tolerance_ms and end_drift_ms <= end_tolerance_ms
+
+    return {
+        "valid": valid,
+        "token_count": len(tokens),
+        "expected_duration": round(expected_duration, 6),
+        "actual_start": round(first_start, 6),
+        "actual_end": round(last_end, 6),
+        "start_drift_ms": round(start_drift_ms, 3),
+        "end_drift_ms": round(end_drift_ms, 3),
+    }
+
+
+def compute_cumulative_offsets(
+    durations: Sequence[float],
+) -> list[float]:
+    """
+    Compute cumulative time offsets from a sequence of durations.
+
+    Given durations [1.0, 2.0, 1.5], returns offsets [0.0, 1.0, 3.0].
+    """
+
+    offsets: list[float] = [0.0]
+    cumulative = 0.0
+    for dur in durations[:-1]:
+        cumulative += max(float(dur), 0.0)
+        offsets.append(round(cumulative, 6))
+    return offsets
+
+
 __all__ = [
     "SentenceTimingSpec",
     "build_dual_track_timings",
@@ -853,4 +1055,7 @@ __all__ = [
     "smooth_token_boundaries",
     "compute_char_weighted_timings",
     "validate_timing_monotonic",
+    "validate_cross_sentence_continuity",
+    "validate_chunk_timing_alignment",
+    "compute_cumulative_offsets",
 ]

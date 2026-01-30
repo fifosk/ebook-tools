@@ -29,6 +29,8 @@ type UseTimelineDisplayArgs = {
   chunkTime: number;
   activeSentenceIndex: number;
   revealMemoryRef: RevealMemoryRef;
+  /** If true, skip frontend scaling even for v1 chunks (for testing) */
+  skipScaling?: boolean;
 };
 
 export function useTimelineDisplay({
@@ -40,6 +42,7 @@ export function useTimelineDisplay({
   chunkTime,
   activeSentenceIndex,
   revealMemoryRef,
+  skipScaling = false,
 }: UseTimelineDisplayArgs): {
   timelineSentences: TimelineSentenceRuntime[] | null;
   timelineDisplay: TimelineDisplay | null;
@@ -253,47 +256,65 @@ export function useTimelineDisplay({
       offset = endTime;
     });
 
-    if (!useCombinedPhases && audioDuration && audioDuration > 0 && result.length > 0) {
+    // Timing version "2" means the backend has already scaled timing to match audio duration
+    // In this case, we skip frontend scaling to avoid double-scaling
+    const timingVersion = chunk?.timingVersion ?? '1';
+    const shouldSkipScaling = skipScaling || timingVersion === '2';
+
+    if (!shouldSkipScaling && !useCombinedPhases && audioDuration && audioDuration > 0 && result.length > 0) {
       const totalTimelineDuration = result[result.length - 1].endTime;
       if (totalTimelineDuration > 0) {
         const scale = audioDuration / totalTimelineDuration;
-        const scaled = result.map((sentence) => {
-          const originalVariant = {
-            ...sentence.variants.original,
-            revealTimes: sentence.variants.original.revealTimes.map((time) => time * scale),
-          };
+        // Only apply scaling if there's a significant difference (>2%)
+        const scalingNeeded = Math.abs(scale - 1.0) > 0.02;
+        if (scalingNeeded) {
+          if (import.meta.env.DEV) {
+            console.debug('[useTimelineDisplay] Applying frontend scaling', {
+              timingVersion,
+              audioDuration,
+              totalTimelineDuration,
+              scale,
+              note: 'Consider using timing_version: "2" from backend to avoid this',
+            });
+          }
+          const scaled = result.map((sentence) => {
+            const originalVariant = {
+              ...sentence.variants.original,
+              revealTimes: sentence.variants.original.revealTimes.map((time) => time * scale),
+            };
 
-          const translationVariant = sentence.variants.translation
-            ? {
-                ...sentence.variants.translation,
-                revealTimes: sentence.variants.translation.revealTimes.map((time) => time * scale),
-              }
-            : undefined;
+            const translationVariant = sentence.variants.translation
+              ? {
+                  ...sentence.variants.translation,
+                  revealTimes: sentence.variants.translation.revealTimes.map((time) => time * scale),
+                }
+              : undefined;
 
-          const transliterationVariant = sentence.variants.transliteration
-            ? {
-                ...sentence.variants.transliteration,
-                revealTimes: sentence.variants.transliteration.revealTimes.map((time) => time * scale),
-              }
-            : undefined;
+            const transliterationVariant = sentence.variants.transliteration
+              ? {
+                  ...sentence.variants.transliteration,
+                  revealTimes: sentence.variants.transliteration.revealTimes.map((time) => time * scale),
+                }
+              : undefined;
 
-          return {
-            ...sentence,
-            startTime: sentence.startTime * scale,
-            endTime: sentence.endTime * scale,
-            variants: {
-              original: originalVariant,
-              translation: translationVariant,
-              transliteration: transliterationVariant,
-            },
-          };
-        });
-        return scaled;
+            return {
+              ...sentence,
+              startTime: sentence.startTime * scale,
+              endTime: sentence.endTime * scale,
+              variants: {
+                original: originalVariant,
+                translation: translationVariant,
+                transliteration: transliterationVariant,
+              },
+            };
+          });
+          return scaled;
+        }
       }
     }
 
     return result;
-  }, [activeTimingTrack, audioDuration, chunk?.sentences, hasTimeline, useCombinedPhases]);
+  }, [activeTimingTrack, audioDuration, chunk?.sentences, chunk?.timingVersion, hasTimeline, skipScaling, useCombinedPhases]);
 
   const timelineDisplay = useMemo(() => {
     if (!timelineSentences) {
@@ -305,14 +326,20 @@ export function useTimelineDisplay({
 
     const timelineTotalDuration =
       timelineSentences.length > 0 ? timelineSentences[timelineSentences.length - 1].endTime : null;
+    // Timing version "2" means the backend has pre-scaled timing, so timeline duration should match audio
+    // In this case, we use chunkTime directly without time scaling
+    const timingVersion = chunk?.timingVersion ?? '1';
+    const shouldSkipTimeScaling = skipScaling || timingVersion === '2';
     const effectiveTime = (() => {
       if (!timelineTotalDuration || !audioDuration || audioDuration <= 0 || timelineTotalDuration <= 0) {
         return Math.max(chunkTime, 0);
       }
       const ratio = timelineTotalDuration / audioDuration;
-      if (ratio > 0.98 && ratio < 1.02) {
+      // If timing is pre-scaled (v2) or ratio is close to 1, use chunkTime directly
+      if (shouldSkipTimeScaling || (ratio > 0.98 && ratio < 1.02)) {
         return Math.min(chunkTime, timelineTotalDuration);
       }
+      // For v1 timing with mismatch, scale chunkTime to timeline space
       const scaled = (chunkTime / audioDuration) * timelineTotalDuration;
       if (!Number.isFinite(scaled) || scaled < 0) {
         return 0;
@@ -446,7 +473,7 @@ export function useTimelineDisplay({
       activeIndex: activeIndex ?? 0,
       effectiveTime,
     };
-  }, [timelineSentences, chunkTime, audioDuration, activeSentenceIndex]);
+  }, [timelineSentences, chunkTime, audioDuration, activeSentenceIndex, chunk?.timingVersion, skipScaling]);
 
   return { timelineSentences, timelineDisplay };
 }

@@ -144,10 +144,43 @@ export function useInteractiveAudioPlayback({
 
   const [chunkTime, setChunkTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
-  const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
+  const [activeSentenceIndex, setActiveSentenceIndexState] = useState(0);
 
   const activeSentenceIndexRef = useRef(0);
+  // Create a setter that updates both the state AND the ref synchronously
+  // This is critical for sequence playback where we need the ref to be accurate immediately
+  const setActiveSentenceIndex = useCallback((value: number | ((prev: number) => number)) => {
+    if (typeof value === 'function') {
+      setActiveSentenceIndexState((prev) => {
+        const next = value(prev);
+        if (import.meta.env.DEV) {
+          console.debug('[setActiveSentenceIndex] Function setter', { prev, next, oldRef: activeSentenceIndexRef.current });
+        }
+        activeSentenceIndexRef.current = next;
+        return next;
+      });
+    } else {
+      if (import.meta.env.DEV) {
+        // Log stack trace when setting to 0 to find the culprit
+        if (value === 0 && activeSentenceIndexRef.current !== 0) {
+          console.debug('[setActiveSentenceIndex] RESET TO 0', { oldRef: activeSentenceIndexRef.current });
+          console.trace('[setActiveSentenceIndex] Stack trace for reset to 0');
+        } else {
+          console.debug('[setActiveSentenceIndex] Direct setter', { value, oldRef: activeSentenceIndexRef.current });
+        }
+      }
+      activeSentenceIndexRef.current = value;
+      setActiveSentenceIndexState(value);
+    }
+  }, []);
+  // Also sync from state in case something else sets it (like effects)
   useEffect(() => {
+    if (import.meta.env.DEV && activeSentenceIndexRef.current !== activeSentenceIndex) {
+      console.debug('[activeSentenceIndex sync effect] Syncing ref from state', {
+        oldRef: activeSentenceIndexRef.current,
+        newState: activeSentenceIndex,
+      });
+    }
     activeSentenceIndexRef.current = activeSentenceIndex;
   }, [activeSentenceIndex]);
 
@@ -217,6 +250,7 @@ export function useInteractiveAudioPlayback({
   const {
     sequence: {
       enabled: sequenceEnabled,
+      enabledRef: sequenceEnabledRef,
       plan: sequencePlan,
       track: sequenceTrack,
       setTrack: setSequenceTrack,
@@ -247,6 +281,17 @@ export function useInteractiveAudioPlayback({
     isExportMode,
     jobId,
   });
+
+  // Debug: log when sequenceEnabled changes
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.debug('[useInteractiveAudioPlayback] sequenceEnabled changed:', sequenceEnabled, {
+        originalAudioEnabled,
+        translationAudioEnabled,
+        chunkId: chunk?.chunkId ?? null,
+      });
+    }
+  }, [chunk?.chunkId, originalAudioEnabled, sequenceEnabled, translationAudioEnabled]);
 
   const {
     timingPayload,
@@ -302,6 +347,21 @@ export function useInteractiveAudioPlayback({
     revealMemoryRef,
   });
 
+  // Debug: track when timelineDisplay.activeIndex differs from activeSentenceIndex
+  useEffect(() => {
+    if (import.meta.env.DEV && timelineDisplay && timelineDisplay.activeIndex !== activeSentenceIndex) {
+      console.debug('[timelineDisplay mismatch]', {
+        displayActiveIndex: timelineDisplay.activeIndex,
+        activeSentenceIndex,
+        effectiveTime: timelineDisplay.effectiveTime,
+        chunkTime,
+        resolvedTimingTrack,
+        sequenceEnabled,
+        pendingSeek: pendingSequenceSeekRef.current,
+      });
+    }
+  }, [timelineDisplay, activeSentenceIndex, chunkTime, resolvedTimingTrack, sequenceEnabled]);
+
   const { rawSentences, textPlayerSentences, sentenceWeightSummary } = useTextPlayerSentences({
     paragraphs,
     timelineDisplay,
@@ -345,11 +405,23 @@ export function useInteractiveAudioPlayback({
     if (!hasTimeline) {
       return;
     }
+    if (import.meta.env.DEV) {
+      console.debug('[chunk change effect] Resetting to 0', {
+        chunkId: chunk?.chunkId,
+        rangeFragment: chunk?.rangeFragment,
+      });
+    }
     setChunkTime(0);
     setActiveSentenceIndex(0);
   }, [hasTimeline, chunk?.chunkId, chunk?.rangeFragment, chunk?.startSentence, chunk?.endSentence]);
 
   useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.debug('[content/sentences effect] Resetting to 0', {
+        contentLength: content?.length,
+        totalSentences,
+      });
+    }
     setActiveSentenceIndex(0);
   }, [content, totalSentences]);
 
@@ -382,15 +454,62 @@ export function useInteractiveAudioPlayback({
     onActiveSentenceChange(activeSentenceNumber);
   }, [activeSentenceIndex, chunk?.sentences, chunk?.startSentence, onActiveSentenceChange, totalSentences]);
 
+  // Track when a manual seek was performed to prevent backward index movement
+  // due to timeline scaling mismatches
+  const lastManualSeekTimeRef = useRef<number>(0);
+
   useEffect(() => {
     if (!timelineDisplay) {
       return;
     }
+    // Skip this effect during any playback transition - use store state as primary check
+    // This provides a unified guard that covers all transition types
+    if (timingStore.isTransitioning()) {
+      if (import.meta.env.DEV) {
+        console.debug('[timelineDisplay effect] Skipping due to transition in progress', timingStore.getTransition());
+      }
+      return;
+    }
+    // Legacy guards for backward compatibility during migration
+    // Skip this effect during pending sequence seeks - the correct sentence index
+    // has already been set by applySequenceSegment
+    if (pendingSequenceSeekRef.current) {
+      if (import.meta.env.DEV) {
+        console.debug('[timelineDisplay effect] Skipping due to pendingSequenceSeek');
+      }
+      return;
+    }
+    // Skip this effect during sequence exit transitions - the correct sentence index
+    // has been set by handleLoadedMetadata and we don't want to override it
+    if (pendingSequenceExitSeekRef.current) {
+      if (import.meta.env.DEV) {
+        console.debug('[timelineDisplay effect] Skipping due to pendingSequenceExitSeek');
+      }
+      return;
+    }
     const { activeIndex: candidateIndex, effectiveTime } = timelineDisplay;
+
+    // Guard against resetting to sentence 0 when effectiveTime is 0 but we have a valid position
+    // This happens during mode transitions (entering/exiting sequence mode) when audio is reloading
+    // and chunkTime temporarily becomes 0. The activeSentenceIndex is more trustworthy in this case.
+    if (candidateIndex === 0 && effectiveTime === 0 && activeSentenceIndex > 0) {
+      if (import.meta.env.DEV) {
+        console.debug('[timelineDisplay effect] Skipping reset to 0 - preserving activeSentenceIndex during mode transition', {
+          candidateIndex,
+          effectiveTime,
+          activeSentenceIndex,
+          sequenceEnabled: sequenceEnabledRef.current,
+        });
+      }
+      return;
+    }
     if (candidateIndex === activeSentenceIndex) {
       return;
     }
     if (!timelineSentences || timelineSentences.length === 0) {
+      if (import.meta.env.DEV) {
+        console.debug('[timelineDisplay effect] No timeline sentences, setting to', candidateIndex);
+      }
       setActiveSentenceIndex(candidateIndex);
       return;
     }
@@ -398,7 +517,34 @@ export function useInteractiveAudioPlayback({
     const clampedIndex = Math.max(0, Math.min(candidateIndex, timelineSentences.length - 1));
     const candidateRuntime = timelineSentences[clampedIndex];
     if (!candidateRuntime) {
+      if (import.meta.env.DEV) {
+        console.debug('[timelineDisplay effect] No candidateRuntime, setting to', clampedIndex);
+      }
       setActiveSentenceIndex(clampedIndex);
+      return;
+    }
+    // In sequence mode, the segment times may not align with timeline times due to different
+    // audio durations between original and translation tracks causing different scaling factors.
+    // The sequence system is the source of truth for sentence progression - don't allow backward
+    // movement based on timeline calculations which may be wrong due to scaling mismatches.
+    if (sequenceEnabledRef.current && clampedIndex < activeSentenceIndex) {
+      // In sequence mode, never allow backward movement from timeline calculations alone.
+      // The sequence system will handle backward navigation through skipSequenceSentence.
+      // This prevents the scaled timeline from incorrectly resetting the sentence index
+      // after track switches where the scaling factor changes (e.g., original: 1.11x, translation: 0.77x).
+      return;
+    }
+    // Prevent backward movement shortly after a manual seek (track switch)
+    // This handles timeline scaling mismatches when audioDuration changes
+    const timeSinceManualSeek = Date.now() - lastManualSeekTimeRef.current;
+    if (clampedIndex < activeSentenceIndex && timeSinceManualSeek < 500) {
+      if (import.meta.env.DEV) {
+        console.debug('[timelineDisplay effect] Skipping backward movement after recent manual seek', {
+          from: activeSentenceIndex,
+          candidate: clampedIndex,
+          timeSinceManualSeek,
+        });
+      }
       return;
     }
     if (clampedIndex > activeSentenceIndex) {
@@ -410,27 +556,289 @@ export function useInteractiveAudioPlayback({
         return;
       }
     }
+    if (import.meta.env.DEV) {
+      console.debug('[timelineDisplay effect] Setting activeSentenceIndex', {
+        from: activeSentenceIndex,
+        to: clampedIndex,
+        effectiveTime,
+        candidateRuntime: { start: candidateRuntime.startTime, end: candidateRuntime.endTime },
+      });
+    }
     setActiveSentenceIndex(clampedIndex);
   }, [timelineDisplay, activeSentenceIndex, timelineSentences]);
 
   const pendingInitialSeek = useRef<number | null>(null);
   const lastReportedPosition = useRef(0);
+  // Track previous audioResetKey to detect sequence mode transitions
+  const prevAudioResetKeyRef = useRef<string | null>(null);
+  // Store the target sentence index when transitioning from sequence mode
+  const pendingSequenceExitSeekRef = useRef<{ sentenceIndex: number } | null>(null);
 
   useEffect(() => {
+    const prevKey = prevAudioResetKeyRef.current;
+    prevAudioResetKeyRef.current = audioResetKey;
+
     if (!effectiveAudioUrl) {
+      // No audio URL - clear pending seeks but PRESERVE the sentence position
+      // so that when audio is re-enabled, we can continue from where we were
       pendingInitialSeek.current = null;
       lastReportedPosition.current = 0;
-      setActiveSentenceIndex(0);
+      pendingSequenceExitSeekRef.current = null;
+      // DON'T reset activeSentenceIndex - preserve position for when audio is re-enabled
       setAudioDuration(null);
-      setChunkTime(0);
+      // DON'T reset chunkTime - preserve position
       return;
     }
+
+    // If the key hasn't changed, don't do anything
+    // This handles React re-renders that don't actually change the audio source
+    if (prevKey === audioResetKey) {
+      return;
+    }
+
+    // Detect transitions between sequence mode and single-track mode
+    const wasSequenceMode = prevKey?.startsWith('sequence:') ?? false;
+    const isSequenceMode = audioResetKey.startsWith('sequence:');
+    const isTransitioningFromSequence = wasSequenceMode && !isSequenceMode;
+    const isStayingInSequenceMode = wasSequenceMode && isSequenceMode;
+    const isEnteringSequenceMode = !wasSequenceMode && isSequenceMode;
+
+    if (isEnteringSequenceMode) {
+      // Entering sequence mode from single-track mode
+      // Find the correct segment for the current sentence and set up a pending seek
+      // This prevents timelineDisplay effect from resetting to 0 when the audio loads
+      const currentSentence = activeSentenceIndexRef.current ?? 0;
+      const preferredTrack = sequenceTrackRef.current ?? sequenceDefaultTrack;
+
+      // Find the segment for this sentence, preferring the current track
+      let targetSegmentIndex = -1;
+      if (sequencePlan.length > 0) {
+        targetSegmentIndex = sequencePlan.findIndex(
+          (seg) => seg.sentenceIndex === currentSentence && seg.track === preferredTrack,
+        );
+        if (targetSegmentIndex < 0) {
+          targetSegmentIndex = sequencePlan.findIndex(
+            (seg) => seg.sentenceIndex === currentSentence,
+          );
+        }
+        if (targetSegmentIndex < 0) {
+          targetSegmentIndex = 0;
+        }
+      }
+
+      const targetSegment = sequencePlan[targetSegmentIndex] ?? null;
+
+      if (import.meta.env.DEV) {
+        console.debug('[audioResetKey] Entering sequence mode', {
+          prevKey,
+          newKey: audioResetKey,
+          activeSentenceIndex: currentSentence,
+          targetSegmentIndex,
+          targetSegment,
+          currentEffectiveUrl: effectiveAudioUrl,
+          originalTrackUrl,
+          translationTrackUrl,
+        });
+      }
+
+      pendingInitialSeek.current = null;
+      lastReportedPosition.current = 0;
+      // Clear any pending sequence exit seek - we're re-entering sequence mode now
+      pendingSequenceExitSeekRef.current = null;
+      // Synchronously update sequenceEnabledRef so guards in timelineDisplay effect work immediately
+      sequenceEnabledRef.current = true;
+
+      // Begin a transition to guard against timelineDisplay effect resetting position
+      timingStore.beginTransition({
+        type: 'transitioning',
+        targetSentenceIndex: currentSentence,
+      });
+
+      // Set up the pending sequence seek so handleLoadedMetadata and timelineDisplay
+      // effect will preserve the current position
+      if (targetSegment) {
+        sequenceIndexRef.current = targetSegmentIndex;
+        const shouldPlay = inlineAudioPlayingRef.current;
+
+        // Determine what the new effective audio URL will be after setting the sequence track
+        const newEffectiveUrl = targetSegment.track === 'original' ? originalTrackUrl : translationTrackUrl;
+        const urlWillChange = newEffectiveUrl !== effectiveAudioUrl;
+
+        if (import.meta.env.DEV) {
+          console.debug('[audioResetKey] URL change check', {
+            currentUrl: effectiveAudioUrl,
+            newUrl: newEffectiveUrl,
+            urlWillChange,
+            targetTrack: targetSegment.track,
+            currentTrack: sequenceTrackRef.current,
+          });
+        }
+
+        // Check if we need to switch tracks AND the URL will actually change
+        // If the URL won't change (already playing the same track), handleLoadedMetadata
+        // won't fire, so we need to handle the seek directly
+        if (urlWillChange) {
+          // Set pending seek - will be consumed by handleLoadedMetadata after audio loads
+          pendingSequenceSeekRef.current = {
+            time: targetSegment.start,
+            autoPlay: shouldPlay,
+          };
+          sequenceTrackRef.current = targetSegment.track;
+          setSequenceTrack(targetSegment.track);
+        } else {
+          // URL won't change - seek directly without waiting for handleLoadedMetadata
+          // This handles the case where sequence mode is enabled but we're already on the right track
+          const element = audioRef.current;
+          if (element) {
+            // Set a brief pending seek to prevent timelineDisplay from overriding
+            // Include the target sentence index so we can verify when to clear
+            pendingSequenceSeekRef.current = {
+              time: targetSegment.start,
+              autoPlay: shouldPlay,
+              targetSentenceIndex: targetSegment.sentenceIndex,
+            };
+            // Update the track ref even if URL doesn't change
+            sequenceTrackRef.current = targetSegment.track;
+            setSequenceTrack(targetSegment.track);
+            element.currentTime = targetSegment.start;
+            setChunkTime(targetSegment.start);
+            setActiveSentenceIndex(targetSegment.sentenceIndex);
+            // Clear the pending seek ref after a brief delay to allow the seek to take effect.
+            // For same-URL seeks, handleLoadedMetadata won't fire, so we need to clear here.
+            const targetSeekTime = targetSegment.start;
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                // Only clear if we're still at the same pending seek
+                if (pendingSequenceSeekRef.current?.time === targetSeekTime) {
+                  if (import.meta.env.DEV) {
+                    console.debug('[audioResetKey] Clearing pendingSequenceSeekRef after same-URL seek', {
+                      targetSeekTime,
+                      currentTime: element.currentTime,
+                    });
+                  }
+                  pendingSequenceSeekRef.current = null;
+                  timingStore.completeTransition();
+                }
+              });
+            });
+            if (shouldPlay && element.paused) {
+              const result = element.play?.();
+              if (result && typeof result.catch === 'function') {
+                result.catch(() => undefined);
+              }
+            }
+          } else {
+            // No element yet - just update state, sequence system will handle seek when element is ready
+            sequenceTrackRef.current = targetSegment.track;
+            setSequenceTrack(targetSegment.track);
+            setActiveSentenceIndex(targetSegment.sentenceIndex);
+            // Don't set pendingSequenceSeekRef since there's no element to seek
+            // Complete the transition since we've updated the state
+            timingStore.completeTransition();
+          }
+        }
+      } else {
+        // No target segment found - complete the transition anyway
+        timingStore.completeTransition();
+      }
+
+      // Don't reset activeSentenceIndex - sequence system will manage it
+      setAudioDuration(null);
+      return;
+    }
+
+    if (isTransitioningFromSequence) {
+      // Preserve the current sentence position when exiting sequence mode
+      // Store the target sentence for seeking after the new audio loads
+      const targetSentence = activeSentenceIndexRef.current;
+
+      // Check if the URL will actually change - if not, we need to handle the seek directly
+      // The previous URL was based on sequenceTrack, the new URL is effectiveAudioUrl (from audioResetKey)
+      const sequenceTrackUrl = sequenceTrackRef.current === 'original' ? originalTrackUrl : translationTrackUrl;
+      const urlWillChange = sequenceTrackUrl !== effectiveAudioUrl;
+
+      if (import.meta.env.DEV) {
+        console.debug('[audioResetKey] Transitioning from sequence mode, preserving position', {
+          prevKey,
+          newKey: audioResetKey,
+          targetSentence,
+          urlWillChange,
+          sequenceTrackUrl,
+          effectiveAudioUrl,
+        });
+      }
+
+      pendingInitialSeek.current = null;
+      lastReportedPosition.current = 0;
+
+      if (urlWillChange) {
+        // URL will change, so handleLoadedMetadata will fire and can handle the seek
+        pendingSequenceExitSeekRef.current = { sentenceIndex: targetSentence };
+      } else {
+        // URL won't change - need to seek directly
+        // The timelineSentences won't be available yet in this effect, so we set the ref
+        // and let the timelineDisplay effect handle clearing it with a timeout
+        pendingSequenceExitSeekRef.current = { sentenceIndex: targetSentence };
+        // Clear the ref after a delay since handleLoadedMetadata won't fire
+        setTimeout(() => {
+          if (import.meta.env.DEV) {
+            console.debug('[audioResetKey] Clearing pendingSequenceExitSeekRef after timeout (URL unchanged)');
+          }
+          pendingSequenceExitSeekRef.current = null;
+        }, 100);
+      }
+      // Don't reset activeSentenceIndex - keep current position
+      // Don't reset chunkTime - will be updated when seeking to the correct position
+      setAudioDuration(null);
+      return;
+    }
+
+    if (isStayingInSequenceMode) {
+      // Switching tracks within sequence mode (e.g., original → translation)
+      // The activeSentenceIndex is managed by applySequenceSegment, so don't reset it
+      if (import.meta.env.DEV) {
+        console.debug('[audioResetKey] Track switch within sequence mode, not resetting', {
+          prevKey,
+          newKey: audioResetKey,
+          activeSentenceIndex: activeSentenceIndexRef.current,
+        });
+      }
+      pendingInitialSeek.current = null;
+      lastReportedPosition.current = 0;
+      // Don't reset activeSentenceIndex or chunkTime - managed by applySequenceSegment
+      setAudioDuration(null);
+      return;
+    }
+
+    // Check if we're switching between single-track modes (e.g., translation-only → original-only)
+    // In this case, we want to preserve position and seek to the corresponding time
+    // This happens when neither the old nor new key is in sequence mode
+    const isSwitchingSingleTracks = prevKey && !wasSequenceMode && !isSequenceMode && prevKey !== audioResetKey;
+    if (isSwitchingSingleTracks) {
+      const targetSentence = activeSentenceIndexRef.current;
+      if (import.meta.env.DEV) {
+        console.debug('[audioResetKey] Switching single tracks, preserving position', {
+          prevKey,
+          newKey: audioResetKey,
+          targetSentence,
+        });
+      }
+      pendingInitialSeek.current = null;
+      lastReportedPosition.current = 0;
+      // Set up a pending seek - handleLoadedMetadata will seek to the correct position
+      // for this sentence in the new track's timeline
+      pendingSequenceExitSeekRef.current = { sentenceIndex: targetSentence };
+      setAudioDuration(null);
+      return;
+    }
+
     pendingInitialSeek.current = null;
     lastReportedPosition.current = 0;
+    pendingSequenceExitSeekRef.current = null;
     setActiveSentenceIndex(0);
     setAudioDuration(null);
     setChunkTime(0);
-  }, [audioResetKey, getStoredAudioPosition]);
+  }, [audioResetKey, effectiveAudioUrl, getStoredAudioPosition, originalTrackUrl, sequenceDefaultTrack, sequencePlan, setActiveSentenceIndex, setChunkTime, setSequenceTrack, translationTrackUrl]);
 
   const findSequenceIndexForSentence = useCallback(
     (sentenceIndex: number, preferredTrack?: SequenceTrack | null) => {
@@ -450,13 +858,57 @@ export function useInteractiveAudioPlayback({
     [sequencePlan],
   );
 
+  // Track if we're in the middle of a programmatic sequence operation
+  const sequenceOperationInProgressRef = useRef(false);
+
+  // Track previous sequenceEnabled state to detect transitions
+  const prevSequenceEnabledRef = useRef(sequenceEnabled);
   useEffect(() => {
+    const wasEnabled = prevSequenceEnabledRef.current;
+    prevSequenceEnabledRef.current = sequenceEnabled;
+
     if (!sequenceEnabled || sequencePlan.length === 0) {
-      sequenceIndexRef.current = 0;
-      setSequenceTrack(null);
+      // Clear any pending sequence operations when disabled
       pendingSequenceSeekRef.current = null;
+      setSequenceTrack(null);
+
+      // If we're transitioning from enabled to disabled, preserve the current sentence
+      // by NOT resetting sequenceIndexRef - the activeSentenceIndex is already correct
+      if (wasEnabled && !sequenceEnabled) {
+        if (import.meta.env.DEV) {
+          console.debug('[SequenceSync] Sequence disabled, preserving sentence position', {
+            activeSentenceIndex: activeSentenceIndexRef.current,
+          });
+        }
+        // Don't reset sequenceIndexRef - the sentence position is preserved in activeSentenceIndex
+      } else {
+        if (import.meta.env.DEV) {
+          console.debug('[SequenceSync] Disabled or empty plan, resetting index');
+        }
+        sequenceIndexRef.current = 0;
+      }
       return;
     }
+    // Check if there's a pending sequence seek - if so, the advanceSequenceSegment
+    // or applySequenceSegment has already set up the next segment, don't interfere
+    if (pendingSequenceSeekRef.current) {
+      if (import.meta.env.DEV) {
+        console.debug('[SequenceSync] Pending seek exists, skipping', pendingSequenceSeekRef.current);
+      }
+      return;
+    }
+    // Check if the current sequenceIndexRef points to a valid segment
+    // Don't check track match - just verify the index is in range
+    const currentIndex = sequenceIndexRef.current;
+    if (currentIndex >= 0 && currentIndex < sequencePlan.length) {
+      // The current index is valid - don't reset it
+      // The track will be updated by applySequenceSegment when needed
+      if (import.meta.env.DEV) {
+        console.debug('[SequenceSync] Index valid, not resetting', { currentIndex, planLength: sequencePlan.length });
+      }
+      return;
+    }
+    // Only initialize if the index is invalid (first load or plan changed)
     const preferredSentence = activeSentenceIndexRef.current ?? 0;
     const preferredTrack = sequenceTrackRef.current ?? sequenceDefaultTrack;
     let nextIndex = findSequenceIndexForSentence(preferredSentence, preferredTrack);
@@ -470,20 +922,13 @@ export function useInteractiveAudioPlayback({
     if (!segment) {
       return;
     }
-    sequenceIndexRef.current = nextIndex;
-    if (sequenceTrackRef.current && sequenceTrackRef.current === segment.track) {
-      pendingSequenceSeekRef.current = null;
-      return;
+    if (import.meta.env.DEV) {
+      console.debug('[SequenceSync] Initializing index', { nextIndex, segment, preferredSentence, preferredTrack });
     }
+    sequenceIndexRef.current = nextIndex;
     if (!sequenceTrackRef.current) {
       setSequenceTrack(segment.track);
-      return;
     }
-    pendingSequenceSeekRef.current = {
-      time: segment.start,
-      autoPlay: inlineAudioPlayingRef.current,
-    };
-    setSequenceTrack(segment.track);
   }, [findSequenceIndexForSentence, sequenceDefaultTrack, sequenceEnabled, sequencePlan, setSequenceTrack]);
 
   const syncSequenceIndexToTime = useCallback(
@@ -491,11 +936,31 @@ export function useInteractiveAudioPlayback({
       if (!sequenceEnabled || sequencePlan.length === 0) {
         return;
       }
+      // Don't re-sync during a pending sequence seek - advanceSequenceSegment already set the index
+      if (pendingSequenceSeekRef.current) {
+        return;
+      }
       const currentTrack = sequenceTrackRef.current;
       if (!currentTrack) {
         return;
       }
       const epsilon = 0.05;
+
+      // First check if the current index is still valid for the given time
+      // This prevents resetting during track switches where the time is at a segment boundary
+      const currentIndex = sequenceIndexRef.current;
+      if (currentIndex >= 0 && currentIndex < sequencePlan.length) {
+        const currentSegment = sequencePlan[currentIndex];
+        if (
+          currentSegment.track === currentTrack &&
+          mediaTime >= currentSegment.start - epsilon &&
+          mediaTime <= currentSegment.end + epsilon
+        ) {
+          // Current index is still valid, don't change it
+          return;
+        }
+      }
+
       let matchIndex = sequencePlan.findIndex(
         (segment) =>
           segment.track === currentTrack &&
@@ -553,22 +1018,95 @@ export function useInteractiveAudioPlayback({
       const shouldPlay = options?.autoPlay ?? inlineAudioPlayingRef.current;
       sequenceAutoPlayRef.current = shouldPlay;
       if (sequenceTrackRef.current !== segment.track) {
+        if (import.meta.env.DEV) {
+          console.debug('[applySequenceSegment] Switching track', {
+            from: sequenceTrackRef.current,
+            to: segment.track,
+            segment,
+            pendingSeek: { time: segment.start, autoPlay: shouldPlay },
+          });
+        }
+        // Begin transition using store state - primary guard for timeline effects
+        timingStore.beginTransition({
+          type: 'transitioning',
+          fromTrack: sequenceTrackRef.current ?? undefined,
+          toTrack: segment.track,
+          targetSentenceIndex: segment.sentenceIndex,
+          targetTime: segment.start,
+          autoPlay: shouldPlay,
+        });
         sequenceTrackRef.current = segment.track;
         pendingSequenceSeekRef.current = { time: segment.start, autoPlay: shouldPlay };
+        // Clear word highlight immediately when switching tracks to prevent flickering
+        // The AudioSyncController will recalculate once the new timeline is loaded
+        timingStore.setLast(null);
+        // Update chunkTime and activeSentenceIndex immediately when switching tracks
+        // This prevents flickering by ensuring the timeline calculations use correct values
+        // before the new audio loads
+        setChunkTime(segment.start);
+        setActiveSentenceIndex(segment.sentenceIndex);
+        if (import.meta.env.DEV) {
+          console.debug('[applySequenceSegment] Set activeSentenceIndex', {
+            sentenceIndex: segment.sentenceIndex,
+            refValue: activeSentenceIndexRef.current,
+          });
+        }
         setSequenceTrack(segment.track);
         return;
       }
       if (!element) {
+        if (import.meta.env.DEV) {
+          console.debug('[applySequenceSegment] No element, returning');
+        }
         return;
       }
+      if (import.meta.env.DEV) {
+        console.debug('[applySequenceSegment] Same track, seeking to', {
+          segment,
+          shouldPlay,
+        });
+      }
+      // Begin transition for same-track seeks
+      timingStore.beginTransition({
+        type: 'seeking',
+        targetSentenceIndex: segment.sentenceIndex,
+        targetTime: segment.start,
+        autoPlay: shouldPlay,
+      });
+      // Set pendingSequenceSeekRef to prevent timelineDisplay effect from overriding
+      // the activeSentenceIndex during the seek
+      pendingSequenceSeekRef.current = { time: segment.start, autoPlay: shouldPlay };
       wordSyncControllerRef.current?.handleSeeking();
       element.currentTime = Math.max(0, segment.start);
       setChunkTime(segment.start);
+      setActiveSentenceIndex(segment.sentenceIndex);
       if (!hasTimeline && Number.isFinite(element.duration) && element.duration > 0) {
         updateSentenceForTime(segment.start, element.duration);
       }
       updateActiveGateFromTime(segment.start);
       emitAudioProgress(segment.start);
+      // Mark this as a manual seek to prevent backward index movement due to timeline scaling
+      // This protects against the timelineDisplay effect resetting sentence index after same-track seek
+      lastManualSeekTimeRef.current = Date.now();
+      // Clear the pending seek ref and transition state after a brief delay to allow the seek to take effect.
+      // For same-track seeks, handleLoadedMetadata won't fire, so we need to clear here.
+      // We use requestAnimationFrame to ensure the seek has been processed.
+      const targetSeekTime = segment.start;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Only clear if we're still at the same pending seek
+          if (pendingSequenceSeekRef.current?.time === targetSeekTime) {
+            if (import.meta.env.DEV) {
+              console.debug('[applySequenceSegment] Clearing pendingSequenceSeekRef after same-track seek', {
+                targetSeekTime,
+                currentTime: element.currentTime,
+              });
+            }
+            pendingSequenceSeekRef.current = null;
+            timingStore.completeTransition();
+          }
+        });
+      });
       if (shouldPlay) {
         const result = element.play?.();
         if (result && typeof result.catch === 'function') {
@@ -576,7 +1114,7 @@ export function useInteractiveAudioPlayback({
         }
       }
     },
-    [emitAudioProgress, hasTimeline, updateActiveGateFromTime, updateSentenceForTime],
+    [emitAudioProgress, hasTimeline, setActiveSentenceIndex, setChunkTime, updateActiveGateFromTime, updateSentenceForTime],
   );
 
   const advanceSequenceSegment = useCallback(
@@ -584,48 +1122,131 @@ export function useInteractiveAudioPlayback({
       if (!sequenceEnabled || sequencePlan.length === 0) {
         return false;
       }
-      const currentIndex = getSequenceIndexForPlayback();
-      if (currentIndex < 0) {
+      // Use sequenceIndexRef directly to advance to the next segment
+      // Don't use getSequenceIndexForPlayback which can re-compute based on sentence index
+      const currentIndex = sequenceIndexRef.current;
+      if (currentIndex < 0 || currentIndex >= sequencePlan.length) {
         return false;
       }
       const nextIndex = currentIndex + 1;
       if (nextIndex >= sequencePlan.length) {
+        if (import.meta.env.DEV) {
+          console.debug('[advanceSequenceSegment] No more segments', { currentIndex, planLength: sequencePlan.length });
+        }
         return false;
       }
       const nextSegment = sequencePlan[nextIndex];
       if (!nextSegment) {
         return false;
       }
+      if (import.meta.env.DEV) {
+        console.debug('[advanceSequenceSegment] Advancing', {
+          from: currentIndex,
+          to: nextIndex,
+          segment: nextSegment,
+          currentTrack: sequenceTrackRef.current,
+          nextTrack: nextSegment.track,
+        });
+      }
       sequenceIndexRef.current = nextIndex;
       applySequenceSegment(nextSegment, options);
       return true;
     },
-    [applySequenceSegment, getSequenceIndexForPlayback, sequenceEnabled, sequencePlan],
+    [applySequenceSegment, sequenceEnabled, sequencePlan],
+  );
+
+  // Skip to a different sentence within the sequence (direction: 1 for next, -1 for previous)
+  const skipSequenceSentence = useCallback(
+    (direction: 1 | -1): boolean => {
+      if (!sequenceEnabled || sequencePlan.length === 0) {
+        return false;
+      }
+      const currentIndex = sequenceIndexRef.current;
+      if (currentIndex < 0 || currentIndex >= sequencePlan.length) {
+        return false;
+      }
+      const currentSegment = sequencePlan[currentIndex];
+      if (!currentSegment) {
+        return false;
+      }
+      const currentSentenceIndex = currentSegment.sentenceIndex;
+      const targetSentenceIndex = currentSentenceIndex + direction;
+
+      // Find the first segment for the target sentence (prefer same track as current)
+      const currentTrack = sequenceTrackRef.current ?? sequenceDefaultTrack;
+      let targetIndex = sequencePlan.findIndex(
+        (seg) => seg.sentenceIndex === targetSentenceIndex && seg.track === currentTrack,
+      );
+      // If not found with same track, try any segment for that sentence
+      if (targetIndex < 0) {
+        targetIndex = sequencePlan.findIndex((seg) => seg.sentenceIndex === targetSentenceIndex);
+      }
+      if (targetIndex < 0) {
+        return false;
+      }
+      const targetSegment = sequencePlan[targetIndex];
+      if (!targetSegment) {
+        return false;
+      }
+      sequenceIndexRef.current = targetIndex;
+      applySequenceSegment(targetSegment, { autoPlay: inlineAudioPlayingRef.current });
+      return true;
+    },
+    [applySequenceSegment, sequenceDefaultTrack, sequenceEnabled, sequencePlan],
   );
 
   const maybeAdvanceSequence = useCallback(
     (mediaTime: number) => {
-      if (!sequenceEnabled || sequencePlan.length === 0) {
+      // Use ref to get current value - prevents stale closure issues during state transitions
+      if (!sequenceEnabledRef.current || sequencePlan.length === 0) {
         return false;
       }
       if (!inlineAudioPlayingRef.current) {
         return false;
       }
       if (pendingSequenceSeekRef.current) {
+        if (import.meta.env.DEV) {
+          console.debug('[maybeAdvanceSequence] Skipping due to pending seek', pendingSequenceSeekRef.current);
+        }
         return false;
       }
-      syncSequenceIndexToTime(mediaTime);
-      const currentIndex = getSequenceIndexForPlayback();
-      const segment = currentIndex >= 0 ? sequencePlan[currentIndex] : null;
+      // Use sequenceIndexRef directly - don't recalculate based on sentence index
+      // as that can find the wrong segment when multiple segments exist for same sentence
+      const currentIndex = sequenceIndexRef.current;
+      if (currentIndex < 0 || currentIndex >= sequencePlan.length) {
+        return false;
+      }
+      const segment = sequencePlan[currentIndex];
       if (!segment) {
         return false;
       }
+      // Only advance if we're past the current segment's end time
       if (mediaTime < segment.end - 0.03) {
         return false;
       }
+      // Check if this is the last segment - if so, don't try to advance
+      // The handleAudioEnded will handle transitioning to the next chunk
+      if (currentIndex >= sequencePlan.length - 1) {
+        if (import.meta.env.DEV) {
+          console.debug('[maybeAdvanceSequence] At last segment, waiting for audio end', {
+            mediaTime,
+            segmentEnd: segment.end,
+            currentIndex,
+          });
+        }
+        return false;
+      }
+      if (import.meta.env.DEV) {
+        console.debug('[maybeAdvanceSequence] Time exceeded segment end', {
+          mediaTime,
+          segmentEnd: segment.end,
+          currentIndex,
+          segment,
+        });
+      }
       return advanceSequenceSegment({ autoPlay: true });
     },
-    [advanceSequenceSegment, getSequenceIndexForPlayback, sequenceEnabled, sequencePlan, syncSequenceIndexToTime],
+    [advanceSequenceSegment, sequenceEnabled, sequencePlan],
   );
 
   const selectedTracks = useMemo<SelectedAudioTrack[]>(() => {
@@ -748,7 +1369,10 @@ export function useInteractiveAudioPlayback({
     onRequestAdvanceChunk,
     dictionarySuppressSeekRef,
     pendingInitialSeekRef: pendingInitialSeek,
+    pendingSequenceExitSeekRef,
+    timelineSentences,
     isSeekingRef,
+    lastManualSeekTimeRef,
     wordSyncControllerRef,
     effectivePlaybackRate,
     chunkTime,
@@ -802,6 +1426,10 @@ export function useInteractiveAudioPlayback({
       legacyWordSyncEnabled,
       shouldUseWordSync,
       wordSyncSentences,
+    },
+    sequencePlayback: {
+      enabled: sequenceEnabled,
+      skipSentence: skipSequenceSentence,
     },
   };
 }

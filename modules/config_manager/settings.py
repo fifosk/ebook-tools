@@ -49,7 +49,10 @@ class EbookToolsSettings(BaseModel):
     ollama_model: str = DEFAULT_MODEL
     generate_audio: bool = True
     generate_video: bool = False
-    sentences_per_output_file: int = 1
+    sentences_per_output_file: int = Field(
+        default=1,
+        validation_alias=AliasChoices("sentences_per_output_file", "sentences_per_chunk"),
+    )
     start_sentence: int = 1
     end_sentence: Optional[int] = None
     max_words: int = 18

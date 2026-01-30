@@ -958,6 +958,7 @@ export interface PipelineMediaChunk {
   metadata_url?: string | null;
   sentence_count?: number | null;
   audio_tracks?: Record<string, AudioTrackMetadata> | null;
+  timing_tracks?: Record<string, unknown[]> | null;
 }
 
 export interface PipelineMediaResponse {

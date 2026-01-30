@@ -130,8 +130,9 @@ export function useInteractiveWordSync({
       clearTiming();
       return clearTiming;
     }
-    timingStore.setPayload(timingPayload);
-    timingStore.setLast(null);
+    // Use setPayloadPreservingHit to avoid flickering during track transitions
+    // This emits only once with the hit preserved (if segment index is valid)
+    timingStore.setPayloadPreservingHit(timingPayload);
     return clearTiming;
   }, [shouldUseWordSync, timingPayload]);
 
