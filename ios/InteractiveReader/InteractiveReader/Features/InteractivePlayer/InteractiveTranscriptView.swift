@@ -239,7 +239,8 @@ struct InteractiveTranscriptView: View {
                             onDecreaseFont: onDecreaseLinguistFont,
                             onClose: onCloseBubble,
                             isFocusEnabled: bubbleFocusEnabled,
-                            focusBinding: $focusedArea
+                            focusBinding: $focusedArea,
+                            availableHeight: tvBubbleHeight
                         )
                         .frame(maxWidth: .infinity, maxHeight: tvBubbleHeight, alignment: .bottom)
                         .padding(.horizontal, 36)

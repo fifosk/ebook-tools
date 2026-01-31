@@ -490,7 +490,27 @@ extension VideoPlayerView {
             ?? groups.lastIndex { time >= $0.start - epsilon }
             ?? 0
         let nextIndex = max(0, min(currentIndex + (delta < 0 ? -1 : 1), groups.count - 1))
-        coordinator.seek(to: groups[nextIndex].start)
+        let targetTime = groups[nextIndex].start
+
+        #if os(tvOS)
+        // On tvOS, mute and pause during seek to prevent audio bleed from the old position
+        let wasPlaying = coordinator.isPlaying
+        let player = coordinator.playerInstance()
+        let savedVolume = player?.volume ?? 1.0
+        player?.volume = 0
+        if wasPlaying {
+            coordinator.pause()
+        }
+        coordinator.seek(to: targetTime) { _ in
+            // Restore volume after seek completes
+            player?.volume = savedVolume
+            if wasPlaying {
+                coordinator.play()
+            }
+        }
+        #else
+        coordinator.seek(to: targetTime)
+        #endif
     }
 
     func subtitleSentenceGroups() -> [SubtitleSentenceGroup] {

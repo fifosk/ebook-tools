@@ -30,9 +30,11 @@ class NotificationService:
         self,
         apns_service: Optional[APNsService],
         user_store: UserStoreBase,
+        api_base_url: Optional[str] = None,
     ) -> None:
         self._apns = apns_service
         self._user_store = user_store
+        self._api_base_url = (api_base_url or "").rstrip("/")
 
     @property
     def is_enabled(self) -> bool:
@@ -87,8 +89,28 @@ class NotificationService:
         job_id: str,
         job_label: Optional[str],
         status: str,
+        *,
+        subtitle: Optional[str] = None,
+        cover_url: Optional[str] = None,
+        input_language: Optional[str] = None,
+        target_language: Optional[str] = None,
+        chapter_count: Optional[int] = None,
+        sentence_count: Optional[int] = None,
     ) -> NotificationResult:
-        """Send job completion notification to all user devices."""
+        """Send job completion notification to all user devices.
+
+        Args:
+            user_id: The user to notify
+            job_id: The job ID
+            job_label: The job title/label for the notification body
+            status: Job status ("completed" or "failed")
+            subtitle: Optional subtitle (e.g., author name)
+            cover_url: Optional cover image URL for rich notifications
+            input_language: Optional source language code
+            target_language: Optional target language code
+            chapter_count: Optional number of chapters
+            sentence_count: Optional number of sentences
+        """
         if not self.is_enabled:
             return NotificationResult(sent=0, failed=0, reason="notifications_disabled")
 
@@ -124,12 +146,43 @@ class NotificationService:
             title = "Job Failed"
             body = job_label or f"Job {job_id[:8]}... encountered an error"
 
-        # Custom data for deep linking
-        data = {
+        # Custom data for deep linking and rich notification content
+        data: Dict[str, Any] = {
             "job_id": job_id,
             "action": "open_job",
             "status": status,
         }
+
+        # Add optional metadata for rich notifications
+        if job_label:
+            data["title"] = job_label
+        if subtitle:
+            data["subtitle"] = subtitle
+        if input_language:
+            data["input_language"] = input_language
+        if target_language:
+            data["target_language"] = target_language
+        if chapter_count is not None:
+            data["chapter_count"] = chapter_count
+        if sentence_count is not None:
+            data["sentence_count"] = sentence_count
+
+        # Build full cover URL if we have a base URL and relative cover path
+        full_cover_url: Optional[str] = None
+        if cover_url:
+            if cover_url.startswith(("http://", "https://")):
+                full_cover_url = cover_url
+            elif self._api_base_url:
+                # Ensure cover_url starts with / for proper joining
+                if not cover_url.startswith("/"):
+                    cover_url = "/" + cover_url
+                full_cover_url = f"{self._api_base_url}{cover_url}"
+
+        if full_cover_url:
+            data["cover_url"] = full_cover_url
+
+        # Enable mutable_content if we have a cover URL (for Notification Service Extension)
+        has_rich_content = bool(full_cover_url)
 
         # Build notification requests for all devices
         requests = [
@@ -139,6 +192,7 @@ class NotificationService:
                 body=body,
                 data=data,
                 thread_id=f"job-{job_id}",
+                mutable_content=has_rich_content,
             )
             for t in tokens
             if t.get("token")
@@ -192,6 +246,99 @@ class NotificationService:
                 title="Test Notification",
                 body="Push notifications are working correctly!",
                 data={"action": "test", "timestamp": datetime.now(timezone.utc).isoformat()},
+            )
+            for t in tokens
+            if t.get("token")
+        ]
+
+        if not requests:
+            return NotificationResult(sent=0, failed=0, reason="no_valid_tokens")
+
+        results = await self._apns.send_batch(requests)
+
+        sent = sum(1 for r in results if r.success)
+        failed = sum(1 for r in results if not r.success)
+
+        invalid_tokens = {r.device_token for r in results if r.is_unregistered}
+        if invalid_tokens:
+            self._cleanup_invalid_tokens(user_id, invalid_tokens)
+
+        return NotificationResult(
+            sent=sent,
+            failed=failed,
+            invalid_tokens=list(invalid_tokens) if invalid_tokens else None,
+        )
+
+    async def send_rich_test_notification(
+        self,
+        user_id: str,
+        *,
+        title: Optional[str] = None,
+        subtitle: Optional[str] = None,
+        cover_url: Optional[str] = None,
+    ) -> NotificationResult:
+        """Send a rich test notification with cover image to all user devices.
+
+        Args:
+            user_id: The user to notify
+            title: Custom title (default: "Rich Test Notification")
+            subtitle: Custom subtitle (default: "Author Name")
+            cover_url: Cover image URL (default: sample cover)
+        """
+        if not self.is_enabled:
+            return NotificationResult(sent=0, failed=0, reason="notifications_disabled")
+
+        user = self._user_store.get_user(user_id)
+        if not user:
+            return NotificationResult(sent=0, failed=0, reason="user_not_found")
+
+        tokens = user.metadata.get("apns_device_tokens", [])
+        if not tokens:
+            return NotificationResult(sent=0, failed=0, reason="no_devices")
+
+        # Default values for rich notification
+        notification_title = title or "Sample Book Title"
+        notification_subtitle = subtitle or "Sample Author"
+
+        # Build full cover URL
+        full_cover_url: Optional[str] = None
+        if cover_url:
+            if cover_url.startswith(("http://", "https://")):
+                full_cover_url = cover_url
+            elif self._api_base_url:
+                if not cover_url.startswith("/"):
+                    cover_url = "/" + cover_url
+                full_cover_url = f"{self._api_base_url}{cover_url}"
+        else:
+            # Use a public placeholder image for testing
+            # This is an Open Library cover image that's publicly accessible
+            full_cover_url = "https://covers.openlibrary.org/b/id/8739161-L.jpg"
+
+        # Build notification data with sample metadata (mimics job completion)
+        data: Dict[str, Any] = {
+            "action": "test_rich",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "title": notification_title,
+            "subtitle": notification_subtitle,
+            "input_language": "English",
+            "target_language": "Arabic",
+            "chapter_count": 12,
+            "sentence_count": 1547,
+        }
+
+        if full_cover_url:
+            data["cover_url"] = full_cover_url
+
+        has_rich_content = bool(full_cover_url)
+
+        requests = [
+            NotificationRequest(
+                device_token=t["token"],
+                title="Job Complete",
+                body=notification_title,
+                data=data,
+                thread_id="test-rich-notification",
+                mutable_content=has_rich_content,
             )
             for t in tokens
             if t.get("token")

@@ -11,6 +11,8 @@ final class AppState: ObservableObject {
     @AppStorage("lastUsername") var lastUsername: String = ""
 
     @Published private(set) var session: SessionStatusResponse?
+    /// Whether we're actively validating a stored session token
+    /// This is now a brief operation (5s timeout) instead of blocking for 60s
     @Published private(set) var isRestoring: Bool = false
 
     var apiBaseURL: URL? {
@@ -65,13 +67,36 @@ final class AppState: ObservableObject {
     func restoreSessionIfNeeded() async {
         guard session == nil else { return }
         guard let apiBaseURL, let token = authToken else { return }
+
+        #if DEBUG
+        // In debug builds, use very aggressive timeout (2 seconds)
+        // If server isn't reachable quickly, just show login screen
+        let requestTimeout: TimeInterval = 2
+        let resourceTimeout: TimeInterval = 4
+        #else
+        // In release builds, use slightly longer but still reasonable timeout
+        let requestTimeout: TimeInterval = 5
+        let resourceTimeout: TimeInterval = 8
+        #endif
+
         isRestoring = true
         defer { isRestoring = false }
+
+        // Use a dedicated URLSession with a short timeout for session restore
+        let sessionConfig = URLSessionConfiguration.default
+        sessionConfig.timeoutIntervalForRequest = requestTimeout
+        sessionConfig.timeoutIntervalForResource = resourceTimeout
+        let quickSession = URLSession(configuration: sessionConfig)
+
         do {
-            let client = APIClient(configuration: APIClientConfiguration(apiBaseURL: apiBaseURL, authToken: token))
+            let client = APIClient(
+                configuration: APIClientConfiguration(apiBaseURL: apiBaseURL, authToken: token),
+                urlSession: quickSession
+            )
             let restored = try await client.fetchSessionStatus()
             session = restored
         } catch {
+            // On timeout or error, sign out so user can re-authenticate
             signOut()
         }
     }

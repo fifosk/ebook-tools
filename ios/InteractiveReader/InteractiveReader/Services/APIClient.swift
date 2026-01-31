@@ -428,6 +428,27 @@ final class APIClient {
         return try decode(TestNotificationResponse.self, from: data)
     }
 
+    func sendRichTestNotification(
+        title: String? = nil,
+        subtitle: String? = nil,
+        coverURL: String? = nil
+    ) async throws -> TestNotificationResponse {
+        var queryItems: [URLQueryItem] = []
+        if let title { queryItems.append(URLQueryItem(name: "title", value: title)) }
+        if let subtitle { queryItems.append(URLQueryItem(name: "subtitle", value: subtitle)) }
+        if let coverURL { queryItems.append(URLQueryItem(name: "cover_url", value: coverURL)) }
+
+        var path = "/api/notifications/test/rich"
+        if !queryItems.isEmpty {
+            var components = URLComponents(string: path)!
+            components.queryItems = queryItems
+            path = components.string ?? path
+        }
+
+        let data = try await sendRequest(path: path, method: "POST")
+        return try decode(TestNotificationResponse.self, from: data)
+    }
+
     func fetchNotificationPreferences() async throws -> NotificationPreferencesResponse {
         let data = try await sendRequest(path: "/api/notifications/preferences")
         return try decode(NotificationPreferencesResponse.self, from: data)

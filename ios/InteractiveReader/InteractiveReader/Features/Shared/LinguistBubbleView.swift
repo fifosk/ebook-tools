@@ -5,6 +5,15 @@ import UIKit
 
 // MARK: - Shared Types
 
+/// Preference key for measuring bubble content height (tvOS auto-scaling)
+struct LinguistBubbleContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 /// Status of a linguist lookup operation
 enum LinguistBubbleStatus: Equatable {
     case loading
@@ -60,6 +69,18 @@ struct LinguistBubbleConfiguration {
 
     /// Whether to use edge-to-edge styling (no corner radius, no side margins)
     var edgeToEdgeStyle: Bool = false
+
+    /// (tvOS) Whether to auto-scale font to fill available space
+    var autoScaleFontToFit: Bool = false
+
+    /// (tvOS) Available height for the entire bubble (used for auto-scaling)
+    var availableHeight: CGFloat? = nil
+
+    /// (tvOS) Minimum font scale for auto-scaling
+    var minAutoScaleFontScale: CGFloat = 0.7
+
+    /// (tvOS) Maximum font scale for auto-scaling
+    var maxAutoScaleFontScale: CGFloat = 1.5
 }
 
 /// Actions that can be performed on the linguist bubble
@@ -106,6 +127,9 @@ struct LinguistBubbleView: View {
     #if os(tvOS)
     @FocusState private var focusedControl: BubbleHeaderControl?
     @State private var activePicker: BubblePicker?
+    @State private var autoScaleFontScale: CGFloat = 1.0
+    @State private var measuredContentHeight: CGFloat = 0
+    @State private var lastContentLength: Int = 0
 
     private enum BubbleHeaderControl: Hashable {
         case language
@@ -150,6 +174,16 @@ struct LinguistBubbleView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        #if os(tvOS)
+        .background(
+            GeometryReader { contentProxy in
+                Color.clear.preference(
+                    key: LinguistBubbleContentHeightKey.self,
+                    value: contentProxy.size.height
+                )
+            }
+        )
+        #endif
         .background(bubbleBackground)
         .overlay(
             RoundedRectangle(cornerRadius: bubbleCornerRadius)
@@ -164,6 +198,10 @@ struct LinguistBubbleView: View {
         .onAppear {
             if isFocusEnabled && focusedControl == nil {
                 focusedControl = .language
+            }
+            // Initialize auto-scale if content length is available
+            if configuration.autoScaleFontToFit {
+                lastContentLength = (state.answer ?? "").count
             }
         }
         .onChange(of: isFocusEnabled) { _, enabled in
@@ -185,6 +223,25 @@ struct LinguistBubbleView: View {
                 actions.onBubbleFocus?()
             }
         }
+        .onPreferenceChange(LinguistBubbleContentHeightKey.self) { height in
+            guard configuration.autoScaleFontToFit else { return }
+            measuredContentHeight = height
+            recalculateAutoScale()
+        }
+        .onChange(of: state.answer) { _, newAnswer in
+            guard configuration.autoScaleFontToFit else { return }
+            let newLength = (newAnswer ?? "").count
+            // Only recalculate if content length changed significantly
+            if abs(newLength - lastContentLength) > 10 {
+                lastContentLength = newLength
+                // Reset scale to base and let measurement trigger recalculation
+                autoScaleFontScale = 1.0
+            }
+        }
+        .onChange(of: configuration.availableHeight) { _, _ in
+            guard configuration.autoScaleFontToFit else { return }
+            recalculateAutoScale()
+        }
         #endif
         #if os(iOS)
         .applyMagnifyGesture(
@@ -195,6 +252,35 @@ struct LinguistBubbleView: View {
         )
         #endif
     }
+
+    #if os(tvOS)
+    /// Recalculate auto-scale factor to fill available height
+    private func recalculateAutoScale() {
+        guard configuration.autoScaleFontToFit,
+              let availableHeight = configuration.availableHeight,
+              measuredContentHeight > 0 else { return }
+
+        // Calculate the ratio needed to fill available space
+        // Add some padding tolerance (20px) to prevent overflow
+        let targetHeight = availableHeight - 20
+        let currentHeight = measuredContentHeight
+
+        // Calculate new scale factor
+        let ratio = targetHeight / currentHeight
+        let newScale = autoScaleFontScale * ratio
+
+        // Clamp to configured bounds
+        let clampedScale = max(
+            configuration.minAutoScaleFontScale,
+            min(configuration.maxAutoScaleFontScale, newScale)
+        )
+
+        // Only update if change is significant (> 2%)
+        if abs(clampedScale - autoScaleFontScale) > 0.02 {
+            autoScaleFontScale = clampedScale
+        }
+    }
+    #endif
 
     // MARK: - Header Controls
 
@@ -602,11 +688,21 @@ struct LinguistBubbleView: View {
     // MARK: - Styling
 
     private var queryFont: Font {
-        scaledFont(textStyle: .title3, weight: .semibold)
+        #if os(tvOS)
+        if configuration.autoScaleFontToFit {
+            return scaledFont(textStyle: .title3, weight: .semibold, autoScale: autoScaleFontScale)
+        }
+        #endif
+        return scaledFont(textStyle: .title3, weight: .semibold)
     }
 
     private var bodyFont: Font {
-        scaledFont(textStyle: .callout, weight: .regular)
+        #if os(tvOS)
+        if configuration.autoScaleFontToFit {
+            return scaledFont(textStyle: .callout, weight: .regular, autoScale: autoScaleFontScale)
+        }
+        #endif
+        return scaledFont(textStyle: .callout, weight: .regular)
     }
 
     private var bubbleControlFont: Font {
@@ -631,12 +727,12 @@ struct LinguistBubbleView: View {
         6 * configuration.uiScale
     }
 
-    private func scaledFont(textStyle: UIFont.TextStyle, weight: Font.Weight) -> Font {
+    private func scaledFont(textStyle: UIFont.TextStyle, weight: Font.Weight, autoScale: CGFloat = 1.0) -> Font {
         #if os(iOS) || os(tvOS)
         let baseSize = UIFont.preferredFont(forTextStyle: textStyle).pointSize
-        return .system(size: baseSize * configuration.fontScale, weight: weight)
+        return .system(size: baseSize * configuration.fontScale * autoScale, weight: weight)
         #else
-        return .system(size: 16 * configuration.fontScale, weight: weight)
+        return .system(size: 16 * configuration.fontScale * autoScale, weight: weight)
         #endif
     }
 

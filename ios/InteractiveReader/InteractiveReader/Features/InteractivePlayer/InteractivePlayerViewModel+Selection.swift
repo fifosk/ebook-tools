@@ -65,15 +65,12 @@ extension InteractivePlayerViewModel {
 
     func selectAudioTrack(id: String) {
         guard selectedAudioTrackID != id else { return }
-        print("[AudioTrack] Selecting track: \(id)")
         selectedAudioTrackID = id
         guard let chunk = selectedChunk else { return }
         if let track = chunk.audioOptions.first(where: { $0.id == id }) {
-            print("[AudioTrack] Found track: kind=\(track.kind), label=\(track.label), urls=\(track.streamURLs.map { $0.lastPathComponent })")
             preferredAudioKind = track.kind
             // If switching to combined mode and sentences lack gate data, load metadata first
             if track.kind == .combined && !sentencesHaveGateData(chunk.sentences) {
-                print("[AudioTrack] Combined mode selected but sentences lack gate data, loading metadata...")
                 Task { [weak self] in
                     guard let self else { return }
                     await self.loadChunkMetadataIfNeeded(for: chunk.id, force: true)
@@ -136,6 +133,7 @@ extension InteractivePlayerViewModel {
             // For combined mode (default), we need gate data - if missing, load metadata first
             let hasGates = sentencesHaveGateData(chunk.sentences)
             let needsGates = selectedTrackRequiresGates(for: chunk)
+            print("[ConfigureDefaults] chunk=\(chunk.id), sentences=\(chunk.sentences.count), hasGates=\(hasGates), needsGates=\(needsGates)")
             if !chunk.sentences.isEmpty && (!needsGates || hasGates) {
                 isTranscriptLoading = false
                 prepareAudio(for: chunk, autoPlay: false)
@@ -143,6 +141,7 @@ extension InteractivePlayerViewModel {
             }
             // Mark transcript as loading while we fetch metadata
             isTranscriptLoading = true
+            print("[ConfigureDefaults] Loading metadata for chunk \(chunk.id)")
             // Load metadata before preparing audio to ensure transcript is ready
             let chunkId = chunk.id
             Task { [weak self] in
@@ -150,11 +149,18 @@ extension InteractivePlayerViewModel {
                 await self.loadChunkMetadataIfNeeded(for: chunkId, force: true)
                 guard self.selectedChunkID == chunkId else { return }
                 // Get the UPDATED chunk after metadata loaded (may have new sentences)
-                guard let updatedChunk = self.selectedChunk else { return }
+                guard let updatedChunk = self.selectedChunk else {
+                    print("[ConfigureDefaults] No updated chunk after metadata load")
+                    return
+                }
+                print("[ConfigureDefaults] After metadata: sentences=\(updatedChunk.sentences.count)")
                 // Clear loading state now that we have the transcript
                 self.isTranscriptLoading = false
                 // Only prepare audio if transcript is now available
-                guard !updatedChunk.sentences.isEmpty else { return }
+                guard !updatedChunk.sentences.isEmpty else {
+                    print("[ConfigureDefaults] Still no sentences after metadata load")
+                    return
+                }
                 self.prepareAudio(for: updatedChunk, autoPlay: false)
             }
         } else {
@@ -217,13 +223,25 @@ extension InteractivePlayerViewModel {
         guard let context = jobContext else { return }
         guard sentenceNumber > 0 else { return }
         guard let targetChunk = resolveChunk(containing: sentenceNumber, in: context) else { return }
+
         pendingSentenceJump = PendingSentenceJump(chunkID: targetChunk.id, sentenceNumber: sentenceNumber)
-        selectChunk(id: targetChunk.id, autoPlay: autoPlay)
-        attemptPendingSentenceJump(in: targetChunk)
-        if selectedChunkID == targetChunk.id {
+
+        // Check if we're jumping within the same chunk
+        let isSameChunk = selectedChunkID == targetChunk.id
+
+        if isSameChunk {
+            // Same chunk - reconfigure audio to start at target sentence
             Task { [weak self] in
-                await self?.loadChunkMetadataIfNeeded(for: targetChunk.id, force: true)
+                guard let self else { return }
+                await self.loadChunkMetadataIfNeeded(for: targetChunk.id, force: false)
+                guard self.selectedChunkID == targetChunk.id else { return }
+                guard let updatedChunk = self.selectedChunk else { return }
+                self.prepareAudio(for: updatedChunk, autoPlay: autoPlay)
+                self.attemptPendingSentenceJump(in: updatedChunk)
             }
+        } else {
+            // Different chunk - selectChunk will handle loading and audio setup
+            selectChunk(id: targetChunk.id, autoPlay: autoPlay)
         }
     }
 
@@ -245,11 +263,66 @@ extension InteractivePlayerViewModel {
     func attemptPendingSentenceJump(in chunk: InteractiveChunk) {
         guard let pending = pendingSentenceJump, pending.chunkID == chunk.id else { return }
 
-        // In sequence mode, the pending jump is handled by configureSequencePlayback
-        // via the targetSentenceIndex parameter, so just clear it here
+        // In sequence mode, use the sequence controller for seeking
         if isSequenceModeActive {
-            print("[Sequence] Pending sentence jump already handled by configureSequencePlayback")
+            // Find the target sentence index
+            guard let targetSentenceIndex = chunk.sentences.firstIndex(where: {
+                ($0.displayIndex ?? $0.id) == pending.sentenceNumber
+            }) else {
+                print("[Sequence] Could not find sentence index for sentenceNumber \(pending.sentenceNumber)")
+                pendingSentenceJump = nil
+                return
+            }
+
+            // Check if we're already at this sentence (might have been handled by configureSequencePlayback)
+            if let currentIdx = sequenceController.currentSentenceIndex, currentIdx == targetSentenceIndex {
+                print("[Sequence] Already at target sentence \(targetSentenceIndex), clearing pending jump")
+                pendingSentenceJump = nil
+                return
+            }
+
+            // Use seekToSentence for within-chunk jumps in sequence mode
+            print("[Sequence] Within-chunk jump to sentence \(targetSentenceIndex) (number \(pending.sentenceNumber))")
             pendingSentenceJump = nil
+
+            // Capture current track BEFORE updating state
+            let previousTrack = sequenceController.currentTrack
+
+            guard let target = sequenceController.seekToSentence(targetSentenceIndex, preferredTrack: .original) else {
+                print("[Sequence] seekToSentence returned nil for index \(targetSentenceIndex)")
+                return
+            }
+
+            // Mute immediately to prevent audio bleed during the transition
+            audioCoordinator.setVolume(0)
+
+            // Fire pre-transition callback
+            onSequenceWillTransition?()
+            sequenceController.beginTransition()
+
+            // Check if we need to switch tracks (compare target with PREVIOUS track)
+            if target.track != previousTrack {
+                handleSequenceTrackSwitch(track: target.track, seekTime: target.time)
+            } else {
+                // Same track, just seek - mute during seek to prevent audio bleed
+                // NOTE: We don't pause here to avoid triggering reading bed pause
+                let wasPlaying = audioCoordinator.isPlaying
+                audioCoordinator.setVolume(0)
+                audioCoordinator.seek(to: target.time) { [weak self] finished in
+                    guard let self else { return }
+                    print("[Sequence] Within-chunk seek completed (finished=\(finished))")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                        guard let self else { return }
+                        self.sequenceController.endTransition(expectedTime: target.time)
+                        // Restore volume
+                        self.audioCoordinator.setVolume(1)
+                        // Resume playback if it was playing (in case seek caused a pause)
+                        if wasPlaying && !self.audioCoordinator.isPlaying {
+                            self.audioCoordinator.play()
+                        }
+                    }
+                }
+            }
             return
         }
 

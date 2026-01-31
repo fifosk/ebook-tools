@@ -464,20 +464,36 @@ struct JobPlaybackView: View {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    func updateNowPlayingMetadata(sentenceIndex: Int?) {
-        let title: String
-        if let sentenceIndex, sentenceIndex > 0 {
-            title = "\(jobTitle) · Sentence \(sentenceIndex)"
-        } else {
-            title = jobTitle
+    var totalSentenceCount: Int? {
+        guard let context = viewModel.jobContext else { return nil }
+        var total = 0
+        for chunk in context.chunks {
+            if let start = chunk.startSentence, let end = chunk.endSentence, end >= start {
+                total += end - start + 1
+            } else if !chunk.sentences.isEmpty {
+                total += chunk.sentences.count
+            }
         }
+        return total > 0 ? total : nil
+    }
+
+    func updateNowPlayingMetadata(sentenceIndex: Int?) {
+        let totalSentences = totalSentenceCount
+        let sentence = sentenceIndex.flatMap { index -> String? in
+            guard index > 0 else { return nil }
+            if let totalSentences, totalSentences > 0 {
+                return "Sentence \(index) of \(totalSentences)"
+            }
+            return "Sentence \(index)"
+        }
+        let title = sentence.map { "\(jobTitle) · \($0)" } ?? jobTitle
         nowPlaying.updateMetadata(
             title: title,
             artist: jobAuthor.nonEmptyValue,
             album: jobTitle.nonEmptyValue,
             artworkURL: coverURL,
             queueIndex: sentenceIndex.map { max($0 - 1, 0) },
-            queueCount: nil
+            queueCount: totalSentences
         )
     }
 

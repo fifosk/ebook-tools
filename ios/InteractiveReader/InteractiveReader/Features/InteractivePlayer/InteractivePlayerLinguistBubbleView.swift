@@ -26,6 +26,8 @@ struct MyLinguistBubbleView: View {
     var hideTitle: Bool = false
     var edgeToEdgeStyle: Bool = false
     var maxContentHeight: CGFloat? = nil
+    /// (tvOS) Available height for auto-scaling font to fill space
+    var availableHeight: CGFloat? = nil
 
     private var isPad: Bool {
         #if os(iOS)
@@ -61,6 +63,13 @@ struct MyLinguistBubbleView: View {
         config.hideTitle = hideTitle
         config.edgeToEdgeStyle = edgeToEdgeStyle
         config.maxContentHeight = maxContentHeight
+        #if os(tvOS)
+        // Enable auto-scaling on tvOS when available height is provided
+        if let availableHeight {
+            config.autoScaleFontToFit = true
+            config.availableHeight = availableHeight
+        }
+        #endif
         return config
     }
 

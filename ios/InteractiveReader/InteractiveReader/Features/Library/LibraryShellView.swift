@@ -120,6 +120,9 @@ struct LibraryShellView: View {
         .onChange(of: activeSection) { _, newValue in
             handleSectionChange(newValue)
         }
+        .onReceive(NotificationManager.shared.$pendingJobId) { jobId in
+            handleNotificationTap(jobId: jobId)
+        }
         #endif
     }
 
@@ -378,6 +381,93 @@ struct LibraryShellView: View {
         }
     }
 
+    /// Handle notification tap - navigate to job and start playback
+    private func handleNotificationTap(jobId: String?) {
+        guard let jobId else { return }
+        print("[LibraryShell] Handling notification tap for job: \(jobId)")
+
+        // Clear the pending ID immediately to prevent re-triggering
+        NotificationManager.shared.clearPendingJobId()
+
+        // First, try to find the job in the jobs list
+        if let job = jobsViewModel.jobs.first(where: { $0.jobId == jobId }) {
+            navigateToJob(job, autoPlay: true)
+            return
+        }
+
+        // If not in jobs, try library
+        if let item = viewModel.items.first(where: { $0.jobId == jobId }) {
+            navigateToLibraryItem(item, autoPlay: true)
+            return
+        }
+
+        // Job not found in cache - refresh and try again
+        Task {
+            // Refresh jobs list
+            await jobsViewModel.load(using: appState)
+
+            if let job = jobsViewModel.jobs.first(where: { $0.jobId == jobId }) {
+                await MainActor.run {
+                    navigateToJob(job, autoPlay: true)
+                }
+                return
+            }
+
+            // Try library
+            await viewModel.load(using: appState)
+
+            if let item = viewModel.items.first(where: { $0.jobId == jobId }) {
+                await MainActor.run {
+                    navigateToLibraryItem(item, autoPlay: true)
+                }
+            }
+        }
+    }
+
+    private func navigateToJob(_ job: PipelineStatusResponse, autoPlay: Bool) {
+        // Switch to jobs section
+        activeSection = .jobs
+
+        // Set auto-play mode
+        jobsAutoPlay = autoPlay
+        jobsPlaybackMode = .resume
+
+        #if os(tvOS)
+        // On tvOS, use navigation path
+        navigationPath.append(job)
+        #else
+        // On iOS/iPadOS, set selected job
+        selectedJob = job
+        if isSplitLayout {
+            collapseSidebar()
+        } else {
+            navigationPath.append(job)
+        }
+        #endif
+    }
+
+    private func navigateToLibraryItem(_ item: LibraryItem, autoPlay: Bool) {
+        // Switch to library section
+        activeSection = .library
+
+        // Set auto-play mode
+        libraryAutoPlay = autoPlay
+        libraryPlaybackMode = .resume
+
+        #if os(tvOS)
+        // On tvOS, use navigation path
+        navigationPath.append(item)
+        #else
+        // On iOS/iPadOS, set selected item
+        selectedItem = item
+        if isSplitLayout {
+            collapseSidebar()
+        } else {
+            navigationPath.append(item)
+        }
+        #endif
+    }
+
     private func collapseSidebar() {
         #if !os(tvOS)
         guard isSplitLayout else { return }
@@ -443,6 +533,7 @@ private struct PlaybackSettingsView: View {
     @StateObject private var notificationManager = NotificationManager.shared
     @State private var isRequestingPermission = false
     @State private var isSendingTestNotification = false
+    @State private var isSendingRichTestNotification = false
     @State private var showTestAlert = false
     @State private var testAlertMessage = ""
 
@@ -517,6 +608,29 @@ private struct PlaybackSettingsView: View {
                             }
                         }
                         .disabled(isSendingTestNotification || !notificationManager.notificationsEnabled)
+
+                        Button {
+                            sendRichTestNotification()
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Send Rich Notification")
+                                        .foregroundStyle(usesDarkBackground ? .white : .primary)
+                                    Text("Test notification with cover art image.")
+                                        .font(.caption)
+                                        .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                                }
+                                Spacer()
+                                if isSendingRichTestNotification {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "photo.badge.checkmark")
+                                        .foregroundStyle(usesDarkBackground ? .white : .accentColor)
+                                }
+                            }
+                        }
+                        .disabled(isSendingRichTestNotification || !notificationManager.notificationsEnabled)
                     } else {
                         Button {
                             requestNotificationPermission()
@@ -596,6 +710,36 @@ private struct PlaybackSettingsView: View {
                 testAlertMessage = "Failed to send: \(error.localizedDescription)"
             }
             isSendingTestNotification = false
+            showTestAlert = true
+        }
+    }
+
+    private func sendRichTestNotification() {
+        guard let config = appState.configuration else {
+            testAlertMessage = "Not signed in. Please log in first."
+            showTestAlert = true
+            return
+        }
+
+        isSendingRichTestNotification = true
+        Task {
+            do {
+                let result = try await notificationManager.sendRichTestNotification(
+                    using: config,
+                    title: "Sample Book Title",
+                    subtitle: "Sample Author Name"
+                )
+                if result.sent > 0 {
+                    testAlertMessage = "Rich notification sent to \(result.sent) device(s)!"
+                } else if let message = result.message {
+                    testAlertMessage = message
+                } else {
+                    testAlertMessage = "No devices registered. Make sure notifications are enabled on this device."
+                }
+            } catch {
+                testAlertMessage = "Failed to send: \(error.localizedDescription)"
+            }
+            isSendingRichTestNotification = false
             showTestAlert = true
         }
     }

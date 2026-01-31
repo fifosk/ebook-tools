@@ -10,6 +10,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     ) -> Bool {
         // Set ourselves as the notification center delegate
         UNUserNotificationCenter.current().delegate = self
+
+        #if DEBUG
+        // Suppress constraint warning spam from iOS keyboard system in simulator
+        // These are Apple bugs in _UIRemoteKeyboardPlaceholderView, not our code
+        UserDefaults.standard.set(false, forKey: "_UIConstraintBasedLayoutLogUnsatisfiable")
+        #endif
+
         return true
     }
 
@@ -47,6 +54,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         return [.banner, .sound, .badge]
     }
 
+    #if !os(tvOS)
     /// Called when the user interacts with a notification (taps on it).
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
@@ -55,11 +63,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let userInfo = response.notification.request.content.userInfo
         print("[AppDelegate] User tapped notification: \(userInfo)")
 
-        // Extract job ID and handle navigation
-        if let jobId = userInfo["job_id"] as? String {
-            await MainActor.run {
-                NotificationManager.shared.handleNotificationTap(jobId: jobId)
-            }
+        // Pass full userInfo to notification manager for extraction
+        await MainActor.run {
+            NotificationManager.shared.handleNotificationTap(userInfo: userInfo)
         }
     }
+    #endif
 }

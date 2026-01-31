@@ -84,7 +84,14 @@ final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
     }
 
     func seek(to time: Double) {
-        guard let player = player else { return }
+        seek(to: time, completion: nil)
+    }
+
+    func seek(to time: Double, completion: ((Bool) -> Void)?) {
+        guard let player = player else {
+            completion?(false)
+            return
+        }
         let requested = max(0, time)
         let itemDuration = player.currentItem?.duration
         let resolvedDuration: Double? = {
@@ -98,8 +105,13 @@ final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
         }()
         let clamped = resolvedDuration.map { min(requested, $0) } ?? requested
         let cmTime = CMTime(seconds: clamped, preferredTimescale: 600)
-        player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        // Optimistically update currentTime for immediate UI feedback
         currentTime = clamped
+        player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero) { finished in
+            DispatchQueue.main.async {
+                completion?(finished)
+            }
+        }
     }
 
     func skip(by delta: Double) {

@@ -41,6 +41,9 @@ final class InteractivePlayerViewModel: ObservableObject {
     /// The sentence index that was active BEFORE a transition started
     /// Used to maintain stable display during track switches
     @Published var preTransitionSentenceIndex: Int?
+    /// Timestamp when time stabilized after a transition
+    /// Used to provide a guard window to prevent sentence blips after transitions
+    var timeStabilizedAt: Date?
     /// Callback fired BEFORE a sequence transition begins (allows view to freeze synchronously)
     var onSequenceWillTransition: (() -> Void)?
 
@@ -89,10 +92,10 @@ final class InteractivePlayerViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] isTransitioning in
                 self?.isSequenceTransitioning = isTransitioning
-                // Clear pre-transition state when transition ends
-                if !isTransitioning {
-                    self?.preTransitionSentenceIndex = nil
-                }
+                // NOTE: Do NOT clear preTransitionSentenceIndex here.
+                // It needs to persist during the settling window (while expectedPosition is set)
+                // to prevent blips during sentence-change transitions.
+                // It will be cleared when expectedPosition is cleared (time stabilized).
             }
 
         audioCoordinator.onPlaybackEnded = { [weak self] in
@@ -114,10 +117,15 @@ final class InteractivePlayerViewModel: ObservableObject {
 
         sequenceController.onWillBeginTransition = { [weak self] in
             guard let self else { return }
+            // Mute immediately to prevent audio bleed during the transition
+            // This happens synchronously before any async operations
+            self.audioCoordinator.setVolume(0)
+            // Clear the stabilization timestamp since we're starting a new transition
+            self.timeStabilizedAt = nil
             // Capture the current sentence index BEFORE the transition changes state
             // This allows the view to maintain stable display during the transition
             if let currentIndex = self.sequenceController.currentSegment?.sentenceIndex {
-                print("[Sequence] onWillBeginTransition: capturing preTransitionSentenceIndex=\(currentIndex)")
+                print("[Sequence] onWillBeginTransition: capturing preTransitionSentenceIndex=\(currentIndex), muted")
                 self.preTransitionSentenceIndex = currentIndex
             }
             // Forward to view layer callback synchronously (we're already on main actor)
@@ -137,6 +145,37 @@ final class InteractivePlayerViewModel: ObservableObject {
                     self.sequenceController.endTransition(expectedTime: time)
                 }
             }
+        }
+
+        // Mute during dwell to prevent audio content past segment end from being heard
+        // We use mute instead of pause because pausing stops the time observer
+        sequenceController.onPauseForDwell = { [weak self] in
+            guard let self else { return }
+            print("[Sequence] Dwell started, muting audio")
+            self.audioCoordinator.setVolume(0)
+        }
+
+        sequenceController.onResumeAfterDwell = { [weak self] time in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                print("[Sequence] Resuming after dwell, seeking to \(String(format: "%.3f", time))")
+                // Seek to the new segment's start position, THEN restore audio
+                self.audioCoordinator.seek(to: time) { [weak self] _ in
+                    guard let self else { return }
+                    // End transition and restore volume after seek completes
+                    self.sequenceController.endTransition(expectedTime: time)
+                    self.audioCoordinator.setVolume(1)
+                }
+            }
+        }
+
+        // Clear preTransitionSentenceIndex when time stabilizes after a transition
+        // Record timestamp to provide a guard window for the view layer
+        sequenceController.onTimeStabilized = { [weak self] in
+            guard let self else { return }
+            print("[Sequence] Time stabilized, clearing preTransitionSentenceIndex, setting guard timestamp")
+            self.preTransitionSentenceIndex = nil
+            self.timeStabilizedAt = Date()
         }
     }
 

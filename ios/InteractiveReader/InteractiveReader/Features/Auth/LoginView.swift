@@ -72,7 +72,9 @@ struct LoginView: View {
                                         request.requestedScopes = [.fullName, .email]
                                     }, onCompletion: handleAppleSignIn)
                                     .signInWithAppleButtonStyle(.black)
-                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    // Use fixedSize to let the button determine its own width
+                                    // This avoids constraint conflicts with Apple's internal max-width of 375
+                                    .frame(minWidth: 200, maxWidth: 375, minHeight: 44)
                                     .disabled(viewModel.isLoading)
                                     #endif
                                 }

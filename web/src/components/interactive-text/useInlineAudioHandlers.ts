@@ -47,6 +47,7 @@ type UseInlineAudioHandlersArgs = {
   wordSyncControllerRef: React.MutableRefObject<WordSyncController | null>;
   effectivePlaybackRate: number;
   chunkTime: number;
+  isDwellPauseRef?: React.MutableRefObject<boolean>;
 };
 
 type UseInlineAudioHandlersResult = {
@@ -105,6 +106,7 @@ export function useInlineAudioHandlers({
   wordSyncControllerRef,
   effectivePlaybackRate,
   chunkTime,
+  isDwellPauseRef,
 }: UseInlineAudioHandlersArgs): UseInlineAudioHandlersResult {
   const progressTimerRef = useRef<number | null>(null);
 
@@ -269,6 +271,14 @@ export function useInlineAudioHandlers({
   ]);
 
   const handleInlineAudioPause = useCallback(() => {
+    // Skip state updates if this is a dwell pause (pause at segment end before advancing)
+    // The playback will resume automatically after the dwell period
+    if (isDwellPauseRef?.current) {
+      if (import.meta.env.DEV) {
+        console.debug('[handleInlineAudioPause] Skipping due to dwell pause');
+      }
+      return;
+    }
     const element = audioRef.current;
     if (element?.ended && onRequestAdvanceChunk) {
       const hasNextSegment = sequenceEnabled
@@ -322,6 +332,7 @@ export function useInlineAudioHandlers({
     audioResetKey,
     getSequenceIndexForPlayback,
     inlineAudioPlayingRef,
+    isDwellPauseRef,
     onInlineAudioPlaybackStateChange,
     onRequestAdvanceChunk,
     pendingChunkAutoPlayKeyRef,

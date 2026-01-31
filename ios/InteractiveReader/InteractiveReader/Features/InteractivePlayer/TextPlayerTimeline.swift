@@ -97,6 +97,7 @@ enum TextPlayerTimeline {
         var offset = 0.0
         var result: [TimelineSentenceRuntime] = []
         var usedAbsoluteOriginalTiming = false
+        var usedAbsoluteTranslationTiming = false
 
         for (index, sentence) in sentences.enumerated() {
             let originalTokens = sentence.originalTokens
@@ -168,12 +169,25 @@ enum TextPlayerTimeline {
                 && sentence.originalStartGate != nil
                 && sentence.originalEndGate != nil
                 && !sentence.originalTimingTokens.isEmpty
+            // When on translation track with gate times, use absolute audio position
+            let useAbsoluteTranslationTiming = !isOriginalTrack
+                && sentence.startGate != nil
+                && sentence.endGate != nil
+                && !sentence.timingTokens.isEmpty
             if useAbsoluteOriginalTiming {
                 usedAbsoluteOriginalTiming = true
             }
-            let sentenceStart = useAbsoluteOriginalTiming
-                ? (sentence.originalStartGate ?? offset)
-                : offset
+            if useAbsoluteTranslationTiming {
+                usedAbsoluteTranslationTiming = true
+            }
+            let sentenceStart: Double
+            if useAbsoluteOriginalTiming {
+                sentenceStart = sentence.originalStartGate ?? offset
+            } else if useAbsoluteTranslationTiming {
+                sentenceStart = sentence.startGate ?? offset
+            } else {
+                sentenceStart = offset
+            }
 
             let translationPhaseDuration: Double = {
                 if isOriginalTrack {
@@ -226,7 +240,22 @@ enum TextPlayerTimeline {
             let translationPhaseEndAbsolute = translationTrackStart + translationTotalDuration
 
             var translationRevealTimes: [Double] = []
-            if !isOriginalTrack && !translationDurationsRaw.isEmpty {
+            var translationRevealIsAbsolute = false
+            // Use actual translation timing tokens when on the translation track
+            // and the sentence has word-level timing data (similar to originalTimingTokens handling)
+            if useAbsoluteTranslationTiming {
+                translationRevealTimes = sentence.timingTokens.map { $0.startTime }
+                translationRevealIsAbsolute = true
+                // Ensure we have the right number of reveal times
+                if translationRevealTimes.count != translationTokens.count && !translationTokens.isEmpty {
+                    translationRevealTimes = buildUniformRevealTimes(
+                        count: translationTokens.count,
+                        startTime: translationTrackStart,
+                        duration: translationSpeechDuration
+                    )
+                    translationRevealIsAbsolute = false
+                }
+            } else if !isOriginalTrack && !translationDurationsRaw.isEmpty {
                 var cumulativeTranslation = 0.0
                 for rawDuration in translationDurationsRaw {
                     translationRevealTimes.append(translationTrackStart + cumulativeTranslation)
@@ -234,7 +263,7 @@ enum TextPlayerTimeline {
                 }
             }
 
-            if !isOriginalTrack && translationRevealTimes.count != translationTokens.count && !translationTokens.isEmpty {
+            if !translationRevealIsAbsolute && !isOriginalTrack && translationRevealTimes.count != translationTokens.count && !translationTokens.isEmpty {
                 translationRevealTimes = buildUniformRevealTimes(
                     count: translationTokens.count,
                     startTime: translationTrackStart,
@@ -257,7 +286,9 @@ enum TextPlayerTimeline {
                 }
             }()
 
-            if !isOriginalTrack && !translationRevealTimes.isEmpty {
+            // Don't override reveal times when they come from actual timing tokens
+            // (they're already in audio-file time)
+            if !translationRevealIsAbsolute && !isOriginalTrack && !translationRevealTimes.isEmpty {
                 translationRevealTimes[0] = translationTrackStart
                 translationRevealTimes[translationRevealTimes.count - 1] = translationPhaseEndAbsolute
             }
@@ -301,9 +332,22 @@ enum TextPlayerTimeline {
                 if isOriginalTrack {
                     return originalPhaseDuration
                 }
+                // When using absolute translation timing, use gate-based duration
+                if useAbsoluteTranslationTiming,
+                   let startGate = sentence.startGate,
+                   let endGate = sentence.endGate,
+                   endGate > startGate {
+                    return endGate - startGate
+                }
                 return translationTotalDuration
             }()
-            let endTime = sentenceStart + sentenceDuration
+            let endTime: Double = {
+                // When using absolute timing, use the gate end time directly
+                if useAbsoluteTranslationTiming, let endGate = sentence.endGate {
+                    return endGate
+                }
+                return sentenceStart + sentenceDuration
+            }()
 
             var variants: [TextPlayerVariantKind: TimelineVariantRuntime] = [:]
             if !originalTokens.isEmpty {
@@ -334,13 +378,15 @@ enum TextPlayerTimeline {
         // Skip scaling when:
         // 1. Using timing version 2 (pre-scaled from backend)
         // 2. Using absolute original timing (times are already in audio space)
-        // 3. Using combined phases
+        // 3. Using absolute translation timing (times are already in audio space)
+        // 4. Using combined phases
         if skipScaling {
             return result
         }
 
         if !useCombinedPhases,
            !usedAbsoluteOriginalTiming,
+           !usedAbsoluteTranslationTiming,
            let audioDuration,
            audioDuration > 0,
            let totalTimelineDuration = result.last?.endTime,
@@ -383,6 +429,10 @@ enum TextPlayerTimeline {
             effectiveTime: effectiveTime
         )?.index
         let epsilon = 1e-3
+        // Larger tolerance for "force all revealed" at segment end
+        // This should be >= the dwell tolerance (0.1s) used in SequencePlaybackController
+        // to ensure last word is revealed during the dwell period before advancing
+        let forceRevealTolerance = 0.15
 
         var displaySentences: [TextPlayerSentenceDisplay] = []
 
@@ -417,7 +467,8 @@ enum TextPlayerTimeline {
                 }
 
                 revealedCount = max(0, min(revealedCount, tokens.count))
-                if safeTime >= runtime.endTime - epsilon {
+                // Force all words revealed when near segment end (using larger tolerance for dwell period)
+                if safeTime >= runtime.endTime - forceRevealTolerance {
                     revealedCount = tokens.count
                 }
                 if !revealTimes.isEmpty,
@@ -428,7 +479,8 @@ enum TextPlayerTimeline {
                 }
 
                 var currentIndex: Int? = revealedCount > 0 ? revealedCount - 1 : nil
-                if !tokens.isEmpty && (state == .past || safeTime >= runtime.endTime - epsilon) {
+                // Force last word as current when near segment end (matching forceRevealTolerance)
+                if !tokens.isEmpty && (state == .past || safeTime >= runtime.endTime - forceRevealTolerance) {
                     currentIndex = tokens.count - 1
                 }
 
@@ -485,6 +537,9 @@ enum TextPlayerTimeline {
         }
 
         let epsilon = 1e-3
+        // Larger tolerance for "force all revealed" at segment end
+        // This should be >= the dwell tolerance (0.1s) used in SequencePlaybackController
+        let forceRevealTolerance = 0.15
         let state: TextPlayerSentenceState = .active
         var variants: [TextPlayerVariantDisplay] = []
 
@@ -508,7 +563,8 @@ enum TextPlayerTimeline {
             }
 
             revealedCount = max(0, min(revealedCount, tokens.count))
-            if safeTime >= runtime.endTime - epsilon {
+            // Force all words revealed when near segment end (using larger tolerance for dwell period)
+            if safeTime >= runtime.endTime - forceRevealTolerance {
                 revealedCount = tokens.count
             }
             if !revealTimes.isEmpty,
@@ -519,7 +575,8 @@ enum TextPlayerTimeline {
             }
 
             var currentIndex: Int? = revealedCount > 0 ? revealedCount - 1 : nil
-            if !tokens.isEmpty && (state == .past || safeTime >= runtime.endTime - epsilon) {
+            // Force last word as current when near segment end (matching forceRevealTolerance)
+            if !tokens.isEmpty && (state == .past || safeTime >= runtime.endTime - forceRevealTolerance) {
                 currentIndex = tokens.count - 1
             }
 
@@ -600,8 +657,28 @@ enum TextPlayerTimeline {
         let translationTrackStart = sentenceStart + components.translationTrackStartOffset
         let translationPhaseEndAbsolute = translationTrackStart + components.translationTotalDuration
 
+        // Check if we can use absolute translation timing (gate-based word times)
+        let useAbsoluteTranslationTiming = !isOriginalTrack
+            && sentence.startGate != nil
+            && sentence.endGate != nil
+            && !sentence.timingTokens.isEmpty
+
         var translationRevealTimes: [Double] = []
-        if !isOriginalTrack {
+        var translationRevealIsAbsolute = false
+        if useAbsoluteTranslationTiming {
+            // Use actual word timing from timingTokens (absolute audio times)
+            translationRevealTimes = sentence.timingTokens.map { $0.startTime }
+            translationRevealIsAbsolute = true
+            // Ensure we have the right number of reveal times
+            if translationRevealTimes.count != translationTokens.count && !translationTokens.isEmpty {
+                translationRevealTimes = buildUniformRevealTimes(
+                    count: translationTokens.count,
+                    startTime: translationTrackStart,
+                    duration: components.translationSpeechDuration
+                )
+                translationRevealIsAbsolute = false
+            }
+        } else if !isOriginalTrack {
             var translationDurationsRaw: [Double] = []
             var prevTranslationCount = 0
             for event in sentence.timeline {
@@ -662,12 +739,14 @@ enum TextPlayerTimeline {
             }
         }()
 
-        if !isOriginalTrack && !translationRevealTimes.isEmpty {
+        // Don't override reveal times when they come from actual timing tokens
+        // (they're already in audio-file time)
+        if !translationRevealIsAbsolute && !isOriginalTrack && !translationRevealTimes.isEmpty {
             translationRevealTimes[0] = translationTrackStart
             translationRevealTimes[translationRevealTimes.count - 1] = translationPhaseEndAbsolute
         }
         var adjustedTransliteration = transliterationRevealTimes
-        if !isOriginalTrack && !adjustedTransliteration.isEmpty {
+        if !translationRevealIsAbsolute && !isOriginalTrack && !adjustedTransliteration.isEmpty {
             adjustedTransliteration[0] = translationTrackStart
             adjustedTransliteration[adjustedTransliteration.count - 1] = translationPhaseEndAbsolute
         }
@@ -699,15 +778,17 @@ enum TextPlayerTimeline {
             }
         }
 
-        let scaledStart = sentenceStart * scale
-        let scaledEnd = sentenceEnd * scale
-        let scaledTranslationRevealTimes = translationRevealTimes.map { $0 * scale }
-        let scaledTransliterationRevealTimes = adjustedTransliteration.map { $0 * scale }
-        // Don't scale original reveal times if they come from actual timing tokens
-        // (they're already in audio-file time)
+        // Don't scale times if they come from actual timing tokens (they're already in audio-file time)
+        let scaledStart = (useAbsoluteTranslationTiming || originalRevealIsAbsolute) ? sentenceStart : sentenceStart * scale
+        let scaledEnd = (useAbsoluteTranslationTiming || originalRevealIsAbsolute) ? sentenceEnd : sentenceEnd * scale
+        let scaledTranslationRevealTimes = translationRevealIsAbsolute ? translationRevealTimes : translationRevealTimes.map { $0 * scale }
+        let scaledTransliterationRevealTimes = translationRevealIsAbsolute ? adjustedTransliteration : adjustedTransliteration.map { $0 * scale }
         let scaledOriginalReveal = originalRevealIsAbsolute ? originalReveal : originalReveal.map { $0 * scale }
 
         let epsilon = 1e-3
+        // Larger tolerance for "force all revealed" at segment end
+        // This should be >= the dwell tolerance (0.1s) used in SequencePlaybackController
+        let forceRevealTolerance = 0.15
         let state: TextPlayerSentenceState = .active
         var variants: [TextPlayerVariantDisplay] = []
 
@@ -728,7 +809,8 @@ enum TextPlayerTimeline {
             }
 
             revealedCount = max(0, min(revealedCount, tokens.count))
-            if safeTime >= scaledEnd - epsilon {
+            // Force all words revealed when near segment end (using larger tolerance for dwell period)
+            if safeTime >= scaledEnd - forceRevealTolerance {
                 revealedCount = tokens.count
             }
             if !revealTimes.isEmpty,
@@ -739,7 +821,8 @@ enum TextPlayerTimeline {
             }
 
             var currentIndex: Int? = revealedCount > 0 ? revealedCount - 1 : nil
-            if !tokens.isEmpty && (state == .past || safeTime >= scaledEnd - epsilon) {
+            // Force last word as current when near segment end (matching forceRevealTolerance)
+            if !tokens.isEmpty && (state == .past || safeTime >= scaledEnd - forceRevealTolerance) {
                 currentIndex = tokens.count - 1
             }
 
@@ -803,7 +886,7 @@ enum TextPlayerTimeline {
 
     static func buildStaticDisplay(
         sentences: [InteractiveChunk.Sentence],
-        activeIndex: Int? = nil,
+        activeIndex: Int? = nil
     ) -> [TextPlayerSentenceDisplay] {
         guard !sentences.isEmpty else { return [] }
         let resolvedActiveIndex = activeIndex ?? 0
@@ -888,6 +971,340 @@ enum TextPlayerTimeline {
         )
     }
 
+    /// Build a display for same-sentence track switch (e.g., original → translation)
+    /// Shows the previous track fully revealed and new track ready to animate
+    /// - Original → Translation: original fully revealed, transliteration/translation at 0
+    /// - Translation → Original: translation/transliteration fully revealed, original at 0
+    static func buildTrackSwitchDisplay(
+        sentences: [InteractiveChunk.Sentence],
+        activeIndex: Int,
+        newPrimaryTrack: TextPlayerTimingTrack
+    ) -> TextPlayerSentenceDisplay? {
+        guard sentences.indices.contains(activeIndex) else { return nil }
+        let sentence = sentences[activeIndex]
+        var variants: [TextPlayerVariantDisplay] = []
+
+        // When switching TO translation: original is done (fully revealed), translation starts fresh
+        // When switching TO original: translation is done (fully revealed), original starts fresh
+        let switchingToTranslation = newPrimaryTrack == .translation
+
+        func appendVariant(label: String, kind: TextPlayerVariantKind, tokens: [String]) {
+            guard !tokens.isEmpty else { return }
+
+            let revealedCount: Int
+            let currentIndex: Int?
+
+            if switchingToTranslation {
+                // Switching to translation track
+                if kind == .original {
+                    // Original is done - fully revealed
+                    revealedCount = tokens.count
+                    currentIndex = tokens.count - 1
+                } else {
+                    // Translation/transliteration start fresh - none revealed
+                    revealedCount = 0
+                    currentIndex = nil
+                }
+            } else {
+                // Switching to original track
+                if kind == .original {
+                    // Original starts fresh - none revealed
+                    revealedCount = 0
+                    currentIndex = nil
+                } else {
+                    // Translation/transliteration are done - fully revealed
+                    revealedCount = tokens.count
+                    currentIndex = tokens.count - 1
+                }
+            }
+
+            variants.append(
+                TextPlayerVariantDisplay(
+                    id: kind.rawValue,
+                    label: label,
+                    tokens: tokens,
+                    revealedCount: revealedCount,
+                    currentIndex: currentIndex,
+                    kind: kind,
+                    seekTimes: nil
+                )
+            )
+        }
+
+        appendVariant(label: "Original", kind: .original, tokens: sentence.originalTokens)
+        appendVariant(label: "Transliteration", kind: .transliteration, tokens: sentence.transliterationTokens)
+        appendVariant(label: "Translation", kind: .translation, tokens: sentence.translationTokens)
+
+        guard !variants.isEmpty else { return nil }
+        return TextPlayerSentenceDisplay(
+            id: "sentence-\(activeIndex)",
+            index: activeIndex,
+            sentenceNumber: sentence.displayIndex,
+            state: .active,
+            variants: variants
+        )
+    }
+
+    /// Build a hybrid display for same-sentence track switch settling
+    /// Shows the previous track fully revealed while animating the new track based on current time
+    /// - Parameters:
+    ///   - sentences: The chunk's sentences
+    ///   - activeIndex: The sentence index
+    ///   - newPrimaryTrack: The track we switched TO (the one currently playing)
+    ///   - chunkTime: Current playback time in the new track
+    ///   - audioDuration: Duration of the current audio track
+    ///   - timingVersion: Timing version for the chunk
+    static func buildSettlingDisplay(
+        sentences: [InteractiveChunk.Sentence],
+        activeIndex: Int,
+        newPrimaryTrack: TextPlayerTimingTrack,
+        chunkTime: Double,
+        audioDuration: Double?,
+        timingVersion: String? = nil
+    ) -> TextPlayerSentenceDisplay? {
+        guard sentences.indices.contains(activeIndex) else { return nil }
+        let sentence = sentences[activeIndex]
+
+        // Build timeline for the NEW track to get proper reveal times
+        let timelineSentences = buildTimelineSentences(
+            sentences: sentences,
+            activeTimingTrack: newPrimaryTrack,
+            audioDuration: audioDuration,
+            useCombinedPhases: false,
+            timingVersion: timingVersion
+        )
+
+        guard let targetRuntime = timelineSentences?.first(where: { $0.index == activeIndex }) else {
+            // Fallback to static display
+            return buildTrackSwitchDisplay(sentences: sentences, activeIndex: activeIndex, newPrimaryTrack: newPrimaryTrack)
+        }
+
+        let switchingToTranslation = newPrimaryTrack == .translation
+        var variants: [TextPlayerVariantDisplay] = []
+
+        let epsilon = 1e-3
+        let forceRevealTolerance = 0.15
+        let safeTime = min(max(chunkTime, targetRuntime.startTime - epsilon), targetRuntime.endTime + epsilon)
+        let revealCutoff = min(safeTime, targetRuntime.endTime)
+
+        func appendVariant(label: String, kind: TextPlayerVariantKind, tokens: [String]) {
+            guard !tokens.isEmpty else { return }
+
+            let revealedCount: Int
+            let currentIndex: Int?
+            var seekTimes: [Double]? = nil
+
+            if switchingToTranslation {
+                // Switching to translation track
+                if kind == .original {
+                    // Original is DONE - fully revealed (we just finished playing it)
+                    revealedCount = tokens.count
+                    currentIndex = tokens.count - 1
+                } else {
+                    // Translation/transliteration - animate based on current time
+                    if let variantRuntime = targetRuntime.variants[kind] {
+                        let revealTimes = variantRuntime.revealTimes
+                        var count = revealTimes.filter { $0 <= revealCutoff + epsilon }.count
+                        count = max(0, min(count, tokens.count))
+                        // Force all words revealed when near segment end
+                        if safeTime >= targetRuntime.endTime - forceRevealTolerance {
+                            revealedCount = tokens.count
+                        } else if count == 0 && safeTime >= targetRuntime.startTime - epsilon {
+                            revealedCount = 1 // At least first word
+                        } else {
+                            revealedCount = count
+                        }
+                        currentIndex = revealedCount > 0 ? revealedCount - 1 : nil
+                        seekTimes = revealTimes.isEmpty ? nil : revealTimes
+                    } else {
+                        // No timing data - show first word revealed
+                        revealedCount = 1
+                        currentIndex = 0
+                    }
+                }
+            } else {
+                // Switching to original track
+                if kind == .original {
+                    // Original - animate based on current time
+                    if let variantRuntime = targetRuntime.variants[kind] {
+                        let revealTimes = variantRuntime.revealTimes
+                        var count = revealTimes.filter { $0 <= revealCutoff + epsilon }.count
+                        count = max(0, min(count, tokens.count))
+                        // Force all words revealed when near segment end
+                        if safeTime >= targetRuntime.endTime - forceRevealTolerance {
+                            revealedCount = tokens.count
+                        } else if count == 0 && safeTime >= targetRuntime.startTime - epsilon {
+                            revealedCount = 1
+                        } else {
+                            revealedCount = count
+                        }
+                        currentIndex = revealedCount > 0 ? revealedCount - 1 : nil
+                        seekTimes = revealTimes.isEmpty ? nil : revealTimes
+                    } else {
+                        revealedCount = 1
+                        currentIndex = 0
+                    }
+                } else {
+                    // Translation/transliteration are DONE - fully revealed
+                    revealedCount = tokens.count
+                    currentIndex = tokens.count - 1
+                }
+            }
+
+            variants.append(
+                TextPlayerVariantDisplay(
+                    id: kind.rawValue,
+                    label: label,
+                    tokens: tokens,
+                    revealedCount: revealedCount,
+                    currentIndex: currentIndex,
+                    kind: kind,
+                    seekTimes: seekTimes
+                )
+            )
+        }
+
+        appendVariant(label: "Original", kind: .original, tokens: sentence.originalTokens)
+        appendVariant(label: "Transliteration", kind: .transliteration, tokens: sentence.transliterationTokens)
+        appendVariant(label: "Translation", kind: .translation, tokens: sentence.translationTokens)
+
+        guard !variants.isEmpty else { return nil }
+        return TextPlayerSentenceDisplay(
+            id: "sentence-\(activeIndex)",
+            index: activeIndex,
+            sentenceNumber: sentence.displayIndex,
+            state: .active,
+            variants: variants
+        )
+    }
+
+    /// Build a fully-revealed display for a single sentence (all variants fully revealed)
+    /// Used during sentence-change transitions to show the PREVIOUS sentence while transitioning
+    static func buildFullyRevealedDisplay(
+        sentences: [InteractiveChunk.Sentence],
+        activeIndex: Int
+    ) -> TextPlayerSentenceDisplay? {
+        guard sentences.indices.contains(activeIndex) else { return nil }
+        let sentence = sentences[activeIndex]
+        var variants: [TextPlayerVariantDisplay] = []
+
+        func appendVariant(label: String, kind: TextPlayerVariantKind, tokens: [String]) {
+            guard !tokens.isEmpty else { return }
+            variants.append(
+                TextPlayerVariantDisplay(
+                    id: kind.rawValue,
+                    label: label,
+                    tokens: tokens,
+                    revealedCount: tokens.count,
+                    currentIndex: tokens.count - 1,
+                    kind: kind,
+                    seekTimes: nil
+                )
+            )
+        }
+
+        appendVariant(label: "Original", kind: .original, tokens: sentence.originalTokens)
+        appendVariant(label: "Transliteration", kind: .transliteration, tokens: sentence.transliterationTokens)
+        appendVariant(label: "Translation", kind: .translation, tokens: sentence.translationTokens)
+
+        guard !variants.isEmpty else { return nil }
+        return TextPlayerSentenceDisplay(
+            id: "sentence-\(activeIndex)",
+            index: activeIndex,
+            sentenceNumber: sentence.displayIndex,
+            state: .active,
+            variants: variants
+        )
+    }
+
+    /// Build a display for dwell state (paused at segment end before advancing)
+    /// Shows the current track fully revealed (just finished) and the next track at 0 (about to start)
+    /// - Parameters:
+    ///   - sentences: All sentences in the chunk
+    ///   - activeIndex: The current sentence index
+    ///   - currentTrack: The track that just finished playing (fully revealed)
+    ///   - nextTrack: The track that will play next (at 0, not yet revealed). If nil, shows all fully revealed.
+    ///   - isSameSentence: Whether the next segment is for the same sentence (track switch within sentence)
+    static func buildDwellDisplay(
+        sentences: [InteractiveChunk.Sentence],
+        activeIndex: Int,
+        currentTrack: TextPlayerTimingTrack,
+        nextTrack: TextPlayerTimingTrack?,
+        isSameSentence: Bool
+    ) -> TextPlayerSentenceDisplay? {
+        guard sentences.indices.contains(activeIndex) else { return nil }
+        let sentence = sentences[activeIndex]
+        var variants: [TextPlayerVariantDisplay] = []
+
+        func appendVariant(label: String, kind: TextPlayerVariantKind, tokens: [String]) {
+            guard !tokens.isEmpty else { return }
+
+            let revealedCount: Int
+            let currentIndex: Int?
+
+            // Determine if this variant belongs to the current (finished) track or the next track
+            let isCurrentTrack: Bool
+            let isNextTrack: Bool
+
+            switch currentTrack {
+            case .original:
+                isCurrentTrack = (kind == .original)
+            case .translation, .mix:
+                isCurrentTrack = (kind == .translation || kind == .transliteration)
+            }
+
+            if let next = nextTrack {
+                switch next {
+                case .original:
+                    isNextTrack = (kind == .original)
+                case .translation, .mix:
+                    isNextTrack = (kind == .translation || kind == .transliteration)
+                }
+            } else {
+                isNextTrack = false
+            }
+
+            if isCurrentTrack {
+                // Current track just finished - fully revealed
+                revealedCount = tokens.count
+                currentIndex = tokens.count - 1
+            } else if isNextTrack && isSameSentence {
+                // Next track about to start (same sentence) - show at 0 (green/unrevealed)
+                revealedCount = 0
+                currentIndex = nil
+            } else {
+                // For sentence changes or unknown next track, show fully revealed
+                revealedCount = tokens.count
+                currentIndex = tokens.count - 1
+            }
+
+            variants.append(
+                TextPlayerVariantDisplay(
+                    id: kind.rawValue,
+                    label: label,
+                    tokens: tokens,
+                    revealedCount: revealedCount,
+                    currentIndex: currentIndex,
+                    kind: kind,
+                    seekTimes: nil
+                )
+            )
+        }
+
+        appendVariant(label: "Original", kind: .original, tokens: sentence.originalTokens)
+        appendVariant(label: "Transliteration", kind: .transliteration, tokens: sentence.transliterationTokens)
+        appendVariant(label: "Translation", kind: .translation, tokens: sentence.translationTokens)
+
+        guard !variants.isEmpty else { return nil }
+        return TextPlayerSentenceDisplay(
+            id: "sentence-\(activeIndex)",
+            index: activeIndex,
+            sentenceNumber: sentence.displayIndex,
+            state: .active,
+            variants: variants
+        )
+    }
+
     static func selectActiveSentence(from sentences: [TextPlayerSentenceDisplay]) -> [TextPlayerSentenceDisplay] {
         guard !sentences.isEmpty else { return [] }
         if let active = sentences.first(where: { $0.state == .active }) {
@@ -913,6 +1330,11 @@ enum TextPlayerTimeline {
                 && sentence.originalEndGate != nil
                 && !sentence.originalTimingTokens.isEmpty
         }
+        let useAbsoluteTranslationTiming = !isOriginalTrack && sentences.allSatisfy { sentence in
+            sentence.startGate != nil
+                && sentence.endGate != nil
+                && !sentence.timingTokens.isEmpty
+        }
 
         var totalDuration = 0.0
         for sentence in sentences {
@@ -925,8 +1347,8 @@ enum TextPlayerTimeline {
         }
 
         let audioDurationValue = audioDuration ?? 0
-        // Skip scaling when using absolute original timing (timeline is already in audio time)
-        let shouldScale = !useCombinedPhases && !useAbsoluteOriginalTiming && audioDurationValue > 0 && totalDuration > 0
+        // Skip scaling when using absolute timing (timeline is already in audio time)
+        let shouldScale = !useCombinedPhases && !useAbsoluteOriginalTiming && !useAbsoluteTranslationTiming && audioDurationValue > 0 && totalDuration > 0
         let scale: Double = {
             guard shouldScale else { return 1.0 }
             let computed = audioDurationValue / totalDuration
@@ -939,7 +1361,7 @@ enum TextPlayerTimeline {
                 return min(max(chunkTime, 0), scaledTotal)
             }
             // When using absolute timing, use chunkTime directly (it's already in audio time)
-            if useAbsoluteOriginalTiming {
+            if useAbsoluteOriginalTiming || useAbsoluteTranslationTiming {
                 return max(chunkTime, 0)
             }
             return resolveEffectiveTime(
@@ -960,8 +1382,19 @@ enum TextPlayerTimeline {
                 activeTimingTrack: activeTimingTrack,
                 useCombinedPhases: useCombinedPhases
             )
-            let startTime = offset
-            let endTime = offset + components.duration
+            // Use absolute gate times when available for the current track
+            let startTime: Double
+            let endTime: Double
+            if useAbsoluteOriginalTiming, let gateStart = sentence.originalStartGate, let gateEnd = sentence.originalEndGate {
+                startTime = gateStart
+                endTime = gateEnd
+            } else if useAbsoluteTranslationTiming, let gateStart = sentence.startGate, let gateEnd = sentence.endGate {
+                startTime = gateStart
+                endTime = gateEnd
+            } else {
+                startTime = offset
+                endTime = offset + components.duration
+            }
             let scaledStart = startTime * scale
             let scaledEnd = endTime * scale
             let resolution = ActiveSentenceResolution(
@@ -982,7 +1415,10 @@ enum TextPlayerTimeline {
             if effectiveTime > scaledEnd + epsilon {
                 lastPast = resolution
             }
-            offset = endTime
+            // Only update offset for non-absolute timing
+            if !useAbsoluteOriginalTiming && !useAbsoluteTranslationTiming {
+                offset = endTime
+            }
         }
 
         return lastPast ?? firstResolution

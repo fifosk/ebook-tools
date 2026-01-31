@@ -84,6 +84,7 @@ class NotificationRequest:
     badge: Optional[int] = None
     category: Optional[str] = None
     thread_id: Optional[str] = None
+    mutable_content: bool = False  # Enable Notification Service Extension
 
 
 class APNsService:
@@ -167,6 +168,9 @@ class APNsService:
 
         if request.thread_id:
             aps["thread-id"] = request.thread_id
+
+        if request.mutable_content:
+            aps["mutable-content"] = 1
 
         payload: Dict[str, Any] = {"aps": aps}
 

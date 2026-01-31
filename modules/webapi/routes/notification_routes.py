@@ -110,6 +110,49 @@ async def send_test_notification(
     )
 
 
+@router.post("/test/rich", response_model=TestNotificationResponse)
+async def send_rich_test_notification(
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+    cover_url: Optional[str] = None,
+    user: RequestUserContext = Depends(get_request_user),
+    notification_service: NotificationService = Depends(get_notification_service),
+) -> TestNotificationResponse:
+    """Send a rich test notification with cover image to all registered devices.
+
+    This endpoint sends a notification that mimics a job completion notification,
+    including cover art that will be downloaded by the Notification Service Extension.
+    """
+    user_id = _require_authenticated_user(user)
+
+    if not notification_service.is_enabled:
+        return TestNotificationResponse(
+            sent=0,
+            failed=0,
+            message="Push notifications are not configured on the server",
+        )
+
+    result = await notification_service.send_rich_test_notification(
+        user_id,
+        title=title,
+        subtitle=subtitle,
+        cover_url=cover_url,
+    )
+
+    if result.reason == "no_devices":
+        return TestNotificationResponse(
+            sent=0,
+            failed=0,
+            message="No devices registered. Enable notifications on your device first.",
+        )
+
+    return TestNotificationResponse(
+        sent=result.sent,
+        failed=result.failed,
+        message=f"Rich notification sent to {result.sent} device(s)" if result.sent > 0 else result.reason,
+    )
+
+
 @router.get("/preferences", response_model=NotificationPreferencesResponse)
 async def get_preferences(
     user: RequestUserContext = Depends(get_request_user),

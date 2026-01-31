@@ -504,14 +504,23 @@ def get_apns_service() -> APNsService | None:
     return APNsService(apns_config)
 
 
+def _get_apns_api_base_url() -> str | None:
+    """Get the API base URL for notification payloads."""
+    config = cfg.load_configuration(verbose=False)
+    apns_config = config.get("apns") or {}
+    return apns_config.get("api_base_url")
+
+
 @lru_cache
 def get_notification_service() -> NotificationService:
     """Return the shared NotificationService instance."""
     apns_service = get_apns_service()
     auth_service = get_auth_service()
+    api_base_url = _get_apns_api_base_url()
     return NotificationService(
         apns_service=apns_service,
         user_store=auth_service.user_store,
+        api_base_url=api_base_url,
     )
 
 

@@ -19,13 +19,26 @@ final class LoginViewModel: ObservableObject {
             return
         }
 
+        // Skip health check on simulators/debug builds to speed up development
+        // The login attempt itself will reveal if the server is reachable
+        #if DEBUG
+        serverStatus = .online
+        return
+        #else
         serverStatus = .checking
         let healthURL = makeHealthURL(from: apiBaseURL)
+
+        // Use a very short timeout for health check - it should be fast
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 3
+        config.timeoutIntervalForResource = 5
+        let quickSession = URLSession(configuration: config)
+
         var request = URLRequest(url: healthURL)
-        request.timeoutInterval = 6
+        request.timeoutInterval = 3
 
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await quickSession.data(for: request)
             if let httpResponse = response as? HTTPURLResponse,
                (200...299).contains(httpResponse.statusCode) {
                 serverStatus = .online
@@ -35,6 +48,7 @@ final class LoginViewModel: ObservableObject {
         } catch {
             serverStatus = .offline
         }
+        #endif
     }
 
     func signIn(using appState: AppState) async {

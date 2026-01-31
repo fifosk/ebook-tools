@@ -309,9 +309,22 @@ extension InteractivePlayerView {
         // the blip of showing partial reveal from the old track's perspective.
         let isTransitioning = viewModel.isSequenceTransitioning
         let isSameSentenceTrackSwitch = viewModel.sequenceController.isSameSentenceTrackSwitch
+        let isDwelling = viewModel.sequenceController.isDwelling
         let currentSentenceIdx = viewModel.sequenceController.currentSentenceIndex
         let expectedPosition = viewModel.sequenceController.expectedPosition
         let currentPlaybackKind = playbackPrimaryKind(for: chunk)
+
+        // Get timing track directly from sequence controller during transitions
+        // This avoids timing issues where isSequenceModeActive might not be updated yet
+        // due to SwiftUI's batched property updates
+        let sequenceTimingTrack: TextPlayerTimingTrack = {
+            switch viewModel.sequenceController.currentTrack {
+            case .original:
+                return .original
+            case .translation:
+                return .translation
+            }
+        }()
 
         let transcriptSentences: [TextPlayerSentenceDisplay] = {
             // During transitions, time-based sentence lookup can show the wrong sentence
@@ -325,58 +338,146 @@ extension InteractivePlayerView {
             // The settling window (right after transition ends) also needs protection for
             // same-sentence switches.
             let isInSameSentenceSettling = isSameSentenceTrackSwitch && expectedPosition != nil
+            let isInSentenceChangeSettling = !isSameSentenceTrackSwitch && expectedPosition != nil
+
+            // Log EVERY render in sequence mode to catch the blip
+            if viewModel.sequenceController.isEnabled {
+                print("[InteractiveContent] RENDER: trans=\(isTransitioning), dwell=\(isDwelling), sameSentence=\(isSameSentenceTrackSwitch), sameSentenceSettling=\(isInSameSentenceSettling), sentenceChangeSettling=\(isInSentenceChangeSettling), seqIdx=\(currentSentenceIdx ?? -1), preTransIdx=\(viewModel.preTransitionSentenceIndex ?? -1), stabilizedAt=\(viewModel.timeStabilizedAt != nil)")
+            }
 
             // During transitions, always use the target sentence from sequence controller
+            // Use sequenceTimingTrack directly instead of activeTimingTrack to avoid timing issues
+            // where isSequenceModeActive check might fail due to SwiftUI state propagation delays
             if isTransitioning, let targetIdx = currentSentenceIdx {
+                // Debug: check if chunk has sentences and if target index is valid
+                if chunk.sentences.isEmpty {
+                    print("[InteractiveContent] WARNING: chunk.sentences is EMPTY during transition, targetIdx=\(targetIdx)")
+                } else if !chunk.sentences.indices.contains(targetIdx) {
+                    print("[InteractiveContent] WARNING: targetIdx=\(targetIdx) out of bounds, chunk has \(chunk.sentences.count) sentences")
+                } else {
+                    let sentence = chunk.sentences[targetIdx]
+                    let hasTokens = !sentence.originalTokens.isEmpty || !sentence.translationTokens.isEmpty
+                    if !hasTokens {
+                        print("[InteractiveContent] WARNING: sentence[\(targetIdx)] has NO TOKENS - original=\(sentence.originalTokens.count), translation=\(sentence.translationTokens.count)")
+                    }
+                }
+
                 if isSameSentenceTrackSwitch {
-                    // Same-sentence switch: show all variants fully revealed
-                    let staticSentences = TextPlayerTimeline.buildStaticDisplay(
+                    // Same-sentence switch: show previous track fully revealed, new track ready to animate
+                    // e.g., when switching original→translation: original=full, translation=0
+                    if let display = TextPlayerTimeline.buildTrackSwitchDisplay(
                         sentences: chunk.sentences,
-                        activeIndex: targetIdx
-                    )
-                    if let targetSentence = staticSentences.first(where: { $0.index == targetIdx }) {
-                        print("[InteractiveContent] SAME-SENTENCE STATIC: transitioning=\(isTransitioning), using static sentence[\(targetIdx)] with variants: \(targetSentence.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
-                        return [targetSentence]
+                        activeIndex: targetIdx,
+                        newPrimaryTrack: sequenceTimingTrack
+                    ) {
+                        print("[InteractiveContent] SAME-SENTENCE SWITCH: transitioning=\(isTransitioning), using track-switch sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
+                        return [display]
                     }
                 } else {
-                    // Sentence change: show target sentence with first word revealed
-                    // This provides a smooth visual transition to the new sentence
-                    let activeTimingTrack = viewModel.activeTimingTrack(for: chunk)
-
+                    // Sentence change: show PREVIOUS sentence fully revealed during transition
+                    // This prevents the blip where we briefly show the new sentence before it should appear
+                    // The new sentence will be shown once the transition completes and time-based lookup takes over
+                    if let prevIdx = viewModel.preTransitionSentenceIndex,
+                       chunk.sentences.indices.contains(prevIdx) {
+                        // Build a fully-revealed display for the previous sentence
+                        if let display = TextPlayerTimeline.buildFullyRevealedDisplay(
+                            sentences: chunk.sentences,
+                            activeIndex: prevIdx
+                        ) {
+                            print("[InteractiveContent] SENTENCE-CHANGE: transitioning=\(isTransitioning), showing PREVIOUS sentence[\(prevIdx)] fully revealed (target=\(targetIdx))")
+                            return [display]
+                        }
+                    }
+                    // Fallback: show target sentence with first word revealed
+                    // This happens if preTransitionSentenceIndex wasn't captured
                     if let display = TextPlayerTimeline.buildInitialDisplay(
                         sentences: chunk.sentences,
                         activeIndex: targetIdx,
-                        primaryTrack: activeTimingTrack
+                        primaryTrack: sequenceTimingTrack
                     ) {
-                        print("[InteractiveContent] SENTENCE-CHANGE: transitioning=\(isTransitioning), using initial sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
+                        print("[InteractiveContent] SENTENCE-CHANGE (fallback): transitioning=\(isTransitioning), using initial sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
                         return [display]
                     }
                 }
             }
 
-            // Settling window for same-sentence switches: continue showing static display
+            // Settling window for same-sentence switches: build hybrid display
+            // - Previous track (e.g., original): fully revealed (we just finished it)
+            // - New track (e.g., translation): animated based on current time
             if isInSameSentenceSettling, let targetIdx = currentSentenceIdx {
-                let staticSentences = TextPlayerTimeline.buildStaticDisplay(
+                let playbackTime = viewModel.highlightingTime
+                let playbackDuration = viewModel.playbackDuration(for: chunk) ?? audioCoordinator.duration
+                let timelineDuration = viewModel.timelineDuration(for: chunk)
+                let durationValue: Double? = timelineDuration ?? (playbackDuration > 0 ? playbackDuration : nil)
+
+                if let display = TextPlayerTimeline.buildSettlingDisplay(
                     sentences: chunk.sentences,
-                    activeIndex: targetIdx
-                )
-                if let targetSentence = staticSentences.first(where: { $0.index == targetIdx }) {
-                    print("[InteractiveContent] SAME-SENTENCE SETTLING: using static sentence[\(targetIdx)] with variants: \(targetSentence.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
-                    return [targetSentence]
+                    activeIndex: targetIdx,
+                    newPrimaryTrack: sequenceTimingTrack,
+                    chunkTime: playbackTime,
+                    audioDuration: durationValue,
+                    timingVersion: chunk.timingVersion
+                ) {
+                    print("[InteractiveContent] SAME-SENTENCE SETTLING: sentence[\(targetIdx)] at t=\(String(format: "%.3f", playbackTime)) with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
+                    return [display]
+                }
+                // Fallback to static track-switch display
+                if let display = TextPlayerTimeline.buildTrackSwitchDisplay(
+                    sentences: chunk.sentences,
+                    activeIndex: targetIdx,
+                    newPrimaryTrack: sequenceTimingTrack
+                ) {
+                    print("[InteractiveContent] SAME-SENTENCE SETTLING (fallback): using sentence[\(targetIdx)]")
+                    return [display]
                 }
             }
 
-            // Settling window for sentence changes: continue showing initial display
-            // This prevents the blip where we briefly show the wrong sentence based on stale time
-            let isInSentenceChangeSettling = !isSameSentenceTrackSwitch && expectedPosition != nil
-            if isInSentenceChangeSettling, let targetIdx = currentSentenceIdx {
-                let activeTimingTrack = viewModel.activeTimingTrack(for: chunk)
-                if let display = TextPlayerTimeline.buildInitialDisplay(
+            // Settling window for sentence changes: continue showing PREVIOUS sentence fully revealed
+            // This prevents the blip where we briefly show the new sentence before time stabilizes
+            if isInSentenceChangeSettling {
+                // Use preTransitionSentenceIndex if available (captured at transition start)
+                if let prevIdx = viewModel.preTransitionSentenceIndex,
+                   chunk.sentences.indices.contains(prevIdx) {
+                    if let display = TextPlayerTimeline.buildFullyRevealedDisplay(
+                        sentences: chunk.sentences,
+                        activeIndex: prevIdx
+                    ) {
+                        print("[InteractiveContent] SENTENCE-CHANGE SETTLING: showing PREVIOUS sentence[\(prevIdx)] fully revealed (target=\(currentSentenceIdx ?? -1))")
+                        return [display]
+                    }
+                }
+                // Fallback: show target sentence with initial display if preTransitionSentenceIndex not available
+                if let targetIdx = currentSentenceIdx {
+                    if let display = TextPlayerTimeline.buildInitialDisplay(
+                        sentences: chunk.sentences,
+                        activeIndex: targetIdx,
+                        primaryTrack: sequenceTimingTrack
+                    ) {
+                        print("[InteractiveContent] SENTENCE-CHANGE SETTLING (fallback): using initial sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
+                        return [display]
+                    }
+                }
+            }
+
+            // During dwell (paused at segment end to show last word), use sequence controller's
+            // sentence index. Show current track fully revealed, next track at 0 (green).
+            // The time has advanced past segment end so time-based lookup would return the WRONG sentence.
+            if isDwelling, let targetIdx = currentSentenceIdx, chunk.sentences.indices.contains(targetIdx) {
+                // Get the next segment to determine what track will play next
+                let nextSegment = viewModel.sequenceController.nextSegment
+                let nextTrack: TextPlayerTimingTrack? = nextSegment.map { segment in
+                    segment.track == .original ? .original : .translation
+                }
+                let isSameSentence = nextSegment?.sentenceIndex == targetIdx
+
+                if let display = TextPlayerTimeline.buildDwellDisplay(
                     sentences: chunk.sentences,
                     activeIndex: targetIdx,
-                    primaryTrack: activeTimingTrack
+                    currentTrack: sequenceTimingTrack,
+                    nextTrack: nextTrack,
+                    isSameSentence: isSameSentence
                 ) {
-                    print("[InteractiveContent] SENTENCE-CHANGE SETTLING: using initial sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
+                    print("[InteractiveContent] DWELL: sentence[\(targetIdx)] current=\(sequenceTimingTrack), next=\(nextTrack.map { "\($0)" } ?? "nil"), sameSentence=\(isSameSentence)")
                     return [display]
                 }
             }
@@ -385,7 +486,59 @@ extension InteractivePlayerView {
             if isMenuVisible, !audioCoordinator.isPlaying, let frozen = frozenTranscriptSentences {
                 return frozen
             }
+
+            // CRITICAL: During transitions, settling, or dwell, NEVER use time-based lookup as it can show wrong sentence.
+            // The time value might be stale (from old track) and map to a different sentence on the new track.
+            // During dwell, time has advanced past segment end and would map to the wrong sentence.
+            // Always use the sequence controller's sentence index during these states.
+            let isInAnyTransitionState = isTransitioning || isDwelling || isInSameSentenceSettling || (!isSameSentenceTrackSwitch && expectedPosition != nil)
+            if isInAnyTransitionState, let targetIdx = currentSentenceIdx, chunk.sentences.indices.contains(targetIdx) {
+                // Build initial display for the target sentence as a safe fallback
+                // This ensures we never show the wrong sentence during transitions
+                if let display = TextPlayerTimeline.buildInitialDisplay(
+                    sentences: chunk.sentences,
+                    activeIndex: targetIdx,
+                    primaryTrack: sequenceTimingTrack
+                ) {
+                    print("[InteractiveContent] TRANSITION FALLBACK: using initial sentence[\(targetIdx)]")
+                    return [display]
+                }
+            }
+
+            // Post-stabilization guard: for a short period after time stabilizes, trust the sequence
+            // controller's sentence index to prevent blips from timing jitter in the transcript lookup
+            let stabilizationGuardDuration: TimeInterval = 0.25  // 250ms guard window
+            if let stabilizedAt = viewModel.timeStabilizedAt,
+               Date().timeIntervalSince(stabilizedAt) < stabilizationGuardDuration,
+               let targetIdx = currentSentenceIdx,
+               chunk.sentences.indices.contains(targetIdx) {
+                // Build display based on sequence controller's current sentence, but with time-based reveal
+                let playbackTime = viewModel.highlightingTime
+                let playbackDuration = viewModel.playbackDuration(for: chunk) ?? audioCoordinator.duration
+                let timelineDuration = viewModel.timelineDuration(for: chunk)
+                let durationValue: Double? = timelineDuration ?? (playbackDuration > 0 ? playbackDuration : nil)
+
+                if let display = TextPlayerTimeline.buildSettlingDisplay(
+                    sentences: chunk.sentences,
+                    activeIndex: targetIdx,
+                    newPrimaryTrack: sequenceTimingTrack,
+                    chunkTime: playbackTime,
+                    audioDuration: durationValue,
+                    timingVersion: chunk.timingVersion
+                ) {
+                    print("[InteractiveContent] POST-STABILIZATION GUARD: sentence[\(targetIdx)] at t=\(String(format: "%.3f", playbackTime))")
+                    return [display]
+                }
+            }
+
             // Normal case: build transcript based on current time
+            // Log when falling through to normal case during sequence mode to detect blips
+            if viewModel.sequenceController.isEnabled {
+                let normalTranscript = self.transcriptSentences(for: chunk)
+                let sentenceInfo = normalTranscript.first.map { "sentence[\($0.index)]" } ?? "none"
+                print("[InteractiveContent] NORMAL CASE (sequence mode): \(sentenceInfo), sequenceIdx=\(currentSentenceIdx.map(String.init) ?? "nil"), t=\(String(format: "%.3f", viewModel.highlightingTime))")
+                return normalTranscript
+            }
             return self.transcriptSentences(for: chunk)
         }()
 
@@ -916,7 +1069,9 @@ extension InteractivePlayerView {
     private func headerMagnifyWrapper<Content: View>(_ content: Content) -> some View {
         #if os(iOS)
         if isPad {
-            content.simultaneousGesture(headerMagnifyGesture, including: .all)
+            // Use .subviews to allow Menu and other interactive elements to work
+            // while still supporting pinch-to-zoom on non-interactive areas
+            content.simultaneousGesture(headerMagnifyGesture, including: .subviews)
         } else {
             content
         }

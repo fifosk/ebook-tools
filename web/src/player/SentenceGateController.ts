@@ -23,6 +23,8 @@ export class SentenceGateController {
   private rafId: number | null = null;
   private phase: GatePhase = 'idle';
   private origEndedHandler: (() => void) | null = null;
+  private gateEndReachedTime: number | null = null;
+  private static readonly GATE_END_DWELL_MS = 250;
 
   constructor(opts: ControllerOpts) {
     this.slides = opts.slides;
@@ -101,6 +103,7 @@ export class SentenceGateController {
   startAt(idx = 0) {
     this.stop();
     this.idx = Math.min(idx, this.slides.length - 1);
+    this.gateEndReachedTime = null; // Clear dwell timer when starting new slide
     const slide = this.slides[this.idx];
     this.seekSentence('orig', slide.orig);
     this.seekSentence('trans', slide.trans);
@@ -135,10 +138,35 @@ export class SentenceGateController {
         this.trans.currentTime >= (currentSlide.trans?.end ?? 0) - 0.01;
 
       if (origDone && transDone) {
+        // Use a dwell period to ensure the last word highlight is visible before advancing
+        const now = performance.now();
+        if (this.gateEndReachedTime === null) {
+          // First time reaching gate end - pause audio and start the dwell timer
+          // This prevents audio bleed from the next sentence
+          this.orig?.pause?.();
+          this.trans?.pause?.();
+          this.gateEndReachedTime = now;
+          this.rafId = typeof window !== 'undefined' ? window.requestAnimationFrame(loop) : null;
+          return;
+        }
+
+        // Check if we've dwelled long enough
+        const dwellElapsed = now - this.gateEndReachedTime;
+        if (dwellElapsed < SentenceGateController.GATE_END_DWELL_MS) {
+          // Still dwelling - continue animation loop
+          this.rafId = typeof window !== 'undefined' ? window.requestAnimationFrame(loop) : null;
+          return;
+        }
+
+        // Dwell complete - advance to next gate
+        this.gateEndReachedTime = null;
         this.onGateChange?.(this.idx, 'ended');
         this.next();
         return;
       }
+
+      // Not at gate end - clear any pending dwell
+      this.gateEndReachedTime = null;
       this.rafId = typeof window !== 'undefined' ? window.requestAnimationFrame(loop) : null;
     };
 
@@ -169,6 +197,7 @@ export class SentenceGateController {
       window.cancelAnimationFrame(this.rafId);
     }
     this.rafId = null;
+    this.gateEndReachedTime = null;
     this.stopAudios();
     this.phase = 'idle';
   }

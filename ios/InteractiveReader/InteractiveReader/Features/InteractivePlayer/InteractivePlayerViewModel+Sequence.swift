@@ -38,11 +38,12 @@ extension InteractivePlayerViewModel {
         }
 
         // If sequence mode is already active for these same URLs, don't reconfigure
+        // UNLESS we have a target sentence (jump/resume), in which case we need to seek
         // This prevents re-entry from SwiftUI re-renders during playback
         if sequenceController.isEnabled,
            sequenceController.originalTrackURL == originalURL,
-           sequenceController.translationTrackURL == translationURL {
-            print("[Sequence] Sequence already active for these tracks, skipping reconfiguration")
+           sequenceController.translationTrackURL == translationURL,
+           targetSentenceIndex == nil {
             return
         }
 
@@ -60,10 +61,14 @@ extension InteractivePlayerViewModel {
             // If we have a target sentence (resume), position to that sentence
             if let targetIndex = targetSentenceIndex,
                let target = sequenceController.seekToSentence(targetIndex, preferredTrack: .original) {
-                print("[Sequence] Sequence mode enabled, resuming at sentence \(targetIndex) on \(target.track.rawValue) track at \(String(format: "%.3f", target.time))")
+                // For resume/jump, we're going directly to a target sentence.
+                // Set preTransitionSentenceIndex to nil to indicate there's no meaningful "previous"
+                // sentence to show (we're not advancing from a prior sentence, we're jumping directly).
+                // The view layer will use the initial display for the target sentence.
+                preTransitionSentenceIndex = nil
+                timeStabilizedAt = nil
 
                 // Fire the pre-transition callback to allow view layer to freeze
-                print("[Sequence] Firing onWillBeginTransition for resume load")
                 onSequenceWillTransition?()
 
                 // Begin transition to prevent time updates during initial load
@@ -75,8 +80,9 @@ extension InteractivePlayerViewModel {
                 // Track whether we've seen the loading state (isReady = false)
                 var seenLoadingState = false
 
-                // Load the target track
-                _ = loadSequenceTrack(target.track, autoPlay: autoPlay, seekTime: nil)
+                // Load the target track WITHOUT autoPlay - we'll start after seek completes
+                // This prevents audio bleed from position 0 before seeking to target
+                _ = loadSequenceTrack(target.track, autoPlay: false, seekTime: nil)
 
                 // Subscribe to wait for audio to be ready, then seek and end transition
                 readyCancellable = audioCoordinator.$isReady
@@ -87,12 +93,18 @@ extension InteractivePlayerViewModel {
                             print("[Sequence] Resume audio loading...")
                         } else if seenLoadingState {
                             print("[Sequence] Resume audio ready")
-                            self.completeSequenceTransition(seekTime: target.time)
+                            self.completeSequenceTransition(seekTime: target.time, shouldPlay: autoPlay)
                         }
                     }
             } else {
                 // No target sentence, start from the beginning
                 print("[Sequence] Sequence mode enabled, starting with \(sequenceController.currentTrack.rawValue) track")
+
+                // For initial load, there's no meaningful "previous" sentence.
+                // Set preTransitionSentenceIndex to nil so the view layer uses the initial display
+                // for sentence 0 rather than trying to show a non-existent previous sentence.
+                preTransitionSentenceIndex = nil
+                timeStabilizedAt = nil
 
                 // Fire the pre-transition callback to allow view layer to freeze
                 // This must happen BEFORE beginTransition() sets isTransitioning = true
@@ -108,8 +120,9 @@ extension InteractivePlayerViewModel {
                 // Track whether we've seen the loading state (isReady = false)
                 var seenLoadingState = false
 
-                // Load the track first to get the seek time
-                let targetSeekTime = loadSequenceTrack(sequenceController.currentTrack, autoPlay: autoPlay)
+                // Load the track WITHOUT autoPlay - we'll start after seek completes
+                // This prevents audio bleed from position 0 before seeking to target
+                let targetSeekTime = loadSequenceTrack(sequenceController.currentTrack, autoPlay: false)
 
                 // Subscribe to wait for audio to be ready, then seek and end transition
                 readyCancellable = audioCoordinator.$isReady
@@ -120,9 +133,9 @@ extension InteractivePlayerViewModel {
                             seenLoadingState = true
                             print("[Sequence] Initial audio loading...")
                         } else if seenLoadingState {
-                            // We've transitioned from loading to ready - now seek and end transition
+                            // We've transitioned from loading to ready - now seek and start playback
                             print("[Sequence] Initial audio ready")
-                            self.completeSequenceTransition(seekTime: targetSeekTime)
+                            self.completeSequenceTransition(seekTime: targetSeekTime, shouldPlay: autoPlay)
                         }
                     }
             }
@@ -151,8 +164,16 @@ extension InteractivePlayerViewModel {
             return nil
         }
 
+        // Mute BEFORE loading to prevent audio bleed from the old track
+        // NOTE: We don't call pause() here because it sets isPlaybackRequested = false,
+        // which would cause the reading bed to stop during track switches.
+        // The load() call will tear down the old player anyway.
+        audioCoordinator.setVolume(0)
+
         print("[Sequence] Loading \(track.rawValue) track: \(url.lastPathComponent)")
-        audioCoordinator.load(url: url, autoPlay: autoPlay)
+        // Use forceNoAutoPlay when autoPlay is false to prevent audio bleed during track switches
+        // (otherwise isPlaybackRequested would cause auto-play even when we don't want it)
+        audioCoordinator.load(url: url, autoPlay: autoPlay, forceNoAutoPlay: !autoPlay)
         selectedTimingURL = url
 
         // Determine the seek target
@@ -170,20 +191,43 @@ extension InteractivePlayerViewModel {
     }
 
     /// Perform seek and end transition after audio is ready
-    private func completeSequenceTransition(seekTime: Double?) {
+    /// - Parameters:
+    ///   - seekTime: The time to seek to, or nil for no seek
+    ///   - shouldPlay: Whether to start playback after seek completes (used during track switches)
+    private func completeSequenceTransition(seekTime: Double?, shouldPlay: Bool = false) {
         if let seekTime {
-            print("[Sequence] Seeking to \(String(format: "%.3f", seekTime))")
-            audioCoordinator.seek(to: seekTime)
-        }
-        // Small delay to ensure seek takes effect before ending transition
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let self else { return }
-            let actualTime = self.audioCoordinator.currentTime
-            print("[Sequence] Completing transition, currentTime=\(String(format: "%.3f", actualTime)), segment=\(self.sequenceController.currentSegmentIndex)")
-            // Pass the expected time so updateForTime can validate incoming time values
-            self.sequenceController.endTransition(expectedTime: seekTime)
-            self.readyCancellable?.cancel()
-            self.readyCancellable = nil
+            print("[Sequence] Seeking to \(String(format: "%.3f", seekTime)), shouldPlay=\(shouldPlay)")
+            audioCoordinator.seek(to: seekTime) { [weak self] finished in
+                guard let self else { return }
+                let actualTime = self.audioCoordinator.currentTime
+                print("[Sequence] Seek completed (finished=\(finished)), currentTime=\(String(format: "%.3f", actualTime)), segment=\(self.sequenceController.currentSegmentIndex)")
+                // Small delay after seek completes to ensure view has time to render
+                // with the correct state before we end the transition and start playback
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                    guard let self else { return }
+                    // Pass the expected time so updateForTime can validate incoming time values
+                    self.sequenceController.endTransition(expectedTime: seekTime)
+                    self.readyCancellable?.cancel()
+                    self.readyCancellable = nil
+                    // Restore volume and start playback AFTER seek completes
+                    self.audioCoordinator.setVolume(1)
+                    if shouldPlay {
+                        self.audioCoordinator.play()
+                    }
+                }
+            }
+        } else {
+            // No seek needed, just end the transition
+            let actualTime = audioCoordinator.currentTime
+            print("[Sequence] Completing transition (no seek), currentTime=\(String(format: "%.3f", actualTime)), segment=\(sequenceController.currentSegmentIndex)")
+            sequenceController.endTransition(expectedTime: nil)
+            readyCancellable?.cancel()
+            readyCancellable = nil
+            // Restore volume and start playback
+            audioCoordinator.setVolume(1)
+            if shouldPlay {
+                audioCoordinator.play()
+            }
         }
     }
 
@@ -206,8 +250,9 @@ extension InteractivePlayerViewModel {
         // Track whether we've seen the loading state (isReady = false)
         var seenLoadingState = false
 
-        // Load the track first (pass nil for seekTime since we'll use the explicit one)
-        _ = loadSequenceTrack(track, autoPlay: true, seekTime: nil)
+        // Load the track WITHOUT autoPlay - we'll start playback after seeking
+        // This prevents audio bleed from position 0 before the seek completes
+        _ = loadSequenceTrack(track, autoPlay: false, seekTime: nil)
 
         // Subscribe to wait for audio to be ready, then seek and end transition
         readyCancellable = audioCoordinator.$isReady
@@ -218,9 +263,9 @@ extension InteractivePlayerViewModel {
                     seenLoadingState = true
                     print("[Sequence] Audio loading...")
                 } else if seenLoadingState {
-                    // We've transitioned from loading to ready - now seek and end transition
+                    // We've transitioned from loading to ready - now seek and start playback
                     print("[Sequence] Audio ready")
-                    self.completeSequenceTransition(seekTime: seekTime)
+                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: true)
                 }
                 // If isReady is true but we haven't seen loading state yet,
                 // it's the initial value before load() - ignore it

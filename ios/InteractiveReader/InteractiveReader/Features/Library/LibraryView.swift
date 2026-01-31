@@ -64,6 +64,7 @@ struct LibraryView: View {
                     .listRowBackground(Color.clear)
                     .contextMenu {
                         playbackContextMenu(for: item)
+                        offlineContextMenu(for: item)
                         Button(role: .destructive) {
                             Task { await handleDelete(item) }
                         } label: {
@@ -463,6 +464,41 @@ struct LibraryView: View {
             }
         }
     }
+
+    #if os(tvOS)
+    @ViewBuilder
+    private func offlineContextMenu(for item: LibraryItem) -> some View {
+        let status = offlineStore.status(for: item.jobId, kind: .library)
+
+        if status.isSynced {
+            Button(role: .destructive) {
+                offlineStore.remove(jobId: item.jobId, kind: .library)
+            } label: {
+                Label("Remove Offline Copy", systemImage: "trash.circle")
+            }
+        } else if status.isSyncing {
+            Button {
+                // No-op, just shows status
+            } label: {
+                Label("Downloading...", systemImage: "arrow.down.circle")
+            }
+            .disabled(true)
+        } else {
+            Button {
+                guard let configuration = appState.configuration else { return }
+                offlineStore.sync(jobId: item.jobId, kind: .library, configuration: configuration)
+            } label: {
+                Label("Download for Offline", systemImage: "arrow.down.circle")
+            }
+            .disabled(!offlineStore.isAvailable || appState.configuration == nil)
+        }
+    }
+    #else
+    @ViewBuilder
+    private func offlineContextMenu(for item: LibraryItem) -> some View {
+        EmptyView()
+    }
+    #endif
 
     private func resumeMenuLabel(for item: LibraryItem) -> String {
         guard let availability = resumeAvailability[item.jobId] else {

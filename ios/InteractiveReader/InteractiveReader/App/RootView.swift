@@ -52,13 +52,23 @@ private struct IOSRootView: View {
         horizontalSizeClass != .compact && colorScheme == .light
     }
 
+    /// In debug builds, skip the "checking session" screen to speed up development
+    /// Show login immediately while session restore happens in background
+    private var shouldShowRestoringScreen: Bool {
+        #if DEBUG
+        return false  // Skip loading screen in debug - go straight to login
+        #else
+        return appState.isRestoring
+        #endif
+    }
+
     var body: some View {
         ZStack {
             if usesDarkBackground {
                 AppTheme.lightBackground
                     .ignoresSafeArea()
             }
-            if appState.isRestoring {
+            if shouldShowRestoringScreen {
                 VStack(spacing: 12) {
                     ProgressView()
                     Text("Checking session…")

@@ -400,8 +400,9 @@ def _align_with_whisperx(
     text: str,
     *,
     model: Optional[str] = None,
+    language: Optional[str] = None,
 ) -> tuple[List[Dict[str, float | str]], bool]:
-    """Invoke the WhisperX CLI to align ``text`` against ``audio_segment``."""
+    """Align ``text`` against ``audio_segment`` using WhisperX Python API."""
 
     audio_path = _export_audio_for_alignment(audio_segment)
     if audio_path is None:
@@ -414,7 +415,7 @@ def _align_with_whisperx(
             return [], False
         try:
             tokens, exhausted = whisperx_adapter.retry_alignment(
-                audio_path, text, model=model
+                audio_path, text, model=model, language=language
             )
             return tokens, exhausted
         except Exception as exc:  # pragma: no cover - adapter best effort
@@ -431,6 +432,7 @@ def _align_with_backend(
     text: str,
     backend: str,
     model: Optional[str],
+    language: Optional[str] = None,
 ) -> tuple[List[Dict[str, float | str]], bool]:
     """Dispatch to the requested alignment backend.
 
@@ -441,7 +443,7 @@ def _align_with_backend(
     if not backend_key:
         return [], False
     if backend_key == "whisperx":
-        return _align_with_whisperx(audio_segment, text, model=model)
+        return _align_with_whisperx(audio_segment, text, model=model, language=language)
     logger.warning("Unsupported alignment backend '%s'", backend)
     return [], False
 
@@ -913,6 +915,7 @@ def audio_worker_body(
                     text=translation_text,
                     backend=backend_name,
                     model=alignment_model,
+                    language=target_language_code,
                 )
                 if aligned_tokens:
                     word_tokens = aligned_tokens
@@ -1119,6 +1122,7 @@ def audio_worker_body(
                         text=original_text,
                         backend=backend_name,
                         model=alignment_model,
+                        language=original_language_code,
                     )
                     if aligned_tokens:
                         original_word_tokens = aligned_tokens

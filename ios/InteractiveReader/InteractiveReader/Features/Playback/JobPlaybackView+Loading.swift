@@ -16,8 +16,25 @@ extension JobPlaybackView {
         youtubeVideoMetadata = nil
         jobStatus = job
         let offlinePayload = await offlineStore.cachedPayload(for: job.jobId, kind: .job)
+        let isOfflinePlayback = offlinePayload != nil
         if let offlinePayload,
            let localResolver = offlineStore.localResolver(for: .job, configuration: configuration) {
+            // Debug: log offline storage info
+            print("[OfflinePlayback] storageMode: \(offlineStore.storageMode.rawValue), baseURL: \(offlinePayload.storageBaseURL)")
+            let jobRoot = offlinePayload.storageBaseURL.appendingPathComponent(job.jobId, isDirectory: true)
+            let metadataDir = jobRoot.appendingPathComponent("metadata", isDirectory: true)
+            if FileManager.default.fileExists(atPath: metadataDir.path) {
+                if let contents = try? FileManager.default.contentsOfDirectory(atPath: metadataDir.path) {
+                    print("[OfflinePlayback] metadata/ contains \(contents.count) files: \(contents.prefix(5))")
+                }
+            } else {
+                print("[OfflinePlayback] metadata/ directory does not exist at \(metadataDir.path)")
+            }
+            // Log first chunk's metadata path
+            if let firstChunk = offlinePayload.media.chunks.first {
+                print("[OfflinePlayback] First chunk metadataPath: \(firstChunk.metadataPath ?? "nil")")
+                print("[OfflinePlayback] First chunk metadataURL: \(firstChunk.metadataURL ?? "nil")")
+            }
             let offlineConfig = APIClientConfiguration(
                 apiBaseURL: configuration.apiBaseURL,
                 storageBaseURL: offlinePayload.storageBaseURL,
@@ -44,7 +61,10 @@ extension JobPlaybackView {
             )
         }
         await viewModel.updateChapterIndex(from: jobMetadata)
-        await loadVideoMetadata()
+        // Skip video metadata API calls for offline playback
+        if !isOfflinePlayback {
+            await loadVideoMetadata()
+        }
         refreshActiveVideoSegment()
         preloadSegmentDurations()
         if isVideoPreferred {
@@ -65,10 +85,13 @@ extension JobPlaybackView {
             // Auto-resume from last position if available
             if let resumeEntry = resolveResumeEntry() {
                 applyResume(resumeEntry)
-                await refreshJobStatus()
-                startJobRefresh()
-                if currentJob.status.isActive {
-                    viewModel.startLiveUpdates()
+                // Skip network status polling for offline playback
+                if !isOfflinePlayback {
+                    await refreshJobStatus()
+                    startJobRefresh()
+                    if currentJob.status.isActive {
+                        viewModel.startLiveUpdates()
+                    }
                 }
                 return
             }
@@ -83,10 +106,13 @@ extension JobPlaybackView {
                 startPlaybackFromBeginning()
             }
         }
-        await refreshJobStatus()
-        startJobRefresh()
-        if currentJob.status.isActive {
-            viewModel.startLiveUpdates()
+        // Skip network status polling for offline playback
+        if !isOfflinePlayback {
+            await refreshJobStatus()
+            startJobRefresh()
+            if currentJob.status.isActive {
+                viewModel.startLiveUpdates()
+            }
         }
     }
 

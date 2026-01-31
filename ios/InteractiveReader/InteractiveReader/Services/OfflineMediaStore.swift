@@ -7,6 +7,14 @@ final class OfflineMediaStore: ObservableObject {
     static let sharedReadingBedsFolderName = "ReadingBeds"
     static let sharedDefaultReadingBedPath = "/assets/reading-beds/lost-in-the-pages.mp3"
 
+    /// Storage mode for offline media
+    enum StorageMode: String, Codable {
+        /// Device-local storage (app's Documents directory) - no sync between devices
+        case local
+        /// iCloud storage - syncs between devices but may have sync delays
+        case iCloud
+    }
+
     enum OfflineMediaKind: String, Codable {
         case job
         case library
@@ -87,6 +95,9 @@ final class OfflineMediaStore: ObservableObject {
 
     @Published private(set) var statuses: [OfflineMediaKey: SyncStatus] = [:]
 
+    /// Current storage mode - defaults to local for reliability
+    @Published var storageMode: StorageMode = .local
+
     private let containerIdentifier = OfflineMediaStore.sharedContainerIdentifier
     private let rootFolderName = OfflineMediaStore.sharedRootFolderName
     private let readingBedsFolderName = OfflineMediaStore.sharedReadingBedsFolderName
@@ -100,6 +111,9 @@ final class OfflineMediaStore: ObservableObject {
     private var syncTasks: [OfflineMediaKey: Task<Void, Never>] = [:]
     private var readingBedTask: Task<Void, Never>?
 
+    /// UserDefaults key for persisting storage mode
+    private static let storageModeKey = "OfflineMediaStorageMode"
+
     init() {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -110,10 +124,43 @@ final class OfflineMediaStore: ObservableObject {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         decoder.dateDecodingStrategy = .iso8601
         self.decoder = decoder
+
+        // Load persisted storage mode, default to local for reliability
+        if let savedMode = UserDefaults.standard.string(forKey: Self.storageModeKey),
+           let mode = StorageMode(rawValue: savedMode) {
+            self.storageMode = mode
+        } else {
+            self.storageMode = .local
+        }
     }
 
+    /// Whether offline storage is available (always true for local, depends on iCloud for iCloud mode)
     var isAvailable: Bool {
+        switch storageMode {
+        case .local:
+            return true
+        case .iCloud:
+            return FileManager.default.url(forUbiquityContainerIdentifier: containerIdentifier) != nil
+        }
+    }
+
+    /// Whether iCloud storage is available on this device
+    var isICloudAvailable: Bool {
         FileManager.default.url(forUbiquityContainerIdentifier: containerIdentifier) != nil
+    }
+
+    /// Set the storage mode and persist it
+    func setStorageMode(_ mode: StorageMode) {
+        storageMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: Self.storageModeKey)
+        print("[OfflineStore] Storage mode set to: \(mode.rawValue)")
+    }
+
+    /// Get a description of the current storage location for debugging
+    var storageLocationDescription: String {
+        guard let root = rootURL() else { return "unavailable" }
+        let modeLabel = storageMode == .local ? "Local" : "iCloud"
+        return "\(modeLabel): \(root.path)"
     }
 
     func status(for jobId: String, kind: OfflineMediaKind) -> SyncStatus {
@@ -264,11 +311,18 @@ final class OfflineMediaStore: ObservableObject {
     }
 
     static func sharedReadingBedsRootURL() -> URL? {
-        guard let container = FileManager.default.url(forUbiquityContainerIdentifier: sharedContainerIdentifier) else {
+        // Reading beds can be shared via iCloud if available, otherwise use local
+        if let container = FileManager.default.url(forUbiquityContainerIdentifier: sharedContainerIdentifier) {
+            let documents = container.appendingPathComponent("Documents", isDirectory: true)
+            return documents
+                .appendingPathComponent(sharedRootFolderName, isDirectory: true)
+                .appendingPathComponent(sharedReadingBedsFolderName, isDirectory: true)
+        }
+        // Fallback to local Documents directory
+        guard let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
             return nil
         }
-        let documents = container.appendingPathComponent("Documents", isDirectory: true)
-        return documents
+        return documentsDir
             .appendingPathComponent(sharedRootFolderName, isDirectory: true)
             .appendingPathComponent(sharedReadingBedsFolderName, isDirectory: true)
     }
@@ -301,11 +355,21 @@ final class OfflineMediaStore: ObservableObject {
     }
 
     private func rootURL() -> URL? {
-        guard let container = FileManager.default.url(forUbiquityContainerIdentifier: containerIdentifier) else {
-            return nil
+        switch storageMode {
+        case .local:
+            // Use app's local Documents directory
+            guard let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+                return nil
+            }
+            return documentsDir.appendingPathComponent(rootFolderName, isDirectory: true)
+        case .iCloud:
+            // Use iCloud container
+            guard let container = FileManager.default.url(forUbiquityContainerIdentifier: containerIdentifier) else {
+                return nil
+            }
+            let documents = container.appendingPathComponent("Documents", isDirectory: true)
+            return documents.appendingPathComponent(rootFolderName, isDirectory: true)
         }
-        let documents = container.appendingPathComponent("Documents", isDirectory: true)
-        return documents.appendingPathComponent(rootFolderName, isDirectory: true)
     }
 
     private func readingBedsRootURL() -> URL? {
@@ -538,10 +602,16 @@ final class OfflineMediaStore: ObservableObject {
             }
             if let metadataPath = chunk.metadataPath?.nonEmptyValue {
                 let url = resolver.resolvePath(jobId: jobId, relativePath: metadataPath)
+                if url == nil {
+                    print("[OfflineSync] WARNING: Could not resolve metadataPath: \(metadataPath)")
+                }
                 addItem(relativePath: metadataPath, url: url)
             }
             if let metadataURL = chunk.metadataURL?.nonEmptyValue {
                 let url = resolver.resolvePath(jobId: jobId, relativePath: metadataURL)
+                if url == nil {
+                    print("[OfflineSync] WARNING: Could not resolve metadataURL: \(metadataURL)")
+                }
                 addItem(relativePath: metadataURL, url: url)
             }
             for track in chunk.audioTracks.values {

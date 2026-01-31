@@ -140,6 +140,7 @@
         "team_id": "3Y7288895K",
         "bundle_id": "com.example.InteractiveReader",
         "key_path": "conf/certs/AuthKey_Y4F63B8ZY2.p8",
-        "environment": "development"
+        "environment": "development",
+        "api_base_url": "https://api.langtools.fifosk.synology.me"
     }
 }

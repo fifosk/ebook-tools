@@ -1099,14 +1099,37 @@ class PipelineJobManager:
         if not job.user_id:
             return
 
-        # Extract job label from result payload if available
+        # Extract job label and metadata from result payload if available
         job_label: Optional[str] = None
+        subtitle: Optional[str] = None
+        cover_url: Optional[str] = None
+        input_language: Optional[str] = None
+        target_language: Optional[str] = None
+        chapter_count: Optional[int] = None
+        sentence_count: Optional[int] = None
+
         if job.result_payload:
             job_label = job.result_payload.get("title")
-            if not job_label:
-                book_metadata = job.result_payload.get("book_metadata")
-                if isinstance(book_metadata, dict):
+            book_metadata = job.result_payload.get("book_metadata")
+            if isinstance(book_metadata, dict):
+                if not job_label:
                     job_label = book_metadata.get("title")
+                # Extract author as subtitle
+                subtitle = book_metadata.get("author")
+                # Check if job has a cover asset - use the public storage endpoint
+                cover_asset = book_metadata.get("job_cover_asset")
+                if isinstance(cover_asset, str) and cover_asset:
+                    # Extract just the filename if it's a path
+                    cover_filename = cover_asset.rsplit("/", 1)[-1]
+                    cover_url = f"/api/storage/covers/{cover_filename}"
+                # Extract language metadata
+                input_language = book_metadata.get("input_language")
+                target_language = book_metadata.get("target_language")
+                # Extract chapter and sentence counts
+                content_index_summary = book_metadata.get("content_index_summary")
+                if isinstance(content_index_summary, dict):
+                    chapter_count = content_index_summary.get("chapter_count")
+                sentence_count = book_metadata.get("book_sentence_count") or book_metadata.get("total_sentences")
 
         # Schedule the async notification in a background task
         try:
@@ -1118,6 +1141,12 @@ class PipelineJobManager:
                         job.job_id,
                         job_label,
                         status.value,
+                        subtitle=subtitle,
+                        cover_url=cover_url,
+                        input_language=input_language,
+                        target_language=target_language,
+                        chapter_count=chapter_count,
+                        sentence_count=sentence_count,
                     )
                 )
             else:
@@ -1128,6 +1157,12 @@ class PipelineJobManager:
                         job.job_id,
                         job_label,
                         status.value,
+                        subtitle=subtitle,
+                        cover_url=cover_url,
+                        input_language=input_language,
+                        target_language=target_language,
+                        chapter_count=chapter_count,
+                        sentence_count=sentence_count,
                     )
                 )
         except RuntimeError:
@@ -1139,6 +1174,12 @@ class PipelineJobManager:
                         job.job_id,
                         job_label,
                         status.value,
+                        subtitle=subtitle,
+                        cover_url=cover_url,
+                        input_language=input_language,
+                        target_language=target_language,
+                        chapter_count=chapter_count,
+                        sentence_count=sentence_count,
                     )
                 )
             except Exception as e:

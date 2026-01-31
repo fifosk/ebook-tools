@@ -45,7 +45,19 @@ extension InteractivePlayerViewModel {
         // within a computed property caused side effects during view rendering,
         // leading to flickering on track switches.
 
-        let time = usesCombinedQueue(for: chunk) ? audioCoordinator.currentTime : playbackTime(for: chunk)
+        // In sequence mode, use the segment-relative time directly from audioCoordinator
+        // The timeline is built per-track (original or translation), so the time should be
+        // relative to the current track's segment, not an accumulated elapsed time
+        let time: Double
+        if isSequenceModeActive {
+            // Return the position within the current audio file (segment-relative)
+            // The timeline for the current track is built starting from 0 for the current sentence
+            time = audioCoordinator.currentTime
+        } else if usesCombinedQueue(for: chunk) {
+            time = combinedQueuePlaybackTime(for: chunk)
+        } else {
+            time = playbackTime(for: chunk)
+        }
         return time.isFinite ? time : audioCoordinator.currentTime
     }
 
@@ -77,6 +89,28 @@ extension InteractivePlayerViewModel {
         guard let track = selectedAudioOption(for: chunk) else {
             return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
         }
+
+        // In sequence mode, return total duration of all segments in the plan
+        if isSequenceModeActive && track.kind == .combined {
+            let plan = sequenceController.plan
+            if !plan.isEmpty {
+                let totalDuration = plan.reduce(0.0) { $0 + $1.duration }
+                if totalDuration > 0 {
+                    return totalDuration
+                }
+            }
+            // Fallback to combined track durations
+            let originalDuration = combinedTrackDuration(kind: .original, in: chunk)
+            let translationDuration = combinedTrackDuration(kind: .translation, in: chunk)
+            if let orig = originalDuration, let trans = translationDuration, orig > 0, trans > 0 {
+                return orig + trans
+            }
+            // Fallback to track duration if available
+            if let duration = track.duration, duration > 0 {
+                return duration
+            }
+        }
+
         if track.streamURLs.count == 1 {
             if let activeDuration = activeTrackDuration(for: track) {
                 return activeDuration
@@ -148,10 +182,27 @@ extension InteractivePlayerViewModel {
     func combinedQueuePlaybackTime(for chunk: InteractiveChunk) -> Double {
         let baseTime = audioCoordinator.currentTime
 
-        // In sequence mode, the time is just the current time in the current track
-        // The highlighting system will use the timing track to determine positions
+        // In sequence mode, compute elapsed time through the sequence plan
+        // Sum up durations of completed segments + position within current segment
         if isSequenceModeActive {
-            return baseTime
+            let plan = sequenceController.plan
+            let currentIndex = sequenceController.currentSegmentIndex
+
+            // Sum durations of all completed segments
+            var elapsed: Double = 0
+            for i in 0..<currentIndex {
+                if plan.indices.contains(i) {
+                    elapsed += plan[i].duration
+                }
+            }
+
+            // Add position within current segment
+            if let currentSegment = sequenceController.currentSegment {
+                let positionInSegment = max(0, baseTime - currentSegment.start)
+                elapsed += min(positionInSegment, currentSegment.duration)
+            }
+
+            return elapsed
         }
 
         guard let track = selectedAudioOption(for: chunk) else { return baseTime }
@@ -465,6 +516,9 @@ extension InteractivePlayerViewModel {
         // Check if we need to switch tracks BEFORE committing state
         let needsTrackSwitch = target.track != sequenceController.currentTrack
 
+        // Mute immediately to prevent audio bleed during the transition
+        audioCoordinator.setVolume(0)
+
         // Fire pre-transition callback BEFORE updating any state
         // This allows the view to freeze with the current (old) sentence displayed
         onSequenceWillTransition?()
@@ -478,10 +532,23 @@ extension InteractivePlayerViewModel {
             // handleSequenceTrackSwitch will load new audio and seek
             handleSequenceTrackSwitch(track: target.track, seekTime: target.time)
         } else {
-            // Same track, just seek
-            audioCoordinator.seek(to: target.time)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                self?.sequenceController.endTransition(expectedTime: target.time)
+            // Same track, just seek - mute during seek to prevent audio bleed
+            // NOTE: We don't pause here to avoid triggering reading bed pause
+            let wasPlaying = audioCoordinator.isPlaying
+            audioCoordinator.setVolume(0)
+            audioCoordinator.seek(to: target.time) { [weak self] _ in
+                guard let self else { return }
+                // Small delay after seek completes to ensure proper rendering
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                    guard let self else { return }
+                    self.sequenceController.endTransition(expectedTime: target.time)
+                    // Restore volume
+                    self.audioCoordinator.setVolume(1)
+                    // Resume playback if it was playing (in case seek caused a pause)
+                    if wasPlaying && !self.audioCoordinator.isPlaying {
+                        self.audioCoordinator.play()
+                    }
+                }
             }
         }
     }

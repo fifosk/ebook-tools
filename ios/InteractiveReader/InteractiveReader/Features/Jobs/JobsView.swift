@@ -127,6 +127,7 @@ struct JobsView: View {
             .listRowBackground(Color.clear)
             .contextMenu {
                 playbackContextMenu(for: job)
+                offlineContextMenu(for: job)
                 moveToLibraryAction(for: job)
                 Button(role: .destructive) {
                     Task { await handleDelete(job) }
@@ -485,6 +486,42 @@ struct JobsView: View {
             }
         }
     }
+
+    #if os(tvOS)
+    @ViewBuilder
+    private func offlineContextMenu(for job: PipelineStatusResponse) -> some View {
+        let status = offlineStore.status(for: job.jobId, kind: .job)
+        let isEligible = job.isFinishedForDisplay
+
+        if status.isSynced {
+            Button(role: .destructive) {
+                offlineStore.remove(jobId: job.jobId, kind: .job)
+            } label: {
+                Label("Remove Offline Copy", systemImage: "trash.circle")
+            }
+        } else if status.isSyncing {
+            Button {
+                // No-op, just shows status
+            } label: {
+                Label("Downloading...", systemImage: "arrow.down.circle")
+            }
+            .disabled(true)
+        } else if isEligible {
+            Button {
+                guard let configuration = appState.configuration else { return }
+                offlineStore.sync(jobId: job.jobId, kind: .job, configuration: configuration)
+            } label: {
+                Label("Download for Offline", systemImage: "arrow.down.circle")
+            }
+            .disabled(!offlineStore.isAvailable || appState.configuration == nil)
+        }
+    }
+    #else
+    @ViewBuilder
+    private func offlineContextMenu(for job: PipelineStatusResponse) -> some View {
+        EmptyView()
+    }
+    #endif
 
     private func resumeMenuLabel(for job: PipelineStatusResponse) -> String {
         guard let availability = resumeAvailability[job.jobId] else {

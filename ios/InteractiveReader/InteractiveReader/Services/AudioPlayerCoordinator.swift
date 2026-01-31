@@ -43,18 +43,19 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         installInterruptionObserver()
     }
 
-    func load(url: URL, autoPlay: Bool = false) {
-        load(urls: [url], autoPlay: autoPlay)
+    func load(url: URL, autoPlay: Bool = false, forceNoAutoPlay: Bool = false) {
+        load(urls: [url], autoPlay: autoPlay, forceNoAutoPlay: forceNoAutoPlay)
     }
 
-    func load(urls: [URL], autoPlay: Bool = false) {
+    func load(urls: [URL], autoPlay: Bool = false, forceNoAutoPlay: Bool = false) {
         let sanitized = urls
         guard !sanitized.isEmpty else {
             reset()
             return
         }
         print("[AudioPlayer] Loading URLs: \(sanitized.map { $0.absoluteString })")
-        let shouldAutoPlay = autoPlay || isPlaybackRequested
+        // forceNoAutoPlay overrides isPlaybackRequested to prevent audio bleed during track switches
+        let shouldAutoPlay = forceNoAutoPlay ? false : (autoPlay || isPlaybackRequested)
         if activeURLs == sanitized {
             if player?.currentItem == nil {
                 tearDownPlayer()
@@ -162,11 +163,31 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     }
 
     func seek(to time: Double) {
-        guard let player = player else { return }
-        let clamped = max(0, min(time, duration))
+        seek(to: time, completion: nil)
+    }
+
+    func seek(to time: Double, completion: ((Bool) -> Void)?) {
+        guard let player = player else {
+            completion?(false)
+            return
+        }
+        // Get the actual duration from the current item to avoid using stale cached value
+        // This is important during track switches where self.duration may still have the old track's duration
+        let actualDuration: Double = {
+            if let item = player.currentItem, item.duration.isNumeric {
+                return item.duration.seconds
+            }
+            return duration
+        }()
+        let clamped = max(0, min(time, actualDuration))
         let cmTime = CMTime(seconds: clamped, preferredTimescale: 600)
-        player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        // Optimistically update currentTime for immediate UI feedback
         currentTime = clamped
+        player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero) { finished in
+            DispatchQueue.main.async {
+                completion?(finished)
+            }
+        }
     }
 
     /// Seek to an absolute time across multiple files using per-file durations.

@@ -382,11 +382,38 @@ ebook-tools user list
 ebook-tools user logout
 ```
 
+### Production API Access
+
+When testing against the production API:
+
+- **Production API URL**: `https://api.langtools.fifosk.synology.me`
+- **Get session token from CLI**:
+  ```bash
+  # Login using CLI (stores token in ~/.ebooktools_active_session)
+  python3 -c "from modules.cli.main import main; main(['user', 'login', 'USERNAME'])"
+
+  # Or get most recent token from session file:
+  cat ~/.ebooktools_session.json | python3 -c "
+  import json, sys
+  data = json.load(sys.stdin)
+  sessions = data.get('sessions', {})
+  latest = max(sessions.items(), key=lambda x: x[1].get('created_at', ''))
+  print('Token:', latest[0])
+  "
+  ```
+
+- **Use token with curl**:
+  ```bash
+  TOKEN="your_session_token"
+  curl -s "https://api.langtools.fifosk.synology.me/api/pipelines/jobs/{job_id}/media" \
+    -H "Authorization: Bearer $TOKEN"
+  ```
+
 ### API Authentication
 
 1. **Login**:
 ```bash
-curl -X POST http://127.0.0.1:8000/auth/login \
+curl -X POST http://127.0.0.1:8000/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"username":"admin","password":"secret"}'
 # Returns: {"token":"<jwt>", "user":{...}}

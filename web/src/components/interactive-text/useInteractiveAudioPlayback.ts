@@ -142,6 +142,13 @@ export function useInteractiveAudioPlayback({
   const isSeekingRef = useRef(false);
   const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
 
+  // Dwell timer for sequence segment end - ensures last word highlight is visible
+  const sequenceSegmentDwellRef = useRef<number | null>(null);
+  // Flag to indicate we're in a dwell pause (pause at segment end before advancing)
+  // This prevents handleInlineAudioPause from resetting playback state
+  const isDwellPauseRef = useRef(false);
+  const SEQUENCE_SEGMENT_DWELL_MS = 250;
+
   const [chunkTime, setChunkTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
   const [activeSentenceIndex, setActiveSentenceIndexState] = useState(0);
@@ -1149,6 +1156,8 @@ export function useInteractiveAudioPlayback({
         });
       }
       sequenceIndexRef.current = nextIndex;
+      // Clear dwell timer when advancing
+      sequenceSegmentDwellRef.current = null;
       applySequenceSegment(nextSegment, options);
       return true;
     },
@@ -1206,6 +1215,8 @@ export function useInteractiveAudioPlayback({
         return false;
       }
       sequenceIndexRef.current = targetIndex;
+      // Clear dwell timer when skipping to different sentence
+      sequenceSegmentDwellRef.current = null;
       applySequenceSegment(targetSegment, { autoPlay: inlineAudioPlayingRef.current });
       return true;
     },
@@ -1385,6 +1396,9 @@ export function useInteractiveAudioPlayback({
       }
       // Only advance if we're past the current segment's end time
       if (mediaTime < segment.end - 0.03) {
+        // Not at segment end - clear any pending dwell
+        sequenceSegmentDwellRef.current = null;
+        isDwellPauseRef.current = false;
         return false;
       }
       // Check if this is the last segment - if so, don't try to advance
@@ -1399,10 +1413,44 @@ export function useInteractiveAudioPlayback({
         }
         return false;
       }
+
+      // Use a dwell period to ensure the last word highlight is visible before advancing
+      const now = performance.now();
+      if (sequenceSegmentDwellRef.current === null) {
+        // First time reaching segment end - pause audio and start the dwell timer
+        // This prevents audio bleed from the next sentence
+        const element = audioRef.current;
+        if (element && !element.paused) {
+          // Set flag before pausing to prevent handleInlineAudioPause from resetting state
+          isDwellPauseRef.current = true;
+          element.pause();
+        }
+        sequenceSegmentDwellRef.current = now;
+        if (import.meta.env.DEV) {
+          console.debug('[maybeAdvanceSequence] Starting dwell at segment end, paused audio', {
+            mediaTime,
+            segmentEnd: segment.end,
+            currentIndex,
+          });
+        }
+        return false;
+      }
+
+      // Check if we've dwelled long enough
+      const dwellElapsed = now - sequenceSegmentDwellRef.current;
+      if (dwellElapsed < SEQUENCE_SEGMENT_DWELL_MS) {
+        // Still dwelling - don't advance yet
+        return false;
+      }
+
+      // Dwell complete - advance to next segment
+      sequenceSegmentDwellRef.current = null;
+      isDwellPauseRef.current = false;
       if (import.meta.env.DEV) {
-        console.debug('[maybeAdvanceSequence] Time exceeded segment end', {
+        console.debug('[maybeAdvanceSequence] Dwell complete, advancing', {
           mediaTime,
           segmentEnd: segment.end,
+          dwellElapsed,
           currentIndex,
           segment,
         });
@@ -1539,6 +1587,7 @@ export function useInteractiveAudioPlayback({
     wordSyncControllerRef,
     effectivePlaybackRate,
     chunkTime,
+    isDwellPauseRef,
   });
 
   const hasVisibleCues =
