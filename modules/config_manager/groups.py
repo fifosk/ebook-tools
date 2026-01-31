@@ -315,10 +315,10 @@ CONFIG_KEY_METADATA: Dict[str, Dict[str, Any]] = {
     },
     "highlight_granularity": {
         "display_name": "Highlight Granularity",
-        "description": "Granularity of highlighting (word, character)",
+        "description": "Granularity of highlighting (word only; character mode deprecated)",
         "group": ConfigGroup.HIGHLIGHTING,
         "type": "string",
-        "choices": ["word", "character"],
+        "choices": ["word"],  # "character" deprecated - video rendering no longer used
         "requires_restart": False,
     },
     "char_weighted_highlighting_default": {

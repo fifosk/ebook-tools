@@ -39,6 +39,11 @@ final class SequencePlaybackController: ObservableObject {
     /// Whether a track transition is in progress (prevents re-entrant time updates)
     @Published private(set) var isTransitioning = false
 
+    /// Whether the current/recent transition is a same-sentence track switch
+    /// This is set when advancing segments and cleared when transition ends
+    /// Used by the view layer to show static (fully revealed) display during track switches
+    private(set) var isSameSentenceTrackSwitch = false
+
     /// The expected playback position after a seek (used to validate time updates and for stable highlighting)
     /// This is exposed publicly so that highlightingTime can use it when available, providing a stable
     /// time value right after track transitions end (before audioCoordinator.currentTime settles)
@@ -235,8 +240,14 @@ final class SequencePlaybackController: ObservableObject {
         // This prevents false triggers from stale time values after track switches
         if let expected = expectedPosition {
             let deviation = abs(time - expected)
-            if deviation > 1.0 {
-                // Time is more than 1 second away from expected - likely stale value
+            // Also check if time is past the segment end - this catches cases where stale time
+            // is close to expected but already past the boundary (e.g., skip back within same segment)
+            let isPastSegmentEnd = time >= segment.end - tolerance
+            let isBeforeSegmentStart = time < segment.start - tolerance
+
+            if deviation > 1.0 || (isPastSegmentEnd && time > expected + 0.5) || isBeforeSegmentStart {
+                // Time is more than 1 second away from expected, or past segment end, or before segment start
+                // - likely stale value
                 staleTimeCount += 1
                 if staleTimeCount >= maxStaleTimeCount {
                     // Too many stale times - the seek may not have worked or AVPlayer is reporting
@@ -255,19 +266,17 @@ final class SequencePlaybackController: ObservableObject {
                         return false
                     }
 
-                    // For track switches mid-playback, find the correct segment for current time
-                    if let correctIndex = findSegmentIndex(forTime: time, track: currentTrack) {
-                        if correctIndex != currentSegmentIndex {
-                            print("[SequencePlayback] Jumping to segment \(correctIndex) for current time")
-                            currentSegmentIndex = correctIndex
-                        }
-                    }
+                    // After max stale times, simply trust the current segment index.
+                    // The segment was already set correctly by intentional navigation
+                    // (skipSentence, seekToSentence, etc). Don't try to recalculate it
+                    // from stale time values - that causes jumps to wrong segments.
+                    print("[SequencePlayback] Trusting current segment \(currentSegmentIndex) after stale timeout")
                     // Don't advance yet - let the next time update handle it normally
                     return false
                 } else {
                     // Still waiting for valid time
                     if staleTimeCount <= 3 {
-                        print("[SequencePlayback] Ignoring stale time \(String(format: "%.3f", time)), expected ~\(String(format: "%.3f", expected)) (\(staleTimeCount)/\(maxStaleTimeCount))")
+                        print("[SequencePlayback] Ignoring stale time \(String(format: "%.3f", time)), expected ~\(String(format: "%.3f", expected)), segment=\(segment.start)-\(segment.end) (\(staleTimeCount)/\(maxStaleTimeCount))")
                     }
                     return false
                 }
@@ -313,14 +322,23 @@ final class SequencePlaybackController: ObservableObject {
         isSettling = false
         settlingCount = 0
         reseekAttempts = 0
+        // NOTE: We intentionally do NOT clear isSameSentenceTrackSwitch here.
+        // The flag persists briefly after transition ends so the view can still
+        // show static display until the next segment advance clears it.
+        // This covers the window between transition end and audio settling.
+        let sameSentenceSwitch = isSameSentenceTrackSwitch
         isTransitioning = false
-        print("[SequencePlayback] Transition ended, expectedPosition=\(expectedTime.map { String(format: "%.3f", $0) } ?? "nil")")
+        print("[SequencePlayback] Transition ended, expectedPosition=\(expectedTime.map { String(format: "%.3f", $0) } ?? "nil"), sameSentenceSwitch=\(sameSentenceSwitch)")
     }
 
     /// Advance to the next segment in the plan
     /// Returns true if a track switch occurred
     @discardableResult
     func advanceToNextSegment() -> Bool {
+        // Clear the previous same-sentence flag immediately to prevent it from
+        // affecting renders during the next transition
+        isSameSentenceTrackSwitch = false
+
         let nextIndex = currentSegmentIndex + 1
 
         if nextIndex >= plan.count {
@@ -332,12 +350,17 @@ final class SequencePlaybackController: ObservableObject {
 
         let nextSegment = plan[nextIndex]
         let previousTrack = currentTrack
+        let previousSentenceIndex = currentSegment?.sentenceIndex
         let didSwitchTrack = previousTrack != nextSegment.track
+
+        // Detect same-sentence track switch (for view layer to show static display)
+        let isSameSentence = previousSentenceIndex == nextSegment.sentenceIndex
+        isSameSentenceTrackSwitch = didSwitchTrack && isSameSentence
 
         if didSwitchTrack {
             // Call onWillBeginTransition BEFORE updating any state
             // This allows the view layer to capture/freeze the current state synchronously
-            print("[SequencePlayback] Calling onWillBeginTransition BEFORE state change (current segment=\(currentSegmentIndex))")
+            print("[SequencePlayback] Calling onWillBeginTransition BEFORE state change (current segment=\(currentSegmentIndex)), sameSentenceSwitch=\(isSameSentenceTrackSwitch)")
             onWillBeginTransition?()
 
             // Block further time updates IMMEDIATELY
@@ -349,7 +372,7 @@ final class SequencePlaybackController: ObservableObject {
         currentSegmentIndex = nextIndex
         currentTrack = nextSegment.track
 
-        print("[SequencePlayback] Advancing to segment \(nextIndex): \(nextSegment.track.rawValue) at \(String(format: "%.3f", nextSegment.start)), transitioning=\(isTransitioning)")
+        print("[SequencePlayback] Advancing to segment \(nextIndex): \(nextSegment.track.rawValue) at \(String(format: "%.3f", nextSegment.start)), transitioning=\(isTransitioning), sameSentenceSwitch=\(isSameSentenceTrackSwitch)")
 
         if didSwitchTrack {
             onTrackSwitch?(nextSegment.track, nextSegment.start)
@@ -371,21 +394,41 @@ final class SequencePlaybackController: ObservableObject {
         plan.firstIndex { $0.sentenceIndex == sentenceIndex && $0.track == track }
     }
 
-    /// Seek to a specific sentence, starting with its original segment
-    func seekToSentence(_ sentenceIndex: Int) -> (track: SequenceTrack, time: Double)? {
-        // First try to find the original segment for this sentence
-        if let index = findSegmentIndex(sentenceIndex: sentenceIndex, track: .original) {
-            currentSegmentIndex = index
-            currentTrack = .original
-            return (.original, plan[index].start)
+    /// Seek to a specific sentence, optionally preferring a specific track
+    /// - Parameters:
+    ///   - sentenceIndex: The sentence index to seek to
+    ///   - preferredTrack: The preferred track based on visibility settings. If nil, defaults to original.
+    /// - Returns: The track and time to seek to, or nil if not found
+    func seekToSentence(_ sentenceIndex: Int, preferredTrack: SequenceTrack? = nil) -> (track: SequenceTrack, time: Double)? {
+        guard let target = findSentenceTarget(sentenceIndex, preferredTrack: preferredTrack) else {
+            return nil
         }
-        // Fall back to translation segment
-        if let index = findSegmentIndex(sentenceIndex: sentenceIndex, track: .translation) {
-            currentSegmentIndex = index
-            currentTrack = .translation
-            return (.translation, plan[index].start)
+        currentSegmentIndex = target.segmentIndex
+        currentTrack = target.track
+        return (target.track, target.time)
+    }
+
+    /// Find the target segment for a sentence without updating state
+    /// This is used when we need to fire callbacks BEFORE updating state
+    func findSentenceTarget(_ sentenceIndex: Int, preferredTrack: SequenceTrack? = nil) -> (segmentIndex: Int, track: SequenceTrack, time: Double)? {
+        let preferred = preferredTrack ?? .original
+        let fallback: SequenceTrack = preferred == .original ? .translation : .original
+
+        // First try to find the preferred track segment for this sentence
+        if let index = findSegmentIndex(sentenceIndex: sentenceIndex, track: preferred) {
+            return (index, preferred, plan[index].start)
+        }
+        // Fall back to the other track
+        if let index = findSegmentIndex(sentenceIndex: sentenceIndex, track: fallback) {
+            return (index, fallback, plan[index].start)
         }
         return nil
+    }
+
+    /// Commit a state change for a previously found sentence target
+    func commitSentenceTarget(_ target: (segmentIndex: Int, track: SequenceTrack, time: Double)) {
+        currentSegmentIndex = target.segmentIndex
+        currentTrack = target.track
     }
 
     /// Get the current sentence index from the current segment
@@ -399,31 +442,52 @@ final class SequencePlaybackController: ObservableObject {
     }
 
     /// Navigate to the next sentence (skips track changes within the same sentence)
-    /// Returns the track and time to seek to, or nil if at the last sentence
-    func nextSentence() -> (track: SequenceTrack, time: Double)? {
+    /// NOTE: This method updates state immediately. Use nextSentenceTarget() if you need to
+    /// fire callbacks before updating state.
+    /// - Parameter preferredTrack: The preferred track based on visibility settings. If nil, uses current track.
+    /// - Returns: The track and time to seek to, or nil if at the last sentence
+    func nextSentence(preferredTrack: SequenceTrack? = nil) -> (track: SequenceTrack, time: Double)? {
+        guard let target = nextSentenceTarget(preferredTrack: preferredTrack) else { return nil }
+        commitSentenceTarget(target)
+        return (target.track, target.time)
+    }
+
+    /// Find the next sentence target without updating state
+    func nextSentenceTarget(preferredTrack: SequenceTrack? = nil) -> (segmentIndex: Int, track: SequenceTrack, time: Double)? {
         guard let currentIdx = currentSentenceIndex else { return nil }
         let indices = sentenceIndices
         guard let currentPos = indices.firstIndex(of: currentIdx) else { return nil }
         let nextPos = currentPos + 1
         guard nextPos < indices.count else { return nil }
-        return seekToSentence(indices[nextPos])
+        return findSentenceTarget(indices[nextPos], preferredTrack: preferredTrack ?? currentTrack)
     }
 
     /// Navigate to the previous sentence (skips track changes within the same sentence)
-    /// Returns the track and time to seek to, or nil if at the first sentence
-    func previousSentence() -> (track: SequenceTrack, time: Double)? {
+    /// NOTE: This method updates state immediately. Use previousSentenceTarget() if you need to
+    /// fire callbacks before updating state.
+    /// - Parameter preferredTrack: The preferred track based on visibility settings. If nil, uses current track.
+    /// - Returns: The track and time to seek to, or nil if at the first sentence
+    func previousSentence(preferredTrack: SequenceTrack? = nil) -> (track: SequenceTrack, time: Double)? {
+        guard let target = previousSentenceTarget(preferredTrack: preferredTrack) else { return nil }
+        commitSentenceTarget(target)
+        return (target.track, target.time)
+    }
+
+    /// Find the previous sentence target without updating state
+    func previousSentenceTarget(preferredTrack: SequenceTrack? = nil) -> (segmentIndex: Int, track: SequenceTrack, time: Double)? {
         guard let currentIdx = currentSentenceIndex else { return nil }
         let indices = sentenceIndices
         guard let currentPos = indices.firstIndex(of: currentIdx) else { return nil }
         let prevPos = currentPos - 1
         guard prevPos >= 0 else { return nil }
-        return seekToSentence(indices[prevPos])
+        return findSentenceTarget(indices[prevPos], preferredTrack: preferredTrack ?? currentTrack)
     }
 
     /// Reset the controller state
     func reset() {
         isEnabled = false
         isTransitioning = false
+        isSameSentenceTrackSwitch = false
         expectedPosition = nil
         staleTimeCount = 0
         isSettling = false

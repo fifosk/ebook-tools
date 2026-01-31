@@ -19,11 +19,16 @@ from .core import (
 
 @dataclass(slots=True)
 class TimelineBuildOptions:
-    """Configuration for highlight timeline construction."""
+    """Configuration for highlight timeline construction.
+
+    Note: ``highlight_granularity="char"`` is deprecated. Character-level
+    highlighting was only used by the video slide renderer which is now
+    deprecated. New code should always use word-level granularity.
+    """
 
     sync_ratio: float = 1.0
     word_highlighting: bool = True
-    highlight_granularity: str = "word"
+    highlight_granularity: str = "word"  # "char" deprecated
     events: Optional[Sequence[HighlightEvent]] = None
 
 

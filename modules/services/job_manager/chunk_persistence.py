@@ -171,6 +171,11 @@ def write_chunk_metadata(
                 normalized_policy = highlight_policy.strip()
                 chunk_payload["highlighting_policy"] = normalized_policy
                 chunk_entry["highlighting_policy"] = normalized_policy
+            timing_version = chunk_entry.get("timing_version")
+            if isinstance(timing_version, str) and timing_version.strip():
+                normalized_version = timing_version.strip()
+                chunk_payload["timingVersion"] = normalized_version
+                chunk_entry["timing_version"] = normalized_version
             try:
                 write_chunk_file(destination, chunk_payload)
             except Exception:  # pragma: no cover - defensive logging

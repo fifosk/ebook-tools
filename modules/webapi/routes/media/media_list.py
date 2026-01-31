@@ -314,6 +314,15 @@ def _serialize_media_entries(
                     if isinstance(track_key, str) and isinstance(track_entries, list):
                         timing_tracks_payload[track_key] = copy.deepcopy(track_entries)
 
+            # Extract timing version (v2 = pre-scaled timing from backend)
+            raw_timing_version = (
+                summary.get("timing_version")
+                or summary.get("timingVersion")
+                or chunk.get("timing_version")
+                or chunk.get("timingVersion")
+            )
+            timing_version = str(raw_timing_version).strip() if raw_timing_version else None
+
             chunk_records.append(
                 PipelineMediaChunk(
                     chunk_id=str(summary.get("chunk_id")) if summary.get("chunk_id") else None,
@@ -329,6 +338,7 @@ def _serialize_media_entries(
                     sentence_count=sentence_count,
                     audio_tracks=audio_tracks_payload,
                     timing_tracks=timing_tracks_payload,
+                    timing_version=timing_version,
                 )
             )
 
@@ -510,6 +520,15 @@ def _serialize_chunk_entry(
             if isinstance(track_key, str) and isinstance(track_entries, list):
                 timing_tracks_payload[track_key] = copy.deepcopy(track_entries)
 
+    # Extract timing version (v2 = pre-scaled timing from backend)
+    raw_timing_version = (
+        summary.get("timing_version")
+        or summary.get("timingVersion")
+        or chunk.get("timing_version")
+        or chunk.get("timingVersion")
+    )
+    timing_version = str(raw_timing_version).strip() if raw_timing_version else None
+
     return PipelineMediaChunk(
         chunk_id=str(summary.get("chunk_id")) if summary.get("chunk_id") else None,
         range_fragment=str(summary.get("range_fragment")) if summary.get("range_fragment") else None,
@@ -522,6 +541,7 @@ def _serialize_chunk_entry(
         sentence_count=sentence_count,
         audio_tracks=audio_tracks_payload,
         timing_tracks=timing_tracks_payload,
+        timing_version=timing_version,
     )
 
 

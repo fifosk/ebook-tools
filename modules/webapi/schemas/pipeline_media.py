@@ -101,6 +101,10 @@ class PipelineMediaChunk(BaseModel):
     sentence_count: Optional[int] = None
     audio_tracks: Dict[str, AudioTrackMetadata] = Field(default_factory=dict)
     timing_tracks: Optional[Dict[str, List[Dict[str, Any]]]] = Field(default=None)
+    timing_version: Optional[str] = Field(
+        default=None,
+        description="Timing data version. '2' means pre-scaled timing from backend.",
+    )
 
 
 class PipelineMediaResponse(BaseModel):

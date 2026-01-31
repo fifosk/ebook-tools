@@ -11,7 +11,11 @@ extension InteractivePlayerViewModel {
         set { objc_setAssociatedObject(self, &Self.readyCancellableKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
     /// Configure the sequence controller for a chunk when combined mode is selected
-    func configureSequencePlayback(for chunk: InteractiveChunk, autoPlay: Bool) {
+    /// - Parameters:
+    ///   - chunk: The chunk to configure playback for
+    ///   - autoPlay: Whether to start playing automatically
+    ///   - targetSentenceIndex: Optional 0-based sentence index to start from (for resume)
+    func configureSequencePlayback(for chunk: InteractiveChunk, autoPlay: Bool, targetSentenceIndex: Int? = nil) {
         guard let trackID = selectedAudioTrackID,
               let track = chunk.audioOptions.first(where: { $0.id == trackID }),
               track.kind == .combined else {
@@ -51,41 +55,77 @@ extension InteractivePlayerViewModel {
             translationDuration: translationTrack?.duration
         )
 
-        // If sequence mode is enabled, load the first track
+        // If sequence mode is enabled, load the appropriate track
         if sequenceController.isEnabled {
-            print("[Sequence] Sequence mode enabled, starting with \(sequenceController.currentTrack.rawValue) track")
+            // If we have a target sentence (resume), position to that sentence
+            if let targetIndex = targetSentenceIndex,
+               let target = sequenceController.seekToSentence(targetIndex, preferredTrack: .original) {
+                print("[Sequence] Sequence mode enabled, resuming at sentence \(targetIndex) on \(target.track.rawValue) track at \(String(format: "%.3f", target.time))")
 
-            // Fire the pre-transition callback to allow view layer to freeze
-            // This must happen BEFORE beginTransition() sets isTransitioning = true
-            print("[Sequence] Firing onWillBeginTransition for initial load")
-            onSequenceWillTransition?()
+                // Fire the pre-transition callback to allow view layer to freeze
+                print("[Sequence] Firing onWillBeginTransition for resume load")
+                onSequenceWillTransition?()
 
-            // Begin transition to prevent time updates during initial load
-            sequenceController.beginTransition()
+                // Begin transition to prevent time updates during initial load
+                sequenceController.beginTransition()
 
-            // Cancel any existing subscription
-            readyCancellable?.cancel()
+                // Cancel any existing subscription
+                readyCancellable?.cancel()
 
-            // Track whether we've seen the loading state (isReady = false)
-            var seenLoadingState = false
+                // Track whether we've seen the loading state (isReady = false)
+                var seenLoadingState = false
 
-            // Load the track first to get the seek time
-            let targetSeekTime = loadSequenceTrack(sequenceController.currentTrack, autoPlay: autoPlay)
+                // Load the target track
+                _ = loadSequenceTrack(target.track, autoPlay: autoPlay, seekTime: nil)
 
-            // Subscribe to wait for audio to be ready, then seek and end transition
-            readyCancellable = audioCoordinator.$isReady
-                .sink { [weak self] isReady in
-                    guard let self else { return }
-                    if !isReady {
-                        // Mark that we've entered the loading state
-                        seenLoadingState = true
-                        print("[Sequence] Initial audio loading...")
-                    } else if seenLoadingState {
-                        // We've transitioned from loading to ready - now seek and end transition
-                        print("[Sequence] Initial audio ready")
-                        self.completeSequenceTransition(seekTime: targetSeekTime)
+                // Subscribe to wait for audio to be ready, then seek and end transition
+                readyCancellable = audioCoordinator.$isReady
+                    .sink { [weak self] isReady in
+                        guard let self else { return }
+                        if !isReady {
+                            seenLoadingState = true
+                            print("[Sequence] Resume audio loading...")
+                        } else if seenLoadingState {
+                            print("[Sequence] Resume audio ready")
+                            self.completeSequenceTransition(seekTime: target.time)
+                        }
                     }
-                }
+            } else {
+                // No target sentence, start from the beginning
+                print("[Sequence] Sequence mode enabled, starting with \(sequenceController.currentTrack.rawValue) track")
+
+                // Fire the pre-transition callback to allow view layer to freeze
+                // This must happen BEFORE beginTransition() sets isTransitioning = true
+                print("[Sequence] Firing onWillBeginTransition for initial load")
+                onSequenceWillTransition?()
+
+                // Begin transition to prevent time updates during initial load
+                sequenceController.beginTransition()
+
+                // Cancel any existing subscription
+                readyCancellable?.cancel()
+
+                // Track whether we've seen the loading state (isReady = false)
+                var seenLoadingState = false
+
+                // Load the track first to get the seek time
+                let targetSeekTime = loadSequenceTrack(sequenceController.currentTrack, autoPlay: autoPlay)
+
+                // Subscribe to wait for audio to be ready, then seek and end transition
+                readyCancellable = audioCoordinator.$isReady
+                    .sink { [weak self] isReady in
+                        guard let self else { return }
+                        if !isReady {
+                            // Mark that we've entered the loading state
+                            seenLoadingState = true
+                            print("[Sequence] Initial audio loading...")
+                        } else if seenLoadingState {
+                            // We've transitioned from loading to ready - now seek and end transition
+                            print("[Sequence] Initial audio ready")
+                            self.completeSequenceTransition(seekTime: targetSeekTime)
+                        }
+                    }
+            }
         } else {
             print("[Sequence] Sequence mode not available, falling back to combined URLs")
             // Fall back to loading the combined track's URLs directly

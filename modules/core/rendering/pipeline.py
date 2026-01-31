@@ -351,6 +351,8 @@ class RenderPipeline:
                 sentences=result.sentences,
                 audio_tracks=result.audio_tracks,
                 timing_tracks=result.timing_tracks,
+                timing_version=result.timing_version,
+                highlighting_policy=result.highlighting_policy,
             )
             image_state = getattr(state, "image_state", None)
             if isinstance(image_state, _ImageGenerationState):
@@ -368,6 +370,8 @@ class RenderPipeline:
                             sentences=snapshot.get("sentences") or list(result.sentences or []),
                             audio_tracks=snapshot.get("audio_tracks") or result.audio_tracks,
                             timing_tracks=snapshot.get("timing_tracks") or result.timing_tracks,
+                            timing_version=result.timing_version,
+                            highlighting_policy=result.highlighting_policy,
                         )
 
     def _record_media_batch_progress(

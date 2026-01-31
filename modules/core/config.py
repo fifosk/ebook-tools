@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
@@ -393,6 +394,8 @@ def build_pipeline_config(
         highlight_granularity = raw_highlight_granularity.strip().lower()
     else:
         highlight_granularity = "word"
+    # Note: "char" is deprecated but still accepted for backward compatibility
+    # with legacy jobs that used video slide rendering (now deprecated)
     if highlight_granularity not in {"word", "char"}:
         highlight_granularity = "word"
 
@@ -598,7 +601,15 @@ def build_pipeline_config(
 
     raw_alignment_backend = _select_value("alignment_backend", config, overrides, None)
     if raw_alignment_backend is None:
+        # Deprecated: fall back to old key name for backward compatibility
         raw_alignment_backend = _select_value("forced_alignment_backend", config, overrides, None)
+        if raw_alignment_backend is not None:
+            warnings.warn(
+                "Config key 'forced_alignment_backend' is deprecated. "
+                "Use 'alignment_backend' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
     if isinstance(raw_alignment_backend, str):
         alignment_backend = raw_alignment_backend.strip() or None
     else:
@@ -606,7 +617,15 @@ def build_pipeline_config(
 
     raw_alignment_model = _select_value("alignment_model", config, overrides, None)
     if raw_alignment_model is None:
+        # Deprecated: fall back to old key name for backward compatibility
         raw_alignment_model = _select_value("forced_alignment_model", config, overrides, None)
+        if raw_alignment_model is not None:
+            warnings.warn(
+                "Config key 'forced_alignment_model' is deprecated. "
+                "Use 'alignment_model' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
     if isinstance(raw_alignment_model, str):
         alignment_model = raw_alignment_model.strip() or None
     else:
@@ -616,9 +635,17 @@ def build_pipeline_config(
         "alignment_model_overrides", config, overrides, None
     )
     if raw_alignment_overrides is None:
+        # Deprecated: fall back to old key name for backward compatibility
         raw_alignment_overrides = _select_value(
             "forced_alignment_model_overrides", config, overrides, None
         )
+        if raw_alignment_overrides is not None:
+            warnings.warn(
+                "Config key 'forced_alignment_model_overrides' is deprecated. "
+                "Use 'alignment_model_overrides' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
     if isinstance(raw_alignment_overrides, Mapping):
         alignment_model_overrides = {
             str(key).strip().lower(): str(value).strip()

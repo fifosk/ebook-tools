@@ -178,7 +178,14 @@ extension InteractivePlayerViewModel {
 
         // For combined mode, try to use sequence playback (per-sentence switching)
         if track.kind == .combined {
-            configureSequencePlayback(for: chunk, autoPlay: autoPlay)
+            // Check if there's a pending sentence jump - if so, find the target sentence index
+            let targetSentenceIndex: Int? = {
+                guard let pending = pendingSentenceJump, pending.chunkID == chunk.id else { return nil }
+                return chunk.sentences.firstIndex {
+                    ($0.displayIndex ?? $0.id) == pending.sentenceNumber
+                }
+            }()
+            configureSequencePlayback(for: chunk, autoPlay: autoPlay, targetSentenceIndex: targetSentenceIndex)
             return
         }
 
@@ -237,6 +244,16 @@ extension InteractivePlayerViewModel {
 
     func attemptPendingSentenceJump(in chunk: InteractiveChunk) {
         guard let pending = pendingSentenceJump, pending.chunkID == chunk.id else { return }
+
+        // In sequence mode, the pending jump is handled by configureSequencePlayback
+        // via the targetSentenceIndex parameter, so just clear it here
+        if isSequenceModeActive {
+            print("[Sequence] Pending sentence jump already handled by configureSequencePlayback")
+            pendingSentenceJump = nil
+            return
+        }
+
+        // Non-sequence mode: use timeline-based seeking
         guard let startTime = startTimeForSentence(pending.sentenceNumber, in: chunk) else { return }
         pendingSentenceJump = nil
         seekPlayback(to: startTime, in: chunk)
@@ -249,7 +266,8 @@ extension InteractivePlayerViewModel {
             sentences: chunk.sentences,
             activeTimingTrack: activeTimingTrack,
             audioDuration: playbackDuration(for: chunk),
-            useCombinedPhases: useCombinedPhases
+            useCombinedPhases: useCombinedPhases,
+            timingVersion: chunk.timingVersion
         )
         if let timelineSentences {
             for runtime in timelineSentences {

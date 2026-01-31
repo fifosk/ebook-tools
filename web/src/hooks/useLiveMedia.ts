@@ -640,6 +640,10 @@ function buildStateFromSections(
           : sentences.length > 0
             ? sentences.length
             : null;
+      // Extract timing version (v2 = pre-scaled timing from backend)
+      const timingVersion = toStringOrNull(
+        (payload.timing_version as string | undefined) ?? (payload.timingVersion as string | undefined),
+      );
       chunkRecords.push({
         chunkId,
         rangeFragment: toStringOrNull(payload.range_fragment),
@@ -652,6 +656,7 @@ function buildStateFromSections(
         sentenceCount,
         audioTracks,
         timingTracks: timingTracks ?? null,
+        timingVersion: timingVersion ?? undefined,
       });
     });
   }

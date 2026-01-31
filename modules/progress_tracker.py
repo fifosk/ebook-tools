@@ -348,6 +348,8 @@ class ProgressTracker:
         sentences: Optional[Sequence[Mapping[str, object]]] = None,
         audio_tracks: Optional[Mapping[str, object]] = None,
         timing_tracks: Optional[Mapping[str, Any]] = None,
+        timing_version: Optional[str] = None,
+        highlighting_policy: Optional[str] = None,
     ) -> None:
         """Record metadata about files produced for a completed chunk."""
 
@@ -419,6 +421,10 @@ class ProgressTracker:
             if timing_tracks and isinstance(timing_tracks, Mapping):
                 # Shallow copy - timing track values are primitives or already-copied lists
                 chunk_entry["timing_tracks"] = _shallow_copy_mapping(timing_tracks)
+            if timing_version and isinstance(timing_version, str):
+                chunk_entry["timing_version"] = timing_version.strip()
+            if highlighting_policy and isinstance(highlighting_policy, str):
+                chunk_entry["highlighting_policy"] = highlighting_policy.strip()
             for index, existing in enumerate(self._generated_chunks):
                 if existing.get("chunk_id") == chunk_id:
                     self._generated_chunks[index] = chunk_entry

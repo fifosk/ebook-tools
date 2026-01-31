@@ -310,29 +310,17 @@ extension InteractivePlayerViewModel {
             audioCoordinator.seek(to: time)
             return
         }
-        let durations = urls.map { durationForURL($0, in: chunk) ?? 0 }
-        var remaining = time
-        var targetIndex = 0
-        for (index, duration) in durations.enumerated() {
-            if duration <= 0 {
-                continue
+
+        // Use fileDurations from AudioOption if available, otherwise compute from URLs
+        let durations: [Double] = {
+            if let fileDurations = track.fileDurations, fileDurations.count == urls.count {
+                return fileDurations
             }
-            if remaining <= duration || index == durations.count - 1 {
-                targetIndex = index
-                break
-            }
-            remaining -= duration
-            targetIndex = index + 1
-        }
-        if targetIndex >= urls.count {
-            targetIndex = urls.count - 1
-        }
-        let targetURL = urls[targetIndex]
-        if audioCoordinator.activeURL != targetURL {
-            let subset = Array(urls[targetIndex...])
-            audioCoordinator.load(urls: subset, autoPlay: audioCoordinator.isPlaybackRequested)
-        }
-        audioCoordinator.seek(to: remaining)
+            return urls.map { durationForURL($0, in: chunk) ?? 0 }
+        }()
+
+        // Use the new seekAcrossFiles method for cleaner multi-file seeking
+        audioCoordinator.seekAcrossFiles(to: time, fileDurations: durations)
     }
 
     func activeSentence(at time: Double) -> InteractiveChunk.Sentence? {
@@ -361,12 +349,12 @@ extension InteractivePlayerViewModel {
         return sorted.last(where: { $0.1 <= time })?.0
     }
 
-    func skipSentence(forward: Bool) {
+    func skipSentence(forward: Bool, preferredTrack: SequenceTrack? = nil) {
         guard let chunk = selectedChunk else { return }
 
         // In sequence mode, use sentence-level navigation (skip both tracks per sentence)
         if isSequenceModeActive {
-            skipSentenceInSequenceMode(forward: forward, chunk: chunk)
+            skipSentenceInSequenceMode(forward: forward, chunk: chunk, preferredTrack: preferredTrack)
             return
         }
 
@@ -380,7 +368,8 @@ extension InteractivePlayerViewModel {
             sentences: chunk.sentences,
             activeTimingTrack: activeTimingTrack,
             audioDuration: playbackDuration,
-            useCombinedPhases: useCombinedPhases
+            useCombinedPhases: useCombinedPhases,
+            timingVersion: chunk.timingVersion
         )
         let sorted: [(Int, Double)] = {
             if let timelineSentences {
@@ -443,29 +432,21 @@ extension InteractivePlayerViewModel {
 
     /// Skip to next/previous sentence in sequence mode
     /// This navigates by sentence rather than by track segment
-    private func skipSentenceInSequenceMode(forward: Bool, chunk: InteractiveChunk) {
-        let result: (track: SequenceTrack, time: Double)?
+    /// - Parameters:
+    ///   - forward: Whether to skip forward (true) or backward (false)
+    ///   - chunk: The current chunk
+    ///   - preferredTrack: The preferred track based on visibility settings. If nil, uses current track.
+    private func skipSentenceInSequenceMode(forward: Bool, chunk: InteractiveChunk, preferredTrack: SequenceTrack? = nil) {
+        // Find the target FIRST, without updating state yet
+        // This allows us to fire the callback with the OLD state still in place
+        let target: (segmentIndex: Int, track: SequenceTrack, time: Double)?
         if forward {
-            result = sequenceController.nextSentence()
+            target = sequenceController.nextSentenceTarget(preferredTrack: preferredTrack)
         } else {
-            result = sequenceController.previousSentence()
+            target = sequenceController.previousSentenceTarget(preferredTrack: preferredTrack)
         }
 
-        if let (track, time) = result {
-            print("[Sequence] Skipping to \(forward ? "next" : "previous") sentence: track=\(track.rawValue), time=\(String(format: "%.3f", time))")
-            // If we need to switch tracks, handle that
-            if track != sequenceController.currentTrack {
-                handleSequenceTrackSwitch(track: track, seekTime: time)
-            } else {
-                // Same track, just seek - fire callback before transition
-                onSequenceWillTransition?()
-                sequenceController.beginTransition()
-                audioCoordinator.seek(to: time)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                    self?.sequenceController.endTransition(expectedTime: time)
-                }
-            }
-        } else {
+        guard let target else {
             // No more sentences in this direction, try next/previous chunk
             if forward {
                 if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
@@ -475,6 +456,32 @@ extension InteractivePlayerViewModel {
                 if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
                     selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
                 }
+            }
+            return
+        }
+
+        print("[Sequence] Skipping to \(forward ? "next" : "previous") sentence: track=\(target.track.rawValue), time=\(String(format: "%.3f", target.time))")
+
+        // Check if we need to switch tracks BEFORE committing state
+        let needsTrackSwitch = target.track != sequenceController.currentTrack
+
+        // Fire pre-transition callback BEFORE updating any state
+        // This allows the view to freeze with the current (old) sentence displayed
+        onSequenceWillTransition?()
+        sequenceController.beginTransition()
+
+        // NOW commit the state change
+        sequenceController.commitSentenceTarget(target)
+
+        // Handle track switch if needed, otherwise just seek
+        if needsTrackSwitch {
+            // handleSequenceTrackSwitch will load new audio and seek
+            handleSequenceTrackSwitch(track: target.track, seekTime: target.time)
+        } else {
+            // Same track, just seek
+            audioCoordinator.seek(to: target.time)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                self?.sequenceController.endTransition(expectedTime: target.time)
             }
         }
     }

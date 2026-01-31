@@ -48,7 +48,8 @@ extension InteractivePlayerView {
             sentences: sentences,
             activeTimingTrack: activeTimingTrack,
             audioDuration: viewModel.playbackDuration(for: chunk),
-            useCombinedPhases: useCombinedPhases
+            useCombinedPhases: useCombinedPhases,
+            timingVersion: chunk.timingVersion
         )
         if let timelineSentences {
             for runtime in timelineSentences {
@@ -431,7 +432,8 @@ extension InteractivePlayerView {
             sentences: chunk.sentences,
             activeTimingTrack: timingTrack,
             audioDuration: audioDuration,
-            useCombinedPhases: useCombinedPhases
+            useCombinedPhases: useCombinedPhases,
+            timingVersion: chunk.timingVersion
         ),
         let runtime = timelineSentences.first(where: { $0.index == sentenceIndex }) else {
             return nil

@@ -132,9 +132,25 @@ struct InteractiveChunk: Identifiable {
         let streamURLs: [URL]
         let timingURL: URL?
         let duration: Double?
+        /// Per-file durations for aggregate audio tracks (e.g., combined original+translation)
+        let fileDurations: [Double]?
 
         var primaryURL: URL {
             streamURLs[0]
+        }
+
+        /// Get duration for a specific file index
+        func duration(at index: Int) -> Double? {
+            guard let durations = fileDurations, durations.indices.contains(index) else {
+                return nil
+            }
+            return durations[index]
+        }
+
+        /// Get cumulative offset before the file at the given index
+        func offsetBefore(_ index: Int) -> Double {
+            guard let durations = fileDurations, index > 0 else { return 0 }
+            return durations.prefix(index).reduce(0, +)
         }
     }
 
@@ -146,6 +162,8 @@ struct InteractiveChunk: Identifiable {
     let endSentence: Int?
     let sentences: [Sentence]
     let audioOptions: [AudioOption]
+    /// Timing version - "2" means pre-scaled timing from backend (no client-side scaling needed)
+    let timingVersion: String?
 }
 
 struct WordTimingToken: Identifiable {
@@ -154,6 +172,8 @@ struct WordTimingToken: Identifiable {
     let sentenceIndex: Int?
     let startTime: Double
     let endTime: Double
+    /// Index of the file this token belongs to (for multi-file aggregate audio)
+    let fileIndex: Int?
 
     var displayText: String {
         text.isEmpty ? "" : text
@@ -165,6 +185,16 @@ struct WordTimingToken: Identifiable {
         let end = endTime + tolerance
         return time >= start && time <= end
     }
+
+    /// Calculate the adjusted start time accounting for file offset in aggregate audio
+    func adjustedStartTime(fileOffset: Double) -> Double {
+        startTime + fileOffset
+    }
+
+    /// Calculate the adjusted end time accounting for file offset in aggregate audio
+    func adjustedEndTime(fileOffset: Double) -> Double {
+        endTime + fileOffset
+    }
 }
 
 struct PendingSentenceJump {
@@ -173,7 +203,7 @@ struct PendingSentenceJump {
 }
 
 extension WordTimingToken {
-    init?(entry: JobTimingEntry) {
+    init?(entry: JobTimingEntry, fileIndex: Int? = nil) {
         guard let start = entry.t0 ?? entry.start ?? entry.begin ?? entry.time,
               let endValue = entry.t1 ?? entry.end ?? entry.stop ?? entry.time else {
             return nil
@@ -186,7 +216,8 @@ extension WordTimingToken {
             text: textValue,
             sentenceIndex: sentenceIndex,
             startTime: min(start, endValue),
-            endTime: max(endValue, start)
+            endTime: max(endValue, start),
+            fileIndex: fileIndex
         )
     }
 }

@@ -86,9 +86,13 @@ enum TextPlayerTimeline {
         sentences: [InteractiveChunk.Sentence],
         activeTimingTrack: TextPlayerTimingTrack,
         audioDuration: Double?,
-        useCombinedPhases: Bool
+        useCombinedPhases: Bool,
+        timingVersion: String? = nil
     ) -> [TimelineSentenceRuntime]? {
         guard !sentences.isEmpty else { return nil }
+
+        // Skip all scaling when timing version is "2" (pre-scaled from backend)
+        let skipScaling = timingVersion == "2"
 
         var offset = 0.0
         var result: [TimelineSentenceRuntime] = []
@@ -327,7 +331,14 @@ enum TextPlayerTimeline {
             offset = endTime
         }
 
-        // Skip scaling when we used absolute original timing (times are already in audio space)
+        // Skip scaling when:
+        // 1. Using timing version 2 (pre-scaled from backend)
+        // 2. Using absolute original timing (times are already in audio space)
+        // 3. Using combined phases
+        if skipScaling {
+            return result
+        }
+
         if !useCombinedPhases,
            !usedAbsoluteOriginalTiming,
            let audioDuration,
@@ -828,6 +839,53 @@ enum TextPlayerTimeline {
                 variants: variants
             )
         }
+    }
+
+    /// Build an initial display for a sentence (first word revealed for the primary track)
+    /// Used during sentence changes to show the target sentence starting fresh
+    static func buildInitialDisplay(
+        sentences: [InteractiveChunk.Sentence],
+        activeIndex: Int,
+        primaryTrack: TextPlayerTimingTrack
+    ) -> TextPlayerSentenceDisplay? {
+        guard sentences.indices.contains(activeIndex) else { return nil }
+        let sentence = sentences[activeIndex]
+        var variants: [TextPlayerVariantDisplay] = []
+
+        let isPrimaryOriginal = primaryTrack == .original
+
+        func appendVariant(label: String, kind: TextPlayerVariantKind, tokens: [String]) {
+            guard !tokens.isEmpty else { return }
+            // Primary track gets first word revealed, others get none revealed
+            let isPrimary = (kind == .original && isPrimaryOriginal) ||
+                           (kind != .original && !isPrimaryOriginal)
+            let revealedCount = isPrimary ? 1 : 0
+            let currentIndex = isPrimary ? 0 : nil
+            variants.append(
+                TextPlayerVariantDisplay(
+                    id: kind.rawValue,
+                    label: label,
+                    tokens: tokens,
+                    revealedCount: revealedCount,
+                    currentIndex: currentIndex,
+                    kind: kind,
+                    seekTimes: nil
+                )
+            )
+        }
+
+        appendVariant(label: "Original", kind: .original, tokens: sentence.originalTokens)
+        appendVariant(label: "Transliteration", kind: .transliteration, tokens: sentence.transliterationTokens)
+        appendVariant(label: "Translation", kind: .translation, tokens: sentence.translationTokens)
+
+        guard !variants.isEmpty else { return nil }
+        return TextPlayerSentenceDisplay(
+            id: "sentence-\(activeIndex)",
+            index: activeIndex,
+            sentenceNumber: sentence.displayIndex,
+            state: .active,
+            variants: variants
+        )
     }
 
     static func selectActiveSentence(from sentences: [TextPlayerSentenceDisplay]) -> [TextPlayerSentenceDisplay] {

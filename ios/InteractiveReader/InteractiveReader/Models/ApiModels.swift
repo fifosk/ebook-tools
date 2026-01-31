@@ -441,6 +441,8 @@ struct PipelineMediaChunk: Decodable, Identifiable {
     let sentenceCount: Int?
     let audioTracks: [String: AudioTrackMetadata]
     let timingTracks: [String: [[String: JSONValue]]]?
+    /// Timing version - "2" means pre-scaled timing from backend (no client-side scaling needed)
+    let timingVersion: String?
 
     enum CodingKeys: String, CodingKey {
         case chunkID = "chunkId"
@@ -454,6 +456,7 @@ struct PipelineMediaChunk: Decodable, Identifiable {
         case sentenceCount
         case audioTracks
         case timingTracks
+        case timingVersion
     }
 
     init(
@@ -467,7 +470,8 @@ struct PipelineMediaChunk: Decodable, Identifiable {
         metadataURL: String?,
         sentenceCount: Int?,
         audioTracks: [String: AudioTrackMetadata],
-        timingTracks: [String: [[String: JSONValue]]]? = nil
+        timingTracks: [String: [[String: JSONValue]]]? = nil,
+        timingVersion: String? = nil
     ) {
         self.chunkID = chunkID
         self.rangeFragment = rangeFragment
@@ -480,6 +484,7 @@ struct PipelineMediaChunk: Decodable, Identifiable {
         self.sentenceCount = sentenceCount
         self.audioTracks = audioTracks
         self.timingTracks = timingTracks
+        self.timingVersion = timingVersion
     }
 
     init(from decoder: Decoder) throws {
@@ -495,6 +500,7 @@ struct PipelineMediaChunk: Decodable, Identifiable {
         sentenceCount = try? container.decode(Int.self, forKey: .sentenceCount)
         audioTracks = (try? container.decode([String: AudioTrackMetadata].self, forKey: .audioTracks)) ?? [:]
         timingTracks = try? container.decode([String: [[String: JSONValue]]].self, forKey: .timingTracks)
+        timingVersion = try? container.decode(String.self, forKey: .timingVersion)
     }
 }
 

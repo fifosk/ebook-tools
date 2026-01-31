@@ -1156,6 +1156,7 @@ export function useInteractiveAudioPlayback({
   );
 
   // Skip to a different sentence within the sequence (direction: 1 for next, -1 for previous)
+  // Respects cue visibility: if only one track is visible, skip to that track
   const skipSequenceSentence = useCallback(
     (direction: 1 | -1): boolean => {
       if (!sequenceEnabled || sequencePlan.length === 0) {
@@ -1172,12 +1173,28 @@ export function useInteractiveAudioPlayback({
       const currentSentenceIndex = currentSegment.sentenceIndex;
       const targetSentenceIndex = currentSentenceIndex + direction;
 
-      // Find the first segment for the target sentence (prefer same track as current)
-      const currentTrack = sequenceTrackRef.current ?? sequenceDefaultTrack;
+      // Determine preferred track based on cue visibility
+      // This controls which track to start at when skipping to a different sentence
+      const origVisible = resolvedCueVisibility.original;
+      const transVisible = resolvedCueVisibility.translation || resolvedCueVisibility.transliteration;
+      let preferredTrack: SequenceTrack | null = null;
+      if (origVisible && transVisible) {
+        // Both visible: start at beginning of sentence (original comes first)
+        preferredTrack = 'original';
+      } else if (origVisible) {
+        preferredTrack = 'original';
+      } else if (transVisible) {
+        preferredTrack = 'translation';
+      } else {
+        // Neither visible: fallback to original (start at beginning)
+        preferredTrack = 'original';
+      }
+
+      // Find the first segment for the target sentence (prefer visibility-based track)
       let targetIndex = sequencePlan.findIndex(
-        (seg) => seg.sentenceIndex === targetSentenceIndex && seg.track === currentTrack,
+        (seg) => seg.sentenceIndex === targetSentenceIndex && seg.track === preferredTrack,
       );
-      // If not found with same track, try any segment for that sentence
+      // If not found with preferred track, try any segment for that sentence
       if (targetIndex < 0) {
         targetIndex = sequencePlan.findIndex((seg) => seg.sentenceIndex === targetSentenceIndex);
       }
@@ -1192,7 +1209,7 @@ export function useInteractiveAudioPlayback({
       applySequenceSegment(targetSegment, { autoPlay: inlineAudioPlayingRef.current });
       return true;
     },
-    [applySequenceSegment, sequenceDefaultTrack, sequenceEnabled, sequencePlan],
+    [applySequenceSegment, resolvedCueVisibility, sequenceDefaultTrack, sequenceEnabled, sequencePlan],
   );
 
   // Seek to a specific token position, handling sequence mode track switching

@@ -163,13 +163,13 @@ struct InteractivePlayerView: View {
                 switch direction {
                 case .left:
                     if audioCoordinator.isPlaying {
-                        viewModel.skipSentence(forward: false)
+                        viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
                     } else {
                         handleWordNavigation(-1, in: chunk)
                     }
                 case .right:
                     if audioCoordinator.isPlaying {
-                        viewModel.skipSentence(forward: true)
+                        viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
                     } else {
                         handleWordNavigation(1, in: chunk)
                     }

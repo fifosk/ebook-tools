@@ -189,4 +189,25 @@ extension InteractivePlayerView {
     func isCurrentRate(_ rate: Double) -> Bool {
         abs(rate - audioCoordinator.playbackRate) < 0.01
     }
+
+    /// Determines the preferred sequence track based on current visibility settings.
+    /// This controls which track to start at when skipping to a different sentence.
+    /// - If only original is visible, prefer original
+    /// - If only translation/transliteration is visible, prefer translation
+    /// - If both are visible, prefer original (start at beginning of sentence)
+    /// - If neither is visible, returns original as fallback
+    var preferredSequenceTrack: SequenceTrack? {
+        let origVisible = visibleTracks.contains(.original)
+        let transVisible = visibleTracks.contains(.translation) || visibleTracks.contains(.transliteration)
+
+        if origVisible && transVisible {
+            // Both visible: start at beginning of sentence (original comes first)
+            return .original
+        } else if origVisible {
+            return .original
+        } else if transVisible {
+            return .translation
+        }
+        return .original // Fallback: start at beginning
+    }
 }

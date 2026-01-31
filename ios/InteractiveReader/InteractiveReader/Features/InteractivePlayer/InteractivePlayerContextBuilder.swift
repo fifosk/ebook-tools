@@ -87,7 +87,8 @@ enum JobContextBuilder {
             startSentence: chunk.startSentence,
             endSentence: chunk.endSentence,
             sentences: sentences,
-            audioOptions: audioOptions
+            audioOptions: audioOptions,
+            timingVersion: chunk.timingVersion
         )
     }
 
@@ -220,7 +221,8 @@ enum JobContextBuilder {
             label: String,
             urls: [URL],
             timingURL: URL?,
-            duration: Double?
+            duration: Double?,
+            fileDurations: [Double]? = nil
         ) {
             guard let primaryURL = urls.first else { return }
             if kind == .other {
@@ -234,7 +236,8 @@ enum JobContextBuilder {
                         kind: kind,
                         streamURLs: urls,
                         timingURL: timingURL,
-                        duration: duration
+                        duration: duration,
+                        fileDurations: fileDurations
                     )
                 )
                 return
@@ -246,7 +249,8 @@ enum JobContextBuilder {
                 kind: kind,
                 streamURLs: urls,
                 timingURL: timingURL,
-                duration: duration
+                duration: duration,
+                fileDurations: fileDurations
             )
         }
 
@@ -312,10 +316,13 @@ enum JobContextBuilder {
         if optionsByKind[.combined] == nil {
             if let original = optionsByKind[.original], let translation = optionsByKind[.translation] {
                 let combinedDuration: Double?
+                let combinedFileDurations: [Double]?
                 if let originalDuration = original.duration, let translationDuration = translation.duration {
                     combinedDuration = originalDuration + translationDuration
+                    combinedFileDurations = [originalDuration, translationDuration]
                 } else {
                     combinedDuration = translation.duration ?? original.duration
+                    combinedFileDurations = nil
                 }
                 optionsByKind[.combined] = InteractiveChunk.AudioOption(
                     id: "\(chunkID)|combined",
@@ -323,7 +330,8 @@ enum JobContextBuilder {
                     kind: .combined,
                     streamURLs: [original.primaryURL, translation.primaryURL],
                     timingURL: translation.primaryURL,
-                    duration: combinedDuration
+                    duration: combinedDuration,
+                    fileDurations: combinedFileDurations
                 )
             }
         }
@@ -516,6 +524,13 @@ enum JobContextBuilder {
                 return nil
             }()
 
+            // Extract file index for multi-file aggregate audio
+            let fileIndex: Int? = {
+                if case .number(let value) = entry["fileIndex"] { return Int(value) }
+                if case .number(let value) = entry["file_index"] { return Int(value) }
+                return nil
+            }()
+
             // Extract or generate ID
             let id: String = {
                 if case .string(let value) = entry["id"], !value.isEmpty { return value }
@@ -527,7 +542,8 @@ enum JobContextBuilder {
                 text: text,
                 sentenceIndex: sentenceIndex,
                 startTime: min(start, end),
-                endTime: max(start, end)
+                endTime: max(start, end),
+                fileIndex: fileIndex
             ))
         }
 

@@ -539,6 +539,7 @@ def test_timeline_build_word_granularity_without_metadata():
 
 
 def test_timeline_build_char_granularity_with_metadata():
+    """Test character granularity (deprecated - only for backward compat)."""
     block = "French - Sample\nBonjour le monde\nBonjour\n"
     audio = AudioSegment.silent(duration=600)
 

@@ -17,6 +17,8 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     @Published private(set) var volume: Double = 1.0
     @Published private(set) var activeURL: URL?
     @Published private(set) var activeURLs: [URL] = []
+    /// Current file index in multi-file playback (0-based)
+    @Published private(set) var currentFileIndex: Int = 0
     var onPlaybackEnded: (() -> Void)?
 
     let role: AudioPlaybackRole
@@ -32,6 +34,8 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     private var shouldResumeAfterInterruption = false
     private var itemURLMap: [ObjectIdentifier: URL] = [:]
     private var itemOrder: [ObjectIdentifier: Int] = [:]
+    /// Per-file durations for multi-file playback (set via setFileDurations)
+    private var fileDurations: [Double]?
 
     init(role: AudioPlaybackRole = .primary) {
         self.role = role
@@ -140,12 +144,173 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         shouldLoop = loop
     }
 
+    /// Set per-file durations for multi-file playback
+    func setFileDurations(_ durations: [Double]?) {
+        fileDurations = durations
+    }
+
+    /// Get the absolute time position across all files
+    /// Returns currentTime offset by cumulative duration of previous files
+    func absoluteTime(forFileDurations durations: [Double]?) -> Double {
+        guard let durations = durations ?? fileDurations,
+              currentFileIndex > 0,
+              currentFileIndex < durations.count else {
+            return currentTime
+        }
+        let previousDurations = durations.prefix(currentFileIndex).reduce(0, +)
+        return previousDurations + currentTime
+    }
+
     func seek(to time: Double) {
         guard let player = player else { return }
         let clamped = max(0, min(time, duration))
         let cmTime = CMTime(seconds: clamped, preferredTimescale: 600)
         player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
         currentTime = clamped
+    }
+
+    /// Seek to an absolute time across multiple files using per-file durations.
+    /// - Parameters:
+    ///   - absoluteTime: The absolute time position in the combined audio timeline
+    ///   - fileDurations: Array of durations for each file in order
+    ///   - completion: Optional callback when seek completes
+    func seekAcrossFiles(to absoluteTime: Double, fileDurations: [Double], completion: ((Bool) -> Void)? = nil) {
+        guard let queuePlayer = player as? AVQueuePlayer else {
+            // Fallback: single-file seek
+            seek(to: absoluteTime)
+            completion?(true)
+            return
+        }
+
+        guard !fileDurations.isEmpty else {
+            seek(to: absoluteTime)
+            completion?(true)
+            return
+        }
+
+        // Find which file contains the target time
+        var accumulated = 0.0
+        var targetFileIndex = 0
+        var offsetWithinFile = absoluteTime
+
+        for (index, fileDuration) in fileDurations.enumerated() {
+            if absoluteTime < accumulated + fileDuration {
+                targetFileIndex = index
+                offsetWithinFile = absoluteTime - accumulated
+                break
+            }
+            accumulated += fileDuration
+            // If we're past all files, seek to end of last file
+            if index == fileDurations.count - 1 {
+                targetFileIndex = index
+                offsetWithinFile = fileDuration
+            }
+        }
+
+        print("[AudioPlayer] seekAcrossFiles: absoluteTime=\(absoluteTime), targetFile=\(targetFileIndex), offsetInFile=\(offsetWithinFile)")
+
+        // Get current file index
+        guard let currentItem = queuePlayer.currentItem else {
+            completion?(false)
+            return
+        }
+
+        let currentIdentifier = ObjectIdentifier(currentItem)
+        let currentFileIndex = itemOrder[currentIdentifier] ?? 0
+
+        if currentFileIndex == targetFileIndex {
+            // Same file: just seek within current item
+            let cmTime = CMTime(seconds: offsetWithinFile, preferredTimescale: 600)
+            queuePlayer.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+                Task { @MainActor [weak self] in
+                    if finished {
+                        self?.currentTime = offsetWithinFile
+                    }
+                    completion?(finished)
+                }
+            }
+        } else if targetFileIndex > currentFileIndex {
+            // Need to advance to a later file - use advanceToNextItem until we reach target
+            // This requires rebuilding the queue or using a different approach
+            // For now, we'll reload with the target file's URL
+            loadFileAndSeek(at: targetFileIndex, seekTo: offsetWithinFile, completion: completion)
+        } else {
+            // Need to go backward - must reload from target file
+            loadFileAndSeek(at: targetFileIndex, seekTo: offsetWithinFile, completion: completion)
+        }
+    }
+
+    /// Load starting from a specific file index and seek to position
+    private func loadFileAndSeek(at fileIndex: Int, seekTo time: Double, completion: ((Bool) -> Void)?) {
+        guard fileIndex < activeURLs.count else {
+            completion?(false)
+            return
+        }
+
+        let wasPlaying = isPlaying
+        let urlsFromTarget = Array(activeURLs[fileIndex...])
+
+        // Tear down current player and rebuild from target file
+        tearDownPlayer()
+
+        // Restore activeURLs (they were cleared by tearDownPlayer)
+        let allURLs = activeURLs.isEmpty ? [] : activeURLs
+        guard !urlsFromTarget.isEmpty else {
+            completion?(false)
+            return
+        }
+
+        // Manually rebuild the queue starting from target file
+        itemURLMap = [:]
+        itemOrder = [:]
+        let items = urlsFromTarget.enumerated().map { offset, url -> AVPlayerItem in
+            let item = AVPlayerItem(url: url)
+            item.audioTimePitchAlgorithm = .timeDomain
+            let identifier = ObjectIdentifier(item)
+            itemURLMap[identifier] = url
+            itemOrder[identifier] = fileIndex + offset
+            return item
+        }
+
+        let player: AVPlayer
+        if items.count > 1 {
+            player = AVQueuePlayer(items: items)
+        } else {
+            player = AVPlayer(playerItem: items[0])
+        }
+        self.player = player
+        player.volume = Float(volume)
+        observeTimeControlStatus(for: player)
+        if let first = items.first {
+            observeStatus(for: first)
+            installErrorObservers(for: first)
+        }
+        installTimeObserver(on: player)
+        installEndObserver(for: player)
+
+        // Restore activeURLs and activeURL
+        // Note: We keep track of ALL URLs for multi-file duration calculations
+        // but the queue starts from targetFileIndex
+        if activeURLs.isEmpty {
+            activeURLs = urlsFromTarget
+        }
+        activeURL = urlsFromTarget.first
+
+        // Seek to target position within the first (target) file
+        let cmTime = CMTime(seconds: time, preferredTimescale: 600)
+        player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+            Task { @MainActor [weak self] in
+                guard let self else {
+                    completion?(false)
+                    return
+                }
+                self.currentTime = time
+                if wasPlaying {
+                    self.play()
+                }
+                completion?(finished)
+            }
+        }
     }
 
     func reset() {
@@ -155,6 +320,8 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         isReady = false
         activeURL = nil
         activeURLs = []
+        currentFileIndex = 0
+        fileDurations = nil
         isPlaybackRequested = false
         tearDownPlayer()
     }
@@ -393,6 +560,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         itemOrder = [:]
         activeURL = nil
         activeURLs = []
+        currentFileIndex = 0
     }
 
     private func updateActiveURL() {
@@ -401,6 +569,9 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         guard let url = itemURLMap[identifier] else { return }
         if activeURL != url {
             activeURL = url
+        }
+        if let index = itemOrder[identifier], currentFileIndex != index {
+            currentFileIndex = index
         }
     }
 }
