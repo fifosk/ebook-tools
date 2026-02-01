@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react';
-import type { CSSProperties, Ref, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, Ref, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../../constants/languageCodes';
 import { normalizeLanguageLabel } from '../../utils/languages';
+import { parseLinguistLookupResult, type LinguistLookupResult } from '../../utils/myLinguistPrompt';
 import EmojiIcon from '../EmojiIcon';
 import type { LinguistBubbleFloatingPlacement, LinguistBubbleState } from './types';
 import { containsNonLatinLetters, renderWithNonLatinBoost } from './utils';
@@ -188,6 +189,106 @@ export function MyLinguistBubble({
     return voice;
   }, []);
 
+  // Parse JSON response if available
+  const parsedResult = useMemo((): LinguistLookupResult | null => {
+    if (bubble.status !== 'ready' || !bubble.answer) {
+      return null;
+    }
+    return parseLinguistLookupResult(bubble.answer);
+  }, [bubble.status, bubble.answer]);
+
+  // Render structured content from parsed JSON
+  const renderStructuredContent = useCallback((result: LinguistLookupResult): ReactNode => {
+    const items: ReactNode[] = [];
+
+    // Definition (always shown)
+    items.push(
+      <div key="definition" className="player-panel__my-linguist-structured-definition">
+        {renderWithNonLatinBoost(result.definition, 'player-panel__my-linguist-bubble-non-latin')}
+      </div>
+    );
+
+    // Part of speech & pronunciation
+    if (result.part_of_speech || result.pronunciation) {
+      const parts: string[] = [];
+      if (result.part_of_speech) {
+        parts.push(result.part_of_speech);
+      }
+      if (result.pronunciation) {
+        parts.push(`[${result.pronunciation}]`);
+      }
+      items.push(
+        <div key="pos" className="player-panel__my-linguist-structured-meta">
+          • {parts.join(' ')}
+        </div>
+      );
+    }
+
+    // Etymology
+    if (result.etymology) {
+      items.push(
+        <div key="etymology" className="player-panel__my-linguist-structured-etymology">
+          ⟶ {renderWithNonLatinBoost(result.etymology, 'player-panel__my-linguist-bubble-non-latin')}
+        </div>
+      );
+    }
+
+    // Example
+    if (result.example) {
+      items.push(
+        <div key="example" className="player-panel__my-linguist-structured-example">
+          <div className="player-panel__my-linguist-structured-example-text">
+            „ {renderWithNonLatinBoost(result.example, 'player-panel__my-linguist-bubble-non-latin')}
+            {result.example_transliteration ? (
+              <span className="player-panel__my-linguist-structured-example-translit">
+                {' '}({result.example_transliteration})
+              </span>
+            ) : null}
+          </div>
+          {result.example_translation ? (
+            <div className="player-panel__my-linguist-structured-example-translation">
+              → {result.example_translation}
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    // Idioms (for sentences)
+    if (result.idioms && result.idioms.length > 0) {
+      items.push(
+        <div key="idioms" className="player-panel__my-linguist-structured-section">
+          <div className="player-panel__my-linguist-structured-section-title">Idioms:</div>
+          {result.idioms.map((idiom, idx) => (
+            <div key={idx} className="player-panel__my-linguist-structured-list-item">
+              • {renderWithNonLatinBoost(idiom, 'player-panel__my-linguist-bubble-non-latin')}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Related languages
+    if (result.related_languages && result.related_languages.length > 0) {
+      items.push(
+        <div key="related" className="player-panel__my-linguist-structured-section">
+          <div className="player-panel__my-linguist-structured-section-title">Related:</div>
+          {result.related_languages.map((lang, idx) => (
+            <div key={idx} className="player-panel__my-linguist-structured-list-item">
+              • {lang.language}:{' '}
+              <span className="player-panel__my-linguist-structured-related-word">
+                {renderWithNonLatinBoost(lang.word, 'player-panel__my-linguist-bubble-non-latin')}
+              </span>
+              {lang.transliteration ? ` (${lang.transliteration})` : null}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return <div className="player-panel__my-linguist-structured-content">{items}</div>;
+  }, []);
+
   return (
     <div
       ref={bubbleRef}
@@ -368,10 +469,12 @@ export function MyLinguistBubble({
         {bubble.query}
       </div>
       <div className="player-panel__my-linguist-bubble-body">
-        {renderWithNonLatinBoost(
-          bubble.answer,
-          'player-panel__my-linguist-bubble-non-latin',
-        )}
+        {parsedResult
+          ? renderStructuredContent(parsedResult)
+          : renderWithNonLatinBoost(
+              bubble.answer,
+              'player-panel__my-linguist-bubble-non-latin',
+            )}
       </div>
       {variant === 'floating' ? (
         <div

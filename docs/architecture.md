@@ -191,3 +191,65 @@ duration while maintaining monotonic progression.
 4. `modules/webapi/routes/media_routes.py` still exposes `/api/jobs/{job_id}/timing` when historical aggregates exist; otherwise the frontend leans entirely on chunk metadata.
 5. `web/src/components/InteractiveTextViewer.tsx` hydrates chunk metadata lazily, updates `timingStore` when a timing payload is available, and keeps highlights in sync with audio playback.
 6. `scripts/validate_word_timing.py` (referenced by CI) now only applies to legacy aggregates; new QA tooling should read per-chunk payloads directly.
+
+### MyLinguist Dictionary Assistant
+
+MyLinguist is a lightweight LLM-powered dictionary lookup feature available in
+both the web and iOS interactive readers. When a user taps or selects a word or
+phrase, a bubble displays the definition, etymology, pronunciation, and related
+language information.
+
+#### Architecture
+
+- **Backend**: `modules/services/assistant.py` provides `lookup_dictionary_entry()`
+  which wraps the configured LLM client with a specialised system prompt.
+- **API**: `POST /api/assistant/lookup` accepts query, input/lookup languages,
+  optional model override, and conversation history.
+- **Web UI**: `web/src/components/interactive-text/MyLinguistBubble.tsx` renders
+  the lookup bubble with structured JSON parsing.
+- **iOS**: `LinguistBubbleView.swift` displays lookups with tappable words for
+  nested dictionary access.
+
+#### JSON Response Format
+
+The system prompt instructs the LLM to return a structured JSON object:
+
+```json
+{
+  "type": "word" | "phrase" | "sentence",
+  "definition": "Main definition or meaning (required)",
+  "part_of_speech": "noun/verb/adj/etc or null",
+  "pronunciation": "IPA or common reading, or null",
+  "etymology": "Brief origin/root, or null if uncertain",
+  "example": "One short example usage, or null",
+  "idioms": ["List of idioms (sentence type only)", "or null"],
+  "related_languages": [
+    {"language": "Persian", "word": "کتاب", "transliteration": "ketāb"},
+    {"language": "Turkish", "word": "kitap", "transliteration": null}
+  ]
+}
+```
+
+Key fields:
+- `type`: Determines rendering style (word/phrase show related languages; sentences show idioms)
+- `definition`: Always required; the main meaning or paraphrase
+- `related_languages`: For words/phrases, shows 3 related languages with transliteration for non-Latin scripts
+- `idioms`: For sentences, highlights key idiomatic expressions
+
+Both web and iOS clients attempt to parse the JSON response. If parsing fails
+(e.g., older LLM responses or custom prompts), they fall back to plain text
+rendering with tappable words.
+
+#### Configuration
+
+- **LLM Model**: Selectable via bubble dropdown or `MY_LINGUIST_STORAGE_KEYS.llmModel`
+- **Lookup Language**: The language for definitions (stored per-user)
+- **TTS Voice**: Optional voice for pronunciation playback
+- **Custom Prompt**: Users can override the system prompt via settings
+
+#### iOS-specific Features
+
+- **Tappable Words**: Each word in the definition supports long-press context menu with "Look Up" (iOS dictionary) and "Copy"
+- **Text Sanitisation**: Quote characters are stripped from lookups to improve dictionary matching
+- **Split View**: iPad supports resizable split view with the bubble beside the transcript
+- **Keyboard Navigation**: iPad keyboard shortcuts for bubble control navigation

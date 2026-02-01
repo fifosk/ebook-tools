@@ -235,21 +235,28 @@ struct InteractiveTranscriptView: View {
 
             Group {
                 #if os(tvOS)
-                VStack(alignment: .leading, spacing: stackSpacing) {
+                // Use ZStack to allow bubble to overlay tracks when content is long
+                ZStack(alignment: .bottom) {
+                    // Tracks layer (always visible, behind bubble)
                     trackView
-                        .frame(maxWidth: .infinity, maxHeight: textHeight, alignment: .top)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                         .contentShape(Rectangle())
-                        .focusable(!isMenuVisible)
+                        .focusable(!isMenuVisible && bubble == nil)
                         .focused($focusedArea, equals: .transcript)
                         .focusEffectDisabled()
                         .onTapGesture {
-                            onLookup()
+                            if bubble != nil {
+                                onCloseBubble()
+                            } else {
+                                onLookup()
+                            }
                         }
                         .onLongPressGesture(minimumDuration: 0.6) {
                             onToggleHeader?()
                         }
                         .accessibilityAddTraits(.isButton)
 
+                    // Bubble layer (overlays tracks from bottom)
                     if let bubble {
                         MyLinguistBubbleView(
                             bubble: bubble,
@@ -270,13 +277,14 @@ struct InteractiveTranscriptView: View {
                             onClose: onCloseBubble,
                             isFocusEnabled: bubbleFocusEnabled,
                             focusBinding: $focusedArea,
-                            availableHeight: tvBubbleHeight,
+                            availableHeight: availableHeight * 0.85,
                             onPreviousToken: onBubblePreviousToken,
                             onNextToken: onBubbleNextToken
                         )
-                        .frame(maxWidth: .infinity, maxHeight: tvBubbleHeight, alignment: .bottom)
+                        // Let bubble size itself based on content, up to 85% of screen
+                        .frame(maxWidth: .infinity, maxHeight: availableHeight * 0.85, alignment: .bottom)
                         .padding(.horizontal, 36)
-                        .padding(.bottom, 12)
+                        .padding(.bottom, 24)
                         .background(GeometryReader { bubbleProxy in
                             Color.clear.preference(
                                 key: InteractiveBubbleHeightKey.self,

@@ -11,6 +11,7 @@
 - Word-level audio synchronization and highlighting
 - AI-generated sentence images via Stable Diffusion/Draw Things
 - Interactive web reader with real-time word highlighting
+- MyLinguist dictionary assistant (LLM-powered word/phrase lookup with structured JSON responses)
 - Full-featured REST API with SSE progress streaming
 - User authentication and role-based access control
 - iOS/tvOS companion apps

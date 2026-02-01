@@ -59,25 +59,27 @@ def _extract_gtts_language(identifier: str) -> str:
     return "en"
 
 
-def _analyse_voice_choice(voice: Optional[str]) -> Tuple[str, bool, Optional[str]]:
-    """Return ``(preference, force_gtts, explicit_voice)`` for ``voice``."""
+def _analyse_voice_choice(voice: Optional[str]) -> Tuple[str, bool, bool, Optional[str]]:
+    """Return ``(preference, force_gtts, force_piper, explicit_voice)`` for ``voice``."""
 
     if voice is None:
-        return "any", False, None
+        return "any", False, False, None
 
     normalized = voice.strip()
     lowered = normalized.lower()
 
     if lowered == "macos-auto-female":
-        return "female", False, None
+        return "female", False, False, None
     if lowered == "macos-auto-male":
-        return "male", False, None
+        return "male", False, False, None
     if lowered == "macos-auto":
-        return "any", False, None
+        return "any", False, False, None
     if lowered.startswith("gtts"):
-        return "any", True, None
+        return "any", True, False, None
+    if lowered in ("piper-auto", "piper-auto-male", "piper-auto-female"):
+        return "any", False, True, None
 
-    return "any", False, normalized
+    return "any", False, False, normalized
 
 
 def _voice_name_for_say(identifier: str) -> str:
@@ -221,32 +223,89 @@ def _is_piper_voice(voice: str) -> bool:
     return False
 
 
-def _resolve_voice(language: str, requested_voice: Optional[str]) -> Tuple[str, str]:
-    """Return ``(voice_identifier, engine)`` for the synthesis request."""
+def _resolve_piper_auto_voice(language: str) -> Optional[str]:
+    """Return Piper voice for language if available, preferring highest quality male voice."""
+    try:
+        from modules.audio.backends.piper import get_voice_for_language
 
-    # Check for Piper voice first
+        voice = get_voice_for_language(language)
+        return voice
+    except Exception:
+        return None
+
+
+def _resolve_voice(language: str, requested_voice: Optional[str]) -> Tuple[str, str]:
+    """Return ``(voice_identifier, engine)`` for the synthesis request.
+
+    Priority order for auto-selection:
+      1. gTTS auto (for the token's language)
+      2. Piper auto (fallback, prefer highest quality male voice)
+      3. macOS auto (final fallback)
+    """
+
+    # Check for explicit Piper voice first (but not piper-auto keywords)
     if requested_voice and _is_piper_voice(requested_voice):
+        lowered = requested_voice.lower()
+        # Handle piper-auto explicitly to resolve the actual voice name
+        if lowered in ("piper-auto", "piper", "piper-auto-male", "piper-auto-female"):
+            piper_voice = _resolve_piper_auto_voice(language)
+            if piper_voice:
+                return piper_voice, "piper"
+            # Fallback to gTTS if Piper not available
+            return _gtts_identifier(language), "gtts"
+        # It's an explicit Piper model name, use it directly
         return requested_voice, "piper"
 
-    preference, force_gtts, explicit_voice = _analyse_voice_choice(requested_voice)
-    selected_voice = select_voice(language, preference)
+    preference, force_gtts, force_piper, explicit_voice = _analyse_voice_choice(requested_voice)
 
-    if force_gtts:
-        selected_voice = _gtts_identifier(language)
-        engine = "gtts"
-    elif explicit_voice is not None:
-        selected_voice = explicit_voice
-        # Check if explicit voice is a Piper voice
-        if _is_piper_voice(selected_voice):
-            engine = "piper"
-        elif selected_voice.lower().startswith("gtts"):
-            engine = "gtts"
+    # Handle explicit voice request
+    if explicit_voice is not None:
+        if _is_piper_voice(explicit_voice):
+            return explicit_voice, "piper"
+        elif explicit_voice.lower().startswith("gtts"):
+            return explicit_voice, "gtts"
         else:
-            engine = "macos"
-    else:
-        engine = "gtts" if selected_voice.startswith("gTTS-") else "macos"
+            return explicit_voice, "macos"
 
-    return selected_voice, engine
+    # Handle forced gTTS
+    if force_gtts:
+        return _gtts_identifier(language), "gtts"
+
+    # Handle forced Piper auto (e.g., "piper-auto", "piper-auto-male")
+    if force_piper:
+        piper_voice = _resolve_piper_auto_voice(language)
+        if piper_voice:
+            return piper_voice, "piper"
+        # Fallback to gTTS if Piper not available for this language
+        return _gtts_identifier(language), "gtts"
+
+    # Auto-selection priority: gTTS -> Piper -> macOS
+    # First try gTTS (most widely available)
+    gtts_voice = _gtts_identifier(language)
+
+    # Check if gTTS supports this language
+    try:
+        from gtts.lang import tts_langs
+
+        available_langs = tts_langs()
+        lang_short = language.lower().split("-")[0].split("_")[0]
+        gtts_supported = lang_short in available_langs or language.lower() in available_langs
+    except Exception:
+        gtts_supported = True  # Assume supported if can't check
+
+    if gtts_supported:
+        return gtts_voice, "gtts"
+
+    # Try Piper auto next
+    piper_voice = _resolve_piper_auto_voice(language)
+    if piper_voice:
+        return piper_voice, "piper"
+
+    # Final fallback: macOS voice selection
+    selected_voice = select_voice(language, preference)
+    if selected_voice.startswith("gTTS-"):
+        return selected_voice, "gtts"
+    return selected_voice, "macos"
 
 
 def _load_gtts_languages() -> Tuple[Dict[str, str], ...]:

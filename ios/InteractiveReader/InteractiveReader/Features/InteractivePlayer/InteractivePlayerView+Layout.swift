@@ -110,8 +110,10 @@ extension InteractivePlayerView {
                 frozenTranscriptSentences = transcriptSentences(for: chunk)
                 frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
             }
-            // Update the shouldSkipTrack callback when track visibility changes
-            updateShouldSkipTrackCallback()
+            // Note: Text track visibility no longer affects audio playback.
+            // Audio track selection is controlled separately via the audio picker.
+            // This prevents counterintuitive behavior where hiding a text track
+            // would also skip its audio in combined/sequence mode.
         })
         view = AnyView(view.onChange(of: isMenuVisible) { _, visible in
             guard let chunk = viewModel.selectedChunk else { return }

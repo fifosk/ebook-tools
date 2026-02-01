@@ -168,6 +168,277 @@ struct WrappingHStack: Layout {
         return (CGSize(width: maxX, height: y + lineHeight), positions)
     }
 }
+
+// MARK: - Structured Linguist Content View
+
+/// View that renders a parsed LinguistLookupResult with proper formatting
+struct StructuredLinguistContentView: View {
+    let result: LinguistLookupResult
+    let font: Font
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Definition (always shown)
+            TappableWordText(text: result.definition, font: font, color: color)
+
+            // Part of speech & pronunciation
+            if let pos = result.partOfSpeech, !pos.isEmpty {
+                HStack(spacing: 4) {
+                    Text("•")
+                        .font(font)
+                        .foregroundStyle(color.opacity(0.6))
+                    Text(pos)
+                        .font(font)
+                        .italic()
+                        .foregroundStyle(color.opacity(0.8))
+                    if let pron = result.pronunciation, !pron.isEmpty {
+                        Text("[\(pron)]")
+                            .font(font)
+                            .foregroundStyle(color.opacity(0.7))
+                    }
+                }
+            } else if let pron = result.pronunciation, !pron.isEmpty {
+                HStack(spacing: 4) {
+                    Text("•")
+                        .font(font)
+                        .foregroundStyle(color.opacity(0.6))
+                    Text("[\(pron)]")
+                        .font(font)
+                        .foregroundStyle(color.opacity(0.7))
+                }
+            }
+
+            // Etymology
+            if let etymology = result.etymology, !etymology.isEmpty {
+                HStack(alignment: .top, spacing: 4) {
+                    Text("⟶")
+                        .font(font)
+                        .foregroundStyle(color.opacity(0.5))
+                    TappableWordText(text: etymology, font: font, color: color.opacity(0.85))
+                }
+            }
+
+            // Example
+            if let example = result.example, !example.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .top, spacing: 4) {
+                        Text("„")
+                            .font(font)
+                            .foregroundStyle(color.opacity(0.5))
+                        VStack(alignment: .leading, spacing: 2) {
+                            TappableWordText(text: example, font: font.italic(), color: color.opacity(0.85))
+                            if let translit = result.exampleTransliteration, !translit.isEmpty {
+                                Text("(\(translit))")
+                                    .font(font)
+                                    .foregroundStyle(color.opacity(0.6))
+                            }
+                        }
+                    }
+                    if let translation = result.exampleTranslation, !translation.isEmpty {
+                        HStack(alignment: .top, spacing: 4) {
+                            Text("→")
+                                .font(font)
+                                .foregroundStyle(color.opacity(0.5))
+                            TappableWordText(text: translation, font: font, color: color.opacity(0.75))
+                        }
+                    }
+                }
+            }
+
+            // Idioms (for sentences)
+            if let idioms = result.idioms, !idioms.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Idioms:")
+                        .font(font)
+                        .fontWeight(.medium)
+                        .foregroundStyle(color.opacity(0.7))
+                    ForEach(idioms, id: \.self) { idiom in
+                        HStack(alignment: .top, spacing: 4) {
+                            Text("•")
+                                .font(font)
+                                .foregroundStyle(color.opacity(0.5))
+                            TappableWordText(text: idiom, font: font, color: color.opacity(0.9))
+                        }
+                    }
+                }
+            }
+
+            // Related languages
+            if let related = result.relatedLanguages, !related.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Related:")
+                        .font(font)
+                        .fontWeight(.medium)
+                        .foregroundStyle(color.opacity(0.7))
+                    ForEach(related) { lang in
+                        HStack(spacing: 4) {
+                            Text("•")
+                                .font(font)
+                                .foregroundStyle(color.opacity(0.5))
+                            Text(lang.language + ":")
+                                .font(font)
+                                .foregroundStyle(color.opacity(0.7))
+                            Text(lang.word)
+                                .font(font)
+                                .foregroundStyle(color)
+                                .contextMenu {
+                                    let sanitized = TextLookupSanitizer.sanitize(lang.word)
+                                    Button("Look Up") {
+                                        DictionaryLookupPresenter.show(term: sanitized)
+                                    }
+                                    Button("Copy") {
+                                        UIPasteboard.general.string = sanitized
+                                    }
+                                }
+                            if let trans = lang.transliteration, !trans.isEmpty {
+                                Text("(\(trans))")
+                                    .font(font)
+                                    .foregroundStyle(color.opacity(0.7))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#endif
+
+#if os(tvOS)
+/// tvOS version of structured content view (no tappable words or context menus)
+struct StructuredLinguistContentView: View {
+    let result: LinguistLookupResult
+    let font: Font
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Definition (always shown)
+            Text(result.definition)
+                .font(font)
+                .foregroundStyle(color)
+
+            // Part of speech & pronunciation
+            if let pos = result.partOfSpeech, !pos.isEmpty {
+                HStack(spacing: 4) {
+                    Text("•")
+                        .font(font)
+                        .foregroundStyle(color.opacity(0.6))
+                    Text(pos)
+                        .font(font)
+                        .italic()
+                        .foregroundStyle(color.opacity(0.8))
+                    if let pron = result.pronunciation, !pron.isEmpty {
+                        Text("[\(pron)]")
+                            .font(font)
+                            .foregroundStyle(color.opacity(0.7))
+                    }
+                }
+            } else if let pron = result.pronunciation, !pron.isEmpty {
+                HStack(spacing: 4) {
+                    Text("•")
+                        .font(font)
+                        .foregroundStyle(color.opacity(0.6))
+                    Text("[\(pron)]")
+                        .font(font)
+                        .foregroundStyle(color.opacity(0.7))
+                }
+            }
+
+            // Etymology
+            if let etymology = result.etymology, !etymology.isEmpty {
+                HStack(alignment: .top, spacing: 4) {
+                    Text("⟶")
+                        .font(font)
+                        .foregroundStyle(color.opacity(0.5))
+                    Text(etymology)
+                        .font(font)
+                        .foregroundStyle(color.opacity(0.85))
+                }
+            }
+
+            // Example
+            if let example = result.example, !example.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .top, spacing: 4) {
+                        Text("„")
+                            .font(font)
+                            .foregroundStyle(color.opacity(0.5))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(example)
+                                .font(font.italic())
+                                .foregroundStyle(color.opacity(0.85))
+                            if let translit = result.exampleTransliteration, !translit.isEmpty {
+                                Text("(\(translit))")
+                                    .font(font)
+                                    .foregroundStyle(color.opacity(0.6))
+                            }
+                        }
+                    }
+                    if let translation = result.exampleTranslation, !translation.isEmpty {
+                        HStack(alignment: .top, spacing: 4) {
+                            Text("→")
+                                .font(font)
+                                .foregroundStyle(color.opacity(0.5))
+                            Text(translation)
+                                .font(font)
+                                .foregroundStyle(color.opacity(0.75))
+                        }
+                    }
+                }
+            }
+
+            // Idioms (for sentences)
+            if let idioms = result.idioms, !idioms.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Idioms:")
+                        .font(font)
+                        .fontWeight(.medium)
+                        .foregroundStyle(color.opacity(0.7))
+                    ForEach(idioms, id: \.self) { idiom in
+                        HStack(alignment: .top, spacing: 4) {
+                            Text("•")
+                                .font(font)
+                                .foregroundStyle(color.opacity(0.5))
+                            Text(idiom)
+                                .font(font)
+                                .foregroundStyle(color.opacity(0.9))
+                        }
+                    }
+                }
+            }
+
+            // Related languages
+            if let related = result.relatedLanguages, !related.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Related:")
+                        .font(font)
+                        .fontWeight(.medium)
+                        .foregroundStyle(color.opacity(0.7))
+                    ForEach(related) { lang in
+                        HStack(spacing: 4) {
+                            Text("•")
+                                .font(font)
+                                .foregroundStyle(color.opacity(0.5))
+                            Text(lang.language + ":")
+                                .font(font)
+                                .foregroundStyle(color.opacity(0.7))
+                            Text(lang.word)
+                                .font(font)
+                                .foregroundStyle(color)
+                            if let trans = lang.transliteration, !trans.isEmpty {
+                                Text("(\(trans))")
+                                    .font(font)
+                                    .foregroundStyle(color.opacity(0.7))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 #endif
 
 /// Preference key for measuring bubble content height (tvOS auto-scaling)
@@ -192,6 +463,12 @@ struct LinguistBubbleState: Equatable {
     let status: LinguistBubbleStatus
     let answer: String?
     let model: String?
+
+    /// Parsed structured result (if JSON parsing succeeded)
+    var parsedResult: LinguistLookupResult? {
+        guard let answer else { return nil }
+        return LinguistLookupResult.parse(from: answer)
+    }
 }
 
 /// Configuration for LinguistBubbleView appearance and behavior
@@ -302,8 +579,6 @@ enum iOSBubbleKeyboardControl: Int, CaseIterable {
     case language
     case voice
     case model
-    case decreaseFont
-    case increaseFont
     case close
 
     var next: iOSBubbleKeyboardControl {
@@ -439,8 +714,8 @@ struct LinguistBubbleView: View {
                 iOSActivePicker = .voice
             case .model:
                 iOSActivePicker = .model
-            case .decreaseFont, .increaseFont, .close:
-                // These are handled directly in handleBubbleKeyboardActivate
+            case .close:
+                // Close is handled directly in handleBubbleKeyboardActivate
                 break
             }
         }
@@ -611,18 +886,6 @@ struct LinguistBubbleView: View {
             lookupLanguageMenu
             voiceMenu
             modelMenu
-            fontSizeControls
-            if let onResetFont = actions.onResetFont {
-                Button(action: onResetFont) {
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(bubbleControlFont)
-                        .foregroundStyle(.white)
-                        .padding(bubbleControlPadding)
-                        .background(.black.opacity(0.3), in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Reset size")
-            }
             closeButton
         }
         #endif
@@ -638,17 +901,6 @@ struct LinguistBubbleView: View {
                     lookupLanguageMenu
                     voiceMenu
                     modelMenu
-                    fontSizeControls
-                    if let onResetFont = actions.onResetFont {
-                        Button(action: onResetFont) {
-                            Image(systemName: "arrow.counterclockwise")
-                                .font(bubbleControlFont)
-                                .padding(bubbleControlPadding)
-                                .background(.black.opacity(0.3), in: Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Reset size")
-                    }
                     Spacer()
                     closeButton
                 }
@@ -688,17 +940,6 @@ struct LinguistBubbleView: View {
                 lookupLanguageMenu
                 voiceMenu
                 modelMenu
-                fontSizeControls
-                if let onResetFont = actions.onResetFont {
-                    Button(action: onResetFont) {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(bubbleControlFont)
-                            .padding(bubbleControlPadding)
-                            .background(.black.opacity(0.3), in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Reset size")
-                }
                 layoutToggleButton
                 closeButton
             }
@@ -984,44 +1225,56 @@ struct LinguistBubbleView: View {
                 .foregroundStyle(.red)
         case .ready:
             if configuration.useCompactLayout {
-                #if os(iOS)
-                TappableWordText(
-                    text: state.answer ?? "",
-                    font: bodyFont,
-                    color: bubbleTextColor
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                #else
-                Text(state.answer ?? "")
-                    .font(bodyFont)
-                    .foregroundStyle(bubbleTextColor)
+                structuredOrFallbackContent
                     .frame(maxWidth: .infinity, alignment: .leading)
-                #endif
             } else {
                 ScrollView {
-                    #if os(iOS)
-                    TappableWordText(
-                        text: state.answer ?? "",
-                        font: bodyFont,
-                        color: bubbleTextColor
-                    )
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    #else
-                    Text(state.answer ?? "")
-                        .font(bodyFont)
-                        .foregroundStyle(bubbleTextColor)
+                    structuredOrFallbackContent
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    #endif
+                        #if os(tvOS)
+                        .padding(.bottom, 20) // Extra padding for scroll content
+                        #endif
                 }
+                #if os(tvOS)
+                .scrollIndicators(.visible)
+                .scrollBounceBehavior(.basedOnSize)
+                #endif
                 .frame(maxHeight: bubbleMaxHeight)
             }
         }
     }
 
-    // MARK: - Font Size Controls
+    #if os(iOS) || os(tvOS)
+    /// Renders structured JSON content if available, otherwise falls back to plain text
+    @ViewBuilder
+    private var structuredOrFallbackContent: some View {
+        if let parsed = state.parsedResult {
+            StructuredLinguistContentView(
+                result: parsed,
+                font: bodyFont,
+                color: bubbleTextColor
+            )
+        } else {
+            // Fallback to plain text
+            #if os(iOS)
+            TappableWordText(
+                text: state.answer ?? "",
+                font: bodyFont,
+                color: bubbleTextColor
+            )
+            #else
+            Text(state.answer ?? "")
+                .font(bodyFont)
+                .foregroundStyle(bubbleTextColor)
+            #endif
+        }
+    }
+    #endif
 
+    // MARK: - Font Size Controls (tvOS only, iOS uses pinch-to-resize)
+
+    #if os(tvOS)
     private var fontSizeControls: some View {
-        #if os(tvOS)
         HStack(spacing: 6) {
             bubbleControlItem(control: .decreaseFont, isEnabled: configuration.canDecreaseFont, action: actions.onDecreaseFont) {
                 Text("A-")
@@ -1030,43 +1283,8 @@ struct LinguistBubbleView: View {
                 Text("A+")
             }
         }
-        #else
-        HStack(spacing: 4) {
-            Button(action: actions.onDecreaseFont) {
-                Text("A-")
-                    .font(bubbleControlFont)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, bubbleControlPadding)
-                    .padding(.vertical, bubbleControlPadding * 0.7)
-                    .background(.black.opacity(0.3), in: Capsule())
-                    .overlay(
-                        Capsule().stroke(
-                            isControlKeyboardFocused(.decreaseFont) ? keyboardFocusBorderColor : Color.clear,
-                            lineWidth: isControlKeyboardFocused(.decreaseFont) ? keyboardFocusBorderWidth : 0
-                        )
-                    )
-            }
-            .buttonStyle(.plain)
-            .disabled(!configuration.canDecreaseFont)
-            Button(action: actions.onIncreaseFont) {
-                Text("A+")
-                    .font(bubbleControlFont)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, bubbleControlPadding)
-                    .padding(.vertical, bubbleControlPadding * 0.7)
-                    .background(.black.opacity(0.3), in: Capsule())
-                    .overlay(
-                        Capsule().stroke(
-                            isControlKeyboardFocused(.increaseFont) ? keyboardFocusBorderColor : Color.clear,
-                            lineWidth: isControlKeyboardFocused(.increaseFont) ? keyboardFocusBorderWidth : 0
-                        )
-                    )
-            }
-            .buttonStyle(.plain)
-            .disabled(!configuration.canIncreaseFont)
-        }
-        #endif
     }
+    #endif
 
     // MARK: - Close Button
 
@@ -1594,12 +1812,27 @@ struct LinguistBubbleView: View {
     }
 
     private var bubbleMaxHeight: CGFloat {
-        if let maxHeight = configuration.maxContentHeight {
-            return maxHeight
-        }
+        // Account for header row (~50pt on tvOS) + padding (24pt total) + spacing (10pt)
+        // when calculating available height for the scroll content
+        let headerAndPaddingHeight: CGFloat = {
+            #if os(tvOS)
+            return 100 // header row height (~60) + padding (12*2) + spacing (10) + margin
+            #else
+            return 60 // smaller on iOS
+            #endif
+        }()
+
         #if os(tvOS)
-        return UIScreen.main.bounds.height * 0.5
+        // On tvOS, use availableHeight from configuration if provided
+        if let availableHeight = configuration.availableHeight {
+            return max(availableHeight - headerAndPaddingHeight, 100)
+        }
+        return UIScreen.main.bounds.height * 0.7 // Allow larger bubbles on tvOS
         #else
+        if let maxHeight = configuration.maxContentHeight {
+            // Subtract header/padding space from total to get scroll content height
+            return max(maxHeight - headerAndPaddingHeight, 80)
+        }
         return 180
         #endif
     }

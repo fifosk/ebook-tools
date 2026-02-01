@@ -22,197 +22,305 @@ quality_preference:
 # Speed multipliers to normalize speech rates across languages
 # Some Piper voices speak slower/faster than others by default.
 # Multiplier > 1.0 = speak faster, < 1.0 = speak slower
-# These values are tuned to make different languages sound similar pace.
+# These values are calibrated by testing against English baseline (17.6 chars/sec).
+# Last calibrated: 2026-02-01
 speed_multipliers:
-  ar: 1.8    # Arabic voices speak ~1.8x slower than English baseline
-  zh: 1.3    # Chinese voices slightly slower
-  fa: 1.6    # Persian voices slower (uses Arabic fallback)
-  he: 1.5    # Hebrew slower
-  hi: 1.2    # Hindi/Nepali fallback
-  ne: 1.2    # Nepali
-  ru: 1.1    # Russian slightly slower
-  uk: 1.1    # Ukrainian
-  # Most European languages are close to baseline (1.0)
+  # Very slow voices (>1.5x slower than English)
+  zh: 3.6    # Chinese - 5.0 chars/sec (character-based language)
+  ar: 2.1    # Arabic - 8.3 chars/sec
+  sr: 2.1    # Serbian - 8.5 chars/sec
+  hi: 1.9    # Hindi - 9.2 chars/sec
+  cs: 1.7    # Czech - 10.7 chars/sec
+  fi: 1.7    # Finnish - 10.2 chars/sec
+
+  # Moderately slow voices (1.3-1.5x slower)
+  fa: 1.5    # Persian - 11.8 chars/sec
+  ml: 1.5    # Malayalam - 12.1 chars/sec
+  bg: 1.4    # Bulgarian - 13.0 chars/sec
+  id: 1.4    # Indonesian - 12.6 chars/sec
+  ka: 1.4    # Georgian - 12.3 chars/sec
+  ne: 1.4    # Nepali - 12.2 chars/sec
+  cy: 1.3    # Welsh - 13.1 chars/sec
+  lv: 1.3    # Latvian - 13.4 chars/sec
+  pl: 1.3    # Polish - 13.9 chars/sec
+  sw: 1.3    # Swahili - 13.3 chars/sec
+  te: 1.3    # Telugu - 14.0 chars/sec
+  tr: 1.2    # Turkish - fahrettin 15.2 chars/sec (primary voice)
+
+  # Slightly slow voices (1.2x slower)
+  ca: 1.2    # Catalan - 15.1 chars/sec
+  es: 1.2    # Spanish - 14.2 chars/sec
+  hu: 1.2    # Hungarian - 14.9 chars/sec
+  it: 1.2    # Italian - 15.2 chars/sec
+  ro: 1.2    # Romanian - 15.1 chars/sec
+  sl: 1.2    # Slovenian - 15.0 chars/sec
+  sv: 1.2    # Swedish - 14.2 chars/sec
+
+  # Fast voice (needs slowdown)
+  lb: 0.8    # Luxembourgish - 21.5 chars/sec
+
+  # Languages close to English baseline (no multiplier needed):
+  # da, de, el, en, fr, is, kk, nl, pt, ru, sk, uk, vi
 
 # Language to voice mappings
 # Multiple voices per language supported; first available is used
+# Voice preference: highest quality male voices first, then female voices
 voices:
-  # English
+  # English (extensive voice collection)
   en:
-    - en_US-lessac-medium
-    - en_US-lessac-high
-    - en_US-amy-medium
-    - en_US-libritts-high
-    - en_GB-alba-medium
-    - en_GB-jenny_dioco-medium
-    - en_GB-cori-medium
+    - en_US-lessac-high       # Male, high quality
+    - en_US-ryan-high         # Male, high quality
+    - en_US-ljspeech-high     # Female, high quality
+    - en_GB-cori-high         # Female, high quality
+    - en_US-lessac-medium     # Male, medium quality
+    - en_US-libritts-high     # Male, high quality
+    - en_US-ryan-medium       # Male, medium quality
+    - en_US-joe-medium        # Male
+    - en_US-john-medium       # Male
+    - en_US-bryce-medium      # Male
+    - en_US-kusal-medium      # Male
+    - en_US-norman-medium     # Male
+    - en_US-sam-medium        # Male
+    - en_GB-alan-medium       # Male
+    - en_GB-northern_english_male-medium  # Male
+    - en_US-amy-medium        # Female, medium quality
+    - en_US-kristin-medium    # Female
+    - en_US-hfc_female-medium # Female
+    - en_US-hfc_male-medium   # Male
+    - en_GB-alba-medium       # Female
+    - en_GB-jenny_dioco-medium  # Female
+    - en_GB-cori-medium       # Female
+    - en_GB-aru-medium        # Mixed
+    - en_GB-semaine-medium    # Mixed
+    - en_GB-vctk-medium       # Mixed multi-speaker
+    - en_US-arctic-medium     # Mixed multi-speaker
+    - en_US-l2arctic-medium   # Non-native speakers
+    - en_US-libritts_r-medium # LibriTTS-R
 
-  # Arabic
+  # Arabic (kareem is male)
   ar:
-    - ar_JO-kareem-medium
-    - ar_JO-kareem-low
+    - ar_JO-kareem-medium     # Male, medium quality
+    - ar_JO-kareem-low        # Male, low quality
 
-  # Bulgarian
+  # Bulgarian (dimitar is male)
   bg:
-    - bg_BG-georgi-medium
+    - bg_BG-dimitar-medium    # Male
 
-  # Catalan
+  # Catalan (pau is male, ona is female)
   ca:
-    - ca_ES-upc_ona-medium
-    - ca_ES-upc_pau-x_low
+    - ca_ES-upc_pau-x_low     # Male
+    - ca_ES-upc_ona-medium    # Female
 
-  # Czech
+  # Czech (jirka is male)
   cs:
-    - cs_CZ-jirka-medium
-    - cs_CZ-jirka-low
+    - cs_CZ-jirka-medium      # Male
+    - cs_CZ-jirka-low         # Male
+
+  # Welsh (gwryw_gogleddol is male; bu_tts is mixed)
+  cy:
+    - cy_GB-gwryw_gogleddol-medium  # Male
+    - cy_GB-bu_tts-medium           # Mixed
 
   # Danish
   da:
     - da_DK-talesyntese-medium
 
-  # German
+  # German (thorsten, karlsson, pavoque are male; eva_k, kerstin, ramona are female)
   de:
-    - de_DE-thorsten-medium
-    - de_DE-thorsten-high
-    - de_DE-thorsten_emotional-medium
-    - de_DE-eva_k-x_low
-    - de_DE-karlsson-low
+    - de_DE-thorsten-high            # Male, high quality
+    - de_DE-thorsten-medium          # Male, medium quality
+    - de_DE-thorsten_emotional-medium  # Male
+    - de_DE-mls-medium               # Mixed
+    - de_DE-karlsson-low             # Male
+    - de_DE-pavoque-low              # Male
+    - de_DE-kerstin-low              # Female
+    - de_DE-ramona-low               # Female
+    - de_DE-eva_k-x_low              # Female
 
-  # Greek
+  # Greek (rapunzelina is female)
   el:
-    - el_GR-rapunzelina-low
+    - el_GR-rapunzelina-medium  # Female
+    - el_GR-rapunzelina-low     # Female
 
-  # Spanish
+  # Spanish (davefx, carlfm, ald are male; daniela is female; claude is high quality)
   es:
-    - es_ES-davefx-medium
-    - es_ES-carlfm-x_low
-    - es_MX-ald-medium
+    - es_MX-claude-high       # High quality
+    - es_AR-daniela-high      # Female, high quality
+    - es_ES-davefx-medium     # Male, medium quality
+    - es_MX-ald-medium        # Male
+    - es_ES-sharvard-medium   # Mixed
+    - es_ES-carlfm-x_low      # Male
 
-  # Finnish
+  # Persian/Farsi (amir, ganji, gyro are male)
+  fa:
+    - fa_IR-amir-medium       # Male
+    - fa_IR-ganji-medium      # Male
+    - fa_IR-ganji_adabi-medium # Male, formal style
+    - fa_IR-gyro-medium       # Male
+    - fa_IR-reza_ibrahim-medium # Male
+
+  # Finnish (harri is male)
   fi:
-    - fi_FI-harri-medium
-    - fi_FI-harri-low
+    - fi_FI-harri-medium      # Male
+    - fi_FI-harri-low         # Male
 
-  # French
+  # French (gilles, tom are male; siwis is female; upmc, mls mixed)
   fr:
-    - fr_FR-siwis-medium
-    - fr_FR-siwis-low
-    - fr_FR-gilles-low
-    - fr_FR-mls-medium
+    - fr_FR-gilles-low        # Male
+    - fr_FR-tom-medium        # Male
+    - fr_FR-mls-medium        # Mixed
+    - fr_FR-upmc-medium       # Mixed
+    - fr_FR-siwis-medium      # Female
+    - fr_FR-siwis-low         # Female
+
+  # Hindi (rohan, pratham are male; priyamvada is female)
+  hi:
+    - hi_IN-rohan-medium      # Male
+    - hi_IN-pratham-medium    # Male
+    - hi_IN-priyamvada-medium # Female
 
   # Georgian
   ka:
     - ka_GE-natia-medium
 
-  # Hungarian
+  # Hungarian (imre is male; anna, berta are female)
   hu:
-    - hu_HU-anna-medium
-    - hu_HU-berta-medium
-    - hu_HU-imre-medium
+    - hu_HU-imre-medium       # Male
+    - hu_HU-anna-medium       # Female
+    - hu_HU-berta-medium      # Female
 
-  # Icelandic
+  # Indonesian
+  id:
+    - id_ID-news_tts-medium
+
+  # Icelandic (bui, steinn are male; salka, ugla are female)
   is:
-    - is_IS-bui-medium
-    - is_IS-salka-medium
-    - is_IS-steinn-medium
-    - is_IS-ugla-medium
+    - is_IS-bui-medium        # Male
+    - is_IS-steinn-medium     # Male
+    - is_IS-salka-medium      # Female
+    - is_IS-ugla-medium       # Female
 
-  # Italian
+  # Italian (riccardo is male; paola is female)
   it:
-    - it_IT-riccardo-x_low
-    - it_IT-paola-medium
+    - it_IT-riccardo-x_low    # Male
+    - it_IT-paola-medium      # Female
 
-  # Kazakh
+  # Kazakh (issai, iseke are male; raya is female)
   kk:
-    - kk_KZ-iseke-x_low
-    - kk_KZ-issai-high
-    - kk_KZ-raya-x_low
+    - kk_KZ-issai-high        # Male, high quality
+    - kk_KZ-iseke-x_low       # Male
+    - kk_KZ-raya-x_low        # Female
 
   # Luxembourgish
   lb:
     - lb_LU-marylux-medium
 
-  # Nepali
+  # Latvian (aivars is male)
+  lv:
+    - lv_LV-aivars-medium     # Male
+
+  # Malayalam (arjun is male; meera is female)
+  ml:
+    - ml_IN-arjun-medium      # Male
+    - ml_IN-meera-medium      # Female
+
+  # Nepali (chitwan is male)
   ne:
+    - ne_NP-chitwan-medium    # Male
     - ne_NP-google-medium
     - ne_NP-google-x_low
 
-  # Dutch
+  # Dutch (rdh, mls, pim, ronnie are male; nathalie is female)
   nl:
-    - nl_NL-mls-medium
-    - nl_NL-mls_5809-low
-    - nl_NL-mls_7432-low
-    - nl_BE-nathalie-medium
-    - nl_BE-nathalie-x_low
-    - nl_BE-rdh-medium
-    - nl_BE-rdh-x_low
+    - nl_BE-rdh-medium        # Male
+    - nl_BE-rdh-x_low         # Male
+    - nl_NL-mls-medium        # Male
+    - nl_NL-pim-medium        # Male
+    - nl_NL-ronnie-medium     # Male
+    - nl_NL-mls_5809-low      # Male
+    - nl_NL-mls_7432-low      # Male
+    - nl_BE-nathalie-medium   # Female
+    - nl_BE-nathalie-x_low    # Female
 
   # Norwegian
   no:
     - no_NO-talesyntese-medium
 
-  # Polish
+  # Polish (darkman, mc_speech are male; gosia is female)
   pl:
-    - pl_PL-gosia-medium
-    - pl_PL-darkman-medium
-    - pl_PL-mc_speech-medium
+    - pl_PL-darkman-medium    # Male
+    - pl_PL-mc_speech-medium  # Male
+    - pl_PL-gosia-medium      # Female
 
-  # Portuguese
+  # Portuguese (faber, cadu, jeff, edresson are male; tugão is male)
   pt:
-    - pt_BR-edresson-low
-    - pt_BR-faber-medium
-    - pt_PT-tugao-medium
+    - pt_BR-faber-medium      # Male, medium quality
+    - pt_BR-cadu-medium       # Male
+    - pt_BR-jeff-medium       # Male
+    - pt_PT-tugão-medium      # Male
+    - pt_BR-edresson-low      # Male
 
-  # Romanian
+  # Romanian (mihai is male)
   ro:
-    - ro_RO-mihai-medium
+    - ro_RO-mihai-medium      # Male
 
-  # Russian
+  # Russian (ruslan, dmitri, denis are male; irina is female)
   ru:
-    - ru_RU-ruslan-medium
-    - ru_RU-dmitri-medium
-    - ru_RU-irina-medium
-    - ru_RU-denis-medium
+    - ru_RU-ruslan-medium     # Male
+    - ru_RU-dmitri-medium     # Male
+    - ru_RU-denis-medium      # Male
+    - ru_RU-irina-medium      # Female
 
-  # Slovak
+  # Slovak (lili is female - no male voice available)
   sk:
-    - sk_SK-lili-medium
+    - sk_SK-lili-medium       # Female
 
-  # Slovenian
+  # Slovenian (artur is male)
   sl:
-    - sl_SI-artur-medium
+    - sl_SI-artur-medium      # Male
 
   # Serbian
   sr:
     - sr_RS-serbski_institut-medium
 
-  # Swedish
+  # Swedish (lisa is female)
   sv:
     - sv_SE-nst-medium
+    - sv_SE-lisa-medium       # Female
 
   # Swahili
   sw:
     - sw_CD-lanfrica-medium
 
-  # Turkish
+  # Telugu (venkatesh is male; maya, padmavathi are female)
+  te:
+    - te_IN-venkatesh-medium  # Male
+    - te_IN-maya-medium       # Female
+    - te_IN-padmavathi-medium # Female
+
+  # Turkish (fahrettin, fettah are male; dfki is mixed)
+  # Note: fahrettin/fettah were removed from official repo Dec 2025, restored from archive
   tr:
-    - tr_TR-dfki-medium
-    - tr_TR-fahrettin-medium
-    - tr_TR-fettah-medium
+    - tr_TR-fahrettin-medium  # Male
+    - tr_TR-fettah-medium     # Male
+    - tr_TR-dfki-medium       # Mixed quality
 
-  # Ukrainian
+  # Ukrainian (ukrainian_tts is male; lada is female)
   uk:
-    - uk_UA-ukrainian_tts-medium
-    - uk_UA-lada-x_low
+    - uk_UA-ukrainian_tts-medium  # Male
+    - uk_UA-lada-x_low            # Female
 
-  # Vietnamese
+  # Vietnamese (vais1000 is medium quality)
   vi:
+    - vi_VN-vais1000-medium   # Medium quality
     - vi_VN-vivos-x_low
     - vi_VN-25hours_single-low
 
-  # Chinese (Simplified)
+  # Chinese (Simplified) - chaowen, xiao_ya are additional voices
   zh:
     - zh_CN-huayan-medium
+    - zh_CN-chaowen-medium
+    - zh_CN-xiao_ya-medium
     - zh_CN-huayan-x_low
 
 # Fallback mapping for languages without direct Piper support
@@ -230,18 +338,15 @@ fallbacks:
   bs: sr      # Bosnian -> Serbian
   hr: sl      # Croatian -> Slovenian
 
-  # South Asian languages -> Nepali (closest available)
-  hi: ne      # Hindi -> Nepali
-  bn: ne      # Bengali -> Nepali
-  ta: ne      # Tamil -> Nepali
-  te: ne      # Telugu -> Nepali
-  mr: ne      # Marathi -> Nepali
-  gu: ne      # Gujarati -> Nepali
-  pa: ne      # Punjabi -> Nepali
-  ur: ne      # Urdu -> Nepali
+  # South Asian languages fallbacks (hi, te, ml now have direct support)
+  bn: hi      # Bengali -> Hindi
+  ta: hi      # Tamil -> Hindi
+  mr: hi      # Marathi -> Hindi
+  gu: hi      # Gujarati -> Hindi
+  pa: hi      # Punjabi -> Hindi
+  ur: hi      # Urdu -> Hindi
 
-  # Middle Eastern / Semitic
-  fa: ar      # Persian/Farsi -> Arabic
+  # Middle Eastern / Semitic (fa now has direct support)
   he: ar      # Hebrew -> Arabic (limited similarity)
 
   # East Asian (limited fallback)
@@ -256,14 +361,12 @@ fallbacks:
   af: nl      # Afrikaans -> Dutch
   fy: nl      # Frisian -> Dutch
 
-  # Baltic
-  lt: pl      # Lithuanian -> Polish
-  lv: pl      # Latvian -> Polish
+  # Baltic (lv now has direct support)
+  lt: lv      # Lithuanian -> Latvian
 
-  # Celtic languages -> English (no Celtic support)
-  ga: en      # Irish -> English
-  cy: en      # Welsh -> English
-  gd: en      # Scottish Gaelic -> English
+  # Celtic languages (cy now has direct support)
+  ga: cy      # Irish -> Welsh
+  gd: cy      # Scottish Gaelic -> Welsh
 
   # Romani -> Slovak (regional proximity)
   rom: sk

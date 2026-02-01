@@ -90,19 +90,26 @@ class AudioTrackMetadata(BaseModel):
 class PipelineMediaChunk(BaseModel):
     """Groups media files produced for a specific chunk."""
 
-    chunk_id: Optional[str] = None
-    range_fragment: Optional[str] = None
-    start_sentence: Optional[int] = None
-    end_sentence: Optional[int] = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    chunk_id: Optional[str] = Field(default=None, serialization_alias="chunkId")
+    range_fragment: Optional[str] = Field(default=None, serialization_alias="rangeFragment")
+    start_sentence: Optional[int] = Field(default=None, serialization_alias="startSentence")
+    end_sentence: Optional[int] = Field(default=None, serialization_alias="endSentence")
     files: List[PipelineMediaFile] = Field(default_factory=list)
     sentences: List[ChunkSentenceMetadata] = Field(default_factory=list)
-    metadata_path: Optional[str] = None
-    metadata_url: Optional[str] = None
-    sentence_count: Optional[int] = None
-    audio_tracks: Dict[str, AudioTrackMetadata] = Field(default_factory=dict)
-    timing_tracks: Optional[Dict[str, List[Dict[str, Any]]]] = Field(default=None)
+    metadata_path: Optional[str] = Field(default=None, serialization_alias="metadataPath")
+    metadata_url: Optional[str] = Field(default=None, serialization_alias="metadataUrl")
+    sentence_count: Optional[int] = Field(default=None, serialization_alias="sentenceCount")
+    audio_tracks: Dict[str, AudioTrackMetadata] = Field(
+        default_factory=dict, serialization_alias="audioTracks"
+    )
+    timing_tracks: Optional[Dict[str, List[Dict[str, Any]]]] = Field(
+        default=None, serialization_alias="timingTracks"
+    )
     timing_version: Optional[str] = Field(
         default=None,
+        serialization_alias="timingVersion",
         description="Timing data version. '2' means pre-scaled timing from backend.",
     )
 

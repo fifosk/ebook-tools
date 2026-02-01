@@ -56,6 +56,69 @@ struct AssistantLookupResponse: Decodable {
     let source: String?
 }
 
+// MARK: - Structured Linguist Response
+
+enum LinguistLookupType: String, Decodable {
+    case word
+    case phrase
+    case sentence
+}
+
+struct LinguistRelatedLanguage: Decodable, Identifiable {
+    let language: String
+    let word: String
+    let transliteration: String?
+
+    var id: String { "\(language)-\(word)" }
+}
+
+struct LinguistLookupResult: Decodable {
+    let type: LinguistLookupType
+    let definition: String
+    let partOfSpeech: String?
+    let pronunciation: String?
+    let etymology: String?
+    let example: String?
+    let exampleTranslation: String?
+    let exampleTransliteration: String?
+    let idioms: [String]?
+    let relatedLanguages: [LinguistRelatedLanguage]?
+
+    enum CodingKeys: String, CodingKey {
+        case type, definition, pronunciation, etymology, example, idioms
+        case partOfSpeech = "part_of_speech"
+        case exampleTranslation = "example_translation"
+        case exampleTransliteration = "example_transliteration"
+        case relatedLanguages = "related_languages"
+    }
+
+    /// Attempt to parse a JSON response from the LLM answer string.
+    /// Returns nil if the answer is not valid JSON or doesn't match the expected structure.
+    static func parse(from answer: String) -> LinguistLookupResult? {
+        // Try to extract JSON from the answer (LLM might include extra text)
+        let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Find JSON object bounds
+        guard let startIndex = trimmed.firstIndex(of: "{"),
+              let endIndex = trimmed.lastIndex(of: "}") else {
+            return nil
+        }
+
+        let jsonString = String(trimmed[startIndex...endIndex])
+        guard let data = jsonString.data(using: .utf8) else {
+            return nil
+        }
+
+        do {
+            let decoder = JSONDecoder()
+            return try decoder.decode(LinguistLookupResult.self, from: data)
+        } catch {
+            print("LinguistLookupResult parse error: \(error)")
+            return nil
+        }
+    }
+}
+
 struct LLMModelListResponse: Decodable {
     let models: [String]
 }

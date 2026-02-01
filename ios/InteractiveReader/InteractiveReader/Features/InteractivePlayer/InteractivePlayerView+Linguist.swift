@@ -9,10 +9,6 @@ extension InteractivePlayerView {
         case .language, .voice, .model:
             // Trigger activation in the bubble view via the navigator
             bubbleKeyboardNavigator.activateCurrentControl()
-        case .decreaseFont:
-            adjustLinguistFontScale(by: -linguistFontScaleStep)
-        case .increaseFont:
-            adjustLinguistFontScale(by: linguistFontScaleStep)
         case .close:
             closeLinguistBubble()
             bubbleKeyboardNavigator.exitFocus()
@@ -250,10 +246,30 @@ extension InteractivePlayerView {
         var result: [String] = []
         var seen = Set<String>()
 
-        // Add stored voice first if it exists
-        if !storedTtsVoice.isEmpty {
+        // Add auto options at the top (priority order: gTTS -> Piper -> macOS)
+        let autoOptions = ["gTTS", "piper-auto", "macOS-auto"]
+        for opt in autoOptions {
+            seen.insert(opt.lowercased())
+            result.append(opt)
+        }
+
+        // Add stored voice if it exists and is not an auto option
+        if !storedTtsVoice.isEmpty && !seen.contains(storedTtsVoice.lowercased()) {
             seen.insert(storedTtsVoice.lowercased())
             result.append(storedTtsVoice)
+        }
+
+        // Add gTTS option for the language (specific language variant)
+        for entry in inventory.gtts {
+            let entryLang = entry.code.lowercased().split(separator: "-").first.map(String.init) ?? ""
+            if entryLang == baseLang {
+                let identifier = "gTTS-\(entryLang)"
+                if !seen.contains(identifier.lowercased()) {
+                    seen.insert(identifier.lowercased())
+                    result.append(identifier)
+                }
+                break
+            }
         }
 
         // Add Piper voices matching the language
@@ -276,19 +292,6 @@ extension InteractivePlayerView {
                     seen.insert(identifier.lowercased())
                     result.append(identifier)
                 }
-            }
-        }
-
-        // Add gTTS option for the language
-        for entry in inventory.gtts {
-            let entryLang = entry.code.lowercased().split(separator: "-").first.map(String.init) ?? ""
-            if entryLang == baseLang {
-                let identifier = "gTTS-\(entryLang)"
-                if !seen.contains(identifier.lowercased()) {
-                    seen.insert(identifier.lowercased())
-                    result.append(identifier)
-                }
-                break
             }
         }
 

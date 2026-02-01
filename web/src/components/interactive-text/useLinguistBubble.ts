@@ -167,12 +167,32 @@ export function useLinguistBubble({
     const options: string[] = [];
     const seen = new Set<string>();
 
-    // Add current voice if set
+    // Add auto options at the top (priority order: gTTS -> Piper -> macOS)
+    const autoOptions = ['gTTS', 'piper-auto', 'macOS-auto'];
+    for (const opt of autoOptions) {
+      seen.add(opt.toLowerCase());
+      options.push(opt);
+    }
+
+    // Add current voice if set and not an auto option
     if (linguistBubble?.ttsVoice) {
       const current = linguistBubble.ttsVoice.trim();
       if (current && !seen.has(current.toLowerCase())) {
         seen.add(current.toLowerCase());
         options.push(current);
+      }
+    }
+
+    // Add gTTS option for the language (specific language variant)
+    for (const entry of voiceInventory.gtts ?? []) {
+      const entryLang = entry.code.toLowerCase().split(/[-_]/)[0];
+      if (entryLang === normalizedLang) {
+        const identifier = `gTTS-${entryLang}`;
+        if (!seen.has(identifier.toLowerCase())) {
+          seen.add(identifier.toLowerCase());
+          options.push(identifier);
+        }
+        break;
       }
     }
 
@@ -194,19 +214,6 @@ export function useLinguistBubble({
           seen.add(identifier.toLowerCase());
           options.push(identifier);
         }
-      }
-    }
-
-    // Add gTTS option for the language
-    for (const entry of voiceInventory.gtts ?? []) {
-      const entryLang = entry.code.toLowerCase().split(/[-_]/)[0];
-      if (entryLang === normalizedLang) {
-        const identifier = `gTTS-${entryLang}`;
-        if (!seen.has(identifier.toLowerCase())) {
-          seen.add(identifier.toLowerCase());
-          options.push(identifier);
-        }
-        break;
       }
     }
 
