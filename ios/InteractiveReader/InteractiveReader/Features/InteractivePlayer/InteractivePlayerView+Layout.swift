@@ -39,8 +39,9 @@ extension InteractivePlayerView {
             viewModel.onSequenceWillTransition = {
                 print("[TranscriptFreeze] onSequenceWillTransition callback invoked (no-op)")
             }
-            // Set up shouldSkipTrack callback to skip hidden tracks during playback
-            updateShouldSkipTrackCallback()
+            // Text track visibility should not affect audio playback.
+            // Audio track selection is controlled separately via the audio picker in the header.
+            viewModel.sequenceController.shouldSkipTrack = nil
             #if os(tvOS)
             if !didSetInitialFocus {
                 didSetInitialFocus = true
@@ -349,10 +350,7 @@ extension InteractivePlayerView {
             let isInSameSentenceSettling = isSameSentenceTrackSwitch && expectedPosition != nil
             let isInSentenceChangeSettling = !isSameSentenceTrackSwitch && expectedPosition != nil
 
-            // Log EVERY render in sequence mode to catch the blip
-            if viewModel.sequenceController.isEnabled {
-                print("[InteractiveContent] RENDER: trans=\(isTransitioning), dwell=\(isDwelling), sameSentence=\(isSameSentenceTrackSwitch), sameSentenceSettling=\(isInSameSentenceSettling), sentenceChangeSettling=\(isInSentenceChangeSettling), seqIdx=\(currentSentenceIdx ?? -1), preTransIdx=\(viewModel.preTransitionSentenceIndex ?? -1), stabilizedAt=\(viewModel.timeStabilizedAt != nil)")
-            }
+            // Only log state transitions, not every render (reduces log spam significantly)
 
             // During transitions, always use the target sentence from sequence controller
             // Use sequenceTimingTrack directly instead of activeTimingTrack to avoid timing issues
@@ -532,13 +530,6 @@ extension InteractivePlayerView {
             }
 
             // Normal case: build transcript based on current time
-            // Log when falling through to normal case during sequence mode to detect blips
-            if viewModel.sequenceController.isEnabled {
-                let normalTranscript = self.transcriptSentences(for: chunk)
-                let sentenceInfo = normalTranscript.first.map { "sentence[\($0.index)]" } ?? "none"
-                print("[InteractiveContent] NORMAL CASE (sequence mode): \(sentenceInfo), sequenceIdx=\(currentSentenceIdx.map(String.init) ?? "nil"), t=\(String(format: "%.3f", viewModel.highlightingTime))")
-                return normalTranscript
-            }
             return self.transcriptSentences(for: chunk)
         }()
 
@@ -549,22 +540,6 @@ extension InteractivePlayerView {
                 return frozen
             }
             return playbackPrimaryKind(for: chunk)
-        }()
-        let _ = {
-            // Reduced logging - only log during active transitions or settling
-            let isInSameSentenceSettling = isSameSentenceTrackSwitch && expectedPosition != nil
-            let isInSentenceChangeSettling = !isSameSentenceTrackSwitch && expectedPosition != nil
-            if isTransitioning || isInSameSentenceSettling || isInSentenceChangeSettling {
-                let highlightTime = viewModel.highlightingTime
-                let sentenceInfo = transcriptSentences.first.map { sentence -> String in
-                    let variants = sentence.variants.map { variant in
-                        "\(variant.kind.rawValue):\(variant.revealedCount)/\(variant.tokens.count)"
-                    }.joined(separator: ", ")
-                    return "s[\(sentence.index)] \(variants)"
-                } ?? "no sentence"
-                let settlingType = isInSameSentenceSettling ? "sameSentence" : (isInSentenceChangeSettling ? "sentenceChange" : "none")
-                print("[InteractiveContent] transitioning=\(isTransitioning), sameSentence=\(isSameSentenceTrackSwitch), settling=\(settlingType), idx=\(currentSentenceIdx.map(String.init) ?? "nil"), t=\(String(format: "%.2f", highlightTime)) | \(sentenceInfo)")
-            }
         }()
         InteractiveTranscriptView(
             viewModel: viewModel,
@@ -579,9 +554,9 @@ extension InteractivePlayerView {
             llmModel: resolvedLlmModel ?? MyLinguistPreferences.defaultLlmModel,
             llmModelOptions: llmModelOptions,
             onLlmModelChange: { storedLlmModel = $0 },
-            ttsVoice: storedTtsVoice.isEmpty ? nil : storedTtsVoice,
+            ttsVoice: voiceForCurrentLanguage,
             ttsVoiceOptions: ttsVoiceOptions(for: ttsLanguageForCurrentSelection),
-            onTtsVoiceChange: { storedTtsVoice = $0 ?? "" },
+            onTtsVoiceChange: { setVoiceForCurrentLanguage($0) },
             playbackPrimaryKind: resolvedPlaybackPrimaryKind,
             visibleTracks: visibleTracks,
             isBubbleFocusEnabled: bubbleFocusEnabled,

@@ -127,6 +127,16 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         AudioPlaybackRegistry.shared.endPlayback(for: self)
     }
 
+    /// Pause playback temporarily without clearing isPlaybackRequested.
+    /// Used during sequence dwell periods to prevent audio bleed while keeping
+    /// the reading bed playing (which monitors isPlaybackRequested).
+    func pauseForDwell() {
+        player?.pause()
+        isPlaying = false
+        // NOTE: Intentionally NOT clearing isPlaybackRequested
+        // This keeps reading bed playing during the brief dwell period
+    }
+
     func togglePlayback() {
         isPlaybackRequested ? pause() : play()
     }

@@ -147,24 +147,25 @@ final class InteractivePlayerViewModel: ObservableObject {
             }
         }
 
-        // Mute during dwell to prevent audio content past segment end from being heard
-        // We use mute instead of pause because pausing stops the time observer
+        // Pause during dwell to prevent audio content past segment end from being heard
+        // We use pauseForDwell() which pauses without clearing isPlaybackRequested,
+        // keeping the reading bed playing during the brief dwell period
         sequenceController.onPauseForDwell = { [weak self] in
             guard let self else { return }
-            print("[Sequence] Dwell started, muting audio")
-            self.audioCoordinator.setVolume(0)
+            print("[Sequence] Dwell started, pausing audio")
+            self.audioCoordinator.pauseForDwell()
         }
 
         sequenceController.onResumeAfterDwell = { [weak self] time in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 print("[Sequence] Resuming after dwell, seeking to \(String(format: "%.3f", time))")
-                // Seek to the new segment's start position, THEN restore audio
+                // Seek to the new segment's start position, then resume playback
                 self.audioCoordinator.seek(to: time) { [weak self] _ in
                     guard let self else { return }
-                    // End transition and restore volume after seek completes
+                    // End transition and resume playback after seek completes
                     self.sequenceController.endTransition(expectedTime: time)
-                    self.audioCoordinator.setVolume(1)
+                    self.audioCoordinator.play()
                 }
             }
         }

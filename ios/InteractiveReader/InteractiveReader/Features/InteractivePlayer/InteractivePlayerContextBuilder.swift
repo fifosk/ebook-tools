@@ -54,9 +54,6 @@ enum JobContextBuilder {
 
         // Parse original track timing tokens from chunk.timingTracks
         let originalGroupedTokens = parseTimingTrackTokens(from: chunk.timingTracks, trackKey: "original")
-        if !originalGroupedTokens.isEmpty {
-            print("[ContextBuilder] Parsed \(originalGroupedTokens.values.flatMap { $0 }.count) original timing tokens for chunk \(chunkID)")
-        }
 
         let sentences = buildSentences(
             for: chunk,
@@ -99,10 +96,6 @@ enum JobContextBuilder {
         fallbackStart: Int
     ) -> [InteractiveChunk.Sentence] {
         if !chunk.sentences.isEmpty {
-            // Debug: log gate field presence
-            if let first = chunk.sentences.first {
-                print("[ContextBuilder] Building \(chunk.sentences.count) sentences, first has gates: orig=\(first.originalStartGate != nil)/\(first.originalEndGate != nil), trans=\(first.startGate != nil)/\(first.endGate != nil)")
-            }
             let baseIndex = chunk.startSentence ?? fallbackStart
             return chunk.sentences.enumerated().map { offset, sentence in
                 let explicitIndex = sentence.sentenceNumber
@@ -256,11 +249,9 @@ enum JobContextBuilder {
 
         for (key, metadata) in chunk.audioTracks {
             guard let url = resolveAudioURL(jobId: jobId, track: metadata, resolver: resolver) else {
-                print("[AudioOptions] Failed to resolve URL for track '\(key)': path=\(metadata.path ?? "nil"), url=\(metadata.url ?? "nil")")
                 continue
             }
             let kind = audioKind(for: key)
-            print("[AudioOptions] Resolved track '\(key)' (\(kind)) -> \(url.absoluteString)")
             registerOption(
                 kind: kind,
                 id: "\(chunkID)|\(key)",

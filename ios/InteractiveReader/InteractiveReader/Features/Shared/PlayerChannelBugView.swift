@@ -7,8 +7,78 @@ enum MyLinguistPreferences {
     static let lookupLanguageKey = "mylinguist.lookupLanguage"
     static let llmModelKey = "mylinguist.llmModel"
     static let ttsVoiceKey = "mylinguist.ttsVoice"
+    static let ttsVoicesByLanguageKey = "mylinguist.ttsVoicesByLanguage"
     static let defaultLookupLanguage = "English"
     static let defaultLlmModel = "ollama_cloud:mistral-large-3:675b-cloud"
+}
+
+/// Manager for per-language TTS voice preferences
+/// Stores voice selections per language code (e.g., "en" → "Samantha - en-US")
+class TtsVoicePreferencesManager {
+    static let shared = TtsVoicePreferencesManager()
+
+    private let userDefaults = UserDefaults.standard
+    private let storageKey = MyLinguistPreferences.ttsVoicesByLanguageKey
+
+    private init() {}
+
+    /// Get the stored voice for a specific language code
+    /// - Parameter languageCode: Normalized language code (e.g., "en", "tr", "hi")
+    /// - Returns: The stored voice identifier, or nil if no custom voice is set
+    func voice(for languageCode: String) -> String? {
+        guard !languageCode.isEmpty else { return nil }
+        let normalized = languageCode.lowercased().split(separator: "-").first.map(String.init) ?? languageCode.lowercased()
+        let voices = loadVoices()
+        return voices[normalized]
+    }
+
+    /// Set the voice for a specific language code
+    /// - Parameters:
+    ///   - voice: The voice identifier to store, or nil to clear
+    ///   - languageCode: Normalized language code (e.g., "en", "tr", "hi")
+    func setVoice(_ voice: String?, for languageCode: String) {
+        guard !languageCode.isEmpty else { return }
+        let normalized = languageCode.lowercased().split(separator: "-").first.map(String.init) ?? languageCode.lowercased()
+        var voices = loadVoices()
+
+        if let voice, !voice.isEmpty, !isAutoVoice(voice) {
+            voices[normalized] = voice
+        } else {
+            voices.removeValue(forKey: normalized)
+        }
+
+        saveVoices(voices)
+    }
+
+    /// Clear all custom voice selections, resetting to defaults
+    func clearAllVoices() {
+        userDefaults.removeObject(forKey: storageKey)
+    }
+
+    /// Get all stored voice preferences
+    /// - Returns: Dictionary of language code → voice identifier
+    func allVoices() -> [String: String] {
+        loadVoices()
+    }
+
+    /// Check if a voice is an "auto" option that shouldn't be stored
+    private func isAutoVoice(_ voice: String) -> Bool {
+        let lower = voice.lowercased()
+        return lower == "gtts" || lower == "piper-auto" || lower == "macos-auto"
+    }
+
+    private func loadVoices() -> [String: String] {
+        guard let data = userDefaults.data(forKey: storageKey),
+              let voices = try? JSONDecoder().decode([String: String].self, from: data) else {
+            return [:]
+        }
+        return voices
+    }
+
+    private func saveVoices(_ voices: [String: String]) {
+        guard let data = try? JSONEncoder().encode(voices) else { return }
+        userDefaults.set(data, forKey: storageKey)
+    }
 }
 
 enum PlayerChannelVariant {

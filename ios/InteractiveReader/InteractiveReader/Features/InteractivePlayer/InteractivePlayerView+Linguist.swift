@@ -108,7 +108,11 @@ extension InteractivePlayerView {
         )
         let resolvedPronunciationLanguage = SpeechLanguageResolver.resolveSpeechLanguage(pronunciationLanguage ?? "")
         let apiLanguage = resolvedPronunciationLanguage ?? pronunciationLanguage
-        let selectedVoice = storedTtsVoice.isEmpty ? nil : storedTtsVoice
+        // Get per-language stored voice for the pronunciation language
+        let langCode = normalizeLanguageCode(apiLanguage ?? "")
+        let perLangVoice = TtsVoicePreferencesManager.shared.voice(for: langCode)
+        // Use per-language voice if set, otherwise nil for auto-selection
+        let selectedVoice = perLangVoice
         startPronunciation(text: query, apiLanguage: apiLanguage, fallbackLanguage: resolvedPronunciationLanguage, voice: selectedVoice)
         linguistLookupTask = Task { @MainActor in
             do {
@@ -197,6 +201,24 @@ extension InteractivePlayerView {
         }
     }
 
+    /// Get the stored voice for the current TTS language
+    /// Returns the per-language stored voice, or nil if no custom voice is set
+    var voiceForCurrentLanguage: String? {
+        let language = ttsLanguageForCurrentSelection
+        let langCode = normalizeLanguageCode(language)
+        return TtsVoicePreferencesManager.shared.voice(for: langCode)
+    }
+
+    /// Set the voice for the current TTS language
+    /// - Parameter voice: The voice to store, or nil to clear (reset to default)
+    func setVoiceForCurrentLanguage(_ voice: String?) {
+        let language = ttsLanguageForCurrentSelection
+        let langCode = normalizeLanguageCode(language)
+        TtsVoicePreferencesManager.shared.setVoice(voice, for: langCode)
+        // Also update the legacy storage for compatibility
+        storedTtsVoice = voice ?? ""
+    }
+
     var llmModelOptions: [String] {
         let candidates = [resolvedLlmModel, MyLinguistPreferences.defaultLlmModel] + availableLlmModels
         var seen: Set<String> = []
@@ -253,10 +275,13 @@ extension InteractivePlayerView {
             result.append(opt)
         }
 
-        // Add stored voice if it exists and is not an auto option
-        if !storedTtsVoice.isEmpty && !seen.contains(storedTtsVoice.lowercased()) {
-            seen.insert(storedTtsVoice.lowercased())
-            result.append(storedTtsVoice)
+        // Add per-language stored voice if it exists and matches the current language
+        if let perLangVoice = TtsVoicePreferencesManager.shared.voice(for: baseLang),
+           !perLangVoice.isEmpty,
+           !seen.contains(perLangVoice.lowercased()),
+           voiceMatchesLanguage(perLangVoice, language: baseLang, inventory: inventory) {
+            seen.insert(perLangVoice.lowercased())
+            result.append(perLangVoice)
         }
 
         // Add gTTS option for the language (specific language variant)
@@ -296,6 +321,86 @@ extension InteractivePlayerView {
         }
 
         return result
+    }
+
+    /// Returns the voice if it matches the given language, otherwise nil (for auto-selection)
+    /// Used when starting pronunciation to ensure the stored voice matches the token's language
+    /// - Parameters:
+    ///   - voice: Stored voice identifier
+    ///   - language: Target language code or name (e.g., "en", "Turkish", "hi")
+    /// - Returns: The voice if it matches, nil otherwise
+    private func resolvedVoiceForLanguage(_ voice: String, language: String?) -> String? {
+        guard !voice.isEmpty else { return nil }
+        guard let language, !language.isEmpty else { return nil }
+
+        // Normalize language to code
+        let langCode = normalizeLanguageCode(language).lowercased()
+        let baseLang = langCode.split(separator: "-").first.map(String.init) ?? langCode
+
+        // Check if voice matches language using inventory if available
+        if let inventory = voiceInventory {
+            if voiceMatchesLanguage(voice, language: baseLang, inventory: inventory) {
+                return voice
+            }
+            return nil
+        }
+
+        // Fallback: simple pattern matching without inventory
+        let voiceLower = voice.lowercased()
+
+        // gTTS format: "gTTS-<lang>"
+        if voiceLower.hasPrefix("gtts-") {
+            let voiceLang = String(voiceLower.dropFirst(5)).split(separator: "-").first.map(String.init) ?? ""
+            return voiceLang == baseLang ? voice : nil
+        }
+
+        // macOS format: "Name - lang-region"
+        if voice.contains(" - ") {
+            let parts = voice.split(separator: " - ", maxSplits: 1)
+            if parts.count == 2 {
+                let voiceLang = String(parts[1]).lowercased().split(separator: "-").first.map(String.init) ?? ""
+                return voiceLang == baseLang ? voice : nil
+            }
+        }
+
+        // Unknown format without inventory - safer to return nil for auto-selection
+        return nil
+    }
+
+    /// Check if a voice identifier matches the given language code
+    /// - Parameters:
+    ///   - voice: Voice identifier (e.g., "gTTS-hi", "Samantha - en-US", "piper-name")
+    ///   - language: Normalized language code (e.g., "hi", "en", "tr")
+    ///   - inventory: Voice inventory to look up piper voice languages
+    /// - Returns: true if the voice is compatible with the language
+    private func voiceMatchesLanguage(_ voice: String, language: String, inventory: VoiceInventoryResponse) -> Bool {
+        let voiceLower = voice.lowercased()
+
+        // gTTS format: "gTTS-<lang>" (e.g., "gTTS-hi", "gTTS-tr")
+        if voiceLower.hasPrefix("gtts-") {
+            let voiceLang = String(voiceLower.dropFirst(5)).split(separator: "-").first.map(String.init) ?? ""
+            return voiceLang == language
+        }
+
+        // macOS format: "Name - lang-region" (e.g., "Samantha - en-US", "Lekha - hi-IN")
+        if voice.contains(" - ") {
+            let parts = voice.split(separator: " - ", maxSplits: 1)
+            if parts.count == 2 {
+                let voiceLang = String(parts[1]).lowercased().split(separator: "-").first.map(String.init) ?? ""
+                return voiceLang == language
+            }
+        }
+
+        // Piper voices: look up in inventory by name
+        if let piperVoice = inventory.piper.first(where: { $0.name.lowercased() == voiceLower }) {
+            let voiceLang = piperVoice.lang.lowercased()
+                .split(separator: "-").first.map(String.init)?
+                .split(separator: "_").first.map(String.init) ?? ""
+            return voiceLang == language
+        }
+
+        // Unknown format - don't include (safer to exclude than show wrong language)
+        return false
     }
 
     /// Normalize language name to code (e.g., "English" → "en")
@@ -432,16 +537,19 @@ extension InteractivePlayerView {
         iPadSplitRatio = 0.5
     }
     #else
-    // tvOS stubs (unused but needed for compilation)
+    // tvOS uses horizontal split when enabled (30% bubble / 70% track)
     var iPadSplitDirection: iPadBubbleSplitDirection {
-        get { .vertical }
-        nonmutating set { /* no-op on tvOS */ }
+        get { tvSplitEnabled ? .horizontal : .vertical }
+        nonmutating set { /* controlled via tvSplitEnabled */ }
     }
     var iPadSplitRatio: CGFloat {
-        get { 0.5 }
-        nonmutating set { /* no-op on tvOS */ }
+        // tvOS fixed ratio: 30% for bubble, 70% for tracks
+        get { 0.3 }
+        nonmutating set { /* fixed on tvOS */ }
     }
-    func toggleiPadLayoutDirection() { /* no-op on tvOS */ }
+    func toggleiPadLayoutDirection() {
+        tvSplitEnabled.toggle()
+    }
     #endif
 
     func sanitizeLookupQuery(_ value: String) -> String? {

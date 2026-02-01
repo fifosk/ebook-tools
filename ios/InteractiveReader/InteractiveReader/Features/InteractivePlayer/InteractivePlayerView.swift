@@ -67,6 +67,7 @@ struct InteractivePlayerView: View {
     #if os(tvOS)
     @State var didSetInitialFocus = false
     @Namespace var searchFocusNamespace
+    @AppStorage("interactive.tvSplitEnabled") var tvSplitEnabled: Bool = false
     #endif
     @FocusState var focusedArea: InteractivePlayerFocusArea?
 

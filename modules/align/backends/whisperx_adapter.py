@@ -110,6 +110,97 @@ def _is_valid_alignment_model(model_name: Optional[str]) -> bool:
     return True
 
 
+def _load_align_model_no_meta_tensors(
+    language: str,
+    model_name: Optional[str] = None,
+) -> Tuple[Any, dict]:
+    """
+    Load alignment model directly without meta tensors.
+
+    This is a fallback for models that fail with "Cannot copy out of meta tensor"
+    error. It loads the model with low_cpu_mem_usage=False to avoid meta tensors.
+    """
+    try:
+        from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+        import torchaudio
+    except ImportError as exc:
+        logger.warning("Required libraries not available for direct model load: %s", exc)
+        raise
+
+    # WhisperX default alignment models by language
+    # See: https://github.com/m-bain/whisperX/blob/main/whisperx/alignment.py
+    DEFAULT_ALIGN_MODELS = {
+        "en": "WAV2VEC2_ASR_BASE_960H",
+        "fr": "VOXPOPULI_ASR_BASE_10K_FR",
+        "de": "VOXPOPULI_ASR_BASE_10K_DE",
+        "es": "VOXPOPULI_ASR_BASE_10K_ES",
+        "it": "VOXPOPULI_ASR_BASE_10K_IT",
+        "ja": "jonatasgrosman/wav2vec2-large-xlsr-53-japanese",
+        "zh": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn",
+        "nl": "jonatasgrosman/wav2vec2-large-xlsr-53-dutch",
+        "uk": "Yehor/wav2vec2-xls-r-300m-uk-with-small-lm",
+        "pt": "jonatasgrosman/wav2vec2-large-xlsr-53-portuguese",
+        "ar": "jonatasgrosman/wav2vec2-large-xlsr-53-arabic",
+        "cs": "comodoro/wav2vec2-xls-r-300m-cs-250",
+        "ru": "jonatasgrosman/wav2vec2-large-xlsr-53-russian",
+        "pl": "jonatasgrosman/wav2vec2-large-xlsr-53-polish",
+        "hu": "jonatasgrosman/wav2vec2-large-xlsr-53-hungarian",
+        "fi": "jonatasgrosman/wav2vec2-large-xlsr-53-finnish",
+        "fa": "jonatasgrosman/wav2vec2-large-xlsr-53-persian",
+        "el": "jonatasgrosman/wav2vec2-large-xlsr-53-greek",
+        "tr": "mpoyraz/wav2vec2-xls-r-300m-cv7-turkish",
+        "da": "saattrupdan/wav2vec2-xls-r-300m-ftspeech",
+        "he": "imvladikon/wav2vec2-xls-r-300m-hebrew",
+        "vi": "nguyenvulebinh/wav2vec2-base-vi",
+        "ko": "kresnik/wav2vec2-large-xlsr-korean",
+        "ur": "kingabzpro/wav2vec2-large-xls-r-300m-Urdu",
+        "te": "anuragshas/wav2vec2-large-xlsr-53-telugu",
+        "hi": "theainerd/Wav2Vec2-large-xlsr-hindi",
+        "ca": "softcatala/wav2vec2-large-xlsr-catala",
+        "ta": "Amrrs/wav2vec2-large-xlsr-53-tamil",
+        "th": "sakares/wav2vec2-large-xlsr-thai-demo",
+        "sw": "alokmatta/wav2vec2-large-xlsr-53-sw",
+        "lt": "lexlexical/wav2vec2-common-voice-large-lv-colab",
+    }
+
+    # Determine the model to use
+    if model_name:
+        hf_model = model_name
+    elif language in DEFAULT_ALIGN_MODELS:
+        hf_model = DEFAULT_ALIGN_MODELS[language]
+    else:
+        raise ValueError(f"No default align-model for language: {language}")
+
+    # Check if it's a torchaudio bundle or HuggingFace model
+    if hf_model.startswith("WAV2VEC2") or hf_model.startswith("VOXPOPULI"):
+        # torchaudio bundle
+        logger.info("Loading torchaudio bundle: %s", hf_model)
+        bundle = getattr(torchaudio.pipelines, hf_model)
+        model = bundle.get_model()
+        labels = bundle.get_labels()
+        metadata = {
+            "language": language,
+            "dictionary": {c: i for i, c in enumerate(labels)},
+            "type": "torchaudio",
+        }
+    else:
+        # HuggingFace model - load with low_cpu_mem_usage=False to avoid meta tensors
+        logger.info("Loading HuggingFace model without meta tensors: %s", hf_model)
+        processor = Wav2Vec2Processor.from_pretrained(hf_model)
+        model = Wav2Vec2ForCTC.from_pretrained(hf_model, low_cpu_mem_usage=False)
+
+        # Build dictionary from processor vocabulary
+        vocab = processor.tokenizer.get_vocab()
+        metadata = {
+            "language": language,
+            "dictionary": vocab,
+            "type": "huggingface",
+        }
+
+    logger.info("Successfully loaded alignment model for '%s' without meta tensors", language)
+    return model, metadata
+
+
 def _get_alignment_model(
     language: str,
     device: str,
@@ -157,14 +248,41 @@ def _get_alignment_model(
         # Check for "meta tensor" error - MPS/CUDA device issue with certain models
         # This can be NotImplementedError or wrapped in other exception types
         exc_str = str(exc)
-        if "meta tensor" in exc_str and device != "cpu":
-            logger.warning(
-                "MPS/CUDA device failed for language '%s' (meta tensor error), falling back to CPU",
-                language,
-            )
-            return _get_alignment_model(language, "cpu", model_name)
-        logger.warning("Failed to load alignment model: %s", exc, exc_info=True)
-        raise
+        if "meta tensor" in exc_str:
+            if device != "cpu":
+                logger.warning(
+                    "MPS/CUDA device failed for language '%s' (meta tensor error), falling back to CPU",
+                    language,
+                )
+                return _get_alignment_model(language, "cpu", model_name)
+            else:
+                # CPU also failed - try loading with low_cpu_mem_usage=False to avoid meta tensors
+                logger.warning(
+                    "CPU fallback also failed with meta tensor error for language '%s', "
+                    "trying direct model load without meta tensors",
+                    language,
+                )
+                try:
+                    model, metadata = _load_align_model_no_meta_tensors(language, model_name)
+                    # Cache and return the successfully loaded model
+                    cache_key_cpu = f"{language}:cpu:{model_name or 'default'}"
+                    with _model_cache_lock:
+                        _model_cache[cache_key_cpu] = (model, metadata)
+                    logger.info(
+                        "WhisperX alignment model loaded via fallback: language='%s', device='cpu'",
+                        language,
+                    )
+                    return model, metadata
+                except Exception as inner_exc:
+                    logger.warning(
+                        "Direct model load also failed for language '%s': %s",
+                        language,
+                        inner_exc,
+                    )
+                    raise exc from inner_exc
+        else:
+            logger.warning("Failed to load alignment model: %s", exc, exc_info=True)
+            raise
 
     with _model_cache_lock:
         _model_cache[cache_key] = (model, metadata)

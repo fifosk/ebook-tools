@@ -37,6 +37,16 @@ extension InteractivePlayerViewModel {
             return
         }
 
+        // Don't reconfigure if sequence is mid-transition (dwelling or transitioning between tracks)
+        // This prevents chunk preloading or SwiftUI re-renders from resetting sequence state
+        // while we're waiting to advance from original to translation track
+        if sequenceController.isEnabled,
+           (sequenceController.isDwelling || sequenceController.isTransitioning),
+           targetSentenceIndex == nil {
+            print("[Sequence] Skipping reconfigure - mid-sequence (dwelling=\(sequenceController.isDwelling), transitioning=\(sequenceController.isTransitioning))")
+            return
+        }
+
         // If sequence mode is already active for these same URLs, don't reconfigure
         // UNLESS we have a target sentence (jump/resume), in which case we need to seek
         // This prevents re-entry from SwiftUI re-renders during playback
@@ -188,7 +198,7 @@ extension InteractivePlayerViewModel {
         // The load() call will tear down the old player anyway.
         audioCoordinator.setVolume(0)
 
-        print("[Sequence] Loading \(track.rawValue) track: \(url.lastPathComponent)")
+        print("[Sequence] Load \(track.rawValue): \(url.lastPathComponent)")
         // Use forceNoAutoPlay when autoPlay is false to prevent audio bleed during track switches
         // (otherwise isPlaybackRequested would cause auto-play even when we don't want it)
         // Use preservePlaybackRequested to keep isPlaybackRequested = true during transitions
@@ -216,20 +226,13 @@ extension InteractivePlayerViewModel {
     ///   - shouldPlay: Whether to start playback after seek completes (used during track switches)
     private func completeSequenceTransition(seekTime: Double?, shouldPlay: Bool = false) {
         if let seekTime {
-            print("[Sequence] Seeking to \(String(format: "%.3f", seekTime)), shouldPlay=\(shouldPlay)")
             audioCoordinator.seek(to: seekTime) { [weak self] finished in
                 guard let self else { return }
-                let actualTime = self.audioCoordinator.currentTime
-                print("[Sequence] Seek completed (finished=\(finished)), currentTime=\(String(format: "%.3f", actualTime)), segment=\(self.sequenceController.currentSegmentIndex)")
-                // Small delay after seek completes to ensure view has time to render
-                // with the correct state before we end the transition and start playback
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
                     guard let self else { return }
-                    // Pass the expected time so updateForTime can validate incoming time values
                     self.sequenceController.endTransition(expectedTime: seekTime)
                     self.readyCancellable?.cancel()
                     self.readyCancellable = nil
-                    // Restore volume and start playback AFTER seek completes
                     self.audioCoordinator.setVolume(1)
                     if shouldPlay {
                         self.audioCoordinator.play()
@@ -237,13 +240,9 @@ extension InteractivePlayerViewModel {
                 }
             }
         } else {
-            // No seek needed, just end the transition
-            let actualTime = audioCoordinator.currentTime
-            print("[Sequence] Completing transition (no seek), currentTime=\(String(format: "%.3f", actualTime)), segment=\(sequenceController.currentSegmentIndex)")
             sequenceController.endTransition(expectedTime: nil)
             readyCancellable?.cancel()
             readyCancellable = nil
-            // Restore volume and start playback
             audioCoordinator.setVolume(1)
             if shouldPlay {
                 audioCoordinator.play()
@@ -253,47 +252,29 @@ extension InteractivePlayerViewModel {
 
     /// Handle track switch during sequence playback
     func handleSequenceTrackSwitch(track: SequenceTrack, seekTime: Double) {
-        print("[Sequence] Switching to \(track.rawValue) at \(String(format: "%.3f", seekTime))")
+        print("[Sequence] Switch to \(track.rawValue)")
 
-        // Fire pre-transition callback if not already transitioning
-        // (advanceToNextSegment already calls this, but manual skips might not have)
         if !sequenceController.isTransitioning {
             onSequenceWillTransition?()
         }
-
-        // Begin transition to prevent re-entrant time updates
         sequenceController.beginTransition()
-
-        // Cancel any existing subscription
         readyCancellable?.cancel()
 
-        // Track whether we've seen the loading state (isReady = false)
         var seenLoadingState = false
-        // Track whether this is the first emission (for handling already-loaded case)
         var isFirstEmission = true
 
-        // Load the track WITHOUT autoPlay - we'll start playback after seeking
-        // This prevents audio bleed from position 0 before the seek completes
         _ = loadSequenceTrack(track, autoPlay: false, seekTime: nil)
 
-        // Subscribe to wait for audio to be ready, then seek and end transition
         readyCancellable = audioCoordinator.$isReady
             .sink { [weak self] isReady in
                 guard let self else { return }
                 if !isReady {
-                    // Mark that we've entered the loading state
                     seenLoadingState = true
                     isFirstEmission = false
-                    print("[Sequence] Audio loading...")
                 } else if seenLoadingState {
-                    // We've transitioned from loading to ready - now seek and start playback
-                    print("[Sequence] Audio ready")
                     self.completeSequenceTransition(seekTime: seekTime, shouldPlay: true)
                 } else if isFirstEmission {
-                    // Audio was already loaded (same URL), no loading transition occurred
-                    // This can happen if switching back to the same track that was loaded before
                     isFirstEmission = false
-                    print("[Sequence] Audio already ready (no load needed)")
                     self.completeSequenceTransition(seekTime: seekTime, shouldPlay: true)
                 }
             }

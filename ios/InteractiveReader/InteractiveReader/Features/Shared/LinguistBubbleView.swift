@@ -529,6 +529,9 @@ struct LinguistBubbleConfiguration {
 
     /// (tvOS) Maximum font scale for auto-scaling
     var maxAutoScaleFontScale: CGFloat = 1.5
+
+    /// (tvOS) Whether the bubble is displayed in split mode (side-by-side with tracks)
+    var isSplitMode: Bool = false
 }
 
 /// Actions that can be performed on the linguist bubble
@@ -854,12 +857,45 @@ struct LinguistBubbleView: View {
             autoScaleFontScale = clampedScale
         }
     }
-    #endif
 
-    // MARK: - Header Row (Query + Controls)
+    /// Layout toggle button for tvOS (overlay/split mode)
+    @ViewBuilder
+    private var tvLayoutToggleButton: some View {
+        if let onToggle = actions.onToggleLayoutDirection {
+            Button(action: onToggle) {
+                Image(systemName: "rectangle.split.2x1")
+                    .font(bubbleIconFont)
+                    .foregroundStyle(.white)
+                    .padding(bubbleControlPadding)
+                    .background(.black.opacity(0.3), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Toggle layout")
+        }
+    }
 
-    private var headerRow: some View {
-        #if os(tvOS)
+    /// tvOS split mode header: controls on top row, query below
+    private var tvSplitModeHeader: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                lookupLanguageMenu
+                voiceMenu
+                modelMenu
+                fontSizeControls
+                Spacer(minLength: 4)
+                tvLayoutToggleButton
+                closeButton
+            }
+            Text(state.query)
+                .font(queryFont)
+                .foregroundStyle(bubbleTextColor)
+                .lineLimit(3)
+                .minimumScaleFactor(0.7)
+        }
+    }
+
+    /// tvOS overlay mode header: query and controls side by side
+    private var tvOverlayModeHeader: some View {
         HStack(spacing: 8) {
             Text(state.query)
                 .font(queryFont)
@@ -871,7 +907,23 @@ struct LinguistBubbleView: View {
             voiceMenu
             modelMenu
             fontSizeControls
+            tvLayoutToggleButton
             closeButton
+        }
+    }
+    #endif
+
+    // MARK: - Header Row (Query + Controls)
+
+    @ViewBuilder
+    private var headerRow: some View {
+        #if os(tvOS)
+        if configuration.isSplitMode {
+            // Split mode: controls on top, query below for more space
+            tvSplitModeHeader
+        } else {
+            // Overlay mode: query and controls side by side
+            tvOverlayModeHeader
         }
         #elseif os(iOS)
         iOSHeaderRow
@@ -1277,10 +1329,10 @@ struct LinguistBubbleView: View {
     private var fontSizeControls: some View {
         HStack(spacing: 6) {
             bubbleControlItem(control: .decreaseFont, isEnabled: configuration.canDecreaseFont, action: actions.onDecreaseFont) {
-                Text("A-")
+                Text("-")
             }
             bubbleControlItem(control: .increaseFont, isEnabled: configuration.canIncreaseFont, action: actions.onIncreaseFont) {
-                Text("A+")
+                Text("+")
             }
         }
     }

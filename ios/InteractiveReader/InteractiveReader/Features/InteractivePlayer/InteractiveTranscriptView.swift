@@ -235,62 +235,75 @@ struct InteractiveTranscriptView: View {
 
             Group {
                 #if os(tvOS)
-                // Use ZStack to allow bubble to overlay tracks when content is long
-                ZStack(alignment: .bottom) {
-                    // Tracks layer (always visible, behind bubble)
-                    trackView
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .contentShape(Rectangle())
-                        .focusable(!isMenuVisible && bubble == nil)
-                        .focused($focusedArea, equals: .transcript)
-                        .focusEffectDisabled()
-                        .onTapGesture {
-                            if bubble != nil {
-                                onCloseBubble()
-                            } else {
-                                onLookup()
+                if iPadSplitDirection == .horizontal && bubble != nil {
+                    // tvOS horizontal split layout: 30% bubble | 70% tracks
+                    tvSplitLayout(
+                        trackView: trackView,
+                        bubble: bubble!,
+                        resolvedLinguistFontScale: resolvedLinguistFontScale,
+                        bubbleFocusEnabled: bubbleFocusEnabled,
+                        availableWidth: proxy.size.width,
+                        availableHeight: availableHeight
+                    )
+                } else {
+                    // Default overlay layout: bubble overlays tracks from bottom
+                    ZStack(alignment: .bottom) {
+                        // Tracks layer (always visible, behind bubble)
+                        trackView
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .contentShape(Rectangle())
+                            .focusable(!isMenuVisible && bubble == nil)
+                            .focused($focusedArea, equals: .transcript)
+                            .focusEffectDisabled()
+                            .onTapGesture {
+                                if bubble != nil {
+                                    onCloseBubble()
+                                } else {
+                                    onLookup()
+                                }
                             }
-                        }
-                        .onLongPressGesture(minimumDuration: 0.6) {
-                            onToggleHeader?()
-                        }
-                        .accessibilityAddTraits(.isButton)
+                            .onLongPressGesture(minimumDuration: 0.6) {
+                                onToggleHeader?()
+                            }
+                            .accessibilityAddTraits(.isButton)
 
-                    // Bubble layer (overlays tracks from bottom)
-                    if let bubble {
-                        MyLinguistBubbleView(
-                            bubble: bubble,
-                            fontScale: resolvedLinguistFontScale,
-                            canIncreaseFont: canIncreaseLinguistFont,
-                            canDecreaseFont: canDecreaseLinguistFont,
-                            lookupLanguage: lookupLanguage,
-                            lookupLanguageOptions: lookupLanguageOptions,
-                            onLookupLanguageChange: onLookupLanguageChange,
-                            llmModel: llmModel,
-                            llmModelOptions: llmModelOptions,
-                            onLlmModelChange: onLlmModelChange,
-                            ttsVoice: ttsVoice,
-                            ttsVoiceOptions: ttsVoiceOptions,
-                            onTtsVoiceChange: onTtsVoiceChange,
-                            onIncreaseFont: onIncreaseLinguistFont,
-                            onDecreaseFont: onDecreaseLinguistFont,
-                            onClose: onCloseBubble,
-                            isFocusEnabled: bubbleFocusEnabled,
-                            focusBinding: $focusedArea,
-                            availableHeight: availableHeight * 0.85,
-                            onPreviousToken: onBubblePreviousToken,
-                            onNextToken: onBubbleNextToken
-                        )
-                        // Let bubble size itself based on content, up to 85% of screen
-                        .frame(maxWidth: .infinity, maxHeight: availableHeight * 0.85, alignment: .bottom)
-                        .padding(.horizontal, 36)
-                        .padding(.bottom, 24)
-                        .background(GeometryReader { bubbleProxy in
-                            Color.clear.preference(
-                                key: InteractiveBubbleHeightKey.self,
-                                value: bubbleProxy.size.height
+                        // Bubble layer (overlays tracks from bottom)
+                        if let bubble {
+                            MyLinguistBubbleView(
+                                bubble: bubble,
+                                fontScale: resolvedLinguistFontScale,
+                                canIncreaseFont: canIncreaseLinguistFont,
+                                canDecreaseFont: canDecreaseLinguistFont,
+                                lookupLanguage: lookupLanguage,
+                                lookupLanguageOptions: lookupLanguageOptions,
+                                onLookupLanguageChange: onLookupLanguageChange,
+                                llmModel: llmModel,
+                                llmModelOptions: llmModelOptions,
+                                onLlmModelChange: onLlmModelChange,
+                                ttsVoice: ttsVoice,
+                                ttsVoiceOptions: ttsVoiceOptions,
+                                onTtsVoiceChange: onTtsVoiceChange,
+                                onIncreaseFont: onIncreaseLinguistFont,
+                                onDecreaseFont: onDecreaseLinguistFont,
+                                onClose: onCloseBubble,
+                                isFocusEnabled: bubbleFocusEnabled,
+                                focusBinding: $focusedArea,
+                                availableHeight: availableHeight * 0.85,
+                                onPreviousToken: onBubblePreviousToken,
+                                onNextToken: onBubbleNextToken,
+                                onToggleLayoutDirection: onToggleLayoutDirection
                             )
-                        })
+                            // Let bubble size itself based on content, up to 85% of screen
+                            .frame(maxWidth: .infinity, maxHeight: availableHeight * 0.85, alignment: .bottom)
+                            .padding(.horizontal, 36)
+                            .padding(.bottom, 24)
+                            .background(GeometryReader { bubbleProxy in
+                                Color.clear.preference(
+                                    key: InteractiveBubbleHeightKey.self,
+                                    value: bubbleProxy.size.height
+                                )
+                            })
+                        }
                     }
                 }
                 #else
@@ -740,6 +753,76 @@ struct InteractiveTranscriptView: View {
         sentences.map(\.id).joined(separator: "|")
     }
 
+    #if os(tvOS)
+    // MARK: - tvOS Split Layout
+
+    /// tvOS horizontal split layout: 30% bubble on left, 70% tracks on right
+    @ViewBuilder
+    private func tvSplitLayout(
+        trackView: AnyView,
+        bubble: MyLinguistBubbleState,
+        resolvedLinguistFontScale: CGFloat,
+        bubbleFocusEnabled: Bool,
+        availableWidth: CGFloat,
+        availableHeight: CGFloat
+    ) -> some View {
+        let bubbleRatio: CGFloat = 0.30
+        let trackRatio: CGFloat = 0.70
+        let spacing: CGFloat = 20
+        let bubbleWidth = max(0, availableWidth * bubbleRatio - spacing / 2)
+        let trackWidth = max(0, availableWidth * trackRatio - spacing / 2)
+
+        HStack(spacing: spacing) {
+            // Bubble area (left side, 30%)
+            MyLinguistBubbleView(
+                bubble: bubble,
+                fontScale: resolvedLinguistFontScale,
+                canIncreaseFont: canIncreaseLinguistFont,
+                canDecreaseFont: canDecreaseLinguistFont,
+                lookupLanguage: lookupLanguage,
+                lookupLanguageOptions: lookupLanguageOptions,
+                onLookupLanguageChange: onLookupLanguageChange,
+                llmModel: llmModel,
+                llmModelOptions: llmModelOptions,
+                onLlmModelChange: onLlmModelChange,
+                ttsVoice: ttsVoice,
+                ttsVoiceOptions: ttsVoiceOptions,
+                onTtsVoiceChange: onTtsVoiceChange,
+                onIncreaseFont: onIncreaseLinguistFont,
+                onDecreaseFont: onDecreaseLinguistFont,
+                onClose: onCloseBubble,
+                isFocusEnabled: bubbleFocusEnabled,
+                focusBinding: $focusedArea,
+                availableHeight: availableHeight,
+                onPreviousToken: onBubblePreviousToken,
+                onNextToken: onBubbleNextToken,
+                onToggleLayoutDirection: onToggleLayoutDirection,
+                isSplitMode: true
+            )
+            .frame(width: bubbleWidth, height: availableHeight)
+            .clipped()
+
+            // Tracks area (right side, 70%)
+            trackView
+                .frame(width: trackWidth, height: availableHeight, alignment: .top)
+                .clipped()
+                .contentShape(Rectangle())
+                .focusable(!isMenuVisible)
+                .focused($focusedArea, equals: .transcript)
+                .focusEffectDisabled()
+                .onTapGesture {
+                    onCloseBubble()
+                }
+                .onLongPressGesture(minimumDuration: 0.6) {
+                    onToggleHeader?()
+                }
+                .accessibilityAddTraits(.isButton)
+        }
+        .frame(width: availableWidth, height: availableHeight)
+        .padding(.horizontal, 36)
+    }
+    #endif
+
     #if os(iOS)
     // MARK: - iPad Split Layout
 
@@ -1146,8 +1229,8 @@ struct InteractiveTranscriptView: View {
         bubbleFocusEnabled: Bool,
         availableHeight: CGFloat
     ) -> some View {
-        let upperHalfHeight = availableHeight * 0.45
-        let lowerHalfHeight = availableHeight * 0.55
+        let upperHalfHeight = availableHeight * 0.50
+        let lowerHalfHeight = availableHeight * 0.50
 
         VStack(spacing: 0) {
             // Upper half: tracks - use fixed frame with center alignment to prevent layout jumps
@@ -1177,7 +1260,7 @@ struct InteractiveTranscriptView: View {
 
                 // Use GeometryReader to get available height and pass to bubble
                 GeometryReader { bubbleGeo in
-                    let contentHeight = max(bubbleGeo.size.height - 100, 80)
+                    let contentHeight = max(bubbleGeo.size.height - 60, 80)
                     MyLinguistBubbleView(
                         bubble: bubble!,
                         fontScale: resolvedLinguistFontScale,

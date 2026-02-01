@@ -9,34 +9,31 @@ struct MediaURLResolver {
     let origin: MediaURLOrigin
 
     func resolveAudioURL(jobId: String, track: AudioTrackMetadata) -> URL? {
-        print("[MediaURLResolver] resolveAudioURL: path=\(track.path ?? "nil"), url=\(track.url ?? "nil"), origin=\(originDescription)")
         switch origin {
         case .storage:
             if let path = track.path, isStorageRelativePath(path), let url = resolveURL(from: path, jobId: jobId) {
-                print("[MediaURLResolver] Resolved via storage relative path: \(url)")
                 return url
             }
             if let urlString = track.url, let url = resolveURL(from: urlString, jobId: jobId) {
-                print("[MediaURLResolver] Resolved via url string: \(url)")
                 return url
             }
             if let path = track.path, let url = resolveURL(from: path, jobId: jobId) {
-                print("[MediaURLResolver] Resolved via path fallback: \(url)")
                 return url
             }
-            print("[MediaURLResolver] Failed to resolve audio URL")
+            print("[MediaURLResolver] Failed to resolve audio URL: path=\(track.path ?? "nil"), url=\(track.url ?? "nil")")
             return nil
         case .library:
             if let urlString = track.url, let url = resolveURL(from: urlString, jobId: jobId) {
-                print("[MediaURLResolver] Resolved via library url: \(url)")
                 return url
             }
             if let path = track.path {
                 let url = resolveURL(from: path, jobId: jobId)
-                print("[MediaURLResolver] Resolved via library path: \(url?.absoluteString ?? "nil")")
+                if url == nil {
+                    print("[MediaURLResolver] Failed to resolve library audio URL: path=\(path)")
+                }
                 return url
             }
-            print("[MediaURLResolver] Failed to resolve library audio URL")
+            print("[MediaURLResolver] Failed to resolve library audio URL: no path or url provided")
             return nil
         }
     }

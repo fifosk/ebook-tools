@@ -211,27 +211,19 @@ extension InteractivePlayerView {
         return .original // Fallback: start at beginning
     }
 
-    /// Updates the shouldSkipTrack callback on the sequence controller based on current visibility settings.
-    /// This ensures that hidden tracks are skipped during automatic playback progression.
+    /// DEPRECATED: This function is no longer used.
+    ///
+    /// Text track visibility should NOT affect audio playback in sequence/combined mode.
+    /// Audio track selection is controlled separately via the audio picker in the header.
+    /// The shouldSkipTrack callback was causing issues where translation audio would be
+    /// skipped even when both audio track pills were active, because the callback was
+    /// set once at startup and captured stale visibility state.
+    ///
+    /// Instead, shouldSkipTrack is now set to nil in onAppear, ensuring both tracks
+    /// always play in sequence mode regardless of which text tracks are visible.
+    @available(*, deprecated, message: "Text visibility no longer affects audio playback")
     func updateShouldSkipTrackCallback() {
-        let origVisible = visibleTracks.contains(.original)
-        let transVisible = visibleTracks.contains(.translation) || visibleTracks.contains(.transliteration)
-
-        // If both tracks are visible (or neither for safety), don't skip anything
-        if origVisible && transVisible {
-            viewModel.sequenceController.shouldSkipTrack = nil
-            print("[TrackVisibility] Both tracks visible, not skipping any segments")
-        } else {
-            // If only one track is visible, skip the other
-            viewModel.sequenceController.shouldSkipTrack = { track in
-                switch track {
-                case .original:
-                    return !origVisible
-                case .translation:
-                    return !transVisible
-                }
-            }
-            print("[TrackVisibility] Updated skip callback: origVisible=\(origVisible), transVisible=\(transVisible)")
-        }
+        // No-op: kept for reference but no longer used
+        print("[TrackVisibility] updateShouldSkipTrackCallback called but is deprecated - doing nothing")
     }
 }

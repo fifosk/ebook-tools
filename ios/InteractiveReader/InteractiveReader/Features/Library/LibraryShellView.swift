@@ -573,6 +573,31 @@ private struct PlaybackSettingsView: View {
                     }
                 }
 
+                Section("Voice") {
+                    let hasVoiceOverrides = !TtsVoicePreferencesManager.shared.allVoices().isEmpty
+                    if hasVoiceOverrides {
+                        Button(role: .destructive) {
+                            TtsVoicePreferencesManager.shared.clearAllVoices()
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Reset Voice Settings")
+                                    .foregroundStyle(.red)
+                                Text("Clears custom TTS voice selections for all languages.")
+                                    .font(.caption)
+                                    .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                            }
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("No custom voice settings")
+                                .foregroundStyle(usesDarkBackground ? .white : .primary)
+                            Text("Custom voices selected in MyLinguist will appear here.")
+                                .font(.caption)
+                                .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                        }
+                    }
+                }
+
                 #if os(iOS)
                 Section("Notifications") {
                     if notificationManager.isAuthorized {

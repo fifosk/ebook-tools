@@ -35,8 +35,10 @@ struct MyLinguistBubbleView: View {
     var onPreviousToken: (() -> Void)? = nil
     /// Callback to navigate to next token (swipe left on iOS)
     var onNextToken: (() -> Void)? = nil
-    /// Callback to toggle layout direction (iPad only)
+    /// Callback to toggle layout direction (iPad/tvOS)
     var onToggleLayoutDirection: (() -> Void)? = nil
+    /// (tvOS) Whether the bubble is in split mode (side-by-side with tracks)
+    var isSplitMode: Bool = false
     #if os(iOS)
     /// Optional keyboard navigator for iPad focus management
     @ObservedObject var keyboardNavigator: iOSBubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
@@ -84,6 +86,7 @@ struct MyLinguistBubbleView: View {
             config.autoScaleFontToFit = true
             config.availableHeight = availableHeight
         }
+        config.isSplitMode = isSplitMode
         #endif
         return config
     }

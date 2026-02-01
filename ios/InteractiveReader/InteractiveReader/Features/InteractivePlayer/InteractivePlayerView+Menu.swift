@@ -147,6 +147,7 @@ extension InteractivePlayerView {
                 audioPicker(for: chunk)
                 readingBedPicker()
                 speedPicker()
+                settingsMenu()
                 bookmarkMenu(for: chunk)
                 #if os(tvOS)
                 trackFontControls
@@ -540,6 +541,39 @@ extension InteractivePlayerView {
                 .controlSize(.small)
                 .focused($focusedArea, equals: .controls)
             }
+        }
+    }
+
+    @ViewBuilder
+    func settingsMenu() -> some View {
+        let hasVoiceOverrides = !TtsVoicePreferencesManager.shared.allVoices().isEmpty
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Settings")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Menu {
+                if hasVoiceOverrides {
+                    Button(role: .destructive) {
+                        TtsVoicePreferencesManager.shared.clearAllVoices()
+                        // Also clear the legacy stored voice
+                        storedTtsVoice = ""
+                    } label: {
+                        Label("Reset Voice Settings", systemImage: "speaker.wave.2.circle")
+                    }
+                    Text("Clears custom TTS voice selections for all languages")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("No custom voice settings")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } label: {
+                menuLabel("Settings", leadingSystemImage: "gearshape")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .focused($focusedArea, equals: .controls)
         }
     }
 }
