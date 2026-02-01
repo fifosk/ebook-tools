@@ -37,6 +37,10 @@ struct MyLinguistBubbleView: View {
     var onNextToken: (() -> Void)? = nil
     /// Callback to toggle layout direction (iPad/tvOS)
     var onToggleLayoutDirection: (() -> Void)? = nil
+    /// (iPad) Whether the bubble is pinned (stays visible during playback)
+    var isPinned: Bool = false
+    /// Callback to toggle pin state (iPad)
+    var onTogglePin: (() -> Void)? = nil
     /// (tvOS) Whether the bubble is in split mode (side-by-side with tracks)
     var isSplitMode: Bool = false
     #if os(iOS)
@@ -87,6 +91,9 @@ struct MyLinguistBubbleView: View {
             config.availableHeight = availableHeight
         }
         config.isSplitMode = isSplitMode
+        config.isPinned = isPinned
+        #elseif os(iOS)
+        config.isPinned = isPinned
         #endif
         return config
     }
@@ -110,6 +117,9 @@ struct MyLinguistBubbleView: View {
         actions.onPreviousToken = onPreviousToken
         actions.onNextToken = onNextToken
         actions.onToggleLayoutDirection = onToggleLayoutDirection
+        #if os(iOS) || os(tvOS)
+        actions.onTogglePin = onTogglePin
+        #endif
         return actions
     }
 

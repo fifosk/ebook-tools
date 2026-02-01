@@ -53,7 +53,17 @@ extension InteractivePlayerView {
         })
         view = AnyView(view.onChange(of: viewModel.selectedChunk?.id) { _, _ in
             guard let chunk = viewModel.selectedChunk else { return }
-            clearLinguistState()
+            // Respect pin state - keep bubble visible across chunk/sentence changes if pinned
+            #if os(iOS)
+            let shouldKeepBubble = isPad && iPadBubblePinned
+            #elseif os(tvOS)
+            let shouldKeepBubble = tvSplitEnabled && tvBubblePinned
+            #else
+            let shouldKeepBubble = false
+            #endif
+            if !shouldKeepBubble {
+                clearLinguistState()
+            }
             applyDefaultTrackSelection(for: chunk)
             syncSelectedSentence(for: chunk)
             viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
@@ -88,7 +98,17 @@ extension InteractivePlayerView {
         view = AnyView(view.onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
             handleNarrationPlaybackChange(isPlaying: isPlaying)
             if isPlaying {
-                clearLinguistState()
+                // Respect pin state - keep bubble visible during playback if pinned
+                #if os(iOS)
+                let shouldKeepBubble = isPad && iPadBubblePinned
+                #elseif os(tvOS)
+                let shouldKeepBubble = tvSplitEnabled && tvBubblePinned
+                #else
+                let shouldKeepBubble = false
+                #endif
+                if !shouldKeepBubble {
+                    clearLinguistState()
+                }
             }
             if isPlaying {
                 // Don't unfreeze during sequence transitions - let the transition handler manage it
@@ -106,7 +126,17 @@ extension InteractivePlayerView {
             }
         })
         view = AnyView(view.onChange(of: visibleTracks) { _, _ in
-            clearLinguistState()
+            // Respect pin state - keep bubble visible when tracks change if pinned
+            #if os(iOS)
+            let shouldKeepBubble = isPad && iPadBubblePinned
+            #elseif os(tvOS)
+            let shouldKeepBubble = tvSplitEnabled && tvBubblePinned
+            #else
+            let shouldKeepBubble = false
+            #endif
+            if !shouldKeepBubble {
+                clearLinguistState()
+            }
             if isMenuVisible, !audioCoordinator.isPlaying, let chunk = viewModel.selectedChunk {
                 frozenTranscriptSentences = transcriptSentences(for: chunk)
                 frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
@@ -615,6 +645,17 @@ extension InteractivePlayerView {
             onSetTrackFontScale: { setTrackFontScale($0) },
             onSetLinguistFontScale: { setLinguistFontScale($0) },
             onCloseBubble: {
+                #if os(iOS)
+                // On iPad, respect pinned state - only close if not pinned
+                if isPad && iPadBubblePinned {
+                    return
+                }
+                #elseif os(tvOS)
+                // On tvOS, respect pinned state in split mode
+                if tvSplitEnabled && tvBubblePinned {
+                    return
+                }
+                #endif
                 closeLinguistBubble()
             },
             onTogglePlayback: {
@@ -638,6 +679,10 @@ extension InteractivePlayerView {
             ),
             onToggleLayoutDirection: {
                 toggleiPadLayoutDirection()
+            },
+            iPadBubblePinned: iPadBubblePinned,
+            onToggleBubblePin: {
+                toggleiPadBubblePin()
             },
             bubbleKeyboardNavigator: bubbleKeyboardNavigator
         )
@@ -868,11 +913,14 @@ extension InteractivePlayerView {
             if showHeaderContent || isTV {
                 VStack(alignment: .trailing, spacing: 6) {
                     if showHeaderContent {
-                        if let slideLabel {
-                            slideIndicatorView(label: slideLabel)
-                        }
-                        if let timelineLabel {
-                            audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                        // Sentence progress and playing time in one row
+                        HStack(spacing: 6) {
+                            if let slideLabel {
+                                slideIndicatorView(label: slideLabel)
+                            }
+                            if let timelineLabel {
+                                audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                            }
                         }
                     } else if let timelineLabel {
                         audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
@@ -927,7 +975,7 @@ extension InteractivePlayerView {
                         HStack(spacing: 8 * infoPillScale) {
                             PlayerLanguageFlagRow(
                                 flags: info.languageFlags,
-                                modelLabel: isPhone ? nil : info.translationModel,
+                                modelLabel: nil,
                                 isTV: isTV,
                                 sizeScale: infoPillScale,
                                 activeRoles: activeRoles,

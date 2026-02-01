@@ -58,7 +58,8 @@ struct InteractivePlayerView: View {
     #if os(iOS)
     @State var headerMagnifyStartScale: CGFloat?
     @AppStorage("interactive.iPadSplitDirection") var iPadSplitDirectionRaw: String = "vertical"
-    @AppStorage("interactive.iPadSplitRatio") var iPadSplitRatioValue: Double = 0.5
+    @AppStorage("interactive.iPadSplitRatio") var iPadSplitRatioValue: Double = 0.4
+    @AppStorage("interactive.iPadBubblePinned") var iPadBubblePinned: Bool = false
     #endif
     @StateObject var bubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
     @StateObject var pronunciationSpeaker = PronunciationSpeaker()
@@ -68,6 +69,7 @@ struct InteractivePlayerView: View {
     @State var didSetInitialFocus = false
     @Namespace var searchFocusNamespace
     @AppStorage("interactive.tvSplitEnabled") var tvSplitEnabled: Bool = false
+    @AppStorage("interactive.tvBubblePinned") var tvBubblePinned: Bool = false
     #endif
     @FocusState var focusedArea: InteractivePlayerFocusArea?
 

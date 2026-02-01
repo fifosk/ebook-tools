@@ -90,6 +90,10 @@ struct InteractiveTranscriptView: View {
     @Binding var iPadSplitRatio: CGFloat
     /// Callback to toggle iPad layout direction
     var onToggleLayoutDirection: (() -> Void)? = nil
+    /// (iPad) Whether the bubble is pinned (stays visible during playback)
+    var iPadBubblePinned: Bool = false
+    /// Callback to toggle iPad bubble pin state
+    var onToggleBubblePin: (() -> Void)? = nil
     /// Keyboard navigator for iPad bubble focus management (iOS only, ignored on tvOS)
     @ObservedObject var bubbleKeyboardNavigator: iOSBubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
 
@@ -249,15 +253,20 @@ struct InteractiveTranscriptView: View {
                     // Default overlay layout: bubble overlays tracks from bottom
                     ZStack(alignment: .bottom) {
                         // Tracks layer (always visible, behind bubble)
+                        // Allow focus when no bubble, or when bubble is pinned (to enable long press for header toggle)
+                        let canFocusTracks = !isMenuVisible && (bubble == nil || iPadBubblePinned)
                         trackView
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                             .contentShape(Rectangle())
-                            .focusable(!isMenuVisible && bubble == nil)
+                            .focusable(canFocusTracks)
                             .focused($focusedArea, equals: .transcript)
                             .focusEffectDisabled()
                             .onTapGesture {
                                 if bubble != nil {
-                                    onCloseBubble()
+                                    // Respect pin state - don't close if pinned
+                                    if !iPadBubblePinned {
+                                        onCloseBubble()
+                                    }
                                 } else {
                                     onLookup()
                                 }
@@ -291,12 +300,14 @@ struct InteractiveTranscriptView: View {
                                 availableHeight: availableHeight * 0.85,
                                 onPreviousToken: onBubblePreviousToken,
                                 onNextToken: onBubbleNextToken,
-                                onToggleLayoutDirection: onToggleLayoutDirection
+                                onToggleLayoutDirection: onToggleLayoutDirection,
+                                isPinned: iPadBubblePinned,
+                                onTogglePin: onToggleBubblePin
                             )
                             // Let bubble size itself based on content, up to 85% of screen
                             .frame(maxWidth: .infinity, maxHeight: availableHeight * 0.85, alignment: .bottom)
-                            .padding(.horizontal, 36)
-                            .padding(.bottom, 24)
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 16)
                             .background(GeometryReader { bubbleProxy in
                                 Color.clear.preference(
                                     key: InteractiveBubbleHeightKey.self,
@@ -797,6 +808,8 @@ struct InteractiveTranscriptView: View {
                 onPreviousToken: onBubblePreviousToken,
                 onNextToken: onBubbleNextToken,
                 onToggleLayoutDirection: onToggleLayoutDirection,
+                isPinned: iPadBubblePinned,
+                onTogglePin: onToggleBubblePin,
                 isSplitMode: true
             )
             .frame(width: bubbleWidth, height: availableHeight)
@@ -811,7 +824,10 @@ struct InteractiveTranscriptView: View {
                 .focused($focusedArea, equals: .transcript)
                 .focusEffectDisabled()
                 .onTapGesture {
-                    onCloseBubble()
+                    // Respect pin state on tvOS - don't close if pinned
+                    if !iPadBubblePinned {
+                        onCloseBubble()
+                    }
                 }
                 .onLongPressGesture(minimumDuration: 0.6) {
                     onToggleHeader?()
@@ -819,7 +835,8 @@ struct InteractiveTranscriptView: View {
                 .accessibilityAddTraits(.isButton)
         }
         .frame(width: availableWidth, height: availableHeight)
-        .padding(.horizontal, 36)
+        .padding(.leading, 12)
+        .padding(.trailing, 24)
     }
     #endif
 
@@ -1024,6 +1041,7 @@ struct InteractiveTranscriptView: View {
                 .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
                 .highPriorityGesture(trackMagnifyGesture, including: .all)
         }
+        .padding(.leading, 24) // Extra left padding to avoid content clipping at left edge
         .frame(width: availableSize.width, height: availableSize.height)
     }
 
@@ -1142,6 +1160,8 @@ struct InteractiveTranscriptView: View {
                 onPreviousToken: onBubblePreviousToken,
                 onNextToken: onBubbleNextToken,
                 onToggleLayoutDirection: onToggleLayoutDirection,
+                isPinned: iPadBubblePinned,
+                onTogglePin: onToggleBubblePin,
                 keyboardNavigator: bubbleKeyboardNavigator
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

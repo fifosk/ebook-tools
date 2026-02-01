@@ -455,6 +455,11 @@ enum LinguistBubbleStatus: Equatable {
     case loading
     case ready
     case error(String)
+
+    var isLoading: Bool {
+        if case .loading = self { return true }
+        return false
+    }
 }
 
 /// State for a linguist bubble - represents the current lookup
@@ -532,6 +537,9 @@ struct LinguistBubbleConfiguration {
 
     /// (tvOS) Whether the bubble is displayed in split mode (side-by-side with tracks)
     var isSplitMode: Bool = false
+
+    /// (iPad) Whether the bubble is pinned (stays visible during playback)
+    var isPinned: Bool = false
 }
 
 /// Actions that can be performed on the linguist bubble
@@ -565,6 +573,9 @@ struct LinguistBubbleActions {
 
     /// Optional callback to toggle layout direction (iPad only)
     var onToggleLayoutDirection: (() -> Void)? = nil
+
+    /// Optional callback to toggle pin state (iPad only)
+    var onTogglePin: (() -> Void)? = nil
 }
 
 // MARK: - iPad Split Layout
@@ -683,6 +694,8 @@ struct LinguistBubbleView: View {
         case voice
         case decreaseFont
         case increaseFont
+        case pin
+        case layout
         case close
     }
 
@@ -706,6 +719,12 @@ struct LinguistBubbleView: View {
             }
             #endif
         }
+        #if os(tvOS)
+        // In split mode, fill available space to maintain constant size during loading
+        .frame(maxWidth: configuration.isSplitMode ? .infinity : nil,
+               maxHeight: configuration.isSplitMode ? .infinity : nil,
+               alignment: .top)
+        #endif
         #if os(iOS)
         .onChange(of: keyboardNavigator.activationTrigger) { _, _ in
             // When Enter is pressed on a picker control, open the corresponding picker
@@ -732,10 +751,16 @@ struct LinguistBubbleView: View {
             headerRow
 
             bubbleContent
+                #if os(tvOS)
+                // Smooth content transitions for loading states
+                .animation(.easeInOut(duration: 0.2), value: state.status.isLoading)
+                #endif
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         #if os(tvOS)
+        // In split mode, fill available height to prevent size changes during loading
+        .frame(maxHeight: configuration.isSplitMode ? .infinity : nil, alignment: .top)
         .background(
             GeometryReader { contentProxy in
                 Color.clear.preference(
@@ -862,15 +887,22 @@ struct LinguistBubbleView: View {
     @ViewBuilder
     private var tvLayoutToggleButton: some View {
         if let onToggle = actions.onToggleLayoutDirection {
-            Button(action: onToggle) {
+            bubbleControlItem(control: .layout, isEnabled: true, action: onToggle) {
                 Image(systemName: "rectangle.split.2x1")
-                    .font(bubbleIconFont)
-                    .foregroundStyle(.white)
-                    .padding(bubbleControlPadding)
-                    .background(.black.opacity(0.3), in: Circle())
             }
-            .buttonStyle(.plain)
             .accessibilityLabel("Toggle layout")
+        }
+    }
+
+    /// Pin toggle button for tvOS (keeps bubble visible during playback in split mode)
+    @ViewBuilder
+    private var tvPinToggleButton: some View {
+        if let onToggle = actions.onTogglePin {
+            bubbleControlItem(control: .pin, isEnabled: true, action: onToggle) {
+                Image(systemName: configuration.isPinned ? "pin.fill" : "pin")
+                    .foregroundStyle(configuration.isPinned ? .yellow : .white)
+            }
+            .accessibilityLabel(configuration.isPinned ? "Unpin bubble" : "Pin bubble")
         }
     }
 
@@ -883,6 +915,7 @@ struct LinguistBubbleView: View {
                 modelMenu
                 fontSizeControls
                 Spacer(minLength: 4)
+                tvPinToggleButton
                 tvLayoutToggleButton
                 closeButton
             }
@@ -907,6 +940,7 @@ struct LinguistBubbleView: View {
             voiceMenu
             modelMenu
             fontSizeControls
+            tvPinToggleButton
             tvLayoutToggleButton
             closeButton
         }
@@ -972,8 +1006,17 @@ struct LinguistBubbleView: View {
                     }
             }
         } else {
-            // iPad: Horizontal layout - query left, controls right
-            HStack(spacing: 6) {
+            // iPad: Vertical layout - controls on top, query below (same as iPhone)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    lookupLanguageMenu
+                    voiceMenu
+                    modelMenu
+                    Spacer()
+                    pinToggleButton
+                    layoutToggleButton
+                    closeButton
+                }
                 Text(state.query)
                     .font(queryFont)
                     .foregroundStyle(bubbleTextColor)
@@ -988,13 +1031,23 @@ struct LinguistBubbleView: View {
                             UIPasteboard.general.string = sanitized
                         }
                     }
-                Spacer(minLength: 6)
-                lookupLanguageMenu
-                voiceMenu
-                modelMenu
-                layoutToggleButton
-                closeButton
             }
+        }
+    }
+
+    /// Pin toggle button for iPad (keeps bubble visible during playback)
+    @ViewBuilder
+    private var pinToggleButton: some View {
+        if let onToggle = actions.onTogglePin {
+            Button(action: onToggle) {
+                Image(systemName: configuration.isPinned ? "pin.fill" : "pin")
+                    .font(bubbleIconFont)
+                    .foregroundStyle(configuration.isPinned ? .yellow : .white)
+                    .padding(bubbleControlPadding)
+                    .background(.black.opacity(0.3), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(configuration.isPinned ? "Unpin bubble" : "Pin bubble")
         }
     }
 
@@ -1080,9 +1133,7 @@ struct LinguistBubbleView: View {
         bubbleControlItem(control: .model, isEnabled: true, action: {
             activePicker = .model
         }) {
-            Text(verbatim: configuration.llmModel)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            Image(systemName: "brain")
         }
         .accessibilityLabel("Lookup model")
         #else
@@ -1165,18 +1216,7 @@ struct LinguistBubbleView: View {
             bubbleControlItem(control: .voice, isEnabled: true, action: {
                 activePicker = .voice
             }) {
-                HStack(spacing: 4) {
-                    Image(systemName: "speaker.wave.2.fill")
-                        .font(.caption.weight(.semibold))
-                    if let voice = configuration.ttsVoice {
-                        Text(formatVoiceLabel(voice))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    } else {
-                        Text("Auto")
-                            .lineLimit(1)
-                    }
-                }
+                Image(systemName: "speaker.wave.2.fill")
             }
             .accessibilityLabel("TTS voice")
         }
@@ -1456,17 +1496,19 @@ struct LinguistBubbleView: View {
     private func bubbleControlLabel(isFocused: Bool, @ViewBuilder content: () -> some View) -> some View {
         content()
             .font(.caption.weight(.semibold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
             .foregroundStyle(.white)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 8)
                     .fill(isFocused ? Color.white.opacity(0.25) : Color.black.opacity(0.35))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isFocused ? Color.white.opacity(0.8) : .clear, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isFocused ? Color.white.opacity(0.6) : .clear, lineWidth: 1)
             )
+            .scaleEffect(isFocused ? 1.05 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: isFocused)
     }
 
     private func bubbleControlItem(

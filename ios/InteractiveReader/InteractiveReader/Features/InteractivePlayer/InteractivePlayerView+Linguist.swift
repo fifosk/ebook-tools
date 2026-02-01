@@ -91,7 +91,14 @@ extension InteractivePlayerView {
     func startLinguistLookup(query: String, variantKind: TextPlayerVariantKind) {
         linguistLookupTask?.cancel()
         linguistAutoLookupTask?.cancel()
-        linguistBubble = MyLinguistBubbleState(query: query, status: .loading, answer: nil, model: nil)
+        // When bubble is already visible, use smooth animation to avoid visual flicker
+        if linguistBubble != nil {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                linguistBubble = MyLinguistBubbleState(query: query, status: .loading, answer: nil, model: nil)
+            }
+        } else {
+            linguistBubble = MyLinguistBubbleState(query: query, status: .loading, answer: nil, model: nil)
+        }
         let originalLanguage = linguistInputLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         let translationLanguage = linguistLookupLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         let explanationLanguage = resolvedLookupLanguage
@@ -533,8 +540,12 @@ extension InteractivePlayerView {
 
     func toggleiPadLayoutDirection() {
         iPadSplitDirection = iPadSplitDirection == .vertical ? .horizontal : .vertical
-        // Reset ratio to 50% when toggling
-        iPadSplitRatio = 0.5
+        // Reset ratio to 30% bubble / 70% track when toggling (matching tvOS)
+        iPadSplitRatio = 0.4
+    }
+
+    func toggleiPadBubblePin() {
+        iPadBubblePinned.toggle()
     }
     #else
     // tvOS uses horizontal split when enabled (30% bubble / 70% track)
@@ -544,11 +555,19 @@ extension InteractivePlayerView {
     }
     var iPadSplitRatio: CGFloat {
         // tvOS fixed ratio: 30% for bubble, 70% for tracks
-        get { 0.3 }
+        get { 0.30 }
         nonmutating set { /* fixed on tvOS */ }
     }
     func toggleiPadLayoutDirection() {
         tvSplitEnabled.toggle()
+    }
+    // tvOS pin support - keeps bubble visible during playback in split mode
+    var iPadBubblePinned: Bool {
+        get { tvBubblePinned }
+        nonmutating set { tvBubblePinned = newValue }
+    }
+    func toggleiPadBubblePin() {
+        tvBubblePinned.toggle()
     }
     #endif
 
