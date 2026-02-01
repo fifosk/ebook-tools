@@ -14,6 +14,23 @@ from .backends import BaseTTSBackend, SynthesisResult, create_backend, get_tts_b
 logger = log_mgr.logger
 
 
+def _is_piper_voice(voice: str) -> bool:
+    """Check if the voice identifier is a Piper voice model name."""
+    if not voice:
+        return False
+    lowered = voice.lower()
+    # Piper auto selection
+    if lowered in ("piper-auto", "piper"):
+        return True
+    # Explicit Piper model name format: lang_REGION-name-quality
+    # e.g., en_US-lessac-medium, ar_JO-kareem-medium
+    if "_" in voice and "-" in voice:
+        parts = voice.split("-")
+        if len(parts) >= 2 and "_" in parts[0]:
+            return True
+    return False
+
+
 class AudioService:
     """Facade providing access to configured text-to-speech backends."""
 
@@ -66,6 +83,20 @@ class AudioService:
 
         self._backend = None
 
+    def _get_backend_for_voice(self, voice: str) -> BaseTTSBackend:
+        """Return the appropriate backend for the given voice.
+
+        If the voice is a Piper voice identifier, returns a Piper backend.
+        Otherwise returns the configured default backend.
+        """
+        if _is_piper_voice(voice):
+            logger.debug(
+                "Voice '%s' detected as Piper voice; using Piper backend.",
+                voice,
+            )
+            return create_backend("piper")
+        return self._resolve_backend()
+
     def synthesize(
         self,
         *,
@@ -75,9 +106,9 @@ class AudioService:
         lang_code: str,
         output_path: Optional[str] = None,
     ) -> AudioSegment:
-        """Generate speech audio using the configured backend."""
+        """Generate speech audio using the appropriate backend for the voice."""
 
-        backend = self._resolve_backend()
+        backend = self._get_backend_for_voice(voice)
         attributes = {
             "backend": backend.name,
             "voice": voice,

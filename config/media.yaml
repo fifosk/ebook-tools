@@ -9,3 +9,6 @@ tts:
     gtts:
       aliases:
         - gtts
+    piper:
+      aliases:
+        - piper

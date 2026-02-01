@@ -135,6 +135,42 @@
    # Output to web/dist/
    ```
 
+### iOS/tvOS Setup
+
+The iOS apps are in `ios/InteractiveReader/`. Use Xcode or command-line builds.
+
+**Available schemes**:
+- `InteractiveReader` - iOS app (iPhone/iPad)
+- `InteractiveReaderTV` - tvOS app (Apple TV)
+
+**Command-line builds** (use full Xcode path since CLI tools may be active):
+
+```bash
+# iOS build (iPad)
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -scheme InteractiveReader \
+  -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)' \
+  -quiet build 2>&1 | grep -E "(error:|warning:)" | head -20
+
+# tvOS build
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -scheme InteractiveReaderTV \
+  -destination 'generic/platform=tvOS Simulator' \
+  -quiet build 2>&1 | grep -E "(error:|warning:)" | head -20
+
+# List available schemes
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -project ios/InteractiveReader/InteractiveReader.xcodeproj -list
+
+# Check build success (no output = success)
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -scheme InteractiveReader \
+  -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)' \
+  -quiet build 2>&1 | tail -5
+```
+
+**Note**: Simulator names change with Xcode versions. If a destination isn't found, the error output lists available simulators.
+
 ## Development Guidelines
 
 ### Code Organization

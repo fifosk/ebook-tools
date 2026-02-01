@@ -32,11 +32,23 @@ extension InteractivePlayerViewModel {
         }
     }
 
-    func synthesizePronunciation(text: String, language: String?) async throws -> Data {
+    func fetchVoiceInventory() async -> VoiceInventoryResponse? {
+        guard let configuration = apiConfiguration else {
+            return nil
+        }
+        let client = APIClient(configuration: configuration)
+        do {
+            return try await client.fetchVoiceInventory()
+        } catch {
+            return nil
+        }
+    }
+
+    func synthesizePronunciation(text: String, language: String?, voice: String? = nil) async throws -> Data {
         guard let configuration = apiConfiguration else {
             throw PronunciationError.missingConfiguration
         }
         let client = APIClient(configuration: configuration)
-        return try await client.synthesizeAudio(text: text, language: language)
+        return try await client.synthesizeAudio(text: text, language: language, voice: voice)
     }
 }

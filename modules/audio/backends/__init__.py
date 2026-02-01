@@ -11,6 +11,7 @@ from ..config import get_tts_config
 from .base import BaseTTSBackend, SynthesisResult, TTSBackendError
 from .gtts import GTTSBackend
 from .macos_say import MacOSSayBackend, MacOSTTSBackend
+from .piper import PiperTTSBackend
 
 
 _BACKENDS: MutableMapping[str, Type[BaseTTSBackend]] = {}
@@ -40,6 +41,7 @@ def register_backend(name: str, backend_cls: Type[BaseTTSBackend]) -> None:
 def _register_builtin_backends() -> None:
     register_backend(GTTSBackend.name, GTTSBackend)
     register_backend(MacOSSayBackend.name, MacOSSayBackend)
+    register_backend(PiperTTSBackend.name, PiperTTSBackend)
 
 
 def _iter_aliases(candidate: Any) -> Iterable[str]:
@@ -88,6 +90,7 @@ def _bootstrap_registry() -> None:
     _BACKEND_ALIASES.setdefault("macos", MacOSSayBackend.name)
     _BACKEND_ALIASES.setdefault("macos_say", MacOSSayBackend.name)
     _BACKEND_ALIASES.setdefault("gtts", GTTSBackend.name)
+    _BACKEND_ALIASES.setdefault("piper", PiperTTSBackend.name)
 
 
 _bootstrap_registry()
@@ -202,6 +205,7 @@ __all__ = [
     "GTTSBackend",
     "MacOSSayBackend",
     "MacOSTTSBackend",
+    "PiperTTSBackend",
     "SynthesisResult",
     "TTSBackendError",
     "create_backend",

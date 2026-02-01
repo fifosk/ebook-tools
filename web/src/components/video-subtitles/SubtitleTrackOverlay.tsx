@@ -9,7 +9,9 @@ import {
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MutableRefObject, PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { TextPlayerVariantKind } from '../../text-player/TextPlayer';
-import { fetchLlmModels } from '../../api/client';
+import { fetchLlmModels, fetchVoiceInventory } from '../../api/client';
+import type { VoiceInventoryResponse } from '../../api/dtos';
+import { resolveLanguageCode } from '../../constants/languageCodes';
 import { MyLinguistBubble } from '../interactive-text/MyLinguistBubble';
 import {
   MY_LINGUIST_BUBBLE_MAX_CHARS,
@@ -268,6 +270,8 @@ export default function SubtitleTrackOverlay({
   const [isDraggingSubtitles, setIsDraggingSubtitles] = useState(false);
   const llmModelsLoadedRef = useRef(false);
   const [availableLlmModels, setAvailableLlmModels] = useState<string[]>([]);
+  const voiceInventoryLoadedRef = useRef(false);
+  const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
   const dragStateRef = useRef({
     pointerId: null as number | null,
     startX: 0,
@@ -325,6 +329,47 @@ export default function SubtitleTrackOverlay({
       ),
     [availableLlmModels, bubble?.llmModel],
   );
+  const ttsVoiceOptions = useMemo(() => {
+    if (!voiceInventory) {
+      return [];
+    }
+    const ttsLang = bubble?.ttsLanguage ?? globalInputLanguage ?? '';
+    // Convert language name (e.g., "English") to code (e.g., "en") if needed
+    const resolvedCode = resolveLanguageCode(ttsLang) ?? ttsLang;
+    const baseLang = resolvedCode.split(/[-_]/)[0]?.toLowerCase() ?? '';
+    const result: string[] = [];
+    const seen = new Set<string>();
+    const append = (voice: string) => {
+      const lower = voice.toLowerCase();
+      if (seen.has(lower)) {
+        return;
+      }
+      seen.add(lower);
+      result.push(voice);
+    };
+    if (bubble?.ttsVoice) {
+      append(bubble.ttsVoice);
+    }
+    for (const voice of voiceInventory.piper ?? []) {
+      const piperLang = voice.lang.split(/[-_]/)[0]?.toLowerCase() ?? '';
+      if (baseLang && piperLang === baseLang) {
+        append(voice.name);
+      }
+    }
+    for (const voice of voiceInventory.macos ?? []) {
+      const macLang = (voice.lang ?? '').split(/[-_]/)[0]?.toLowerCase() ?? '';
+      if (baseLang && macLang === baseLang) {
+        append(voice.name);
+      }
+    }
+    for (const entry of voiceInventory.gtts ?? []) {
+      const gLang = (entry.code ?? '').split(/[-_]/)[0]?.toLowerCase() ?? '';
+      if (baseLang && gLang === baseLang) {
+        append(`gTTS-${entry.code}`);
+      }
+    }
+    return result;
+  }, [voiceInventory, bubble?.ttsLanguage, bubble?.ttsVoice, globalInputLanguage]);
 
   const lookup = useLinguistBubbleLookup({
     isEnabled: linguistEnabled,
@@ -383,6 +428,17 @@ export default function SubtitleTrackOverlay({
     });
   }, []);
 
+  const handleTtsVoiceChange = useCallback((value: string | null) => {
+    const trimmed = (value ?? '').trim();
+    storeMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.ttsVoice, trimmed, { allowEmpty: true });
+    setBubble((previous) => {
+      if (!previous) {
+        return previous;
+      }
+      return { ...previous, ttsVoice: trimmed ? trimmed : null };
+    });
+  }, []);
+
   useEffect(() => {
     if (!linguistEnabled || !bubble || llmModelsLoadedRef.current) {
       return;
@@ -396,6 +452,20 @@ export default function SubtitleTrackOverlay({
         setAvailableLlmModels([]);
       });
   }, [bubble]);
+
+  useEffect(() => {
+    if (!linguistEnabled || !bubble || voiceInventoryLoadedRef.current) {
+      return;
+    }
+    voiceInventoryLoadedRef.current = true;
+    void fetchVoiceInventory()
+      .then((inventory) => {
+        setVoiceInventory(inventory);
+      })
+      .catch(() => {
+        setVoiceInventory(null);
+      });
+  }, [linguistEnabled, bubble]);
 
   const resumePlaybackAndDefocus = useCallback(() => {
     closeBubble();
@@ -1235,6 +1305,8 @@ export default function SubtitleTrackOverlay({
             onLookupLanguageChange={handleLookupLanguageChange}
             llmModelOptions={llmModelOptions}
             onLlmModelChange={handleLlmModelChange}
+            ttsVoiceOptions={ttsVoiceOptions}
+            onTtsVoiceChange={handleTtsVoiceChange}
             onBubblePointerDown={layout.onBubblePointerDown}
             onBubblePointerMove={layout.onBubblePointerMove}
             onBubblePointerUp={layout.onBubblePointerUp}

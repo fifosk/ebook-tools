@@ -70,6 +70,7 @@ export type LinguistBubbleState = {
   lookupLanguage: string;
   llmModel: string | null;
   ttsLanguage: string;
+  ttsVoice: string | null;
   ttsStatus: LinguistBubbleTtsStatus;
   navigation: LinguistBubbleNavigation | null;
 };

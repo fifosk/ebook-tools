@@ -20,6 +20,10 @@ from fastapi.staticfiles import StaticFiles
 
 from modules import config_manager as cfg
 from modules import load_environment
+from modules.core.storage_config import configure_hf_environment
+
+# Configure HuggingFace environment early, before any HF imports
+configure_hf_environment()
 
 from .admin_routes import router as admin_router
 from .config_routes import router as config_router

@@ -190,6 +190,27 @@ export function useBookNarrationVoices({
           });
         });
 
+      // Add Piper voices matching the language
+      const piperVoices = (voiceInventory.piper ?? []).filter((voice) => {
+        const voiceLang = voice.lang.toLowerCase();
+        // Piper voices use format like "en_US", so check prefix
+        return (
+          voiceLang === normalizedCode ||
+          voiceLang.startsWith(`${normalizedCode}_`) ||
+          voiceLang.startsWith(`${normalizedCode}-`)
+        );
+      });
+      piperVoices
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach((voice) => {
+          extras.push({
+            value: voice.name,
+            label: `Piper: ${voice.name}`,
+            description: `Piper TTS (${voice.quality})`,
+          });
+        });
+
       const merged = new Map<string, MenuOption>();
       for (const option of [...baseOptions, ...extras]) {
         if (!option.value) {

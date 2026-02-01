@@ -58,9 +58,16 @@ export interface GTTSLanguage {
   name: string;
 }
 
+export interface PiperVoice {
+  name: string;
+  lang: string;
+  quality: string;
+}
+
 export interface VoiceInventoryResponse {
   macos: MacOSVoice[];
   gtts: GTTSLanguage[];
+  piper: PiperVoice[];
 }
 
 export interface PipelineInputPayload {

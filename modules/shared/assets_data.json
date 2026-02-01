@@ -61,6 +61,11 @@
       "description": "Cross-platform default voice provider used by the CLI."
     },
     {
+      "value": "piper-auto",
+      "label": "Piper TTS (auto)",
+      "description": "Fast, local neural TTS. Auto-selects voice based on target language."
+    },
+    {
       "value": "macOS-auto",
       "label": "Auto-select macOS voice",
       "description": "Let macOS decide which system voice to use based on target language."

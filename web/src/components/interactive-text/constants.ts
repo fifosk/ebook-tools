@@ -14,6 +14,7 @@ export const MY_LINGUIST_STORAGE_KEYS = {
   inputLanguage: 'ebookTools.myLinguist.inputLanguage',
   lookupLanguage: 'ebookTools.myLinguist.lookupLanguage',
   llmModel: 'ebookTools.myLinguist.llmModel',
+  ttsVoice: 'ebookTools.myLinguist.ttsVoice',
   systemPrompt: 'ebookTools.myLinguist.systemPrompt',
   bubblePinned: 'ebookTools.myLinguist.bubblePinned',
   bubbleDocked: 'ebookTools.myLinguist.bubbleDocked',

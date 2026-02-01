@@ -4,7 +4,9 @@ import type {
   MutableRefObject,
   PointerEvent as ReactPointerEvent,
 } from 'react';
-import { fetchLlmModels } from '../../api/client';
+import { fetchLlmModels, fetchVoiceInventory } from '../../api/client';
+import type { VoiceInventoryResponse } from '../../api/dtos';
+import { resolveLanguageCode } from '../../constants/languageCodes';
 import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
 import {
   MY_LINGUIST_BUBBLE_MAX_CHARS,
@@ -91,8 +93,10 @@ export type UseLinguistBubbleResult = {
   ) => void;
   lookupLanguageOptions: string[];
   llmModelOptions: string[];
+  ttsVoiceOptions: string[];
   onLookupLanguageChange: (value: string) => void;
   onLlmModelChange: (value: string | null) => void;
+  onTtsVoiceChange: (value: string | null) => void;
 };
 
 export function useLinguistBubble({
@@ -120,7 +124,9 @@ export function useLinguistBubble({
   const linguistAnchorRectRef = useRef<DOMRect | null>(null);
   const linguistAnchorElementRef = useRef<HTMLElement | null>(null);
   const llmModelsLoadedRef = useRef(false);
+  const voiceInventoryLoadedRef = useRef(false);
   const [availableLlmModels, setAvailableLlmModels] = useState<string[]>([]);
+  const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
   const lookupLanguageOptions = useMemo(
     () =>
       buildMyLinguistLanguageOptions(
@@ -149,6 +155,63 @@ export function useLinguistBubble({
       ),
     [availableLlmModels, linguistBubble?.llmModel],
   );
+
+  const ttsVoiceOptions = useMemo(() => {
+    if (!voiceInventory) {
+      return [];
+    }
+    const ttsLanguage = linguistBubble?.ttsLanguage ?? '';
+    // Convert language name (e.g., "English") to code (e.g., "en") if needed
+    const resolvedCode = resolveLanguageCode(ttsLanguage) ?? ttsLanguage;
+    const normalizedLang = resolvedCode.toLowerCase().split(/[-_]/)[0];
+    const options: string[] = [];
+    const seen = new Set<string>();
+
+    // Add current voice if set
+    if (linguistBubble?.ttsVoice) {
+      const current = linguistBubble.ttsVoice.trim();
+      if (current && !seen.has(current.toLowerCase())) {
+        seen.add(current.toLowerCase());
+        options.push(current);
+      }
+    }
+
+    // Add Piper voices matching the language
+    for (const voice of voiceInventory.piper ?? []) {
+      const voiceLang = voice.lang.toLowerCase().split(/[-_]/)[0];
+      if (voiceLang === normalizedLang && !seen.has(voice.name.toLowerCase())) {
+        seen.add(voice.name.toLowerCase());
+        options.push(voice.name);
+      }
+    }
+
+    // Add macOS voices matching the language
+    for (const voice of voiceInventory.macos ?? []) {
+      const voiceLang = voice.lang.toLowerCase().split(/[-_]/)[0];
+      if (voiceLang === normalizedLang) {
+        const identifier = `${voice.name} - ${voice.lang}`;
+        if (!seen.has(identifier.toLowerCase())) {
+          seen.add(identifier.toLowerCase());
+          options.push(identifier);
+        }
+      }
+    }
+
+    // Add gTTS option for the language
+    for (const entry of voiceInventory.gtts ?? []) {
+      const entryLang = entry.code.toLowerCase().split(/[-_]/)[0];
+      if (entryLang === normalizedLang) {
+        const identifier = `gTTS-${entryLang}`;
+        if (!seen.has(identifier.toLowerCase())) {
+          seen.add(identifier.toLowerCase());
+          options.push(identifier);
+        }
+        break;
+      }
+    }
+
+    return options;
+  }, [voiceInventory, linguistBubble?.ttsLanguage, linguistBubble?.ttsVoice]);
 
   const layout = useLinguistBubbleLayout({
     anchorRectRef: linguistAnchorRectRef,
@@ -226,6 +289,17 @@ export function useLinguistBubble({
         return previous;
       }
       return { ...previous, llmModel: trimmed ? trimmed : null };
+    });
+  }, []);
+
+  const handleTtsVoiceChange = useCallback((value: string | null) => {
+    const trimmed = (value ?? '').trim();
+    storeMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.ttsVoice, trimmed, { allowEmpty: true });
+    setLinguistBubble((previous) => {
+      if (!previous) {
+        return previous;
+      }
+      return { ...previous, ttsVoice: trimmed ? trimmed : null };
     });
   }, []);
 
@@ -312,12 +386,27 @@ export function useLinguistBubble({
       });
   }, [isEnabled, linguistBubble]);
 
+  useEffect(() => {
+    if (!isEnabled || !linguistBubble || voiceInventoryLoadedRef.current) {
+      return;
+    }
+    voiceInventoryLoadedRef.current = true;
+    void fetchVoiceInventory()
+      .then((inventory) => {
+        setVoiceInventory(inventory);
+      })
+      .catch(() => {
+        setVoiceInventory(null);
+      });
+  }, [isEnabled, linguistBubble]);
+
   const noop = useCallback(() => {}, []);
   const noopNavigate = useCallback((_delta: -1 | 1) => {}, []);
   const noopMouse = useCallback((_event: ReactMouseEvent<HTMLDivElement>) => {}, []);
   const noopPointer = useCallback((_event: ReactPointerEvent<HTMLDivElement>) => {}, []);
   const noopLookup = useCallback((_value: string) => {}, []);
   const noopModel = useCallback((_value: string | null) => {}, []);
+  const noopVoice = useCallback((_value: string | null) => {}, []);
 
   if (!isEnabled) {
     return {
@@ -356,8 +445,10 @@ export function useLinguistBubble({
       openTokenLookup: noop as UseLinguistBubbleResult['openTokenLookup'],
       lookupLanguageOptions: [],
       llmModelOptions: [],
+      ttsVoiceOptions: [],
       onLookupLanguageChange: noopLookup,
       onLlmModelChange: noopModel,
+      onTtsVoiceChange: noopVoice,
     };
   }
 
@@ -397,7 +488,9 @@ export function useLinguistBubble({
     openTokenLookup,
     lookupLanguageOptions,
     llmModelOptions,
+    ttsVoiceOptions,
     onLookupLanguageChange: handleLookupLanguageChange,
     onLlmModelChange: handleLlmModelChange,
+    onTtsVoiceChange: handleTtsVoiceChange,
   };
 }

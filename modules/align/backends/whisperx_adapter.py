@@ -4,10 +4,28 @@ from __future__ import annotations
 
 import functools
 import threading
+import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from modules import logging_manager as log_mgr
+
+# Suppress known deprecation warnings from transformers library
+warnings.filterwarnings(
+    "ignore",
+    message=".*gradient_checkpointing.*",
+    category=UserWarning,
+    module="transformers",
+)
+
+# Suppress PyTorch meta tensor warnings during model loading
+# These occur when loading Wav2Vec2 models and are harmless
+warnings.filterwarnings(
+    "ignore",
+    message=".*copying from a non-meta parameter.*",
+    category=UserWarning,
+    module="torch",
+)
 
 logger = log_mgr.logger
 
@@ -151,7 +169,14 @@ def _get_alignment_model(
     with _model_cache_lock:
         _model_cache[cache_key] = (model, metadata)
 
-    logger.info("WhisperX alignment model loaded successfully")
+    # Log the actual model that was loaded (helpful for troubleshooting)
+    resolved_model_name = metadata.get("language", model_name) if isinstance(metadata, dict) else model_name
+    logger.info(
+        "WhisperX alignment model loaded: language='%s', device='%s', resolved_model='%s'",
+        language,
+        device,
+        resolved_model_name or "default",
+    )
     return model, metadata
 
 

@@ -60,6 +60,30 @@ struct LLMModelListResponse: Decodable {
     let models: [String]
 }
 
+struct MacOSVoice: Decodable {
+    let name: String
+    let lang: String
+    let quality: String?
+    let gender: String?
+}
+
+struct GTTSLanguage: Decodable {
+    let code: String
+    let name: String
+}
+
+struct PiperVoice: Decodable {
+    let name: String
+    let lang: String
+    let quality: String
+}
+
+struct VoiceInventoryResponse: Decodable {
+    let macos: [MacOSVoice]
+    let gtts: [GTTSLanguage]
+    let piper: [PiperVoice]
+}
+
 struct AudioSynthesisRequest: Encodable {
     let text: String
     let voice: String?

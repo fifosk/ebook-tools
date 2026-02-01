@@ -24,6 +24,7 @@ extension InteractivePlayerView {
         #endif
         view = AnyView(view.onAppear {
             loadLlmModelsIfNeeded()
+            loadVoiceInventoryIfNeeded()
             refreshBookmarks()
             guard let chunk = viewModel.selectedChunk else { return }
             applyDefaultTrackSelection(for: chunk)
@@ -576,6 +577,9 @@ extension InteractivePlayerView {
             llmModel: resolvedLlmModel ?? MyLinguistPreferences.defaultLlmModel,
             llmModelOptions: llmModelOptions,
             onLlmModelChange: { storedLlmModel = $0 },
+            ttsVoice: storedTtsVoice.isEmpty ? nil : storedTtsVoice,
+            ttsVoiceOptions: ttsVoiceOptions(for: ttsLanguageForCurrentSelection),
+            onTtsVoiceChange: { storedTtsVoice = $0 ?? "" },
             playbackPrimaryKind: resolvedPlaybackPrimaryKind,
             visibleTracks: visibleTracks,
             isBubbleFocusEnabled: bubbleFocusEnabled,
@@ -641,7 +645,24 @@ extension InteractivePlayerView {
             },
             onToggleHeader: {
                 toggleHeaderCollapsed()
-            }
+            },
+            onBubblePreviousToken: {
+                handleWordNavigation(-1, in: chunk)
+                scheduleAutoLinguistLookup(in: chunk)
+            },
+            onBubbleNextToken: {
+                handleWordNavigation(1, in: chunk)
+                scheduleAutoLinguistLookup(in: chunk)
+            },
+            iPadSplitDirection: iPadSplitDirection,
+            iPadSplitRatio: Binding(
+                get: { iPadSplitRatio },
+                set: { iPadSplitRatio = $0 }
+            ),
+            onToggleLayoutDirection: {
+                toggleiPadLayoutDirection()
+            },
+            bubbleKeyboardNavigator: bubbleKeyboardNavigator
         )
         .padding(.top, transcriptTopPadding)
     }
@@ -676,14 +697,18 @@ extension InteractivePlayerView {
             KeyboardCommandHandler(
                 onPlayPause: { audioCoordinator.togglePlayback() },
                 onPrevious: {
-                    if audioCoordinator.isPlaying {
+                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
+                        bubbleKeyboardNavigator.navigateLeft()
+                    } else if audioCoordinator.isPlaying {
                         viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
                     } else {
                         handleWordNavigation(-1, in: viewModel.selectedChunk)
                     }
                 },
                 onNext: {
-                    if audioCoordinator.isPlaying {
+                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
+                        bubbleKeyboardNavigator.navigateRight()
+                    } else if audioCoordinator.isPlaying {
                         viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
                     } else {
                         handleWordNavigation(1, in: viewModel.selectedChunk)
@@ -700,6 +725,11 @@ extension InteractivePlayerView {
                     handleWordRangeSelection(1, in: chunk)
                 },
                 onLookup: {
+                    // Handle Enter key when in bubble keyboard focus mode
+                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
+                        handleBubbleKeyboardActivate()
+                        return
+                    }
                     guard !audioCoordinator.isPlaying else { return }
                     guard let chunk = viewModel.selectedChunk else { return }
                     handleLinguistLookup(in: chunk)
@@ -723,6 +753,16 @@ extension InteractivePlayerView {
                 onShowMenu: {
                     if audioCoordinator.isPlaying {
                         showMenu()
+                    } else if bubbleKeyboardNavigator.isKeyboardFocusActive {
+                        // Already in bubble focus mode, ignore down arrow
+                        return
+                    } else if linguistBubble != nil, let chunk = viewModel.selectedChunk {
+                        // Bubble is open, try to navigate down to it
+                        let moved = handleTrackNavigation(1, in: chunk)
+                        if !moved {
+                            // At bottom track, enter bubble keyboard focus
+                            bubbleKeyboardNavigator.enterFocus()
+                        }
                     } else if let chunk = viewModel.selectedChunk {
                         handleTrackNavigation(1, in: chunk)
                     }
@@ -730,9 +770,18 @@ extension InteractivePlayerView {
                 onHideMenu: {
                     if audioCoordinator.isPlaying {
                         hideMenu()
+                    } else if bubbleKeyboardNavigator.isKeyboardFocusActive {
+                        // Exit bubble keyboard focus
+                        bubbleKeyboardNavigator.exitFocus()
                     } else if let chunk = viewModel.selectedChunk {
                         handleTrackNavigation(-1, in: chunk)
                     }
+                },
+                onBubbleNavigateLeft: {
+                    bubbleKeyboardNavigator.navigateLeft()
+                },
+                onBubbleNavigateRight: {
+                    bubbleKeyboardNavigator.navigateRight()
                 }
             )
             .frame(width: 0, height: 0)
@@ -1105,8 +1154,8 @@ extension InteractivePlayerView {
 
     var transcriptTopPadding: CGFloat {
         #if os(iOS) || os(tvOS)
-        // Reduce padding on iPhone when bubble is shown (header is auto-hidden)
-        if isPhone && linguistBubble != nil {
+        // Reduce padding when bubble is shown (header is auto-hidden on iPhone and iPad)
+        if (isPhone || isPad) && linguistBubble != nil {
             return 8
         }
         return isHeaderCollapsed ? 8 : infoHeaderReservedHeight
@@ -1116,8 +1165,8 @@ extension InteractivePlayerView {
     }
 
     var shouldShowHeaderOverlay: Bool {
-        // Hide header on iPhone when bubble is shown to maximize screen space
-        if isPhone && linguistBubble != nil {
+        // Hide header on iPhone and iPad when bubble is shown to maximize screen space
+        if (isPhone || isPad) && linguistBubble != nil {
             return false
         }
         return !isHeaderCollapsed
@@ -1126,16 +1175,23 @@ extension InteractivePlayerView {
     @ViewBuilder
     var headerToggleButton: some View {
         #if os(iOS)
-        // Show timeline pill when header is collapsed OR when bubble is shown on iPhone (auto-minimized)
-        let showButton = isHeaderCollapsed || (isPhone && linguistBubble != nil)
+        // Show timeline pill when header is collapsed OR when bubble is shown (auto-minimized)
+        let showButton = isHeaderCollapsed || ((isPhone || isPad) && linguistBubble != nil)
         if showButton, let chunk = viewModel.selectedChunk {
             let timelineLabel = audioTimelineLabel(for: chunk)
             if let timelineLabel {
-                audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    .padding(.top, 6)
-                    .padding(.trailing, 6)
-                    .zIndex(2)
+                // Position pill in top-right corner using VStack/HStack with Spacers
+                // The Spacers don't have content shape so touches pass through
+                VStack(spacing: 0) {
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                            .padding(.top, 6)
+                            .padding(.trailing, 6)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .zIndex(2)
             }
         }
         #else

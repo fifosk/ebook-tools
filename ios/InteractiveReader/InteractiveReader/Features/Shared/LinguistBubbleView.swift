@@ -5,6 +5,171 @@ import UIKit
 
 // MARK: - Shared Types
 
+#if os(iOS)
+/// Sanitize text for dictionary lookup by removing enclosing quotes
+enum TextLookupSanitizer {
+    /// Quote characters to strip (using Unicode scalars to avoid parser issues)
+    static let quoteChars: Set<Character> = [
+        "\"", "'", "`",                             // ASCII quotes
+        "\u{201C}", "\u{201D}",                     // Curly double quotes " "
+        "\u{2018}", "\u{2019}",                     // Curly single quotes ' '
+        "\u{00AB}", "\u{00BB}",                     // Guillemets « »
+        "\u{201E}", "\u{201F}",                     // German quotes „ ‟
+        "\u{300C}", "\u{300D}",                     // CJK brackets 「  」
+        "\u{300E}", "\u{300F}"                      // CJK double brackets 『 』
+    ]
+
+    static func sanitize(_ text: String) -> String {
+        var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Strip leading quotes
+        while let first = result.first, quoteChars.contains(first) {
+            result.removeFirst()
+        }
+
+        // Strip trailing quotes
+        while let last = result.last, quoteChars.contains(last) {
+            result.removeLast()
+        }
+
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+/// A text view that renders text with tappable words for Look Up / Copy
+/// Preserves original text layout including newlines
+struct TappableWordText: View {
+    let text: String
+    let font: Font
+    let color: Color
+
+    var body: some View {
+        // Split by newlines first to preserve paragraph structure
+        let lines = text.components(separatedBy: .newlines)
+
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { lineIndex, line in
+                if line.isEmpty {
+                    // Empty line = paragraph break, render minimal height spacer
+                    Text(" ")
+                        .font(font)
+                        .foregroundStyle(.clear)
+                } else {
+                    // Parse line into word and non-word segments
+                    let segments = parseSegments(line)
+
+                    // Render segments in a wrapping layout
+                    WrappingHStack(horizontalSpacing: 0, verticalSpacing: 2) {
+                        ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                            if segment.isWord {
+                                Text(segment.text)
+                                    .font(font)
+                                    .foregroundStyle(color)
+                                    .contextMenu {
+                                        let sanitized = TextLookupSanitizer.sanitize(segment.text)
+                                        Button("Look Up") {
+                                            DictionaryLookupPresenter.show(term: sanitized)
+                                        }
+                                        Button("Copy") {
+                                            UIPasteboard.general.string = sanitized
+                                        }
+                                    }
+                            } else {
+                                Text(segment.text)
+                                    .font(font)
+                                    .foregroundStyle(color)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private struct TextSegment {
+        let text: String
+        let isWord: Bool
+    }
+
+    private func parseSegments(_ text: String) -> [TextSegment] {
+        var segments: [TextSegment] = []
+        var current = ""
+        var isCurrentWord = false
+
+        for char in text {
+            let charIsWord = char.isLetter || char.isNumber ||
+                             TextLookupSanitizer.quoteChars.contains(char)
+
+            if current.isEmpty {
+                current.append(char)
+                isCurrentWord = charIsWord
+            } else if charIsWord == isCurrentWord {
+                current.append(char)
+            } else {
+                segments.append(TextSegment(text: current, isWord: isCurrentWord))
+                current = String(char)
+                isCurrentWord = charIsWord
+            }
+        }
+
+        if !current.isEmpty {
+            segments.append(TextSegment(text: current, isWord: isCurrentWord))
+        }
+
+        return segments
+    }
+}
+
+/// A simple wrapping HStack that flows content like text
+struct WrappingHStack: Layout {
+    var horizontalSpacing: CGFloat = 0
+    var verticalSpacing: CGFloat = 4
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = layout(proposal: proposal, subviews: subviews)
+        return result.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = layout(proposal: proposal, subviews: subviews)
+
+        for (index, position) in result.positions.enumerated() {
+            subviews[index].place(
+                at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y),
+                proposal: .unspecified
+            )
+        }
+    }
+
+    private func layout(proposal: ProposedViewSize, subviews: Subviews) -> (size: CGSize, positions: [CGPoint]) {
+        let maxWidth = proposal.width ?? .infinity
+        var positions: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var lineHeight: CGFloat = 0
+        var maxX: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+
+            // Wrap to next line if needed (but not for first item on line)
+            if x > 0 && x + size.width > maxWidth {
+                x = 0
+                y += lineHeight + verticalSpacing
+                lineHeight = 0
+            }
+
+            positions.append(CGPoint(x: x, y: y))
+            x += size.width + horizontalSpacing
+            maxX = max(maxX, x - horizontalSpacing)
+            lineHeight = max(lineHeight, size.height)
+        }
+
+        return (CGSize(width: maxX, height: y + lineHeight), positions)
+    }
+}
+#endif
+
 /// Preference key for measuring bubble content height (tvOS auto-scaling)
 struct LinguistBubbleContentHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
@@ -52,6 +217,12 @@ struct LinguistBubbleConfiguration {
     /// Available LLM model options
     let llmModelOptions: [String]
 
+    /// Current TTS voice (nil means auto)
+    var ttsVoice: String? = nil
+
+    /// Available TTS voice options
+    var ttsVoiceOptions: [String] = []
+
     /// UI scale factor (e.g., 2.0 for iPad)
     var uiScale: CGFloat = 1.0
 
@@ -91,6 +262,9 @@ struct LinguistBubbleActions {
     let onDecreaseFont: () -> Void
     let onClose: () -> Void
 
+    /// Optional TTS voice change handler
+    var onTtsVoiceChange: ((String?) -> Void)? = nil
+
     /// Optional reset font action (shown as separate button if provided)
     var onResetFont: (() -> Void)? = nil
 
@@ -99,6 +273,86 @@ struct LinguistBubbleActions {
 
     /// Optional callback when bubble gains focus (tvOS only)
     var onBubbleFocus: (() -> Void)? = nil
+
+    /// Optional callback when keyboard navigation leaves bubble focus (iOS only)
+    var onExitBubbleFocus: (() -> Void)? = nil
+
+    /// Optional callback to navigate to previous token (iOS swipe right)
+    var onPreviousToken: (() -> Void)? = nil
+
+    /// Optional callback to navigate to next token (iOS swipe left)
+    var onNextToken: (() -> Void)? = nil
+
+    /// Optional callback to toggle layout direction (iPad only)
+    var onToggleLayoutDirection: (() -> Void)? = nil
+}
+
+// MARK: - iPad Split Layout
+
+/// Layout direction for iPad split view
+enum iPadBubbleSplitDirection {
+    case vertical   // tracks on top, bubble below (default)
+    case horizontal // tracks on right, bubble on left (like iPhone landscape)
+}
+
+// MARK: - iOS Keyboard Navigation
+
+/// Controls that can be focused via keyboard navigation on iPad
+enum iOSBubbleKeyboardControl: Int, CaseIterable {
+    case language
+    case voice
+    case model
+    case decreaseFont
+    case increaseFont
+    case close
+
+    var next: iOSBubbleKeyboardControl {
+        let all = Self.allCases
+        guard let idx = all.firstIndex(of: self) else { return self }
+        let nextIdx = (idx + 1) % all.count
+        return all[nextIdx]
+    }
+
+    var previous: iOSBubbleKeyboardControl {
+        let all = Self.allCases
+        guard let idx = all.firstIndex(of: self) else { return self }
+        let prevIdx = (idx - 1 + all.count) % all.count
+        return all[prevIdx]
+    }
+}
+
+/// Coordinator for iPad keyboard navigation in bubble
+final class iOSBubbleKeyboardNavigator: ObservableObject {
+    @Published var focusedControl: iOSBubbleKeyboardControl?
+    @Published var isKeyboardFocusActive: Bool = false
+    /// Incremented when Enter is pressed to trigger activation
+    @Published var activationTrigger: Int = 0
+
+    func enterFocus() {
+        isKeyboardFocusActive = true
+        focusedControl = .language
+    }
+
+    func exitFocus() {
+        isKeyboardFocusActive = false
+        focusedControl = nil
+    }
+
+    func navigateLeft() {
+        guard isKeyboardFocusActive else { return }
+        focusedControl = focusedControl?.previous ?? .language
+    }
+
+    func navigateRight() {
+        guard isKeyboardFocusActive else { return }
+        focusedControl = focusedControl?.next ?? .language
+    }
+
+    /// Triggers activation of the currently focused control
+    func activateCurrentControl() {
+        guard isKeyboardFocusActive, focusedControl != nil else { return }
+        activationTrigger += 1
+    }
 }
 
 // MARK: - tvOS Focus Protocol
@@ -122,6 +376,20 @@ struct LinguistBubbleView: View {
 
     #if os(iOS)
     @State private var magnifyStartScale: CGFloat?
+    /// Optional keyboard navigator for iPad focus management
+    @ObservedObject var keyboardNavigator: iOSBubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
+    /// Active picker for keyboard-triggered selection (iOS)
+    @State private var iOSActivePicker: iOSBubblePicker?
+
+    private enum iOSBubblePicker: Hashable {
+        case language
+        case model
+        case voice
+    }
+
+    private var isPhone: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
+    }
     #endif
 
     #if os(tvOS)
@@ -134,6 +402,7 @@ struct LinguistBubbleView: View {
     private enum BubbleHeaderControl: Hashable {
         case language
         case model
+        case voice
         case decreaseFont
         case increaseFont
         case close
@@ -142,6 +411,7 @@ struct LinguistBubbleView: View {
     private enum BubblePicker: Hashable {
         case language
         case model
+        case voice
     }
     #endif
 
@@ -152,23 +422,36 @@ struct LinguistBubbleView: View {
             if activePicker != nil {
                 pickerOverlay
             }
+            #elseif os(iOS)
+            if iOSActivePicker != nil {
+                iOSPickerOverlay
+            }
             #endif
         }
+        #if os(iOS)
+        .onChange(of: keyboardNavigator.activationTrigger) { _, _ in
+            // When Enter is pressed on a picker control, open the corresponding picker
+            guard let control = keyboardNavigator.focusedControl else { return }
+            switch control {
+            case .language:
+                iOSActivePicker = .language
+            case .voice:
+                iOSActivePicker = .voice
+            case .model:
+                iOSActivePicker = .model
+            case .decreaseFont, .increaseFont, .close:
+                // These are handled directly in handleBubbleKeyboardActivate
+                break
+            }
+        }
+        #endif
     }
 
     // MARK: - Bubble Body
 
     private var bubbleBody: some View {
         VStack(alignment: .leading, spacing: 10) {
-            headerControls
-
-            Text(state.query)
-                .font(queryFont)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-                #if os(iOS)
-                .textSelection(.enabled)
-                #endif
+            headerRow
 
             bubbleContent
         }
@@ -250,6 +533,22 @@ struct LinguistBubbleView: View {
             magnifyStartScale: $magnifyStartScale,
             onMagnify: actions.onMagnify
         )
+        .gesture(
+            DragGesture(minimumDistance: 30, coordinateSpace: .local)
+                .onEnded { value in
+                    let horizontalAmount = value.translation.width
+                    let verticalAmount = value.translation.height
+                    // Only handle horizontal swipes (ignore vertical)
+                    guard abs(horizontalAmount) > abs(verticalAmount) else { return }
+                    if horizontalAmount < 0 {
+                        // Swipe left -> next token
+                        actions.onNextToken?()
+                    } else {
+                        // Swipe right -> previous token
+                        actions.onPreviousToken?()
+                    }
+                }
+        )
         #endif
     }
 
@@ -282,30 +581,42 @@ struct LinguistBubbleView: View {
     }
     #endif
 
-    // MARK: - Header Controls
+    // MARK: - Header Row (Query + Controls)
 
-    private var headerControls: some View {
+    private var headerRow: some View {
         #if os(tvOS)
         HStack(spacing: 8) {
+            Text(state.query)
+                .font(queryFont)
+                .foregroundStyle(bubbleTextColor)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 8)
             lookupLanguageMenu
+            voiceMenu
             modelMenu
             fontSizeControls
             closeButton
         }
+        #elseif os(iOS)
+        iOSHeaderRow
         #else
-        HStack(spacing: 8) {
-            if !configuration.hideTitle {
-                Text("MyLinguist")
-                    .font(.headline)
-            }
-            Spacer(minLength: 8)
+        HStack(spacing: 6) {
+            Text(state.query)
+                .font(queryFont)
+                .foregroundStyle(bubbleTextColor)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 6)
             lookupLanguageMenu
+            voiceMenu
             modelMenu
             fontSizeControls
             if let onResetFont = actions.onResetFont {
                 Button(action: onResetFont) {
                     Image(systemName: "arrow.counterclockwise")
                         .font(bubbleControlFont)
+                        .foregroundStyle(.white)
                         .padding(bubbleControlPadding)
                         .background(.black.opacity(0.3), in: Circle())
                 }
@@ -316,6 +627,100 @@ struct LinguistBubbleView: View {
         }
         #endif
     }
+
+    #if os(iOS)
+    @ViewBuilder
+    private var iOSHeaderRow: some View {
+        if isPhone {
+            // iPhone: Vertical layout - controls on top left, query below
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    lookupLanguageMenu
+                    voiceMenu
+                    modelMenu
+                    fontSizeControls
+                    if let onResetFont = actions.onResetFont {
+                        Button(action: onResetFont) {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(bubbleControlFont)
+                                .padding(bubbleControlPadding)
+                                .background(.black.opacity(0.3), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Reset size")
+                    }
+                    Spacer()
+                    closeButton
+                }
+                Text(state.query)
+                    .font(queryFont)
+                    .foregroundStyle(bubbleTextColor)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .contextMenu {
+                        let sanitized = TextLookupSanitizer.sanitize(state.query)
+                        Button("Look Up") {
+                            DictionaryLookupPresenter.show(term: sanitized)
+                        }
+                        Button("Copy") {
+                            UIPasteboard.general.string = sanitized
+                        }
+                    }
+            }
+        } else {
+            // iPad: Horizontal layout - query left, controls right
+            HStack(spacing: 6) {
+                Text(state.query)
+                    .font(queryFont)
+                    .foregroundStyle(bubbleTextColor)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .contextMenu {
+                        let sanitized = TextLookupSanitizer.sanitize(state.query)
+                        Button("Look Up") {
+                            DictionaryLookupPresenter.show(term: sanitized)
+                        }
+                        Button("Copy") {
+                            UIPasteboard.general.string = sanitized
+                        }
+                    }
+                Spacer(minLength: 6)
+                lookupLanguageMenu
+                voiceMenu
+                modelMenu
+                fontSizeControls
+                if let onResetFont = actions.onResetFont {
+                    Button(action: onResetFont) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(bubbleControlFont)
+                            .padding(bubbleControlPadding)
+                            .background(.black.opacity(0.3), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Reset size")
+                }
+                layoutToggleButton
+                closeButton
+            }
+        }
+    }
+
+    /// Layout toggle button for iPad (vertical/horizontal split)
+    @ViewBuilder
+    private var layoutToggleButton: some View {
+        if let onToggle = actions.onToggleLayoutDirection {
+            Button(action: onToggle) {
+                Image(systemName: "rectangle.split.2x1")
+                    .font(bubbleIconFont)
+                    .foregroundStyle(.white)
+                    .padding(bubbleControlPadding)
+                    .background(.black.opacity(0.3), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Toggle layout direction")
+        }
+    }
+    #endif
 
     // MARK: - Language Menu
 
@@ -351,12 +756,25 @@ struct LinguistBubbleView: View {
                 }
             }
         } label: {
-            Text(entry.emoji)
-                .font(bubbleIconFont)
-                .padding(bubbleControlPadding)
-                .background(.black.opacity(0.3), in: Capsule())
+            HStack(spacing: 3) {
+                Text(entry.emoji)
+                    .font(bubbleSelectorIconFont)
+                Text(entry.shortLabel.uppercased())
+                    .font(bubbleSelectorTextFont)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, bubbleSelectorPaddingH)
+            .padding(.vertical, bubbleSelectorPaddingV)
+            .background(.black.opacity(0.3), in: Capsule())
+            .overlay(
+                Capsule().stroke(
+                    isControlKeyboardFocused(.language) ? keyboardFocusBorderColor : Color.white.opacity(0.35),
+                    lineWidth: isControlKeyboardFocused(.language) ? keyboardFocusBorderWidth : 1
+                )
+            )
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .fixedSize()
         .accessibilityLabel("Lookup language")
         #endif
     }
@@ -398,17 +816,152 @@ struct LinguistBubbleView: View {
                 }
             }
         } label: {
-            Text(verbatim: configuration.llmModel)
-                .font(bubbleModelFont)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .padding(.horizontal, bubbleControlPadding * 1.4)
-                .padding(.vertical, bubbleControlPadding * 0.7)
-                .background(.black.opacity(0.3), in: Capsule())
+            HStack(spacing: 3) {
+                Image(systemName: "brain")
+                    .font(bubbleSelectorIconFont)
+                Text(formatModelLabel(configuration.llmModel))
+                    .font(bubbleSelectorTextFont)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, bubbleSelectorPaddingH)
+            .padding(.vertical, bubbleSelectorPaddingV)
+            .background(.black.opacity(0.3), in: Capsule())
+            .overlay(
+                Capsule().stroke(
+                    isControlKeyboardFocused(.model) ? keyboardFocusBorderColor : Color.white.opacity(0.35),
+                    lineWidth: isControlKeyboardFocused(.model) ? keyboardFocusBorderWidth : 1
+                )
+            )
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .fixedSize()
         .accessibilityLabel("Lookup model")
         #endif
+    }
+
+    /// Format model name for compact display (e.g., "ollama_cloud:mistral-large-3:675b-cloud" → "mistral-large-3")
+    private func formatModelLabel(_ model: String) -> String {
+        // Split by colon: e.g., "ollama_cloud:mistral-large-3:675b-cloud"
+        // parts[0] = provider, parts[1] = model name, parts[2] = size/variant
+        let parts = model.split(separator: ":")
+        if parts.count >= 3 {
+            // Include model name and size: "mistral-large-3 (675b)"
+            let modelName = String(parts[1])
+            let sizeInfo = String(parts[2])
+            // Extract just the size portion (e.g., "675b" from "675b-cloud")
+            let sizePart = sizeInfo.split(separator: "-").first.map(String.init) ?? sizeInfo
+            return "\(modelName) (\(sizePart))"
+        } else if parts.count >= 2 {
+            return String(parts[1])
+        }
+        // Fallback: take last path component or truncate
+        if let lastPart = model.split(separator: "/").last {
+            return String(lastPart)
+        }
+        return model
+    }
+
+    // MARK: - Voice Menu
+
+    @ViewBuilder
+    private var voiceMenu: some View {
+        #if os(tvOS)
+        if !configuration.ttsVoiceOptions.isEmpty {
+            bubbleControlItem(control: .voice, isEnabled: true, action: {
+                activePicker = .voice
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .font(.caption.weight(.semibold))
+                    if let voice = configuration.ttsVoice {
+                        Text(formatVoiceLabel(voice))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    } else {
+                        Text("Auto")
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .accessibilityLabel("TTS voice")
+        }
+        #else
+        if !configuration.ttsVoiceOptions.isEmpty {
+            Menu {
+                Button {
+                    actions.onTtsVoiceChange?(nil)
+                } label: {
+                    if configuration.ttsVoice == nil {
+                        Label("Auto", systemImage: "checkmark")
+                            .font(bubbleMenuFont)
+                    } else {
+                        Text("Auto")
+                            .font(bubbleMenuFont)
+                    }
+                }
+                ForEach(configuration.ttsVoiceOptions, id: \.self) { voice in
+                    Button {
+                        actions.onTtsVoiceChange?(voice)
+                    } label: {
+                        if voice == configuration.ttsVoice {
+                            Label(formatVoiceLabel(voice), systemImage: "checkmark")
+                                .font(bubbleMenuFont)
+                        } else {
+                            Text(formatVoiceLabel(voice))
+                                .font(bubbleMenuFont)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .font(bubbleSelectorIconFont)
+                    if let voice = configuration.ttsVoice {
+                        Text(formatVoiceLabel(voice))
+                            .font(bubbleSelectorTextFont)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, bubbleSelectorPaddingH)
+                .padding(.vertical, bubbleSelectorPaddingV)
+                .background(.black.opacity(0.3), in: Capsule())
+                .overlay(
+                    Capsule().stroke(
+                        isControlKeyboardFocused(.voice) ? keyboardFocusBorderColor : Color.white.opacity(0.35),
+                        lineWidth: isControlKeyboardFocused(.voice) ? keyboardFocusBorderWidth : 1
+                    )
+                )
+                .contentShape(Rectangle())
+            }
+            .fixedSize()
+            .accessibilityLabel("TTS voice")
+        }
+        #endif
+    }
+
+    /// Format voice name for display
+    private func formatVoiceLabel(_ voice: String) -> String {
+        // macOS voice format: "Name - locale"
+        if voice.contains(" - ") {
+            return String(voice.split(separator: " - ").first ?? Substring(voice))
+        }
+        // gTTS format: "gTTS-en"
+        if voice.hasPrefix("gTTS-") {
+            return "gTTS (\(voice.dropFirst(5)))"
+        }
+        // Piper format: "en_US-lessac-medium"
+        let pattern = #"^[a-z]{2}_[A-Z]{2}-(.+)-(?:high|medium|low|x_low)$"#
+        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+           let match = regex.firstMatch(in: voice, range: NSRange(voice.startIndex..., in: voice)),
+           match.numberOfRanges > 1,
+           let range = Range(match.range(at: 1), in: voice) {
+            return String(voice[range])
+        }
+        return voice
     }
 
     // MARK: - Bubble Content
@@ -420,9 +973,10 @@ struct LinguistBubbleView: View {
             HStack(spacing: 8) {
                 ProgressView()
                     .progressViewStyle(.circular)
+                    .tint(.white)
                 Text("Looking up...")
                     .font(bodyFont)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.7))
             }
         case let .error(message):
             Text(message)
@@ -430,22 +984,34 @@ struct LinguistBubbleView: View {
                 .foregroundStyle(.red)
         case .ready:
             if configuration.useCompactLayout {
+                #if os(iOS)
+                TappableWordText(
+                    text: state.answer ?? "",
+                    font: bodyFont,
+                    color: bubbleTextColor
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                #else
                 Text(state.answer ?? "")
                     .font(bodyFont)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(bubbleTextColor)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    #if os(iOS)
-                    .textSelection(.enabled)
-                    #endif
+                #endif
             } else {
                 ScrollView {
+                    #if os(iOS)
+                    TappableWordText(
+                        text: state.answer ?? "",
+                        font: bodyFont,
+                        color: bubbleTextColor
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    #else
                     Text(state.answer ?? "")
                         .font(bodyFont)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(bubbleTextColor)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        #if os(iOS)
-                        .textSelection(.enabled)
-                        #endif
+                    #endif
                 }
                 .frame(maxHeight: bubbleMaxHeight)
             }
@@ -469,18 +1035,32 @@ struct LinguistBubbleView: View {
             Button(action: actions.onDecreaseFont) {
                 Text("A-")
                     .font(bubbleControlFont)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, bubbleControlPadding)
                     .padding(.vertical, bubbleControlPadding * 0.7)
                     .background(.black.opacity(0.3), in: Capsule())
+                    .overlay(
+                        Capsule().stroke(
+                            isControlKeyboardFocused(.decreaseFont) ? keyboardFocusBorderColor : Color.clear,
+                            lineWidth: isControlKeyboardFocused(.decreaseFont) ? keyboardFocusBorderWidth : 0
+                        )
+                    )
             }
             .buttonStyle(.plain)
             .disabled(!configuration.canDecreaseFont)
             Button(action: actions.onIncreaseFont) {
                 Text("A+")
                     .font(bubbleControlFont)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, bubbleControlPadding)
                     .padding(.vertical, bubbleControlPadding * 0.7)
                     .background(.black.opacity(0.3), in: Capsule())
+                    .overlay(
+                        Capsule().stroke(
+                            isControlKeyboardFocused(.increaseFont) ? keyboardFocusBorderColor : Color.clear,
+                            lineWidth: isControlKeyboardFocused(.increaseFont) ? keyboardFocusBorderWidth : 0
+                        )
+                    )
             }
             .buttonStyle(.plain)
             .disabled(!configuration.canIncreaseFont)
@@ -499,8 +1079,15 @@ struct LinguistBubbleView: View {
         Button(action: actions.onClose) {
             Image(systemName: "xmark")
                 .font(bubbleIconFont)
+                .foregroundStyle(.white)
                 .padding(bubbleControlPadding)
                 .background(.black.opacity(0.3), in: Circle())
+                .overlay(
+                    Circle().stroke(
+                        isControlKeyboardFocused(.close) ? keyboardFocusBorderColor : Color.clear,
+                        lineWidth: isControlKeyboardFocused(.close) ? keyboardFocusBorderWidth : 0
+                    )
+                )
         }
         .buttonStyle(.plain)
         #endif
@@ -640,27 +1227,37 @@ struct LinguistBubbleView: View {
         }
     }
 
-    @ViewBuilder
     private func pickerOverlayContent(activePicker selection: BubblePicker) -> some View {
-        let isLanguage = selection == .language
-        let title = isLanguage ? "Lookup language" : "Lookup model"
-        let options = pickerOptions(isLanguage: isLanguage)
-        BubblePickerOverlay(
+        let title: String
+        let options: [BubblePickerOption]
+        let onSelect: (BubblePickerOption) -> Void
+
+        switch selection {
+        case .language:
+            title = "Lookup language"
+            options = pickerOptions(for: .language)
+            onSelect = { self.actions.onLookupLanguageChange($0.value) }
+        case .model:
+            title = "Lookup model"
+            options = pickerOptions(for: .model)
+            onSelect = { self.actions.onLlmModelChange($0.value) }
+        case .voice:
+            title = "TTS Voice"
+            options = pickerOptions(for: .voice)
+            onSelect = { self.actions.onTtsVoiceChange?($0.value.isEmpty ? nil : $0.value) }
+        }
+
+        return BubblePickerOverlay(
             title: title,
             options: options,
-            onSelectOption: { option in
-                if isLanguage {
-                    actions.onLookupLanguageChange(option.value)
-                } else {
-                    actions.onLlmModelChange(option.value)
-                }
-            },
+            onSelectOption: onSelect,
             activePicker: $activePicker
         )
     }
 
-    private func pickerOptions(isLanguage: Bool) -> [BubblePickerOption] {
-        if isLanguage {
+    private func pickerOptions(for picker: BubblePicker) -> [BubblePickerOption] {
+        switch picker {
+        case .language:
             return configuration.lookupLanguageOptions.map { option in
                 let entry = LanguageFlagResolver.flagEntry(for: option)
                 let label = entry.label
@@ -672,16 +1269,197 @@ struct LinguistBubbleView: View {
                     lineLimit: 1
                 )
             }
+        case .model:
+            return configuration.llmModelOptions.map { model in
+                BubblePickerOption(
+                    id: model,
+                    title: model,
+                    value: model,
+                    isSelected: model == configuration.llmModel,
+                    lineLimit: 2
+                )
+            }
+        case .voice:
+            var options: [BubblePickerOption] = [
+                BubblePickerOption(
+                    id: "auto",
+                    title: "Auto",
+                    value: "",
+                    isSelected: configuration.ttsVoice == nil,
+                    lineLimit: 1
+                )
+            ]
+            options += configuration.ttsVoiceOptions.map { voice in
+                BubblePickerOption(
+                    id: voice,
+                    title: formatVoiceLabel(voice),
+                    value: voice,
+                    isSelected: voice == configuration.ttsVoice,
+                    lineLimit: 1
+                )
+            }
+            return options
         }
-        return configuration.llmModelOptions.map { model in
-            BubblePickerOption(
-                id: model,
-                title: model,
-                value: model,
-                isSelected: model == configuration.llmModel,
-                lineLimit: 2
+    }
+    #endif
+
+    // MARK: - iOS Picker Overlay
+
+    #if os(iOS)
+    @ViewBuilder
+    private var iOSPickerOverlay: some View {
+        if let picker = iOSActivePicker {
+            iOSPickerSheet(for: picker)
+        }
+    }
+
+    @ViewBuilder
+    private func iOSPickerSheet(for picker: iOSBubblePicker) -> some View {
+        let pickerData = iOSPickerData(for: picker)
+        iOSPickerContent(
+            title: pickerData.title,
+            options: pickerData.options,
+            onSelect: pickerData.onSelect,
+            onDismiss: { iOSActivePicker = nil }
+        )
+    }
+
+    private func iOSPickerData(for picker: iOSBubblePicker) -> (title: String, options: [iOSPickerOption], onSelect: (iOSPickerOption) -> Void) {
+        switch picker {
+        case .language:
+            let langOptions = configuration.lookupLanguageOptions.map { option in
+                let entry = LanguageFlagResolver.flagEntry(for: option)
+                return iOSPickerOption(
+                    id: option,
+                    title: "\(entry.emoji) \(entry.label)",
+                    value: entry.label,
+                    isSelected: entry.label == configuration.lookupLanguage
+                )
+            }
+            return (
+                title: "Lookup Language",
+                options: langOptions,
+                onSelect: { self.actions.onLookupLanguageChange($0.value) }
+            )
+        case .model:
+            let modelOptions = configuration.llmModelOptions.map { model in
+                iOSPickerOption(
+                    id: model,
+                    title: formatModelLabel(model),
+                    value: model,
+                    isSelected: model == configuration.llmModel
+                )
+            }
+            return (
+                title: "Lookup Model",
+                options: modelOptions,
+                onSelect: { self.actions.onLlmModelChange($0.value) }
+            )
+        case .voice:
+            var voiceOptions: [iOSPickerOption] = [
+                iOSPickerOption(
+                    id: "auto",
+                    title: "Auto",
+                    value: "",
+                    isSelected: configuration.ttsVoice == nil
+                )
+            ]
+            voiceOptions += configuration.ttsVoiceOptions.map { voice in
+                iOSPickerOption(
+                    id: voice,
+                    title: formatVoiceLabel(voice),
+                    value: voice,
+                    isSelected: voice == configuration.ttsVoice
+                )
+            }
+            return (
+                title: "TTS Voice",
+                options: voiceOptions,
+                onSelect: { self.actions.onTtsVoiceChange?($0.value.isEmpty ? nil : $0.value) }
             )
         }
+    }
+
+    private struct iOSPickerOption: Identifiable {
+        let id: String
+        let title: String
+        let value: String
+        let isSelected: Bool
+    }
+
+    @ViewBuilder
+    private func iOSPickerContent(
+        title: String,
+        options: [iOSPickerOption],
+        onSelect: @escaping (iOSPickerOption) -> Void,
+        onDismiss: @escaping () -> Void
+    ) -> some View {
+        Color.black.opacity(0.4)
+            .ignoresSafeArea()
+            .onTapGesture {
+                onDismiss()
+            }
+
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Spacer()
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding()
+            .background(Color.black.opacity(0.8))
+
+            // Options list
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(options) { option in
+                            Button {
+                                onSelect(option)
+                                onDismiss()
+                            } label: {
+                                HStack {
+                                    Text(option.title)
+                                        .font(.body)
+                                        .foregroundStyle(.white)
+                                        .lineLimit(2)
+                                    Spacer()
+                                    if option.isSelected {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.cyan)
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(option.isSelected ? Color.white.opacity(0.15) : Color.clear)
+                            }
+                            .buttonStyle(.plain)
+                            .id(option.id)
+                        }
+                    }
+                }
+                .onAppear {
+                    // Scroll to selected option
+                    if let selected = options.first(where: { $0.isSelected }) {
+                        proxy.scrollTo(selected.id, anchor: .center)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: 400)
+        .frame(maxHeight: 500)
+        .background(Color(white: 0.15))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.5), radius: 20)
+        .transition(.scale.combined(with: .opacity))
     }
     #endif
 
@@ -727,6 +1505,56 @@ struct LinguistBubbleView: View {
         6 * configuration.uiScale
     }
 
+    // MARK: - Selector Button Styling (LLM & Voice pickers - 20% smaller on iPad)
+
+    /// Scale factor for selector buttons (80% on iPad, 100% elsewhere)
+    private var selectorScale: CGFloat {
+        configuration.uiScale > 1.2 ? 0.8 : 1.0
+    }
+
+    private var bubbleSelectorIconFont: Font {
+        #if os(iOS)
+        let baseSize = UIFont.preferredFont(forTextStyle: .caption2).pointSize
+        return .system(size: baseSize * configuration.uiScale * selectorScale, weight: .semibold)
+        #else
+        return bubbleIconFont
+        #endif
+    }
+
+    private var bubbleSelectorTextFont: Font {
+        #if os(iOS)
+        let baseSize = UIFont.preferredFont(forTextStyle: .caption2).pointSize
+        return .system(size: baseSize * configuration.uiScale * selectorScale, weight: .regular)
+        #else
+        return bubbleModelFont
+        #endif
+    }
+
+    private var bubbleSelectorPaddingH: CGFloat {
+        5 * configuration.uiScale * selectorScale
+    }
+
+    private var bubbleSelectorPaddingV: CGFloat {
+        4 * configuration.uiScale * selectorScale
+    }
+
+    #if os(iOS)
+    /// Check if a specific control is keyboard-focused
+    private func isControlKeyboardFocused(_ control: iOSBubbleKeyboardControl) -> Bool {
+        keyboardNavigator.isKeyboardFocusActive && keyboardNavigator.focusedControl == control
+    }
+
+    /// Border color for keyboard focus highlight
+    private var keyboardFocusBorderColor: Color {
+        Color.cyan.opacity(0.9)
+    }
+
+    /// Border width for keyboard focus highlight
+    private var keyboardFocusBorderWidth: CGFloat {
+        2 * selectorScale
+    }
+    #endif
+
     private func scaledFont(textStyle: UIFont.TextStyle, weight: Font.Weight, autoScale: CGFloat = 1.0) -> Font {
         #if os(iOS) || os(tvOS)
         let baseSize = UIFont.preferredFont(forTextStyle: textStyle).pointSize
@@ -747,6 +1575,11 @@ struct LinguistBubbleView: View {
 
     private var bubbleBackground: Color {
         Color.black.opacity(0.75)
+    }
+
+    /// Text color for bubble content - always white since background is dark
+    private var bubbleTextColor: Color {
+        .white
     }
 
     private var bubbleCornerRadius: CGFloat {
@@ -863,6 +1696,9 @@ struct VideoLinguistBubbleView: View {
     let llmModel: String
     let llmModelOptions: [String]
     let onLlmModelChange: (String) -> Void
+    var ttsVoice: String? = nil
+    var ttsVoiceOptions: [String] = []
+    var onTtsVoiceChange: ((String?) -> Void)? = nil
     let onIncreaseFont: () -> Void
     let onDecreaseFont: () -> Void
     let onResetFont: (() -> Void)?
@@ -886,6 +1722,9 @@ struct VideoLinguistBubbleView: View {
         llmModel: String,
         llmModelOptions: [String],
         onLlmModelChange: @escaping (String) -> Void,
+        ttsVoice: String? = nil,
+        ttsVoiceOptions: [String] = [],
+        onTtsVoiceChange: ((String?) -> Void)? = nil,
         onIncreaseFont: @escaping () -> Void,
         onDecreaseFont: @escaping () -> Void,
         onResetFont: (() -> Void)?,
@@ -904,6 +1743,9 @@ struct VideoLinguistBubbleView: View {
         self.llmModel = llmModel
         self.llmModelOptions = llmModelOptions
         self.onLlmModelChange = onLlmModelChange
+        self.ttsVoice = ttsVoice
+        self.ttsVoiceOptions = ttsVoiceOptions
+        self.onTtsVoiceChange = onTtsVoiceChange
         self.onIncreaseFont = onIncreaseFont
         self.onDecreaseFont = onDecreaseFont
         self.onResetFont = onResetFont
@@ -922,6 +1764,8 @@ struct VideoLinguistBubbleView: View {
             llmModel: llmModel,
             llmModelOptions: llmModelOptions
         )
+        config.ttsVoice = ttsVoice
+        config.ttsVoiceOptions = ttsVoiceOptions
         #if os(iOS)
         if UIDevice.current.userInterfaceIdiom == .pad {
             config.uiScale = 1.5
@@ -937,6 +1781,7 @@ struct VideoLinguistBubbleView: View {
             onIncreaseFont: onIncreaseFont,
             onDecreaseFont: onDecreaseFont,
             onClose: onClose,
+            onTtsVoiceChange: onTtsVoiceChange,
             onResetFont: onResetFont,
             onMagnify: onMagnify,
             onBubbleFocus: {

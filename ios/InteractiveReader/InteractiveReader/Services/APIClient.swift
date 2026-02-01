@@ -247,8 +247,13 @@ final class APIClient {
         return try decode(LLMModelListResponse.self, from: data)
     }
 
-    func synthesizeAudio(text: String, language: String?) async throws -> Data {
-        let payload = AudioSynthesisRequest(text: text, voice: nil, speed: nil, language: language)
+    func fetchVoiceInventory() async throws -> VoiceInventoryResponse {
+        let data = try await sendRequest(path: "/api/audio/voices")
+        return try decode(VoiceInventoryResponse.self, from: data)
+    }
+
+    func synthesizeAudio(text: String, language: String?, voice: String? = nil, speed: Int? = nil) async throws -> Data {
+        let payload = AudioSynthesisRequest(text: text, voice: voice, speed: speed, language: language)
         let encoder = JSONEncoder()
         let body = try encoder.encode(payload)
         return try await sendRequest(

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .audio import GTTSLanguage, MacOSVoice, VoiceInventoryResponse, VoiceMatchResponse
+from .audio import GTTSLanguage, MacOSVoice, PiperVoice, VoiceInventoryResponse, VoiceMatchResponse
 from .access import AccessGrantPayload, AccessPolicyPayload, AccessPolicyUpdateRequest
 from .auth import (
     LoginRequestPayload,
@@ -201,6 +201,7 @@ __all__ = [
     "PipelineResponsePayload",
     "PipelineStatusResponse",
     "PipelineSubmissionResponse",
+    "PiperVoice",
     "ProgressEventPayload",
     "ProgressSnapshotPayload",
     "RegistrationRequestPayload",

@@ -67,7 +67,7 @@ beforeEach(() => {
       })
   );
   vi.mocked(fetchLlmModels).mockResolvedValue([]);
-  vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [] });
+  vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [], piper: [] });
   vi.mocked(synthesizeVoicePreview).mockResolvedValue(new Blob());
   vi.mocked(uploadEpubFile).mockResolvedValue({
     name: 'uploaded.epub',

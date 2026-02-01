@@ -25,7 +25,10 @@ struct ShortcutHelpOverlayView: View {
                 ShortcutHelpItem(keys: "Enter", action: "Lookup word"),
                 ShortcutHelpItem(keys: "Down Arrow (playing)", action: "Show menu"),
                 ShortcutHelpItem(keys: "Up Arrow (playing)", action: "Hide menu"),
-                ShortcutHelpItem(keys: "Up / Down Arrow (paused)", action: "Switch track")
+                ShortcutHelpItem(keys: "Up / Down Arrow (paused)", action: "Switch track"),
+                ShortcutHelpItem(keys: "Down Arrow (bubble open)", action: "Focus bubble controls"),
+                ShortcutHelpItem(keys: "Left / Right Arrow (bubble focus)", action: "Navigate controls"),
+                ShortcutHelpItem(keys: "Up Arrow (bubble focus)", action: "Exit bubble focus")
             ]
         ),
         ShortcutHelpSection(
@@ -398,6 +401,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
     let onOptionKeyUp: () -> Void
     let onShowMenu: () -> Void
     let onHideMenu: () -> Void
+    var onBubbleNavigateLeft: (() -> Void)? = nil
+    var onBubbleNavigateRight: (() -> Void)? = nil
 
     func makeUIViewController(context: Context) -> KeyCommandController {
         let controller = KeyCommandController()
@@ -427,6 +432,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         controller.onOptionKeyUp = onOptionKeyUp
         controller.onShowMenu = onShowMenu
         controller.onHideMenu = onHideMenu
+        controller.onBubbleNavigateLeft = onBubbleNavigateLeft
+        controller.onBubbleNavigateRight = onBubbleNavigateRight
         return controller
     }
 
@@ -457,6 +464,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         uiViewController.onOptionKeyUp = onOptionKeyUp
         uiViewController.onShowMenu = onShowMenu
         uiViewController.onHideMenu = onHideMenu
+        uiViewController.onBubbleNavigateLeft = onBubbleNavigateLeft
+        uiViewController.onBubbleNavigateRight = onBubbleNavigateRight
     }
 
     final class KeyCommandController: UIViewController {
@@ -486,6 +495,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         var onOptionKeyUp: (() -> Void)?
         var onShowMenu: (() -> Void)?
         var onHideMenu: (() -> Void)?
+        var onBubbleNavigateLeft: (() -> Void)?
+        var onBubbleNavigateRight: (() -> Void)?
         private var isOptionKeyDown = false
 
         override var canBecomeFirstResponder: Bool {

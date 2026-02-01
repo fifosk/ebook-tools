@@ -65,7 +65,7 @@ describe('VideoDubbingPage', () => {
         }
       ]
     });
-    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [] });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
     mockFetchSubtitleModels.mockResolvedValue([]);
 
     render(
@@ -120,7 +120,7 @@ describe('VideoDubbingPage', () => {
         }
       ]
     });
-    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [] });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
     mockFetchSubtitleModels.mockResolvedValue([]);
 
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);

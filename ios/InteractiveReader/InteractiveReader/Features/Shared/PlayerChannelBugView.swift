@@ -6,6 +6,7 @@ import UIKit
 enum MyLinguistPreferences {
     static let lookupLanguageKey = "mylinguist.lookupLanguage"
     static let llmModelKey = "mylinguist.llmModel"
+    static let ttsVoiceKey = "mylinguist.ttsVoice"
     static let defaultLookupLanguage = "English"
     static let defaultLlmModel = "ollama_cloud:mistral-large-3:675b-cloud"
 }

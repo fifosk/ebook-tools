@@ -23,6 +23,7 @@ from modules.webapi.schemas import (
     AudioSynthesisRequest,
     GTTSLanguage,
     MacOSVoice,
+    PiperVoice,
     VoiceInventoryResponse,
     VoiceMatchResponse,
 )
@@ -183,8 +184,49 @@ def _synthesize_with_gtts(text: str, voice_identifier: str, destination: Path) -
         raise HTTPException(status_code=500, detail="gTTS synthesis failed") from exc
 
 
+def _synthesize_with_piper(
+    text: str, voice_identifier: str, language: str, speed: int, destination: Path
+) -> None:
+    """Generate MP3 using Piper TTS for ``voice_identifier``."""
+    try:
+        from modules.audio.backends.piper import PiperTTSBackend
+
+        backend = PiperTTSBackend()
+        audio = backend.synthesize(
+            text=text,
+            voice=voice_identifier,
+            speed=speed,
+            lang_code=language,
+        )
+        # Export as MP3
+        audio.export(str(destination), format="mp3")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Piper synthesis failed: {exc}") from exc
+
+
+def _is_piper_voice(voice: str) -> bool:
+    """Check if the voice identifier is a Piper voice."""
+    if not voice:
+        return False
+    lowered = voice.lower()
+    # Piper auto selection
+    if lowered in ("piper-auto", "piper"):
+        return True
+    # Explicit Piper model name format: lang_REGION-name-quality
+    # e.g., en_US-lessac-medium, ar_JO-kareem-medium
+    if "_" in voice and "-" in voice:
+        parts = voice.split("-")
+        if len(parts) >= 2 and "_" in parts[0]:
+            return True
+    return False
+
+
 def _resolve_voice(language: str, requested_voice: Optional[str]) -> Tuple[str, str]:
     """Return ``(voice_identifier, engine)`` for the synthesis request."""
+
+    # Check for Piper voice first
+    if requested_voice and _is_piper_voice(requested_voice):
+        return requested_voice, "piper"
 
     preference, force_gtts, explicit_voice = _analyse_voice_choice(requested_voice)
     selected_voice = select_voice(language, preference)
@@ -194,7 +236,13 @@ def _resolve_voice(language: str, requested_voice: Optional[str]) -> Tuple[str, 
         engine = "gtts"
     elif explicit_voice is not None:
         selected_voice = explicit_voice
-        engine = "gtts" if selected_voice.lower().startswith("gtts") else "macos"
+        # Check if explicit voice is a Piper voice
+        if _is_piper_voice(selected_voice):
+            engine = "piper"
+        elif selected_voice.lower().startswith("gtts"):
+            engine = "gtts"
+        else:
+            engine = "macos"
     else:
         engine = "gtts" if selected_voice.startswith("gTTS-") else "macos"
 
@@ -219,13 +267,29 @@ def _load_gtts_languages() -> Tuple[Dict[str, str], ...]:
 _GTTS_LANGUAGES: Tuple[Dict[str, str], ...] = _load_gtts_languages()
 
 
+def _load_piper_voices() -> list[Dict[str, str]]:
+    """Return list of installed Piper voice models."""
+    try:
+        from modules.audio.backends.piper import PiperTTSBackend
+
+        backend = PiperTTSBackend()
+        voices = backend.list_available_voices()
+        return [
+            {"name": name, "lang": lang, "quality": quality}
+            for name, lang, quality in voices
+        ]
+    except Exception:  # pragma: no cover - Piper may not be installed
+        return []
+
+
 @router.get("/voices", response_model=VoiceInventoryResponse)
 def list_available_voices() -> VoiceInventoryResponse:  # noqa: D401 - FastAPI signature
-    """Return cached macOS ``say`` voices and gTTS language entries."""
+    """Return cached macOS ``say`` voices, gTTS language entries, and Piper voices."""
 
     macos_voices = [MacOSVoice.model_validate(voice) for voice in get_say_voices()]
     gtts_languages = [GTTSLanguage.model_validate(entry) for entry in _GTTS_LANGUAGES]
-    return VoiceInventoryResponse(macos=macos_voices, gtts=gtts_languages)
+    piper_voices = [PiperVoice.model_validate(voice) for voice in _load_piper_voices()]
+    return VoiceInventoryResponse(macos=macos_voices, gtts=gtts_languages, piper=piper_voices)
 
 
 @router.get("/match", response_model=VoiceMatchResponse)
@@ -259,7 +323,13 @@ def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI si
     metadata = _lookup_macos_voice_details(selected_voice) if engine == "macos" else None
     fallback_from: Optional[str] = None
 
-    if engine == "macos":
+    if engine == "piper":
+        log_mgr.console_info(
+            "Piper voice selected: %s",
+            selected_voice,
+            logger_obj=logger,
+        )
+    elif engine == "macos":
         if metadata:
             log_mgr.console_info(
                 "macOS voice selected: %s (%s, %s, %s)",
@@ -286,7 +356,20 @@ def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI si
         mp3_path = Path(handle.name)
 
     try:
-        if engine == "macos":
+        if engine == "piper":
+            try:
+                _synthesize_with_piper(text, selected_voice, language, speed, mp3_path)
+            except HTTPException:
+                fallback_from = "piper"
+                selected_voice, engine = _gtts_identifier(language), "gtts"
+                metadata = None
+                log_mgr.console_warning(
+                    "Piper synthesis failed; falling back to gTTS (%s).",
+                    selected_voice,
+                    logger_obj=logger,
+                )
+                _synthesize_with_gtts(text, selected_voice, mp3_path)
+        elif engine == "macos":
             try:
                 _synthesize_with_say(text, selected_voice, speed, mp3_path)
             except HTTPException:

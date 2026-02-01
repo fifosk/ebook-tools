@@ -1,6 +1,25 @@
 import SwiftUI
 
 extension InteractivePlayerView {
+    #if os(iOS)
+    /// Handle keyboard activation (Enter key) when bubble keyboard focus is active
+    func handleBubbleKeyboardActivate() {
+        guard let control = bubbleKeyboardNavigator.focusedControl else { return }
+        switch control {
+        case .language, .voice, .model:
+            // Trigger activation in the bubble view via the navigator
+            bubbleKeyboardNavigator.activateCurrentControl()
+        case .decreaseFont:
+            adjustLinguistFontScale(by: -linguistFontScaleStep)
+        case .increaseFont:
+            adjustLinguistFontScale(by: linguistFontScaleStep)
+        case .close:
+            closeLinguistBubble()
+            bubbleKeyboardNavigator.exitFocus()
+        }
+    }
+    #endif
+
     func handleLinguistLookup(
         sentenceIndex: Int,
         variantKind: TextPlayerVariantKind,
@@ -93,7 +112,8 @@ extension InteractivePlayerView {
         )
         let resolvedPronunciationLanguage = SpeechLanguageResolver.resolveSpeechLanguage(pronunciationLanguage ?? "")
         let apiLanguage = resolvedPronunciationLanguage ?? pronunciationLanguage
-        startPronunciation(text: query, apiLanguage: apiLanguage, fallbackLanguage: resolvedPronunciationLanguage)
+        let selectedVoice = storedTtsVoice.isEmpty ? nil : storedTtsVoice
+        startPronunciation(text: query, apiLanguage: apiLanguage, fallbackLanguage: resolvedPronunciationLanguage, voice: selectedVoice)
         linguistLookupTask = Task { @MainActor in
             do {
                 let response = try await viewModel.lookupAssistant(
@@ -165,6 +185,22 @@ extension InteractivePlayerView {
         return options
     }
 
+    /// Determines the TTS language based on current linguist selection's variant
+    var ttsLanguageForCurrentSelection: String {
+        guard let selection = linguistSelection else {
+            // No selection, default to original language
+            return linguistInputLanguage
+        }
+        switch selection.variantKind {
+        case .translation, .transliteration:
+            // For translation/transliteration tracks, use the lookup/translation language
+            return linguistLookupLanguage.isEmpty ? linguistInputLanguage : linguistLookupLanguage
+        case .original:
+            // For original track, use the original language
+            return linguistInputLanguage
+        }
+    }
+
     var llmModelOptions: [String] {
         let candidates = [resolvedLlmModel, MyLinguistPreferences.defaultLlmModel] + availableLlmModels
         var seen: Set<String> = []
@@ -195,6 +231,91 @@ extension InteractivePlayerView {
         }
     }
 
+    func loadVoiceInventoryIfNeeded() {
+        guard !didLoadVoiceInventory else { return }
+        didLoadVoiceInventory = true
+        Task { @MainActor in
+            let inventory = await viewModel.fetchVoiceInventory()
+            voiceInventory = inventory
+        }
+    }
+
+    /// Computed TTS voice options filtered by the current input language
+    func ttsVoiceOptions(for inputLanguage: String?) -> [String] {
+        guard let inventory = voiceInventory else { return [] }
+        let langCode = normalizeLanguageCode(inputLanguage ?? "")
+        let baseLang = langCode.lowercased().split(separator: "-").first.map(String.init) ?? langCode.lowercased()
+        guard !baseLang.isEmpty else { return [] }
+
+        var result: [String] = []
+        var seen = Set<String>()
+
+        // Add stored voice first if it exists
+        if !storedTtsVoice.isEmpty {
+            seen.insert(storedTtsVoice.lowercased())
+            result.append(storedTtsVoice)
+        }
+
+        // Add Piper voices matching the language
+        for voice in inventory.piper {
+            let voiceLang = voice.lang.lowercased().split(separator: "-").first
+                .map(String.init)?.split(separator: "_").first.map(String.init) ?? ""
+            if voiceLang == baseLang && !seen.contains(voice.name.lowercased()) {
+                seen.insert(voice.name.lowercased())
+                result.append(voice.name)
+            }
+        }
+
+        // Add macOS voices matching the language
+        for voice in inventory.macos {
+            let voiceLang = voice.lang.lowercased().split(separator: "-").first
+                .map(String.init)?.split(separator: "_").first.map(String.init) ?? ""
+            if voiceLang == baseLang {
+                let identifier = "\(voice.name) - \(voice.lang)"
+                if !seen.contains(identifier.lowercased()) {
+                    seen.insert(identifier.lowercased())
+                    result.append(identifier)
+                }
+            }
+        }
+
+        // Add gTTS option for the language
+        for entry in inventory.gtts {
+            let entryLang = entry.code.lowercased().split(separator: "-").first.map(String.init) ?? ""
+            if entryLang == baseLang {
+                let identifier = "gTTS-\(entryLang)"
+                if !seen.contains(identifier.lowercased()) {
+                    seen.insert(identifier.lowercased())
+                    result.append(identifier)
+                }
+                break
+            }
+        }
+
+        return result
+    }
+
+    /// Normalize language name to code (e.g., "English" → "en")
+    private func normalizeLanguageCode(_ language: String) -> String {
+        let languageMap: [String: String] = [
+            "english": "en", "arabic": "ar", "spanish": "es", "french": "fr",
+            "german": "de", "italian": "it", "portuguese": "pt", "russian": "ru",
+            "chinese": "zh", "japanese": "ja", "korean": "ko", "hindi": "hi",
+            "turkish": "tr", "dutch": "nl", "polish": "pl", "swedish": "sv",
+            "norwegian": "no", "danish": "da", "finnish": "fi", "greek": "el",
+            "hebrew": "he", "hungarian": "hu", "czech": "cs", "romanian": "ro",
+            "thai": "th", "vietnamese": "vi", "indonesian": "id", "malay": "ms",
+            "filipino": "tl", "ukrainian": "uk", "bengali": "bn", "tamil": "ta",
+            "telugu": "te", "marathi": "mr", "gujarati": "gu", "kannada": "kn",
+            "malayalam": "ml", "punjabi": "pa", "urdu": "ur", "persian": "fa",
+            "afrikaans": "af", "swahili": "sw", "catalan": "ca", "serbian": "sr",
+            "croatian": "hr", "bosnian": "bs", "slovenian": "sl", "slovak": "sk",
+            "bulgarian": "bg", "latvian": "lv", "lithuanian": "lt", "estonian": "et"
+        ]
+        let lower = language.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return languageMap[lower] ?? language
+    }
+
     func clearLinguistState() {
         linguistLookupTask?.cancel()
         linguistLookupTask = nil
@@ -218,6 +339,9 @@ extension InteractivePlayerView {
         linguistAutoLookupTask = nil
         linguistBubble = nil
         bubbleFocusEnabled = false
+        #if os(iOS)
+        bubbleKeyboardNavigator.exitFocus()
+        #endif
         pronunciationSpeaker.stop()
     }
 
@@ -284,6 +408,39 @@ extension InteractivePlayerView {
         nonmutating set { linguistFontScaleValue = Double(newValue) }
     }
 
+    #if os(iOS)
+    var iPadSplitDirection: iPadBubbleSplitDirection {
+        get {
+            iPadSplitDirectionRaw == "horizontal" ? .horizontal : .vertical
+        }
+        nonmutating set {
+            iPadSplitDirectionRaw = newValue == .horizontal ? "horizontal" : "vertical"
+        }
+    }
+
+    var iPadSplitRatio: CGFloat {
+        get { CGFloat(iPadSplitRatioValue) }
+        nonmutating set { iPadSplitRatioValue = Double(newValue) }
+    }
+
+    func toggleiPadLayoutDirection() {
+        iPadSplitDirection = iPadSplitDirection == .vertical ? .horizontal : .vertical
+        // Reset ratio to 50% when toggling
+        iPadSplitRatio = 0.5
+    }
+    #else
+    // tvOS stubs (unused but needed for compilation)
+    var iPadSplitDirection: iPadBubbleSplitDirection {
+        get { .vertical }
+        nonmutating set { /* no-op on tvOS */ }
+    }
+    var iPadSplitRatio: CGFloat {
+        get { 0.5 }
+        nonmutating set { /* no-op on tvOS */ }
+    }
+    func toggleiPadLayoutDirection() { /* no-op on tvOS */ }
+    #endif
+
     func sanitizeLookupQuery(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         let stripped = trimmed.trimmingCharacters(in: .punctuationCharacters.union(.symbols))
@@ -342,12 +499,12 @@ extension InteractivePlayerView {
         }
     }
 
-    func startPronunciation(text: String, apiLanguage: String?, fallbackLanguage: String?) {
+    func startPronunciation(text: String, apiLanguage: String?, fallbackLanguage: String?, voice: String? = nil) {
         linguistSpeechTask?.cancel()
         pronunciationSpeaker.stop()
         linguistSpeechTask = Task { @MainActor in
             do {
-                let data = try await viewModel.synthesizePronunciation(text: text, language: apiLanguage)
+                let data = try await viewModel.synthesizePronunciation(text: text, language: apiLanguage, voice: voice)
                 guard !Task.isCancelled else { return }
                 pronunciationSpeaker.playAudio(data)
             } catch {

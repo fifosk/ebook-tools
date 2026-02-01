@@ -16,6 +16,9 @@ struct MyLinguistBubbleView: View {
     let llmModel: String
     let llmModelOptions: [String]
     let onLlmModelChange: (String) -> Void
+    var ttsVoice: String? = nil
+    var ttsVoiceOptions: [String] = []
+    var onTtsVoiceChange: ((String?) -> Void)? = nil
     let onIncreaseFont: () -> Void
     let onDecreaseFont: () -> Void
     let onClose: () -> Void
@@ -28,6 +31,16 @@ struct MyLinguistBubbleView: View {
     var maxContentHeight: CGFloat? = nil
     /// (tvOS) Available height for auto-scaling font to fill space
     var availableHeight: CGFloat? = nil
+    /// Callback to navigate to previous token (swipe right on iOS)
+    var onPreviousToken: (() -> Void)? = nil
+    /// Callback to navigate to next token (swipe left on iOS)
+    var onNextToken: (() -> Void)? = nil
+    /// Callback to toggle layout direction (iPad only)
+    var onToggleLayoutDirection: (() -> Void)? = nil
+    #if os(iOS)
+    /// Optional keyboard navigator for iPad focus management
+    @ObservedObject var keyboardNavigator: iOSBubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
+    #endif
 
     private var isPad: Bool {
         #if os(iOS)
@@ -57,6 +70,8 @@ struct MyLinguistBubbleView: View {
             uiScale: bubbleUiScale,
             useCompactLayout: isPad || useCompactLayout
         )
+        config.ttsVoice = ttsVoice
+        config.ttsVoiceOptions = ttsVoiceOptions
         if fillWidth {
             config.widthMultiplier = 1.0
         }
@@ -74,12 +89,13 @@ struct MyLinguistBubbleView: View {
     }
 
     private var bubbleActions: LinguistBubbleActions {
-        LinguistBubbleActions(
+        var actions = LinguistBubbleActions(
             onLookupLanguageChange: onLookupLanguageChange,
             onLlmModelChange: onLlmModelChange,
             onIncreaseFont: onIncreaseFont,
             onDecreaseFont: onDecreaseFont,
             onClose: onClose,
+            onTtsVoiceChange: onTtsVoiceChange,
             onBubbleFocus: {
                 #if os(tvOS)
                 if focusBinding.wrappedValue != .bubble {
@@ -88,6 +104,10 @@ struct MyLinguistBubbleView: View {
                 #endif
             }
         )
+        actions.onPreviousToken = onPreviousToken
+        actions.onNextToken = onNextToken
+        actions.onToggleLayoutDirection = onToggleLayoutDirection
+        return actions
     }
 
     var body: some View {
@@ -102,7 +122,8 @@ struct MyLinguistBubbleView: View {
         LinguistBubbleView(
             state: bubble.asLinguistBubbleState,
             configuration: bubbleConfiguration,
-            actions: bubbleActions
+            actions: bubbleActions,
+            keyboardNavigator: keyboardNavigator
         )
         #endif
     }

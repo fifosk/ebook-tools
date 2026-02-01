@@ -72,7 +72,7 @@ beforeEach(() => {
       })
   );
   vi.mocked(fetchLlmModels).mockResolvedValue([]);
-  vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [] });
+  vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [], piper: [] });
   vi.mocked(lookupBookOpenLibraryMetadataPreview).mockResolvedValue({
     source_name: null,
     query: null,

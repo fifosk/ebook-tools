@@ -469,8 +469,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     openTokenLookup: openLinguistTokenLookup,
     lookupLanguageOptions: linguistLookupLanguageOptions,
     llmModelOptions: linguistLlmModelOptions,
+    ttsVoiceOptions: linguistTtsVoiceOptions,
     onLookupLanguageChange: handleLookupLanguageChange,
     onLlmModelChange: handleLlmModelChange,
+    onTtsVoiceChange: handleTtsVoiceChange,
   } = linguist;
 
   // Keyboard navigation and selection state via hook
@@ -621,6 +623,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         onLookupLanguageChange={handleLookupLanguageChange}
         llmModelOptions={linguistLlmModelOptions}
         onLlmModelChange={handleLlmModelChange}
+        ttsVoiceOptions={linguistTtsVoiceOptions}
+        onTtsVoiceChange={handleTtsVoiceChange}
         onBubblePointerDown={handleBubblePointerDown}
         onBubblePointerMove={handleBubblePointerMove}
         onBubblePointerUp={handleBubblePointerUp}
@@ -865,6 +869,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
                 onLookupLanguageChange={handleLookupLanguageChange}
                 llmModelOptions={linguistLlmModelOptions}
                 onLlmModelChange={handleLlmModelChange}
+                ttsVoiceOptions={linguistTtsVoiceOptions}
+                onTtsVoiceChange={handleTtsVoiceChange}
                 onBubblePointerDown={handleBubblePointerDown}
                 onBubblePointerMove={handleBubblePointerMove}
                 onBubblePointerUp={handleBubblePointerUp}

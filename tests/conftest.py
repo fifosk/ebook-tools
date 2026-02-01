@@ -1,7 +1,13 @@
+import os
 import re
 from typing import Any, Dict, List
 
 import pytest
+
+# Configure HuggingFace cache to use external SSD BEFORE any HF imports
+# This must happen at module load time, before pytest collects tests
+from modules.core.storage_config import configure_hf_environment
+configure_hf_environment()
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:  # type: ignore[attr-defined]

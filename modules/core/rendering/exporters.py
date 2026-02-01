@@ -251,6 +251,9 @@ def serialize_sentence_chunk(
         punctuation_flag = summary_candidate.get("punctuation_weighting")
         if isinstance(punctuation_flag, bool):
             summary_payload["punctuation_weighting"] = punctuation_flag
+        alignment_model = summary_candidate.get("alignment_model")
+        if isinstance(alignment_model, str) and alignment_model.strip():
+            summary_payload["alignment_model"] = alignment_model.strip()
     if normalized_policy:
         chunk_entry["highlighting_policy"] = normalized_policy
         summary_payload.setdefault("policy", normalized_policy)

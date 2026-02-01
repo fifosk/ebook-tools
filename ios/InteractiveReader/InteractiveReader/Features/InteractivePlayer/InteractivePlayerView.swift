@@ -35,8 +35,11 @@ struct InteractivePlayerView: View {
     @AppStorage(MyLinguistPreferences.lookupLanguageKey) var storedLookupLanguage: String = ""
     @AppStorage(MyLinguistPreferences.llmModelKey) var storedLlmModel: String =
         MyLinguistPreferences.defaultLlmModel
+    @AppStorage(MyLinguistPreferences.ttsVoiceKey) var storedTtsVoice: String = ""
     @State var availableLlmModels: [String] = []
     @State var didLoadLlmModels = false
+    @State var voiceInventory: VoiceInventoryResponse?
+    @State var didLoadVoiceInventory = false
     @State var isMenuVisible = false
     @State var resumePlaybackAfterMenu = false
     @State var bubbleFocusEnabled = false
@@ -54,7 +57,10 @@ struct InteractivePlayerView: View {
         Double(InteractivePlayerView.defaultLinguistFontScale)
     #if os(iOS)
     @State var headerMagnifyStartScale: CGFloat?
+    @AppStorage("interactive.iPadSplitDirection") var iPadSplitDirectionRaw: String = "vertical"
+    @AppStorage("interactive.iPadSplitRatio") var iPadSplitRatioValue: Double = 0.5
     #endif
+    @StateObject var bubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
     @StateObject var pronunciationSpeaker = PronunciationSpeaker()
     @State var bookmarks: [PlaybackBookmarkEntry] = []
     @StateObject var searchViewModel = MediaSearchViewModel()

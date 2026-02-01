@@ -1,0 +1,270 @@
+# Piper TTS Voice Mappings
+#
+# Voice model naming convention: <lang>_<region>-<voice_name>-<quality>
+# Example: en_US-lessac-medium
+#
+# Quality levels (best to worst):
+#   - high: 22.05 kHz, 28-32M parameters (best quality)
+#   - medium: 22.05 kHz, 15-20M parameters (good balance)
+#   - low: 16 kHz, 15-20M parameters (smaller size)
+#   - x_low: 16 kHz, 5-7M parameters (resource-constrained)
+#
+# Download models from: https://github.com/rhasspy/piper/releases
+# or: https://huggingface.co/rhasspy/piper-voices
+
+# Quality preference order (first available is used)
+quality_preference:
+  - high
+  - medium
+  - low
+  - x_low
+
+# Speed multipliers to normalize speech rates across languages
+# Some Piper voices speak slower/faster than others by default.
+# Multiplier > 1.0 = speak faster, < 1.0 = speak slower
+# These values are tuned to make different languages sound similar pace.
+speed_multipliers:
+  ar: 1.8    # Arabic voices speak ~1.8x slower than English baseline
+  zh: 1.3    # Chinese voices slightly slower
+  fa: 1.6    # Persian voices slower (uses Arabic fallback)
+  he: 1.5    # Hebrew slower
+  hi: 1.2    # Hindi/Nepali fallback
+  ne: 1.2    # Nepali
+  ru: 1.1    # Russian slightly slower
+  uk: 1.1    # Ukrainian
+  # Most European languages are close to baseline (1.0)
+
+# Language to voice mappings
+# Multiple voices per language supported; first available is used
+voices:
+  # English
+  en:
+    - en_US-lessac-medium
+    - en_US-lessac-high
+    - en_US-amy-medium
+    - en_US-libritts-high
+    - en_GB-alba-medium
+    - en_GB-jenny_dioco-medium
+    - en_GB-cori-medium
+
+  # Arabic
+  ar:
+    - ar_JO-kareem-medium
+    - ar_JO-kareem-low
+
+  # Bulgarian
+  bg:
+    - bg_BG-georgi-medium
+
+  # Catalan
+  ca:
+    - ca_ES-upc_ona-medium
+    - ca_ES-upc_pau-x_low
+
+  # Czech
+  cs:
+    - cs_CZ-jirka-medium
+    - cs_CZ-jirka-low
+
+  # Danish
+  da:
+    - da_DK-talesyntese-medium
+
+  # German
+  de:
+    - de_DE-thorsten-medium
+    - de_DE-thorsten-high
+    - de_DE-thorsten_emotional-medium
+    - de_DE-eva_k-x_low
+    - de_DE-karlsson-low
+
+  # Greek
+  el:
+    - el_GR-rapunzelina-low
+
+  # Spanish
+  es:
+    - es_ES-davefx-medium
+    - es_ES-carlfm-x_low
+    - es_MX-ald-medium
+
+  # Finnish
+  fi:
+    - fi_FI-harri-medium
+    - fi_FI-harri-low
+
+  # French
+  fr:
+    - fr_FR-siwis-medium
+    - fr_FR-siwis-low
+    - fr_FR-gilles-low
+    - fr_FR-mls-medium
+
+  # Georgian
+  ka:
+    - ka_GE-natia-medium
+
+  # Hungarian
+  hu:
+    - hu_HU-anna-medium
+    - hu_HU-berta-medium
+    - hu_HU-imre-medium
+
+  # Icelandic
+  is:
+    - is_IS-bui-medium
+    - is_IS-salka-medium
+    - is_IS-steinn-medium
+    - is_IS-ugla-medium
+
+  # Italian
+  it:
+    - it_IT-riccardo-x_low
+    - it_IT-paola-medium
+
+  # Kazakh
+  kk:
+    - kk_KZ-iseke-x_low
+    - kk_KZ-issai-high
+    - kk_KZ-raya-x_low
+
+  # Luxembourgish
+  lb:
+    - lb_LU-marylux-medium
+
+  # Nepali
+  ne:
+    - ne_NP-google-medium
+    - ne_NP-google-x_low
+
+  # Dutch
+  nl:
+    - nl_NL-mls-medium
+    - nl_NL-mls_5809-low
+    - nl_NL-mls_7432-low
+    - nl_BE-nathalie-medium
+    - nl_BE-nathalie-x_low
+    - nl_BE-rdh-medium
+    - nl_BE-rdh-x_low
+
+  # Norwegian
+  no:
+    - no_NO-talesyntese-medium
+
+  # Polish
+  pl:
+    - pl_PL-gosia-medium
+    - pl_PL-darkman-medium
+    - pl_PL-mc_speech-medium
+
+  # Portuguese
+  pt:
+    - pt_BR-edresson-low
+    - pt_BR-faber-medium
+    - pt_PT-tugao-medium
+
+  # Romanian
+  ro:
+    - ro_RO-mihai-medium
+
+  # Russian
+  ru:
+    - ru_RU-ruslan-medium
+    - ru_RU-dmitri-medium
+    - ru_RU-irina-medium
+    - ru_RU-denis-medium
+
+  # Slovak
+  sk:
+    - sk_SK-lili-medium
+
+  # Slovenian
+  sl:
+    - sl_SI-artur-medium
+
+  # Serbian
+  sr:
+    - sr_RS-serbski_institut-medium
+
+  # Swedish
+  sv:
+    - sv_SE-nst-medium
+
+  # Swahili
+  sw:
+    - sw_CD-lanfrica-medium
+
+  # Turkish
+  tr:
+    - tr_TR-dfki-medium
+    - tr_TR-fahrettin-medium
+    - tr_TR-fettah-medium
+
+  # Ukrainian
+  uk:
+    - uk_UA-ukrainian_tts-medium
+    - uk_UA-lada-x_low
+
+  # Vietnamese
+  vi:
+    - vi_VN-vivos-x_low
+    - vi_VN-25hours_single-low
+
+  # Chinese (Simplified)
+  zh:
+    - zh_CN-huayan-medium
+    - zh_CN-huayan-x_low
+
+# Fallback mapping for languages without direct Piper support
+# Maps unsupported language codes to supported alternatives
+fallbacks:
+  # Central Asian / Turkic languages -> Turkish
+  ky: tr      # Kyrgyz
+  tk: tr      # Turkmen
+  uz: tr      # Uzbek
+  az: tr      # Azerbaijani
+
+  # Slavic language fallbacks
+  be: ru      # Belarusian -> Russian
+  mk: sr      # Macedonian -> Serbian
+  bs: sr      # Bosnian -> Serbian
+  hr: sl      # Croatian -> Slovenian
+
+  # South Asian languages -> Nepali (closest available)
+  hi: ne      # Hindi -> Nepali
+  bn: ne      # Bengali -> Nepali
+  ta: ne      # Tamil -> Nepali
+  te: ne      # Telugu -> Nepali
+  mr: ne      # Marathi -> Nepali
+  gu: ne      # Gujarati -> Nepali
+  pa: ne      # Punjabi -> Nepali
+  ur: ne      # Urdu -> Nepali
+
+  # Middle Eastern / Semitic
+  fa: ar      # Persian/Farsi -> Arabic
+  he: ar      # Hebrew -> Arabic (limited similarity)
+
+  # East Asian (limited fallback)
+  ja: zh      # Japanese -> Chinese (very limited)
+  ko: zh      # Korean -> Chinese (very limited)
+
+  # Romance language fallbacks
+  gl: pt      # Galician -> Portuguese
+  oc: fr      # Occitan -> French
+
+  # Other Germanic
+  af: nl      # Afrikaans -> Dutch
+  fy: nl      # Frisian -> Dutch
+
+  # Baltic
+  lt: pl      # Lithuanian -> Polish
+  lv: pl      # Latvian -> Polish
+
+  # Celtic languages -> English (no Celtic support)
+  ga: en      # Irish -> English
+  cy: en      # Welsh -> English
+  gd: en      # Scottish Gaelic -> English
+
+  # Romani -> Slovak (regional proximity)
+  rom: sk
+  romani: sk

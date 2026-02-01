@@ -29,6 +29,14 @@ class GTTSLanguage(BaseModel):
     name: str = Field(description="Human readable language name")
 
 
+class PiperVoice(BaseModel):
+    """Description of an installed Piper voice model."""
+
+    name: str = Field(description="Voice model name (e.g., en_US-lessac-medium)")
+    lang: str = Field(description="Language/region code (e.g., en_US)")
+    quality: str = Field(description="Quality tier (high, medium, low, x_low)")
+
+
 class VoiceInventoryResponse(BaseModel):
     """Payload returned by the ``GET /api/audio/voices`` endpoint."""
 
@@ -40,16 +48,24 @@ class VoiceInventoryResponse(BaseModel):
         default_factory=list,
         description="Supported gTTS language entries",
     )
+    piper: list[PiperVoice] = Field(
+        default_factory=list,
+        description="Installed Piper voice models",
+    )
 
 
 class VoiceMatchResponse(BaseModel):
     """Response describing the matched voice identifier."""
 
-    engine: Literal["macos", "gtts"] = Field(
+    engine: Literal["macos", "gtts", "piper"] = Field(
         description="Synthesis engine responsible for the matched voice",
     )
     voice: str = Field(description="Identifier returned by the voice selection logic")
     macos_voice: Optional[MacOSVoice] = Field(
         default=None,
         description="Resolved macOS voice metadata when the engine is macOS",
+    )
+    piper_voice: Optional[PiperVoice] = Field(
+        default=None,
+        description="Resolved Piper voice metadata when the engine is piper",
     )

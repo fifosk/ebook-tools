@@ -144,6 +144,9 @@ export function useLinguistBubbleLookup({
       const storedModel = loadMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.llmModel, {
         allowEmpty: true,
       });
+      const storedVoice = loadMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.ttsVoice, {
+        allowEmpty: true,
+      });
       const storedPrompt = loadMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.systemPrompt, {
         allowEmpty: true,
       });
@@ -164,6 +167,7 @@ export function useLinguistBubbleLookup({
           : storedModel.trim()
             ? storedModel.trim()
             : null;
+      const resolvedVoice = storedVoice?.trim() || null;
       const resolvedPrompt =
         storedPrompt && storedPrompt.trim()
           ? storedPrompt.trim()
@@ -180,6 +184,7 @@ export function useLinguistBubbleLookup({
         lookupLanguage: resolvedLookupLanguage,
         llmModel: resolvedModel,
         ttsLanguage: resolvedInputLanguage,
+        ttsVoice: resolvedVoice,
         ttsStatus: 'idle',
         navigation,
       });
@@ -219,7 +224,7 @@ export function useLinguistBubbleLookup({
               ttsStatus: 'loading',
             };
           });
-          void speakText({ text: cleanedQuery, language: resolvedInputLanguage })
+          void speakText({ text: cleanedQuery, language: resolvedInputLanguage, voice: resolvedVoice })
             .then(() => {
               if (requestCounterRef.current !== requestId) {
                 return;
@@ -296,7 +301,7 @@ export function useLinguistBubbleLookup({
       }
       return { ...previous, ttsStatus: 'loading' };
     });
-    void speakText({ text, language: bubble.ttsLanguage })
+    void speakText({ text, language: bubble.ttsLanguage, voice: bubble.ttsVoice })
       .then(() => {
         if (requestCounterRef.current !== requestId) {
           return;
@@ -336,7 +341,7 @@ export function useLinguistBubbleLookup({
       }
       return { ...previous, ttsStatus: 'loading' };
     });
-    void speakText({ text, language: bubble.ttsLanguage, playbackRate: 0.5 })
+    void speakText({ text, language: bubble.ttsLanguage, voice: bubble.ttsVoice, playbackRate: 0.5 })
       .then(() => {
         if (requestCounterRef.current !== requestId) {
           return;

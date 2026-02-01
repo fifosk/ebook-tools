@@ -30,8 +30,10 @@ interface MyLinguistBubbleProps {
   onClose: () => void;
   lookupLanguageOptions: string[];
   llmModelOptions: string[];
+  ttsVoiceOptions: string[];
   onLookupLanguageChange: (value: string) => void;
   onLlmModelChange: (value: string | null) => void;
+  onTtsVoiceChange: (value: string | null) => void;
   onBubblePointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onBubblePointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onBubblePointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -64,8 +66,10 @@ export function MyLinguistBubble({
   onClose,
   lookupLanguageOptions,
   llmModelOptions,
+  ttsVoiceOptions,
   onLookupLanguageChange,
   onLlmModelChange,
+  onTtsVoiceChange,
   onBubblePointerDown,
   onBubblePointerMove,
   onBubblePointerUp,
@@ -144,6 +148,45 @@ export function MyLinguistBubble({
     llmModelOptions.forEach(append);
     return result;
   }, [bubble.llmModel, llmModelOptions]);
+
+  const resolvedVoiceValue = bubble.ttsVoice?.trim() ?? '';
+  const resolvedVoiceOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    const append = (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return;
+      }
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      result.push(trimmed);
+    };
+    if (bubble.ttsVoice) {
+      append(bubble.ttsVoice);
+    }
+    ttsVoiceOptions.forEach(append);
+    return result;
+  }, [bubble.ttsVoice, ttsVoiceOptions]);
+
+  const formatVoiceLabel = useCallback((voice: string) => {
+    // Show shorter labels for voice options
+    if (voice.includes(' - ')) {
+      return voice.split(' - ')[0];
+    }
+    if (voice.startsWith('gTTS-')) {
+      return `gTTS (${voice.slice(5)})`;
+    }
+    // Piper voices: en_US-lessac-medium → lessac
+    const piperMatch = voice.match(/^[a-z]{2}_[A-Z]{2}-(.+)-(?:high|medium|low|x_low)$/i);
+    if (piperMatch) {
+      return piperMatch[1];
+    }
+    return voice;
+  }, []);
 
   return (
     <div
@@ -260,6 +303,28 @@ export function MyLinguistBubble({
           >
             →
           </button>
+          {resolvedVoiceOptions.length > 0 ? (
+            <label className="player-panel__my-linguist-bubble-select player-panel__my-linguist-bubble-select--voice">
+              <span className="visually-hidden">TTS voice</span>
+              <span className="player-panel__my-linguist-bubble-voice-icon" aria-hidden="true">
+                🔊
+              </span>
+              <select
+                value={resolvedVoiceValue}
+                onChange={(event) =>
+                  onTtsVoiceChange(event.target.value.trim() ? event.target.value : null)
+                }
+                aria-label="TTS voice"
+              >
+                <option value="">Auto</option>
+                {resolvedVoiceOptions.map((voice) => (
+                  <option key={voice} value={voice}>
+                    {formatVoiceLabel(voice)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <button
             type="button"
             className="player-panel__my-linguist-bubble-speak"
@@ -268,7 +333,7 @@ export function MyLinguistBubble({
             title="Speak selection aloud"
             disabled={bubble.ttsStatus === 'loading'}
           >
-            {bubble.ttsStatus === 'loading' ? '…' : '🔊'}
+            {bubble.ttsStatus === 'loading' ? '…' : '▶'}
           </button>
           <button
             type="button"

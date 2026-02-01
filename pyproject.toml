@@ -29,6 +29,7 @@ dependencies = [
     "yt-dlp>=2024.8,<2025.0",
     "PyJWT[crypto]>=2.8,<3",
     "httpx[http2]>=0.25,<1",
+    "piper-tts>=1.2.0",
 ]
 
 [project.scripts]
