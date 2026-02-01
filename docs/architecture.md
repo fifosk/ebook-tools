@@ -50,6 +50,34 @@ distributing tokens when necessary. Those per-word offsets are persisted as
 chunk-level `timingTracks`; per-sentence timeline events are no longer stored
 inside `metadata/chunk_*.json` (`modules/core/rendering/exporters.py`).
 
+#### WhisperX forced alignment
+
+When word-level timing is required and the TTS backend does not provide
+character timings, the pipeline can use WhisperX forced alignment
+(`modules/align/backends/whisperx_adapter.py`). The adapter:
+
+1. Lazy-loads the WhisperX library and caches alignment models per
+   language/device combination to avoid repeated downloads.
+2. Auto-detects the best available device (CUDA → MPS → CPU) and falls back
+   gracefully when GPU acceleration fails (e.g., "meta tensor" errors on MPS).
+3. Provides `align_sentence()` for single-shot alignment and `retry_alignment()`
+   for automatic retries with exponential backoff.
+
+**Supported languages with pre-downloaded models:**
+- English (en), Arabic (ar), Hindi (hi), Hungarian (hu), Greek (el),
+  Finnish (fi), Turkish (tr)
+
+Models are downloaded on first use from HuggingFace. To pre-download models
+for additional languages:
+
+```python
+from whisperx.alignment import load_align_model
+model, metadata = load_align_model("LANG_CODE", "cpu")
+```
+
+Tests for model loading and alignment live in
+`tests/modules/test_whisperx_alignment.py`.
+
 Video slide rendering uses a comparable pattern. `modules/config/loader.py`
 resolves the selected `video_backend` and optional `video_backend_settings`
 mapping, then the rendering layer instantiates the appropriate renderer through

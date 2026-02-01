@@ -38,6 +38,8 @@ extension InteractivePlayerView {
             viewModel.onSequenceWillTransition = {
                 print("[TranscriptFreeze] onSequenceWillTransition callback invoked (no-op)")
             }
+            // Set up shouldSkipTrack callback to skip hidden tracks during playback
+            updateShouldSkipTrackCallback()
             #if os(tvOS)
             if !didSetInitialFocus {
                 didSetInitialFocus = true
@@ -107,6 +109,8 @@ extension InteractivePlayerView {
                 frozenTranscriptSentences = transcriptSentences(for: chunk)
                 frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
             }
+            // Update the shouldSkipTrack callback when track visibility changes
+            updateShouldSkipTrackCallback()
         })
         view = AnyView(view.onChange(of: isMenuVisible) { _, visible in
             guard let chunk = viewModel.selectedChunk else { return }
@@ -171,6 +175,8 @@ extension InteractivePlayerView {
             clearLinguistState()
             // Clear the sequence transition callback to prevent dangling references
             viewModel.onSequenceWillTransition = nil
+            // Clear the shouldSkipTrack callback
+            viewModel.sequenceController.shouldSkipTrack = nil
         })
         return view
     }
@@ -460,24 +466,15 @@ extension InteractivePlayerView {
             }
 
             // During dwell (paused at segment end to show last word), use sequence controller's
-            // sentence index. Show current track fully revealed, next track at 0 (green).
+            // sentence index. Show current track fully revealed, other tracks at 0 (green).
             // The time has advanced past segment end so time-based lookup would return the WRONG sentence.
             if isDwelling, let targetIdx = currentSentenceIdx, chunk.sentences.indices.contains(targetIdx) {
-                // Get the next segment to determine what track will play next
-                let nextSegment = viewModel.sequenceController.nextSegment
-                let nextTrack: TextPlayerTimingTrack? = nextSegment.map { segment in
-                    segment.track == .original ? .original : .translation
-                }
-                let isSameSentence = nextSegment?.sentenceIndex == targetIdx
-
                 if let display = TextPlayerTimeline.buildDwellDisplay(
                     sentences: chunk.sentences,
                     activeIndex: targetIdx,
-                    currentTrack: sequenceTimingTrack,
-                    nextTrack: nextTrack,
-                    isSameSentence: isSameSentence
+                    currentTrack: sequenceTimingTrack
                 ) {
-                    print("[InteractiveContent] DWELL: sentence[\(targetIdx)] current=\(sequenceTimingTrack), next=\(nextTrack.map { "\($0)" } ?? "nil"), sameSentence=\(isSameSentence)")
+                    print("[InteractiveContent] DWELL: sentence[\(targetIdx)] current=\(sequenceTimingTrack)")
                     return [display]
                 }
             }

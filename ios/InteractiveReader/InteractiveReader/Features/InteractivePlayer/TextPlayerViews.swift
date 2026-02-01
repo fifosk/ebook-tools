@@ -709,7 +709,14 @@ struct TextPlayerVariantView: View {
             return .past
         }
         if index == variant.revealedCount - 1 {
-            return .current
+            // Only show as .current (white color for original) if this is the active playback track
+            // The playbackTokenIndex is non-nil only for the track that's currently playing
+            // This prevents the white blip on non-playing tracks (e.g., original track when translation is playing)
+            if playbackTokenIndex != nil {
+                return .current
+            }
+            // For non-active tracks, show the last revealed token as .past (orange) instead of .current (white)
+            return .past
         }
         return .future
     }

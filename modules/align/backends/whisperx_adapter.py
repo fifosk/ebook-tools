@@ -136,6 +136,15 @@ def _get_alignment_model(
         logger.warning("No alignment model available for language '%s': %s", language, exc)
         raise
     except Exception as exc:
+        # Check for "meta tensor" error - MPS/CUDA device issue with certain models
+        # This can be NotImplementedError or wrapped in other exception types
+        exc_str = str(exc)
+        if "meta tensor" in exc_str and device != "cpu":
+            logger.warning(
+                "MPS/CUDA device failed for language '%s' (meta tensor error), falling back to CPU",
+                language,
+            )
+            return _get_alignment_model(language, "cpu", model_name)
         logger.warning("Failed to load alignment model: %s", exc, exc_info=True)
         raise
 

@@ -459,6 +459,23 @@ curl -N "http://127.0.0.1:8000/pipelines/<job_id>/events?access_token=<jwt>"
 - **gTTS**: Cross-platform, requires internet
 - Set via `tts_backend` or `EBOOK_AUDIO_BACKEND`
 
+### WhisperX Forced Alignment
+
+WhisperX provides word-level timing when TTS backends don't emit character timings.
+The adapter (`modules/align/backends/whisperx_adapter.py`) auto-detects GPU/MPS/CPU
+and falls back gracefully on device errors.
+
+**Pre-downloaded alignment models:**
+- English (en), Arabic (ar), Hindi (hi), Hungarian (hu), Greek (el), Finnish (fi), Turkish (tr)
+
+**Download additional models:**
+```python
+from whisperx.alignment import load_align_model
+model, metadata = load_align_model("LANG_CODE", "cpu")  # e.g., "de", "fr", "es"
+```
+
+**Tests:** `pytest tests/modules/test_whisperx_alignment.py`
+
 ### Video Rendering
 
 ```json

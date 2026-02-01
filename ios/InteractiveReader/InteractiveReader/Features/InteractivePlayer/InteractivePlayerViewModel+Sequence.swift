@@ -79,6 +79,8 @@ extension InteractivePlayerViewModel {
 
                 // Track whether we've seen the loading state (isReady = false)
                 var seenLoadingState = false
+                // Track whether this is the first emission (for handling already-loaded case)
+                var isFirstEmission = true
 
                 // Load the target track WITHOUT autoPlay - we'll start after seek completes
                 // This prevents audio bleed from position 0 before seeking to target
@@ -90,9 +92,16 @@ extension InteractivePlayerViewModel {
                         guard let self else { return }
                         if !isReady {
                             seenLoadingState = true
+                            isFirstEmission = false
                             print("[Sequence] Resume audio loading...")
                         } else if seenLoadingState {
                             print("[Sequence] Resume audio ready")
+                            self.completeSequenceTransition(seekTime: target.time, shouldPlay: autoPlay)
+                        } else if isFirstEmission {
+                            // Audio was already loaded (same URL), no loading transition occurred
+                            // Complete the transition immediately
+                            isFirstEmission = false
+                            print("[Sequence] Resume audio already ready (no load needed)")
                             self.completeSequenceTransition(seekTime: target.time, shouldPlay: autoPlay)
                         }
                     }
@@ -119,6 +128,8 @@ extension InteractivePlayerViewModel {
 
                 // Track whether we've seen the loading state (isReady = false)
                 var seenLoadingState = false
+                // Track whether this is the first emission (for handling already-loaded case)
+                var isFirstEmission = true
 
                 // Load the track WITHOUT autoPlay - we'll start after seek completes
                 // This prevents audio bleed from position 0 before seeking to target
@@ -131,10 +142,17 @@ extension InteractivePlayerViewModel {
                         if !isReady {
                             // Mark that we've entered the loading state
                             seenLoadingState = true
+                            isFirstEmission = false
                             print("[Sequence] Initial audio loading...")
                         } else if seenLoadingState {
                             // We've transitioned from loading to ready - now seek and start playback
                             print("[Sequence] Initial audio ready")
+                            self.completeSequenceTransition(seekTime: targetSeekTime, shouldPlay: autoPlay)
+                        } else if isFirstEmission {
+                            // Audio was already loaded (same URL), no loading transition occurred
+                            // Complete the transition immediately
+                            isFirstEmission = false
+                            print("[Sequence] Initial audio already ready (no load needed)")
                             self.completeSequenceTransition(seekTime: targetSeekTime, shouldPlay: autoPlay)
                         }
                     }
@@ -173,7 +191,9 @@ extension InteractivePlayerViewModel {
         print("[Sequence] Loading \(track.rawValue) track: \(url.lastPathComponent)")
         // Use forceNoAutoPlay when autoPlay is false to prevent audio bleed during track switches
         // (otherwise isPlaybackRequested would cause auto-play even when we don't want it)
-        audioCoordinator.load(url: url, autoPlay: autoPlay, forceNoAutoPlay: !autoPlay)
+        // Use preservePlaybackRequested to keep isPlaybackRequested = true during transitions
+        // so that reading bed doesn't pause/jitter when we switch tracks
+        audioCoordinator.load(url: url, autoPlay: autoPlay, forceNoAutoPlay: !autoPlay, preservePlaybackRequested: true)
         selectedTimingURL = url
 
         // Determine the seek target
@@ -249,6 +269,8 @@ extension InteractivePlayerViewModel {
 
         // Track whether we've seen the loading state (isReady = false)
         var seenLoadingState = false
+        // Track whether this is the first emission (for handling already-loaded case)
+        var isFirstEmission = true
 
         // Load the track WITHOUT autoPlay - we'll start playback after seeking
         // This prevents audio bleed from position 0 before the seek completes
@@ -261,14 +283,19 @@ extension InteractivePlayerViewModel {
                 if !isReady {
                     // Mark that we've entered the loading state
                     seenLoadingState = true
+                    isFirstEmission = false
                     print("[Sequence] Audio loading...")
                 } else if seenLoadingState {
                     // We've transitioned from loading to ready - now seek and start playback
                     print("[Sequence] Audio ready")
                     self.completeSequenceTransition(seekTime: seekTime, shouldPlay: true)
+                } else if isFirstEmission {
+                    // Audio was already loaded (same URL), no loading transition occurred
+                    // This can happen if switching back to the same track that was loaded before
+                    isFirstEmission = false
+                    print("[Sequence] Audio already ready (no load needed)")
+                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: true)
                 }
-                // If isReady is true but we haven't seen loading state yet,
-                // it's the initial value before load() - ignore it
             }
     }
 

@@ -416,7 +416,8 @@ enum TextPlayerTimeline {
     static func buildTimelineDisplay(
         timelineSentences: [TimelineSentenceRuntime],
         chunkTime: Double,
-        audioDuration: Double?
+        audioDuration: Double?,
+        activeTimingTrack: TextPlayerTimingTrack? = nil
     ) -> TimelineDisplay? {
         guard !timelineSentences.isEmpty else { return nil }
         let effectiveTime = resolveEffectiveTime(
@@ -434,6 +435,15 @@ enum TextPlayerTimeline {
         // to ensure last word is revealed during the dwell period before advancing
         let forceRevealTolerance = 0.15
 
+        // Determine which track is currently active (for force reveal logic)
+        let isOriginalTrackActive: Bool
+        if let track = activeTimingTrack {
+            isOriginalTrackActive = (track == .original)
+        } else {
+            // Default: assume original track for backwards compatibility
+            isOriginalTrackActive = true
+        }
+
         var displaySentences: [TextPlayerSentenceDisplay] = []
 
         for runtime in timelineSentences {
@@ -447,7 +457,7 @@ enum TextPlayerTimeline {
 
             var variants: [TextPlayerVariantDisplay] = []
 
-            func appendVariant(label: String, kind: TextPlayerVariantKind, variantRuntime: TimelineVariantRuntime?) {
+            func appendVariant(label: String, kind: TextPlayerVariantKind, variantRuntime: TimelineVariantRuntime?, isActiveTrack: Bool) {
                 guard let variantRuntime, !variantRuntime.tokens.isEmpty else { return }
 
                 let tokens = variantRuntime.tokens
@@ -468,10 +478,14 @@ enum TextPlayerTimeline {
 
                 revealedCount = max(0, min(revealedCount, tokens.count))
                 // Force all words revealed when near segment end (using larger tolerance for dwell period)
-                if safeTime >= runtime.endTime - forceRevealTolerance {
+                // ONLY for the currently active track - prevents other tracks from being force-revealed
+                if isActiveTrack && safeTime >= runtime.endTime - forceRevealTolerance {
                     revealedCount = tokens.count
                 }
-                if !revealTimes.isEmpty,
+                // Ensure at least first word is revealed for the ACTIVE track when playback starts
+                // Only apply to active track to prevent non-playing tracks from getting orange highlight
+                if isActiveTrack,
+                   !revealTimes.isEmpty,
                    state == .active,
                    safeTime >= runtime.startTime - epsilon,
                    revealedCount == 0 {
@@ -480,7 +494,8 @@ enum TextPlayerTimeline {
 
                 var currentIndex: Int? = revealedCount > 0 ? revealedCount - 1 : nil
                 // Force last word as current when near segment end (matching forceRevealTolerance)
-                if !tokens.isEmpty && (state == .past || safeTime >= runtime.endTime - forceRevealTolerance) {
+                // ONLY for the currently active track - prevents other tracks from getting highlight
+                if isActiveTrack && !tokens.isEmpty && (state == .past || safeTime >= runtime.endTime - forceRevealTolerance) {
                     currentIndex = tokens.count - 1
                 }
 
@@ -497,9 +512,9 @@ enum TextPlayerTimeline {
                 )
             }
 
-            appendVariant(label: "Original", kind: .original, variantRuntime: runtime.variants[.original])
-            appendVariant(label: "Transliteration", kind: .transliteration, variantRuntime: runtime.variants[.transliteration])
-            appendVariant(label: "Translation", kind: .translation, variantRuntime: runtime.variants[.translation])
+            appendVariant(label: "Original", kind: .original, variantRuntime: runtime.variants[.original], isActiveTrack: isOriginalTrackActive)
+            appendVariant(label: "Transliteration", kind: .transliteration, variantRuntime: runtime.variants[.transliteration], isActiveTrack: !isOriginalTrackActive)
+            appendVariant(label: "Translation", kind: .translation, variantRuntime: runtime.variants[.translation], isActiveTrack: !isOriginalTrackActive)
 
             guard !variants.isEmpty else { continue }
 
@@ -521,7 +536,8 @@ enum TextPlayerTimeline {
     static func buildActiveSentenceDisplay(
         timelineSentences: [TimelineSentenceRuntime],
         chunkTime: Double,
-        audioDuration: Double?
+        audioDuration: Double?,
+        activeTimingTrack: TextPlayerTimingTrack? = nil
     ) -> TextPlayerSentenceDisplay? {
         guard !timelineSentences.isEmpty else { return nil }
         let effectiveTime = resolveEffectiveTime(
@@ -543,7 +559,16 @@ enum TextPlayerTimeline {
         let state: TextPlayerSentenceState = .active
         var variants: [TextPlayerVariantDisplay] = []
 
-        func appendVariant(label: String, kind: TextPlayerVariantKind, variantRuntime: TimelineVariantRuntime?) {
+        // Determine which track is currently active (for force reveal logic)
+        let isOriginalTrackActive: Bool
+        if let track = activeTimingTrack {
+            isOriginalTrackActive = (track == .original)
+        } else {
+            // Default: assume original track for backwards compatibility
+            isOriginalTrackActive = true
+        }
+
+        func appendVariant(label: String, kind: TextPlayerVariantKind, variantRuntime: TimelineVariantRuntime?, isActiveTrack: Bool) {
             guard let variantRuntime, !variantRuntime.tokens.isEmpty else { return }
 
             let tokens = variantRuntime.tokens
@@ -564,10 +589,14 @@ enum TextPlayerTimeline {
 
             revealedCount = max(0, min(revealedCount, tokens.count))
             // Force all words revealed when near segment end (using larger tolerance for dwell period)
-            if safeTime >= runtime.endTime - forceRevealTolerance {
+            // ONLY for the currently active track - prevents other tracks from being force-revealed
+            if isActiveTrack && safeTime >= runtime.endTime - forceRevealTolerance {
                 revealedCount = tokens.count
             }
-            if !revealTimes.isEmpty,
+            // Ensure at least first word is revealed for the ACTIVE track when playback starts
+            // Only apply to active track to prevent non-playing tracks from getting orange highlight
+            if isActiveTrack,
+               !revealTimes.isEmpty,
                state == .active,
                safeTime >= runtime.startTime - epsilon,
                revealedCount == 0 {
@@ -576,7 +605,8 @@ enum TextPlayerTimeline {
 
             var currentIndex: Int? = revealedCount > 0 ? revealedCount - 1 : nil
             // Force last word as current when near segment end (matching forceRevealTolerance)
-            if !tokens.isEmpty && (state == .past || safeTime >= runtime.endTime - forceRevealTolerance) {
+            // ONLY for the currently active track - prevents other tracks from getting highlight
+            if isActiveTrack && !tokens.isEmpty && (state == .past || safeTime >= runtime.endTime - forceRevealTolerance) {
                 currentIndex = tokens.count - 1
             }
 
@@ -593,9 +623,9 @@ enum TextPlayerTimeline {
             )
         }
 
-        appendVariant(label: "Original", kind: .original, variantRuntime: runtime.variants[.original])
-        appendVariant(label: "Transliteration", kind: .transliteration, variantRuntime: runtime.variants[.transliteration])
-        appendVariant(label: "Translation", kind: .translation, variantRuntime: runtime.variants[.translation])
+        appendVariant(label: "Original", kind: .original, variantRuntime: runtime.variants[.original], isActiveTrack: isOriginalTrackActive)
+        appendVariant(label: "Transliteration", kind: .transliteration, variantRuntime: runtime.variants[.transliteration], isActiveTrack: !isOriginalTrackActive)
+        appendVariant(label: "Translation", kind: .translation, variantRuntime: runtime.variants[.translation], isActiveTrack: !isOriginalTrackActive)
 
         guard !variants.isEmpty else { return nil }
         return TextPlayerSentenceDisplay(
@@ -792,7 +822,7 @@ enum TextPlayerTimeline {
         let state: TextPlayerSentenceState = .active
         var variants: [TextPlayerVariantDisplay] = []
 
-        func appendVariant(label: String, kind: TextPlayerVariantKind, tokens: [String], revealTimes: [Double]) {
+        func appendVariant(label: String, kind: TextPlayerVariantKind, tokens: [String], revealTimes: [Double], isActiveTrack: Bool) {
             guard !tokens.isEmpty else { return }
             let safeTime = min(max(effectiveTime, scaledStart - epsilon), scaledEnd + epsilon)
             let revealCutoff = min(safeTime, scaledEnd)
@@ -810,10 +840,14 @@ enum TextPlayerTimeline {
 
             revealedCount = max(0, min(revealedCount, tokens.count))
             // Force all words revealed when near segment end (using larger tolerance for dwell period)
-            if safeTime >= scaledEnd - forceRevealTolerance {
+            // ONLY for the currently active track - prevents other tracks from being force-revealed
+            if isActiveTrack && safeTime >= scaledEnd - forceRevealTolerance {
                 revealedCount = tokens.count
             }
-            if !revealTimes.isEmpty,
+            // Ensure at least first word is revealed for the ACTIVE track when playback starts
+            // Only apply to active track to prevent non-playing tracks from getting orange highlight
+            if isActiveTrack,
+               !revealTimes.isEmpty,
                state == .active,
                safeTime >= scaledStart - epsilon,
                revealedCount == 0 {
@@ -822,7 +856,8 @@ enum TextPlayerTimeline {
 
             var currentIndex: Int? = revealedCount > 0 ? revealedCount - 1 : nil
             // Force last word as current when near segment end (matching forceRevealTolerance)
-            if !tokens.isEmpty && (state == .past || safeTime >= scaledEnd - forceRevealTolerance) {
+            // ONLY for the currently active track - prevents other tracks from getting highlight
+            if isActiveTrack && !tokens.isEmpty && (state == .past || safeTime >= scaledEnd - forceRevealTolerance) {
                 currentIndex = tokens.count - 1
             }
 
@@ -843,19 +878,22 @@ enum TextPlayerTimeline {
             label: "Original",
             kind: .original,
             tokens: originalTokens,
-            revealTimes: scaledOriginalReveal
+            revealTimes: scaledOriginalReveal,
+            isActiveTrack: isOriginalTrack
         )
         appendVariant(
             label: "Transliteration",
             kind: .transliteration,
             tokens: transliterationTokens,
-            revealTimes: scaledTransliterationRevealTimes
+            revealTimes: scaledTransliterationRevealTimes,
+            isActiveTrack: !isOriginalTrack
         )
         appendVariant(
             label: "Translation",
             kind: .translation,
             tokens: translationTokens,
-            revealTimes: scaledTranslationRevealTimes
+            revealTimes: scaledTranslationRevealTimes,
+            isActiveTrack: !isOriginalTrack
         )
 
         guard !variants.isEmpty else { return nil }
@@ -1218,19 +1256,15 @@ enum TextPlayerTimeline {
     }
 
     /// Build a display for dwell state (paused at segment end before advancing)
-    /// Shows the current track fully revealed (just finished) and the next track at 0 (about to start)
+    /// Shows the current track fully revealed (just finished) and other tracks at 0 (unrevealed)
     /// - Parameters:
     ///   - sentences: All sentences in the chunk
     ///   - activeIndex: The current sentence index
     ///   - currentTrack: The track that just finished playing (fully revealed)
-    ///   - nextTrack: The track that will play next (at 0, not yet revealed). If nil, shows all fully revealed.
-    ///   - isSameSentence: Whether the next segment is for the same sentence (track switch within sentence)
     static func buildDwellDisplay(
         sentences: [InteractiveChunk.Sentence],
         activeIndex: Int,
-        currentTrack: TextPlayerTimingTrack,
-        nextTrack: TextPlayerTimingTrack?,
-        isSameSentence: Bool
+        currentTrack: TextPlayerTimingTrack
     ) -> TextPlayerSentenceDisplay? {
         guard sentences.indices.contains(activeIndex) else { return nil }
         let sentence = sentences[activeIndex]
@@ -1242,10 +1276,8 @@ enum TextPlayerTimeline {
             let revealedCount: Int
             let currentIndex: Int?
 
-            // Determine if this variant belongs to the current (finished) track or the next track
+            // Determine if this variant belongs to the current (finished) track
             let isCurrentTrack: Bool
-            let isNextTrack: Bool
-
             switch currentTrack {
             case .original:
                 isCurrentTrack = (kind == .original)
@@ -1253,29 +1285,19 @@ enum TextPlayerTimeline {
                 isCurrentTrack = (kind == .translation || kind == .transliteration)
             }
 
-            if let next = nextTrack {
-                switch next {
-                case .original:
-                    isNextTrack = (kind == .original)
-                case .translation, .mix:
-                    isNextTrack = (kind == .translation || kind == .transliteration)
-                }
-            } else {
-                isNextTrack = false
-            }
-
             if isCurrentTrack {
-                // Current track just finished - fully revealed
+                // Current track just finished - fully revealed with last word highlighted
                 revealedCount = tokens.count
                 currentIndex = tokens.count - 1
-            } else if isNextTrack && isSameSentence {
-                // Next track about to start (same sentence) - show at 0 (green/unrevealed)
+            } else {
+                // Not the current track - show at 0 (unrevealed/green) to avoid any highlighting
+                // This applies to:
+                // - Same sentence: next track about to start (will animate when it plays)
+                // - Next sentence: the other track shouldn't be highlighted during dwell
+                // Setting revealedCount = 0 ensures the fallback in playbackPrimaryTokenIndex()
+                // won't return a highlight index
                 revealedCount = 0
                 currentIndex = nil
-            } else {
-                // For sentence changes or unknown next track, show fully revealed
-                revealedCount = tokens.count
-                currentIndex = tokens.count - 1
             }
 
             variants.append(

@@ -100,6 +100,10 @@ final class SequencePlaybackController: ObservableObject {
     /// This signals the view layer to clear any transition-related state
     var onTimeStabilized: (() -> Void)?
 
+    /// Called to check if a track should be skipped during automatic playback progression
+    /// Returns true if the track should be skipped (e.g., because it's hidden in the UI)
+    var shouldSkipTrack: ((SequenceTrack) -> Bool)?
+
     /// Build a sequence plan from the chunk's sentences
     /// This mirrors the web app's sequencePlan useMemo logic
     func buildPlan(
@@ -417,6 +421,11 @@ final class SequencePlaybackController: ObservableObject {
     /// Returns true if a track switch occurred
     @discardableResult
     func advanceToNextSegment() -> Bool {
+        // CRITICAL: Set isTransitioning FIRST before any other state changes
+        // to prevent race conditions where a SwiftUI render sees intermediate state
+        // (e.g., isDwelling=false but isTransitioning=false, causing NORMAL CASE to trigger)
+        isTransitioning = true
+
         // Clear the previous same-sentence flag immediately to prevent it from
         // affecting renders during the next transition
         isSameSentenceTrackSwitch = false
@@ -424,11 +433,23 @@ final class SequencePlaybackController: ObservableObject {
         segmentEndReachedTime = nil
         isDwelling = false
 
-        let nextIndex = currentSegmentIndex + 1
+        // Find the next segment, skipping any segments for hidden tracks
+        var nextIndex = currentSegmentIndex + 1
+        while nextIndex < plan.count {
+            let candidate = plan[nextIndex]
+            // Check if this track should be skipped (e.g., it's hidden in the UI)
+            if let shouldSkip = shouldSkipTrack, shouldSkip(candidate.track) {
+                print("[SequencePlayback] Skipping hidden \(candidate.track.rawValue) segment at index \(nextIndex)")
+                nextIndex += 1
+                continue
+            }
+            break
+        }
 
         if nextIndex >= plan.count {
             // End of sequence
             print("[SequencePlayback] End of sequence reached")
+            isTransitioning = false  // Reset since we're not actually transitioning
             onSequenceEnded?()
             return false
         }
@@ -442,10 +463,7 @@ final class SequencePlaybackController: ObservableObject {
         let isSameSentence = previousSentenceIndex == nextSegment.sentenceIndex
         isSameSentenceTrackSwitch = didSwitchTrack && isSameSentence
 
-        // Block further time updates IMMEDIATELY - must happen FIRST to prevent race conditions
-        // where a time observer callback could fire and trigger another advance before we're ready
-        // This applies to BOTH track switches and same-track advances
-        isTransitioning = true
+        // isTransitioning already set at the beginning of this method
 
         if didSwitchTrack {
             // Call onWillBeginTransition AFTER setting isTransitioning but BEFORE updating state

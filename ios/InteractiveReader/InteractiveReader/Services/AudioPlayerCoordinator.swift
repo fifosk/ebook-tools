@@ -43,11 +43,11 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         installInterruptionObserver()
     }
 
-    func load(url: URL, autoPlay: Bool = false, forceNoAutoPlay: Bool = false) {
-        load(urls: [url], autoPlay: autoPlay, forceNoAutoPlay: forceNoAutoPlay)
+    func load(url: URL, autoPlay: Bool = false, forceNoAutoPlay: Bool = false, preservePlaybackRequested: Bool = false) {
+        load(urls: [url], autoPlay: autoPlay, forceNoAutoPlay: forceNoAutoPlay, preservePlaybackRequested: preservePlaybackRequested)
     }
 
-    func load(urls: [URL], autoPlay: Bool = false, forceNoAutoPlay: Bool = false) {
+    func load(urls: [URL], autoPlay: Bool = false, forceNoAutoPlay: Bool = false, preservePlaybackRequested: Bool = false) {
         let sanitized = urls
         guard !sanitized.isEmpty else {
             reset()
@@ -56,6 +56,9 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         print("[AudioPlayer] Loading URLs: \(sanitized.map { $0.absoluteString })")
         // forceNoAutoPlay overrides isPlaybackRequested to prevent audio bleed during track switches
         let shouldAutoPlay = forceNoAutoPlay ? false : (autoPlay || isPlaybackRequested)
+        // preservePlaybackRequested keeps isPlaybackRequested = true during sequence transitions
+        // so that reading bed doesn't pause when we switch tracks
+        let wasPlaybackRequested = isPlaybackRequested
         if activeURLs == sanitized {
             if player?.currentItem == nil {
                 tearDownPlayer()
@@ -93,7 +96,8 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         }
         installTimeObserver(on: player)
         installEndObserver(for: player)
-        isPlaybackRequested = shouldAutoPlay
+        // Preserve isPlaybackRequested during sequence transitions to prevent reading bed from pausing
+        isPlaybackRequested = preservePlaybackRequested ? wasPlaybackRequested : shouldAutoPlay
         if shouldAutoPlay {
             play()
         } else {

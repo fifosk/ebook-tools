@@ -210,4 +210,28 @@ extension InteractivePlayerView {
         }
         return .original // Fallback: start at beginning
     }
+
+    /// Updates the shouldSkipTrack callback on the sequence controller based on current visibility settings.
+    /// This ensures that hidden tracks are skipped during automatic playback progression.
+    func updateShouldSkipTrackCallback() {
+        let origVisible = visibleTracks.contains(.original)
+        let transVisible = visibleTracks.contains(.translation) || visibleTracks.contains(.transliteration)
+
+        // If both tracks are visible (or neither for safety), don't skip anything
+        if origVisible && transVisible {
+            viewModel.sequenceController.shouldSkipTrack = nil
+            print("[TrackVisibility] Both tracks visible, not skipping any segments")
+        } else {
+            // If only one track is visible, skip the other
+            viewModel.sequenceController.shouldSkipTrack = { track in
+                switch track {
+                case .original:
+                    return !origVisible
+                case .translation:
+                    return !transVisible
+                }
+            }
+            print("[TrackVisibility] Updated skip callback: origVisible=\(origVisible), transVisible=\(transVisible)")
+        }
+    }
 }
