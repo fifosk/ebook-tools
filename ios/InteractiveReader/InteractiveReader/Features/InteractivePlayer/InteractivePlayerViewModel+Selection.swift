@@ -9,6 +9,13 @@ extension InteractivePlayerViewModel {
         return first.originalStartGate != nil || first.startGate != nil
     }
 
+    /// Check if chunk sentences have tokens loaded (required for transcript display)
+    private func sentencesHaveTokens(_ sentences: [InteractiveChunk.Sentence]) -> Bool {
+        guard let first = sentences.first else { return false }
+        // Tokens are required for proper transcript display with word highlighting
+        return !first.originalTokens.isEmpty || !first.translationTokens.isEmpty
+    }
+
     /// Check if the currently selected track requires gate data (combined mode)
     private func selectedTrackRequiresGates(for chunk: InteractiveChunk) -> Bool {
         guard let trackID = selectedAudioTrackID,
@@ -35,9 +42,12 @@ extension InteractivePlayerViewModel {
         }
         // If chunk has sentences with complete data, prepare audio immediately
         // For combined mode, we need gate data - if missing, load metadata first
+        // Also require tokens to be loaded for proper transcript display
         let hasGates = sentencesHaveGateData(chunk.sentences)
+        let hasTokens = sentencesHaveTokens(chunk.sentences)
         let needsGates = selectedTrackRequiresGates(for: chunk)
-        if !chunk.sentences.isEmpty && (!needsGates || hasGates) {
+        print("[ConfigureDefaults] chunk=\(chunk.id), sentences=\(chunk.sentences.count), hasGates=\(hasGates), hasTokens=\(hasTokens), needsGates=\(needsGates)")
+        if !chunk.sentences.isEmpty && hasTokens && (!needsGates || hasGates) {
             isTranscriptLoading = false
             prepareAudio(for: chunk, autoPlay: autoPlay)
             attemptPendingSentenceJump(in: chunk)

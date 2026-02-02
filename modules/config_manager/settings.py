@@ -50,7 +50,7 @@ class EbookToolsSettings(BaseModel):
     generate_audio: bool = True
     generate_video: bool = False
     sentences_per_output_file: int = Field(
-        default=1,
+        default=10,
         validation_alias=AliasChoices("sentences_per_output_file", "sentences_per_chunk"),
     )
     start_sentence: int = 1

@@ -649,7 +649,7 @@ class ProcessingConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    sentences_per_output_file: int = Field(default=1, ge=1, le=100)
+    sentences_per_output_file: int = Field(default=10, ge=1, le=100)
     max_words: int = Field(default=18, ge=5, le=100)
     percentile: int = Field(default=96, ge=50, le=100)
     split_on_comma_semicolon: bool = False

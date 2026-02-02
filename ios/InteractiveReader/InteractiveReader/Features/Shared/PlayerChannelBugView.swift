@@ -856,6 +856,20 @@ enum LanguageFlagResolver {
     ]
 }
 
+#if os(tvOS)
+struct TVLanguageFlagButtonStyle: ButtonStyle {
+    @Environment(\.isFocused) var isFocused
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : (isFocused ? 1.1 : 1.0))
+            .brightness(isFocused ? 0.15 : 0)
+            .animation(.easeInOut(duration: 0.15), value: isFocused)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+#endif
+
 struct PlayerLanguageFlagRow: View {
     let flags: [LanguageFlagEntry]
     let modelLabel: String?
@@ -903,7 +917,11 @@ struct PlayerLanguageFlagRow: View {
                         Button(action: { onToggleRole(role) }) {
                             badge
                         }
+                        #if os(tvOS)
+                        .buttonStyle(TVLanguageFlagButtonStyle())
+                        #else
                         .buttonStyle(.plain)
+                        #endif
                     } else {
                         badge
                     }

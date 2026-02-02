@@ -64,7 +64,13 @@ def _get_whisperx():
 
 
 def _get_default_device() -> str:
-    """Determine the best available device (cuda/mps/cpu)."""
+    """Determine the best available device for alignment.
+
+    Note: We default to CPU for alignment because MPS has recurring issues with
+    meta tensors and device mismatches in the Wav2Vec2 alignment models. The
+    alignment models are relatively small and CPU inference is reliable.
+    CUDA is still used when available since it doesn't have these issues.
+    """
     global _default_device
     if _default_device is not None:
         return _default_device
@@ -73,14 +79,14 @@ def _get_default_device() -> str:
         import torch
         if torch.cuda.is_available():
             _default_device = "cuda"
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            _default_device = "mps"
         else:
+            # Default to CPU - MPS has too many issues with alignment models
+            # (meta tensor errors, device mismatches, FloatTensor type conflicts)
             _default_device = "cpu"
     except ImportError:
         _default_device = "cpu"
 
-    logger.debug("WhisperX using device: %s", _default_device)
+    logger.debug("WhisperX alignment using device: %s", _default_device)
     return _default_device
 
 
@@ -206,7 +212,15 @@ def _get_alignment_model(
     device: str,
     model_name: Optional[str] = None,
 ) -> Tuple[Any, dict]:
-    """Get or create a cached alignment model for the given language."""
+    """Get or create a cached alignment model for the given language.
+
+    We prefer our direct model loading method which avoids meta tensors.
+    This is more reliable than whisperx.load_align_model() which can load
+    models with meta tensors that cause device mismatch errors.
+
+    Thread-safety: The entire loading process is protected by a lock to prevent
+    concurrent model loading which can cause meta tensor issues with transformers.
+    """
 
     # Filter out invalid Whisper model names - let WhisperX choose the default
     if model_name and not _is_valid_alignment_model(model_name):
@@ -218,84 +232,71 @@ def _get_alignment_model(
         )
         model_name = None
 
-    cache_key = f"{language}:{device}:{model_name or 'default'}"
+    # Always use CPU for cache key since we default to CPU now
+    cache_key = f"{language}:cpu:{model_name or 'default'}"
 
+    # Hold the lock for the entire cache check + loading process to prevent
+    # concurrent model loads which cause meta tensor issues
     with _model_cache_lock:
         if cache_key in _model_cache:
             logger.debug("Using cached alignment model for %s", cache_key)
             return _model_cache[cache_key]
 
-    whisperx = _get_whisperx()
-
-    logger.info(
-        "Loading WhisperX alignment model for language='%s', device='%s', model='%s'",
-        language,
-        device,
-        model_name or "default",
-    )
-
-    try:
-        model, metadata = whisperx.load_align_model(
-            language_code=language,
-            device=device,
-            model_name=model_name,
+        logger.info(
+            "Loading alignment model for language='%s', model='%s' (using direct load to avoid meta tensors)",
+            language,
+            model_name or "default",
         )
-    except ValueError as exc:
-        # No model available for this language
-        logger.warning("No alignment model available for language '%s': %s", language, exc)
-        raise
-    except Exception as exc:
-        # Check for "meta tensor" error - MPS/CUDA device issue with certain models
-        # This can be NotImplementedError or wrapped in other exception types
-        exc_str = str(exc)
-        if "meta tensor" in exc_str:
-            if device != "cpu":
-                logger.warning(
-                    "MPS/CUDA device failed for language '%s' (meta tensor error), falling back to CPU",
-                    language,
-                )
-                return _get_alignment_model(language, "cpu", model_name)
-            else:
-                # CPU also failed - try loading with low_cpu_mem_usage=False to avoid meta tensors
-                logger.warning(
-                    "CPU fallback also failed with meta tensor error for language '%s', "
-                    "trying direct model load without meta tensors",
-                    language,
-                )
-                try:
-                    model, metadata = _load_align_model_no_meta_tensors(language, model_name)
-                    # Cache and return the successfully loaded model
-                    cache_key_cpu = f"{language}:cpu:{model_name or 'default'}"
-                    with _model_cache_lock:
-                        _model_cache[cache_key_cpu] = (model, metadata)
-                    logger.info(
-                        "WhisperX alignment model loaded via fallback: language='%s', device='cpu'",
-                        language,
-                    )
-                    return model, metadata
-                except Exception as inner_exc:
-                    logger.warning(
-                        "Direct model load also failed for language '%s': %s",
-                        language,
-                        inner_exc,
-                    )
-                    raise exc from inner_exc
-        else:
+
+        # Try our direct loading method first - it avoids meta tensor issues
+        try:
+            model, metadata = _load_align_model_no_meta_tensors(language, model_name)
+            _model_cache[cache_key] = (model, metadata)
+            logger.info(
+                "Alignment model loaded successfully: language='%s', model='%s'",
+                language,
+                model_name or "default",
+            )
+            return model, metadata
+        except ValueError:
+            # Language not in our known list - fall back to whisperx
+            logger.debug(
+                "Language '%s' not in direct loader, trying whisperx.load_align_model",
+                language,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Direct model load failed for language '%s': %s, trying whisperx fallback",
+                language,
+                exc,
+            )
+
+        # Fall back to whisperx.load_align_model for unsupported languages
+        whisperx = _get_whisperx()
+        try:
+            model, metadata = whisperx.load_align_model(
+                language_code=language,
+                device="cpu",  # Always use CPU to avoid meta tensor issues
+                model_name=model_name,
+            )
+        except ValueError as exc:
+            # No model available for this language
+            logger.warning("No alignment model available for language '%s': %s", language, exc)
+            raise
+        except Exception as exc:
             logger.warning("Failed to load alignment model: %s", exc, exc_info=True)
             raise
 
-    with _model_cache_lock:
         _model_cache[cache_key] = (model, metadata)
 
-    # Log the actual model that was loaded (helpful for troubleshooting)
-    resolved_model_name = metadata.get("language", model_name) if isinstance(metadata, dict) else model_name
-    logger.info(
-        "WhisperX alignment model loaded: language='%s', device='%s', resolved_model='%s'",
-        language,
-        device,
-        resolved_model_name or "default",
-    )
-    return model, metadata
+        # Log the actual model that was loaded (helpful for troubleshooting)
+        resolved_model_name = metadata.get("language", model_name) if isinstance(metadata, dict) else model_name
+        logger.info(
+            "WhisperX alignment model loaded: language='%s', resolved_model='%s'",
+            language,
+            resolved_model_name or "default",
+        )
+        return model, metadata
 
 
 def _detect_language(text: str) -> str:
@@ -416,7 +417,35 @@ def align_sentence(
             return_char_alignments=False,
         )
     except Exception as exc:
-        logger.warning("WhisperX alignment failed: %s", exc, exc_info=True)
+        exc_str = str(exc)
+        exc_lower = exc_str.lower()
+        # Check for device mismatch errors during inference
+        # These can occur with MPS when tensors end up on wrong device
+        if resolved_device != "cpu" and (
+            "meta" in exc_str
+            or "expected device" in exc_str
+            or "device mismatch" in exc_lower
+            or ("mps" in exc_lower and "floattensor" in exc_lower)
+            or "input type" in exc_lower and "weight type" in exc_lower
+        ):
+            logger.warning(
+                "WhisperX alignment failed on %s (device error: %s), retrying on CPU",
+                resolved_device,
+                exc,
+            )
+            # Clear cached model for this language/device combo to force reload on CPU
+            cache_key = f"{resolved_language}:{resolved_device}:{model or 'default'}"
+            with _model_cache_lock:
+                _model_cache.pop(cache_key, None)
+            # Retry with CPU
+            return align_sentence(
+                audio_path,
+                text,
+                model=model,
+                device="cpu",
+                language=resolved_language,
+            )
+        logger.warning("WhisperX alignment failed: %s", exc)
         return []
 
     # Extract word-level tokens from result

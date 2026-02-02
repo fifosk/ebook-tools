@@ -76,7 +76,7 @@ def _build_pipeline_input(payload: Mapping[str, Any]) -> PipelineInput:
         base_output_file=str(data.get("base_output_file") or ""),
         input_language=str(data.get("input_language") or ""),
         target_languages=target_languages,
-        sentences_per_output_file=_coerce_int(data.get("sentences_per_output_file"), 1),
+        sentences_per_output_file=_coerce_int(data.get("sentences_per_output_file"), 10),
         start_sentence=_coerce_int(data.get("start_sentence"), 1),
         end_sentence=end_sentence,
         stitch_full=_coerce_bool(data.get("stitch_full")),

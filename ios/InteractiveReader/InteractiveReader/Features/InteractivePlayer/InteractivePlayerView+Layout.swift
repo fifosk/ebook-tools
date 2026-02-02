@@ -868,6 +868,10 @@ extension InteractivePlayerView {
     #endif
 
     func showMenu() {
+        #if os(tvOS)
+        // Menu is disabled on tvOS - controls are in header pills
+        return
+        #endif
         guard !isMenuVisible else { return }
         guard viewModel.selectedChunk != nil else { return }
         resumePlaybackAfterMenu = audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying
@@ -877,12 +881,13 @@ extension InteractivePlayerView {
         withAnimation(.easeOut(duration: 0.2)) {
             isMenuVisible = true
         }
-        #if os(tvOS)
-        focusedArea = .controls
-        #endif
     }
 
     func hideMenu() {
+        #if os(tvOS)
+        // Menu is disabled on tvOS
+        return
+        #endif
         guard isMenuVisible else { return }
         withAnimation(.easeOut(duration: 0.2)) {
             isMenuVisible = false
@@ -891,9 +896,6 @@ extension InteractivePlayerView {
             audioCoordinator.play()
         }
         resumePlaybackAfterMenu = false
-        #if os(tvOS)
-        focusedArea = .transcript
-        #endif
     }
 
     func playerInfoOverlay(for chunk: InteractiveChunk) -> some View {
@@ -972,6 +974,7 @@ extension InteractivePlayerView {
                     }
                     // On non-portrait layouts, show flags inline with title/author
                     if !isPhonePortrait, !info.languageFlags.isEmpty {
+                        #if os(tvOS)
                         HStack(spacing: 8 * infoPillScale) {
                             PlayerLanguageFlagRow(
                                 flags: info.languageFlags,
@@ -988,6 +991,26 @@ extension InteractivePlayerView {
                             searchPillView
                             bookmarkRibbonPillView
                         }
+                        .focusScope(headerControlsNamespace)
+                        .focused($focusedArea, equals: .controls)
+                        #else
+                        HStack(spacing: 8 * infoPillScale) {
+                            PlayerLanguageFlagRow(
+                                flags: info.languageFlags,
+                                modelLabel: nil,
+                                isTV: isTV,
+                                sizeScale: infoPillScale,
+                                activeRoles: activeRoles,
+                                availableRoles: availableRoles,
+                                onToggleRole: { role in
+                                    toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
+                                },
+                                showConnector: !isPhone
+                            )
+                            searchPillView
+                            bookmarkRibbonPillView
+                        }
+                        #endif
                     }
                 }
             }
@@ -1225,20 +1248,16 @@ extension InteractivePlayerView {
     }
 
     #if os(tvOS)
+    /// Non-focusable toggle pill - header show/hide is handled by long press on middle button
     var tvHeaderTogglePill: some View {
-        Button(action: toggleHeaderCollapsed) {
-            Image(systemName: isHeaderCollapsed ? "chevron.down" : "chevron.up")
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.black.opacity(0.6), in: Capsule())
-                .foregroundStyle(.white)
-        }
-        .buttonStyle(.plain)
-        .focusable(focusedArea == .controls)
-        .allowsHitTesting(focusedArea == .controls)
-        .focused($focusedArea, equals: .controls)
-        .accessibilityLabel(isHeaderCollapsed ? "Show header" : "Hide header")
+        Image(systemName: isHeaderCollapsed ? "chevron.down" : "chevron.up")
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.black.opacity(0.6), in: Capsule())
+            .foregroundStyle(.white)
+            .accessibilityLabel(isHeaderCollapsed ? "Header collapsed" : "Header expanded")
+            .accessibilityHint("Long press middle button to toggle")
     }
     #endif
 

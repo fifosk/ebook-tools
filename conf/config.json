@@ -60,7 +60,7 @@
     "target_languages": [
         "Arabic"
     ],
-    "sentences_per_output_file": 1,
+    "sentences_per_output_file": 10,
     "start_sentence": 1,
     "end_sentence": null,
     "max_words": 18,

@@ -19,7 +19,7 @@ export const DEFAULT_FORM_STATE: FormState = {
   target_languages: ['Arabic'],
   custom_target_languages: '',
   ollama_model: 'ollama_cloud:mistral-large-3:675b-cloud',
-  sentences_per_output_file: 1,
+  sentences_per_output_file: 10,
   start_sentence: 1,
   end_sentence: '',
   stitch_full: false,

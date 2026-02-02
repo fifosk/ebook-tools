@@ -274,6 +274,112 @@ class TestWhisperXLanguageDetection:
         assert _detect_language("Bonjour monde") == "en"  # French uses Latin
 
 
+class TestWhisperXConcurrency:
+    """Tests for thread-safe concurrent model loading."""
+
+    def test_concurrent_model_loading(self, sample_audio_path):
+        """Test that concurrent model loading doesn't cause meta tensor errors."""
+        import threading
+        import time
+        from modules.align.backends.whisperx_adapter import (
+            align_sentence,
+            clear_model_cache,
+        )
+
+        clear_model_cache()
+
+        errors = []
+        results = []
+        lock = threading.Lock()
+
+        def align_task(thread_id, language, text):
+            try:
+                tokens = align_sentence(
+                    sample_audio_path,
+                    text,
+                    language=language,
+                    device="cpu",
+                )
+                with lock:
+                    results.append((thread_id, language, len(tokens)))
+            except Exception as e:
+                with lock:
+                    errors.append((thread_id, language, str(e)))
+
+        # Create threads that will all try to load models concurrently
+        threads = []
+        test_cases = [
+            ("en", "Hello world"),
+            ("en", "Testing alignment"),
+            ("ar", "مرحبا"),
+            ("ar", "اختبار"),
+            ("he", "שלום"),
+            ("he", "בדיקה"),
+        ]
+
+        for i, (lang, text) in enumerate(test_cases):
+            t = threading.Thread(target=align_task, args=(i, lang, text))
+            threads.append(t)
+
+        # Start all threads at approximately the same time
+        for t in threads:
+            t.start()
+
+        # Wait for all threads to complete
+        for t in threads:
+            t.join(timeout=60)
+
+        # Check results
+        assert len(errors) == 0, f"Concurrent loading errors: {errors}"
+        assert len(results) == len(test_cases), f"Expected {len(test_cases)} results, got {len(results)}"
+
+    def test_concurrent_same_language(self, sample_audio_path):
+        """Test that multiple threads loading the same language don't conflict."""
+        import threading
+        from modules.align.backends.whisperx_adapter import (
+            align_sentence,
+            clear_model_cache,
+            _model_cache,
+        )
+
+        clear_model_cache()
+
+        errors = []
+        results = []
+        lock = threading.Lock()
+
+        def align_task(thread_id):
+            try:
+                tokens = align_sentence(
+                    sample_audio_path,
+                    f"Test sentence number {thread_id}",
+                    language="en",
+                    device="cpu",
+                )
+                with lock:
+                    results.append((thread_id, len(tokens)))
+            except Exception as e:
+                with lock:
+                    errors.append((thread_id, str(e)))
+
+        # Create 4 threads all loading English
+        threads = [threading.Thread(target=align_task, args=(i,)) for i in range(4)]
+
+        for t in threads:
+            t.start()
+
+        for t in threads:
+            t.join(timeout=60)
+
+        # All should succeed
+        assert len(errors) == 0, f"Concurrent same-language errors: {errors}"
+        assert len(results) == 4
+
+        # Model should only be loaded once (cached)
+        en_cache_entries = [k for k in _model_cache.keys() if k.startswith("en:")]
+        assert len(en_cache_entries) == 1, f"Expected 1 cached English model, got {len(en_cache_entries)}"
+
+
 class TestWhisperXModelValidation:
     """Tests for model name validation."""
 

@@ -68,6 +68,7 @@ struct InteractivePlayerView: View {
     #if os(tvOS)
     @State var didSetInitialFocus = false
     @Namespace var searchFocusNamespace
+    @Namespace var headerControlsNamespace
     @AppStorage("interactive.tvSplitEnabled") var tvSplitEnabled: Bool = false
     @AppStorage("interactive.tvBubblePinned") var tvBubblePinned: Bool = false
     #endif
@@ -151,21 +152,40 @@ struct InteractivePlayerView: View {
             .onMoveCommand { direction in
                 guard let chunk = viewModel.selectedChunk else { return }
                 if focusedArea == .bubble {
-                    if direction == .up {
+                    // Handle vertical navigation out of bubble
+                    // Let tvOS focus system handle left/right between bubble controls
+                    switch direction {
+                    case .up:
                         bubbleFocusEnabled = false
                         focusedArea = .transcript
+                        return
+                    case .down:
+                        // Already at bottom, consume but do nothing
+                        return
+                    default:
+                        // Left/right - don't return, let tvOS handle focus navigation
+                        break
                     }
-                    return
                 }
+                // Note: Menu is disabled on tvOS, but keep this check for safety
                 if isMenuVisible, direction == .up {
                     hideMenu()
                     return
                 }
                 if focusedArea == .controls {
-                    if direction == .down {
+                    // Only handle up/down navigation in controls mode
+                    // Let tvOS handle left/right to navigate between header buttons
+                    switch direction {
+                    case .down:
                         focusedArea = .transcript
+                        return
+                    case .up:
+                        // Already at top, do nothing
+                        return
+                    default:
+                        // Don't consume left/right - let tvOS focus system handle it
+                        break
                     }
-                    return
                 }
                 let isTranscriptFocus = focusedArea == .transcript || focusedArea == nil
                 guard isTranscriptFocus else { return }
@@ -225,18 +245,28 @@ struct InteractivePlayerView: View {
 
     #if os(tvOS)
     private func handleExitCommand() {
+        // Handle bubble - when pinned, just defocus; when not pinned, close it
         if linguistBubble != nil {
-            closeLinguistBubble()
-            focusedArea = .transcript
-            if !audioCoordinator.isPlaying {
-                audioCoordinator.play()
+            if tvBubblePinned && tvSplitEnabled {
+                // Pinned bubble: just defocus back to transcript, don't close
+                bubbleFocusEnabled = false
+                focusedArea = .transcript
+            } else {
+                // Not pinned: close the bubble
+                closeLinguistBubble()
+                focusedArea = .transcript
+                if !audioCoordinator.isPlaying {
+                    audioCoordinator.play()
+                }
             }
             return
         }
-        if isMenuVisible {
-            hideMenu()
+        // Return to transcript if in header controls
+        if focusedArea == .controls {
+            focusedArea = .transcript
             return
         }
+        // Resume playback if paused
         if !audioCoordinator.isPlaying {
             // If we're on the last chunk and playback has ended, dismiss instead of restarting
             if isPlaybackFinished {
