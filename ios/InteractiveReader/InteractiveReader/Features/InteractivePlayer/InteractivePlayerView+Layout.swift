@@ -1202,10 +1202,11 @@ extension InteractivePlayerView {
 
     var transcriptTopPadding: CGFloat {
         #if os(iOS) || os(tvOS)
-        // Reduce padding when bubble is shown (header is auto-hidden on iPhone and iPad)
-        if (isPhone || isPad) && linguistBubble != nil {
+        // On iPhone, reduce padding when bubble is shown (header is always hidden)
+        if isPhone && linguistBubble != nil {
             return 8
         }
+        // On iPad with bubble, respect the header collapsed state
         return isHeaderCollapsed ? 8 : infoHeaderReservedHeight
         #else
         return infoHeaderReservedHeight
@@ -1213,8 +1214,9 @@ extension InteractivePlayerView {
     }
 
     var shouldShowHeaderOverlay: Bool {
-        // Hide header on iPhone and iPad when bubble is shown to maximize screen space
-        if (isPhone || isPad) && linguistBubble != nil {
+        // On iPhone, always hide header when bubble is shown to maximize screen space
+        // On iPad, allow header to be toggled even when bubble is shown
+        if isPhone && linguistBubble != nil {
             return false
         }
         return !isHeaderCollapsed

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 extension InteractivePlayerViewModel {
     /// Check if chunk sentences have gate data needed for combined (sequence) mode
@@ -25,7 +26,12 @@ extension InteractivePlayerViewModel {
         return track.kind == .combined
     }
 
-    func selectChunk(id: String, autoPlay: Bool = false) {
+    /// Select a chunk for playback
+    /// - Parameters:
+    ///   - id: The chunk ID to select
+    ///   - autoPlay: Whether to start playback automatically
+    ///   - targetSentenceIndex: Optional 0-based sentence index to start from. Use -1 to mean "last sentence".
+    func selectChunk(id: String, autoPlay: Bool = false, targetSentenceIndex: Int? = nil) {
         guard selectedChunkID != id else { return }
         selectedChunkID = id
         lastPrefetchSentenceNumber = nil
@@ -49,7 +55,15 @@ extension InteractivePlayerViewModel {
         print("[ConfigureDefaults] chunk=\(chunk.id), sentences=\(chunk.sentences.count), hasGates=\(hasGates), hasTokens=\(hasTokens), needsGates=\(needsGates)")
         if !chunk.sentences.isEmpty && hasTokens && (!needsGates || hasGates) {
             isTranscriptLoading = false
-            prepareAudio(for: chunk, autoPlay: autoPlay)
+            // Resolve -1 (meaning "last sentence") to actual index
+            let effectiveTargetIndex: Int? = {
+                guard let target = targetSentenceIndex else { return nil }
+                if target < 0 {
+                    return max(0, chunk.sentences.count - 1)
+                }
+                return target
+            }()
+            prepareAudio(for: chunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)
             attemptPendingSentenceJump(in: chunk)
             return
         }
@@ -68,7 +82,15 @@ extension InteractivePlayerViewModel {
             // Only start audio if transcript is now available
             // This ensures audio doesn't play while showing "Waiting for transcript"
             guard !updatedChunk.sentences.isEmpty else { return }
-            self.prepareAudio(for: updatedChunk, autoPlay: autoPlay)
+            // Resolve -1 to actual last index now that we know sentence count
+            let effectiveTargetIndex: Int? = {
+                guard let target = targetSentenceIndex else { return nil }
+                if target < 0 {
+                    return max(0, updatedChunk.sentences.count - 1)
+                }
+                return target
+            }()
+            self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)
             self.attemptPendingSentenceJump(in: updatedChunk)
         }
     }
@@ -141,10 +163,12 @@ extension InteractivePlayerViewModel {
             }
             // If chunk has sentences with complete data, prepare audio immediately
             // For combined mode (default), we need gate data - if missing, load metadata first
+            // Also require tokens to be loaded for proper transcript display
             let hasGates = sentencesHaveGateData(chunk.sentences)
+            let hasTokens = sentencesHaveTokens(chunk.sentences)
             let needsGates = selectedTrackRequiresGates(for: chunk)
-            print("[ConfigureDefaults] chunk=\(chunk.id), sentences=\(chunk.sentences.count), hasGates=\(hasGates), needsGates=\(needsGates)")
-            if !chunk.sentences.isEmpty && (!needsGates || hasGates) {
+            print("[ConfigureDefaults] chunk=\(chunk.id), sentences=\(chunk.sentences.count), hasGates=\(hasGates), hasTokens=\(hasTokens), needsGates=\(needsGates)")
+            if !chunk.sentences.isEmpty && hasTokens && (!needsGates || hasGates) {
                 isTranscriptLoading = false
                 prepareAudio(for: chunk, autoPlay: false)
                 return
@@ -183,7 +207,7 @@ extension InteractivePlayerViewModel {
         }
     }
 
-    func prepareAudio(for chunk: InteractiveChunk, autoPlay: Bool) {
+    func prepareAudio(for chunk: InteractiveChunk, autoPlay: Bool, targetSentenceIndex: Int? = nil) {
         guard let trackID = selectedAudioTrackID,
               let track = chunk.audioOptions.first(where: { $0.id == trackID }) else {
             audioCoordinator.reset()
@@ -194,14 +218,14 @@ extension InteractivePlayerViewModel {
 
         // For combined mode, try to use sequence playback (per-sentence switching)
         if track.kind == .combined {
-            // Check if there's a pending sentence jump - if so, find the target sentence index
-            let targetSentenceIndex: Int? = {
+            // Use explicit target sentence index if provided, otherwise check for pending jump
+            let effectiveTargetIndex: Int? = targetSentenceIndex ?? {
                 guard let pending = pendingSentenceJump, pending.chunkID == chunk.id else { return nil }
                 return chunk.sentences.firstIndex {
                     ($0.displayIndex ?? $0.id) == pending.sentenceNumber
                 }
             }()
-            configureSequencePlayback(for: chunk, autoPlay: autoPlay, targetSentenceIndex: targetSentenceIndex)
+            configureSequencePlayback(for: chunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)
             return
         }
 
@@ -212,6 +236,14 @@ extension InteractivePlayerViewModel {
             if autoPlay && !audioCoordinator.isPlaying {
                 audioCoordinator.play()
             }
+            // If we have a target sentence, seek to it
+            if let targetIndex = targetSentenceIndex,
+               targetIndex >= 0,
+               targetIndex < chunk.sentences.count {
+                if let startTime = startTimeForSentence(atIndex: targetIndex, in: chunk) {
+                    seekPlayback(to: startTime, in: chunk)
+                }
+            }
             return
         }
 
@@ -219,6 +251,28 @@ extension InteractivePlayerViewModel {
         sequenceController.reset()
         audioCoordinator.load(urls: track.streamURLs, autoPlay: autoPlay)
         selectedTimingURL = track.timingURL ?? track.streamURLs.first
+
+        // If we have a target sentence index for non-sequence mode, seek after audio is ready
+        if let targetIndex = targetSentenceIndex,
+           targetIndex >= 0,
+           targetIndex < chunk.sentences.count {
+            // Use the isReady observer to seek once audio loads
+            // We need a one-shot observation here
+            var cancellable: AnyCancellable?
+            cancellable = audioCoordinator.$isReady
+                .dropFirst() // Skip initial value
+                .filter { $0 } // Wait for ready
+                .first() // Take only the first ready event
+                .sink { [weak self] _ in
+                    guard let self else { return }
+                    guard let currentChunk = self.selectedChunk, currentChunk.id == chunk.id else { return }
+                    if let startTime = self.startTimeForSentence(atIndex: targetIndex, in: currentChunk) {
+                        print("[NonSequence] Audio ready, seeking to sentence[\(targetIndex)] at time \(String(format: "%.3f", startTime))")
+                        self.seekPlayback(to: startTime, in: currentChunk)
+                    }
+                    cancellable?.cancel()
+                }
+        }
     }
 
     func handlePlaybackEnded() {
@@ -306,6 +360,11 @@ extension InteractivePlayerViewModel {
             // Mute immediately to prevent audio bleed during the transition
             audioCoordinator.setVolume(0)
 
+            // Cancel any pending audio ready subscription from initial load
+            // This prevents the old transition from completing with wrong position
+            cancelPendingAudioReadySubscription()
+            let token = currentTransitionToken
+
             // Fire pre-transition callback
             onSequenceWillTransition?()
             sequenceController.beginTransition()
@@ -323,6 +382,11 @@ extension InteractivePlayerViewModel {
                     print("[Sequence] Within-chunk seek completed (finished=\(finished))")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
                         guard let self else { return }
+                        // Check if this transition has been superseded
+                        guard token == self.currentTransitionToken else {
+                            print("[Sequence] Ignoring stale within-chunk seek completion (token \(token) != current \(self.currentTransitionToken))")
+                            return
+                        }
                         self.sequenceController.endTransition(expectedTime: target.time)
                         // Restore volume
                         self.audioCoordinator.setVolume(1)
@@ -366,5 +430,25 @@ extension InteractivePlayerViewModel {
             return sentence.startTime
         }
         return nil
+    }
+
+    /// Get start time for a sentence by its 0-based array index
+    func startTimeForSentence(atIndex index: Int, in chunk: InteractiveChunk) -> Double? {
+        guard chunk.sentences.indices.contains(index) else { return nil }
+        let activeTimingTrack = activeTimingTrack(for: chunk)
+        let useCombinedPhases = useCombinedPhases(for: chunk)
+        let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
+            sentences: chunk.sentences,
+            activeTimingTrack: activeTimingTrack,
+            audioDuration: playbackDuration(for: chunk),
+            useCombinedPhases: useCombinedPhases,
+            timingVersion: chunk.timingVersion
+        )
+        if let timelineSentences,
+           let runtime = timelineSentences.first(where: { $0.index == index }) {
+            return runtime.startTime
+        }
+        // Fallback to sentence's start time
+        return chunk.sentences[index].startTime
     }
 }

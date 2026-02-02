@@ -440,7 +440,8 @@ extension InteractivePlayerViewModel {
                 }
             } else {
                 if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
-                    selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                    // When skipping backward, start from the last sentence of the previous chunk
+                    selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: -1)
                 }
             }
             return
@@ -476,7 +477,8 @@ extension InteractivePlayerViewModel {
                 return
             }
             if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
-                selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                // When skipping backward, start from the last sentence of the previous chunk
+                selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: -1)
             }
         }
     }
@@ -505,7 +507,8 @@ extension InteractivePlayerViewModel {
                 }
             } else {
                 if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
-                    selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                    // When skipping backward to previous chunk, start from the LAST sentence
+                    selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: -1)
                 }
             }
             return

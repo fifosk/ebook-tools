@@ -1034,10 +1034,16 @@ struct LibraryPlaybackView: View {
 
     private func startInteractivePlayback(at sentence: Int?) {
         if let sentence, sentence > 0 {
+            // jumpToSentence with autoPlay: true handles seeking and starting playback
+            // after the audio is loaded and seeked to the target position.
+            // Do NOT call play() here as it would start playback from position 0
+            // before the async seek operation completes.
             viewModel.jumpToSentence(sentence, autoPlay: true)
-        }
-        if !viewModel.audioCoordinator.isPlaying {
-            viewModel.audioCoordinator.play()
+        } else {
+            // No sentence target - start playback from current position
+            if !viewModel.audioCoordinator.isPlaying {
+                viewModel.audioCoordinator.play()
+            }
         }
     }
 

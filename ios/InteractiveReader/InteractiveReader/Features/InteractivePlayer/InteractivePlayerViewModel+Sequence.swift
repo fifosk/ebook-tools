@@ -4,12 +4,31 @@ import Combine
 extension InteractivePlayerViewModel {
     /// Storage key for the readiness cancellable subscription
     private static var readyCancellableKey: UInt8 = 0
+    /// Storage key for the transition token
+    private static var transitionTokenKey: UInt8 = 0
 
     /// Cancellable for observing audioCoordinator.isReady during transitions
     private var readyCancellable: AnyCancellable? {
         get { objc_getAssociatedObject(self, &Self.readyCancellableKey) as? AnyCancellable }
         set { objc_setAssociatedObject(self, &Self.readyCancellableKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
+
+    /// Token to track which transition is active - incremented each time a new transition starts
+    /// Used to invalidate stale transition completions
+    var currentTransitionToken: Int {
+        get { (objc_getAssociatedObject(self, &Self.transitionTokenKey) as? NSNumber)?.intValue ?? 0 }
+        set { objc_setAssociatedObject(self, &Self.transitionTokenKey, NSNumber(value: newValue), .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+
+    /// Cancel any pending audio ready subscription and invalidate the current transition
+    /// Call this when starting a new transition that should supersede any in-progress transition
+    func cancelPendingAudioReadySubscription() {
+        readyCancellable?.cancel()
+        readyCancellable = nil
+        // Increment token to invalidate any in-flight completion callbacks
+        currentTransitionToken += 1
+    }
+
     /// Configure the sequence controller for a chunk when combined mode is selected
     /// - Parameters:
     ///   - chunk: The chunk to configure playback for
@@ -84,8 +103,9 @@ extension InteractivePlayerViewModel {
                 // Begin transition to prevent time updates during initial load
                 sequenceController.beginTransition()
 
-                // Cancel any existing subscription
-                readyCancellable?.cancel()
+                // Cancel any existing subscription and increment token
+                cancelPendingAudioReadySubscription()
+                let token = currentTransitionToken
 
                 // Track whether we've seen the loading state (isReady = false)
                 var seenLoadingState = false
@@ -106,13 +126,13 @@ extension InteractivePlayerViewModel {
                             print("[Sequence] Resume audio loading...")
                         } else if seenLoadingState {
                             print("[Sequence] Resume audio ready")
-                            self.completeSequenceTransition(seekTime: target.time, shouldPlay: autoPlay)
+                            self.completeSequenceTransition(seekTime: target.time, shouldPlay: autoPlay, transitionToken: token)
                         } else if isFirstEmission {
                             // Audio was already loaded (same URL), no loading transition occurred
                             // Complete the transition immediately
                             isFirstEmission = false
                             print("[Sequence] Resume audio already ready (no load needed)")
-                            self.completeSequenceTransition(seekTime: target.time, shouldPlay: autoPlay)
+                            self.completeSequenceTransition(seekTime: target.time, shouldPlay: autoPlay, transitionToken: token)
                         }
                     }
             } else {
@@ -133,8 +153,9 @@ extension InteractivePlayerViewModel {
                 // Begin transition to prevent time updates during initial load
                 sequenceController.beginTransition()
 
-                // Cancel any existing subscription
-                readyCancellable?.cancel()
+                // Cancel any existing subscription and increment token
+                cancelPendingAudioReadySubscription()
+                let token = currentTransitionToken
 
                 // Track whether we've seen the loading state (isReady = false)
                 var seenLoadingState = false
@@ -157,13 +178,13 @@ extension InteractivePlayerViewModel {
                         } else if seenLoadingState {
                             // We've transitioned from loading to ready - now seek and start playback
                             print("[Sequence] Initial audio ready")
-                            self.completeSequenceTransition(seekTime: targetSeekTime, shouldPlay: autoPlay)
+                            self.completeSequenceTransition(seekTime: targetSeekTime, shouldPlay: autoPlay, transitionToken: token)
                         } else if isFirstEmission {
                             // Audio was already loaded (same URL), no loading transition occurred
                             // Complete the transition immediately
                             isFirstEmission = false
                             print("[Sequence] Initial audio already ready (no load needed)")
-                            self.completeSequenceTransition(seekTime: targetSeekTime, shouldPlay: autoPlay)
+                            self.completeSequenceTransition(seekTime: targetSeekTime, shouldPlay: autoPlay, transitionToken: token)
                         }
                     }
             }
@@ -224,12 +245,24 @@ extension InteractivePlayerViewModel {
     /// - Parameters:
     ///   - seekTime: The time to seek to, or nil for no seek
     ///   - shouldPlay: Whether to start playback after seek completes (used during track switches)
-    private func completeSequenceTransition(seekTime: Double?, shouldPlay: Bool = false) {
+    ///   - transitionToken: The token for this transition - if it doesn't match currentTransitionToken, the completion is stale
+    private func completeSequenceTransition(seekTime: Double?, shouldPlay: Bool = false, transitionToken: Int) {
+        // Check if this transition has been superseded by a newer one
+        guard transitionToken == currentTransitionToken else {
+            print("[Sequence] Ignoring stale transition completion (token \(transitionToken) != current \(currentTransitionToken))")
+            return
+        }
+
         if let seekTime {
             audioCoordinator.seek(to: seekTime) { [weak self] finished in
                 guard let self else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
                     guard let self else { return }
+                    // Re-check token after async delay
+                    guard transitionToken == self.currentTransitionToken else {
+                        print("[Sequence] Ignoring stale transition completion after seek (token \(transitionToken) != current \(self.currentTransitionToken))")
+                        return
+                    }
                     self.sequenceController.endTransition(expectedTime: seekTime)
                     self.readyCancellable?.cancel()
                     self.readyCancellable = nil
@@ -258,7 +291,10 @@ extension InteractivePlayerViewModel {
             onSequenceWillTransition?()
         }
         sequenceController.beginTransition()
-        readyCancellable?.cancel()
+
+        // Cancel any existing subscription and increment token
+        cancelPendingAudioReadySubscription()
+        let token = currentTransitionToken
 
         var seenLoadingState = false
         var isFirstEmission = true
@@ -272,10 +308,10 @@ extension InteractivePlayerViewModel {
                     seenLoadingState = true
                     isFirstEmission = false
                 } else if seenLoadingState {
-                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: true)
+                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: true, transitionToken: token)
                 } else if isFirstEmission {
                     isFirstEmission = false
-                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: true)
+                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: true, transitionToken: token)
                 }
             }
     }
