@@ -1,5 +1,8 @@
 # Translation Engine Refactoring - Completion Summary
 
+> **Note:** Historical summary retained for context. Commit references and line
+> counts may drift as the codebase evolves.
+
 ## Overview
 Successfully refactored `modules/translation_engine.py` from a 2,211-line monolithic file into a modular architecture with focused, well-tested modules.
 

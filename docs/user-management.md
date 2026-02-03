@@ -83,14 +83,15 @@ inspect or back up.
 The FastAPI layer mirrors the CLI helpers so that the web dashboard and external
 automation can authenticate without shell access:
 
-- `POST /auth/login`, `GET /auth/session`, `POST /auth/logout`, and
-  `POST /auth/password` are implemented in
+- `POST /api/auth/login`, `GET /api/auth/session`, `POST /api/auth/logout`, and
+  `POST /api/auth/password` are implemented in
   [`modules/webapi/auth_routes.py`](../modules/webapi/auth_routes.py). They
   produce the same session tokens managed by `SessionManager`, decorate responses
   with profile metadata (`email`, `first_name`, `last_name`, `last_login`), and
   enforce bearer authentication for session lookups or password changes.
 - Administrative CRUD operations live under
-  [`modules/webapi/admin_routes.py`](../modules/webapi/admin_routes.py). The
+  [`modules/webapi/admin_routes.py`](../modules/webapi/admin_routes.py) and are
+  exposed as `/api/admin/*` routes. The
   routes surface normalised account status flags, allow administrators to create
   users with profile metadata, suspend or reactivate accounts, and reset
   passwords—all guarded by the `admin` role.

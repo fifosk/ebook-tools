@@ -70,7 +70,7 @@ Follow the suggested remediations to restore parity:
   / `image_path` fields and confirm the referenced files exist under
   `storage/<job_id>/media/images/`.
 - If the interactive reel shows gaps, confirm the batch image files exist for the
-  trailing window (up to 5 slots, active + previous only, with 2-slot prefetch)
+  current window (7 slots: 3 previous, active, 3 next, with a 2-slot prefetch)
   and that the `/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}`
   endpoint resolves the expected paths.
 - When snapshots disagree, rerun the pipeline or `/api/media/generate` so the

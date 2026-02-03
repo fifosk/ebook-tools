@@ -1,5 +1,8 @@
 # Sequence Playback Issues - Debug Session 2026.01.30
 
+> **Note:** Debug log retained for historical context. Consider moving to
+> `log/` if you want to keep docs/ focused on reference material.
+
 ## Test Jobs
 - Job ID: `8720ebe4-ff99-4d5f-8316-8411febd4c02` - Chunk: `3385-3394_Freida_McFadden_The_Housemaid_EN_AR`
 - Job ID: `86eb2766-3096-45d5-8bdb-a4a87d5e1f45` - Current test job

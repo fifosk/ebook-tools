@@ -27,7 +27,7 @@
   <rect class="accent" x="260" y="130" width="200" height="110" />
   <text x="280" y="168">FastAPI Gateway</text>
   <text class="subtitle" x="280" y="194">Auth, validation, SSE relay</text>
-  <text class="subtitle" x="280" y="214">Routes: /auth, /pipelines, /storage</text>
+  <text class="subtitle" x="280" y="214">Routes: /api/auth, /api/pipelines, /storage</text>
 
   <rect class="component" x="520" y="120" width="180" height="130" />
   <text x="540" y="158">Pipeline Orchestrator</text>

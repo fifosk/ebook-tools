@@ -1,5 +1,8 @@
 # Translation Engine Refactoring Plan
 
+> **Note:** Historical plan retained for context. The refactor has been
+> completed; see `REFACTORING_SUMMARY.md` for the status recap.
+
 ## Current State
 - **File**: `modules/translation_engine.py`
 - **Lines**: 2,211

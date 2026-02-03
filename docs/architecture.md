@@ -1,7 +1,7 @@
 # ebook-tools Architecture
 
 ## Project Layout
-- `main.py` – CLI launcher that wires configuration, logging, and live progress display for the pipeline.
+- `main.py` – Compatibility bootstrap that forwards to the unified CLI orchestrator (`modules/cli/orchestrator.py`).
 - `modules/` – Python package containing configuration helpers, pipeline core logic, media synthesis, observability, and web API. The library subsystem now splits responsibilities across `modules/library/library_models.py`, `library_repository.py`, `library_metadata.py`, `library_sync.py`, and the orchestration facade in `library_service.py`.
 - `modules/images/` – Draw Things / Stable Diffusion client + prompt helpers for sentence/batch image generation.
 - `modules/subtitles/` – Subtitle parsing and translation utilities used by `SubtitleService` and the subtitle job API.
@@ -10,7 +10,7 @@
 - `storage/ebooks/`, `storage/covers/`, `storage/<job_id>/metadata/`, `storage/<job_id>/media/`, `output/`, `tmp/`, `log/` – Default working directories used by the runtime context for source EPUBs, consolidated cover images, per-job metadata snapshots, generated artifacts, temp data, and logs. Highlight metadata now lives in chunked JSON files (`metadata/chunk_0000.json`, etc.) referenced by a compact `metadata/job.json` manifest; `MetadataLoader` in `modules/metadata_manager.py` abstracts loading chunk summaries and legacy single-file payloads.
 
 ## Pipeline Flow
-1. **Entry point** – `modules/ebook_tools.py` parses CLI or interactive input and builds a `PipelineRequest`.
+1. **Entry point** – `modules/cli/orchestrator.py` parses CLI input and builds a `PipelineRequest` (legacy shims: `main.py`, `modules/ebook_tools.py`).
 2. **Pipeline execution** – `modules/services/pipeline_service.py` assembles a `PipelineConfig`, coordinates ingestion, translation, rendering, and media generation, and returns a `PipelineResponse`.
 3. **Ingestion** – `modules/core/ingestion.py` extracts EPUB text, splits it into sentences, and caches refined lists.
 4. **Translation** – `modules/translation_engine.py` runs sentence translations through worker pools backed by the configured LLM client. Pipeline jobs can batch LLM translation/transliteration requests via `translation_batch_size` (default: 10; set to 1 to disable) to reduce request counts and GPU load.
@@ -21,14 +21,15 @@
 
 Audio synthesis is handled by a lightweight registry that maps logical backend
 names to `BaseTTSBackend` implementations. The default registry contains the
-Google Translate (gTTS) HTTP client and a macOS bridge that shells out to the
-`say` binary. `get_tts_backend()` inspects the pipeline config, CLI arguments,
-and environment-backed defaults (via `config_manager`) to decide which backend
-to instantiate and forwards any configured executable override. When callers do
-not specify a backend, the resolver chooses `macos_say` on Darwin systems and
-`gtts` elsewhere before instantiating the engine. Custom backends
-can be registered at import time using `register_backend()` before the pipeline
-spins up workers (`modules/audio/backends/`).
+Google Translate (gTTS) HTTP client, a macOS bridge that shells out to the
+`say` binary, and the Piper offline backend. `get_tts_backend()` inspects the
+pipeline config, CLI arguments, and environment-backed defaults (via
+`config_manager`) to decide which backend to instantiate and forwards any
+configured executable override. When callers do not specify a backend, the
+resolver chooses `macos_say` on Darwin systems and `gtts` elsewhere before
+instantiating the engine. Custom backends can be registered at import time
+using `register_backend()` before the pipeline spins up workers
+(`modules/audio/backends/`).
 
 #### Audio worker lifecycle
 
@@ -37,18 +38,17 @@ tasks are queued per sentence; dedicated `AudioWorker` instances consume them
 and call the selected backend via the shared `AudioGenerator` protocol. Each
 worker receives the sentence, translation, language metadata, tempo, and voice
 selection. The synthesizer returns a `pydub.AudioSegment` (or the richer
-`SynthesisResult` wrapper when voice metadata is available). The worker hands
-the resulting `AudioSegment` to `MediaPipelineResult`, which is later persisted
-through the job manager. No word-level tokens are emitted at this stage—timing
-information is inferred later from the rendered audio if a backend embeds
-character timings, otherwise sentence-level durations are used (`modules/render/audio_pipeline.py`).
+`SynthesisResult` wrapper when voice metadata is available). The worker also
+collects word-level timing metadata from the backend, WhisperX forced alignment,
+or char-weighted/uniform inference before handing the resulting `AudioSegment`
+to `MediaPipelineResult`, which is later persisted through the job manager.
 
-Timing metadata for highlights therefore originates from the rendering layer,
-not from forced alignment. `modules/core/rendering/timeline.py` collapses any
-embedded character timings into word-level tokens and falls back to evenly
-distributing tokens when necessary. Those per-word offsets are persisted as
-chunk-level `timingTracks`; per-sentence timeline events are no longer stored
-inside `metadata/chunk_*.json` (`modules/core/rendering/exporters.py`).
+Timing metadata for highlights therefore originates in the audio pipeline and
+is normalised during export. `modules/core/rendering/timeline.py` re-fits any
+token timings to the final track duration (and falls back to evenly distributed
+tokens when needed). Those per-word offsets are persisted as chunk-level
+`timingTracks`; per-sentence timeline events are no longer stored inside
+`metadata/chunk_*.json` (`modules/core/rendering/exporters.py`).
 
 #### WhisperX forced alignment
 
@@ -58,17 +58,14 @@ character timings, the pipeline can use WhisperX forced alignment
 
 1. Lazy-loads the WhisperX library and caches alignment models per
    language/device combination to avoid repeated downloads.
-2. Auto-detects the best available device (CUDA → MPS → CPU) and falls back
-   gracefully when GPU acceleration fails (e.g., "meta tensor" errors on MPS).
+2. Defaults to CPU for alignment (CUDA is used when available), avoiding MPS
+   due to recurring meta-tensor/device-mismatch issues in alignment models.
 3. Provides `align_sentence()` for single-shot alignment and `retry_alignment()`
    for automatic retries with exponential backoff.
 
-**Supported languages with pre-downloaded models:**
-- English (en), Arabic (ar), Hindi (hi), Hungarian (hu), Greek (el),
-  Finnish (fi), Turkish (tr)
-
-Models are downloaded on first use from HuggingFace. To pre-download models
-for additional languages:
+WhisperX supports a wide range of languages via its alignment model defaults
+(see `DEFAULT_ALIGN_MODELS` in the adapter). Models are downloaded on first use
+from HuggingFace. To pre-download models for additional languages:
 
 ```python
 from whisperx.alignment import load_align_model
@@ -119,20 +116,20 @@ and QA tooling.
 
 ```mermaid
 flowchart TD
-    A[Source EPUB uploaded via CLI or /pipelines request]
+    A[Source EPUB uploaded via CLI or /api/pipelines request]
     A --> B[PipelineService.build_config]
     B --> C[Ingestion\nmodules/core/ingestion.py]
     C --> D[Translation workers\nmodules/translation_engine.py]
     D --> E[Rendering + media synthesis\nmodules/core/rendering/*]
     E --> F[Progress tracker emits events\nmodules/progress_tracker.py]
-    F --> G[Job manager persists state\nmodules/services/job_manager.py]
+    F --> G[Job manager persists state\nmodules/services/job_manager/]
     G --> H[API responses & SSE stream]
 ```
 
 ## Runtime Services
-- `modules/services/job_manager.py` tracks job metadata, persists state (memory or Redis), and exposes lifecycle operations.
+- `modules/services/job_manager/` tracks job metadata, persists state (memory or Redis), and exposes lifecycle operations.
 - `modules/services/subtitle_service.py` schedules subtitle translation jobs and stages generated subtitle files under each job's `subtitles/` directory.
-- `modules/config_manager.py` resolves configuration files, environment overrides, and runtime directories. `modules/environment.py` layers `.env` files on import.
+- `modules/config_manager/` resolves configuration files, environment overrides, and runtime directories. `modules/environment.py` layers `.env` files on import.
 - `modules/logging_manager.py` centralises structured logging primitives and console helpers.
 - `modules/metadata_manager.py` infers book metadata that can be refreshed mid-run.
 
@@ -149,7 +146,7 @@ flowchart TD
 - `modules/webapi/auth_routes.py` issues bearer tokens, reports active session metadata, rotates passwords, and revokes sessions via `AuthService`.
 - `modules/webapi/admin_routes.py` provides CRUD operations for user accounts, normalises profile metadata, and enforces the `admin` role on every request.
 - `modules/webapi/routes/media_routes.py` exposes job media snapshots (`/api/pipelines/jobs/{job_id}/media`) plus sentence-image inspection/regeneration endpoints (`/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}`).
-- `modules/webapi/routers/subtitles.py` exposes endpoints to submit subtitle jobs, browse available source files, stream progress, and retrieve processed DRT subtitles.
+- `modules/webapi/routers/subtitles.py` exposes endpoints to submit subtitle jobs, browse available source files, stream progress, and retrieve processed subtitle files (SRT/ASS/VTT).
 
 ## Frontend
 - The Vite client in `web/` consumes `VITE_API_BASE_URL`/`VITE_STORAGE_BASE_URL` to call the backend and display pipeline progress.

@@ -22,8 +22,8 @@ worker services collaborate.
 ### Audio and video backend architecture
 
 The synthesis stack is now modular. Text-to-speech is routed through the
-`modules.audio.backends` registry, which ships with the Google Translate (gTTS)
-and macOS `say` integrations but can be extended at runtime. Each backend
+`modules.audio.backends` registry, which ships with the Google Translate (gTTS),
+macOS `say`, and Piper integrations but can be extended at runtime. Each backend
 implements the `BaseTTSBackend` contract and is discovered via
 `get_tts_backend()` using the values supplied in your configuration or
 environment. Video rendering follows a similar pattern: a configurable backend
@@ -34,9 +34,9 @@ backend-specific knobs from `video_backend_settings` (see
 Key configuration switches now live alongside the rest of the pipeline
 settings:
 
-- `tts_backend` – Selects the TTS engine (`macos_say` or `gtts`). When omitted
-  or set to `auto`, the resolver picks `macos_say` on Darwin hosts and `gtts`
-  everywhere else.
+- `tts_backend` – Selects the TTS engine (`macos_say`, `gtts`, or `piper`). When
+  omitted or set to `auto`, the resolver picks `macos_say` on Darwin hosts and
+  `gtts` everywhere else.
 - `tts_executable_path` – Optional override for the backend binary (e.g., point
   at a Homebrew installation of `say`).
 - `macos_reading_speed` – Words per minute forwarded to the macOS backend.
@@ -71,7 +71,7 @@ job media so the Interactive Reader can show them while a job is still running.
   consistent prompt plan for the full sentence window, then appends a shared
   photorealistic base prompt plus a negative prompt to reduce artifacts.
 - **Storage + metadata:** images are written under
-  `storage/jobs/<job_id>/media/images/<range_fragment>/sentence_00001.png` and
+  `storage/<job_id>/media/images/<range_fragment>/sentence_00001.png` and
   referenced from each chunk’s `metadata/chunk_XXXX.json` under
   `sentences[].image` plus convenience fields (`image_path` / `imagePath`).
 
@@ -216,11 +216,11 @@ single-page application:
   by the API. Downstream services and the SPA use this to resolve download
   links. Defaults to the API origin with `/storage` appended.
 - **`JOB_STORAGE_DIR`** – Filesystem directory used by the fallback persistence
-  layer. Defaults to `storage/jobs` relative to the working directory. The
-  server creates the directory automatically when the first job is persisted.
+  layer. Defaults to `storage` relative to the working directory. The server
+  creates the directory automatically when the first job is persisted.
 - **`EBOOK_AUDIO_BACKEND`** – Override the text-to-speech backend used by the
-  API (`macos_say` or `gtts`). When unset the resolver mirrors the configuration
-  defaults and platform auto-detection.
+  API (`macos_say`, `gtts`, or `piper`). When unset the resolver mirrors the
+  configuration defaults and platform auto-detection.
 - **`EBOOK_AUDIO_EXECUTABLE`** – Absolute path to the binary backing the active
   TTS backend (for example, a Homebrew-installed `say`). If omitted the
   configured path or bundled defaults are used.
@@ -238,12 +238,12 @@ single-page application:
 ### Authenticate with the API
 
 The dashboard and CLI now rely on the FastAPI session endpoints to issue and
-refresh authentication tokens. Use the `/auth/login` route to obtain a bearer
-token and attach it to subsequent requests via the `Authorization: Bearer`
-header.
+refresh authentication tokens. Use the `/api/auth/login` route to obtain a
+bearer token and attach it to subsequent requests via the
+`Authorization: Bearer` header.
 
 ```bash
-curl -X POST http://127.0.0.1:8000/auth/login \
+curl -X POST http://127.0.0.1:8000/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"username":"admin","password":"secret"}'
 # {"token":"<session>","user":{"username":"admin","role":"admin","last_login":"2024-05-01T12:34:56+00:00"}}
@@ -251,14 +251,15 @@ curl -X POST http://127.0.0.1:8000/auth/login \
 export EBOOKTOOLS_SESSION_TOKEN="<session>"
 ```
 
-Keep the token in sync by calling `GET /auth/session` (used by the SPA to
-restore persisted sessions), `POST /auth/logout`, and `POST /auth/password` when
-rotating credentials. These handlers resolve to the functions defined in
-`modules/webapi/auth_routes.py`, which in turn delegate to `AuthService` for
-verification and metadata updates. Tokens can also be passed to SSE streams by
-appending `?access_token=<token>` to the `/pipelines/{job_id}/events` URL so that
-browser `EventSource` consumers remain authorised (see `modules/webapi/auth_routes.py`
-and `web/src/api/client.ts`).
+Keep the token in sync by calling `GET /api/auth/session` (used by the SPA to
+restore persisted sessions), `POST /api/auth/logout`, and
+`POST /api/auth/password` when rotating credentials. These handlers resolve to
+the functions defined in `modules/webapi/auth_routes.py`, which in turn delegate
+to `AuthService` for verification and metadata updates. Tokens can also be
+passed to SSE streams by appending `?access_token=<token>` to the
+`/api/pipelines/{job_id}/events` URL so that browser `EventSource` consumers
+remain authorised (see `modules/webapi/auth_routes.py` and
+`web/src/api/client.ts`).
 
 ### Administrative API endpoints
 
@@ -269,21 +270,21 @@ belongs to a user with the `admin` role. Common flows include:
 ```bash
 # List accounts and their roles/status metadata
 curl -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
-  http://127.0.0.1:8000/admin/users
+  http://127.0.0.1:8000/api/admin/users
 
 # Create a new editor
-curl -X POST http://127.0.0.1:8000/admin/users \
+curl -X POST http://127.0.0.1:8000/api/admin/users \
   -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"username":"frank","password":"change-me","roles":["editor"],"email":"frank@example.com"}'
 
 # Suspend an account or reset its password
 curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
-  http://127.0.0.1:8000/admin/users/frank/suspend
+  http://127.0.0.1:8000/api/admin/users/frank/suspend
 curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"password":"new-secret"}' \
-  http://127.0.0.1:8000/admin/users/frank/password
+  http://127.0.0.1:8000/api/admin/users/frank/password
 ```
 
 The responses surface normalised status flags (`status`, `is_active`,
@@ -319,13 +320,14 @@ to provide clear feedback to end users (see `modules/webapi/media_routes.py` and
 ### Pipeline job persistence cheatsheet
 
 The API keeps a JSON snapshot of each job in `JOB_STORAGE_DIR` when Redis is
-not configured. Every file is named `<job_id>.json`, making it easy to inspect
-state or remove stale records manually:
+not configured. Each job gets its own directory containing
+`metadata/job.json`, making it easy to inspect state or remove stale records
+manually:
 
 ```bash
-ls storage/jobs
-rm storage/jobs/<job_id>.json  # delete a single job
-find storage/jobs -type f -name '*.json' -delete  # purge all persisted jobs
+ls storage/*/metadata/job.json
+rm -rf storage/<job_id>  # delete a single job directory
+find storage -type f -path '*/metadata/job.json' -delete  # purge job metadata
 ```
 
 The REST API offers equivalent management operations if you prefer not to touch
@@ -334,17 +336,17 @@ the filesystem directly:
 ```bash
 # List all persisted jobs ordered by creation time
 curl -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
-  http://127.0.0.1:8000/pipelines/jobs
+  http://127.0.0.1:8000/api/pipelines/jobs
 
 # Pause, resume, cancel, or delete a specific job
 curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
-  http://127.0.0.1:8000/pipelines/jobs/<job_id>/pause
+  http://127.0.0.1:8000/api/pipelines/jobs/<job_id>/pause
 curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
-  http://127.0.0.1:8000/pipelines/jobs/<job_id>/resume
+  http://127.0.0.1:8000/api/pipelines/jobs/<job_id>/resume
 curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
-  http://127.0.0.1:8000/pipelines/jobs/<job_id>/cancel
+  http://127.0.0.1:8000/api/pipelines/jobs/<job_id>/cancel
 curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
-  http://127.0.0.1:8000/pipelines/jobs/<job_id>/delete
+  http://127.0.0.1:8000/api/pipelines/jobs/<job_id>/delete
 ```
 
 Restarting the application automatically reloads any JSON files from the
@@ -480,15 +482,15 @@ The SPA composes several providers to offer a multi-user dashboard:
 
 - `AuthProvider` restores persisted sessions from `localStorage`, surfaces the
   current user/role, and injects bearer tokens into every request. It also
-  exposes password rotation helpers that call `/auth/password`. Logout events
-  automatically clear the cached token (`web/src/components/AuthProvider.tsx`).
+  exposes password rotation helpers that call `/api/auth/password`. Logout
+  events automatically clear the cached token (`web/src/components/AuthProvider.tsx`).
 - `ThemeProvider` persists the preferred colour scheme (`light`, `dark`,
   `magenta`, or `system`) and sets the `<html data-theme>` attribute so that CSS
   variables adapt instantly. User preferences survive reloads via
   `localStorage` (`web/src/components/ThemeProvider.tsx`).
 - `BookNarrationForm` is grouped into source, metadata, language, output,
   images, performance, and submit sections. It draws defaults from
-  `/pipelines/defaults`, lets users upload EPUBs, and validates overrides before
+  `/api/pipelines/defaults`, lets users upload EPUBs, and validates overrides before
   calling `submitPipeline` (`web/src/App.tsx`).
 - `InteractiveTextViewer` powers the Interactive Reader experience (word
   highlighting + sentence image reel) and wires the `MyPainter` regeneration UI
@@ -503,7 +505,7 @@ The SPA composes several providers to offer a multi-user dashboard:
   surface the large-seek and drift counters emitted by `AudioSyncController`.
 - The job board renders active and historical jobs, keeps a registry of the
   latest SSE events per job, and exposes pause/resume/cancel/delete actions that
-  map to `/pipelines/jobs/{job_id}/…` endpoints. Selecting a job opens
+  map to `/api/pipelines/jobs/{job_id}/…` endpoints. Selecting a job opens
   `JobDetail`, which refreshes media metadata on demand (`web/src/App.tsx`).
 - Administrators gain access to the `UserManagementPanel`, a CRUD surface that
   lists accounts, normalises profile metadata, and issues suspend/activate or
@@ -603,14 +605,14 @@ sequenceDiagram
     participant JM as Job Manager
 
     U->>UI: Open dashboard & choose login
-    UI->>API: POST /auth/login
+    UI->>API: POST /api/auth/login
     API-->>UI: Bearer token + profile
     UI->>UI: Persist token via AuthProvider
     U->>UI: Configure pipeline form & submit
-    UI->>API: POST /pipelines with EPUB payload
+    UI->>API: POST /api/pipelines with EPUB payload
     API->>JM: Enqueue job & persist snapshot
     API-->>UI: Return job_id + initial status
-    UI->>API: Subscribe to /pipelines/{job}/events
+    UI->>API: Subscribe to /api/pipelines/{job}/events
     API-->>UI: Stream progress events (SSE)
     JM-->>API: Update job state until complete
     API-->>UI: Final snapshot delivered
@@ -629,14 +631,14 @@ sequenceDiagram
 2. **Start the frontend.** In a separate terminal run `npm run dev` from `web/`.
    The app becomes available at <http://127.0.0.1:5173/> and proxies API calls
    to the URL specified by `VITE_API_BASE_URL`.
-3. **Sign in.** Use the login form in the dashboard or `POST /auth/login` from a
+3. **Sign in.** Use the login form in the dashboard or `POST /api/auth/login` from a
    terminal to obtain a session token. The SPA persists the token in
    `localStorage` and forwards it automatically with each request.
 4. **Submit a pipeline job.** Trigger a run through the UI or by calling the API
     directly:
 
    ```bash
-   curl -X POST http://127.0.0.1:8000/pipelines \
+   curl -X POST http://127.0.0.1:8000/api/pipelines \
      -H 'Content-Type: application/json' \
      -d @payload.json
    ```
@@ -648,7 +650,7 @@ sequenceDiagram
 
    ```bash
    curl -N -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
-     "http://127.0.0.1:8000/pipelines/<job_id>/events?access_token=$EBOOKTOOLS_SESSION_TOKEN"
+     "http://127.0.0.1:8000/api/pipelines/<job_id>/events?access_token=$EBOOKTOOLS_SESSION_TOKEN"
    ```
 
    Each message contains a JSON `data:` payload shaped like
@@ -660,7 +662,7 @@ sequenceDiagram
    API:
 
    ```ts
-   const events = new EventSource(`${API_BASE_URL}/pipelines/${jobId}/events`);
+   const events = new EventSource(`${API_BASE_URL}/api/pipelines/${jobId}/events`);
    events.onmessage = (message) => {
    const payload = JSON.parse(message.data);
    console.log(payload.event_type, payload.snapshot);

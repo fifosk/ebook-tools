@@ -49,6 +49,6 @@
 
   <rect class="layer" x="520" y="40" width="200" height="80" />
   <text class="subtitle" x="540" y="70">Backend APIs</text>
-  <text class="subtitle" x="540" y="96">/auth • /pipelines • /storage</text>
+  <text class="subtitle" x="540" y="96">/api/auth • /api/pipelines • /storage</text>
   <line class="arrow" x1="520" y1="80" x2="480" y2="150" />
 </svg>

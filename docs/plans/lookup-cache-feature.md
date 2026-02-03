@@ -83,7 +83,7 @@ class LookupCache:
 ### 3. Storage Location
 
 ```
-storage/jobs/{job_id}/metadata/
+storage/{job_id}/metadata/
 ├── lookup_cache.json              # Main cache file
 ├── lookup_cache_stats.json        # Statistics (hit rates, etc.)
 └── llm_batches/

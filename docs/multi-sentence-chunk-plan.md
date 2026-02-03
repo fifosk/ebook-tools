@@ -1,5 +1,10 @@
 # Multi-Sentence Chunk Support: Implementation Plan
 
+> **Status (2026-02-03):** Implemented. `sentences_per_chunk` is now a live
+> alias of `sentences_per_output_file` in the configuration model. This document
+> is retained for historical context; see `modules/config_manager/settings.py`
+> and `modules/core/config.py` for the current behavior.
+
 ## Executive Summary
 
 This document outlines the plan to safely support **multi-sentence chunks** (e.g., 10 sentences per chunk) while maintaining word-level highlighting synchronization. The goal is to reduce file count by ~10x while ensuring no drift in token highlighting.

@@ -39,7 +39,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 ## 5. How Metadata Surfaces to Users
 
 - **Inline audio controls.** `InteractiveTextViewer` chooses the most appropriate audio file (`translation` vs `original`, with legacy `orig_trans` when present) based on the chosen timing track and whether original-language playback is enabled, ensuring the transcript and audio stay in lock-step. When original audio is selected the viewer suppresses translation/transliteration highlights (`web/src/components/InteractiveTextViewer.tsx:1380-1441`).
-- **Image-assisted playback.** Sentence images are resolved through the same storage URL mechanism as audio (`/storage/jobs/<job_id>/...`). The reel preloads nearby sentences so images appear immediately when scrubbing (`web/src/components/InteractiveTextViewer.tsx:4420-4860`).
+- **Image-assisted playback.** Sentence images are resolved through the same storage URL mechanism as audio (`/storage/<job_id>/...`). The reel preloads nearby sentences so images appear immediately when scrubbing (`web/src/components/InteractiveTextViewer.tsx:4420-4860`).
 - **Dual-lane transcript.** `TranscriptView` (used across the reader and `MediaSearchPanel`) renders interleaved original/translation lanes, with word buttons highlighting as `timingStore.last` advances. Clicking a word seeks playback to `token.t0`, using fences to avoid re-highlighting earlier tokens mid-seek (`web/src/components/transcript/TranscriptView.tsx:150-218`).
 - **Timeline overlays.** The sentence timeline overlays are derived from token counts plus phase/total durations; chunk files no longer persist per-sentence `timeline` events (`web/src/components/InteractiveTextViewer.tsx:1010-1375`).
 

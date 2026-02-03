@@ -1,5 +1,8 @@
 # Component Refactoring Plan
 
+> **Note:** Historical plan retained for context. The refactors described here
+> are complete; treat this document as archival.
+
 ## Overview
 This document outlines the plan for refactoring large components in the ebook-tools web application.
 
