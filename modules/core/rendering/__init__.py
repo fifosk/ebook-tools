@@ -43,6 +43,8 @@ class RenderPhaseRequest:
     transliteration_mode: Optional[str] = None
     transliteration_model: Optional[str] = None
     book_metadata: Optional[dict] = None
+    enable_lookup_cache: bool = True
+    lookup_cache_batch_size: int = 10
 
 
 def process_epub(
@@ -90,6 +92,8 @@ def process_epub(
         transliteration_mode=request.transliteration_mode,
         transliteration_model=request.transliteration_model,
         book_metadata=request.book_metadata,
+        enable_lookup_cache=request.enable_lookup_cache,
+        lookup_cache_batch_size=request.lookup_cache_batch_size,
     )
 
 

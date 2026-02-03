@@ -69,6 +69,7 @@ export type UseLinguistBubbleResult = {
   onClose: () => void;
   onSpeak: () => void;
   onSpeakSlow: () => void;
+  onPlayFromNarration: (() => void) | undefined;
   onNavigateWord: (delta: -1 | 1) => void;
   onBubblePointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onBubblePointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -316,6 +317,23 @@ export function useLinguistBubble({
     layout.resetLayout();
   }, [layout.resetLayout, lookup.resetBubbleState, navigation.resetNavigation]);
 
+  // Play word from narration audio using cached audio reference
+  const handlePlayFromNarration = useCallback(() => {
+    const audioRefData = linguistBubble?.cachedAudioRef;
+    if (!audioRefData) {
+      return;
+    }
+    // Seek to the start of the word in the narration audio
+    seekInlineAudioToTime(audioRefData.t0);
+    // Start playback
+    const element = audioRef.current;
+    if (element && element.paused) {
+      void element.play().catch(() => {
+        // Ignore autoplay policy errors
+      });
+    }
+  }, [audioRef, linguistBubble?.cachedAudioRef, seekInlineAudioToTime]);
+
   const openTokenLookup = useCallback(
     (
       query: string,
@@ -433,6 +451,7 @@ export function useLinguistBubble({
       onClose: noop,
       onSpeak: noop,
       onSpeakSlow: noop,
+      onPlayFromNarration: undefined,
       onNavigateWord: noopNavigate,
       onBubblePointerDown: noopPointer,
       onBubblePointerMove: noopPointer,
@@ -476,6 +495,7 @@ export function useLinguistBubble({
     onClose: closeLinguistBubble,
     onSpeak: lookup.onSpeak,
     onSpeakSlow: lookup.onSpeakSlow,
+    onPlayFromNarration: linguistBubble?.cachedAudioRef ? handlePlayFromNarration : undefined,
     onNavigateWord: navigation.onNavigateWord,
     onBubblePointerDown: layout.onBubblePointerDown,
     onBubblePointerMove: layout.onBubblePointerMove,

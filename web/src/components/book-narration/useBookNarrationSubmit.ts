@@ -257,6 +257,8 @@ export function useBookNarrationSubmit({
             translation_batch_size: Math.max(1, normalizedTranslationBatchSize),
             transliteration_mode: formState.transliteration_mode,
             transliteration_model: formState.transliteration_model.trim() || null,
+            enable_lookup_cache: formState.enable_lookup_cache,
+            lookup_cache_batch_size: Math.max(1, Math.trunc(Number(formState.lookup_cache_batch_size) || 10)),
             tempo: Number(formState.tempo),
             book_metadata: json.book_metadata,
           },

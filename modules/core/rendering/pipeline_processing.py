@@ -646,7 +646,10 @@ def process_pipeline(
         cancelled = True
         pipeline_stop_event.set()
     finally:
-        pipeline_stop_event.set()
+        # Only set stop_event if we were actually cancelled, not on normal completion
+        # This allows post-processing phases (like lookup_cache) to run
+        if cancelled:
+            pipeline_stop_event.set()
         for worker in media_threads:
             worker.join(timeout=1.0)
         if translation_thread is not None:

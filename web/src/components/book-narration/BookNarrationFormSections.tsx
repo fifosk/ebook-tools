@@ -206,6 +206,7 @@ export function BookNarrationFormSections({
           translationProvider={formState.translation_provider}
           transliterationMode={formState.transliteration_mode}
           transliterationModel={formState.transliteration_model}
+          enableLookupCache={formState.enable_lookup_cache}
           llmModels={availableLlmModels}
           llmModelsLoading={isLoadingLlmModels}
           llmModelsError={llmModelError}
@@ -232,6 +233,7 @@ export function BookNarrationFormSections({
           onTranslationProviderChange={(value) => handleChange('translation_provider', value)}
           onTransliterationModeChange={(value) => handleChange('transliteration_mode', value)}
           onTransliterationModelChange={(value) => handleChange('transliteration_model', value)}
+          onEnableLookupCacheChange={(value) => handleChange('enable_lookup_cache', value)}
           onSentencesPerOutputFileChange={(value) =>
             handleChange('sentences_per_output_file', value)
           }

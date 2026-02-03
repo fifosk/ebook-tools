@@ -834,6 +834,8 @@ struct LibraryPlaybackView: View {
                 resolverOverride: localResolver
             )
             applyOfflineReadingBeds(offlinePayload)
+            // Set offline lookup cache for local word lookups
+            viewModel.offlineLookupCache = offlinePayload.lookupCache
         } else {
             await viewModel.loadJob(jobId: item.jobId, configuration: configuration, origin: .library)
         }

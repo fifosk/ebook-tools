@@ -1,4 +1,4 @@
-import type { TrackTimingPayload, WordTiming } from '../../api/dtos';
+import type { LookupCacheAudioRef, TrackTimingPayload, WordTiming } from '../../api/dtos';
 import type { WordIndex } from '../../lib/timing/wordSync';
 import type { TextPlayerSentence, TextPlayerVariantKind } from '../../text-player/TextPlayer';
 
@@ -62,6 +62,8 @@ export type LinguistBubbleNavigation = {
   variantKind: TextPlayerVariantKind;
 };
 
+export type LinguistBubbleLookupSource = 'cache' | 'live';
+
 export type LinguistBubbleState = {
   query: string;
   fullQuery: string;
@@ -73,6 +75,9 @@ export type LinguistBubbleState = {
   ttsVoice: string | null;
   ttsStatus: LinguistBubbleTtsStatus;
   navigation: LinguistBubbleNavigation | null;
+  lookupSource?: LinguistBubbleLookupSource;
+  /** Audio reference from lookup cache - allows playing word from narration audio */
+  cachedAudioRef?: LookupCacheAudioRef | null;
 };
 
 export type LinguistBubbleFloatingPlacement = 'above' | 'below' | 'free';

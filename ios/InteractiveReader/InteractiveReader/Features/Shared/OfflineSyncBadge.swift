@@ -22,13 +22,16 @@ struct OfflineSyncBadge: View {
             } else if status.isSyncing {
                 Text("Syncing...")
             } else {
-                Button("Download for offline") {
-                    startSync()
+                Button("Download with dictionary cache") {
+                    startSync(includeLookupCache: true)
+                }
+                Button("Download without dictionary cache") {
+                    startSync(includeLookupCache: false)
                 }
             }
             if status.errorMessage != nil {
                 Button("Retry download") {
-                    startSync()
+                    startSync(includeLookupCache: true)
                 }
             }
         } label: {
@@ -115,9 +118,9 @@ struct OfflineSyncBadge: View {
         return "\(percent)%"
     }
 
-    private func startSync() {
+    private func startSync(includeLookupCache: Bool = true) {
         guard isEligible else { return }
         guard let configuration = appState.configuration else { return }
-        offlineStore.sync(jobId: jobId, kind: kind, configuration: configuration)
+        offlineStore.sync(jobId: jobId, kind: kind, configuration: configuration, includeLookupCache: includeLookupCache)
     }
 }

@@ -4,8 +4,8 @@ import type {
   Dispatch,
   SetStateAction,
 } from 'react';
-import { assistantLookup } from '../../api/client';
-import type { AssistantLookupResponse } from '../../api/dtos';
+import { assistantLookup, fetchCachedLookup } from '../../api/client';
+import type { AssistantLookupResponse, LookupCacheAudioRef, LookupCacheEntryResponse } from '../../api/dtos';
 import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
 import type { TextPlayerVariantKind } from '../../text-player/TextPlayer';
 import { buildMyLinguistSystemPrompt } from '../../utils/myLinguistPrompt';
@@ -191,80 +191,126 @@ export function useLinguistBubbleLookup({
       applyOpenLayout();
 
       const page = typeof window !== 'undefined' ? window.location.pathname : null;
-      void assistantLookup({
-        query: slicedQuery,
-        input_language: resolvedInputLanguage,
-        lookup_language: resolvedLookupLanguage,
-        llm_model: resolvedModel,
-        system_prompt: resolvedPrompt,
-        context: {
-          source: 'my_linguist',
-          page,
-          job_id: jobId,
-          selection_text: trigger === 'selection' ? slicedQuery : null,
-          metadata: {
-            ui: 'interactive_bubble',
-            trigger,
-            chunk_id: chunk?.chunkId ?? null,
-          },
-        },
-      })
-        .then((response: AssistantLookupResponse) => {
-          if (requestCounterRef.current !== requestId) {
-            return;
+
+      // Helper to handle successful lookup response
+      const handleLookupSuccess = (
+        answer: string,
+        source: 'cache' | 'live',
+        audioRef?: LookupCacheAudioRef | null,
+      ) => {
+        if (requestCounterRef.current !== requestId) {
+          return;
+        }
+        setBubble((previous) => {
+          if (!previous) {
+            return previous;
           }
-          setBubble((previous) => {
-            if (!previous) {
-              return previous;
-            }
-            return {
-              ...previous,
-              status: 'ready',
-              answer: response.answer,
-              ttsStatus: 'loading',
-            };
-          });
-          void speakText({ text: cleanedQuery, language: resolvedInputLanguage, voice: resolvedVoice })
-            .then(() => {
-              if (requestCounterRef.current !== requestId) {
-                return;
-              }
-              setBubble((previous) => {
-                if (!previous) {
-                  return previous;
-                }
-                return { ...previous, ttsStatus: 'ready' };
-              });
-            })
-            .catch(() => {
-              if (requestCounterRef.current !== requestId) {
-                return;
-              }
-              setBubble((previous) => {
-                if (!previous) {
-                  return previous;
-                }
-                return { ...previous, ttsStatus: 'error' };
-              });
-            });
-        })
-        .catch((error: unknown) => {
-          if (requestCounterRef.current !== requestId) {
-            return;
-          }
-          const message = error instanceof Error ? error.message : 'Unable to reach MyLinguist.';
-          setBubble((previous) => {
-            if (!previous) {
-              return previous;
-            }
-            return {
-              ...previous,
-              status: 'error',
-              answer: `Error: ${message}`,
-              ttsStatus: 'idle',
-            };
-          });
+          return {
+            ...previous,
+            status: 'ready',
+            answer,
+            lookupSource: source,
+            cachedAudioRef: audioRef ?? null,
+            ttsStatus: 'loading',
+          };
         });
+        void speakText({ text: cleanedQuery, language: resolvedInputLanguage, voice: resolvedVoice })
+          .then(() => {
+            if (requestCounterRef.current !== requestId) {
+              return;
+            }
+            setBubble((previous) => {
+              if (!previous) {
+                return previous;
+              }
+              return { ...previous, ttsStatus: 'ready' };
+            });
+          })
+          .catch(() => {
+            if (requestCounterRef.current !== requestId) {
+              return;
+            }
+            setBubble((previous) => {
+              if (!previous) {
+                return previous;
+              }
+              return { ...previous, ttsStatus: 'error' };
+            });
+          });
+      };
+
+      // Helper to perform live LLM lookup
+      const performLiveLookup = () => {
+        void assistantLookup({
+          query: slicedQuery,
+          input_language: resolvedInputLanguage,
+          lookup_language: resolvedLookupLanguage,
+          llm_model: resolvedModel,
+          system_prompt: resolvedPrompt,
+          context: {
+            source: 'my_linguist',
+            page,
+            job_id: jobId,
+            selection_text: trigger === 'selection' ? slicedQuery : null,
+            metadata: {
+              ui: 'interactive_bubble',
+              trigger,
+              chunk_id: chunk?.chunkId ?? null,
+            },
+          },
+        })
+          .then((response: AssistantLookupResponse) => {
+            handleLookupSuccess(response.answer, 'live');
+          })
+          .catch((error: unknown) => {
+            if (requestCounterRef.current !== requestId) {
+              return;
+            }
+            const message = error instanceof Error ? error.message : 'Unable to reach MyLinguist.';
+            setBubble((previous) => {
+              if (!previous) {
+                return previous;
+              }
+              return {
+                ...previous,
+                status: 'error',
+                answer: `Error: ${message}`,
+                ttsStatus: 'idle',
+              };
+            });
+          });
+      };
+
+      // Try cache first if we have a job ID
+      if (jobId) {
+        void fetchCachedLookup(jobId, slicedQuery)
+          .then((cacheResponse: LookupCacheEntryResponse | null) => {
+            if (requestCounterRef.current !== requestId) {
+              return;
+            }
+            if (cacheResponse?.cached && cacheResponse.lookup_result) {
+              // Found in cache - pass as JSON string so parseLinguistLookupResult can parse it
+              // and renderStructuredContent can render all fields including related_languages
+              const cachedAnswer = JSON.stringify(cacheResponse.lookup_result);
+              // Pass first audio reference if available (for play from narration)
+              const firstAudioRef = cacheResponse.audio_references?.[0] ?? null;
+              handleLookupSuccess(cachedAnswer, 'cache', firstAudioRef);
+            } else {
+              // Not in cache - fallback to live lookup
+              performLiveLookup();
+            }
+          })
+          .catch(() => {
+            // Cache lookup failed - fallback to live lookup
+            if (requestCounterRef.current !== requestId) {
+              return;
+            }
+            performLiveLookup();
+          });
+      } else {
+        // No job ID - go straight to live lookup
+        performLiveLookup();
+      }
     },
     [
       anchorElementRef,

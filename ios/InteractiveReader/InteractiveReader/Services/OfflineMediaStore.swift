@@ -75,6 +75,15 @@ final class OfflineMediaStore: ObservableObject {
         let storageBaseURL: URL
         let readingBeds: ReadingBedListResponse?
         let readingBedBaseURL: URL?
+        /// Local lookup cache data (if downloaded)
+        let lookupCache: LookupCacheOfflineData?
+    }
+
+    /// Offline lookup cache data structure
+    struct LookupCacheOfflineData {
+        let entries: [String: LookupCacheEntryResponse]
+        let inputLanguage: String?
+        let definitionLanguage: String?
     }
 
     private struct OfflineMediaManifest: Codable {
@@ -86,6 +95,7 @@ final class OfflineMediaStore: ObservableObject {
         let mediaFile: String
         let timingFile: String?
         let readingBedsFile: String?
+        let lookupCacheFile: String?
     }
 
     private struct DownloadItem {
@@ -105,6 +115,7 @@ final class OfflineMediaStore: ObservableObject {
     private let mediaFileName = "media.json"
     private let timingFileName = "timing.json"
     private let readingBedsFileName = "reading_beds.json"
+    private let lookupCacheFileName = "lookup_cache.json"
     private let defaultReadingBedPath = OfflineMediaStore.sharedDefaultReadingBedPath
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
@@ -185,6 +196,7 @@ final class OfflineMediaStore: ObservableObject {
         guard let manifest = loadManifest(for: key) else { return nil }
         let itemRoot = baseURL.appendingPathComponent(jobId, isDirectory: true)
         let readingBedsFileName = readingBedsFileName
+        let lookupCacheFileName = lookupCacheFileName
         let defaultReadingBedPath = defaultReadingBedPath
         let sharedReadingBedsRoot = readingBedsRootURL()
         return await Task.detached(priority: .utility) {
@@ -237,17 +249,66 @@ final class OfflineMediaStore: ObservableObject {
                 }
             }
 
+            // Load lookup cache if available
+            var lookupCache: LookupCacheOfflineData? = nil
+            let lookupCacheFile = manifest.lookupCacheFile ?? lookupCacheFileName
+            let lookupCacheURL = itemRoot.appendingPathComponent(lookupCacheFile)
+            print("[OfflinePayload] Looking for lookup cache at: \(lookupCacheURL.path)")
+            print("[OfflinePayload] manifest.lookupCacheFile: \(manifest.lookupCacheFile ?? "nil")")
+            if let lookupData = try? Data(contentsOf: lookupCacheURL, options: .mappedIfSafe) {
+                print("[OfflinePayload] Loaded lookup cache data: \(lookupData.count) bytes")
+                lookupCache = Self.parseLookupCacheData(lookupData, decoder: decoder)
+                if let cache = lookupCache {
+                    print("[OfflinePayload] Parsed lookup cache: \(cache.entries.count) entries")
+                } else {
+                    print("[OfflinePayload] Failed to parse lookup cache")
+                }
+            } else {
+                print("[OfflinePayload] Lookup cache file not found or unreadable")
+            }
+
             return OfflineMediaPayload(
                 media: media,
                 timing: timing,
                 storageBaseURL: baseURL,
                 readingBeds: readingBeds,
-                readingBedBaseURL: readingBedBaseURL
+                readingBedBaseURL: readingBedBaseURL,
+                lookupCache: lookupCache
             )
         }.value
     }
 
-    func sync(jobId: String, kind: OfflineMediaKind, configuration: APIClientConfiguration) {
+    /// Parse lookup cache JSON data into a dictionary indexed by normalized word
+    private nonisolated static func parseLookupCacheData(_ data: Data, decoder: JSONDecoder) -> LookupCacheOfflineData? {
+        // The lookup cache JSON structure from the backend:
+        // {
+        //   "version": "1",
+        //   "input_language": "Arabic",
+        //   "definition_language": "English",
+        //   "entries": {
+        //     "normalized_word": { ... LookupCacheEntry ... }
+        //   }
+        // }
+        struct LookupCacheFile: Decodable {
+            let version: String?
+            let inputLanguage: String?
+            let definitionLanguage: String?
+            let entries: [String: LookupCacheEntryResponse]?
+        }
+
+        guard let cacheFile = try? decoder.decode(LookupCacheFile.self, from: data),
+              let entries = cacheFile.entries else {
+            return nil
+        }
+
+        return LookupCacheOfflineData(
+            entries: entries,
+            inputLanguage: cacheFile.inputLanguage,
+            definitionLanguage: cacheFile.definitionLanguage
+        )
+    }
+
+    func sync(jobId: String, kind: OfflineMediaKind, configuration: APIClientConfiguration, includeLookupCache: Bool = true) {
         let trimmedJobId = jobId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedJobId.isEmpty else { return }
         let key = OfflineMediaKey(jobId: trimmedJobId, kind: kind)
@@ -269,7 +330,8 @@ final class OfflineMediaStore: ObservableObject {
                 jobId: trimmedJobId,
                 kind: kind,
                 configuration: configuration,
-                baseURL: baseURL
+                baseURL: baseURL,
+                includeLookupCache: includeLookupCache
             )
         }
         syncTasks[key] = task
@@ -406,7 +468,8 @@ final class OfflineMediaStore: ObservableObject {
         jobId: String,
         kind: OfflineMediaKind,
         configuration: APIClientConfiguration,
-        baseURL: URL
+        baseURL: URL,
+        includeLookupCache: Bool = true
     ) async {
         let key = OfflineMediaKey(jobId: jobId, kind: kind)
         let itemRoot = baseURL.appendingPathComponent(jobId, isDirectory: true)
@@ -428,6 +491,8 @@ final class OfflineMediaStore: ObservableObject {
             let media = try decoder.decode(PipelineMediaResponse.self, from: mediaData)
             let timingData = try? await client.fetchJobTimingData(jobId: jobId)
             let readingBeds = try? await client.fetchReadingBeds()
+            // Fetch lookup cache data (optional - won't fail sync if not available)
+            let lookupCacheData: Data? = includeLookupCache ? try? await client.fetchLookupCacheRaw(jobId: jobId) : nil
             let resolver = try makeRemoteResolver(for: kind, configuration: configuration)
             let items = collectDownloadItems(media: media, jobId: jobId, resolver: resolver)
             let readingBedItems = collectReadingBedItems(
@@ -500,6 +565,14 @@ final class OfflineMediaStore: ObservableObject {
                 try readingBedsData.write(to: readingBedsURL, options: .atomic)
                 readingBedsFileForManifest = readingBedsFileName
             }
+            // Save lookup cache if available
+            var lookupCacheFileForManifest: String? = nil
+            if let lookupCacheData {
+                let lookupCacheURL = itemRoot.appendingPathComponent(lookupCacheFileName)
+                try lookupCacheData.write(to: lookupCacheURL, options: .atomic)
+                lookupCacheFileForManifest = lookupCacheFileName
+                print("[OfflineSync] Saved lookup cache (\(lookupCacheData.count) bytes)")
+            }
             let manifest = OfflineMediaManifest(
                 jobId: jobId,
                 kind: kind,
@@ -508,7 +581,8 @@ final class OfflineMediaStore: ObservableObject {
                 totalBytes: totalBytes,
                 mediaFile: mediaFileName,
                 timingFile: timingName,
-                readingBedsFile: readingBedsFileForManifest
+                readingBedsFile: readingBedsFileForManifest,
+                lookupCacheFile: lookupCacheFileForManifest
             )
             try writeManifest(manifest, to: key)
             await MainActor.run {

@@ -36,6 +36,8 @@ class PipelineInputPayload(BaseModel):
     translation_batch_size: int = 10
     transliteration_mode: str = "default"
     transliteration_model: Optional[str] = None
+    enable_lookup_cache: bool = True
+    lookup_cache_batch_size: int = 10
     tempo: float = 1.0
     voice_overrides: Dict[str, str] = Field(default_factory=dict)
     book_metadata: Dict[str, Any] = Field(default_factory=dict)

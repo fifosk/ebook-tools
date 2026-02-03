@@ -15,6 +15,9 @@ import type {
   JobMetadataEnrichResponse,
   JobTimingResponse,
   LlmModelListResponse,
+  LookupCacheBulkResponse,
+  LookupCacheEntryResponse,
+  LookupCacheSummaryResponse,
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
   PipelineFileEntry,
@@ -286,4 +289,69 @@ export function resolveJobCoverUrl(jobId: string): string | null {
   }
   const encoded = encodeURIComponent(trimmed);
   return withBase(`/api/pipelines/${encoded}/cover`);
+}
+
+// Lookup cache API
+export async function fetchCachedLookup(
+  jobId: string,
+  word: string
+): Promise<LookupCacheEntryResponse | null> {
+  const encodedJobId = encodeURIComponent(jobId);
+  const encodedWord = encodeURIComponent(word);
+  try {
+    const response = await apiFetch(
+      `/api/pipelines/jobs/${encodedJobId}/lookup-cache/${encodedWord}`,
+      {},
+      { suppressUnauthorized: true }
+    );
+    if (response.status === 404) {
+      return null;
+    }
+    return handleResponse<LookupCacheEntryResponse>(response);
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchCachedLookupsBulk(
+  jobId: string,
+  words: string[]
+): Promise<LookupCacheBulkResponse | null> {
+  const encodedJobId = encodeURIComponent(jobId);
+  try {
+    const response = await apiFetch(
+      `/api/pipelines/jobs/${encodedJobId}/lookup-cache/bulk`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ words })
+      },
+      { suppressUnauthorized: true }
+    );
+    if (response.status === 404) {
+      return null;
+    }
+    return handleResponse<LookupCacheBulkResponse>(response);
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchLookupCacheSummary(
+  jobId: string
+): Promise<LookupCacheSummaryResponse | null> {
+  const encodedJobId = encodeURIComponent(jobId);
+  try {
+    const response = await apiFetch(
+      `/api/pipelines/jobs/${encodedJobId}/lookup-cache/summary`,
+      {},
+      { suppressUnauthorized: true }
+    );
+    if (response.status === 404) {
+      return null;
+    }
+    return handleResponse<LookupCacheSummaryResponse>(response);
+  } catch {
+    return null;
+  }
 }

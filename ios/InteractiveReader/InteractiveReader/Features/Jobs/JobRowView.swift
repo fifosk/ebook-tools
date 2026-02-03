@@ -14,6 +14,7 @@ struct JobRowView: View {
     #endif
     #if os(tvOS)
     @Environment(\.isFocused) private var isFocused
+    @EnvironmentObject var offlineStore: OfflineMediaStore
     #endif
 
     var body: some View {
@@ -186,7 +187,14 @@ struct JobRowView: View {
 
             Spacer()
 
-            #if !os(tvOS)
+            #if os(tvOS)
+            // Show download indicator on tvOS
+            if job.isFinishedForDisplay && offlineStore.status(for: job.jobId, kind: .job).isSynced {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(isFocused ? .black.opacity(0.6) : .green)
+            }
+            #else
             if job.isFinishedForDisplay {
                 OfflineSyncBadge(jobId: job.jobId, kind: .job, isEligible: true)
             }

@@ -58,13 +58,13 @@ struct AssistantLookupResponse: Decodable {
 
 // MARK: - Structured Linguist Response
 
-enum LinguistLookupType: String, Decodable {
+enum LinguistLookupType: String, Codable {
     case word
     case phrase
     case sentence
 }
 
-struct LinguistRelatedLanguage: Decodable, Identifiable {
+struct LinguistRelatedLanguage: Codable, Identifiable {
     let language: String
     let word: String
     let transliteration: String?
@@ -72,7 +72,7 @@ struct LinguistRelatedLanguage: Decodable, Identifiable {
     var id: String { "\(language)-\(word)" }
 }
 
-struct LinguistLookupResult: Decodable {
+struct LinguistLookupResult: Codable {
     let type: LinguistLookupType
     let definition: String
     let partOfSpeech: String?
@@ -84,13 +84,10 @@ struct LinguistLookupResult: Decodable {
     let idioms: [String]?
     let relatedLanguages: [LinguistRelatedLanguage]?
 
-    enum CodingKeys: String, CodingKey {
-        case type, definition, pronunciation, etymology, example, idioms
-        case partOfSpeech = "part_of_speech"
-        case exampleTranslation = "example_translation"
-        case exampleTransliteration = "example_transliteration"
-        case relatedLanguages = "related_languages"
-    }
+    // NOTE: No explicit CodingKeys here!
+    // When decoded via APIClient (which uses .convertFromSnakeCase), the decoder
+    // automatically maps snake_case JSON keys to camelCase Swift properties.
+    // When decoded via parse() for live LLM responses, we use .convertFromSnakeCase too.
 
     /// Attempt to parse a JSON response from the LLM answer string.
     /// Returns nil if the answer is not valid JSON or doesn't match the expected structure.
@@ -111,6 +108,10 @@ struct LinguistLookupResult: Decodable {
 
         do {
             let decoder = JSONDecoder()
+            // Use snake_case decoding to match the JSON format from both:
+            // - Live LLM responses (snake_case keys like part_of_speech)
+            // - Re-encoded cached results (also snake_case via encoder.keyEncodingStrategy)
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
             return try decoder.decode(LinguistLookupResult.self, from: data)
         } catch {
             print("LinguistLookupResult parse error: \(error)")
@@ -1142,4 +1143,95 @@ struct TestNotificationResponse: Decodable {
     let sent: Int
     let failed: Int
     let message: String?
+}
+
+// MARK: - Lookup Cache
+
+struct LookupCacheAudioRef: Decodable, Equatable {
+    let chunkId: String
+    let sentenceIdx: Int
+    let tokenIdx: Int
+    let track: String
+    let t0: Double
+    let t1: Double
+
+    enum CodingKeys: String, CodingKey {
+        case chunkId
+        case sentenceIdx
+        case tokenIdx
+        case track
+        case t0
+        case t1
+    }
+}
+
+struct LookupCacheEntryResponse: Decodable {
+    let word: String
+    let wordNormalized: String
+    let cached: Bool
+    let lookupResult: LinguistLookupResult?
+    let audioReferences: [LookupCacheAudioRef]
+
+    enum CodingKeys: String, CodingKey {
+        case word
+        case wordNormalized
+        case cached
+        case lookupResult
+        case audioReferences
+    }
+
+    /// Convenience initializer for creating cache miss responses
+    init(word: String, wordNormalized: String, cached: Bool, lookupResult: LinguistLookupResult?, audioReferences: [LookupCacheAudioRef]) {
+        self.word = word
+        self.wordNormalized = wordNormalized
+        self.cached = cached
+        self.lookupResult = lookupResult
+        self.audioReferences = audioReferences
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        word = try container.decode(String.self, forKey: .word)
+        wordNormalized = (try? container.decode(String.self, forKey: .wordNormalized)) ?? word
+        cached = (try? container.decode(Bool.self, forKey: .cached)) ?? false
+        audioReferences = (try? container.decode([LookupCacheAudioRef].self, forKey: .audioReferences)) ?? []
+
+        // Decode lookupResult directly - it should match LinguistLookupResult structure
+        lookupResult = try? container.decode(LinguistLookupResult.self, forKey: .lookupResult)
+    }
+}
+
+struct LookupCacheBulkResponse: Decodable {
+    let jobId: String
+    let words: [String]
+    let entries: [LookupCacheEntryResponse]
+
+    enum CodingKeys: String, CodingKey {
+        case jobId
+        case words
+        case entries
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        jobId = try container.decode(String.self, forKey: .jobId)
+        words = (try? container.decode([String].self, forKey: .words)) ?? []
+        entries = (try? container.decode([LookupCacheEntryResponse].self, forKey: .entries)) ?? []
+    }
+}
+
+struct LookupCacheSummaryResponse: Decodable {
+    let jobId: String
+    let totalEntries: Int
+    let inputLanguage: String?
+    let definitionLanguage: String?
+    let cacheVersion: String?
+
+    enum CodingKeys: String, CodingKey {
+        case jobId
+        case totalEntries
+        case inputLanguage
+        case definitionLanguage
+        case cacheVersion
+    }
 }

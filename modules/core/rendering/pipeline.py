@@ -102,6 +102,8 @@ class RenderPipeline:
         transliteration_mode: Optional[str] = None,
         transliteration_model: Optional[str] = None,
         book_metadata: Optional[dict] = None,
+        enable_lookup_cache: bool = True,
+        lookup_cache_batch_size: int = 10,
     ) -> Tuple[
         List[str],
         Optional[List[AudioSegment]],

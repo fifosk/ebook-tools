@@ -26,6 +26,39 @@ export interface PipelineDefaultsResponse {
   config: Record<string, unknown>;
 }
 
+export interface LookupCacheAudioRef {
+  chunk_id: string;
+  sentence_idx: number;
+  token_idx: number;
+  track: string;
+  t0: number;
+  t1: number;
+}
+
+export interface LookupCacheEntryResponse {
+  word: string;
+  word_normalized: string;
+  cached: boolean;
+  lookup_result?: Record<string, unknown> | null;
+  audio_references: LookupCacheAudioRef[];
+}
+
+export interface LookupCacheBulkResponse {
+  results: Record<string, LookupCacheEntryResponse | null>;
+  cache_hits: number;
+  cache_misses: number;
+}
+
+export interface LookupCacheSummaryResponse {
+  available: boolean;
+  word_count: number;
+  input_language: string;
+  definition_language: string;
+  llm_calls: number;
+  skipped_stopwords: number;
+  build_time_seconds: number;
+}
+
 export interface BookContentIndexResponse {
   input_file: string;
   content_index: Record<string, unknown> | null;
@@ -94,6 +127,8 @@ export interface PipelineInputPayload {
   translation_batch_size?: number;
   transliteration_mode?: string;
   transliteration_model?: string | null;
+  enable_lookup_cache?: boolean;
+  lookup_cache_batch_size?: number;
   tempo: number;
   book_metadata: Record<string, unknown>;
 }

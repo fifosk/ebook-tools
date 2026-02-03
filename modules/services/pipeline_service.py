@@ -19,7 +19,7 @@ from ..core import ingestion
 from ..core.config import PipelineConfig
 from ..progress_tracker import ProgressTracker
 from ..translation_engine import ThreadWorkerPool
-from .pipeline_phases import config_phase, metadata_phase, render_phase
+from .pipeline_phases import config_phase, lookup_cache_phase, metadata_phase, render_phase
 from .pipeline_types import (
     ConfigPhaseResult,
     IngestionResult,
@@ -63,6 +63,8 @@ class PipelineInput:
     translation_batch_size: int = 10
     transliteration_mode: str = "default"
     transliteration_model: Optional[str] = None
+    enable_lookup_cache: bool = True
+    lookup_cache_batch_size: int = 10
     book_metadata: PipelineMetadata = field(default_factory=PipelineMetadata)
     voice_overrides: Dict[str, str] = field(default_factory=dict)
     audio_bitrate_kbps: Optional[int] = None
@@ -286,6 +288,65 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
                     stitching_result = render_phase.build_stitching_artifacts(
                         request, config_result, metadata_result, render_result
                     )
+
+            # Signal that media is ready for playback (before lookup cache builds)
+            if tracker is not None:
+                tracker.publish_progress(
+                    {
+                        "stage": "media_ready",
+                        "message": "Media generation complete. Content is ready for playback.",
+                        "media_ready": True,
+                    }
+                )
+
+            # Build lookup cache in background if enabled (non-blocking)
+            if not (request.stop_event and request.stop_event.is_set()):
+                enable_cache = getattr(request.inputs, "enable_lookup_cache", True)
+                if enable_cache:
+                    # Run lookup cache in background thread so playback can start immediately
+                    def _build_lookup_cache_background():
+                        try:
+                            if tracker is not None:
+                                tracker.publish_progress(
+                                    {
+                                        "stage": "lookup_cache",
+                                        "message": "Building word lookup cache in background...",
+                                        "lookup_cache_status": "building",
+                                    }
+                                )
+                            with observability.pipeline_stage("lookup_cache", post_process_attrs):
+                                lookup_cache_phase.build_lookup_cache_phase(
+                                    request, config_result, render_result, tracker
+                                )
+                            if tracker is not None:
+                                tracker.publish_progress(
+                                    {
+                                        "stage": "lookup_cache",
+                                        "message": "Word lookup cache complete.",
+                                        "lookup_cache_status": "complete",
+                                    }
+                                )
+                        except Exception as cache_exc:
+                            logger.warning(
+                                f"Lookup cache build failed (non-fatal): {cache_exc}",
+                                extra={"event": "pipeline.lookup_cache.error"},
+                            )
+                            if tracker is not None:
+                                tracker.publish_progress(
+                                    {
+                                        "stage": "lookup_cache",
+                                        "message": f"Lookup cache failed: {cache_exc}",
+                                        "lookup_cache_status": "error",
+                                    }
+                                )
+
+                    cache_thread = threading.Thread(
+                        target=_build_lookup_cache_background,
+                        name=f"lookup-cache-{request.job_id}",
+                        daemon=True,
+                    )
+                    cache_thread.start()
+                    # Don't wait for the thread - let it run in background
 
         with log_mgr.log_context(
             correlation_id=correlation_id, job_id=request.job_id

@@ -64,7 +64,10 @@ export {
   clearYoutubeMetadataCache,
   fetchLlmModels,
   buildEventStreamUrl,
-  resolveJobCoverUrl
+  resolveJobCoverUrl,
+  fetchCachedLookup,
+  fetchCachedLookupsBulk,
+  fetchLookupCacheSummary
 } from './jobs';
 
 // Admin and user management

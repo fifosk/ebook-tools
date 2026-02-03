@@ -684,6 +684,9 @@ extension InteractivePlayerView {
             onToggleBubblePin: {
                 toggleiPadBubblePin()
             },
+            onPlayFromNarration: {
+                handlePlayFromNarration()
+            },
             bubbleKeyboardNavigator: bubbleKeyboardNavigator
         )
         .padding(.top, transcriptTopPadding)

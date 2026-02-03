@@ -422,6 +422,13 @@ export function JobProgress({
     }
     return coerceRecord((generated as Record<string, unknown>)['media_batch_stats']);
   }, [status?.generated_files]);
+  const lookupCacheStats = useMemo(() => {
+    const generated = status?.generated_files;
+    if (!generated || typeof generated !== 'object') {
+      return null;
+    }
+    return coerceRecord((generated as Record<string, unknown>)['lookup_cache']);
+  }, [status?.generated_files]);
   const translationBatchSize =
     coerceNumber(translationBatchStats?.['batch_size']) ?? configuredBatchSize;
   const useBatchProgress =
@@ -450,6 +457,19 @@ export function JobProgress({
     () => (useBatchProgress ? buildBatchProgress(mediaBatchStats) : null),
     [buildBatchProgress, mediaBatchStats, useBatchProgress]
   );
+  const lookupCacheProgress = useMemo(() => {
+    if (!lookupCacheStats) {
+      return null;
+    }
+    const wordCount = coerceNumber(lookupCacheStats['word_count']);
+    const llmCalls = coerceNumber(lookupCacheStats['llm_calls']);
+    const skippedStopwords = coerceNumber(lookupCacheStats['skipped_stopwords']);
+    const buildTimeSeconds = coerceNumber(lookupCacheStats['build_time_seconds']);
+    if (wordCount === null) {
+      return null;
+    }
+    return { wordCount, llmCalls, skippedStopwords, buildTimeSeconds };
+  }, [lookupCacheStats]);
   const translationProgress = useMemo(() => {
     if (useBatchProgress || !translationEvent) {
       return null;
@@ -571,6 +591,42 @@ export function JobProgress({
     !useBatchProgress && Boolean(translationProgress || mediaProgress);
   // Show playable progress when we have playable events or batch stats
   const showPlayableProgress = Boolean(playableProgress);
+  // Show lookup cache progress when cache was built
+  const showLookupCacheProgress = Boolean(lookupCacheProgress);
+  // Track lookup cache building status and progress from SSE events
+  const lookupCacheBuildingProgress = useMemo(() => {
+    const meta = event?.metadata;
+    if (!meta || typeof meta !== 'object') {
+      return null;
+    }
+    const metaRecord = meta as Record<string, unknown>;
+    const status = metaRecord['lookup_cache_status'];
+    // Extract detailed progress if available
+    const progress = coerceRecord(metaRecord['lookup_cache_progress']);
+    if (progress) {
+      return {
+        status: 'building' as const,
+        batchesCompleted: coerceNumber(progress['batches_completed']),
+        batchesTotal: coerceNumber(progress['batches_total']),
+        wordsToLookup: coerceNumber(progress['words_to_lookup']),
+        cachedEntries: coerceNumber(progress['cached_entries']),
+        llmCalls: coerceNumber(progress['llm_calls']),
+      };
+    }
+    // Only show building indicator if status is explicitly "building"
+    if (status === 'building') {
+      return {
+        status: 'building' as const,
+        batchesCompleted: null,
+        batchesTotal: null,
+        wordsToLookup: null,
+        cachedEntries: null,
+        llmCalls: null,
+      };
+    }
+    return null;
+  }, [event?.metadata]);
+  const showLookupCacheBuilding = lookupCacheBuildingProgress !== null && !showLookupCacheProgress;
   const statusGlyph = getStatusGlyph(statusValue);
   const jobLabel = useMemo(() => normalizeTextValue(status?.job_label) ?? null, [status?.job_label]);
   const ownerId = typeof status?.user_id === 'string' ? status.user_id : null;
@@ -918,7 +974,7 @@ export function JobProgress({
           </div>
         </div>
       ) : null}
-      {showOverviewSections && (showPlayableProgress || showBatchStageProgress || showSentenceStageProgress) ? (
+      {showOverviewSections && (showPlayableProgress || showBatchStageProgress || showSentenceStageProgress || showLookupCacheProgress || showLookupCacheBuilding) ? (
         <div>
           <h4>Stage progress</h4>
           <div className="progress-grid">
@@ -927,6 +983,45 @@ export function JobProgress({
                 <strong>Playable sentences</strong>
                 <span>{formatProgressValue(playableProgress)}</span>
                 <p className="progress-metric__hint">Sentences fully processed and ready for playback.</p>
+              </div>
+            ) : null}
+            {showLookupCacheBuilding && lookupCacheBuildingProgress ? (
+              <div className="progress-metric">
+                <strong>Dictionary cache</strong>
+                <span className="progress-metric__status progress-metric__status--building">
+                  {lookupCacheBuildingProgress.cachedEntries !== null
+                    ? `${lookupCacheBuildingProgress.cachedEntries} word${lookupCacheBuildingProgress.cachedEntries === 1 ? '' : 's'}`
+                    : 'Building…'}
+                </span>
+                <p className="progress-metric__hint">
+                  {lookupCacheBuildingProgress.batchesCompleted !== null && lookupCacheBuildingProgress.batchesTotal !== null
+                    ? `Batch ${lookupCacheBuildingProgress.batchesCompleted} / ${lookupCacheBuildingProgress.batchesTotal}`
+                    : 'Processing words'}
+                  {lookupCacheBuildingProgress.wordsToLookup !== null
+                    ? ` (${lookupCacheBuildingProgress.wordsToLookup} unique words)`
+                    : ''}
+                  . Playback is available.
+                </p>
+              </div>
+            ) : null}
+            {showLookupCacheProgress && lookupCacheProgress ? (
+              <div className="progress-metric">
+                <strong>Dictionary cache</strong>
+                <span>
+                  {lookupCacheProgress.wordCount} word{lookupCacheProgress.wordCount === 1 ? '' : 's'}
+                  {lookupCacheProgress.skippedStopwords !== null
+                    ? ` (${lookupCacheProgress.skippedStopwords} stopwords skipped)`
+                    : ''}
+                </span>
+                <p className="progress-metric__hint">
+                  Unique words cached for instant lookups.
+                  {lookupCacheProgress.llmCalls !== null
+                    ? ` ${lookupCacheProgress.llmCalls} LLM call${lookupCacheProgress.llmCalls === 1 ? '' : 's'}.`
+                    : ''}
+                  {lookupCacheProgress.buildTimeSeconds !== null
+                    ? ` Built in ${formatSeconds(lookupCacheProgress.buildTimeSeconds, 's')}.`
+                    : ''}
+                </p>
               </div>
             ) : null}
             {showBatchStageProgress ? (

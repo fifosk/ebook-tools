@@ -450,6 +450,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     onClose: closeLinguistBubble,
     onSpeak: handleLinguistSpeak,
     onSpeakSlow: handleLinguistSpeakSlow,
+    onPlayFromNarration: handleLinguistPlayFromNarration,
     onNavigateWord: navigateLinguistWord,
     onBubblePointerDown: handleBubblePointerDown,
     onBubblePointerMove: handleBubblePointerMove,
@@ -618,6 +619,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         onNavigateNext={() => navigateLinguistWord(1)}
         onSpeak={handleLinguistSpeak}
         onSpeakSlow={handleLinguistSpeakSlow}
+        onPlayFromNarration={handleLinguistPlayFromNarration}
         onClose={closeLinguistBubble}
         lookupLanguageOptions={linguistLookupLanguageOptions}
         onLookupLanguageChange={handleLookupLanguageChange}
@@ -864,6 +866,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
                 onNavigateNext={() => navigateLinguistWord(1)}
                 onSpeak={handleLinguistSpeak}
                 onSpeakSlow={handleLinguistSpeakSlow}
+                onPlayFromNarration={handleLinguistPlayFromNarration}
                 onClose={closeLinguistBubble}
                 lookupLanguageOptions={linguistLookupLanguageOptions}
                 onLookupLanguageChange={handleLookupLanguageChange}

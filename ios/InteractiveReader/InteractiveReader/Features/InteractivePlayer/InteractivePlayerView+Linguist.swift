@@ -121,7 +121,49 @@ extension InteractivePlayerView {
         // Use per-language voice if set, otherwise nil for auto-selection
         let selectedVoice = perLangVoice
         startPronunciation(text: query, apiLanguage: apiLanguage, fallbackLanguage: resolvedPronunciationLanguage, voice: selectedVoice)
+
+        // Capture jobId for cache lookup
+        let jobId = viewModel.jobId
+
         linguistLookupTask = Task { @MainActor in
+            // Try cache first if we have a jobId
+            if let jobId {
+                print("[Linguist] Checking cache for '\(query)' in job \(jobId)")
+                if let cached = await viewModel.fetchCachedLookup(jobId: jobId, word: query) {
+                    print("[Linguist] Cache response: cached=\(cached.cached), hasResult=\(cached.lookupResult != nil), audioRefs=\(cached.audioReferences.count)")
+                    if cached.cached, let result = cached.lookupResult {
+                        guard !Task.isCancelled else { return }
+                        // Encode lookupResult as JSON so it can be parsed by LinguistLookupResult.parse
+                        // IMPORTANT: Use snake_case key encoding to match the decoding CodingKeys
+                        // LinguistLookupResult expects keys like "part_of_speech", "related_languages", etc.
+                        let encoder = JSONEncoder()
+                        encoder.keyEncodingStrategy = .convertToSnakeCase
+                        if let jsonData = try? encoder.encode(result),
+                           let cachedAnswer = String(data: jsonData, encoding: .utf8) {
+                            print("[Linguist] Using CACHED lookup for '\(query)', JSON: \(cachedAnswer.prefix(300))...")
+                            var state = MyLinguistBubbleState(
+                                query: query,
+                                status: .ready,
+                                answer: cachedAnswer,
+                                model: nil
+                            )
+                            state.lookupSource = .cache
+                            // Capture first audio reference for "play from narration" feature
+                            state.cachedAudioRef = cached.audioReferences.first
+                            linguistBubble = state
+                            return
+                        } else {
+                            print("[Linguist] Failed to encode cached result as JSON")
+                        }
+                    }
+                } else {
+                    print("[Linguist] No cache response for '\(query)'")
+                }
+            } else {
+                print("[Linguist] No jobId, skipping cache lookup")
+            }
+
+            // Cache miss or no cache - fallback to live LLM lookup
             do {
                 let response = try await viewModel.lookupAssistant(
                     query: query,
@@ -129,12 +171,15 @@ extension InteractivePlayerView {
                     lookupLanguage: explanationLanguage,
                     llmModel: selectedModel
                 )
-                linguistBubble = MyLinguistBubbleState(
+                guard !Task.isCancelled else { return }
+                var state = MyLinguistBubbleState(
                     query: query,
                     status: .ready,
                     answer: response.answer,
                     model: response.model
                 )
+                state.lookupSource = .live
+                linguistBubble = state
             } catch {
                 guard !Task.isCancelled else { return }
                 linguistBubble = MyLinguistBubbleState(
@@ -458,6 +503,19 @@ extension InteractivePlayerView {
         bubbleKeyboardNavigator.exitFocus()
         #endif
         pronunciationSpeaker.stop()
+    }
+
+    /// Play word pronunciation from narration audio using cached timing reference
+    func handlePlayFromNarration() {
+        guard let audioRef = linguistBubble?.cachedAudioRef,
+              let chunk = viewModel.selectedChunk else { return }
+        // Seek to the word's start time in the audio
+        let seekTime = audioRef.t0
+        viewModel.seekPlayback(to: seekTime, in: chunk)
+        // If not already playing, start playback
+        if !audioCoordinator.isPlaying {
+            audioCoordinator.play()
+        }
     }
 
     func scheduleAutoLinguistLookup(in chunk: InteractiveChunk) {

@@ -81,6 +81,8 @@ export type FormState = {
   translation_batch_size: number;
   transliteration_mode: string;
   transliteration_model: string;
+  enable_lookup_cache: boolean;
+  lookup_cache_batch_size: number;
   tempo: number;
   thread_count: string;
   queue_size: string;

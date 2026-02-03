@@ -14,6 +14,7 @@ struct LibraryRowView: View {
     #endif
     #if os(tvOS)
     @Environment(\.isFocused) private var isFocused
+    @EnvironmentObject var offlineStore: OfflineMediaStore
     #endif
 
     var body: some View {
@@ -154,7 +155,14 @@ struct LibraryRowView: View {
 
             Spacer()
 
-            #if !os(tvOS)
+            #if os(tvOS)
+            // Show download indicator on tvOS
+            if offlineStore.status(for: item.jobId, kind: .library).isSynced {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(isFocused ? .black.opacity(0.6) : .green)
+            }
+            #else
             OfflineSyncBadge(jobId: item.jobId, kind: .library, isEligible: true)
             Image(systemName: "chevron.right")
                 .foregroundStyle(secondaryTextColor)

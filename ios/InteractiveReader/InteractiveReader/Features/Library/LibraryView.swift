@@ -486,9 +486,16 @@ struct LibraryView: View {
         } else {
             Button {
                 guard let configuration = appState.configuration else { return }
-                offlineStore.sync(jobId: item.jobId, kind: .library, configuration: configuration)
+                offlineStore.sync(jobId: item.jobId, kind: .library, configuration: configuration, includeLookupCache: true)
             } label: {
-                Label("Download for Offline", systemImage: "arrow.down.circle")
+                Label("Download with Dictionary", systemImage: "arrow.down.circle")
+            }
+            .disabled(!offlineStore.isAvailable || appState.configuration == nil)
+            Button {
+                guard let configuration = appState.configuration else { return }
+                offlineStore.sync(jobId: item.jobId, kind: .library, configuration: configuration, includeLookupCache: false)
+            } label: {
+                Label("Download without Dictionary", systemImage: "arrow.down.circle.dotted")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
         }

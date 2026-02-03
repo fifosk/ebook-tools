@@ -1300,6 +1300,7 @@ export default function SubtitleTrackOverlay({
             onNavigateNext={() => {}}
             onSpeak={lookup.onSpeak}
             onSpeakSlow={lookup.onSpeakSlow}
+            onPlayFromNarration={undefined}
             onClose={closeBubble}
             lookupLanguageOptions={lookupLanguageOptions}
             onLookupLanguageChange={handleLookupLanguageChange}

@@ -28,6 +28,7 @@ interface MyLinguistBubbleProps {
   onNavigateNext: () => void;
   onSpeak: () => void;
   onSpeakSlow: () => void;
+  onPlayFromNarration?: () => void;
   onClose: () => void;
   lookupLanguageOptions: string[];
   llmModelOptions: string[];
@@ -64,6 +65,7 @@ export function MyLinguistBubble({
   onNavigateNext,
   onSpeak,
   onSpeakSlow,
+  onPlayFromNarration,
   onClose,
   lookupLanguageOptions,
   llmModelOptions,
@@ -309,6 +311,15 @@ export function MyLinguistBubble({
       >
         <div className="player-panel__my-linguist-bubble-header-left">
           <span className="player-panel__my-linguist-bubble-title">MyLinguist</span>
+          {bubble.status === 'ready' && bubble.lookupSource ? (
+            <span
+              className={`player-panel__my-linguist-bubble-source player-panel__my-linguist-bubble-source--${bubble.lookupSource}`}
+              title={bubble.lookupSource === 'cache' ? 'Instant lookup (cached)' : 'Live lookup (online)'}
+              aria-label={bubble.lookupSource === 'cache' ? 'Cached lookup' : 'Live lookup'}
+            >
+              {bubble.lookupSource === 'cache' ? '⚡' : '☁'}
+            </span>
+          ) : null}
           <div className="player-panel__my-linguist-bubble-selectors">
             <label className="player-panel__my-linguist-bubble-select">
               <span className="visually-hidden">Lookup language</span>
@@ -425,6 +436,17 @@ export function MyLinguistBubble({
                 ))}
               </select>
             </label>
+          ) : null}
+          {bubble.cachedAudioRef && onPlayFromNarration ? (
+            <button
+              type="button"
+              className="player-panel__my-linguist-bubble-speak player-panel__my-linguist-bubble-speak--narration"
+              onClick={onPlayFromNarration}
+              aria-label="Play word from narration audio"
+              title="Play from narration"
+            >
+              🔊
+            </button>
           ) : null}
           <button
             type="button"

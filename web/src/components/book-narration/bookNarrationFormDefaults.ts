@@ -53,6 +53,8 @@ export const DEFAULT_FORM_STATE: FormState = {
   translation_batch_size: 10,
   transliteration_mode: 'default',
   transliteration_model: '',
+  enable_lookup_cache: true,
+  lookup_cache_batch_size: 10,
   tempo: 1,
   thread_count: '',
   queue_size: '',

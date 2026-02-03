@@ -43,6 +43,8 @@ struct MyLinguistBubbleView: View {
     var onTogglePin: (() -> Void)? = nil
     /// (tvOS) Whether the bubble is in split mode (side-by-side with tracks)
     var isSplitMode: Bool = false
+    /// Callback to play word from narration audio (seeks to cached timing)
+    var onPlayFromNarration: (() -> Void)? = nil
     #if os(iOS)
     /// Optional keyboard navigator for iPad focus management
     @ObservedObject var keyboardNavigator: iOSBubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
@@ -117,6 +119,7 @@ struct MyLinguistBubbleView: View {
         actions.onPreviousToken = onPreviousToken
         actions.onNextToken = onNextToken
         actions.onToggleLayoutDirection = onToggleLayoutDirection
+        actions.onPlayFromNarration = onPlayFromNarration
         #if os(iOS) || os(tvOS)
         actions.onTogglePin = onTogglePin
         #endif

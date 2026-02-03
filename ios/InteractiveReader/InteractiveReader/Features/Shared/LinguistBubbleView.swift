@@ -462,12 +462,30 @@ enum LinguistBubbleStatus: Equatable {
     }
 }
 
+/// Source of a lookup result (cache or live LLM call)
+enum LinguistLookupSource: String, Equatable {
+    case cache
+    case live
+}
+
 /// State for a linguist bubble - represents the current lookup
 struct LinguistBubbleState: Equatable {
     let query: String
     let status: LinguistBubbleStatus
     let answer: String?
     let model: String?
+    let lookupSource: LinguistLookupSource?
+    /// Audio reference from lookup cache - allows playing word from narration audio
+    let cachedAudioRef: LookupCacheAudioRef?
+
+    init(query: String, status: LinguistBubbleStatus, answer: String?, model: String?, lookupSource: LinguistLookupSource? = nil, cachedAudioRef: LookupCacheAudioRef? = nil) {
+        self.query = query
+        self.status = status
+        self.answer = answer
+        self.model = model
+        self.lookupSource = lookupSource
+        self.cachedAudioRef = cachedAudioRef
+    }
 
     /// Parsed structured result (if JSON parsing succeeded)
     var parsedResult: LinguistLookupResult? {
@@ -576,6 +594,9 @@ struct LinguistBubbleActions {
 
     /// Optional callback to toggle pin state (iPad only)
     var onTogglePin: (() -> Void)? = nil
+
+    /// Optional callback to play word from narration audio (seeks audio player to cached timing)
+    var onPlayFromNarration: (() -> Void)? = nil
 }
 
 // MARK: - iPad Split Layout
@@ -692,6 +713,7 @@ struct LinguistBubbleView: View {
         case language
         case model
         case voice
+        case playFromNarration
         case decreaseFont
         case increaseFont
         case pin
@@ -913,23 +935,28 @@ struct LinguistBubbleView: View {
                 lookupLanguageMenu
                 voiceMenu
                 modelMenu
+                tvPlayFromNarrationButton
                 fontSizeControls
                 Spacer(minLength: 4)
                 tvPinToggleButton
                 tvLayoutToggleButton
                 closeButton
             }
-            Text(state.query)
-                .font(queryFont)
-                .foregroundStyle(bubbleTextColor)
-                .lineLimit(3)
-                .minimumScaleFactor(0.7)
+            HStack(spacing: 4) {
+                tvLookupSourceIndicator
+                Text(state.query)
+                    .font(queryFont)
+                    .foregroundStyle(bubbleTextColor)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.7)
+            }
         }
     }
 
     /// tvOS overlay mode header: query and controls side by side
     private var tvOverlayModeHeader: some View {
         HStack(spacing: 8) {
+            tvLookupSourceIndicator
             Text(state.query)
                 .font(queryFont)
                 .foregroundStyle(bubbleTextColor)
@@ -939,10 +966,34 @@ struct LinguistBubbleView: View {
             lookupLanguageMenu
             voiceMenu
             modelMenu
+            tvPlayFromNarrationButton
             fontSizeControls
             tvPinToggleButton
             tvLayoutToggleButton
             closeButton
+        }
+    }
+
+    /// Play from narration button for tvOS - shows when cached audio reference is available
+    @ViewBuilder
+    private var tvPlayFromNarrationButton: some View {
+        if let onPlay = actions.onPlayFromNarration, state.cachedAudioRef != nil {
+            bubbleControlItem(control: .playFromNarration, isEnabled: true, action: onPlay) {
+                Image(systemName: "waveform")
+                    .foregroundStyle(.cyan)
+            }
+            .accessibilityLabel("Play from narration")
+        }
+    }
+
+    /// Source indicator for tvOS showing if lookup was from cache or live
+    @ViewBuilder
+    private var tvLookupSourceIndicator: some View {
+        if state.status == .ready, let source = state.lookupSource {
+            Text(source == .cache ? "⚡" : "☁")
+                .font(.system(size: 16))
+                .foregroundStyle(source == .cache ? .yellow : .cyan)
+                .accessibilityLabel(source == .cache ? "Cached lookup" : "Live lookup")
         }
     }
     #endif
@@ -987,23 +1038,27 @@ struct LinguistBubbleView: View {
                     lookupLanguageMenu
                     voiceMenu
                     modelMenu
+                    playFromNarrationButton
                     Spacer()
                     closeButton
                 }
-                Text(state.query)
-                    .font(queryFont)
-                    .foregroundStyle(bubbleTextColor)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-                    .contextMenu {
-                        let sanitized = TextLookupSanitizer.sanitize(state.query)
-                        Button("Look Up") {
-                            DictionaryLookupPresenter.show(term: sanitized)
+                HStack(spacing: 4) {
+                    lookupSourceIndicator
+                    Text(state.query)
+                        .font(queryFont)
+                        .foregroundStyle(bubbleTextColor)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                        .contextMenu {
+                            let sanitized = TextLookupSanitizer.sanitize(state.query)
+                            Button("Look Up") {
+                                DictionaryLookupPresenter.show(term: sanitized)
+                            }
+                            Button("Copy") {
+                                UIPasteboard.general.string = sanitized
+                            }
                         }
-                        Button("Copy") {
-                            UIPasteboard.general.string = sanitized
-                        }
-                    }
+                }
             }
         } else {
             // iPad: Vertical layout - controls on top, query below (same as iPhone)
@@ -1012,26 +1067,60 @@ struct LinguistBubbleView: View {
                     lookupLanguageMenu
                     voiceMenu
                     modelMenu
+                    playFromNarrationButton
                     Spacer()
                     pinToggleButton
                     layoutToggleButton
                     closeButton
                 }
-                Text(state.query)
-                    .font(queryFont)
-                    .foregroundStyle(bubbleTextColor)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-                    .contextMenu {
-                        let sanitized = TextLookupSanitizer.sanitize(state.query)
-                        Button("Look Up") {
-                            DictionaryLookupPresenter.show(term: sanitized)
+                HStack(spacing: 4) {
+                    lookupSourceIndicator
+                    Text(state.query)
+                        .font(queryFont)
+                        .foregroundStyle(bubbleTextColor)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                        .contextMenu {
+                            let sanitized = TextLookupSanitizer.sanitize(state.query)
+                            Button("Look Up") {
+                                DictionaryLookupPresenter.show(term: sanitized)
+                            }
+                            Button("Copy") {
+                                UIPasteboard.general.string = sanitized
+                            }
                         }
-                        Button("Copy") {
-                            UIPasteboard.general.string = sanitized
-                        }
-                    }
+                }
             }
+        }
+    }
+
+    /// Play from narration button - shows when cached audio reference is available
+    @ViewBuilder
+    private var playFromNarrationButton: some View {
+        if let onPlay = actions.onPlayFromNarration, state.cachedAudioRef != nil {
+            Button(action: onPlay) {
+                Image(systemName: "waveform")
+                    .font(bubbleIconFont)
+                    .foregroundStyle(.cyan)
+                    .padding(bubbleControlPadding)
+                    .background(.black.opacity(0.3), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Play from narration")
+        }
+    }
+
+    /// Source indicator showing if lookup was from cache or live
+    @ViewBuilder
+    private var lookupSourceIndicator: some View {
+        if state.status == .ready, let source = state.lookupSource {
+            Text(source == .cache ? "⚡" : "☁")
+                .font(.system(size: configuration.uiScale * 10))
+                .foregroundStyle(source == .cache ? .yellow : .cyan)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(.black.opacity(0.3), in: Capsule())
+                .accessibilityLabel(source == .cache ? "Cached lookup" : "Live lookup")
         }
     }
 
@@ -1991,9 +2080,12 @@ struct MyLinguistBubbleState: Equatable {
     let status: LinguistBubbleStatus
     let answer: String?
     let model: String?
+    var lookupSource: LinguistLookupSource? = nil
+    /// Audio reference from lookup cache - allows playing word from narration audio
+    var cachedAudioRef: LookupCacheAudioRef? = nil
 
     var asLinguistBubbleState: LinguistBubbleState {
-        LinguistBubbleState(query: query, status: status, answer: answer, model: model)
+        LinguistBubbleState(query: query, status: status, answer: answer, model: model, lookupSource: lookupSource, cachedAudioRef: cachedAudioRef)
     }
 }
 
@@ -2003,9 +2095,10 @@ struct VideoLinguistBubbleState: Equatable {
     let status: LinguistBubbleStatus
     let answer: String?
     let model: String?
+    var lookupSource: LinguistLookupSource? = nil
 
     var asLinguistBubbleState: LinguistBubbleState {
-        LinguistBubbleState(query: query, status: status, answer: answer, model: model)
+        LinguistBubbleState(query: query, status: status, answer: answer, model: model, lookupSource: lookupSource)
     }
 }
 

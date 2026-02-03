@@ -52,6 +52,8 @@ extension JobPlaybackView {
                 resolverOverride: localResolver
             )
             applyOfflineReadingBeds(offlinePayload)
+            // Set offline lookup cache for local word lookups
+            viewModel.offlineLookupCache = offlinePayload.lookupCache
         } else {
             await viewModel.loadJob(
                 jobId: job.jobId,

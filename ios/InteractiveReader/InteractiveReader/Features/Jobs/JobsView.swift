@@ -509,9 +509,16 @@ struct JobsView: View {
         } else if isEligible {
             Button {
                 guard let configuration = appState.configuration else { return }
-                offlineStore.sync(jobId: job.jobId, kind: .job, configuration: configuration)
+                offlineStore.sync(jobId: job.jobId, kind: .job, configuration: configuration, includeLookupCache: true)
             } label: {
-                Label("Download for Offline", systemImage: "arrow.down.circle")
+                Label("Download with Dictionary", systemImage: "arrow.down.circle")
+            }
+            .disabled(!offlineStore.isAvailable || appState.configuration == nil)
+            Button {
+                guard let configuration = appState.configuration else { return }
+                offlineStore.sync(jobId: job.jobId, kind: .job, configuration: configuration, includeLookupCache: false)
+            } label: {
+                Label("Download without Dictionary", systemImage: "arrow.down.circle.dotted")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
         }

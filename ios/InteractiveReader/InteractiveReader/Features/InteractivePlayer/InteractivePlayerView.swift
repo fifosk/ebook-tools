@@ -248,9 +248,14 @@ struct InteractivePlayerView: View {
         // Handle bubble - when pinned, just defocus; when not pinned, close it
         if linguistBubble != nil {
             if tvBubblePinned && tvSplitEnabled {
-                // Pinned bubble: just defocus back to transcript, don't close
-                bubbleFocusEnabled = false
-                focusedArea = .transcript
+                // Pinned bubble with focus: just defocus back to transcript, don't close
+                if bubbleFocusEnabled || focusedArea == .bubble {
+                    bubbleFocusEnabled = false
+                    focusedArea = .transcript
+                    return
+                }
+                // Pinned bubble but focus already on transcript: dismiss to navigate back
+                dismiss()
             } else {
                 // Not pinned: close the bubble
                 closeLinguistBubble()

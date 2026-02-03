@@ -94,6 +94,8 @@ struct InteractiveTranscriptView: View {
     var iPadBubblePinned: Bool = false
     /// Callback to toggle iPad bubble pin state
     var onToggleBubblePin: (() -> Void)? = nil
+    /// Callback to play word from narration audio (seeks to cached timing)
+    var onPlayFromNarration: (() -> Void)? = nil
     /// Keyboard navigator for iPad bubble focus management (iOS only, ignored on tvOS)
     @ObservedObject var bubbleKeyboardNavigator: iOSBubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
 
@@ -302,7 +304,8 @@ struct InteractiveTranscriptView: View {
                                 onNextToken: onBubbleNextToken,
                                 onToggleLayoutDirection: onToggleLayoutDirection,
                                 isPinned: iPadBubblePinned,
-                                onTogglePin: onToggleBubblePin
+                                onTogglePin: onToggleBubblePin,
+                                onPlayFromNarration: onPlayFromNarration
                             )
                             // Let bubble size itself based on content, up to 85% of screen
                             .frame(maxWidth: .infinity, maxHeight: availableHeight * 0.85, alignment: .bottom)
@@ -810,7 +813,8 @@ struct InteractiveTranscriptView: View {
                 onToggleLayoutDirection: onToggleLayoutDirection,
                 isPinned: iPadBubblePinned,
                 onTogglePin: onToggleBubblePin,
-                isSplitMode: true
+                isSplitMode: true,
+                onPlayFromNarration: onPlayFromNarration
             )
             .frame(width: bubbleWidth, height: availableHeight)
             .clipped()
@@ -1162,6 +1166,7 @@ struct InteractiveTranscriptView: View {
                 onToggleLayoutDirection: onToggleLayoutDirection,
                 isPinned: iPadBubblePinned,
                 onTogglePin: onToggleBubblePin,
+                onPlayFromNarration: onPlayFromNarration,
                 keyboardNavigator: bubbleKeyboardNavigator
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -1307,6 +1312,7 @@ struct InteractiveTranscriptView: View {
                         maxContentHeight: contentHeight,
                         onPreviousToken: onBubblePreviousToken,
                         onNextToken: onBubbleNextToken,
+                        onPlayFromNarration: onPlayFromNarration,
                         keyboardNavigator: bubbleKeyboardNavigator
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -1387,6 +1393,7 @@ struct InteractiveTranscriptView: View {
                         maxContentHeight: contentHeight,
                         onPreviousToken: onBubblePreviousToken,
                         onNextToken: onBubbleNextToken,
+                        onPlayFromNarration: onPlayFromNarration,
                         keyboardNavigator: bubbleKeyboardNavigator
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

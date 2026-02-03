@@ -56,6 +56,8 @@ final class InteractivePlayerViewModel: ObservableObject {
     var readingBedBaseURL: URL?
     var apiConfiguration: APIClientConfiguration?
     var mediaOrigin: MediaOrigin = .job
+    /// Offline lookup cache (loaded from OfflineMediaPayload if available)
+    var offlineLookupCache: OfflineMediaStore.LookupCacheOfflineData?
     var preferredAudioKind: InteractiveChunk.AudioOption.Kind?
     var audioDurationByURL: [URL: Double] = [:]
     var chunkMetadataLoaded: Set<String> = []

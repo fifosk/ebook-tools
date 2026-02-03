@@ -60,6 +60,7 @@ type BookNarrationLanguageSectionProps = {
   translationProvider: string;
   transliterationMode: string;
   transliterationModel: string;
+  enableLookupCache: boolean;
   llmModels: string[];
   llmModelsLoading: boolean;
   llmModelsError: string | null;
@@ -86,6 +87,7 @@ type BookNarrationLanguageSectionProps = {
   onTranslationProviderChange: (value: string) => void;
   onTransliterationModeChange: (value: string) => void;
   onTransliterationModelChange: (value: string) => void;
+  onEnableLookupCacheChange: (value: boolean) => void;
   onSentencesPerOutputFileChange: (value: number) => void;
   onStartSentenceChange: (value: number) => void;
   onEndSentenceChange: (value: string) => void;
@@ -109,6 +111,7 @@ const BookNarrationLanguageSection = ({
   translationProvider,
   transliterationMode,
   transliterationModel,
+  enableLookupCache,
   llmModels,
   llmModelsLoading,
   llmModelsError,
@@ -134,6 +137,7 @@ const BookNarrationLanguageSection = ({
   onTranslationProviderChange,
   onTransliterationModeChange,
   onTransliterationModelChange,
+  onEnableLookupCacheChange,
   onSentencesPerOutputFileChange,
   onStartSentenceChange,
   onEndSentenceChange,
@@ -277,6 +281,19 @@ const BookNarrationLanguageSection = ({
         <small className="form-help-text">
           {selectedTransliterationOption.description} Transliteration only appears when enabled in
           Output.
+        </small>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            name="enable_lookup_cache"
+            checked={enableLookupCache}
+            onChange={(event) => onEnableLookupCacheChange(event.target.checked)}
+          />
+          Cache word lookups during translation
+        </label>
+        <small className="form-help-text">
+          Pre-compute dictionary lookups for unique words. Enables instant definitions in the
+          interactive reader without additional LLM calls.
         </small>
         <div className="field-grid">
           <label htmlFor="sentences_per_chunk">
