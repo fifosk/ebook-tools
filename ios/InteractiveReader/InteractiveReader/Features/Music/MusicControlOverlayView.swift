@@ -32,6 +32,7 @@ struct MusicControlOverlayView: View {
                 // Apple Music now-playing info
                 if useAppleMusicForBed {
                     appleMusicInfo
+                    transportControls
                 } else {
                     Text(builtInBedLabel)
                         .font(.caption)
@@ -100,6 +101,67 @@ struct MusicControlOverlayView: View {
         #else
         false
         #endif
+    }
+
+    @ViewBuilder
+    private var transportControls: some View {
+        HStack(spacing: 0) {
+            // Shuffle
+            Button { musicCoordinator.toggleShuffle() } label: {
+                Image(systemName: "shuffle")
+                    .font(.caption)
+                    .foregroundStyle(musicCoordinator.shuffleMode == .songs ? Color.accentColor : .secondary)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+
+            // Skip back
+            Button { musicCoordinator.skipToPrevious() } label: {
+                Image(systemName: "backward.fill")
+                    .font(.subheadline)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+
+            // Play/Pause
+            Button {
+                if musicCoordinator.isPlaying {
+                    musicCoordinator.pause()
+                } else {
+                    musicCoordinator.resume()
+                }
+            } label: {
+                Image(systemName: musicCoordinator.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.title3)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+
+            // Skip forward
+            Button { musicCoordinator.skipToNext() } label: {
+                Image(systemName: "forward.fill")
+                    .font(.subheadline)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+
+            // Repeat
+            Button { musicCoordinator.cycleRepeatMode() } label: {
+                Image(systemName: repeatIconName)
+                    .font(.caption)
+                    .foregroundStyle(musicCoordinator.repeatMode != .off ? Color.accentColor : .secondary)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var repeatIconName: String {
+        switch musicCoordinator.repeatMode {
+        case .one: return "repeat.1"
+        case .all, .off: return "repeat"
+        }
     }
 
     @ViewBuilder

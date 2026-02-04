@@ -214,21 +214,51 @@ extension InteractivePlayerView {
     @ViewBuilder
     var musicPillView: some View {
         let isActive = readingBedEnabled && (useAppleMusicForBed ? musicCoordinator.isPlaying : true)
+        let hasNowPlaying = useAppleMusicForBed && musicCoordinator.currentSongTitle != nil
         let pill = Button {
             showMusicOverlay.toggle()
         } label: {
-            Image(systemName: "music.note")
-                .font(musicPillIconFont)
-                .foregroundStyle(Color.white.opacity(isActive ? 1.0 : 0.85))
-                .padding(.horizontal, (isTV ? 12 : 8) * infoPillScale)
-                .padding(.vertical, (isTV ? 6 : 4) * infoPillScale)
-                .background(
-                    Capsule()
-                        .fill(Color.black.opacity(isActive ? 0.7 : 0.55))
-                        .overlay(
-                            Capsule().stroke(Color.white.opacity(isActive ? 0.35 : 0.22), lineWidth: 1)
-                        )
-                )
+            HStack(spacing: (isTV ? 6 : 4) * infoPillScale) {
+                // Show cover art when Apple Music is active with artwork available
+                if hasNowPlaying, let url = musicCoordinator.currentArtworkURL {
+                    let artSize = (isPhone ? 18 : 22) * infoPillScale
+                    AsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Image(systemName: "music.note")
+                            .font(musicPillIconFont)
+                    }
+                    .frame(width: artSize, height: artSize)
+                    .clipShape(RoundedRectangle(cornerRadius: 3 * infoPillScale))
+                } else {
+                    Image(systemName: "music.note")
+                        .font(musicPillIconFont)
+                }
+                // Show now-playing text alongside cover art (iPad, TV, iPhone landscape)
+                if !isPhonePortrait, hasNowPlaying {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(musicCoordinator.currentSongTitle ?? "")
+                            .font(musicPillNowPlayingFont)
+                            .lineLimit(1)
+                        if let artist = musicCoordinator.currentArtist {
+                            Text(artist)
+                                .font(musicPillArtistFont)
+                                .foregroundStyle(Color.white.opacity(0.7))
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+            .foregroundStyle(Color.white.opacity(isActive ? 1.0 : 0.85))
+            .padding(.horizontal, (isTV ? 12 : 8) * infoPillScale)
+            .padding(.vertical, (isTV ? 6 : 4) * infoPillScale)
+            .background(
+                Capsule()
+                    .fill(Color.black.opacity(isActive ? 0.7 : 0.55))
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(isActive ? 0.35 : 0.22), lineWidth: 1)
+                    )
+            )
         }
         .buttonStyle(.plain)
         .accessibilityLabel(useAppleMusicForBed ? "Apple Music: \(musicCoordinator.currentSongTitle ?? "active")" : "Music")
@@ -268,6 +298,26 @@ extension InteractivePlayerView {
         return .system(size: base * infoPillScale, weight: .semibold)
         #else
         return .system(size: 12 * infoPillScale, weight: .semibold)
+        #endif
+    }
+
+    private var musicPillNowPlayingFont: Font {
+        #if os(iOS) || os(tvOS)
+        let style: UIFont.TextStyle = isTV ? .caption1 : .caption2
+        let base = UIFont.preferredFont(forTextStyle: style).pointSize
+        return .system(size: base * infoPillScale, weight: .medium)
+        #else
+        return .system(size: 10 * infoPillScale, weight: .medium)
+        #endif
+    }
+
+    private var musicPillArtistFont: Font {
+        #if os(iOS) || os(tvOS)
+        let style: UIFont.TextStyle = isTV ? .caption2 : .caption2
+        let base = UIFont.preferredFont(forTextStyle: style).pointSize
+        return .system(size: (base - 1) * infoPillScale, weight: .regular)
+        #else
+        return .system(size: 9 * infoPillScale, weight: .regular)
         #endif
     }
 

@@ -8,7 +8,21 @@ import MusicKit
 enum MusicPreferences {
     static let useAppleMusicKey = "player.useAppleMusicForBed"
     static let musicVolumeKey = "player.musicVolume"
+    static let readingBedEnabledKey = "player.readingBedEnabled"
+    static let shuffleModeKey = "player.shuffleMode"
+    static let repeatModeKey = "player.repeatMode"
+    static let lastReadingBedIDKey = "player.lastReadingBedID"
     static let defaultMusicVolume: Double = 0.15
+}
+
+/// Platform-agnostic shuffle mode (mirrors MusicPlayer.ShuffleMode).
+enum MusicKitShuffleMode: String {
+    case off, songs
+}
+
+/// Platform-agnostic repeat mode (mirrors MusicPlayer.RepeatMode).
+enum MusicKitRepeatMode: String {
+    case off, one, all
 }
 
 /// Who currently owns the lock screen / Control Centre Now Playing info.
@@ -30,6 +44,8 @@ final class MusicKitCoordinator: ObservableObject {
     @Published private(set) var currentArtist: String?
     @Published private(set) var currentArtworkURL: URL?
     @Published private(set) var ownershipState: AudioOwnership = .narration
+    @Published var shuffleMode: MusicKitShuffleMode = .off
+    @Published var repeatMode: MusicKitRepeatMode = .off
 
     /// Whether Apple Music is actively serving as the reading bed.
     var isBackgroundMode: Bool { ownershipState == .appleMusic }
@@ -39,6 +55,8 @@ final class MusicKitCoordinator: ObservableObject {
 
     private init() {
         isAuthorized = MusicAuthorization.currentStatus == .authorized
+        restorePersistedState()
+        applyPersistedModesToPlayer()
         observePlaybackState()
     }
 
@@ -139,6 +157,103 @@ final class MusicKitCoordinator: ObservableObject {
         ApplicationMusicPlayer.shared.pause()
     }
 
+    func skipToNext() {
+        Task {
+            do {
+                try await ApplicationMusicPlayer.shared.skipToNextEntry()
+                updateCurrentTrackInfo()
+            } catch {
+                print("[MusicKit] Failed to skip next: \(error)")
+            }
+        }
+    }
+
+    func skipToPrevious() {
+        Task {
+            do {
+                try await ApplicationMusicPlayer.shared.skipToPreviousEntry()
+                updateCurrentTrackInfo()
+            } catch {
+                print("[MusicKit] Failed to skip previous: \(error)")
+            }
+        }
+    }
+
+    func toggleShuffle() {
+        let player = ApplicationMusicPlayer.shared
+        switch player.state.shuffleMode {
+        case .off:
+            player.state.shuffleMode = .songs
+            shuffleMode = .songs
+        default:
+            player.state.shuffleMode = .off
+            shuffleMode = .off
+        }
+        persistModes()
+    }
+
+    func cycleRepeatMode() {
+        let player = ApplicationMusicPlayer.shared
+        let current = player.state.repeatMode
+        if current == nil || current == .none {
+            player.state.repeatMode = .all
+            repeatMode = .all
+        } else if current == .all {
+            player.state.repeatMode = .one
+            repeatMode = .one
+        } else {
+            player.state.repeatMode = .none
+            repeatMode = .off
+        }
+        persistModes()
+    }
+
+    private func syncShuffleRepeatFromPlayer() {
+        let player = ApplicationMusicPlayer.shared
+        switch player.state.shuffleMode {
+        case .songs: shuffleMode = .songs
+        default: shuffleMode = .off
+        }
+        switch player.state.repeatMode {
+        case .one: repeatMode = .one
+        case .all: repeatMode = .all
+        default: repeatMode = .off
+        }
+        persistModes()
+    }
+
+    private func persistModes() {
+        UserDefaults.standard.set(shuffleMode.rawValue, forKey: MusicPreferences.shuffleModeKey)
+        UserDefaults.standard.set(repeatMode.rawValue, forKey: MusicPreferences.repeatModeKey)
+    }
+
+    private func restorePersistedState() {
+        // Restore shuffle/repeat from UserDefaults
+        if let raw = UserDefaults.standard.string(forKey: MusicPreferences.shuffleModeKey),
+           let mode = MusicKitShuffleMode(rawValue: raw) {
+            shuffleMode = mode
+        }
+        if let raw = UserDefaults.standard.string(forKey: MusicPreferences.repeatModeKey),
+           let mode = MusicKitRepeatMode(rawValue: raw) {
+            repeatMode = mode
+        }
+        // Restore now-playing info from the system player queue
+        updateCurrentTrackInfo()
+    }
+
+    private func applyPersistedModesToPlayer() {
+        let player = ApplicationMusicPlayer.shared
+        switch shuffleMode {
+        case .songs: player.state.shuffleMode = .songs
+        case .off: player.state.shuffleMode = .off
+        }
+        switch repeatMode {
+        case .all: player.state.repeatMode = .all
+        case .one: player.state.repeatMode = .one
+        case .off: player.state.repeatMode = .none
+        }
+    }
+
     func stop() {
         ApplicationMusicPlayer.shared.stop()
         currentSongTitle = nil
@@ -197,6 +312,7 @@ final class MusicKitCoordinator: ObservableObject {
                         self?.isPlaying = status == .playing
                         if status == .playing {
                             self?.updateCurrentTrackInfo()
+                            self?.syncShuffleRepeatFromPlayer()
                         }
                     }
                 }
@@ -227,6 +343,10 @@ final class MusicKitCoordinator: ObservableObject {
     func requestAuthorization() async -> Bool { false }
     func resume() {}
     func pause() {}
+    func skipToNext() {}
+    func skipToPrevious() {}
+    func toggleShuffle() {}
+    func cycleRepeatMode() {}
     func stop() {
         currentSongTitle = nil
         currentArtist = nil

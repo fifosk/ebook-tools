@@ -79,7 +79,7 @@ struct JobPlaybackView: View {
             .onChange(of: musicOwnership.ownershipState) { _, state in
                 switch state {
                 case .narration:
-                    // Narration should own the lock screen — reassert
+                    // Narration owns the lock screen — reassert sentence controls
                     nowPlaying.setRemoteCommandsEnabled(true)
                     configureNowPlaying()
                     updateNowPlayingMetadata(sentenceIndex: sentenceIndex)
@@ -90,7 +90,7 @@ struct JobPlaybackView: View {
                         force: true
                     )
                 case .appleMusic:
-                    // Apple Music now owns the lock screen — disable our remote commands
+                    // Apple Music owns the lock screen — respect iOS behavior
                     nowPlaying.setRemoteCommandsEnabled(false)
                     nowPlaying.clear()
                 case .transitioning:
@@ -460,6 +460,12 @@ struct JobPlaybackView: View {
         return hasVideo && !hasInteractiveChunks
     }
 
+    /// Whether Apple Music owns the lock screen.
+    /// Built-in reading bed uses AVAudioPlayer mixing and doesn't hijack lock screen controls.
+    var isAppleMusicOwningLockScreen: Bool {
+        musicOwnership.ownershipState == .appleMusic
+    }
+
     var jobProgressLabel: String? {
         let statusLabel = jobStatusLabel
         if let percent = jobProgressPercent {
@@ -500,7 +506,7 @@ struct JobPlaybackView: View {
     }
 
     func updateNowPlayingMetadata(sentenceIndex: Int?) {
-        guard musicOwnership.ownershipState == .narration else { return }
+        guard !isAppleMusicOwningLockScreen else { return }
         let totalSentences = totalSentenceCount
         let sentence = sentenceIndex.flatMap { index -> String? in
             guard index > 0 else { return nil }

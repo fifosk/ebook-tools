@@ -21,7 +21,7 @@ struct InteractivePlayerView: View {
     let bookmarkJobId: String?
     let bookmarkItemType: String?
     @State var readingBedCoordinator = AudioPlayerCoordinator(role: .ambient)
-    @State var readingBedEnabled = true
+    @AppStorage(MusicPreferences.readingBedEnabledKey) var readingBedEnabled = true
     @State var showMusicPicker = false
     @State var showMusicOverlay = false
     @StateObject var musicCoordinator = MusicKitCoordinator.shared

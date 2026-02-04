@@ -686,6 +686,7 @@ struct LinguistBubbleView: View {
 
     #if os(iOS)
     @State private var magnifyStartScale: CGFloat?
+    @State private var measuredBubbleWidth: CGFloat = 0
     /// Optional keyboard navigator for iPad focus management
     @ObservedObject var keyboardNavigator: iOSBubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
     /// Active picker for keyboard-triggered selection (iOS)
@@ -699,6 +700,13 @@ struct LinguistBubbleView: View {
 
     private var isPhone: Bool {
         UIDevice.current.userInterfaceIdiom == .phone
+    }
+
+    /// When the bubble is narrow (e.g. horizontal split with reduced width),
+    /// collapse model and voice pills to icon-only.
+    private var useCompactPills: Bool {
+        // Threshold: below 300pt, show icons only
+        measuredBubbleWidth > 0 && measuredBubbleWidth < 300
     }
     #endif
 
@@ -780,6 +788,16 @@ struct LinguistBubbleView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        #if os(iOS)
+        .background(
+            GeometryReader { widthProxy in
+                Color.clear.onChange(of: widthProxy.size.width) { _, newWidth in
+                    measuredBubbleWidth = newWidth
+                }
+                .onAppear { measuredBubbleWidth = widthProxy.size.width }
+            }
+        )
+        #endif
         #if os(tvOS)
         // In split mode, fill available height to prevent size changes during loading
         .frame(maxHeight: configuration.isSplitMode ? .infinity : nil, alignment: .top)
@@ -1252,13 +1270,15 @@ struct LinguistBubbleView: View {
             HStack(spacing: 3) {
                 Image(systemName: "brain")
                     .font(bubbleSelectorIconFont)
-                Text(formatModelLabel(configuration.llmModel))
-                    .font(bubbleSelectorTextFont)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                if !useCompactPills {
+                    Text(formatModelLabel(configuration.llmModel))
+                        .font(bubbleSelectorTextFont)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
             }
             .foregroundStyle(.white)
-            .padding(.horizontal, bubbleSelectorPaddingH)
+            .padding(.horizontal, useCompactPills ? bubbleSelectorPaddingV : bubbleSelectorPaddingH)
             .padding(.vertical, bubbleSelectorPaddingV)
             .background(.black.opacity(0.3), in: Capsule())
             .overlay(
@@ -1340,7 +1360,7 @@ struct LinguistBubbleView: View {
                 HStack(spacing: 3) {
                     Image(systemName: "speaker.wave.2.fill")
                         .font(bubbleSelectorIconFont)
-                    if let voice = configuration.ttsVoice {
+                    if !useCompactPills, let voice = configuration.ttsVoice {
                         Text(formatVoiceLabel(voice))
                             .font(bubbleSelectorTextFont)
                             .lineLimit(1)
@@ -1348,7 +1368,7 @@ struct LinguistBubbleView: View {
                     }
                 }
                 .foregroundStyle(.white)
-                .padding(.horizontal, bubbleSelectorPaddingH)
+                .padding(.horizontal, useCompactPills ? bubbleSelectorPaddingV : bubbleSelectorPaddingH)
                 .padding(.vertical, bubbleSelectorPaddingV)
                 .background(.black.opacity(0.3), in: Capsule())
                 .overlay(

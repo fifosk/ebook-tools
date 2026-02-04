@@ -203,6 +203,20 @@ struct InteractiveTranscriptView: View {
                 }
                 onLookupToken(sentenceIndex, variantKind, tokenIndex, token)
             }
+            let tokenSeekHandler: (Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void = {
+                sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime in
+                // When paused, single tap triggers lookup — suppress background gesture
+                // to prevent it from closing the bubble
+                if !audioCoordinator.isPlaying {
+                    suppressPlaybackTask?.cancel()
+                    suppressPlaybackToggle = true
+                    suppressPlaybackTask = Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 350_000_000)
+                        suppressPlaybackToggle = false
+                    }
+                }
+                onSeekToken(sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime)
+            }
             let resolvedTrackFontScale = isTV ? {
                 guard bubble != nil else { return trackFontScale }
                 return max(trackFontScale * 0.85, 0.85)
@@ -220,7 +234,7 @@ struct InteractiveTranscriptView: View {
                 selection: selection,
                 selectionRange: selectionRange,
                 onTokenLookup: tokenLookupHandler,
-                onTokenSeek: onSeekToken,
+                onTokenSeek: tokenSeekHandler,
                 fontScale: resolvedTrackFontScale,
                 playbackPrimaryKind: playbackPrimaryKind,
                 visibleTracks: visibleTracks,
@@ -471,6 +485,22 @@ struct InteractiveTranscriptView: View {
                             onNavigateTrack(-1)
                         }
                     }
+                }
+            }
+    }
+
+    /// Swipe gesture for the bubble area in split view.
+    /// Horizontal swipes navigate tokens (previous/next word).
+    private var bubbleAreaSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 24, coordinateSpace: .local)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(horizontal) > abs(vertical) else { return }
+                if horizontal < 0 {
+                    onBubbleNextToken?()
+                } else {
+                    onBubblePreviousToken?()
                 }
             }
     }
@@ -1177,6 +1207,7 @@ struct InteractiveTranscriptView: View {
         .contentShape(Rectangle())
         // Consume taps on bubble content
         .onTapGesture { /* consume tap */ }
+        .simultaneousGesture(bubbleAreaSwipeGesture, including: .all)
         .background(GeometryReader { bubbleProxy in
             Color.clear.preference(
                 key: InteractiveBubbleFrameKey.self,
@@ -1324,6 +1355,7 @@ struct InteractiveTranscriptView: View {
                 .contentShape(Rectangle())
                 // Consume taps on bubble content to prevent them from reaching the dismiss area
                 .onTapGesture { /* consume tap */ }
+                .simultaneousGesture(bubbleAreaSwipeGesture, including: .all)
                 .background(GeometryReader { bubbleProxy in
                     Color.clear.preference(
                         key: InteractiveBubbleFrameKey.self,
@@ -1405,6 +1437,7 @@ struct InteractiveTranscriptView: View {
                 .contentShape(Rectangle())
                 // Consume taps on bubble content to prevent them from reaching the dismiss area
                 .onTapGesture { /* consume tap */ }
+                .simultaneousGesture(bubbleAreaSwipeGesture, including: .all)
                 .background(GeometryReader { bubbleProxy in
                     Color.clear.preference(
                         key: InteractiveBubbleFrameKey.self,

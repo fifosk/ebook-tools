@@ -17,7 +17,7 @@ extension JobPlaybackView {
 
     func updateNowPlayingPlayback(time: Double) {
         guard !isVideoPreferred else { return }
-        guard musicOwnership.ownershipState == .narration else { return }
+        guard !isAppleMusicOwningLockScreen else { return }
         let highlightTime = viewModel.highlightingTime
         if let resolvedIndex = resolveResumeSentenceIndex(at: highlightTime) {
             if sentenceIndex != resolvedIndex {

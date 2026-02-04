@@ -69,7 +69,7 @@ extension JobPlaybackView {
         }
         refreshActiveVideoSegment()
         preloadSegmentDurations()
-        if isVideoPreferred {
+        if isVideoPreferred || isAppleMusicOwningLockScreen {
             nowPlaying.clear()
         } else {
             configureNowPlaying()

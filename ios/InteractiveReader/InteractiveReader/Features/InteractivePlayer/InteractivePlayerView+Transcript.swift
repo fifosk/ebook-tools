@@ -316,6 +316,19 @@ extension InteractivePlayerView {
         seekTime: Double?,
         in chunk: InteractiveChunk
     ) {
+        // When paused, single tap selects the token and triggers a lookup instead of seeking
+        if !audioCoordinator.isPlaying {
+            if let token = resolveTokenText(sentenceIndex: sentenceIndex, variantKind: variantKind, tokenIndex: tokenIndex, in: chunk) {
+                handleLinguistLookup(
+                    sentenceIndex: sentenceIndex,
+                    variantKind: variantKind,
+                    tokenIndex: tokenIndex,
+                    token: token
+                )
+                return
+            }
+        }
+
         linguistSelectionRange = nil
         linguistSelection = TextPlayerWordSelection(
             sentenceIndex: sentenceIndex,
@@ -383,6 +396,26 @@ extension InteractivePlayerView {
         if let sentenceNumber, sentenceNumber > 0 {
             viewModel.jumpToSentence(sentenceNumber, autoPlay: audioCoordinator.isPlaybackRequested)
         }
+    }
+
+    private func resolveTokenText(
+        sentenceIndex: Int,
+        variantKind: TextPlayerVariantKind,
+        tokenIndex: Int,
+        in chunk: InteractiveChunk
+    ) -> String? {
+        guard let sentence = chunk.sentences.first(where: { $0.id == sentenceIndex }) else { return nil }
+        let tokens: [String]
+        switch variantKind {
+        case .original:
+            tokens = sentence.originalTokens
+        case .translation:
+            tokens = sentence.translationTokens
+        case .transliteration:
+            tokens = sentence.transliterationTokens
+        }
+        guard tokens.indices.contains(tokenIndex) else { return nil }
+        return tokens[tokenIndex]
     }
 
     private func audioKind(for variantKind: TextPlayerVariantKind) -> InteractiveChunk.AudioOption.Kind {

@@ -2,7 +2,9 @@ import Foundation
 
 extension InteractivePlayerViewModel {
     func selectReadingBed(id: String?) {
+        // If no explicit ID provided, try to restore the last used one
         let normalized = id?.nonEmptyValue
+            ?? UserDefaults.standard.string(forKey: MusicPreferences.lastReadingBedIDKey)?.nonEmptyValue
         let validID: String?
         if let normalized,
            let beds = readingBedCatalog?.beds,
@@ -12,6 +14,10 @@ extension InteractivePlayerViewModel {
             validID = nil
         }
         selectedReadingBedID = validID
+        // Persist the selection for future sessions
+        if let validID {
+            UserDefaults.standard.set(validID, forKey: MusicPreferences.lastReadingBedIDKey)
+        }
         readingBedURL = resolveReadingBedURL(from: readingBedCatalog, selectedID: validID)
     }
 
