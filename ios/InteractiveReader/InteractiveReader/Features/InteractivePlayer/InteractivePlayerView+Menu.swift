@@ -493,12 +493,16 @@ extension InteractivePlayerView {
         }
     }
 
+    private var showReadingBedPicker: Bool {
+        viewModel.readingBedURL != nil
+    }
+
     @ViewBuilder
     func readingBedPicker() -> some View {
-        if viewModel.readingBedURL != nil {
+        if showReadingBedPicker {
             let bedLabel = selectedReadingBedLabel
             VStack(alignment: .leading, spacing: 4) {
-                Text("Music")
+                Text("Reading Bed")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Menu {
@@ -510,10 +514,12 @@ extension InteractivePlayerView {
                         }
                     }
                     Divider()
+                    // Built-in reading bed options
                     Button {
+                        if useAppleMusicForBed { switchToBuiltInBed() }
                         viewModel.selectReadingBed(id: nil)
                     } label: {
-                        if viewModel.selectedReadingBedID == nil {
+                        if !useAppleMusicForBed && viewModel.selectedReadingBedID == nil {
                             Label("Default", systemImage: "checkmark")
                         } else {
                             Text("Default")
@@ -522,9 +528,10 @@ extension InteractivePlayerView {
                     ForEach(viewModel.readingBedCatalog?.beds ?? []) { bed in
                         let label = bed.label.isEmpty ? bed.id : bed.label
                         Button {
+                            if useAppleMusicForBed { switchToBuiltInBed() }
                             viewModel.selectReadingBed(id: bed.id)
                         } label: {
-                            if bed.id == viewModel.selectedReadingBedID {
+                            if !useAppleMusicForBed && bed.id == viewModel.selectedReadingBedID {
                                 Label(label, systemImage: "checkmark")
                             } else {
                                 Text(label)

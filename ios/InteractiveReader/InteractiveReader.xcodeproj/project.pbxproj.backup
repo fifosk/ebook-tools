@@ -237,8 +237,6 @@
 		33504D85ACDA464C6F8D38AC /* MusicSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12E5417D0C30D18B4C578C9D /* MusicSearchService.swift */; };
 		0AA14CF94F033E1561DED356 /* AppleMusicPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFFB27F7B9307C2DEB5ED919 /* AppleMusicPickerView.swift */; };
 		98FE20212129DC395448051E /* AppleMusicPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFFB27F7B9307C2DEB5ED919 /* AppleMusicPickerView.swift */; };
-		C756197A16A3112CFFC65A5D /* MusicControlOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */; };
-		AD96DB5410D66AB63DEF1A66 /* MusicControlOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -365,7 +363,6 @@
 		DAA1F6854050F5820C7B281F /* MusicKitCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Services/MusicKitCoordinator.swift; sourceTree = SOURCE_ROOT; };
 		12E5417D0C30D18B4C578C9D /* MusicSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Services/MusicSearchService.swift; sourceTree = SOURCE_ROOT; };
 		DFFB27F7B9307C2DEB5ED919 /* AppleMusicPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/Music/AppleMusicPickerView.swift; sourceTree = SOURCE_ROOT; };
-		AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/Music/MusicControlOverlayView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -535,7 +532,6 @@
 			children = (
 				6FDC3A2202F914D000A1D9A1 /* InteractivePlayerView.swift */,
 				DFFB27F7B9307C2DEB5ED919 /* AppleMusicPickerView.swift */,
-				AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */,
 				12E5417D0C30D18B4C578C9D /* MusicSearchService.swift */,
 				DAA1F6854050F5820C7B281F /* MusicKitCoordinator.swift */,
 				1C248D65273844EFBDC49279 /* InteractivePlayerView+Layout.swift */,
@@ -974,7 +970,6 @@
 				30803A10C343786F04F20799 /* MusicKitCoordinator.swift in Sources */,
 				F285025C3E8E1EA57F8A1494 /* MusicSearchService.swift in Sources */,
 				0AA14CF94F033E1561DED356 /* AppleMusicPickerView.swift in Sources */,
-				C756197A16A3112CFFC65A5D /* MusicControlOverlayView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1094,7 +1089,6 @@
 				A9D0BD69F12150194C7FAE4D /* MusicKitCoordinator.swift in Sources */,
 				33504D85ACDA464C6F8D38AC /* MusicSearchService.swift in Sources */,
 				98FE20212129DC395448051E /* AppleMusicPickerView.swift in Sources */,
-				AD96DB5410D66AB63DEF1A66 /* MusicControlOverlayView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

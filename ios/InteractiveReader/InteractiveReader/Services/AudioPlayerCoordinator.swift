@@ -19,6 +19,9 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     @Published private(set) var activeURLs: [URL] = []
     /// Current file index in multi-file playback (0-based)
     @Published private(set) var currentFileIndex: Int = 0
+    /// Target volume level that should be restored after temporary muting (e.g., during track switches).
+    /// This preserves the user's volume mix setting across sentence/track transitions.
+    private(set) var targetVolume: Double = 1.0
     var onPlaybackEnded: (() -> Void)?
 
     let role: AudioPlaybackRole
@@ -153,6 +156,23 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         let clamped = min(max(value, 0), 1)
         volume = clamped
         player?.volume = Float(clamped)
+    }
+
+    /// Set the target volume that will be restored after temporary muting.
+    /// Use this to persist volume mix settings across track/sentence transitions.
+    func setTargetVolume(_ value: Double) {
+        let clamped = min(max(value, 0), 1)
+        targetVolume = clamped
+        // Also apply immediately if not currently muted
+        if volume > 0 {
+            setVolume(clamped)
+        }
+    }
+
+    /// Restore volume to the target level after temporary muting.
+    /// Call this instead of setVolume(1) to respect the user's volume mix setting.
+    func restoreVolume() {
+        setVolume(targetVolume)
     }
 
     func setLooping(_ loop: Bool) {
@@ -369,6 +389,30 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         tearDownPlayerAsync()
     }
 
+    /// Whether audio session is configured to mix with other audio sources (e.g., Apple Music).
+    private var isMixingEnabled = false
+
+    /// Configure audio session to allow mixing with other audio sources.
+    /// When `mixing` is true, narration coexists with Apple Music (ducking its volume).
+    /// When false, narration takes exclusive audio session control.
+    func configureAudioSessionForMixing(_ mixing: Bool) {
+        #if os(iOS) || os(tvOS)
+        guard role == .primary else { return }
+        isMixingEnabled = mixing
+        let session = AVAudioSession.sharedInstance()
+        do {
+            let options: AVAudioSession.CategoryOptions = mixing
+                ? [.mixWithOthers, .duckOthers]
+                : []
+            try session.setCategory(.playback, mode: .spokenAudio, options: options)
+            try session.setActive(true)
+            print("[AudioSession] Configured: mixing=\(mixing)")
+        } catch {
+            print("[AudioSession] Failed to configure mixing: \(error)")
+        }
+        #endif
+    }
+
     private func configureAudioSession() {
         #if os(iOS) || os(tvOS)
         // Only configure audio session for primary role to avoid conflicts
@@ -379,9 +423,14 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         do {
             // Use playback category with spokenAudio mode for the main player
             // This allows background playback and proper audio routing
-            try session.setCategory(.playback, mode: .spokenAudio, options: [])
+            // Preserve current mixing state so Apple Music integration isn't disrupted
+            let options: AVAudioSession.CategoryOptions = isMixingEnabled
+                ? [.mixWithOthers, .duckOthers]
+                : []
+            try session.setCategory(.playback, mode: .spokenAudio, options: options)
             try session.setActive(true)
-            print("[AudioSession] Configured: category=playback, mode=spokenAudio")
+            let label = isMixingEnabled ? "mixing" : "exclusive"
+            print("[AudioSession] Configured: category=playback, mode=spokenAudio (\(label))")
         } catch {
             print("[AudioSession] Failed to configure: \(error)")
         }

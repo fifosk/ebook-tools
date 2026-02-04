@@ -22,6 +22,11 @@ struct InteractivePlayerView: View {
     let bookmarkItemType: String?
     @State var readingBedCoordinator = AudioPlayerCoordinator(role: .ambient)
     @State var readingBedEnabled = true
+    @State var showMusicPicker = false
+    @State var showMusicOverlay = false
+    @StateObject var musicCoordinator = MusicKitCoordinator.shared
+    @AppStorage(MusicPreferences.useAppleMusicKey) var useAppleMusicForBed = false
+    @AppStorage(MusicPreferences.musicVolumeKey) var musicVolume: Double = MusicPreferences.defaultMusicVolume
     @State var scrubbedTime: Double?
     @State var visibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
     @State var hasCustomTrackSelection = false
@@ -64,6 +69,7 @@ struct InteractivePlayerView: View {
     @StateObject var bubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
     @StateObject var pronunciationSpeaker = PronunciationSpeaker()
     @State var bookmarks: [PlaybackBookmarkEntry] = []
+    @StateObject var musicSearchService = MusicSearchService()
     @StateObject var searchViewModel = MediaSearchViewModel()
     #if os(tvOS)
     @State var didSetInitialFocus = false
@@ -75,7 +81,6 @@ struct InteractivePlayerView: View {
     @FocusState var focusedArea: InteractivePlayerFocusArea?
 
     let playbackRates: [Double] = [0.7, 0.85, 1.0, 1.15, 1.3, 1.5]
-    let readingBedVolume: Double = 0.08
     let readingBedPauseDelayNanos: UInt64 = 250_000_000
     let linguistAutoLookupDelayNanos: UInt64 = 1_000_000_000
     let trackFontScaleStep: CGFloat = 0.1

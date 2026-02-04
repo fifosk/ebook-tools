@@ -266,7 +266,7 @@ extension InteractivePlayerViewModel {
                     self.sequenceController.endTransition(expectedTime: seekTime)
                     self.readyCancellable?.cancel()
                     self.readyCancellable = nil
-                    self.audioCoordinator.setVolume(1)
+                    self.audioCoordinator.restoreVolume()
                     if shouldPlay {
                         self.audioCoordinator.play()
                     }
@@ -276,7 +276,7 @@ extension InteractivePlayerViewModel {
             sequenceController.endTransition(expectedTime: nil)
             readyCancellable?.cancel()
             readyCancellable = nil
-            audioCoordinator.setVolume(1)
+            audioCoordinator.restoreVolume()
             if shouldPlay {
                 audioCoordinator.play()
             }

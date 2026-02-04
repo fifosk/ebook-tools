@@ -128,6 +128,45 @@ final class NowPlayingCoordinator: ObservableObject {
         #endif
     }
 
+    /// Enable or disable remote command center controls.
+    /// Disable when Apple Music should own the lock screen; re-enable when narration takes over.
+    func setRemoteCommandsEnabled(_ enabled: Bool) {
+        #if canImport(MediaPlayer)
+        guard isConfigured else { return }
+        let center = MPRemoteCommandCenter.shared()
+        if enabled {
+            center.playCommand.isEnabled = true
+            center.pauseCommand.isEnabled = true
+            center.togglePlayPauseCommand.isEnabled = true
+            center.nextTrackCommand.isEnabled = nextHandler != nil
+            center.previousTrackCommand.isEnabled = previousHandler != nil
+            center.changePlaybackPositionCommand.isEnabled = true
+            let skipInterval = max(skipIntervalSeconds, 1)
+            center.skipForwardCommand.isEnabled = skipForwardHandler != nil
+            center.skipBackwardCommand.isEnabled = skipBackwardHandler != nil
+            center.skipForwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
+            center.skipBackwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
+            #if os(iOS)
+            center.bookmarkCommand.isEnabled = bookmarkHandler != nil
+            UIApplication.shared.beginReceivingRemoteControlEvents()
+            #endif
+        } else {
+            center.playCommand.isEnabled = false
+            center.pauseCommand.isEnabled = false
+            center.togglePlayPauseCommand.isEnabled = false
+            center.nextTrackCommand.isEnabled = false
+            center.previousTrackCommand.isEnabled = false
+            center.changePlaybackPositionCommand.isEnabled = false
+            center.skipForwardCommand.isEnabled = false
+            center.skipBackwardCommand.isEnabled = false
+            #if os(iOS)
+            center.bookmarkCommand.isEnabled = false
+            UIApplication.shared.endReceivingRemoteControlEvents()
+            #endif
+        }
+        #endif
+    }
+
     func updateMetadata(
         title: String,
         artist: String?,
@@ -185,11 +224,11 @@ final class NowPlayingCoordinator: ObservableObject {
         #endif
     }
 
-    func updatePlaybackState(isPlaying: Bool, position: Double, duration: Double) {
+    func updatePlaybackState(isPlaying: Bool, position: Double, duration: Double, force: Bool = false) {
         #if canImport(MediaPlayer)
         let clamped = max(0, position)
         var didUpdate = false
-        if abs(clamped - lastElapsedUpdate) > 0.5 || duration != lastDuration {
+        if force || abs(clamped - lastElapsedUpdate) > 0.5 || duration != lastDuration {
             metadata[MPNowPlayingInfoPropertyElapsedPlaybackTime] = clamped
             metadata[MPMediaItemPropertyPlaybackDuration] = max(duration, 0)
             lastElapsedUpdate = clamped
@@ -198,11 +237,11 @@ final class NowPlayingCoordinator: ObservableObject {
         }
         let playbackRate = isPlaying ? 1.0 : 0.0
         let storedRate = (metadata[MPNowPlayingInfoPropertyPlaybackRate] as? NSNumber)?.doubleValue
-        if storedRate != playbackRate {
+        if force || storedRate != playbackRate {
             metadata[MPNowPlayingInfoPropertyPlaybackRate] = playbackRate
             didUpdate = true
         }
-        if didUpdate {
+        if didUpdate || force {
             applyNowPlaying()
         }
         #endif

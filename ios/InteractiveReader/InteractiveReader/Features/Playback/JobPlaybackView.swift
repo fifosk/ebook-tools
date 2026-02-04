@@ -17,6 +17,7 @@ struct JobPlaybackView: View {
 
     @StateObject var viewModel = InteractivePlayerViewModel()
     @StateObject var nowPlaying = NowPlayingCoordinator()
+    @StateObject var musicOwnership = MusicKitCoordinator.shared
     @State var sentenceIndex: Int?
     @State var showImageReel = true
     @State var videoResumeTime: Double?
@@ -74,6 +75,27 @@ struct JobPlaybackView: View {
             }
             .onReceive(viewModel.audioCoordinator.$isReady) { _ in
                 updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
+            }
+            .onChange(of: musicOwnership.ownershipState) { _, state in
+                switch state {
+                case .narration:
+                    // Narration should own the lock screen — reassert
+                    nowPlaying.setRemoteCommandsEnabled(true)
+                    configureNowPlaying()
+                    updateNowPlayingMetadata(sentenceIndex: sentenceIndex)
+                    nowPlaying.updatePlaybackState(
+                        isPlaying: viewModel.audioCoordinator.isPlaying,
+                        position: viewModel.audioCoordinator.currentTime,
+                        duration: viewModel.audioCoordinator.duration,
+                        force: true
+                    )
+                case .appleMusic:
+                    // Apple Music now owns the lock screen — disable our remote commands
+                    nowPlaying.setRemoteCommandsEnabled(false)
+                    nowPlaying.clear()
+                case .transitioning:
+                    break // Wait for final state
+                }
             }
             .onChange(of: videoSegments.map(\.id)) { _, _ in
                 refreshActiveVideoSegment()
@@ -478,6 +500,7 @@ struct JobPlaybackView: View {
     }
 
     func updateNowPlayingMetadata(sentenceIndex: Int?) {
+        guard musicOwnership.ownershipState == .narration else { return }
         let totalSentences = totalSentenceCount
         let sentence = sentenceIndex.flatMap { index -> String? in
             guard index > 0 else { return nil }

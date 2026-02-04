@@ -49,6 +49,8 @@
     </dict>
   </dict>
 </dict>
+  <key>NSAppleMusicUsageDescription</key>
+  <string>Play songs from your Apple Music library as background music while reading.</string>
   <key>NSLocalNetworkUsageDescription</key>
   <string>Allow access to the ebook-tools server on your local network.</string>
   <key>UIBackgroundModes</key>

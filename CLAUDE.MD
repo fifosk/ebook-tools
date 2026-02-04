@@ -172,6 +172,32 @@ The iOS apps are in `ios/InteractiveReader/`. Use Xcode or command-line builds.
 
 **Note**: Simulator names change with Xcode versions. If a destination isn't found, the error output lists available simulators.
 
+**Adding New Swift Files to the Project**:
+
+When creating new Swift files, they must be added to the Xcode project explicitly:
+
+1. **Recommended: Use the `ios_add_swift_files.py` script**
+   ```bash
+   # Add files to both iOS and tvOS targets
+   python scripts/ios_add_swift_files.py \
+       Services/MusicKitCoordinator.swift \
+       Features/Music/AppleMusicPickerView.swift
+
+   # Preview changes without modifying the project
+   python scripts/ios_add_swift_files.py --dry-run Services/NewFile.swift
+   ```
+   Paths are relative to `InteractiveReader/` source root. The script handles
+   PBXFileReference, PBXBuildFile (both targets), PBXGroup membership, and
+   PBXSourcesBuildPhase entries. Creates a `.backup` before writing.
+
+2. **Alternative: Use Xcode UI**
+   - Open `ios/InteractiveReader/InteractiveReader.xcodeproj` in Xcode
+   - Right-click the target folder in the Project Navigator
+   - Select "Add Files to InteractiveReader"
+   - Ensure both targets (InteractiveReader, InteractiveReaderTV) are checked
+
+**Warning**: Never manually edit `project.pbxproj` — the file format is complex and errors corrupt the project.
+
 ## Development Guidelines
 
 ### Code Organization

@@ -51,7 +51,9 @@ final class PronunciationSpeaker: NSObject, ObservableObject, AVAudioPlayerDeleg
     private func configureAudioSession() {
         #if os(iOS)
         let session = AVAudioSession.sharedInstance()
-        let options: AVAudioSession.CategoryOptions = [.allowAirPlay]
+        // Use mixWithOthers and duckOthers to allow Apple Music to continue playing
+        // while pronunciation audio is spoken (temporarily lowering music volume)
+        let options: AVAudioSession.CategoryOptions = [.allowAirPlay, .mixWithOthers, .duckOthers]
         try? session.setCategory(.playback, mode: .spokenAudio, options: options)
         try? session.setActive(true)
         #endif

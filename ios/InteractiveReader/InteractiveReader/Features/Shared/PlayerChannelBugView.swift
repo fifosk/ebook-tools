@@ -968,15 +968,8 @@ struct PlayerLanguageFlagRow: View {
     }
 
     private var shouldShowLabel: Bool {
-        isTV || isPad
-    }
-
-    private var isPad: Bool {
-        #if os(iOS)
-        return UIDevice.current.userInterfaceIdiom == .pad
-        #else
-        return false
-        #endif
+        // Show short language code next to flag emoji on all platforms
+        true
     }
 }
 

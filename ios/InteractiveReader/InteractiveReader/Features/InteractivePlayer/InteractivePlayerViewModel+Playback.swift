@@ -545,8 +545,8 @@ extension InteractivePlayerViewModel {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
                     guard let self else { return }
                     self.sequenceController.endTransition(expectedTime: target.time)
-                    // Restore volume
-                    self.audioCoordinator.setVolume(1)
+                    // Restore volume to target level (respects music mix setting)
+                    self.audioCoordinator.restoreVolume()
                     // Resume playback if it was playing (in case seek caused a pause)
                     if wasPlaying && !self.audioCoordinator.isPlaying {
                         self.audioCoordinator.play()

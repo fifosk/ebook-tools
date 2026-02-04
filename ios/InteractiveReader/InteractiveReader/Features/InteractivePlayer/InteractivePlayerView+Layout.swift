@@ -92,8 +92,12 @@ extension InteractivePlayerView {
         view = AnyView(view.onChange(of: viewModel.readingBedURL) { _, _ in
             configureReadingBed()
         })
-        view = AnyView(view.onChange(of: readingBedEnabled) { _, _ in
-            updateReadingBedPlayback()
+        view = AnyView(view.onChange(of: readingBedEnabled) { _, newValue in
+            if useAppleMusicForBed && musicCoordinator.isAuthorized {
+                handleReadingBedToggleWithAppleMusic(enabled: newValue)
+            } else {
+                updateReadingBedPlayback()
+            }
         })
         view = AnyView(view.onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
             handleNarrationPlaybackChange(isPlaying: isPlaying)
@@ -206,11 +210,52 @@ extension InteractivePlayerView {
             readingBedPauseTask?.cancel()
             readingBedPauseTask = nil
             readingBedCoordinator.reset()
+            // Clean up Apple Music if it was the active reading bed
+            if useAppleMusicForBed {
+                musicCoordinator.pause()
+                Task { await musicCoordinator.deactivateAsReadingBed() }
+                audioCoordinator.configureAudioSessionForMixing(false)
+                audioCoordinator.setTargetVolume(1.0)
+            }
             clearLinguistState()
             // Clear the sequence transition callback to prevent dangling references
             viewModel.onSequenceWillTransition = nil
             // Clear the shouldSkipTrack callback
             viewModel.sequenceController.shouldSkipTrack = nil
+        })
+        // Apple Music source change handler
+        view = AnyView(view.onChange(of: useAppleMusicForBed) { _, usingAppleMusic in
+            if usingAppleMusic {
+                switchToAppleMusic()
+            } else {
+                switchToBuiltInBed()
+            }
+        })
+        // Apple Music volume change handler
+        view = AnyView(view.onChange(of: musicVolume) { _, newVolume in
+            handleMusicVolumeChange(newVolume)
+        })
+        // When Apple Music starts/stops playing externally (e.g., from Control Centre)
+        view = AnyView(view.onChange(of: musicCoordinator.isPlaying) { _, isPlaying in
+            if isPlaying && useAppleMusicForBed {
+                // Apple Music started playing - pause built-in reading bed
+                readingBedCoordinator.pause()
+            }
+        })
+        // Music picker sheet presentation
+        view = AnyView(view.sheet(isPresented: $showMusicPicker) {
+            AppleMusicPickerView(
+                searchService: musicSearchService,
+                musicCoordinator: musicCoordinator,
+                onSelect: {
+                    useAppleMusicForBed = true
+                    showMusicPicker = false
+                },
+                onDismiss: { showMusicPicker = false }
+            )
+            #if os(iOS)
+            .presentationDetents([.medium, .large])
+            #endif
         })
         return view
     }
@@ -991,6 +1036,7 @@ extension InteractivePlayerView {
                                 },
                                 showConnector: !isPhone
                             )
+                            musicPillView
                             searchPillView
                             bookmarkRibbonPillView
                         }
@@ -1010,6 +1056,7 @@ extension InteractivePlayerView {
                                 },
                                 showConnector: !isPhone
                             )
+                            musicPillView
                             searchPillView
                             bookmarkRibbonPillView
                         }
@@ -1033,6 +1080,7 @@ extension InteractivePlayerView {
                         },
                         showConnector: false
                     )
+                    musicPillView
                     searchPillView
                     bookmarkRibbonPillView
                 }
