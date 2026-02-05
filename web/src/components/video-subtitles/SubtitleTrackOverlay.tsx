@@ -27,8 +27,7 @@ import {
   buildMyLinguistModelOptions,
   storeMyLinguistStored,
 } from '../interactive-text/utils';
-import type { SubtitleTrack } from '../VideoPlayer';
-import { parseAssSubtitles, type AssSubtitleCue, type AssSubtitleTrackKind } from './assParser';
+import { type SubtitleTrack, type AssSubtitleCue, type AssSubtitleTrackKind, parseAssSubtitles, isAssSubtitleTrack, decodeDataUrl } from '../../lib/subtitles';
 import { findActiveIndex, findInsertIndex, Accessors } from '../../lib/timing/timeSearch';
 import styles from './SubtitleTrackOverlay.module.css';
 
@@ -43,19 +42,6 @@ type TrackLineMap = {
   lines: number[][];
   tokenLine: Map<number, number>;
 };
-
-function isAssSubtitleTrack(track: SubtitleTrack | null): boolean {
-  if (!track) {
-    return false;
-  }
-  if (track.format) {
-    const cleaned = track.format.split(/[?#]/, 1)[0] ?? track.format;
-    return cleaned.toLowerCase() === 'ass';
-  }
-  const candidate = track.url ?? '';
-  const withoutQuery = candidate.split(/[?#]/)[0] ?? '';
-  return withoutQuery.toLowerCase().endsWith('.ass');
-}
 
 const TRACK_RENDER_ORDER: TrackKind[] = ['original', 'translation', 'transliteration'];
 
@@ -656,22 +642,6 @@ export default function SubtitleTrackOverlay({
       setCues([]);
       return;
     }
-    const decodeDataUrl = (value: string): string | null => {
-      const match = value.match(/^data:(.*?)(;base64)?,(.*)$/);
-      if (!match) {
-        return null;
-      }
-      const isBase64 = Boolean(match[2]);
-      const payload = match[3] ?? '';
-      try {
-        if (isBase64) {
-          return atob(payload);
-        }
-        return decodeURIComponent(payload);
-      } catch {
-        return null;
-      }
-    };
     const controller = new AbortController();
     const run = async () => {
       try {

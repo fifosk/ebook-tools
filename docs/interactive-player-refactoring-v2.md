@@ -47,14 +47,22 @@
 
 **Risk:** Low. Backward compatible — all readers still accept both forms.
 
-### 1.2 Deduplicate Sentence Text Storage
+### 1.2 Deduplicate Sentence Text Storage ✅ COMPLETED
 
 **Problem:** `sentence.text` duplicates `sentence.translation.text` (or `sentence.original.text`). For a 14,000-sentence book this is significant.
 
-**Proposal:**
-- For metadata_version 3: remove top-level `sentence.text` field
-- Clients read from `sentence.translation.text` or `sentence.original.text` based on context
-- Keep `sentence.text` for v1/v2 backward compat
+**Implementation:**
+- Backend exporters (`exporters.py`, `pipeline_processing.py`) no longer write top-level `sentence.text` for v3 chunks
+- `serialize_sentence_chunk()` accepts `include_top_level_text` parameter (default `True` for backward compat)
+- `_build_sentence_metadata()` passes `include_top_level_text=False` — text lives only in `original.text` / `translation.text`
+- Backend readers updated with robust fallback chains:
+  - `images.py`: `_extract_sentence_text()` prefers `original.text`, falls back to top-level `text`
+  - `lookup_cache_phase.py`: new `_extract_lookup_text()` helper handles v3 dicts, v1/v2 strings, and top-level `text`
+  - `search/service.py`: already checks variant texts first — no changes needed
+- Frontend (`ChunkSentenceMetadata` DTO): no top-level `text` field — already used variant-specific text
+- iOS: already uses `sentence.original.text` / `sentence.translation.text` — no changes needed
+
+**Risk:** Low. Old v1/v2 chunks still contain top-level `text`; all readers maintain fallback.
 
 **Files:**
 - `modules/core/rendering/exporters.py` - Conditional export
@@ -133,25 +141,24 @@ web/src/lib/media/
 - `useInteractiveAudioPlayback.ts` - Use `audioUrlResolver`
 - `useTimelineDisplay.ts` - Use `gateExtractor`
 
-### 2.2 Web UI: Unify Subtitle Processing
+### 2.2 Web UI: Unify Subtitle Processing ✅ COMPLETED
 
-**Problem:** Subtitle loading/parsing exists in `useSubtitleProcessor.ts` (for VideoPlayer) and partially in `SubtitleTrackOverlay.tsx` (for ASS rendering). The ASS parser is standalone but tightly coupled.
+**Problem:** Subtitle types and utilities duplicated across `VideoPlayer.tsx`, `video-player/utils.ts`, and `SubtitleTrackOverlay.tsx`.
 
-**Proposal:** Create `web/src/lib/subtitles/` module:
+**Implementation:**
+- Created `web/src/lib/subtitles/` module with 6 files:
+  - `types.ts` — `SubtitleTrack`, `CueVisibility` interfaces (single source of truth)
+  - `assParser.ts` — Full ASS subtitle parser (moved from video-subtitles/)
+  - `formatDetection.ts` — `resolveSubtitleFormat`, `isVttSubtitleTrack`, `isAssSubtitleTrack`, `selectPrimarySubtitleTrack`, `selectAssSubtitleTrack`
+  - `dataUrl.ts` — `decodeDataUrl`, `EMPTY_VTT_DATA_URL` (eliminated duplicate)
+  - `vttStyles.ts` — `injectVttCueStyle`, `filterCueTextByVisibility`
+  - `index.ts` — Barrel re-export
+- `VideoPlayer.tsx` — Replaced inline `SubtitleTrack` interface with re-export from lib/subtitles
+- `video-player/utils.ts` — Removed 10 extracted functions/interfaces, re-exports from lib/subtitles for backward compat; kept video-player-only utils
+- `video-subtitles/assParser.ts` — Replaced 174-line body with re-export from lib/subtitles
+- `SubtitleTrackOverlay.tsx` — Removed local `isAssSubtitleTrack` (12 lines) and inline `decodeDataUrl` (16 lines), imports from lib/subtitles
 
-```
-web/src/lib/subtitles/
-  assParser.ts          -- Already exists, keep as-is
-  vttParser.ts          -- Extract VTT loading from useSubtitleProcessor
-  cueSearch.ts          -- Binary search for active cue at time (reusable)
-  subtitleStyles.ts     -- CSS injection for subtitle rendering
-  types.ts              -- SubtitleCue, SubtitleTrack interfaces
-```
-
-**Impact:**
-- `SubtitleTrackOverlay.tsx` - Use `cueSearch` instead of inline binary search
-- `useSubtitleProcessor.ts` - Delegate to `vttParser` and `subtitleStyles`
-- Future: Interactive text could reuse `cueSearch` for sentence-level navigation
+**Duplications eliminated:** 3 (`SubtitleTrack` interface x3, `isAssSubtitleTrack` x2, `decodeDataUrl` x2)
 
 ### 2.3 iOS: Reduce Platform Conditional Sprawl
 
@@ -166,20 +173,35 @@ web/src/lib/subtitles/
 
 **Alternative:** ViewBuilder-based approach where each platform provides its own body builder, selected at the call site via a thin `#if` wrapper.
 
-### 2.4 iOS: MyLinguist Bubble ViewModel Extraction
+### 2.4 iOS: MyLinguist Bubble ViewModel Extraction ✅ COMPLETED
 
-**Problem:** MyLinguist bubble state is scattered across `InteractivePlayerView` properties: `linguistBubble`, `linguistSelection`, `linguistSelectionRange`, multiple task refs. Similar scatter in video subtitle overlay.
+**Problem:** MyLinguist bubble state was scattered across `InteractivePlayerView` properties: `linguistBubble`, `linguistSelection`, `linguistSelectionRange`, multiple task refs. Similar scatter in video subtitle overlay.
 
-**Proposal:**
-- Create `MyLinguistBubbleViewModel` as `@Observable` class:
-  - Owns bubble state, selection, range, tasks
-  - Exposes `lookupWord()`, `dismiss()`, `navigateNext/Prev()`
-  - Reused by both InteractivePlayer and VideoPlayer
-- Existing `useLinguistBubble.ts` (Web) already follows this pattern
+**Implementation:**
+- Created `LinguistLookupUtilities.swift` (~120 lines) — pure free functions: `sanitizeLookupQuery`, `nearestLookupTokenIndex`, `normalizeLanguageCode`, `buildLookupLanguageOptions`, `buildLlmModelOptions`, `lookupInputLanguage`, `pronunciationLanguage`
+- Created `MyLinguistBubbleViewModel.swift` (~400 lines) — `@Observable` class owning bubble state, lookup tasks, LLM model loading, voice inventory, pronunciation speaker
+  - Closure-based DI: `apiConfigProvider`, `jobIdProvider`, `fetchCachedLookupProvider`
+  - `configure()` method for post-init setup (SwiftUI `@State` pattern)
+  - `startLookup()` implements superset logic: cache check → LLM fallback → error handling + pronunciation
+  - UserDefaults-backed preferences (storedLookupLanguage, storedLlmModel, storedTtsVoice)
+- Both views use `@State var linguistVM = MyLinguistBubbleViewModel()` + `configure()` in `.onAppear`
+- Bridge computed properties maintain backward compat (`linguistBubble`, `subtitleBubble`, etc.)
+- Both `MyLinguistBubbleState` and `VideoLinguistBubbleState` now have `cachedAudioRef`
+
+**Line reduction:**
+- `InteractivePlayerView+Linguist.swift`: 706 → 347 lines (51% reduction)
+- `VideoPlayerView+Linguist.swift`: 342 → 194 lines (43% reduction)
+- ~15 scattered `@State` properties consolidated into single ViewModel across both views
 
 **Files:**
+- New: `ios/.../Utilities/LinguistLookupUtilities.swift`
 - New: `ios/.../Features/Shared/MyLinguistBubbleViewModel.swift`
-- Modified: `InteractivePlayerView+Linguist.swift`, `VideoPlayerView+Subtitles.swift`
+- Modified: `InteractivePlayerView.swift` — replaced 8 `@State` + 1 `@StateObject` with `@State var linguistVM`
+- Modified: `InteractivePlayerView+Linguist.swift` — delegates to ViewModel
+- Modified: `InteractivePlayerView+Layout.swift` — added `configureLinguistVM()` in `.onAppear`
+- Modified: `VideoPlayerView.swift` — replaced 6 `@State` + 1 `@StateObject` with `@State var linguistVM`
+- Modified: `VideoPlayerView+Linguist.swift` — delegates to ViewModel
+- Modified: `LinguistBubbleView.swift` — added `cachedAudioRef` to `VideoLinguistBubbleState`
 
 ### 2.5 iOS: SequencePlaybackController State Machine
 
@@ -207,37 +229,26 @@ web/src/lib/subtitles/
 
 ## Part 3: Audio Management Transparency
 
-### 3.1 Unified Audio Track Abstraction (Web)
+### 3.1 Unified Audio Track Abstraction (Web) ✅ COMPLETED (Steps 1 & 2)
 
 **Problem:** Single-track and sequence playback have different code paths in `useInteractiveAudioPlayback.ts` (1647 lines). Track switching, URL resolution, and timing payload generation differ based on mode.
 
-**Proposal:** Create `AudioTrackProvider` interface:
+**Implementation (Step 1 — Sequence Playback Controller):**
+- Extracted `useSequencePlaybackController.ts` (~850 lines) from `useInteractiveAudioPlayback.ts`
+- Parent hook reduced from 1647 → 1029 lines (~618 lines removed)
+- Moved: `findSequenceIndexForSentence`, sequence sync effect, `syncSequenceIndexToTime`, `getSequenceIndexForPlayback`, `applySequenceSegment`, `advanceSequenceSegment`, `skipSequenceSentence`, `handleSequenceAwareTokenSeek`, `maybeAdvanceSequence`, `selectedTracks` memo, debug info
+- Also moved: `SEQUENCE_SEGMENT_DWELL_MS` constant, `sequenceSegmentDwellRef`, `isDwellPauseRef`, `sequenceOperationInProgressRef`, `prevSequenceEnabledRef`
+- `useInlineAudioHandlers` interface unchanged — same 5 callbacks passed through
+- Pure mechanical extraction with no behavior changes
 
-```typescript
-interface AudioTrackProvider {
-  readonly mode: 'single' | 'sequence';
-  readonly currentTrack: 'original' | 'translation';
-  readonly audioUrl: string;
-  readonly timingPayload: TrackTimingPayload;
-
-  // Navigation
-  seekToSentence(index: number): void;
-  advanceToNext(): boolean;
-
-  // Events
-  onTrackChange: (track: string) => void;
-  onSentenceChange: (index: number) => void;
-}
-
-// Implementations
-class SingleTrackProvider implements AudioTrackProvider { ... }
-class SequenceTrackProvider implements AudioTrackProvider { ... }
-```
-
-**Impact:**
-- `useInteractiveAudioPlayback.ts` becomes a thin orchestrator (~500 lines target)
-- `useInteractiveAudioSequence.ts` becomes the `SequenceTrackProvider` implementation
-- `InteractiveTextViewer` works with `AudioTrackProvider` regardless of mode
+**Implementation (Step 2 — Audio Mode Transition):**
+- Extracted `useAudioModeTransition.ts` (~390 lines) from `useInteractiveAudioPlayback.ts`
+- Parent hook reduced from 1029 → 765 lines (~264 lines removed)
+- Moved: `pendingInitialSeek`, `lastReportedPosition`, `prevAudioResetKeyRef`, `pendingSequenceExitSeekRef` refs
+- Moved: main `audioResetKey` effect (enter/exit/stay sequence mode, single-track switches, default reset)
+- Moved: `emitAudioProgress` callback
+- Returns refs and callback consumed by parent's `useInlineAudioHandlers` and timelineDisplay effect
+- Pure mechanical extraction with no behavior changes
 
 ### 3.2 Unified Audio Track Abstraction (iOS)
 
@@ -263,15 +274,20 @@ This builds on the Phase 2 work already done (AudioModeManager as single source 
 
 ## Part 4: Chunk Prefetching Improvements
 
-### 4.1 Direction-Aware Prefetching
+### 4.1 Direction-Aware Prefetching ✅ COMPLETED
 
 **Problem:** Current prefetch is symmetric (±2 chunks). During linear playback, the user will almost certainly need the next chunk, not the previous one.
 
-**Proposal:**
-- Track playback direction (forward by default)
-- Asymmetric prefetch: 3 forward, 1 backward during playback
-- Symmetric when paused or after manual seek
-- Priority queue: next chunk loads immediately, further chunks load with delay
+**Implementation:**
+- `useChunkPrefetch` now accepts `isPlaying` option
+- Tracks direction via `prevSentenceNumberRef` / `directionRef` (forward/backward/none)
+- When playing forward: asymmetric prefetch (1 backward, 3 forward)
+- When paused or moving backward: symmetric ±2 (unchanged)
+- Fixed bug: `activeSentenceIndex` was hardcoded to `0` at call site — now synced from audio playback hook via bridging state
+
+**Files changed:**
+- `web/src/components/interactive-text/useChunkPrefetch.ts` — direction tracking, asymmetric radius
+- `web/src/components/InteractiveTextViewer.tsx` — bridging state for prefetchSentenceIndex + prefetchIsPlaying
 
 ### 4.2 Sentence-to-Chunk Mapping Cache
 
@@ -335,7 +351,7 @@ TimeIndexedSearch<T>:
 
 This eliminates the current situation where subtitle cue search and word timing search are separate implementations of the same algorithm.
 
-### 5.2 Shared MyLinguist Integration Layer
+### 5.2 Shared MyLinguist Integration Layer ✅ COMPLETED (Web)
 
 **Problem:** MyLinguist lookup, caching, and TTS exist in:
 - Web interactive text: `useLinguistBubbleLookup.ts` + `useLinguistBubbleNavigation.ts`
@@ -344,23 +360,21 @@ This eliminates the current situation where subtitle cue search and word timing 
 - iOS interactive player: `InteractivePlayerView+Linguist.swift`
 - iOS video player: `VideoPlayerView+Subtitles.swift`
 
-**Proposal:**
+**Implementation (Web):**
+- Created `web/src/lib/linguist/` module with 5 files:
+  - `constants.ts` — Unified storage keys, defaults, sentinel values (from 2 sources)
+  - `storage.ts` — localStorage persistence (loadStored, storeValue, loadStoredBool, loadStoredNumber, storeNumber)
+  - `voices.ts` — Voice inventory building (buildVoiceOptionsForLanguage, formatMacOSVoice*)
+  - `sanitize.ts` — Query sanitization and tokenization
+  - `index.ts` — Barrel export including re-exports from `utils/myLinguistPrompt.ts` and `utils/ttsPlayback.ts`
+- `MyLinguistAssistant.tsx`: 931 → 766 lines (165 lines of duplicated code removed)
+- `interactive-text/constants.ts`: Re-exports linguist constants from canonical `lib/linguist`
+- `interactive-text/utils.tsx`: Delegates linguist functions to `lib/linguist` (backward compat re-exports)
+- Zero breaking changes — all existing imports continue to work
 
-**Web:** Extract `web/src/lib/linguist/` module:
-```
-web/src/lib/linguist/
-  lookupService.ts     -- API call + cache (extracted from useLinguistBubbleLookup)
-  lookupCache.ts       -- In-memory cache with TTL
-  pronunciationService.ts  -- TTS playback (extracted from speakText utility)
-  types.ts             -- LookupResult, CachedLookup interfaces
-```
-
-Both bubble hooks and standalone assistant consume from `lookupService`.
-
-**iOS:** Create `Services/MyLinguistService.swift`:
-- Owns lookup logic, caching, TTS pronunciation
-- Used by both InteractivePlayer and VideoPlayer via dependency injection
-- Combined with proposed `MyLinguistBubbleViewModel` (Part 2.4)
+**Remaining (iOS):**
+- `MyLinguistBubbleViewModel.swift` already created in 2.4
+- Future: Extract `Services/MyLinguistService.swift` if further consolidation needed
 
 ### 5.3 Shared Playback Controls Pattern
 
@@ -405,22 +419,23 @@ This is a larger feature but addresses the real user pain point of resuming acro
 
 ## Implementation Priority
 
-### Tier 1: Quick Wins (1-2 items per session)
+### Tier 1: Quick Wins (1-2 items per session) — ALL COMPLETED
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | 2.1 Extract shared media primitives (Web) | ✅ |
+| 2 | 5.1 Shared time-indexed search (Web) | ✅ |
+| 3 | 1.1 Eliminate dual-case fields (Backend) | ✅ |
+| 4 | 4.1 Direction-aware prefetching | ✅ |
+| 5 | 1.2 Deduplicate sentence text storage | ✅ |
+
+### Tier 2: Architectural Improvements (Next)
 
 | # | Item | Impact | Risk | Effort |
 |---|------|--------|------|--------|
-| 1 | 2.1 Extract shared media primitives (Web) | High (reduces duplication in 4+ hooks) | Low | Medium |
-| 2 | 5.1 Shared time-indexed search (Web) | Medium (unifies word/cue search) | Low | Low |
-| 3 | 1.1 Eliminate dual-case fields (Backend) | Medium (15-20% metadata reduction) | Low | Medium |
-
-### Tier 2: Architectural Improvements
-
-| # | Item | Impact | Risk | Effort |
-|---|------|--------|------|--------|
-| 4 | 3.1 Unified AudioTrackProvider (Web) | High (simplifies 1647-line hook) | Medium | High |
-| 5 | 2.4 MyLinguist BubbleViewModel (iOS) | Medium (cleaner state management) | Low | Medium |
-| 6 | 4.1 Direction-aware prefetching | Medium (faster chunk transitions) | Low | Low |
-| 7 | 5.2 Shared MyLinguist service layer | Medium (reduces code paths) | Low | Medium |
+| 6 | 3.1 Unified AudioTrackProvider (Web) ✅ Steps 1 & 2 | High (simplifies 1647-line hook) | Medium | High |
+| 7 | 2.4 MyLinguist BubbleViewModel (iOS) ✅ | Medium (cleaner state management) | Low | Medium |
+| 8 | 5.2 Shared MyLinguist service layer (Web) ✅ | Medium (reduces code paths) | Low | Medium |
 
 ### Tier 3: Larger Refactors
 
@@ -465,14 +480,17 @@ This is a larger feature but addresses the real user pain point of resuming acro
 
 ## Success Metrics
 
-| Metric | Current | Target |
-|--------|---------|--------|
-| Chunk metadata size (per sentence) | ~2.5 KB | ~1.8 KB (28% reduction) |
-| Audio URL resolution code paths | 4+ | 1 shared utility |
-| MyLinguist integration points | 5 separate | 2 (Web service + iOS service) |
-| `useInteractiveAudioPlayback.ts` lines | 1,647 | ~800 |
-| Chunk transition latency (prefetched) | ~200ms | ~50ms |
-| Platform-conditional blocks (iOS) | ~40 | ~15 (with view builders) |
+| Metric | Before | Target | Current |
+|--------|--------|--------|---------|
+| Chunk metadata size (per sentence) | ~2.5 KB | ~1.8 KB (28% reduction) | ✅ v3 camelCase-only |
+| Audio URL resolution code paths | 4+ | 1 shared utility | ✅ `web/src/lib/media/` |
+| Subtitle utility duplications | 7 (3 interfaces + 4 functions) | 0 | ✅ `web/src/lib/subtitles/` |
+| MyLinguist integration points | 5 separate | 2 (Web service + iOS service) | Web: `lib/linguist` ✅, iOS: ViewModel ✅ |
+| `useInteractiveAudioPlayback.ts` lines | 1,647 | ~800 | 765 (Steps 1 & 2) ✅ |
+| iOS `InteractivePlayerView+Linguist.swift` lines | 706 | ~300 | 347 ✅ |
+| iOS `VideoPlayerView+Linguist.swift` lines | 342 | ~150 | 194 ✅ |
+| Chunk transition latency (prefetched) | ~200ms | ~50ms | — |
+| Platform-conditional blocks (iOS) | ~40 | ~15 (with view builders) | — |
 
 ---
 

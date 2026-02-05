@@ -5,15 +5,24 @@ import type {
   AssistantChatMessage,
   AssistantLookupResponse,
   AssistantRequestContext,
-  MacOSVoice,
   VoiceInventoryResponse
 } from '../api/dtos';
-import { VOICE_OPTIONS } from '../constants/menuOptions';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import { useMyLinguist } from '../context/MyLinguistProvider';
-import { speakText } from '../utils/ttsPlayback';
 import { resolveLanguageCode } from '../constants/languageCodes';
-import { buildMyLinguistSystemPrompt } from '../utils/myLinguistPrompt';
+import {
+  MY_LINGUIST_STORAGE_KEYS,
+  MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE,
+  MY_LINGUIST_DEFAULT_LLM_MODEL,
+  loadStored,
+  storeValue,
+  loadStoredNumber,
+  storeNumber,
+  buildVoiceOptionsForLanguage,
+  speakText,
+  buildMyLinguistSystemPrompt,
+} from '../lib/linguist';
+import type { VoiceOption } from '../lib/linguist';
 import LanguageDropdown from './LanguageDropdown';
 import styles from './MyLinguistAssistant.module.css';
 
@@ -22,186 +31,12 @@ type ChatMessage = AssistantChatMessage & {
   createdAt: number;
 };
 
-type VoiceOption = {
-  value: string;
-  label: string;
-  description?: string;
-};
-
-const STORAGE_KEYS = {
-  inputLanguage: 'ebookTools.myLinguist.inputLanguage',
-  lookupLanguage: 'ebookTools.myLinguist.lookupLanguage',
-  llmModel: 'ebookTools.myLinguist.llmModel',
-  systemPrompt: 'ebookTools.myLinguist.systemPrompt',
-  questionVoice: 'ebookTools.myLinguist.questionVoice',
-  replyVoice: 'ebookTools.myLinguist.replyVoice',
-  panelWidth: 'ebookTools.myLinguist.panelWidth',
-  panelHeight: 'ebookTools.myLinguist.panelHeight'
-} as const;
-
-const DEFAULT_LOOKUP_LANGUAGE = 'English';
-const DEFAULT_LLM_MODEL = 'ollama_cloud:mistral-large-3:675b-cloud';
-const EMPTY_SENTINEL = '__EMPTY__';
+const STORAGE_KEYS = MY_LINGUIST_STORAGE_KEYS;
+const DEFAULT_LOOKUP_LANGUAGE = MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE;
+const DEFAULT_LLM_MODEL = MY_LINGUIST_DEFAULT_LLM_MODEL;
 
 function nowId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function capitalize(value: string): string {
-  if (!value) {
-    return value;
-  }
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-function formatMacOSVoiceIdentifier(voice: MacOSVoice): string {
-  const quality = voice.quality ? voice.quality : 'Default';
-  const genderSuffix = voice.gender ? ` - ${capitalize(voice.gender)}` : '';
-  return `${voice.name} - ${voice.lang} - (${quality})${genderSuffix}`;
-}
-
-function formatMacOSVoiceLabel(voice: MacOSVoice): string {
-  const segments: string[] = [voice.lang];
-  if (voice.gender) {
-    segments.push(capitalize(voice.gender));
-  }
-  if (voice.quality) {
-    segments.push(voice.quality);
-  }
-  const meta = segments.length > 0 ? ` (${segments.join(', ')})` : '';
-  return `${voice.name}${meta}`;
-}
-
-function buildVoiceOptionsForLanguage(
-  voiceInventory: VoiceInventoryResponse | null,
-  languageCode: string | null
-): VoiceOption[] {
-  const baseOptions: VoiceOption[] = VOICE_OPTIONS.map((option) => ({
-    value: option.value,
-    label: option.label,
-    description: option.description
-  }));
-
-  if (!voiceInventory || !languageCode) {
-    return baseOptions;
-  }
-
-  const extras: VoiceOption[] = [];
-  const normalizedCode = languageCode.toLowerCase();
-
-  const gttsMatches = voiceInventory.gtts.filter((entry) => {
-    const entryCode = entry.code.toLowerCase();
-    if (entryCode === normalizedCode) {
-      return true;
-    }
-    return entryCode.startsWith(`${normalizedCode}-`) || entryCode.startsWith(`${normalizedCode}_`);
-  });
-  const seenGtts = new Set<string>();
-  for (const entry of gttsMatches) {
-    const shortCode = entry.code.split(/[-_]/)[0].toLowerCase();
-    if (!shortCode || seenGtts.has(shortCode)) {
-      continue;
-    }
-    seenGtts.add(shortCode);
-    const identifier = `gTTS-${shortCode}`;
-    extras.push({ value: identifier, label: `gTTS (${entry.name})`, description: 'gTTS voice' });
-  }
-
-  const macVoices = voiceInventory.macos.filter((voice) => {
-    const voiceLang = voice.lang.toLowerCase();
-    return (
-      voiceLang === normalizedCode ||
-      voiceLang.startsWith(`${normalizedCode}-`) ||
-      voiceLang.startsWith(`${normalizedCode}_`)
-    );
-  });
-  macVoices
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .forEach((voice) => {
-      extras.push({
-        value: formatMacOSVoiceIdentifier(voice),
-        label: formatMacOSVoiceLabel(voice),
-        description: 'macOS system voice'
-      });
-    });
-
-  const merged = new Map<string, VoiceOption>();
-  for (const option of [...baseOptions, ...extras]) {
-    if (!option.value) {
-      continue;
-    }
-    if (!merged.has(option.value)) {
-      merged.set(option.value, option);
-    }
-  }
-  return Array.from(merged.values());
-}
-
-function loadStored(key: string, { allowEmpty = false }: { allowEmpty?: boolean } = {}): string | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (raw === null) {
-      return null;
-    }
-    if (raw === EMPTY_SENTINEL) {
-      return '';
-    }
-    if (!raw.trim()) {
-      return allowEmpty ? '' : null;
-    }
-    return raw;
-  } catch {
-    return null;
-  }
-}
-
-function storeValue(key: string, value: string, { allowEmpty = false }: { allowEmpty?: boolean } = {}): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    const next = allowEmpty && !value ? EMPTY_SENTINEL : value;
-    window.localStorage.setItem(key, next);
-  } catch {
-    return;
-  }
-}
-
-function loadStoredNumber(key: string): number | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) {
-      return null;
-    }
-    const parsed = Number(raw);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function storeNumber(key: string, value: number): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    if (!Number.isFinite(value) || value <= 0) {
-      return;
-    }
-    window.localStorage.setItem(key, String(Math.round(value)));
-  } catch {
-    return;
-  }
 }
 
 type PanelSize = { width: number; height: number };

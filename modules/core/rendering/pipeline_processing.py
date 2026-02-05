@@ -523,13 +523,6 @@ def process_pipeline(
                     metadata_payload = {}
                 metadata_payload.setdefault("sentence_number", item.sentence_number)
                 metadata_payload.setdefault("id", str(item.sentence_number))
-                metadata_payload.setdefault(
-                    "text",
-                    metadata_payload.get("text")
-                    or fluent
-                    or transliteration_result
-                    or item.sentence,
-                )
                 metadata_payload.setdefault("t0", 0.0)
 
                 duration_val = None

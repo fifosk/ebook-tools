@@ -2116,9 +2116,11 @@ struct VideoLinguistBubbleState: Equatable {
     let answer: String?
     let model: String?
     var lookupSource: LinguistLookupSource? = nil
+    /// Audio reference from lookup cache - allows playing word from narration audio
+    var cachedAudioRef: LookupCacheAudioRef? = nil
 
     var asLinguistBubbleState: LinguistBubbleState {
-        LinguistBubbleState(query: query, status: status, answer: answer, model: model, lookupSource: lookupSource)
+        LinguistBubbleState(query: query, status: status, answer: answer, model: model, lookupSource: lookupSource, cachedAudioRef: cachedAudioRef)
     }
 }
 

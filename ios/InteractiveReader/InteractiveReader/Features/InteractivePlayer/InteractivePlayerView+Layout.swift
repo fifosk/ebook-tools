@@ -26,6 +26,7 @@ extension InteractivePlayerView {
         view = AnyView(view.simultaneousGesture(menuToggleGesture, including: .subviews))
         #endif
         view = AnyView(view.onAppear {
+            configureLinguistVM()
             loadLlmModelsIfNeeded()
             loadVoiceInventoryIfNeeded()
             refreshBookmarks()

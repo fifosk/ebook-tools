@@ -7,23 +7,15 @@ export const WORD_SYNC_LANE_LABELS: Record<WordSyncLane, string> = {
   xlit: 'Transliteration',
 };
 
-export const DICTIONARY_LOOKUP_LONG_PRESS_MS = 450;
-export const MY_LINGUIST_BUBBLE_MAX_CHARS = 600;
-export const MY_LINGUIST_EMPTY_SENTINEL = '__EMPTY__';
-export const MY_LINGUIST_STORAGE_KEYS = {
-  inputLanguage: 'ebookTools.myLinguist.inputLanguage',
-  lookupLanguage: 'ebookTools.myLinguist.lookupLanguage',
-  llmModel: 'ebookTools.myLinguist.llmModel',
-  ttsVoice: 'ebookTools.myLinguist.ttsVoice',
-  systemPrompt: 'ebookTools.myLinguist.systemPrompt',
-  bubblePinned: 'ebookTools.myLinguist.bubblePinned',
-  bubbleDocked: 'ebookTools.myLinguist.bubbleDocked',
-  bubbleLocked: 'ebookTools.myLinguist.bubbleLocked',
-  bubblePinnedPosition: 'ebookTools.myLinguist.bubblePinnedPosition',
-  bubblePinnedSize: 'ebookTools.myLinguist.bubblePinnedSize',
-} as const;
-export const MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE = 'English';
-export const MY_LINGUIST_DEFAULT_LLM_MODEL = 'ollama_cloud:mistral-large-3:675b-cloud';
+// Re-export linguist constants from canonical location for backward compatibility
+export {
+  DICTIONARY_LOOKUP_LONG_PRESS_MS,
+  MY_LINGUIST_BUBBLE_MAX_CHARS,
+  MY_LINGUIST_EMPTY_SENTINEL,
+  MY_LINGUIST_STORAGE_KEYS,
+  MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE,
+  MY_LINGUIST_DEFAULT_LLM_MODEL,
+} from '../../lib/linguist';
 
 export const EMPTY_TIMING_PAYLOAD: TimingPayload = {
   trackKind: 'translation_only',

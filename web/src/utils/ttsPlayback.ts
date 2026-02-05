@@ -1,7 +1,7 @@
 import { synthesizeVoicePreview } from '../api/client';
 import { resolveLanguageCode } from './languages';
 
-type TtsRequest = {
+export type TtsRequest = {
   text: string;
   language: string;
   voice?: string | null;

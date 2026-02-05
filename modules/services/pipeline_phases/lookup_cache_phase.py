@@ -42,6 +42,32 @@ def _load_chunk_metadata(job_dir: Path, metadata_path: str) -> Optional[Dict[str
         return None
 
 
+def _extract_lookup_text(sentence_entry: Dict[str, Any]) -> Optional[str]:
+    """Extract translation text from a sentence entry for lookup caching.
+
+    Handles v3 (variant dicts), v2/v1 (top-level text), and string formats.
+    """
+    # Prefer translation variant (v3 dict or v1/v2 string)
+    translation_raw = sentence_entry.get("translation")
+    if isinstance(translation_raw, dict):
+        text = translation_raw.get("text", "")
+        if isinstance(text, str) and text.strip():
+            return text.strip()
+    elif isinstance(translation_raw, str) and translation_raw.strip():
+        return translation_raw.strip()
+    # Fall back to original variant (v3)
+    original_raw = sentence_entry.get("original")
+    if isinstance(original_raw, dict):
+        text = original_raw.get("text", "")
+        if isinstance(text, str) and text.strip():
+            return text.strip()
+    # Fall back to top-level text (v1/v2)
+    text_value = sentence_entry.get("text")
+    if isinstance(text_value, str) and text_value.strip():
+        return text_value.strip()
+    return None
+
+
 def build_lookup_cache_phase(
     request: "PipelineRequest",
     config_result: "ConfigPhaseResult",
@@ -123,13 +149,9 @@ def build_lookup_cache_phase(
             for sentence_entry in sentences:
                 if not isinstance(sentence_entry, dict):
                     continue
-                # Get the TRANSLATION text (this is what we want to cache lookups for)
-                # Handle both string and dict formats: {"text": "...", "tokens": [...]}
-                translation = sentence_entry.get("translation") or sentence_entry.get("text") or ""
-                if isinstance(translation, dict):
-                    translation = translation.get("text", "")
-                if translation and isinstance(translation, str):
-                    all_sentences.append(translation.strip())
+                text = _extract_lookup_text(sentence_entry)
+                if text:
+                    all_sentences.append(text)
             continue
 
         # Fallback: load sentences from chunk metadata file on disk
@@ -148,13 +170,9 @@ def build_lookup_cache_phase(
         for sentence_entry in sentences:
             if not isinstance(sentence_entry, dict):
                 continue
-            # Get the TRANSLATION text (this is what we want to cache lookups for)
-            # Handle both string and dict formats: {"text": "...", "tokens": [...]}
-            translation = sentence_entry.get("translation") or sentence_entry.get("text") or ""
-            if isinstance(translation, dict):
-                translation = translation.get("text", "")
-            if translation and isinstance(translation, str):
-                all_sentences.append(translation.strip())
+            text = _extract_lookup_text(sentence_entry)
+            if text:
+                all_sentences.append(text)
 
     print(f"[LOOKUP_CACHE] Extracted {len(all_sentences)} sentences from {len(chunks)} chunks")
     logger.debug("Lookup cache: extracted %d sentences from %d chunks", len(all_sentences), len(chunks))

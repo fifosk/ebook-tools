@@ -101,14 +101,16 @@ def _resolve_sentence_number(entry: Mapping[str, Any]) -> Optional[int]:
 
 
 def _extract_sentence_text(entry: Mapping[str, Any]) -> Optional[str]:
-    text_value = entry.get("text")
-    if isinstance(text_value, str) and text_value.strip():
-        return text_value.strip()
+    # Prefer variant-specific text (v3 chunks omit top-level "text")
     original = entry.get("original")
     if isinstance(original, Mapping):
         original_text = original.get("text")
         if isinstance(original_text, str) and original_text.strip():
             return original_text.strip()
+    # Backward compat: top-level text (v1/v2 chunks)
+    text_value = entry.get("text")
+    if isinstance(text_value, str) and text_value.strip():
+        return text_value.strip()
     return None
 
 

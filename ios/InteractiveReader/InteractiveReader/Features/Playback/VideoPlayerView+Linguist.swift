@@ -1,6 +1,20 @@
 import SwiftUI
 
 extension VideoPlayerView {
+
+    // MARK: - ViewModel Configuration
+
+    func configureLinguistVM() {
+        linguistVM.configure(
+            apiConfigProvider: { [weak appState] in appState?.configuration }
+        )
+        linguistVM.inputLanguage = linguistInputLanguage
+        linguistVM.lookupLanguage = linguistLookupLanguage
+        linguistVM.explanationLanguage = linguistExplanationLanguage
+    }
+
+    // MARK: - Lookup Entry Points
+
     func handleSubtitleLookup() {
         if coordinator.isPlaying {
             coordinator.pause()
@@ -72,162 +86,49 @@ extension VideoPlayerView {
         coordinator.seek(to: display.cue.start)
     }
 
+    // MARK: - Lookup Execution (delegates to ViewModel)
+
     func startSubtitleLookup(query: String, lineKind: VideoSubtitleLineKind) {
-        subtitleLookupTask?.cancel()
-        subtitleAutoLookupTask?.cancel()
-        subtitleBubble = VideoLinguistBubbleState(query: query, status: .loading, answer: nil, model: nil)
-        let originalLanguage = linguistInputLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        let translationLanguage = linguistLookupLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        let explanationLanguage = resolvedLookupLanguage
-        let inputLanguage = lookupInputLanguage(
-            for: lineKind,
-            originalLanguage: originalLanguage,
-            translationLanguage: translationLanguage
+        let isTranslation = (lineKind == .translation || lineKind == .unknown)
+        linguistVM.startLookup(
+            query: query,
+            isTranslationTrack: isTranslation
         )
-        let selectedModel = resolvedLlmModel
-        let pronunciationLanguage = inputLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedPronunciationLanguage = pronunciationLanguage.isEmpty ? nil : pronunciationLanguage
-        let resolvedApiLanguage = SpeechLanguageResolver.resolveSpeechLanguage(resolvedPronunciationLanguage ?? "")
-        let apiLanguage = resolvedApiLanguage ?? resolvedPronunciationLanguage
-        let fallbackLanguage = resolvedApiLanguage
-        startSubtitlePronunciation(
-            text: query,
-            apiLanguage: apiLanguage,
-            fallbackLanguage: fallbackLanguage
-        )
-        subtitleLookupTask = Task { @MainActor in
-            guard let configuration = appState.configuration else {
-                subtitleBubble = VideoLinguistBubbleState(
-                    query: query,
-                    status: .error("Lookup is not configured."),
-                    answer: nil,
-                    model: nil
-                )
-                return
-            }
-            do {
-                let client = APIClient(configuration: configuration)
-                let response = try await client.assistantLookup(
-                    query: query,
-                    inputLanguage: inputLanguage,
-                    lookupLanguage: explanationLanguage,
-                    llmModel: selectedModel
-                )
-                subtitleBubble = VideoLinguistBubbleState(
-                    query: query,
-                    status: .ready,
-                    answer: response.answer,
-                    model: response.model
-                )
-            } catch {
-                guard !Task.isCancelled else { return }
-                subtitleBubble = VideoLinguistBubbleState(
-                    query: query,
-                    status: .error(error.localizedDescription),
-                    answer: nil,
-                    model: nil
-                )
-            }
-        }
     }
 
+    // MARK: - Computed Language / Model Options (delegate to ViewModel)
+
     var resolvedLookupLanguage: String {
-        let trimmed = storedLookupLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmed.isEmpty {
-            return trimmed
-        }
-        let fallback = linguistExplanationLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        return fallback.isEmpty ? MyLinguistPreferences.defaultLookupLanguage : fallback
+        linguistVM.resolvedLookupLanguage
     }
 
     var resolvedLlmModel: String? {
-        let trimmed = storedLlmModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            return MyLinguistPreferences.defaultLlmModel
-        }
-        return trimmed
+        linguistVM.resolvedLlmModel
     }
 
     var lookupLanguageOptions: [String] {
-        var seen: Set<String> = []
-        var options: [String] = []
-        let preferred = [
-            resolvedLookupLanguage,
-            linguistExplanationLanguage,
-            linguistLookupLanguage,
-            linguistInputLanguage,
-            MyLinguistPreferences.defaultLookupLanguage
-        ]
-        for value in preferred {
-            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { continue }
-            let label = LanguageFlagResolver.flagEntry(for: trimmed).label
-            let key = label.lowercased()
-            guard !seen.contains(key) else { continue }
-            seen.insert(key)
-            options.append(label)
-        }
-        for label in LanguageFlagResolver.availableLanguageLabels() {
-            let key = label.lowercased()
-            guard !seen.contains(key) else { continue }
-            seen.insert(key)
-            options.append(label)
-        }
-        return options
+        linguistVM.lookupLanguageOptions
     }
 
     var llmModelOptions: [String] {
-        let candidates = [resolvedLlmModel, MyLinguistPreferences.defaultLlmModel] + availableLlmModels
-        var seen: Set<String> = []
-        var models: [String] = []
-        for candidate in candidates {
-            guard let raw = candidate else { continue }
-            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { continue }
-            let key = trimmed.lowercased()
-            guard !seen.contains(key) else { continue }
-            seen.insert(key)
-            models.append(trimmed)
-        }
-        if models.isEmpty {
-            return [MyLinguistPreferences.defaultLlmModel]
-        }
-        return models
+        linguistVM.llmModelOptions
     }
 
     func loadLlmModelsIfNeeded() {
-        guard !didLoadLlmModels else { return }
-        didLoadLlmModels = true
-        Task { @MainActor in
-            guard let configuration = appState.configuration else { return }
-            let client = APIClient(configuration: configuration)
-            do {
-                let response = try await client.fetchLlmModels()
-                if !response.models.isEmpty {
-                    availableLlmModels = response.models
-                }
-            } catch {
-                return
-            }
-        }
+        linguistVM.loadLlmModelsIfNeeded()
     }
 
+    // MARK: - State Management
+
     func closeSubtitleBubble() {
-        subtitleLookupTask?.cancel()
-        subtitleLookupTask = nil
-        subtitleSpeechTask?.cancel()
-        subtitleSpeechTask = nil
-        subtitleAutoLookupTask?.cancel()
-        subtitleAutoLookupTask = nil
-        subtitleBubble = nil
-        pronunciationSpeaker.stop()
+        linguistVM.close()
     }
 
     func scheduleAutoSubtitleLookup() {
         guard subtitleBubble != nil else { return }
         guard !coordinator.isPlaying else { return }
-        subtitleAutoLookupTask?.cancel()
-        subtitleAutoLookupTask = Task { @MainActor in
+        linguistVM.autoLookupTask?.cancel()
+        linguistVM.autoLookupTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: subtitleAutoLookupDelayNanos)
             guard !Task.isCancelled else { return }
             guard subtitleBubble != nil else { return }
@@ -236,29 +137,7 @@ extension VideoPlayerView {
         }
     }
 
-    func startSubtitlePronunciation(text: String, apiLanguage: String?, fallbackLanguage: String?) {
-        subtitleSpeechTask?.cancel()
-        pronunciationSpeaker.stop()
-        subtitleSpeechTask = Task { @MainActor in
-            guard let configuration = appState.configuration else {
-                if let fallbackLanguage {
-                    pronunciationSpeaker.speakFallback(text, language: fallbackLanguage)
-                }
-                return
-            }
-            do {
-                let client = APIClient(configuration: configuration)
-                let data = try await client.synthesizeAudio(text: text, language: apiLanguage)
-                guard !Task.isCancelled else { return }
-                pronunciationSpeaker.playAudio(data)
-            } catch {
-                guard !Task.isCancelled else { return }
-                if let fallbackLanguage {
-                    pronunciationSpeaker.speakFallback(text, language: fallbackLanguage)
-                }
-            }
-        }
-    }
+    // MARK: - Language Utilities
 
     func lookupInputLanguage(
         for lineKind: VideoSubtitleLineKind,
@@ -275,34 +154,7 @@ extension VideoPlayerView {
         }
     }
 
-    func sanitizeLookupQuery(_ value: String) -> String? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let stripped = trimmed.trimmingCharacters(in: .punctuationCharacters.union(.symbols))
-        let normalized = stripped.trimmingCharacters(in: .whitespacesAndNewlines)
-        return normalized.isEmpty ? nil : normalized
-    }
-
-    func nearestLookupTokenIndex(in tokens: [String], startingAt index: Int) -> Int? {
-        guard !tokens.isEmpty else { return nil }
-        let clamped = max(0, min(index, tokens.count - 1))
-        if sanitizeLookupQuery(tokens[clamped]) != nil {
-            return clamped
-        }
-        if tokens.count == 1 {
-            return nil
-        }
-        for offset in 1..<tokens.count {
-            let forward = clamped + offset
-            if forward < tokens.count, sanitizeLookupQuery(tokens[forward]) != nil {
-                return forward
-            }
-            let backward = clamped - offset
-            if backward >= 0, sanitizeLookupQuery(tokens[backward]) != nil {
-                return backward
-            }
-        }
-        return nil
-    }
+    // MARK: - Token Navigation (VideoPlayer-only)
 
     func nextLookupTokenIndex(
         in tokens: [String],

@@ -7,7 +7,13 @@ import type { Segment, TimingPayload, TrackKind, WordToken } from '../../types/t
 import { groupBy } from '../../utils/groupBy';
 import { normalizeLanguageLabel, sortLanguageLabelsByName } from '../../utils/languages';
 import type { ParagraphFragment, SentenceFragment, SentenceGate } from './types';
-import { MY_LINGUIST_EMPTY_SENTINEL } from './constants';
+import {
+  sanitizeLookupQuery as _sanitizeLookupQuery,
+  tokenizeSentenceText as _tokenizeSentenceText,
+  loadStored,
+  storeValue,
+  loadStoredBool,
+} from '../../lib/linguist';
 
 export function containsNonLatinLetters(text: string): boolean {
   const value = text.trim();
@@ -185,84 +191,13 @@ export function normaliseTextPlayerVariant(value: unknown): TextPlayerVariantKin
   return null;
 }
 
-export function sanitizeLookupQuery(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return '';
-  }
-  const stripped = trimmed.replace(/^[\s"'“”‘’()[\]{}<>.,!?;:]+|[\s"'“”‘’()[\]{}<>.,!?;:]+$/g, '');
-  return stripped.trim() || trimmed;
-}
-
-export function tokenizeSentenceText(value: string | null | undefined): string[] {
-  if (!value) {
-    return [];
-  }
-  return value
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter((token) => token.length > 0);
-}
-
-export function loadMyLinguistStored(key: string, { allowEmpty = false }: { allowEmpty?: boolean } = {}): string | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (raw === null) {
-      return null;
-    }
-    if (raw === MY_LINGUIST_EMPTY_SENTINEL) {
-      return '';
-    }
-    if (!raw.trim()) {
-      return allowEmpty ? '' : null;
-    }
-    return raw;
-  } catch {
-    return null;
-  }
-}
-
-export function storeMyLinguistStored(
-  key: string,
-  value: string,
-  { allowEmpty = false }: { allowEmpty?: boolean } = {},
-): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    const trimmed = value.trim();
-    const next = allowEmpty && !trimmed ? MY_LINGUIST_EMPTY_SENTINEL : trimmed;
-    window.localStorage.setItem(key, next);
-  } catch {
-    return;
-  }
-}
-
-export function loadMyLinguistStoredBool(key: string, fallback: boolean): boolean {
-  if (typeof window === 'undefined') {
-    return fallback;
-  }
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (raw === null) {
-      return fallback;
-    }
-    const normalized = raw.trim().toLowerCase();
-    if (normalized === 'false' || normalized === '0' || normalized === 'off' || normalized === 'no') {
-      return false;
-    }
-    if (normalized === 'true' || normalized === '1' || normalized === 'on' || normalized === 'yes') {
-      return true;
-    }
-    return fallback;
-  } catch {
-    return fallback;
-  }
-}
+// Linguist utilities — delegate to canonical lib/linguist implementations.
+// These re-exports maintain backward compatibility for existing callers.
+export const sanitizeLookupQuery = _sanitizeLookupQuery;
+export const tokenizeSentenceText = _tokenizeSentenceText;
+export const loadMyLinguistStored = loadStored;
+export const storeMyLinguistStored = storeValue;
+export const loadMyLinguistStoredBool = loadStoredBool;
 
 export function buildMyLinguistLanguageOptions(
   preferredLanguages: Array<string | null | undefined>,

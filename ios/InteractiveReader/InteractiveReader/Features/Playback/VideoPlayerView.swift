@@ -58,24 +58,18 @@ struct VideoPlayerView: View {
     @State var isShortcutHelpModifierActive = false
     @State var subtitleSelection: VideoSubtitleWordSelection?
     @State var subtitleSelectionRange: VideoSubtitleWordSelectionRange?
-    @State var subtitleBubble: VideoLinguistBubbleState?
+    @State var linguistVM = MyLinguistBubbleViewModel()
     @State var subtitleInteractionFrame: CGRect = .null
-    @State var subtitleLookupTask: Task<Void, Never>?
-    @State var subtitleSpeechTask: Task<Void, Never>?
-    @State var subtitleAutoLookupTask: Task<Void, Never>?
     @AppStorage("video.player.verticalOffset") var videoVerticalOffsetValue: Double = 0
     @State var videoDragTranslation: CGFloat = 0
     @State var isVideoDragGestureActive = false
     @AppStorage(MyLinguistPreferences.lookupLanguageKey) var storedLookupLanguage: String = ""
     @AppStorage(MyLinguistPreferences.llmModelKey) var storedLlmModel: String =
         MyLinguistPreferences.defaultLlmModel
-    @State var availableLlmModels: [String] = []
-    @State var didLoadLlmModels = false
     @State var subtitleActiveCueID: UUID?
     @State var isManualSubtitleNavigation = false
     @State var pendingResumeTime: Double?
     @State var pendingBookmarkSeek: PendingVideoBookmarkSeek?
-    @StateObject var pronunciationSpeaker = PronunciationSpeaker()
     @State var isTearingDown = false
     @State var bookmarks: [PlaybackBookmarkEntry] = []
     @StateObject var searchViewModel = MediaSearchViewModel()
@@ -111,6 +105,56 @@ struct VideoPlayerView: View {
     static func clampPlaybackRate(_ value: Double) -> Double {
         let clamped = min(max(value, 0.5), 1.5)
         return (clamped * 10).rounded() / 10
+    }
+
+    // MARK: - ViewModel Bridge Properties
+
+    /// Bridge to ViewModel's bubble state, converting to VideoLinguistBubbleState for backward compat.
+    var subtitleBubble: VideoLinguistBubbleState? {
+        get {
+            guard let b = linguistVM.bubble else { return nil }
+            var state = VideoLinguistBubbleState(query: b.query, status: b.status, answer: b.answer, model: b.model)
+            state.lookupSource = b.lookupSource
+            state.cachedAudioRef = b.cachedAudioRef
+            return state
+        }
+        nonmutating set {
+            if let v = newValue {
+                var bubble = MyLinguistBubbleState(query: v.query, status: v.status, answer: v.answer, model: v.model)
+                bubble.lookupSource = v.lookupSource
+                bubble.cachedAudioRef = v.cachedAudioRef
+                linguistVM.bubble = bubble
+            } else {
+                linguistVM.bubble = nil
+            }
+        }
+    }
+
+    var subtitleLookupTask: Task<Void, Never>? {
+        linguistVM.lookupTask
+    }
+
+    var subtitleSpeechTask: Task<Void, Never>? {
+        linguistVM.speechTask
+    }
+
+    var subtitleAutoLookupTask: Task<Void, Never>? {
+        get { linguistVM.autoLookupTask }
+        nonmutating set { linguistVM.autoLookupTask = newValue }
+    }
+
+    var availableLlmModels: [String] {
+        get { linguistVM.availableLlmModels }
+        nonmutating set { linguistVM.availableLlmModels = newValue }
+    }
+
+    var didLoadLlmModels: Bool {
+        get { linguistVM.didLoadLlmModels }
+        nonmutating set { linguistVM.didLoadLlmModels = newValue }
+    }
+
+    var pronunciationSpeaker: PronunciationSpeaker {
+        linguistVM.pronunciationSpeaker
     }
 
     var resolvedBookmarkUserId: String {
@@ -213,6 +257,7 @@ struct VideoPlayerView: View {
         #endif
         .onAppear {
             isTearingDown = false
+            configureLinguistVM()
             loadLlmModelsIfNeeded()
             refreshBookmarks()
             coordinator.onPlaybackEnded = { [weak coordinator] in

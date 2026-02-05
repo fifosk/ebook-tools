@@ -138,6 +138,7 @@ def serialize_sentence_chunk(
     sentence_meta: Mapping[str, Any],
     *,
     include_timing_tracks: bool = True,
+    include_top_level_text: bool = True,
 ) -> Dict[str, Any]:
     """
     Normalise sentence-level metadata for chunk payloads.
@@ -192,11 +193,12 @@ def serialize_sentence_chunk(
 
     chunk_entry: Dict[str, Any] = {
         "sentence_id": sentence_id_str,
-        "text": text_str,
         "t0": t0,
         "t1": t1,
         "timing": {"t0": t0, "t1": t1},
     }
+    if include_top_level_text:
+        chunk_entry["text"] = text_str
     if timing_tracks_payload:
         chunk_entry["timingTracks"] = timing_tracks_payload
 
@@ -534,10 +536,6 @@ class BatchExporter:
             "id",
             str(meta_payload.get("sentence_number", sentence_number)),
         )
-        meta_payload.setdefault(
-            "text",
-            meta_payload.get("text") or translation_text or original_text,
-        )
         meta_payload.setdefault("t0", meta_payload.get("t0", 0.0))
         if "word_tokens" not in meta_payload or not meta_payload.get("word_tokens"):
             tokens_attr = getattr(audio_segment, "word_tokens", None) if audio_segment is not None else None
@@ -567,9 +565,8 @@ class BatchExporter:
         meta_payload["pauseBeforeMs"] = pause_before_ms
         meta_payload["pauseAfterMs"] = pause_after_ms
 
-        chunk_entry = serialize_sentence_chunk(meta_payload, include_timing_tracks=False)
+        chunk_entry = serialize_sentence_chunk(meta_payload, include_timing_tracks=False, include_top_level_text=False)
         payload["sentence_id"] = chunk_entry["sentence_id"]
-        payload["text"] = chunk_entry["text"]
         payload["t0"] = chunk_entry["t0"]
         payload["t1"] = chunk_entry["t1"]
         payload["word_tokens"] = list(meta_payload.get("word_tokens") or [])

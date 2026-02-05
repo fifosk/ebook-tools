@@ -64,6 +64,8 @@ export interface UseChunkPrefetchOptions {
   activeSentenceIndex: number;
   originalAudioEnabled: boolean;
   translationAudioEnabled: boolean;
+  /** When true, prefetch skews forward (3 ahead, 1 behind) instead of symmetric ±2 */
+  isPlaying?: boolean;
 }
 
 export interface ChunkPrefetchState {
@@ -83,6 +85,7 @@ export function useChunkPrefetch({
   activeSentenceIndex,
   originalAudioEnabled,
   translationAudioEnabled,
+  isPlaying = false,
 }: UseChunkPrefetchOptions): ChunkPrefetchState {
   const [prefetchedSentences, setPrefetchedSentences] = useState<Record<string, ChunkSentenceMetadata[]>>({});
   const prefetchedSentencesRef = useRef(prefetchedSentences);
@@ -92,6 +95,8 @@ export function useChunkPrefetch({
   const audioInFlightRef = useRef<Set<string>>(new Set());
   const prefetchedAudioRef = useRef<Set<string>>(new Set());
   const lastPrefetchSentenceRef = useRef<number | null>(null);
+  const prevSentenceNumberRef = useRef<number | null>(null);
+  const directionRef = useRef<'forward' | 'backward' | 'none'>('none');
 
   useEffect(() => {
     prefetchedSentencesRef.current = prefetchedSentences;
@@ -107,6 +112,8 @@ export function useChunkPrefetch({
     audioInFlightRef.current.clear();
     prefetchedAudioRef.current.clear();
     lastPrefetchSentenceRef.current = null;
+    prevSentenceNumberRef.current = null;
+    directionRef.current = 'none';
   }, [jobId, playerMode]);
 
   const hydrateChunk = useCallback(
@@ -269,8 +276,21 @@ export function useChunkPrefetch({
       }
       lastPrefetchSentenceRef.current = activeSentenceNumber;
     }
+    // Track direction from sentence number changes
+    if (prevSentenceNumberRef.current !== null) {
+      if (activeSentenceNumber > prevSentenceNumberRef.current) {
+        directionRef.current = 'forward';
+      } else if (activeSentenceNumber < prevSentenceNumberRef.current) {
+        directionRef.current = 'backward';
+      }
+    }
+    prevSentenceNumberRef.current = activeSentenceNumber;
+    // Asymmetric prefetch: skew forward during active playback
+    const skewForward = isPlaying && directionRef.current === 'forward';
+    const backwardRadius = skewForward ? 1 : PREFETCH_RADIUS;
+    const forwardRadius = skewForward ? PREFETCH_RADIUS + 1 : PREFETCH_RADIUS;
     const targetMap = new Map<string, LiveMediaChunk>();
-    for (let offset = -PREFETCH_RADIUS; offset <= PREFETCH_RADIUS; offset += 1) {
+    for (let offset = -backwardRadius; offset <= forwardRadius; offset += 1) {
       const candidate = activeSentenceNumber + offset;
       if (candidate <= 0) {
         continue;
@@ -287,7 +307,7 @@ export function useChunkPrefetch({
         ? chunkList.findIndex((entry) => resolveChunkKey(entry) === activeKey)
         : -1;
       if (activeIndex >= 0) {
-        for (let offset = -PREFETCH_RADIUS; offset <= PREFETCH_RADIUS; offset += 1) {
+        for (let offset = -backwardRadius; offset <= forwardRadius; offset += 1) {
           const index = activeIndex + offset;
           if (index < 0 || index >= chunkList.length) {
             continue;
@@ -309,6 +329,7 @@ export function useChunkPrefetch({
     activeSentenceIndex,
     chunk,
     chunks,
+    isPlaying,
     playerMode,
     prefetchChunkAudio,
     prefetchChunkMetadata,

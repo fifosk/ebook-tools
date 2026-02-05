@@ -243,6 +243,10 @@
 		5CAD1B04ED962413DEAAE92A /* SentencePositionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */; };
 		8150038CA009C71D56337C94 /* AudioModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */; };
 		6E11F253192C36A89ECBDFA9 /* AudioModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */; };
+		27614F4EC1C58CFF2B875760 /* LinguistLookupUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508DED26A6449F55B9749B3D /* LinguistLookupUtilities.swift */; };
+		5B236E93DC5BABC46BC6984B /* LinguistLookupUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508DED26A6449F55B9749B3D /* LinguistLookupUtilities.swift */; };
+		1893CD8B81BFC594F6295C50 /* MyLinguistBubbleViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AE1559169473E8A00FAB0AB /* MyLinguistBubbleViewModel.swift */; };
+		D7AAEABCC8B023972EA1BC6F /* MyLinguistBubbleViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AE1559169473E8A00FAB0AB /* MyLinguistBubbleViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -372,6 +376,8 @@
 		AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/Music/MusicControlOverlayView.swift; sourceTree = SOURCE_ROOT; };
 		C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift; sourceTree = SOURCE_ROOT; };
 		CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioModeManager.swift; sourceTree = "<group>"; };
+		508DED26A6449F55B9749B3D /* LinguistLookupUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Utilities/LinguistLookupUtilities.swift; sourceTree = SOURCE_ROOT; };
+		8AE1559169473E8A00FAB0AB /* MyLinguistBubbleViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/Shared/MyLinguistBubbleViewModel.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -616,6 +622,7 @@
 				11B853B91F6A48DCA58660A7 /* SubtitleParser.swift */,
 				5B130396E9FB45208CEE80FB /* PronunciationSpeaker.swift */,
 				88828FC12BA646F7B6091C8B /* SpeechLanguageResolver.swift */,
+				508DED26A6449F55B9749B3D /* LinguistLookupUtilities.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -659,6 +666,7 @@
 				UNIFCOVER002A0001 /* UnifiedCoverView.swift */,
 				DFB9B106AB74415AB26FD48B /* LinguistBubbleView.swift */,
 				45427BC75A1642FC994B1A55 /* PlatformAdapter.swift */,
+				8AE1559169473E8A00FAB0AB /* MyLinguistBubbleViewModel.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -985,6 +993,8 @@
 				C756197A16A3112CFFC65A5D /* MusicControlOverlayView.swift in Sources */,
 				0FC011012C02DFDE85940A49 /* SentencePositionProvider.swift in Sources */,
 				8150038CA009C71D56337C94 /* AudioModeManager.swift in Sources */,
+				27614F4EC1C58CFF2B875760 /* LinguistLookupUtilities.swift in Sources */,
+				1893CD8B81BFC594F6295C50 /* MyLinguistBubbleViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1107,6 +1117,8 @@
 				AD96DB5410D66AB63DEF1A66 /* MusicControlOverlayView.swift in Sources */,
 				5CAD1B04ED962413DEAAE92A /* SentencePositionProvider.swift in Sources */,
 				6E11F253192C36A89ECBDFA9 /* AudioModeManager.swift in Sources */,
+				5B236E93DC5BABC46BC6984B /* LinguistLookupUtilities.swift in Sources */,
+				D7AAEABCC8B023972EA1BC6F /* MyLinguistBubbleViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

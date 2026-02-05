@@ -38,18 +38,11 @@ struct InteractivePlayerView: View {
     @State var selectedSentenceID: Int?
     @State var linguistSelection: TextPlayerWordSelection?
     @State var linguistSelectionRange: TextPlayerWordSelectionRange?
-    @State var linguistBubble: MyLinguistBubbleState?
-    @State var linguistLookupTask: Task<Void, Never>?
-    @State var linguistSpeechTask: Task<Void, Never>?
-    @State var linguistAutoLookupTask: Task<Void, Never>?
+    @State var linguistVM = MyLinguistBubbleViewModel()
     @AppStorage(MyLinguistPreferences.lookupLanguageKey) var storedLookupLanguage: String = ""
     @AppStorage(MyLinguistPreferences.llmModelKey) var storedLlmModel: String =
         MyLinguistPreferences.defaultLlmModel
     @AppStorage(MyLinguistPreferences.ttsVoiceKey) var storedTtsVoice: String = ""
-    @State var availableLlmModels: [String] = []
-    @State var didLoadLlmModels = false
-    @State var voiceInventory: VoiceInventoryResponse?
-    @State var didLoadVoiceInventory = false
     @State var isMenuVisible = false
     @State var resumePlaybackAfterMenu = false
     @State var bubbleFocusEnabled = false
@@ -72,7 +65,6 @@ struct InteractivePlayerView: View {
     @AppStorage("interactive.iPadBubblePinned") var iPadBubblePinned: Bool = false
     #endif
     @StateObject var bubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
-    @StateObject var pronunciationSpeaker = PronunciationSpeaker()
     @State var bookmarks: [PlaybackBookmarkEntry] = []
     @StateObject var musicSearchService = MusicSearchService()
     @StateObject var searchViewModel = MediaSearchViewModel()
@@ -111,6 +103,52 @@ struct InteractivePlayerView: View {
         #endif
     }
     private static let defaultLinguistFontScale: CGFloat = 1.2
+
+    // MARK: - ViewModel Bridge Properties
+
+    /// Bridge to ViewModel's bubble state — allows existing code to read/write `linguistBubble` unchanged.
+    var linguistBubble: MyLinguistBubbleState? {
+        get { linguistVM.bubble }
+        nonmutating set { linguistVM.bubble = newValue }
+    }
+
+    var linguistLookupTask: Task<Void, Never>? {
+        get { linguistVM.lookupTask }
+    }
+
+    var linguistSpeechTask: Task<Void, Never>? {
+        get { linguistVM.speechTask }
+    }
+
+    var linguistAutoLookupTask: Task<Void, Never>? {
+        get { linguistVM.autoLookupTask }
+        nonmutating set { linguistVM.autoLookupTask = newValue }
+    }
+
+    var availableLlmModels: [String] {
+        get { linguistVM.availableLlmModels }
+        nonmutating set { linguistVM.availableLlmModels = newValue }
+    }
+
+    var didLoadLlmModels: Bool {
+        get { linguistVM.didLoadLlmModels }
+        nonmutating set { linguistVM.didLoadLlmModels = newValue }
+    }
+
+    var voiceInventory: VoiceInventoryResponse? {
+        get { linguistVM.voiceInventory }
+        nonmutating set { linguistVM.voiceInventory = newValue }
+    }
+
+    var didLoadVoiceInventory: Bool {
+        get { linguistVM.didLoadVoiceInventory }
+        nonmutating set { linguistVM.didLoadVoiceInventory = newValue }
+    }
+
+    var pronunciationSpeaker: PronunciationSpeaker {
+        linguistVM.pronunciationSpeaker
+    }
+
     var resolvedBookmarkUserId: String {
         bookmarkUserId?.nonEmptyValue ?? "anonymous"
     }

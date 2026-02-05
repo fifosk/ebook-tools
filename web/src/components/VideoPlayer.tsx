@@ -9,6 +9,7 @@ import { HEADER_COLLAPSE_KEY, loadHeaderCollapsed, storeHeaderCollapsed } from '
 import EmojiIcon from './EmojiIcon';
 import PlayerChannelBug from './PlayerChannelBug';
 import SubtitleTrackOverlay from './video-subtitles/SubtitleTrackOverlay';
+import type { SubtitleTrack } from '../lib/subtitles';
 import {
   type CueVisibility,
   DEFAULT_PLAYBACK_RATE,
@@ -28,13 +29,7 @@ export interface VideoFile {
   poster?: string;
 }
 
-export interface SubtitleTrack {
-  url: string;
-  label?: string;
-  kind?: string;
-  language?: string;
-  format?: string;
-}
+export type { SubtitleTrack } from '../lib/subtitles';
 
 interface VideoPlayerProps {
   files: VideoFile[];
