@@ -122,6 +122,15 @@ enum PlatformMetrics {
         #endif
     }
 
+    /// Icon size for list action rows (globe, iCloud, etc.)
+    static var listIconSize: CGFloat {
+        #if os(tvOS)
+        return 20
+        #else
+        return 18
+        #endif
+    }
+
     /// Safe area inset for overlays
     static var overlayInset: CGFloat {
         #if os(tvOS)
@@ -189,6 +198,31 @@ enum PlatformTypography {
         return .caption.monospacedDigit()
         #endif
     }
+
+    /// Scaled font from UIFont.TextStyle.
+    /// On tvOS applies 0.5x scaling; on iOS returns matching SwiftUI Font.
+    static func scaledFont(_ style: UIFont.TextStyle) -> Font {
+        #if os(tvOS)
+        let size = UIFont.preferredFont(forTextStyle: style).pointSize * 0.5
+        return .system(size: size)
+        #else
+        switch style {
+        case .headline: return .headline
+        case .subheadline: return .subheadline
+        case .caption1: return .caption
+        case .caption2: return .caption2
+        case .body: return .body
+        case .callout: return .callout
+        case .footnote: return .footnote
+        default: return .body
+        }
+        #endif
+    }
+
+    /// Header font for list sections (used by JobsView, LibraryView, etc.)
+    static var sectionHeaderFont: Font {
+        scaledFont(.body)
+    }
 }
 
 // MARK: - Platform Colors
@@ -223,6 +257,64 @@ enum PlatformColors {
         return Color.black.opacity(0.6)
         #else
         return Color.black.opacity(0.4)
+        #endif
+    }
+
+    // MARK: Status Colors
+
+    /// Color for pending/pausing status indicators
+    static var statusPendingColor: Color {
+        #if os(tvOS)
+        return .yellow
+        #else
+        return .orange
+        #endif
+    }
+
+    /// Color for running/active status indicators
+    static var statusActiveColor: Color {
+        #if os(tvOS)
+        return .cyan
+        #else
+        return .blue
+        #endif
+    }
+
+    // MARK: Row Text Colors
+
+    /// Primary text color for list rows.
+    /// - Parameters:
+    ///   - isFocused: tvOS focus state (pass `false` on iOS)
+    ///   - usesDarkBackground: iOS dark background mode (pass `false` on tvOS)
+    static func rowTitleColor(isFocused: Bool = false, usesDarkBackground: Bool = false) -> Color {
+        #if os(tvOS)
+        return isFocused ? .black : .white
+        #elseif os(iOS)
+        return usesDarkBackground ? .white : .primary
+        #else
+        return .primary
+        #endif
+    }
+
+    /// Secondary text color for list rows.
+    static func rowSecondaryColor(isFocused: Bool = false, usesDarkBackground: Bool = false) -> Color {
+        #if os(tvOS)
+        return isFocused ? .black.opacity(0.7) : .white.opacity(0.75)
+        #elseif os(iOS)
+        return usesDarkBackground ? .white.opacity(0.75) : .gray
+        #else
+        return .gray
+        #endif
+    }
+
+    /// Tertiary text color for list rows.
+    static func rowTertiaryColor(isFocused: Bool = false, usesDarkBackground: Bool = false) -> Color {
+        #if os(tvOS)
+        return isFocused ? .black.opacity(0.55) : .white.opacity(0.6)
+        #elseif os(iOS)
+        return usesDarkBackground ? .white.opacity(0.6) : .gray.opacity(0.8)
+        #else
+        return .gray.opacity(0.6)
         #endif
     }
 }
@@ -416,6 +508,27 @@ extension View {
     func platformTapGesture(count: Int = 1, perform action: @escaping () -> Void) -> some View {
         #if os(iOS)
         self.onTapGesture(count: count, perform: action)
+        #else
+        self
+        #endif
+    }
+}
+
+// MARK: - List Background Styling
+
+extension View {
+    /// Applies platform-appropriate list background styling.
+    /// On tvOS: applies AppTheme gradient background.
+    /// On iOS: conditionally applies dark background with hidden scroll content background.
+    @ViewBuilder
+    func platformListBackground(usesDark: Bool, colorScheme: ColorScheme) -> some View {
+        #if os(tvOS)
+        self.background(AppTheme.background(for: colorScheme))
+        #elseif os(iOS)
+        self
+            .background(usesDark ? AppTheme.lightBackground : Color.clear)
+            .scrollContentBackground(usesDark ? .hidden : .automatic)
+            .environment(\.colorScheme, usesDark ? .dark : colorScheme)
         #else
         self
         #endif

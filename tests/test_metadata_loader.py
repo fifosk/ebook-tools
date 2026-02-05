@@ -51,26 +51,14 @@ def test_metadata_loader_reads_chunk_files(tmp_path: Path) -> None:
             ],
             "files": [],
         },
-        "chunk_manifest": {
-            "chunk_count": 1,
-            "chunks": [
-                {
-                    "index": 0,
-                    "chunk_id": "chunk-001",
-                    "path": "metadata/chunk_0000.json",
-                    "url": "https://example.invalid/jobs/job-new/metadata/chunk_0000.json",
-                    "sentence_count": 1,
-                }
-            ],
-        },
     }
 
     _write_manifest(job_root, manifest)
 
     loader = MetadataLoader(job_root)
 
-    loaded_manifest = loader.load_manifest()
-    assert loaded_manifest["chunk_manifest"]["chunk_count"] == 1
+    chunk_manifest = loader.build_chunk_manifest()
+    assert chunk_manifest["chunk_count"] == 1
 
     summaries = loader.load_chunks(include_sentences=False)
     assert summaries[0]["sentence_count"] == 1

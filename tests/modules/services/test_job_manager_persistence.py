@@ -145,9 +145,6 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
     assert metadata.result is not None
     assert metadata.last_event is not None
     assert metadata.generated_files is not None
-    assert metadata.chunk_manifest is not None
-    assert metadata.chunk_manifest.get("chunk_count") == 1
-
     metadata_root = locator.metadata_root(job_id)
     chunk_file = metadata_root / "chunk_0000.json"
     assert chunk_file.is_file()
@@ -178,7 +175,6 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
     assert restored.result_payload == metadata.result
     assert restored.generated_files == metadata.generated_files
     assert restored.last_event == job.last_event
-    assert restored.chunk_manifest == metadata.chunk_manifest
 
 
 def test_snapshot_mirrors_cover_asset(tmp_path: Path) -> None:

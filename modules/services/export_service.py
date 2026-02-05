@@ -542,7 +542,7 @@ def _sanitize_sentence_images(sentence: Mapping[str, Any], *, job_root: Path) ->
 
 
 def _sanitize_book_metadata(metadata: Mapping[str, Any], *, job_root: Path) -> Dict[str, Any]:
-    payload = {key: value for key, value in metadata.items() if key not in {"generated_files", "chunk_manifest", "chunks"}}
+    payload = {key: value for key, value in metadata.items() if key not in {"generated_files", "chunks"}}
     cover_candidates = [
         payload.get("job_cover_asset"),
         payload.get("job_cover_asset_url"),

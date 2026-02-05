@@ -52,7 +52,6 @@ def install_job_manager_stubs() -> None:
             success: bool
             book_metadata: Dict[str, Any] = field(default_factory=dict)
             generated_files: Dict[str, Any] = field(default_factory=dict)
-            chunk_manifest: Optional[Dict[str, Any]] = None
 
         def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
             return {
@@ -71,9 +70,6 @@ def install_job_manager_stubs() -> None:
                 "success": response.success,
                 "book_metadata": dict(response.book_metadata),
                 "generated_files": dict(response.generated_files),
-                "chunk_manifest": dict(response.chunk_manifest)
-                if isinstance(response.chunk_manifest, dict)
-                else None,
             }
 
         def run_pipeline(request: PipelineRequest) -> PipelineResponse:  # pragma: no cover - defensive stub

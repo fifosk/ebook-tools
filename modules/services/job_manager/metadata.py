@@ -43,7 +43,6 @@ class PipelineJobMetadata:
     access: Optional[Dict[str, Any]] = None
     generated_files: Optional[Dict[str, Any]] = None
     media_completed: Optional[bool] = None
-    chunk_manifest: Optional[Dict[str, Any]] = None
     timing_tracks: Optional[Dict[str, Any]] = None
     retry_summary: Optional[Dict[str, Dict[str, int]]] = None
 
@@ -83,8 +82,6 @@ class PipelineJobMetadata:
             payload["generated_files"] = _stable_copy(self.generated_files)
         if self.media_completed is not None:
             payload["media_completed"] = bool(self.media_completed)
-        if self.chunk_manifest is not None:
-            payload["chunk_manifest"] = _stable_copy(self.chunk_manifest)
         if self.timing_tracks is not None:
             payload["timing_tracks"] = _stable_copy(self.timing_tracks)
         return payload
@@ -120,7 +117,6 @@ class PipelineJobMetadata:
             access=data.get("access"),
             generated_files=data.get("generated_files"),
             media_completed=data.get("media_completed"),
-            chunk_manifest=data.get("chunk_manifest"),
             timing_tracks=data.get("timing_tracks"),
             retry_summary=data.get("retry_summary"),
         )

@@ -829,31 +829,6 @@ class MetadataLoader:
         return sentences
 
     def build_chunk_manifest(self) -> Dict[str, Any]:
-        manifest = self.load_manifest()
-        raw_manifest = manifest.get("chunk_manifest")
-        if isinstance(raw_manifest, Mapping):
-            normalized = {
-                "chunk_count": int(raw_manifest.get("chunk_count", 0))
-                if isinstance(raw_manifest.get("chunk_count"), int)
-                else len(raw_manifest.get("chunks", []) or []),
-                "chunks": [],
-            }
-            raw_chunks = raw_manifest.get("chunks")
-            if isinstance(raw_chunks, list):
-                for entry in raw_chunks:
-                    if not isinstance(entry, Mapping):
-                        continue
-                    normalized["chunks"].append(
-                        {
-                            "index": entry.get("index"),
-                            "chunk_id": entry.get("chunk_id"),
-                            "path": entry.get("path"),
-                            "url": entry.get("url"),
-                            "sentence_count": entry.get("sentence_count"),
-                        }
-                    )
-            return normalized
-
         chunk_entries = []
         for index, chunk in enumerate(self.iter_chunks()):
             summary = self._load_chunk_payload(chunk, include_sentences=False)

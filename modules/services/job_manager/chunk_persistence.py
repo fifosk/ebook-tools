@@ -6,7 +6,7 @@ import copy
 import json
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional
 
 from ... import logging_manager
 from ..file_locator import FileLocator
@@ -99,18 +99,17 @@ def write_chunk_metadata(
     metadata_root: Path,
     generated: Mapping[str, Any],
     file_locator: FileLocator,
-) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
-    """Write chunk metadata files and return updated payload and manifest."""
+) -> Dict[str, Any]:
+    """Write chunk metadata files and return updated payload."""
 
     chunks_raw = generated.get("chunks")
     payload = dict(generated)
     if not isinstance(chunks_raw, list):
         payload["chunks"] = []
         cleanup_unused_chunk_files(metadata_root, set())
-        return payload, None
+        return payload
 
     updated_chunks: list[Dict[str, Any]] = []
-    manifest_entries: list[Dict[str, Any]] = []
     preserved_files: set[str] = set()
 
     for index, chunk in enumerate(chunks_raw):
@@ -216,29 +215,12 @@ def write_chunk_metadata(
         if isinstance(metadata_path_str, str) and metadata_path_str:
             chunk_entry.pop("sentences", None)
 
-        manifest_entries.append(
-            {
-                "index": index,
-                "chunk_id": chunk_entry.get("chunk_id"),
-                "path": metadata_path_str if isinstance(metadata_path_str, str) else None,
-                "url": metadata_url_str if isinstance(metadata_url_str, str) else None,
-                "sentence_count": chunk_entry.get("sentence_count"),
-            }
-        )
         updated_chunks.append(chunk_entry)
 
     cleanup_unused_chunk_files(metadata_root, preserved_files)
 
     payload["chunks"] = updated_chunks
-    chunk_manifest: Optional[Dict[str, Any]]
-    if updated_chunks:
-        chunk_manifest = {
-            "chunk_count": len(updated_chunks),
-            "chunks": manifest_entries,
-        }
-    else:
-        chunk_manifest = None
-    return payload, chunk_manifest
+    return payload
 
 
 __all__ = [

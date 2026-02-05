@@ -707,7 +707,6 @@ def _execute_book_job(
     job.result = response
     job.result_payload = serialize_pipeline_response(response)
     job.generated_files = copy.deepcopy(response.generated_files)
-    job.chunk_manifest = copy.deepcopy(response.chunk_manifest)
     job.media_completed = bool(response.success)
     if job.status != PipelineJobStatus.CANCELLED:
         job.status = (

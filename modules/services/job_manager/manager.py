@@ -744,7 +744,6 @@ class PipelineJobManager:
             job.result_payload = None
             job.error_message = None
             job.generated_files = None
-            job.chunk_manifest = None
             job.media_completed = False
             job.started_at = None
             job.completed_at = None

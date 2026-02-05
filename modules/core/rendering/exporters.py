@@ -91,16 +91,13 @@ def _resolve_highlighting_policy(
 
 _COMPACT_SENTENCE_DROP_KEYS = {
     "charWeighted",
-    "endGate",
     "highlighting_policy",
     "highlighting_summary",
     "highlight_granularity",
     "imagePath",
     "origWords",
-    "originalEndGate",
     "originalPauseAfterMs",
     "originalPauseBeforeMs",
-    "originalStartGate",
     "originalWordTokens",
     "original_highlighting_policy",
     "original_highlighting_summary",
@@ -113,7 +110,6 @@ _COMPACT_SENTENCE_DROP_KEYS = {
     "pause_before_ms",
     "slide_duration",
     "slideDuration",
-    "startGate",
     "timing",
     "timeline",
     "timingTracks",
@@ -626,6 +622,16 @@ class BatchExporter:
         if isinstance(start_gate_value, (int, float)) and isinstance(end_gate_value, (int, float)):
             payload.setdefault("startGate", float(start_gate_value))
             payload.setdefault("endGate", float(end_gate_value))
+
+        original_start_gate = meta_payload.get("original_start_gate")
+        if original_start_gate is None:
+            original_start_gate = meta_payload.get("originalStartGate")
+        original_end_gate = meta_payload.get("original_end_gate")
+        if original_end_gate is None:
+            original_end_gate = meta_payload.get("originalEndGate")
+        if isinstance(original_start_gate, (int, float)) and isinstance(original_end_gate, (int, float)):
+            payload.setdefault("originalStartGate", float(original_start_gate))
+            payload.setdefault("originalEndGate", float(original_end_gate))
 
         image_payload = meta_payload.get("image")
         if isinstance(image_payload, Mapping):

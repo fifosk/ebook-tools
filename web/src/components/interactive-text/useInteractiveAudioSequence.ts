@@ -10,6 +10,7 @@ import {
   resolveChunkKey,
   resolveSentenceGate,
   resolveSentenceDuration,
+  resolveNumericValue,
   type SequenceTrack,
   type SelectedAudioTrack,
 } from '../../lib/media';
@@ -175,6 +176,49 @@ export function useInteractiveAudioSequence({
         });
       }
     });
+
+    // Derive gates from phaseDurations when gate data is absent
+    if (!hasOriginalGate || !hasTranslationGate) {
+      const canDerive = chunk.sentences.some((s) => {
+        const r = s as unknown as Record<string, unknown>;
+        return r.phase_durations || r.phaseDurations;
+      });
+      if (canDerive) {
+        let origCursor = 0;
+        let transCursor = 0;
+        chunk.sentences.forEach((sentence, index) => {
+          const record = sentence as unknown as Record<string, unknown>;
+          const phases = (record.phase_durations ?? record.phaseDurations) as
+            | Record<string, unknown>
+            | undefined;
+          const origDur = resolveNumericValue(phases?.original) ?? 0;
+          const transDur =
+            resolveNumericValue(phases?.translation) ??
+            resolveNumericValue(record.total_duration ?? record.totalDuration) ??
+            0;
+          if (!hasOriginalGate && origDur > 0) {
+            segments.push({
+              track: 'original',
+              start: origCursor,
+              end: origCursor + origDur,
+              sentenceIndex: index,
+            });
+          }
+          if (!hasTranslationGate && transDur > 0) {
+            segments.push({
+              track: 'translation',
+              start: transCursor,
+              end: transCursor + transDur,
+              sentenceIndex: index,
+            });
+          }
+          origCursor += origDur;
+          transCursor += transDur;
+        });
+        hasOriginalGate = segments.some((s) => s.track === 'original');
+        hasTranslationGate = segments.some((s) => s.track === 'translation');
+      }
+    }
 
     if (!isSingleSentence) {
       return segments;

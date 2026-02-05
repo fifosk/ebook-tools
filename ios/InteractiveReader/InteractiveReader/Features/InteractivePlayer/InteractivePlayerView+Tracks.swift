@@ -131,38 +131,17 @@ extension InteractivePlayerView {
     /// - Parameter preservingSentence: The sentence index to preserve (already captured before toggle)
     func reconfigureAudioForCurrentToggles(preservingSentence currentSentenceIndex: Int? = nil) {
         guard let chunk = viewModel.selectedChunk else { return }
-        let options = chunk.audioOptions
 
         print("[AudioToggle] Reconfiguring: mode=\(audioModeManager.currentMode.description), currentSentenceIndex=\(currentSentenceIndex ?? -1), time=\(String(format: "%.3f", viewModel.highlightingTime)), seqEnabled=\(viewModel.sequenceController.isEnabled)")
 
-        let combinedOption = options.first(where: { $0.kind == .combined })
-        let originalOption = options.first(where: { $0.kind == .original })
-        let translationOption = options.first(where: { $0.kind == .translation })
-
-        // Determine which audio option to select based on mode manager state
-        let targetOption: InteractiveChunk.AudioOption? = {
-            switch audioModeManager.currentMode {
-            case .sequence:
-                // Both enabled: use combined/sequence mode if available
-                return combinedOption ?? originalOption ?? translationOption
-            case .singleTrack(.original):
-                // Only original: prefer original track
-                return originalOption ?? combinedOption ?? translationOption
-            case .singleTrack(.translation):
-                // Only translation: prefer translation track
-                return translationOption ?? combinedOption ?? originalOption
-            }
-        }()
-
-        guard let target = targetOption else { return }
+        guard let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) else { return }
 
         // Sync audio mode to sequence controller BEFORE calling prepareAudio
         // This ensures buildPlan() sees the correct mode
         viewModel.sequenceController.audioMode = audioModeManager.currentMode
 
-        // Reconfigure audio with preserved sentence position
-        if viewModel.selectedAudioTrackID != target.id {
-            viewModel.selectedAudioTrackID = target.id
+        if viewModel.selectedAudioTrackID != targetID {
+            viewModel.selectedAudioTrackID = targetID
         }
         viewModel.prepareAudio(
             for: chunk,

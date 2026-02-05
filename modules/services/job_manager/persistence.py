@@ -110,14 +110,7 @@ class PipelineJobPersistence:
             generated_files=normalized_files,
             media_completed=job.media_completed,
         )
-        chunk_manifest = self._persist_metadata_files(job, snapshot)
-        manifest_source = chunk_manifest if chunk_manifest is not None else snapshot.chunk_manifest
-        if manifest_source is not None:
-            snapshot.chunk_manifest = manifest_source
-            job.chunk_manifest = manifest_source
-        else:
-            snapshot.chunk_manifest = None
-            job.chunk_manifest = None
+        self._persist_metadata_files(job, snapshot)
         return snapshot
 
     def build_job(self, metadata: PipelineJobMetadata) -> PipelineJob:
@@ -157,7 +150,6 @@ class PipelineJobPersistence:
             access=metadata.access,
             generated_files=normalized_files,
         )
-        job.chunk_manifest = metadata.chunk_manifest
         job.media_completed = bool(metadata.media_completed)
         if isinstance(normalized_files, Mapping):
             complete_flag = normalized_files.get("complete")
@@ -173,14 +165,14 @@ class PipelineJobPersistence:
         self,
         job: PipelineJob,
         snapshot: PipelineJobMetadata,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> None:
         try:
             metadata_root = self._file_locator.metadata_root(job.job_id)
             metadata_root.mkdir(parents=True, exist_ok=True)
             job_root = self._file_locator.job_root(job.job_id)
         except Exception:  # pragma: no cover - defensive logging
             _LOGGER.debug("Unable to prepare metadata directory", exc_info=True)
-            return None
+            return
 
         result_payload_raw = snapshot.result or {}
         if isinstance(result_payload_raw, Mapping):
@@ -313,7 +305,6 @@ class PipelineJobPersistence:
                     exc_info=True,
                 )
 
-        chunk_manifest = None
         generated_payload = snapshot.generated_files
         if isinstance(generated_payload, Mapping) or prompt_plan_summary is not None:
             if isinstance(generated_payload, Mapping):
@@ -322,7 +313,7 @@ class PipelineJobPersistence:
                 generated_payload = {"chunks": [], "files": []}
             if prompt_plan_summary is not None:
                 generated_payload["image_prompt_plan_summary"] = prompt_plan_summary
-            updated_generated, chunk_manifest = write_chunk_metadata(
+            updated_generated = write_chunk_metadata(
                 job.job_id,
                 metadata_root,
                 generated_payload,
@@ -337,16 +328,6 @@ class PipelineJobPersistence:
                 job.result.generated_files = copy.deepcopy(updated_generated)
             job.generated_files = copy.deepcopy(updated_generated)
 
-        if chunk_manifest is not None:
-            if isinstance(result_payload, Mapping):
-                result_payload["chunk_manifest"] = copy.deepcopy(chunk_manifest)
-            if job.result_payload is not None:
-                job.result_payload["chunk_manifest"] = copy.deepcopy(chunk_manifest)
-            if job.result is not None:
-                job.result.chunk_manifest = copy.deepcopy(chunk_manifest)
-            job.chunk_manifest = copy.deepcopy(chunk_manifest)
-            snapshot.chunk_manifest = copy.deepcopy(chunk_manifest)
-
         manifest_payload = ensure_timing_manifest(snapshot.result, job_root)
         snapshot.result = manifest_payload
         timing_tracks = manifest_payload.get("timing_tracks")
@@ -359,8 +340,6 @@ class PipelineJobPersistence:
                 job.result.metadata.update({"timing_tracks": copy.deepcopy(timing_tracks)})
             except Exception:  # pragma: no cover - defensive logging
                 _LOGGER.debug("Unable to attach timing tracks to job result", exc_info=True)
-
-        return chunk_manifest
 
     def _merge_generated_files(
         self,
@@ -437,7 +416,6 @@ class PipelineJobPersistence:
                         job.media_completed = complete_flag
                 else:
                     job.generated_files = copy.deepcopy(generated)
-                job.chunk_manifest = None
 
         return self.snapshot(job)
 

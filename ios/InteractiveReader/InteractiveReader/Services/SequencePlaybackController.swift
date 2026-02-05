@@ -20,12 +20,48 @@ struct SequenceSegment: Identifiable, Equatable {
     }
 }
 
+// MARK: - PlaybackPhase State Machine
+
+/// Explicit state machine phases for sequence playback.
+/// Replaces the implicit state encoded in multiple boolean flags and counters.
+private enum PlaybackPhase: CustomStringConvertible {
+    case idle
+    case playing
+    case dwelling(startedAt: Date)
+    case transitioning
+    case validating(Validation)
+
+    struct Validation: Equatable {
+        let expectedPosition: Double
+        var staleTimeCount: Int = 0         // ≥maxStaleTimeCount → clear or enter settling
+        var settlingCount: Int = 0          // ≥maxSettlingCount → re-seek or give up
+        var reseekAttempts: Int = 0         // ≥maxReseekAttempts → accept stale time
+        var isSettling: Bool = false        // Substate: waiting for AVPlayer time to reach expected position
+    }
+
+    var description: String {
+        switch self {
+        case .idle: return "idle"
+        case .playing: return "playing"
+        case .dwelling: return "dwelling"
+        case .transitioning: return "transitioning"
+        case .validating(let v):
+            if v.isSettling {
+                return "validating(settling:\(v.settlingCount) reseek:\(v.reseekAttempts))"
+            }
+            return "validating(stale:\(v.staleTimeCount) expected:\(String(format: "%.3f", v.expectedPosition)))"
+        }
+    }
+}
+
 /// Controller for managing per-sentence sequence playback
 /// Mirrors the web app's useInteractiveAudioSequence behavior
 @MainActor
 final class SequencePlaybackController: ObservableObject {
     /// Set to true to enable verbose sequence playback logging
     private static let debug = false
+
+    // MARK: - Published State (observed by SwiftUI / Combine)
 
     /// Whether sequence mode is enabled (both original and translation tracks available)
     @Published private(set) var isEnabled = false {
@@ -45,57 +81,85 @@ final class SequencePlaybackController: ObservableObject {
     /// Current segment index within the plan
     @Published private(set) var currentSegmentIndex: Int = 0
 
-    /// Whether a track transition is in progress (prevents re-entrant time updates)
+    /// Whether a track transition is in progress (prevents re-entrant time updates).
+    /// Kept as stored @Published because ViewModel subscribes via `$isTransitioning`.
+    /// Synchronized from `phase.didSet`.
     @Published private(set) var isTransitioning = false
 
-    /// Whether the current/recent transition is a same-sentence track switch
-    /// This is set when advancing segments and cleared when transition ends
-    /// Used by the view layer to show static (fully revealed) display during track switches
+    /// Whether we're currently dwelling at segment end (exposed for view layer to avoid time-based lookup).
+    /// Kept as stored @Published for SwiftUI observation.
+    /// Synchronized from `phase.didSet`.
+    @Published private(set) var isDwelling: Bool = false
+
+    // MARK: - Phase State Machine
+
+    /// The single source of truth for playback state.
+    /// Published properties `isTransitioning` and `isDwelling` are synchronized in `didSet`.
+    private var phase: PlaybackPhase = .idle {
+        didSet {
+            // Sync published properties from phase
+            let newIsTransitioning: Bool
+            if case .transitioning = phase { newIsTransitioning = true } else { newIsTransitioning = false }
+            let newIsDwelling: Bool
+            if case .dwelling = phase { newIsDwelling = true } else { newIsDwelling = false }
+
+            if isTransitioning != newIsTransitioning {
+                isTransitioning = newIsTransitioning
+            }
+            if isDwelling != newIsDwelling {
+                isDwelling = newIsDwelling
+            }
+
+            if Self.debug, "\(oldValue)" != "\(phase)" {
+                print("[SequencePlayback] Phase: \(oldValue) → \(phase)")
+            }
+        }
+    }
+
+    // MARK: - Transition Metadata (not part of phase)
+
+    /// Whether the current/recent transition is a same-sentence track switch.
+    /// This is sticky metadata — set during advanceToNextSegment, cleared at next transition start.
+    /// Used by the view layer to show static (fully revealed) display during track switches.
     private(set) var isSameSentenceTrackSwitch = false
 
-    /// The expected playback position after a seek (used to validate time updates and for stable highlighting)
-    /// This is exposed publicly so that highlightingTime can use it when available, providing a stable
-    /// time value right after track transitions end (before audioCoordinator.currentTime settles)
-    private(set) var expectedPosition: Double?
+    /// The expected playback position after a seek (used to validate time updates and for stable highlighting).
+    /// Computed from phase — non-nil only in `.validating` state.
+    var expectedPosition: Double? {
+        if case .validating(let state) = phase {
+            return state.expectedPosition
+        }
+        return nil
+    }
 
-    /// Counter for consecutive stale time updates (used to auto-clear expectedPosition)
-    private var staleTimeCount: Int = 0
-
-    /// Maximum consecutive stale times before we clear expectedPosition and trust the current time
-    private let maxStaleTimeCount: Int = 10
-
-    /// Whether we're waiting for playback to settle after initial load
-    private var isSettling: Bool = false
-
-    /// Counter for settling updates (wait for time to stabilize)
-    private var settlingCount: Int = 0
-
-    /// Time when the segment end was first reached (for dwell timing)
-    private var segmentEndReachedTime: Date? = nil
+    // MARK: - Dwell Support
 
     /// Duration to dwell at segment end to ensure last word highlight is visible (seconds)
     private let segmentEndDwellDuration: TimeInterval = 0.25
 
-    /// Whether we're currently dwelling at segment end (exposed for view layer to avoid time-based lookup)
-    @Published private(set) var isDwelling: Bool = false
+    /// Work item for scheduled dwell completion (since time observer stops when player is paused).
+    /// Kept as separate stored property because it needs cancellation from multiple call sites.
+    private var dwellWorkItem: DispatchWorkItem?
 
-    /// Work item for scheduled dwell completion (since time observer stops when player is paused)
-    private var dwellCompletionWorkItem: DispatchWorkItem?
+    // MARK: - Validation Constants
+
+    /// Maximum consecutive stale times before we clear expectedPosition and trust the current time
+    private let maxStaleTimeCount: Int = 10
 
     /// Maximum settling updates before we trust the current time
     private let maxSettlingCount: Int = 30
 
-    /// Counter for re-seek attempts (to prevent infinite loops)
-    private var reseekAttempts: Int = 0
-
     /// Maximum re-seek attempts before giving up and accepting stale time
     private let maxReseekAttempts: Int = 3
+
+    // MARK: - Audio Track State
 
     /// The URLs for the audio tracks
     private(set) var originalTrackURL: URL?
     private(set) var translationTrackURL: URL?
 
-    /// Callbacks
+    // MARK: - Callbacks
+
     var onTrackSwitch: ((SequenceTrack, Double) -> Void)?
     var onSequenceEnded: (() -> Void)?
     /// Called when a re-seek is requested (e.g., after settling timeout due to stale times)
@@ -115,6 +179,8 @@ final class SequencePlaybackController: ObservableObject {
     /// Called to check if a track should be skipped during automatic playback progression
     /// Returns true if the track should be skipped (e.g., because it's hidden in the UI)
     var shouldSkipTrack: ((SequenceTrack) -> Bool)?
+
+    // MARK: - Audio Mode
 
     /// The current audio mode (set by the View layer from AudioModeManager)
     /// This determines whether sequence mode is enabled and which tracks are active
@@ -145,6 +211,8 @@ final class SequencePlaybackController: ObservableObject {
             return track == .translation
         }
     }
+
+    // MARK: - Plan Building
 
     /// Build a sequence plan from the chunk's sentences
     /// This mirrors the web app's sequencePlan useMemo logic
@@ -208,6 +276,48 @@ final class SequencePlaybackController: ObservableObject {
             }
         }
 
+        // Fallback: derive gates from phaseDurations when gate data is absent
+        if !hasOriginalGate || !hasTranslationGate {
+            let canDerive = sentences.contains { $0.phaseDurations != nil }
+            if canDerive {
+                var origCursor = 0.0
+                var transCursor = 0.0
+                for (index, sentence) in sentences.enumerated() {
+                    let origDur = sentence.phaseDurations?.original ?? 0
+                    let transDur = sentence.phaseDurations?.translation
+                        ?? sentence.totalDuration ?? 0
+                    if !hasOriginalGate && origDur > 0 {
+                        segments.append(SequenceSegment(
+                            track: .original,
+                            start: origCursor,
+                            end: origCursor + origDur,
+                            sentenceIndex: index
+                        ))
+                    }
+                    if !hasTranslationGate && transDur > 0 {
+                        segments.append(SequenceSegment(
+                            track: .translation,
+                            start: transCursor,
+                            end: transCursor + transDur,
+                            sentenceIndex: index
+                        ))
+                    }
+                    origCursor += origDur
+                    transCursor += transDur
+                }
+                // Re-check after derivation
+                if !hasOriginalGate {
+                    hasOriginalGate = segments.contains { $0.track == .original }
+                }
+                if !hasTranslationGate {
+                    hasTranslationGate = segments.contains { $0.track == .translation }
+                }
+                if Self.debug {
+                    print("[SequencePlayback] Derived gates from phaseDurations: origGate=\(hasOriginalGate), transGate=\(hasTranslationGate)")
+                }
+            }
+        }
+
         // Fallback for single-sentence chunks without gate data
         if sentences.count == 1 && (!hasOriginalGate || !hasTranslationGate) {
             if !hasOriginalGate, let duration = originalDuration, duration > 0 {
@@ -244,11 +354,14 @@ final class SequencePlaybackController: ObservableObject {
         // Reset to beginning
         currentSegmentIndex = 0
         currentTrack = hasOriginalSegments ? .original : .translation
+        phase = isEnabled ? .playing : .idle
 
         if Self.debug {
             print("[SequencePlayback] Plan: \(segments.count) segs, enabled=\(isEnabled), origToggle=\(isOriginalAudioEnabled), transToggle=\(isTranslationAudioEnabled)")
         }
     }
+
+    // MARK: - Computed Properties
 
     /// Get the current active URL based on the current track
     var effectiveURL: URL? {
@@ -269,14 +382,25 @@ final class SequencePlaybackController: ObservableObject {
         return plan[nextIndex]
     }
 
+    // MARK: - Time Update Loop
+
     /// Check playback time and advance to next segment if needed
     /// Returns true if a track switch occurred
     func updateForTime(_ time: Double, isPlaying: Bool) -> Bool {
-        guard isEnabled else {
-            // Log only occasionally to avoid spam
+        guard isEnabled else { return false }
+        guard isPlaying else { return false }
+
+        // Phase-based guard: only process time updates in playing or validating phases
+        switch phase {
+        case .idle, .transitioning:
             return false
+        case .dwelling:
+            // Dwell completion handled by scheduled work item
+            return false
+        case .validating, .playing:
+            break
         }
-        guard isPlaying, !isTransitioning else { return false }
+
         guard let segment = currentSegment else {
             if Self.debug {
                 print("[SequencePlayback] updateForTime: no current segment!")
@@ -286,58 +410,52 @@ final class SequencePlaybackController: ObservableObject {
 
         let tolerance = 0.1 // 100ms tolerance
 
-        // If we're in settling state after initial load, wait for time to reach near segment start
-        if isSettling {
-            settlingCount += 1
-            // Check if time has settled near the segment start
-            if time >= segment.start - tolerance && time <= segment.start + 1.0 {
-                if Self.debug {
-                    print("[SequencePlayback] Settling complete, time=\(String(format: "%.3f", time)) is near segment start \(String(format: "%.3f", segment.start))")
-                }
-                isSettling = false
-                settlingCount = 0
-                reseekAttempts = 0
-            } else if settlingCount >= maxSettlingCount {
-                // Timeout - AVPlayer is still reporting stale times
-                isSettling = false
-                settlingCount = 0
-                // Ensure we're at segment 0
-                currentSegmentIndex = 0
-                currentTrack = plan.first?.track ?? .original
+        // Handle validation phase (settling + stale time detection)
+        if case .validating(var state) = phase {
+            // Sub-state: settling (waiting for AVPlayer time to reach expected position after initial load)
+            if state.isSettling {
+                state.settlingCount += 1
+                // Check if time has settled near the segment start
+                if time >= segment.start - tolerance && time <= segment.start + 1.0 {
+                    if Self.debug {
+                        print("[SequencePlayback] Settling complete, time=\(String(format: "%.3f", time)) is near segment start \(String(format: "%.3f", segment.start))")
+                    }
+                    phase = .playing
+                } else if state.settlingCount >= maxSettlingCount {
+                    // Timeout - AVPlayer is still reporting stale times
+                    // Ensure we're at segment 0
+                    currentSegmentIndex = 0
+                    currentTrack = plan.first?.track ?? .original
 
-                reseekAttempts += 1
-                if reseekAttempts <= maxReseekAttempts {
-                    // Request a re-seek to segment start
-                    // Fire pre-transition callback BEFORE setting isTransitioning
-                    if Self.debug {
-                        print("[SequencePlayback] Settling timeout at time=\(String(format: "%.3f", time)), requesting re-seek (attempt \(reseekAttempts)/\(maxReseekAttempts))")
+                    state.reseekAttempts += 1
+                    if state.reseekAttempts <= maxReseekAttempts {
+                        // Request a re-seek to segment start
+                        if Self.debug {
+                            print("[SequencePlayback] Settling timeout at time=\(String(format: "%.3f", time)), requesting re-seek (attempt \(state.reseekAttempts)/\(maxReseekAttempts))")
+                        }
+                        onWillBeginTransition?()
+                        phase = .transitioning
+                        onSeekRequest?(segment.start)
+                    } else {
+                        // Give up - accept that time may be stale but proceed anyway
+                        if Self.debug {
+                            print("[SequencePlayback] Max re-seek attempts reached, accepting stale time=\(String(format: "%.3f", time))")
+                        }
+                        phase = .playing
+                        onTimeStabilized?()
                     }
-                    onWillBeginTransition?()
-                    isTransitioning = true
-                    onSeekRequest?(segment.start)
                 } else {
-                    // Give up - accept that time may be stale but proceed anyway
-                    // This prevents infinite loops if AVPlayer never reports correct time
-                    if Self.debug {
-                        print("[SequencePlayback] Max re-seek attempts reached, accepting stale time=\(String(format: "%.3f", time))")
+                    // Still settling - update count and wait
+                    phase = .validating(state)
+                    if state.settlingCount <= 3, Self.debug {
+                        print("[SequencePlayback] Settling (\(state.settlingCount)/\(maxSettlingCount)), waiting for time to reach \(String(format: "%.3f", segment.start))")
                     }
-                    expectedPosition = nil
-                    reseekAttempts = 0
-                    onTimeStabilized?()
-                }
-                return false
-            } else {
-                // Still settling - don't process time updates yet
-                if settlingCount <= 3, Self.debug {
-                    print("[SequencePlayback] Settling (\(settlingCount)/\(maxSettlingCount)), waiting for time to reach \(String(format: "%.3f", segment.start))")
                 }
                 return false
             }
-        }
 
-        // If we have an expected position, validate that we're near it
-        // This prevents false triggers from stale time values after track switches
-        if let expected = expectedPosition {
+            // Normal validation: check if time matches expected position
+            let expected = state.expectedPosition
             let deviation = abs(time - expected)
             // Also check if time is past the segment end - this catches cases where stale time
             // is close to expected but already past the boundary (e.g., skip back within same segment)
@@ -345,52 +463,46 @@ final class SequencePlaybackController: ObservableObject {
             let isBeforeSegmentStart = time < segment.start - tolerance
             let isStale = deviation > 1.0 || (isPastSegmentEnd && time > expected + 0.5) || isBeforeSegmentStart
 
-            // Reduced logging - only log stale times
-            if isStale && staleTimeCount <= 1 && Self.debug {
+            if isStale && state.staleTimeCount <= 1 && Self.debug {
                 print("[SequencePlayback] Stale time t=\(String(format: "%.3f", time)) expected=\(String(format: "%.3f", expected))")
             }
 
             if isStale {
                 // Time is more than 1 second away from expected, or past segment end, or before segment start
-                // - likely stale value
-                staleTimeCount += 1
-                if staleTimeCount >= maxStaleTimeCount {
-                    // Too many stale times - the seek may not have worked or AVPlayer is reporting
-                    // different time than expected. Clear expected position.
+                state.staleTimeCount += 1
+                if state.staleTimeCount >= maxStaleTimeCount {
+                    // Too many stale times - clear expected position
                     // NOTE: Do NOT clear isSameSentenceTrackSwitch here - it will be cleared
                     // when the next transition starts (advanceToNextSegment or commitSentenceTarget)
                     if Self.debug {
-                        print("[SequencePlayback] Clearing expectedPosition after \(staleTimeCount) stale updates, time=\(String(format: "%.3f", time))")
+                        print("[SequencePlayback] Clearing expectedPosition after \(state.staleTimeCount) stale updates, time=\(String(format: "%.3f", time))")
                     }
-                    expectedPosition = nil
-                    staleTimeCount = 0
+                    phase = .playing
                     onTimeStabilized?()
 
                     // If we're at the start (segment 0, expected position ~0), this is likely initial load
-                    // with stale time from a previous audio file. Enter settling state to wait for
-                    // the actual playback time to stabilize.
+                    // with stale time from a previous audio file. Enter settling state.
                     if currentSegmentIndex == 0 && expected < 0.5 {
                         if Self.debug {
                             print("[SequencePlayback] Initial load detected, entering settling state")
                         }
-                        isSettling = true
-                        settlingCount = 0
+                        phase = .validating(PlaybackPhase.Validation(
+                            expectedPosition: expected,
+                            isSettling: true
+                        ))
                         return false
                     }
 
                     // After max stale times, simply trust the current segment index.
-                    // The segment was already set correctly by intentional navigation
-                    // (skipSentence, seekToSentence, etc). Don't try to recalculate it
-                    // from stale time values - that causes jumps to wrong segments.
                     if Self.debug {
                         print("[SequencePlayback] Trusting current segment \(currentSegmentIndex) after stale timeout")
                     }
-                    // Don't advance yet - let the next time update handle it normally
                     return false
                 } else {
                     // Still waiting for valid time
-                    if staleTimeCount <= 3, Self.debug {
-                        print("[SequencePlayback] Ignoring stale time \(String(format: "%.3f", time)), expected ~\(String(format: "%.3f", expected)), segment=\(segment.start)-\(segment.end) (\(staleTimeCount)/\(maxStaleTimeCount))")
+                    phase = .validating(state)
+                    if state.staleTimeCount <= 3, Self.debug {
+                        print("[SequencePlayback] Ignoring stale time \(String(format: "%.3f", time)), expected ~\(String(format: "%.3f", expected)), segment=\(segment.start)-\(segment.end) (\(state.staleTimeCount)/\(maxStaleTimeCount))")
                     }
                     return false
                 }
@@ -398,17 +510,18 @@ final class SequencePlaybackController: ObservableObject {
                 // Track consecutive valid time values before clearing expectedPosition
                 // This prevents a race condition where a valid time update is followed by a stale one
                 // (AVPlayer can deliver buffered time updates out of order)
-                staleTimeCount -= 1  // Use staleTimeCount as a countdown for valid times
-                if staleTimeCount <= -3 {
+                state.staleTimeCount -= 1  // Use staleTimeCount as a countdown for valid times
+                if state.staleTimeCount <= -3 {
                     // We've seen 3 consecutive valid times - safe to clear expected position
                     // NOTE: Do NOT clear isSameSentenceTrackSwitch here - it will be cleared
                     // when the next transition starts (advanceToNextSegment or commitSentenceTarget)
                     if Self.debug {
                         print("[SequencePlayback] Clearing expectedPosition after 3 valid time updates")
                     }
-                    expectedPosition = nil
-                    staleTimeCount = 0
+                    phase = .playing
                     onTimeStabilized?()
+                } else {
+                    phase = .validating(state)
                 }
             }
         }
@@ -417,64 +530,63 @@ final class SequencePlaybackController: ObservableObject {
         // Use a dwell period to ensure the last word highlight is visible before advancing
         if time >= segment.end - tolerance {
             // First time reaching segment end - start the dwell timer and pause audio
-            // to prevent audio content past the segment end from being heard
-            if segmentEndReachedTime == nil {
-                segmentEndReachedTime = Date()
-                isDwelling = true
+            if case .playing = phase {
                 if Self.debug {
                     print("[SequencePlayback] Time \(String(format: "%.3f", time)) reached segment[\(currentSegmentIndex)] end \(String(format: "%.3f", segment.end)) - starting dwell, pausing audio")
                 }
+                phase = .dwelling(startedAt: Date())
+
                 // Pause during dwell to prevent audio bleed
                 onPauseForDwell?()
 
                 // Schedule dwell completion since the time observer stops when player is paused
-                // We can't rely on updateForTime being called again, so use a timer
-                dwellCompletionWorkItem?.cancel()
+                dwellWorkItem?.cancel()
                 let workItem = DispatchWorkItem { [weak self] in
                     Task { @MainActor [weak self] in
                         self?.completeDwell()
                     }
                 }
-                dwellCompletionWorkItem = workItem
+                dwellWorkItem = workItem
                 DispatchQueue.main.asyncAfter(deadline: .now() + segmentEndDwellDuration, execute: workItem)
-
-                return false
             }
-
-            // Dwell completion is now handled by the scheduled work item
-            // This branch is kept for safety but shouldn't normally be reached
+            // Whether we just entered dwelling or are already in it, don't process further
             return false
         }
 
-        // Not at segment end - clear any pending dwell
-        segmentEndReachedTime = nil
-        isDwelling = false
+        // Not at segment end - if somehow still in dwelling state, cancel and return to playing
+        if case .dwelling = phase {
+            dwellWorkItem?.cancel()
+            dwellWorkItem = nil
+            phase = .playing
+        }
+
         return false
     }
+
+    // MARK: - Dwell Completion
 
     /// Complete the dwell period and advance to the next segment
     /// Called by the scheduled work item after segmentEndDwellDuration
     private func completeDwell() {
-        guard isDwelling else {
+        guard case .dwelling(let startedAt) = phase else {
             // Dwell was cancelled (e.g., user skipped or paused)
             return
         }
 
-        let dwellElapsed = segmentEndReachedTime.map { Date().timeIntervalSince($0) } ?? 0
+        let dwellElapsed = Date().timeIntervalSince(startedAt)
         if Self.debug {
             print("[SequencePlayback] Dwell complete (\(String(format: "%.3f", dwellElapsed))s) - advancing from segment[\(currentSegmentIndex)]")
         }
 
-        segmentEndReachedTime = nil
-        isDwelling = false
-        dwellCompletionWorkItem = nil
-
+        dwellWorkItem = nil
+        // Phase will be set by advanceToNextSegment (to .transitioning)
         _ = advanceToNextSegment()
     }
 
+    // MARK: - Segment Navigation
+
     /// Find the segment index that contains the given time for the specified track
     private func findSegmentIndex(forTime time: Double, track: SequenceTrack) -> Int? {
-        // Find the last segment of the current track that starts before or at the given time
         var bestIndex: Int? = nil
         for (index, segment) in plan.enumerated() {
             if segment.track == track && time >= segment.start {
@@ -486,7 +598,7 @@ final class SequencePlaybackController: ObservableObject {
 
     /// Mark transition as started (call before switching tracks)
     func beginTransition() {
-        isTransitioning = true
+        phase = .transitioning
         if Self.debug {
             print("[SequencePlayback] Transition started")
         }
@@ -495,17 +607,17 @@ final class SequencePlaybackController: ObservableObject {
     /// Mark transition as completed (call after audio is loaded and ready)
     /// - Parameter expectedTime: The expected playback position after the seek
     func endTransition(expectedTime: Double? = nil) {
-        expectedPosition = expectedTime
-        staleTimeCount = 0
-        isSettling = false
-        settlingCount = 0
-        reseekAttempts = 0
         // NOTE: We intentionally do NOT clear isSameSentenceTrackSwitch here.
         // The flag persists briefly after transition ends so the view can still
         // show static display until the next segment advance clears it.
-        // This covers the window between transition end and audio settling.
         let sameSentenceSwitch = isSameSentenceTrackSwitch
-        isTransitioning = false
+
+        if let expectedTime {
+            phase = .validating(PlaybackPhase.Validation(expectedPosition: expectedTime))
+        } else {
+            phase = .playing
+        }
+
         if Self.debug {
             print("[SequencePlayback] Transition ended, expectedPosition=\(expectedTime.map { String(format: "%.3f", $0) } ?? "nil"), sameSentenceSwitch=\(sameSentenceSwitch)")
         }
@@ -515,25 +627,21 @@ final class SequencePlaybackController: ObservableObject {
     /// Returns true if a track switch occurred
     @discardableResult
     func advanceToNextSegment() -> Bool {
-        // CRITICAL: Set isTransitioning FIRST before any other state changes
+        // CRITICAL: Set phase to .transitioning FIRST before any other state changes
         // to prevent race conditions where a SwiftUI render sees intermediate state
-        // (e.g., isDwelling=false but isTransitioning=false, causing NORMAL CASE to trigger)
-        isTransitioning = true
+        phase = .transitioning
 
         // Clear the previous same-sentence flag immediately to prevent it from
         // affecting renders during the next transition
         isSameSentenceTrackSwitch = false
         // Clear dwell state when advancing to new segment
-        segmentEndReachedTime = nil
-        isDwelling = false
-        dwellCompletionWorkItem?.cancel()
-        dwellCompletionWorkItem = nil
+        dwellWorkItem?.cancel()
+        dwellWorkItem = nil
 
         // Find the next segment, skipping any segments for hidden tracks
         var nextIndex = currentSegmentIndex + 1
         while nextIndex < plan.count {
             let candidate = plan[nextIndex]
-            // Check if this track should be skipped (e.g., it's hidden in the UI)
             if let shouldSkip = shouldSkipTrack, shouldSkip(candidate.track) {
                 if Self.debug {
                     print("[SequencePlayback] SKIP \(candidate.track.rawValue) seg[\(nextIndex)]")
@@ -546,12 +654,11 @@ final class SequencePlaybackController: ObservableObject {
 
         if nextIndex >= plan.count {
             // End of sequence - disable immediately to prevent re-entering dwell
-            // while the async onSequenceEnded callback is pending
             if Self.debug {
                 print("[SequencePlayback] End of sequence reached")
             }
             isEnabled = false
-            isTransitioning = false  // Reset since we're not actually transitioning
+            phase = .idle  // Reset since we're not actually transitioning
             onSequenceEnded?()
             return false
         }
@@ -564,8 +671,6 @@ final class SequencePlaybackController: ObservableObject {
         // Detect same-sentence track switch (for view layer to show static display)
         let isSameSentence = previousSentenceIndex == nextSegment.sentenceIndex
         isSameSentenceTrackSwitch = didSwitchTrack && isSameSentence
-
-        // isTransitioning already set at the beginning of this method
 
         if didSwitchTrack {
             onWillBeginTransition?()
@@ -609,7 +714,6 @@ final class SequencePlaybackController: ObservableObject {
         guard let target = findSentenceTarget(sentenceIndex, preferredTrack: preferredTrack) else {
             if Self.debug {
                 print("[SequencePlayback] seekToSentence(\(sentenceIndex)) failed: no target found in plan with \(plan.count) segments")
-                // Log available sentence indices for debugging
                 let sentenceIndices = Set(plan.map { $0.sentenceIndex }).sorted()
                 print("[SequencePlayback] Available sentence indices: \(sentenceIndices)")
             }
@@ -624,16 +728,13 @@ final class SequencePlaybackController: ObservableObject {
     }
 
     /// Find the target segment for a sentence without updating state
-    /// This is used when we need to fire callbacks BEFORE updating state
     func findSentenceTarget(_ sentenceIndex: Int, preferredTrack: SequenceTrack? = nil) -> (segmentIndex: Int, track: SequenceTrack, time: Double)? {
         let preferred = preferredTrack ?? .original
         let fallback: SequenceTrack = preferred == .original ? .translation : .original
 
-        // First try to find the preferred track segment for this sentence
         if let index = findSegmentIndex(sentenceIndex: sentenceIndex, track: preferred) {
             return (index, preferred, plan[index].start)
         }
-        // Fall back to the other track
         if let index = findSegmentIndex(sentenceIndex: sentenceIndex, track: fallback) {
             return (index, fallback, plan[index].start)
         }
@@ -646,10 +747,8 @@ final class SequencePlaybackController: ObservableObject {
         // Sentence skips always go to a different sentence, so clear the same-sentence flag
         isSameSentenceTrackSwitch = false
         // Clear dwell state when seeking to a new sentence
-        segmentEndReachedTime = nil
-        isDwelling = false
-        dwellCompletionWorkItem?.cancel()
-        dwellCompletionWorkItem = nil
+        dwellWorkItem?.cancel()
+        dwellWorkItem = nil
         currentSegmentIndex = target.segmentIndex
         currentTrack = target.track
     }
@@ -665,10 +764,6 @@ final class SequencePlaybackController: ObservableObject {
     }
 
     /// Navigate to the next sentence (skips track changes within the same sentence)
-    /// NOTE: This method updates state immediately. Use nextSentenceTarget() if you need to
-    /// fire callbacks before updating state.
-    /// - Parameter preferredTrack: The preferred track based on visibility settings. If nil, uses current track.
-    /// - Returns: The track and time to seek to, or nil if at the last sentence
     func nextSentence(preferredTrack: SequenceTrack? = nil) -> (track: SequenceTrack, time: Double)? {
         guard let target = nextSentenceTarget(preferredTrack: preferredTrack) else { return nil }
         commitSentenceTarget(target)
@@ -686,10 +781,6 @@ final class SequencePlaybackController: ObservableObject {
     }
 
     /// Navigate to the previous sentence (skips track changes within the same sentence)
-    /// NOTE: This method updates state immediately. Use previousSentenceTarget() if you need to
-    /// fire callbacks before updating state.
-    /// - Parameter preferredTrack: The preferred track based on visibility settings. If nil, uses current track.
-    /// - Returns: The track and time to seek to, or nil if at the first sentence
     func previousSentence(preferredTrack: SequenceTrack? = nil) -> (track: SequenceTrack, time: Double)? {
         guard let target = previousSentenceTarget(preferredTrack: preferredTrack) else { return nil }
         commitSentenceTarget(target)
@@ -706,21 +797,16 @@ final class SequencePlaybackController: ObservableObject {
         return findSentenceTarget(indices[prevPos], preferredTrack: preferredTrack ?? currentTrack)
     }
 
+    // MARK: - Reset
+
     /// Reset the controller state
     func reset() {
         isEnabled = false
-        isTransitioning = false
         isSameSentenceTrackSwitch = false
-        isDwelling = false
-        dwellCompletionWorkItem?.cancel()
-        dwellCompletionWorkItem = nil
+        dwellWorkItem?.cancel()
+        dwellWorkItem = nil
         let hadExpectedPosition = expectedPosition != nil
-        expectedPosition = nil
-        staleTimeCount = 0
-        isSettling = false
-        settlingCount = 0
-        reseekAttempts = 0
-        segmentEndReachedTime = nil
+        phase = .idle
         if hadExpectedPosition {
             onTimeStabilized?()
         }

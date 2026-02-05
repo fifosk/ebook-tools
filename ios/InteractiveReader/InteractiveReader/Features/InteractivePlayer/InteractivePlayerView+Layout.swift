@@ -46,7 +46,8 @@ extension InteractivePlayerView {
             // Text track visibility should not affect audio playback.
             // Audio track selection is controlled separately via the audio toggle pills.
             viewModel.sequenceController.shouldSkipTrack = nil
-            // Sync audio mode to sequence controller from AudioModeManager
+            // Sync audio mode manager and sequence controller from AudioModeManager
+            viewModel.audioModeManager = audioModeManager
             viewModel.sequenceController.audioMode = audioModeManager.currentMode
             #if os(tvOS)
             if !didSetInitialFocus {
@@ -358,19 +359,11 @@ extension InteractivePlayerView {
     }
 
     var isPad: Bool {
-        #if os(iOS)
-        return UIDevice.current.userInterfaceIdiom == .pad
-        #else
-        return false
-        #endif
+        PlatformAdapter.isPad
     }
 
     var isPhone: Bool {
-        #if os(iOS)
-        return UIDevice.current.userInterfaceIdiom == .phone
-        #else
-        return false
-        #endif
+        PlatformAdapter.isPhone
     }
 
     var isPhonePortrait: Bool {
@@ -382,11 +375,7 @@ extension InteractivePlayerView {
     }
 
     var isTV: Bool {
-        #if os(tvOS)
-        return true
-        #else
-        return false
-        #endif
+        PlatformAdapter.isTV
     }
 
     var isShortcutHelpVisible: Bool {

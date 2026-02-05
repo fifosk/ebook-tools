@@ -425,27 +425,15 @@ struct LibraryRowView: View {
     }
 
     private var titleFont: Font {
-        #if os(tvOS)
-        return scaledTVOSFont(.headline)
-        #else
-        return .headline
-        #endif
+        PlatformTypography.scaledFont(.headline)
     }
 
     private var authorFont: Font {
-        #if os(tvOS)
-        return scaledTVOSFont(.subheadline)
-        #else
-        return .subheadline
-        #endif
+        PlatformTypography.scaledFont(.subheadline)
     }
 
     private var metaFont: Font {
-        #if os(tvOS)
-        return scaledTVOSFont(.caption1)
-        #else
-        return .caption
-        #endif
+        PlatformTypography.scaledFont(.caption1)
     }
 
     private var titleLineLimit: Int {
@@ -488,68 +476,29 @@ struct LibraryRowView: View {
         #endif
     }
 
-    // MARK: - Text Colors (tvOS and iPad light mode use custom colors for readability)
-
-    /// Whether to use light-on-dark color scheme (tvOS unfocused)
-    private var useLightOnDarkColors: Bool {
-        #if os(tvOS)
-        return !isFocused
-        #else
-        return false
-        #endif
-    }
-
-    /// Whether to use dark-on-light color scheme (tvOS focused only)
-    private var useDarkOnLightColors: Bool {
-        #if os(tvOS)
-        return isFocused
-        #else
-        return false
-        #endif
-    }
+    // MARK: - Text Colors
 
     private var titleColor: Color {
         #if os(tvOS)
-        if useLightOnDarkColors {
-            return .white
-        } else if useDarkOnLightColors {
-            return .black
-        }
-        return Color.primary
-        #elseif os(iOS)
-        return usesDarkBackground ? .white : Color.primary
+        PlatformColors.rowTitleColor(isFocused: isFocused)
         #else
-        return Color.primary
+        PlatformColors.rowTitleColor(usesDarkBackground: usesDarkBackground)
         #endif
     }
 
     private var secondaryTextColor: Color {
         #if os(tvOS)
-        if useLightOnDarkColors {
-            return .white.opacity(0.75)
-        } else if useDarkOnLightColors {
-            return .black.opacity(0.7)
-        }
-        return .gray
-        #elseif os(iOS)
-        return usesDarkBackground ? .white.opacity(0.75) : .gray
+        PlatformColors.rowSecondaryColor(isFocused: isFocused)
         #else
-        return .gray
+        PlatformColors.rowSecondaryColor(usesDarkBackground: usesDarkBackground)
         #endif
     }
 
     private var tertiaryTextColor: Color {
         #if os(tvOS)
-        if useLightOnDarkColors {
-            return .white.opacity(0.6)
-        } else if useDarkOnLightColors {
-            return .black.opacity(0.55)
-        }
-        return .gray.opacity(0.6)
-        #elseif os(iOS)
-        return usesDarkBackground ? .white.opacity(0.6) : .gray.opacity(0.8)
+        PlatformColors.rowTertiaryColor(isFocused: isFocused)
         #else
-        return .gray.opacity(0.6)
+        PlatformColors.rowTertiaryColor(usesDarkBackground: usesDarkBackground)
         #endif
     }
 
@@ -638,12 +587,6 @@ struct LibraryRowView: View {
         return current
     }
 
-    #if os(tvOS)
-    private func scaledTVOSFont(_ style: UIFont.TextStyle) -> Font {
-        let size = UIFont.preferredFont(forTextStyle: style).pointSize * 0.5
-        return .system(size: size)
-    }
-    #endif
 }
 
 extension LibraryRowView {

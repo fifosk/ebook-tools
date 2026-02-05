@@ -552,13 +552,7 @@ struct SpeedControlOverlayView: View {
         abs(rate - currentRate) < 0.01
     }
 
-    private var isPad: Bool {
-        #if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .pad
-        #else
-        false
-        #endif
-    }
+    private var isPad: Bool { PlatformAdapter.isPad }
 }
 
 // MARK: - Jump Pill Extension
@@ -793,11 +787,5 @@ struct JumpControlOverlayView: View {
         .buttonStyle(.plain)
     }
 
-    private var isPad: Bool {
-        #if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .pad
-        #else
-        false
-        #endif
-    }
+    private var isPad: Bool { PlatformAdapter.isPad }
 }

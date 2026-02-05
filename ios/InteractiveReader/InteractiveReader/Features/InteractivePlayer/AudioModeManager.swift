@@ -209,3 +209,233 @@ extension AudioModeManager {
         }
     }
 }
+
+// MARK: - Audio Resolution
+
+/// The resolved audio instruction for a given chunk + current mode.
+/// Centralizes the branching logic previously scattered across prepareAudio(),
+/// activeTimingTrack(), and reconfigureAudioForCurrentToggles().
+enum ResolvedAudioInstruction: CustomStringConvertible {
+    /// Enter sequence mode using the combined track.
+    /// The caller should call configureSequencePlayback().
+    case sequence(combinedOption: InteractiveChunk.AudioOption)
+
+    /// Play a single audio option directly (its streamURLs as-is).
+    case singleOption(option: InteractiveChunk.AudioOption, timingTrack: TextPlayerTimingTrack)
+
+    /// Play a single URL extracted from a combined track's streamURLs array.
+    /// Used when only one toggle is enabled but no dedicated track exists.
+    case singleURL(url: URL, timingTrack: TextPlayerTimingTrack)
+
+    var description: String {
+        switch self {
+        case .sequence: return "sequence"
+        case .singleOption(let opt, let timing): return "singleOption(\(opt.kind.rawValue), \(timing))"
+        case .singleURL(let url, let timing): return "singleURL(\(url.lastPathComponent), \(timing))"
+        }
+    }
+}
+
+extension AudioModeManager {
+
+    // MARK: - Audio Instruction Resolution
+
+    /// Resolve which audio to load for the given chunk based on current mode.
+    /// Pure function — no side effects, no dependency on audioCoordinator state.
+    ///
+    /// - Parameters:
+    ///   - chunk: The chunk to resolve audio for
+    ///   - selectedTrackID: The currently selected audio track ID
+    /// - Returns: An instruction describing what to load, or nil if no audio options exist
+    func resolveAudioInstruction(
+        for chunk: InteractiveChunk,
+        selectedTrackID: String?
+    ) -> ResolvedAudioInstruction? {
+        let track: InteractiveChunk.AudioOption? = {
+            if let id = selectedTrackID {
+                return chunk.audioOptions.first(where: { $0.id == id })
+            }
+            return chunk.audioOptions.first
+        }()
+        guard let track else { return nil }
+
+        switch currentMode {
+        case .sequence:
+            if track.kind == .combined {
+                return .sequence(combinedOption: track)
+            }
+            // Selected track isn't combined — play it directly
+            return .singleOption(option: track, timingTrack: timingTrackForKind(track.kind))
+
+        case .singleTrack(let enabledTrack):
+            if track.kind == .combined {
+                return resolveSingleFromCombined(
+                    combinedTrack: track,
+                    chunk: chunk,
+                    enabledTrack: enabledTrack
+                )
+            }
+            return .singleOption(option: track, timingTrack: timingTrackForKind(track.kind))
+        }
+    }
+
+    // MARK: - Preferred Track Resolution
+
+    /// Resolve which AudioOption ID should be selected when the mode changes.
+    /// Used by reconfigureAudioForCurrentToggles().
+    ///
+    /// - Parameter chunk: The current chunk
+    /// - Returns: The ID of the best audio option for the current mode, or nil
+    func resolvePreferredTrackID(for chunk: InteractiveChunk) -> String? {
+        let options = chunk.audioOptions
+        let combinedOption = options.first(where: { $0.kind == .combined })
+        let originalOption = options.first(where: { $0.kind == .original })
+        let translationOption = options.first(where: { $0.kind == .translation })
+
+        switch currentMode {
+        case .sequence:
+            return (combinedOption ?? originalOption ?? translationOption)?.id
+        case .singleTrack(.original):
+            return (originalOption ?? combinedOption ?? translationOption)?.id
+        case .singleTrack(.translation):
+            return (translationOption ?? combinedOption ?? originalOption)?.id
+        }
+    }
+
+    // MARK: - Timing Track Resolution
+
+    /// Resolve the timing track for a chunk, given current mode and live playback state.
+    ///
+    /// - Parameters:
+    ///   - chunk: The chunk
+    ///   - selectedTrackID: Currently selected audio track ID
+    ///   - sequenceTrack: The current sequence controller track (if sequence is enabled)
+    ///   - sequenceEnabled: Whether the sequence controller is enabled
+    ///   - activeURL: The URL currently being played by the audio coordinator
+    func resolveTimingTrack(
+        for chunk: InteractiveChunk,
+        selectedTrackID: String?,
+        sequenceTrack: SequenceTrack,
+        sequenceEnabled: Bool,
+        activeURL: URL?
+    ) -> TextPlayerTimingTrack {
+        // Sequence mode active: timing follows sequence controller's current track
+        if sequenceEnabled {
+            switch sequenceTrack {
+            case .original: return .original
+            case .translation: return .translation
+            }
+        }
+
+        // Single-toggle mode: determine from which track is actually playing
+        if case .singleTrack(let enabledTrack) = currentMode {
+            if let activeURL, let match = matchURLToTimingTrack(activeURL: activeURL, chunk: chunk) {
+                return match
+            }
+            // Fallback to toggle state
+            switch enabledTrack {
+            case .original: return .original
+            case .translation: return .translation
+            }
+        }
+
+        // Both toggles enabled, non-sequence: check selected track kind
+        let track: InteractiveChunk.AudioOption? = {
+            if let id = selectedTrackID {
+                return chunk.audioOptions.first(where: { $0.id == id })
+            }
+            return chunk.audioOptions.first
+        }()
+        guard let track else { return .translation }
+
+        switch track.kind {
+        case .combined:
+            if track.streamURLs.count > 1 {
+                if let activeURL, activeURL == track.streamURLs.first {
+                    return .original
+                }
+                return .translation
+            }
+            return track.streamURLs.count == 1 ? .mix : .original
+        case .original:
+            return .original
+        case .translation:
+            return .translation
+        case .other:
+            return .translation
+        }
+    }
+
+    // MARK: - Private Helpers
+
+    /// Resolve a single track to play when the selected track is combined but only one toggle is enabled.
+    /// Mirrors the logic previously in prepareAudio() lines 242-309.
+    private func resolveSingleFromCombined(
+        combinedTrack: InteractiveChunk.AudioOption,
+        chunk: InteractiveChunk,
+        enabledTrack: SequenceTrack
+    ) -> ResolvedAudioInstruction {
+        let originalOption = chunk.audioOptions.first { $0.kind == .original }
+        let translationOption = chunk.audioOptions.first { $0.kind == .translation }
+
+        switch enabledTrack {
+        case .original:
+            if let originalOption {
+                return .singleOption(option: originalOption, timingTrack: .original)
+            }
+            if let url = combinedTrack.streamURLs.first {
+                return .singleURL(url: url, timingTrack: .original)
+            }
+            if let translationOption {
+                return .singleOption(option: translationOption, timingTrack: .translation)
+            }
+
+        case .translation:
+            if let translationOption {
+                return .singleOption(option: translationOption, timingTrack: .translation)
+            }
+            if combinedTrack.streamURLs.count >= 2 {
+                return .singleURL(url: combinedTrack.streamURLs[1], timingTrack: .translation)
+            }
+            if let originalOption {
+                return .singleOption(option: originalOption, timingTrack: .original)
+            }
+        }
+
+        // Ultimate fallback: play the combined track directly
+        return .singleOption(option: combinedTrack, timingTrack: .mix)
+    }
+
+    /// Map an AudioOption.Kind to the corresponding TextPlayerTimingTrack.
+    private func timingTrackForKind(_ kind: InteractiveChunk.AudioOption.Kind) -> TextPlayerTimingTrack {
+        switch kind {
+        case .original: return .original
+        case .translation: return .translation
+        case .combined: return .mix
+        case .other: return .translation
+        }
+    }
+
+    /// Match an active URL against a chunk's known audio option URLs.
+    /// Returns the appropriate timing track, or nil if no match found.
+    private func matchURLToTimingTrack(activeURL: URL, chunk: InteractiveChunk) -> TextPlayerTimingTrack? {
+        let originalTrack = chunk.audioOptions.first { $0.kind == .original }
+        let translationTrack = chunk.audioOptions.first { $0.kind == .translation }
+        let combinedTrack = chunk.audioOptions.first { $0.kind == .combined }
+
+        if let originalTrack, originalTrack.streamURLs.contains(activeURL) {
+            return .original
+        }
+        if let translationTrack, translationTrack.streamURLs.contains(activeURL) {
+            return .translation
+        }
+        if let combinedTrack, combinedTrack.streamURLs.count >= 2 {
+            if activeURL == combinedTrack.streamURLs.first { return .original }
+            if activeURL == combinedTrack.streamURLs[1] { return .translation }
+        } else if let combinedTrack, combinedTrack.streamURLs.count == 1,
+                  activeURL == combinedTrack.streamURLs.first {
+            return isOriginalEnabled ? .original : .translation
+        }
+        return nil
+    }
+}

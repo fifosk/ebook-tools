@@ -103,13 +103,7 @@ struct LibraryView: View {
                 }
             }
             .listStyle(.plain)
-            #if os(tvOS)
-            .background(AppTheme.background(for: colorScheme))
-            #elseif os(iOS)
-            .background(usesDarkListBackground ? AppTheme.lightBackground : Color.clear)
-            .scrollContentBackground(usesDarkListBackground ? .hidden : .automatic)
-            .environment(\.colorScheme, usesDarkListBackground ? .dark : colorScheme)
-            #endif
+            .platformListBackground(usesDark: usesDarkListBackground, colorScheme: colorScheme)
             #if os(iOS)
             .coordinateSpace(name: listCoordinateSpace)
             .onPreferenceChange(RowFramePreferenceKey.self) { frames in
@@ -217,7 +211,7 @@ struct LibraryView: View {
         }
         .padding(.top, 8)
         #if os(tvOS)
-        .font(tvOSHeaderFont)
+        .font(PlatformTypography.sectionHeaderFont)
         #endif
     }
 
@@ -292,24 +286,12 @@ struct LibraryView: View {
         #endif
     }
 
-    #if os(tvOS)
-    private var tvOSHeaderFont: Font {
-        let size = UIFont.preferredFont(forTextStyle: .body).pointSize * 0.5
-        return .system(size: size)
-    }
-    #endif
 
     private var actionRow: some View {
         let status = iCloudStatus
         let userLabel = resumeUserId ?? "Log In"
         let statusLabel = status.isAvailable ? "Online" : "Offline"
-        let iconSize: CGFloat = {
-            #if os(tvOS)
-            return 20
-            #else
-            return 18
-            #endif
-        }()
+        let iconSize = PlatformMetrics.listIconSize
         return HStack(spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: "globe")
@@ -347,7 +329,7 @@ struct LibraryView: View {
         }
         .padding(.horizontal)
         #if os(tvOS)
-        .font(tvOSHeaderFont)
+        .font(PlatformTypography.sectionHeaderFont)
         #endif
     }
 

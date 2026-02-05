@@ -50,6 +50,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     let audioCoordinator = AudioPlayerCoordinator()
     let sequenceController = SequencePlaybackController()
 
+    var audioModeManager: AudioModeManager?
     var mediaResolver: MediaURLResolver?
     var apiBaseURL: URL?
     var authToken: String?

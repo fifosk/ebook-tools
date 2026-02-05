@@ -119,7 +119,6 @@ class PipelineResponse:
     stitching: StitchingArtifacts = field(default_factory=StitchingArtifacts)
     metadata: PipelineMetadata = field(default_factory=PipelineMetadata)
     generated_files: Dict[str, Any] = field(default_factory=dict)
-    chunk_manifest: Optional[Dict[str, Any]] = None
 
     @property
     def refined_sentences(self) -> Optional[List[str]]:
@@ -481,9 +480,6 @@ def serialize_pipeline_response(response: PipelineResponse) -> Dict[str, Any]:
         "book_metadata": dict(response.book_metadata),
         "generated_files": copy.deepcopy(response.generated_files),
     }
-
-    if response.chunk_manifest is not None:
-        payload["chunk_manifest"] = copy.deepcopy(response.chunk_manifest)
 
     if response.pipeline_config is not None:
         payload["pipeline_config"] = _serialize_pipeline_config(response.pipeline_config)
