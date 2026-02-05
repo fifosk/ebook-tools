@@ -24,12 +24,17 @@ struct InteractivePlayerView: View {
     @AppStorage(MusicPreferences.readingBedEnabledKey) var readingBedEnabled = true
     @State var showMusicPicker = false
     @State var showMusicOverlay = false
+    @State var showSpeedOverlay = false
+    @State var showJumpOverlay = false
     @StateObject var musicCoordinator = MusicKitCoordinator.shared
     @AppStorage(MusicPreferences.useAppleMusicKey) var useAppleMusicForBed = false
     @AppStorage(MusicPreferences.musicVolumeKey) var musicVolume: Double = MusicPreferences.defaultMusicVolume
     @State var scrubbedTime: Double?
     @State var visibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
     @State var hasCustomTrackSelection = false
+    /// Central manager for audio mode and track toggles
+    /// This is the single source of truth for whether original/translation audio is enabled
+    @StateObject var audioModeManager = AudioModeManager()
     @State var selectedSentenceID: Int?
     @State var linguistSelection: TextPlayerWordSelection?
     @State var linguistSelectionRange: TextPlayerWordSelectionRange?
@@ -80,7 +85,7 @@ struct InteractivePlayerView: View {
     #endif
     @FocusState var focusedArea: InteractivePlayerFocusArea?
 
-    let playbackRates: [Double] = [0.7, 0.85, 1.0, 1.15, 1.3, 1.5]
+    let playbackRates: [Double] = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
     let readingBedPauseDelayNanos: UInt64 = 250_000_000
     let linguistAutoLookupDelayNanos: UInt64 = 1_000_000_000
     let trackFontScaleStep: CGFloat = 0.1

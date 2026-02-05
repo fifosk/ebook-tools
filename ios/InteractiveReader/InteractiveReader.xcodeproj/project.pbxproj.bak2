@@ -241,6 +241,8 @@
 		AD96DB5410D66AB63DEF1A66 /* MusicControlOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */; };
 		0FC011012C02DFDE85940A49 /* SentencePositionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */; };
 		5CAD1B04ED962413DEAAE92A /* SentencePositionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */; };
+		8150038CA009C71D56337C94 /* AudioModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */; };
+		6E11F253192C36A89ECBDFA9 /* AudioModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -369,6 +371,7 @@
 		DFFB27F7B9307C2DEB5ED919 /* AppleMusicPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/Music/AppleMusicPickerView.swift; sourceTree = SOURCE_ROOT; };
 		AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/Music/MusicControlOverlayView.swift; sourceTree = SOURCE_ROOT; };
 		C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift; sourceTree = SOURCE_ROOT; };
+		CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/InteractivePlayer/AudioModeManager.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -569,6 +572,7 @@
 				3E4A367CA8DF4E619B734405 /* TextPlayerViews.swift */,
 				B5E9902ED51249ED8DD110B9 /* TextPlayerTimeline.swift */,
 				C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */,
+				CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */,
 			);
 			path = InteractivePlayer;
 			sourceTree = "<group>";
@@ -980,6 +984,7 @@
 				0AA14CF94F033E1561DED356 /* AppleMusicPickerView.swift in Sources */,
 				C756197A16A3112CFFC65A5D /* MusicControlOverlayView.swift in Sources */,
 				0FC011012C02DFDE85940A49 /* SentencePositionProvider.swift in Sources */,
+				8150038CA009C71D56337C94 /* AudioModeManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1101,6 +1106,7 @@
 				98FE20212129DC395448051E /* AppleMusicPickerView.swift in Sources */,
 				AD96DB5410D66AB63DEF1A66 /* MusicControlOverlayView.swift in Sources */,
 				5CAD1B04ED962413DEAAE92A /* SentencePositionProvider.swift in Sources */,
+				6E11F253192C36A89ECBDFA9 /* AudioModeManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

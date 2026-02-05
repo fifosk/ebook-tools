@@ -208,16 +208,24 @@ extension InteractivePlayerViewModel {
     }
 
     func prepareAudio(for chunk: InteractiveChunk, autoPlay: Bool, targetSentenceIndex: Int? = nil) {
+        print("[PrepareAudio] Called with targetSentenceIndex=\(targetSentenceIndex ?? -1), autoPlay=\(autoPlay)")
+
         guard let trackID = selectedAudioTrackID,
               let track = chunk.audioOptions.first(where: { $0.id == trackID }) else {
+            print("[PrepareAudio] Guard failed - no track found")
             audioCoordinator.reset()
             sequenceController.reset()
             selectedTimingURL = nil
             return
         }
 
+        // Check if both audio toggles are enabled - if not, use single-track mode
+        let bothTogglesEnabled = sequenceController.isOriginalAudioEnabled && sequenceController.isTranslationAudioEnabled
+        print("[PrepareAudio] track.kind=\(track.kind.rawValue), bothTogglesEnabled=\(bothTogglesEnabled), origToggle=\(sequenceController.isOriginalAudioEnabled), transToggle=\(sequenceController.isTranslationAudioEnabled)")
+
         // For combined mode, try to use sequence playback (per-sentence switching)
-        if track.kind == .combined {
+        // But only if both audio toggles are enabled
+        if track.kind == .combined && bothTogglesEnabled {
             // Use explicit target sentence index if provided, otherwise check for pending jump
             let effectiveTargetIndex: Int? = targetSentenceIndex ?? {
                 guard let pending = pendingSentenceJump, pending.chunkID == chunk.id else { return nil }
@@ -225,13 +233,90 @@ extension InteractivePlayerViewModel {
                     ($0.displayIndex ?? $0.id) == pending.sentenceNumber
                 }
             }()
+            print("[PrepareAudio] Taking COMBINED+BOTH path, effectiveTargetIndex=\(effectiveTargetIndex ?? -1)")
             configureSequencePlayback(for: chunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)
             return
+        }
+
+        // Single toggle enabled with combined track selected - play single track instead
+        if track.kind == .combined && !bothTogglesEnabled {
+            let originalTrack = chunk.audioOptions.first { $0.kind == .original }
+            let translationTrack = chunk.audioOptions.first { $0.kind == .translation }
+
+            // Determine which single track to play based on toggle state
+            let singleTrack: InteractiveChunk.AudioOption?
+            let singleURL: URL?
+
+            if sequenceController.isOriginalAudioEnabled {
+                // User wants original audio
+                if let originalTrack {
+                    // Prefer dedicated original track
+                    singleTrack = originalTrack
+                    singleURL = nil
+                } else if track.streamURLs.count >= 1 {
+                    // No dedicated original track - extract first URL from combined track
+                    // Combined tracks typically have [original_url, translation_url]
+                    singleTrack = nil
+                    singleURL = track.streamURLs.first
+                    print("[PrepareAudio] Single toggle mode - extracting original URL from combined track")
+                } else {
+                    singleTrack = translationTrack
+                    singleURL = nil
+                }
+            } else {
+                // User wants translation audio
+                if let translationTrack {
+                    // Prefer dedicated translation track
+                    singleTrack = translationTrack
+                    singleURL = nil
+                } else if track.streamURLs.count >= 2 {
+                    // No dedicated translation track - extract second URL from combined track
+                    singleTrack = nil
+                    singleURL = track.streamURLs[1]
+                    print("[PrepareAudio] Single toggle mode - extracting translation URL from combined track")
+                } else {
+                    singleTrack = originalTrack
+                    singleURL = nil
+                }
+            }
+
+            if let singleTrack {
+                print("[PrepareAudio] Single toggle mode - using \(singleTrack.kind.rawValue) track, targetSentence=\(targetSentenceIndex ?? -1)")
+                sequenceController.reset()
+                // If we need to seek, don't autoPlay yet - seek first, then play
+                let needsSeek = targetSentenceIndex != nil && targetSentenceIndex! >= 0 && targetSentenceIndex! < chunk.sentences.count
+                audioCoordinator.load(urls: singleTrack.streamURLs, autoPlay: needsSeek ? false : autoPlay)
+                selectedTimingURL = singleTrack.timingURL ?? singleTrack.streamURLs.first
+                // Seek to target sentence if provided
+                if needsSeek, let targetIndex = targetSentenceIndex {
+                    seekToSentenceAfterLoad(targetIndex, in: chunk, autoPlay: autoPlay)
+                }
+                return
+            } else if let singleURL {
+                print("[PrepareAudio] Single toggle mode - loading single URL from combined track: \(singleURL.lastPathComponent), targetSentence=\(targetSentenceIndex ?? -1)")
+                sequenceController.reset()
+                // If we need to seek, don't autoPlay yet - seek first, then play
+                let needsSeek = targetSentenceIndex != nil && targetSentenceIndex! >= 0 && targetSentenceIndex! < chunk.sentences.count
+                audioCoordinator.load(url: singleURL, autoPlay: needsSeek ? false : autoPlay)
+                selectedTimingURL = singleURL
+                // Seek to target sentence if provided
+                if needsSeek, let targetIndex = targetSentenceIndex {
+                    seekToSentenceAfterLoad(targetIndex, in: chunk, autoPlay: autoPlay)
+                }
+                return
+            }
+            // Fall through to load combined URLs directly if no single tracks available
         }
 
         // For single-track modes, check if we're already playing the correct track
         // This prevents unnecessary reloading from SwiftUI re-renders
         if audioCoordinator.activeURLs == track.streamURLs {
+            // Always reset sequence controller for single-track modes to ensure
+            // isSequenceModeActive returns false after toggling audio tracks
+            if sequenceController.isEnabled {
+                print("[PrepareAudio] Resetting sequence controller for same-URL single-track mode")
+                sequenceController.reset()
+            }
             // Already playing the correct track, just update autoPlay state if needed
             if autoPlay && !audioCoordinator.isPlaying {
                 audioCoordinator.play()
@@ -249,29 +334,14 @@ extension InteractivePlayerViewModel {
 
         // For single-track modes, use direct loading
         sequenceController.reset()
-        audioCoordinator.load(urls: track.streamURLs, autoPlay: autoPlay)
+        // If we need to seek, don't autoPlay yet - seek first, then play
+        let needsSeek = targetSentenceIndex != nil && targetSentenceIndex! >= 0 && targetSentenceIndex! < chunk.sentences.count
+        audioCoordinator.load(urls: track.streamURLs, autoPlay: needsSeek ? false : autoPlay)
         selectedTimingURL = track.timingURL ?? track.streamURLs.first
 
         // If we have a target sentence index for non-sequence mode, seek after audio is ready
-        if let targetIndex = targetSentenceIndex,
-           targetIndex >= 0,
-           targetIndex < chunk.sentences.count {
-            // Use the isReady observer to seek once audio loads
-            // We need a one-shot observation here
-            var cancellable: AnyCancellable?
-            cancellable = audioCoordinator.$isReady
-                .dropFirst() // Skip initial value
-                .filter { $0 } // Wait for ready
-                .first() // Take only the first ready event
-                .sink { [weak self] _ in
-                    guard let self else { return }
-                    guard let currentChunk = self.selectedChunk, currentChunk.id == chunk.id else { return }
-                    if let startTime = self.startTimeForSentence(atIndex: targetIndex, in: currentChunk) {
-                        print("[NonSequence] Audio ready, seeking to sentence[\(targetIndex)] at time \(String(format: "%.3f", startTime))")
-                        self.seekPlayback(to: startTime, in: currentChunk)
-                    }
-                    cancellable?.cancel()
-                }
+        if needsSeek, let targetIndex = targetSentenceIndex {
+            seekToSentenceAfterLoad(targetIndex, in: chunk, autoPlay: autoPlay)
         }
     }
 
@@ -300,8 +370,13 @@ extension InteractivePlayerViewModel {
                 await self.loadChunkMetadataIfNeeded(for: targetChunk.id, force: false)
                 guard self.selectedChunkID == targetChunk.id else { return }
                 guard let updatedChunk = self.selectedChunk else { return }
-                self.prepareAudio(for: updatedChunk, autoPlay: autoPlay)
-                self.attemptPendingSentenceJump(in: updatedChunk)
+                // Find the 0-based index of the target sentence
+                let targetIndex = updatedChunk.sentences.firstIndex {
+                    ($0.displayIndex ?? $0.id) == sentenceNumber
+                }
+                self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)
+                // Clear pending jump since we're passing target index directly
+                self.pendingSentenceJump = nil
             }
         } else {
             // Different chunk - selectChunk will handle loading and audio setup
@@ -450,5 +525,55 @@ extension InteractivePlayerViewModel {
         }
         // Fallback to sentence's start time
         return chunk.sentences[index].startTime
+    }
+
+    /// Helper to seek to a sentence after audio finishes loading.
+    /// Observes audioCoordinator.isReady and seeks once the audio is ready.
+    /// Handles both cases: audio needs to load, or audio is already loaded.
+    func seekToSentenceAfterLoad(_ targetIndex: Int, in chunk: InteractiveChunk, autoPlay: Bool) {
+        let chunkId = chunk.id
+
+        // If audio is already ready, seek immediately
+        if audioCoordinator.isReady {
+            if let startTime = startTimeForSentence(atIndex: targetIndex, in: chunk) {
+                print("[SingleToggle] Audio already ready, seeking immediately to sentence[\(targetIndex)] at time \(String(format: "%.3f", startTime))")
+                seekPlayback(to: startTime, in: chunk)
+                if autoPlay && !audioCoordinator.isPlaying {
+                    audioCoordinator.play()
+                }
+            }
+            return
+        }
+
+        // Audio not ready yet - wait for it
+        var seenLoadingState = false
+        var isFirstEmission = true
+        var cancellable: AnyCancellable?
+
+        cancellable = audioCoordinator.$isReady
+            .sink { [weak self] isReady in
+                guard let self else { return }
+                guard let currentChunk = self.selectedChunk, currentChunk.id == chunkId else {
+                    cancellable?.cancel()
+                    return
+                }
+
+                if !isReady {
+                    seenLoadingState = true
+                    isFirstEmission = false
+                    print("[SingleToggle] Audio loading...")
+                } else if seenLoadingState || isFirstEmission {
+                    // Either we saw loading->ready transition, or audio was already ready on first emit
+                    isFirstEmission = false
+                    if let startTime = self.startTimeForSentence(atIndex: targetIndex, in: currentChunk) {
+                        print("[SingleToggle] Audio ready, seeking to sentence[\(targetIndex)] at time \(String(format: "%.3f", startTime))")
+                        self.seekPlayback(to: startTime, in: currentChunk)
+                        if autoPlay && !self.audioCoordinator.isPlaying {
+                            self.audioCoordinator.play()
+                        }
+                    }
+                    cancellable?.cancel()
+                }
+            }
     }
 }

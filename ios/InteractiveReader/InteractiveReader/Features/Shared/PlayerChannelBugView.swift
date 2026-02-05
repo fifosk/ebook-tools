@@ -906,11 +906,13 @@ struct PlayerLanguageFlagRow: View {
                 ForEach(Array(orderedFlags.enumerated()), id: \.element.id) { index, flag in
                     let role = flag.role
                     let isAvailable = availableRoles.contains(role)
+                    let isActive = activeRoles.isEmpty || activeRoles.contains(role)
                     let badge = LanguageFlagBadge(
                         entry: flag,
                         isTV: isTV,
                         showsLabel: shouldShowLabel,
-                        sizeScale: sizeScale
+                        sizeScale: sizeScale,
+                        isActive: isActive
                     )
                     .opacity(flagOpacity(isAvailable: isAvailable, role: role))
                     if let onToggleRole, isAvailable {
@@ -1082,15 +1084,17 @@ private struct LanguageFlagBadge: View {
     let isTV: Bool
     let showsLabel: Bool
     let sizeScale: CGFloat
+    var isActive: Bool = true
 
     var body: some View {
         HStack(spacing: labelSpacing) {
             Text(entry.emoji)
                 .font(emojiFont)
+                .saturation(isActive ? 1.0 : 0.3)
             if showsLabel {
                 Text(entry.shortLabel.isEmpty ? entry.label : entry.shortLabel)
                     .font(labelFont)
-                    .foregroundStyle(Color.white.opacity(0.85))
+                    .foregroundStyle(Color.white.opacity(isActive ? 0.85 : 0.4))
             }
         }
         .padding(.horizontal, labelPaddingHorizontal)
@@ -1102,6 +1106,7 @@ private struct LanguageFlagBadge: View {
                     Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1)
                 )
         )
+        .opacity(isActive ? 1.0 : 0.6)
         .accessibilityLabel(entry.accessibilityLabel)
     }
 

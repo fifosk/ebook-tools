@@ -47,6 +47,10 @@ final class MusicKitCoordinator: ObservableObject {
     @Published var shuffleMode: MusicKitShuffleMode = .off
     @Published var repeatMode: MusicKitRepeatMode = .off
 
+    // Playback progress for timeline UI
+    @Published private(set) var playbackTime: TimeInterval = 0
+    @Published private(set) var playbackDuration: TimeInterval = 0
+
     /// Whether Apple Music is actively serving as the reading bed.
     var isBackgroundMode: Bool { ownershipState == .appleMusic }
 
@@ -208,6 +212,12 @@ final class MusicKitCoordinator: ObservableObject {
         persistModes()
     }
 
+    /// Seek to a specific time in the current track.
+    func seek(to time: TimeInterval) {
+        ApplicationMusicPlayer.shared.playbackTime = time
+        playbackTime = time
+    }
+
     private func syncShuffleRepeatFromPlayer() {
         let player = ApplicationMusicPlayer.shared
         switch player.state.shuffleMode {
@@ -304,20 +314,55 @@ final class MusicKitCoordinator: ObservableObject {
         playbackStateTask = Task { [weak self] in
             let player = ApplicationMusicPlayer.shared
             var lastStatus: MusicPlayer.PlaybackStatus?
+            var lastEntryID: MusicPlayer.Queue.Entry.ID?
             while !Task.isCancelled {
                 let status = player.state.playbackStatus
-                if status != lastStatus {
+                let currentEntryID = player.queue.currentEntry?.id
+
+                // Detect status change OR track change
+                let statusChanged = status != lastStatus
+                let trackChanged = currentEntryID != lastEntryID
+
+                if statusChanged || trackChanged {
                     lastStatus = status
+                    lastEntryID = currentEntryID
                     await MainActor.run {
                         self?.isPlaying = status == .playing
-                        if status == .playing {
+                        if trackChanged || status == .playing {
                             self?.updateCurrentTrackInfo()
+                        }
+                        if statusChanged && status == .playing {
                             self?.syncShuffleRepeatFromPlayer()
                         }
                     }
                 }
+
+                // Update playback progress when playing
+                if status == .playing {
+                    await MainActor.run {
+                        self?.updatePlaybackProgress()
+                    }
+                }
+
                 try? await Task.sleep(nanoseconds: 250_000_000) // 250ms
             }
+        }
+    }
+
+    private func updatePlaybackProgress() {
+        let player = ApplicationMusicPlayer.shared
+        playbackTime = player.playbackTime
+        if let entry = player.queue.currentEntry {
+            // Duration is available from entry's item
+            switch entry.item {
+            case .song(let song):
+                playbackDuration = song.duration ?? 0
+            default:
+                // For other types, try to get duration from the state if available
+                playbackDuration = 0
+            }
+        } else {
+            playbackDuration = 0
         }
     }
 
@@ -347,11 +392,14 @@ final class MusicKitCoordinator: ObservableObject {
     func skipToPrevious() {}
     func toggleShuffle() {}
     func cycleRepeatMode() {}
+    func seek(to time: TimeInterval) {}
     func stop() {
         currentSongTitle = nil
         currentArtist = nil
         currentArtworkURL = nil
         ownershipState = .narration
+        playbackTime = 0
+        playbackDuration = 0
     }
     func activateAsReadingBed() async {
         ownershipState = .appleMusic

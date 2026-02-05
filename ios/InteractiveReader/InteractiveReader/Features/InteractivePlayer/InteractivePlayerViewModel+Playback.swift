@@ -264,6 +264,59 @@ extension InteractivePlayerViewModel {
             case .translation:
                 return .translation
             }
+        } else if sequenceController.isEnabled {
+            // isSequenceModeActive is false but sequenceController.isEnabled is true
+            // This can happen during SwiftUI state propagation or if selectedAudioTrackID is stale.
+            // Use sequenceController.currentTrack as the authoritative source since it's updated
+            // synchronously during track switches.
+            let trackID = selectedAudioTrackID
+            let track = chunk.audioOptions.first(where: { $0.id == trackID })
+            print("[TimingTrack] Using sequenceController.currentTrack as fallback: isEnabled=true but isSequenceModeActive=false, trackKind=\(track?.kind.rawValue ?? "nil"), seqTrack=\(sequenceController.currentTrack)")
+            switch sequenceController.currentTrack {
+            case .original:
+                return .original
+            case .translation:
+                return .translation
+            }
+        }
+
+        // When in single-toggle mode (only one audio track enabled), determine timing
+        // based on which track is actually being played, not the selected option
+        let bothTogglesEnabled = sequenceController.isOriginalAudioEnabled && sequenceController.isTranslationAudioEnabled
+        if !bothTogglesEnabled {
+            // Check which single track is actually being played by comparing active URL
+            if let activeURL = audioCoordinator.activeURL {
+                let originalTrack = chunk.audioOptions.first { $0.kind == .original }
+                let translationTrack = chunk.audioOptions.first { $0.kind == .translation }
+                let combinedTrack = chunk.audioOptions.first { $0.kind == .combined }
+
+                // Check dedicated tracks first
+                if let originalTrack, originalTrack.streamURLs.contains(activeURL) {
+                    return .original
+                }
+                if let translationTrack, translationTrack.streamURLs.contains(activeURL) {
+                    return .translation
+                }
+                // Check if playing a URL extracted from combined track
+                // Combined tracks typically have [original_url, translation_url]
+                if let combinedTrack, combinedTrack.streamURLs.count >= 2 {
+                    if activeURL == combinedTrack.streamURLs.first {
+                        return .original
+                    }
+                    if activeURL == combinedTrack.streamURLs[1] {
+                        return .translation
+                    }
+                } else if let combinedTrack, combinedTrack.streamURLs.count == 1, activeURL == combinedTrack.streamURLs.first {
+                    // Single-URL combined track - check toggle state
+                    return sequenceController.isOriginalAudioEnabled ? .original : .translation
+                }
+            }
+            // Fallback: use toggle state to determine expected timing track
+            if sequenceController.isOriginalAudioEnabled {
+                return .original
+            } else {
+                return .translation
+            }
         }
 
         guard let track = selectedAudioOption(for: chunk) else { return .translation }

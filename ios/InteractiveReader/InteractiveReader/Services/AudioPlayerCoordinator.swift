@@ -392,6 +392,11 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     /// Whether audio session is configured to mix with other audio sources (e.g., Apple Music).
     private var isMixingEnabled = false
 
+    /// Flag to ignore audio session interruptions triggered by our own session configuration changes.
+    /// When we change the audio session category, iOS may send an interruption notification,
+    /// but we don't want to pause playback for changes we initiated ourselves.
+    private var isIgnoringInterruption = false
+
     /// Configure audio session to allow mixing with other audio sources.
     /// When `mixing` is true, narration coexists with Apple Music (ducking its volume).
     /// When false, narration takes exclusive audio session control.
@@ -399,6 +404,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         #if os(iOS) || os(tvOS)
         guard role == .primary else { return }
         isMixingEnabled = mixing
+
+        // Set flag to ignore interruptions caused by our own session changes
+        isIgnoringInterruption = true
+
         let session = AVAudioSession.sharedInstance()
         do {
             let options: AVAudioSession.CategoryOptions = mixing
@@ -409,6 +418,12 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             print("[AudioSession] Configured: mixing=\(mixing)")
         } catch {
             print("[AudioSession] Failed to configure mixing: \(error)")
+        }
+
+        // Clear the flag after a short delay to allow any pending interruption notifications to be ignored
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            self.isIgnoringInterruption = false
         }
         #endif
     }
@@ -451,9 +466,20 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 let type = rawType.flatMap { AVAudioSession.InterruptionType(rawValue: $0) }
                 switch type {
                 case .began:
+                    print("[AudioSession] Interruption BEGAN - wasPlaying=\(self.isPlaying), isPlaybackRequested=\(self.isPlaybackRequested), ignoring=\(self.isIgnoringInterruption)")
+                    // Ignore interruptions caused by our own audio session changes (e.g., enabling mixing mode)
+                    if self.isIgnoringInterruption {
+                        print("[AudioSession] Ignoring self-initiated interruption")
+                        return
+                    }
                     self.shouldResumeAfterInterruption = self.isPlaying
                     self.isPlaying = false
                 case .ended:
+                    print("[AudioSession] Interruption ENDED - shouldResume=\(self.shouldResumeAfterInterruption), ignoring=\(self.isIgnoringInterruption)")
+                    // If we're ignoring interruptions, don't try to resume either
+                    if self.isIgnoringInterruption {
+                        return
+                    }
                     let optionsValue = info?[AVAudioSessionInterruptionOptionKey] as? UInt
                     let options = optionsValue.flatMap { AVAudioSession.InterruptionOptions(rawValue: $0) } ?? []
                     if self.shouldResumeAfterInterruption && options.contains(.shouldResume) {

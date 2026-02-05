@@ -3,6 +3,9 @@ import SwiftUI
 import UIKit
 #endif
 
+/// Set to true to enable verbose transcript/content debug logging
+private let transcriptDebug = false
+
 extension InteractivePlayerView {
     var baseContent: some View {
         ZStack {
@@ -35,13 +38,15 @@ extension InteractivePlayerView {
             // Instead, interactiveContent() handles stale detection and shows appropriate
             // display (static for track switches, fresh for sentence changes) in real-time.
             // The onSequenceWillTransition callback is now a no-op but kept for debugging.
-            print("[TranscriptFreeze] Setting up onSequenceWillTransition callback (no-op)")
+            if transcriptDebug { print("[TranscriptFreeze] Setting up onSequenceWillTransition callback (no-op)") }
             viewModel.onSequenceWillTransition = {
-                print("[TranscriptFreeze] onSequenceWillTransition callback invoked (no-op)")
+                if transcriptDebug { print("[TranscriptFreeze] onSequenceWillTransition callback invoked (no-op)") }
             }
             // Text track visibility should not affect audio playback.
-            // Audio track selection is controlled separately via the audio picker in the header.
+            // Audio track selection is controlled separately via the audio toggle pills.
             viewModel.sequenceController.shouldSkipTrack = nil
+            // Sync audio mode to sequence controller from AudioModeManager
+            viewModel.sequenceController.audioMode = audioModeManager.currentMode
             #if os(tvOS)
             if !didSetInitialFocus {
                 didSetInitialFocus = true
@@ -170,15 +175,15 @@ extension InteractivePlayerView {
         // stale detection and correction in real-time during renders. This avoids race conditions
         // between frozen state updates and render cycles.
         view = AnyView(view.onChange(of: viewModel.isSequenceTransitioning) { _, isTransitioning in
-            print("[TranscriptFreeze] isSequenceTransitioning changed to \(isTransitioning)")
+            if transcriptDebug { print("[TranscriptFreeze] isSequenceTransitioning changed to \(isTransitioning)") }
             guard viewModel.isSequenceModeActive else {
-                print("[TranscriptFreeze] Not in sequence mode, skipping")
+                if transcriptDebug { print("[TranscriptFreeze] Not in sequence mode, skipping") }
                 return
             }
             // When transition ends, ensure frozen state is cleared (unless menu is visible)
             if !isTransitioning && !isMenuVisible {
                 if frozenTranscriptSentences != nil || frozenPlaybackPrimaryKind != nil {
-                    print("[TranscriptFreeze] Transition ended, clearing frozen state")
+                    if transcriptDebug { print("[TranscriptFreeze] Transition ended, clearing frozen state") }
                     frozenTranscriptSentences = nil
                     frozenPlaybackPrimaryKind = nil
                 }
@@ -222,6 +227,11 @@ extension InteractivePlayerView {
             viewModel.onSequenceWillTransition = nil
             // Clear the shouldSkipTrack callback
             viewModel.sequenceController.shouldSkipTrack = nil
+        })
+        // Audio mode change handler - sync to sequence controller when mode changes
+        view = AnyView(view.onChange(of: audioModeManager.currentMode) { _, newMode in
+            viewModel.sequenceController.audioMode = newMode
+            print("[AudioToggle] Mode changed: \(newMode.description)")
         })
         // Apple Music source change handler
         view = AnyView(view.onChange(of: useAppleMusicForBed) { _, usingAppleMusic in
@@ -432,15 +442,17 @@ extension InteractivePlayerView {
             // where isSequenceModeActive check might fail due to SwiftUI state propagation delays
             if isTransitioning, let targetIdx = currentSentenceIdx {
                 // Debug: check if chunk has sentences and if target index is valid
-                if chunk.sentences.isEmpty {
-                    print("[InteractiveContent] WARNING: chunk.sentences is EMPTY during transition, targetIdx=\(targetIdx)")
-                } else if !chunk.sentences.indices.contains(targetIdx) {
-                    print("[InteractiveContent] WARNING: targetIdx=\(targetIdx) out of bounds, chunk has \(chunk.sentences.count) sentences")
-                } else {
-                    let sentence = chunk.sentences[targetIdx]
-                    let hasTokens = !sentence.originalTokens.isEmpty || !sentence.translationTokens.isEmpty
-                    if !hasTokens {
-                        print("[InteractiveContent] WARNING: sentence[\(targetIdx)] has NO TOKENS - original=\(sentence.originalTokens.count), translation=\(sentence.translationTokens.count)")
+                if transcriptDebug {
+                    if chunk.sentences.isEmpty {
+                        print("[InteractiveContent] WARNING: chunk.sentences is EMPTY during transition, targetIdx=\(targetIdx)")
+                    } else if !chunk.sentences.indices.contains(targetIdx) {
+                        print("[InteractiveContent] WARNING: targetIdx=\(targetIdx) out of bounds, chunk has \(chunk.sentences.count) sentences")
+                    } else {
+                        let sentence = chunk.sentences[targetIdx]
+                        let hasTokens = !sentence.originalTokens.isEmpty || !sentence.translationTokens.isEmpty
+                        if !hasTokens {
+                            print("[InteractiveContent] WARNING: sentence[\(targetIdx)] has NO TOKENS - original=\(sentence.originalTokens.count), translation=\(sentence.translationTokens.count)")
+                        }
                     }
                 }
 
@@ -452,7 +464,7 @@ extension InteractivePlayerView {
                         activeIndex: targetIdx,
                         newPrimaryTrack: sequenceTimingTrack
                     ) {
-                        print("[InteractiveContent] SAME-SENTENCE SWITCH: transitioning=\(isTransitioning), using track-switch sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
+                        if transcriptDebug { print("[InteractiveContent] SAME-SENTENCE SWITCH: transitioning=\(isTransitioning), using track-switch sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))") }
                         return [display]
                     }
                 } else {
@@ -466,7 +478,7 @@ extension InteractivePlayerView {
                             sentences: chunk.sentences,
                             activeIndex: prevIdx
                         ) {
-                            print("[InteractiveContent] SENTENCE-CHANGE: transitioning=\(isTransitioning), showing PREVIOUS sentence[\(prevIdx)] fully revealed (target=\(targetIdx))")
+                            if transcriptDebug { print("[InteractiveContent] SENTENCE-CHANGE: transitioning=\(isTransitioning), showing PREVIOUS sentence[\(prevIdx)] fully revealed (target=\(targetIdx))") }
                             return [display]
                         }
                     }
@@ -477,7 +489,7 @@ extension InteractivePlayerView {
                         activeIndex: targetIdx,
                         primaryTrack: sequenceTimingTrack
                     ) {
-                        print("[InteractiveContent] SENTENCE-CHANGE (fallback): transitioning=\(isTransitioning), using initial sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
+                        if transcriptDebug { print("[InteractiveContent] SENTENCE-CHANGE (fallback): transitioning=\(isTransitioning), using initial sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))") }
                         return [display]
                     }
                 }
@@ -500,7 +512,7 @@ extension InteractivePlayerView {
                     audioDuration: durationValue,
                     timingVersion: chunk.timingVersion
                 ) {
-                    print("[InteractiveContent] SAME-SENTENCE SETTLING: sentence[\(targetIdx)] at t=\(String(format: "%.3f", playbackTime)) with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
+                    if transcriptDebug { print("[InteractiveContent] SAME-SENTENCE SETTLING: sentence[\(targetIdx)] at t=\(String(format: "%.3f", playbackTime)) with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))") }
                     return [display]
                 }
                 // Fallback to static track-switch display
@@ -509,7 +521,7 @@ extension InteractivePlayerView {
                     activeIndex: targetIdx,
                     newPrimaryTrack: sequenceTimingTrack
                 ) {
-                    print("[InteractiveContent] SAME-SENTENCE SETTLING (fallback): using sentence[\(targetIdx)]")
+                    if transcriptDebug { print("[InteractiveContent] SAME-SENTENCE SETTLING (fallback): using sentence[\(targetIdx)]") }
                     return [display]
                 }
             }
@@ -524,7 +536,7 @@ extension InteractivePlayerView {
                         sentences: chunk.sentences,
                         activeIndex: prevIdx
                     ) {
-                        print("[InteractiveContent] SENTENCE-CHANGE SETTLING: showing PREVIOUS sentence[\(prevIdx)] fully revealed (target=\(currentSentenceIdx ?? -1))")
+                        if transcriptDebug { print("[InteractiveContent] SENTENCE-CHANGE SETTLING: showing PREVIOUS sentence[\(prevIdx)] fully revealed (target=\(currentSentenceIdx ?? -1))") }
                         return [display]
                     }
                 }
@@ -535,7 +547,7 @@ extension InteractivePlayerView {
                         activeIndex: targetIdx,
                         primaryTrack: sequenceTimingTrack
                     ) {
-                        print("[InteractiveContent] SENTENCE-CHANGE SETTLING (fallback): using initial sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))")
+                        if transcriptDebug { print("[InteractiveContent] SENTENCE-CHANGE SETTLING (fallback): using initial sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))") }
                         return [display]
                     }
                 }
@@ -550,7 +562,7 @@ extension InteractivePlayerView {
                     activeIndex: targetIdx,
                     currentTrack: sequenceTimingTrack
                 ) {
-                    print("[InteractiveContent] DWELL: sentence[\(targetIdx)] current=\(sequenceTimingTrack)")
+                    if transcriptDebug { print("[InteractiveContent] DWELL: sentence[\(targetIdx)] current=\(sequenceTimingTrack)") }
                     return [display]
                 }
             }
@@ -573,7 +585,7 @@ extension InteractivePlayerView {
                     activeIndex: targetIdx,
                     primaryTrack: sequenceTimingTrack
                 ) {
-                    print("[InteractiveContent] TRANSITION FALLBACK: using initial sentence[\(targetIdx)]")
+                    if transcriptDebug { print("[InteractiveContent] TRANSITION FALLBACK: using initial sentence[\(targetIdx)]") }
                     return [display]
                 }
             }
@@ -599,7 +611,7 @@ extension InteractivePlayerView {
                     audioDuration: durationValue,
                     timingVersion: chunk.timingVersion
                 ) {
-                    print("[InteractiveContent] POST-STABILIZATION GUARD: sentence[\(targetIdx)] at t=\(String(format: "%.3f", playbackTime))")
+                    if transcriptDebug { print("[InteractiveContent] POST-STABILIZATION GUARD: sentence[\(targetIdx)] at t=\(String(format: "%.3f", playbackTime))") }
                     return [display]
                 }
             }
@@ -616,6 +628,24 @@ extension InteractivePlayerView {
             }
             return playbackPrimaryKind(for: chunk)
         }()
+        // Determine effective loading state: either explicit loading flag is set,
+        // OR we have chunk sentences but no displayable tokens (placeholder state waiting for metadata)
+        let effectiveIsLoading: Bool = {
+            if viewModel.isTranscriptLoading {
+                return true
+            }
+            // If transcriptSentences is empty but chunk has sentences, we're waiting for token data
+            if transcriptSentences.isEmpty && !chunk.sentences.isEmpty {
+                // Check if any chunk sentence has actual tokens
+                let hasAnyTokens = chunk.sentences.contains { sentence in
+                    !sentence.originalTokens.isEmpty || !sentence.translationTokens.isEmpty
+                }
+                // If no tokens exist yet, treat as loading
+                return !hasAnyTokens
+            }
+            return false
+        }()
+
         InteractiveTranscriptView(
             viewModel: viewModel,
             audioCoordinator: audioCoordinator,
@@ -639,7 +669,7 @@ extension InteractivePlayerView {
                 toggleTrackIfAvailable(kind)
             },
             isMenuVisible: isMenuVisible,
-            isTranscriptLoading: viewModel.isTranscriptLoading,
+            isTranscriptLoading: effectiveIsLoading,
             trackFontScale: trackFontScale,
             minTrackFontScale: trackFontScaleMin,
             maxTrackFontScale: trackFontScaleMax,
@@ -786,6 +816,23 @@ extension InteractivePlayerView {
                 },
                 onPreviousWord: { handleWordNavigation(-1, in: viewModel.selectedChunk) },
                 onNextWord: { handleWordNavigation(1, in: viewModel.selectedChunk) },
+                // Ctrl+Arrow: sentence navigation when paused (keeps bubble visible), word navigation when playing
+                onPreviousSentence: {
+                    if audioCoordinator.isPlaying {
+                        handleWordNavigation(-1, in: viewModel.selectedChunk)
+                    } else {
+                        // Navigate to previous sentence while paused (bubble stays visible)
+                        viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
+                    }
+                },
+                onNextSentence: {
+                    if audioCoordinator.isPlaying {
+                        handleWordNavigation(1, in: viewModel.selectedChunk)
+                    } else {
+                        // Navigate to next sentence while paused (bubble stays visible)
+                        viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
+                    }
+                },
                 onExtendSelectionBackward: {
                     guard let chunk = viewModel.selectedChunk else { return }
                     handleWordRangeSelection(-1, in: chunk)
@@ -952,7 +999,11 @@ extension InteractivePlayerView {
         let slideLabel = slideIndicatorLabel(for: chunk)
         let timelineLabel = audioTimelineLabel(for: chunk)
         let showHeaderContent = !isHeaderCollapsed
-        let headerView = HStack(alignment: .top, spacing: 12) {
+        let availableRoles = availableAudioRoles(for: chunk)
+        let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
+
+        // Main header row with channel bug, title/author, and timeline
+        let mainHeaderRow = HStack(alignment: .top, spacing: 12) {
             if showHeaderContent {
                 PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
                 if let headerInfo {
@@ -963,6 +1014,29 @@ extension InteractivePlayerView {
             if showHeaderContent || isTV {
                 VStack(alignment: .trailing, spacing: 6) {
                     if showHeaderContent {
+                        // iPhone portrait: stack progress pills vertically
+                        // Others: horizontal row
+                        #if os(iOS)
+                        if isPhonePortrait {
+                            VStack(alignment: .trailing, spacing: 3) {
+                                if let slideLabel {
+                                    slideIndicatorView(label: slideLabel)
+                                }
+                                if let timelineLabel {
+                                    audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                                }
+                            }
+                        } else {
+                            HStack(spacing: 6) {
+                                if let slideLabel {
+                                    slideIndicatorView(label: slideLabel)
+                                }
+                                if let timelineLabel {
+                                    audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                                }
+                            }
+                        }
+                        #else
                         // Sentence progress and playing time in one row
                         HStack(spacing: 6) {
                             if let slideLabel {
@@ -972,8 +1046,15 @@ extension InteractivePlayerView {
                                 audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
                             }
                         }
-                    } else if let timelineLabel {
-                        audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                        #endif
+                    } else {
+                        // Header collapsed - show music pill and timeline in a row
+                        HStack(spacing: 6) {
+                            musicPillView
+                            if let timelineLabel {
+                                audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                            }
+                        }
                     }
                     #if os(tvOS)
                     tvHeaderTogglePill
@@ -981,17 +1062,62 @@ extension InteractivePlayerView {
                 }
             }
         }
-        .padding(.horizontal, isPhonePortrait ? 16 : (isPhone ? 12 : 6))
-        .padding(.top, 6)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .allowsHitTesting(true)
+
+        // For iPhone, wrap in VStack to add full-width pills row below
+        let headerView: AnyView = {
+            #if os(iOS)
+            if isPhone, showHeaderContent, let info = headerInfo, !info.languageFlags.isEmpty {
+                return AnyView(
+                    VStack(alignment: .leading, spacing: 8) {
+                        mainHeaderRow
+                        // Full-width pills row for iPhone
+                        HStack(spacing: 0) {
+                            PlayerLanguageFlagRow(
+                                flags: info.languageFlags,
+                                modelLabel: nil,
+                                isTV: false,
+                                sizeScale: infoPillScale,
+                                activeRoles: activeRoles,
+                                availableRoles: availableRoles,
+                                onToggleRole: { role in
+                                    toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
+                                },
+                                showConnector: false
+                            )
+                            Spacer(minLength: 8)
+                            musicPillView
+                            Spacer(minLength: 8)
+                            speedPillView
+                            Spacer(minLength: 8)
+                            jumpPillView
+                            Spacer(minLength: 8)
+                            searchPillView
+                            Spacer(minLength: 8)
+                            bookmarkRibbonPillView
+                        }
+                    }
+                )
+            }
+            #endif
+            return AnyView(mainHeaderRow)
+        }()
+
+        let styledHeaderView = headerView
+            .padding(.horizontal, isPhonePortrait ? 16 : (isPhone ? 12 : 6))
+            .padding(.top, 6)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .allowsHitTesting(true)
         #if os(tvOS)
-        .onLongPressGesture(minimumDuration: 0.6) {
-            toggleHeaderCollapsed()
-        }
+        let finalView = styledHeaderView
+            .onLongPressGesture(minimumDuration: 0.6) {
+                toggleHeaderCollapsed()
+            }
+            .zIndex(1)
+        #else
+        let finalView = styledHeaderView
+            .zIndex(1)
         #endif
-        .zIndex(1)
-        return headerMagnifyWrapper(headerView)
+        return headerMagnifyWrapper(finalView)
     }
 
     func infoBadgeView(info: InteractivePlayerHeaderInfo, chunk: InteractiveChunk) -> some View {
@@ -1020,8 +1146,9 @@ extension InteractivePlayerView {
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
                     }
-                    // On non-portrait layouts, show flags inline with title/author
-                    if !isPhonePortrait, !info.languageFlags.isEmpty {
+                    // On iPad and tvOS, show flags inline with title/author
+                    // iPhone uses a separate full-width row for better spacing
+                    if !isPhone, !info.languageFlags.isEmpty {
                         #if os(tvOS)
                         HStack(spacing: 8 * infoPillScale) {
                             PlayerLanguageFlagRow(
@@ -1037,6 +1164,8 @@ extension InteractivePlayerView {
                                 showConnector: !isPhone
                             )
                             musicPillView
+                            speedPillView
+                            jumpPillView
                             searchPillView
                             bookmarkRibbonPillView
                         }
@@ -1057,6 +1186,8 @@ extension InteractivePlayerView {
                                 showConnector: !isPhone
                             )
                             musicPillView
+                            speedPillView
+                            jumpPillView
                             searchPillView
                             bookmarkRibbonPillView
                         }
@@ -1064,27 +1195,7 @@ extension InteractivePlayerView {
                     }
                 }
             }
-            // On iPhone portrait, show flags/search/bookmark on separate row, aligned right
-            if isPhonePortrait, !info.languageFlags.isEmpty {
-                HStack(spacing: 6) {
-                    Spacer()
-                    PlayerLanguageFlagRow(
-                        flags: info.languageFlags,
-                        modelLabel: nil,
-                        isTV: isTV,
-                        sizeScale: infoPillScale,
-                        activeRoles: activeRoles,
-                        availableRoles: availableRoles,
-                        onToggleRole: { role in
-                            toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
-                        },
-                        showConnector: false
-                    )
-                    musicPillView
-                    searchPillView
-                    bookmarkRibbonPillView
-                }
-            }
+            // iPhone pills row is now handled in playerInfoOverlay for full-width layout
         }
     }
 
@@ -1280,20 +1391,23 @@ extension InteractivePlayerView {
         let showButton = isHeaderCollapsed || ((isPhone || isPad) && linguistBubble != nil)
         if showButton, let chunk = viewModel.selectedChunk {
             let timelineLabel = audioTimelineLabel(for: chunk)
-            if let timelineLabel {
-                // Position pill in top-right corner using VStack/HStack with Spacers
-                // The Spacers don't have content shape so touches pass through
-                VStack(spacing: 0) {
-                    HStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
-                            .padding(.top, 6)
-                            .padding(.trailing, 6)
-                    }
+            // Position pills in top-right corner using VStack/HStack with Spacers
+            // The Spacers don't have content shape so touches pass through
+            VStack(spacing: 0) {
+                HStack(spacing: 6) {
                     Spacer(minLength: 0)
+                    // Music pill always visible when header is collapsed
+                    musicPillView
+                    // Timeline pill (tap to expand header)
+                    if let timelineLabel {
+                        audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                    }
                 }
-                .zIndex(2)
+                .padding(.top, 6)
+                .padding(.trailing, 6)
+                Spacer(minLength: 0)
             }
+            .zIndex(2)
         }
         #else
         EmptyView()
@@ -1477,20 +1591,20 @@ extension InteractivePlayerView {
         availableRoles: Set<LanguageFlagRole>
     ) {
         guard !availableRoles.isEmpty else { return }
-        var activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
-        if activeRoles.isEmpty {
-            activeRoles = availableRoles
+
+        // Capture current sentence position BEFORE changing mode
+        let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
+
+        // Convert role to audio track kind and use AudioModeManager
+        switch role {
+        case .original:
+            audioModeManager.toggle(.original, preservingPosition: currentSentenceIndex)
+        case .translation:
+            audioModeManager.toggle(.translation, preservingPosition: currentSentenceIndex)
         }
-        if activeRoles.contains(role) {
-            if activeRoles.count > 1 {
-                activeRoles.remove(role)
-            } else {
-                return
-            }
-        } else {
-            activeRoles.insert(role)
-        }
-        selectAudioTrack(for: chunk, preferredRoles: activeRoles, availableRoles: availableRoles)
+
+        // Reconfigure playback with position preservation
+        reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
     }
 
     func selectAudioTrack(

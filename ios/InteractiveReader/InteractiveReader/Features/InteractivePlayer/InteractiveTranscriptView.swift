@@ -589,9 +589,17 @@ struct InteractiveTranscriptView: View {
                     return
                 }
                 if bubble != nil {
-                    onCloseBubble()
-                    if !audioCoordinator.isPlaying {
+                    // Check if bubble is pinned (iPad only for this iOS code path)
+                    let isPinned = isPad && iPadBubblePinned
+                    if isPinned {
+                        // Bubble is pinned - just toggle playback, don't close bubble
                         onTogglePlayback()
+                    } else {
+                        // Bubble is not pinned - close it, and toggle playback only if paused
+                        onCloseBubble()
+                        if !audioCoordinator.isPlaying {
+                            onTogglePlayback()
+                        }
                     }
                 } else {
                     onTogglePlayback()

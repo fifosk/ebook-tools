@@ -380,6 +380,10 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
     let onNext: () -> Void
     let onPreviousWord: () -> Void
     let onNextWord: () -> Void
+    /// Navigate to previous sentence (Ctrl+Left when paused)
+    let onPreviousSentence: () -> Void
+    /// Navigate to next sentence (Ctrl+Right when paused)
+    let onNextSentence: () -> Void
     let onExtendSelectionBackward: () -> Void
     let onExtendSelectionForward: () -> Void
     let onLookup: () -> Void
@@ -411,6 +415,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         controller.onNext = onNext
         controller.onPreviousWord = onPreviousWord
         controller.onNextWord = onNextWord
+        controller.onPreviousSentence = onPreviousSentence
+        controller.onNextSentence = onNextSentence
         controller.onExtendSelectionBackward = onExtendSelectionBackward
         controller.onExtendSelectionForward = onExtendSelectionForward
         controller.onLookup = onLookup
@@ -443,6 +449,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         uiViewController.onNext = onNext
         uiViewController.onPreviousWord = onPreviousWord
         uiViewController.onNextWord = onNextWord
+        uiViewController.onPreviousSentence = onPreviousSentence
+        uiViewController.onNextSentence = onNextSentence
         uiViewController.onExtendSelectionBackward = onExtendSelectionBackward
         uiViewController.onExtendSelectionForward = onExtendSelectionForward
         uiViewController.onLookup = onLookup
@@ -474,6 +482,8 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         var onNext: (() -> Void)?
         var onPreviousWord: (() -> Void)?
         var onNextWord: (() -> Void)?
+        var onPreviousSentence: (() -> Void)?
+        var onNextSentence: (() -> Void)?
         var onExtendSelectionBackward: (() -> Void)?
         var onExtendSelectionForward: (() -> Void)?
         var onLookup: (() -> Void)?
@@ -557,11 +567,13 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         }
 
         @objc private func handlePreviousWord() {
-            onPreviousWord?()
+            // Ctrl+Left: sentence navigation when paused, word navigation when playing
+            onPreviousSentence?()
         }
 
         @objc private func handleNextWord() {
-            onNextWord?()
+            // Ctrl+Right: sentence navigation when paused, word navigation when playing
+            onNextSentence?()
         }
 
         @objc private func handleExtendSelectionBackward() {

@@ -13,6 +13,10 @@ struct MusicControlOverlayView: View {
     let builtInBedLabel: String
     let onChangeSong: () -> Void
 
+    /// Local state for scrubbing timeline without affecting playback until release.
+    @State private var isScrubbing = false
+    @State private var scrubTime: TimeInterval = 0
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // On/Off toggle
@@ -33,6 +37,7 @@ struct MusicControlOverlayView: View {
                 if useAppleMusicForBed {
                     appleMusicInfo
                     transportControls
+                    playbackTimeline
                 } else {
                     Text(builtInBedLabel)
                         .font(.caption)
@@ -92,6 +97,12 @@ struct MusicControlOverlayView: View {
         .padding(16)
         #if os(iOS)
         .frame(width: isPad ? 340 : nil)
+        // Ensure good visibility in both light and dark modes
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.regularMaterial)
+        }
+        .foregroundStyle(.primary)
         #endif
     }
 
@@ -155,6 +166,91 @@ struct MusicControlOverlayView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.vertical, 6)
+    }
+
+    @ViewBuilder
+    private var playbackTimeline: some View {
+        let duration = musicCoordinator.playbackDuration
+        let currentTime = isScrubbing ? scrubTime : musicCoordinator.playbackTime
+        let hasValidDuration = duration > 0
+
+        if hasValidDuration {
+            VStack(spacing: 4) {
+                #if os(iOS)
+                Slider(
+                    value: Binding(
+                        get: { currentTime },
+                        set: { newValue in
+                            scrubTime = newValue
+                            if !isScrubbing {
+                                isScrubbing = true
+                            }
+                        }
+                    ),
+                    in: 0...duration,
+                    onEditingChanged: { editing in
+                        if !editing {
+                            // User released the slider - seek to the new position
+                            musicCoordinator.seek(to: scrubTime)
+                            isScrubbing = false
+                        }
+                    }
+                )
+                .tint(.accentColor)
+                #else
+                // tvOS: progress bar with skip buttons
+                HStack(spacing: 12) {
+                    Button {
+                        let newTime = max(0, musicCoordinator.playbackTime - 15)
+                        musicCoordinator.seek(to: newTime)
+                    } label: {
+                        Image(systemName: "gobackward.15")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.secondary.opacity(0.3))
+                                .frame(height: 4)
+                            Capsule()
+                                .fill(Color.accentColor)
+                                .frame(width: geometry.size.width * (currentTime / duration), height: 4)
+                        }
+                    }
+                    .frame(height: 4)
+
+                    Button {
+                        let newTime = min(duration, musicCoordinator.playbackTime + 15)
+                        musicCoordinator.seek(to: newTime)
+                    } label: {
+                        Image(systemName: "goforward.15")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                }
+                #endif
+
+                // Time labels
+                HStack {
+                    Text(formatTime(currentTime))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("-\(formatTime(duration - currentTime))")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private func formatTime(_ time: TimeInterval) -> String {
+        let totalSeconds = Int(time)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 
     private var repeatIconName: String {

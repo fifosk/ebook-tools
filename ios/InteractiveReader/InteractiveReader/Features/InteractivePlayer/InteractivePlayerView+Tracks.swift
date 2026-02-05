@@ -75,45 +75,100 @@ extension InteractivePlayerView {
         handleWordNavigation(delta, in: chunk)
     }
 
+    /// Toggle audio track enabled state.
+    /// This controls whether original/translation audio plays during sequence mode.
+    /// When both are enabled, sequence mode alternates between them.
+    /// When only one is enabled, only that track plays (sequence mode is disabled).
     func toggleAudioTrack(_ kind: InteractiveChunk.AudioOption.Kind) {
         guard let chunk = viewModel.selectedChunk else { return }
-        let options = chunk.audioOptions
-        guard !options.isEmpty else { return }
-        let selectedID = viewModel.selectedAudioTrackID
-        let currentOption = selectedID.flatMap { id in
-            options.first(where: { $0.id == id })
-        } ?? options.first
 
-        let targetOption = options.first(where: { $0.kind == kind })
+        // Capture current sentence position BEFORE changing mode
+        let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
+
+        // Toggle via the mode manager (handles the logic of not disabling both)
+        audioModeManager.toggle(kind: kind, preservingPosition: currentSentenceIndex)
+
+        // Reconfigure playback based on new toggle state
+        reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
+    }
+
+    /// Capture the current sentence index using SentencePositionProvider
+    /// - Parameter chunk: The current chunk
+    /// - Returns: The current sentence index, or nil if not found
+    func captureCurrentSentenceIndex(for chunk: InteractiveChunk) -> Int? {
+        // Log state BEFORE creating provider
+        print("[AudioToggle] Capturing position - seqEnabled=\(viewModel.sequenceController.isEnabled), seqSentenceIdx=\(viewModel.sequenceController.currentSentenceIndex ?? -1), highlightingTime=\(String(format: "%.3f", viewModel.highlightingTime))")
+
+        let positionProvider = SentencePositionProvider.from(
+            sequenceController: viewModel.sequenceController,
+            transcriptDisplayIndex: { [self] in
+                let display = activeSentenceDisplay(for: chunk)
+                print("[AudioToggle] transcriptDisplayIndex called: index=\(display?.index ?? -1)")
+                return display?.index
+            },
+            timeBasedIndex: { [self] in
+                guard let activeSentence = viewModel.activeSentence(at: viewModel.highlightingTime) else {
+                    print("[AudioToggle] timeBasedIndex: no activeSentence found")
+                    return nil
+                }
+                let index = chunk.sentences.firstIndex { $0.id == activeSentence.id }
+                print("[AudioToggle] timeBasedIndex: found sentence id=\(activeSentence.id), index=\(index ?? -1)")
+                return index
+            }
+        )
+
+        let positionResult = positionProvider.currentSentenceIndex()
+        if let result = positionResult {
+            print("[AudioToggle] Captured position via \(result.strategy.rawValue): sentence \(result.index)")
+        } else {
+            print("[AudioToggle] WARNING: Failed to capture position!")
+        }
+        return positionResult?.index
+    }
+
+    /// Reconfigure audio playback based on AudioModeManager state.
+    /// Called after toggling audio tracks to switch between sequence and single-track modes.
+    /// - Parameter preservingSentence: The sentence index to preserve (already captured before toggle)
+    func reconfigureAudioForCurrentToggles(preservingSentence currentSentenceIndex: Int? = nil) {
+        guard let chunk = viewModel.selectedChunk else { return }
+        let options = chunk.audioOptions
+
+        print("[AudioToggle] Reconfiguring: mode=\(audioModeManager.currentMode.description), currentSentenceIndex=\(currentSentenceIndex ?? -1), time=\(String(format: "%.3f", viewModel.highlightingTime)), seqEnabled=\(viewModel.sequenceController.isEnabled)")
+
         let combinedOption = options.first(where: { $0.kind == .combined })
         let originalOption = options.first(where: { $0.kind == .original })
         let translationOption = options.first(where: { $0.kind == .translation })
 
-        let fallbackOption: InteractiveChunk.AudioOption? = {
-            switch kind {
-            case .original:
-                return translationOption ?? combinedOption ?? options.first(where: { $0.kind != .original }) ?? options.first
-            case .translation:
-                return originalOption ?? combinedOption ?? options.first(where: { $0.kind != .translation }) ?? options.first
-            case .combined, .other:
-                return options.first
+        // Determine which audio option to select based on mode manager state
+        let targetOption: InteractiveChunk.AudioOption? = {
+            switch audioModeManager.currentMode {
+            case .sequence:
+                // Both enabled: use combined/sequence mode if available
+                return combinedOption ?? originalOption ?? translationOption
+            case .singleTrack(.original):
+                // Only original: prefer original track
+                return originalOption ?? combinedOption ?? translationOption
+            case .singleTrack(.translation):
+                // Only translation: prefer translation track
+                return translationOption ?? combinedOption ?? originalOption
             }
         }()
 
-        if let targetOption {
-            if currentOption?.id == targetOption.id {
-                if let fallbackOption, fallbackOption.id != targetOption.id {
-                    viewModel.selectAudioTrack(id: fallbackOption.id)
-                }
-            } else {
-                viewModel.selectAudioTrack(id: targetOption.id)
-            }
-            return
-        }
+        guard let target = targetOption else { return }
 
-        if let combinedOption, currentOption?.id != combinedOption.id {
-            viewModel.selectAudioTrack(id: combinedOption.id)
+        // Sync audio mode to sequence controller BEFORE calling prepareAudio
+        // This ensures buildPlan() sees the correct mode
+        viewModel.sequenceController.audioMode = audioModeManager.currentMode
+
+        // Reconfigure audio with preserved sentence position
+        if viewModel.selectedAudioTrackID != target.id {
+            viewModel.selectedAudioTrackID = target.id
         }
+        viewModel.prepareAudio(
+            for: chunk,
+            autoPlay: audioCoordinator.isPlaybackRequested,
+            targetSentenceIndex: currentSentenceIndex
+        )
     }
 
     func availableTracks(for chunk: InteractiveChunk) -> [TextPlayerVariantKind] {
@@ -190,25 +245,27 @@ extension InteractivePlayerView {
         abs(rate - audioCoordinator.playbackRate) < 0.01
     }
 
-    /// Determines the preferred sequence track based on current visibility settings.
+    /// Determines the preferred sequence track based on current audio toggle state.
     /// This controls which track to start at when skipping to a different sentence.
-    /// - If only original is visible, prefer original
-    /// - If only translation/transliteration is visible, prefer translation
-    /// - If both are visible, prefer original (start at beginning of sentence)
-    /// - If neither is visible, returns original as fallback
+    /// Delegates to AudioModeManager for consistency.
     var preferredSequenceTrack: SequenceTrack? {
-        let origVisible = visibleTracks.contains(.original)
-        let transVisible = visibleTracks.contains(.translation) || visibleTracks.contains(.transliteration)
+        audioModeManager.preferredTrack
+    }
 
-        if origVisible && transVisible {
-            // Both visible: start at beginning of sentence (original comes first)
-            return .original
-        } else if origVisible {
-            return .original
-        } else if transVisible {
-            return .translation
-        }
-        return .original // Fallback: start at beginning
+    /// Whether sequence mode should be enabled based on audio toggle state.
+    /// Sequence mode only activates when BOTH original and translation are enabled.
+    /// Delegates to AudioModeManager for consistency.
+    var isSequenceModeEnabledByToggles: Bool {
+        audioModeManager.isSequenceMode
+    }
+
+    /// Convenience accessors for UI bindings that need to check toggle state
+    var showOriginalAudio: Bool {
+        audioModeManager.isOriginalEnabled
+    }
+
+    var showTranslationAudio: Bool {
+        audioModeManager.isTranslationEnabled
     }
 
     /// DEPRECATED: This function is no longer used.
