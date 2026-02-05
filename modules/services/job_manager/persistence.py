@@ -542,13 +542,11 @@ class PipelineJobPersistence:
                     if normalized_entry:
                         normalized_tracks[track_key] = normalized_entry
                 if normalized_tracks:
-                    chunk_entry["audio_tracks"] = normalized_tracks
                     chunk_entry["audioTracks"] = normalized_tracks
 
             timing_tracks_raw = chunk.get("timing_tracks") or chunk.get("timingTracks")
             if isinstance(timing_tracks_raw, Mapping) and not has_metadata_file:
                 normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
-                chunk_entry["timing_tracks"] = normalized_timing
                 chunk_entry["timingTracks"] = normalized_timing
             normalized_chunks.append(chunk_entry)
 

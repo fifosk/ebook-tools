@@ -140,7 +140,7 @@ def write_chunk_metadata(
             filename = format_chunk_filename(index)
             destination = metadata_root / filename
             chunk_payload = {
-                "version": 1,
+                "version": 3,
                 "chunk_id": chunk_entry.get("chunk_id"),
                 "range_fragment": chunk_entry.get("range_fragment"),
                 "start_sentence": chunk_entry.get("start_sentence"),
@@ -159,23 +159,22 @@ def write_chunk_metadata(
                         normalized_tracks[track_key] = normalized_entry
                 if normalized_tracks:
                     chunk_payload["audioTracks"] = normalized_tracks
-                    chunk_entry["audio_tracks"] = normalized_tracks
                     chunk_entry["audioTracks"] = normalized_tracks
             timing_tracks_raw = chunk_entry.get("timing_tracks") or chunk_entry.get("timingTracks")
             if isinstance(timing_tracks_raw, Mapping):
                 normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
                 chunk_payload["timingTracks"] = normalized_timing
-                chunk_entry["timing_tracks"] = normalized_timing
+                chunk_entry["timingTracks"] = normalized_timing
             highlight_policy = chunk_entry.get("highlighting_policy")
             if isinstance(highlight_policy, str) and highlight_policy.strip():
                 normalized_policy = highlight_policy.strip()
                 chunk_payload["highlighting_policy"] = normalized_policy
                 chunk_entry["highlighting_policy"] = normalized_policy
-            timing_version = chunk_entry.get("timing_version")
+            timing_version = chunk_entry.get("timing_version") or chunk_entry.get("timingVersion")
             if isinstance(timing_version, str) and timing_version.strip():
                 normalized_version = timing_version.strip()
                 chunk_payload["timingVersion"] = normalized_version
-                chunk_entry["timing_version"] = normalized_version
+                chunk_entry["timingVersion"] = normalized_version
             try:
                 write_chunk_file(destination, chunk_payload)
             except Exception:  # pragma: no cover - defensive logging
@@ -210,6 +209,8 @@ def write_chunk_metadata(
                 "audioTracks",
                 "timing_tracks",
                 "timingTracks",
+                "timing_version",
+                "timingVersion",
             ):
                 chunk_entry.pop(heavy_key, None)
         if isinstance(metadata_path_str, str) and metadata_path_str:

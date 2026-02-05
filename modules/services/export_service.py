@@ -813,7 +813,6 @@ class ExportService:
             audio_tracks_raw = chunk.get("audio_tracks") or chunk.get("audioTracks")
             audio_tracks = _sanitize_audio_tracks(audio_tracks_raw, job_root=job_root)
             if audio_tracks:
-                chunk_record["audio_tracks"] = audio_tracks
                 chunk_record["audioTracks"] = audio_tracks
             chunk_records.append(chunk_record)
 

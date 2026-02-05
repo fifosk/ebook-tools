@@ -756,8 +756,6 @@ def audio_worker_body(
             if sentence_audio_meta is not None:
                 sentence_audio_meta.pause_before_ms = pause_before_ms
                 sentence_audio_meta.pause_after_ms = pause_after_ms
-        metadata["pause_before_ms"] = pause_before_ms
-        metadata["pause_after_ms"] = pause_after_ms
         metadata["pauseBeforeMs"] = pause_before_ms
         metadata["pauseAfterMs"] = pause_after_ms
 
@@ -1208,8 +1206,6 @@ def audio_worker_body(
                 original_summary["alignment_model"] = original_alignment_model_used
             metadata["original_highlighting_summary"] = original_summary
             metadata["original_highlighting_policy"] = original_alignment_policy
-            metadata["original_pause_before_ms"] = original_pause_before_ms
-            metadata["original_pause_after_ms"] = original_pause_after_ms
             metadata["originalPauseBeforeMs"] = original_pause_before_ms
             metadata["originalPauseAfterMs"] = original_pause_after_ms
 

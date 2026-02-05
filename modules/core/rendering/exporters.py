@@ -556,16 +556,16 @@ class BatchExporter:
             except (TypeError, ValueError):
                 return 0
 
-        pause_before_source = meta_payload.get("pause_before_ms")
+        pause_before_source = meta_payload.get("pauseBeforeMs")
         if pause_before_source is None:
-            pause_before_source = meta_payload.get("pauseBeforeMs")
-        pause_after_source = meta_payload.get("pause_after_ms")
+            pause_before_source = meta_payload.get("pause_before_ms")
+        pause_after_source = meta_payload.get("pauseAfterMs")
         if pause_after_source is None:
-            pause_after_source = meta_payload.get("pauseAfterMs")
+            pause_after_source = meta_payload.get("pause_after_ms")
         pause_before_ms = max(_coerce_pause_ms(pause_before_source), 0)
         pause_after_ms = max(_coerce_pause_ms(pause_after_source), 0)
-        meta_payload["pause_before_ms"] = pause_before_ms
-        meta_payload["pause_after_ms"] = pause_after_ms
+        meta_payload["pauseBeforeMs"] = pause_before_ms
+        meta_payload["pauseAfterMs"] = pause_after_ms
 
         chunk_entry = serialize_sentence_chunk(meta_payload, include_timing_tracks=False)
         payload["sentence_id"] = chunk_entry["sentence_id"]
@@ -577,7 +577,6 @@ class BatchExporter:
         if original_tokens is None:
             original_tokens = meta_payload.get("originalWordTokens")
         if isinstance(original_tokens, Sequence):
-            payload["original_word_tokens"] = list(original_tokens)
             payload["originalWordTokens"] = list(original_tokens)
         highlighting_summary = chunk_entry.get("highlighting_summary", {})
         if not isinstance(highlighting_summary, Mapping):
@@ -589,8 +588,6 @@ class BatchExporter:
             "char_weighted_enabled": bool(highlighting_summary.get("char_weighted")),
             "punctuation_boost": bool(highlighting_summary.get("punctuation_weighting")),
         }
-        payload["pause_before_ms"] = pause_before_ms
-        payload["pause_after_ms"] = pause_after_ms
         payload["pauseBeforeMs"] = pause_before_ms
         payload["pauseAfterMs"] = pause_after_ms
 
@@ -601,17 +598,15 @@ class BatchExporter:
         if isinstance(original_policy, str) and original_policy.strip():
             payload["original_highlighting_policy"] = original_policy.strip()
 
-        original_pause_before_source = meta_payload.get("original_pause_before_ms")
+        original_pause_before_source = meta_payload.get("originalPauseBeforeMs")
         if original_pause_before_source is None:
-            original_pause_before_source = meta_payload.get("originalPauseBeforeMs")
-        original_pause_after_source = meta_payload.get("original_pause_after_ms")
+            original_pause_before_source = meta_payload.get("original_pause_before_ms")
+        original_pause_after_source = meta_payload.get("originalPauseAfterMs")
         if original_pause_after_source is None:
-            original_pause_after_source = meta_payload.get("originalPauseAfterMs")
+            original_pause_after_source = meta_payload.get("original_pause_after_ms")
         if original_pause_before_source is not None or original_pause_after_source is not None:
             original_pause_before_ms = max(_coerce_pause_ms(original_pause_before_source), 0)
             original_pause_after_ms = max(_coerce_pause_ms(original_pause_after_source), 0)
-            payload["original_pause_before_ms"] = original_pause_before_ms
-            payload["original_pause_after_ms"] = original_pause_after_ms
             payload["originalPauseBeforeMs"] = original_pause_before_ms
             payload["originalPauseAfterMs"] = original_pause_after_ms
 
@@ -632,8 +627,6 @@ class BatchExporter:
                     end_gate_value = timing_block.get("t1")
 
         if isinstance(start_gate_value, (int, float)) and isinstance(end_gate_value, (int, float)):
-            payload.setdefault("start_gate", float(start_gate_value))
-            payload.setdefault("end_gate", float(end_gate_value))
             payload.setdefault("startGate", float(start_gate_value))
             payload.setdefault("endGate", float(end_gate_value))
 
@@ -642,9 +635,7 @@ class BatchExporter:
             payload["image"] = dict(image_payload)
         image_path = meta_payload.get("image_path") or meta_payload.get("imagePath")
         if isinstance(image_path, str) and image_path.strip():
-            trimmed = image_path.strip()
-            payload["image_path"] = trimmed
-            payload["imagePath"] = trimmed
+            payload["imagePath"] = image_path.strip()
 
         return payload
 
@@ -812,12 +803,12 @@ class BatchExporter:
             word_timing_meta = metadata.get("word_timing")
             if not isinstance(word_timing_meta, Mapping):
                 word_timing_meta = {}
-            pause_before_source = metadata.get("pause_before_ms")
+            pause_before_source = metadata.get("pauseBeforeMs")
             if pause_before_source is None:
-                pause_before_source = metadata.get("pauseBeforeMs")
-            pause_after_source = metadata.get("pause_after_ms")
+                pause_before_source = metadata.get("pause_before_ms")
+            pause_after_source = metadata.get("pauseAfterMs")
             if pause_after_source is None:
-                pause_after_source = metadata.get("pauseAfterMs")
+                pause_after_source = metadata.get("pause_after_ms")
             try:
                 pause_before_ms = float(pause_before_source)
             except (TypeError, ValueError):
@@ -848,12 +839,8 @@ class BatchExporter:
             original_gate_cursor = original_end_gate
             translation_gate_cursor = translation_end_gate
 
-            metadata["start_gate"] = translation_start_gate
-            metadata["end_gate"] = translation_end_gate
             metadata["startGate"] = translation_start_gate
             metadata["endGate"] = translation_end_gate
-            metadata["original_start_gate"] = original_start_gate
-            metadata["original_end_gate"] = original_end_gate
             metadata["originalStartGate"] = original_start_gate
             metadata["originalEndGate"] = original_end_gate
             translation_entry = metadata.get("translation") or {}
@@ -870,8 +857,8 @@ class BatchExporter:
                     original_words=list(original_entry.get("tokens") or []),
                     translation_words=list(translation_entry.get("tokens") or []),
                     word_tokens=metadata.get("word_tokens"),
-                    original_word_tokens=metadata.get("original_word_tokens")
-                    or metadata.get("originalWordTokens"),
+                    original_word_tokens=metadata.get("originalWordTokens")
+                    or metadata.get("original_word_tokens"),
                     translation_duration=translation_duration_value,
                     original_duration=float(phase_data.get("original") or 0.0),
                     gap_before_translation=float(phase_data.get("gap") or 0.0),
@@ -889,13 +876,13 @@ class BatchExporter:
                     pause_before_ms=pause_before_ms,
                     pause_after_ms=pause_after_ms,
                     original_pause_before_ms=float(
-                        metadata.get("original_pause_before_ms")
-                        or metadata.get("originalPauseBeforeMs")
+                        metadata.get("originalPauseBeforeMs")
+                        or metadata.get("original_pause_before_ms")
                         or 0.0
                     ),
                     original_pause_after_ms=float(
-                        metadata.get("original_pause_after_ms")
-                        or metadata.get("originalPauseAfterMs")
+                        metadata.get("originalPauseAfterMs")
+                        or metadata.get("original_pause_after_ms")
                         or 0.0
                     ),
                 )

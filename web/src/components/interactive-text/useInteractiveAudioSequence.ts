@@ -1,17 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AudioTrackMetadata, ChunkSentenceMetadata } from '../../api/dtos';
+import type { AudioTrackMetadata } from '../../api/dtos';
 import { appendAccessToken } from '../../api/client';
 import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
 import { coerceExportPath } from '../../utils/storageResolver';
+import {
+  extractOriginalUrl,
+  extractTranslationUrl,
+  extractCombinedUrl,
+  resolveChunkKey,
+  resolveSentenceGate,
+  resolveSentenceDuration,
+  type SequenceTrack,
+  type SelectedAudioTrack,
+} from '../../lib/media';
 
-export type SequenceTrack = 'original' | 'translation';
+export type { SequenceTrack, SelectedAudioTrack };
 export type SequenceSegment = {
   track: SequenceTrack;
   start: number;
   end: number;
   sentenceIndex: number;
 };
-export type SelectedAudioTrack = SequenceTrack | 'combined';
 
 type SequenceState = {
   enabled: boolean;
@@ -80,117 +89,6 @@ const normaliseAudioUrl = (value: string | null): string | null => {
   }
 };
 
-const resolveNumericValue = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-  return null;
-};
-
-const resolveDurationValue = (value: unknown): number | null => {
-  const parsed = resolveNumericValue(value);
-  if (parsed === null) {
-    return null;
-  }
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return null;
-  }
-  return parsed;
-};
-
-const readSentenceGate = (
-  sentence: ChunkSentenceMetadata | null | undefined,
-  keys: string[],
-): number | null => {
-  if (!sentence) {
-    return null;
-  }
-  const record = sentence as unknown as Record<string, unknown>;
-  for (const key of keys) {
-    const raw = record[key];
-    const numeric = resolveNumericValue(raw);
-    if (numeric !== null) {
-      return numeric;
-    }
-  }
-  return null;
-};
-
-const readPhaseDuration = (
-  sentence: ChunkSentenceMetadata | null | undefined,
-  key: string,
-): number | null => {
-  if (!sentence) {
-    return null;
-  }
-  const record = sentence as unknown as Record<string, unknown>;
-  const phasePayload = record.phase_durations ?? record.phaseDurations;
-  if (!phasePayload || typeof phasePayload !== 'object') {
-    return null;
-  }
-  const phases = phasePayload as Record<string, unknown>;
-  return resolveDurationValue(phases[key]);
-};
-
-const resolveSentenceGate = (
-  sentence: ChunkSentenceMetadata | null | undefined,
-  track: SequenceTrack,
-): { start: number; end: number } | null => {
-  const start =
-    track === 'original'
-      ? readSentenceGate(sentence, ['original_start_gate', 'originalStartGate', 'original_startGate'])
-      : readSentenceGate(sentence, ['start_gate', 'startGate']);
-  const end =
-    track === 'original'
-      ? readSentenceGate(sentence, ['original_end_gate', 'originalEndGate', 'original_endGate'])
-      : readSentenceGate(sentence, ['end_gate', 'endGate']);
-  if (start === null || end === null) {
-    return null;
-  }
-  const safeStart = Math.max(0, start);
-  const safeEnd = Math.max(safeStart, end);
-  if (!Number.isFinite(safeStart) || !Number.isFinite(safeEnd)) {
-    return null;
-  }
-  if (safeEnd <= safeStart) {
-    return null;
-  }
-  return { start: safeStart, end: safeEnd };
-};
-
-const resolveSentenceDuration = (
-  sentence: ChunkSentenceMetadata | null | undefined,
-  track: SelectedAudioTrack,
-): number | null => {
-  if (!sentence) {
-    return null;
-  }
-  if (track === 'combined') {
-    const record = sentence as unknown as Record<string, unknown>;
-    return resolveDurationValue(record.total_duration ?? record.totalDuration ?? record.t1);
-  }
-  const gate = resolveSentenceGate(sentence, track);
-  if (gate) {
-    return Math.max(gate.end - gate.start, 0);
-  }
-  const phaseKey = track === 'original' ? 'original' : 'translation';
-  const phaseDuration = readPhaseDuration(sentence, phaseKey);
-  if (phaseDuration !== null) {
-    return phaseDuration;
-  }
-  if (track === 'translation') {
-    const record = sentence as unknown as Record<string, unknown>;
-    return resolveDurationValue(record.total_duration ?? record.totalDuration ?? record.t1);
-  }
-  return null;
-};
-
 export function useInteractiveAudioSequence({
   chunk,
   audioTracks,
@@ -201,14 +99,9 @@ export function useInteractiveAudioSequence({
   isExportMode,
   jobId,
 }: UseInteractiveAudioSequenceArgs): UseInteractiveAudioSequenceResult {
-  const combinedTrackUrl = audioTracks?.orig_trans?.url ?? audioTracks?.orig_trans?.path ?? null;
-  const originalTrackUrl = audioTracks?.orig?.url ?? audioTracks?.orig?.path ?? null;
-  const translationTrackUrl =
-    audioTracks?.translation?.url ??
-    audioTracks?.translation?.path ??
-    audioTracks?.trans?.url ??
-    audioTracks?.trans?.path ??
-    null;
+  const combinedTrackUrl = extractCombinedUrl(audioTracks);
+  const originalTrackUrl = extractOriginalUrl(audioTracks);
+  const translationTrackUrl = extractTranslationUrl(audioTracks);
   const allowCombinedAudio = Boolean(combinedTrackUrl) && (!originalTrackUrl || !translationTrackUrl);
 
   const sequencePlan = useMemo<SequenceSegment[]>(() => {
@@ -338,9 +231,7 @@ export function useInteractiveAudioSequence({
     sequenceEnabledRef.current = sequenceEnabled;
   }, [sequenceEnabled]);
 
-  const sequenceChunkKey = useMemo(() => {
-    return chunk?.chunkId ?? chunk?.rangeFragment ?? chunk?.metadataPath ?? chunk?.metadataUrl ?? null;
-  }, [chunk?.chunkId, chunk?.metadataPath, chunk?.metadataUrl, chunk?.rangeFragment]);
+  const sequenceChunkKey = useMemo(() => resolveChunkKey(chunk), [chunk?.chunkId, chunk?.metadataPath, chunk?.metadataUrl, chunk?.rangeFragment, chunk?.startSentence, chunk?.endSentence]);
   const sequenceChunkKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -407,22 +298,13 @@ export function useInteractiveAudioSequence({
 
   const audioResetKey = useMemo(() => {
     if (sequenceEnabled) {
-      const chunkKey =
-        chunk?.chunkId ??
-        chunk?.rangeFragment ??
-        chunk?.metadataPath ??
-        chunk?.metadataUrl ??
-        'unknown';
-      return `sequence:${chunkKey}:${originalTrackUrl ?? ''}:${translationTrackUrl ?? ''}`;
+      return `sequence:${sequenceChunkKey ?? 'unknown'}:${originalTrackUrl ?? ''}:${translationTrackUrl ?? ''}`;
     }
     return effectiveAudioUrl ?? 'none';
   }, [
-    chunk?.chunkId,
-    chunk?.metadataPath,
-    chunk?.metadataUrl,
-    chunk?.rangeFragment,
     effectiveAudioUrl,
     originalTrackUrl,
+    sequenceChunkKey,
     sequenceEnabled,
     translationTrackUrl,
   ]);

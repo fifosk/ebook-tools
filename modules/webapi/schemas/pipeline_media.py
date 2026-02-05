@@ -52,7 +52,7 @@ class ChunkSentenceImagePayload(BaseModel):
 
 
 class ChunkSentenceMetadata(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
 
     sentence_number: Optional[int] = None
     original: ChunkSentenceVariant
@@ -60,22 +60,16 @@ class ChunkSentenceMetadata(BaseModel):
     transliteration: Optional[ChunkSentenceVariant] = None
     timeline: List[ChunkSentenceTimelineEvent] = Field(default_factory=list)
     image: Optional[ChunkSentenceImagePayload] = None
-    image_path: Optional[str] = None
-    imagePath: Optional[str] = None
+    image_path: Optional[str] = Field(default=None, alias="imagePath")
     total_duration: Optional[float] = None
     highlight_granularity: Optional[str] = None
     counts: Dict[str, int] = Field(default_factory=dict)
     phase_durations: Dict[str, float] = Field(default_factory=dict)
     # Gate fields for sequence playback (timing boundaries for each track)
-    start_gate: Optional[float] = None
-    end_gate: Optional[float] = None
-    original_start_gate: Optional[float] = None
-    original_end_gate: Optional[float] = None
-    # camelCase aliases for frontend compatibility
-    startGate: Optional[float] = None
-    endGate: Optional[float] = None
-    originalStartGate: Optional[float] = None
-    originalEndGate: Optional[float] = None
+    start_gate: Optional[float] = Field(default=None, alias="startGate")
+    end_gate: Optional[float] = Field(default=None, alias="endGate")
+    original_start_gate: Optional[float] = Field(default=None, alias="originalStartGate")
+    original_end_gate: Optional[float] = Field(default=None, alias="originalEndGate")
 
 
 class AudioTrackMetadata(BaseModel):

@@ -157,7 +157,6 @@ class _ImageGenerationState:
                     image_payload["negative_prompt"] = image.negative_prompt
                 if previous != image_payload:
                     sentence_entry["image"] = image_payload
-                    sentence_entry["image_path"] = image.relative_path
                     sentence_entry["imagePath"] = image.relative_path
                     updated = True
                 else:

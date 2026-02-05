@@ -29,6 +29,7 @@ import {
 } from '../interactive-text/utils';
 import type { SubtitleTrack } from '../VideoPlayer';
 import { parseAssSubtitles, type AssSubtitleCue, type AssSubtitleTrackKind } from './assParser';
+import { findActiveIndex, findInsertIndex, Accessors } from '../../lib/timing/timeSearch';
 import styles from './SubtitleTrackOverlay.module.css';
 
 type TrackKind = AssSubtitleTrackKind;
@@ -80,44 +81,21 @@ function clampOpacity(value: number | null | undefined): number {
   return Math.max(0, Math.min(1, value ?? 0.6));
 }
 
+const cueAccessor = Accessors.startEnd;
+
 function findActiveCueIndex(cues: AssSubtitleCue[], time: number, lastIndex: number): number {
+  // Fast path: reuse last index when time is still within its range
   if (lastIndex >= 0 && lastIndex < cues.length) {
     const last = cues[lastIndex];
     if (time >= last.start && time < last.end) {
       return lastIndex;
     }
   }
-  let low = 0;
-  let high = cues.length - 1;
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2);
-    const cue = cues[mid];
-    if (time < cue.start) {
-      high = mid - 1;
-    } else if (time >= cue.end) {
-      low = mid + 1;
-    } else {
-      return mid;
-    }
-  }
-  return -1;
+  return findActiveIndex(cues, time, cueAccessor);
 }
 
 function findCueInsertIndex(cues: AssSubtitleCue[], time: number): number {
-  let low = 0;
-  let high = cues.length - 1;
-  let result = cues.length;
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2);
-    const cue = cues[mid];
-    if (time < cue.start) {
-      result = mid;
-      high = mid - 1;
-    } else {
-      low = mid + 1;
-    }
-  }
-  return result;
+  return findInsertIndex(cues, time, cueAccessor);
 }
 
 function clampOffset(value: number, containerHeight: number): number {

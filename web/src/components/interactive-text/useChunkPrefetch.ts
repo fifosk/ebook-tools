@@ -3,95 +3,20 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { AudioTrackMetadata, ChunkSentenceMetadata } from '../../api/dtos';
-import { appendAccessTokenToStorageUrl, buildStorageUrl } from '../../api/client';
+import type { ChunkSentenceMetadata } from '../../api/dtos';
 import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
 import type { PlayerMode } from '../../types/player';
+import {
+  resolveChunkKey,
+  resolveChunkMetadataUrl,
+  resolveChunkAudioUrl,
+} from '../../lib/media';
 
 const PREFETCH_RADIUS = 2;
 const METADATA_PREFETCH_RETRY_MS = 6000;
 const AUDIO_PREFETCH_RETRY_MS = 12000;
 const PREFETCH_TIMEOUT_MS = 4000;
 const AUDIO_PREFETCH_RANGE = 'bytes=0-2047';
-
-function resolveChunkKey(chunk: LiveMediaChunk | null): string | null {
-  if (!chunk) {
-    return null;
-  }
-  return (
-    chunk.chunkId ??
-    chunk.rangeFragment ??
-    chunk.metadataPath ??
-    chunk.metadataUrl ??
-    (chunk.startSentence !== null || chunk.endSentence !== null
-      ? `${chunk.startSentence ?? 'na'}-${chunk.endSentence ?? 'na'}`
-      : null)
-  );
-}
-
-function resolveStorageUrl(value: string | null, jobId: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  if (/^[a-z]+:\/\//i.test(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
-    return appendAccessTokenToStorageUrl(trimmed);
-  }
-  return buildStorageUrl(trimmed, jobId ?? null);
-}
-
-function resolveChunkMetadataUrl(chunk: LiveMediaChunk, jobId: string | null): string | null {
-  if (chunk.metadataUrl) {
-    return resolveStorageUrl(chunk.metadataUrl, jobId);
-  }
-  if (chunk.metadataPath) {
-    return resolveStorageUrl(chunk.metadataPath, jobId);
-  }
-  return null;
-}
-
-function resolveChunkAudioUrl(
-  chunk: LiveMediaChunk,
-  jobId: string | null,
-  originalAudioEnabled: boolean,
-  translationAudioEnabled: boolean,
-): string | null {
-  const tracks = chunk.audioTracks ?? null;
-  const translationUrl =
-    tracks?.translation?.url ??
-    tracks?.translation?.path ??
-    tracks?.trans?.url ??
-    tracks?.trans?.path ??
-    null;
-  const originalUrl =
-    (tracks as Record<string, AudioTrackMetadata | null | undefined>)?.orig?.url ??
-    (tracks as Record<string, AudioTrackMetadata | null | undefined>)?.orig?.path ??
-    (tracks as Record<string, AudioTrackMetadata | null | undefined>)?.original?.url ??
-    (tracks as Record<string, AudioTrackMetadata | null | undefined>)?.original?.path ??
-    null;
-  const combinedUrl =
-    (tracks as Record<string, AudioTrackMetadata | null | undefined>)?.orig_trans?.url ??
-    (tracks as Record<string, AudioTrackMetadata | null | undefined>)?.orig_trans?.path ??
-    (tracks as Record<string, AudioTrackMetadata | null | undefined>)?.combined?.url ??
-    (tracks as Record<string, AudioTrackMetadata | null | undefined>)?.combined?.path ??
-    (tracks as Record<string, AudioTrackMetadata | null | undefined>)?.mix?.url ??
-    (tracks as Record<string, AudioTrackMetadata | null | undefined>)?.mix?.path ??
-    null;
-
-  const candidate =
-    (translationAudioEnabled ? translationUrl : null) ??
-    (originalAudioEnabled ? originalUrl : null) ??
-    (translationAudioEnabled ? combinedUrl : null) ??
-    (originalAudioEnabled ? combinedUrl : null) ??
-    translationUrl ??
-    originalUrl ??
-    combinedUrl;
-
-  return resolveStorageUrl(candidate, jobId);
-}
 
 export function resolveActiveSentenceNumber(chunk: LiveMediaChunk | null, activeSentenceIndex: number): number {
   if (chunk?.sentences && chunk.sentences.length > 0) {
@@ -399,4 +324,4 @@ export function useChunkPrefetch({
 }
 
 // Re-export for use in InteractiveTextViewer
-export { resolveChunkKey };
+export { resolveChunkKey } from '../../lib/media';

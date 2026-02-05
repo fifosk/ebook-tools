@@ -1014,7 +1014,6 @@ async def regenerate_sentence_image(
                 if negative_full:
                     image_payload["negative_prompt"] = negative_full
                 sentence["image"] = image_payload
-                sentence["image_path"] = relative_path
                 sentence["imagePath"] = relative_path
                 updated = True
             if updated:

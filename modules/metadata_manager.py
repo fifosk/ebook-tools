@@ -945,7 +945,6 @@ class MetadataLoader:
                 audio_source = candidate
         audio_tracks = _clone_mapping(audio_source)
         if audio_tracks:
-            payload["audio_tracks"] = copy.deepcopy(audio_tracks)
             payload["audioTracks"] = copy.deepcopy(audio_tracks)
 
         timing_source: Optional[Mapping[str, Any]] = None
@@ -959,7 +958,6 @@ class MetadataLoader:
                 timing_source = candidate
         timing_tracks = _clone_mapping(timing_source)
         if timing_tracks:
-            payload["timing_tracks"] = copy.deepcopy(timing_tracks)
             payload["timingTracks"] = copy.deepcopy(timing_tracks)
 
         payload["sentence_count"] = sentence_count

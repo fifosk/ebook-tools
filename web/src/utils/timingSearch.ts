@@ -1,19 +1,27 @@
 import type { Hit, Segment, TimingPayload, WordToken } from '../types/timing';
+import {
+  Accessors,
+  compareTime as genericCompareTime,
+  distanceTo,
+  findNearestIndex,
+} from '../lib/timing/timeSearch';
 
 const HYSTERESIS_SECONDS = 0.024; // 24ms guard band to avoid flicker
 const LARGE_SEEK_THRESHOLD = 0.35; // seconds
 
+const t0t1 = Accessors.t0t1;
+
+/**
+ * Compare a time value against a {t0, t1} range.
+ *
+ * Re-exported for backward compatibility — callers like AudioSyncController
+ * import this from `utils/timingSearch`.
+ */
 export function compareTime(
   t: number,
   range: { t0: number; t1: number }
 ): -1 | 0 | 1 {
-  if (t < range.t0) {
-    return -1;
-  }
-  if (t > range.t1) {
-    return 1;
-  }
-  return 0;
+  return genericCompareTime(t, range, t0t1);
 }
 
 export function isLargeSeek(prevT: number, t: number): boolean {
@@ -91,14 +99,14 @@ export function findNearestToken(
     return lastClamped as Hit;
   }
 
-  let segIndex = locateSegmentIndex(segments, t);
+  let segIndex = findNearestIndex(segments, t, t0t1);
   segIndex = ensureSegmentWithTokens(segments, segIndex, t);
   if (segIndex === -1) {
     return lastClamped ?? { segIndex: -1, tokIndex: -1 };
   }
 
   const segment = segments[segIndex];
-  const tokIndex = locateTokenIndex(segment.tokens, t);
+  const tokIndex = findNearestIndex(segment.tokens, t, t0t1);
   const nextHit = clampHit(payload, { segIndex, tokIndex });
 
   if (
@@ -123,45 +131,12 @@ export function findNearestToken(
   return nextHit;
 }
 
-function locateSegmentIndex(segments: Segment[], t: number): number {
-  let left = 0;
-  let right = segments.length - 1;
-  let candidate = 0;
-
-  while (left <= right) {
-    const mid = (left + right) >> 1;
-    const segment = segments[mid];
-    const cmp = compareTime(t, segment);
-
-    if (cmp === 0) {
-      return mid;
-    }
-
-    candidate = mid;
-    if (cmp < 0) {
-      right = mid - 1;
-    } else {
-      left = mid + 1;
-    }
-  }
-
-  const segment = segments[candidate];
-  if (t < segment.t0 && candidate > 0) {
-    const prev = segments[candidate - 1];
-    return distanceToSegment(prev, t) <= distanceToSegment(segment, t)
-      ? candidate - 1
-      : candidate;
-  }
-  if (t > segment.t1 && candidate < segments.length - 1) {
-    const next = segments[candidate + 1];
-    return distanceToSegment(next, t) < distanceToSegment(segment, t)
-      ? candidate + 1
-      : candidate;
-  }
-
-  return candidate;
-}
-
+/**
+ * Skip to the nearest segment that actually has tokens.
+ *
+ * This handles the edge case where a segment exists in the timing payload
+ * but has an empty token array (e.g. silence-only segments).
+ */
 function ensureSegmentWithTokens(
   segments: Segment[],
   segIndex: number,
@@ -184,7 +159,7 @@ function ensureSegmentWithTokens(
   if (forward < segments.length && backward >= 0) {
     const forwardSeg = segments[forward];
     const backwardSeg = segments[backward];
-    return distanceToSegment(forwardSeg, t) <= distanceToSegment(backwardSeg, t)
+    return distanceTo(forwardSeg, t, t0t1) <= distanceTo(backwardSeg, t, t0t1)
       ? forward
       : backward;
   }
@@ -198,71 +173,7 @@ function ensureSegmentWithTokens(
   return -1;
 }
 
-function locateTokenIndex(tokens: WordToken[], t: number): number {
-  const count = tokens.length;
-  if (!count) {
-    return -1;
-  }
-
-  let left = 0;
-  let right = count - 1;
-  let candidate = 0;
-
-  while (left <= right) {
-    const mid = (left + right) >> 1;
-    const token = tokens[mid];
-    const cmp = compareTime(t, token);
-
-    if (cmp === 0) {
-      return mid;
-    }
-
-    candidate = mid;
-    if (cmp < 0) {
-      right = mid - 1;
-    } else {
-      left = mid + 1;
-    }
-  }
-
-  const token = tokens[candidate];
-  if (t < token.t0 && candidate > 0) {
-    const prev = tokens[candidate - 1];
-    return distanceToToken(prev, t) <= distanceToToken(token, t)
-      ? candidate - 1
-      : candidate;
-  }
-  if (t > token.t1 && candidate < count - 1) {
-    const next = tokens[candidate + 1];
-    return distanceToToken(next, t) < distanceToToken(token, t)
-      ? candidate + 1
-      : candidate;
-  }
-
-  return candidate;
-}
-
 function getToken(payload: TimingPayload, hit: Hit): WordToken | undefined {
   const segment = payload.segments[hit.segIndex];
   return segment?.tokens[hit.tokIndex];
-}
-
-function distanceToSegment(segment: Segment, t: number): number {
-  if (t < segment.t0) {
-    return segment.t0 - t;
-  }
-  if (t > segment.t1) {
-    return t - segment.t1;
-  }
-  return 0;
-}
-
-function distanceToToken(token: WordToken, t: number): number {
-  if (t < token.t0) {
-    return token.t0 - t;
-  }
-  if (t > token.t1) {
-    return t - token.t1;
-  }
-  return 0;
 }

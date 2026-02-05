@@ -1,4 +1,5 @@
 import type { PauseTiming, TrackTimingPayload, WordTiming } from '../../api/dtos';
+import { lowerBound as genericLowerBound } from './timeSearch';
 
 export type TimelineEventKind = 'on' | 'off';
 
@@ -180,17 +181,7 @@ export function buildWordIndex(payload: TrackTimingPayload): WordIndex {
 
 export function lowerBound(events: TimelineEvent[], time: number): number {
   const target = Number.isFinite(time) ? time : 0;
-  let low = 0;
-  let high = events.length;
-  while (low < high) {
-    const index = Math.floor((low + high) / 2);
-    if (events[index]!.t < target) {
-      low = index + 1;
-    } else {
-      high = index;
-    }
-  }
-  return low;
+  return genericLowerBound(events, target, (e) => e.t);
 }
 
 export function collectActiveWordIds(index: WordIndex, time: number): string[] {

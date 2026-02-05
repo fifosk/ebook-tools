@@ -554,7 +554,6 @@ class ImagePipelineCoordinator:
         image_payload.setdefault("batch_end_sentence", batch_end_sentence_number)
         image_payload.setdefault("batch_size", self._image_prompt_batch_size)
         metadata_payload["image"] = image_payload
-        metadata_payload["image_path"] = relative_path
         metadata_payload["imagePath"] = relative_path
 
     def handle_sentence(
