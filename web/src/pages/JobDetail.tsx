@@ -10,7 +10,7 @@ export interface JobDetailProps {
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
   onPlaybackStateChange?: (isPlaying: boolean) => void;
   onFullscreenChange?: (isFullscreen: boolean) => void;
-  bookMetadata?: Record<string, unknown> | null;
+  mediaMetadata?: Record<string, unknown> | null;
   onOpenLibraryItem?: (item: LibraryOpenInput) => void;
   selectionRequest?: MediaSelectionRequest | null;
 }
@@ -21,7 +21,7 @@ export default function JobDetail({
   onVideoPlaybackStateChange,
   onPlaybackStateChange,
   onFullscreenChange,
-  bookMetadata = null,
+  mediaMetadata = null,
   onOpenLibraryItem,
   selectionRequest = null
 }: JobDetailProps) {
@@ -77,7 +77,7 @@ export default function JobDetail({
           mediaComplete={isComplete}
           isLoading={isLoading}
           error={error}
-          bookMetadata={bookMetadata}
+          mediaMetadata={mediaMetadata}
           onVideoPlaybackStateChange={onVideoPlaybackStateChange}
           onPlaybackStateChange={onPlaybackStateChange}
           onFullscreenChange={onFullscreenChange}

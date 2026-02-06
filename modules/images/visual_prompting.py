@@ -277,7 +277,7 @@ def _build_chapter_text(sentences: Sequence[str]) -> str:
 def _resolve_visual_canon(
     *,
     job_root: Path,
-    book_metadata: Mapping[str, Any],
+    media_metadata: Mapping[str, Any],
     full_sentences: Sequence[str],
 ) -> VisualCanon:
     metadata_root = job_root / "metadata"
@@ -302,9 +302,9 @@ def _resolve_visual_canon(
                 )
         raise ValueError("visual_canon.json exists but is invalid or incomplete")
 
-    title = str(book_metadata.get("book_title") or book_metadata.get("title") or "").strip()
-    genre = str(book_metadata.get("book_genre") or book_metadata.get("genre") or "").strip()
-    period = str(book_metadata.get("historical_period") or book_metadata.get("book_year") or "").strip()
+    title = str(media_metadata.get("book_title") or media_metadata.get("title") or "").strip()
+    genre = str(media_metadata.get("book_genre") or media_metadata.get("genre") or "").strip()
+    period = str(media_metadata.get("historical_period") or media_metadata.get("book_year") or "").strip()
     excerpt_text = _build_excerpts(full_sentences)
 
     system_prompt = (
@@ -319,7 +319,7 @@ def _resolve_visual_canon(
         '  "locations": { "<LOCATION_ID>": { "architecture": "...", "environment": "...", "props": "..." } } }\n'
     )
     user_payload = {
-        "book_metadata": {
+        "media_metadata": {
             "title": title,
             "genre": genre,
             "historical_period": period,
@@ -700,7 +700,7 @@ class VisualPromptOrchestrator:
         self,
         *,
         job_root: Path,
-        book_metadata: Mapping[str, Any],
+        media_metadata: Mapping[str, Any],
         full_sentences: Sequence[str],
         content_index: Optional[Mapping[str, Any]] = None,
         scope_start_sentence: Optional[int] = None,
@@ -708,7 +708,7 @@ class VisualPromptOrchestrator:
         lazy_scenes: bool = False,
     ) -> None:
         self._job_root = job_root
-        self._book_metadata = dict(book_metadata)
+        self._media_metadata = dict(media_metadata)
         self._full_sentences = list(full_sentences)
         self._content_index = dict(content_index) if isinstance(content_index, Mapping) else None
         self._scope_start_sentence = scope_start_sentence
@@ -740,7 +740,7 @@ class VisualPromptOrchestrator:
             return
         canon = _resolve_visual_canon(
             job_root=self._job_root,
-            book_metadata=self._book_metadata,
+            media_metadata=self._media_metadata,
             full_sentences=self._full_sentences,
         )
         tokens = _build_character_tokens(canon.characters)

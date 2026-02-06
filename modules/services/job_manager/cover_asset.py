@@ -16,12 +16,12 @@ _LOGGER = logging_manager.get_logger().getChild("job_manager.cover_asset")
 def mirror_cover_asset(
     job_id: str,
     metadata_root: Path,
-    book_metadata: Mapping[str, Any],
+    media_metadata: Mapping[str, Any],
     file_locator: FileLocator,
 ) -> Optional[str]:
     """Mirror a cover asset into the metadata directory, returning the relative path."""
 
-    raw_value = book_metadata.get("book_cover_file")
+    raw_value = media_metadata.get("book_cover_file")
     if not isinstance(raw_value, str) or not raw_value.strip():
         cleanup_cover_assets(metadata_root)
         return None

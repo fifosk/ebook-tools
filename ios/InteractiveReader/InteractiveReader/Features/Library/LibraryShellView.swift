@@ -1136,7 +1136,7 @@ private struct CombinedSearchView: View {
         if let title = resultObject["title"]?.stringValue?.nonEmptyValue {
             return title
         }
-        if let book = resultObject["book_metadata"]?.objectValue,
+        if let book = (resultObject["media_metadata"] ?? resultObject["book_metadata"])?.objectValue,
            let title = book["title"]?.stringValue?.nonEmptyValue {
             return title
         }

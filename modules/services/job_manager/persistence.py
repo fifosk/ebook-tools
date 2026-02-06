@@ -180,27 +180,27 @@ class PipelineJobPersistence:
         else:
             result_payload = {}
 
-        raw_book_metadata = result_payload.get("book_metadata")
-        book_metadata: Dict[str, Any]
-        if isinstance(raw_book_metadata, Mapping):
-            book_metadata = dict(raw_book_metadata)
+        raw_media_metadata = result_payload.get("media_metadata") or result_payload.get("book_metadata")
+        media_metadata: Dict[str, Any]
+        if isinstance(raw_media_metadata, Mapping):
+            media_metadata = dict(raw_media_metadata)
         else:
-            book_metadata = {}
+            media_metadata = {}
         apply_language_metadata(
-            book_metadata,
+            media_metadata,
             snapshot.request_payload if isinstance(snapshot.request_payload, Mapping) else None,
             snapshot.resume_context if isinstance(snapshot.resume_context, Mapping) else None,
             result_payload,
         )
 
-        cover_asset = mirror_cover_asset(job.job_id, metadata_root, book_metadata, self._file_locator)
+        cover_asset = mirror_cover_asset(job.job_id, metadata_root, media_metadata, self._file_locator)
         if cover_asset:
-            book_metadata["job_cover_asset"] = cover_asset
-            book_metadata.setdefault("job_cover_asset_url", f"/api/pipelines/{job.job_id}/cover")
+            media_metadata["job_cover_asset"] = cover_asset
+            media_metadata.setdefault("job_cover_asset_url", f"/api/pipelines/{job.job_id}/cover")
         else:
-            book_metadata.pop("job_cover_asset", None)
-            book_metadata.pop("job_cover_asset_url", None)
-        raw_content_index = book_metadata.get("content_index")
+            media_metadata.pop("job_cover_asset", None)
+            media_metadata.pop("job_cover_asset_url", None)
+        raw_content_index = media_metadata.get("content_index")
         content_index_written = False
         content_index_total_sentences: Optional[int] = None
         if isinstance(raw_content_index, Mapping):
@@ -213,12 +213,12 @@ class PipelineJobPersistence:
                 )
                 content_index_written = True
                 relative_path = Path("metadata") / "content_index.json"
-                book_metadata["content_index_path"] = relative_path.as_posix()
+                media_metadata["content_index_path"] = relative_path.as_posix()
                 url_candidate = self._file_locator.resolve_url(
                     job.job_id, relative_path.as_posix()
                 )
                 if url_candidate:
-                    book_metadata["content_index_url"] = url_candidate
+                    media_metadata["content_index_url"] = url_candidate
                 chapter_list = content_index_payload.get("chapters")
                 chapter_count = (
                     len(chapter_list) if isinstance(chapter_list, list) else 0
@@ -227,7 +227,7 @@ class PipelineJobPersistence:
                 alignment_payload = content_index_payload.get("alignment")
                 if isinstance(alignment_payload, Mapping):
                     alignment = alignment_payload.get("status")
-                book_metadata["content_index_summary"] = {
+                media_metadata["content_index_summary"] = {
                     "chapter_count": chapter_count,
                     "alignment": alignment,
                 }
@@ -244,12 +244,12 @@ class PipelineJobPersistence:
                     job.job_id,
                     exc_info=True,
                 )
-        result_payload["book_metadata"] = book_metadata
+        result_payload["media_metadata"] = media_metadata
         snapshot.result = result_payload
 
         if job.result_payload is not None:
             job.result_payload = dict(job.result_payload)
-            job.result_payload["book_metadata"] = copy.deepcopy(book_metadata)
+            job.result_payload["media_metadata"] = copy.deepcopy(media_metadata)
         if job.result is not None:
             if cover_asset:
                 job.result.metadata.update({"job_cover_asset": cover_asset})
@@ -258,7 +258,7 @@ class PipelineJobPersistence:
 
         try:
             (metadata_root / "book.json").write_text(
-                json.dumps(dict(book_metadata), indent=2, sort_keys=True),
+                json.dumps(dict(media_metadata), indent=2, sort_keys=True),
                 encoding="utf-8",
             )
         except Exception:  # pragma: no cover - defensive logging
@@ -282,8 +282,8 @@ class PipelineJobPersistence:
                 content_index_total_sentences = len(sentences)
 
         if content_index_total_sentences and content_index_total_sentences > 0:
-            book_metadata.setdefault("total_sentences", content_index_total_sentences)
-            book_metadata.setdefault("book_sentence_count", content_index_total_sentences)
+            media_metadata.setdefault("total_sentences", content_index_total_sentences)
+            media_metadata.setdefault("book_sentence_count", content_index_total_sentences)
 
         if wrote_sentences:
             result_payload.pop("refined_sentences", None)

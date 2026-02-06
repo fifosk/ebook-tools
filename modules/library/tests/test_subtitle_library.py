@@ -30,7 +30,7 @@ def _subtitle_job_payload(*, job_id: str, generate_audio_book: bool) -> dict:
         },
         "result": {
             "subtitle": {"metadata": {"generate_audio_book": generate_audio_book}},
-            "book_metadata": {
+            "media_metadata": {
                 "book_title": "Example",
                 "book_author": "Subtitles",
                 "book_genre": "Subtitles",

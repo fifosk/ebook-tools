@@ -48,7 +48,7 @@ def test_build_pipeline_input_normalizes_values():
         "generate_video": "ON",
         "include_transliteration": "no",
         "tempo": "fast",
-        "book_metadata": "unexpected",
+        "media_metadata": "unexpected",
     }
 
     pipeline_input = _build_pipeline_input(payload)
@@ -66,7 +66,7 @@ def test_build_pipeline_input_normalizes_values():
     assert pipeline_input.generate_video is True
     assert pipeline_input.include_transliteration is False
     assert pipeline_input.tempo == pytest.approx(1.0)
-    assert pipeline_input.book_metadata.as_dict() == {}
+    assert pipeline_input.media_metadata.as_dict() == {}
 
 
 def test_hydrate_request_creates_tracker_and_observer():

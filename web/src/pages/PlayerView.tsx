@@ -12,7 +12,7 @@ export type PlayerContext =
       type: 'library';
       jobId: string;
       itemType?: 'book' | 'video' | 'narrated_subtitle' | null;
-      bookMetadata: Record<string, unknown> | null;
+      mediaMetadata: Record<string, unknown> | null;
       item?: LibraryItem | null;
     };
 
@@ -55,7 +55,7 @@ export default function PlayerView({
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
         onPlaybackStateChange={onPlaybackStateChange}
         onFullscreenChange={onFullscreenChange}
-        bookMetadata={jobBookMetadata}
+        mediaMetadata={jobBookMetadata}
         onOpenLibraryItem={onOpenLibraryItem}
         selectionRequest={selectionRequest}
       />
@@ -118,7 +118,7 @@ export default function PlayerView({
           mediaComplete={isComplete}
           isLoading={isLoading}
           error={error}
-          bookMetadata={context.bookMetadata ?? null}
+          mediaMetadata={context.mediaMetadata ?? null}
           onVideoPlaybackStateChange={onVideoPlaybackStateChange}
           onPlaybackStateChange={onPlaybackStateChange}
           onFullscreenChange={onFullscreenChange}

@@ -211,10 +211,10 @@ extension JobPlaybackView {
 
     var bookSummary: String? {
         if let metadata = jobMetadata,
-           let bookMetadata = extractBookMetadata(from: metadata) {
-            let summary = bookMetadata["book_summary"]?.stringValue
-                ?? bookMetadata["summary"]?.stringValue
-                ?? bookMetadata["description"]?.stringValue
+           let mediaMetadata = extractMediaMetadata(from: metadata) {
+            let summary = mediaMetadata["book_summary"]?.stringValue
+                ?? mediaMetadata["summary"]?.stringValue
+                ?? mediaMetadata["description"]?.stringValue
             return normalizedSummary(summary)
         }
         return normalizedSummary(metadataString(for: ["book_summary"], maxDepth: 4))
@@ -388,10 +388,10 @@ extension JobPlaybackView {
             appendTvCandidates(add: add)
         }
         if let metadata {
-            if let bookMetadata = extractBookMetadata(from: metadata) {
-                add(bookMetadata["job_cover_asset_url"]?.stringValue)
-                add(bookMetadata["job_cover_asset"]?.stringValue)
-                add(bookMetadata["book_cover_file"]?.stringValue)
+            if let mediaMetadata = extractMediaMetadata(from: metadata) {
+                add(mediaMetadata["job_cover_asset_url"]?.stringValue)
+                add(mediaMetadata["job_cover_asset"]?.stringValue)
+                add(mediaMetadata["book_cover_file"]?.stringValue)
             }
             add(metadata["job_cover_asset_url"]?.stringValue)
             add(metadata["job_cover_asset"]?.stringValue)
@@ -442,12 +442,12 @@ extension JobPlaybackView {
         return nil
     }
 
-    func extractBookMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
-        if let direct = metadata["book_metadata"]?.objectValue {
+    func extractMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
+        if let direct = (metadata["media_metadata"] ?? metadata["book_metadata"])?.objectValue {
             return direct
         }
         if let result = metadata["result"]?.objectValue,
-           let nested = result["book_metadata"]?.objectValue {
+           let nested = (result["media_metadata"] ?? result["book_metadata"])?.objectValue {
             return nested
         }
         return nil

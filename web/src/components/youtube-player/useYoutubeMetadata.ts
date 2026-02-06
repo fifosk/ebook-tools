@@ -28,7 +28,7 @@ import {
 export interface UseYoutubeMetadataOptions {
   jobId: string;
   libraryItem?: LibraryItem | null;
-  bookMetadata?: Record<string, unknown> | null;
+  mediaMetadata?: Record<string, unknown> | null;
   isExportMode: boolean;
 }
 
@@ -50,7 +50,7 @@ export interface YoutubeMetadataState {
 export function useYoutubeMetadata({
   jobId,
   libraryItem = null,
-  bookMetadata = null,
+  mediaMetadata = null,
   isExportMode,
 }: UseYoutubeMetadataOptions): YoutubeMetadataState {
   const [jobTvMetadata, setJobTvMetadata] = useState<Record<string, unknown> | null>(null);
@@ -60,21 +60,21 @@ export function useYoutubeMetadata({
 
   // Extract metadata from export payload (only in export mode)
   const exportTvMetadata = useMemo(
-    () => (isExportMode ? extractTvMediaMetadataFromPayload(coerceRecord(bookMetadata)) : null),
-    [bookMetadata, isExportMode],
+    () => (isExportMode ? extractTvMediaMetadataFromPayload(coerceRecord(mediaMetadata)) : null),
+    [mediaMetadata, isExportMode],
   );
 
   const exportYoutubeMetadata = useMemo(() => {
     if (!isExportMode) {
       return null;
     }
-    const record = coerceRecord(bookMetadata);
+    const record = coerceRecord(mediaMetadata);
     const direct = record ? coerceRecord(record['youtube']) : null;
     if (direct) {
       return direct;
     }
     return extractYoutubeVideoMetadataFromTv(exportTvMetadata);
-  }, [bookMetadata, exportTvMetadata, isExportMode]);
+  }, [mediaMetadata, exportTvMetadata, isExportMode]);
 
   // Fetch TV and YouTube metadata from API
   useEffect(() => {
@@ -138,9 +138,9 @@ export function useYoutubeMetadata({
       setJobTranslationLanguage(target);
       return;
     }
-    if (bookMetadata) {
+    if (mediaMetadata) {
       const original =
-        extractMetadataText(bookMetadata, [
+        extractMetadataText(mediaMetadata, [
           'input_language',
           'original_language',
           'source_language',
@@ -149,7 +149,7 @@ export function useYoutubeMetadata({
           'lang',
         ]) ?? null;
       const target =
-        extractMetadataFirstString(bookMetadata, ['target_language', 'translation_language', 'target_languages']) ??
+        extractMetadataFirstString(mediaMetadata, ['target_language', 'translation_language', 'target_languages']) ??
         null;
       setJobOriginalLanguage(original);
       setJobTranslationLanguage(target);
@@ -194,7 +194,7 @@ export function useYoutubeMetadata({
     return () => {
       cancelled = true;
     };
-  }, [bookMetadata, isExportMode, jobId, libraryItem]);
+  }, [mediaMetadata, isExportMode, jobId, libraryItem]);
 
   return {
     jobTvMetadata,

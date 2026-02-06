@@ -80,7 +80,7 @@ def _is_already_enriched(metadata: Mapping[str, Any]) -> bool:
     return bool(metadata.get("_enrichment_source"))
 
 
-def enrich_book_metadata(
+def enrich_media_metadata(
     existing_metadata: Mapping[str, Any],
     *,
     force: bool = False,
@@ -155,7 +155,7 @@ def enrich_book_metadata(
             )
 
         # Merge the lookup result into existing metadata
-        result_metadata = _merge_book_metadata(result_metadata, lookup_result)
+        result_metadata = _merge_media_metadata(result_metadata, lookup_result)
 
         return EnrichmentResult(
             enriched=True,
@@ -424,7 +424,7 @@ def enrich_metadata(
     LOGGER.debug("Enriching metadata as %s", media_type.value)
 
     if media_type == MediaType.BOOK:
-        return enrich_book_metadata(existing_metadata, force=force, service=service)
+        return enrich_media_metadata(existing_metadata, force=force, service=service)
     elif media_type == MediaType.MOVIE:
         return enrich_movie_metadata(existing_metadata, force=force, service=service)
     elif media_type in (MediaType.TV_SERIES, MediaType.TV_EPISODE):
@@ -498,7 +498,7 @@ def _extract_year(metadata: Mapping[str, Any]) -> Optional[int]:
 # -----------------------------------------------------------------------------
 
 
-def _merge_book_metadata(
+def _merge_media_metadata(
     existing: Dict[str, Any],
     result: UnifiedMetadataResult,
 ) -> Dict[str, Any]:
@@ -638,7 +638,7 @@ def _merge_tv_metadata(
 __all__ = [
     "EnrichmentResult",
     "detect_media_type",
-    "enrich_book_metadata",
+    "enrich_media_metadata",
     "enrich_metadata",
     "enrich_movie_metadata",
     "enrich_tv_metadata",

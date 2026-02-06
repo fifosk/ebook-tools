@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BookOpenLibraryMetadataPreviewResponse } from '../../api/dtos';
-import { appendAccessToken, clearBookMetadataCache, lookupBookOpenLibraryMetadataPreview } from '../../api/client';
+import { appendAccessToken, clearMediaMetadataCache, lookupBookOpenLibraryMetadataPreview } from '../../api/client';
 import {
-  loadCachedBookCoverDataUrl,
-  loadCachedBookCoverSourceUrl,
-  loadCachedBookMetadataJson,
-  persistCachedBookCoverDataUrl,
-  persistCachedBookMetadataJson,
-} from '../../utils/bookMetadataCache';
+  loadCachedCoverDataUrl,
+  loadCachedCoverSourceUrl,
+  loadCachedMediaMetadataJson,
+  persistCachedCoverDataUrl,
+  persistCachedMediaMetadataJson,
+} from '../../utils/mediaMetadataCache';
 import type { BookNarrationFormSection, FormState } from './bookNarrationFormTypes';
 import {
   basenameFromPath,
@@ -22,7 +22,7 @@ type UseBookNarrationMetadataOptions = {
   isGeneratedSource: boolean;
   activeTab: BookNarrationFormSection;
   inputFile: string;
-  bookMetadataJson: string;
+  mediaMetadataJson: string;
   normalizedInputPath: string | null;
   normalizePath: (value: string | null | undefined) => string | null;
   setFormState: React.Dispatch<React.SetStateAction<FormState>>;
@@ -33,7 +33,7 @@ export function useBookNarrationMetadata({
   isGeneratedSource,
   activeTab,
   inputFile,
-  bookMetadataJson,
+  mediaMetadataJson,
   normalizedInputPath,
   normalizePath,
   setFormState,
@@ -42,7 +42,7 @@ export function useBookNarrationMetadata({
   const metadataLookupIdRef = useRef<number>(0);
   const metadataAutoLookupRef = useRef<string | null>(null);
   const lastCoverCacheRequestRef = useRef<string | null>(null);
-  const bookMetadataCacheHydratedRef = useRef<string | null>(null);
+  const mediaMetadataCacheHydratedRef = useRef<string | null>(null);
   const [metadataLookupQuery, setMetadataLookupQuery] = useState<string>('');
   const [metadataPreview, setMetadataPreview] = useState<BookOpenLibraryMetadataPreviewResponse | null>(null);
   const [metadataLoading, setMetadataLoading] = useState<boolean>(false);
@@ -61,7 +61,7 @@ export function useBookNarrationMetadata({
 
   const applyMetadataLookupToDraft = useCallback(
     (payload: BookOpenLibraryMetadataPreviewResponse) => {
-      const lookup = coerceRecord(payload.book_metadata_lookup);
+      const lookup = coerceRecord(payload.media_metadata_lookup);
       const query = coerceRecord(payload.query);
       const book = lookup ? coerceRecord(lookup['book']) : null;
 
@@ -136,8 +136,10 @@ export function useBookNarrationMetadata({
           draft['openlibrary_queried_at'] = queriedAt;
         }
         if (lookup) {
-          draft['book_metadata_lookup'] = lookup;
-        } else if ('book_metadata_lookup' in draft) {
+          draft['media_metadata_lookup'] = lookup;
+          delete draft['book_metadata_lookup'];
+        } else if ('media_metadata_lookup' in draft || 'book_metadata_lookup' in draft) {
+          delete draft['media_metadata_lookup'];
           delete draft['book_metadata_lookup'];
         }
 
@@ -200,7 +202,7 @@ export function useBookNarrationMetadata({
     const query = metadataLookupQuery.trim();
     if (query) {
       try {
-        await clearBookMetadataCache(query);
+        await clearMediaMetadataCache(query);
       } catch {
         // Ignore cache clear failures - frontend state is already cleared
       }
@@ -236,7 +238,7 @@ export function useBookNarrationMetadata({
       setCachedCoverDataUrl(null);
       return;
     }
-    setCachedCoverDataUrl(loadCachedBookCoverDataUrl(normalizedInputPath));
+    setCachedCoverDataUrl(loadCachedCoverDataUrl(normalizedInputPath));
   }, [normalizedInputPath]);
 
   useEffect(() => {
@@ -250,7 +252,7 @@ export function useBookNarrationMetadata({
 
     let parsed: Record<string, unknown> | null = null;
     try {
-      parsed = parseJsonField('book_metadata', bookMetadataJson);
+      parsed = parseJsonField('book_metadata', mediaMetadataJson);
     } catch {
       parsed = null;
     }
@@ -278,7 +280,7 @@ export function useBookNarrationMetadata({
       isSameOrigin && url.pathname.startsWith('/storage/covers/')
         ? `${url.origin}${url.pathname}`
         : url.href;
-    const existingSource = loadCachedBookCoverSourceUrl(normalizedInputPath);
+    const existingSource = loadCachedCoverSourceUrl(normalizedInputPath);
     if (existingSource === stableSource && cachedCoverDataUrl) {
       return;
     }
@@ -308,7 +310,7 @@ export function useBookNarrationMetadata({
         if (!dataUrl) {
           return;
         }
-        persistCachedBookCoverDataUrl(normalizedInputPath, stableSource, dataUrl);
+        persistCachedCoverDataUrl(normalizedInputPath, stableSource, dataUrl);
         setCachedCoverDataUrl(dataUrl);
       } catch {
         // ignore
@@ -316,19 +318,19 @@ export function useBookNarrationMetadata({
     })();
 
     return () => controller.abort();
-  }, [bookMetadataJson, cachedCoverDataUrl, normalizedInputPath]);
+  }, [mediaMetadataJson, cachedCoverDataUrl, normalizedInputPath]);
 
   useEffect(() => {
     if (!normalizedInputPath) {
-      bookMetadataCacheHydratedRef.current = null;
+      mediaMetadataCacheHydratedRef.current = null;
       return;
     }
-    if (bookMetadataCacheHydratedRef.current === normalizedInputPath) {
+    if (mediaMetadataCacheHydratedRef.current === normalizedInputPath) {
       return;
     }
-    bookMetadataCacheHydratedRef.current = normalizedInputPath;
+    mediaMetadataCacheHydratedRef.current = normalizedInputPath;
 
-    const cached = loadCachedBookMetadataJson(normalizedInputPath);
+    const cached = loadCachedMediaMetadataJson(normalizedInputPath);
     if (!cached) {
       return;
     }
@@ -352,19 +354,19 @@ export function useBookNarrationMetadata({
     if (!normalizedInputPath) {
       return;
     }
-    const raw = bookMetadataJson;
+    const raw = mediaMetadataJson;
     const trimmed = raw.trim();
     if (!trimmed || trimmed === '{}' || trimmed === 'null') {
       return;
     }
 
     const handle = window.setTimeout(() => {
-      persistCachedBookMetadataJson(normalizedInputPath, raw);
+      persistCachedMediaMetadataJson(normalizedInputPath, raw);
     }, 600);
     return () => {
       window.clearTimeout(handle);
     };
-  }, [bookMetadataJson, normalizedInputPath]);
+  }, [mediaMetadataJson, normalizedInputPath]);
 
   return {
     metadataSourceName,

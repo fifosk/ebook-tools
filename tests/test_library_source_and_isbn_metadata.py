@@ -148,7 +148,7 @@ def test_refresh_metadata_uses_isbn_when_source_missing(tmp_path, monkeypatch):
 
     metadata = build_job_metadata(job_id)
     metadata["isbn"] = "9780316769488"
-    metadata["book_metadata"] = {"isbn": "9780316769488"}
+    metadata["media_metadata"] = {"isbn": "9780316769488"}
     write_metadata(queue_root, metadata)
 
     cover_asset = tmp_path / "isbn-cover.jpg"

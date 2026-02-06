@@ -57,11 +57,13 @@ final class AppState: ObservableObject {
     func updateSession(_ session: SessionStatusResponse) {
         storedToken = session.token
         self.session = session
+        syncResumeStoreConfiguration()
     }
 
     func signOut() {
         storedToken = ""
         session = nil
+        PlaybackResumeStore.shared.configureAPI(nil)
     }
 
     func restoreSessionIfNeeded() async {
@@ -95,9 +97,14 @@ final class AppState: ObservableObject {
             )
             let restored = try await client.fetchSessionStatus()
             session = restored
+            syncResumeStoreConfiguration()
         } catch {
             // On timeout or error, sign out so user can re-authenticate
             signOut()
         }
+    }
+
+    private func syncResumeStoreConfiguration() {
+        PlaybackResumeStore.shared.configureAPI(configuration)
     }
 }

@@ -439,7 +439,7 @@ def _build_subtitle_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         enable_transliteration=_coerce_bool(options.get("enable_transliteration")),
         start_time_offset_seconds=_coerce_float(options.get("start_time_offset")),
         end_time_offset_seconds=_coerce_float(options.get("end_time_offset")),
-        media_metadata=_coerce_mapping(payload.get("media_metadata")),
+        media_metadata=_coerce_mapping(payload.get("media_metadata") or payload.get("book_metadata")),
     )
 
 
@@ -466,7 +466,7 @@ def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobPar
         if normalized not in {"python", "python-module", "module", "local-module"}:
             transliteration_model = transliteration_model or llm_model
     split_batches = _coerce_bool(payload.get("split_batches"))
-    media_metadata = _coerce_mapping(payload.get("media_metadata"))
+    media_metadata = _coerce_mapping(payload.get("media_metadata") or payload.get("book_metadata"))
 
     target_languages = [target_language] if target_language else []
 
@@ -537,7 +537,7 @@ def _resolve_job_label(job: PipelineJob) -> Optional[str]:
 
     if job.job_type == "subtitle":
         if request_payload is not None:
-            media_metadata = request_payload.get("media_metadata")
+            media_metadata = request_payload.get("media_metadata") or request_payload.get("book_metadata")
             if isinstance(media_metadata, Mapping):
                 label = media_metadata.get("job_label")
                 if isinstance(label, str) and label.strip():
@@ -564,7 +564,7 @@ def _resolve_job_label(job: PipelineJob) -> Optional[str]:
 
     if job.job_type == "youtube_dub":
         if request_payload is not None:
-            media_metadata = request_payload.get("media_metadata")
+            media_metadata = request_payload.get("media_metadata") or request_payload.get("book_metadata")
             if isinstance(media_metadata, Mapping):
                 label = media_metadata.get("job_label")
                 if isinstance(label, str) and label.strip():
@@ -591,10 +591,10 @@ def _resolve_job_label(job: PipelineJob) -> Optional[str]:
                 candidate = inputs.get(key)
                 if isinstance(candidate, str) and candidate.strip():
                     return candidate.strip()
-            book_metadata = inputs.get("book_metadata")
-            if isinstance(book_metadata, Mapping):
+            media_metadata = inputs.get("media_metadata") or inputs.get("book_metadata")
+            if isinstance(media_metadata, Mapping):
                 for key in ("job_label", "title", "book_title", "book_name", "name", "topic"):
-                    candidate = book_metadata.get(key)
+                    candidate = media_metadata.get(key)
                     if isinstance(candidate, str) and candidate.strip():
                         return candidate.strip()
             stem = _filename_stem(inputs.get("input_file")) or _filename_stem(
@@ -643,15 +643,15 @@ class PipelineStatusResponse(BaseModel):
         if job.job_type in {"pipeline", "book"} and result_payload is not None:
             cover_url = f"/api/pipelines/{job.job_id}/cover"
             if isinstance(result_payload, PipelineResponsePayload):
-                book_metadata = result_payload.book_metadata
+                media_metadata = result_payload.media_metadata
                 if (
-                    isinstance(book_metadata, dict)
-                    and book_metadata.get("job_cover_asset")
-                    and not book_metadata.get("job_cover_asset_url")
+                    isinstance(media_metadata, dict)
+                    and media_metadata.get("job_cover_asset")
+                    and not media_metadata.get("job_cover_asset_url")
                 ):
-                    book_metadata["job_cover_asset_url"] = cover_url
+                    media_metadata["job_cover_asset_url"] = cover_url
             elif isinstance(result_payload, Mapping):
-                raw_book = result_payload.get("book_metadata")
+                raw_book = result_payload.get("media_metadata") or result_payload.get("book_metadata")
                 if (
                     isinstance(raw_book, Mapping)
                     and raw_book.get("job_cover_asset")
@@ -660,7 +660,7 @@ class PipelineStatusResponse(BaseModel):
                     updated = dict(raw_book)
                     updated["job_cover_asset_url"] = cover_url
                     result_payload = dict(result_payload)
-                    result_payload["book_metadata"] = updated
+                    result_payload["media_metadata"] = updated
 
         latest_event = None
         if job.last_event is not None:

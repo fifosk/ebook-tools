@@ -76,7 +76,7 @@ beforeEach(() => {
   vi.mocked(lookupBookOpenLibraryMetadataPreview).mockResolvedValue({
     source_name: null,
     query: null,
-    book_metadata_lookup: null
+    media_metadata_lookup: null
   });
   vi.mocked(synthesizeVoicePreview).mockResolvedValue(new Blob());
 });

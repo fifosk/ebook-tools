@@ -248,7 +248,7 @@ struct JobRowView: View {
         if let title = job.result?.objectValue?["title"]?.stringValue?.nonEmptyValue {
             return title
         }
-        if let book = job.result?.objectValue?["book_metadata"]?.objectValue,
+        if let book = (job.result?.objectValue?["media_metadata"] ?? job.result?.objectValue?["book_metadata"])?.objectValue,
            let title = book["title"]?.stringValue?.nonEmptyValue {
             return title
         }

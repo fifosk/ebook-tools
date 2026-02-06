@@ -88,7 +88,7 @@ def create_pipeline_job(
     # Persist source file
     source_relative = persist_source_file(job_id, request, file_locator)
     if source_relative:
-        request.inputs.book_metadata.update(
+        request.inputs.media_metadata.update(
             {
                 "source_path": source_relative,
                 "source_file": source_relative,

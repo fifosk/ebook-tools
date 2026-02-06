@@ -59,6 +59,7 @@ export const TECHNICAL_METADATA_KEYS = new Set([
   'job_label',
   'book_cover_file',
   'job_cover_asset',
+  'media_metadata_lookup',
   'book_metadata_lookup',
   'enrichment_source',
   'enrichment_confidence',

@@ -692,9 +692,9 @@ class SubtitleMetadataService:
                         dub_payload["media_metadata"] = merged_dub_media
                         result_payload["youtube_dub"] = dub_payload
 
-                book_metadata = result_payload.get("book_metadata")
-                if isinstance(book_metadata, Mapping):
-                    merged_book = dict(book_metadata)
+                media_metadata = result_payload.get("media_metadata")
+                if isinstance(media_metadata, Mapping):
+                    merged_book = dict(media_metadata)
                     job_label = payload.get("job_label")
                     if isinstance(job_label, str) and job_label.strip():
                         merged_book["job_label"] = job_label.strip()
@@ -732,7 +732,7 @@ class SubtitleMetadataService:
                             merged_book["tvmaze_show_id"] = show_id
                         if isinstance(episode_id, int):
                             merged_book["tvmaze_episode_id"] = episode_id
-                    result_payload["book_metadata"] = merged_book
+                    result_payload["media_metadata"] = merged_book
                 job.result_payload = result_payload
 
         self._job_manager.mutate_job(job_id, _mutate, user_id=user_id, user_role=user_role)

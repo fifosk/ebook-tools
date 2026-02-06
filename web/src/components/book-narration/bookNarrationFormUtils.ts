@@ -171,7 +171,7 @@ export async function resolveImageBaseUrlsForSubmission(values: string[]): Promi
 
 export function extractBookMetadata(config: Record<string, unknown>): Record<string, unknown> | null {
   const metadata: Record<string, unknown> = {};
-  const nested = config['book_metadata'];
+  const nested = config['media_metadata'] ?? config['book_metadata'];
   if (isRecord(nested)) {
     for (const [key, value] of Object.entries(nested)) {
       if (value !== undefined && value !== null) {

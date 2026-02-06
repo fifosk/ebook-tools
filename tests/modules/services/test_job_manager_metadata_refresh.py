@@ -101,7 +101,7 @@ def _build_request(metadata: Dict[str, object], input_file: str = "book.epub") -
             generate_video=False,
             include_transliteration=False,
             tempo=1.0,
-            book_metadata=PipelineMetadata.from_mapping(metadata),
+            media_metadata=PipelineMetadata.from_mapping(metadata),
         ),
     )
 
@@ -157,7 +157,7 @@ def test_refresh_metadata_updates_job_payloads(
     refreshed = job_manager.refresh_metadata(job_id)
 
     assert refreshed.request is not None
-    assert refreshed.request.inputs.book_metadata.as_dict() == {
+    assert refreshed.request.inputs.media_metadata.as_dict() == {
         "title": "Updated",
         "language": "en",
     }
@@ -167,14 +167,14 @@ def test_refresh_metadata_updates_job_payloads(
         "language": "en",
     }
     assert refreshed.result_payload is not None
-    assert refreshed.result_payload.get("book_metadata") == {
+    assert refreshed.result_payload.get("media_metadata") == {
         "title": "Updated",
         "language": "en",
     }
 
     stored = job_manager._store.get(job_id)
     assert stored.request_payload is not None
-    assert stored.request_payload["inputs"]["book_metadata"] == {
+    assert stored.request_payload["inputs"]["media_metadata"] == {
         "title": "Updated",
         "language": "en",
     }
@@ -209,7 +209,7 @@ def test_refresh_metadata_handles_persisted_jobs_without_request(
         "environment_overrides": {"output_dir": "out"},
         "inputs": {
             "input_file": "book.epub",
-            "book_metadata": {"title": "Stored"},
+            "media_metadata": {"title": "Stored"},
         },
     }
 
@@ -220,7 +220,7 @@ def test_refresh_metadata_handles_persisted_jobs_without_request(
         request=None,
         result=None,
         request_payload=copy.deepcopy(request_payload),
-        result_payload={"book_metadata": {"title": "Stored"}},
+        result_payload={"media_metadata": {"title": "Stored"}},
         resume_context=None,
     )
 
@@ -234,17 +234,17 @@ def test_refresh_metadata_handles_persisted_jobs_without_request(
         "environment_overrides": {"output_dir": "out"},
         "inputs": {
             "input_file": "book.epub",
-            "book_metadata": {"title": "Stored", "updated": True},
+            "media_metadata": {"title": "Stored", "updated": True},
         },
     }
     assert refreshed.resume_context == refreshed.request_payload
     assert refreshed.result_payload == {
-        "book_metadata": {"title": "Stored", "updated": True},
+        "media_metadata": {"title": "Stored", "updated": True},
     }
 
     stored = job_manager._store.get(job_id)
     assert stored.request_payload is not None
-    assert stored.request_payload["inputs"]["book_metadata"] == {
+    assert stored.request_payload["inputs"]["media_metadata"] == {
         "title": "Stored",
         "updated": True,
     }

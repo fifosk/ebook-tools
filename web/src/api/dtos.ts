@@ -356,7 +356,7 @@ export interface BookOpenLibraryMetadataResponse {
   job_id: string;
   source_name: string | null;
   query: BookOpenLibraryQuery | null;
-  book_metadata_lookup: Record<string, unknown> | null;
+  media_metadata_lookup: Record<string, unknown> | null;
 }
 
 export interface BookOpenLibraryMetadataLookupRequest {
@@ -366,7 +366,7 @@ export interface BookOpenLibraryMetadataLookupRequest {
 export interface BookOpenLibraryMetadataPreviewResponse {
   source_name: string | null;
   query: BookOpenLibraryQuery | null;
-  book_metadata_lookup: Record<string, unknown> | null;
+  media_metadata_lookup: Record<string, unknown> | null;
 }
 
 export interface BookOpenLibraryMetadataPreviewLookupRequest {
@@ -1138,4 +1138,37 @@ export interface PlaybackBookmarkListResponse {
 export interface PlaybackBookmarkDeleteResponse {
   deleted: boolean;
   bookmark_id: string;
+}
+
+// Resume position
+export type ResumePositionKind = 'time' | 'sentence';
+export type ResumePositionMediaType = 'text' | 'audio' | 'video';
+
+export interface ResumePositionPayload {
+  kind?: ResumePositionKind;
+  position?: number | null;
+  sentence?: number | null;
+  chunk_id?: string | null;
+  media_type?: ResumePositionMediaType | null;
+  base_id?: string | null;
+}
+
+export interface ResumePositionEntry {
+  job_id: string;
+  kind: ResumePositionKind;
+  updated_at: number;
+  position?: number | null;
+  sentence?: number | null;
+  chunk_id?: string | null;
+  media_type?: ResumePositionMediaType | null;
+  base_id?: string | null;
+}
+
+export interface ResumePositionResponse {
+  job_id: string;
+  entry: ResumePositionEntry | null;
+}
+
+export interface ResumePositionDeleteResponse {
+  deleted: boolean;
 }

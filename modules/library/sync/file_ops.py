@@ -115,12 +115,12 @@ def resolve_source_relative(metadata: Mapping[str, Any], job_root: Path) -> Opti
     push(metadata.get("input_file"))
     push(metadata.get("input_path"))
 
-    book_metadata = metadata.get("book_metadata")
-    if isinstance(book_metadata, Mapping):
-        push(book_metadata.get("source_path"))
-        push(book_metadata.get("source_file"))
-        push(book_metadata.get("book_source_path"))
-        push(book_metadata.get("book_file"))
+    media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+    if isinstance(media_metadata, Mapping):
+        push(media_metadata.get("source_path"))
+        push(media_metadata.get("source_file"))
+        push(media_metadata.get("book_source_path"))
+        push(media_metadata.get("book_file"))
 
     for raw in candidates:
         resolved = resolve_epub_candidate(raw, job_root)
@@ -395,10 +395,10 @@ def extract_cover_path(metadata: Mapping[str, Any], job_root: Path) -> Optional[
     push(metadata.get("job_cover_asset"))
     push(metadata.get("book_cover_file"))
 
-    book_metadata = metadata.get("book_metadata")
-    if isinstance(book_metadata, Mapping):
-        push(book_metadata.get("job_cover_asset"))
-        push(book_metadata.get("book_cover_file"))
+    media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+    if isinstance(media_metadata, Mapping):
+        push(media_metadata.get("job_cover_asset"))
+        push(media_metadata.get("book_cover_file"))
 
     for raw in candidates:
         normalized = normalize_cover_path(raw, job_root)

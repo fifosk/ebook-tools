@@ -21,3 +21,12 @@ export {
   type SequenceTrack,
   type SelectedAudioTrack,
 } from './gateExtractor';
+
+export {
+  buildSentenceChunkIndex,
+  lookupSentence,
+  findChunkBySentence,
+  type SentenceChunkEntry,
+  type SentenceChunkIndex,
+  type SentenceRange,
+} from './sentenceChunkIndex';

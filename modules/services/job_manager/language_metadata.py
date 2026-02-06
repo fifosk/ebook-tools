@@ -121,7 +121,7 @@ def _extract_language_context(
                     or _read_language_key(section, "translation_language")
                 )
         if media_language is None and isinstance(payload, Mapping):
-            media_metadata = payload.get("media_metadata")
+            media_metadata = payload.get("media_metadata") or payload.get("book_metadata")
             if isinstance(media_metadata, Mapping):
                 media_language = _normalize_language_label(
                     media_metadata.get("language")
@@ -197,12 +197,12 @@ def _set_list_if_blank(metadata: Dict[str, Any], key: str, values: list[str]) ->
 
 
 def apply_language_metadata(
-    book_metadata: Dict[str, Any],
+    media_metadata: Dict[str, Any],
     request_payload: Mapping[str, Any] | None,
     resume_context: Mapping[str, Any] | None,
     result_payload: Mapping[str, Any] | None,
 ) -> None:
-    """Apply language-related metadata from various payload sources to book_metadata."""
+    """Apply language-related metadata from various payload sources to media_metadata."""
 
     subtitle_metadata: Optional[Mapping[str, Any]] = None
     if isinstance(result_payload, Mapping):
@@ -219,11 +219,11 @@ def apply_language_metadata(
             subtitle_metadata,
         )
     )
-    _set_if_blank(book_metadata, "input_language", input_language)
-    _set_if_blank(book_metadata, "original_language", original_language or input_language)
-    _set_if_blank(book_metadata, "target_language", target_language)
-    _set_if_blank(book_metadata, "translation_language", target_language)
-    _set_list_if_blank(book_metadata, "target_languages", target_languages)
+    _set_if_blank(media_metadata, "input_language", input_language)
+    _set_if_blank(media_metadata, "original_language", original_language or input_language)
+    _set_if_blank(media_metadata, "target_language", target_language)
+    _set_if_blank(media_metadata, "translation_language", target_language)
+    _set_list_if_blank(media_metadata, "target_languages", target_languages)
 
     translation_provider: Optional[str] = None
     transliteration_mode: Optional[str] = None
@@ -278,21 +278,21 @@ def apply_language_metadata(
         if target_for_module:
             transliteration_module = resolve_local_transliteration_module(target_for_module)
 
-    _set_if_blank(book_metadata, "translation_provider", translation_provider)
+    _set_if_blank(media_metadata, "translation_provider", translation_provider)
     _set_if_blank_or_override(
-        book_metadata,
+        media_metadata,
         "translation_model",
         translation_model,
         requested_key="translation_model_requested",
     )
-    _set_if_blank(book_metadata, "transliteration_mode", transliteration_mode)
+    _set_if_blank(media_metadata, "transliteration_mode", transliteration_mode)
     _set_if_blank_or_override(
-        book_metadata,
+        media_metadata,
         "transliteration_model",
         resolved_transliteration_model,
         requested_key="transliteration_model_requested",
     )
-    _set_if_blank(book_metadata, "transliteration_module", transliteration_module)
+    _set_if_blank(media_metadata, "transliteration_module", transliteration_module)
 
 
 __all__ = [

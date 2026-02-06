@@ -9,13 +9,13 @@ from modules.library.library_metadata import LibraryMetadataManager
 
 def test_normalize_and_apply_isbn(tmp_path: Path) -> None:
     manager = LibraryMetadataManager(tmp_path)
-    metadata = {"book_metadata": {}}
+    metadata = {"media_metadata": {}}
     normalized = manager.normalize_isbn("978-0-321-87758-1")
     assert normalized == "9780321877581"
 
     manager.apply_isbn(metadata, normalized)
     assert metadata["isbn"] == "9780321877581"
-    book_meta = metadata["book_metadata"]
+    book_meta = metadata["media_metadata"]
     assert book_meta["isbn"] == "9780321877581"
     assert book_meta["book_isbn"] == "9780321877581"
 

@@ -161,7 +161,7 @@ export function BookNarrationFormSections({
             configOverrides={formState.config}
             environmentOverrides={formState.environment_overrides}
             pipelineOverrides={formState.pipeline_overrides}
-            bookMetadata={formState.book_metadata}
+            mediaMetadata={formState.book_metadata}
             onConfigOverridesChange={(value) => handleChange('config', value)}
             onEnvironmentOverridesChange={(value) => handleChange('environment_overrides', value)}
             onPipelineOverridesChange={(value) => handleChange('pipeline_overrides', value)}
@@ -184,7 +184,7 @@ export function BookNarrationFormSections({
           metadataPreview={metadataPreview}
           metadataLoading={metadataLoading}
           metadataError={metadataError}
-          bookMetadataJson={formState.book_metadata}
+          mediaMetadataJson={formState.book_metadata}
           cachedCoverDataUrl={cachedCoverDataUrl}
           onMetadataLookupQueryChange={(value) => onMetadataLookupQueryChange(value)}
           onLookupMetadata={onLookupMetadata}

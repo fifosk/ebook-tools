@@ -67,9 +67,9 @@ def _build_pipeline_input(payload: Mapping[str, Any]) -> PipelineInput:
         except (TypeError, ValueError):
             end_sentence = None
 
-    book_metadata = data.get("book_metadata")
-    if not isinstance(book_metadata, Mapping):
-        book_metadata = {}
+    media_metadata = data.get("media_metadata") or data.get("book_metadata")
+    if not isinstance(media_metadata, Mapping):
+        media_metadata = {}
 
     return PipelineInput(
         input_file=str(data.get("input_file") or ""),
@@ -96,7 +96,7 @@ def _build_pipeline_input(payload: Mapping[str, Any]) -> PipelineInput:
             str(data.get("transliteration_model") or "").strip() or None
         ),
         tempo=_coerce_float(data.get("tempo"), 1.0),
-        book_metadata=PipelineMetadata.from_mapping(book_metadata),
+        media_metadata=PipelineMetadata.from_mapping(media_metadata),
     )
 
 

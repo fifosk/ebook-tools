@@ -284,10 +284,10 @@ struct LibraryRowView: View {
             }
         }
 
-        // Try direct path to book_metadata for book descriptions
-        if let bookMeta = extractBookMetadata(from: metadata) {
+        // Try direct path to media_metadata for book descriptions
+        if let mediaMeta = extractMediaMetadata(from: metadata) {
             for key in ["book_summary", "summary", "description", "synopsis"] {
-                if let desc = bookMeta[key]?.stringValue?.nonEmptyValue {
+                if let desc = mediaMeta[key]?.stringValue?.nonEmptyValue {
                     return desc
                 }
             }
@@ -372,15 +372,15 @@ struct LibraryRowView: View {
     private var sentenceCount: Int? {
         guard let metadata = item.metadata else { return nil }
 
-        // Try direct path to book_metadata first (most reliable for book jobs)
-        if let bookMeta = extractBookMetadata(from: metadata) {
+        // Try direct path to media_metadata first (most reliable for book jobs)
+        if let mediaMeta = extractMediaMetadata(from: metadata) {
             for key in ["total_sentences", "book_sentence_count", "sentence_count"] {
-                if let value = bookMeta[key]?.intValue, value > 0 {
+                if let value = mediaMeta[key]?.intValue, value > 0 {
                     return value
                 }
             }
             // Check content_index nested structure
-            if let contentIndex = bookMeta["content_index"]?.objectValue {
+            if let contentIndex = mediaMeta["content_index"]?.objectValue {
                 for key in ["total_sentences", "sentence_total"] {
                     if let value = contentIndex[key]?.intValue, value > 0 {
                         return value
@@ -564,10 +564,13 @@ struct LibraryRowView: View {
         return nil
     }
 
-    private func extractBookMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
+    private func extractMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
         let paths: [[String]] = [
+            ["result", "media_metadata"],
             ["result", "book_metadata"],
+            ["request", "inputs", "media_metadata"],
             ["request", "inputs", "book_metadata"],
+            ["media_metadata"],
             ["book_metadata"]
         ]
         for path in paths {

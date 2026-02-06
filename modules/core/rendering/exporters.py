@@ -94,7 +94,7 @@ _COMPACT_SENTENCE_DROP_KEYS = {
     "highlighting_policy",
     "highlighting_summary",
     "highlight_granularity",
-    "imagePath",
+    "image",
     "origWords",
     "originalPauseAfterMs",
     "originalPauseBeforeMs",

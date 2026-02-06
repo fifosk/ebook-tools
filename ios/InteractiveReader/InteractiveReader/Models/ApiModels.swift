@@ -349,6 +349,46 @@ struct PlaybackBookmarkDeleteResponse: Decodable {
     let bookmarkId: String
 }
 
+// MARK: - Resume Position
+
+struct ResumePositionEntry: Decodable {
+    let jobId: String
+    let kind: String
+    let updatedAt: Double
+    let position: Double?
+    let sentence: Int?
+    let chunkId: String?
+    let mediaType: String?
+    let baseId: String?
+}
+
+struct ResumePositionResponse: Decodable {
+    let jobId: String
+    let entry: ResumePositionEntry?
+}
+
+struct ResumePositionSaveRequest: Encodable {
+    let kind: String
+    let position: Double?
+    let sentence: Int?
+    let chunkId: String?
+    let mediaType: String?
+    let baseId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case kind
+        case position
+        case sentence
+        case chunkId = "chunk_id"
+        case mediaType = "media_type"
+        case baseId = "base_id"
+    }
+}
+
+struct ResumePositionDeleteResponse: Decodable {
+    let deleted: Bool
+}
+
 struct SubtitleTvMetadataParse: Decodable {
     let series: String
     let season: Int

@@ -3,6 +3,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ExtendedPlaybackControls } from '../../lib/playback';
 import { sanitiseRate } from './utils';
 
 export interface UseVideoPlaybackOptions {
@@ -37,12 +38,7 @@ export interface VideoPlaybackState {
   nativeFullscreenReentryRef: React.MutableRefObject<boolean>;
 }
 
-export interface PlaybackControls {
-  pause: () => void;
-  play: () => void;
-  ensureFullscreen?: () => void;
-  seek?: (time: number) => void;
-}
+export type PlaybackControls = ExtendedPlaybackControls;
 
 export function useVideoPlayback({
   videoRef,

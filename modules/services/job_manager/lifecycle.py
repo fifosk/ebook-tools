@@ -115,9 +115,9 @@ def apply_resume_context(job: PipelineJob, context: Mapping[str, Any]) -> Dict[s
     start_sentence = _coerce_positive_int(inputs.get("start_sentence"))
     if job.request is not None and start_sentence is not None:
         job.request.inputs.start_sentence = start_sentence
-    if job.request is not None and isinstance(inputs.get("book_metadata"), Mapping):
-        job.request.inputs.book_metadata = PipelineMetadata.from_mapping(
-            inputs["book_metadata"]
+    if job.request is not None and isinstance(inputs.get("media_metadata"), Mapping):
+        job.request.inputs.media_metadata = PipelineMetadata.from_mapping(
+            inputs["media_metadata"]
         )
 
     job.request_payload = copy.deepcopy(payload)

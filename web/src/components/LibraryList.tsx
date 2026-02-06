@@ -150,11 +150,11 @@ function resolveGenre(item: LibraryItem): string {
 }
 
 function resolveBookSummary(item: LibraryItem): string | null {
-  const bookMetadata = extractLibraryBookMetadata(item);
-  if (!bookMetadata) {
+  const mediaMetadata = extractLibraryBookMetadata(item);
+  if (!mediaMetadata) {
     return null;
   }
-  const candidate = bookMetadata['book_summary'] ?? bookMetadata['summary'] ?? bookMetadata['description'];
+  const candidate = mediaMetadata['book_summary'] ?? mediaMetadata['summary'] ?? mediaMetadata['description'];
   if (typeof candidate !== 'string') {
     return null;
   }
@@ -167,8 +167,8 @@ function renderBookCell(item: LibraryItem, options: { onOpen: () => void; disabl
   const author = resolveAuthor(item);
   const genre = resolveGenre(item);
   const summary = resolveBookSummary(item);
-  const bookMetadata = extractLibraryBookMetadata(item);
-  const coverUrl = resolveLibraryCoverUrl(item, bookMetadata);
+  const mediaMetadata = extractLibraryBookMetadata(item);
+  const coverUrl = resolveLibraryCoverUrl(item, mediaMetadata);
   return (
     <div className={styles.bookCell}>
       <button

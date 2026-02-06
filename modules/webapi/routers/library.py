@@ -424,10 +424,10 @@ async def enrich_library_metadata(
     item_payload = LibraryItemPayload.model_validate(serialized)
 
     # Extract enrichment info from metadata
-    book_metadata = serialized.get("metadata", {}).get("book_metadata", {})
-    enriched = bool(book_metadata.get("_enrichment_source"))
-    confidence = book_metadata.get("_enrichment_confidence")
-    source = book_metadata.get("_enrichment_source")
+    media_metadata = serialized.get("metadata", {}).get("media_metadata", {})
+    enriched = bool(media_metadata.get("_enrichment_source"))
+    confidence = media_metadata.get("_enrichment_confidence")
+    source = media_metadata.get("_enrichment_source")
 
     return LibraryMetadataEnrichResponse(
         item=item_payload,

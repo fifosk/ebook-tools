@@ -59,7 +59,7 @@ export {
   fetchBookOpenLibraryMetadata,
   lookupBookOpenLibraryMetadata,
   lookupBookOpenLibraryMetadataPreview,
-  clearBookMetadataCache,
+  clearMediaMetadataCache,
   clearTvMetadataCache,
   clearYoutubeMetadataCache,
   fetchLlmModels,

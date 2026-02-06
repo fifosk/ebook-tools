@@ -7,7 +7,7 @@ from typing import Any, Dict, Mapping, Optional, Type
 
 from modules import logging_manager
 from modules.library.library_metadata import LibraryMetadataError, LibraryMetadataManager
-from modules.services.metadata import enrich_book_metadata
+from modules.services.metadata import enrich_media_metadata
 
 from . import file_ops, metadata as metadata_utils
 
@@ -45,11 +45,11 @@ def refresh_metadata(
     if source_relative:
         metadata_utils.apply_source_reference(metadata, source_relative)
 
-    book_metadata_raw = metadata.get("book_metadata")
-    if isinstance(book_metadata_raw, Mapping):
+    media_metadata_raw = metadata.get("media_metadata") or metadata.get("book_metadata")
+    if isinstance(media_metadata_raw, Mapping):
         existing_metadata = {
             key: str(value) if isinstance(value, str) else None
-            for key, value in book_metadata_raw.items()
+            for key, value in media_metadata_raw.items()
         }
     else:
         existing_metadata = {}
@@ -95,7 +95,7 @@ def refresh_metadata(
 
     # Enrich from external sources via unified metadata pipeline
     if enrich_from_external:
-        enrichment_result = enrich_book_metadata(updated_metadata, force=True)
+        enrichment_result = enrich_media_metadata(updated_metadata, force=True)
         if enrichment_result.enriched:
             # Merge enrichment results, preferring local/ISBN data for non-empty fields
             for key, value in enrichment_result.metadata.items():
@@ -113,7 +113,7 @@ def refresh_metadata(
                 else "unknown",
             )
 
-    metadata["book_metadata"] = dict(updated_metadata)
+    metadata["media_metadata"] = dict(updated_metadata)
 
     if updated_metadata.get("book_title"):
         metadata["book_title"] = updated_metadata["book_title"]
@@ -143,9 +143,9 @@ def refresh_metadata(
             updated_metadata.pop("book_cover_file", None)
 
     try:
-        metadata["book_metadata"] = dict(updated_metadata)
+        metadata["media_metadata"] = dict(updated_metadata)
     except TypeError:
-        metadata["book_metadata"] = dict(updated_metadata or {})
+        metadata["media_metadata"] = dict(updated_metadata or {})
 
     metadata["updated_at"] = current_timestamp()
     return metadata
@@ -209,9 +209,9 @@ def enrich_metadata(
     Returns:
         Updated metadata dictionary.
     """
-    book_metadata_raw = metadata.get("book_metadata")
-    if isinstance(book_metadata_raw, Mapping):
-        existing_metadata = dict(book_metadata_raw)
+    media_metadata_raw = metadata.get("media_metadata") or metadata.get("book_metadata")
+    if isinstance(media_metadata_raw, Mapping):
+        existing_metadata = dict(media_metadata_raw)
     else:
         existing_metadata = {}
 
@@ -220,10 +220,10 @@ def enrich_metadata(
         LOGGER.debug("Skipping enrichment for job %s (already enriched)", job_id)
         return metadata
 
-    enrichment_result = enrich_book_metadata(existing_metadata, force=force)
+    enrichment_result = enrich_media_metadata(existing_metadata, force=force)
 
     if enrichment_result.enriched:
-        # Update book_metadata with enrichment results
+        # Update media_metadata with enrichment results
         updated_metadata = dict(existing_metadata)
         for key, value in enrichment_result.metadata.items():
             if key.startswith("_"):
@@ -232,7 +232,7 @@ def enrich_metadata(
             elif key not in updated_metadata or not updated_metadata.get(key):
                 updated_metadata[key] = value
 
-        metadata["book_metadata"] = updated_metadata
+        metadata["media_metadata"] = updated_metadata
 
         # Also update top-level fields
         if updated_metadata.get("book_title") and not metadata.get("book_title"):

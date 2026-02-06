@@ -71,7 +71,7 @@ interface PlayerPanelProps {
   mediaComplete: boolean;
   isLoading: boolean;
   error: Error | null;
-  bookMetadata?: Record<string, unknown> | null;
+  mediaMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
   onPlaybackStateChange?: (isPlaying: boolean) => void;
   onFullscreenChange?: (isFullscreen: boolean) => void;
@@ -96,7 +96,7 @@ export default function PlayerPanel({
   mediaComplete,
   isLoading,
   error,
-  bookMetadata = null,
+  mediaMetadata = null,
   onVideoPlaybackStateChange,
   onPlaybackStateChange,
   onFullscreenChange,
@@ -204,7 +204,7 @@ export default function PlayerPanel({
     itemType,
     origin,
     playerMode,
-    bookMetadata,
+    mediaMetadata,
     chunks,
   });
   const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
@@ -293,7 +293,7 @@ export default function PlayerPanel({
   const { coverUrl: displayCoverUrl, shouldShowCoverImage } = useCoverArt({
     jobId,
     origin,
-    bookMetadata,
+    mediaMetadata,
     mediaComplete,
     playerMode,
   });

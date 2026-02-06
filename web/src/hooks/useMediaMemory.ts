@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveMediaItem } from './useLiveMedia';
+import type { ResumePositionPayload } from '../api/dtos';
+import { fetchResumePosition, saveResumePosition } from '../api/client/resume';
 
 type MediaCategory = 'text' | 'audio' | 'video';
 
@@ -33,6 +35,9 @@ const INITIAL_STATE: PersistentMediaState = {
 };
 
 const STORAGE_PREFIX = 'media-memory';
+
+/** Debounce interval for API saves (ms). */
+const API_SAVE_DEBOUNCE_MS = 5_000;
 
 type StorageProvider = Pick<Storage, 'getItem' | 'setItem'>;
 
@@ -160,6 +165,13 @@ export function useMediaMemory({ jobId }: UseMediaMemoryArgs): UseMediaMemoryRes
     return parseStoredState(storage.getItem(storageKey));
   });
 
+  // Track whether the server resume has been fetched for the current jobId.
+  const resumeFetchedRef = useRef<string | null>(null);
+  // Debounce timer for API saves.
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Snapshot of the last state saved to the API (to avoid redundant saves).
+  const lastSavedRef = useRef<{ position: number; mediaType: MediaCategory | null; baseId: string | null } | null>(null);
+
   useEffect(() => {
     if (!storageKey || !storage) {
       setState(INITIAL_STATE);
@@ -169,6 +181,47 @@ export function useMediaMemory({ jobId }: UseMediaMemoryArgs): UseMediaMemoryRes
     setState(parseStoredState(storage.getItem(storageKey)));
   }, [storage, storageKey]);
 
+  // Fetch server-side resume position on mount / jobId change.
+  useEffect(() => {
+    if (!jobId || resumeFetchedRef.current === jobId) {
+      return;
+    }
+    resumeFetchedRef.current = jobId;
+    let cancelled = false;
+
+    fetchResumePosition(jobId)
+      .then((response) => {
+        if (cancelled || !response.entry) {
+          return;
+        }
+        const entry = response.entry;
+        const serverPosition = entry.position ?? 0;
+        // Only apply server state when sessionStorage has no meaningful position.
+        setState((current) => {
+          if (current.current.playbackPosition > 1) {
+            // Session already has a position — don't overwrite with stale server data.
+            return current;
+          }
+          const next = cloneState(current);
+          next.current = {
+            currentMediaId: current.current.currentMediaId,
+            currentMediaType: (entry.media_type as MediaCategory) ?? current.current.currentMediaType,
+            playbackPosition: serverPosition,
+            baseId: entry.base_id ?? current.current.baseId,
+          };
+          return next;
+        });
+      })
+      .catch(() => {
+        // API unavailable — rely on sessionStorage only.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId]);
+
+  // Persist to sessionStorage on every state change.
   useEffect(() => {
     if (!storageKey || !storage) {
       return;
@@ -180,6 +233,84 @@ export function useMediaMemory({ jobId }: UseMediaMemoryArgs): UseMediaMemoryRes
       // Ignore write failures (e.g., storage quota exceeded).
     }
   }, [state, storage, storageKey]);
+
+  // Debounced save to server API.
+  useEffect(() => {
+    if (!jobId) {
+      return;
+    }
+    const { current } = state;
+    if (!current.currentMediaId && current.playbackPosition <= 0) {
+      return;
+    }
+
+    // Skip if nothing meaningful changed since last save.
+    const last = lastSavedRef.current;
+    if (
+      last &&
+      Math.abs(last.position - current.playbackPosition) < 1 &&
+      last.mediaType === current.currentMediaType &&
+      last.baseId === current.baseId
+    ) {
+      return;
+    }
+
+    if (saveTimerRef.current != null) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    const capturedJobId = jobId;
+    saveTimerRef.current = setTimeout(() => {
+      const payload: ResumePositionPayload = {
+        kind: 'time',
+        position: current.playbackPosition,
+        media_type: current.currentMediaType,
+        base_id: current.baseId,
+      };
+      lastSavedRef.current = {
+        position: current.playbackPosition,
+        mediaType: current.currentMediaType,
+        baseId: current.baseId,
+      };
+      saveResumePosition(capturedJobId, payload).catch(() => {
+        // API unavailable — position is still in sessionStorage.
+      });
+    }, API_SAVE_DEBOUNCE_MS);
+
+    return () => {
+      if (saveTimerRef.current != null) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, [jobId, state]);
+
+  // Flush pending save on unmount / page hide.
+  useEffect(() => {
+    const flush = () => {
+      if (saveTimerRef.current != null && jobId) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+        const { current } = state;
+        if (current.currentMediaId || current.playbackPosition > 0) {
+          const payload: ResumePositionPayload = {
+            kind: 'time',
+            position: current.playbackPosition,
+            media_type: current.currentMediaType,
+            base_id: current.baseId,
+          };
+          // Use sendBeacon-style fire-and-forget.
+          saveResumePosition(jobId, payload).catch(() => {});
+        }
+      }
+    };
+
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [jobId, state]);
 
   const rememberSelection = useCallback<UseMediaMemoryResult['rememberSelection']>(
     ({ media }) => {

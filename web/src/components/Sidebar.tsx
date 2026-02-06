@@ -173,8 +173,8 @@ function resolveBookLabel(job: JobState): string | null {
   );
   const parameters = status.parameters as Record<string, unknown> | null | undefined;
   const paramMetadata =
-    parameters && typeof parameters === 'object' && typeof parameters['book_metadata'] === 'object'
-      ? (parameters['book_metadata'] as Record<string, unknown>)
+    parameters && typeof parameters === 'object' && typeof (parameters['media_metadata'] ?? parameters['book_metadata']) === 'object'
+      ? ((parameters['media_metadata'] ?? parameters['book_metadata']) as Record<string, unknown>)
       : null;
   const baseOutput =
     parameters && typeof parameters === 'object' ? (parameters['base_output_file'] as string | null | undefined) : null;
@@ -183,8 +183,8 @@ function resolveBookLabel(job: JobState): string | null {
   const result = status.result as Record<string, unknown> | null;
   const resultMetadata =
     result && typeof result === 'object'
-      ? (typeof result['book_metadata'] === 'object'
-          ? (result['book_metadata'] as Record<string, unknown>)
+      ? (typeof (result['media_metadata'] ?? result['book_metadata']) === 'object'
+          ? ((result['media_metadata'] ?? result['book_metadata']) as Record<string, unknown>)
           : typeof result['metadata'] === 'object'
             ? (result['metadata'] as Record<string, unknown>)
             : null)

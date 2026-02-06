@@ -101,7 +101,7 @@ class RenderPipeline:
         translation_batch_size: Optional[int] = None,
         transliteration_mode: Optional[str] = None,
         transliteration_model: Optional[str] = None,
-        book_metadata: Optional[dict] = None,
+        media_metadata: Optional[dict] = None,
         enable_lookup_cache: bool = True,
         lookup_cache_batch_size: int = 10,
     ) -> Tuple[
@@ -113,7 +113,7 @@ class RenderPipeline:
     ]:
         """Process an EPUB file and generate the requested outputs."""
 
-        book_metadata = book_metadata or {}
+        media_metadata = media_metadata or {}
 
         console_info(
             "Extracting text from '%s'...",
@@ -153,18 +153,18 @@ class RenderPipeline:
 
         base_dir, base_name, _ = output_formatter.prepare_output_directory(
             input_file,
-            book_metadata.get("book_author"),
-            book_metadata.get("book_title"),
+            media_metadata.get("book_author"),
+            media_metadata.get("book_title"),
             src_code,
             tgt_code,
             context=self._config.context,
         )
 
-        book_title = book_metadata.get("book_title", "Unknown Title")
-        book_author = book_metadata.get("book_author", "Unknown Author")
+        book_title = media_metadata.get("book_title", "Unknown Title")
+        book_author = media_metadata.get("book_author", "Unknown Author")
 
         cover_img = self._load_cover_image(
-            book_metadata.get("book_cover_file"),
+            media_metadata.get("book_cover_file"),
             book_title,
             book_author,
         )
@@ -253,7 +253,7 @@ class RenderPipeline:
                     exporter=exporter,
                     base_dir=base_dir,
                     base_name=base_name,
-                    book_metadata=book_metadata,
+                    media_metadata=media_metadata,
                     full_sentences=refined_list,
                     sentences=selected_sentences,
                     start_sentence=start_sentence,
@@ -831,7 +831,7 @@ class RenderPipeline:
         exporter: BatchExporter,
         base_dir: str,
         base_name: str,
-        book_metadata: Mapping[str, Any],
+        media_metadata: Mapping[str, Any],
         full_sentences: Sequence[str],
         sentences: Sequence[str],
         start_sentence: int,
@@ -862,7 +862,7 @@ class RenderPipeline:
             exporter=exporter,
             base_dir=base_dir,
             base_name=base_name,
-            book_metadata=book_metadata,
+            media_metadata=media_metadata,
             full_sentences=full_sentences,
             sentences=sentences,
             start_sentence=start_sentence,

@@ -47,7 +47,7 @@ class ImagePipelineCoordinator:
         state,
         base_dir: str,
         base_name: str,
-        book_metadata: Mapping[str, Any],
+        media_metadata: Mapping[str, Any],
         full_sentences: Sequence[str],
         sentences: Sequence[str],
         start_sentence: int,
@@ -64,7 +64,7 @@ class ImagePipelineCoordinator:
 
         self._base_dir_path = Path(base_dir)
         self._base_name = base_name
-        self._book_metadata = book_metadata
+        self._media_metadata = media_metadata
         self._full_sentences = full_sentences
         self._start_sentence = start_sentence
         self._total_refined = total_refined
@@ -337,7 +337,7 @@ class ImagePipelineCoordinator:
             return
 
         content_index_payload = None
-        raw_content_index = self._book_metadata.get("content_index")
+        raw_content_index = self._media_metadata.get("content_index")
         if isinstance(raw_content_index, Mapping):
             content_index_payload = dict(raw_content_index)
         else:
@@ -352,7 +352,7 @@ class ImagePipelineCoordinator:
         try:
             orchestrator = VisualPromptOrchestrator(
                 job_root=self._job_root,
-                book_metadata=self._book_metadata,
+                media_metadata=self._media_metadata,
                 full_sentences=self._full_sentences,
                 content_index=content_index_payload,
                 scope_start_sentence=self._start_sentence,
@@ -667,6 +667,11 @@ class ImagePipelineCoordinator:
                     future.cancel()
             if self._image_futures:
                 self._drain_image_futures(wait=True)
+            if not cancelled and self._image_state is not None and self._job_root is not None:
+                try:
+                    self._image_state.write_manifest(self._job_root)
+                except Exception as exc:
+                    logger.warning("Failed to write image manifest: %s", exc)
             self._image_executor.shutdown(wait=True)
 
     def _drain_prompt_plan_queue(self) -> None:

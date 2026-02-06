@@ -81,7 +81,15 @@ final class PlaybackResumeStore {
     private var queuedSyncUserId: String?
     private var syncInFlight = false
 
+    /// API client configuration for backend resume sync.
+    private var apiConfiguration: APIClientConfiguration?
+
     private init() {}
+
+    /// Set the API configuration for backend resume position sync.
+    func configureAPI(_ configuration: APIClientConfiguration?) {
+        apiConfiguration = configuration
+    }
 
     func entry(for jobId: String, userId: String) -> PlaybackResumeEntry? {
         let canonicalUserKey = canonicalUserId(userId)
@@ -176,6 +184,33 @@ final class PlaybackResumeStore {
         }
     }
 
+    /// Fetch resume position for a specific job from the backend API and merge into cache.
+    func refreshFromAPI(jobId: String, itemType: String) async {
+        guard let config = apiConfiguration else { return }
+        let client = APIClient(configuration: config)
+        do {
+            guard let response = try await client.fetchResumePosition(jobId: jobId) else { return }
+            guard let apiEntry = response.entry else { return }
+            let entry = PlaybackResumeEntry(
+                jobId: apiEntry.jobId,
+                itemType: itemType,
+                kind: PlaybackResumeKind(rawValue: apiEntry.kind) ?? .time,
+                updatedAt: apiEntry.updatedAt,
+                sentenceNumber: apiEntry.sentence,
+                playbackTime: apiEntry.position
+            )
+            guard entry.isMeaningful else { return }
+            // Only apply if newer than what we already have.
+            if let existing = cloudCache[jobId], existing.updatedAt >= entry.updatedAt {
+                return
+            }
+            cloudCache[jobId] = entry
+            notifyChange(userId: lastCloudUserId ?? "")
+        } catch {
+            // API unavailable — rely on CloudKit data only.
+        }
+    }
+
     func iCloudStatus() -> PlaybackICloudStatus {
         PlaybackICloudStatus(
             isAvailable: isCloudAvailable,
@@ -207,6 +242,7 @@ final class PlaybackResumeStore {
         cloudCache[entry.jobId] = entry
         queuePendingUpload(entry, userId: canonicalUserKey)
         scheduleSync(userId: canonicalUserKey)
+        saveToAPI(entry)
         notifyChange(userId: canonicalUserKey)
     }
 
@@ -216,6 +252,7 @@ final class PlaybackResumeStore {
         cloudCache.removeValue(forKey: jobId)
         queuePendingDelete(jobId: jobId, userId: canonicalUserKey)
         scheduleSync(userId: canonicalUserKey)
+        deleteFromAPI(jobId: jobId)
         notifyChange(userId: canonicalUserKey)
     }
 
@@ -455,6 +492,32 @@ final class PlaybackResumeStore {
                     userInfo: payload
                 )
             }
+        }
+    }
+
+    // MARK: - Backend API Sync
+
+    private func saveToAPI(_ entry: PlaybackResumeEntry) {
+        guard let config = apiConfiguration else { return }
+        Task {
+            let client = APIClient(configuration: config)
+            let payload = ResumePositionSaveRequest(
+                kind: entry.kind.rawValue,
+                position: entry.playbackTime,
+                sentence: entry.sentenceNumber,
+                chunkId: nil,
+                mediaType: entry.kind == .time ? "video" : "text",
+                baseId: nil
+            )
+            _ = try? await client.saveResumePosition(jobId: entry.jobId, payload: payload)
+        }
+    }
+
+    private func deleteFromAPI(jobId: String) {
+        guard let config = apiConfiguration else { return }
+        Task {
+            let client = APIClient(configuration: config)
+            _ = try? await client.deleteResumePosition(jobId: jobId)
         }
     }
 

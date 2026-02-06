@@ -23,7 +23,7 @@ def prepare_metadata(
 ) -> PipelineMetadata:
     """Return metadata for ``request`` with inferred values merged in."""
 
-    metadata = request.inputs.book_metadata.clone()
+    metadata = request.inputs.media_metadata.clone()
     if request.config.get("auto_metadata", True):
         try:
             input_path = cfg.resolve_file_path(
@@ -61,7 +61,7 @@ def prepare_metadata(
                 )
             else:
                 metadata.update({k: v for k, v in inferred.items() if v is not None})
-    request.inputs.book_metadata = metadata
+    request.inputs.media_metadata = metadata
     return metadata
 
 

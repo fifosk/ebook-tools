@@ -10,13 +10,13 @@ from typing import AsyncIterator, Callable
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from ...services.book_metadata_service import BookMetadataService
+from ...services.media_metadata_service import MediaMetadataService
 from ... import config_manager as cfg
 from ...services.pipeline_service import PipelineService
 from ..dependencies import (
     RequestUserContext,
     RuntimeContextProvider,
-    get_book_metadata_service,
+    get_media_metadata_service,
     get_pipeline_service,
     get_request_user,
     get_runtime_context_provider,
@@ -37,8 +37,8 @@ from ..schemas import (
 from ..schemas.metadata_lookup import (
     JobMetadataEnrichRequest,
     JobMetadataEnrichResponse,
-    BookMetadataCacheClearRequest,
-    BookMetadataCacheClearResponse,
+    MediaMetadataCacheClearRequest,
+    MediaMetadataCacheClearResponse,
 )
 from ..schemas.access import AccessPolicyPayload, AccessPolicyUpdateRequest
 from modules.permissions import resolve_access_policy
@@ -324,7 +324,7 @@ async def enrich_pipeline_metadata(
 @router.get("/{job_id}/metadata/book", response_model=BookOpenLibraryMetadataResponse)
 async def get_book_openlibrary_metadata(
     job_id: str,
-    metadata_service: BookMetadataService = Depends(get_book_metadata_service),
+    metadata_service: MediaMetadataService = Depends(get_media_metadata_service),
     request_user: RequestUserContext = Depends(get_request_user),
 ) -> BookOpenLibraryMetadataResponse:
     """Return stored (or inferred) Open Library metadata for a book-like job without triggering a lookup."""
@@ -349,7 +349,7 @@ async def get_book_openlibrary_metadata(
 async def lookup_book_openlibrary_metadata(
     job_id: str,
     lookup: BookOpenLibraryMetadataLookupRequest,
-    metadata_service: BookMetadataService = Depends(get_book_metadata_service),
+    metadata_service: MediaMetadataService = Depends(get_media_metadata_service),
     request_user: RequestUserContext = Depends(get_request_user),
 ) -> BookOpenLibraryMetadataResponse:
     """Trigger Open Library metadata enrichment for the job and persist the result."""
@@ -374,7 +374,7 @@ async def lookup_book_openlibrary_metadata(
 )
 async def lookup_book_openlibrary_metadata_preview(
     lookup: BookOpenLibraryMetadataPreviewLookupRequest,
-    metadata_service: BookMetadataService = Depends(get_book_metadata_service),
+    metadata_service: MediaMetadataService = Depends(get_media_metadata_service),
     request_user: RequestUserContext = Depends(get_request_user),
 ) -> BookOpenLibraryMetadataPreviewResponse:
     """Lookup Open Library metadata for a filename/title/ISBN (used before submitting jobs)."""
@@ -400,13 +400,13 @@ async def lookup_book_openlibrary_metadata_preview(
 
 @router.post(
     "/metadata/book/cache/clear",
-    response_model=BookMetadataCacheClearResponse,
+    response_model=MediaMetadataCacheClearResponse,
 )
-async def clear_book_metadata_cache(
-    request: BookMetadataCacheClearRequest,
-    metadata_service: BookMetadataService = Depends(get_book_metadata_service),
+async def clear_media_metadata_cache(
+    request: MediaMetadataCacheClearRequest,
+    metadata_service: MediaMetadataService = Depends(get_media_metadata_service),
     request_user: RequestUserContext = Depends(get_request_user),
-) -> BookMetadataCacheClearResponse:
+) -> MediaMetadataCacheClearResponse:
     """Clear cached book metadata for a query string.
 
     This allows a fresh lookup to be performed without cached results.
@@ -424,7 +424,7 @@ async def clear_book_metadata_cache(
             detail=f"Failed to clear metadata cache: {exc}",
         ) from exc
 
-    return BookMetadataCacheClearResponse(**result)
+    return MediaMetadataCacheClearResponse(**result)
 
 
 @router.get("/{job_id}", response_model=PipelineStatusResponse)

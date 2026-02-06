@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ...services.pipeline_service import PipelineInput, PipelineRequest
 from ..jobs import PipelineJobStatus
@@ -40,7 +40,9 @@ class PipelineInputPayload(BaseModel):
     lookup_cache_batch_size: int = 10
     tempo: float = 1.0
     voice_overrides: Dict[str, str] = Field(default_factory=dict)
-    book_metadata: Dict[str, Any] = Field(default_factory=dict)
+    media_metadata: Dict[str, Any] = Field(default_factory=dict, alias="book_metadata")
+
+    model_config = ConfigDict(populate_by_name=True)
 
     def to_dataclass(self) -> PipelineInput:
         payload = self.model_dump()

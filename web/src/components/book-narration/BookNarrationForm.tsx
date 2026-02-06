@@ -15,7 +15,7 @@ import {
 } from '../../constants/menuOptions';
 import { resolveLanguageCode } from '../../constants/languageCodes';
 import { formatLanguageWithFlag } from '../../utils/languages';
-import { loadCachedBookMetadataJson } from '../../utils/bookMetadataCache';
+import { loadCachedMediaMetadataJson } from '../../utils/mediaMetadataCache';
 import { useLanguagePreferences } from '../../context/LanguageProvider';
 import FileSelectionDialog from '../FileSelectionDialog';
 import { useBookNarrationVoices } from './useBookNarrationVoices';
@@ -350,7 +350,7 @@ export function BookNarrationForm({
     isGeneratedSource,
     activeTab,
     inputFile: formState.input_file,
-    bookMetadataJson: formState.book_metadata,
+    mediaMetadataJson: formState.book_metadata,
     normalizedInputPath: normalizedInputForBookMetadataCache,
     normalizePath,
     setFormState,
@@ -403,7 +403,7 @@ export function BookNarrationForm({
     userEditedEndRef.current = false;
     lastAutoEndSentenceRef.current = null;
     const normalizedInput = normalizePath(normalizedPrefill);
-    const cachedBookMetadata = normalizedInput ? loadCachedBookMetadataJson(normalizedInput) : null;
+    const cachedBookMetadata = normalizedInput ? loadCachedMediaMetadataJson(normalizedInput) : null;
     setFormState((previous) => {
       if (previous.input_file === normalizedPrefill) {
         return previous;

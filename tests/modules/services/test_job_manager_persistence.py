@@ -36,7 +36,7 @@ def _build_request() -> PipelineRequest:
             generate_video=False,
             include_transliteration=False,
             tempo=1.0,
-            book_metadata=PipelineMetadata.from_mapping({"title": "Test"}),
+            media_metadata=PipelineMetadata.from_mapping({"title": "Test"}),
         ),
     )
 
@@ -208,7 +208,7 @@ def test_snapshot_mirrors_cover_asset(tmp_path: Path) -> None:
     assert stored_cover.read_bytes() == b"cover-bytes"
 
     assert metadata.result is not None
-    book_metadata = metadata.result.get("book_metadata")
+    book_metadata = metadata.result.get("media_metadata")
     assert isinstance(book_metadata, dict)
     assert book_metadata.get("job_cover_asset") == "metadata/cover.jpg"
     assert job.result is not None

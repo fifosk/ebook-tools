@@ -682,7 +682,7 @@ def _execute_book_job(
         metadata_updates["book_cover_prompt"] = cover_prompt_value
     if cover_negative_value:
         metadata_updates["book_cover_negative_prompt"] = cover_negative_value
-    request.inputs.book_metadata.update(metadata_updates)
+    request.inputs.media_metadata.update(metadata_updates)
     request.pipeline_overrides = dict(request.pipeline_overrides)
     request.pipeline_overrides.setdefault(
         "book_generation",
@@ -803,7 +803,7 @@ async def create_book(
     messages.append(f"Seed EPUB created at {relative_epub_path}.")
     messages.append("Seed EPUB prepared; configure pipeline settings before submitting a job.")
 
-    book_metadata = {
+    media_metadata = {
         "book_title": payload.book_name,
         "book_author": payload.author or "Me",
         "book_genre": payload.genre,
@@ -832,8 +832,8 @@ async def create_book(
         "creation_summary": creation_summary,
     }
 
-    book_metadata.update(additional_metadata)
-    metadata = dict(book_metadata)
+    media_metadata.update(additional_metadata)
+    metadata = dict(media_metadata)
 
     return BookCreationResponse(
         job_id=None,

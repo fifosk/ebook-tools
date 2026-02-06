@@ -4,14 +4,8 @@ import AudioPlayer, { type AudioFile } from '../AudioPlayer';
 import VideoPlayer, { type VideoFile } from '../VideoPlayer';
 import InteractiveTextViewer from '../InteractiveTextViewer';
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../../hooks/useLiveMedia';
+import type { ExtendedPlaybackControls as PlaybackControls } from '../../lib/playback';
 import type { MediaCategory, TabDefinition } from './constants';
-
-type PlaybackControls = {
-  pause: () => void;
-  play: () => void;
-  ensureFullscreen?: () => void;
-  seek?: (time: number) => void;
-};
 
 interface AudioStageProps {
   files: AudioFile[];

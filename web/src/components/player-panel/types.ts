@@ -1,5 +1,1 @@
-export type PlaybackControls = {
-  pause: () => void;
-  play: () => void;
-  seek?: (time: number) => void;
-};
+export type { PlaybackControls } from '../../lib/playback';

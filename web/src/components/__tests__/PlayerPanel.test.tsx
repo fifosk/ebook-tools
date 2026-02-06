@@ -869,7 +869,7 @@ afterEach(() => {
         mediaComplete={false}
         isLoading={false}
         error={null}
-        bookMetadata={{ book_title: 'Example Title', book_author: 'Jane Doe' }}
+        mediaMetadata={{ book_title: 'Example Title', book_author: 'Jane Doe' }}
       />,
     );
 
@@ -891,7 +891,7 @@ afterEach(() => {
         mediaComplete
         isLoading={false}
         error={null}
-        bookMetadata={{ book_title: 'Example Title', book_author: 'Jane Doe' }}
+        mediaMetadata={{ book_title: 'Example Title', book_author: 'Jane Doe' }}
       />,
     );
 

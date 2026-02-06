@@ -50,7 +50,7 @@ interface YoutubeDubPlayerProps {
   showBackToLibrary?: boolean;
   onBackToLibrary?: () => void;
   libraryItem?: LibraryItem | null;
-  bookMetadata?: Record<string, unknown> | null;
+  mediaMetadata?: Record<string, unknown> | null;
 }
 
 const SUBTITLE_SCALE_STEP = FONT_SCALE_STEP / 100;
@@ -70,11 +70,11 @@ export default function YoutubeDubPlayer({
   showBackToLibrary = false,
   onBackToLibrary,
   libraryItem = null,
-  bookMetadata = null,
+  mediaMetadata = null,
 }: YoutubeDubPlayerProps) {
   const isExportMode = playerMode === 'export';
   const { adjustBaseFontScalePercent, baseFontScalePercent } = useMyLinguist();
-  const resolvedJobType = useMemo(() => jobType ?? extractJobType(bookMetadata) ?? null, [bookMetadata, jobType]);
+  const resolvedJobType = useMemo(() => jobType ?? extractJobType(mediaMetadata) ?? null, [mediaMetadata, jobType]);
   const inlineSubtitles = useMemo(() => {
     if (!isExportMode || typeof window === 'undefined') {
       return null;
@@ -109,7 +109,7 @@ export default function YoutubeDubPlayer({
   } = useYoutubeMetadata({
     jobId,
     libraryItem,
-    bookMetadata,
+    mediaMetadata,
     isExportMode,
   });
 

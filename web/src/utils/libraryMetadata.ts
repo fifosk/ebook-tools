@@ -162,13 +162,14 @@ export function extractLibraryBookMetadata(
     return null;
   }
   const record = payload as Record<string, unknown>;
-  const direct = record['book_metadata'];
+  const direct = record['media_metadata'] ?? record['book_metadata'];
   if (direct && typeof direct === 'object') {
     return cloneRecord(direct as Record<string, unknown>);
   }
   const nestedResult = record['result'];
   if (nestedResult && typeof nestedResult === 'object') {
-    const candidate = (nestedResult as Record<string, unknown>)['book_metadata'];
+    const candidate = (nestedResult as Record<string, unknown>)['media_metadata']
+      ?? (nestedResult as Record<string, unknown>)['book_metadata'];
     if (candidate && typeof candidate === 'object') {
       return cloneRecord(candidate as Record<string, unknown>);
     }
@@ -178,7 +179,7 @@ export function extractLibraryBookMetadata(
 
 export function resolveLibraryCoverUrl(
   item: LibraryItem,
-  bookMetadata: Record<string, unknown> | null | undefined,
+  mediaMetadata: Record<string, unknown> | null | undefined,
 ): string | null {
   const jobId = (item.jobId ?? '').trim();
   if (!jobId) {
@@ -199,12 +200,12 @@ export function resolveLibraryCoverUrl(
     candidates.push(trimmed);
   };
 
-  if (bookMetadata) {
-    pushCandidate(bookMetadata['job_cover_asset']);
-    pushCandidate(bookMetadata['book_cover_file']);
-    pushCandidate(bookMetadata['job_cover_asset_url']);
+  if (mediaMetadata) {
+    pushCandidate(mediaMetadata['job_cover_asset']);
+    pushCandidate(mediaMetadata['book_cover_file']);
+    pushCandidate(mediaMetadata['job_cover_asset_url']);
     // Fallback to enrichment cover URL if local covers aren't available
-    pushCandidate(bookMetadata['book_cover_url']);
+    pushCandidate(mediaMetadata['book_cover_url']);
   }
 
   const metadataRecord = item.metadata ?? {};

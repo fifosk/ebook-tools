@@ -60,7 +60,7 @@ def _build_metadata(job_id: str) -> PipelineJobMetadata:
             "inputs": {
                 "input_file": "book.epub",
                 "target_languages": ["ar", "en"],
-                "book_metadata": {"title": "Example", "author": "Tester"},
+                "media_metadata": {"title": "Example", "author": "Tester"},
             },
         },
         resume_context={"resume": True, "order": ["second", "first"]},

@@ -21,7 +21,7 @@ from .metadata.types import LookupOptions, LookupQuery, MediaType, UnifiedMetada
 from .metadata.clients.google_books import GoogleBooksClient
 from .metadata.pipeline import create_pipeline
 
-logger = log_mgr.get_logger().getChild("services.book_metadata")
+logger = log_mgr.get_logger().getChild("services.media_metadata")
 
 
 _OPENLIBRARY_BASE_URL = "https://openlibrary.org"
@@ -425,24 +425,24 @@ class OpenLibraryClient:
         return book_data if isinstance(book_data, Mapping) else None
 
 
-def _extract_existing_book_metadata(job: PipelineJob) -> Dict[str, Any]:
+def _extract_existing_media_metadata(job: PipelineJob) -> Dict[str, Any]:
     if job.request is not None:
         try:
-            return job.request.inputs.book_metadata.as_dict()
+            return job.request.inputs.media_metadata.as_dict()
         except Exception:
             return {}
     request_payload = job.request_payload
     if isinstance(request_payload, Mapping):
         inputs = request_payload.get("inputs")
         if isinstance(inputs, Mapping):
-            book_metadata = inputs.get("book_metadata")
-            if isinstance(book_metadata, Mapping):
-                return dict(book_metadata)
+            media_metadata = inputs.get("media_metadata")
+            if isinstance(media_metadata, Mapping):
+                return dict(media_metadata)
     result_payload = job.result_payload
     if isinstance(result_payload, Mapping):
-        book_metadata = result_payload.get("book_metadata")
-        if isinstance(book_metadata, Mapping):
-            return dict(book_metadata)
+        media_metadata = result_payload.get("media_metadata")
+        if isinstance(media_metadata, Mapping):
+            return dict(media_metadata)
     return {}
 
 
@@ -468,13 +468,13 @@ def _extract_existing_lookup(job: PipelineJob) -> Optional[Mapping[str, Any]]:
     for payload in (job.request_payload, job.result_payload):
         if not isinstance(payload, Mapping):
             continue
-        lookup = payload.get("book_metadata_lookup")
+        lookup = payload.get("media_metadata_lookup")
         if isinstance(lookup, Mapping):
             provider = lookup.get("provider")
             if isinstance(provider, str) and provider.strip().lower() in _VALID_BOOK_PROVIDERS:
                 return lookup
-    book_metadata = _extract_existing_book_metadata(job)
-    lookup = book_metadata.get("book_metadata_lookup")
+    media_metadata = _extract_existing_media_metadata(job)
+    lookup = media_metadata.get("media_metadata_lookup")
     if isinstance(lookup, Mapping):
         provider = lookup.get("provider")
         if isinstance(provider, str) and provider.strip().lower() in _VALID_BOOK_PROVIDERS:
@@ -530,7 +530,7 @@ def _build_job_label(
     return None
 
 
-class BookMetadataService:
+class MediaMetadataService:
     """Lazy metadata enrichment for pipeline/book jobs using Open Library with Google Books fallback."""
 
     def __init__(
@@ -584,8 +584,8 @@ class BookMetadataService:
 
         input_file = _resolve_input_file(job)
         source_name = _basename(input_file or "") if input_file else None
-        book_metadata = _extract_existing_book_metadata(job)
-        query = _infer_lookup_query(source_name, book_metadata)
+        media_metadata = _extract_existing_media_metadata(job)
+        query = _infer_lookup_query(source_name, media_metadata)
         existing_lookup = _extract_existing_lookup(job)
 
         return {
@@ -598,7 +598,7 @@ class BookMetadataService:
             }
             if (query.title or query.author or query.isbn)
             else None,
-            "book_metadata_lookup": dict(existing_lookup) if existing_lookup is not None else None,
+            "media_metadata_lookup": dict(existing_lookup) if existing_lookup is not None else None,
         }
 
     def lookup_openlibrary_metadata_for_query(self, query: str, *, force: bool = False) -> Dict[str, Any]:
@@ -643,7 +643,7 @@ class BookMetadataService:
             }
             if (inferred.title or inferred.author or inferred.isbn)
             else None,
-            "book_metadata_lookup": dict(lookup_payload),
+            "media_metadata_lookup": dict(lookup_payload),
         }
 
     def _convert_pipeline_result_to_payload(
@@ -735,8 +735,8 @@ class BookMetadataService:
 
         input_file = _resolve_input_file(job)
         source_name = _basename(input_file or "") if input_file else None
-        book_metadata = _extract_existing_book_metadata(job)
-        query = _infer_lookup_query(source_name, book_metadata)
+        media_metadata = _extract_existing_media_metadata(job)
+        query = _infer_lookup_query(source_name, media_metadata)
 
         # Use unified metadata pipeline for proper fallback handling
         lookup_query = LookupQuery(
@@ -1110,17 +1110,17 @@ class BookMetadataService:
     ) -> None:
         def _mutate(job: PipelineJob) -> None:
             request_payload = dict(job.request_payload) if isinstance(job.request_payload, Mapping) else {}
-            request_payload["book_metadata_lookup"] = dict(payload)
+            request_payload["media_metadata_lookup"] = dict(payload)
 
             inputs = request_payload.get("inputs")
             if not isinstance(inputs, Mapping):
                 inputs = {}
             inputs = dict(inputs)
 
-            existing = inputs.get("book_metadata")
+            existing = inputs.get("media_metadata")
             if not isinstance(existing, Mapping):
                 existing = {}
-            book_metadata = dict(existing)
+            media_metadata = dict(existing)
 
             config = request_payload.get("config")
             if not isinstance(config, Mapping):
@@ -1138,30 +1138,30 @@ class BookMetadataService:
                 cover_file = _normalize_text(book_section.get("cover_file"))
 
                 if title:
-                    book_metadata["book_title"] = title
+                    media_metadata["book_title"] = title
                     config_payload["book_title"] = title
                 if author:
-                    book_metadata["book_author"] = author
+                    media_metadata["book_author"] = author
                     config_payload["book_author"] = author
                 if year:
-                    book_metadata["book_year"] = year
+                    media_metadata["book_year"] = year
                     config_payload["book_year"] = year
                 if summary:
-                    book_metadata["book_summary"] = summary
+                    media_metadata["book_summary"] = summary
                     config_payload["book_summary"] = summary
                 if isbn:
-                    book_metadata["isbn"] = isbn
-                    book_metadata["book_isbn"] = isbn
+                    media_metadata["isbn"] = isbn
+                    media_metadata["book_isbn"] = isbn
                 if cover_url:
-                    book_metadata["cover_url"] = cover_url
+                    media_metadata["cover_url"] = cover_url
                 if cover_file:
-                    book_metadata["book_cover_file"] = cover_file
+                    media_metadata["book_cover_file"] = cover_file
                     config_payload["book_cover_file"] = cover_file
 
                 # Genre field (from unified pipeline or direct lookup)
                 genre = _normalize_text(book_section.get("genre"))
                 if genre:
-                    book_metadata["book_genre"] = genre
+                    media_metadata["book_genre"] = genre
                     config_payload["book_genre"] = genre
 
                 # OpenLibrary-specific fields
@@ -1170,37 +1170,37 @@ class BookMetadataService:
                 openlibrary_book_key = _normalize_text(book_section.get("openlibrary_book_key"))
                 openlibrary_book_url = _normalize_text(book_section.get("openlibrary_book_url"))
                 if openlibrary_work_key:
-                    book_metadata["openlibrary_work_key"] = openlibrary_work_key
+                    media_metadata["openlibrary_work_key"] = openlibrary_work_key
                 if openlibrary_work_url:
-                    book_metadata["openlibrary_work_url"] = openlibrary_work_url
+                    media_metadata["openlibrary_work_url"] = openlibrary_work_url
                 if openlibrary_book_key:
-                    book_metadata["openlibrary_book_key"] = openlibrary_book_key
+                    media_metadata["openlibrary_book_key"] = openlibrary_book_key
                 if openlibrary_book_url:
-                    book_metadata["openlibrary_book_url"] = openlibrary_book_url
+                    media_metadata["openlibrary_book_url"] = openlibrary_book_url
 
                 # Google Books-specific fields
                 google_books_id = _normalize_text(book_section.get("google_books_id"))
                 if google_books_id:
-                    book_metadata["google_books_id"] = google_books_id
+                    media_metadata["google_books_id"] = google_books_id
 
             job_label = payload.get("job_label")
             if isinstance(job_label, str) and job_label.strip():
-                book_metadata["job_label"] = job_label.strip()
+                media_metadata["job_label"] = job_label.strip()
 
             queried_at = payload.get("queried_at")
             provider = payload.get("provider", "openlibrary")
             if isinstance(queried_at, str) and queried_at.strip():
                 # Store provider-specific timestamp
                 if provider == "google_books":
-                    book_metadata["google_books_queried_at"] = queried_at.strip()
+                    media_metadata["google_books_queried_at"] = queried_at.strip()
                 else:
-                    book_metadata["openlibrary_queried_at"] = queried_at.strip()
+                    media_metadata["openlibrary_queried_at"] = queried_at.strip()
                 # Also store generic timestamp
-                book_metadata["metadata_queried_at"] = queried_at.strip()
+                media_metadata["metadata_queried_at"] = queried_at.strip()
 
-            book_metadata["book_metadata_lookup"] = dict(payload)
+            media_metadata["media_metadata_lookup"] = dict(payload)
 
-            inputs["book_metadata"] = book_metadata
+            inputs["media_metadata"] = media_metadata
             request_payload["inputs"] = inputs
             request_payload["config"] = config_payload
 
@@ -1208,7 +1208,7 @@ class BookMetadataService:
             job.resume_context = copy.deepcopy(request_payload)
 
             if job.request is not None:
-                job.request.inputs.book_metadata = PipelineMetadata.from_mapping(book_metadata)
+                job.request.inputs.media_metadata = PipelineMetadata.from_mapping(media_metadata)
                 try:
                     if title:
                         job.request.config["book_title"] = title
@@ -1225,19 +1225,19 @@ class BookMetadataService:
 
             if isinstance(job.result_payload, Mapping):
                 result_payload = dict(job.result_payload)
-                result_payload["book_metadata_lookup"] = dict(payload)
-                result_book = result_payload.get("book_metadata")
+                result_payload["media_metadata_lookup"] = dict(payload)
+                result_book = result_payload.get("media_metadata")
                 if isinstance(result_book, Mapping):
                     merged = dict(result_book)
-                    merged.update(book_metadata)
-                    result_payload["book_metadata"] = merged
+                    merged.update(media_metadata)
+                    result_payload["media_metadata"] = merged
                 else:
-                    result_payload["book_metadata"] = dict(book_metadata)
+                    result_payload["media_metadata"] = dict(media_metadata)
                 job.result_payload = result_payload
 
             if job.result is not None:
                 try:
-                    job.result.metadata.update(dict(book_metadata))
+                    job.result.metadata.update(dict(media_metadata))
                 except Exception:
                     pass
 
@@ -1286,4 +1286,4 @@ class BookMetadataService:
         }
 
 
-__all__ = ["BookMetadataService", "OpenLibraryClient", "BookLookupQuery"]
+__all__ = ["MediaMetadataService", "OpenLibraryClient", "BookLookupQuery"]

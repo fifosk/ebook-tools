@@ -57,8 +57,8 @@ def _extract_match_snippet(text: Any, query: str) -> Optional[str]:
 def _build_library_search_snippet(item: Mapping[str, Any], query: str) -> str:
     metadata = item.get("metadata")
     if isinstance(metadata, Mapping):
-        book_metadata = metadata.get("book_metadata")
-        if isinstance(book_metadata, Mapping):
+        media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+        if isinstance(media_metadata, Mapping):
             preferred_keys = [
                 "book_summary",
                 "summary",
@@ -66,7 +66,7 @@ def _build_library_search_snippet(item: Mapping[str, Any], query: str) -> str:
                 "synopsis",
             ]
             for key in preferred_keys:
-                snippet = _extract_match_snippet(book_metadata.get(key), query)
+                snippet = _extract_match_snippet(media_metadata.get(key), query)
                 if snippet:
                     return snippet
 
@@ -118,7 +118,7 @@ class _LibrarySearchJobAdapter:
         self.resume_context: Optional[Mapping[str, Any]] = None
         if label:
             self.request_payload: Optional[Mapping[str, Any]] = {
-                "inputs": {"book_metadata": {"title": label}}
+                "inputs": {"media_metadata": {"title": label}}
             }
         else:
             self.request_payload = None

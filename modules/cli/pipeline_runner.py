@@ -313,7 +313,7 @@ def _build_pipeline_input(
     start_sentence: int,
     end_sentence: Optional[int],
 ) -> PipelineInput:
-    book_metadata = {
+    media_metadata = {
         "book_title": config.get("book_title"),
         "book_author": config.get("book_author"),
         "book_year": config.get("book_year"),
@@ -341,7 +341,7 @@ def _build_pipeline_input(
         add_images=config.get("add_images", False),
         include_transliteration=config.get("include_transliteration", True),
         tempo=config.get("tempo", 1.0),
-        book_metadata=PipelineMetadata.from_mapping(book_metadata),
+        media_metadata=PipelineMetadata.from_mapping(media_metadata),
     )
 
 
@@ -537,7 +537,7 @@ def prepare_non_interactive_run(
 
     if config.get("auto_metadata", True):
         metadata_manager.populate_config_metadata(config, input_file)
-        pipeline_input.book_metadata = PipelineMetadata.from_mapping(
+        pipeline_input.media_metadata = PipelineMetadata.from_mapping(
             {
                 "book_title": config.get("book_title"),
                 "book_author": config.get("book_author"),
@@ -674,7 +674,7 @@ def run_pipeline_from_args(
             metadata_manager.populate_config_metadata(
                 config, pipeline_input.input_file
             )
-            pipeline_input.book_metadata = PipelineMetadata.from_mapping(
+            pipeline_input.media_metadata = PipelineMetadata.from_mapping(
                 {
                     "book_title": config.get("book_title"),
                     "book_author": config.get("book_author"),
@@ -684,8 +684,8 @@ def run_pipeline_from_args(
                 }
             )
         else:
-            if not pipeline_input.book_metadata.values:
-                pipeline_input.book_metadata = PipelineMetadata()
+            if not pipeline_input.media_metadata.values:
+                pipeline_input.media_metadata = PipelineMetadata()
 
         active_context = context.get_active_context(None)
         if active_context is None:

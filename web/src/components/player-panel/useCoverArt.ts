@@ -6,7 +6,7 @@ import { DEFAULT_COVER_URL } from './constants';
 type UseCoverArtArgs = {
   jobId: string | null;
   origin: 'job' | 'library';
-  bookMetadata?: Record<string, unknown> | null;
+  mediaMetadata?: Record<string, unknown> | null;
   mediaComplete: boolean;
   playerMode?: 'online' | 'export';
 };
@@ -20,7 +20,7 @@ type UseCoverArtResult = {
 export function useCoverArt({
   jobId,
   origin,
-  bookMetadata = null,
+  mediaMetadata = null,
   mediaComplete,
   playerMode = 'online',
 }: UseCoverArtArgs): UseCoverArtResult {
@@ -29,22 +29,22 @@ export function useCoverArt({
   const isExportMode = playerMode === 'export';
 
   const jobCoverAsset = useMemo(() => {
-    const value = bookMetadata?.['job_cover_asset'];
+    const value = mediaMetadata?.['job_cover_asset'];
     if (typeof value !== 'string') {
       return null;
     }
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
-  }, [bookMetadata]);
+  }, [mediaMetadata]);
 
   const legacyCoverFile = useMemo(() => {
-    const value = bookMetadata?.['book_cover_file'];
+    const value = mediaMetadata?.['book_cover_file'];
     if (typeof value !== 'string') {
       return null;
     }
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
-  }, [bookMetadata]);
+  }, [mediaMetadata]);
 
   const apiCoverUrl = useMemo(() => {
     if (!normalisedJobId || origin === 'library' || isExportMode) {
@@ -141,7 +141,7 @@ export function useCoverArt({
     }
 
     const metadataCoverUrl = (() => {
-      const value = bookMetadata?.['job_cover_asset_url'];
+      const value = mediaMetadata?.['job_cover_asset_url'];
       return typeof value === 'string' ? value : null;
     })();
 
@@ -157,7 +157,7 @@ export function useCoverArt({
     push(DEFAULT_COVER_URL);
 
     return candidates;
-  }, [apiCoverUrl, bookMetadata, isExportMode, jobCoverAsset, legacyCoverFile, normalisedJobId, origin]);
+  }, [apiCoverUrl, mediaMetadata, isExportMode, jobCoverAsset, legacyCoverFile, normalisedJobId, origin]);
 
   useEffect(() => {
     if (coverSourceIndex !== 0) {

@@ -55,7 +55,7 @@ def execute_render_phase(
         translation_batch_size=getattr(request.inputs, "translation_batch_size", None),
         transliteration_mode=getattr(request.inputs, "transliteration_mode", None),
         transliteration_model=getattr(request.inputs, "transliteration_model", None),
-        book_metadata=metadata_result.metadata.as_dict(),
+        media_metadata=metadata_result.metadata.as_dict(),
         enable_lookup_cache=getattr(request.inputs, "enable_lookup_cache", True),
         lookup_cache_batch_size=getattr(request.inputs, "lookup_cache_batch_size", 10),
     )

@@ -187,7 +187,7 @@ def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
             generate_video=False,
             include_transliteration=False,
             tempo=1.0,
-            book_metadata={},
+            media_metadata={},
         ),
     )
 
@@ -325,7 +325,7 @@ def test_submit_records_user_context(tmp_path, job_manager_factory):
             generate_video=False,
             include_transliteration=False,
             tempo=1.0,
-            book_metadata={},
+            media_metadata={},
         ),
     )
 

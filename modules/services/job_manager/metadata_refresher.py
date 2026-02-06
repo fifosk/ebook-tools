@@ -18,7 +18,7 @@ from ..pipeline_service import (
 )
 from ..pipeline_types import PipelineMetadata
 from .job import PipelineJob
-from ..metadata import enrich_book_metadata, EnrichmentResult
+from ..metadata import enrich_media_metadata, EnrichmentResult
 
 
 class PipelineJobMetadataRefresher:
@@ -46,7 +46,7 @@ class PipelineJobMetadataRefresher:
         inputs_payload = dict(request_payload.get("inputs", {}))
         input_file = str(inputs_payload.get("input_file") or "").strip()
 
-        existing_metadata = inputs_payload.get("book_metadata")
+        existing_metadata = inputs_payload.get("media_metadata") or inputs_payload.get("book_metadata")
         if not isinstance(existing_metadata, dict):
             existing_metadata = {}
 
@@ -94,7 +94,7 @@ class PipelineJobMetadataRefresher:
 
             # Enrich from external sources if requested
             if enrich_from_external:
-                enrichment_result = enrich_book_metadata(
+                enrichment_result = enrich_media_metadata(
                     merged_metadata,
                     force=True,
                 )
@@ -122,11 +122,11 @@ class PipelineJobMetadataRefresher:
             finally:
                 cfg.clear_runtime_context()
 
-        inputs_payload["book_metadata"] = dict(merged_metadata)
+        inputs_payload["media_metadata"] = dict(merged_metadata)
         request_payload["inputs"] = inputs_payload
 
         if job.request is not None:
-            job.request.inputs.book_metadata = PipelineMetadata.from_mapping(merged_metadata)
+            job.request.inputs.media_metadata = PipelineMetadata.from_mapping(merged_metadata)
         job.request_payload = request_payload
         job.resume_context = copy.deepcopy(request_payload)
 
@@ -135,7 +135,7 @@ class PipelineJobMetadataRefresher:
             job.result_payload = serialize_pipeline_response(job.result)
         else:
             result_payload = dict(job.result_payload or {})
-            result_payload["book_metadata"] = dict(merged_metadata)
+            result_payload["media_metadata"] = dict(merged_metadata)
             job.result_payload = result_payload
 
         return dict(merged_metadata)
@@ -162,7 +162,7 @@ class PipelineJobMetadataRefresher:
         request_payload = self._resolve_request_payload(job)
         inputs_payload = dict(request_payload.get("inputs", {}))
 
-        existing_metadata = inputs_payload.get("book_metadata")
+        existing_metadata = inputs_payload.get("media_metadata") or inputs_payload.get("book_metadata")
         if not isinstance(existing_metadata, dict):
             existing_metadata = {}
 
@@ -175,15 +175,15 @@ class PipelineJobMetadataRefresher:
                 confidence=existing_metadata.get("_enrichment_confidence"),
             )
 
-        result = enrich_book_metadata(existing_metadata, force=force)
+        result = enrich_media_metadata(existing_metadata, force=force)
 
         if result.enriched:
             # Update job with enriched metadata
-            inputs_payload["book_metadata"] = dict(result.metadata)
+            inputs_payload["media_metadata"] = dict(result.metadata)
             request_payload["inputs"] = inputs_payload
 
             if job.request is not None:
-                job.request.inputs.book_metadata = PipelineMetadata.from_mapping(
+                job.request.inputs.media_metadata = PipelineMetadata.from_mapping(
                     result.metadata
                 )
             job.request_payload = request_payload
@@ -194,7 +194,7 @@ class PipelineJobMetadataRefresher:
                 job.result_payload = serialize_pipeline_response(job.result)
             else:
                 result_payload = dict(job.result_payload or {})
-                result_payload["book_metadata"] = dict(result.metadata)
+                result_payload["media_metadata"] = dict(result.metadata)
                 job.result_payload = result_payload
 
         return result

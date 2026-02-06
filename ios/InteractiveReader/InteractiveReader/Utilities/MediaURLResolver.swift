@@ -355,10 +355,10 @@ struct LibraryCoverResolver {
                 addCandidate(imageObj["medium"]?.stringValue)
             }
 
-            if let bookMetadata = extractBookMetadata(from: metadata) {
-                addCandidate(bookMetadata["job_cover_asset"]?.stringValue)
-                addCandidate(bookMetadata["book_cover_file"]?.stringValue)
-                addCandidate(bookMetadata["job_cover_asset_url"]?.stringValue)
+            if let mediaMetadata = extractMediaMetadata(from: metadata) {
+                addCandidate(mediaMetadata["job_cover_asset"]?.stringValue)
+                addCandidate(mediaMetadata["book_cover_file"]?.stringValue)
+                addCandidate(mediaMetadata["job_cover_asset_url"]?.stringValue)
             }
             addCandidate(metadata["job_cover_asset"]?.stringValue)
             addCandidate(metadata["cover_url"]?.stringValue)
@@ -397,12 +397,12 @@ struct LibraryCoverResolver {
         add(resolveYoutubeThumbnail(from: tvMetadata))
     }
 
-    private func extractBookMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
-        if let direct = metadata["book_metadata"]?.objectValue {
+    private func extractMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
+        if let direct = (metadata["media_metadata"] ?? metadata["book_metadata"])?.objectValue {
             return direct
         }
         if let result = metadata["result"]?.objectValue,
-           let nested = result["book_metadata"]?.objectValue {
+           let nested = (result["media_metadata"] ?? result["book_metadata"])?.objectValue {
             return nested
         }
         return nil

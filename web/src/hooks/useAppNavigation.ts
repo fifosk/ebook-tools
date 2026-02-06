@@ -67,8 +67,8 @@ export function useAppNavigation(options: UseAppNavigationOptions) {
     }
     const rawResult = jobEntry.status.result;
     const metadata =
-      rawResult && typeof rawResult === 'object' && 'book_metadata' in rawResult
-        ? (rawResult as Record<string, unknown>).book_metadata
+      rawResult && typeof rawResult === 'object' && ('media_metadata' in rawResult || 'book_metadata' in rawResult)
+        ? (rawResult as Record<string, unknown>).media_metadata ?? (rawResult as Record<string, unknown>).book_metadata
         : null;
     return metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>) : null;
   }, [activeJobId, jobs, pipelineJobTypes]);
@@ -86,8 +86,8 @@ export function useAppNavigation(options: UseAppNavigationOptions) {
     }
     const rawResult = entry.status.result;
     const metadata =
-      rawResult && typeof rawResult === 'object' && 'book_metadata' in rawResult
-        ? (rawResult as Record<string, unknown>).book_metadata
+      rawResult && typeof rawResult === 'object' && ('media_metadata' in rawResult || 'book_metadata' in rawResult)
+        ? (rawResult as Record<string, unknown>).media_metadata ?? (rawResult as Record<string, unknown>).book_metadata
         : null;
     return metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>) : null;
   }, [activeJobId, activeJobMetadata, jobs, pipelineJobTypes, playerContext]);
@@ -179,7 +179,7 @@ export function useAppNavigation(options: UseAppNavigationOptions) {
         type: 'library',
         jobId,
         itemType,
-        bookMetadata: metadata,
+        mediaMetadata: metadata,
         item: libraryItem
       });
       setPlayerSelection(

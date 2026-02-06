@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useJobEventsWithRetry } from '../hooks/useJobEventsWithRetry';
-import { appendAccessToken, clearBookMetadataCache, lookupBookOpenLibraryMetadata, resolveJobCoverUrl } from '../api/client';
+import { appendAccessToken, clearMediaMetadataCache, lookupBookOpenLibraryMetadata, resolveJobCoverUrl } from '../api/client';
 import {
   AccessPolicyUpdatePayload,
   PipelineResponsePayload,
@@ -157,11 +157,11 @@ export function JobProgress({
     latestMediaEvent ??
     (eventStage === 'media' ? event : undefined) ??
     (statusStage === 'media' ? statusEvent : undefined);
-  const subtitleBookMetadata =
-    subtitleResult && typeof subtitleResult.book_metadata === 'object'
-      ? (subtitleResult.book_metadata as Record<string, unknown>)
+  const subtitleMediaMetadata =
+    subtitleResult && typeof (subtitleResult.media_metadata ?? subtitleResult.book_metadata) === 'object'
+      ? ((subtitleResult.media_metadata ?? subtitleResult.book_metadata) as Record<string, unknown>)
       : null;
-  const rawMetadata = isPipelineLikeJob ? pipelineResult?.book_metadata ?? null : subtitleBookMetadata;
+  const rawMetadata = isPipelineLikeJob ? pipelineResult?.book_metadata ?? null : subtitleMediaMetadata;
   const metadata = rawMetadata ?? {};
   const bookTitle = useMemo(() => normalizeTextValue(metadata['book_title']) ?? null, [metadata]);
   const bookAuthor = useMemo(() => normalizeTextValue(metadata['book_author']) ?? null, [metadata]);
@@ -212,7 +212,7 @@ export function JobProgress({
   const creationSummaryRaw = metadata['creation_summary'];
   // Split metadata into display (interesting) and technical entries
   const allMetadataEntries = Object.entries(metadata).filter(([key, value]) => {
-    if (key === 'job_cover_asset' || key === 'book_metadata_lookup' || CREATION_METADATA_KEYS.has(key)) {
+    if (key === 'job_cover_asset' || key === 'media_metadata_lookup' || key === 'book_metadata_lookup' || CREATION_METADATA_KEYS.has(key)) {
       return false;
     }
     if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
@@ -688,22 +688,22 @@ export function JobProgress({
     setLookupResult(null);
     try {
       const result = await lookupBookOpenLibraryMetadata(jobId, { force });
-      const bookMetadata = result.book_metadata_lookup;
-      const lookupBook = bookMetadata && typeof bookMetadata === 'object'
-        ? (bookMetadata as Record<string, unknown>)['book']
+      const mediaMetadata = result.media_metadata_lookup;
+      const lookupBook = mediaMetadata && typeof mediaMetadata === 'object'
+        ? (mediaMetadata as Record<string, unknown>)['book']
         : null;
       const hasTitle = lookupBook && typeof lookupBook === 'object'
         ? Boolean((lookupBook as Record<string, unknown>)['title'])
         : false;
-      const lookupErr = bookMetadata && typeof bookMetadata === 'object'
-        ? (bookMetadata as Record<string, unknown>)['error']
+      const lookupErr = mediaMetadata && typeof mediaMetadata === 'object'
+        ? (mediaMetadata as Record<string, unknown>)['error']
         : null;
       // Extract source and confidence from response
-      const provider = bookMetadata && typeof bookMetadata === 'object'
-        ? (bookMetadata as Record<string, unknown>)['provider']
+      const provider = mediaMetadata && typeof mediaMetadata === 'object'
+        ? (mediaMetadata as Record<string, unknown>)['provider']
         : null;
-      const confidence = bookMetadata && typeof bookMetadata === 'object'
-        ? (bookMetadata as Record<string, unknown>)['confidence']
+      const confidence = mediaMetadata && typeof mediaMetadata === 'object'
+        ? (mediaMetadata as Record<string, unknown>)['confidence']
         : null;
 
       if (lookupErr && typeof lookupErr === 'string') {
@@ -739,7 +739,7 @@ export function JobProgress({
     const query = resolvedLookupQuery.trim();
     if (query) {
       try {
-        await clearBookMetadataCache(query);
+        await clearMediaMetadataCache(query);
       } catch {
         // Ignore cache clear failures - frontend state is already cleared
       }

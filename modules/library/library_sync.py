@@ -346,10 +346,10 @@ class LibrarySync:
             _select_cover_candidate(metadata.get("job_cover_asset"))
             _select_cover_candidate(metadata.get("book_cover_file"))
 
-            book_metadata = metadata.get("book_metadata")
-            if cover_reference is None and isinstance(book_metadata, Mapping):
-                _select_cover_candidate(book_metadata.get("job_cover_asset"))
-                _select_cover_candidate(book_metadata.get("book_cover_file"))
+            media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+            if cover_reference is None and isinstance(media_metadata, Mapping):
+                _select_cover_candidate(media_metadata.get("job_cover_asset"))
+                _select_cover_candidate(media_metadata.get("book_cover_file"))
 
             cover_asset = (
                 file_ops.mirror_cover_asset(target_path, cover_reference) if cover_reference else None
@@ -357,21 +357,21 @@ class LibrarySync:
             if cover_asset:
                 metadata["job_cover_asset"] = cover_asset
                 metadata["book_cover_file"] = cover_asset
-                if isinstance(book_metadata, Mapping):
-                    nested = dict(book_metadata)
+                if isinstance(media_metadata, Mapping):
+                    nested = dict(media_metadata)
                     nested["job_cover_asset"] = cover_asset
                     nested["book_cover_file"] = cover_asset
-                    metadata["book_metadata"] = nested
+                    metadata["media_metadata"] = nested
             else:
                 metadata.pop("job_cover_asset", None)
                 if not metadata.get("book_cover_file"):
                     metadata.pop("book_cover_file", None)
-                if isinstance(book_metadata, Mapping):
-                    nested = dict(book_metadata)
+                if isinstance(media_metadata, Mapping):
+                    nested = dict(media_metadata)
                     nested.pop("job_cover_asset", None)
                     if not nested.get("book_cover_file"):
                         nested.pop("book_cover_file", None)
-                    metadata["book_metadata"] = nested
+                    metadata["media_metadata"] = nested
 
             file_ops.write_metadata(target_path, metadata)
 
@@ -505,19 +505,19 @@ class LibrarySync:
             metadata["language"] = normalized_language
             metadata["updated_at"] = now
 
-            book_metadata_raw = metadata.get("book_metadata")
-            book_metadata: Dict[str, Any]
-            if isinstance(book_metadata_raw, Mapping):
-                book_metadata = dict(book_metadata_raw)
+            media_metadata_raw = metadata.get("media_metadata") or metadata.get("book_metadata")
+            media_metadata: Dict[str, Any]
+            if isinstance(media_metadata_raw, Mapping):
+                media_metadata = dict(media_metadata_raw)
             else:
-                book_metadata = {}
-            book_metadata["book_title"] = normalized_title
-            book_metadata["book_author"] = normalized_author
+                media_metadata = {}
+            media_metadata["book_title"] = normalized_title
+            media_metadata["book_author"] = normalized_author
             if normalized_genre:
-                book_metadata["book_genre"] = normalized_genre
-            elif "book_genre" in book_metadata:
-                book_metadata.pop("book_genre", None)
-            metadata["book_metadata"] = book_metadata
+                media_metadata["book_genre"] = normalized_genre
+            elif "book_genre" in media_metadata:
+                media_metadata.pop("book_genre", None)
+            metadata["media_metadata"] = media_metadata
 
             if isbn is not None:
                 cleaned_isbn = isbn.strip() if isinstance(isbn, str) else ""
@@ -526,18 +526,18 @@ class LibrarySync:
                     if normalized_isbn is None:
                         raise LibraryError("ISBN must contain 10 or 13 digits (optionally including X)")
                     metadata_utils.apply_isbn(metadata, normalized_isbn)
-                    book_metadata["isbn"] = normalized_isbn
-                    book_metadata["book_isbn"] = normalized_isbn
+                    media_metadata["isbn"] = normalized_isbn
+                    media_metadata["book_isbn"] = normalized_isbn
                     metadata["isbn"] = normalized_isbn
                 else:
                     metadata.pop("isbn", None)
-                    book_metadata.pop("isbn", None)
-                    book_metadata.pop("book_isbn", None)
+                    media_metadata.pop("isbn", None)
+                    media_metadata.pop("book_isbn", None)
             else:
                 existing_isbn = metadata_utils.extract_isbn(metadata)
                 if existing_isbn:
-                    book_metadata.setdefault("isbn", existing_isbn)
-                    book_metadata.setdefault("book_isbn", existing_isbn)
+                    media_metadata.setdefault("isbn", existing_isbn)
+                    media_metadata.setdefault("book_isbn", existing_isbn)
                     metadata.setdefault("isbn", existing_isbn)
 
             target_path = file_ops.resolve_library_path(self._library_root, metadata, job_id)

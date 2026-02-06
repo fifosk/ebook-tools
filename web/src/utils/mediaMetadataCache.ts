@@ -1,6 +1,6 @@
 import { md5Hex } from './md5';
 
-type BookMetadataCacheEntryV1 = {
+type MediaMetadataCacheEntryV1 = {
   version: 1;
   normalized_input: string;
   updated_at: number;
@@ -43,7 +43,7 @@ function safeWriteIndex(index: string[]): void {
   }
 }
 
-function isEffectivelyEmptyBookMetadata(raw: string): boolean {
+function isEffectivelyEmptyMediaMetadata(raw: string): boolean {
   const trimmed = raw.trim();
   if (!trimmed || trimmed === '{}' || trimmed === 'null') {
     return true;
@@ -63,7 +63,7 @@ function buildCacheKey(normalizedInput: string): string {
   return `${CACHE_PREFIX}${md5Hex(normalizedInput)}`;
 }
 
-export function loadCachedBookMetadataJson(normalizedInput: string): string | null {
+export function loadCachedMediaMetadataJson(normalizedInput: string): string | null {
   if (!isBrowser()) {
     return null;
   }
@@ -77,7 +77,7 @@ export function loadCachedBookMetadataJson(normalizedInput: string): string | nu
     if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(raw) as BookMetadataCacheEntryV1;
+    const parsed = JSON.parse(raw) as MediaMetadataCacheEntryV1;
     if (!parsed || parsed.version !== 1) {
       return null;
     }
@@ -90,7 +90,7 @@ export function loadCachedBookMetadataJson(normalizedInput: string): string | nu
   }
 }
 
-export function loadCachedBookCoverDataUrl(normalizedInput: string): string | null {
+export function loadCachedCoverDataUrl(normalizedInput: string): string | null {
   if (!isBrowser()) {
     return null;
   }
@@ -104,7 +104,7 @@ export function loadCachedBookCoverDataUrl(normalizedInput: string): string | nu
     if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(raw) as BookMetadataCacheEntryV1;
+    const parsed = JSON.parse(raw) as MediaMetadataCacheEntryV1;
     if (!parsed || parsed.version !== 1) {
       return null;
     }
@@ -117,7 +117,7 @@ export function loadCachedBookCoverDataUrl(normalizedInput: string): string | nu
   }
 }
 
-export function loadCachedBookCoverSourceUrl(normalizedInput: string): string | null {
+export function loadCachedCoverSourceUrl(normalizedInput: string): string | null {
   if (!isBrowser()) {
     return null;
   }
@@ -131,7 +131,7 @@ export function loadCachedBookCoverSourceUrl(normalizedInput: string): string | 
     if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(raw) as BookMetadataCacheEntryV1;
+    const parsed = JSON.parse(raw) as MediaMetadataCacheEntryV1;
     if (!parsed || parsed.version !== 1) {
       return null;
     }
@@ -144,7 +144,7 @@ export function loadCachedBookCoverSourceUrl(normalizedInput: string): string | 
   }
 }
 
-export function persistCachedBookMetadataJson(normalizedInput: string, bookMetadataJson: string): void {
+export function persistCachedMediaMetadataJson(normalizedInput: string, mediaMetadataJson: string): void {
   if (!isBrowser()) {
     return;
   }
@@ -155,15 +155,15 @@ export function persistCachedBookMetadataJson(normalizedInput: string, bookMetad
   const key = buildCacheKey(trimmedInput);
   const index = safeParseIndex(window.localStorage.getItem(CACHE_INDEX_KEY));
 
-  if (isEffectivelyEmptyBookMetadata(bookMetadataJson)) {
+  if (isEffectivelyEmptyMediaMetadata(mediaMetadataJson)) {
     return;
   }
 
-  let existing: BookMetadataCacheEntryV1 | null = null;
+  let existing: MediaMetadataCacheEntryV1 | null = null;
   try {
     const rawExisting = window.localStorage.getItem(key);
     if (rawExisting) {
-      const parsed = JSON.parse(rawExisting) as BookMetadataCacheEntryV1;
+      const parsed = JSON.parse(rawExisting) as MediaMetadataCacheEntryV1;
       if (parsed?.version === 1) {
         existing = parsed;
       }
@@ -172,11 +172,11 @@ export function persistCachedBookMetadataJson(normalizedInput: string, bookMetad
     existing = null;
   }
 
-  const entry: BookMetadataCacheEntryV1 = {
+  const entry: MediaMetadataCacheEntryV1 = {
     version: 1,
     normalized_input: trimmedInput,
     updated_at: Date.now(),
-    book_metadata_json: bookMetadataJson,
+    book_metadata_json: mediaMetadataJson,
     cover_source_url: existing?.cover_source_url,
     cover_data_url: existing?.cover_data_url
   };
@@ -201,7 +201,7 @@ export function persistCachedBookMetadataJson(normalizedInput: string, bookMetad
   safeWriteIndex(nextIndex.slice(0, MAX_ENTRIES));
 }
 
-export function persistCachedBookCoverDataUrl(
+export function persistCachedCoverDataUrl(
   normalizedInput: string,
   coverSourceUrl: string,
   coverDataUrl: string,
@@ -219,24 +219,24 @@ export function persistCachedBookCoverDataUrl(
   const key = buildCacheKey(trimmedInput);
   const index = safeParseIndex(window.localStorage.getItem(CACHE_INDEX_KEY));
 
-  let bookMetadataJson = '{}';
+  let mediaMetadataJson = '{}';
   try {
     const rawExisting = window.localStorage.getItem(key);
     if (rawExisting) {
-      const parsed = JSON.parse(rawExisting) as BookMetadataCacheEntryV1;
+      const parsed = JSON.parse(rawExisting) as MediaMetadataCacheEntryV1;
       if (parsed?.version === 1 && typeof parsed.book_metadata_json === 'string' && parsed.book_metadata_json.trim()) {
-        bookMetadataJson = parsed.book_metadata_json;
+        mediaMetadataJson = parsed.book_metadata_json;
       }
     }
   } catch {
     // ignore
   }
 
-  const entry: BookMetadataCacheEntryV1 = {
+  const entry: MediaMetadataCacheEntryV1 = {
     version: 1,
     normalized_input: trimmedInput,
     updated_at: Date.now(),
-    book_metadata_json: bookMetadataJson,
+    book_metadata_json: mediaMetadataJson,
     cover_source_url: trimmedSource,
     cover_data_url: trimmedData
   };

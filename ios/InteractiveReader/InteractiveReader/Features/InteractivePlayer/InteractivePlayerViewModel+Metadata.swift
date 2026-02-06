@@ -5,7 +5,7 @@ extension InteractivePlayerViewModel {
     func updateChapterIndex(from metadata: [String: JSONValue]?) async {
         chapterEntries = []
         guard let metadata else { return }
-        let metadataRoot = extractBookMetadata(from: metadata) ?? metadata
+        let metadataRoot = extractMediaMetadata(from: metadata) ?? metadata
         let inlineIndex = metadataValue(metadataRoot, keys: ["content_index", "contentIndex"])
             ?? metadataValue(metadata, keys: ["content_index", "contentIndex"])
         if let inlineIndex,
@@ -38,12 +38,12 @@ extension InteractivePlayerViewModel {
         }
     }
 
-    func extractBookMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
-        if let direct = objectValue(metadata["book_metadata"]) {
+    func extractMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
+        if let direct = objectValue(metadata["media_metadata"] ?? metadata["book_metadata"]) {
             return direct
         }
         if let result = objectValue(metadata["result"]),
-           let nested = objectValue(result["book_metadata"]) {
+           let nested = objectValue(result["media_metadata"] ?? result["book_metadata"]) {
             return nested
         }
         return nil

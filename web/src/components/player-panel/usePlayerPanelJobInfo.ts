@@ -26,7 +26,7 @@ type UsePlayerPanelJobInfoArgs = {
   itemType?: 'book' | 'video' | 'narrated_subtitle' | null;
   origin?: 'job' | 'library';
   playerMode?: PlayerMode;
-  bookMetadata?: Record<string, unknown> | null;
+  mediaMetadata?: Record<string, unknown> | null;
   chunks: LiveMediaChunk[];
 };
 
@@ -55,7 +55,7 @@ export function usePlayerPanelJobInfo({
   itemType = null,
   origin = 'job',
   playerMode = 'online',
-  bookMetadata = null,
+  mediaMetadata = null,
   chunks,
 }: UsePlayerPanelJobInfoArgs): PlayerPanelJobInfo {
   const [bookSentenceCount, setBookSentenceCount] = useState<number | null>(null);
@@ -70,7 +70,7 @@ export function usePlayerPanelJobInfo({
       return;
     }
     const original =
-      extractMetadataText(bookMetadata, [
+      extractMetadataText(mediaMetadata, [
         'input_language',
         'original_language',
         'source_language',
@@ -79,11 +79,11 @@ export function usePlayerPanelJobInfo({
         'lang',
       ]) ?? null;
     const target =
-      extractMetadataFirstString(bookMetadata, ['target_language', 'translation_language', 'target_languages']) ??
+      extractMetadataFirstString(mediaMetadata, ['target_language', 'translation_language', 'target_languages']) ??
       null;
     setJobOriginalLanguage(original);
     setJobTranslationLanguage(target);
-  }, [bookMetadata, origin, playerMode]);
+  }, [mediaMetadata, origin, playerMode]);
 
   useEffect(() => {
     if (!jobId || origin === 'library' || playerMode === 'export') {
@@ -160,7 +160,7 @@ export function usePlayerPanelJobInfo({
       };
     }
 
-    const metadataCount = normaliseBookSentenceCount(bookMetadata);
+    const metadataCount = normaliseBookSentenceCount(mediaMetadata);
     if (metadataCount !== null) {
       setBookSentenceCount((current) => (current === metadataCount ? current : metadataCount));
       return () => {
@@ -243,7 +243,7 @@ export function usePlayerPanelJobInfo({
     return () => {
       cancelled = true;
     };
-  }, [bookMetadata, bookSentenceCount, chunks.length, jobId, playerMode]);
+  }, [mediaMetadata, bookSentenceCount, chunks.length, jobId, playerMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -255,8 +255,8 @@ export function usePlayerPanelJobInfo({
     }
 
     const inlineIndex =
-      bookMetadata && typeof bookMetadata === 'object'
-        ? (bookMetadata as Record<string, unknown>).content_index
+      mediaMetadata && typeof mediaMetadata === 'object'
+        ? (mediaMetadata as Record<string, unknown>).content_index
         : null;
     if (inlineIndex) {
       const chapters = normaliseContentIndexChapters(inlineIndex);
@@ -269,9 +269,9 @@ export function usePlayerPanelJobInfo({
     }
 
     const contentIndexUrl =
-      extractMetadataText(bookMetadata, ['content_index_url', 'contentIndexUrl']) ?? null;
+      extractMetadataText(mediaMetadata, ['content_index_url', 'contentIndexUrl']) ?? null;
     const contentIndexPath =
-      extractMetadataText(bookMetadata, ['content_index_path', 'contentIndexPath']) ?? null;
+      extractMetadataText(mediaMetadata, ['content_index_path', 'contentIndexPath']) ?? null;
     let targetUrl: string | null = contentIndexUrl;
     if (playerMode === 'export') {
       const candidate = contentIndexPath ?? contentIndexUrl;
@@ -328,37 +328,37 @@ export function usePlayerPanelJobInfo({
     return () => {
       cancelled = true;
     };
-  }, [bookMetadata, jobId, origin, playerMode]);
+  }, [mediaMetadata, jobId, origin, playerMode]);
 
-  const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
-  const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
-  const bookYear = extractMetadataText(bookMetadata, ['book_year', 'year', 'publication_year', 'published_year', 'first_publish_year']);
-  const bookGenre = extractMetadataFirstString(bookMetadata, ['genre', 'book_genre', 'series_genre', 'category', 'subjects']);
+  const bookTitle = extractMetadataText(mediaMetadata, ['book_title', 'title', 'book_name', 'name']);
+  const bookAuthor = extractMetadataText(mediaMetadata, ['book_author', 'author', 'writer', 'creator']);
+  const bookYear = extractMetadataText(mediaMetadata, ['book_year', 'year', 'publication_year', 'published_year', 'first_publish_year']);
+  const bookGenre = extractMetadataFirstString(mediaMetadata, ['genre', 'book_genre', 'series_genre', 'category', 'subjects']);
   const isBookLike =
     itemType === 'book' || (jobType ?? '').trim().toLowerCase().includes('book') || Boolean(bookTitle);
   const youtubeMetadata = useMemo(() => {
-    if (!bookMetadata || typeof bookMetadata !== 'object') {
+    if (!mediaMetadata || typeof mediaMetadata !== 'object') {
       return null;
     }
-    const payload = bookMetadata as Record<string, unknown>;
+    const payload = mediaMetadata as Record<string, unknown>;
     const direct = coerceRecord(payload['youtube']);
     if (direct) {
       return direct;
     }
-    const mediaMetadataCandidate =
+    const nestedMediaMetadata =
       readNestedValue(payload, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
       readNestedValue(payload, ['result', 'youtube_dub', 'media_metadata']) ??
       readNestedValue(payload, ['request', 'media_metadata']) ??
       readNestedValue(payload, ['media_metadata']) ??
       null;
-    const mediaMetadata = coerceRecord(mediaMetadataCandidate);
-    return coerceRecord(mediaMetadata?.['youtube']);
-  }, [bookMetadata]);
+    const nestedRecord = coerceRecord(nestedMediaMetadata);
+    return coerceRecord(nestedRecord?.['youtube']);
+  }, [mediaMetadata]);
   const tvMetadata = useMemo(() => {
-    if (!bookMetadata || typeof bookMetadata !== 'object') {
+    if (!mediaMetadata || typeof mediaMetadata !== 'object') {
       return null;
     }
-    const payload = bookMetadata as Record<string, unknown>;
+    const payload = mediaMetadata as Record<string, unknown>;
     const candidate =
       readNestedValue(payload, ['result', 'youtube_dub', 'media_metadata']) ??
       readNestedValue(payload, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
@@ -366,7 +366,7 @@ export function usePlayerPanelJobInfo({
       readNestedValue(payload, ['media_metadata']) ??
       null;
     return coerceRecord(candidate);
-  }, [bookMetadata]);
+  }, [mediaMetadata]);
   const hasYoutubeMetadata = Boolean(youtubeMetadata);
   const hasTvSeriesMetadata = isTvSeriesMetadata(tvMetadata);
   const channelBug = useMemo(() => {

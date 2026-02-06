@@ -35,10 +35,10 @@ export function extractLanguagesFromResult(result: unknown): {
     readStringValue(dubPayload, 'target_language') ??
     readStringValue(dubPayload, 'translation_language');
 
-  // Fallback to book_metadata
-  const bookMetadata = coerceRecord(record['book_metadata']);
+  // Fallback to media_metadata / book_metadata
+  const mediaMetadata = coerceRecord(record['media_metadata'] ?? record['book_metadata']);
   const metadataOriginal =
-    extractMetadataText(bookMetadata, [
+    extractMetadataText(mediaMetadata, [
       'input_language',
       'original_language',
       'source_language',
@@ -47,7 +47,7 @@ export function extractLanguagesFromResult(result: unknown): {
       'lang',
     ]) ?? null;
   const metadataTranslation =
-    extractMetadataFirstString(bookMetadata, [
+    extractMetadataFirstString(mediaMetadata, [
       'target_language',
       'translation_language',
       'target_languages',

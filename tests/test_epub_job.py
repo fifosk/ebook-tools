@@ -694,7 +694,7 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
             "generate_video": config.get("generate_video", False),
             "include_transliteration": config.get("include_transliteration", True),
             "tempo": config.get("tempo", 1.0),
-            "book_metadata": {
+            "media_metadata": {
                 "book_title": config.get("book_title"),
                 "book_author": config.get("book_author"),
                 "book_year": config.get("book_year"),

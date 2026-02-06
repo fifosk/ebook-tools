@@ -49,10 +49,10 @@ class LibraryMetadataManager:
                 normalized = self.normalize_isbn(value)
                 if normalized:
                     return normalized
-        book_metadata = metadata.get("book_metadata")
-        if isinstance(book_metadata, Mapping):
+        media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+        if isinstance(media_metadata, Mapping):
             for key in ("isbn", "book_isbn"):
-                value = book_metadata.get(key)
+                value = media_metadata.get(key)
                 if isinstance(value, str):
                     normalized = self.normalize_isbn(value)
                     if normalized:
@@ -63,12 +63,12 @@ class LibraryMetadataManager:
         if not isbn:
             return
         metadata["isbn"] = isbn
-        book_metadata = metadata.get("book_metadata")
-        if isinstance(book_metadata, Mapping):
-            nested = dict(book_metadata)
+        media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+        if isinstance(media_metadata, Mapping):
+            nested = dict(media_metadata)
             nested["isbn"] = isbn
             nested["book_isbn"] = isbn
-            metadata["book_metadata"] = nested
+            metadata["media_metadata"] = nested
 
     def merge_metadata_payloads(self, *payloads: Mapping[str, Any]) -> Dict[str, Any]:
         merged: Dict[str, Any] = {}

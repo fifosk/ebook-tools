@@ -207,7 +207,7 @@ function getExportManifest(): ExportPlayerManifest | null {
 }
 
 function resolveExportJobLabel(manifest: ExportPlayerManifest): string | null {
-  const metadata = manifest.book_metadata ?? null;
+  const metadata = manifest.media_metadata ?? manifest.book_metadata ?? null;
   if (metadata && typeof metadata === 'object') {
     const record = metadata as Record<string, unknown>;
     const keys = ['book_title', 'title', 'book_name', 'name'];

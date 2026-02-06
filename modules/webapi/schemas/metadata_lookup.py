@@ -58,7 +58,7 @@ class BookOpenLibraryMetadataResponse(BaseModel):
     job_id: str
     source_name: Optional[str] = None
     query: Optional[BookOpenLibraryQuery] = None
-    book_metadata_lookup: Optional[Dict[str, Any]] = None
+    media_metadata_lookup: Optional[Dict[str, Any]] = None
 
 
 class BookOpenLibraryMetadataLookupRequest(BaseModel):
@@ -72,7 +72,7 @@ class BookOpenLibraryMetadataPreviewResponse(BaseModel):
 
     source_name: Optional[str] = None
     query: Optional[BookOpenLibraryQuery] = None
-    book_metadata_lookup: Optional[Dict[str, Any]] = None
+    media_metadata_lookup: Optional[Dict[str, Any]] = None
 
 
 class BookOpenLibraryMetadataPreviewLookupRequest(BaseModel):
@@ -82,13 +82,13 @@ class BookOpenLibraryMetadataPreviewLookupRequest(BaseModel):
     force: bool = False
 
 
-class BookMetadataCacheClearRequest(BaseModel):
+class MediaMetadataCacheClearRequest(BaseModel):
     """Request payload to clear cached metadata for a query."""
 
     query: str
 
 
-class BookMetadataCacheClearResponse(BaseModel):
+class MediaMetadataCacheClearResponse(BaseModel):
     """Response payload for metadata cache clearing."""
 
     cleared: int

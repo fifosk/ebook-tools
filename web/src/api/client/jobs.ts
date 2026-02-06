@@ -219,7 +219,7 @@ export async function lookupBookOpenLibraryMetadataPreview(
   return handleResponse<BookOpenLibraryMetadataPreviewResponse>(response);
 }
 
-export async function clearBookMetadataCache(
+export async function clearMediaMetadataCache(
   query: string
 ): Promise<{ cleared: number }> {
   const response = await apiFetch('/api/pipelines/metadata/book/cache/clear', {

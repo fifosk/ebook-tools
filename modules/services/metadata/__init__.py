@@ -19,7 +19,7 @@ from .normalization import merge_results, deduplicate_genres
 from .enrichment import (
     EnrichmentResult,
     detect_media_type,
-    enrich_book_metadata,
+    enrich_media_metadata,
     enrich_metadata,
     enrich_movie_metadata,
     enrich_tv_metadata,
@@ -49,7 +49,7 @@ __all__ = [
     # Enrichment
     "EnrichmentResult",
     "detect_media_type",
-    "enrich_book_metadata",
+    "enrich_media_metadata",
     "enrich_metadata",
     "enrich_movie_metadata",
     "enrich_tv_metadata",

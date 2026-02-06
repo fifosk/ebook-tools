@@ -37,10 +37,10 @@ def extract_isbn(metadata: Mapping[str, Any]) -> Optional[str]:
                 candidates.append(trimmed)
 
     push(metadata.get("isbn"))
-    book_metadata = metadata.get("book_metadata")
-    if isinstance(book_metadata, Mapping):
-        push(book_metadata.get("isbn"))
-        push(book_metadata.get("book_isbn"))
+    media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+    if isinstance(media_metadata, Mapping):
+        push(media_metadata.get("isbn"))
+        push(media_metadata.get("book_isbn"))
 
     for raw in candidates:
         normalized = normalize_isbn(raw)
@@ -55,12 +55,12 @@ def apply_isbn(metadata: Dict[str, Any], isbn: Optional[str]) -> None:
     if not isbn:
         return
     metadata["isbn"] = isbn
-    book_metadata = metadata.get("book_metadata")
-    if isinstance(book_metadata, Mapping):
-        nested = dict(book_metadata)
+    media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+    if isinstance(media_metadata, Mapping):
+        nested = dict(media_metadata)
         nested["isbn"] = isbn
         nested["book_isbn"] = isbn
-        metadata["book_metadata"] = nested
+        metadata["media_metadata"] = nested
 
 
 def apply_source_reference(metadata: Dict[str, Any], source_relative: str) -> None:
@@ -68,12 +68,12 @@ def apply_source_reference(metadata: Dict[str, Any], source_relative: str) -> No
 
     metadata["source_path"] = source_relative
     metadata["source_file"] = source_relative
-    book_metadata = metadata.get("book_metadata")
-    if isinstance(book_metadata, Mapping):
-        nested = dict(book_metadata)
+    media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+    if isinstance(media_metadata, Mapping):
+        nested = dict(media_metadata)
         nested["source_path"] = source_relative
         nested["source_file"] = source_relative
-        metadata["book_metadata"] = nested
+        metadata["media_metadata"] = nested
 
 
 def merge_metadata_payloads(
@@ -149,12 +149,12 @@ def build_entry(
     cover_path = file_ops.extract_cover_path(metadata, job_root)
     if cover_path:
         metadata["job_cover_asset"] = cover_path
-        book_metadata = metadata.get("book_metadata")
-        if isinstance(book_metadata, Mapping):
-            nested = dict(book_metadata)
+        media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+        if isinstance(media_metadata, Mapping):
+            nested = dict(media_metadata)
             nested["job_cover_asset"] = cover_path
             nested.setdefault("book_cover_file", cover_path)
-            metadata["book_metadata"] = nested
+            metadata["media_metadata"] = nested
 
     return LibraryEntry(
         id=job_id,
@@ -254,12 +254,12 @@ def apply_narrated_subtitle_defaults(metadata: Dict[str, Any], job_root: Path) -
             if isinstance(subtitle_section, Mapping):
                 subtitle_metadata = subtitle_section.get("metadata")
                 if isinstance(subtitle_metadata, Mapping):
-                    media_metadata = subtitle_metadata.get("media_metadata")
+                    media_metadata = subtitle_metadata.get("media_metadata") or subtitle_metadata.get("book_metadata")
                     if isinstance(media_metadata, Mapping):
                         return media_metadata
         request_section = metadata.get("request")
         if isinstance(request_section, Mapping):
-            media_metadata = request_section.get("media_metadata")
+            media_metadata = request_section.get("media_metadata") or request_section.get("book_metadata")
             if isinstance(media_metadata, Mapping):
                 return media_metadata
         return None
@@ -281,12 +281,12 @@ def apply_narrated_subtitle_defaults(metadata: Dict[str, Any], job_root: Path) -
             metadata[key] = trimmed
 
     result_section = metadata.get("result")
-    book_metadata: Optional[Mapping[str, Any]] = None
-    if isinstance(result_section, Mapping) and isinstance(result_section.get("book_metadata"), Mapping):
-        book_metadata = result_section.get("book_metadata")  # type: ignore[assignment]
+    media_metadata: Optional[Mapping[str, Any]] = None
+    if isinstance(result_section, Mapping) and isinstance(result_section.get("media_metadata") or result_section.get("book_metadata"), Mapping):
+        media_metadata = result_section.get("media_metadata") or result_section.get("book_metadata")  # type: ignore[assignment]
 
-    if book_metadata is None and isinstance(metadata.get("book_metadata"), Mapping):
-        book_metadata = metadata.get("book_metadata")  # type: ignore[assignment]
+    if media_metadata is None and isinstance(metadata.get("media_metadata") or metadata.get("book_metadata"), Mapping):
+        media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")  # type: ignore[assignment]
 
     title_candidate: Optional[str] = None
     author_candidate: Optional[str] = None
@@ -327,22 +327,22 @@ def apply_narrated_subtitle_defaults(metadata: Dict[str, Any], job_root: Path) -
         if title_candidate is None and isinstance(episode_name, str) and episode_name.strip():
             title_candidate = episode_name.strip()
 
-    if book_metadata is not None:
+    if media_metadata is not None:
         if title_candidate is None:
             title_candidate = (
-                str(book_metadata.get("book_title") or book_metadata.get("title") or "").strip() or None
+                str(media_metadata.get("book_title") or media_metadata.get("title") or "").strip() or None
             )
         if author_candidate is None:
             author_candidate = (
-                str(book_metadata.get("book_author") or book_metadata.get("author") or "").strip() or None
+                str(media_metadata.get("book_author") or media_metadata.get("author") or "").strip() or None
             )
         if genre_candidate is None:
             genre_candidate = (
-                str(book_metadata.get("book_genre") or book_metadata.get("genre") or "").strip() or None
+                str(media_metadata.get("book_genre") or media_metadata.get("genre") or "").strip() or None
             )
         if language_candidate is None:
             language_candidate = (
-                str(book_metadata.get("book_language") or book_metadata.get("language") or "").strip() or None
+                str(media_metadata.get("book_language") or media_metadata.get("language") or "").strip() or None
             )
 
     request_section = metadata.get("request")
@@ -389,22 +389,22 @@ def apply_book_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
     resume_section = metadata.get("resume_context")
     request_payload_section = metadata.get("request_payload")
 
-    book_metadata: Optional[Mapping[str, Any]] = None
-    direct_book_metadata = metadata.get("book_metadata")
-    if isinstance(direct_book_metadata, Mapping):
-        book_metadata = direct_book_metadata
-    if book_metadata is None and isinstance(result_section, Mapping):
-        candidate = result_section.get("book_metadata")
+    media_metadata: Optional[Mapping[str, Any]] = None
+    direct_media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+    if isinstance(direct_media_metadata, Mapping):
+        media_metadata = direct_media_metadata
+    if media_metadata is None and isinstance(result_section, Mapping):
+        candidate = result_section.get("media_metadata") or result_section.get("book_metadata")
         if isinstance(candidate, Mapping):
-            book_metadata = candidate
-            metadata["book_metadata"] = dict(candidate)
-    if book_metadata is None and isinstance(request_section, Mapping):
+            media_metadata = candidate
+            metadata["media_metadata"] = dict(candidate)
+    if media_metadata is None and isinstance(request_section, Mapping):
         inputs = request_section.get("inputs")
         if isinstance(inputs, Mapping):
-            candidate = inputs.get("book_metadata")
+            candidate = inputs.get("media_metadata") or inputs.get("book_metadata")
             if isinstance(candidate, Mapping):
-                book_metadata = candidate
-                metadata["book_metadata"] = dict(candidate)
+                media_metadata = candidate
+                metadata["media_metadata"] = dict(candidate)
 
     title_candidate: Optional[str] = None
     author_candidate: Optional[str] = None
@@ -416,18 +416,18 @@ def apply_book_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
     request_input_language_candidate: Optional[str] = None
     request_target_languages_candidate: list[str] = []
 
-    if book_metadata is not None:
+    if media_metadata is not None:
         title_candidate = (
-            str(book_metadata.get("book_title") or book_metadata.get("title") or "").strip() or None
+            str(media_metadata.get("book_title") or media_metadata.get("title") or "").strip() or None
         )
         author_candidate = (
-            str(book_metadata.get("book_author") or book_metadata.get("author") or "").strip() or None
+            str(media_metadata.get("book_author") or media_metadata.get("author") or "").strip() or None
         )
         genre_candidate = (
-            str(book_metadata.get("book_genre") or book_metadata.get("genre") or "").strip() or None
+            str(media_metadata.get("book_genre") or media_metadata.get("genre") or "").strip() or None
         )
         language_candidate = (
-            str(book_metadata.get("book_language") or book_metadata.get("language") or "").strip() or None
+            str(media_metadata.get("book_language") or media_metadata.get("language") or "").strip() or None
         )
 
     def _extract_language(value: Any) -> Optional[str]:
@@ -563,10 +563,10 @@ def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
 
     def _extract_tv_episode_metadata() -> Optional[Mapping[str, Any]]:
         if isinstance(request_section, Mapping):
-            candidate = request_section.get("media_metadata")
+            candidate = request_section.get("media_metadata") or request_section.get("book_metadata")
             if isinstance(candidate, Mapping):
                 return candidate
-        direct = metadata.get("media_metadata")
+        direct = metadata.get("media_metadata") or metadata.get("book_metadata")
         if isinstance(direct, Mapping):
             return direct
         return None
@@ -590,13 +590,13 @@ def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
         if isinstance(current, str) and current.strip():
             return
         metadata[key] = trimmed
-        book_metadata = metadata.get("book_metadata")
-        if isinstance(book_metadata, Mapping):
-            nested = dict(book_metadata)
+        media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+        if isinstance(media_metadata, Mapping):
+            nested = dict(media_metadata)
             existing = nested.get(key)
             if not (isinstance(existing, str) and existing.strip()):
                 nested[key] = trimmed
-                metadata["book_metadata"] = nested
+                metadata["media_metadata"] = nested
 
     def _extract_input_language() -> Optional[str]:
         for section in (resume_context, request_section):
@@ -611,7 +611,7 @@ def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
                 candidate = section.get(key)
                 if isinstance(candidate, str) and candidate.strip():
                     return candidate.strip()
-            media_metadata = section.get("media_metadata")
+            media_metadata = section.get("media_metadata") or section.get("book_metadata")
             if isinstance(media_metadata, Mapping):
                 candidate = media_metadata.get("language") or media_metadata.get("source_language")
                 if isinstance(candidate, str) and candidate.strip():

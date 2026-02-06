@@ -23,7 +23,7 @@ from ..library import (
 )
 from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
-from ..services.book_metadata_service import BookMetadataService
+from ..services.media_metadata_service import MediaMetadataService
 from ..services.subtitle_service import SubtitleService
 from ..services.subtitle_metadata_service import SubtitleMetadataService
 from ..services.youtube_video_metadata_service import YoutubeVideoMetadataService
@@ -31,6 +31,7 @@ from ..services.video_service import VideoService
 from ..services.youtube_dubbing import YoutubeDubbingService
 from ..services.export_service import ExportService
 from ..services.bookmark_service import BookmarkService
+from ..services.resume_service import ResumeService
 from ..user_management import AuthService, LocalUserStore, SessionManager
 from ..video.backends import create_video_renderer
 from modules.permissions import normalize_role
@@ -365,6 +366,13 @@ def get_bookmark_service() -> BookmarkService:
 
 
 @lru_cache
+def get_resume_service() -> ResumeService:
+    """Return the shared :class:`ResumeService` instance."""
+
+    return ResumeService(file_locator=get_file_locator())
+
+
+@lru_cache
 def get_audio_service() -> AudioService:
     """Return a configured :class:`AudioService` instance."""
 
@@ -416,11 +424,11 @@ def get_subtitle_metadata_service() -> SubtitleMetadataService:
 
 
 @lru_cache
-def get_book_metadata_service() -> BookMetadataService:
-    """Return the shared :class:`BookMetadataService` instance."""
+def get_media_metadata_service() -> MediaMetadataService:
+    """Return the shared :class:`MediaMetadataService` instance."""
 
     job_manager = get_pipeline_job_manager()
-    return BookMetadataService(job_manager=job_manager)
+    return MediaMetadataService(job_manager=job_manager)
 
 
 @lru_cache

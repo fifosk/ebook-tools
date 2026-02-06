@@ -243,7 +243,34 @@ def _collect_sentence_range_texts(
     return collected
 
 
-def _extract_sentence_image(entry: Mapping[str, Any]) -> tuple[Optional[str], Optional[str]]:
+def _load_image_manifest(job_root: Path) -> Optional[Mapping[str, Any]]:
+    """Load the image manifest if it exists, returning the ``images`` dict or None."""
+    manifest_path = job_root / "metadata" / "image_manifest.json"
+    if not manifest_path.exists():
+        return None
+    try:
+        raw = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not isinstance(raw, Mapping):
+        return None
+    images = raw.get("images")
+    return images if isinstance(images, Mapping) else None
+
+
+def _extract_sentence_image(
+    entry: Mapping[str, Any],
+    manifest_entry: Optional[Mapping[str, Any]] = None,
+) -> tuple[Optional[str], Optional[str]]:
+    # Prefer manifest entry (new jobs with image_manifest.json)
+    if isinstance(manifest_entry, Mapping):
+        prompt = manifest_entry.get("prompt")
+        negative = manifest_entry.get("negativePrompt") or manifest_entry.get("negative_prompt")
+        prompt_str = prompt.strip() if isinstance(prompt, str) and prompt.strip() else None
+        negative_str = negative.strip() if isinstance(negative, str) and negative.strip() else None
+        if prompt_str is not None:
+            return prompt_str, negative_str
+    # Fallback to inline image dict (old chunks)
     image = entry.get("image")
     if not isinstance(image, Mapping):
         return None, None
@@ -322,6 +349,7 @@ def _build_sentence_image_info_response(
     sentence_number: int,
     chunk: Mapping[str, Any],
     sentence_entry: Mapping[str, Any],
+    manifest_entry: Optional[Mapping[str, Any]] = None,
 ) -> SentenceImageInfoResponse:
     range_fragment = chunk.get("range_fragment") or chunk.get("rangeFragment")
     range_fragment_str = (
@@ -329,7 +357,7 @@ def _build_sentence_image_info_response(
         if isinstance(range_fragment, str) and range_fragment.strip()
         else None
     )
-    prompt, negative_prompt = _extract_sentence_image(sentence_entry)
+    prompt, negative_prompt = _extract_sentence_image(sentence_entry, manifest_entry)
     relative_path = _extract_sentence_image_path(sentence_entry)
     if not relative_path and range_fragment_str:
         relative_path = _resolve_image_relative_path(range_fragment_str, sentence_number)
@@ -485,7 +513,7 @@ def _resolve_visual_canon_prompt(
     sentence_text: str,
 ) -> tuple[str, str]:
     metadata_root = job_root / "metadata"
-    book_metadata: dict[str, Any] = {}
+    media_metadata: dict[str, Any] = {}
     content_index_payload: Optional[Mapping[str, Any]] = None
 
     canon_path = metadata_root / "visual_canon.json"
@@ -497,9 +525,9 @@ def _resolve_visual_canon_prompt(
         try:
             loaded = json.loads(book_path.read_text(encoding="utf-8"))
             if isinstance(loaded, Mapping):
-                book_metadata = dict(loaded)
+                media_metadata = dict(loaded)
         except Exception:
-            book_metadata = {}
+            media_metadata = {}
 
     content_index_path = metadata_root / "content_index.json"
     if content_index_path.exists():
@@ -524,7 +552,7 @@ def _resolve_visual_canon_prompt(
     if total_sentences is None:
         for key in ("total_sentences", "book_sentence_count"):
             try:
-                total_sentences = int(book_metadata.get(key))
+                total_sentences = int(media_metadata.get(key))
             except (TypeError, ValueError):
                 total_sentences = None
             if total_sentences:
@@ -535,7 +563,7 @@ def _resolve_visual_canon_prompt(
     dummy_sentences = [""] * total_sentences
     orchestrator = VisualPromptOrchestrator(
         job_root=job_root,
-        book_metadata=book_metadata,
+        media_metadata=media_metadata,
         full_sentences=dummy_sentences,
         content_index=content_index_payload,
     )
@@ -617,6 +645,7 @@ async def get_sentence_image_info_batch(
 
     def _load_batch() -> Tuple[List[SentenceImageInfoResponse], List[int]]:
         loader = MetadataLoader(job_root)
+        manifest_images = _load_image_manifest(job_root)
         payload_cache: Dict[str, Mapping[str, Any]] = {}
         items: List[SentenceImageInfoResponse] = []
         missing: List[int] = []
@@ -643,12 +672,18 @@ async def get_sentence_image_info_batch(
             if not isinstance(entry, Mapping):
                 missing.append(sentence_number)
                 continue
+            m_entry = (
+                manifest_images.get(str(sentence_number))
+                if isinstance(manifest_images, Mapping)
+                else None
+            )
             items.append(
                 _build_sentence_image_info_response(
                     job_id=job_id,
                     sentence_number=sentence_number,
                     chunk=chunk,
                     sentence_entry=entry,
+                    manifest_entry=m_entry,
                 )
             )
 
@@ -705,11 +740,18 @@ async def get_sentence_image_info(
         sentence_number=sentence_number,
         job_root=job_root,
     )
+    manifest_images = await run_in_threadpool(_load_image_manifest, job_root)
+    manifest_entry = (
+        manifest_images.get(str(sentence_number))
+        if isinstance(manifest_images, Mapping)
+        else None
+    )
     response = _build_sentence_image_info_response(
         job_id=job_id,
         sentence_number=sentence_number,
         chunk=chunk,
         sentence_entry=sentence_entry,
+        manifest_entry=manifest_entry,
     )
     duration_ms = (time.perf_counter() - start) * 1000
     if duration_ms >= 250:
@@ -782,7 +824,13 @@ async def regenerate_sentence_image(
         else None
     )
 
-    stored_prompt, stored_negative = _extract_sentence_image(sentence_entry)
+    regen_manifest_images = await run_in_threadpool(_load_image_manifest, job_root)
+    regen_manifest_entry = (
+        regen_manifest_images.get(str(sentence_number))
+        if isinstance(regen_manifest_images, Mapping)
+        else None
+    )
+    stored_prompt, stored_negative = _extract_sentence_image(sentence_entry, regen_manifest_entry)
     stored_image_path = _extract_sentence_image_path(sentence_entry)
     relative_path = None
     if isinstance(stored_image_path, str) and stored_image_path.strip():
@@ -1020,6 +1068,28 @@ async def regenerate_sentence_image(
                 updated = True
             if updated:
                 _atomic_write_json(chunk_path, raw)
+
+        # Update image manifest if it exists
+        manifest_path = job_root / "metadata" / "image_manifest.json"
+        if manifest_path.exists():
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except Exception:
+                manifest = None
+            if isinstance(manifest, dict) and isinstance(manifest.get("images"), dict):
+                key = str(sentence_number)
+                existing_entry = manifest["images"].get(key, {})
+                if not isinstance(existing_entry, dict):
+                    existing_entry = {}
+                existing_entry["path"] = relative_path
+                existing_entry["prompt"] = prompt_full
+                if negative_full:
+                    existing_entry["negativePrompt"] = negative_full
+                else:
+                    existing_entry.pop("negativePrompt", None)
+                    existing_entry.pop("negative_prompt", None)
+                manifest["images"][key] = existing_entry
+                _atomic_write_json(manifest_path, manifest)
 
     await run_in_threadpool(_update_job_metadata)
 

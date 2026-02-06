@@ -553,7 +553,7 @@ class SubtitleService:
             if export_path is not None:
                 subtitle_metadata["export_path"] = export_path.as_posix()
 
-            book_metadata: Dict[str, object] = {
+            media_metadata: Dict[str, object] = {
                 "book_title": display_title,
                 "book_author": "Subtitles",
                 "book_genre": "Subtitles",
@@ -572,40 +572,40 @@ class SubtitleService:
                 genres = show.get("genres") if isinstance(show, Mapping) else None
 
                 if isinstance(show_name, str) and show_name.strip():
-                    book_metadata["book_author"] = show_name.strip()
-                    book_metadata["series_title"] = show_name.strip()
+                    media_metadata["book_author"] = show_name.strip()
+                    media_metadata["series_title"] = show_name.strip()
                 if isinstance(season_number, int) and isinstance(episode_number, int) and season_number > 0 and episode_number > 0:
-                    book_metadata["season_number"] = season_number
-                    book_metadata["episode_number"] = episode_number
-                    book_metadata["episode_code"] = _format_episode_code(season_number, episode_number)
+                    media_metadata["season_number"] = season_number
+                    media_metadata["episode_number"] = episode_number
+                    media_metadata["episode_code"] = _format_episode_code(season_number, episode_number)
                 if isinstance(episode_name, str) and episode_name.strip():
-                    book_metadata["episode_title"] = episode_name.strip()
+                    media_metadata["episode_title"] = episode_name.strip()
                 if isinstance(airdate, str) and airdate.strip():
-                    book_metadata["airdate"] = airdate.strip()
+                    media_metadata["airdate"] = airdate.strip()
                 if isinstance(genres, list) and genres:
                     filtered = [entry.strip() for entry in genres if isinstance(entry, str) and entry.strip()]
                     if filtered:
-                        book_metadata["book_genre"] = "TV"
-                        book_metadata["series_genres"] = filtered
+                        media_metadata["book_genre"] = "TV"
+                        media_metadata["series_genres"] = filtered
                 provider = media_metadata.get("provider")
                 if isinstance(provider, str) and provider.strip():
-                    book_metadata["tv_metadata_provider"] = provider.strip()
+                    media_metadata["tv_metadata_provider"] = provider.strip()
                 tvmaze = media_metadata.get("tvmaze")
                 if isinstance(tvmaze, Mapping):
                     show_id = tvmaze.get("show_id")
                     episode_id = tvmaze.get("episode_id")
                     if isinstance(show_id, int):
-                        book_metadata["tvmaze_show_id"] = show_id
+                        media_metadata["tvmaze_show_id"] = show_id
                     if isinstance(episode_id, int):
-                        book_metadata["tvmaze_episode_id"] = episode_id
+                        media_metadata["tvmaze_episode_id"] = episode_id
                 job_label = media_metadata.get("job_label")
                 if isinstance(job_label, str) and job_label.strip():
-                    book_metadata["job_label"] = job_label.strip()
-                    code = book_metadata.get("episode_code")
+                    media_metadata["job_label"] = job_label.strip()
+                    code = media_metadata.get("episode_code")
                     if isinstance(code, str) and code.strip() and isinstance(episode_name, str) and episode_name.strip():
-                        book_metadata["book_title"] = f"{code.strip()} - {episode_name.strip()}"
+                        media_metadata["book_title"] = f"{code.strip()} - {episode_name.strip()}"
                     elif isinstance(code, str) and code.strip():
-                        book_metadata["book_title"] = code.strip()
+                        media_metadata["book_title"] = code.strip()
 
             result_payload: Dict[str, object] = {
                 "subtitle": {
@@ -615,7 +615,7 @@ class SubtitleService:
                     "cues": result.cue_count,
                     "translated": result.translated_count,
                 },
-                "book_metadata": book_metadata,
+                "media_metadata": media_metadata,
             }
             job.result_payload = result_payload
 

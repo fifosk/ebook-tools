@@ -182,7 +182,7 @@ def _iter_metadata_sections(metadata: Mapping[str, Any]) -> Iterable[Mapping[str
 
 def _resolve_language_labels(
     metadata: Mapping[str, Any],
-    book_metadata: Optional[Mapping[str, Any]],
+    media_metadata: Optional[Mapping[str, Any]],
 ) -> Tuple[Optional[str], Optional[str]]:
     original = None
     target = None
@@ -202,11 +202,11 @@ def _resolve_language_labels(
     if target is None:
         target = _extract_first_text(metadata, ("language", "book_language"))
 
-    if isinstance(book_metadata, Mapping):
+    if isinstance(media_metadata, Mapping):
         if original is None:
-            original = _extract_first_text(book_metadata, ("original_language", "input_language", "book_language", "language"))
+            original = _extract_first_text(media_metadata, ("original_language", "input_language", "book_language", "language"))
         if target is None:
-            target = _extract_first_text(book_metadata, ("target_language", "translation_language", "target_languages", "language", "book_language"))
+            target = _extract_first_text(media_metadata, ("target_language", "translation_language", "target_languages", "language", "book_language"))
 
     return original, target
 
@@ -262,25 +262,25 @@ def _normalize_label_text(value: Optional[str], fallback: str) -> str:
     return trimmed or fallback
 
 
-def _resolve_book_metadata_section(metadata: Mapping[str, Any]) -> Optional[Mapping[str, Any]]:
-    candidate = metadata.get("book_metadata")
+def _resolve_media_metadata_section(metadata: Mapping[str, Any]) -> Optional[Mapping[str, Any]]:
+    candidate = metadata.get("media_metadata")
     return candidate if isinstance(candidate, Mapping) else None
 
 
 def _is_book_export(
     item_type: Optional[str],
     job_type: Optional[str],
-    book_metadata: Mapping[str, Any],
+    media_metadata: Mapping[str, Any],
 ) -> bool:
     if isinstance(item_type, str) and item_type.strip().lower() == "book":
         return True
     if isinstance(job_type, str) and "book" in job_type.lower():
         return True
     for key in ("book_title", "title", "book_name", "book_author", "author"):
-        value = book_metadata.get(key)
+        value = media_metadata.get(key)
         if isinstance(value, str) and value.strip():
             return True
-    nested = _resolve_book_metadata_section(book_metadata)
+    nested = _resolve_media_metadata_section(media_metadata)
     if isinstance(nested, Mapping):
         for key in ("book_title", "title", "book_name", "book_author", "author"):
             value = nested.get(key)
@@ -330,28 +330,28 @@ def _is_video_export(
 def _build_export_label(
     *,
     metadata: Mapping[str, Any],
-    book_metadata: Mapping[str, Any],
+    media_metadata: Mapping[str, Any],
     chunks: Iterable[Mapping[str, Any]],
     library_entry: Optional[LibraryEntry] = None,
 ) -> Optional[str]:
-    nested_book = _resolve_book_metadata_section(book_metadata)
+    nested_book = _resolve_media_metadata_section(media_metadata)
     author_candidate = library_entry.author if library_entry else None
     title_candidate = library_entry.book_title if library_entry else None
 
     if not author_candidate:
         author_candidate = _extract_first_text(
-            nested_book or book_metadata,
+            nested_book or media_metadata,
             ("book_author", "author", "writer", "creator"),
         )
     if not title_candidate:
         title_candidate = _extract_first_text(
-            nested_book or book_metadata,
+            nested_book or media_metadata,
             ("book_title", "title", "book_name", "name"),
         )
 
     author = _normalize_label_text(author_candidate, UNKNOWN_AUTHOR)
     title = _normalize_label_text(title_candidate, UNTITLED_BOOK)
-    original_label, target_label = _resolve_language_labels(metadata, nested_book or book_metadata)
+    original_label, target_label = _resolve_language_labels(metadata, nested_book or media_metadata)
     original_code = _normalize_language_code(original_label) or DEFAULT_UNKNOWN_LANGUAGE_CODE
     target_code = _normalize_language_code(target_label) or DEFAULT_UNKNOWN_LANGUAGE_CODE
     start_sentence, end_sentence = _resolve_sentence_range(metadata, chunks)
@@ -541,7 +541,7 @@ def _sanitize_sentence_images(sentence: Mapping[str, Any], *, job_root: Path) ->
     return payload
 
 
-def _sanitize_book_metadata(metadata: Mapping[str, Any], *, job_root: Path) -> Dict[str, Any]:
+def _sanitize_media_metadata(metadata: Mapping[str, Any], *, job_root: Path) -> Dict[str, Any]:
     payload = {key: value for key, value in metadata.items() if key not in {"generated_files", "chunks"}}
     cover_candidates = [
         payload.get("job_cover_asset"),
@@ -835,7 +835,7 @@ class ExportService:
 
         complete = bool(complete_flag) if isinstance(complete_flag, bool) else False
 
-        book_metadata = _sanitize_book_metadata(metadata, job_root=job_root)
+        media_metadata = _sanitize_media_metadata(metadata, job_root=job_root)
         is_video_export = _is_video_export(
             item_type=item_type,
             job_type=job_type,
@@ -843,11 +843,11 @@ class ExportService:
             media_map=media_map,
             chunks=chunk_payloads,
         )
-        is_book_export = False if is_video_export else _is_book_export(item_type, job_type, book_metadata)
+        is_book_export = False if is_video_export else _is_book_export(item_type, job_type, media_metadata)
         export_label = (
             _build_export_label(
                 metadata=metadata,
-                book_metadata=book_metadata,
+                media_metadata=media_metadata,
                 chunks=chunk_payloads,
                 library_entry=library_entry,
             )
@@ -878,7 +878,7 @@ class ExportService:
                 },
             },
             "source": source_payload,
-            "book_metadata": book_metadata,
+            "media_metadata": media_metadata,
             "media": media_map,
             "chunks": chunk_records,
             "complete": complete,
@@ -911,7 +911,7 @@ class ExportService:
             base_name = _sanitize_filename(export_label, fallback="export")
             download_name = f"{base_name}.zip"
         else:
-            download_label = book_metadata.get("book_title") or job_id
+            download_label = media_metadata.get("book_title") or job_id
             download_name = f"{_sanitize_filename(str(download_label), fallback='export')}-player.zip"
 
         zip_path = export_root / f"{export_id}.zip"

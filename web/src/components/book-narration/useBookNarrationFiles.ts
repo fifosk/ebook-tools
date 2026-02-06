@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { DragEvent } from 'react';
 import type { PipelineFileBrowserResponse, PipelineFileEntry } from '../../api/dtos';
 import { deletePipelineEbook, fetchPipelineFiles, uploadEpubFile } from '../../api/client';
-import { loadCachedBookMetadataJson } from '../../utils/bookMetadataCache';
+import { loadCachedMediaMetadataJson } from '../../utils/mediaMetadataCache';
 import type { FormState } from './bookNarrationFormTypes';
 import { DEFAULT_FORM_STATE, PREFERRED_SAMPLE_EBOOK } from './bookNarrationFormDefaults';
 import { deriveBaseOutputName } from './bookNarrationFormUtils';
@@ -53,7 +53,7 @@ export function useBookNarrationFiles({
       lastAutoEndSentenceRef.current = null;
       markUserEditedField('input_file');
       const normalizedInput = normalizePath(value);
-      const cachedBookMetadata = normalizedInput ? loadCachedBookMetadataJson(normalizedInput) : null;
+      const cachedBookMetadata = normalizedInput ? loadCachedMediaMetadataJson(normalizedInput) : null;
       setFormState((previous) => {
         if (previous.input_file === value) {
           return previous;

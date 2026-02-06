@@ -29,6 +29,8 @@ export type ExportPlayerManifest = {
     features?: ExportPlayerFeatureFlags | null;
   } | null;
   source?: ExportPlayerSource | null;
+  media_metadata?: Record<string, unknown> | null;
+  /** @deprecated Use media_metadata. Kept for backward compat with old exports. */
   book_metadata?: Record<string, unknown> | null;
   media?: Record<string, PipelineMediaFile[] | undefined> | null;
   inline_subtitles?: Record<string, string> | null;

@@ -62,7 +62,7 @@ def confirm_settings(
     console_info("\nTo run non-interactively with these settings, use the following command:")
     console_info("%s", " ".join(cmd_parts))
 
-    book_metadata = {
+    media_metadata = {
         "book_title": config.get("book_title"),
         "book_author": config.get("book_author"),
         "book_year": config.get("book_year"),
@@ -89,7 +89,7 @@ def confirm_settings(
         add_images=config.get("add_images", False),
         include_transliteration=config.get("include_transliteration", True),
         tempo=config.get("tempo", 1.0),
-        book_metadata=PipelineMetadata.from_mapping(book_metadata),
+        media_metadata=PipelineMetadata.from_mapping(media_metadata),
     )
     return config, pipeline_input
 

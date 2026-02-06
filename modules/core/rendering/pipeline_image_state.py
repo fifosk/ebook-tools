@@ -81,6 +81,7 @@ class _ImageGenerationState:
         self._lock = threading.Lock()
         self._chunks: dict[str, dict[str, Any]] = {}
         self._pending: dict[str, list[_SentenceImageResult]] = {}
+        self._manifest_entries: dict[int, dict[str, Any]] = {}
 
     def register_chunk(self, result) -> bool:
         """Store ``result`` and apply any pending image updates. Returns True if updated."""
@@ -164,6 +165,17 @@ class _ImageGenerationState:
             else:
                 updated = False
 
+            extra_payload_for_manifest = image.extra if isinstance(image.extra, dict) else {}
+            self._manifest_entries[image.sentence_number] = {
+                "sentenceNumber": image.sentence_number,
+                "chunkId": image.chunk_id,
+                "rangeFragment": image.range_fragment,
+                "path": image.relative_path,
+                "prompt": image.prompt,
+                **({"negativePrompt": image.negative_prompt} if image.negative_prompt else {}),
+                **extra_payload_for_manifest,
+            }
+
             extra_files: list[dict[str, Any]] = chunk.get("extra_files") or []
             signature = ("image", image.relative_path)
             seen = chunk.setdefault("_image_seen", set())
@@ -184,6 +196,19 @@ class _ImageGenerationState:
                 updated = True or updated
 
         return updated
+
+    def write_manifest(self, job_root: Path) -> None:
+        """Write image metadata manifest to ``metadata/image_manifest.json``."""
+        with self._lock:
+            if not self._manifest_entries:
+                return
+            manifest = {
+                "version": 1,
+                "images": {str(k): v for k, v in sorted(self._manifest_entries.items())},
+            }
+        manifest_path = job_root / "metadata" / "image_manifest.json"
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        _atomic_write_json(manifest_path, manifest)
 
     def snapshot_chunk(self, chunk_id: str) -> Optional[dict[str, Any]]:
         with self._lock:

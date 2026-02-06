@@ -23,7 +23,7 @@ type BookNarrationSourceSectionProps = {
   configOverrides: string;
   environmentOverrides: string;
   pipelineOverrides: string;
-  bookMetadata: string;
+  mediaMetadata: string;
   onConfigOverridesChange: (value: string) => void;
   onEnvironmentOverridesChange: (value: string) => void;
   onPipelineOverridesChange: (value: string) => void;
@@ -57,7 +57,7 @@ const BookNarrationSourceSection = ({
   configOverrides,
   environmentOverrides,
   pipelineOverrides,
-  bookMetadata,
+  mediaMetadata,
   onConfigOverridesChange,
   onEnvironmentOverridesChange,
   onPipelineOverridesChange,
@@ -227,7 +227,7 @@ const BookNarrationSourceSection = ({
               id="book_metadata"
               name="book_metadata"
               rows={3}
-              value={bookMetadata}
+              value={mediaMetadata}
               onChange={(event) => onBookMetadataChange(event.target.value)}
               spellCheck={false}
             />

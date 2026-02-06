@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LiveMediaItem } from '../../hooks/useLiveMedia';
+import type { ExtendedPlaybackControls as PlaybackControls } from '../../lib/playback';
 import type { NavigationIntent } from '../player-panel/constants';
 import {
   DEFAULT_TRANSLATION_SPEED,
@@ -12,13 +13,6 @@ import {
 } from '../player-panel/constants';
 
 type MediaCategory = 'text' | 'audio' | 'video';
-
-type PlaybackControls = {
-  pause: () => void;
-  play: () => void;
-  ensureFullscreen?: () => void;
-  seek?: (time: number) => void;
-};
 
 interface VideoFile {
   id: string;

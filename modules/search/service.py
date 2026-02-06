@@ -137,7 +137,7 @@ def _resolve_job_label(job: PipelineJob) -> str | None:
             label = Path(base_output).stem
             return label or None
 
-        metadata = inputs.get("book_metadata")
+        metadata = inputs.get("media_metadata")
         if isinstance(metadata, Mapping):
             title = metadata.get("title")
             if isinstance(title, str) and title.strip():

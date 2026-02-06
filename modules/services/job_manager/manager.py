@@ -350,11 +350,11 @@ class PipelineJobManager:
                 return
 
             base_payload = copy.deepcopy(job.result_payload) if job.result_payload else {}
-            book_metadata = base_payload.get("book_metadata")
-            if not isinstance(book_metadata, dict):
-                book_metadata = {}
-            book_metadata.update(metadata)
-            base_payload["book_metadata"] = book_metadata
+            media_metadata = base_payload.get("media_metadata") or base_payload.get("book_metadata")
+            if not isinstance(media_metadata, dict):
+                media_metadata = {}
+            media_metadata.update(metadata)
+            base_payload["media_metadata"] = media_metadata
             job.result_payload = base_payload
 
             snapshot = self._persistence.snapshot(job)
@@ -1109,26 +1109,26 @@ class PipelineJobManager:
 
         if job.result_payload:
             job_label = job.result_payload.get("title")
-            book_metadata = job.result_payload.get("book_metadata")
-            if isinstance(book_metadata, dict):
+            media_metadata = job.result_payload.get("media_metadata") or job.result_payload.get("book_metadata")
+            if isinstance(media_metadata, dict):
                 if not job_label:
-                    job_label = book_metadata.get("title")
+                    job_label = media_metadata.get("title")
                 # Extract author as subtitle
-                subtitle = book_metadata.get("author")
+                subtitle = media_metadata.get("author")
                 # Check if job has a cover asset - use the public storage endpoint
-                cover_asset = book_metadata.get("job_cover_asset")
+                cover_asset = media_metadata.get("job_cover_asset")
                 if isinstance(cover_asset, str) and cover_asset:
                     # Extract just the filename if it's a path
                     cover_filename = cover_asset.rsplit("/", 1)[-1]
                     cover_url = f"/api/storage/covers/{cover_filename}"
                 # Extract language metadata
-                input_language = book_metadata.get("input_language")
-                target_language = book_metadata.get("target_language")
+                input_language = media_metadata.get("input_language")
+                target_language = media_metadata.get("target_language")
                 # Extract chapter and sentence counts
-                content_index_summary = book_metadata.get("content_index_summary")
+                content_index_summary = media_metadata.get("content_index_summary")
                 if isinstance(content_index_summary, dict):
                     chapter_count = content_index_summary.get("chapter_count")
-                sentence_count = book_metadata.get("book_sentence_count") or book_metadata.get("total_sentences")
+                sentence_count = media_metadata.get("book_sentence_count") or media_metadata.get("total_sentences")
 
         # Schedule the async notification in a background task
         try:

@@ -22,7 +22,7 @@ type BookMetadataSectionProps = {
   metadataPreview: BookOpenLibraryMetadataPreviewResponse | null;
   metadataLoading: boolean;
   metadataError: string | null;
-  bookMetadataJson: string;
+  mediaMetadataJson: string;
   cachedCoverDataUrl: string | null;
   onMetadataLookupQueryChange: (value: string) => void;
   onLookupMetadata: (query: string, force: boolean) => void;
@@ -39,7 +39,7 @@ export default function BookMetadataSection({
   metadataPreview,
   metadataLoading,
   metadataError,
-  bookMetadataJson,
+  mediaMetadataJson,
   cachedCoverDataUrl,
   onMetadataLookupQueryChange,
   onLookupMetadata,
@@ -55,7 +55,7 @@ export default function BookMetadataSection({
 
   const { parsedMetadata, parsedError } = useMemo(() => {
     try {
-      const parsed = parseJsonField('book_metadata', bookMetadataJson);
+      const parsed = parseJsonField('book_metadata', mediaMetadataJson);
       return { parsedMetadata: parsed, parsedError: null };
     } catch (error) {
       return {
@@ -63,25 +63,25 @@ export default function BookMetadataSection({
         parsedError: error instanceof Error ? error.message : String(error)
       };
     }
-  }, [bookMetadataJson]);
+  }, [mediaMetadataJson]);
 
   const updateBookMetadata = useCallback(
     (updater: (draft: Record<string, unknown>) => void) => {
       let draft: Record<string, unknown> = {};
       try {
-        draft = parseJsonField('book_metadata', bookMetadataJson);
+        draft = parseJsonField('book_metadata', mediaMetadataJson);
       } catch {
         draft = {};
       }
       const next = { ...draft };
       updater(next);
       const nextJson = JSON.stringify(next, null, 2);
-      if (nextJson === bookMetadataJson) {
+      if (nextJson === mediaMetadataJson) {
         return;
       }
       onBookMetadataJsonChange(nextJson);
     },
-    [bookMetadataJson, onBookMetadataJsonChange]
+    [mediaMetadataJson, onBookMetadataJsonChange]
   );
 
   const performCoverUpload = useCallback(
@@ -134,8 +134,10 @@ export default function BookMetadataSection({
   const isbnQuery = normalizeIsbnCandidate(isbn);
   const resolvedLookupQuery = (isbnQuery ?? metadataLookupQuery).trim();
 
-  const lookup = metadataPreview ? coerceRecord(metadataPreview.book_metadata_lookup) : null;
-  const storedLookup = parsedMetadata ? coerceRecord(parsedMetadata['book_metadata_lookup']) : null;
+  const lookup = metadataPreview ? coerceRecord(metadataPreview.media_metadata_lookup) : null;
+  const storedLookup = parsedMetadata
+    ? coerceRecord(parsedMetadata['media_metadata_lookup'] ?? parsedMetadata['book_metadata_lookup'])
+    : null;
   const rawPayload = lookup ?? storedLookup;
   const lookupBook = lookup ? coerceRecord(lookup['book']) : null;
   const lookupError = normalizeTextValue(lookup?.['error']);

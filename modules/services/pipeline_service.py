@@ -65,13 +65,13 @@ class PipelineInput:
     transliteration_model: Optional[str] = None
     enable_lookup_cache: bool = True
     lookup_cache_batch_size: int = 10
-    book_metadata: PipelineMetadata = field(default_factory=PipelineMetadata)
+    media_metadata: PipelineMetadata = field(default_factory=PipelineMetadata)
     voice_overrides: Dict[str, str] = field(default_factory=dict)
     audio_bitrate_kbps: Optional[int] = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.book_metadata, PipelineMetadata):
-            self.book_metadata = PipelineMetadata.from_mapping(self.book_metadata)
+        if not isinstance(self.media_metadata, PipelineMetadata):
+            self.media_metadata = PipelineMetadata.from_mapping(self.media_metadata)
         if not isinstance(self.voice_overrides, dict):
             self.voice_overrides = {}
         else:
@@ -161,7 +161,7 @@ class PipelineResponse:
         return self.stitching.video_path
 
     @property
-    def book_metadata(self) -> Dict[str, Any]:
+    def media_metadata(self) -> Dict[str, Any]:
         return self.metadata.as_dict()
 
 
@@ -188,7 +188,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
     metadata_result: Optional[MetadataPhaseResult] = None
     render_result: Optional[RenderResult] = None
     stitching_result = StitchingArtifacts()
-    metadata = request.inputs.book_metadata
+    metadata = request.inputs.media_metadata
 
     try:
         config_result = config_phase.prepare_configuration(request, context)
@@ -477,7 +477,7 @@ def serialize_pipeline_response(response: PipelineResponse) -> Dict[str, Any]:
         "stitched_documents": dict(response.stitched_documents),
         "stitched_audio_path": response.stitched_audio_path,
         "stitched_video_path": response.stitched_video_path,
-        "book_metadata": dict(response.book_metadata),
+        "media_metadata": dict(response.media_metadata),
         "generated_files": copy.deepcopy(response.generated_files),
     }
 
@@ -497,7 +497,7 @@ def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
         "inputs": asdict(request.inputs),
     }
 
-    payload["inputs"]["book_metadata"] = request.inputs.book_metadata.as_dict()
+    payload["inputs"]["media_metadata"] = request.inputs.media_metadata.as_dict()
 
     if request.correlation_id is not None:
         payload["correlation_id"] = request.correlation_id
@@ -509,7 +509,7 @@ def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
 class InitialMetadataSnapshot:
     """Captured artefacts created when a job is submitted."""
 
-    book_metadata: Dict[str, Any]
+    media_metadata: Dict[str, Any]
     refined_sentences: List[str]
 
 
@@ -535,7 +535,7 @@ class PipelineService:
 
         if metadata_snapshot is not None:
             try:
-                self._job_manager.apply_initial_metadata(job.job_id, metadata_snapshot.book_metadata)
+                self._job_manager.apply_initial_metadata(job.job_id, metadata_snapshot.media_metadata)
             except Exception:  # pragma: no cover - best-effort update
                 logger.debug("Unable to register initial job metadata", exc_info=True)
             try:
@@ -744,16 +744,16 @@ class PipelineService:
                 return cleaned.casefold() in {"unknown", "unknown title", "book"}
             return False
 
-        base_metadata = request.inputs.book_metadata.as_dict()
+        base_metadata = request.inputs.media_metadata.as_dict()
 
         config_metadata: Dict[str, Any] = {}
         config = request.config or {}
-        config_book_metadata = config.get("book_metadata")
-        if isinstance(config_book_metadata, Mapping):
+        config_media_metadata = config.get("media_metadata") or config.get("book_metadata")
+        if isinstance(config_media_metadata, Mapping):
             config_metadata.update(
                 {
                     key: value
-                    for key, value in config_book_metadata.items()
+                    for key, value in config_media_metadata.items()
                     if value not in (None, "")
                 }
             )
@@ -775,19 +775,19 @@ class PipelineService:
             if is_placeholder(key, merged_metadata.get(key)) and not is_placeholder(key, value):
                 merged_metadata[key] = value
 
-        request.inputs.book_metadata = PipelineMetadata.from_mapping(merged_metadata)
+        request.inputs.media_metadata = PipelineMetadata.from_mapping(merged_metadata)
 
         try:
             inferred_metadata = metadata_manager.infer_metadata(
                 input_file,
-                existing_metadata=request.inputs.book_metadata.as_dict(),
+                existing_metadata=request.inputs.media_metadata.as_dict(),
                 force_refresh=False,
             )
         except Exception:
             logger.debug("Unable to infer book metadata during submission", exc_info=True)
-            inferred_metadata = request.inputs.book_metadata.as_dict()
+            inferred_metadata = request.inputs.media_metadata.as_dict()
 
-        request.inputs.book_metadata = PipelineMetadata.from_mapping(inferred_metadata)
+        request.inputs.media_metadata = PipelineMetadata.from_mapping(inferred_metadata)
 
         refined_sentences: List[str] = []
         try:
@@ -811,7 +811,7 @@ class PipelineService:
             return None
 
         return InitialMetadataSnapshot(
-            book_metadata=inferred_metadata,
+            media_metadata=inferred_metadata,
             refined_sentences=refined_sentences,
         )
 
@@ -831,7 +831,7 @@ class PipelineService:
         config_path = locator.resolve_metadata_path(job_id, "config.json")
 
         metadata_path.write_text(
-            json.dumps(snapshot.book_metadata, indent=2, sort_keys=True),
+            json.dumps(snapshot.media_metadata, indent=2, sort_keys=True),
             encoding="utf-8",
         )
         sentences_path.write_text(
