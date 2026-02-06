@@ -10,6 +10,7 @@ import {
   resolveChunkKey,
   resolveChunkMetadataUrl,
   resolveChunkAudioUrl,
+  resolveSequenceAudioUrls,
   buildSentenceChunkIndex,
   findChunkBySentence,
 } from '../../lib/media';
@@ -69,6 +70,8 @@ export interface UseChunkPrefetchOptions {
   translationAudioEnabled: boolean;
   /** When true, prefetch skews forward (3 ahead, 1 behind) instead of symmetric ±2 */
   isPlaying?: boolean;
+  /** When true, prefetch BOTH original and translation audio for adjacent chunks */
+  sequenceEnabled?: boolean;
 }
 
 export interface ChunkPrefetchState {
@@ -91,6 +94,7 @@ export function useChunkPrefetch({
   originalAudioEnabled,
   translationAudioEnabled,
   isPlaying = false,
+  sequenceEnabled = false,
 }: UseChunkPrefetchOptions): ChunkPrefetchState {
   const [prefetchedSentences, setPrefetchedSentences] = useState<Record<string, ChunkSentenceMetadata[]>>({});
   const prefetchedSentencesRef = useRef(prefetchedSentences);
@@ -313,6 +317,58 @@ export function useChunkPrefetch({
     [jobId, originalAudioEnabled, playerMode, translationAudioEnabled, recordFailure, recordSuccess],
   );
 
+  // Sequence-mode variant: prefetch both original and translation audio tracks
+  const prefetchChunkAudioSequence = useCallback(
+    async (target: LiveMediaChunk) => {
+      if (playerMode !== 'online') {
+        return;
+      }
+      const now = Date.now();
+      if (now < systemicPauseUntilRef.current) {
+        return;
+      }
+      const urls = resolveSequenceAudioUrls(target, jobId);
+      for (const audioUrl of urls) {
+        if (prefetchedAudioRef.current.has(audioUrl)) {
+          continue;
+        }
+        if (audioInFlightRef.current.has(audioUrl)) {
+          continue;
+        }
+        const retryState = audioRetryRef.current.get(audioUrl);
+        if (!shouldRetry(retryState, now)) {
+          continue;
+        }
+        audioRetryRef.current.set(audioUrl, {
+          lastAttempt: now,
+          failures: retryState?.failures ?? 0,
+        });
+        audioInFlightRef.current.add(audioUrl);
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), PREFETCH_TIMEOUT_MS);
+        try {
+          const response = await fetch(audioUrl, {
+            method: 'GET',
+            headers: { Range: AUDIO_PREFETCH_RANGE },
+            signal: controller.signal,
+          });
+          if (response.ok) {
+            prefetchedAudioRef.current.add(audioUrl);
+            recordSuccess();
+          } else {
+            recordFailure(audioRetryRef.current, audioUrl, Date.now());
+          }
+        } catch {
+          recordFailure(audioRetryRef.current, audioUrl, Date.now());
+        } finally {
+          window.clearTimeout(timeout);
+          audioInFlightRef.current.delete(audioUrl);
+        }
+      }
+    },
+    [jobId, playerMode, recordFailure, recordSuccess],
+  );
+
   // Prefetch nearby chunks based on active sentence
   useEffect(() => {
     if (playerMode !== 'online') {
@@ -378,7 +434,11 @@ export function useChunkPrefetch({
     }
     targetMap.forEach((target) => {
       void prefetchChunkMetadata(target);
-      void prefetchChunkAudio(target);
+      if (sequenceEnabled) {
+        void prefetchChunkAudioSequence(target);
+      } else {
+        void prefetchChunkAudio(target);
+      }
     });
   }, [
     activeSentenceIndex,
@@ -387,10 +447,12 @@ export function useChunkPrefetch({
     isPlaying,
     playerMode,
     prefetchChunkAudio,
+    prefetchChunkAudioSequence,
     prefetchChunkMetadata,
     resolvedChunk,
     resolvedChunks,
     sentenceIndex,
+    sequenceEnabled,
   ]);
 
   return {

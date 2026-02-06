@@ -18,10 +18,23 @@ extension InteractivePlayerViewModel {
             if lastPrefetchSentenceNumber == activeNumber {
                 return
             }
+            // Track direction from sentence number changes (mirrors Web directionRef)
+            if let last = lastPrefetchSentenceNumber {
+                if activeNumber > last {
+                    prefetchDirection = .forward
+                } else if activeNumber < last {
+                    prefetchDirection = .backward
+                }
+            }
             lastPrefetchSentenceNumber = activeNumber
         }
         Task { [weak self] in
-            await self?.prefetchAdjacentSentences(around: activeNumber, in: context, selectedChunk: chunk)
+            await self?.prefetchAdjacentSentences(
+                around: activeNumber,
+                in: context,
+                selectedChunk: chunk,
+                isPlaying: isPlaying
+            )
         }
     }
 
@@ -47,11 +60,16 @@ extension InteractivePlayerViewModel {
     private func prefetchAdjacentSentences(
         around sentenceNumber: Int,
         in context: JobContext,
-        selectedChunk: InteractiveChunk
+        selectedChunk: InteractiveChunk,
+        isPlaying: Bool
     ) async {
         guard sentenceNumber > 0 else { return }
+        // Direction-aware asymmetric prefetch (mirrors Web behavior)
+        let skewForward = isPlaying && prefetchDirection == .forward
+        let backwardRadius = skewForward ? 1 : metadataPrefetchRadius
+        let forwardRadius = skewForward ? metadataPrefetchRadius + 1 : metadataPrefetchRadius
         var targets: [InteractiveChunk] = []
-        for offset in (-metadataPrefetchRadius)...metadataPrefetchRadius {
+        for offset in (-backwardRadius)...forwardRadius {
             let candidate = sentenceNumber + offset
             guard candidate > 0 else { continue }
             if let chunk = resolveChunk(containing: candidate, in: context) {
@@ -59,7 +77,7 @@ extension InteractivePlayerViewModel {
             }
         }
         if targets.isEmpty {
-            targets = prefetchFallbackChunks(from: selectedChunk, in: context)
+            targets = prefetchFallbackChunks(from: selectedChunk, in: context, isPlaying: isPlaying)
         }
         // Use Dictionary(_:uniquingKeysWith:) to handle duplicate chunk IDs gracefully
         // (multiple sentence numbers can resolve to the same chunk)
@@ -70,16 +88,23 @@ extension InteractivePlayerViewModel {
         }
     }
 
-    private func prefetchFallbackChunks(from chunk: InteractiveChunk, in context: JobContext) -> [InteractiveChunk] {
+    private func prefetchFallbackChunks(
+        from chunk: InteractiveChunk,
+        in context: JobContext,
+        isPlaying: Bool
+    ) -> [InteractiveChunk] {
+        let skewForward = isPlaying && prefetchDirection == .forward
+        let backwardRadius = skewForward ? 1 : metadataPrefetchRadius
+        let forwardRadius = skewForward ? metadataPrefetchRadius + 1 : metadataPrefetchRadius
         var targets: [InteractiveChunk] = [chunk]
         var previous = chunk
-        for _ in 0..<metadataPrefetchRadius {
+        for _ in 0..<backwardRadius {
             guard let next = context.previousChunk(before: previous.id) else { break }
             targets.append(next)
             previous = next
         }
         var forward = chunk
-        for _ in 0..<metadataPrefetchRadius {
+        for _ in 0..<forwardRadius {
             guard let next = context.nextChunk(after: forward.id) else { break }
             targets.append(next)
             forward = next
@@ -88,7 +113,28 @@ extension InteractivePlayerViewModel {
     }
 
     private func prefetchChunkMediaIfNeeded(for chunk: InteractiveChunk) {
-        guard let track = preferredAudioOption(for: chunk) else { return }
+        let isSequence = audioModeManager?.currentMode == .sequence
+        if isSequence {
+            // Sequence mode: prefetch both original and translation tracks
+            prefetchAudioOption(
+                chunk.audioOptions.first(where: { $0.kind == .original }),
+                for: chunk
+            )
+            prefetchAudioOption(
+                chunk.audioOptions.first(where: { $0.kind == .translation }),
+                for: chunk
+            )
+        } else {
+            // Single-track mode: prefetch only the preferred track
+            prefetchAudioOption(preferredAudioOption(for: chunk), for: chunk)
+        }
+    }
+
+    private func prefetchAudioOption(
+        _ option: InteractiveChunk.AudioOption?,
+        for chunk: InteractiveChunk
+    ) {
+        guard let track = option else { return }
         guard let url = track.streamURLs.first else { return }
         guard !prefetchedAudioURLs.contains(url) else { return }
         prefetchedAudioURLs.insert(url)

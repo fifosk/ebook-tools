@@ -32,6 +32,7 @@ extension InteractivePlayerViewModel {
         chunkMetadataLoading = []
         chunkMetadataAttemptedAt = [:]
         lastPrefetchSentenceNumber = nil
+        prefetchDirection = .none
         prefetchedAudioURLs = []
         jobContext = nil
         mediaResponse = nil

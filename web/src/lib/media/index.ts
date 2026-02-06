@@ -9,6 +9,7 @@ export {
   extractTranslationUrl,
   extractCombinedUrl,
   resolveChunkAudioUrl,
+  resolveSequenceAudioUrls,
 } from './audioUrlResolver';
 
 export {

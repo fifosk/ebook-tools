@@ -67,3 +67,22 @@ export function resolveChunkAudioUrl(
 
   return resolveStorageUrl(candidate, jobId);
 }
+
+/**
+ * Resolve BOTH original and translation audio URLs for sequence-mode prefetch.
+ *
+ * When sequence mode is active, both tracks will be needed (playback alternates
+ * between them), so both should be prefetched.  Returns 0–2 resolved URLs.
+ */
+export function resolveSequenceAudioUrls(
+  chunk: LiveMediaChunk,
+  jobId: string | null,
+): string[] {
+  const tracks = (chunk.audioTracks ?? null) as TrackMap | null;
+  const urls: string[] = [];
+  const origResolved = resolveStorageUrl(extractOriginalUrl(tracks), jobId);
+  const transResolved = resolveStorageUrl(extractTranslationUrl(tracks), jobId);
+  if (origResolved) urls.push(origResolved);
+  if (transResolved && transResolved !== origResolved) urls.push(transResolved);
+  return urls;
+}

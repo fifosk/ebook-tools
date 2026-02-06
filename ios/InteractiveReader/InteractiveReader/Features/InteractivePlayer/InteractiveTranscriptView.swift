@@ -100,29 +100,29 @@ struct InteractiveTranscriptView: View {
     @ObservedObject var bubbleKeyboardNavigator: iOSBubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
 
     #if os(iOS)
-    @State private var trackMagnifyStartScale: CGFloat?
-    @State private var bubbleMagnifyStartScale: CGFloat?
-    @State private var isDraggingDivider = false
-    @State private var dividerDragStartRatio: CGFloat = 0
+    @State var trackMagnifyStartScale: CGFloat?
+    @State var bubbleMagnifyStartScale: CGFloat?
+    @State var isDraggingDivider = false
+    @State var dividerDragStartRatio: CGFloat = 0
     /// Track previous split ratio for calculating font scale changes
-    @State private var previousSplitRatio: CGFloat = 0.5
+    @State var previousSplitRatio: CGFloat = 0.5
     #endif
     @State private var bubbleHeight: CGFloat = 0
     @State private var trackHeight: CGFloat = 0
     @State private var effectiveTrackFontScale: CGFloat = 0
-    @State private var suppressPlaybackToggle = false
-    @State private var suppressPlaybackTask: Task<Void, Never>?
+    @State var suppressPlaybackToggle = false
+    @State var suppressPlaybackTask: Task<Void, Never>?
     @State private var autoScaleNeedsUpdate = false
     @State private var autoScaleTask: Task<Void, Never>?
     @State private var lastMeasuredTrackHeight: CGFloat = 0
     @State private var lastAvailableTrackHeight: CGFloat = 0
     @State private var lastLayoutSize: CGSize = .zero
-    @State private var tokenFrames: [TextPlayerTokenFrame] = []
-    @State private var tapExclusionFrames: [CGRect] = []
-    @State private var bubbleFrame: CGRect = .zero
-    @State private var dragSelectionAnchor: TextPlayerWordSelection?
-    @State private var dragLookupTask: Task<Void, Never>?
-    private let dragLookupDelayNanos: UInt64 = 350_000_000
+    @State var tokenFrames: [TextPlayerTokenFrame] = []
+    @State var tapExclusionFrames: [CGRect] = []
+    @State var bubbleFrame: CGRect = .zero
+    @State var dragSelectionAnchor: TextPlayerWordSelection?
+    @State var dragLookupTask: Task<Void, Never>?
+    let dragLookupDelayNanos: UInt64 = 350_000_000
     private var autoScaleHeightTolerance: CGFloat {
         isPhone ? 8 : 4
     }
@@ -460,183 +460,7 @@ struct InteractiveTranscriptView: View {
         }
     }
 
-    #if !os(tvOS)
-    private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 24, coordinateSpace: .local)
-            .onEnded { value in
-                // Don't process swipes if drag selection was/is active
-                guard dragSelectionAnchor == nil else { return }
-                guard !suppressPlaybackToggle else { return }
-                let horizontal = value.translation.width
-                let vertical = value.translation.height
-                if abs(horizontal) > abs(vertical) {
-                    if horizontal < 0 {
-                        onSkipSentence(1)
-                    } else if horizontal > 0 {
-                        onSkipSentence(-1)
-                    }
-                } else {
-                    if vertical > 0 {
-                        onShowMenu()
-                    } else if vertical < 0 {
-                        if isMenuVisible {
-                            onHideMenu()
-                        } else {
-                            onNavigateTrack(-1)
-                        }
-                    }
-                }
-            }
-    }
 
-    /// Swipe gesture for the bubble area in split view.
-    /// Horizontal swipes navigate tokens (previous/next word).
-    private var bubbleAreaSwipeGesture: some Gesture {
-        DragGesture(minimumDistance: 24, coordinateSpace: .local)
-            .onEnded { value in
-                let horizontal = value.translation.width
-                let vertical = value.translation.height
-                guard abs(horizontal) > abs(vertical) else { return }
-                if horizontal < 0 {
-                    onBubbleNextToken?()
-                } else {
-                    onBubblePreviousToken?()
-                }
-            }
-    }
-    #endif
-
-    #if os(iOS)
-    private var selectionDragGesture: some Gesture {
-        DragGesture(minimumDistance: 8, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
-            .onChanged { value in
-                // Allow drag selection on both iPad and iPhone when paused
-                guard !audioCoordinator.isPlaying else { return }
-                if dragSelectionAnchor == nil {
-                    guard let anchorToken = tokenFrameContaining(value.startLocation) else { return }
-                    dragSelectionAnchor = TextPlayerWordSelection(
-                        sentenceIndex: anchorToken.sentenceIndex,
-                        variantKind: anchorToken.variantKind,
-                        tokenIndex: anchorToken.tokenIndex
-                    )
-                    // Suppress playback toggle during drag selection to prevent
-                    // background tap gesture from triggering playback on drag end
-                    suppressPlaybackTask?.cancel()
-                    suppressPlaybackToggle = true
-                }
-                updateSelectionRange(at: value.location)
-            }
-            .onEnded { _ in
-                dragSelectionAnchor = nil
-                // Keep suppression active until lookup completes (350ms delay)
-                // scheduleDragLookup sets up the delayed lookup, so we need to
-                // keep suppression until after that task runs
-                suppressPlaybackTask?.cancel()
-                suppressPlaybackTask = Task { @MainActor in
-                    // Wait for drag lookup delay plus a small buffer
-                    try? await Task.sleep(nanoseconds: dragLookupDelayNanos + 50_000_000)
-                    suppressPlaybackToggle = false
-                }
-            }
-    }
-    #endif
-
-    #if !os(tvOS)
-    private var doubleTapGesture: some Gesture {
-        TapGesture(count: 2)
-            .onEnded {
-                guard !suppressPlaybackToggle else { return }
-                onTogglePlayback()
-            }
-    }
-    #endif
-
-    #if os(iOS)
-    private var playbackSingleTapGesture: some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
-            .onEnded { value in
-                guard !suppressPlaybackToggle else { return }
-                if isPhone, bubble != nil {
-                    return
-                }
-                let distance = hypot(value.translation.width, value.translation.height)
-                guard distance < 8 else { return }
-                let location = value.location
-                if tokenFrames.contains(where: { $0.frame.contains(location) }) {
-                    return
-                }
-                if tapExclusionFrames.contains(where: { $0.contains(location) }) {
-                    return
-                }
-                onTogglePlayback()
-            }
-    }
-
-    private var backgroundPlaybackTapGesture: some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
-            .onEnded { value in
-                guard !suppressPlaybackToggle else { return }
-                let distance = hypot(value.translation.width, value.translation.height)
-                guard distance < 8 else { return }
-                let location = value.location
-                if bubble != nil, bubbleFrame.contains(location) {
-                    return
-                }
-                if tokenFrames.contains(where: { $0.frame.contains(location) }) {
-                    return
-                }
-                if tapExclusionFrames.contains(where: { $0.contains(location) }) {
-                    return
-                }
-                if bubble != nil {
-                    // Check if bubble is pinned (iPad only for this iOS code path)
-                    let isPinned = isPad && iPadBubblePinned
-                    if isPinned {
-                        // Bubble is pinned - just toggle playback, don't close bubble
-                        onTogglePlayback()
-                    } else {
-                        // Bubble is not pinned - close it, and toggle playback only if paused
-                        onCloseBubble()
-                        if !audioCoordinator.isPlaying {
-                            onTogglePlayback()
-                        }
-                    }
-                } else {
-                    onTogglePlayback()
-                }
-            }
-    }
-    #endif
-
-    #if os(iOS)
-    private var trackMagnifyGesture: some Gesture {
-        MagnificationGesture()
-            .onChanged { value in
-                if trackMagnifyStartScale == nil {
-                    trackMagnifyStartScale = trackFontScale
-                }
-                let startScale = trackMagnifyStartScale ?? trackFontScale
-                onSetTrackFontScale(startScale * value)
-            }
-            .onEnded { _ in
-                trackMagnifyStartScale = nil
-            }
-    }
-
-    private var bubbleMagnifyGesture: some Gesture {
-        MagnificationGesture()
-            .onChanged { value in
-                if bubbleMagnifyStartScale == nil {
-                    bubbleMagnifyStartScale = linguistFontScale
-                }
-                let startScale = bubbleMagnifyStartScale ?? linguistFontScale
-                onSetLinguistFontScale(startScale * value)
-            }
-            .onEnded { _ in
-                bubbleMagnifyStartScale = nil
-            }
-    }
-    #endif
 
     private func updateEffectiveTrackFontScale(measuredHeight: CGFloat, availableHeight: CGFloat) {
         guard !isTV else { return }
@@ -676,7 +500,7 @@ struct InteractiveTranscriptView: View {
         autoScaleNeedsUpdate = false
     }
 
-    private func updateSelectionRange(at location: CGPoint) {
+    func updateSelectionRange(at location: CGPoint) {
         guard let anchor = dragSelectionAnchor else { return }
         guard let token = nearestTokenFrame(at: location) else { return }
         let selection = TextPlayerWordSelection(
@@ -698,7 +522,7 @@ struct InteractiveTranscriptView: View {
         scheduleDragLookup()
     }
 
-    private func nearestTokenFrame(at location: CGPoint) -> TextPlayerTokenFrame? {
+    func nearestTokenFrame(at location: CGPoint) -> TextPlayerTokenFrame? {
         let candidates: [TextPlayerTokenFrame]
         if let anchor = dragSelectionAnchor {
             candidates = tokenFrames.filter { frame in
@@ -721,7 +545,7 @@ struct InteractiveTranscriptView: View {
         return sorted.first
     }
 
-    private func tokenFrameContaining(_ location: CGPoint) -> TextPlayerTokenFrame? {
+    func tokenFrameContaining(_ location: CGPoint) -> TextPlayerTokenFrame? {
         let candidates = tokenFrames
         guard !candidates.isEmpty else { return nil }
         if let exact = candidates.first(where: { $0.frame.contains(location) }) {
@@ -732,7 +556,7 @@ struct InteractiveTranscriptView: View {
 
     /// Find the nearest token frame within a maximum distance threshold.
     /// Used for tap-to-lookup to be more forgiving than exact hit testing.
-    private func nearestTokenFrameForTap(at location: CGPoint, maxDistance: CGFloat = 20) -> TextPlayerTokenFrame? {
+    func nearestTokenFrameForTap(at location: CGPoint, maxDistance: CGFloat = 20) -> TextPlayerTokenFrame? {
         let candidates = tokenFrames
         guard !candidates.isEmpty else { return nil }
         // First try exact hit
@@ -753,7 +577,7 @@ struct InteractiveTranscriptView: View {
         return bestMatch
     }
 
-    private func scheduleDragLookup() {
+    func scheduleDragLookup() {
         dragLookupTask?.cancel()
         dragLookupTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: dragLookupDelayNanos)
@@ -763,7 +587,7 @@ struct InteractiveTranscriptView: View {
         }
     }
 
-    private var isPad: Bool {
+    var isPad: Bool {
         #if os(iOS)
         return UIDevice.current.userInterfaceIdiom == .pad
         #else
@@ -771,7 +595,7 @@ struct InteractiveTranscriptView: View {
         #endif
     }
 
-    private var isTV: Bool {
+    var isTV: Bool {
         #if os(tvOS)
         return true
         #else
@@ -779,7 +603,7 @@ struct InteractiveTranscriptView: View {
         #endif
     }
 
-    private var isPhone: Bool {
+    var isPhone: Bool {
         #if os(iOS)
         return UIDevice.current.userInterfaceIdiom == .phone
         #else
@@ -787,7 +611,7 @@ struct InteractiveTranscriptView: View {
         #endif
     }
 
-    private func isPortraitLayout(size: CGSize) -> Bool {
+    func isPortraitLayout(size: CGSize) -> Bool {
         #if os(iOS)
         guard isPhone else { return false }
         return size.height > size.width
@@ -882,628 +706,6 @@ struct InteractiveTranscriptView: View {
     }
     #endif
 
-    #if os(iOS)
-    // MARK: - iPad Split Layout
 
-    /// Minimum split ratio (tracks get at least 20% in vertical, bubble gets at least 20% in horizontal)
-    private let iPadMinSplitRatio: CGFloat = 0.20
-    /// Maximum split ratio
-    private let iPadMaxSplitRatio: CGFloat = 0.80
-    /// Divider thickness
-    private let iPadDividerThickness: CGFloat = 12
-    /// Divider handle size
-    private let iPadDividerHandleWidth: CGFloat = 40
-    private let iPadDividerHandleHeight: CGFloat = 4
-
-    @ViewBuilder
-    private func iPadSplitLayout(
-        trackView: AnyView,
-        bubble: MyLinguistBubbleState?,
-        resolvedLinguistFontScale: CGFloat,
-        bubbleFocusEnabled: Bool,
-        availableSize: CGSize
-    ) -> some View {
-        let trackViewWithPlayback = AnyView(trackView.contentShape(Rectangle()))
-
-        Group {
-            if iPadSplitDirection == .vertical {
-                iPadVerticalSplitLayout(
-                    trackViewWithPlayback: trackViewWithPlayback,
-                    bubble: bubble,
-                    resolvedLinguistFontScale: resolvedLinguistFontScale,
-                    bubbleFocusEnabled: bubbleFocusEnabled,
-                    availableSize: availableSize
-                )
-            } else {
-                iPadHorizontalSplitLayout(
-                    trackViewWithPlayback: trackViewWithPlayback,
-                    bubble: bubble,
-                    resolvedLinguistFontScale: resolvedLinguistFontScale,
-                    bubbleFocusEnabled: bubbleFocusEnabled,
-                    availableSize: availableSize
-                )
-            }
-        }
-        .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
-        .onAppear {
-            // Initialize previous ratio when layout appears
-            previousSplitRatio = iPadSplitRatio
-        }
-        .onChange(of: iPadSplitRatio) { oldRatio, newRatio in
-            // Dynamically adjust font scales based on split ratio changes
-            // In vertical: ratio = tracks height percentage, so increasing ratio = more track space
-            // In horizontal: ratio = bubble width percentage, so increasing ratio = more bubble space
-            adjustFontScalesForSplitChange(
-                oldRatio: oldRatio,
-                newRatio: newRatio,
-                isVertical: iPadSplitDirection == .vertical
-            )
-        }
-        .onChange(of: iPadSplitDirection) { _, _ in
-            // Reset previous ratio when direction changes
-            previousSplitRatio = iPadSplitRatio
-        }
-    }
-
-    /// Adjust track and linguist font scales based on split ratio changes
-    private func adjustFontScalesForSplitChange(
-        oldRatio: CGFloat,
-        newRatio: CGFloat,
-        isVertical: Bool
-    ) {
-        guard abs(newRatio - oldRatio) > 0.001 else { return }
-
-        // Calculate how each area's size changed
-        // In vertical mode:
-        //   - ratio = track area percentage (0.5 means tracks get 50% of height)
-        //   - track area grows when ratio increases
-        //   - bubble area shrinks when ratio increases (1 - ratio)
-        // In horizontal mode:
-        //   - ratio = bubble area percentage (0.5 means bubble gets 50% of width)
-        //   - bubble area grows when ratio increases
-        //   - track area shrinks when ratio increases (1 - ratio)
-
-        let trackRatioOld = isVertical ? oldRatio : (1 - oldRatio)
-        let trackRatioNew = isVertical ? newRatio : (1 - newRatio)
-        let bubbleRatioOld = isVertical ? (1 - oldRatio) : oldRatio
-        let bubbleRatioNew = isVertical ? (1 - newRatio) : newRatio
-
-        // Calculate scaling factors: how much did each area grow/shrink?
-        // We want fonts to scale proportionally to fill the new space
-        let trackScaleFactor = trackRatioOld > 0.001 ? trackRatioNew / trackRatioOld : 1.0
-        let bubbleScaleFactor = bubbleRatioOld > 0.001 ? bubbleRatioNew / bubbleRatioOld : 1.0
-
-        // Apply scaling to track font
-        // Use square root for more gentle scaling (full linear feels too aggressive)
-        let trackAdjustment = sqrt(trackScaleFactor)
-        let newTrackScale = trackFontScale * trackAdjustment
-        let clampedTrackScale = max(minTrackFontScale, min(maxTrackFontScale, newTrackScale))
-        if abs(clampedTrackScale - trackFontScale) > 0.01 {
-            onSetTrackFontScale(clampedTrackScale)
-        }
-
-        // Apply scaling to linguist font
-        // linguistFontScale bounds come from the parent view
-        let linguistMin: CGFloat = 0.8
-        let linguistMax: CGFloat = 3.2  // iPad max from InteractivePlayerView
-        let bubbleAdjustment = sqrt(bubbleScaleFactor)
-        let newLinguistScale = linguistFontScale * bubbleAdjustment
-        let clampedLinguistScale = max(linguistMin, min(linguistMax, newLinguistScale))
-        if abs(clampedLinguistScale - linguistFontScale) > 0.01 {
-            onSetLinguistFontScale(clampedLinguistScale)
-        }
-
-        previousSplitRatio = newRatio
-    }
-
-    @ViewBuilder
-    private func iPadVerticalSplitLayout(
-        trackViewWithPlayback: AnyView,
-        bubble: MyLinguistBubbleState?,
-        resolvedLinguistFontScale: CGFloat,
-        bubbleFocusEnabled: Bool,
-        availableSize: CGSize
-    ) -> some View {
-        let totalHeight = availableSize.height
-        // Calculate exact heights for each section
-        let trackHeight = max(0, totalHeight * iPadSplitRatio - iPadDividerThickness / 2)
-        let bubbleHeight = max(0, totalHeight * (1 - iPadSplitRatio) - iPadDividerThickness / 2)
-        let _ = print("[iPadVerticalSplit] ratio=\(String(format: "%.3f", iPadSplitRatio)), totalHeight=\(String(format: "%.0f", totalHeight)), trackHeight=\(String(format: "%.0f", trackHeight)), bubbleHeight=\(String(format: "%.0f", bubbleHeight))")
-
-        VStack(spacing: 0) {
-            // Tracks area - fixed height, clipped to bounds
-            trackViewWithPlayback
-                .frame(maxWidth: .infinity, alignment: .top)
-                .frame(height: trackHeight)
-                .clipped()
-                .contentShape(Rectangle())
-                .simultaneousGesture(swipeGesture, including: .all)
-                .simultaneousGesture(selectionDragGesture, including: .gesture)
-                .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
-                .highPriorityGesture(trackMagnifyGesture, including: .all)
-
-            // Divider
-            iPadDivider(isVertical: true, availableSize: availableSize)
-
-            // Bubble area - fixed height, clipped to bounds
-            if let bubble {
-                iPadBubbleContent(
-                    bubble: bubble,
-                    resolvedLinguistFontScale: resolvedLinguistFontScale,
-                    bubbleFocusEnabled: bubbleFocusEnabled,
-                    maxHeight: bubbleHeight,
-                    fillWidth: true
-                )
-                .frame(height: bubbleHeight)
-                .clipped()
-            }
-        }
-        .frame(width: availableSize.width, height: availableSize.height)
-    }
-
-    @ViewBuilder
-    private func iPadHorizontalSplitLayout(
-        trackViewWithPlayback: AnyView,
-        bubble: MyLinguistBubbleState?,
-        resolvedLinguistFontScale: CGFloat,
-        bubbleFocusEnabled: Bool,
-        availableSize: CGSize
-    ) -> some View {
-        let totalWidth = availableSize.width
-        // Calculate exact widths for each section
-        let bubbleWidth = max(0, totalWidth * iPadSplitRatio - iPadDividerThickness / 2)
-        let trackWidth = max(0, totalWidth * (1 - iPadSplitRatio) - iPadDividerThickness / 2)
-        let _ = print("[iPadHorizontalSplit] ratio=\(String(format: "%.3f", iPadSplitRatio)), totalWidth=\(String(format: "%.0f", totalWidth)), bubbleWidth=\(String(format: "%.0f", bubbleWidth)), trackWidth=\(String(format: "%.0f", trackWidth))")
-
-        HStack(spacing: 0) {
-            // Bubble area (left side, like iPhone landscape) - fixed width, clipped
-            if let bubble {
-                iPadBubbleContent(
-                    bubble: bubble,
-                    resolvedLinguistFontScale: resolvedLinguistFontScale,
-                    bubbleFocusEnabled: bubbleFocusEnabled,
-                    maxHeight: availableSize.height,
-                    fillWidth: false
-                )
-                .frame(width: bubbleWidth, height: availableSize.height)
-                .clipped()
-            }
-
-            // Divider
-            iPadDivider(isVertical: false, availableSize: availableSize)
-
-            // Tracks area (right side) - fixed width, clipped
-            trackViewWithPlayback
-                .frame(maxHeight: .infinity, alignment: .center)
-                .frame(width: trackWidth)
-                .clipped()
-                .contentShape(Rectangle())
-                .simultaneousGesture(swipeGesture, including: .all)
-                .simultaneousGesture(selectionDragGesture, including: .gesture)
-                .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
-                .highPriorityGesture(trackMagnifyGesture, including: .all)
-        }
-        .padding(.leading, 24) // Extra left padding to avoid content clipping at left edge
-        .frame(width: availableSize.width, height: availableSize.height)
-    }
-
-    @ViewBuilder
-    private func iPadDivider(isVertical: Bool, availableSize: CGSize) -> some View {
-        let dividerColor = Color.white.opacity(isDraggingDivider ? 0.4 : 0.2)
-        let handleColor = Color.white.opacity(isDraggingDivider ? 0.7 : 0.5)
-
-        Group {
-            if isVertical {
-                // Horizontal divider (for vertical split)
-                ZStack {
-                    Rectangle()
-                        .fill(dividerColor)
-                        .frame(height: 1)
-                    // Handle
-                    RoundedRectangle(cornerRadius: iPadDividerHandleHeight / 2)
-                        .fill(handleColor)
-                        .frame(width: iPadDividerHandleWidth, height: iPadDividerHandleHeight)
-                }
-                .frame(height: iPadDividerThickness)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 1)
-                        .onChanged { value in
-                            if !isDraggingDivider {
-                                isDraggingDivider = true
-                                dividerDragStartRatio = iPadSplitRatio
-                                print("[SplitDivider] Drag started, startRatio=\(dividerDragStartRatio)")
-                            }
-                            let delta = value.translation.height / availableSize.height
-                            let newRatio = (dividerDragStartRatio + delta)
-                                .clamped(to: iPadMinSplitRatio...iPadMaxSplitRatio)
-                            iPadSplitRatio = newRatio
-                            print("[SplitDivider] delta=\(String(format: "%.3f", delta)), newRatio=\(String(format: "%.3f", newRatio)), availableHeight=\(String(format: "%.0f", availableSize.height))")
-                        }
-                        .onEnded { _ in
-                            isDraggingDivider = false
-                            print("[SplitDivider] Drag ended, finalRatio=\(String(format: "%.3f", iPadSplitRatio))")
-                        }
-                )
-            } else {
-                // Vertical divider (for horizontal split)
-                ZStack {
-                    Rectangle()
-                        .fill(dividerColor)
-                        .frame(width: 1)
-                    // Handle
-                    RoundedRectangle(cornerRadius: iPadDividerHandleHeight / 2)
-                        .fill(handleColor)
-                        .frame(width: iPadDividerHandleHeight, height: iPadDividerHandleWidth)
-                }
-                .frame(width: iPadDividerThickness)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 1)
-                        .onChanged { value in
-                            if !isDraggingDivider {
-                                isDraggingDivider = true
-                                dividerDragStartRatio = iPadSplitRatio
-                            }
-                            let delta = value.translation.width / availableSize.width
-                            let newRatio = (dividerDragStartRatio + delta)
-                                .clamped(to: iPadMinSplitRatio...iPadMaxSplitRatio)
-                            iPadSplitRatio = newRatio
-                        }
-                        .onEnded { _ in
-                            isDraggingDivider = false
-                        }
-                )
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func iPadBubbleContent(
-        bubble: MyLinguistBubbleState,
-        resolvedLinguistFontScale: CGFloat,
-        bubbleFocusEnabled: Bool,
-        maxHeight: CGFloat,
-        fillWidth: Bool
-    ) -> some View {
-        ZStack(alignment: .top) {
-            // Tap to dismiss area
-            Color.clear
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    onCloseBubble()
-                    if !audioCoordinator.isPlaying {
-                        onTogglePlayback()
-                    }
-                }
-
-            MyLinguistBubbleView(
-                bubble: bubble,
-                fontScale: resolvedLinguistFontScale,
-                canIncreaseFont: canIncreaseLinguistFont,
-                canDecreaseFont: canDecreaseLinguistFont,
-                lookupLanguage: lookupLanguage,
-                lookupLanguageOptions: lookupLanguageOptions,
-                onLookupLanguageChange: onLookupLanguageChange,
-                llmModel: llmModel,
-                llmModelOptions: llmModelOptions,
-                onLlmModelChange: onLlmModelChange,
-                ttsVoice: ttsVoice,
-                ttsVoiceOptions: ttsVoiceOptions,
-                onTtsVoiceChange: onTtsVoiceChange,
-                onIncreaseFont: onIncreaseLinguistFont,
-                onDecreaseFont: onDecreaseLinguistFont,
-                onClose: onCloseBubble,
-                isFocusEnabled: bubbleFocusEnabled,
-                focusBinding: $focusedArea,
-                fillWidth: fillWidth,
-                maxContentHeight: max(maxHeight - 120, 80),
-                onPreviousToken: onBubblePreviousToken,
-                onNextToken: onBubbleNextToken,
-                onToggleLayoutDirection: onToggleLayoutDirection,
-                isPinned: iPadBubblePinned,
-                onTogglePin: onToggleBubblePin,
-                onPlayFromNarration: onPlayFromNarration,
-                keyboardNavigator: bubbleKeyboardNavigator
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .simultaneousGesture(bubbleMagnifyGesture, including: .all)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .contentShape(Rectangle())
-        // Consume taps on bubble content
-        .onTapGesture { /* consume tap */ }
-        .simultaneousGesture(bubbleAreaSwipeGesture, including: .all)
-        .background(GeometryReader { bubbleProxy in
-            Color.clear.preference(
-                key: InteractiveBubbleFrameKey.self,
-                value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
-            )
-        })
-    }
-    #endif
-
-    // MARK: - Phone Layout
-
-    #if os(iOS)
-    @ViewBuilder
-    private func phoneLayout(
-        trackView: AnyView,
-        bubble: MyLinguistBubbleState?,
-        resolvedLinguistFontScale: CGFloat,
-        bubbleFocusEnabled: Bool,
-        availableHeight: CGFloat,
-        layoutSize: CGSize
-    ) -> some View {
-        let trackViewWithPlayback = AnyView(
-            trackView
-                .contentShape(Rectangle())
-        )
-        let isPortrait = isPortraitLayout(size: layoutSize)
-
-        if bubble != nil {
-            // iPhone with bubble: optimized split layout
-            // Use stable ID to prevent view recreation when bubble content changes
-            if isPortrait {
-                // Portrait: tracks in upper half, bubble in lower half
-                phonePortraitBubbleLayout(
-                    trackViewWithPlayback: trackViewWithPlayback,
-                    bubble: bubble,
-                    resolvedLinguistFontScale: resolvedLinguistFontScale,
-                    bubbleFocusEnabled: bubbleFocusEnabled,
-                    availableHeight: availableHeight
-                )
-                .id("phone-portrait-bubble")
-            } else {
-                // Landscape: bubble on left, tracks on right
-                phoneLandscapeBubbleLayout(
-                    trackViewWithPlayback: trackViewWithPlayback,
-                    bubble: bubble,
-                    resolvedLinguistFontScale: resolvedLinguistFontScale,
-                    bubbleFocusEnabled: bubbleFocusEnabled,
-                    layoutWidth: layoutSize.width
-                )
-                .id("phone-landscape-bubble")
-            }
-        } else {
-            // No bubble: original centered layout
-            VStack {
-                Spacer(minLength: 0)
-                trackViewWithPlayback
-                    .padding(.horizontal, 12)
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
-            .simultaneousGesture(swipeGesture, including: .all)
-            .simultaneousGesture(selectionDragGesture, including: .gesture)
-            .simultaneousGesture(backgroundPlaybackTapGesture, including: .all)
-            .highPriorityGesture(trackMagnifyGesture, including: .all)
-        }
-    }
-
-    @ViewBuilder
-    private func phonePortraitBubbleLayout(
-        trackViewWithPlayback: AnyView,
-        bubble: MyLinguistBubbleState?,
-        resolvedLinguistFontScale: CGFloat,
-        bubbleFocusEnabled: Bool,
-        availableHeight: CGFloat
-    ) -> some View {
-        let upperHalfHeight = availableHeight * 0.50
-        let lowerHalfHeight = availableHeight * 0.50
-
-        VStack(spacing: 0) {
-            // Upper half: tracks - use fixed frame with center alignment to prevent layout jumps
-            trackViewWithPlayback
-                .padding(.horizontal, 12)
-                .frame(maxWidth: .infinity, maxHeight: upperHalfHeight, alignment: .center)
-                .contentShape(Rectangle())
-                .simultaneousGesture(swipeGesture, including: .all)
-                .simultaneousGesture(selectionDragGesture, including: .gesture)
-                .simultaneousGesture(phoneBubbleOpenBackgroundTapGesture, including: .all)
-                .highPriorityGesture(trackMagnifyGesture, including: .all)
-
-            // Lower half: bubble
-            // Use bubble! since we know it's non-nil (this layout is only used when bubble exists)
-            // Avoiding `if let` prevents SwiftUI from treating content changes as structural changes
-            ZStack(alignment: .top) {
-                // Tap to dismiss area
-                Color.clear
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        onCloseBubble()
-                        if !audioCoordinator.isPlaying {
-                            onTogglePlayback()
-                        }
-                    }
-
-                // Use GeometryReader to get available height and pass to bubble
-                GeometryReader { bubbleGeo in
-                    let contentHeight = max(bubbleGeo.size.height - 60, 80)
-                    MyLinguistBubbleView(
-                        bubble: bubble!,
-                        fontScale: resolvedLinguistFontScale,
-                        canIncreaseFont: canIncreaseLinguistFont,
-                        canDecreaseFont: canDecreaseLinguistFont,
-                        lookupLanguage: lookupLanguage,
-                        lookupLanguageOptions: lookupLanguageOptions,
-                        onLookupLanguageChange: onLookupLanguageChange,
-                        llmModel: llmModel,
-                        llmModelOptions: llmModelOptions,
-                        onLlmModelChange: onLlmModelChange,
-                        ttsVoice: ttsVoice,
-                        ttsVoiceOptions: ttsVoiceOptions,
-                        onTtsVoiceChange: onTtsVoiceChange,
-                        onIncreaseFont: onIncreaseLinguistFont,
-                        onDecreaseFont: onDecreaseLinguistFont,
-                        onClose: onCloseBubble,
-                        isFocusEnabled: bubbleFocusEnabled,
-                        focusBinding: $focusedArea,
-                        useCompactLayout: false,
-                        fillWidth: true,
-                        hideTitle: true,
-                        edgeToEdgeStyle: false,
-                        maxContentHeight: contentHeight,
-                        onPreviousToken: onBubblePreviousToken,
-                        onNextToken: onBubbleNextToken,
-                        onPlayFromNarration: onPlayFromNarration,
-                        keyboardNavigator: bubbleKeyboardNavigator
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .clipped()
-                    .simultaneousGesture(bubbleMagnifyGesture, including: .all)
-                }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
-                .contentShape(Rectangle())
-                // Consume taps on bubble content to prevent them from reaching the dismiss area
-                .onTapGesture { /* consume tap */ }
-                .simultaneousGesture(bubbleAreaSwipeGesture, including: .all)
-                .background(GeometryReader { bubbleProxy in
-                    Color.clear.preference(
-                        key: InteractiveBubbleFrameKey.self,
-                        value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
-                    )
-                })
-            }
-            .frame(maxWidth: .infinity, maxHeight: lowerHalfHeight)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
-    }
-
-    @ViewBuilder
-    private func phoneLandscapeBubbleLayout(
-        trackViewWithPlayback: AnyView,
-        bubble: MyLinguistBubbleState?,
-        resolvedLinguistFontScale: CGFloat,
-        bubbleFocusEnabled: Bool,
-        layoutWidth: CGFloat
-    ) -> some View {
-        let leftWidth = layoutWidth * 0.45
-        let rightWidth = layoutWidth * 0.55
-
-        HStack(spacing: 0) {
-            // Left side: bubble
-            ZStack(alignment: .topLeading) {
-                // Tap to dismiss area
-                Color.clear
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        onCloseBubble()
-                        if !audioCoordinator.isPlaying {
-                            onTogglePlayback()
-                        }
-                    }
-
-                // Use bubble! since we know it's non-nil (this layout is only used when bubble exists)
-                // Avoiding `if let` prevents SwiftUI from treating content changes as structural changes
-                // Use GeometryReader to get available height and pass to bubble
-                GeometryReader { bubbleGeo in
-                    let contentHeight = max(bubbleGeo.size.height - 100, 80)
-                    MyLinguistBubbleView(
-                        bubble: bubble!,
-                        fontScale: resolvedLinguistFontScale,
-                        canIncreaseFont: canIncreaseLinguistFont,
-                        canDecreaseFont: canDecreaseLinguistFont,
-                        lookupLanguage: lookupLanguage,
-                        lookupLanguageOptions: lookupLanguageOptions,
-                        onLookupLanguageChange: onLookupLanguageChange,
-                        llmModel: llmModel,
-                        llmModelOptions: llmModelOptions,
-                        onLlmModelChange: onLlmModelChange,
-                        ttsVoice: ttsVoice,
-                        ttsVoiceOptions: ttsVoiceOptions,
-                        onTtsVoiceChange: onTtsVoiceChange,
-                        onIncreaseFont: onIncreaseLinguistFont,
-                        onDecreaseFont: onDecreaseLinguistFont,
-                        onClose: onCloseBubble,
-                        isFocusEnabled: bubbleFocusEnabled,
-                        focusBinding: $focusedArea,
-                        useCompactLayout: false,
-                        fillWidth: true,
-                        hideTitle: true,
-                        edgeToEdgeStyle: false,
-                        maxContentHeight: contentHeight,
-                        onPreviousToken: onBubblePreviousToken,
-                        onNextToken: onBubbleNextToken,
-                        onPlayFromNarration: onPlayFromNarration,
-                        keyboardNavigator: bubbleKeyboardNavigator
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .clipped()
-                    .simultaneousGesture(bubbleMagnifyGesture, including: .all)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .contentShape(Rectangle())
-                // Consume taps on bubble content to prevent them from reaching the dismiss area
-                .onTapGesture { /* consume tap */ }
-                .simultaneousGesture(bubbleAreaSwipeGesture, including: .all)
-                .background(GeometryReader { bubbleProxy in
-                    Color.clear.preference(
-                        key: InteractiveBubbleFrameKey.self,
-                        value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
-                    )
-                })
-            }
-            .frame(width: leftWidth)
-            .clipped()
-
-            // Right side: tracks - use fixed frame with center alignment to prevent layout jumps
-            trackViewWithPlayback
-                .padding(.horizontal, 12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .frame(width: rightWidth)
-                .contentShape(Rectangle())
-                .simultaneousGesture(swipeGesture, including: .all)
-                .simultaneousGesture(selectionDragGesture, including: .gesture)
-                .simultaneousGesture(phoneBubbleOpenBackgroundTapGesture, including: .all)
-                .highPriorityGesture(trackMagnifyGesture, including: .all)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
-    }
-
-    /// Background tap gesture for iPhone when bubble is open.
-    /// Tapping on or near a token triggers lookup; tapping elsewhere closes bubble and plays.
-    private var phoneBubbleOpenBackgroundTapGesture: some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
-            .onEnded { value in
-                guard !suppressPlaybackToggle else { return }
-                let distance = hypot(value.translation.width, value.translation.height)
-                guard distance < 8 else { return }
-                let location = value.location
-                // Tapping on exclusion frames (track toggles, etc.) - ignore first
-                if tapExclusionFrames.contains(where: { $0.contains(location) }) {
-                    return
-                }
-                // If tapping on or near a token while paused, do lookup
-                // Use nearestTokenFrameForTap for more forgiving hit testing
-                if let tokenFrame = nearestTokenFrameForTap(at: location), !audioCoordinator.isPlaying {
-                    // Suppress playback toggle when doing lookup
-                    suppressPlaybackTask?.cancel()
-                    suppressPlaybackToggle = true
-                    suppressPlaybackTask = Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 350_000_000)
-                        suppressPlaybackToggle = false
-                    }
-                    onLookupToken(tokenFrame.sentenceIndex, tokenFrame.variantKind, tokenFrame.tokenIndex, tokenFrame.token)
-                    return
-                }
-                // Tapping elsewhere - close bubble and resume playback
-                onCloseBubble()
-                if !audioCoordinator.isPlaying {
-                    onTogglePlayback()
-                }
-            }
-    }
-    #endif
 }
 

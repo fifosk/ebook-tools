@@ -35,6 +35,7 @@ extension InteractivePlayerViewModel {
         guard selectedChunkID != id else { return }
         selectedChunkID = id
         lastPrefetchSentenceNumber = nil
+        prefetchDirection = .none
         guard let chunk = selectedChunk else {
             audioCoordinator.reset()
             selectedTimingURL = nil
@@ -153,6 +154,7 @@ extension InteractivePlayerViewModel {
     func configureDefaultSelections() {
         guard let context = jobContext else { return }
         lastPrefetchSentenceNumber = nil
+        prefetchDirection = .none
         if let chunk = context.chunks.first(where: { !$0.audioOptions.isEmpty }) ?? context.chunks.first {
             selectedChunkID = chunk.id
             if let option = chunk.audioOptions.first {

@@ -201,6 +201,46 @@ def _build_job_result(
     }
 
 
+def _extract_translation_sentences_from_vtt(subtitle_artifacts: List[Path]) -> List[str]:
+    """Extract translation-track text from output VTT files for lookup cache.
+
+    The dub pipeline writes VTT files with ``<c.translation>`` cues containing
+    the translated text.  We parse those cues to get the sentences that users
+    will actually see (and tap on) in the video player.
+
+    Only dubbed output VTTs (containing ``.dub-`` in the filename) are parsed.
+    Source-language VTTs are skipped — their ``<c.translation>`` tags contain
+    reversed original text, not real translations.  Among dub VTTs, the
+    ``*.full.vtt`` stitched file is preferred to avoid duplicates from
+    per-batch files.
+    """
+    import re as _re
+
+    _VTT_TRANSLATION_RE = _re.compile(r"<c\.translation>(.*?)</c>", _re.DOTALL)
+    _TAG_STRIP_RE = _re.compile(r"<[^>]+>")
+
+    sentences: List[str] = []
+    seen: set[str] = set()
+
+    # Prefer the stitched "full" VTT; fall back to per-batch VTTs if absent
+    dub_vtts = [a for a in subtitle_artifacts if a.suffix.lower() == ".vtt" and ".dub-" in a.name]
+    full_vtts = [v for v in dub_vtts if ".full." in v.name]
+    candidates = full_vtts or dub_vtts
+
+    for artifact in candidates:
+        try:
+            content = artifact.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for m in _VTT_TRANSLATION_RE.finditer(content):
+            text = _TAG_STRIP_RE.sub("", m.group(1)).strip()
+            if text and text not in seen:
+                seen.add(text)
+                sentences.append(text)
+
+    return sentences
+
+
 def _run_dub_job(
     job: PipelineJob,
     *,
@@ -230,6 +270,7 @@ def _run_dub_job(
     source_subtitle_path: Optional[Path] = None,
     source_kind: str = "youtube",
     source_language: Optional[str] = None,
+    enable_lookup_cache: bool = True,
 ) -> None:
     video_path = _resolve_partial_video(video_path)
     tracker = job.tracker or ProgressTracker()
@@ -726,6 +767,67 @@ def _run_dub_job(
         )
     tracker.publish_progress({"stage": "complete", "output_path": final_output.as_posix()})
 
+    # Build lookup cache in background (non-blocking, non-fatal)
+    # Extract translation sentences from the output VTT files (not the source subtitle).
+    # The source subtitle has the original language text; the output VTT has <c.translation> cues
+    # with the actual translated text that users will tap on in the video player.
+    if enable_lookup_cache and file_locator is not None and subtitle_artifacts:
+        cache_sentences = _extract_translation_sentences_from_vtt(subtitle_artifacts)
+        if cache_sentences:
+
+            def _build_video_lookup_cache() -> None:
+                try:
+                    from modules.lookup_cache import LookupCacheManager
+                    from modules.llm_client_manager import client_scope
+
+                    tracker.publish_progress({
+                        "stage": "lookup_cache",
+                        "message": "Building word lookup cache in background...",
+                        "lookup_cache_status": "building",
+                    })
+                    job_dir = file_locator.job_root(job.job_id)
+                    cache_manager = LookupCacheManager(
+                        job_id=job.job_id,
+                        job_dir=job_dir,
+                        input_language=language_code,
+                        definition_language="English",
+                    )
+                    with client_scope(None) as llm_client:
+                        cache_manager.build_from_sentences(
+                            sentences=cache_sentences,
+                            llm_client=llm_client,
+                            batch_size=10,
+                            skip_stopwords=True,
+                            progress_tracker=tracker,
+                        )
+                    cache_manager.save()
+                    tracker.publish_progress({
+                        "stage": "lookup_cache",
+                        "message": f"Word lookup cache complete: {cache_manager.cache.stats.total_words} words.",
+                        "lookup_cache_status": "complete",
+                    })
+                    logger.info(
+                        "Lookup cache built for dub job %s: %d words",
+                        job.job_id,
+                        cache_manager.cache.stats.total_words,
+                    )
+                except Exception as exc:
+                    logger.warning("Lookup cache build failed for dub job %s: %s", job.job_id, exc)
+                    try:
+                        tracker.publish_progress({
+                            "stage": "lookup_cache",
+                            "message": f"Lookup cache failed: {exc}",
+                            "lookup_cache_status": "error",
+                        })
+                    except Exception:
+                        pass
+
+            threading.Thread(
+                target=_build_video_lookup_cache,
+                name=f"lookup-cache-{job.job_id}",
+                daemon=True,
+            ).start()
+
 
 class YoutubeDubbingService:
     """Coordinate YouTube dubbing jobs with progress tracking."""
@@ -767,6 +869,7 @@ class YoutubeDubbingService:
         include_transliteration: Optional[bool] = None,
         target_height: Optional[int] = None,
         preserve_aspect_ratio: Optional[bool] = None,
+        enable_lookup_cache: Optional[bool] = None,
     ) -> PipelineJob:
         resolved_video = _resolve_partial_video(video_path)
         resolved_subtitle = subtitle_path.expanduser()
@@ -834,6 +937,7 @@ class YoutubeDubbingService:
             "include_transliteration": include_transliteration,
             "target_height": resolved_target_height,
             "preserve_aspect_ratio": preserve_aspect_ratio_resolved,
+            "enable_lookup_cache": True if enable_lookup_cache is None else bool(enable_lookup_cache),
         }
         if media_metadata:
             payload["media_metadata"] = dict(media_metadata)
@@ -868,6 +972,7 @@ class YoutubeDubbingService:
                     source_subtitle_path=resolved_subtitle,
                     source_kind=source_kind,
                     source_language=source_language_hint,
+                    enable_lookup_cache=True if enable_lookup_cache is None else bool(enable_lookup_cache),
                 )
 
         return self._job_manager.submit_background_job(

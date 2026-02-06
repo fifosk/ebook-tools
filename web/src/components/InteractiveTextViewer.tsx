@@ -277,6 +277,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   // Bridging state: synced from audio playback hook via effects below
   const [prefetchSentenceIndex, setPrefetchSentenceIndex] = useState(0);
   const [prefetchIsPlaying, setPrefetchIsPlaying] = useState(false);
+  const [prefetchSequenceEnabled, setPrefetchSequenceEnabled] = useState(false);
 
   // Chunk prefetching via hook
   const { resolvedChunk, resolvedChunks } = useChunkPrefetch({
@@ -288,6 +289,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     originalAudioEnabled,
     translationAudioEnabled,
     isPlaying: prefetchIsPlaying,
+    sequenceEnabled: prefetchSequenceEnabled,
   });
   const activeChunk = resolvedChunk ?? chunk;
   const activeChunks = resolvedChunks ?? chunks;
@@ -361,6 +363,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   // Sync real playback state into prefetch bridging state
   useEffect(() => { setPrefetchSentenceIndex(activeSentenceIndex); }, [activeSentenceIndex]);
   useEffect(() => { setPrefetchIsPlaying(isInlineAudioPlaying); }, [isInlineAudioPlaying]);
+  useEffect(() => { setPrefetchSequenceEnabled(sequencePlayback.enabled); }, [sequencePlayback.enabled]);
 
   // Track the skip function in a ref so registration effect doesn't re-run when it changes
   const skipSentenceRef = useRef(sequencePlayback.skipSentence);

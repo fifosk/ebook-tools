@@ -151,8 +151,35 @@ STOPWORD_SETS: dict[str, Set[str]] = {
 }
 
 # Regex patterns for word extraction
-# Matches word characters including Unicode letters, numbers, and some combining marks
-WORD_PATTERN = re.compile(r"[\w\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+", re.UNICODE)
+# Matches word characters plus full Unicode block ranges for scripts with combining
+# marks (vowel signs, virama, nukta, anusvara, etc.) that Python's \w misses.
+# Without the full block ranges, Indic scripts like Devanagari get split at vowel
+# sign boundaries (e.g., भाग → भ + ग) because \w excludes Mn/Mc categories.
+WORD_PATTERN = re.compile(
+    r"(?:"
+    r"\w"                       # Word chars (letters, digits, underscore)
+    r"|[\u0300-\u036F]"         # Combining Diacritical Marks
+    r"|[\u0600-\u06FF]"         # Arabic
+    r"|[\u0750-\u077F]"         # Arabic Supplement
+    r"|[\u08A0-\u08FF]"         # Arabic Extended-A
+    r"|[\u0900-\u097F]"         # Devanagari (full block incl. vowel signs)
+    r"|[\u0980-\u09FF]"         # Bengali
+    r"|[\u0A00-\u0A7F]"         # Gurmukhi
+    r"|[\u0A80-\u0AFF]"         # Gujarati
+    r"|[\u0B00-\u0B7F]"         # Oriya
+    r"|[\u0B80-\u0BFF]"         # Tamil
+    r"|[\u0C00-\u0C7F]"         # Telugu
+    r"|[\u0C80-\u0CFF]"         # Kannada
+    r"|[\u0D00-\u0D7F]"         # Malayalam
+    r"|[\u0D80-\u0DFF]"         # Sinhala
+    r"|[\u0E00-\u0E7F]"         # Thai
+    r"|[\u0E80-\u0EFF]"         # Lao
+    r"|[\u1000-\u109F]"         # Myanmar
+    r"|[\uFB50-\uFDFF]"         # Arabic Presentation Forms-A
+    r"|[\uFE70-\uFEFF]"         # Arabic Presentation Forms-B
+    r")+",
+    re.UNICODE,
+)
 
 # Pattern to detect if text contains Arabic script
 ARABIC_SCRIPT_PATTERN = re.compile(r"[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]")

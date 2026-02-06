@@ -542,6 +542,7 @@ def generate_youtube_dub(
         )
     llm_model = (payload.llm_model or "").strip() or None
     include_transliteration = True if payload.include_transliteration is None else bool(payload.include_transliteration)
+    enable_lookup_cache = True if payload.enable_lookup_cache is None else bool(payload.enable_lookup_cache)
     split_batches = bool(payload.split_batches) if payload.split_batches is not None else False
     stitch_batches = True if payload.stitch_batches is None else bool(payload.stitch_batches)
     start_offset = parse_time_offset(payload.start_time_offset)
@@ -577,6 +578,7 @@ def generate_youtube_dub(
             include_transliteration=include_transliteration,
             target_height=target_height,
             preserve_aspect_ratio=preserve_aspect_ratio,
+            enable_lookup_cache=enable_lookup_cache,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

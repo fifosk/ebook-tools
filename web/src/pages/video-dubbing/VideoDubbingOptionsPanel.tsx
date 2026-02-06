@@ -70,6 +70,7 @@ type VideoDubbingOptionsPanelProps = {
   splitBatches: boolean;
   stitchBatches: boolean;
   includeTransliteration: boolean;
+  enableLookupCache: boolean;
   originalMixPercent: number;
   startOffset: string;
   endOffset: string;
@@ -85,6 +86,7 @@ type VideoDubbingOptionsPanelProps = {
   onSplitBatchesChange: (value: boolean) => void;
   onStitchBatchesChange: (value: boolean) => void;
   onIncludeTransliterationChange: (value: boolean) => void;
+  onEnableLookupCacheChange: (value: boolean) => void;
   onOriginalMixPercentChange: (value: number) => void;
   onStartOffsetChange: (value: string) => void;
   onEndOffsetChange: (value: string) => void;
@@ -111,6 +113,7 @@ export default function VideoDubbingOptionsPanel({
   splitBatches,
   stitchBatches,
   includeTransliteration,
+  enableLookupCache,
   originalMixPercent,
   startOffset,
   endOffset,
@@ -126,6 +129,7 @@ export default function VideoDubbingOptionsPanel({
   onSplitBatchesChange,
   onStitchBatchesChange,
   onIncludeTransliterationChange,
+  onEnableLookupCacheChange,
   onOriginalMixPercentChange,
   onStartOffsetChange,
   onEndOffsetChange
@@ -317,6 +321,14 @@ export default function VideoDubbingOptionsPanel({
             onChange={(event) => onIncludeTransliterationChange(event.target.checked)}
           />
           <span>Include transliteration subtitle track (default on for non-Latin targets)</span>
+        </label>
+        <label className={styles.fieldCheckbox}>
+          <input
+            type="checkbox"
+            checked={enableLookupCache}
+            onChange={(event) => onEnableLookupCacheChange(event.target.checked)}
+          />
+          <span>Build word lookup cache (enables instant dictionary in player)</span>
         </label>
         <label className={styles.field}>
           <span>Original audio mix</span>

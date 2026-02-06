@@ -191,6 +191,7 @@ class YoutubeDubRequest(BaseModel):
     include_transliteration: Optional[bool] = None
     target_height: Optional[int] = None
     preserve_aspect_ratio: Optional[bool] = None
+    enable_lookup_cache: Optional[bool] = None
 
 
 class YoutubeDubResponse(BaseModel):

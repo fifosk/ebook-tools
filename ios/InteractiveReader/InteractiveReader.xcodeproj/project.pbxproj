@@ -243,10 +243,38 @@
 		5CAD1B04ED962413DEAAE92A /* SentencePositionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */; };
 		8150038CA009C71D56337C94 /* AudioModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */; };
 		6E11F253192C36A89ECBDFA9 /* AudioModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */; };
-		27614F4EC1C58CFF2B875760 /* LinguistLookupUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508DED26A6449F55B9749B3D /* LinguistLookupUtilities.swift */; };
-		5B236E93DC5BABC46BC6984B /* LinguistLookupUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508DED26A6449F55B9749B3D /* LinguistLookupUtilities.swift */; };
+		748B48C154B91CBBCFE3AE15 /* TextPlayerTimelineTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D9B5B81ECE4831C9C95C47 /* TextPlayerTimelineTypes.swift */; };
+		698B961D9E7DFD0CC75823F0 /* TextPlayerTimelineTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D9B5B81ECE4831C9C95C47 /* TextPlayerTimelineTypes.swift */; };
+		2BA9F9DF0673BD9698F7F373 /* TextPlayerTimeline+DisplayBuilders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 466333924981CAC460E6363E /* TextPlayerTimeline+DisplayBuilders.swift */; };
+		E37647D7D10D5B3B2202DFF0 /* TextPlayerTimeline+DisplayBuilders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 466333924981CAC460E6363E /* TextPlayerTimeline+DisplayBuilders.swift */; };
+		9463C294D145591CAEA17683 /* TextPlayerTimeline+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF18E4DD6053AC2FDF049F0D /* TextPlayerTimeline+Helpers.swift */; };
+		E97D53D920475E418A10A0CD /* TextPlayerTimeline+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF18E4DD6053AC2FDF049F0D /* TextPlayerTimeline+Helpers.swift */; };
+		4FA05FBBA17AAF720A629EDF /* LinguistBubblePickerUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037B07E83333F37631E3EC2E /* LinguistBubblePickerUI.swift */; };
+		970914FABB01A3E898A4FA64 /* LinguistBubblePickerUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037B07E83333F37631E3EC2E /* LinguistBubblePickerUI.swift */; };
+		8DD95020FDFE28A45949866E /* LinguistBubbleTextUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C57EC3DF52A62FA7DD72FC5 /* LinguistBubbleTextUtilities.swift */; };
+		B74B90AF18FCAECF019282BC /* LinguistBubbleTextUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C57EC3DF52A62FA7DD72FC5 /* LinguistBubbleTextUtilities.swift */; };
+		3687FF0BE5A9C6546FFBE806 /* StructuredLinguistContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04CE062FBA472A97845A05F7 /* StructuredLinguistContentView.swift */; };
+		A252ECFC23DBD902EC88F4CB /* StructuredLinguistContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04CE062FBA472A97845A05F7 /* StructuredLinguistContentView.swift */; };
+		AA07EC4D0975CE337561D80D /* LinguistBubbleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71CC5D8D8A72DF86DDF78A6F /* LinguistBubbleModels.swift */; };
+		3343889DEE9AB0B7FA38108D /* LinguistBubbleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71CC5D8D8A72DF86DDF78A6F /* LinguistBubbleModels.swift */; };
+		B14D15872A05DA0D1EF26F32 /* LinguistBubbleStyling.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7BF8754357D1D0647859680 /* LinguistBubbleStyling.swift */; };
+		860DAE492122AA9845D84287 /* LinguistBubbleStyling.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7BF8754357D1D0647859680 /* LinguistBubbleStyling.swift */; };
+		3FF9FCF3CF1BDDF41BEF40FE /* InteractiveTranscriptView+iPadSplit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0336876C9218FC2B21E136AC /* InteractiveTranscriptView+iPadSplit.swift */; };
+		AA8FCBD2C822BA53B1364598 /* InteractiveTranscriptView+iPadSplit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0336876C9218FC2B21E136AC /* InteractiveTranscriptView+iPadSplit.swift */; };
+		A1F2940A013356ED93A68094 /* InteractiveTranscriptView+Gestures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 135FB3E758B29EE3855E756C /* InteractiveTranscriptView+Gestures.swift */; };
+		C420CB2CA4C268548F4A5659 /* InteractiveTranscriptView+Gestures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 135FB3E758B29EE3855E756C /* InteractiveTranscriptView+Gestures.swift */; };
+		28E1E665A2B298E1C1CE0746 /* InteractiveTranscriptView+PhoneLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6952B502F0C6A9F1E5F6334 /* InteractiveTranscriptView+PhoneLayout.swift */; };
+		7991211A11084E79504F0526 /* InteractiveTranscriptView+PhoneLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6952B502F0C6A9F1E5F6334 /* InteractiveTranscriptView+PhoneLayout.swift */; };
+		85AFB1905548A08C98DB286A /* InteractivePlayerView+InputHandlers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70D17EDA68F7A59C47FB22E /* InteractivePlayerView+InputHandlers.swift */; };
+		DBA27A27CABF0A9A9AAB0425 /* InteractivePlayerView+InputHandlers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70D17EDA68F7A59C47FB22E /* InteractivePlayerView+InputHandlers.swift */; };
+		E60BBB78E94869F4A86BC2C1 /* InteractivePlayerView+HeaderOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C310D3E246D33FDCB7DF02B /* InteractivePlayerView+HeaderOverlay.swift */; };
+		E0AF7A8B784520853CA94457 /* InteractivePlayerView+HeaderOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C310D3E246D33FDCB7DF02B /* InteractivePlayerView+HeaderOverlay.swift */; };
+		64DCB2617E09A4485E5317F8 /* InteractivePlayerView+AudioManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 482F3D642FBFB22232714AA9 /* InteractivePlayerView+AudioManagement.swift */; };
+		C64EBD02357C8D11A41C62BA /* InteractivePlayerView+AudioManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 482F3D642FBFB22232714AA9 /* InteractivePlayerView+AudioManagement.swift */; };
 		1893CD8B81BFC594F6295C50 /* MyLinguistBubbleViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AE1559169473E8A00FAB0AB /* MyLinguistBubbleViewModel.swift */; };
 		D7AAEABCC8B023972EA1BC6F /* MyLinguistBubbleViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AE1559169473E8A00FAB0AB /* MyLinguistBubbleViewModel.swift */; };
+		27614F4EC1C58CFF2B875760 /* LinguistLookupUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508DED26A6449F55B9749B3D /* LinguistLookupUtilities.swift */; };
+		5B236E93DC5BABC46BC6984B /* LinguistLookupUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508DED26A6449F55B9749B3D /* LinguistLookupUtilities.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -375,9 +403,23 @@
 		DFFB27F7B9307C2DEB5ED919 /* AppleMusicPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/Music/AppleMusicPickerView.swift; sourceTree = SOURCE_ROOT; };
 		AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/Music/MusicControlOverlayView.swift; sourceTree = SOURCE_ROOT; };
 		C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift; sourceTree = SOURCE_ROOT; };
-		CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioModeManager.swift; sourceTree = "<group>"; };
-		508DED26A6449F55B9749B3D /* LinguistLookupUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Utilities/LinguistLookupUtilities.swift; sourceTree = SOURCE_ROOT; };
-		8AE1559169473E8A00FAB0AB /* MyLinguistBubbleViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/Shared/MyLinguistBubbleViewModel.swift; sourceTree = SOURCE_ROOT; };
+		CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/InteractivePlayer/AudioModeManager.swift; sourceTree = SOURCE_ROOT; };
+		37D9B5B81ECE4831C9C95C47 /* TextPlayerTimelineTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TextPlayerTimelineTypes.swift"; sourceTree = "<group>"; };
+		466333924981CAC460E6363E /* TextPlayerTimeline+DisplayBuilders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TextPlayerTimeline+DisplayBuilders.swift"; sourceTree = "<group>"; };
+		FF18E4DD6053AC2FDF049F0D /* TextPlayerTimeline+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TextPlayerTimeline+Helpers.swift"; sourceTree = "<group>"; };
+		037B07E83333F37631E3EC2E /* LinguistBubblePickerUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubblePickerUI.swift"; sourceTree = "<group>"; };
+		0C57EC3DF52A62FA7DD72FC5 /* LinguistBubbleTextUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubbleTextUtilities.swift"; sourceTree = "<group>"; };
+		04CE062FBA472A97845A05F7 /* StructuredLinguistContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StructuredLinguistContentView.swift"; sourceTree = "<group>"; };
+		71CC5D8D8A72DF86DDF78A6F /* LinguistBubbleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubbleModels.swift"; sourceTree = "<group>"; };
+		C7BF8754357D1D0647859680 /* LinguistBubbleStyling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubbleStyling.swift"; sourceTree = "<group>"; };
+		0336876C9218FC2B21E136AC /* InteractiveTranscriptView+iPadSplit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractiveTranscriptView+iPadSplit.swift"; sourceTree = "<group>"; };
+		135FB3E758B29EE3855E756C /* InteractiveTranscriptView+Gestures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractiveTranscriptView+Gestures.swift"; sourceTree = "<group>"; };
+		C6952B502F0C6A9F1E5F6334 /* InteractiveTranscriptView+PhoneLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractiveTranscriptView+PhoneLayout.swift"; sourceTree = "<group>"; };
+		B70D17EDA68F7A59C47FB22E /* InteractivePlayerView+InputHandlers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+InputHandlers.swift"; sourceTree = "<group>"; };
+		6C310D3E246D33FDCB7DF02B /* InteractivePlayerView+HeaderOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+HeaderOverlay.swift"; sourceTree = "<group>"; };
+		482F3D642FBFB22232714AA9 /* InteractivePlayerView+AudioManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+AudioManagement.swift"; sourceTree = "<group>"; };
+		8AE1559169473E8A00FAB0AB /* MyLinguistBubbleViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MyLinguistBubbleViewModel.swift"; sourceTree = "<group>"; };
+		508DED26A6449F55B9749B3D /* LinguistLookupUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistLookupUtilities.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -579,6 +621,15 @@
 				B5E9902ED51249ED8DD110B9 /* TextPlayerTimeline.swift */,
 				C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */,
 				CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */,
+				37D9B5B81ECE4831C9C95C47 /* TextPlayerTimelineTypes.swift */,
+				466333924981CAC460E6363E /* TextPlayerTimeline+DisplayBuilders.swift */,
+				FF18E4DD6053AC2FDF049F0D /* TextPlayerTimeline+Helpers.swift */,
+				0336876C9218FC2B21E136AC /* InteractiveTranscriptView+iPadSplit.swift */,
+				135FB3E758B29EE3855E756C /* InteractiveTranscriptView+Gestures.swift */,
+				C6952B502F0C6A9F1E5F6334 /* InteractiveTranscriptView+PhoneLayout.swift */,
+				B70D17EDA68F7A59C47FB22E /* InteractivePlayerView+InputHandlers.swift */,
+				6C310D3E246D33FDCB7DF02B /* InteractivePlayerView+HeaderOverlay.swift */,
+				482F3D642FBFB22232714AA9 /* InteractivePlayerView+AudioManagement.swift */,
 			);
 			path = InteractivePlayer;
 			sourceTree = "<group>";
@@ -666,6 +717,11 @@
 				UNIFCOVER002A0001 /* UnifiedCoverView.swift */,
 				DFB9B106AB74415AB26FD48B /* LinguistBubbleView.swift */,
 				45427BC75A1642FC994B1A55 /* PlatformAdapter.swift */,
+				037B07E83333F37631E3EC2E /* LinguistBubblePickerUI.swift */,
+				0C57EC3DF52A62FA7DD72FC5 /* LinguistBubbleTextUtilities.swift */,
+				04CE062FBA472A97845A05F7 /* StructuredLinguistContentView.swift */,
+				71CC5D8D8A72DF86DDF78A6F /* LinguistBubbleModels.swift */,
+				C7BF8754357D1D0647859680 /* LinguistBubbleStyling.swift */,
 				8AE1559169473E8A00FAB0AB /* MyLinguistBubbleViewModel.swift */,
 			);
 			path = Shared;
@@ -993,8 +1049,22 @@
 				C756197A16A3112CFFC65A5D /* MusicControlOverlayView.swift in Sources */,
 				0FC011012C02DFDE85940A49 /* SentencePositionProvider.swift in Sources */,
 				8150038CA009C71D56337C94 /* AudioModeManager.swift in Sources */,
-				27614F4EC1C58CFF2B875760 /* LinguistLookupUtilities.swift in Sources */,
+				748B48C154B91CBBCFE3AE15 /* TextPlayerTimelineTypes.swift in Sources */,
+				2BA9F9DF0673BD9698F7F373 /* TextPlayerTimeline+DisplayBuilders.swift in Sources */,
+				9463C294D145591CAEA17683 /* TextPlayerTimeline+Helpers.swift in Sources */,
+				4FA05FBBA17AAF720A629EDF /* LinguistBubblePickerUI.swift in Sources */,
+				8DD95020FDFE28A45949866E /* LinguistBubbleTextUtilities.swift in Sources */,
+				3687FF0BE5A9C6546FFBE806 /* StructuredLinguistContentView.swift in Sources */,
+				AA07EC4D0975CE337561D80D /* LinguistBubbleModels.swift in Sources */,
+				B14D15872A05DA0D1EF26F32 /* LinguistBubbleStyling.swift in Sources */,
+				3FF9FCF3CF1BDDF41BEF40FE /* InteractiveTranscriptView+iPadSplit.swift in Sources */,
+				A1F2940A013356ED93A68094 /* InteractiveTranscriptView+Gestures.swift in Sources */,
+				28E1E665A2B298E1C1CE0746 /* InteractiveTranscriptView+PhoneLayout.swift in Sources */,
+				85AFB1905548A08C98DB286A /* InteractivePlayerView+InputHandlers.swift in Sources */,
+				E60BBB78E94869F4A86BC2C1 /* InteractivePlayerView+HeaderOverlay.swift in Sources */,
+				64DCB2617E09A4485E5317F8 /* InteractivePlayerView+AudioManagement.swift in Sources */,
 				1893CD8B81BFC594F6295C50 /* MyLinguistBubbleViewModel.swift in Sources */,
+				27614F4EC1C58CFF2B875760 /* LinguistLookupUtilities.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1117,8 +1187,22 @@
 				AD96DB5410D66AB63DEF1A66 /* MusicControlOverlayView.swift in Sources */,
 				5CAD1B04ED962413DEAAE92A /* SentencePositionProvider.swift in Sources */,
 				6E11F253192C36A89ECBDFA9 /* AudioModeManager.swift in Sources */,
-				5B236E93DC5BABC46BC6984B /* LinguistLookupUtilities.swift in Sources */,
+				698B961D9E7DFD0CC75823F0 /* TextPlayerTimelineTypes.swift in Sources */,
+				E37647D7D10D5B3B2202DFF0 /* TextPlayerTimeline+DisplayBuilders.swift in Sources */,
+				E97D53D920475E418A10A0CD /* TextPlayerTimeline+Helpers.swift in Sources */,
+				970914FABB01A3E898A4FA64 /* LinguistBubblePickerUI.swift in Sources */,
+				B74B90AF18FCAECF019282BC /* LinguistBubbleTextUtilities.swift in Sources */,
+				A252ECFC23DBD902EC88F4CB /* StructuredLinguistContentView.swift in Sources */,
+				3343889DEE9AB0B7FA38108D /* LinguistBubbleModels.swift in Sources */,
+				860DAE492122AA9845D84287 /* LinguistBubbleStyling.swift in Sources */,
+				AA8FCBD2C822BA53B1364598 /* InteractiveTranscriptView+iPadSplit.swift in Sources */,
+				C420CB2CA4C268548F4A5659 /* InteractiveTranscriptView+Gestures.swift in Sources */,
+				7991211A11084E79504F0526 /* InteractiveTranscriptView+PhoneLayout.swift in Sources */,
+				DBA27A27CABF0A9A9AAB0425 /* InteractivePlayerView+InputHandlers.swift in Sources */,
+				E0AF7A8B784520853CA94457 /* InteractivePlayerView+HeaderOverlay.swift in Sources */,
+				C64EBD02357C8D11A41C62BA /* InteractivePlayerView+AudioManagement.swift in Sources */,
 				D7AAEABCC8B023972EA1BC6F /* MyLinguistBubbleViewModel.swift in Sources */,
+				5B236E93DC5BABC46BC6984B /* LinguistLookupUtilities.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

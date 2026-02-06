@@ -163,10 +163,15 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
     private var iosOverlay: some View {
         ZStack {
             VStack {
-                topBar
+                // Hide header when lookup bubble is active to maximize space for definition
+                if subtitleBubble == nil {
+                    topBar
+                        .transition(.opacity)
+                }
                 Spacer()
                 subtitleStack
             }
+            .animation(.easeInOut(duration: 0.2), value: subtitleBubble != nil)
             subtitleBubbleOverlay
         }
     }

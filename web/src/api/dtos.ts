@@ -178,6 +178,7 @@ export interface PipelineResponsePayload {
   stitched_audio_path?: string | null;
   stitched_video_path?: string | null;
   book_metadata: Record<string, unknown>;
+  structured_metadata?: import('./mediaMetadata').StructuredMediaMetadata | null;
   generated_files?: Record<string, unknown> | null;
 }
 
@@ -516,6 +517,7 @@ export interface YoutubeDubRequest {
   include_transliteration?: boolean | null;
   target_height?: number | null;
   preserve_aspect_ratio?: boolean | null;
+  enable_lookup_cache?: boolean | null;
 }
 
 export interface YoutubeDubResponse {

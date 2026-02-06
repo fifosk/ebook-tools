@@ -24,6 +24,13 @@ from .enrichment import (
     enrich_movie_metadata,
     enrich_tv_metadata,
 )
+from .structured_schema import StructuredMediaMetadata
+from .structured_conversion import (
+    detect_metadata_version,
+    flatten_to_dict,
+    normalize_media_metadata,
+    structure_from_flat,
+)
 
 __all__ = [
     # Types
@@ -53,4 +60,10 @@ __all__ = [
     "enrich_metadata",
     "enrich_movie_metadata",
     "enrich_tv_metadata",
+    # Structured metadata
+    "StructuredMediaMetadata",
+    "detect_metadata_version",
+    "flatten_to_dict",
+    "normalize_media_metadata",
+    "structure_from_flat",
 ]

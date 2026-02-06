@@ -5,8 +5,19 @@ extension VideoPlayerView {
     // MARK: - ViewModel Configuration
 
     func configureLinguistVM() {
+        let jobId = bookmarkJobId
         linguistVM.configure(
-            apiConfigProvider: { [weak appState] in appState?.configuration }
+            apiConfigProvider: { [weak appState] in appState?.configuration },
+            jobIdProvider: { jobId },
+            fetchCachedLookup: { [weak appState] jobId, word in
+                guard let config = appState?.configuration else { return nil }
+                let client = APIClient(configuration: config)
+                do {
+                    return try await client.fetchCachedLookup(jobId: jobId, word: word)
+                } catch {
+                    return nil
+                }
+            }
         )
         linguistVM.inputLanguage = linguistInputLanguage
         linguistVM.lookupLanguage = linguistLookupLanguage

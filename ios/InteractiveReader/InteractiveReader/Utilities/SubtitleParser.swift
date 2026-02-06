@@ -52,6 +52,17 @@ enum VideoSubtitleLineKind: String, Codable {
     case translation
     case transliteration
     case unknown
+
+    /// Canonical display order: original (top), transliteration (middle), translation (bottom).
+    /// Matches the interactive book reader variant order.
+    var displayOrder: Int {
+        switch self {
+        case .original:        return 0
+        case .transliteration: return 1
+        case .translation:     return 2
+        case .unknown:         return 3
+        }
+    }
 }
 
 struct VideoSubtitleLine: Hashable, Codable {

@@ -43,7 +43,7 @@ type TrackLineMap = {
   tokenLine: Map<number, number>;
 };
 
-const TRACK_RENDER_ORDER: TrackKind[] = ['original', 'translation', 'transliteration'];
+const TRACK_RENDER_ORDER: TrackKind[] = ['original', 'transliteration', 'translation'];
 
 const EMPTY_LINE_MAP: TrackLineMap = { lines: [], tokenLine: new Map() };
 

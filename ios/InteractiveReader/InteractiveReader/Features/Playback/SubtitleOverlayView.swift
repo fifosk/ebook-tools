@@ -132,7 +132,9 @@ enum VideoSubtitleDisplayBuilder {
         let lines = cue.lines.isEmpty
             ? [VideoSubtitleLine(text: cue.text, spans: cue.spans, kind: .translation)]
             : cue.lines
-        return lines.filter { !($0.text.isEmpty) && visibility.allows($0.kind) }
+        return lines
+            .filter { !($0.text.isEmpty) && visibility.allows($0.kind) }
+            .sorted { $0.kind.displayOrder < $1.kind.displayOrder }
     }
 
     // Uses start-sorted cues to avoid linear scans on large subtitle sets.

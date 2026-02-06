@@ -27,6 +27,7 @@ class PipelineResponsePayload(BaseModel):
     stitched_audio_path: Optional[str] = None
     stitched_video_path: Optional[str] = None
     media_metadata: Dict[str, Any] = Field(default_factory=dict, alias="book_metadata")
+    structured_metadata: Optional[Dict[str, Any]] = None
     generated_files: Dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(populate_by_name=True)
@@ -91,6 +92,15 @@ class PipelineResponsePayload(BaseModel):
         if response.pipeline_config is not None:
             pipeline_config_data = cls._serialize_pipeline_config(response.pipeline_config)
 
+        media_metadata_dict = dict(response.media_metadata)
+        structured_metadata: Optional[Dict[str, Any]] = None
+        try:
+            from ...services.metadata.structured_conversion import structure_from_flat
+
+            structured_metadata = structure_from_flat(media_metadata_dict).to_camel_dict()
+        except Exception:  # pragma: no cover - defensive
+            pass
+
         return cls(
             success=response.success,
             pipeline_config=pipeline_config_data,
@@ -104,6 +114,7 @@ class PipelineResponsePayload(BaseModel):
             stitched_documents=dict(response.stitched_documents),
             stitched_audio_path=response.stitched_audio_path,
             stitched_video_path=response.stitched_video_path,
-            media_metadata=dict(response.media_metadata),
+            media_metadata=media_metadata_dict,
+            structured_metadata=structured_metadata,
             generated_files=copy.deepcopy(response.generated_files),
         )

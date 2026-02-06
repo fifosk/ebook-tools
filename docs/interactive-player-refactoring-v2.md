@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-05 (last updated: 2026-02-06)
 **Scope:** Metadata optimization, modular separation, audio management, chunk prefetching, and cross-component logic reuse across Web UI and Apple apps.
-**Status:** 13/15 items completed (87%). See [Completion Summary](#completion-summary) at end.
+**Status:** 15/15 items completed (100%, 4.3 deferred). See [Completion Summary](#completion-summary) at end.
 
 ---
 
@@ -104,19 +104,41 @@
 
 **Backward compat:** Old jobs without manifest fall back to inline `image` dict. iOS decodes `imagePath` via existing fallback chain.
 
-### 1.5 External Book Info Consolidation — DEFERRED
+### 1.5 Structured Media Metadata ✅ COMPLETED
 
-**Problem:** Book metadata is scattered across `job.json` top-level fields (`author`, `book_title`, `book_year`, `book_cover_file`) AND nested in `book_metadata` object. The top-level fields are legacy.
+**Problem:** `media_metadata` (aka `book_metadata`) was a flat `Dict[str, Any]` with ~40 fields mixed together — book identity, language config, content structure, cover paths, enrichment provenance. No type safety, no polymorphism for different media types (book, movie, TV, YouTube).
 
-**Proposal:**
-- For metadata_version 3: single `bookMetadata` object only
-- Remove redundant top-level `author`, `book_title`, `book_year`, `book_cover_file`
-- `content_index` stays nested in `bookMetadata`
-- API normalizes to flat `bookMetadata` for clients
+**Implementation:**
+- Created `StructuredMediaMetadata` schema with typed sections: `source` (polymorphic by mediaType), `languageConfig`, `contentStructure`, `coverAssets`, `enrichment`
+- Backend Pydantic models: `modules/services/metadata/structured_schema.py` (9 models)
+- Bidirectional conversion: `modules/services/metadata/structured_conversion.py` (flat↔structured with round-trip fidelity)
+- Persistence: `book.json` now written in structured v2 format (camelCase)
+- API: `structured_metadata` field added alongside flat `media_metadata` in `PipelineResponsePayload`
+- Web: TypeScript interfaces in `web/src/api/mediaMetadata.ts`, client-side normalization in `web/src/lib/metadata/`
+- iOS: `StructuredMediaMetadata.swift` Codable structs with `from(json:)` decoder from `JSONValue`
 
-**Status:** Deferred — low priority, schema change only, no functional impact.
+**Key design:**
+- `mediaType` discriminator: `"book"` | `"movie"` | `"tv_series"` | `"tv_episode"` | `"youtube_video"`
+- `source` section holds common fields (title, author, year, summary, genres) + type-conditional fields (isbn for books, series for TV, youtube for YouTube)
+- Processing config (add_images, audio_mode, etc.) excluded — belongs in `JobParameterSnapshot`
+- Unknown keys preserved in `extras` dict for forward compat
+- Old flat format auto-detected and converted on read — no batch migration needed
 
-**Risk:** Low with version gating.
+**Backward compat:** API returns both flat `media_metadata` and structured `structured_metadata`. Frontends prefer structured when available, fall back to flat. Old `book.json` files normalize on read.
+
+**Files:**
+- New: `modules/services/metadata/structured_schema.py` — Pydantic models
+- New: `modules/services/metadata/structured_conversion.py` — flat↔structured conversion
+- New: `tests/modules/services/metadata/test_structured_conversion.py` — 46 tests
+- New: `web/src/api/mediaMetadata.ts` — TypeScript interfaces
+- New: `web/src/lib/metadata/normalizeMediaMetadata.ts` — client-side normalization
+- New: `web/src/lib/metadata/index.ts` — barrel exports
+- New: `ios/.../Models/StructuredMediaMetadata.swift` — Swift Codable structs
+- Modified: `modules/services/pipeline_types.py` — `as_structured()` / `from_structured()`
+- Modified: `modules/services/metadata/__init__.py` — exports
+- Modified: `modules/services/job_manager/persistence.py` — writes structured book.json
+- Modified: `modules/webapi/schemas/pipeline_results.py` — `structured_metadata` field
+- Modified: `web/src/api/dtos.ts` — `structured_metadata` in response DTO
 
 ---
 
@@ -267,14 +289,24 @@ web/src/lib/media/
 - Modified: `InteractivePlayerViewModel.swift` — audioModeManager property
 - Modified: `InteractivePlayerView+Layout.swift` — sets audioModeManager in .onAppear
 
-### 3.3 Audio Preloading Strategy Alignment
+### 3.3 Audio Preloading Strategy Alignment ✅ COMPLETED
 
 **Problem:** Web prefetches audio heads (bytes 0-2047) with radius=2 chunks. iOS prefetches audio URLs but implementation details differ. Neither platform preloads the *other* track (if in sequence mode, preload both orig and trans for adjacent chunks).
 
-**Proposal:**
-- Web: Extend `useChunkPrefetch.ts` to preload both audio tracks when sequence mode is active
-- iOS: Align prefetch radius and strategy with Web (currently iOS does ±2 sentences, Web does ±2 chunks)
-- Both platforms: Prefetch metadata + audio for next/prev chunk based on playback direction
+**Implementation:**
+- **Web: Dual-track prefetch in sequence mode** — Added `resolveSequenceAudioUrls()` to `audioUrlResolver.ts` (returns both original + translation URLs). `useChunkPrefetch` accepts new `sequenceEnabled` option; when true, prefetches both audio track headers instead of single active track. State bridged from `sequencePlayback.enabled` via `InteractiveTextViewer.tsx`.
+- **iOS: Direction-aware prefetch** — Added `PrefetchDirection` enum to ViewModel. `prefetchAdjacentSentencesIfNeeded()` tracks direction from sentence number changes and uses asymmetric radius (1 behind, 3 forward) when playing forward, matching Web behavior.
+- **iOS: Dual-track prefetch in sequence mode** — Refactored `prefetchChunkMediaIfNeeded()` into sequence-aware logic: when `audioModeManager?.currentMode == .sequence`, prefetches both `.original` and `.translation` audio options. Extracted `prefetchAudioOption(_:for:)` helper.
+
+**Files changed:**
+- `web/src/lib/media/audioUrlResolver.ts` — new `resolveSequenceAudioUrls()` function
+- `web/src/lib/media/index.ts` — barrel export
+- `web/src/components/interactive-text/useChunkPrefetch.ts` — `sequenceEnabled` option, `prefetchChunkAudioSequence` callback, conditional dispatch
+- `web/src/components/InteractiveTextViewer.tsx` — bridging state for `prefetchSequenceEnabled`
+- `ios/.../InteractivePlayerViewModel.swift` — `PrefetchDirection` enum + `prefetchDirection` property
+- `ios/.../InteractivePlayerViewModel+Prefetch.swift` — direction tracking, asymmetric radius, dual-track prefetch
+- `ios/.../InteractivePlayerViewModel+Selection.swift` — reset `prefetchDirection` on chunk change
+- `ios/.../InteractivePlayerViewModel+Loading.swift` — reset `prefetchDirection` on job load
 
 ---
 
@@ -476,7 +508,7 @@ This eliminates the current situation where subtitle cue search and word timing 
 | 12 | 1.4 Lazy image metadata | ✅ |
 | 13 | 5.4 Server-side resume position | ✅ |
 | 14 | 2.3 iOS platform conditional cleanup | ✅ |
-| 15 | 1.5 External book info consolidation | Deferred |
+| 15 | 1.5 Structured media metadata | ✅ |
 
 ---
 
@@ -520,6 +552,9 @@ This eliminates the current situation where subtitle cue search and word timing 
 | Audio track resolution (iOS) | 4-way branching | AudioModeManager | ✅ resolveAudioInstruction() |
 | Sentence→chunk lookup (Web) | O(n) linear scan | O(1) map + O(log n) | ✅ sentenceChunkIndex |
 | Playback controls interface (Web) | 4 separate definitions | 1 canonical | ✅ `lib/playback/playbackActions.ts` |
+| Audio tracks prefetched (sequence) | 1 (active only) | Both orig + trans | ✅ Web + iOS dual-track prefetch |
+| iOS prefetch direction awareness | Symmetric ±2 always | Asymmetric when playing | ✅ 1 back / 3 forward when playing forward |
+| Media metadata type safety | Flat Dict[str, Any] everywhere | Typed polymorphic schema | ✅ StructuredMediaMetadata v2 (9 Pydantic models, TS interfaces, Swift Codable) |
 
 ---
 
@@ -535,19 +570,15 @@ This eliminates the current situation where subtitle cue search and word timing 
 
 ## Completion Summary
 
-**Completed:** 13 of 15 items (87%)
-- Part 1: 4/5 (1.1 ✅, 1.2 ✅, 1.3 ✅, 1.4 ✅, 1.5 deferred)
-- Part 2: 4/5 (2.1 ✅, 2.2 ✅, 2.3 ✅, 2.4 ✅, 2.5 ✅)
-- Part 3: 2/3 (3.1 ✅, 3.2 ✅, 3.3 not started)
+**Completed:** 15 of 15 items (100%)
+- Part 1: 5/5 (1.1 ✅, 1.2 ✅, 1.3 ✅, 1.4 ✅, 1.5 ✅)
+- Part 2: 5/5 (2.1 ✅, 2.2 ✅, 2.3 ✅, 2.4 ✅, 2.5 ✅)
+- Part 3: 3/3 (3.1 ✅, 3.2 ✅, 3.3 ✅)
 - Part 4: 3/4 (4.1 ✅, 4.2 ✅, 4.3 deferred, 4.4 ✅)
 - Part 5: 4/4 (5.1 ✅, 5.2 ✅, 5.3 ✅, 5.4 ✅)
 
-**Deferred:** 2 items
-- 1.5 External book info consolidation — low priority, schema-only change
+**Deferred:** 1 item
 - 4.3 Progressive metadata hydration — requires backend API changes, current prefetching is sufficient
-
-**Not started:** 1 item
-- 3.3 Audio preloading strategy alignment — cross-platform prefetch alignment (Web ↔ iOS)
 
 **Bug fixes (outside plan):**
 - Sequence playback gate data fix — gates were being stripped by compact chunk serialization

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
+
+if TYPE_CHECKING:
+    from .metadata.structured_schema import StructuredMediaMetadata
 
 from pydub import AudioSegment
 
@@ -33,6 +36,19 @@ class PipelineMetadata:
 
     def as_dict(self) -> Dict[str, Any]:
         return dict(self.values)
+
+    def as_structured(self) -> "StructuredMediaMetadata":
+        """Return a :class:`StructuredMediaMetadata` view of this metadata."""
+        from .metadata.structured_conversion import structure_from_flat
+
+        return structure_from_flat(self.values)
+
+    @classmethod
+    def from_structured(cls, structured: "StructuredMediaMetadata") -> "PipelineMetadata":
+        """Create a :class:`PipelineMetadata` from structured form."""
+        from .metadata.structured_conversion import flatten_to_dict
+
+        return cls(values=flatten_to_dict(structured))
 
 
 @dataclass(slots=True)

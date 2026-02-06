@@ -140,6 +140,7 @@ export default function VideoDubbingPage({
   const [splitBatches, setSplitBatches] = useState(true);
   const [stitchBatches, setStitchBatches] = useState(true);
   const [includeTransliteration, setIncludeTransliteration] = useState(true);
+  const [enableLookupCache, setEnableLookupCache] = useState(true);
   const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
   const [voiceInventoryError, setVoiceInventoryError] = useState<string | null>(null);
   const [isLoadingVoices, setIsLoadingVoices] = useState(false);
@@ -1043,7 +1044,8 @@ export default function VideoDubbingPage({
         stitch_batches: stitchBatches,
         include_transliteration: includeTransliteration,
         target_height: targetHeight,
-        preserve_aspect_ratio: preserveAspectRatio
+        preserve_aspect_ratio: preserveAspectRatio,
+        enable_lookup_cache: enableLookupCache
       });
       setStatusMessage(`Dub job submitted as ${response.job_id}. Track progress below.`);
       onJobCreated(response.job_id);
@@ -1256,6 +1258,7 @@ export default function VideoDubbingPage({
           splitBatches={splitBatches}
           stitchBatches={stitchBatches}
           includeTransliteration={includeTransliteration}
+          enableLookupCache={enableLookupCache}
           originalMixPercent={originalMixPercent}
           startOffset={startOffset}
           endOffset={endOffset}
@@ -1271,6 +1274,7 @@ export default function VideoDubbingPage({
           onSplitBatchesChange={setSplitBatches}
           onStitchBatchesChange={setStitchBatches}
           onIncludeTransliterationChange={setIncludeTransliteration}
+          onEnableLookupCacheChange={setEnableLookupCache}
           onOriginalMixPercentChange={setOriginalMixPercent}
           onStartOffsetChange={setStartOffset}
           onEndOffsetChange={setEndOffset}

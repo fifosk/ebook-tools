@@ -194,11 +194,10 @@ def add_file_to_project(content: str, relative_path: str, dry_run: bool = False)
             else:
                 build_tvos_id = uid_new
 
-    # The sourceTree-relative path
-    source_path = f"InteractiveReader/{relative_path}"
-
     # 1. Add PBXFileReference
-    file_ref_line = f'\t\t{file_ref_id} /* {filename} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {source_path}; sourceTree = SOURCE_ROOT; }};\n'
+    # Use path = "<filename>" + sourceTree = "<group>" (consistent with existing entries)
+    # Always quote the path to handle special chars like + in extension filenames
+    file_ref_line = f'\t\t{file_ref_id} /* {filename} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "{filename}"; sourceTree = "<group>"; }};\n'
 
     # Insert after last PBXFileReference entry (before "/* End PBXFileReference section */")
     end_fileref = content.find("/* End PBXFileReference section */")

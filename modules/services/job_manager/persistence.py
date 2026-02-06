@@ -245,20 +245,36 @@ class PipelineJobPersistence:
                     exc_info=True,
                 )
         result_payload["media_metadata"] = media_metadata
+
+        # Build structured metadata (v2) from the fully-populated flat dict
+        try:
+            from ...services.metadata.structured_conversion import structure_from_flat
+
+            structured = structure_from_flat(media_metadata)
+            structured_dict = structured.to_camel_dict()
+            result_payload["structured_metadata"] = structured_dict
+        except Exception:  # pragma: no cover - defensive
+            _LOGGER.debug("Unable to build structured metadata", exc_info=True)
+            structured_dict = None
+
         snapshot.result = result_payload
 
         if job.result_payload is not None:
             job.result_payload = dict(job.result_payload)
             job.result_payload["media_metadata"] = copy.deepcopy(media_metadata)
+            if structured_dict is not None:
+                job.result_payload["structured_metadata"] = copy.deepcopy(structured_dict)
         if job.result is not None:
             if cover_asset:
                 job.result.metadata.update({"job_cover_asset": cover_asset})
             else:
                 job.result.metadata.values.pop("job_cover_asset", None)
 
+        # Write book.json in structured v2 format (flat is still in result_payload)
         try:
+            book_json_payload = structured_dict if structured_dict is not None else dict(media_metadata)
             (metadata_root / "book.json").write_text(
-                json.dumps(dict(media_metadata), indent=2, sort_keys=True),
+                json.dumps(book_json_payload, indent=2, sort_keys=True),
                 encoding="utf-8",
             )
         except Exception:  # pragma: no cover - defensive logging

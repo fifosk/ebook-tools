@@ -9,6 +9,12 @@ final class InteractivePlayerViewModel: ObservableObject {
         case library
     }
 
+    enum PrefetchDirection {
+        case forward
+        case backward
+        case none
+    }
+
     enum LoadState: Equatable {
         case idle
         case loading
@@ -65,6 +71,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     var chunkMetadataLoading: Set<String> = []
     var chunkMetadataAttemptedAt: [String: Date] = [:]
     var lastPrefetchSentenceNumber: Int?
+    var prefetchDirection: PrefetchDirection = .none
     var prefetchedAudioURLs: Set<URL> = []
     var pendingSentenceJump: PendingSentenceJump?
     let defaultReadingBedPath = "/assets/reading-beds/lost-in-the-pages.mp3"
