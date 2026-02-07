@@ -226,7 +226,7 @@ def build_markdown(
                 dest = screenshot_dir / dest_name
                 shutil.copy2(src, dest)
                 rel = dest.relative_to(report_parent)
-                lines.append(f"![{name}]({rel})")
+                lines.append(f'<img src="{rel}" alt="{name}" width="300">')
                 lines.append("")
 
     # Footer

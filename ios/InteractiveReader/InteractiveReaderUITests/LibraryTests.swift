@@ -2,22 +2,71 @@ import XCTest
 
 final class LibraryTests: InteractiveReaderUITests {
 
-    func testLibraryLoads() throws {
+    // MARK: - Jobs tab — browse all 3 sub-types
+
+    func testBrowseJobsAllTypes() throws {
         loginIfNeeded()
 
-        let library = app.otherElements["libraryShellView"]
-        XCTAssertTrue(library.waitForExistence(timeout: 15),
-                      "Library shell should be visible")
-        takeScreenshot(named: "library_loaded")
+        // Ensure we're on the Jobs tab (default after login)
+        let jobsButton = app.buttons["Jobs"]
+        if jobsButton.waitForExistence(timeout: 5) {
+            jobsButton.tap()
+        }
+
+        // Video (default sub-tab)
+        let videoButton = app.buttons["Video"]
+        if videoButton.waitForExistence(timeout: 5) {
+            videoButton.tap()
+        }
+        sleep(1)
+        takeScreenshot(named: "jobs_video")
+
+        // Books
+        let booksButton = app.buttons["Books"]
+        XCTAssertTrue(booksButton.waitForExistence(timeout: 5), "Books filter should exist")
+        booksButton.tap()
+        sleep(1)
+        takeScreenshot(named: "jobs_books")
+
+        // Subtitles
+        let subtitlesButton = app.buttons["Subtitles"]
+        XCTAssertTrue(subtitlesButton.waitForExistence(timeout: 5), "Subtitles filter should exist")
+        subtitlesButton.tap()
+        sleep(1)
+        takeScreenshot(named: "jobs_subtitles")
     }
 
-    func testLibraryHasItems() throws {
+    // MARK: - Library tab — browse all 3 sub-types
+
+    func testBrowseLibraryAllTypes() throws {
         loginIfNeeded()
 
-        // Wait for at least one cell/row to appear (jobs or library items)
-        let firstCell = app.cells.firstMatch
-        XCTAssertTrue(firstCell.waitForExistence(timeout: 20),
-                      "At least one list item should appear")
-        takeScreenshot(named: "library_with_items")
+        // Switch to Library tab
+        let libraryButton = app.buttons["Library"]
+        XCTAssertTrue(libraryButton.waitForExistence(timeout: 5), "Library tab should exist")
+        libraryButton.tap()
+        sleep(1)
+
+        // Video (default sub-tab)
+        let videoButton = app.buttons["Video"]
+        if videoButton.waitForExistence(timeout: 5) {
+            videoButton.tap()
+        }
+        sleep(1)
+        takeScreenshot(named: "library_video")
+
+        // Books
+        let booksButton = app.buttons["Books"]
+        XCTAssertTrue(booksButton.waitForExistence(timeout: 5), "Books filter should exist")
+        booksButton.tap()
+        sleep(1)
+        takeScreenshot(named: "library_books")
+
+        // Subtitles
+        let subtitlesButton = app.buttons["Subtitles"]
+        XCTAssertTrue(subtitlesButton.waitForExistence(timeout: 5), "Subtitles filter should exist")
+        subtitlesButton.tap()
+        sleep(1)
+        takeScreenshot(named: "library_subtitles")
     }
 }
