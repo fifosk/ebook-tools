@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
-from modules.core.rendering.constants import LANGUAGE_CODES
+from modules.language_constants import LANGUAGE_CODES
 from modules.core.rendering.exporters import BatchExportRequest, build_exporter
 from modules.render.backends import get_audio_synthesizer
 from modules.retry_annotations import is_failure_annotation

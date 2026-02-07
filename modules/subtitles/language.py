@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Sequence, TYPE_CHECKING
 
 from modules import prompt_templates
-from modules.core.rendering.constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
+from modules.language_constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
 from modules.llm_client import create_client
 
 from .common import logger

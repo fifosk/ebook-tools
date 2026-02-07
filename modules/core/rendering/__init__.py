@@ -13,7 +13,7 @@ from modules.core.translation import ThreadWorkerPool
 from modules.transliteration import TransliterationService
 from modules.progress_tracker import ProgressTracker
 
-from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
+from modules.language_constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
 from .pipeline import RenderPipeline
 
 

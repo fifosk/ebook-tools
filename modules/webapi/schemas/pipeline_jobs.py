@@ -15,7 +15,7 @@ from ...services.file_locator import FileLocator
 from modules.permissions import resolve_access_policy
 from .access import AccessPolicyPayload
 from ...transliteration import resolve_local_transliteration_module
-from ..jobs import PipelineJob, PipelineJobStatus
+from modules.services.job_manager import PipelineJob, PipelineJobStatus
 from .pipeline_results import PipelineResponsePayload
 from .progress import ProgressEventPayload
 

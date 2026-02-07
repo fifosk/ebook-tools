@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from conf.sync_config import AUDIO_SUFFIXES, VIDEO_SUFFIXES
 from modules import logging_manager
-from modules.core.rendering.constants import LANGUAGE_CODES
+from modules.language_constants import LANGUAGE_CODES
 from modules.metadata_manager import MetadataLoader
 from modules.services.file_locator import FileLocator
 from modules.services.pipeline_service import PipelineService

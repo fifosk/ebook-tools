@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from ..jobs import PipelineJobStatus
+from modules.services.job_manager import PipelineJobStatus
 
 
 class YoutubeSubtitleTrackPayload(BaseModel):

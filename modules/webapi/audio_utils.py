@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from modules.core.rendering.constants import LANGUAGE_CODES
+from modules.language_constants import LANGUAGE_CODES
 
 _LANGUAGE_CODE_ALIASES: dict[str, str] = {
     "amh": "am",

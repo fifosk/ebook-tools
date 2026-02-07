@@ -18,7 +18,7 @@ from modules.webapi.dependencies import (
     get_library_sync,
     get_pipeline_service,
 )
-from modules.webapi.jobs import PipelineJob, PipelineJobStatus
+from modules.services.job_manager import PipelineJob, PipelineJobStatus
 
 
 class _StubPipelineService:

@@ -246,20 +246,4 @@ extension InteractivePlayerView {
     var showTranslationAudio: Bool {
         audioModeManager.isTranslationEnabled
     }
-
-    /// DEPRECATED: This function is no longer used.
-    ///
-    /// Text track visibility should NOT affect audio playback in sequence/combined mode.
-    /// Audio track selection is controlled separately via the audio picker in the header.
-    /// The shouldSkipTrack callback was causing issues where translation audio would be
-    /// skipped even when both audio track pills were active, because the callback was
-    /// set once at startup and captured stale visibility state.
-    ///
-    /// Instead, shouldSkipTrack is now set to nil in onAppear, ensuring both tracks
-    /// always play in sequence mode regardless of which text tracks are visible.
-    @available(*, deprecated, message: "Text visibility no longer affects audio playback")
-    func updateShouldSkipTrackCallback() {
-        // No-op: kept for reference but no longer used
-        print("[TrackVisibility] updateShouldSkipTrackCallback called but is deprecated - doing nothing")
-    }
 }

@@ -71,10 +71,6 @@ logger = log_mgr.logger
 _TRANSLATION_RESPONSE_ATTEMPTS = 5
 _TRANSLATION_RETRY_DELAY_SECONDS = 1.0
 _LLM_REQUEST_ATTEMPTS = 4
-# Batch logging constants moved to translation_logging module
-_LLM_BATCH_TRANSLATION_SUBDIR = TRANSLATION_SUBDIR
-_LLM_BATCH_TRANSLITERATION_SUBDIR = TRANSLITERATION_SUBDIR
-
 
 def _should_include_transliteration(
     include_transliteration: bool,
@@ -85,37 +81,6 @@ def _should_include_transliteration(
         and language_policies.is_non_latin_language_hint(target_language)
     )
 
-
-# BatchStatsRecorder class moved to translation_logging module
-_BatchStatsRecorder = BatchStatsRecorder
-
-
-# Batch logging functions moved to translation_logging module
-_resolve_llm_batch_log_dir = resolve_llm_batch_log_dir
-_sanitize_batch_component = sanitize_batch_component
-_write_llm_batch_artifact = write_llm_batch_artifact
-
-
-# GoogleTrans provider functions delegated to translation_providers module
-_check_googletrans_health = check_googletrans_health
-_normalize_translation_provider = normalize_translation_provider
-_resolve_googletrans_language = resolve_googletrans_language
-_translate_with_googletrans = translate_with_googletrans
-
-# Batch processing functions delegated to translation_batch module
-_normalize_llm_batch_size = normalize_llm_batch_size
-_build_translation_batches = build_translation_batches
-_chunk_batch_items = chunk_batch_items
-_extract_batch_items = extract_batch_items
-_coerce_batch_item_id = coerce_batch_item_id
-_coerce_text_value = coerce_text_value
-_parse_batch_translation_payload = parse_batch_translation_payload
-_parse_batch_transliteration_payload = parse_batch_transliteration_payload
-_validate_batch_translation = validate_batch_translation
-_validate_batch_transliteration = validate_batch_transliteration
-_translate_llm_batch_items = translate_llm_batch_items
-_transliterate_llm_batch_items = transliterate_llm_batch_items
-_resolve_batch_transliterations = resolve_batch_transliterations
 
 
 def _translate_with_llm(
@@ -368,14 +333,14 @@ def translate_sentence_simple(
     include_transliteration = _should_include_transliteration(
         include_transliteration, target_language
     )
-    provider = _normalize_translation_provider(translation_provider)
+    provider = normalize_translation_provider(translation_provider)
     timeout_seconds = cfg.get_translation_llm_timeout_seconds()
     fallback_model = cfg.get_translation_fallback_model()
     fallback_active = fallbacks.is_llm_fallback_active(progress_tracker)
 
     if provider == "googletrans" and not fallback_active:
         trigger = "googletrans_error"
-        dest_code = _resolve_googletrans_language(target_language, fallback=None)
+        dest_code = resolve_googletrans_language(target_language, fallback=None)
         if not dest_code:
             google_error = f"Unsupported googletrans language: {target_language}"
             google_text = format_retry_failure(
@@ -385,7 +350,7 @@ def translate_sentence_simple(
             )
             trigger = "googletrans_unsupported_language"
         else:
-            google_text, google_error = _translate_with_googletrans(
+            google_text, google_error = translate_with_googletrans(
                 sentence,
                 input_language,
                 target_language,
@@ -532,7 +497,7 @@ def translate_batch(
     targets = _normalize_target_sequence(target_language, len(sentences))
     worker_count = max_workers or cfg.get_thread_count()
     worker_count = max(1, min(worker_count, len(sentences)))
-    provider = _normalize_translation_provider(translation_provider)
+    provider = normalize_translation_provider(translation_provider)
     transliterator = transliterator or get_transliterator()
     include_transliteration_any = include_transliteration and any(
         language_policies.is_non_latin_language_hint(target) for target in targets
@@ -550,7 +515,7 @@ def translate_batch(
 
     with llm_client_manager.client_scope(client) as resolved_client:
         batch_size = (
-            _normalize_llm_batch_size(llm_batch_size) if provider == "llm" else None
+            normalize_llm_batch_size(llm_batch_size) if provider == "llm" else None
         )
         if batch_size and not prompt_templates.translation_supports_json_batch(
             resolved_client.model
@@ -561,19 +526,19 @@ def translate_batch(
                     resolved_client.model,
                 )
             batch_size = None
-        batch_log_dir = _resolve_llm_batch_log_dir() if batch_size else None
+        batch_log_dir = resolve_llm_batch_log_dir() if batch_size else None
         transliteration_batch_size = (
-            _normalize_llm_batch_size(llm_batch_size) if include_transliteration_any else None
+            normalize_llm_batch_size(llm_batch_size) if include_transliteration_any else None
         )
         transliteration_batch_log_dir = (
-            _resolve_llm_batch_log_dir(_LLM_BATCH_TRANSLITERATION_SUBDIR)
+            resolve_llm_batch_log_dir(TRANSLITERATION_SUBDIR)
             if transliteration_batch_size
             else None
         )
         batch_stats = None
         transliteration_stats = None
         if batch_size:
-            batches = _build_translation_batches(
+            batches = build_translation_batches(
                 sentences, targets, batch_size=batch_size
             )
             batch_stats = _BatchStatsRecorder(
@@ -605,7 +570,7 @@ def translate_batch(
                 include_transliteration_for_target = _should_include_transliteration(
                     include_transliteration_any, target
                 )
-                translation_map, _error, elapsed = _translate_llm_batch_items(
+                translation_map, _error, elapsed = translate_llm_batch_items(
                     items,
                     input_language,
                     target,
@@ -626,7 +591,7 @@ def translate_batch(
                 pending_transliteration: List[Tuple[int, str]] = []
                 for idx, sentence in items:
                     translation, transliteration = translation_map.get(idx, ("", ""))
-                    translation_error = _validate_batch_translation(
+                    translation_error = validate_batch_translation(
                         sentence, translation, target
                     )
                     if translation_error:
@@ -664,7 +629,7 @@ def translate_batch(
 
                 transliteration_map: Dict[int, str] = {}
                 if include_transliteration_for_target and pending_transliteration:
-                    transliteration_map = _resolve_batch_transliterations(
+                    transliteration_map = resolve_batch_transliterations(
                         pending_transliteration,
                         target,
                         transliterator=transliterator,
@@ -818,12 +783,12 @@ def start_translation_pipeline(
         pool = worker_pool or ThreadWorkerPool(max_workers=worker_count)
         own_pool = worker_pool is None
         pool_mode = getattr(pool, "mode", "thread")
-        provider = _normalize_translation_provider(translation_provider)
+        provider = normalize_translation_provider(translation_provider)
         include_transliteration_any = include_transliteration and any(
             language_policies.is_non_latin_language_hint(target) for target in target_language
         )
         batch_size = (
-            _normalize_llm_batch_size(llm_batch_size) if provider == "llm" else None
+            normalize_llm_batch_size(llm_batch_size) if provider == "llm" else None
         )
         if batch_size and not prompt_templates.translation_supports_json_batch(
             local_client.model
@@ -834,12 +799,12 @@ def start_translation_pipeline(
                     local_client.model,
                 )
             batch_size = None
-        batch_log_dir = _resolve_llm_batch_log_dir() if batch_size else None
+        batch_log_dir = resolve_llm_batch_log_dir() if batch_size else None
         transliteration_batch_size = (
-            _normalize_llm_batch_size(llm_batch_size) if include_transliteration_any else None
+            normalize_llm_batch_size(llm_batch_size) if include_transliteration_any else None
         )
         transliteration_batch_log_dir = (
-            _resolve_llm_batch_log_dir(_LLM_BATCH_TRANSLITERATION_SUBDIR)
+            resolve_llm_batch_log_dir(TRANSLITERATION_SUBDIR)
             if transliteration_batch_size
             else None
         )
@@ -857,7 +822,7 @@ def start_translation_pipeline(
             futures_map: dict = {}
             batches: List[Tuple[str, List[Tuple[int, str]]]] = []
             if batch_size:
-                batches = _build_translation_batches(
+                batches = build_translation_batches(
                     sentences, target_language, batch_size=batch_size
                 )
                 batch_stats = _BatchStatsRecorder(
@@ -935,7 +900,7 @@ def start_translation_pipeline(
                 include_transliteration_for_target = _should_include_transliteration(
                     include_transliteration_any, target
                 )
-                translation_map, _error, elapsed = _translate_llm_batch_items(
+                translation_map, _error, elapsed = translate_llm_batch_items(
                     items,
                     input_language,
                     target,
@@ -958,7 +923,7 @@ def start_translation_pipeline(
                         start_sentence + idx, per_item_elapsed, mode_label
                     )
                     translation, transliteration = translation_map.get(idx, ("", ""))
-                    translation_error = _validate_batch_translation(
+                    translation_error = validate_batch_translation(
                         sentence, translation, target
                     )
                     if translation_error:
@@ -996,7 +961,7 @@ def start_translation_pipeline(
 
                 transliteration_map: Dict[int, str] = {}
                 if include_transliteration_for_target and pending_transliteration:
-                    transliteration_map = _resolve_batch_transliterations(
+                    transliteration_map = resolve_batch_transliterations(
                         pending_transliteration,
                         target,
                         transliterator=transliterator,

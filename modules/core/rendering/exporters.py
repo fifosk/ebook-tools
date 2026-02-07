@@ -15,7 +15,7 @@ from modules import output_formatter
 from modules.audio.tts import get_voice_display_name
 from modules.config.loader import get_rendering_config
 from modules.core.config import DEFAULT_AUDIO_BITRATE_KBPS
-from modules.core.rendering.constants import LANGUAGE_CODES
+from modules.language_constants import LANGUAGE_CODES
 from modules.core.rendering.timeline import (
     SentenceTimingSpec,
     build_separate_track_timings,

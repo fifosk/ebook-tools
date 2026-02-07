@@ -21,7 +21,7 @@ from ...dependencies import (
     get_pipeline_job_manager,
     get_request_user,
 )
-from ...jobs import PipelineJob
+from modules.services.job_manager import PipelineJob
 from .common import _resolve_job_path
 
 jobs_timing_router = APIRouter(prefix="/api/jobs", tags=["jobs"])

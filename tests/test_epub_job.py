@@ -27,7 +27,7 @@ uvicorn = pytest.importorskip("uvicorn")
 
 from modules import config_manager as cfg
 from modules.cli import context as cli_context
-from modules.core.rendering.constants import LANGUAGE_CODES
+from modules.language_constants import LANGUAGE_CODES
 from modules.epub_utils import create_epub_from_sentences
 from modules.llm_client import create_client
 

@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ...services.pipeline_service import PipelineInput, PipelineRequest
-from ..jobs import PipelineJobStatus
+from modules.services.job_manager import PipelineJobStatus
 
 
 class PipelineInputPayload(BaseModel):

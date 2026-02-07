@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from modules.services.file_locator import FileLocator
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import get_file_locator, get_pipeline_service
-from modules.webapi.jobs import PipelineJob, PipelineJobStatus
+from modules.services.job_manager import PipelineJob, PipelineJobStatus
 
 
 class _StubPipelineService:

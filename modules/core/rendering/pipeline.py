@@ -24,7 +24,7 @@ from modules.core.translation import ThreadWorkerPool
 from modules.transliteration import TransliterationService, get_transliterator
 
 from .blocks import build_written_and_video_blocks
-from .constants import LANGUAGE_CODES
+from modules.language_constants import LANGUAGE_CODES
 from .exporters import BatchExportRequest, BatchExportResult, BatchExporter, build_exporter
 from .pipeline_processing import _ImageGenerationState, process_pipeline, process_sequential
 

@@ -21,7 +21,7 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
-from ..jobs import PipelineJob, PipelineJobTransitionError
+from modules.services.job_manager import PipelineJob, PipelineJobTransitionError
 from ..schemas import (
     PipelineJobActionResponse,
     PipelineJobListResponse,

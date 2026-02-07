@@ -19,7 +19,7 @@ from ..dependencies import (
     get_pipeline_service,
     get_request_user,
 )
-from ..jobs import PipelineJob
+from modules.services.job_manager import PipelineJob
 from ..schemas import MediaSearchHit, MediaSearchResponse, PipelineMediaFile
 from ...search import search_generated_media
 

@@ -22,7 +22,7 @@ from modules.audio.backends import get_default_backend_name
 from modules.render.backends.base import SynthesisResult
 from modules.audio.highlight import _get_audio_metadata
 from modules.core.rendering.timeline import smooth_token_boundaries, compute_char_weighted_timings
-from modules.core.rendering.constants import LANGUAGE_CODES as GLOBAL_LANGUAGE_CODES
+from modules.language_constants import LANGUAGE_CODES as GLOBAL_LANGUAGE_CODES
 from modules.text import split_highlight_tokens
 from .context import RenderBatchContext
 

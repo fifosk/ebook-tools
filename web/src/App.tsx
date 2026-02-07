@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import DualTrackDemoRoute from './routes/DualTrackDemoRoute';
 import Sidebar from './components/Sidebar';
 import MyLinguistAssistant from './components/MyLinguistAssistant';
 import MyPainterAssistant from './components/MyPainterAssistant';
@@ -31,13 +30,6 @@ import {
 export type { PipelineMenuView, SelectedView } from './constants/appViews';
 
 export function App() {
-  const isDualTrackDemo =
-    typeof window !== 'undefined' && window.location.pathname.startsWith('/demo/dual-track');
-
-  if (isDualTrackDemo) {
-    return <DualTrackDemoRoute />;
-  }
-
   // Auth state and handlers
   const auth = useAppAuth();
   const {

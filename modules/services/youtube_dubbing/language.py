@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 from modules import language_policies
-from modules.core.rendering.constants import LANGUAGE_CODES
+from modules.language_constants import LANGUAGE_CODES
 from modules.subtitles.language import _target_uses_non_latin_script
 from modules.llm_client import create_client
 from modules.transliteration import TransliterationService

@@ -31,7 +31,7 @@ from modules.retry_annotations import is_failure_annotation
 from modules.text import align_token_counts
 
 from .blocks import build_written_and_video_blocks
-from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
+from modules.language_constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
 from .exporters import BatchExportRequest, BatchExportResult, BatchExporter
 from .pipeline_image_state import _ImageGenerationState
 from .pipeline_images import ImagePipelineCoordinator

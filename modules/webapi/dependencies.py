@@ -35,7 +35,7 @@ from ..services.resume_service import ResumeService
 from ..user_management import AuthService, LocalUserStore, SessionManager
 from ..video.backends import create_video_renderer
 from modules.permissions import normalize_role
-from .jobs import PipelineJobManager
+from ..services.job_manager import PipelineJobManager
 from ..notifications import APNsConfig, APNsService, NotificationService
 
 
