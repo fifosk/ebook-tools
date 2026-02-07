@@ -115,7 +115,7 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
                             "counts": {"original": 1},
                         }
                     ],
-                    "timing_tracks": {
+                    "timingTracks": {
                         "translation": [
                             {
                                 "start": 1.5,

@@ -23,7 +23,7 @@ from modules.subtitles.processing import load_subtitle_cues
 
 
 class _StubTransliterator:
-    def transliterate(self, text: str, language: str):
+    def transliterate(self, text: str, language: str, **_kwargs):
         return type("Result", (), {"text": "salam aleikum"})()
 
 

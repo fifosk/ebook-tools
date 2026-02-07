@@ -46,6 +46,16 @@ class _DummyWorkerPool:
 def storage_dir(tmp_path, monkeypatch) -> Path:
     path = tmp_path / "storage"
     monkeypatch.setenv("JOB_STORAGE_DIR", str(path))
+
+    # Ensure cfg.get_settings() returns a settings object pointing at the temp dir
+    # so that both FileLocator and persistence.py agree on the storage root.
+    import modules.config_manager as _cfg_mod
+
+    _original_settings = _cfg_mod.get_settings()
+    patched = type("Settings", (), dict(vars(_original_settings)))()
+    patched.job_storage_dir = str(path)
+    monkeypatch.setattr(_cfg_mod, "get_settings", lambda: patched)
+
     return path
 
 
