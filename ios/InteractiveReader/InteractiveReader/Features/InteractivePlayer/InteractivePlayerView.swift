@@ -288,6 +288,7 @@ struct InteractivePlayerView: View {
             }
         #else
         baseContent
+            .accessibilityIdentifier("interactivePlayerView")
         #endif
     }
 

@@ -42,8 +42,13 @@ config/.settings/
 # APNs authentication keys (sensitive)
 config/apns/
 
-# Playwright E2E test artifacts (raw per-test dirs, traces may contain tokens)
+# Xcode project backups from scripts
+*.pbxproj.backup
+
+# E2E test artifacts (raw per-test dirs, traces, xcresult bundles)
 test-results/*/
-# Keep the Markdown report and its screenshots (no secrets)
+test-results/*.xcresult
+# Keep the Markdown reports and screenshots (no secrets)
 !test-results/e2e-report.md
+!test-results/ios-e2e-report.md
 !test-results/screenshots/

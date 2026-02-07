@@ -123,6 +123,7 @@ struct LibraryShellView: View {
         .onReceive(NotificationManager.shared.$pendingJobId) { jobId in
             handleNotificationTap(jobId: jobId)
         }
+        .accessibilityIdentifier("libraryShellView")
         #endif
     }
 

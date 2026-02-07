@@ -16,7 +16,12 @@ final class AppState: ObservableObject {
     @Published private(set) var isRestoring: Bool = false
 
     var apiBaseURL: URL? {
-        URL(string: apiBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines))
+        // Allow XCUITest to override the API URL via launch environment
+        if let testURL = ProcessInfo.processInfo.environment["E2E_API_BASE_URL"],
+           !testURL.isEmpty {
+            return URL(string: testURL)
+        }
+        return URL(string: apiBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     var authToken: String? {

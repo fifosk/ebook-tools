@@ -29,12 +29,14 @@ struct LoginView: View {
                                         .autocorrectionDisabled()
                                         .focused($focusedField, equals: .username)
                                         .loginFieldStyle()
+                                        .accessibilityIdentifier("loginUsernameField")
 
                                     SecureField("Password", text: $viewModel.password)
                                         .focused($focusedField, equals: .password)
                                         .submitLabel(.go)
                                         .onSubmit(signIn)
                                         .loginFieldStyle()
+                                        .accessibilityIdentifier("loginPasswordField")
 
                                     if let error = viewModel.errorMessage {
                                         Label(error, systemImage: "exclamationmark.triangle.fill")
@@ -53,6 +55,7 @@ struct LoginView: View {
                                     }
                                     .loginPrimaryButtonStyle()
                                     .disabled(viewModel.isLoading)
+                                    .accessibilityIdentifier("loginSignInButton")
 
                                     #if os(tvOS)
                                     Button(action: handleAppleButton) {
