@@ -1,7 +1,6 @@
 """Runtime context management for ebook-tools."""
 from __future__ import annotations
 
-import atexit
 import os
 import platform
 from contextvars import ContextVar
@@ -79,7 +78,6 @@ class RuntimeContext:
         }
 
 
-_REGISTERED_CONTEXT_IDS: set[int] = set()
 _ACTIVE_CONTEXT: ContextVar[Optional[RuntimeContext]] = ContextVar(
     "ebook_tools_runtime_context", default=None
 )
@@ -258,9 +256,19 @@ def _coerce_bool(value: Optional[Any]) -> bool:
 
 
 def cleanup_environment(context: RuntimeContext) -> None:
-    """Tear down any temporary RAM disk resources for ``context``."""
+    """Tear down any temporary RAM disk resources for ``context``.
+
+    When the singleton RAMDisk is active (managed by the API application),
+    per-job callers are silently skipped — only the explicit
+    ``teardown_ramdisk()`` call at API shutdown will unmount it.
+    """
 
     if not context.is_tmp_ramdisk:
+        return
+
+    # The singleton RAMDisk is owned by the API lifecycle.  Per-job contexts
+    # must never unmount it.
+    if ramdisk_manager.is_mounted():
         return
 
     if _is_preserved_tmp_dir(context.tmp_dir):
@@ -274,17 +282,6 @@ def cleanup_environment(context: RuntimeContext) -> None:
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.debug("Failed to clean up temporary workspace %s: %s", context.tmp_dir, exc)
 
-
-def _cleanup_tmp_ramdisk(context: RuntimeContext) -> None:
-    try:
-        cleanup_environment(context)
-    except KeyboardInterrupt:
-        # Avoid blocking interpreter shutdown if diskutil is interrupted.
-        logger.debug("RAM disk cleanup interrupted; skipping teardown.")
-    except Exception as exc:  # pragma: no cover - defensive logging
-        logger.debug(
-            "Failed to clean up RAM disk during interpreter shutdown: %s", exc
-        )
 
 
 def _resolve_url(candidate: Any, fallback: str) -> str:
@@ -420,13 +417,19 @@ def build_runtime_context(
     use_ramdisk = _coerce_bool(use_ramdisk_value)
 
     if use_ramdisk:
-        ramdisk_ready = ramdisk_manager.ensure_ramdisk(tmp_path)
-        if not ramdisk_ready:
-            logger.info(
-                "RAM disk unavailable; continuing with on-disk temporary directory at %s.",
-                tmp_path,
-            )
-            tmp_path = ramdisk_manager.ensure_standard_directory(tmp_path)
+        if ramdisk_manager.is_mounted():
+            # RAMDisk already managed (API startup owns the lifecycle).
+            # Just ensure the directory exists — skip all subprocess calls.
+            tmp_path = Path(tmp_path)
+            tmp_path.mkdir(parents=True, exist_ok=True)
+        else:
+            ramdisk_ready = ramdisk_manager.ensure_ramdisk(tmp_path)
+            if not ramdisk_ready:
+                logger.info(
+                    "RAM disk unavailable; continuing with on-disk temporary directory at %s.",
+                    tmp_path,
+                )
+                tmp_path = ramdisk_manager.ensure_standard_directory(tmp_path)
     else:
         tmp_path = ramdisk_manager.ensure_standard_directory(tmp_path)
 
@@ -511,11 +514,6 @@ def build_runtime_context(
         pipeline_enabled=pipeline_enabled,
         is_tmp_ramdisk=is_tmp_ramdisk,
     )
-
-    context_id = id(context)
-    if context.is_tmp_ramdisk and context_id not in _REGISTERED_CONTEXT_IDS:
-        atexit.register(_cleanup_tmp_ramdisk, context)
-        _REGISTERED_CONTEXT_IDS.add(context_id)
 
     return context
 

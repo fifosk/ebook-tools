@@ -1,6 +1,7 @@
 import os
 import re
 from typing import Any, Dict, List
+from unittest.mock import patch
 
 import pytest
 
@@ -8,6 +9,26 @@ import pytest
 # This must happen at module load time, before pytest collects tests
 from modules.core.storage_config import configure_hf_environment
 configure_hf_environment()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _disable_ramdisk_globally():
+    """Prevent tests from mounting/unmounting real RAMDisks.
+
+    RAMDisk lifecycle is exclusively owned by the API application.  Tests must
+    never trigger ``diskutil`` subprocess calls.  Individual tests that need to
+    exercise RAMDisk logic should mock at the ``runtime.ramdisk_manager`` level
+    (as ``test_runtime_tmp_dir.py`` does) — ``monkeypatch`` overrides this
+    session-scoped patch for the duration of that test.
+    """
+    import modules.ramdisk_manager as rm
+
+    with (
+        patch.object(rm, "ensure_ramdisk", return_value=False),
+        patch.object(rm, "teardown_ramdisk"),
+        patch.object(rm, "is_mounted", return_value=False),
+    ):
+        yield
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:  # type: ignore[attr-defined]

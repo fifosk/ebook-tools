@@ -19,6 +19,19 @@ _RAM_FS_TYPES = {"tmpfs", "ramfs"}
 _DEFAULT_RAMDISK_SIZE_BYTES = 1024 ** 3  # 1 GiB
 _MACOS_DEFAULT_MOUNT_POINT = Path("/Volumes/tmp")
 
+# Singleton tracking the currently-mounted RAMDisk path.  Set by
+# ``ensure_ramdisk`` on success, cleared by ``teardown_ramdisk``.
+# Avoids repeated ``diskutil`` subprocess calls on the hot path.
+_active_mount: Optional[Path] = None
+
+
+def _canonical_path(path: Path) -> Path:
+    """Return a canonical representation suitable for identity comparison."""
+    try:
+        return path.resolve()
+    except OSError:
+        return path.expanduser().absolute()
+
 
 def ensure_ramdisk(
     path: os.PathLike[str] | str,
@@ -31,10 +44,21 @@ def ensure_ramdisk(
     when mounting succeeds. Returns ``False`` if the current platform does not
     support automatic RAM disk management or if mounting fails.
     """
+    global _active_mount
 
     target = Path(path).expanduser()
     if not target.is_absolute():
         target = target.resolve()
+
+    # Fast path: if we already mounted a RAMDisk at this path, skip all
+    # subprocess calls (diskutil, mount, etc.).
+    if _active_mount is not None and _canonical_path(target) == _active_mount:
+        if target.exists() and target.is_dir():
+            logger.debug("RAMDisk singleton already active at %s; skipping mount check.", target)
+            return True
+        # Mount disappeared unexpectedly — clear and fall through to remount.
+        logger.warning("RAMDisk singleton at %s disappeared; attempting remount.", target)
+        _active_mount = None
 
     if target.is_symlink():
         if not target.exists():
@@ -58,6 +82,7 @@ def ensure_ramdisk(
 
     if _is_ramdisk(target):
         logger.debug("Temporary directory %s already resides on a RAM-backed filesystem.", target)
+        _active_mount = _canonical_path(target)
         return True
 
     if _has_required_capacity(target, size_bytes):
@@ -66,11 +91,15 @@ def ensure_ramdisk(
             target,
             _format_size(size_bytes),
         )
+        _active_mount = _canonical_path(target)
         return True
 
     system = platform.system()
     if system == "Linux":
-        return _mount_ramdisk_linux(target, size_bytes)
+        ok = _mount_ramdisk_linux(target, size_bytes)
+        if ok:
+            _active_mount = _canonical_path(target)
+        return ok
 
     if system == "Darwin":  # pragma: no cover - macOS-specific branch
         desired_mount_point = _MACOS_DEFAULT_MOUNT_POINT
@@ -85,9 +114,11 @@ def ensure_ramdisk(
                 return False
 
         if _wait_for_ramdisk(actual_mount):
+            _active_mount = _canonical_path(target)
             return True
 
         if _wait_for_ramdisk(target):
+            _active_mount = _canonical_path(target)
             return True
 
         return False
@@ -616,6 +647,7 @@ def is_ramdisk(path: os.PathLike[str] | str) -> bool:
 
 def teardown_ramdisk(path: os.PathLike[str] | str) -> None:
     """Unmount the RAM disk backing ``path`` and restore a regular directory."""
+    global _active_mount
 
     target = Path(path).expanduser()
     candidates = []
@@ -657,10 +689,42 @@ def teardown_ramdisk(path: os.PathLike[str] | str) -> None:
         except OSError as exc:  # pragma: no cover - best effort cleanup
             logger.debug("Failed to recreate tmp directory %s: %s", target, exc)
 
+    _active_mount = None
+
+
+def is_mounted() -> bool:
+    """Return ``True`` when a RAMDisk is tracked as actively mounted."""
+    return _active_mount is not None
+
+
+def guard_ramdisk() -> bool:
+    """Check health of the singleton RAMDisk and remount if it disappeared.
+
+    Returns ``True`` when the RAMDisk is healthy (or was successfully
+    remounted), ``False`` if no RAMDisk is tracked or remounting failed.
+
+    This is intended to be called periodically by the API application to
+    recover from inadvertent unmounts (e.g. by external tools or tests).
+    """
+    global _active_mount
+    if _active_mount is None:
+        return False
+
+    target = _active_mount
+    if target.exists() and target.is_dir() and _is_ramdisk(target):
+        return True
+
+    # Mount disappeared — attempt remount.
+    logger.warning("RAMDisk guard: mount at %s is gone; attempting remount.", target)
+    _active_mount = None
+    return ensure_ramdisk(target)
+
 
 __all__ = [
     "ensure_ramdisk",
     "ensure_standard_directory",
+    "guard_ramdisk",
+    "is_mounted",
     "is_ramdisk",
     "teardown_ramdisk",
 ]

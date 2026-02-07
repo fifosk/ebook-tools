@@ -79,6 +79,7 @@ def test_context_uses_runtime_tmp_dir_for_relative_ramdisk(tmp_path):
         llm_source="local",
         local_ollama_url="http://localhost",
         cloud_ollama_url="http://localhost",
+        lmstudio_url="http://localhost",
         thread_count=1,
         queue_size=1,
         pipeline_enabled=True,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import closing
 from dataclasses import dataclass
 import logging
@@ -80,6 +81,8 @@ RANGE_REQUEST_HEADERS = ("Range",)
 RANGE_RESPONSE_HEADERS = ("Accept-Ranges", "Content-Length", "Content-Range")
 
 _STARTUP_RUNTIME_CONTEXT: cfg.RuntimeContext | None = None
+_RAMDISK_GUARD_TASK: asyncio.Task | None = None
+_RAMDISK_GUARD_INTERVAL_SECONDS = 30
 _EMPTY_JOB_PRUNE_LIMIT = 200
 
 
@@ -103,6 +106,7 @@ def _initialise_tmp_workspace() -> None:
 
 def _teardown_tmp_workspace() -> None:
     """Release the tmp directory resources when the API stops."""
+    from modules import ramdisk_manager
 
     global _STARTUP_RUNTIME_CONTEXT
     context = _STARTUP_RUNTIME_CONTEXT
@@ -112,12 +116,27 @@ def _teardown_tmp_workspace() -> None:
     try:
         if context.is_tmp_ramdisk:
             cfg.release_tmp_dir_preservation(context.tmp_dir)
-            cfg.cleanup_environment(context)
+            # Call teardown_ramdisk directly — cleanup_environment is a no-op
+            # while is_mounted() is True (by design, to protect the singleton).
+            ramdisk_manager.teardown_ramdisk(str(context.tmp_dir))
             LOGGER.info(
                 "Unmounted RAM disk for temporary workspace at %s", context.tmp_dir
             )
     finally:
         _STARTUP_RUNTIME_CONTEXT = None
+
+
+async def _ramdisk_guard_loop() -> None:
+    """Periodically verify the RAMDisk is still mounted; remount if needed."""
+    from modules import ramdisk_manager
+
+    while True:
+        await asyncio.sleep(_RAMDISK_GUARD_INTERVAL_SECONDS)
+        try:
+            if ramdisk_manager.is_mounted():
+                ramdisk_manager.guard_ramdisk()
+        except Exception:  # pragma: no cover - defensive
+            LOGGER.debug("RAMDisk guard check failed", exc_info=True)
 
 
 def _directory_contains_payload(path: Path) -> bool:
@@ -643,8 +662,24 @@ def create_app() -> FastAPI:
         except Exception:  # pragma: no cover - defensive logging
             LOGGER.debug("Failed to configure push notifications", exc_info=True)
 
+        # Start periodic RAMDisk health-check guard.
+        global _RAMDISK_GUARD_TASK
+        ctx = _STARTUP_RUNTIME_CONTEXT
+        if ctx is not None and ctx.is_tmp_ramdisk:
+            _RAMDISK_GUARD_TASK = asyncio.create_task(_ramdisk_guard_loop())
+            LOGGER.debug("RAMDisk guard task started (interval=%ds)", _RAMDISK_GUARD_INTERVAL_SECONDS)
+
     @app.on_event("shutdown")
     async def _cleanup_runtime() -> None:
+        global _RAMDISK_GUARD_TASK
+        if _RAMDISK_GUARD_TASK is not None:
+            _RAMDISK_GUARD_TASK.cancel()
+            try:
+                await _RAMDISK_GUARD_TASK
+            except asyncio.CancelledError:
+                pass
+            _RAMDISK_GUARD_TASK = None
+
         try:
             _teardown_tmp_workspace()
         except Exception:  # pragma: no cover - defensive logging
