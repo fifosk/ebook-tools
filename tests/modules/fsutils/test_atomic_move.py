@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import modules.fsutils.atomic_move as atomic_move_module
+import sys
+import modules.fsutils.atomic_move  # ensure module is importable
+atomic_move_module = sys.modules["modules.fsutils.atomic_move"]
 from modules.fsutils.atomic_move import atomic_move
 
 

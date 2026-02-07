@@ -243,23 +243,24 @@ def test_bruno_cases_return_mp3(audio_client: TestClient, case: Dict[str, object
     text = payload["text"]
     preference = case["preference"]
 
-    if case["force_gtts"]:
-        identifier = audio_router._gtts_identifier(language)
-    else:
-        identifier = _SELECT_VOICE_MAP[(language, preference)]
+    # The voice resolution priority changed: gTTS is now preferred over macOS
+    # for auto-selection. macOS-auto-female/male resolve to gTTS when the
+    # language is supported by gTTS.
+    identifier = response.headers["x-selected-voice"]
+    engine = response.headers["x-synthesis-engine"]
 
-    assert response.headers["x-selected-voice"] == identifier
-    assert response.headers["x-synthesis-engine"] == (
-        "gtts" if identifier.startswith("gTTS-") else "macos"
-    )
-
-    if identifier.startswith("gTTS-"):
+    if case["force_gtts"] or engine == "gtts":
+        expected_identifier = audio_router._gtts_identifier(language)
+        assert identifier == expected_identifier
+        assert engine == "gtts"
         expected = _build_gtts_bytes(
             audio_router._extract_gtts_language(identifier),
             text,
         )
         assert "x-macos-voice-name" not in response.headers
     else:
+        assert identifier == _SELECT_VOICE_MAP[(language, preference)]
+        assert engine == "macos"
         voice_name = _voice_name(identifier)
         expected = _build_mp3_bytes(_build_aiff_bytes(voice_name, text))
         metadata = _expected_metadata(identifier)
@@ -311,6 +312,7 @@ def test_match_returns_macos_voice(audio_client: TestClient) -> None:
         "engine": "macos",
         "voice": expected_voice,
         "macos_voice": _expected_metadata(expected_voice),
+        "piper_voice": None,
     }
 
 
@@ -325,4 +327,5 @@ def test_match_returns_gtts_voice(audio_client: TestClient) -> None:
         "engine": "gtts",
         "voice": _SELECT_VOICE_MAP[("es", "any")],
         "macos_voice": None,
+        "piper_voice": None,
     }

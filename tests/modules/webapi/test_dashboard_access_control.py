@@ -18,7 +18,7 @@ class _StubPipelineService:
         self.list_calls: list[dict[str, object | None]] = []
         self.enqueue_calls: list[dict[str, object | None]] = []
 
-    def list_jobs(self, *, user_id=None, user_role=None):
+    def list_jobs(self, *, user_id=None, user_role=None, offset=None, limit=None):
         self.list_calls.append({"user_id": user_id, "user_role": user_role})
         return {}
 
@@ -30,6 +30,7 @@ class _StubPipelineService:
             job_id="job-123",
             status=PipelineJobStatus.PENDING,
             created_at=datetime.now(timezone.utc),
+            job_type="book",
         )
 
 
@@ -86,12 +87,12 @@ def test_dashboard_submission_uses_session_metadata() -> None:
         response = client.post(
             "/pipelines",
             json=payload,
-            headers={"X-User-Id": "bob", "X-User-Role": "viewer"},
+            headers={"X-User-Id": "bob", "X-User-Role": "editor"},
         )
 
     app.dependency_overrides.clear()
 
     assert response.status_code == 202
     assert stub_service.enqueue_calls and stub_service.enqueue_calls[0]["user_id"] == "bob"
-    assert stub_service.enqueue_calls[0]["user_role"] == "viewer"
+    assert stub_service.enqueue_calls[0]["user_role"] == "editor"
     assert stub_context.resolve_calls and stub_context.build_calls

@@ -12,6 +12,7 @@ import pytest
 from pydub import AudioSegment
 
 import modules.audio.backends as backend_registry
+import modules.audio.backends.piper as piper_backend
 from modules.audio.backends import (
     PiperTTSBackend,
     TTSBackendError,
@@ -210,11 +211,11 @@ class TestPiperSynthesis:
         mock_voice.synthesize = mock_synthesize
 
         monkeypatch.setattr(
-            "modules.audio.backends.piper._get_voice_model",
+            piper_backend, "_get_voice_model",
             lambda name: mock_voice,
         )
         monkeypatch.setattr(
-            "modules.audio.backends.piper.get_voice_for_language",
+            piper_backend, "get_voice_for_language",
             lambda lang: "en_US-lessac-medium",
         )
 
@@ -234,7 +235,7 @@ class TestPiperSynthesis:
         from modules.audio.backends.piper import PiperTTSBackend
 
         monkeypatch.setattr(
-            "modules.audio.backends.piper.get_voice_for_language",
+            piper_backend, "get_voice_for_language",
             lambda lang: None,
         )
 
@@ -264,7 +265,7 @@ class TestPiperSynthesis:
         mock_voice.synthesize = mock_synthesize
 
         monkeypatch.setattr(
-            "modules.audio.backends.piper._get_voice_model",
+            piper_backend, "_get_voice_model",
             lambda name: mock_voice,
         )
 
@@ -294,11 +295,11 @@ class TestPiperSynthesis:
         mock_voice.synthesize = mock_synthesize
 
         monkeypatch.setattr(
-            "modules.audio.backends.piper._get_voice_model",
+            piper_backend, "_get_voice_model",
             lambda name: mock_voice,
         )
         monkeypatch.setattr(
-            "modules.audio.backends.piper.get_voice_for_language",
+            piper_backend, "get_voice_for_language",
             lambda lang: "en_US-lessac-medium",
         )
 
@@ -380,7 +381,7 @@ class TestPiperListVoices:
         from modules.audio.backends.piper import PiperTTSBackend
 
         monkeypatch.setattr(
-            "modules.audio.backends.piper.get_piper_models_path", lambda: tmp_path
+            piper_backend, "get_piper_models_path", lambda: tmp_path
         )
 
         backend = PiperTTSBackend()
@@ -398,7 +399,7 @@ class TestPiperListVoices:
         (tmp_path / "de_DE-thorsten-high.onnx.json").touch()
 
         monkeypatch.setattr(
-            "modules.audio.backends.piper.get_piper_models_path", lambda: tmp_path
+            piper_backend, "get_piper_models_path", lambda: tmp_path
         )
 
         backend = PiperTTSBackend()
@@ -421,13 +422,13 @@ class TestPiperModelLoading:
         _voice_cache.clear()
 
         monkeypatch.setattr(
-            "modules.audio.backends.piper.get_piper_models_path", lambda: tmp_path
+            piper_backend, "get_piper_models_path", lambda: tmp_path
         )
 
         # Mock the piper module to avoid import error
         mock_piper = MagicMock()
         monkeypatch.setattr(
-            "modules.audio.backends.piper._get_piper_voice_module",
+            piper_backend, "_get_piper_voice_module",
             lambda: mock_piper,
         )
 

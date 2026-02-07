@@ -119,29 +119,28 @@ def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "accepted"
+    assert body["status"] == "prepared"
     assert body["metadata"]["book_title"] == "Drops"
     assert body["metadata"]["generated_sentences"] == ["One.", "Two."]
     assert body["messages"]
-    assert any("Seed EPUB created" in message for message in body["messages"])
+    assert any("Seed EPUB prepared" in message for message in body["messages"])
     assert body["warnings"] == []
     assert isinstance(body["epub_path"], str) and body["epub_path"].endswith(".epub")
     assert body["sentences_preview"] == ["One.", "Two."]
 
-    assert stub_pipeline.submissions
-    submission = stub_pipeline.submissions[0]
-    request = submission["request"]
-    assert isinstance(request, PipelineRequest)
-    assert submission["user_id"] == "editor"
-    assert submission["user_role"] == "editor"
+    # The /create endpoint no longer submits a pipeline job; it returns a
+    # prepared payload for the client to review and then submit separately
+    # via /api/books/jobs.
+    assert not stub_pipeline.submissions
 
-    input_file = Path(request.inputs.input_file)
-    assert input_file.exists()
-    assert input_file.suffix == ".epub"
-    assert request.inputs.target_languages == ["French"]
-    metadata_snapshot = request.inputs.media_metadata.as_dict()
-    creation_summary = metadata_snapshot.get("creation_summary")
+    # Verify the returned metadata contains creation summary
+    creation_summary = body["metadata"].get("creation_summary")
     assert isinstance(creation_summary, dict)
     assert creation_summary.get("epub_path", "").endswith(".epub")
     assert creation_summary.get("messages")
     assert creation_summary.get("sentences_preview") == ["One.", "Two."]
+
+    # Verify the input_file path exists (for potential submission)
+    input_file = Path(body["input_file"])
+    assert input_file.exists()
+    assert input_file.suffix == ".epub"

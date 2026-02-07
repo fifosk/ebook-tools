@@ -8,13 +8,8 @@ from typing import Callable, Dict, Mapping, Optional
 
 import pytest
 
-from tests.helpers.job_manager_stubs import install_job_manager_stubs
-
-
-install_job_manager_stubs()
-
-job_manager_module = import_module("modules.services.job_manager")
-pipeline_service = import_module("modules.services.pipeline_service")
+import modules.services.job_manager as job_manager_module
+import modules.services.pipeline_service as pipeline_service
 
 PipelineJobExecutor = job_manager_module.PipelineJobExecutor
 PipelineJobExecutorHooks = job_manager_module.PipelineJobExecutorHooks
@@ -45,6 +40,9 @@ class _TrackerStub:
     def publish_progress(self, metadata: Optional[Mapping[str, object]] = None) -> None:  # noqa: ARG002 - parity with ProgressTracker
         return None
 
+    def get_retry_counts(self) -> Optional[Mapping[str, int]]:
+        return None
+
 
 class _DummyPool:
     def __init__(self) -> None:
@@ -64,6 +62,11 @@ class _TunerStub:
         if job.request is not None:
             job.request.translation_pool = self.pool
         return self.pool, True
+
+    def release_worker_pool(self, job: PipelineJob) -> None:
+        if job.request is not None and job.request.translation_pool is not None:
+            job.request.translation_pool.shutdown()
+            job.request.translation_pool = None
 
 
 class _HookRecorder:
@@ -107,7 +110,25 @@ def _build_request(tracker: _TrackerStub, stop_event: threading.Event) -> pipeli
         context=None,
         environment_overrides={},
         pipeline_overrides={},
-        inputs=pipeline_service.PipelineInput(),
+        inputs=pipeline_service.PipelineInput(
+            input_file="book.epub",
+            base_output_file="output",
+            input_language="en",
+            target_languages=["en"],
+            sentences_per_output_file=10,
+            start_sentence=0,
+            end_sentence=None,
+            stitch_full=False,
+            generate_audio=False,
+            audio_mode="none",
+            written_mode="text",
+            selected_voice="",
+            output_html=False,
+            output_pdf=False,
+            add_images=False,
+            include_transliteration=False,
+            tempo=1.0,
+        ),
         progress_tracker=tracker,
         stop_event=stop_event,
     )

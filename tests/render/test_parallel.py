@@ -1,5 +1,13 @@
 import asyncio
+import sys
 import time
+
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="asyncio.TaskGroup requires Python 3.11+",
+)
 
 from modules.render.parallel import (
     RenderManifest,

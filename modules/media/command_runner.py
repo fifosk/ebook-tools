@@ -192,6 +192,8 @@ def run_command(
             if should_retry:
                 continue
             raise last_exception from exc
+        except CommandExecutionError:
+            raise
         except OSError as exc:  # pragma: no cover - defensive (e.g. permission errors)
             duration = time.monotonic() - start
             error = CommandExecutionError(command, cause=exc)

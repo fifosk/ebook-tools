@@ -1,4 +1,7 @@
 import asyncio
+import sys
+
+import pytest
 
 from modules.config.loader import get_rendering_config
 from modules.render.parallel import RenderManifest, RenderingConcurrency, dispatch_render_manifest
@@ -30,6 +33,7 @@ def test_build_text_tasks_respects_configured_concurrency() -> None:
     assert len(tasks) == len(expected_batches)
 
 
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="asyncio.TaskGroup requires Python 3.11+")
 def test_build_text_tasks_execution() -> None:
     async def run_test():
         concurrency = RenderingConcurrency(video=1, audio=1, text=2)

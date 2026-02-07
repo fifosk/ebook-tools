@@ -63,7 +63,9 @@ class LibraryMetadataManager:
         if not isbn:
             return
         metadata["isbn"] = isbn
-        media_metadata = metadata.get("media_metadata") or metadata.get("book_metadata")
+        media_metadata = metadata.get("media_metadata")
+        if media_metadata is None:
+            media_metadata = metadata.get("book_metadata")
         if isinstance(media_metadata, Mapping):
             nested = dict(media_metadata)
             nested["isbn"] = isbn

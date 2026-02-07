@@ -29,9 +29,18 @@ def install_job_manager_stubs() -> None:
             selected_voice: str = ""
             output_html: bool = False
             output_pdf: bool = False
+            add_images: bool = False
             include_transliteration: bool = True
             tempo: float = 1.0
-            book_metadata: Dict[str, Any] = field(default_factory=dict)
+            translation_provider: str = "llm"
+            translation_batch_size: int = 10
+            transliteration_mode: str = "default"
+            transliteration_model: Optional[str] = None
+            enable_lookup_cache: bool = True
+            lookup_cache_batch_size: int = 10
+            media_metadata: Dict[str, Any] = field(default_factory=dict)
+            voice_overrides: Dict[str, Any] = field(default_factory=dict)
+            audio_bitrate_kbps: Optional[int] = None
 
         @dataclass
         class PipelineRequest:
@@ -49,7 +58,7 @@ def install_job_manager_stubs() -> None:
         @dataclass
         class PipelineResponse:
             success: bool
-            book_metadata: Dict[str, Any] = field(default_factory=dict)
+            media_metadata: Dict[str, Any] = field(default_factory=dict)
             generated_files: Dict[str, Any] = field(default_factory=dict)
 
         def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
@@ -60,19 +69,19 @@ def install_job_manager_stubs() -> None:
                 "inputs": {
                     "input_file": request.inputs.input_file,
                     "target_languages": list(request.inputs.target_languages),
-                    "book_metadata": dict(request.inputs.book_metadata),
+                    "media_metadata": dict(request.inputs.media_metadata),
                 },
             }
 
         def serialize_pipeline_response(response: PipelineResponse) -> Dict[str, Any]:
             return {
                 "success": response.success,
-                "book_metadata": dict(response.book_metadata),
+                "media_metadata": dict(response.media_metadata),
                 "generated_files": dict(response.generated_files),
             }
 
         def run_pipeline(request: PipelineRequest) -> PipelineResponse:  # pragma: no cover - defensive stub
-            return PipelineResponse(success=True, book_metadata=dict(request.inputs.book_metadata))
+            return PipelineResponse(success=True, media_metadata=dict(request.inputs.media_metadata))
 
         class PipelineService:  # pragma: no cover - minimal API surface for imports
             def __init__(self) -> None:
@@ -132,7 +141,33 @@ def install_job_manager_stubs() -> None:
             def shutdown(self) -> None:  # pragma: no cover - defensive stub
                 return None
 
+        def _unexpected_script_used(text: str, expected_lang: str) -> tuple:
+            return (False, "")
+
+        def translate_batch(*args: Any, **kwargs: Any) -> list:
+            return []
+
+        def translate_sentence_simple(*args: Any, **kwargs: Any) -> str:
+            return ""
+
+        @dataclass
+        class TranslationTask:
+            index: int = 0
+            sentence_number: int = 0
+            sentence: str = ""
+            translation: str = ""
+            target_language: str = ""
+
+        class BatchStatsRecorder:
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                pass
+
         translation_module.ThreadWorkerPool = ThreadWorkerPool
+        translation_module._unexpected_script_used = _unexpected_script_used
+        translation_module.translate_batch = translate_batch
+        translation_module.translate_sentence_simple = translate_sentence_simple
+        translation_module.TranslationTask = TranslationTask
+        translation_module.BatchStatsRecorder = BatchStatsRecorder
         sys.modules["modules.translation_engine"] = translation_module
 
     if "modules.observability" not in sys.modules:

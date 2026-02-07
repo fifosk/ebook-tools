@@ -1,16 +1,24 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
 from modules.webapi.application import create_app
-from modules.webapi.dependencies import get_library_sync
+from modules.webapi.dependencies import (
+    RequestUserContext,
+    get_library_sync,
+    get_request_user,
+)
 
 
 class _StubLibrarySync:
     def __init__(self, resolved_path: Path) -> None:
         self._resolved_path = resolved_path
+
+    def get_item(self, job_id: str):
+        return None  # Bypass access control check
 
     def resolve_media_file(self, job_id: str, relative_path: str) -> Path:
         assert job_id == "library-job"
@@ -24,6 +32,9 @@ def test_library_media_file_supports_range_with_inline_disposition(tmp_path: Pat
 
     app = create_app()
     app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync(media_path)
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="test", user_role="admin"
+    )
 
     try:
         with TestClient(app) as client:

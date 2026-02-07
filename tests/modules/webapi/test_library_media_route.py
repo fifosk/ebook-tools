@@ -5,12 +5,19 @@ from typing import Any, Dict, List, Tuple
 from fastapi.testclient import TestClient
 
 from modules.webapi.application import create_app
-from modules.webapi.dependencies import get_library_sync
+from modules.webapi.dependencies import (
+    RequestUserContext,
+    get_library_sync,
+    get_request_user,
+)
 
 
 class _StubLibrarySync:
     def __init__(self, payload: Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]], bool]) -> None:
         self._payload = payload
+
+    def get_item(self, job_id: str):
+        return None  # Bypass access control check
 
     def get_media(
         self,
@@ -64,6 +71,9 @@ def test_get_library_media_includes_sentence_metadata() -> None:
 
     app = create_app()
     app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync(payload)
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="test", user_role="admin"
+    )
 
     try:
         with TestClient(app) as client:
@@ -76,9 +86,10 @@ def test_get_library_media_includes_sentence_metadata() -> None:
     assert data["chunks"], "Expected chunks to be returned"
     first_chunk = data["chunks"][0]
     assert first_chunk["sentences"], "Expected sentence metadata for Text Player"
-    assert first_chunk["metadata_path"] == "metadata/chunk_0000.json"
-    assert first_chunk["metadata_url"].startswith("/api/library/media/library-job/file/")
-    assert first_chunk["sentence_count"] == 1
+    # Fields are serialized with camelCase aliases
+    assert first_chunk["metadataPath"] == "metadata/chunk_0000.json"
+    assert first_chunk["metadataUrl"].startswith("/api/library/media/library-job/file/")
+    assert first_chunk["sentenceCount"] == 1
     sentence = first_chunk["sentences"][0]
     assert sentence["original"]["tokens"] == ["Hello", "world"]
     assert sentence["timeline"][0]["duration"] == 1.0

@@ -82,9 +82,12 @@ class SystemMetricsSampler:
             cpu_percent = self._process.cpu_percent(None)
             memory_info = self._process.memory_info()
             memory_percent = self._process.memory_percent()
+        except (psutil.Error, OSError):
+            return None
+        try:
             io_counters = self._process.io_counters()
         except (psutil.Error, OSError, AttributeError):
-            return None
+            io_counters = None
 
         read_rate: Optional[float] = None
         write_rate: Optional[float] = None

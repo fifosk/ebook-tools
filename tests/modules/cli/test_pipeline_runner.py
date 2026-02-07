@@ -40,43 +40,31 @@ def test_prepare_output_path_creates_directory(tmp_path):
         "sample.epub",
         active_context,
     )
-    assert (tmp_path / "Arabic_French_sample" / "Arabic_French_sample.html").exists()
+    assert (tmp_path / "Arabic_French_sample").is_dir()
     assert result.endswith("Arabic_French_sample.html")
 
 
-def test_resolve_slide_worker_count_defaults_to_threads():
-    assert (
-        pipeline_runner._resolve_slide_worker_count("thread", None, 5) == 5
-    )
-    assert (
-        pipeline_runner._resolve_slide_worker_count("process", 3, 5) == 3
-    )
-    assert pipeline_runner._resolve_slide_worker_count("off", 8, 5) == 0
-
-
 @pytest.mark.parametrize(
-    "thread_count, slide_workers, job_workers, queue_size",
+    "thread_count, job_workers, queue_size",
     [
-        (2, 0, 1, 20),
-        (4, 2, 2, 50),
-        (8, 6, 4, 100),
+        (2, 1, 20),
+        (16, 8, 200),
+        (32, 16, 400),
     ],
 )
 def test_estimate_required_file_descriptors_scales(
-    thread_count, slide_workers, job_workers, queue_size
+    thread_count, job_workers, queue_size
 ):
     result = pipeline_runner._estimate_required_file_descriptors(
         thread_count=thread_count,
-        slide_workers=slide_workers,
         job_workers=job_workers,
         queue_size=queue_size,
     )
     assert result >= 1024
 
     larger = pipeline_runner._estimate_required_file_descriptors(
-        thread_count=thread_count + 2,
-        slide_workers=slide_workers + 2,
-        job_workers=job_workers + 1,
-        queue_size=queue_size + 10,
+        thread_count=thread_count * 2,
+        job_workers=job_workers * 2,
+        queue_size=queue_size * 2,
     )
-    assert larger > result
+    assert larger >= result

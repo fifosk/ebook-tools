@@ -17,6 +17,8 @@ from modules.services.youtube_dubbing import (
     delete_nas_subtitle,
     delete_downloaded_video,
 )
+import modules.services.youtube_dubbing.video_utils as _video_utils_mod
+import modules.services.youtube_dubbing.nas as _nas_mod
 from modules.subtitles.processing import load_subtitle_cues
 
 
@@ -94,7 +96,7 @@ def test_has_video_stream_handles_out_of_order_ffprobe_fields(monkeypatch, tmp_p
             {"returncode": 0, "stdout": payload, "stderr": b""},
         )()
 
-    monkeypatch.setattr("modules.services.youtube_dubbing.subprocess.run", fake_run)
+    monkeypatch.setattr(_video_utils_mod.subprocess, "run", fake_run)
     assert _has_video_stream(tmp_path / "dummy.mp4")
 
 
@@ -128,7 +130,8 @@ def test_extract_inline_subtitles_skips_image_based_streams(monkeypatch, tmp_pat
     video_path.write_bytes(b"\x00")
 
     monkeypatch.setattr(
-        "modules.services.youtube_dubbing.nas._probe_subtitle_streams",
+        _nas_mod,
+        "_probe_subtitle_streams",
         lambda _path: [
             {
                 "index": 2,
@@ -142,7 +145,7 @@ def test_extract_inline_subtitles_skips_image_based_streams(monkeypatch, tmp_pat
     def _unexpected_run(*_args, **_kwargs):
         raise AssertionError("ffmpeg should not be invoked for image-based subtitle streams")
 
-    monkeypatch.setattr("modules.services.youtube_dubbing.nas.subprocess.run", _unexpected_run)
+    monkeypatch.setattr(_nas_mod.subprocess, "run", _unexpected_run)
 
     with pytest.raises(ValueError) as excinfo:
         extract_inline_subtitles(video_path)
@@ -158,7 +161,7 @@ def test_extract_inline_subtitles_filters_by_language(monkeypatch, tmp_path: Pat
         {"index": 4, "__position__": 1, "tags": {"language": "fr"}, "codec_name": "subrip"},
     ]
 
-    monkeypatch.setattr("modules.services.youtube_dubbing.nas._probe_subtitle_streams", lambda _path: streams)
+    monkeypatch.setattr(_nas_mod, "_probe_subtitle_streams", lambda _path: streams)
 
     calls = []
 
@@ -167,9 +170,9 @@ def test_extract_inline_subtitles_filters_by_language(monkeypatch, tmp_path: Pat
         Path(cmd[-1]).write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
         return type("Result", (), {"returncode": 0, "stdout": b"", "stderr": b""})()
 
-    monkeypatch.setattr("modules.services.youtube_dubbing.nas.subprocess.run", _fake_run)
-    monkeypatch.setattr("modules.services.youtube_dubbing.nas.load_subtitle_cues", lambda _path: [])
-    monkeypatch.setattr("modules.services.youtube_dubbing.nas.write_srt", lambda _path, _cues: None)
+    monkeypatch.setattr(_nas_mod.subprocess, "run", _fake_run)
+    monkeypatch.setattr(_nas_mod, "load_subtitle_cues", lambda _path: [])
+    monkeypatch.setattr(_nas_mod, "write_srt", lambda _path, _cues: None)
 
     extracted = extract_inline_subtitles(video_path, languages=["en"])
 
@@ -183,7 +186,8 @@ def test_list_inline_subtitle_streams_reports_extractability(monkeypatch, tmp_pa
     video_path = tmp_path / "sample.mkv"
     video_path.write_bytes(b"\x00")
     monkeypatch.setattr(
-        "modules.services.youtube_dubbing.nas._probe_subtitle_streams",
+        _nas_mod,
+        "_probe_subtitle_streams",
         lambda _path: [
             {"index": 0, "__position__": 0, "tags": {"language": "en"}, "codec_name": "subrip"},
             {"index": 1, "__position__": 1, "tags": {"language": "es"}, "codec_name": "hdmv_pgs_subtitle"},
@@ -215,7 +219,7 @@ def test_delete_nas_subtitle_removes_mirrors(monkeypatch, tmp_path: Path) -> Non
     mirror_html = mirror_html_dir / "movie.en.html"
     mirror_html.write_text("<p>Mirror</p>", encoding="utf-8")
 
-    monkeypatch.setattr("modules.services.youtube_dubbing.nas._SUBTITLE_MIRROR_DIR", mirror_root)
+    monkeypatch.setattr(_nas_mod, "_SUBTITLE_MIRROR_DIR", mirror_root)
 
     result = delete_nas_subtitle(subtitle_path)
 
@@ -253,7 +257,7 @@ def test_delete_downloaded_video_removes_folder_and_artifacts(monkeypatch, tmp_p
     mirror_html = mirror_html_dir / "sample_yt.en.html"
     mirror_html.write_text("<p>mirror</p>", encoding="utf-8")
 
-    monkeypatch.setattr("modules.services.youtube_dubbing.nas._SUBTITLE_MIRROR_DIR", mirror_root)
+    monkeypatch.setattr(_nas_mod, "_SUBTITLE_MIRROR_DIR", mirror_root)
 
     result = delete_downloaded_video(video_path)
 

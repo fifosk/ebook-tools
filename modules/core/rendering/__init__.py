@@ -14,7 +14,6 @@ from modules.transliteration import TransliterationService
 from modules.progress_tracker import ProgressTracker
 
 from modules.language_constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
-from .pipeline import RenderPipeline
 
 
 @dataclass(slots=True)
@@ -61,6 +60,11 @@ def process_epub(
 ]:
     """Entry point mirroring the legacy :func:`process_epub` signature."""
 
+    # Lazy import to break circular dependency:
+    # modules.render -> audio_pipeline -> core.rendering.timeline -> core.rendering.__init__
+    #   -> pipeline -> audio_video_generator -> modules.render
+    from .pipeline import RenderPipeline
+
     pipeline = RenderPipeline(
         pipeline_config=request.pipeline_config,
         progress_tracker=progress_tracker,
@@ -92,6 +96,13 @@ def process_epub(
         enable_lookup_cache=request.enable_lookup_cache,
         lookup_cache_batch_size=request.lookup_cache_batch_size,
     )
+
+
+def __getattr__(name: str):
+    if name == "RenderPipeline":
+        from .pipeline import RenderPipeline
+        return RenderPipeline
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [

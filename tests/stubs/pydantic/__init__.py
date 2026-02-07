@@ -25,6 +25,7 @@ class FieldInfo:
     default: Any = None
     default_factory: Optional[Callable[[], Any]] = None
     validation_alias: Optional[AliasChoices] = None
+    alias: Optional[str] = None
 
     def get_default(self) -> Any:
         if self.default_factory is not None:
@@ -32,11 +33,11 @@ class FieldInfo:
         return self.default
 
 
-def Field(*, default: Any = None, default_factory: Optional[Callable[[], Any]] = None, validation_alias: Any = None) -> FieldInfo:  # noqa: D401, N802
+def Field(*, default: Any = None, default_factory: Optional[Callable[[], Any]] = None, validation_alias: Any = None, alias: Optional[str] = None, **_extras: Any) -> FieldInfo:  # noqa: D401, N802
     """Return a container describing field defaults."""
 
-    alias = validation_alias if isinstance(validation_alias, AliasChoices) else None
-    return FieldInfo(default=default, default_factory=default_factory, validation_alias=alias)
+    resolved_alias = validation_alias if isinstance(validation_alias, AliasChoices) else None
+    return FieldInfo(default=default, default_factory=default_factory, validation_alias=resolved_alias, alias=alias)
 
 
 class SecretStr:

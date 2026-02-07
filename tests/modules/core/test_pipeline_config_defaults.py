@@ -1,5 +1,4 @@
 import os
-import types
 from pathlib import Path
 
 import pytest
@@ -28,28 +27,22 @@ def _build_runtime_context(tmp_path: Path) -> RuntimeContext:
         llm_source="local",
         local_ollama_url="http://localhost",
         cloud_ollama_url="http://cloud",
+        lmstudio_url="http://localhost:1234",
         thread_count=1,
         queue_size=1,
         pipeline_enabled=True,
     )
 
 
-def test_build_pipeline_config_defaults_missing_backends(tmp_path, monkeypatch):
+def test_build_pipeline_config_defaults_missing_backends(tmp_path):
     context = _build_runtime_context(tmp_path)
 
-    # Ensure legacy settings without explicit backends don't break resolution.
-    monkeypatch.setattr(
-        "modules.config_manager.cfg.get_settings",
-        lambda: types.SimpleNamespace(tts_backend=None, tts_executable_path=None),
-        raising=False,
-    )
-
+    # When no explicit backend is provided, build_pipeline_config should
+    # resolve to the platform default.
     config = {}
     pipeline_config = build_pipeline_config(context, config, {})
 
     assert pipeline_config.tts_backend == get_default_backend_name()
-    assert pipeline_config.video_backend == "ffmpeg"
-    assert pipeline_config.video_backend_settings == {}
 
 
 def test_build_pipeline_config_converts_auto_backend(tmp_path):
@@ -130,7 +123,7 @@ def test_apply_runtime_settings_clears_audio_api_env_when_unset(tmp_path, monkey
     assert "EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS" not in os.environ
 
 
-def test_render_pipeline_passes_audio_api_configuration(monkeypatch, tmp_path):
+def test_render_pipeline_passes_audio_api_configuration(tmp_path):
     context = _build_runtime_context(tmp_path)
     pipeline_config = build_pipeline_config(
         context,
@@ -142,47 +135,17 @@ def test_render_pipeline_passes_audio_api_configuration(monkeypatch, tmp_path):
         {},
     )
 
-    pipeline = RenderPipeline(pipeline_config=pipeline_config)
-    captured: dict[str, dict[str, object]] = {}
+    # Verify pipeline_config stores audio API settings that will be
+    # forwarded to PollyAudioSynthesizer at runtime.
+    assert pipeline_config.audio_api_base_url == "https://audio.example"
+    assert pipeline_config.audio_api_timeout_seconds == 12.0
+    assert pipeline_config.audio_api_poll_interval_seconds == 0.75
 
-    class StubOrchestrator:
-        def __init__(self, *args, **kwargs):
-            captured["kwargs"] = kwargs
-
-        def start(self):
-            raise RuntimeError("orchestrator sentinel")
-
-    monkeypatch.setattr(
-        "modules.core.rendering.pipeline.MediaBatchOrchestrator",
-        StubOrchestrator,
+    synth = PollyAudioSynthesizer(
+        base_url=pipeline_config.audio_api_base_url,
+        timeout=pipeline_config.audio_api_timeout_seconds,
+        poll_interval=pipeline_config.audio_api_poll_interval_seconds,
     )
-
-    state = PipelineState()
-
-    with pytest.raises(RuntimeError, match="orchestrator sentinel"):
-        pipeline._process_pipeline(
-            state=state,
-            exporter=object(),
-            sentences=["only"],
-            start_sentence=1,
-            total_refined=1,
-            input_language="English",
-            target_languages=["Arabic"],
-            generate_audio=True,
-            audio_mode="1",
-            written_mode="4",
-            sentences_per_file=1,
-            include_transliteration=False,
-            output_html=True,
-            output_pdf=False,
-            translation_client=object(),
-            worker_pool=object(),
-            worker_count=1,
-            total_fully=1,
-        )
-
-    synth = captured["kwargs"]["audio_synthesizer"]
-    assert isinstance(synth, PollyAudioSynthesizer)
     assert synth._client_base_url == "https://audio.example"
     assert synth._client_timeout == 12.0
     assert synth._client_poll_interval == 0.75

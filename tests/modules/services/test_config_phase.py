@@ -25,6 +25,7 @@ def _context(tmp_path: Path) -> RuntimeContext:
         llm_source="local",
         local_ollama_url="http://localhost",
         cloud_ollama_url="http://cloud",
+        lmstudio_url="http://localhost:1234",
         thread_count=1,
         queue_size=1,
         pipeline_enabled=True,
@@ -47,6 +48,7 @@ def _inputs(selected_voice: str) -> PipelineInput:
         selected_voice=selected_voice,
         output_html=False,
         output_pdf=False,
+        add_images=False,
         include_transliteration=True,
         tempo=1.0,
     )

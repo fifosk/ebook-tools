@@ -55,8 +55,15 @@ def job_manager(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> PipelineJobM
 def runtime_context_spy(monkeypatch: pytest.MonkeyPatch) -> List[Tuple[str, object]]:
     events: List[Tuple[str, object]] = []
 
-    def fake_build_runtime_context(config: Dict[str, object], overrides: Dict[str, object]) -> Dict[str, object]:
-        context = {"config": dict(config), "env": dict(overrides)}
+    def fake_build_runtime_context(config: Dict[str, object], overrides: Dict[str, object]) -> object:
+        context = SimpleNamespace(
+            config=dict(config),
+            env=dict(overrides),
+            books_dir=Path("/nonexistent/books"),
+            working_dir=Path("/nonexistent/work"),
+            output_dir=Path("/nonexistent/output"),
+            tmp_dir=Path("/nonexistent/tmp"),
+        )
         events.append(("build", context))
         return context
 
@@ -154,7 +161,7 @@ def test_refresh_metadata_updates_job_payloads(
         job_manager._jobs[job_id] = job
         job_manager._store.save(job_manager._persistence.snapshot(job))
 
-    refreshed = job_manager.refresh_metadata(job_id)
+    refreshed = job_manager.refresh_metadata(job_id, user_id="admin", user_role="admin")
 
     assert refreshed.request is not None
     assert refreshed.request.inputs.media_metadata.as_dict() == {
@@ -167,17 +174,16 @@ def test_refresh_metadata_updates_job_payloads(
         "language": "en",
     }
     assert refreshed.result_payload is not None
-    assert refreshed.result_payload.get("media_metadata") == {
-        "title": "Updated",
-        "language": "en",
-    }
+    result_metadata = refreshed.result_payload.get("media_metadata")
+    assert result_metadata is not None
+    assert result_metadata["title"] == "Updated"
+    assert result_metadata["language"] == "en"
 
     stored = job_manager._store.get(job_id)
     assert stored.request_payload is not None
-    assert stored.request_payload["inputs"]["media_metadata"] == {
-        "title": "Updated",
-        "language": "en",
-    }
+    stored_metadata = stored.request_payload["inputs"]["media_metadata"]
+    assert stored_metadata["title"] == "Updated"
+    assert stored_metadata["language"] == "en"
 
     assert captured == {
         "input_file": "book.epub",
@@ -226,7 +232,7 @@ def test_refresh_metadata_handles_persisted_jobs_without_request(
 
     job_manager._store.save(job_manager._persistence.snapshot(job))
 
-    refreshed = job_manager.refresh_metadata(job_id)
+    refreshed = job_manager.refresh_metadata(job_id, user_id="admin", user_role="admin")
 
     assert refreshed.request is None
     assert refreshed.request_payload == {
@@ -238,9 +244,8 @@ def test_refresh_metadata_handles_persisted_jobs_without_request(
         },
     }
     assert refreshed.resume_context == refreshed.request_payload
-    assert refreshed.result_payload == {
-        "media_metadata": {"title": "Stored", "updated": True},
-    }
+    assert refreshed.result_payload is not None
+    assert refreshed.result_payload["media_metadata"] == {"title": "Stored", "updated": True}
 
     stored = job_manager._store.get(job_id)
     assert stored.request_payload is not None
@@ -291,6 +296,12 @@ def test_refresh_metadata_requires_input_file(
         job_manager._store.save(job_manager._persistence.snapshot(job))
 
     with pytest.raises(ValueError):
-        job_manager.refresh_metadata(job_id)
+        job_manager.refresh_metadata(job_id, user_id="admin", user_role="admin")
 
-    assert runtime_context_spy == []
+    # The runtime context is now always built/cleaned-up regardless of validation outcome.
+    assert [event[0] for event in runtime_context_spy] == [
+        "build",
+        "set",
+        "cleanup",
+        "clear",
+    ]

@@ -91,6 +91,7 @@ config_stub.DEFAULT_MODEL = "gpt-stub"
 config_stub.DEFAULT_LLM_SOURCE = "local"
 config_stub.get_cloud_ollama_url = lambda: "https://example.com/cloud"
 config_stub.get_local_ollama_url = lambda: "http://localhost:11434"
+config_stub.get_lmstudio_url = lambda: "http://localhost:1234"
 config_stub.RuntimeContext = type("RuntimeContext", (), {})  # pragma: no cover - stub
 config_stub.get_llm_source = lambda: "local"
 config_stub.get_queue_size = lambda: 4
@@ -175,6 +176,7 @@ if str(project_root) not in sys.path:
 from modules.audio import highlight
 from modules.audio.tts import SILENCE_DURATION_MS
 from modules.audio_video_generator import generate_audio_for_sentence
+import modules.render.backends.polly as polly_backend
 from modules.render.backends.polly import PollyAudioSynthesizer
 from modules.core.translation import split_translation_and_transliteration
 
@@ -205,7 +207,7 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         setattr(segment, "character_timing", timings)
         return segment
 
-    monkeypatch.setattr("modules.render.backends.polly.generate_audio", fake_synthesize)
+    monkeypatch.setattr(polly_backend, "generate_audio", fake_synthesize)
 
     synthesizer = PollyAudioSynthesizer()
 
@@ -224,6 +226,8 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         audio_synthesizer=synthesizer,
     )
 
+    # The primary audio is the *translation* track: [number, silence, translation].
+    # The original track is stored separately in audio_tracks["orig"].
     metadata = highlight._get_audio_metadata(audio_result.audio)
     assert metadata is not None
 
@@ -233,8 +237,6 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     expected_kinds = [
         "other",
         "silence",
-        "original",
-        "silence",
         "translation",
     ]
     assert [part.kind for part in metadata.parts] == expected_kinds
@@ -242,8 +244,6 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     silence_seconds = SILENCE_DURATION_MS / 1000.0
     expected_durations = [
         durations[numbering_text] / 1000.0,
-        silence_seconds,
-        durations[input_text] / 1000.0,
         silence_seconds,
         durations[translation_text] / 1000.0,
     ]
@@ -271,7 +271,7 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     events = highlight._build_events_from_metadata(
         metadata,
         sync_ratio=1.0,
-        num_original_words=len(split_highlight_tokens(input_text)),
+        num_original_words=0,
         num_translation_words=len(split_highlight_tokens(translation_text)),
         num_translit_words=0,
     )
@@ -280,18 +280,14 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     total_event_duration = sum(event.duration for event in events)
     assert total_event_duration == pytest.approx(total_seconds, abs=0.2)
 
-    original_events = [event for event in events if event.step and event.step.kind == "original"]
     translation_events = [
         event for event in events if event.step and event.step.kind == "translation"
     ]
     silence_events = [event for event in events if event.step and event.step.kind == "silence"]
 
-    assert original_events
     assert translation_events
     assert silence_events
 
-    assert original_events[0].original_index == 1
-    assert original_events[-1].original_index == len(split_highlight_tokens(input_text))
     assert translation_events[-1].translation_index == len(split_highlight_tokens(translation_text))
 
     first_translation_step = translation_events[0].step
@@ -303,7 +299,7 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     legacy_events = highlight._build_legacy_highlight_events(
         audio_duration=total_seconds,
         sync_ratio=1.0,
-        original_words=split_highlight_tokens(input_text),
+        original_words=[],
         translation_units=split_highlight_tokens(translation_text),
         transliteration_words=[],
     )
@@ -335,7 +331,7 @@ def test_audio_mode_four_excludes_transliteration_audio(monkeypatch):
         setattr(segment, "character_timing", timings)
         return segment
 
-    monkeypatch.setattr("modules.render.backends.polly.generate_audio", fake_synthesize)
+    monkeypatch.setattr(polly_backend, "generate_audio", fake_synthesize)
 
     result = generate_audio_for_sentence(
         sentence_number=1,

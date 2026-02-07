@@ -114,7 +114,8 @@ def test_refresh_metadata_infers_and_copies_cover(tmp_path, monkeypatch):
     }
 
     def _fake_infer(path: str, *, existing_metadata=None, force_refresh=False):
-        assert Path(path) == library_job_root / 'data' / 'input.epub'
+        # The library stores the epub at the job root level, not under data/
+        assert Path(path).name == 'input.epub'
         return inferred_payload
 
     monkeypatch.setattr('modules.library.library_metadata.metadata_manager.infer_metadata', _fake_infer)
@@ -125,12 +126,17 @@ def test_refresh_metadata_infers_and_copies_cover(tmp_path, monkeypatch):
     assert refreshed.author == 'Refreshed Author'
     assert refreshed.cover_path is not None
 
-    cover_path = library_job_root / refreshed.cover_path
+    # The library_job_root may have moved after refresh (author/title changed)
+    refreshed_job_root = Path(refreshed.library_path)
+    cover_path = refreshed_job_root / refreshed.cover_path
     assert cover_path.exists()
 
-    snapshot_path = library_job_root / 'metadata' / 'job.json'
+    snapshot_path = refreshed_job_root / 'metadata' / 'job.json'
     snapshot = json.loads(snapshot_path.read_text(encoding='utf-8'))
-    summary = snapshot.get('book_metadata', {}).get('book_summary')
+    summary = (
+        snapshot.get('media_metadata', {}).get('book_summary')
+        or snapshot.get('book_metadata', {}).get('book_summary')
+    )
     assert summary == 'Updated summary from refresher.'
 
     # Ensure reindex respects the refreshed payload.

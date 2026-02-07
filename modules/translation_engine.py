@@ -541,7 +541,7 @@ def translate_batch(
             batches = build_translation_batches(
                 sentences, targets, batch_size=batch_size
             )
-            batch_stats = _BatchStatsRecorder(
+            batch_stats = BatchStatsRecorder(
                 batch_size=batch_size,
                 progress_tracker=progress_tracker,
                 metadata_key="translation_batch_stats",
@@ -550,7 +550,7 @@ def translate_batch(
             )
             batch_stats.set_total(len(batches), items_total=len(sentences))
             if transliteration_batch_size:
-                transliteration_stats = _BatchStatsRecorder(
+                transliteration_stats = BatchStatsRecorder(
                     batch_size=transliteration_batch_size,
                     progress_tracker=progress_tracker,
                     metadata_key="transliteration_batch_stats",
@@ -825,7 +825,7 @@ def start_translation_pipeline(
                 batches = build_translation_batches(
                     sentences, target_language, batch_size=batch_size
                 )
-                batch_stats = _BatchStatsRecorder(
+                batch_stats = BatchStatsRecorder(
                     batch_size=batch_size,
                     progress_tracker=progress_tracker,
                     metadata_key="translation_batch_stats",
@@ -834,7 +834,7 @@ def start_translation_pipeline(
                 )
                 batch_stats.set_total(len(batches), items_total=len(sentences))
                 if transliteration_batch_size:
-                    transliteration_stats = _BatchStatsRecorder(
+                    transliteration_stats = BatchStatsRecorder(
                         batch_size=transliteration_batch_size,
                         progress_tracker=progress_tracker,
                         metadata_key="transliteration_batch_stats",

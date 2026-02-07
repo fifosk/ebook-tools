@@ -15,6 +15,9 @@ def test_settings_provide_storage_defaults(monkeypatch):
     monkeypatch.delenv("JOB_STORAGE_DIR", raising=False)
     monkeypatch.delenv("EBOOK_STORAGE_BASE_URL", raising=False)
     monkeypatch.delenv("LIBRARY_ROOT", raising=False)
+    # Prevent the active database snapshot from injecting machine-specific
+    # absolute paths that would override the pydantic defaults.
+    monkeypatch.setattr(cfg_loader, "_load_active_db_snapshot", lambda verbose=False: {})
 
     settings = cfg_loader.get_settings()
 

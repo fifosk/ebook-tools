@@ -64,19 +64,19 @@ class TestModuleImportDelegation:
 
     def test_batch_processing_delegation(self):
         """Verify batch processing functions are delegated to translation_batch."""
-        assert te._normalize_llm_batch_size is tb.normalize_llm_batch_size
-        assert te._build_translation_batches is tb.build_translation_batches
-        assert te._chunk_batch_items is tb.chunk_batch_items
-        assert te._extract_batch_items is tb.extract_batch_items
-        assert te._coerce_batch_item_id is tb.coerce_batch_item_id
-        assert te._coerce_text_value is tb.coerce_text_value
-        assert te._parse_batch_translation_payload is tb.parse_batch_translation_payload
-        assert te._parse_batch_transliteration_payload is tb.parse_batch_transliteration_payload
-        assert te._validate_batch_translation is tb.validate_batch_translation
-        assert te._validate_batch_transliteration is tb.validate_batch_transliteration
-        assert te._translate_llm_batch_items is tb.translate_llm_batch_items
-        assert te._transliterate_llm_batch_items is tb.transliterate_llm_batch_items
-        assert te._resolve_batch_transliterations is tb.resolve_batch_transliterations
+        assert te.normalize_llm_batch_size is tb.normalize_llm_batch_size
+        assert te.build_translation_batches is tb.build_translation_batches
+        assert te.chunk_batch_items is tb.chunk_batch_items
+        assert te.extract_batch_items is tb.extract_batch_items
+        assert te.coerce_batch_item_id is tb.coerce_batch_item_id
+        assert te.coerce_text_value is tb.coerce_text_value
+        assert te.parse_batch_translation_payload is tb.parse_batch_translation_payload
+        assert te.parse_batch_transliteration_payload is tb.parse_batch_transliteration_payload
+        assert te.validate_batch_translation is tb.validate_batch_translation
+        assert te.validate_batch_transliteration is tb.validate_batch_transliteration
+        assert te.translate_llm_batch_items is tb.translate_llm_batch_items
+        assert te.transliterate_llm_batch_items is tb.transliterate_llm_batch_items
+        assert te.resolve_batch_transliterations is tb.resolve_batch_transliterations
 
     def test_logging_delegation(self):
         """Verify logging functions are delegated to translation_logging."""
@@ -85,9 +85,9 @@ class TestModuleImportDelegation:
             sanitize_batch_component,
             write_llm_batch_artifact,
         )
-        assert te._resolve_llm_batch_log_dir is resolve_llm_batch_log_dir
-        assert te._sanitize_batch_component is sanitize_batch_component
-        assert te._write_llm_batch_artifact is write_llm_batch_artifact
+        assert te.resolve_llm_batch_log_dir is resolve_llm_batch_log_dir
+        assert te.sanitize_batch_component is sanitize_batch_component
+        assert te.write_llm_batch_artifact is write_llm_batch_artifact
 
     def test_provider_delegation(self):
         """Verify provider functions are delegated to translation_providers."""
@@ -97,10 +97,10 @@ class TestModuleImportDelegation:
             resolve_googletrans_language,
             translate_with_googletrans,
         )
-        assert te._check_googletrans_health is check_googletrans_health
-        assert te._normalize_translation_provider is normalize_translation_provider
-        assert te._resolve_googletrans_language is resolve_googletrans_language
-        assert te._translate_with_googletrans is translate_with_googletrans
+        assert te.check_googletrans_health is check_googletrans_health
+        assert te.normalize_translation_provider is normalize_translation_provider
+        assert te.resolve_googletrans_language is resolve_googletrans_language
+        assert te.translate_with_googletrans is translate_with_googletrans
 
 
 class TestBatchProcessingIntegration:
@@ -403,24 +403,24 @@ class TestBackwardCompatibility:
     names still works correctly after the refactoring.
     """
 
-    def test_private_aliases_work(self):
-        """Test that private aliases in translation_engine still work."""
+    def test_public_names_work(self):
+        """Test that public names in translation_engine still work."""
         # These should all work without errors
-        assert te._normalize_llm_batch_size(5) == 5
-        assert te._normalize_llm_batch_size(1) is None
+        assert te.normalize_llm_batch_size(5) == 5
+        assert te.normalize_llm_batch_size(1) is None
 
-        batches = te._build_translation_batches(
+        batches = te.build_translation_batches(
             ["a", "b"], ["en", "en"], batch_size=10
         )
         assert len(batches) == 1
 
-        items = te._extract_batch_items({"items": [{"id": 1}]})
+        items = te.extract_batch_items({"items": [{"id": 1}]})
         assert items == [{"id": 1}]
 
-        item_id = te._coerce_batch_item_id({"id": 5}, None)
+        item_id = te.coerce_batch_item_id({"id": 5}, None)
         assert item_id == 5
 
-        text = te._coerce_text_value(None)
+        text = te.coerce_text_value(None)
         assert text == ""
 
     def test_validation_aliases_work(self):

@@ -43,7 +43,7 @@ def admin_client(tmp_path) -> Iterator[Tuple[TestClient, AuthService, str, str]]
 def test_list_users_requires_authentication(admin_client) -> None:
     client, *_ = admin_client
 
-    response = client.get("/admin/users")
+    response = client.get("/api/admin/users")
 
     assert response.status_code == 401
 
@@ -52,7 +52,7 @@ def test_list_users_requires_admin_role(admin_client) -> None:
     client, _, _, member_token = admin_client
 
     response = client.get(
-        "/admin/users",
+        "/api/admin/users",
         headers={"Authorization": f"Bearer {member_token}"},
     )
 
@@ -63,7 +63,7 @@ def test_list_users_returns_serialized_payload(admin_client) -> None:
     client, _, admin_token, _ = admin_client
 
     response = client.get(
-        "/admin/users",
+        "/api/admin/users",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -77,7 +77,7 @@ def test_create_user_provisions_account(admin_client) -> None:
     client, service, admin_token, _ = admin_client
 
     response = client.post(
-        "/admin/users",
+        "/api/admin/users",
         json={
             "username": "newbie",
             "password": "hunter2",
@@ -103,7 +103,7 @@ def test_update_user_details_persists_profile_metadata(admin_client) -> None:
     client, service, admin_token, _ = admin_client
 
     response = client.put(
-        "/admin/users/member",
+        "/api/admin/users/member",
         json={
             "email": "member@example.com",
             "first_name": "Member",
@@ -129,7 +129,7 @@ def test_suspend_user_updates_metadata_and_clears_sessions(admin_client) -> None
     client, service, admin_token, member_token = admin_client
 
     response = client.post(
-        "/admin/users/member/suspend",
+        "/api/admin/users/member/suspend",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -149,7 +149,7 @@ def test_activate_user_clears_suspension_flag(admin_client) -> None:
     )
 
     response = client.post(
-        "/admin/users/member/activate",
+        "/api/admin/users/member/activate",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -163,7 +163,7 @@ def test_reset_password_invalidates_existing_sessions(admin_client) -> None:
     client, service, admin_token, member_token = admin_client
 
     response = client.post(
-        "/admin/users/member/password",
+        "/api/admin/users/member/password",
         json={"password": "new-pass"},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -176,7 +176,7 @@ def test_delete_user_removes_account(admin_client) -> None:
     client, service, admin_token, _ = admin_client
 
     response = client.delete(
-        "/admin/users/member",
+        "/api/admin/users/member",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -188,7 +188,7 @@ def test_delete_user_rejects_self_deletion(admin_client) -> None:
     client, _, admin_token, _ = admin_client
 
     response = client.delete(
-        "/admin/users/admin",
+        "/api/admin/users/admin",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 

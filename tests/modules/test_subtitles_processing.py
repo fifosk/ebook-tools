@@ -3,6 +3,9 @@ from pathlib import Path
 
 import pytest
 
+import modules.subtitles.translation as subtitle_translation
+import modules.subtitles.processing as subtitle_processing
+from modules.subtitles.language import SubtitleLanguageContext
 from modules.subtitles.models import SubtitleColorPalette, SubtitleCue, SubtitleJobOptions
 from modules.subtitles.processing import process_subtitle_file
 from modules.subtitles.render import CueTextRenderer, _build_output_cues
@@ -96,8 +99,32 @@ def srt_source(tmp_path: Path) -> Path:
 
 def _stub_translation(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
     monkeypatch.setattr(
-        "modules.subtitles.translation.translate_sentence_simple",
-        lambda text, src, tgt, include_transliteration=False, client=None: value,
+        subtitle_translation,
+        "translate_sentence_simple",
+        lambda text, src, tgt, **kwargs: value,
+    )
+    # Disable the batch translation path so the per-cue fallback is used,
+    # which calls our mocked translate_sentence_simple via _translate_text.
+    def _fake_translate_batch(sentences, *args, **kwargs):
+        raise RuntimeError("batch disabled in test")
+
+    monkeypatch.setattr(
+        subtitle_processing,
+        "translate_batch",
+        _fake_translate_batch,
+    )
+    # Prevent origin language re-translation from overwriting original_text.
+    monkeypatch.setattr(
+        subtitle_processing,
+        "_resolve_language_context",
+        lambda cues, options: SubtitleLanguageContext(
+            detected_language=options.input_language,
+            detection_source="test_stub",
+            detection_sample="",
+            translation_source_language=options.input_language,
+            origin_language=options.input_language,
+            origin_translation_needed=False,
+        ),
     )
 
 
@@ -145,7 +172,8 @@ def test_transliteration_skips_latin_targets(
         return _TransliteratorStub()
 
     monkeypatch.setattr(
-        "modules.subtitles.processing.get_transliterator",
+        subtitle_processing,
+        "get_transliterator",
         _fake_get_transliterator,
     )
 
@@ -195,7 +223,8 @@ def test_transliteration_applies_to_non_latin_targets(
         return transliterator
 
     monkeypatch.setattr(
-        "modules.subtitles.processing.get_transliterator",
+        subtitle_processing,
+        "get_transliterator",
         _fake_get_transliterator,
     )
 
@@ -349,17 +378,23 @@ def test_process_subtitle_file_uses_custom_llm_model(
         text,
         src,
         tgt,
-        *,
-        include_transliteration=False,
-        client=None,
+        **kwargs,
     ):
-        used_clients.append(client)
+        used_clients.append(kwargs.get("client"))
         return "hola mundo"
 
-    monkeypatch.setattr("modules.subtitles.translation.create_client", _fake_create_client)
+    monkeypatch.setattr(subtitle_translation, "create_client", _fake_create_client)
     monkeypatch.setattr(
-        "modules.subtitles.translation.translate_sentence_simple",
+        subtitle_translation,
+        "translate_sentence_simple",
         _fake_translate,
+    )
+    # Disable the batch translation path so the per-cue fallback is used,
+    # which exercises create_client and translate_sentence_simple via _translate_text.
+    monkeypatch.setattr(
+        subtitle_processing,
+        "translate_batch",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("batch disabled")),
     )
 
     options = SubtitleJobOptions(
@@ -615,7 +650,8 @@ def test_process_subtitle_file_preserves_cues_when_generate_audio_book_disabled(
 
 def test_original_line_sanitises_html_tags(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "modules.subtitles.translation.translate_sentence_simple",
+        subtitle_translation,
+        "translate_sentence_simple",
         lambda text, *_args, **_kwargs: "hola mundo",
     )
     cue = SubtitleCue(

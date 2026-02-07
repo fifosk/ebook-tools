@@ -11,16 +11,22 @@ from typing import Any, Dict, Iterator, Sequence
 
 import pytest
 
-# Ensure the local ``modules`` package is imported even if another dependency
-# injected a top-level ``modules`` module into ``sys.modules`` earlier in the
-# session (which can confuse Python into thinking the package is not
-# importable). Removing any pre-existing entry guarantees the repository's
-# package is the one that gets imported below.
-sys.modules.pop("modules", None)
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+# Ensure the local ``modules`` package is imported even if another dependency
+# injected a top-level ``modules`` module into ``sys.modules`` earlier in the
+# session.  Only evict the entry when it does NOT belong to this repository —
+# an unconditional pop destroys submodule attributes that other test files
+# already registered on the package object, causing ``AttributeError`` for
+# ``patch('modules.xxx.…')`` in downstream tests.
+_existing_mod = sys.modules.get("modules")
+if _existing_mod is not None:
+    _mod_file = getattr(_existing_mod, "__file__", "") or ""
+    if not _mod_file.startswith(str(PROJECT_ROOT)):
+        # Foreign ``modules`` package — safe to evict so the local one wins.
+        sys.modules.pop("modules", None)
 
 requests = pytest.importorskip("requests")
 uvicorn = pytest.importorskip("uvicorn")

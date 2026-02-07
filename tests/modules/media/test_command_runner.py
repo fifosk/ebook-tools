@@ -3,6 +3,7 @@ import sys
 
 import pytest
 
+import modules.media.command_runner as command_runner_mod
 from modules.media.command_runner import run_command
 from modules.media.exceptions import CommandExecutionError
 
@@ -37,7 +38,7 @@ def test_run_command_retries_failures(monkeypatch):
             return subprocess.CompletedProcess(command, 1, stdout="fail", stderr="err")
         return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
 
-    monkeypatch.setattr("modules.media.command_runner.subprocess.run", fake_run)
+    monkeypatch.setattr(command_runner_mod.subprocess, "run", fake_run)
 
     result = run_command(["dummy"], retries=1)
     assert attempts["count"] == 2
@@ -48,7 +49,7 @@ def test_run_command_propagates_after_retry_exhaustion(monkeypatch):
     def always_fail(command, **kwargs):
         return subprocess.CompletedProcess(command, 1, stdout="", stderr="boom")
 
-    monkeypatch.setattr("modules.media.command_runner.subprocess.run", always_fail)
+    monkeypatch.setattr(command_runner_mod.subprocess, "run", always_fail)
 
     with pytest.raises(CommandExecutionError):
         run_command(["dummy"], retries=1)

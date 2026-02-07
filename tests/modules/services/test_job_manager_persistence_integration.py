@@ -11,21 +11,15 @@ from typing import Callable
 import pytest
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
-STUB_DIR = ROOT_DIR / "tests" / "stubs"
 
-sys.path.insert(0, str(STUB_DIR))
-sys.path.insert(0, str(ROOT_DIR))
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
-from tests.helpers.job_manager_stubs import install_job_manager_stubs
+import modules.jobs.persistence as persistence
+import modules.services.job_manager as job_manager_module
+import modules.services.pipeline_service as pipeline_service
+from modules.services.job_manager import FileJobStore, PipelineJobManager, PipelineJobStatus
 
-install_job_manager_stubs()
-
-persistence = import_module("modules.jobs.persistence")
-job_manager_module = import_module("modules.services.job_manager")
-pipeline_service = import_module("modules.services.pipeline_service")
-FileJobStore = job_manager_module.FileJobStore
-PipelineJobManager = job_manager_module.PipelineJobManager
-PipelineJobStatus = job_manager_module.PipelineJobStatus
 job_manager = job_manager_module
 
 from modules.progress_tracker import ProgressEvent, ProgressSnapshot
@@ -57,7 +51,8 @@ def storage_dir(tmp_path, monkeypatch) -> Path:
 
 @pytest.fixture(autouse=True)
 def _patch_executor(monkeypatch):
-    monkeypatch.setattr(job_manager, "ThreadPoolExecutor", _DummyExecutor)
+    import modules.services.job_manager.manager as _mgr
+    monkeypatch.setattr(_mgr, "ThreadPoolExecutor", _DummyExecutor)
 
 
 def _build_request() -> pipeline_service.PipelineRequest:
@@ -81,9 +76,9 @@ def _build_request() -> pipeline_service.PipelineRequest:
             selected_voice="",
             output_html=False,
             output_pdf=False,
+            add_images=False,
             include_transliteration=False,
             tempo=1.0,
-            book_metadata={},
         ),
     )
 

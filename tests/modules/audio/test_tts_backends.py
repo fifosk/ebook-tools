@@ -1,9 +1,11 @@
+import sys
 import types
 
 import pytest
 from pydub import AudioSegment
 
 import modules.audio.backends as backend_registry
+import modules.audio.backends.macos_say as macos_say_mod
 from modules.audio.api import AudioService
 from modules.audio.backends import (
     GTTSBackend,
@@ -22,10 +24,10 @@ def test_get_tts_backend_prefers_config_override():
 
 
 def test_get_tts_backend_auto_uses_platform_default(monkeypatch):
-    monkeypatch.setattr("modules.audio.backends.sys.platform", "darwin")
+    monkeypatch.setattr(sys, "platform", "darwin")
 
     settings = types.SimpleNamespace(tts_backend="auto", tts_executable_path=None)
-    monkeypatch.setattr("modules.audio.backends.cfg.get_settings", lambda: settings)
+    monkeypatch.setattr(backend_registry.cfg, "get_settings", lambda: settings)
 
     backend = get_tts_backend()
     assert isinstance(backend, MacOSTTSBackend)
@@ -39,7 +41,7 @@ def test_get_tts_backend_respects_executable_override():
 
 def test_create_backend_uses_media_config_defaults(monkeypatch):
     monkeypatch.setattr(
-        "modules.audio.backends._BACKEND_EXECUTABLE_DEFAULTS",
+        backend_registry, "_BACKEND_EXECUTABLE_DEFAULTS",
         {MacOSSayBackend.name: "/usr/bin/say"},
     )
     backend = create_backend(MacOSSayBackend.name)
@@ -81,11 +83,11 @@ def test_macos_backend_invokes_command_with_expected_arguments(monkeypatch, tmp_
         return dummy_audio
 
     monkeypatch.setattr(
-        "modules.audio.backends.macos_say.run_command",
+        macos_say_mod, "run_command",
         fake_run_command,
     )
     monkeypatch.setattr(
-        "modules.audio.backends.macos_say.AudioSegment.from_file",
+        macos_say_mod.AudioSegment, "from_file",
         fake_from_file,
     )
 
@@ -111,12 +113,12 @@ def test_macos_backend_wraps_command_errors(monkeypatch, tmp_path):
         raise CommandExecutionError(command, returncode=1)
 
     monkeypatch.setattr(
-        "modules.audio.backends.macos_say.run_command",
+        macos_say_mod, "run_command",
         failing_run_command,
     )
     dummy_audio = AudioSegment.silent(duration=100)
     monkeypatch.setattr(
-        "modules.audio.backends.macos_say.AudioSegment.from_file",
+        macos_say_mod.AudioSegment, "from_file",
         lambda path, format: dummy_audio,
     )
 

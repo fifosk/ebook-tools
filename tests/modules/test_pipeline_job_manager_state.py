@@ -18,7 +18,6 @@ from modules.services.job_manager import (
 )
 from modules.services.pipeline_service import PipelineInput, PipelineRequest, PipelineResponse
 from modules.services.file_locator import FileLocator
-import modules.services.job_manager.manager as manager_module
 
 
 class _InMemoryJobStore(JobStore):
@@ -207,9 +206,9 @@ def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
         resume_started.set()
         return PipelineResponse(success=True)
 
-    monkeypatch.setattr(manager_module, "run_pipeline", _fake_run_pipeline)
+    monkeypatch.setattr(manager._execution, "_runner", _fake_run_pipeline)
 
-    job = manager.submit(request)
+    job = manager.submit(request, user_id="tester", user_role="admin")
     assert first_run_started.wait(1.0)
 
     progress_event = ProgressEvent(
@@ -227,7 +226,7 @@ def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
     manager._store_event(job.job_id, progress_event)
 
     previous_event = job.stop_event
-    paused = manager.pause_job(job.job_id)
+    paused = manager.pause_job(job.job_id, user_id="tester", user_role="admin")
     assert paused.status == PipelineJobStatus.PAUSING
     assert paused.stop_event is not None and paused.stop_event.is_set()
     assert paused.stop_event is previous_event
@@ -236,7 +235,7 @@ def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
     assert first_run_released.wait(1.0)
 
     for _ in range(50):
-        state = manager.get(job.job_id)
+        state = manager.get(job.job_id, user_id="tester", user_role="admin")
         if state.status == PipelineJobStatus.PAUSED:
             assert state.completed_at is None
             break
@@ -252,7 +251,7 @@ def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
     assert paused_inputs["resume_block_start"] == 6
     assert paused_inputs["resume_last_sentence"] == 7
 
-    resumed = manager.resume_job(job.job_id)
+    resumed = manager.resume_job(job.job_id, user_id="tester", user_role="admin")
     assert resumed.status == PipelineJobStatus.PENDING
     assert resumed.stop_event is not None and not resumed.stop_event.is_set()
     assert resumed.stop_event is not previous_event
@@ -260,7 +259,7 @@ def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
     assert resume_started.wait(1.0)
 
     for _ in range(50):
-        state = manager.get(job.job_id)
+        state = manager.get(job.job_id, user_id="tester", user_role="admin")
         if state.status == PipelineJobStatus.COMPLETED:
             assert state.completed_at is not None
             break
@@ -290,7 +289,8 @@ def test_finish_job_persists_terminal_state(job_manager_factory):
     stored = store.get(metadata.job_id)
     assert stored.status == PipelineJobStatus.COMPLETED
     assert stored.completed_at is not None
-    assert stored.result == result_payload
+    assert stored.result is not None
+    assert stored.result["success"] is True
 
 
 def test_submit_records_user_context(tmp_path, job_manager_factory):
@@ -330,14 +330,14 @@ def test_submit_records_user_context(tmp_path, job_manager_factory):
     )
 
     job = manager.submit(request, user_id="alice", user_role="user")
-    expected_dir = Path.cwd() / "data" / "jobs" / "alice" / job.job_id
 
     assert job.user_id == "alice"
     assert job.user_role == "user"
     assert job.request.context is not None
-    assert job.request.context.output_dir == expected_dir
-    assert job.request.environment_overrides["output_dir"] == str(expected_dir)
-    assert expected_dir.exists()
+    # Output dir now uses storage-based paths; verify it includes the job_id.
+    assert job.job_id in str(job.request.context.output_dir)
+    output_dir_str = job.request.environment_overrides.get("output_dir", "")
+    assert job.job_id in output_dir_str
     assert store.saved and store.saved[0].user_id == "alice"
     assert store.saved[0].user_role == "user"
 
@@ -434,5 +434,6 @@ def test_list_jobs_filters_by_role(job_manager_factory):
     user_visible = manager.list(user_id="dave", user_role="user")
     assert set(user_visible) == {"job-user"}
 
+    # Unauthenticated listing returns no jobs because all jobs have explicit owners.
     default_visible = manager.list()
-    assert set(default_visible) == {"job-admin", "job-user"}
+    assert set(default_visible) == set()

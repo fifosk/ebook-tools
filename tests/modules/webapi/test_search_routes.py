@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Iterable, Optional
 from types import SimpleNamespace
 
@@ -114,7 +115,7 @@ def test_search_returns_matching_snippet(api_app) -> None:
     video_path = text_dir / "sample.mp4"
     video_path.write_bytes(b"\x00\x01\x02")
 
-    job.generated_files = {
+    generated_files = {
         "chunks": [
             {
                 "chunk_id": "chunk-001",
@@ -141,6 +142,20 @@ def test_search_returns_matching_snippet(api_app) -> None:
             }
         ]
     }
+    job.generated_files = generated_files
+
+    # Write metadata/job.json so MetadataLoader can find it
+    metadata_dir = job_root / "metadata"
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    job_metadata = {
+        "job_id": job_id,
+        "status": "completed",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_files": generated_files,
+        "resume_context": job.resume_context,
+    }
+    (metadata_dir / "job.json").write_text(json.dumps(job_metadata), encoding="utf-8")
 
     service = _StubPipelineService([job])
     app.dependency_overrides[get_pipeline_service] = lambda: service

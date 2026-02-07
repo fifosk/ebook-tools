@@ -7,6 +7,7 @@ from typing import Any, Dict
 
 from pydub import AudioSegment
 
+import modules.integrations.audio_client as audio_client_mod
 from modules.integrations.audio_client import AudioAPIClient
 
 
@@ -41,15 +42,24 @@ def test_audio_client_logs_voice_attributes(monkeypatch, caplog):
     session = _FakeSession(response)
 
     monkeypatch.setattr(
-        "modules.integrations.audio_client.AudioSegment.from_file",
+        audio_client_mod.AudioSegment, "from_file",
         lambda *_args, **_kwargs: AudioSegment.silent(duration=10),
     )
 
     client = AudioAPIClient("https://audio.example", session=session)
 
+    # The ebook_tools logger sets propagate=False, so caplog (which hooks the
+    # root logger) won't see child records.  Temporarily enable propagation so
+    # that caplog can capture them.
+    ebook_logger = logging.getLogger("ebook_tools")
+    orig_propagate = ebook_logger.propagate
+    ebook_logger.propagate = True
     caplog.set_level(logging.INFO, logger="ebook_tools.integrations.audio")
 
-    segment = client.synthesize(text="hello", voice="Amy", language="en", return_metadata=False)
+    try:
+        segment = client.synthesize(text="hello", voice="Amy", language="en", return_metadata=False)
+    finally:
+        ebook_logger.propagate = orig_propagate
 
     assert isinstance(segment, AudioSegment)
     assert session.calls, "Expected the fake session to be invoked"

@@ -74,9 +74,9 @@ def _build_request() -> PipelineRequest:
             selected_voice="",
             output_html=False,
             output_pdf=False,
+            add_images=False,
             include_transliteration=False,
             tempo=1.0,
-            book_metadata={},
         ),
     )
     return dataclass_replace(base)
@@ -125,7 +125,7 @@ def test_executor_runs_owned_jobs(tmp_path: Path) -> None:
 
     try:
         job = service.enqueue(_build_request(), user_id="alice", user_role="editor")
-        manager._execute(job.job_id)
+        manager._job_executor.execute(job.job_id)
         updated = manager.get(job.job_id, user_id="alice", user_role="editor")
         assert updated.status == PipelineJobStatus.COMPLETED
     finally:
@@ -152,6 +152,8 @@ def test_job_actions_require_authorisation(tmp_path: Path) -> None:
         assert paused.status == PipelineJobStatus.PAUSING
 
         other_job = service.enqueue(_build_request(), user_id="alice", user_role="editor")
+        # Cancel the job first -- only terminal jobs can be deleted.
+        service.cancel_job(other_job.job_id, user_id="alice", user_role="editor")
 
         with pytest.raises(PermissionError):
             service.delete_job(other_job.job_id, user_id="carol", user_role="viewer")

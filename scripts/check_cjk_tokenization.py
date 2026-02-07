@@ -3,16 +3,16 @@
 
 Usage:
     # Test with default model (mistral-large-3)
-    python scripts/test_cjk_tokenization.py
+    python scripts/check_cjk_tokenization.py
 
     # Test specific languages
-    python scripts/test_cjk_tokenization.py --languages chinese japanese
+    python scripts/check_cjk_tokenization.py --languages chinese japanese
 
     # Test with specific sentences
-    python scripts/test_cjk_tokenization.py --sentence "Hello world"
+    python scripts/check_cjk_tokenization.py --sentence "Hello world"
 
     # Generate full report
-    python scripts/test_cjk_tokenization.py --report storage/cjk_report.json
+    python scripts/check_cjk_tokenization.py --report storage/cjk_report.json
 """
 
 import argparse

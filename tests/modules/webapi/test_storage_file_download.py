@@ -8,7 +8,21 @@ from fastapi.testclient import TestClient
 from modules import config_manager as cfg
 from modules.services.file_locator import FileLocator
 from modules.webapi.application import create_app
-from modules.webapi.dependencies import get_file_locator
+from modules.webapi.dependencies import (
+    RequestUserContext,
+    get_file_locator,
+    get_pipeline_service,
+    get_request_user,
+)
+
+
+class _StubPipelineService:
+    """Minimal stub that allows job access for any job_id."""
+
+    def get_job(self, job_id, *, user_id=None, user_role=None):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(job_id=job_id)
 
 
 @pytest.fixture
@@ -16,10 +30,11 @@ def storage_app(tmp_path: Path):
     app = create_app()
     locator = FileLocator(storage_dir=tmp_path)
 
-    def _override_locator() -> FileLocator:
-        return locator
-
-    app.dependency_overrides[get_file_locator] = _override_locator
+    app.dependency_overrides[get_file_locator] = lambda: locator
+    app.dependency_overrides[get_pipeline_service] = lambda: _StubPipelineService()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="test", user_role="admin"
+    )
     yield app, locator
     app.dependency_overrides.clear()
 
@@ -94,7 +109,7 @@ def test_download_invalid_range_returns_416(storage_app) -> None:
     assert response.headers["Content-Range"] == "bytes */5"
 
 
-def test_download_multi_range_falls_back_to_full_payload(storage_app) -> None:
+def test_download_multi_range_honors_first_range(storage_app) -> None:
     app, locator = storage_app
     job_id = "download-multi-range"
     file_path = locator.resolve_path(job_id, "media/chunk.bin")
@@ -107,8 +122,11 @@ def test_download_multi_range_falls_back_to_full_payload(storage_app) -> None:
             headers={"Range": "bytes=0-1,4-5"},
         )
 
-    assert response.status_code == 200
-    assert response.content == b"abcdefghij"
+    # Multi-range requests now honor the first range instead of falling back
+    # to a full-body response.
+    assert response.status_code == 206
+    assert response.content == b"ab"
+    assert response.headers["Content-Range"] == "bytes 0-1/10"
 
 
 def test_download_missing_file_returns_404(storage_app) -> None:

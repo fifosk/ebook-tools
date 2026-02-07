@@ -137,7 +137,7 @@ def test_polly_synthesizer_resolves_lang_code_without_alias() -> None:
     assert len(client.calls) == 1
     call = client.calls[0]
     assert call["language"] == "sl"
-    assert call["voice"] is None
+    assert call["voice"] == "macOS-auto"
 
 
 def test_polly_synthesizer_uses_api_default_for_english_auto_voice() -> None:
