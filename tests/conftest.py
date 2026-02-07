@@ -4,6 +4,9 @@ from unittest.mock import patch
 
 import pytest
 
+# Register E2E report plugin early so --e2e-report CLI flag is available
+pytest_plugins = ["tests.e2e.report"]
+
 # Configure HuggingFace cache to use external SSD BEFORE any HF imports
 # This must happen at module load time, before pytest collects tests
 from modules.core.storage_config import configure_hf_environment

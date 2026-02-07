@@ -37,7 +37,7 @@ ebook-tools = "modules.cli.main:main"
 ebook-tools-api = "modules.webapi.__main__:main"
 
 [tool.pytest.ini_options]
-addopts = "-rs"
+addopts = "-rs -m 'not e2e'"
 testpaths = ["tests"]
 markers = [
     "integration: end-to-end workflows requiring external services.",
@@ -55,4 +55,11 @@ markers = [
     "config: config manager, storage settings, runtime context.",
     "ramdisk: RAMDisk lifecycle, guard, mount/unmount.",
     "slow: tests that take >2s (WhisperX, Piper, pipelines).",
+    "e2e: browser E2E tests via Playwright (requires running app).",
+]
+
+[project.optional-dependencies]
+e2e = [
+    "playwright>=1.40",
+    "pytest-playwright>=0.4",
 ]

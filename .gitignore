@@ -41,3 +41,8 @@ config/.settings/
 
 # APNs authentication keys (sensitive)
 config/apns/
+
+# Playwright E2E test artifacts (raw per-test dirs, traces may contain tokens)
+test-results/*/
+# Keep the HTML report (self-contained, no secrets)
+!test-results/e2e-report.html
