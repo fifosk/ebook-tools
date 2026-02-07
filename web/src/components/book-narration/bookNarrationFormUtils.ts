@@ -312,11 +312,6 @@ export function applyConfigDefaults(previous: FormState, config: Record<string, 
     next.output_pdf = outputPdf;
   }
 
-  const generateVideo = config['generate_video'];
-  if (typeof generateVideo === 'boolean') {
-    next.generate_video = generateVideo;
-  }
-
   const addImages = config['add_images'];
   if (typeof addImages === 'boolean') {
     next.add_images = addImages;

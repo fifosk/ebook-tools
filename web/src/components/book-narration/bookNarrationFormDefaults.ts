@@ -31,7 +31,6 @@ export const DEFAULT_FORM_STATE: FormState = {
   voice_overrides: {},
   output_html: false,
   output_pdf: false,
-  generate_video: false,
   add_images: false,
   image_prompt_pipeline: 'prompt_plan',
   image_style_template: 'comics',

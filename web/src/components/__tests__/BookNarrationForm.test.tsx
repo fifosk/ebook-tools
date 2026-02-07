@@ -209,7 +209,6 @@ describe('BookNarrationForm', () => {
           selected_voice: 'macOS-auto-male',
           output_html: false,
           output_pdf: true,
-          generate_video: true,
           include_transliteration: true,
           tempo: 1.25,
           book_title: 'Example Book',

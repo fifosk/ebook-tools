@@ -92,8 +92,6 @@ export {
   fetchSentenceImageInfo,
   fetchSentenceImageInfoBatch,
   regenerateSentenceImage,
-  generateVideo,
-  fetchVideoStatus,
   fetchVoiceInventory,
   synthesizeVoicePreview,
   fetchPlaybackBookmarks,

@@ -1,21 +1,16 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import JobDetail from '../JobDetail';
-import type { PipelineMediaResponse, ProgressEventPayload, VideoGenerationResponse } from '../../api/dtos';
+import type { PipelineMediaResponse, ProgressEventPayload } from '../../api/dtos';
 
 const fetchLiveJobMediaMock = vi.hoisted(() => vi.fn<[], Promise<PipelineMediaResponse>>());
 const subscribeToJobEventsMock = vi.hoisted(() => vi.fn());
 const resolveStorageMock = vi.hoisted(() => vi.fn<[string | null | undefined, string | null | undefined], string>());
-const fetchVideoStatusMock = vi.hoisted(() => vi.fn<[string], Promise<VideoGenerationResponse | null>>());
-const generateVideoMock = vi.hoisted(() => vi.fn<[string, Record<string, unknown>], Promise<VideoGenerationResponse>>());
-
 vi.mock('../../api/client', async () => {
   const actual = await vi.importActual<typeof import('../../api/client')>('../../api/client');
   return {
     ...actual,
     fetchLiveJobMedia: fetchLiveJobMediaMock,
-    fetchVideoStatus: fetchVideoStatusMock,
-    generateVideo: generateVideoMock,
   };
 });
 
@@ -51,16 +46,6 @@ describe('JobDetail', () => {
     fetchLiveJobMediaMock.mockReset();
     subscribeToJobEventsMock.mockReset();
     resolveStorageMock.mockReset();
-    fetchVideoStatusMock.mockReset();
-    generateVideoMock.mockReset();
-    fetchVideoStatusMock.mockResolvedValue(null);
-    generateVideoMock.mockImplementation(async (jobId: string) => ({
-      request_id: 'req-1',
-      job_id: jobId,
-      status: 'queued',
-      output_path: null,
-      logs_url: null,
-    }));
   });
 
   afterEach(() => {

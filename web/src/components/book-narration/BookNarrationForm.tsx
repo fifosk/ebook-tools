@@ -743,8 +743,7 @@ export function BookNarrationForm({
       formState.output_html ? 'HTML' : null,
       formState.output_pdf ? 'PDF' : null,
       formState.generate_audio ? 'Audio' : null,
-      formState.add_images ? 'Images' : null,
-      formState.generate_video ? 'Video' : null
+      formState.add_images ? 'Images' : null
     ]
       .filter(Boolean)
       .join(', ') || 'Default';

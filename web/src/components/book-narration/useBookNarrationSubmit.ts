@@ -250,7 +250,6 @@ export function useBookNarrationSubmit({
             voice_overrides: sanitizedVoiceOverrides,
             output_html: formState.output_html,
             output_pdf: formState.output_pdf,
-            generate_video: formState.generate_video,
             add_images: formState.add_images,
             include_transliteration: formState.include_transliteration,
             translation_provider: formState.translation_provider,

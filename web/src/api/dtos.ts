@@ -120,7 +120,6 @@ export interface PipelineInputPayload {
   voice_overrides?: Record<string, string>;
   output_html: boolean;
   output_pdf: boolean;
-  generate_video: boolean;
   add_images: boolean;
   include_transliteration: boolean;
   translation_provider?: string;
@@ -1009,19 +1008,6 @@ export interface PipelineMediaResponse {
   media: Record<string, PipelineMediaFile[] | undefined>;
   chunks: PipelineMediaChunk[];
   complete: boolean;
-}
-
-export interface VideoGenerationResponse {
-  request_id: string;
-  job_id: string;
-  status: string;
-  output_path?: string | null;
-  logs_url?: string | null;
-}
-
-export interface VideoGenerationRequestPayload {
-  job_id: string;
-  parameters: Record<string, unknown>;
 }
 
 export interface MediaSearchResult {

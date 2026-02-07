@@ -59,7 +59,6 @@ export type FormState = {
   voice_overrides: Record<string, string>;
   output_html: boolean;
   output_pdf: boolean;
-  generate_video: boolean;
   add_images: boolean;
   image_prompt_pipeline: string;
   image_style_template: string;

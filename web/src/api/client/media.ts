@@ -16,8 +16,6 @@ import type {
   SentenceImageInfoResponse,
   SentenceImageRegenerateRequestPayload,
   SentenceImageRegenerateResponse,
-  VideoGenerationRequestPayload,
-  VideoGenerationResponse,
   VoiceInventoryResponse
 } from '../dtos';
 import type { ExportPlayerManifest } from '../../types/exportPlayer';
@@ -83,33 +81,6 @@ export async function regenerateSentenceImage(
     }
   );
   return handleResponse<SentenceImageRegenerateResponse>(response);
-}
-
-// Video generation
-export async function generateVideo(
-  jobId: string,
-  parameters: Record<string, unknown>
-): Promise<VideoGenerationResponse> {
-  const payload: VideoGenerationRequestPayload = {
-    job_id: jobId,
-    parameters
-  };
-  const response = await apiFetch('/api/video/generate', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
-  return handleResponse<VideoGenerationResponse>(response);
-}
-
-export async function fetchVideoStatus(jobId: string): Promise<VideoGenerationResponse | null> {
-  const response = await apiFetch(`/api/video/status/${encodeURIComponent(jobId)}`);
-  if (response.status === 404) {
-    return null;
-  }
-  return handleResponse<VideoGenerationResponse>(response);
 }
 
 // Audio/Voice endpoints

@@ -258,7 +258,6 @@ export function BookNarrationFormSections({
           outputPdf={formState.output_pdf}
           includeTransliteration={formState.include_transliteration}
           tempo={formState.tempo}
-          generateVideo={formState.generate_video}
           availableAudioModes={availableAudioModes}
           availableAudioQualities={availableAudioQualities}
           availableVoices={availableVoices}
@@ -280,7 +279,6 @@ export function BookNarrationFormSections({
           onOutputPdfChange={(value) => handleChange('output_pdf', value)}
           onIncludeTransliterationChange={(value) => handleChange('include_transliteration', value)}
           onTempoChange={(value) => handleChange('tempo', value)}
-          onGenerateVideoChange={(value) => handleChange('generate_video', value)}
           onPlayVoicePreview={onPlayVoicePreview}
         />
       );

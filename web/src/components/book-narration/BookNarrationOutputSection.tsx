@@ -21,7 +21,6 @@ type BookNarrationOutputSectionProps = {
   outputPdf: boolean;
   includeTransliteration: boolean;
   tempo: number;
-  generateVideo: boolean;
   availableAudioModes: MenuOption[];
   availableAudioQualities: MenuOption[];
   availableVoices: MenuOption[];
@@ -43,7 +42,6 @@ type BookNarrationOutputSectionProps = {
   onOutputPdfChange: (value: boolean) => void;
   onIncludeTransliterationChange: (value: boolean) => void;
   onTempoChange: (value: number) => void;
-  onGenerateVideoChange: (value: boolean) => void;
   onPlayVoicePreview: (languageCode: string, languageLabel: string) => Promise<void> | void;
 };
 
@@ -60,7 +58,6 @@ const BookNarrationOutputSection = ({
   outputPdf,
   includeTransliteration,
   tempo,
-  generateVideo,
   availableAudioModes,
   availableAudioQualities,
   availableVoices,
@@ -82,7 +79,6 @@ const BookNarrationOutputSection = ({
   onOutputPdfChange,
   onIncludeTransliterationChange,
   onTempoChange,
-  onGenerateVideoChange,
   onPlayVoicePreview
 }: BookNarrationOutputSectionProps) => {
   const selectedAudioOption =
@@ -281,15 +277,6 @@ const BookNarrationOutputSection = ({
             value={tempo}
             onChange={(event) => onTempoChange(Number(event.target.value))}
           />
-        </label>
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            name="generate_video"
-            checked={generateVideo}
-            onChange={(event) => onGenerateVideoChange(event.target.checked)}
-          />
-          Generate stitched video assets
         </label>
       </div>
     </section>
