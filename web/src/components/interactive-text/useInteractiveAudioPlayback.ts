@@ -534,12 +534,28 @@ export function useInteractiveAudioPlayback({
       // after track switches where the scaling factor changes (e.g., original: 1.11x, translation: 0.77x).
       return;
     }
-    // Prevent backward movement shortly after a manual seek (track switch)
-    // This handles timeline scaling mismatches when audioDuration changes
+    // Prevent backward movement shortly after a manual seek (track switch).
+    // Brief guard covers audio element seeking latency only (no v1 scaling mismatch).
     const timeSinceManualSeek = Date.now() - lastManualSeekTimeRef.current;
-    if (clampedIndex < activeSentenceIndex && timeSinceManualSeek < 500) {
+    const backwardGuardMs = 300;
+    if (clampedIndex < activeSentenceIndex && timeSinceManualSeek < backwardGuardMs) {
       if (import.meta.env.DEV) {
         console.debug('[timelineDisplay effect] Skipping backward movement after recent manual seek', {
+          from: activeSentenceIndex,
+          candidate: clampedIndex,
+          timeSinceManualSeek,
+          guardMs: backwardGuardMs,
+        });
+      }
+      return;
+    }
+    // In sequence mode, also suppress forward jumps shortly after a track switch.
+    // After switching tracks (e.g., original → translation), the timeline scaling changes
+    // and may briefly compute a higher sentence index than the sequence controller set.
+    // The sequence controller's activeSentenceIndex is authoritative during this window.
+    if (sequenceEnabledRef.current && clampedIndex > activeSentenceIndex && timeSinceManualSeek < 500) {
+      if (import.meta.env.DEV) {
+        console.debug('[timelineDisplay effect] Skipping forward jump after recent track switch', {
           from: activeSentenceIndex,
           candidate: clampedIndex,
           timeSinceManualSeek,
@@ -589,6 +605,7 @@ export function useInteractiveAudioPlayback({
     setActiveSentenceIndex,
     setChunkTime,
     setAudioDuration,
+    lastManualSeekTimeRef,
     onAudioProgress,
   });
 

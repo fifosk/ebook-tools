@@ -109,6 +109,12 @@ export function useInlineAudioHandlers({
   isDwellPauseRef,
 }: UseInlineAudioHandlersArgs): UseInlineAudioHandlersResult {
   const progressTimerRef = useRef<number | null>(null);
+  // Keep a ref to the latest maybeAdvanceSequence so the progress-timer interval
+  // (which is never recreated) always calls the freshest version.  Without this,
+  // the interval closure captures a stale maybeAdvanceSequence whose inner
+  // sequencePlan may be from a previous render.
+  const maybeAdvanceSequenceRef = useRef(maybeAdvanceSequence);
+  maybeAdvanceSequenceRef.current = maybeAdvanceSequence;
 
   useEffect(() => {
     if (!onRegisterInlineAudioControls) {
@@ -227,7 +233,7 @@ export function useInlineAudioHandlers({
             updateSentenceForTime(currentTime, duration);
           }
           updateActiveGateFromTime(currentTime);
-          maybeAdvanceSequence(currentTime);
+          maybeAdvanceSequenceRef.current(currentTime);
         }, 120);
       }
     };
@@ -256,7 +262,6 @@ export function useInlineAudioHandlers({
     audioRef,
     hasTimeline,
     inlineAudioPlayingRef,
-    maybeAdvanceSequence,
     onInlineAudioPlaybackStateChange,
     pendingChunkAutoPlayKeyRef,
     pendingChunkAutoPlayRef,
@@ -608,7 +613,7 @@ export function useInlineAudioHandlers({
     }
     emitAudioProgress(currentTime);
     updateActiveGateFromTime(currentTime);
-    maybeAdvanceSequence(currentTime);
+    maybeAdvanceSequenceRef.current(currentTime);
     if (element.paused) {
       wordSyncControllerRef.current?.snap();
     }
@@ -616,7 +621,6 @@ export function useInlineAudioHandlers({
     audioRef,
     emitAudioProgress,
     hasTimeline,
-    maybeAdvanceSequence,
     pendingSequenceSeekRef,
     setAudioDuration,
     setChunkTime,

@@ -131,7 +131,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     fullscreenAdvancedControls,
     audioTracks = null,
     activeTimingTrack = 'translation',
-    originalAudioEnabled = false,
+    originalAudioEnabled = true,
     translationAudioEnabled = true,
     translationSpeed = 1,
     fontScale = 1,
@@ -330,6 +330,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     seekInlineAudioToTime,
     handleTokenSeek,
     wordSync,
+    totalSentences,
     sequencePlayback,
   } = useInteractiveAudioPlayback({
     content,
@@ -371,10 +372,61 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     skipSentenceRef.current = sequencePlayback.skipSentence;
   }, [sequencePlayback.skipSentence]);
 
-  // Create a stable wrapper function that delegates to the ref
+  // Refs for non-sequence skip — allows stable function to access current values
+  const timelineSentencesRef = useRef(timelineSentences);
+  useEffect(() => { timelineSentencesRef.current = timelineSentences; }, [timelineSentences]);
+  const activeSentenceIndexRef = useRef(activeSentenceIndex);
+  useEffect(() => { activeSentenceIndexRef.current = activeSentenceIndex; }, [activeSentenceIndex]);
+  const seekInlineAudioToTimeRef = useRef(seekInlineAudioToTime);
+  useEffect(() => { seekInlineAudioToTimeRef.current = seekInlineAudioToTime; }, [seekInlineAudioToTime]);
+  const setActiveSentenceIndexRef = useRef(setActiveSentenceIndex);
+  useEffect(() => { setActiveSentenceIndexRef.current = setActiveSentenceIndex; }, [setActiveSentenceIndex]);
+  const sequenceEnabledRef = useRef(sequencePlayback.enabled);
+  useEffect(() => { sequenceEnabledRef.current = sequencePlayback.enabled; }, [sequencePlayback.enabled]);
+  const totalSentencesRef = useRef(totalSentences);
+  useEffect(() => { totalSentencesRef.current = totalSentences; }, [totalSentences]);
+
+  // Create a stable wrapper function that handles both sequence and non-sequence modes
   const stableSkipSentence = useMemo(() => {
     const fn = (direction: 1 | -1): boolean => {
-      return skipSentenceRef.current(direction);
+      // In sequence mode, delegate to the sequence skip function
+      if (sequenceEnabledRef.current) {
+        return skipSentenceRef.current(direction);
+      }
+
+      // Non-sequence mode: use timeline data for direct within-chunk seeking
+      const sentences = timelineSentencesRef.current;
+      const currentIndex = activeSentenceIndexRef.current;
+      const total = totalSentencesRef.current;
+
+      if (!sentences || sentences.length === 0 || total <= 0) {
+        return false; // No timeline data — let cross-chunk fallback handle it
+      }
+
+      const targetIndex = currentIndex + direction;
+
+      // At chunk boundary — return false so cross-chunk navigation takes over
+      if (targetIndex < 0 || targetIndex >= sentences.length) {
+        return false;
+      }
+
+      const target = sentences[targetIndex];
+      if (!target || typeof target.startTime !== 'number') {
+        return false;
+      }
+
+      if (import.meta.env.DEV) {
+        console.debug('[InteractiveTextViewer] Non-sequence skip', {
+          direction,
+          from: currentIndex,
+          to: targetIndex,
+          startTime: target.startTime,
+        });
+      }
+
+      seekInlineAudioToTimeRef.current(target.startTime);
+      setActiveSentenceIndexRef.current(targetIndex);
+      return true;
     };
     return fn;
   }, []);
@@ -388,27 +440,20 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   // Track whether we've registered so we only clear on actual unmount or disable
   const isRegisteredRef = useRef(false);
 
-  // Register sequence skip function with parent component
-  // Only re-run when enabled state changes
+  // Register sentence skip function with parent component (handles both sequence and non-sequence modes)
   useEffect(() => {
     const register = onRegisterSequenceSkipRef.current;
     if (!register) {
       return;
     }
-    if (sequencePlayback.enabled) {
+    if (!isRegisteredRef.current) {
       if (import.meta.env.DEV) {
-        console.debug('[InteractiveTextViewer] Registering sequence skip function');
+        console.debug('[InteractiveTextViewer] Registering sentence skip function');
       }
       register(stableSkipSentence);
       isRegisteredRef.current = true;
-    } else if (isRegisteredRef.current) {
-      if (import.meta.env.DEV) {
-        console.debug('[InteractiveTextViewer] Clearing sequence skip function (sequence disabled)');
-      }
-      register(null);
-      isRegisteredRef.current = false;
     }
-  }, [sequencePlayback.enabled, stableSkipSentence]);
+  }, [stableSkipSentence]);
 
   // Separate cleanup effect that only runs on unmount
   useEffect(() => {

@@ -43,6 +43,9 @@ export type UseAudioModeTransitionArgs = {
   setChunkTime: React.Dispatch<React.SetStateAction<number>>;
   setAudioDuration: React.Dispatch<React.SetStateAction<number | null>>;
 
+  // Manual seek tracking (for backward-movement guard in timelineDisplay effect)
+  lastManualSeekTimeRef: React.MutableRefObject<number>;
+
   // Callbacks
   onAudioProgress?: (audioUrl: string, position: number) => void;
 };
@@ -73,6 +76,7 @@ export function useAudioModeTransition({
   setActiveSentenceIndex,
   setChunkTime,
   setAudioDuration,
+  lastManualSeekTimeRef,
   onAudioProgress,
 }: UseAudioModeTransitionArgs): UseAudioModeTransitionResult {
   const pendingInitialSeekRef = useRef<number | null>(null);
@@ -284,23 +288,101 @@ export function useAudioModeTransition({
       pendingInitialSeekRef.current = null;
       lastReportedPositionRef.current = 0;
 
+      // Determine which single track will be active after exiting sequence mode.
+      // When original is toggled OFF, translation stays; when translation is toggled OFF, original stays.
+      const destinationTrack: SequenceTrack = effectiveAudioUrl === translationTrackUrl ? 'translation' : 'original';
+      // Find the segment for the target sentence on the destination track (from sequence plan).
+      // The segment's start time is in the destination track's native audio space.
+      const exitSegment = sequencePlan.find(
+        (seg) => seg.sentenceIndex === targetSentence && seg.track === destinationTrack,
+      ) ?? sequencePlan.find(
+        (seg) => seg.sentenceIndex === targetSentence,
+      );
+
       if (urlWillChange) {
-        // URL will change, so handleLoadedMetadata will fire and can handle the seek
-        pendingSequenceExitSeekRef.current = { sentenceIndex: targetSentence };
+        // URL will change, so handleLoadedMetadata will fire.
+        // Use pendingSequenceSeekRef (not Exit) so the existing seek logic in
+        // handleLoadedMetadata handles it — this avoids the stale-closure issue
+        // with timelineSentences.
+        if (exitSegment) {
+          pendingSequenceSeekRef.current = {
+            time: exitSegment.start,
+            autoPlay: inlineAudioPlayingRef.current,
+            targetSentenceIndex: targetSentence,
+          };
+          // Begin transition to guard timelineDisplay effect
+          timingStore.beginTransition({
+            type: 'transitioning',
+            targetSentenceIndex: targetSentence,
+            targetTime: exitSegment.start,
+          });
+        } else {
+          pendingSequenceExitSeekRef.current = { sentenceIndex: targetSentence };
+        }
       } else {
-        // URL won't change - need to seek directly
-        // The timelineSentences won't be available yet in this effect, so we set the ref
-        // and let the timelineDisplay effect handle clearing it with a timeout
+        // URL won't change — handleLoadedMetadata won't fire.
+        // Seek the audio element directly to the sentence start using the
+        // sequence plan (which has segment times in the track's audio space).
         pendingSequenceExitSeekRef.current = { sentenceIndex: targetSentence };
-        // Clear the ref after a delay since handleLoadedMetadata won't fire
-        setTimeout(() => {
+
+        const element = audioRef.current;
+        // Find the segment for the target sentence on the destination track.
+        // Use destinationTrack (computed from effectiveAudioUrl) rather than
+        // sequenceTrackRef which may point to the track that was toggled OFF.
+        const targetSegment = exitSegment;
+
+        if (element && targetSegment && Number.isFinite(element.duration) && element.duration > 0) {
+          const wasPlaying = !element.paused;
+          // Seek to the sentence start time (in audio space, from sequence plan)
+          const seekTime = Math.max(0, Math.min(targetSegment.start, element.duration - 0.1));
+          element.currentTime = seekTime;
+          setChunkTime(seekTime);
+          setActiveSentenceIndex(targetSentence);
+          lastManualSeekTimeRef.current = Date.now();
+
           if (import.meta.env.DEV) {
-            console.debug(
-              '[audioResetKey] Clearing pendingSequenceExitSeekRef after timeout (URL unchanged)',
-            );
+            console.debug('[audioResetKey] Sequence exit seek (URL unchanged)', {
+              targetSentence,
+              seekTime,
+              destinationTrack,
+              wasPlaying,
+            });
           }
-          pendingSequenceExitSeekRef.current = null;
-        }, 100);
+
+          // Guard against timelineDisplay overriding during transition
+          setTimeout(() => {
+            if (pendingSequenceExitSeekRef.current?.sentenceIndex !== targetSentence) return;
+            if (import.meta.env.DEV) {
+              console.debug(
+                '[audioResetKey] Clearing pendingSequenceExitSeekRef after timeout (URL unchanged)',
+              );
+            }
+            pendingSequenceExitSeekRef.current = null;
+            // Refresh manual seek time so the backward-movement guard extends
+            lastManualSeekTimeRef.current = Date.now();
+          }, 300);
+
+          if (wasPlaying) {
+            const maybePlay = element.play?.();
+            if (maybePlay && typeof maybePlay.catch === 'function') {
+              maybePlay.catch(() => undefined);
+            }
+          }
+        } else {
+          // No element or no segment — just clear after brief delay
+          if (import.meta.env.DEV) {
+            console.debug('[audioResetKey] No element/segment for sequence exit seek', {
+              hasElement: Boolean(element),
+              targetSegment,
+              targetSentence,
+            });
+          }
+          setTimeout(() => {
+            if (pendingSequenceExitSeekRef.current?.sentenceIndex === targetSentence) {
+              pendingSequenceExitSeekRef.current = null;
+            }
+          }, 100);
+        }
       }
       // Don't reset activeSentenceIndex - keep current position
       // Don't reset chunkTime - will be updated when seeking to the correct position
@@ -328,10 +410,12 @@ export function useAudioModeTransition({
     // Check if we're switching between single-track modes (e.g., translation-only → original-only)
     // In this case, we want to preserve position and seek to the corresponding time
     // This happens when neither the old nor new key is in sequence mode
+    // Only fire when the user has progressed past sentence 0 — otherwise this is a
+    // normal chunk advance and the default reset-to-0 path below handles it correctly.
+    const targetSentence = activeSentenceIndexRef.current;
     const isSwitchingSingleTracks =
-      prevKey && !wasSequenceMode && !isSequenceMode && prevKey !== audioResetKey;
+      prevKey && !wasSequenceMode && !isSequenceMode && prevKey !== audioResetKey && targetSentence > 0;
     if (isSwitchingSingleTracks) {
-      const targetSentence = activeSentenceIndexRef.current;
       if (import.meta.env.DEV) {
         console.debug('[audioResetKey] Switching single tracks, preserving position', {
           prevKey,

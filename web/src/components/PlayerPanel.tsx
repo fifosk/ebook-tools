@@ -597,8 +597,8 @@ export default function PlayerPanel({
 
   const {
     isFirstDisabled,
-    isPreviousDisabled,
-    isNextDisabled,
+    isPreviousDisabled: isChunkPreviousDisabled,
+    isNextDisabled: isChunkNextDisabled,
     isLastDisabled,
     handleNavigatePreservingPlayback,
   } = usePlayerPanelNavigation({
@@ -611,6 +611,13 @@ export default function PlayerPanel({
     updateSelection,
     inlineAudioPlayingRef,
   });
+
+  // When sentence-level navigation is possible, next/previous should not be
+  // disabled just because we're at a chunk boundary — there may be more
+  // sentences to skip to (within the current chunk or across chunks).
+  const hasSentenceNav = canJumpToSentence || sequenceSkipFnRef.current !== null;
+  const isPreviousDisabled = hasSentenceNav ? false : isChunkPreviousDisabled;
+  const isNextDisabled = hasSentenceNav ? false : isChunkNextDisabled;
 
   const handlePanelAdvancedControlsToggle = useCallback(() => {
     setPanelAdvancedControlsOpen((value) => !value);
@@ -844,7 +851,7 @@ export default function PlayerPanel({
 
   const navigationBaseProps = buildNavigationBaseProps({
     navigation: {
-      onNavigate: handleNavigatePreservingPlayback,
+      onNavigate: handleKeyboardNavigate,
       onToggleFullscreen: handleInteractiveFullscreenToggle,
       onTogglePlayback: handleToggleActiveMedia,
       disableFirst: isFirstDisabled,

@@ -255,6 +255,23 @@ export function useInteractiveAudioSequence({
       hasOriginalSegments &&
       hasTranslationSegments,
   );
+
+  // DEV diagnostic: log once when sequence mode becomes disabled (not on every render)
+  useEffect(() => {
+    if (import.meta.env.DEV && !sequenceEnabled && (originalAudioEnabled || translationAudioEnabled)) {
+      const reasons: string[] = [];
+      if (!originalAudioEnabled) reasons.push('originalAudioEnabled=false');
+      if (!translationAudioEnabled) reasons.push('translationAudioEnabled=false');
+      if (!originalTrackUrl) reasons.push("no original track URL (missing 'orig' key in audioTracks)");
+      if (!translationTrackUrl) reasons.push("no translation track URL (missing 'translation' key in audioTracks)");
+      if (!hasOriginalSegments) reasons.push('no original segments in plan (missing gate data/phaseDurations)');
+      if (!hasTranslationSegments) reasons.push('no translation segments in plan (missing gate data/phaseDurations)');
+      if (reasons.length > 0) {
+        console.debug('[useInteractiveAudioSequence] Sequence mode disabled:', reasons.join(', '));
+      }
+    }
+  }, [sequenceEnabled, originalAudioEnabled, translationAudioEnabled, originalTrackUrl, translationTrackUrl, hasOriginalSegments, hasTranslationSegments]);
+
   const [sequenceTrack, setSequenceTrack] = useState<SequenceTrack | null>(sequenceDefaultTrack);
   const sequenceTrackRef = useRef<SequenceTrack | null>(sequenceTrack);
   const sequenceEnabledRef = useRef(sequenceEnabled);

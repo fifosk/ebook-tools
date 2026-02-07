@@ -57,6 +57,10 @@ extension InteractivePlayerViewModel {
         }
     }
 
+    /// Number of extra chunks to prefetch ahead when the selected chunk has only one sentence.
+    /// Matches the Web's SINGLE_SENTENCE_PREFETCH_AHEAD constant.
+    private static let singleSentencePrefetchAhead = 3
+
     private func prefetchAdjacentSentences(
         around sentenceNumber: Int,
         in context: JobContext,
@@ -79,6 +83,23 @@ extension InteractivePlayerViewModel {
         if targets.isEmpty {
             targets = prefetchFallbackChunks(from: selectedChunk, in: context, isPlaying: isPlaying)
         }
+
+        // Single-sentence-chunk lookahead: when the selected chunk has only one sentence
+        // (common in poetry or short-form content), prefetch additional chunks ahead
+        // to avoid stuttering during rapid auto-advance.
+        let isSingleSentence = selectedChunk.sentences.count == 1
+            || (selectedChunk.startSentence != nil
+                && selectedChunk.endSentence != nil
+                && selectedChunk.startSentence == selectedChunk.endSentence)
+        if isSingleSentence {
+            var ahead = selectedChunk
+            for _ in 0..<Self.singleSentencePrefetchAhead {
+                guard let next = context.nextChunk(after: ahead.id) else { break }
+                targets.append(next)
+                ahead = next
+            }
+        }
+
         // Use Dictionary(_:uniquingKeysWith:) to handle duplicate chunk IDs gracefully
         // (multiple sentence numbers can resolve to the same chunk)
         let uniqueTargets = Dictionary(targets.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })

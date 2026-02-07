@@ -976,6 +976,8 @@ export interface PipelineMediaChunk {
   sentence_count?: number | null;
   audioTracks?: Record<string, AudioTrackMetadata> | null;
   timingTracks?: Record<string, unknown[]> | null;
+  /** Timing version - always "2" (backend pre-scales timing to match audio duration) */
+  timingVersion?: string;
 }
 
 export interface PipelineMediaResponse {

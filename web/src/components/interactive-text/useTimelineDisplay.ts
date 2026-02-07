@@ -8,6 +8,7 @@ import type {
 } from '../../text-player/TextPlayer';
 import type { TimelineSentenceRuntime, TimelineVariantRuntime } from './types';
 import { buildUniformRevealTimes, normaliseTokens } from './utils';
+import { resolveSentenceGate } from '../../lib/media/gateExtractor';
 
 type TimelineDisplay = {
   sentences: TextPlayerSentence[];
@@ -29,8 +30,6 @@ type UseTimelineDisplayArgs = {
   chunkTime: number;
   activeSentenceIndex: number;
   revealMemoryRef: RevealMemoryRef;
-  /** If true, skip frontend scaling even for v1 chunks (for testing) */
-  skipScaling?: boolean;
 };
 
 export function useTimelineDisplay({
@@ -42,279 +41,43 @@ export function useTimelineDisplay({
   chunkTime,
   activeSentenceIndex,
   revealMemoryRef,
-  skipScaling = false,
 }: UseTimelineDisplayArgs): {
   timelineSentences: TimelineSentenceRuntime[] | null;
   timelineDisplay: TimelineDisplay | null;
 } {
+  // ── Build sentence timeline ──────────────────────────────────────────
+  //
+  // V2 path: when backend gate data is available for the active track,
+  // use the pre-scaled gate boundaries directly as sentence start/end.
+  // This keeps sentence boundaries in actual audio-time space so
+  // chunkTime (from audio.currentTime) maps 1:1 — no scaling needed.
+  //
+  // Combined-phase path (sequence mode): builds a synthetic combined
+  // timeline from phaseDurations. The sequence controller manages seeking
+  // separately, but we still need the combined timeline for token reveal.
+
   const timelineSentences = useMemo(() => {
     if (!hasTimeline || !chunk?.sentences?.length) {
       return null;
     }
 
-    let offset = 0;
-    const result: TimelineSentenceRuntime[] = [];
+    const isOriginalTrack = activeTimingTrack === 'original';
+    const gateTrack = isOriginalTrack ? 'original' as const : 'translation' as const;
 
-    chunk.sentences.forEach((metadata, index) => {
-      const originalTokens = normaliseTokens(metadata.original ?? undefined);
-      const translationTokens = normaliseTokens(metadata.translation ?? undefined);
-      const transliterationTokens = normaliseTokens(metadata.transliteration ?? undefined);
+    // Check if all sentences have gate data for the active track.
+    // If so, we can use the v2 gate-based path for single-track modes.
+    const useGates = !useCombinedPhases && chunk.sentences.every(
+      (s) => resolveSentenceGate(s, gateTrack) !== null,
+    );
 
-      const events = Array.isArray(metadata.timeline) ? metadata.timeline : [];
-
-      const originalReveal: number[] = [];
-      const isOriginalTrack = activeTimingTrack === 'original';
-
-      const phaseDurations = useCombinedPhases ? metadata.phaseDurations ?? null : null;
-      const originalPhaseDuration = (() => {
-        if (phaseDurations && typeof phaseDurations.original === 'number') {
-          return Math.max(phaseDurations.original, 0);
-        }
-        if (originalTokens.length > 0) {
-          return originalTokens.length * 0.35;
-        }
-        return 0;
-      })();
-      const gapBeforeTranslation =
-        phaseDurations && typeof phaseDurations.gap === 'number'
-          ? Math.max(phaseDurations.gap, 0)
-          : 0;
-      const tailPhaseDuration =
-        phaseDurations && typeof phaseDurations.tail === 'number'
-          ? Math.max(phaseDurations.tail, 0)
-          : 0;
-      const translationPhaseDurationOverride =
-        phaseDurations && typeof phaseDurations.translation === 'number'
-          ? Math.max(phaseDurations.translation, 0)
-          : null;
-      const highlightOriginal =
-        (useCombinedPhases || isOriginalTrack) &&
-        originalTokens.length > 0 &&
-        originalPhaseDuration > 0;
-
-      const eventDurationTotal = events.reduce((total, event) => {
-        const duration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
-        return total + duration;
-      }, 0);
-
-      const declaredDuration = (() => {
-        if (typeof metadata.totalDuration === 'number' && metadata.totalDuration > 0) {
-          return metadata.totalDuration;
-        }
-        if (eventDurationTotal > 0) {
-          return eventDurationTotal;
-        }
-        const fallbackTokens = Math.max(
-          originalTokens.length,
-          translationTokens.length,
-          transliterationTokens.length,
-        );
-        if (fallbackTokens > 0) {
-          return fallbackTokens * 0.35;
-        }
-        return 0.5;
-      })();
-
-      const sentenceStart = offset;
-
-      const translationPhaseDuration = (() => {
-        if (isOriginalTrack) {
-          return 0;
-        }
-        if (translationPhaseDurationOverride !== null && translationPhaseDurationOverride > 0) {
-          return translationPhaseDurationOverride;
-        }
-        if (declaredDuration > 0) {
-          return declaredDuration;
-        }
-        if (translationTokens.length > 0 || transliterationTokens.length > 0) {
-          return Math.max(translationTokens.length, transliterationTokens.length) * 0.35;
-        }
-        return 0.5;
-      })();
-
-      const translationTrackStart = sentenceStart + (useCombinedPhases ? originalPhaseDuration + gapBeforeTranslation : 0);
-
-      const translationDurationsRaw: number[] = [];
-      let prevTranslationCount = 0;
-
-      if (!isOriginalTrack) {
-        events.forEach((event) => {
-          const baseDuration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
-          if (!(baseDuration > 0)) {
-            return;
-          }
-          const targetTranslationIndex =
-            typeof event.translation_index === 'number' ? Math.max(0, event.translation_index) : prevTranslationCount;
-          const nextTranslationCount = Math.min(
-            translationTokens.length,
-            Math.max(prevTranslationCount, targetTranslationIndex),
-          );
-          const delta = nextTranslationCount - prevTranslationCount;
-          if (delta <= 0) {
-            return;
-          }
-          const perToken = baseDuration / delta;
-          for (let idx = 0; idx < delta; idx += 1) {
-            translationDurationsRaw.push(perToken);
-          }
-          prevTranslationCount = nextTranslationCount;
-        });
-      }
-
-      const totalTranslationDurationRaw = translationDurationsRaw.reduce((sum, value) => sum + value, 0);
-      const translationSpeechDuration =
-        totalTranslationDurationRaw > 0 ? totalTranslationDurationRaw : translationPhaseDuration;
-      const translationTotalDuration = translationSpeechDuration + tailPhaseDuration;
-      const translationPhaseEndAbsolute = translationTrackStart + translationTotalDuration;
-
-      let translationRevealTimes: number[] = [];
-      if (!isOriginalTrack && translationDurationsRaw.length > 0) {
-        let cumulativeTranslation = 0;
-        translationDurationsRaw.forEach((rawDuration) => {
-          translationRevealTimes.push(translationTrackStart + cumulativeTranslation);
-          cumulativeTranslation += rawDuration;
-        });
-      }
-
-      if (
-        !isOriginalTrack &&
-        translationRevealTimes.length !== translationTokens.length &&
-        translationTokens.length > 0
-      ) {
-        translationRevealTimes = buildUniformRevealTimes(
-          translationTokens.length,
-          translationTrackStart,
-          translationSpeechDuration,
-        );
-      }
-
-      const transliterationRevealTimes =
-        !isOriginalTrack && transliterationTokens.length > 0
-          ? transliterationTokens.map((_, idx) => {
-              if (translationRevealTimes.length === 0) {
-                return translationTrackStart;
-              }
-              if (translationRevealTimes.length === 1) {
-                return translationRevealTimes[0];
-              }
-              const ratio = transliterationTokens.length > 1 ? idx / (transliterationTokens.length - 1) : 0;
-              const mappedIndex = Math.min(
-                translationRevealTimes.length - 1,
-                Math.round(ratio * (translationRevealTimes.length - 1)),
-              );
-              return translationRevealTimes[mappedIndex];
-            })
-          : [];
-
-      if (!isOriginalTrack && translationRevealTimes.length > 0) {
-        translationRevealTimes[0] = translationTrackStart;
-        translationRevealTimes[translationRevealTimes.length - 1] = translationPhaseEndAbsolute;
-      }
-      if (!isOriginalTrack && transliterationRevealTimes.length > 0) {
-        transliterationRevealTimes[0] = translationTrackStart;
-        transliterationRevealTimes[transliterationRevealTimes.length - 1] = translationPhaseEndAbsolute;
-      }
-
-      if (highlightOriginal) {
-        const reveals = buildUniformRevealTimes(originalTokens.length, sentenceStart, originalPhaseDuration);
-        originalReveal.splice(0, originalReveal.length, ...reveals);
-      }
-
-      const sentenceDuration = useCombinedPhases
-        ? originalPhaseDuration + gapBeforeTranslation + translationTotalDuration
-        : isOriginalTrack
-          ? originalPhaseDuration
-          : translationTotalDuration;
-      const endTime = sentenceStart + sentenceDuration;
-
-      result.push({
-        index,
-        sentenceNumber: metadata.sentence_number ?? null,
-        startTime: sentenceStart,
-        endTime,
-        variants: {
-          original: {
-            tokens: originalTokens,
-            revealTimes: originalReveal,
-          },
-          translation: translationTokens.length
-            ? {
-                tokens: translationTokens,
-                revealTimes: translationRevealTimes,
-              }
-            : undefined,
-          transliteration: transliterationTokens.length
-            ? {
-                tokens: transliterationTokens,
-                revealTimes: transliterationRevealTimes,
-              }
-            : undefined,
-        },
-      });
-
-      offset = endTime;
-    });
-
-    // Timing version "2" means the backend has already scaled timing to match audio duration
-    // In this case, we skip frontend scaling to avoid double-scaling
-    const timingVersion = chunk?.timingVersion ?? '1';
-    const shouldSkipScaling = skipScaling || timingVersion === '2';
-
-    if (!shouldSkipScaling && !useCombinedPhases && audioDuration && audioDuration > 0 && result.length > 0) {
-      const totalTimelineDuration = result[result.length - 1].endTime;
-      if (totalTimelineDuration > 0) {
-        const scale = audioDuration / totalTimelineDuration;
-        // Only apply scaling if there's a significant difference (>2%)
-        const scalingNeeded = Math.abs(scale - 1.0) > 0.02;
-        if (scalingNeeded) {
-          if (import.meta.env.DEV) {
-            console.debug('[useTimelineDisplay] Applying frontend scaling', {
-              timingVersion,
-              audioDuration,
-              totalTimelineDuration,
-              scale,
-              note: 'Consider using timing_version: "2" from backend to avoid this',
-            });
-          }
-          const scaled = result.map((sentence) => {
-            const originalVariant = {
-              ...sentence.variants.original,
-              revealTimes: sentence.variants.original.revealTimes.map((time) => time * scale),
-            };
-
-            const translationVariant = sentence.variants.translation
-              ? {
-                  ...sentence.variants.translation,
-                  revealTimes: sentence.variants.translation.revealTimes.map((time) => time * scale),
-                }
-              : undefined;
-
-            const transliterationVariant = sentence.variants.transliteration
-              ? {
-                  ...sentence.variants.transliteration,
-                  revealTimes: sentence.variants.transliteration.revealTimes.map((time) => time * scale),
-                }
-              : undefined;
-
-            return {
-              ...sentence,
-              startTime: sentence.startTime * scale,
-              endTime: sentence.endTime * scale,
-              variants: {
-                original: originalVariant,
-                translation: translationVariant,
-                transliteration: transliterationVariant,
-              },
-            };
-          });
-          return scaled;
-        }
-      }
+    if (useGates) {
+      return buildGateBasedTimeline(chunk.sentences, isOriginalTrack, gateTrack);
     }
 
-    return result;
-  }, [activeTimingTrack, audioDuration, chunk?.sentences, chunk?.timingVersion, hasTimeline, skipScaling, useCombinedPhases]);
+    return buildSyntheticTimeline(chunk.sentences, activeTimingTrack, useCombinedPhases);
+  }, [activeTimingTrack, chunk?.sentences, hasTimeline, useCombinedPhases]);
+
+  // ── Map chunkTime to display ─────────────────────────────────────────
 
   const timelineDisplay = useMemo(() => {
     if (!timelineSentences) {
@@ -326,20 +89,17 @@ export function useTimelineDisplay({
 
     const timelineTotalDuration =
       timelineSentences.length > 0 ? timelineSentences[timelineSentences.length - 1].endTime : null;
-    // Timing version "2" means the backend has pre-scaled timing, so timeline duration should match audio
-    // In this case, we use chunkTime directly without time scaling
-    const timingVersion = chunk?.timingVersion ?? '1';
-    const shouldSkipTimeScaling = skipScaling || timingVersion === '2';
+
+    // When gate-based, timeline is in audio space: chunkTime maps 1:1.
+    // When synthetic, timeline may differ from audio duration — scale proportionally.
     const effectiveTime = (() => {
       if (!timelineTotalDuration || !audioDuration || audioDuration <= 0 || timelineTotalDuration <= 0) {
         return Math.max(chunkTime, 0);
       }
       const ratio = timelineTotalDuration / audioDuration;
-      // If timing is pre-scaled (v2) or ratio is close to 1, use chunkTime directly
-      if (shouldSkipTimeScaling || (ratio > 0.98 && ratio < 1.02)) {
-        return Math.min(chunkTime, timelineTotalDuration);
+      if (ratio > 0.98 && ratio < 1.02) {
+        return Math.min(Math.max(chunkTime, 0), timelineTotalDuration);
       }
-      // For v1 timing with mismatch, scale chunkTime to timeline space
       const scaled = (chunkTime / audioDuration) * timelineTotalDuration;
       if (!Number.isFinite(scaled) || scaled < 0) {
         return 0;
@@ -401,7 +161,8 @@ export function useTimelineDisplay({
         }
 
         revealedCount = Math.max(0, Math.min(revealedCount, tokens.length));
-        if (safeEffectiveTime >= endTime - 1e-3) {
+        // Force-reveal all tokens near segment end (matches iOS forceRevealTolerance)
+        if (safeEffectiveTime >= endTime - 0.15) {
           revealedCount = tokens.length;
         }
         if (revealMemoryRef.current.sentenceIdx !== runtime.index) {
@@ -425,7 +186,7 @@ export function useTimelineDisplay({
         }
 
         let currentIndex: number | null = revealedCount > 0 ? revealedCount - 1 : null;
-        if (tokens.length > 0 && (stabilisedState === 'past' || safeEffectiveTime >= endTime - 1e-3)) {
+        if (tokens.length > 0 && (stabilisedState === 'past' || safeEffectiveTime >= endTime - 0.15)) {
           currentIndex = tokens.length - 1;
         }
 
@@ -473,7 +234,304 @@ export function useTimelineDisplay({
       activeIndex: activeIndex ?? 0,
       effectiveTime,
     };
-  }, [timelineSentences, chunkTime, audioDuration, activeSentenceIndex, chunk?.timingVersion, skipScaling]);
+  }, [timelineSentences, chunkTime, audioDuration, activeSentenceIndex]);
 
   return { timelineSentences, timelineDisplay };
+}
+
+// ── V2 gate-based timeline ─────────────────────────────────────────────
+//
+// Uses backend-computed gate boundaries directly. Sentence start/end are
+// in actual audio-time space — no accumulation or scaling needed.
+
+function buildGateBasedTimeline(
+  sentences: NonNullable<LiveMediaChunk['sentences']>,
+  isOriginalTrack: boolean,
+  gateTrack: 'original' | 'translation',
+): TimelineSentenceRuntime[] {
+  const result: TimelineSentenceRuntime[] = [];
+
+  sentences.forEach((metadata, index) => {
+    const gate = resolveSentenceGate(metadata, gateTrack)!;
+    const sentenceStart = gate.start;
+    const sentenceEnd = gate.end;
+    const sentenceDuration = sentenceEnd - sentenceStart;
+
+    const originalTokens = normaliseTokens(metadata.original ?? undefined);
+    const translationTokens = normaliseTokens(metadata.translation ?? undefined);
+    const transliterationTokens = normaliseTokens(metadata.transliteration ?? undefined);
+
+    // Original reveal: uniform spread over gate duration
+    const originalReveal =
+      isOriginalTrack && originalTokens.length > 0
+        ? buildUniformRevealTimes(originalTokens.length, sentenceStart, sentenceDuration)
+        : [];
+
+    // Translation/transliteration reveal: uniform spread over gate duration
+    let translationRevealTimes: number[] = [];
+    if (!isOriginalTrack && translationTokens.length > 0) {
+      translationRevealTimes = buildUniformRevealTimes(
+        translationTokens.length,
+        sentenceStart,
+        sentenceDuration,
+      );
+    }
+
+    const transliterationRevealTimes =
+      !isOriginalTrack && transliterationTokens.length > 0
+        ? transliterationTokens.map((_, idx) => {
+            if (translationRevealTimes.length === 0) {
+              return sentenceStart;
+            }
+            if (translationRevealTimes.length === 1) {
+              return translationRevealTimes[0];
+            }
+            const ratio = transliterationTokens.length > 1 ? idx / (transliterationTokens.length - 1) : 0;
+            const mappedIndex = Math.min(
+              translationRevealTimes.length - 1,
+              Math.round(ratio * (translationRevealTimes.length - 1)),
+            );
+            return translationRevealTimes[mappedIndex];
+          })
+        : [];
+
+    result.push({
+      index,
+      sentenceNumber: metadata.sentence_number ?? null,
+      startTime: sentenceStart,
+      endTime: sentenceEnd,
+      variants: {
+        original: {
+          tokens: originalTokens,
+          revealTimes: originalReveal,
+        },
+        translation: translationTokens.length
+          ? { tokens: translationTokens, revealTimes: translationRevealTimes }
+          : undefined,
+        transliteration: transliterationTokens.length
+          ? { tokens: transliterationTokens, revealTimes: transliterationRevealTimes }
+          : undefined,
+      },
+    });
+  });
+
+  return result;
+}
+
+// ── Synthetic timeline (combined-phase / legacy fallback) ──────────────
+//
+// Builds sentence boundaries by accumulating durations from metadata.
+// Used for combined-phase (sequence) mode where the timeline is synthetic,
+// and as fallback when gate data is missing.
+
+function buildSyntheticTimeline(
+  sentences: NonNullable<LiveMediaChunk['sentences']>,
+  activeTimingTrack: 'mix' | 'translation' | 'original',
+  useCombinedPhases: boolean,
+): TimelineSentenceRuntime[] {
+  const result: TimelineSentenceRuntime[] = [];
+  let offset = 0;
+  const isOriginalTrack = activeTimingTrack === 'original';
+
+  sentences.forEach((metadata, index) => {
+    const originalTokens = normaliseTokens(metadata.original ?? undefined);
+    const translationTokens = normaliseTokens(metadata.translation ?? undefined);
+    const transliterationTokens = normaliseTokens(metadata.transliteration ?? undefined);
+
+    const events = Array.isArray(metadata.timeline) ? metadata.timeline : [];
+
+    const originalReveal: number[] = [];
+
+    const phaseDurations = useCombinedPhases ? metadata.phaseDurations ?? null : null;
+    const originalPhaseDuration = (() => {
+      if (phaseDurations && typeof phaseDurations.original === 'number') {
+        return Math.max(phaseDurations.original, 0);
+      }
+      if (originalTokens.length > 0) {
+        return originalTokens.length * 0.35;
+      }
+      return 0;
+    })();
+    const gapBeforeTranslation =
+      phaseDurations && typeof phaseDurations.gap === 'number'
+        ? Math.max(phaseDurations.gap, 0)
+        : 0;
+    const tailPhaseDuration =
+      phaseDurations && typeof phaseDurations.tail === 'number'
+        ? Math.max(phaseDurations.tail, 0)
+        : 0;
+    const translationPhaseDurationOverride =
+      phaseDurations && typeof phaseDurations.translation === 'number'
+        ? Math.max(phaseDurations.translation, 0)
+        : null;
+    const highlightOriginal =
+      (useCombinedPhases || isOriginalTrack) &&
+      originalTokens.length > 0 &&
+      originalPhaseDuration > 0;
+
+    const eventDurationTotal = events.reduce((total, event) => {
+      const duration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
+      return total + duration;
+    }, 0);
+
+    const declaredDuration = (() => {
+      if (typeof metadata.totalDuration === 'number' && metadata.totalDuration > 0) {
+        return metadata.totalDuration;
+      }
+      if (eventDurationTotal > 0) {
+        return eventDurationTotal;
+      }
+      const fallbackTokens = Math.max(
+        originalTokens.length,
+        translationTokens.length,
+        transliterationTokens.length,
+      );
+      if (fallbackTokens > 0) {
+        return fallbackTokens * 0.35;
+      }
+      return 0.5;
+    })();
+
+    const sentenceStart = offset;
+
+    const translationPhaseDuration = (() => {
+      if (isOriginalTrack) {
+        return 0;
+      }
+      if (translationPhaseDurationOverride !== null && translationPhaseDurationOverride > 0) {
+        return translationPhaseDurationOverride;
+      }
+      if (declaredDuration > 0) {
+        return declaredDuration;
+      }
+      if (translationTokens.length > 0 || transliterationTokens.length > 0) {
+        return Math.max(translationTokens.length, transliterationTokens.length) * 0.35;
+      }
+      return 0.5;
+    })();
+
+    const translationTrackStart = sentenceStart + (useCombinedPhases ? originalPhaseDuration + gapBeforeTranslation : 0);
+
+    const translationDurationsRaw: number[] = [];
+    let prevTranslationCount = 0;
+
+    if (!isOriginalTrack) {
+      events.forEach((event) => {
+        const baseDuration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
+        if (!(baseDuration > 0)) {
+          return;
+        }
+        const targetTranslationIndex =
+          typeof event.translation_index === 'number' ? Math.max(0, event.translation_index) : prevTranslationCount;
+        const nextTranslationCount = Math.min(
+          translationTokens.length,
+          Math.max(prevTranslationCount, targetTranslationIndex),
+        );
+        const delta = nextTranslationCount - prevTranslationCount;
+        if (delta <= 0) {
+          return;
+        }
+        const perToken = baseDuration / delta;
+        for (let idx = 0; idx < delta; idx += 1) {
+          translationDurationsRaw.push(perToken);
+        }
+        prevTranslationCount = nextTranslationCount;
+      });
+    }
+
+    const totalTranslationDurationRaw = translationDurationsRaw.reduce((sum, value) => sum + value, 0);
+    const translationSpeechDuration =
+      totalTranslationDurationRaw > 0 ? totalTranslationDurationRaw : translationPhaseDuration;
+    const translationTotalDuration = translationSpeechDuration + tailPhaseDuration;
+    const translationPhaseEndAbsolute = translationTrackStart + translationTotalDuration;
+
+    let translationRevealTimes: number[] = [];
+    if (!isOriginalTrack && translationDurationsRaw.length > 0) {
+      let cumulativeTranslation = 0;
+      translationDurationsRaw.forEach((rawDuration) => {
+        translationRevealTimes.push(translationTrackStart + cumulativeTranslation);
+        cumulativeTranslation += rawDuration;
+      });
+    }
+
+    if (
+      !isOriginalTrack &&
+      translationRevealTimes.length !== translationTokens.length &&
+      translationTokens.length > 0
+    ) {
+      translationRevealTimes = buildUniformRevealTimes(
+        translationTokens.length,
+        translationTrackStart,
+        translationSpeechDuration,
+      );
+    }
+
+    const transliterationRevealTimes =
+      !isOriginalTrack && transliterationTokens.length > 0
+        ? transliterationTokens.map((_, idx) => {
+            if (translationRevealTimes.length === 0) {
+              return translationTrackStart;
+            }
+            if (translationRevealTimes.length === 1) {
+              return translationRevealTimes[0];
+            }
+            const ratio = transliterationTokens.length > 1 ? idx / (transliterationTokens.length - 1) : 0;
+            const mappedIndex = Math.min(
+              translationRevealTimes.length - 1,
+              Math.round(ratio * (translationRevealTimes.length - 1)),
+            );
+            return translationRevealTimes[mappedIndex];
+          })
+        : [];
+
+    if (!isOriginalTrack && translationRevealTimes.length > 0) {
+      translationRevealTimes[0] = translationTrackStart;
+      translationRevealTimes[translationRevealTimes.length - 1] = translationPhaseEndAbsolute;
+    }
+    if (!isOriginalTrack && transliterationRevealTimes.length > 0) {
+      transliterationRevealTimes[0] = translationTrackStart;
+      transliterationRevealTimes[transliterationRevealTimes.length - 1] = translationPhaseEndAbsolute;
+    }
+
+    if (highlightOriginal) {
+      const reveals = buildUniformRevealTimes(originalTokens.length, sentenceStart, originalPhaseDuration);
+      originalReveal.splice(0, originalReveal.length, ...reveals);
+    }
+
+    const sentenceDuration = useCombinedPhases
+      ? originalPhaseDuration + gapBeforeTranslation + translationTotalDuration
+      : isOriginalTrack
+        ? declaredDuration > 0 ? declaredDuration : originalPhaseDuration
+        : translationTotalDuration;
+    const endTime = sentenceStart + sentenceDuration;
+
+    result.push({
+      index,
+      sentenceNumber: metadata.sentence_number ?? null,
+      startTime: sentenceStart,
+      endTime,
+      variants: {
+        original: {
+          tokens: originalTokens,
+          revealTimes: originalReveal,
+        },
+        translation: translationTokens.length
+          ? {
+              tokens: translationTokens,
+              revealTimes: translationRevealTimes,
+            }
+          : undefined,
+        transliteration: transliterationTokens.length
+          ? {
+              tokens: transliterationTokens,
+              revealTimes: transliterationRevealTimes,
+            }
+          : undefined,
+      },
+    });
+
+    offset = endTime;
+  });
+
+  return result;
 }

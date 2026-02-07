@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { timingStore } from '../../stores/timingStore';
 import type { TextPlayerVariantKind } from '../../text-player/TextPlayer';
+import { resolveTokenSeekTarget } from '../../lib/playback/sequencePlan';
 import type {
   SelectedAudioTrack,
   SequenceSegment,
@@ -127,7 +128,10 @@ export type UseSequencePlaybackControllerResult = {
 
   // Refs owned by this hook, needed by parent
   sequenceSegmentDwellRef: React.MutableRefObject<number | null>;
-  sequenceOperationInProgressRef: React.MutableRefObject<boolean>;
+  /** Monotonic counter incremented on each sequence transition.
+   *  Consumers can snapshot the value before an async operation and compare
+   *  afterwards to detect whether the transition is still current. */
+  transitionTokenRef: React.MutableRefObject<number>;
 };
 
 // ─── Hook ───────────────────────────────────────────────────────────
@@ -169,8 +173,15 @@ export function useSequencePlaybackController({
   // ── Refs owned by this hook ─────────────────────────────────────
   const sequenceSegmentDwellRef = useRef<number | null>(null);
   const isDwellPauseRef = useRef(false);
-  const sequenceOperationInProgressRef = useRef(false);
+  /** Monotonic counter incremented on every new sequence transition.
+   *  Deferred callbacks compare their captured token against this ref
+   *  to detect and discard stale completions (mirrors iOS's currentTransitionToken). */
+  const transitionTokenRef = useRef(0);
   const prevSequenceEnabledRef = useRef(sequenceEnabled);
+  /** The segment index from which we last advanced.  Used by maybeAdvanceSequence
+   *  to prevent re-entering a dwell cycle on the same segment immediately after
+   *  advancing (guards against the dwell→advance→dwell infinite loop). */
+  const lastAdvancedFromIndexRef = useRef<number>(-1);
 
   // ── findSequenceIndexForSentence ────────────────────────────────
   const findSequenceIndexForSentence = useCallback(
@@ -197,8 +208,13 @@ export function useSequencePlaybackController({
     prevSequenceEnabledRef.current = sequenceEnabled;
 
     if (!sequenceEnabled || sequencePlan.length === 0) {
-      // Clear any pending sequence operations when disabled
-      pendingSequenceSeekRef.current = null;
+      // When transitioning from enabled → disabled, do NOT clear pendingSequenceSeekRef.
+      // The useAudioModeTransition effect may have just set it (in the same render batch)
+      // for the sequence-exit seek. Clearing it here would wipe out that pending seek,
+      // causing handleLoadedMetadata to fall through to default behavior (reset to 0).
+      if (!(wasEnabled && !sequenceEnabled)) {
+        pendingSequenceSeekRef.current = null;
+      }
       setSequenceTrack(null);
 
       // If we're transitioning from enabled to disabled, preserve the current sentence
@@ -263,7 +279,7 @@ export function useSequencePlaybackController({
   // ── syncSequenceIndexToTime ─────────────────────────────────────
   const syncSequenceIndexToTime = useCallback(
     (mediaTime: number) => {
-      if (!sequenceEnabled || sequencePlan.length === 0) {
+      if (!sequenceEnabledRef.current || sequencePlan.length === 0) {
         return;
       }
       // Don't re-sync during a pending sequence seek - advanceSequenceSegment already set the index
@@ -309,7 +325,7 @@ export function useSequencePlaybackController({
         sequenceIndexRef.current = matchIndex;
       }
     },
-    [sequenceEnabled, sequencePlan],
+    [sequencePlan],
   );
 
   // ── getSequenceIndexForPlayback ─────────────────────────────────
@@ -335,6 +351,12 @@ export function useSequencePlaybackController({
       const element = audioRef.current;
       const shouldPlay = options?.autoPlay ?? inlineAudioPlayingRef.current;
       sequenceAutoPlayRef.current = shouldPlay;
+
+      // Increment transition token — any in-flight deferred callbacks with an older
+      // token will detect they are stale and no-op.
+      transitionTokenRef.current += 1;
+      const token = transitionTokenRef.current;
+
       if (sequenceTrackRef.current !== segment.track) {
         if (import.meta.env.DEV) {
           console.debug('[applySequenceSegment] Switching track', {
@@ -342,6 +364,7 @@ export function useSequencePlaybackController({
             to: segment.track,
             segment,
             pendingSeek: { time: segment.start, autoPlay: shouldPlay },
+            token,
           });
         }
         // Begin transition using store state - primary guard for timeline effects
@@ -363,6 +386,11 @@ export function useSequencePlaybackController({
         // before the new audio loads
         setChunkTime(segment.start);
         setActiveSentenceIndex(segment.sentenceIndex);
+        // Mark as manual seek to prevent timelineDisplay effect from overriding
+        // the activeSentenceIndex during the track switch window.
+        // Without this, the timeline's different scaling factor for the new track
+        // can cause a brief forward/backward jump in sentence index.
+        lastManualSeekTimeRef.current = Date.now();
         if (import.meta.env.DEV) {
           console.debug('[applySequenceSegment] Set activeSentenceIndex', {
             sentenceIndex: segment.sentenceIndex,
@@ -382,6 +410,7 @@ export function useSequencePlaybackController({
         console.debug('[applySequenceSegment] Same track, seeking to', {
           segment,
           shouldPlay,
+          token,
         });
       }
       // Begin transition for same-track seeks
@@ -409,20 +438,20 @@ export function useSequencePlaybackController({
       // Clear the pending seek ref and transition state after a brief delay to allow the seek to take effect.
       // For same-track seeks, handleLoadedMetadata won't fire, so we need to clear here.
       // We use requestAnimationFrame to ensure the seek has been processed.
-      const targetSeekTime = segment.start;
+      // The token check prevents stale completions from a superseded transition.
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          // Only clear if we're still at the same pending seek
-          if (pendingSequenceSeekRef.current?.time === targetSeekTime) {
+          if (token !== transitionTokenRef.current) {
             if (import.meta.env.DEV) {
-              console.debug('[applySequenceSegment] Clearing pendingSequenceSeekRef after same-track seek', {
-                targetSeekTime,
-                currentTime: element.currentTime,
+              console.debug('[applySequenceSegment] Stale transition completion ignored', {
+                token,
+                current: transitionTokenRef.current,
               });
             }
-            pendingSequenceSeekRef.current = null;
-            timingStore.completeTransition();
+            return;
           }
+          pendingSequenceSeekRef.current = null;
+          timingStore.completeTransition();
         });
       });
       if (shouldPlay) {
@@ -438,7 +467,11 @@ export function useSequencePlaybackController({
   // ── advanceSequenceSegment ──────────────────────────────────────
   const advanceSequenceSegment = useCallback(
     (options?: { autoPlay?: boolean }) => {
-      if (!sequenceEnabled || sequencePlan.length === 0) {
+      // Use ref to avoid stale closure — maybeAdvanceSequence (which calls us from a
+      // progress-timer callback) already checks sequenceEnabledRef.current.  If we
+      // used the closure-captured `sequenceEnabled` we would silently return false
+      // when re-entering sequence mode before the callback is re-created.
+      if (!sequenceEnabledRef.current || sequencePlan.length === 0) {
         return false;
       }
       // Use sequenceIndexRef directly to advance to the next segment
@@ -473,13 +506,13 @@ export function useSequencePlaybackController({
       applySequenceSegment(nextSegment, options);
       return true;
     },
-    [applySequenceSegment, sequenceEnabled, sequencePlan],
+    [applySequenceSegment, sequencePlan],
   );
 
   // ── skipSequenceSentence ────────────────────────────────────────
   const skipSequenceSentence = useCallback(
     (direction: 1 | -1): boolean => {
-      if (!sequenceEnabled || sequencePlan.length === 0) {
+      if (!sequenceEnabledRef.current || sequencePlan.length === 0) {
         return false;
       }
       const currentIndex = sequenceIndexRef.current;
@@ -526,12 +559,35 @@ export function useSequencePlaybackController({
         return false;
       }
       sequenceIndexRef.current = targetIndex;
-      // Clear dwell timer when skipping to different sentence
+      // Clear dwell timer and advance guard when skipping to different sentence
       sequenceSegmentDwellRef.current = null;
+      lastAdvancedFromIndexRef.current = -1;
       applySequenceSegment(targetSegment, { autoPlay: inlineAudioPlayingRef.current });
       return true;
     },
-    [applySequenceSegment, resolvedCueVisibility, sequenceEnabled, sequencePlan],
+    [applySequenceSegment, resolvedCueVisibility, sequencePlan],
+  );
+
+  // ── seekAudioElementDirect ─────────────────────────────────────
+  /** Seek the raw audio element to a time and resume playback. Used as a
+   *  fallback when sequence plan resolution isn't applicable. */
+  const seekAudioElementDirect = useCallback(
+    (time: number, sentenceIndex?: number) => {
+      const element = audioRef.current;
+      if (!element || !Number.isFinite(time)) return;
+      const target = Math.max(
+        0,
+        Math.min(time, Number.isFinite(element.duration) ? element.duration : time),
+      );
+      element.currentTime = target;
+      setChunkTime(target);
+      if (sentenceIndex != null) setActiveSentenceIndex(sentenceIndex);
+      const maybePlay = element.play?.();
+      if (maybePlay && typeof maybePlay.catch === 'function') {
+        maybePlay.catch(() => undefined);
+      }
+    },
+    [audioRef, setActiveSentenceIndex, setChunkTime],
   );
 
   // ── handleSequenceAwareTokenSeek ────────────────────────────────
@@ -541,142 +597,77 @@ export function useSequencePlaybackController({
         console.debug('[handleSequenceAwareTokenSeek]', {
           time,
           info,
-          sequenceEnabled,
+          sequenceEnabled: sequenceEnabledRef.current,
           currentTrack: sequenceTrackRef.current,
         });
       }
 
       // If not in sequence mode or no info provided, just do a simple seek
-      if (!sequenceEnabled || !info) {
-        const element = audioRef.current;
-        if (!element || !Number.isFinite(time)) {
-          return;
-        }
-        const target = Math.max(
-          0,
-          Math.min(time, Number.isFinite(element.duration) ? element.duration : time),
-        );
-        element.currentTime = target;
-        setChunkTime(target);
-        const maybePlay = element.play?.();
-        if (maybePlay && typeof maybePlay.catch === 'function') {
-          maybePlay.catch(() => undefined);
-        }
+      if (!sequenceEnabledRef.current || !info) {
+        seekAudioElementDirect(time);
         return;
       }
 
-      // Map variant kind to sequence track
-      const targetTrack: SequenceTrack | null =
-        info.variantKind === 'original'
-          ? 'original'
-          : info.variantKind === 'translation'
-            ? 'translation'
-            : null;
-
-      if (!targetTrack) {
-        // Transliteration or unknown variant - no dedicated audio track
-        // Just seek in the current track
-        const element = audioRef.current;
-        if (!element || !Number.isFinite(time)) {
-          return;
-        }
-        const target = Math.max(
-          0,
-          Math.min(time, Number.isFinite(element.duration) ? element.duration : time),
-        );
-        element.currentTime = target;
-        setChunkTime(target);
-        const maybePlay = element.play?.();
-        if (maybePlay && typeof maybePlay.catch === 'function') {
-          maybePlay.catch(() => undefined);
-        }
-        return;
-      }
-
-      // Find the segment in the sequence plan for this sentence and track
-      const targetIndex = sequencePlan.findIndex(
-        (seg) => seg.sentenceIndex === info.sentenceIndex && seg.track === targetTrack,
+      // Use the pure function to resolve variant → track → segment
+      const target = resolveTokenSeekTarget(
+        sequencePlan,
+        info.sentenceIndex,
+        info.variantKind,
+        time,
+        sequenceTrackRef.current,
       );
 
-      if (targetIndex < 0) {
-        // No segment found for this sentence/track combo - fall back to simple seek
+      if (!target) {
+        // No matching segment — fall back to direct seek
         if (import.meta.env.DEV) {
-          console.debug('[handleSequenceAwareTokenSeek] No segment found for sentence/track', {
+          console.debug('[handleSequenceAwareTokenSeek] No segment found, falling back', {
             sentenceIndex: info.sentenceIndex,
-            targetTrack,
+            variantKind: info.variantKind,
           });
         }
-        const element = audioRef.current;
-        if (!element || !Number.isFinite(time)) {
-          return;
-        }
-        const target = Math.max(
-          0,
-          Math.min(time, Number.isFinite(element.duration) ? element.duration : time),
-        );
-        element.currentTime = target;
-        setChunkTime(target);
-        const maybePlay = element.play?.();
-        if (maybePlay && typeof maybePlay.catch === 'function') {
-          maybePlay.catch(() => undefined);
-        }
+        seekAudioElementDirect(time);
         return;
       }
 
-      const targetSegment = sequencePlan[targetIndex];
-      if (!targetSegment) {
-        return;
-      }
+      // Update sequence index and clear advance guard (user-initiated seek)
+      sequenceIndexRef.current = target.segmentIndex;
+      lastAdvancedFromIndexRef.current = -1;
+      sequenceSegmentDwellRef.current = null;
 
-      // Update the sequence index
-      sequenceIndexRef.current = targetIndex;
-
-      // If we're already on the correct track, just seek within the current audio
-      if (sequenceTrackRef.current === targetTrack) {
+      if (!target.requiresTrackSwitch) {
+        // Same track — seek directly within the current audio
         if (import.meta.env.DEV) {
           console.debug('[handleSequenceAwareTokenSeek] Same track, seeking directly', {
-            targetTrack,
-            time,
+            track: target.track,
+            seekTime: target.seekTime,
           });
         }
-        const element = audioRef.current;
-        if (!element || !Number.isFinite(time)) {
-          return;
-        }
-        // Use the time from the token, not the segment start
-        const target = Math.max(
-          0,
-          Math.min(time, Number.isFinite(element.duration) ? element.duration : time),
-        );
-        element.currentTime = target;
-        setChunkTime(target);
-        setActiveSentenceIndex(info.sentenceIndex);
-        const maybePlay = element.play?.();
-        if (maybePlay && typeof maybePlay.catch === 'function') {
-          maybePlay.catch(() => undefined);
-        }
+        seekAudioElementDirect(target.seekTime, info.sentenceIndex);
         return;
       }
 
-      // Different track - need to switch tracks and seek to the token time
+      // Different track — switch tracks via applySequenceSegment
       if (import.meta.env.DEV) {
         console.debug('[handleSequenceAwareTokenSeek] Switching track', {
           from: sequenceTrackRef.current,
-          to: targetTrack,
+          to: target.track,
           sentenceIndex: info.sentenceIndex,
-          seekTime: time,
+          seekTime: target.seekTime,
         });
       }
+
+      const targetSegment = sequencePlan[target.segmentIndex];
+      if (!targetSegment) return;
 
       // Create a modified segment with the token's seek time instead of segment start
       const modifiedSegment: SequenceSegment = {
         ...targetSegment,
-        start: time, // Use token time instead of segment start
+        start: target.seekTime,
       };
 
       applySequenceSegment(modifiedSegment, { autoPlay: inlineAudioPlayingRef.current });
     },
-    [applySequenceSegment, audioRef, sequenceEnabled, sequencePlan, setActiveSentenceIndex, setChunkTime],
+    [applySequenceSegment, seekAudioElementDirect, sequencePlan],
   );
 
   // ── maybeAdvanceSequence ────────────────────────────────────────
@@ -707,9 +698,16 @@ export function useSequencePlaybackController({
       }
       // Only advance if we're past the current segment's end time
       if (mediaTime < segment.end - 0.03) {
-        // Not at segment end - clear any pending dwell
+        // Not at segment end - clear any pending dwell and advance guard
         sequenceSegmentDwellRef.current = null;
         isDwellPauseRef.current = false;
+        lastAdvancedFromIndexRef.current = -1;
+        return false;
+      }
+      // Guard: if we just advanced FROM this segment, don't re-enter dwell.
+      // This prevents the infinite dwell→advance→dwell loop that occurs when the
+      // audio time hasn't changed yet (e.g. during a track switch or slow seek).
+      if (lastAdvancedFromIndexRef.current === currentIndex) {
         return false;
       }
       // Check if this is the last segment - if so, don't try to advance
@@ -754,9 +752,14 @@ export function useSequencePlaybackController({
         return false;
       }
 
-      // Dwell complete - advance to next segment
+      // Dwell complete - advance to next segment.
+      // Record the index we're advancing FROM so we don't re-enter dwell on it.
+      // Keep isDwellPauseRef true so handleInlineAudioPause doesn't kill the progress timer
+      // during the async track switch.
+      lastAdvancedFromIndexRef.current = currentIndex;
       sequenceSegmentDwellRef.current = null;
-      isDwellPauseRef.current = false;
+      // Note: isDwellPauseRef.current stays true until the next segment's audio plays
+      // (cleared when mediaTime falls within a new segment's range above)
       if (import.meta.env.DEV) {
         console.debug('[maybeAdvanceSequence] Dwell complete, advancing', {
           mediaTime,
@@ -766,9 +769,15 @@ export function useSequencePlaybackController({
           segment,
         });
       }
-      return advanceSequenceSegment({ autoPlay: true });
+      const advanced = advanceSequenceSegment({ autoPlay: true });
+      if (!advanced) {
+        // Advance failed (e.g. at end of plan) - clear guards
+        lastAdvancedFromIndexRef.current = -1;
+        isDwellPauseRef.current = false;
+      }
+      return advanced;
     },
-    [advanceSequenceSegment, sequenceEnabled, sequencePlan],
+    [advanceSequenceSegment, sequencePlan],
   );
 
   // ── selectedTracks ──────────────────────────────────────────────
@@ -847,6 +856,6 @@ export function useSequencePlaybackController({
     findSequenceIndexForSentence,
     applySequenceSegment,
     sequenceSegmentDwellRef,
-    sequenceOperationInProgressRef,
+    transitionTokenRef,
   };
 }

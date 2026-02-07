@@ -23,7 +23,7 @@ function pickUrl(tracks: TrackMap, ...keys: string[]): string | null {
 /** Extract the raw (un-resolved) original track URL. */
 export function extractOriginalUrl(audioTracks: TrackMap | null | undefined): string | null {
   if (!audioTracks) return null;
-  return pickUrl(audioTracks, 'orig');
+  return pickUrl(audioTracks, 'orig', 'original');
 }
 
 /** Extract the raw (un-resolved) translation track URL. */

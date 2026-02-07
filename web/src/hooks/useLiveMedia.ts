@@ -38,8 +38,8 @@ export interface LiveMediaChunk {
   sentenceCount?: number | null;
   audioTracks?: Record<string, AudioTrackMetadata> | null;
   timingTracks?: TrackTimingPayload[] | null;
-  /** Timing version - "2" means backend has pre-scaled timing to match audio duration */
-  timingVersion?: string | null;
+  /** Timing version - always "2" (backend pre-scales timing to match audio duration) */
+  timingVersion?: string;
   /** Timing validation info from backend scaling */
   timingValidation?: Record<string, unknown> | null;
 }
@@ -644,9 +644,9 @@ function buildStateFromSections(
       );
       chunkRecords.push({
         chunkId,
-        rangeFragment: toStringOrNull(payload.range_fragment),
-        startSentence: toNumberOrNull(payload.start_sentence),
-        endSentence: toNumberOrNull(payload.end_sentence),
+        rangeFragment: chunkRangeFragment,
+        startSentence: toNumberOrNull(payload.startSentence ?? payload.start_sentence),
+        endSentence: toNumberOrNull(payload.endSentence ?? payload.end_sentence),
         files: chunkFiles,
         sentences: sentences.length > 0 ? sentences : undefined,
         metadataPath,

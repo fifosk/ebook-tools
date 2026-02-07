@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { LiveMediaChunk, LiveMediaItem } from '../../hooks/useLiveMedia';
 import type { AudioTrackMetadata } from '../../api/dtos';
 import {
@@ -132,7 +132,7 @@ export function useInlineAudioOptions({
 
     if (tracks) {
       Object.entries(tracks).forEach(([key, value]) => {
-        const normalisedKey = key === 'trans' ? 'translation' : key;
+        const normalisedKey = key === 'trans' ? 'translation' : key === 'original' ? 'orig' : key;
         if (typeof value === 'string' || (value && typeof value === 'object')) {
           registerTrack(normalisedKey, value as AudioTrackMetadata | string);
         }
@@ -304,6 +304,29 @@ export function useInlineAudioOptions({
       setShowTranslationAudio(false);
     }
   }, [hasCombinedAudio, hasTranslationAudio, setShowTranslationAudio, showTranslationAudio]);
+
+  // One-time auto-enable: when both individual tracks first become available,
+  // turn both toggles ON so sequence mode can activate.
+  // Fires at most once for the lifetime of the component — once fired, the
+  // user's manual toggle choices are respected across all subsequent chunks.
+  const autoEnableFiredRef = useRef(false);
+  useEffect(() => {
+    if (autoEnableFiredRef.current) {
+      // Already fired once — never override user's choice again.
+      return;
+    }
+    if (!hasOriginalAudio || !hasTranslationAudio) {
+      // Both tracks not yet available — wait.
+      return;
+    }
+    autoEnableFiredRef.current = true;
+    if (!showOriginalAudio) {
+      setShowOriginalAudio(true);
+    }
+    if (!showTranslationAudio) {
+      setShowTranslationAudio(true);
+    }
+  }, [hasOriginalAudio, hasTranslationAudio, showOriginalAudio, showTranslationAudio, setShowOriginalAudio, setShowTranslationAudio]);
 
   useEffect(() => {
     if (!hasCombinedAudio && !hasOriginalAudio && !hasTranslationAudio) {

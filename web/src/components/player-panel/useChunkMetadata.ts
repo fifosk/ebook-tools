@@ -39,6 +39,10 @@ export function useChunkMetadata({
   const [chunkMetadataStore, setChunkMetadataStore] = useState<Record<string, ChunkSentenceMetadata[]>>({});
   const chunkMetadataStoreRef = useRef(chunkMetadataStore);
   const chunkMetadataLoadingRef = useRef<Set<string>>(new Set());
+  /** Direction tracking: 1 = forward, -1 = backward, 0 = unknown.
+   *  Used to bias metadata prefetch toward the direction of playback. */
+  const directionRef = useRef<1 | -1 | 0>(0);
+  const prevChunkIndexRef = useRef(activeTextChunkIndex);
 
   useEffect(() => {
     chunkMetadataStoreRef.current = chunkMetadataStore;
@@ -148,6 +152,22 @@ export function useChunkMetadata({
     if (!jobId) {
       return;
     }
+
+    // ── Direction tracking ─────────────────────────────────────────
+    if (activeTextChunkIndex !== prevChunkIndexRef.current) {
+      if (activeTextChunkIndex > prevChunkIndexRef.current) {
+        directionRef.current = 1;
+      } else if (activeTextChunkIndex < prevChunkIndexRef.current) {
+        directionRef.current = -1;
+      }
+      prevChunkIndexRef.current = activeTextChunkIndex;
+    }
+
+    // ── Asymmetric prefetch radius (mirrors iOS direction-aware bias) ──
+    const isForward = directionRef.current === 1;
+    const backwardRadius = isForward ? 1 : CHUNK_METADATA_PREFETCH_RADIUS;
+    const forwardRadius = isForward ? CHUNK_METADATA_PREFETCH_RADIUS + 1 : CHUNK_METADATA_PREFETCH_RADIUS;
+
     const targets = new Set<LiveMediaChunk>();
 
     if (activeTextChunk) {
@@ -155,7 +175,7 @@ export function useChunkMetadata({
     }
 
     if (activeTextChunkIndex >= 0) {
-      for (let offset = -CHUNK_METADATA_PREFETCH_RADIUS; offset <= CHUNK_METADATA_PREFETCH_RADIUS; offset += 1) {
+      for (let offset = -backwardRadius; offset <= forwardRadius; offset += 1) {
         const neighbourIndex = activeTextChunkIndex + offset;
         if (neighbourIndex < 0 || neighbourIndex >= chunks.length) {
           continue;
@@ -188,6 +208,8 @@ export function useChunkMetadata({
     targets.forEach((chunk) => {
       queueChunkMetadataFetch(chunk);
     });
+    // Note: Audio range prefetch is handled by useChunkPrefetch (in interactive-text/),
+    // which has retry logic, circuit breaker, and sequence-mode support.
   }, [jobId, chunks, activeTextChunk, activeTextChunkIndex, queueChunkMetadataFetch]);
 
   const hasInteractiveChunks = useMemo(() => {

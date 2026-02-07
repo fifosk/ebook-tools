@@ -328,7 +328,7 @@ def _serialize_media_entries(
                 or chunk.get("timing_version")
                 or chunk.get("timingVersion")
             )
-            timing_version = str(raw_timing_version).strip() if raw_timing_version else None
+            timing_version = str(raw_timing_version).strip() if raw_timing_version else ("2" if timing_tracks_payload else None)
 
             chunk_records.append(
                 PipelineMediaChunk(
@@ -541,7 +541,7 @@ def _serialize_chunk_entry(
         or chunk.get("timing_version")
         or chunk.get("timingVersion")
     )
-    timing_version = str(raw_timing_version).strip() if raw_timing_version else None
+    timing_version = str(raw_timing_version).strip() if raw_timing_version else ("2" if timing_tracks_payload else None)
 
     return PipelineMediaChunk(
         chunk_id=str(summary.get("chunk_id")) if summary.get("chunk_id") else None,
