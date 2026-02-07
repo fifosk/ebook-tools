@@ -378,21 +378,42 @@ app.include_router(my_router)
 
 ### Running Tests
 
+**Always prefer targeted marker-based tests** over the full suite. Only run the
+full suite (`pytest` / `make test`) when changes are wide-ranging (e.g. core
+refactors, dependency upgrades, config changes that touch many modules).
+
 ```bash
 # Install dev dependencies
 pip install -e .[dev]
 
-# Run all tests
-pytest
+# ── Targeted runs (preferred) ──────────────────────────
+pytest -m webapi              # FastAPI routes, middleware, auth endpoints
+pytest -m services            # job manager, pipeline service, file locator
+pytest -m pipeline            # core rendering pipeline, timeline
+pytest -m audio               # TTS backends, voice selection, highlighting
+pytest -m translation         # translation engine, batch processing, CJK
+pytest -m metadata            # metadata enrichment, structured conversion
+pytest -m cli                 # command-line interface, args parsing
+pytest -m auth                # user management, sessions
+pytest -m library             # library sync, indexer, repository
+pytest -m render              # output writer, text pipeline, parallel dispatch
+pytest -m media               # command runner, media backends
+pytest -m config              # config manager, storage settings
+pytest -m ramdisk             # RAMDisk lifecycle, guard, mount/unmount
+pytest -m "not slow and not integration"  # fast feedback loop
 
-# Run with coverage
-pytest --cov=modules
+# ── Full suite (only for wide-ranging changes) ─────────
+pytest                        # all 800+ tests
+pytest --cov=modules          # with coverage
 
-# Run specific test file
-pytest tests/test_audio.py
+# ── Specific file ──────────────────────────────────────
+pytest tests/modules/webapi/test_job_media_routes.py -v
 
-# Run integration tests
-pytest -m integration
+# ── Makefile shortcuts ─────────────────────────────────
+make test-fast                # not slow, not integration
+make test-webapi              # same as pytest -m webapi
+make test-services            # same as pytest -m services
+# (see Makefile for all targets)
 ```
 
 ### Building for Production
@@ -641,6 +662,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 8. **Metadata is chunked** - Modern jobs use `chunk_XXXX.json`, not single files
 9. **Use MetadataLoader** - Abstracts chunked vs legacy metadata format
 10. **HTTPS requires certs** - Both backend and frontend support TLS with cert files
+11. **Use targeted tests** - Run `pytest -m <marker>` for the domain you changed (e.g. `pytest -m webapi`). Only run the full 800+ test suite for wide-ranging changes. See `pyproject.toml` for all 15 markers and `Makefile` for shortcuts.
 
 ## Frontend State Management Architecture
 

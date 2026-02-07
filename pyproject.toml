@@ -38,7 +38,21 @@ ebook-tools-api = "modules.webapi.__main__:main"
 
 [tool.pytest.ini_options]
 addopts = "-rs"
-testpaths = ["tests", "modules"]
+testpaths = ["tests"]
 markers = [
-    "integration: marks tests that exercise end-to-end workflows.",
+    "integration: end-to-end workflows requiring external services.",
+    "audio: TTS backends, voice selection, audio highlighting.",
+    "translation: translation engine, batch processing, CJK tokenization.",
+    "metadata: metadata enrichment, structured conversion, library metadata.",
+    "webapi: FastAPI routes, middleware, CORS, auth endpoints.",
+    "pipeline: core rendering pipeline, multi-sentence chunks, timeline.",
+    "services: job manager, pipeline service, file locator, assistant.",
+    "cli: command-line interface, args parsing, user commands.",
+    "auth: user management, session, auth service.",
+    "library: library sync, indexer, repository.",
+    "render: output writer, text pipeline, parallel dispatch.",
+    "media: command runner, media backends.",
+    "config: config manager, storage settings, runtime context.",
+    "ramdisk: RAMDisk lifecycle, guard, mount/unmount.",
+    "slow: tests that take >2s (WhisperX, Piper, pipelines).",
 ]

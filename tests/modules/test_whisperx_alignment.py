@@ -10,6 +10,8 @@ from tempfile import NamedTemporaryFile
 import wave
 import struct
 
+pytestmark = [pytest.mark.audio, pytest.mark.slow]
+
 # Skip all tests if WhisperX is not installed
 whisperx = pytest.importorskip("whisperx")
 
@@ -409,6 +411,5 @@ class TestWhisperXModelValidation:
     def test_accepts_huggingface_paths(self):
         """Test that HuggingFace model paths are accepted."""
         from modules.align.backends.whisperx_adapter import _is_valid_alignment_model
-
         assert _is_valid_alignment_model("facebook/wav2vec2-base")
         assert _is_valid_alignment_model("jonatasgrosman/wav2vec2-large-xlsr-53-arabic")

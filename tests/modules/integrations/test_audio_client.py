@@ -10,6 +10,10 @@ from pydub import AudioSegment
 import modules.integrations.audio_client as audio_client_mod
 from modules.integrations.audio_client import AudioAPIClient
 
+import pytest
+
+pytestmark = pytest.mark.audio
+
 
 class _FakeResponse:
     def __init__(self, *, headers: Dict[str, Any]):

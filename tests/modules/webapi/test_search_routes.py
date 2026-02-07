@@ -21,6 +21,8 @@ from modules.webapi.dependencies import (
 )
 from modules.services.job_manager import PipelineJob, PipelineJobStatus
 
+pytestmark = pytest.mark.webapi
+
 
 class _StubPipelineService:
     def __init__(self, jobs: Iterable[PipelineJob]) -> None:

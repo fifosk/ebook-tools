@@ -18,6 +18,9 @@ install_job_manager_stubs()
 
 import pytest
 
+pytestmark = pytest.mark.services
+
+
 persistence = import_module("modules.jobs.persistence")
 job_manager_module = import_module("modules.services.job_manager")
 PipelineJobMetadata = job_manager_module.PipelineJobMetadata

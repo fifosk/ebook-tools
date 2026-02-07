@@ -6,6 +6,8 @@ from pydub import AudioSegment
 from modules.media.exceptions import MediaBackendError
 from modules.render.backends.polly import PollyAudioSynthesizer
 
+pytestmark = pytest.mark.render
+
 
 class _StubAudioClient:
     def __init__(self, *, error: Optional[Exception] = None):

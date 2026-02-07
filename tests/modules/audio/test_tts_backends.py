@@ -17,6 +17,8 @@ from modules.audio.backends import (
 )
 from modules.media.exceptions import CommandExecutionError
 
+pytestmark = pytest.mark.audio
+
 
 def test_get_tts_backend_prefers_config_override():
     backend = get_tts_backend({"tts_backend": "gtts"})

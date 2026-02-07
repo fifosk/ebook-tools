@@ -5,6 +5,10 @@ from pathlib import Path
 
 from modules.library import LibraryEntry, LibraryRepository, MetadataSnapshot
 
+import pytest
+
+pytestmark = pytest.mark.library
+
 
 def make_entry(library_root: Path, job_id: str, **overrides) -> LibraryEntry:
     return LibraryEntry(

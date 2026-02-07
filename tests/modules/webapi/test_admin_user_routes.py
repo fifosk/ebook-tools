@@ -10,6 +10,8 @@ from modules.user_management import AuthService, LocalUserStore, SessionManager
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import get_auth_service
 
+pytestmark = pytest.mark.webapi
+
 
 def _build_auth_service(tmp_path) -> Tuple[AuthService, str, str]:
     store_path = tmp_path / "users.json"

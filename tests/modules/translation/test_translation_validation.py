@@ -4,6 +4,8 @@ import pytest
 
 from modules import translation_validation as tv
 
+pytestmark = pytest.mark.translation
+
 
 class TestLetterCount:
     def test_empty_string(self):

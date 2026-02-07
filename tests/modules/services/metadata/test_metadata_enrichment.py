@@ -24,6 +24,8 @@ from modules.services.metadata import (
 )
 from modules.services.metadata.services.unified_service import UnifiedMetadataService
 
+pytestmark = pytest.mark.metadata
+
 
 # ---------------------------------------------------------------------------
 # Fixtures

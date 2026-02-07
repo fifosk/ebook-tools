@@ -4,6 +4,8 @@ from modules.user_management.auth_service import AuthService
 from modules.user_management.local_user_store import LocalUserStore
 from modules.user_management.session_manager import SessionManager
 
+pytestmark = pytest.mark.auth
+
 
 def build_auth(tmp_path):
     store = LocalUserStore(tmp_path / "users.json")

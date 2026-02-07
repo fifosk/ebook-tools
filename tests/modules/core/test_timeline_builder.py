@@ -4,6 +4,8 @@ import pytest
 
 from modules.core.rendering.timeline import SentenceTimingSpec, build_dual_track_timings
 
+pytestmark = pytest.mark.pipeline
+
 
 def test_dual_track_timings_respect_mix_gate_offsets() -> None:
     spec = SentenceTimingSpec(

@@ -12,6 +12,8 @@ from modules.webapi.application import create_app
 from modules.webapi.dependencies import get_file_locator, get_pipeline_service
 from modules.services.job_manager import PipelineJob, PipelineJobStatus
 
+pytestmark = pytest.mark.webapi
+
 
 class _StubPipelineService:
     def __init__(self, job: PipelineJob) -> None:
@@ -95,6 +97,68 @@ def test_get_job_media_returns_completed_entries(api_app) -> None:
     assert entry["source"] == "completed"
     assert entry["url"].endswith("media/chunk-001/sample.mp3")
     assert datetime.fromisoformat(entry["updated_at"]) == expected_mtime
+
+
+def test_get_job_media_populates_sentence_count_from_range(api_app) -> None:
+    """sentenceCount must be derived from start/end when not explicitly set.
+
+    During in-progress jobs the tracker may supply chunks with metadata_path
+    but without an explicit sentence_count.  The media endpoint must fall back
+    to computing the count from start_sentence / end_sentence so the frontend
+    can gate interactive playback correctly.
+    """
+    app, file_locator = api_app
+    job_id = "job-progress"
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.RUNNING,
+        created_at=datetime.now(timezone.utc),
+    )
+
+    # Create a minimal chunk file on disk so the metadata_path resolves.
+    job_root = file_locator.resolve_path(job_id)
+    chunk_file = job_root / "metadata" / "chunk_0001.json"
+    chunk_file.parent.mkdir(parents=True, exist_ok=True)
+    chunk_file.write_text('{"version": 3, "sentence_count": 0}')
+
+    audio_path = job_root / "media" / "chunk-001" / "audio.mp3"
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_path.write_bytes(b"\x00" * 64)
+
+    # Tracker payload mirrors what ProgressTracker emits: chunks with
+    # start/end but no sentence_count, and a metadata_path present.
+    tracker_payload: dict[str, Any] = {
+        "chunks": [
+            {
+                "chunk_id": "chunk-001",
+                "range_fragment": "001-010",
+                "start_sentence": 1,
+                "end_sentence": 11,
+                "metadata_path": "metadata/chunk_0001.json",
+                # Note: no 'sentence_count' key here
+                "files": [
+                    {"type": "audio", "path": str(audio_path)},
+                ],
+            }
+        ],
+    }
+
+    job.tracker = _TrackerStub(tracker_payload)
+    service = _StubPipelineService(job)
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+
+    with TestClient(app) as client:
+        response = client.get(f"/pipelines/jobs/{job_id}/media")
+
+    payload = response.json()
+    assert response.status_code == 200
+    assert len(payload["chunks"]) == 1
+
+    chunk = payload["chunks"][0]
+    # The critical assertion: sentenceCount must be populated (11 - 1 = 10)
+    assert chunk["sentenceCount"] == 10
+    assert chunk["startSentence"] == 1
+    assert chunk["endSentence"] == 11
 
 
 def test_get_job_media_live_prefers_tracker_snapshot(api_app) -> None:

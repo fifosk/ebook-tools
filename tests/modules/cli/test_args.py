@@ -2,6 +2,10 @@ from argparse import Namespace
 
 from modules.cli import args
 
+import pytest
+
+pytestmark = pytest.mark.cli
+
 
 def test_parse_cli_args_defaults_to_run_without_command():
     parsed = args.parse_cli_args(["input.epub", "English", "Arabic"])

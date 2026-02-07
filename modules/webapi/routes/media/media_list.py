@@ -245,6 +245,13 @@ def _serialize_media_entries(
                 if sentence_count is None:
                     sentence_count = len(sentences_payload)
 
+            # Fallback: derive sentence_count from start/end when still missing.
+            if not sentence_count:
+                start = _coerce_int(summary.get("start_sentence"))
+                end = _coerce_int(summary.get("end_sentence"))
+                if start is not None and end is not None and end > start:
+                    sentence_count = end - start
+
             audio_tracks_payload: Dict[str, Dict[str, Any]] = {}
 
             def _register_track(raw_key: Any, raw_value: Any) -> None:
@@ -450,6 +457,13 @@ def _serialize_chunk_entry(
                 sentences_payload = copy.deepcopy(inline_sentences)
         if sentence_count is None:
             sentence_count = len(sentences_payload)
+
+    # Fallback: derive sentence_count from start/end when still missing.
+    if not sentence_count:
+        start = _coerce_int(summary.get("start_sentence"))
+        end = _coerce_int(summary.get("end_sentence"))
+        if start is not None and end is not None and end > start:
+            sentence_count = end - start
 
     audio_tracks_payload: Dict[str, Dict[str, Any]] = {}
 

@@ -8,6 +8,8 @@ from modules import config_manager as cfg
 from modules.render.context import RenderBatchContext
 from modules.render.output_writer import DeferredBatchWriter
 
+pytestmark = pytest.mark.render
+
 
 def _build_context(ramdisk_enabled: bool, ramdisk_path: Path, batch_id: str = "batch-1") -> RenderBatchContext:
     manifest = {

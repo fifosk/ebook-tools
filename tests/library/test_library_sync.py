@@ -7,6 +7,8 @@ import pytest
 from modules.library.library_sync import LibraryError
 from modules.library.sync import file_ops, metadata as metadata_utils, remote_sync, utils
 
+pytestmark = pytest.mark.library
+
 
 def test_normalize_status_accepts_known_values() -> None:
     assert utils.normalize_status("Finished", error_cls=LibraryError) == "finished"

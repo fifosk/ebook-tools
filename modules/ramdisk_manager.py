@@ -23,6 +23,11 @@ _MACOS_DEFAULT_MOUNT_POINT = Path("/Volumes/tmp")
 # ``ensure_ramdisk`` on success, cleared by ``teardown_ramdisk``.
 # Avoids repeated ``diskutil`` subprocess calls on the hot path.
 _active_mount: Optional[Path] = None
+# The original (unresolved) path passed to ``ensure_ramdisk``.  On macOS the
+# actual mount point may differ from the caller's path (e.g. ``tmp`` is a
+# symlink to ``/Volumes/RAMDisk``).  ``guard_ramdisk`` must use this original
+# path for remounting so the symlink chain is recreated correctly.
+_active_mount_original: Optional[Path] = None
 
 
 def _canonical_path(path: Path) -> Path:
@@ -44,7 +49,7 @@ def ensure_ramdisk(
     when mounting succeeds. Returns ``False`` if the current platform does not
     support automatic RAM disk management or if mounting fails.
     """
-    global _active_mount
+    global _active_mount, _active_mount_original
 
     target = Path(path).expanduser()
     if not target.is_absolute():
@@ -59,6 +64,7 @@ def ensure_ramdisk(
         # Mount disappeared unexpectedly — clear and fall through to remount.
         logger.warning("RAMDisk singleton at %s disappeared; attempting remount.", target)
         _active_mount = None
+        _active_mount_original = None
 
     if target.is_symlink():
         if not target.exists():
@@ -83,6 +89,7 @@ def ensure_ramdisk(
     if _is_ramdisk(target):
         logger.debug("Temporary directory %s already resides on a RAM-backed filesystem.", target)
         _active_mount = _canonical_path(target)
+        _active_mount_original = target
         return True
 
     if _has_required_capacity(target, size_bytes):
@@ -92,6 +99,7 @@ def ensure_ramdisk(
             _format_size(size_bytes),
         )
         _active_mount = _canonical_path(target)
+        _active_mount_original = target
         return True
 
     system = platform.system()
@@ -99,6 +107,7 @@ def ensure_ramdisk(
         ok = _mount_ramdisk_linux(target, size_bytes)
         if ok:
             _active_mount = _canonical_path(target)
+            _active_mount_original = target
         return ok
 
     if system == "Darwin":  # pragma: no cover - macOS-specific branch
@@ -115,10 +124,12 @@ def ensure_ramdisk(
 
         if _wait_for_ramdisk(actual_mount):
             _active_mount = _canonical_path(target)
+            _active_mount_original = target
             return True
 
         if _wait_for_ramdisk(target):
             _active_mount = _canonical_path(target)
+            _active_mount_original = target
             return True
 
         return False
@@ -647,7 +658,7 @@ def is_ramdisk(path: os.PathLike[str] | str) -> bool:
 
 def teardown_ramdisk(path: os.PathLike[str] | str) -> None:
     """Unmount the RAM disk backing ``path`` and restore a regular directory."""
-    global _active_mount
+    global _active_mount, _active_mount_original
 
     target = Path(path).expanduser()
     candidates = []
@@ -690,6 +701,7 @@ def teardown_ramdisk(path: os.PathLike[str] | str) -> None:
             logger.debug("Failed to recreate tmp directory %s: %s", target, exc)
 
     _active_mount = None
+    _active_mount_original = None
 
 
 def is_mounted() -> bool:
@@ -706,7 +718,7 @@ def guard_ramdisk() -> bool:
     This is intended to be called periodically by the API application to
     recover from inadvertent unmounts (e.g. by external tools or tests).
     """
-    global _active_mount
+    global _active_mount, _active_mount_original
     if _active_mount is None:
         return False
 
@@ -714,10 +726,19 @@ def guard_ramdisk() -> bool:
     if target.exists() and target.is_dir() and _is_ramdisk(target):
         return True
 
-    # Mount disappeared — attempt remount.
-    logger.warning("RAMDisk guard: mount at %s is gone; attempting remount.", target)
+    # Use the original (unresolved) path for remounting so the symlink chain
+    # (e.g. ``tmp → /Volumes/RAMDisk``) is recreated correctly.  Falling back
+    # to the canonical path only when no original was recorded.
+    remount_target = _active_mount_original if _active_mount_original is not None else target
+    logger.warning("RAMDisk guard: mount at %s is gone; attempting remount via %s.", target, remount_target)
     _active_mount = None
-    return ensure_ramdisk(target)
+    _active_mount_original = None
+    ok = ensure_ramdisk(remount_target)
+    if ok:
+        logger.info("RAMDisk guard: successfully remounted at %s.", remount_target)
+    else:
+        logger.error("RAMDisk guard: remount at %s FAILED.", remount_target)
+    return ok
 
 
 __all__ = [

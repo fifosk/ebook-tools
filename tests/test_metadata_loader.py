@@ -5,6 +5,10 @@ from pathlib import Path
 
 from modules.metadata_manager import MetadataLoader
 
+import pytest
+
+pytestmark = pytest.mark.metadata
+
 
 def _write_manifest(job_root: Path, payload: dict) -> None:
     metadata_dir = job_root / "metadata"

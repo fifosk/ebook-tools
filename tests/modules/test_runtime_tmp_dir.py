@@ -4,6 +4,10 @@ from pathlib import Path
 
 from modules.config_manager import runtime
 
+import pytest
+
+pytestmark = [pytest.mark.config, pytest.mark.ramdisk]
+
 
 def _build_context(tmp_dir: Path, *, is_ramdisk: bool) -> runtime.RuntimeContext:
     return runtime.RuntimeContext(

@@ -1,5 +1,9 @@
 from modules import language_policies, prompt_templates, translation_engine
 
+import pytest
+
+pytestmark = pytest.mark.translation
+
 
 def test_script_policy_shared_across_prompt_and_validation():
     policy = language_policies.script_policy_for("Kannada")

@@ -4,6 +4,10 @@ from fastapi.testclient import TestClient
 
 from modules.webapi.application import create_app
 
+import pytest
+
+pytestmark = pytest.mark.webapi
+
 
 def test_pipeline_defaults_endpoint_returns_config() -> None:
     app = create_app()

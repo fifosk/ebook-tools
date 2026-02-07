@@ -9,6 +9,8 @@ from modules.core.config import build_pipeline_config
 from modules.core.rendering.pipeline import PipelineState, RenderPipeline
 from modules.render.backends.polly import PollyAudioSynthesizer
 
+pytestmark = pytest.mark.config
+
 
 def _build_runtime_context(tmp_path: Path) -> RuntimeContext:
     working_dir = tmp_path / "work"

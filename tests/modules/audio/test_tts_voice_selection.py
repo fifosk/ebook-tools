@@ -7,6 +7,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from modules.audio import tts
 
+import pytest
+
+pytestmark = pytest.mark.audio
+
 
 def _stub_inventory():
     return [

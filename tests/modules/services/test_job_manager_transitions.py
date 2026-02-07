@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import replace as dataclass_replace
 from pathlib import Path
-from typing import Callable
 
 import pytest
 
@@ -12,27 +11,14 @@ from modules.services.job_manager.manager import PipelineJobManager
 from modules.services.job_manager.stores import InMemoryJobStore
 from modules.services.pipeline_service import PipelineInput, PipelineRequest
 
+from .conftest import DummyExecutor, DummyWorkerPool
 
-class _DummyExecutor:
-    def __init__(self, *_, **__):
-        self.submitted: list[tuple[Callable[..., object], tuple[object, ...], dict[str, object]]] = []
-
-    def submit(self, fn: Callable[..., object], *args: object, **kwargs: object) -> None:
-        self.submitted.append((fn, args, kwargs))
-        return None
-
-    def shutdown(self, wait: bool = True) -> None:  # noqa: ARG002 - interface compatibility
-        self.submitted.clear()
-
-
-class _DummyWorkerPool:
-    def shutdown(self) -> None:  # pragma: no cover - defensive safeguard
-        return None
+pytestmark = pytest.mark.services
 
 
 @pytest.fixture(autouse=True)
 def _patch_executor(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(manager_module, "ThreadPoolExecutor", _DummyExecutor)
+    monkeypatch.setattr(manager_module, "ThreadPoolExecutor", DummyExecutor)
 
 
 def _build_request() -> PipelineRequest:
@@ -71,7 +57,7 @@ def manager(tmp_path: Path) -> PipelineJobManager:
     manager = PipelineJobManager(
         max_workers=1,
         store=store,
-        worker_pool_factory=lambda _: _DummyWorkerPool(),
+        worker_pool_factory=lambda _: DummyWorkerPool(),
     )
     yield manager
     manager._executor.shutdown()
@@ -200,7 +186,7 @@ def test_delete_job_removes_job_directory(tmp_path: Path, monkeypatch: pytest.Mo
     local_manager = PipelineJobManager(
         max_workers=1,
         store=InMemoryJobStore(),
-        worker_pool_factory=lambda _: _DummyWorkerPool(),
+        worker_pool_factory=lambda _: DummyWorkerPool(),
     )
     try:
         job = local_manager.submit(_build_request(), user_id="alice", user_role="editor")

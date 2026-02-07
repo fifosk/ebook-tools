@@ -16,6 +16,8 @@ from modules.webapi.dependencies import (
     get_runtime_context_provider,
 )
 
+pytestmark = pytest.mark.pipeline
+
 
 class _StubAuthService:
     def __init__(self, user: UserRecord) -> None:

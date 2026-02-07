@@ -15,6 +15,8 @@ from modules.services.assistant import (
     lookup_dictionary_entry,
 )
 
+pytestmark = pytest.mark.services
+
 
 # --- Valid JSON response fixtures ---
 

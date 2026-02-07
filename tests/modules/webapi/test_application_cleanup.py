@@ -2,6 +2,10 @@ from pathlib import Path
 
 from modules.webapi.application import _cleanup_empty_job_folders
 
+import pytest
+
+pytestmark = pytest.mark.webapi
+
 
 def test_cleanup_empty_job_folders_prunes_only_empty_dirs(tmp_path: Path) -> None:
     empty_job = tmp_path / "empty-job"

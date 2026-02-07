@@ -12,6 +12,8 @@ from fastapi.testclient import TestClient
 from modules.webapi.application import create_app
 from modules.webapi.routers import audio as audio_router
 
+pytestmark = pytest.mark.webapi
+
 
 _SELECT_VOICE_MAP: Dict[Tuple[str, str], str] = {
     ("ar", "any"): "gTTS-ar",

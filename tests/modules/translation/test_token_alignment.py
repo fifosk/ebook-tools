@@ -10,6 +10,8 @@ from modules.text import (
 )
 from modules import translation_validation as tv
 
+pytestmark = pytest.mark.translation
+
 
 class TestCountTokens:
     """Tests for count_tokens function."""
@@ -266,7 +268,6 @@ class TestPromptTemplatesIncludeAlignment:
 
     def test_batch_prompt_includes_alignment(self):
         from modules import prompt_templates
-
         prompt = prompt_templates.make_translation_batch_prompt(
             "english",
             "chinese",

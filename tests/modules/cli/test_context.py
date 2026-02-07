@@ -1,5 +1,9 @@
 from modules.cli import context
 
+import pytest
+
+pytestmark = pytest.mark.cli
+
 
 def test_update_sentence_config_with_lookup_updates_start():
     config = {"start_sentence_lookup": "hello", "start_sentence": 1}

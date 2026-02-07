@@ -9,6 +9,8 @@ from modules.library.library_sync import LibraryError, LibrarySync
 from modules.library.sync import metadata as metadata_utils
 from modules.services.file_locator import FileLocator
 
+pytestmark = pytest.mark.library
+
 
 def _write_job_metadata(job_root: Path, payload: dict) -> None:
     metadata_dir = job_root / "metadata"

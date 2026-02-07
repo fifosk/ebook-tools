@@ -8,6 +8,8 @@ import pytest
 from modules.library import LibraryError, LibraryNotFoundError, LibraryRepository, LibrarySync
 from modules.services.file_locator import FileLocator
 
+pytestmark = pytest.mark.library
+
 
 class TrackingJobManager:
     def __init__(self) -> None:

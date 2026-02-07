@@ -22,6 +22,8 @@ from modules.services.pipeline_service import (
 )
 from modules.services.pipeline_types import PipelineMetadata
 
+pytestmark = pytest.mark.services
+
 
 @pytest.fixture
 def job_manager(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> PipelineJobManager:

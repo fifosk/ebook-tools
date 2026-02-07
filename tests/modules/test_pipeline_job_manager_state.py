@@ -19,6 +19,8 @@ from modules.services.job_manager import (
 from modules.services.pipeline_service import PipelineInput, PipelineRequest, PipelineResponse
 from modules.services.file_locator import FileLocator
 
+pytestmark = pytest.mark.services
+
 
 class _InMemoryJobStore(JobStore):
     """Simple :class:`JobStore` implementation used for persistence tests."""

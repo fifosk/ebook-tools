@@ -5,6 +5,10 @@ from pathlib import Path
 from modules.config_manager import loader as cfg_loader
 from modules.config_manager.constants import DEFAULT_LIBRARY_ROOT
 
+import pytest
+
+pytestmark = pytest.mark.config
+
 
 def _reset_settings(monkeypatch):
     monkeypatch.setattr(cfg_loader, "_ACTIVE_SETTINGS", None)

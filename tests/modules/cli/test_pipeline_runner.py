@@ -4,6 +4,8 @@ import pytest
 
 from modules.cli import pipeline_runner
 
+pytestmark = pytest.mark.cli
+
 
 def test_calculate_end_sentence_handles_offsets():
     config = {}

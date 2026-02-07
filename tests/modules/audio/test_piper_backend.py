@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import io
-import wave
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -19,6 +17,8 @@ from modules.audio.backends import (
     create_backend,
     get_tts_backend,
 )
+
+pytestmark = [pytest.mark.audio, pytest.mark.slow]
 
 
 class TestPiperBackendRegistration:
@@ -417,7 +417,6 @@ class TestPiperModelLoading:
     def test_get_voice_model_missing_file(self, tmp_path, monkeypatch):
         """Test loading model raises error when file missing."""
         from modules.audio.backends.piper import _get_voice_model, _voice_cache
-
         # Clear cache
         _voice_cache.clear()
 

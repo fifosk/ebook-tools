@@ -598,6 +598,7 @@ def process_pipeline(
                         output_pdf=output_pdf,
                         generate_audio=generate_audio,
                         audio_segments=list(state.current_audio_segments or []),
+                        sentence_blocks=list(state.sentence_blocks),
                         audio_tracks=audio_tracks,
                         voice_metadata=self._drain_current_voice_metadata(state),
                         sentence_metadata=list(state.current_sentence_metadata),

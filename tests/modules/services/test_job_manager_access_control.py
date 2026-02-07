@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import replace as dataclass_replace
 from pathlib import Path
-from typing import Callable
 
 import pytest
 
@@ -18,22 +17,9 @@ from modules.services.pipeline_service import (
     PipelineService,
 )
 
+from .conftest import DummyExecutor, DummyWorkerPool
 
-class _DummyExecutor:
-    def __init__(self, *_, **__):
-        self.submitted: list[tuple[Callable[..., object], tuple[object, ...], dict[str, object]]] = []
-
-    def submit(self, fn: Callable[..., object], *args: object, **kwargs: object) -> None:
-        self.submitted.append((fn, args, kwargs))
-        return None
-
-    def shutdown(self, wait: bool = True) -> None:  # noqa: ARG002 - interface compatibility
-        self.submitted.clear()
-
-
-class _DummyWorkerPool:
-    def shutdown(self) -> None:  # pragma: no cover - defensive safeguard
-        return None
+pytestmark = pytest.mark.services
 
 
 @pytest.fixture(autouse=True)
@@ -44,7 +30,7 @@ def _isolate_job_directories(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
 
 @pytest.fixture(autouse=True)
 def _patch_executor(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(manager_module, "ThreadPoolExecutor", _DummyExecutor)
+    monkeypatch.setattr(manager_module, "ThreadPoolExecutor", DummyExecutor)
 
 
 @pytest.fixture(autouse=True)
@@ -87,7 +73,7 @@ def test_list_jobs_respects_role_visibility(tmp_path: Path) -> None:
     manager = PipelineJobManager(
         max_workers=1,
         store=store,
-        worker_pool_factory=lambda _: _DummyWorkerPool(),
+        worker_pool_factory=lambda _: DummyWorkerPool(),
     )
     service = PipelineService(manager)
 
@@ -118,7 +104,7 @@ def test_executor_runs_owned_jobs(tmp_path: Path) -> None:
     manager = PipelineJobManager(
         max_workers=1,
         store=store,
-        worker_pool_factory=lambda _: _DummyWorkerPool(),
+        worker_pool_factory=lambda _: DummyWorkerPool(),
         execution_adapter=execution_adapter,
     )
     service = PipelineService(manager)
@@ -136,7 +122,7 @@ def test_job_actions_require_authorisation(tmp_path: Path) -> None:
     manager = PipelineJobManager(
         max_workers=1,
         store=store,
-        worker_pool_factory=lambda _: _DummyWorkerPool(),
+        worker_pool_factory=lambda _: DummyWorkerPool(),
     )
     service = PipelineService(manager)
 

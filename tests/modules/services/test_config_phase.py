@@ -7,6 +7,10 @@ from modules.services.pipeline_phases.config_phase import prepare_configuration
 from modules.services.pipeline_service import PipelineInput, PipelineRequest
 from modules.audio.backends import MacOSSayBackend
 
+import pytest
+
+pytestmark = pytest.mark.services
+
 
 def _context(tmp_path: Path) -> RuntimeContext:
     working_dir = tmp_path / "work"

@@ -37,6 +37,8 @@ from modules.language_constants import LANGUAGE_CODES
 from modules.epub_utils import create_epub_from_sentences
 from modules.llm_client import create_client
 
+pytestmark = [pytest.mark.integration, pytest.mark.slow]
+
 DEFAULT_OUTPUT_DIR = Path("output/ebook")
 
 _LANGUAGE_CANONICAL_MAP = {name.lower(): name for name in LANGUAGE_CODES}
@@ -605,7 +607,6 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
     from modules.services.job_manager import PipelineJobStatus
     from modules.webapi.application import create_app
     from modules.webapi import dependencies as webapi_dependencies
-
     output_dir = DEFAULT_OUTPUT_DIR.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 

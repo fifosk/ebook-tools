@@ -21,6 +21,8 @@ import modules.services.youtube_dubbing.video_utils as _video_utils_mod
 import modules.services.youtube_dubbing.nas as _nas_mod
 from modules.subtitles.processing import load_subtitle_cues
 
+pytestmark = pytest.mark.services
+
 
 class _StubTransliterator:
     def transliterate(self, text: str, language: str, **_kwargs):

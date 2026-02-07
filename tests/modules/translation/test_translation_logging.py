@@ -8,6 +8,10 @@ from unittest.mock import Mock, patch
 
 from modules import translation_logging as tl
 
+import pytest
+
+pytestmark = pytest.mark.translation
+
 
 class TestBatchStatsRecorder:
     def test_initialization(self):

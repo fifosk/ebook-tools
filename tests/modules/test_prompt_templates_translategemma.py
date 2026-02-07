@@ -1,5 +1,9 @@
 from modules import prompt_templates
 
+import pytest
+
+pytestmark = pytest.mark.translation
+
 
 def test_translategemma_completion_payload_for_lmstudio():
     payload, system_prompt, request_mode = prompt_templates.make_translation_payload(

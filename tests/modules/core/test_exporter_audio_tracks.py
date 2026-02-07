@@ -8,6 +8,10 @@ from modules.audio.highlight import AudioHighlightPart, SentenceAudioMetadata, _
 from modules.audio.tts import SILENCE_DURATION_MS
 from modules.core.rendering.exporters import _derive_audio_tracks_from_segments
 
+import pytest
+
+pytestmark = pytest.mark.pipeline
+
 
 def _duration_seconds(segment: AudioSegment) -> float:
     return len(segment) / 1000.0

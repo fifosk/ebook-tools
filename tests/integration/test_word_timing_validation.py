@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.integration, pytest.mark.slow]
+
 
 @pytest.mark.order("last")
 def test_word_timing_validation_sample() -> None:

@@ -10,6 +10,8 @@ from modules.subtitles.models import SubtitleColorPalette, SubtitleCue, Subtitle
 from modules.subtitles.processing import process_subtitle_file
 from modules.subtitles.render import CueTextRenderer, _build_output_cues
 
+pytestmark = pytest.mark.pipeline
+
 
 def _sample_source_cue() -> SubtitleCue:
     return SubtitleCue(

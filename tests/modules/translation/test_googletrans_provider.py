@@ -5,6 +5,8 @@ from unittest.mock import Mock, patch, MagicMock
 
 from modules.translation_providers import googletrans_provider as gtp
 
+pytestmark = pytest.mark.translation
+
 
 class TestNormalizeTranslationProvider:
     def test_none_returns_llm(self):

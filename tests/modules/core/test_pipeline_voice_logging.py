@@ -9,6 +9,10 @@ from modules.core.config import PipelineConfig
 from modules.core.rendering.pipeline import PipelineState, RenderPipeline
 from modules.config_manager.runtime import RuntimeContext
 
+import pytest
+
+pytestmark = pytest.mark.pipeline
+
 
 def _build_runtime_context(base_dir: Path) -> RuntimeContext:
     return RuntimeContext(

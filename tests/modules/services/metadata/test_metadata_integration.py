@@ -26,6 +26,8 @@ from modules.services.metadata.pipeline import (
     create_pipeline,
 )
 
+pytestmark = pytest.mark.metadata
+
 
 # ---------------------------------------------------------------------------
 # Fixtures

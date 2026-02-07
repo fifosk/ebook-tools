@@ -17,12 +17,13 @@ Run specific language:
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import pytest
+
+pytestmark = [pytest.mark.integration, pytest.mark.translation, pytest.mark.slow]
 
 # Test sentences designed to produce varied token counts
 SAMPLE_SENTENCES = [
@@ -510,7 +511,6 @@ def run_diagnostic(
 if __name__ == "__main__":
     # Run diagnostic when executed directly
     import sys
-
     model = sys.argv[1] if len(sys.argv) > 1 else None
     report = run_diagnostic(model=model)
 

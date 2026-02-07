@@ -1,0 +1,48 @@
+.PHONY: test test-fast test-audio test-translation test-webapi test-services \
+       test-pipeline test-cli test-auth test-library test-render test-media \
+       test-config test-metadata test-changed
+
+# ── Full suite ───────────────────────────────────────────────────────────
+test:
+	pytest
+
+# ── Skip slow / integration tests ───────────────────────────────────────
+test-fast:
+	pytest -m "not slow and not integration"
+
+# ── Domain markers ───────────────────────────────────────────────────────
+test-audio:
+	pytest -m audio
+
+test-translation:
+	pytest -m translation
+
+test-webapi:
+	pytest -m webapi
+
+test-services:
+	pytest -m services
+
+test-pipeline:
+	pytest -m pipeline
+
+test-cli:
+	pytest -m cli
+
+test-auth:
+	pytest -m auth
+
+test-library:
+	pytest -m library
+
+test-render:
+	pytest -m render
+
+test-media:
+	pytest -m media
+
+test-config:
+	pytest -m config
+
+test-metadata:
+	pytest -m metadata

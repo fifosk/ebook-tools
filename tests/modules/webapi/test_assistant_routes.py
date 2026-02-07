@@ -7,6 +7,10 @@ from fastapi.testclient import TestClient
 from modules.llm_client import LLMResponse
 from modules.webapi.application import create_app
 
+import pytest
+
+pytestmark = pytest.mark.webapi
+
 
 class _FakeClient:
     def __init__(self, model: str = "fake-model") -> None:

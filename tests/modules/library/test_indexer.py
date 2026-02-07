@@ -4,6 +4,10 @@ from pathlib import Path
 
 from modules.library import LibraryEntry, LibraryRepository, MetadataSnapshot
 
+import pytest
+
+pytestmark = pytest.mark.library
+
 
 def make_item(job_id: str, library_path: Path, **overrides) -> LibraryEntry:
     metadata = overrides.get('metadata', {})

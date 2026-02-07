@@ -1,6 +1,10 @@
 from modules.epub_parser import remove_quotes
 from modules import text_normalization as text_norm
 
+import pytest
+
+pytestmark = pytest.mark.pipeline
+
 
 def test_remove_quotes_preserves_apostrophes():
     text = "Il s’agit d’un test “simple”."

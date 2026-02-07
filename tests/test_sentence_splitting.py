@@ -1,5 +1,9 @@
 from modules.epub_parser import split_text_into_sentences
 
+import pytest
+
+pytestmark = pytest.mark.pipeline
+
 
 def test_merges_short_trailing_chunk_when_under_overflow_limit():
     text = " ".join([f"word{i}" for i in range(1, 22)]) + "."

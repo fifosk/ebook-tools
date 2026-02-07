@@ -6,6 +6,8 @@ import pytest
 
 from modules.library.library_metadata import LibraryMetadataManager
 
+pytestmark = pytest.mark.library
+
 
 def test_normalize_and_apply_isbn(tmp_path: Path) -> None:
     manager = LibraryMetadataManager(tmp_path)

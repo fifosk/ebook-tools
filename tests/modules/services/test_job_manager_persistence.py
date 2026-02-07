@@ -11,6 +11,10 @@ from modules.services.job_manager.persistence import PipelineJobPersistence
 from modules.services.pipeline_service import PipelineInput, PipelineRequest, PipelineResponse
 from modules.services.pipeline_types import PipelineMetadata
 
+import pytest
+
+pytestmark = pytest.mark.services
+
 
 def _build_request() -> PipelineRequest:
     return PipelineRequest(

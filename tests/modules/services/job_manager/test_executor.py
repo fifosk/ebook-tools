@@ -11,6 +11,9 @@ import pytest
 import modules.services.job_manager as job_manager_module
 import modules.services.pipeline_service as pipeline_service
 
+pytestmark = pytest.mark.services
+
+
 PipelineJobExecutor = job_manager_module.PipelineJobExecutor
 PipelineJobExecutorHooks = job_manager_module.PipelineJobExecutorHooks
 PipelineJob = job_manager_module.PipelineJob

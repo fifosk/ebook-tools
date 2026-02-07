@@ -5,6 +5,8 @@ from modules import prompt_templates
 from modules.llm_client import LLMResponse
 from modules.progress_tracker import ProgressTracker
 
+pytestmark = pytest.mark.translation
+
 
 class StubLLMClient:
     def __init__(self, responses):

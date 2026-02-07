@@ -180,6 +180,8 @@ import modules.render.backends.polly as polly_backend
 from modules.render.backends.polly import PollyAudioSynthesizer
 from modules.core.translation import split_translation_and_transliteration
 
+pytestmark = pytest.mark.audio
+
 
 def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     numbering_text = "1 - 50.00%"

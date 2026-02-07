@@ -11,6 +11,10 @@ from modules.webapi.dependencies import (
     get_request_user,
 )
 
+import pytest
+
+pytestmark = pytest.mark.webapi
+
 
 class _StubLibrarySync:
     def __init__(self, payload: Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]], bool]) -> None:

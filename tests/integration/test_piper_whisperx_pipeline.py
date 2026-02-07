@@ -20,6 +20,8 @@ from typing import List, Tuple
 
 import pytest
 
+pytestmark = [pytest.mark.integration, pytest.mark.audio, pytest.mark.slow]
+
 # Skip all tests if Piper or WhisperX not installed
 piper = pytest.importorskip("piper", reason="piper-tts not installed")
 whisperx = pytest.importorskip("whisperx", reason="whisperx not installed")
@@ -362,7 +364,6 @@ class TestEndToEndPipelineScenarios:
         """Test alignment of longer sentences."""
         from modules.align.backends.whisperx_adapter import align_sentence
         from modules.audio.backends.piper import PiperTTSBackend
-
         voice = _voice_available_for_lang("en", piper_models_path)
         if not voice:
             pytest.skip("No English Piper voice available")

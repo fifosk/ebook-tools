@@ -15,6 +15,10 @@ from modules.lookup_cache import (
     normalize_word,
 )
 
+import pytest
+
+pytestmark = pytest.mark.services
+
 
 def test_direct_file_write():
     """Test that LookupCacheManager.save() actually writes a file."""

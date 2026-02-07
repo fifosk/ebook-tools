@@ -42,6 +42,8 @@ from modules import translation_validation as tv
 from modules.translation_logging import BatchStatsRecorder
 from modules.translation_workers import ThreadWorkerPool
 
+pytestmark = pytest.mark.translation
+
 
 class TestModuleImportDelegation:
     """Test that translation_engine correctly delegates to extracted modules.
@@ -443,7 +445,6 @@ def test_all_modules_import():
     from modules import translation_logging
     from modules import translation_workers
     from modules.translation_providers import googletrans_provider
-
     # All imports successful
     assert translation_engine is not None
     assert translation_batch is not None

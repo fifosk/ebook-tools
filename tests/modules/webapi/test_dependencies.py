@@ -12,6 +12,8 @@ from modules.webapi.dependencies import (
     get_audio_service,
 )
 
+pytestmark = pytest.mark.webapi
+
 
 @pytest.fixture(autouse=True)
 def _reset_media_services(monkeypatch: pytest.MonkeyPatch) -> None:

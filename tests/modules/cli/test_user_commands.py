@@ -8,6 +8,8 @@ import pytest
 
 from modules.user_management import AuthService, LocalUserStore, SessionManager
 
+pytestmark = pytest.mark.cli
+
 
 def _configure_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path, Path]:
     user_store = tmp_path / "users.json"
@@ -58,7 +60,6 @@ def orchestrator_module(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setitem(sys.modules, "modules.cli.progress", progress_stub)
 
     from modules.progress_tracker import ProgressTracker
-
     if not hasattr(ProgressTracker, "close"):
         setattr(ProgressTracker, "close", lambda self: None)
 

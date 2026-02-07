@@ -18,6 +18,8 @@ from modules.lookup_cache import (
     normalize_word,
 )
 
+pytestmark = pytest.mark.services
+
 
 # Sample Arabic sentences (30 sentences from typical book content)
 SAMPLE_ARABIC_SENTENCES = [
@@ -356,7 +358,6 @@ class TestLookupCachePhase:
                 mock_scope.return_value.__exit__ = MagicMock(return_value=False)
 
                 from modules.services.pipeline_phases.lookup_cache_phase import build_lookup_cache_phase
-
                 result = build_lookup_cache_phase(
                     mock_request,
                     mock_config_result,

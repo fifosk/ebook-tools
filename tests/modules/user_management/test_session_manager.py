@@ -2,6 +2,10 @@ from pathlib import Path
 
 from modules.user_management.session_manager import SessionManager
 
+import pytest
+
+pytestmark = pytest.mark.auth
+
 
 def test_create_and_retrieve_session(tmp_path):
     session_file = tmp_path / "sessions.json"

@@ -5,6 +5,10 @@ from unittest.mock import patch
 
 from modules import translation_workers as tw
 
+import pytest
+
+pytestmark = pytest.mark.translation
+
 
 class TestThreadWorkerPool:
     def test_initialization_default_workers(self):

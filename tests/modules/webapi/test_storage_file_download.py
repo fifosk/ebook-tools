@@ -15,13 +15,14 @@ from modules.webapi.dependencies import (
     get_request_user,
 )
 
+pytestmark = pytest.mark.webapi
+
 
 class _StubPipelineService:
     """Minimal stub that allows job access for any job_id."""
 
     def get_job(self, job_id, *, user_id=None, user_role=None):
         from types import SimpleNamespace
-
         return SimpleNamespace(job_id=job_id)
 
 

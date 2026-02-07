@@ -6,6 +6,8 @@ import pytest
 
 from modules.services.file_locator import FileLocator
 
+pytestmark = pytest.mark.services
+
 
 def _settings_stub(job_storage_dir: str, storage_base_url: str = "") -> object:
     return types.SimpleNamespace(

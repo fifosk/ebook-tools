@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 
 from modules import translation_batch as tb
 
+pytestmark = pytest.mark.translation
+
 
 class TestNormalizeLLMBatchSize:
     """Tests for normalize_llm_batch_size."""

@@ -3,6 +3,8 @@ from fastapi import HTTPException
 
 from modules.webapi.routers.subtitles import parse_end_time, parse_time_offset
 
+pytestmark = pytest.mark.webapi
+
 
 def test_parse_end_time_relative_minutes() -> None:
     start_seconds = parse_time_offset("00:01")

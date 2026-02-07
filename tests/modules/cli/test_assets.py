@@ -1,5 +1,9 @@
 from modules.shared import assets
 
+import pytest
+
+pytestmark = pytest.mark.cli
+
 
 def test_audio_mode_descriptions_expose_expected_modes():
     descriptions = assets.get_audio_mode_descriptions()

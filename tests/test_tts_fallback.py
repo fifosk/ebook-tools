@@ -1,5 +1,9 @@
 from modules.audio import tts
 
+import pytest
+
+pytestmark = pytest.mark.audio
+
 
 def test_romani_voice_falls_back_to_slovak():
     voice = tts.select_voice("Romani", "gTTS")

@@ -20,6 +20,8 @@ from modules.services.metadata.structured_conversion import (
     structure_from_flat,
 )
 
+pytestmark = pytest.mark.metadata
+
 
 # ---------------------------------------------------------------------------
 # Fixtures — representative flat metadata payloads

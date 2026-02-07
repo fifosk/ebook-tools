@@ -2,45 +2,23 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import shutil
-import sys
 import time
-from importlib import import_module
 from pathlib import Path
-from typing import Callable
 
 import pytest
-
-ROOT_DIR = Path(__file__).resolve().parents[3]
-
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 import modules.jobs.persistence as persistence
 import modules.services.job_manager as job_manager_module
 import modules.services.pipeline_service as pipeline_service
 from modules.services.job_manager import FileJobStore, PipelineJobManager, PipelineJobStatus
 from modules.services.job_manager.job_storage import JobStorageCoordinator
+from modules.progress_tracker import ProgressEvent, ProgressSnapshot
+
+from .conftest import DummyExecutor, DummyWorkerPool
 
 job_manager = job_manager_module
 
-from modules.progress_tracker import ProgressEvent, ProgressSnapshot
-
-
-class _DummyExecutor:
-    def __init__(self, *_, **__):
-        self.submitted: list[tuple[Callable[..., object], tuple[object, ...], dict[str, object]]] = []
-
-    def submit(self, fn: Callable[..., object], *args: object, **kwargs: object) -> None:
-        self.submitted.append((fn, args, kwargs))
-        return None
-
-    def shutdown(self, wait: bool = True) -> None:  # noqa: ARG002 - interface compatibility
-        self.submitted.clear()
-
-
-class _DummyWorkerPool:
-    def shutdown(self) -> None:  # pragma: no cover - defensive safeguard
-        pass
+pytestmark = pytest.mark.services
 
 
 def _make_manager(store: FileJobStore, **kwargs) -> PipelineJobManager:
@@ -53,7 +31,7 @@ def _make_manager(store: FileJobStore, **kwargs) -> PipelineJobManager:
     return PipelineJobManager(
         max_workers=1,
         storage_coordinator=coordinator,
-        worker_pool_factory=kwargs.pop("worker_pool_factory", lambda _: _DummyWorkerPool()),
+        worker_pool_factory=kwargs.pop("worker_pool_factory", lambda _: DummyWorkerPool()),
         **kwargs,
     )
 
@@ -63,8 +41,6 @@ def storage_dir(tmp_path, monkeypatch) -> Path:
     path = tmp_path / "storage"
     monkeypatch.setenv("JOB_STORAGE_DIR", str(path))
 
-    # Ensure cfg.get_settings() returns a settings object pointing at the temp dir
-    # so that both FileLocator and persistence.py agree on the storage root.
     import modules.config_manager as _cfg_mod
 
     _original_settings = _cfg_mod.get_settings()
@@ -78,7 +54,7 @@ def storage_dir(tmp_path, monkeypatch) -> Path:
 @pytest.fixture(autouse=True)
 def _patch_executor(monkeypatch):
     import modules.services.job_manager.manager as _mgr
-    monkeypatch.setattr(_mgr, "ThreadPoolExecutor", _DummyExecutor)
+    monkeypatch.setattr(_mgr, "ThreadPoolExecutor", DummyExecutor)
 
 
 def _build_request() -> pipeline_service.PipelineRequest:
@@ -173,7 +149,6 @@ def test_restart_and_control_flow_persists_updates(storage_dir: Path):
 
 def test_generated_file_urls_survive_storage_dir_change(tmp_path: Path, monkeypatch):
     import modules.config_manager as _cfg_mod
-
     original_storage = tmp_path / "storage-original"
     monkeypatch.setenv("JOB_STORAGE_DIR", str(original_storage))
     original_base_url = "https://cdn.example.invalid/original"

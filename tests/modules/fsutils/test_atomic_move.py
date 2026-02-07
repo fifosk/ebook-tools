@@ -7,6 +7,10 @@ import modules.fsutils.atomic_move  # ensure module is importable
 atomic_move_module = sys.modules["modules.fsutils.atomic_move"]
 from modules.fsutils.atomic_move import atomic_move
 
+import pytest
+
+pytestmark = pytest.mark.services
+
 
 def write_file(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)

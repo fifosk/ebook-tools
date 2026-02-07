@@ -16,6 +16,8 @@ from modules.services.job_manager.request_factory import (
 )
 from modules.services.pipeline_service import PipelineRequest
 
+pytestmark = pytest.mark.services
+
 
 def test_coerce_helpers_handle_common_inputs():
     assert _coerce_bool("YeS") is True

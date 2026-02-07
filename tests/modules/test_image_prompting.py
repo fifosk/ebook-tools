@@ -7,6 +7,8 @@ import pytest
 
 from modules.images import prompting
 
+pytestmark = pytest.mark.pipeline
+
 
 class _DummyResponse:
     def __init__(self, text: str, *, error: str | None = None) -> None:

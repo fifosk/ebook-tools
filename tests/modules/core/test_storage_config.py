@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.config
+
 
 class TestStorageConfigPaths:
     """Tests for storage path configuration functions."""
@@ -152,7 +154,6 @@ class TestModelPathsSummary:
     def test_get_model_paths_summary(self, monkeypatch, tmp_path):
         """Test getting summary of all model paths."""
         from modules.core.storage_config import get_model_paths_summary
-
         piper_path = tmp_path / "piper"
         whisperx_path = tmp_path / "whisperx"
         hf_path = tmp_path / "hf"

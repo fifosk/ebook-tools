@@ -6,6 +6,10 @@ from pydub import AudioSegment
 
 from modules.render.backends.polly import PollyAudioSynthesizer, _normalize_api_voice
 
+import pytest
+
+pytestmark = pytest.mark.render
+
 
 class _DummyAudioClient:
     def __init__(self) -> None:

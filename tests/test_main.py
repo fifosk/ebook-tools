@@ -8,6 +8,10 @@ from modules.cli.progress import (
     SystemMetricsSnapshot,
 )
 
+import pytest
+
+pytestmark = pytest.mark.cli
+
 
 class _StubSampler:
     def __init__(self):

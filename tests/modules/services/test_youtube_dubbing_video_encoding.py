@@ -5,6 +5,10 @@ from types import SimpleNamespace
 
 from modules.services.youtube_dubbing import video_utils
 
+import pytest
+
+pytestmark = pytest.mark.services
+
 
 def test_downscale_forces_ios_friendly_h264_aac(monkeypatch, tmp_path: Path) -> None:
     source = tmp_path / "input.mp4"

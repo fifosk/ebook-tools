@@ -5,6 +5,8 @@ import pytest
 
 from modules.user_management.local_user_store import LocalUserStore
 
+pytestmark = pytest.mark.auth
+
 
 def test_create_and_retrieve_user(tmp_path: Path):
     store_path = tmp_path / "users.json"

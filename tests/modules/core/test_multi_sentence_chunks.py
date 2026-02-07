@@ -6,8 +6,7 @@ when multiple sentences are combined into a single chunk file.
 
 from __future__ import annotations
 
-import math
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List
 
 import pytest
 
@@ -20,6 +19,8 @@ from modules.core.rendering.timeline import (
     compute_cumulative_offsets,
     scale_timing_to_audio_duration,
 )
+
+pytestmark = pytest.mark.pipeline
 
 
 def _make_sentence_spec(

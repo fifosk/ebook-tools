@@ -1,5 +1,9 @@
 from modules.webapi.routes import router, storage_router
 
+import pytest
+
+pytestmark = pytest.mark.webapi
+
 
 def test_pipeline_router_includes_expected_paths() -> None:
     paths = {route.path for route in router.routes if getattr(route, "methods", None)}

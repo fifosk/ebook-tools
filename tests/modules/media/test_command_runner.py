@@ -7,6 +7,8 @@ import modules.media.command_runner as command_runner_mod
 from modules.media.command_runner import run_command
 from modules.media.exceptions import CommandExecutionError
 
+pytestmark = pytest.mark.media
+
 
 def test_run_command_success_captures_output():
     result = run_command([sys.executable, "-c", "print('ok')"])

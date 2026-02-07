@@ -7,6 +7,8 @@ from modules.config.loader import get_rendering_config
 from modules.render.parallel import RenderManifest, RenderingConcurrency, dispatch_render_manifest
 from modules.render.text_pipeline import batch_text_chapters, build_text_tasks
 
+pytestmark = pytest.mark.render
+
 
 def test_batching_uses_concurrency_limit() -> None:
     chapters = [f"chapter-{i}" for i in range(7)]

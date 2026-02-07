@@ -12,6 +12,8 @@ from modules.core.rendering.exporters import (
     BatchExporter,
 )
 
+pytestmark = pytest.mark.pipeline
+
 
 @pytest.fixture(autouse=True)
 def disable_rendering_ramdisk(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

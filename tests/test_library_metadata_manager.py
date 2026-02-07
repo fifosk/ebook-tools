@@ -21,6 +21,8 @@ from modules.webapi.application import create_app
 from modules.webapi import dependencies
 from modules.webapi.dependencies import RequestUserContext
 
+pytestmark = pytest.mark.library
+
 
 def _build_job_metadata(job_id: str, *, author: str = 'Jane Doe', title: str = 'Sample Book') -> dict:
     return {
@@ -165,7 +167,6 @@ def test_search_endpoint_includes_library_results(tmp_path):
             return SimpleNamespace(job_id=job_id)
 
     from modules.library import LibraryService as LibraryOrchestrator
-
     orchestrator = LibraryOrchestrator(library_root=library_root, file_locator=locator)
     library_sync = orchestrator.sync
 
