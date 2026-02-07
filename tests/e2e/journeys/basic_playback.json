@@ -1,0 +1,30 @@
+{
+  "id": "basic_playback",
+  "name": "Basic Book Playback",
+  "description": "Login, navigate to Jobs (Books), play a book, return to menu",
+  "steps": [
+    {
+      "action": "login",
+      "screenshot": "after_login"
+    },
+    {
+      "action": "navigate_tab",
+      "tab": "Jobs",
+      "screenshot": "jobs_tab"
+    },
+    {
+      "action": "select_filter",
+      "filter": "Books",
+      "screenshot": "books_filter"
+    },
+    {
+      "action": "play_first_item",
+      "screenshot": "player_opened",
+      "skip_if_empty": true
+    },
+    {
+      "action": "go_back",
+      "screenshot": "returned_to_menu"
+    }
+  ]
+}

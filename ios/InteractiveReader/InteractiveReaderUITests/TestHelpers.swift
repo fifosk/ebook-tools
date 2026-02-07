@@ -17,6 +17,34 @@ extension InteractiveReaderUITests {
             return
         }
 
+        #if os(tvOS)
+        // On tvOS: press Select to open keyboard, type, then navigate fields.
+        // Focus ring is on the username field after launch.
+        XCUIRemote.shared.press(.select)  // activate keyboard for username
+        sleep(1)
+        usernameField.typeText(username)
+
+        // Dismiss keyboard by pressing Menu, then swipe down to password
+        XCUIRemote.shared.press(.menu)
+        sleep(1)
+
+        let passwordField = app.secureTextFields["loginPasswordField"]
+        XCTAssertTrue(passwordField.waitForExistence(timeout: 3),
+                      "Password field not found")
+
+        XCUIRemote.shared.press(.down)   // move focus to password field
+        sleep(1)
+        XCUIRemote.shared.press(.select) // activate keyboard for password
+        sleep(1)
+        passwordField.typeText(password)
+
+        // Dismiss keyboard and press sign-in
+        XCUIRemote.shared.press(.menu)
+        sleep(1)
+        XCUIRemote.shared.press(.down)   // move focus to sign-in button
+        sleep(1)
+        XCUIRemote.shared.press(.select) // press sign-in
+        #else
         usernameField.tap()
         usernameField.typeText(username)
 
@@ -27,6 +55,7 @@ extension InteractiveReaderUITests {
         passwordField.typeText(password)
 
         app.buttons["loginSignInButton"].tap()
+        #endif
 
         // Wait for the library to appear (long timeout for network login)
         let library = app.otherElements["libraryShellView"]

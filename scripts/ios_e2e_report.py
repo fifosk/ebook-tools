@@ -141,6 +141,7 @@ def build_markdown(
     attachments_dir: Path,
     screenshot_dir: Path,
     report_parent: Path,
+    title: str = "iOS E2E Test Report",
 ) -> str:
     """Generate the Markdown report string."""
     screenshot_dir.mkdir(parents=True, exist_ok=True)
@@ -167,7 +168,7 @@ def build_markdown(
     overall = "PASSED" if failed == 0 else "FAILED"
 
     lines: list[str] = []
-    lines.append("# iOS E2E Test Report")
+    lines.append(f"# {title}")
     lines.append("")
     lines.append(f"> **{now_str}**" + (f" — {device_str}" if device_str else ""))
     lines.append("")
@@ -253,6 +254,10 @@ def main() -> None:
         "--output", type=Path, default=Path("test-results/ios-e2e-report.md"),
         help="Output Markdown report path",
     )
+    parser.add_argument(
+        "--title", default="iOS E2E Test Report",
+        help="Report title (default: 'iOS E2E Test Report')",
+    )
     args = parser.parse_args()
 
     if not args.xcresult.exists():
@@ -277,7 +282,8 @@ def main() -> None:
     screenshot_dir = report_path.parent / "screenshots"
 
     md = build_markdown(
-        test_data, manifest, attachments_dir, screenshot_dir, report_path.parent
+        test_data, manifest, attachments_dir, screenshot_dir, report_path.parent,
+        title=args.title,
     )
     report_path.write_text(md, encoding="utf-8")
 

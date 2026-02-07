@@ -49,6 +49,5 @@ config/apns/
 test-results/*/
 test-results/*.xcresult
 # Keep the Markdown reports and screenshots (no secrets)
-!test-results/e2e-report.md
-!test-results/ios-e2e-report.md
+!test-results/*-e2e-report.md
 !test-results/screenshots/

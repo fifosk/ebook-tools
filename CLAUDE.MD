@@ -140,7 +140,8 @@ The iOS apps are in `ios/InteractiveReader/`. Use Xcode or command-line builds.
 **Available schemes**:
 - `InteractiveReader` - iOS app (iPhone/iPad)
 - `InteractiveReaderTV` - tvOS app (Apple TV)
-- `InteractiveReaderUITests` - XCUITest E2E suite (run via `make test-e2e-ios`)
+- `InteractiveReaderUITests` - iOS XCUITest E2E suite (run via `make test-e2e-iphone` or `make test-e2e-ipad`)
+- `InteractiveReaderTVUITests` - tvOS XCUITest E2E suite (run via `make test-e2e-tvos`)
 
 **Command-line builds** — always use the full Xcode path and explicit `-project` flag (xcodebuild fails without `-project` when run from the repo root):
 
@@ -422,23 +423,36 @@ make test-services            # same as pytest -m services
 E2E tests are **not** part of the regular test suite. Only run them when explicitly
 asked — they require a running API, credentials in `.env`, and external infrastructure.
 
+**Architecture**: Shared JSON user journeys (`tests/e2e/journeys/*.json`) define
+platform-agnostic test steps. Platform-specific runners interpret them:
+- Python `WebJourneyRunner` (Playwright) for Web
+- Swift `JourneyRunner` (XCUITest) for iPhone, iPad, Apple TV
+
 ```bash
 # ── Web E2E (Playwright) ─────────────────────────────
 # Requires: pip install -e .[e2e]  &&  playwright install
 # Excluded from `pytest` by default (marker: e2e, addopts = "not e2e")
-make test-e2e                 # headed browser, slow-mo 200ms
-make test-e2e-headless        # headless (CI-friendly)
-# Report: test-results/e2e-report.md + test-results/screenshots/*.png
+make test-e2e                 # headed browser, slow-mo 200ms (legacy)
+make test-e2e-headless        # headless (legacy)
+make test-e2e-web             # headed, named report
+make test-e2e-web-headless    # headless, named report
+# Report: test-results/web-e2e-report.md
 
-# ── iOS E2E (XCUITest) ───────────────────────────────
-# Requires: Xcode, iOS Simulator, E2E_USERNAME/E2E_PASSWORD in .env
-# Not part of pytest — runs via xcodebuild
-make test-e2e-ios
-# Report: test-results/ios-e2e-report.md + test-results/screenshots/ios-*.png
+# ── Apple E2E (XCUITest) ─────────────────────────────
+# Requires: Xcode, Simulators, E2E_USERNAME/E2E_PASSWORD in .env
+make test-e2e-iphone          # iPhone 16 Pro simulator
+make test-e2e-ipad            # iPad Pro 13-inch (M4) simulator
+make test-e2e-tvos            # Apple TV simulator
+make test-e2e-ios             # alias → test-e2e-iphone
+# Reports: test-results/{iphone,ipad,tvos}-e2e-report.md
+
+# ── All 4 platforms in parallel ───────────────────────
+make test-e2e-all             # Web + iPhone + iPad + tvOS (parallel)
 ```
 
-Both reports are Markdown with embedded screenshots, designed to render on GitHub.
-Credentials: `E2E_USERNAME` / `E2E_PASSWORD` in `.env` (same user for both suites).
+All reports are Markdown with embedded screenshots, designed to render on GitHub.
+Credentials: `E2E_USERNAME` / `E2E_PASSWORD` in `.env` (same user for all suites).
+Adding a new journey JSON file auto-propagates to all 4 platforms.
 
 ### Building for Production
 

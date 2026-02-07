@@ -1,5 +1,8 @@
 import XCTest
 
+#if !os(tvOS)
+// These hardcoded tests use iOS-only .tap() APIs.
+// tvOS E2E tests run via the shared JourneyRunner instead.
 final class LibraryTests: InteractiveReaderUITests {
 
     // MARK: - Jobs tab — browse all 3 sub-types
@@ -70,3 +73,4 @@ final class LibraryTests: InteractiveReaderUITests {
         takeScreenshot(named: "library_subtitles")
     }
 }
+#endif

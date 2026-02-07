@@ -76,6 +76,7 @@ struct LibraryShellView: View {
         .onChange(of: activeSection) { _, newValue in
             handleSectionChange(newValue)
         }
+        .accessibilityIdentifier("libraryShellView")
         #else
         ZStack {
             if usesDarkBackground {

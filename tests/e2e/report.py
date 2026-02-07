@@ -39,6 +39,11 @@ def pytest_addoption(parser: pytest.Parser) -> None:
             "Defaults to test-results/e2e-report.md when flag used without a value."
         ),
     )
+    group.addoption(
+        "--e2e-report-title",
+        default="E2E Test Report",
+        help="Title for the generated Markdown report (default: 'E2E Test Report').",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +104,8 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     screenshot_dir = report_file.parent / "screenshots"
     screenshot_dir.mkdir(parents=True, exist_ok=True)
 
-    md_content = _build_markdown(output_dir, screenshot_dir, report_file.parent)
+    title = session.config.getoption("--e2e-report-title", default="E2E Test Report")
+    md_content = _build_markdown(output_dir, screenshot_dir, report_file.parent, title)
     report_file.write_text(md_content, encoding="utf-8")
 
     # Use terminalwriter for colored output
@@ -160,6 +166,7 @@ def _build_markdown(
     output_dir: Path,
     screenshot_dir: Path,
     report_parent: Path,
+    title: str = "E2E Test Report",
 ) -> str:
     passed = sum(1 for r in _collector.results if r["outcome"] == "passed")
     failed = sum(1 for r in _collector.results if r["outcome"] == "failed")
@@ -175,7 +182,7 @@ def _build_markdown(
     overall_status = "PASSED" if failed == 0 else "FAILED"
 
     lines: list[str] = []
-    lines.append("# E2E Test Report")
+    lines.append(f"# {title}")
     lines.append("")
     lines.append(f"> **{start_str}**")
     lines.append("")

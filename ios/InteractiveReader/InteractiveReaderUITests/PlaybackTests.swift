@@ -1,5 +1,8 @@
 import XCTest
 
+#if !os(tvOS)
+// These hardcoded tests use iOS-only .tap() and .coordinate() APIs.
+// tvOS E2E tests run via the shared JourneyRunner instead.
 final class PlaybackTests: InteractiveReaderUITests {
 
     func testStartBookPlaybackAndReturn() throws {
@@ -49,3 +52,4 @@ final class PlaybackTests: InteractiveReaderUITests {
         XCTAssertTrue(backToMenu, "Should return to library after dismissing player")
     }
 }
+#endif
