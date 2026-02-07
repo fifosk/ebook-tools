@@ -140,6 +140,7 @@ The iOS apps are in `ios/InteractiveReader/`. Use Xcode or command-line builds.
 **Available schemes**:
 - `InteractiveReader` - iOS app (iPhone/iPad)
 - `InteractiveReaderTV` - tvOS app (Apple TV)
+- `InteractiveReaderUITests` - XCUITest E2E suite (run via `make test-e2e-ios`)
 
 **Command-line builds** — always use the full Xcode path and explicit `-project` flag (xcodebuild fails without `-project` when run from the repo root):
 
@@ -415,6 +416,29 @@ make test-webapi              # same as pytest -m webapi
 make test-services            # same as pytest -m services
 # (see Makefile for all targets)
 ```
+
+### E2E Tests (on-demand only)
+
+E2E tests are **not** part of the regular test suite. Only run them when explicitly
+asked — they require a running API, credentials in `.env`, and external infrastructure.
+
+```bash
+# ── Web E2E (Playwright) ─────────────────────────────
+# Requires: pip install -e .[e2e]  &&  playwright install
+# Excluded from `pytest` by default (marker: e2e, addopts = "not e2e")
+make test-e2e                 # headed browser, slow-mo 200ms
+make test-e2e-headless        # headless (CI-friendly)
+# Report: test-results/e2e-report.md + test-results/screenshots/*.png
+
+# ── iOS E2E (XCUITest) ───────────────────────────────
+# Requires: Xcode, iOS Simulator, E2E_USERNAME/E2E_PASSWORD in .env
+# Not part of pytest — runs via xcodebuild
+make test-e2e-ios
+# Report: test-results/ios-e2e-report.md + test-results/screenshots/ios-*.png
+```
+
+Both reports are Markdown with embedded screenshots, designed to render on GitHub.
+Credentials: `E2E_USERNAME` / `E2E_PASSWORD` in `.env` (same user for both suites).
 
 ### Building for Production
 
