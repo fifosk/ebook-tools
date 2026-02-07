@@ -105,7 +105,8 @@ test-e2e-iphone:
 	python scripts/ios_e2e_report.py \
 		--xcresult $(IPHONE_E2E_RESULT) \
 		--output test-results/iphone-e2e-report.md \
-		--title "iPhone E2E Test Report"
+		--title "iPhone E2E Test Report" \
+		--screenshot-prefix iphone
 	@rm -f /tmp/ios_e2e_config.json /tmp/ios_e2e_journey.json
 
 # ── iPad E2E ─────────────────────────────────────────────────────────
@@ -124,7 +125,8 @@ test-e2e-ipad:
 	python scripts/ios_e2e_report.py \
 		--xcresult $(IPAD_E2E_RESULT) \
 		--output test-results/ipad-e2e-report.md \
-		--title "iPad E2E Test Report"
+		--title "iPad E2E Test Report" \
+		--screenshot-prefix ipad
 	@rm -f /tmp/ios_e2e_config.json /tmp/ios_e2e_journey.json
 
 # ── tvOS E2E ─────────────────────────────────────────────────────────
@@ -143,7 +145,8 @@ test-e2e-tvos:
 	python scripts/ios_e2e_report.py \
 		--xcresult $(TVOS_E2E_RESULT) \
 		--output test-results/tvos-e2e-report.md \
-		--title "tvOS E2E Test Report"
+		--title "tvOS E2E Test Report" \
+		--screenshot-prefix tvos
 	@rm -f /tmp/ios_e2e_config.json /tmp/ios_e2e_journey.json
 
 # ── Legacy alias ─────────────────────────────────────────────────────

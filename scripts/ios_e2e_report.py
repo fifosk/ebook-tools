@@ -142,6 +142,7 @@ def build_markdown(
     screenshot_dir: Path,
     report_parent: Path,
     title: str = "iOS E2E Test Report",
+    screenshot_prefix: str = "ios",
 ) -> str:
     """Generate the Markdown report string."""
     screenshot_dir.mkdir(parents=True, exist_ok=True)
@@ -223,7 +224,7 @@ def build_markdown(
         for att_file in att_files:
             src = attachments_dir / att_file
             if src.exists() and src.suffix.lower() == ".png":
-                dest_name = f"ios-{_slugify(node_id)}-{_slugify(att_file)}.png"
+                dest_name = f"{screenshot_prefix}-{_slugify(node_id)}-{_slugify(att_file)}.png"
                 dest = screenshot_dir / dest_name
                 shutil.copy2(src, dest)
                 rel = dest.relative_to(report_parent)
@@ -258,6 +259,11 @@ def main() -> None:
         "--title", default="iOS E2E Test Report",
         help="Report title (default: 'iOS E2E Test Report')",
     )
+    parser.add_argument(
+        "--screenshot-prefix", default="ios",
+        help="Prefix for screenshot filenames (default: 'ios'). "
+             "Use 'iphone', 'ipad', 'tvos' to avoid cross-platform overwrites.",
+    )
     args = parser.parse_args()
 
     if not args.xcresult.exists():
@@ -273,7 +279,8 @@ def main() -> None:
         sys.exit(1)
 
     # 2. Export attachments
-    attachments_dir = args.xcresult.parent / "ios-e2e-attachments"
+    prefix = args.screenshot_prefix
+    attachments_dir = args.xcresult.parent / f"{prefix}-e2e-attachments"
     manifest = export_attachments(args.xcresult, attachments_dir)
 
     # 3. Build report
@@ -284,6 +291,7 @@ def main() -> None:
     md = build_markdown(
         test_data, manifest, attachments_dir, screenshot_dir, report_path.parent,
         title=args.title,
+        screenshot_prefix=prefix,
     )
     report_path.write_text(md, encoding="utf-8")
 

@@ -1,14 +1,14 @@
 # Web E2E Test Report
 
-> **2026-02-07 23:29:58 UTC**
+> **2026-02-07 23:42:30 UTC**
 
 | Result | Tests | Passed | Failed | Skipped | Duration |
 |--------|-------|--------|--------|---------|----------|
-| **PASSED** | 5 | 5 | 0 | 0 | 0.7s |
+| **PASSED** | 5 | 5 | 0 | 0 | 0.8s |
 
 ## Test Results
 
-### `PASSED` test_journey[chromium-basic_playback] — 0.35s
+### `PASSED` test_journey[chromium-basic_playback] — 0.38s
 
 ![test_journey[chromium-basic_playback]](screenshots/tests-e2e-test-journeys-py-test-journey-chromium-basic-playback.png)
 
@@ -16,15 +16,15 @@
 
 ![test_dashboard_loads[chromium]](screenshots/tests-e2e-test-login-and-playback-py-testdashboard-test-dashboard-loads-chromium.png)
 
-### `PASSED` test_sidebar_has_sections[chromium] (TestDashboard) — 0.02s
+### `PASSED` test_sidebar_has_sections[chromium] (TestDashboard) — 0.01s
 
 ![test_sidebar_has_sections[chromium]](screenshots/tests-e2e-test-login-and-playback-py-testdashboard-test-sidebar-has-sections-chromium.png)
 
-### `PASSED` test_sidebar_play_opens_player[chromium] (TestPlayback) — 0.09s
+### `PASSED` test_sidebar_play_opens_player[chromium] (TestPlayback) — 0.1s
 
 ![test_sidebar_play_opens_player[chromium]](screenshots/tests-e2e-test-login-and-playback-py-testplayback-test-sidebar-play-opens-player-chromium.png)
 
-### `PASSED` test_player_renders_text[chromium] (TestPlayback) — 0.26s
+### `PASSED` test_player_renders_text[chromium] (TestPlayback) — 0.25s
 
 ![test_player_renders_text[chromium]](screenshots/tests-e2e-test-login-and-playback-py-testplayback-test-player-renders-text-chromium.png)
 

@@ -1,66 +1,66 @@
 # iPad E2E Test Report
 
-> **2026-02-07 23:35:16 UTC** — iPad Air 11-inch (M3) (iOS Simulator 26.2)
+> **2026-02-07 23:49:55 UTC** — iPad Air 11-inch (M3) (iOS Simulator 26.2)
 
 | Result | Tests | Passed | Failed | Skipped | Duration |
 |--------|-------|--------|--------|---------|----------|
-| **PASSED** | 6 | 6 | 0 | 0 | 107.7s |
+| **PASSED** | 6 | 6 | 0 | 0 | 108.0s |
 
 ## Test Results
 
-### `PASSED` testJourney() (JourneyTests) — 22.61s
+### `PASSED` testJourney() (JourneyTests) — 22.70s
 
-<img src="screenshots/ios-journeytests-testjourney-e154e57f-8a9b-45f7-b611-a2a841c917a2-png.png" alt="testJourney()" width="300">
+<img src="screenshots/ipad-journeytests-testjourney-f5bf9963-b4c3-4668-8601-fcd14190190e-png.png" alt="testJourney()" width="300">
 
-<img src="screenshots/ios-journeytests-testjourney-f65a2cff-4713-4bd4-8726-540de93d95bd-png.png" alt="testJourney()" width="300">
+<img src="screenshots/ipad-journeytests-testjourney-8580d46f-09b7-4466-a4cf-c4d8cbc192bf-png.png" alt="testJourney()" width="300">
 
-<img src="screenshots/ios-journeytests-testjourney-e684d7c5-0b3c-4219-b4a7-df1b63566b31-png.png" alt="testJourney()" width="300">
+<img src="screenshots/ipad-journeytests-testjourney-0e0f1aba-042c-4fd7-b661-5af7fa6b013a-png.png" alt="testJourney()" width="300">
 
-<img src="screenshots/ios-journeytests-testjourney-54abde28-7059-465a-a8dd-345c72f945bb-png.png" alt="testJourney()" width="300">
+<img src="screenshots/ipad-journeytests-testjourney-106d1fc5-0b5e-4589-9c26-0ffce8674267-png.png" alt="testJourney()" width="300">
 
-<img src="screenshots/ios-journeytests-testjourney-7dfedb6e-5c91-4bdb-97e5-71c5b62ebe2c-png.png" alt="testJourney()" width="300">
+<img src="screenshots/ipad-journeytests-testjourney-ca7db422-bc08-4054-9d41-a267cd011aa5-png.png" alt="testJourney()" width="300">
 
-<img src="screenshots/ios-journeytests-testjourney-fe96650a-7ed4-4763-bec4-4956fd00c4b7-png.png" alt="testJourney()" width="300">
+<img src="screenshots/ipad-journeytests-testjourney-2bb1d51e-f4e8-4d47-b53f-d5c521e3af38-png.png" alt="testJourney()" width="300">
 
-### `PASSED` testBrowseJobsAllTypes() (LibraryTests) — 21.01s
+### `PASSED` testBrowseJobsAllTypes() (LibraryTests) — 21.09s
 
-<img src="screenshots/ios-librarytests-testbrowsejobsalltypes-5cc723c7-e8bd-4c8a-8942-83fad6853040-png.png" alt="testBrowseJobsAllTypes()" width="300">
+<img src="screenshots/ipad-librarytests-testbrowsejobsalltypes-e48da54f-d8af-4233-953d-7722afcada4a-png.png" alt="testBrowseJobsAllTypes()" width="300">
 
-<img src="screenshots/ios-librarytests-testbrowsejobsalltypes-726b0619-b4e2-432f-81c4-7b9e936ad52b-png.png" alt="testBrowseJobsAllTypes()" width="300">
+<img src="screenshots/ipad-librarytests-testbrowsejobsalltypes-51bd6e29-0d39-401f-b2a8-65e832d1bed3-png.png" alt="testBrowseJobsAllTypes()" width="300">
 
-<img src="screenshots/ios-librarytests-testbrowsejobsalltypes-ce6d03f8-f6ef-4cc9-a518-35b837d73cd6-png.png" alt="testBrowseJobsAllTypes()" width="300">
+<img src="screenshots/ipad-librarytests-testbrowsejobsalltypes-ea0e22e7-985f-45b1-beee-002b256d4b1c-png.png" alt="testBrowseJobsAllTypes()" width="300">
 
-<img src="screenshots/ios-librarytests-testbrowsejobsalltypes-5abfdca7-32b0-4977-816e-05a9ca2c20be-png.png" alt="testBrowseJobsAllTypes()" width="300">
+<img src="screenshots/ipad-librarytests-testbrowsejobsalltypes-e29e4239-04cd-4a8d-b819-f84416a27821-png.png" alt="testBrowseJobsAllTypes()" width="300">
 
-### `PASSED` testBrowseLibraryAllTypes() (LibraryTests) — 22.32s
+### `PASSED` testBrowseLibraryAllTypes() (LibraryTests) — 22.35s
 
-<img src="screenshots/ios-librarytests-testbrowselibraryalltypes-9b884c35-6f50-45f5-8e18-1f026f4d8d80-png.png" alt="testBrowseLibraryAllTypes()" width="300">
+<img src="screenshots/ipad-librarytests-testbrowselibraryalltypes-51c51eee-9964-4817-bfb3-f3fe7051bf7e-png.png" alt="testBrowseLibraryAllTypes()" width="300">
 
-<img src="screenshots/ios-librarytests-testbrowselibraryalltypes-b57600f3-972a-42f6-bfc8-73d88c72ef8c-png.png" alt="testBrowseLibraryAllTypes()" width="300">
+<img src="screenshots/ipad-librarytests-testbrowselibraryalltypes-5420a702-084e-475d-8f8c-426c2cc9d29e-png.png" alt="testBrowseLibraryAllTypes()" width="300">
 
-<img src="screenshots/ios-librarytests-testbrowselibraryalltypes-83ea7529-e49c-4aad-a645-34b1fb846618-png.png" alt="testBrowseLibraryAllTypes()" width="300">
+<img src="screenshots/ipad-librarytests-testbrowselibraryalltypes-31537a0c-e04a-40ca-89b2-8a605b5e6a3b-png.png" alt="testBrowseLibraryAllTypes()" width="300">
 
-<img src="screenshots/ios-librarytests-testbrowselibraryalltypes-a655abc2-261c-46c7-836e-39dc05f25999-png.png" alt="testBrowseLibraryAllTypes()" width="300">
+<img src="screenshots/ipad-librarytests-testbrowselibraryalltypes-2a0da4d9-5184-41b2-acae-987b292c6482-png.png" alt="testBrowseLibraryAllTypes()" width="300">
 
-### `PASSED` testLoginScreenAppears() (LoginTests) — 11.46s
+### `PASSED` testLoginScreenAppears() (LoginTests) — 11.48s
 
-<img src="screenshots/ios-logintests-testloginscreenappears-cbee58ec-b297-4342-84b4-b6e078549777-png.png" alt="testLoginScreenAppears()" width="300">
+<img src="screenshots/ipad-logintests-testloginscreenappears-48619ff5-7c14-4bb1-a884-afe0d28aef55-png.png" alt="testLoginScreenAppears()" width="300">
 
-### `PASSED` testLoginWithCredentials() (LoginTests) — 8.56s
+### `PASSED` testLoginWithCredentials() (LoginTests) — 8.48s
 
-<img src="screenshots/ios-logintests-testloginwithcredentials-325818df-3ad3-4b44-a2db-9b51e78c9084-png.png" alt="testLoginWithCredentials()" width="300">
+<img src="screenshots/ipad-logintests-testloginwithcredentials-561d2f16-6c89-47e8-9ff2-aa4a91593642-png.png" alt="testLoginWithCredentials()" width="300">
 
-<img src="screenshots/ios-logintests-testloginwithcredentials-791577a5-5f58-4be7-95c5-a1974bcc5642-png.png" alt="testLoginWithCredentials()" width="300">
+<img src="screenshots/ipad-logintests-testloginwithcredentials-7b884e0f-1acd-44da-99ff-ee44e2d86c92-png.png" alt="testLoginWithCredentials()" width="300">
 
-### `PASSED` testStartBookPlaybackAndReturn() (PlaybackTests) — 21.78s
+### `PASSED` testStartBookPlaybackAndReturn() (PlaybackTests) — 21.85s
 
-<img src="screenshots/ios-playbacktests-teststartbookplaybackandreturn-b5dd96f1-d765-40b0-aebe-6d9a3e9b7c1b-png.png" alt="testStartBookPlaybackAndReturn()" width="300">
+<img src="screenshots/ipad-playbacktests-teststartbookplaybackandreturn-318b439e-c8ef-42af-986a-2b5a888c282d-png.png" alt="testStartBookPlaybackAndReturn()" width="300">
 
-<img src="screenshots/ios-playbacktests-teststartbookplaybackandreturn-2ce57eeb-cde8-4c6f-8453-43aaa6fd0eb5-png.png" alt="testStartBookPlaybackAndReturn()" width="300">
+<img src="screenshots/ipad-playbacktests-teststartbookplaybackandreturn-8e41099d-ca18-46df-a076-95bb7d8dcc06-png.png" alt="testStartBookPlaybackAndReturn()" width="300">
 
-<img src="screenshots/ios-playbacktests-teststartbookplaybackandreturn-f2881de6-1f3a-4afb-8400-f169b901283c-png.png" alt="testStartBookPlaybackAndReturn()" width="300">
+<img src="screenshots/ipad-playbacktests-teststartbookplaybackandreturn-5670e3ad-4546-4d0a-8463-a11e7941ed01-png.png" alt="testStartBookPlaybackAndReturn()" width="300">
 
-<img src="screenshots/ios-playbacktests-teststartbookplaybackandreturn-60d4eeab-eb63-468b-8705-fe83d259a990-png.png" alt="testStartBookPlaybackAndReturn()" width="300">
+<img src="screenshots/ipad-playbacktests-teststartbookplaybackandreturn-7571a217-4d19-4756-b5a2-4b7eae329b45-png.png" alt="testStartBookPlaybackAndReturn()" width="300">
 
 ---
 *Generated by ebook-tools iOS E2E test suite*
