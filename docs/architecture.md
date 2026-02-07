@@ -14,10 +14,10 @@
 2. **Pipeline execution** – `modules/services/pipeline_service.py` assembles a `PipelineConfig`, coordinates ingestion, translation, rendering, and media generation, and returns a `PipelineResponse`.
 3. **Ingestion** – `modules/core/ingestion.py` extracts EPUB text, splits it into sentences, and caches refined lists.
 4. **Translation** – `modules/translation_engine.py` runs sentence translations through worker pools backed by the configured LLM client. Pipeline jobs can batch LLM translation/transliteration requests via `translation_batch_size` (default: 10; set to 1 to disable) to reduce request counts and GPU load.
-5. **Rendering & media** – `modules/core/rendering/`, `modules/output_formatter.py`, and `modules/audio_video_generator.py` create HTML/PDF documents, audio narration, optional sentence/batch images, and optional video batches.
+5. **Rendering & media** – `modules/core/rendering/`, `modules/output_formatter.py`, and `modules/audio_video_generator.py` create HTML/PDF documents, audio narration, and optional sentence/batch images.
 6. **Observability** – `modules/progress_tracker.py` emits structured events that feed CLI logs and the API SSE stream; `modules/observability.py` wraps stages with structured logging/telemetry.
 
-### Audio/video backend architecture
+### Audio backend architecture
 
 Audio synthesis is handled by a lightweight registry that maps logical backend
 names to `BaseTTSBackend` implementations. The default registry contains the
@@ -75,14 +75,6 @@ model, metadata = load_align_model("LANG_CODE", "cpu")
 Tests for model loading and alignment live in
 `tests/modules/test_whisperx_alignment.py`.
 
-Video slide rendering uses a comparable pattern. `modules/config/loader.py`
-resolves the selected `video_backend` and optional `video_backend_settings`
-mapping, then the rendering layer instantiates the appropriate renderer through
-`modules/render/backends/__init__.py`. The built-in FFmpeg renderer honours
-settings such as `executable`, `loglevel`, and preset overrides, allowing the
-pipeline to run against system installations or portable builds without code
-changes (`modules/config/loader.py`, `modules/video/backends/ffmpeg_renderer.py`).
-
 ### Sentence image generation
 
 When `add_images` is enabled, `RenderPipeline` (`modules/core/rendering/pipeline.py`) generates PNGs in parallel with translation. By default it batches sentences (`image_prompt_batching_enabled=true`, `image_prompt_batch_size=10`) so one image persists for an entire sentence batch in the player. The pipeline:
@@ -96,8 +88,8 @@ When `add_images` is enabled, `RenderPipeline` (`modules/core/rendering/pipeline
 ### Metadata creation & highlighting controls
 
 `modules/services/job_manager/persistence.py` emits every metadata artefact a
-job needs: `metadata/job.json` (global metadata + `chunk_manifest`),
-`metadata/chunk_manifest.json`, and per-chunk files (`metadata/chunk_XXXX.json`)
+job needs: `metadata/job.json` (global metadata with chunk data in
+`generated_files.chunks[]`) and per-chunk files (`metadata/chunk_XXXX.json`)
 that retain their own `timingTracks`. Legacy installs may still have an
 aggregated `metadata/timing_index.json`, but new jobs no longer generate it.
 `MetadataLoader` in `modules/metadata_manager.py` is the canonical read path so

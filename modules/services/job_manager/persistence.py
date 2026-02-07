@@ -281,31 +281,13 @@ class PipelineJobPersistence:
             _LOGGER.debug("Unable to persist book metadata", exc_info=True)
 
         sentences = result_payload.get("refined_sentences")
-        wrote_sentences = False
         if isinstance(sentences, list) and sentences:
-            if not content_index_written:
-                try:
-                    (metadata_root / "sentences.json").write_text(
-                        json.dumps(sentences, indent=2),
-                        encoding="utf-8",
-                    )
-                    wrote_sentences = True
-                except Exception:  # pragma: no cover - defensive logging
-                    _LOGGER.debug("Unable to persist refined sentences", exc_info=True)
-            else:
-                wrote_sentences = True
             if content_index_total_sentences is None:
                 content_index_total_sentences = len(sentences)
 
         if content_index_total_sentences and content_index_total_sentences > 0:
             media_metadata.setdefault("total_sentences", content_index_total_sentences)
             media_metadata.setdefault("book_sentence_count", content_index_total_sentences)
-
-        if wrote_sentences:
-            result_payload.pop("refined_sentences", None)
-            if isinstance(job.result_payload, Mapping):
-                job.result_payload = dict(job.result_payload)
-                job.result_payload.pop("refined_sentences", None)
 
         prompt_plan_summary: Optional[Dict[str, Any]] = None
         prompt_plan_summary_path = metadata_root / "image_prompt_plan_summary.json"
@@ -346,16 +328,9 @@ class PipelineJobPersistence:
 
         manifest_payload = ensure_timing_manifest(snapshot.result, job_root)
         snapshot.result = manifest_payload
-        timing_tracks = manifest_payload.get("timing_tracks")
-        snapshot.timing_tracks = copy.deepcopy(timing_tracks) if timing_tracks else None
 
         if job.result_payload is not None:
             job.result_payload = ensure_timing_manifest(job.result_payload, job_root)
-        if job.result is not None and timing_tracks:
-            try:
-                job.result.metadata.update({"timing_tracks": copy.deepcopy(timing_tracks)})
-            except Exception:  # pragma: no cover - defensive logging
-                _LOGGER.debug("Unable to attach timing tracks to job result", exc_info=True)
 
     def _merge_generated_files(
         self,
@@ -526,7 +501,7 @@ class PipelineJobPersistence:
                 if url:
                     normalized_entry["url"] = url
                 chunk_entry.setdefault("files", []).append(normalized_entry)
-            audio_tracks_raw = chunk.get("audio_tracks") or chunk.get("audioTracks")
+            audio_tracks_raw = chunk.get("audioTracks")
             if isinstance(audio_tracks_raw, Mapping) and not has_metadata_file:
                 normalized_tracks: Dict[str, Dict[str, Any]] = {}
                 for track_key, track_value in audio_tracks_raw.items():
@@ -538,7 +513,7 @@ class PipelineJobPersistence:
                 if normalized_tracks:
                     chunk_entry["audioTracks"] = normalized_tracks
 
-            timing_tracks_raw = chunk.get("timing_tracks") or chunk.get("timingTracks")
+            timing_tracks_raw = chunk.get("timingTracks")
             if isinstance(timing_tracks_raw, Mapping) and not has_metadata_file:
                 normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
                 chunk_entry["timingTracks"] = normalized_timing

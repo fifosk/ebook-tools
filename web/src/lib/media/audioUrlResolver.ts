@@ -2,9 +2,7 @@
  * Audio track URL extraction and selection.
  *
  * Centralises the logic for picking the correct audio URL from a chunk's
- * `audioTracks` object.  Handles the many possible key variants
- * (orig/original, trans/translation, orig_trans/combined/mix) and
- * prioritises based on which tracks are enabled.
+ * `audioTracks` object.  v3 uses `orig` and `translation` as track keys.
  */
 
 import type { AudioTrackMetadata } from '../../api/dtos';
@@ -25,19 +23,19 @@ function pickUrl(tracks: TrackMap, ...keys: string[]): string | null {
 /** Extract the raw (un-resolved) original track URL. */
 export function extractOriginalUrl(audioTracks: TrackMap | null | undefined): string | null {
   if (!audioTracks) return null;
-  return pickUrl(audioTracks, 'orig', 'original');
+  return pickUrl(audioTracks, 'orig');
 }
 
 /** Extract the raw (un-resolved) translation track URL. */
 export function extractTranslationUrl(audioTracks: TrackMap | null | undefined): string | null {
   if (!audioTracks) return null;
-  return pickUrl(audioTracks, 'translation', 'trans');
+  return pickUrl(audioTracks, 'translation');
 }
 
 /** Extract the raw (un-resolved) combined/mix track URL. */
 export function extractCombinedUrl(audioTracks: TrackMap | null | undefined): string | null {
   if (!audioTracks) return null;
-  return pickUrl(audioTracks, 'orig_trans', 'combined', 'mix');
+  return pickUrl(audioTracks, 'orig_trans');
 }
 
 /**

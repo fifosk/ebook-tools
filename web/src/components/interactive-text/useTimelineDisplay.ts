@@ -65,7 +65,7 @@ export function useTimelineDisplay({
       const originalReveal: number[] = [];
       const isOriginalTrack = activeTimingTrack === 'original';
 
-      const phaseDurations = useCombinedPhases ? metadata.phase_durations ?? null : null;
+      const phaseDurations = useCombinedPhases ? metadata.phaseDurations ?? null : null;
       const originalPhaseDuration = (() => {
         if (phaseDurations && typeof phaseDurations.original === 'number') {
           return Math.max(phaseDurations.original, 0);
@@ -98,8 +98,8 @@ export function useTimelineDisplay({
       }, 0);
 
       const declaredDuration = (() => {
-        if (typeof metadata.total_duration === 'number' && metadata.total_duration > 0) {
-          return metadata.total_duration;
+        if (typeof metadata.totalDuration === 'number' && metadata.totalDuration > 0) {
+          return metadata.totalDuration;
         }
         if (eventDurationTotal > 0) {
           return eventDurationTotal;

@@ -54,7 +54,6 @@ from .routes.media_routes import (
     jobs_timing_router,
 )
 from .routes import router, storage_router
-from .routers.video import router as video_router
 from modules.services.file_locator import FileLocator
 
 load_environment()
@@ -173,6 +172,117 @@ def _cleanup_empty_job_folders(storage_root: Path | None = None) -> int:
 
     if removed:
         LOGGER.info("Pruned %s empty job folder(s) from %s", removed, root)
+    return removed
+
+
+_EXPORT_MAX_AGE_SECONDS = 24 * 60 * 60  # 1 day
+
+
+def _cleanup_stale_exports(
+    exports_root: Path | None = None,
+    max_age_seconds: float = _EXPORT_MAX_AGE_SECONDS,
+) -> int:
+    """Remove old or orphaned export artifacts.
+
+    Removes:
+    - Any export directory/zip/json older than *max_age_seconds* (default 1 day).
+    - Orphaned staging directories whose companion .zip is missing.
+    - Orphaned .json metadata files whose companion .zip is missing.
+
+    Returns the number of entries removed.
+    """
+    import time
+
+    try:
+        root = exports_root or FileLocator().storage_root / "exports"
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.warning("Unable to resolve exports root while cleaning stale exports", exc_info=True)
+        return 0
+
+    if not root.exists() or not root.is_dir():
+        return 0
+
+    now = time.time()
+    removed = 0
+    for entry in root.iterdir():
+        try:
+            age = now - entry.stat().st_mtime
+            is_old = age > max_age_seconds
+
+            if entry.is_dir():
+                zip_path = root / f"{entry.name}.zip"
+                if is_old or not zip_path.exists():
+                    shutil.rmtree(entry)
+                    removed += 1
+            elif entry.suffix == ".zip":
+                if is_old:
+                    entry.unlink()
+                    removed += 1
+                    # Also remove companion .json and staging dir
+                    entry.with_suffix(".json").unlink(missing_ok=True)
+                    companion_dir = root / entry.stem
+                    if companion_dir.is_dir():
+                        shutil.rmtree(companion_dir)
+                    removed += 1
+            elif entry.suffix == ".json":
+                zip_path = entry.with_suffix(".zip")
+                if is_old or not zip_path.exists():
+                    entry.unlink()
+                    removed += 1
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.warning("Failed to clean stale export %s", entry, exc_info=True)
+            continue
+
+    if removed:
+        LOGGER.info("Cleaned %s stale export artifact(s) from %s", removed, root)
+    return removed
+
+
+# Directories at the storage root that are NOT job folders.
+_NON_JOB_DIRS = frozenset({
+    "bookmarks", "cache", "covers", "ebooks", "exports",
+    "library", "reading_beds", "resume", "test-integration",
+})
+
+
+def _cleanup_orphaned_job_folders(storage_root: Path | None = None) -> int:
+    """Remove storage folders for jobs that no longer exist in the job store.
+
+    A folder is considered orphaned when it lives under the storage root,
+    is not a known non-job directory, and has no ``metadata/job.json``
+    (i.e. it is not tracked by the job persistence layer).
+
+    Returns the number of directories removed.
+    """
+    from modules.jobs.persistence import list_job_ids
+
+    try:
+        root = storage_root or FileLocator().storage_root
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.warning("Unable to resolve storage root while cleaning orphaned jobs", exc_info=True)
+        return 0
+
+    if not root.exists() or not root.is_dir():
+        return 0
+
+    known_ids = set(list_job_ids())
+    removed = 0
+    for entry in root.iterdir():
+        if not entry.is_dir():
+            continue
+        if entry.name in _NON_JOB_DIRS:
+            continue
+        if entry.name in known_ids:
+            continue
+        try:
+            shutil.rmtree(entry)
+            removed += 1
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.warning("Failed to remove orphaned job folder %s", entry, exc_info=True)
+            continue
+
+    if removed:
+        LOGGER.info("Removed %s orphaned job folder(s) from %s", removed, root)
     return removed
 
 
@@ -510,6 +620,14 @@ def create_app() -> FastAPI:
             _cleanup_empty_job_folders()
         except Exception:  # pragma: no cover - defensive logging
             LOGGER.exception("Failed to prune empty job folders on startup")
+        try:
+            _cleanup_stale_exports()
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.exception("Failed to clean stale exports on startup")
+        try:
+            _cleanup_orphaned_job_folders()
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.exception("Failed to clean orphaned job folders on startup")
 
         # Wire up push notification callback
         try:
@@ -553,7 +671,6 @@ def create_app() -> FastAPI:
     app.include_router(library_router)
     app.include_router(media_router)
     app.include_router(jobs_timing_router)
-    app.include_router(video_router, prefix="/api/video", tags=["video"])
     app.include_router(subtitles_router)
     app.include_router(reading_beds_router)
     app.include_router(reading_beds_admin_router)

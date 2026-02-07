@@ -404,15 +404,15 @@ export function buildTimingPayloadFromJobTiming(
     if (!Number.isFinite(rawStart)) {
       return;
     }
-    const canonicalStartGate = normalizeNumber(entry.startGate ?? entry.start_gate);
-    const canonicalEndGate = normalizeNumber(entry.endGate ?? entry.end_gate);
+    const canonicalStartGate = normalizeNumber(entry.startGate);
+    const canonicalEndGate = normalizeNumber(entry.endGate);
     let t0 = Math.max(0, rawStart);
     let t1 = Number.isFinite(rawEnd) ? Math.max(rawEnd, t0) : t0;
     const sentenceIdxCandidate =
-      entry.sentenceIdx ?? entry.sentence_id ?? entry.sentenceId ?? entry.id ?? null;
+      entry.sentenceIdx ?? entry.id ?? null;
     const sentenceIdxValue = normalizeNumber(sentenceIdxCandidate);
     const sentenceRef =
-      entry.sentenceIdx ?? entry.sentence_id ?? entry.sentenceId ?? entry.id ?? `seg-${index}`;
+      entry.sentenceIdx ?? entry.id ?? `seg-${index}`;
     const segmentId = sentenceRef === null || sentenceRef === undefined || sentenceRef === ''
       ? `seg-${index}`
       : String(sentenceRef);
@@ -428,8 +428,8 @@ export function buildTimingPayloadFromJobTiming(
     }
     const startGate = canonicalStartGate;
     const endGate = canonicalEndGate;
-    const pauseBeforeMs = normalizeNumber(entry.pauseBeforeMs ?? entry.pause_before_ms);
-    const pauseAfterMs = normalizeNumber(entry.pauseAfterMs ?? entry.pause_after_ms);
+    const pauseBeforeMs = normalizeNumber(entry.pauseBeforeMs);
+    const pauseAfterMs = normalizeNumber(entry.pauseAfterMs);
     const validation = normalizeValidation(entry.validation);
     const textValue =
       typeof entry.text === 'string'

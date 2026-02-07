@@ -91,7 +91,6 @@ export function useBatchSize({
     // Check if path indicates batch images
     const explicitPath =
       (typeof imagePayload?.path === 'string' && imagePayload.path.trim()) ||
-      (typeof entry?.image_path === 'string' && entry.image_path.trim()) ||
       (typeof entry?.imagePath === 'string' && entry.imagePath.trim()) ||
       null;
     if (explicitPath && explicitPath.includes('/images/batches/batch_')) {

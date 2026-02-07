@@ -148,15 +148,6 @@ def _handle_generate_audio(
     return config, False
 
 
-def _handle_generate_video(
-    config: Dict[str, Any], refined: Sequence[str], overrides: Dict[str, Any], debug_enabled: bool
-) -> Tuple[Dict[str, Any], bool]:
-    default_video = config.get("generate_video", False)
-    prompt = f"Generate video slides? (yes/no, default {'yes' if default_video else 'no'}): "
-    config["generate_video"] = _prompt_boolean(prompt, default_video, accept_blank=False)
-    return config, False
-
-
 def _handle_selected_voice(
     config: Dict[str, Any], refined: Sequence[str], overrides: Dict[str, Any], debug_enabled: bool
 ) -> Tuple[Dict[str, Any], bool]:
@@ -622,41 +613,40 @@ _HANDLERS: Dict[int, EditHandler] = {
     4: _handle_target_languages,
     5: _handle_ollama_model,
     6: _handle_generate_audio,
-    7: _handle_generate_video,
-    8: _handle_selected_voice,
-    9: _handle_macos_speed,
-    10: _handle_tempo,
-    11: _handle_sync_ratio,
-    12: _handle_thread_count,
-    13: _handle_sentences_per_file,
-    14: _handle_start_sentence,
-    15: _handle_end_sentence,
-    16: _handle_max_words,
-    17: _handle_percentile,
-    18: _handle_audio_mode,
-    19: _handle_written_mode,
-    20: _handle_split_on_punctuation,
-    21: _handle_transliteration,
-    22: _handle_word_highlighting,
-    23: _handle_highlight_mode,
-    24: _handle_debug,
-    25: _handle_output_html,
-    26: _handle_output_pdf,
-    27: _handle_stitch_full,
-    28: _handle_book_title,
-    29: _handle_book_author,
-    30: _handle_book_year,
-    31: _handle_book_summary,
-    32: _handle_book_cover,
-    33: _handle_working_dir,
-    34: _handle_output_dir,
-    35: _handle_ebooks_dir,
-    36: _handle_tmp_dir,
-    37: _handle_ffmpeg_path,
-    38: _handle_llm_source,
-    39: _handle_ollama_url,
-    40: _handle_ollama_local_url,
-    41: _handle_ollama_cloud_url,
+    7: _handle_selected_voice,
+    8: _handle_macos_speed,
+    9: _handle_tempo,
+    10: _handle_sync_ratio,
+    11: _handle_thread_count,
+    12: _handle_sentences_per_file,
+    13: _handle_start_sentence,
+    14: _handle_end_sentence,
+    15: _handle_max_words,
+    16: _handle_percentile,
+    17: _handle_audio_mode,
+    18: _handle_written_mode,
+    19: _handle_split_on_punctuation,
+    20: _handle_transliteration,
+    21: _handle_word_highlighting,
+    22: _handle_highlight_mode,
+    23: _handle_debug,
+    24: _handle_output_html,
+    25: _handle_output_pdf,
+    26: _handle_stitch_full,
+    27: _handle_book_title,
+    28: _handle_book_author,
+    29: _handle_book_year,
+    30: _handle_book_summary,
+    31: _handle_book_cover,
+    32: _handle_working_dir,
+    33: _handle_output_dir,
+    34: _handle_ebooks_dir,
+    35: _handle_tmp_dir,
+    36: _handle_ffmpeg_path,
+    37: _handle_llm_source,
+    38: _handle_ollama_url,
+    39: _handle_ollama_local_url,
+    40: _handle_ollama_cloud_url,
 }
 
 

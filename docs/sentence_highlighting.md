@@ -102,9 +102,9 @@ Both tracks are stored under `chunk["timingTracks"] = {"original": [...], "trans
 `job.json` contains:
 
 - Global job attributes (languages, cover, total sentence counts, etc.).
-- `chunk_manifest`: `{ "chunk_count": N, "chunks": [{ "index": 0, "chunk_id": "...", "path": "metadata/chunk_0000.json", ...}, ...] }`.
+- `generated_files.chunks[]`: `[{ "index": 0, "chunk_id": "...", "path": "metadata/chunk_0000.json", ...}, ...]`.
 
-`MetadataLoader.build_chunk_manifest()` reconstructs the manifest even for legacy inline payloads to provide a consistent API (`modules/metadata_manager.py:826-864`).
+`MetadataLoader.build_chunk_manifest()` reconstructs the chunk list from `generated_files.chunks[]` even for legacy inline payloads to provide a consistent API.
 
 ### 4.3 Timing index (legacy artifacts)
 

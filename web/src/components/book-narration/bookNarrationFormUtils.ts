@@ -450,16 +450,6 @@ export function applyConfigDefaults(previous: FormState, config: Record<string, 
     next.image_concurrency = String(imageConcurrency);
   }
 
-  const slideParallelism = config['slide_parallelism'];
-  if (typeof slideParallelism === 'string') {
-    next.slide_parallelism = slideParallelism;
-  }
-
-  const slideParallelWorkers = coerceNumber(config['slide_parallel_workers']);
-  if (slideParallelWorkers !== undefined) {
-    next.slide_parallel_workers = String(slideParallelWorkers);
-  }
-
   const metadata = extractBookMetadata(config);
   if (metadata) {
     next.book_metadata = JSON.stringify(metadata, null, 2);

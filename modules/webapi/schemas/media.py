@@ -7,7 +7,6 @@ from typing import Dict, Optional
 from typing_extensions import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ...services.video_payloads import VideoRenderRequestPayload
 from .audio_synthesis import AudioSynthesisRequest
 
 
@@ -44,34 +43,16 @@ class AudioGenerationParameters(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class VideoGenerationParameters(BaseModel):
-    """Video-specific options supplied when requesting media generation."""
-
-    request: "VideoRenderRequestPayload" = Field(
-        ..., description="Rendering request passed through to the video job manager."
-    )
-    correlation_id: Optional[str] = Field(
-        default=None,
-        description="Optional correlation identifier propagated to downstream services.",
-    )
-
-    model_config = ConfigDict(extra="forbid")
-
-
 class MediaGenerationRequestPayload(BaseModel):
     """Request payload describing a media generation request."""
 
     job_id: str = Field(..., description="Identifier of the pipeline job to enrich with media.")
-    media_type: Literal["audio", "video"] = Field(
-        ..., description="Type of media that should be generated (either 'audio' or 'video')."
+    media_type: Literal["audio"] = Field(
+        ..., description="Type of media that should be generated.",
     )
     audio: Optional[AudioGenerationParameters] = Field(
         default=None,
         description="Audio-specific request settings when ``media_type`` is 'audio'.",
-    )
-    video: Optional[VideoGenerationParameters] = Field(
-        default=None,
-        description="Video-specific request settings when ``media_type`` is 'video'.",
     )
     notes: Optional[str] = Field(
         default=None,
@@ -88,8 +69,6 @@ class MediaGenerationRequestPayload(BaseModel):
     def _validate_parameters(self) -> "MediaGenerationRequestPayload":
         if self.media_type == "audio" and self.audio is None:
             raise ValueError("Audio parameters must be supplied when media_type is 'audio'.")
-        if self.media_type == "video" and self.video is None:
-            raise ValueError("Video parameters must be supplied when media_type is 'video'.")
         return self
 
 
@@ -136,5 +115,4 @@ class MediaErrorResponse(BaseModel):
 
 # Resolve forward references now that dependent models are defined.
 AudioGenerationParameters.model_rebuild()
-VideoGenerationParameters.model_rebuild()
 MediaGenerationRequestPayload.model_rebuild()

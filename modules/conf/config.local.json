@@ -8,7 +8,6 @@
     ],
     "ollama_model": "ollama_cloud:mistral-large-3:675b-cloud",
     "generate_audio": true,
-    "generate_video": false,
     "sentences_per_output_file": 1,
     "start_sentence": 1,
     "end_sentence": null,
@@ -48,10 +47,6 @@
     "alignment_model_overrides": {
         "ar": "large-v2"
     },
-    "slide_parallelism": "off",
-    "slide_parallel_workers": null,
-    "prefer_pillow_simd": false,
-    "slide_render_benchmark": false,
     "working_dir": "output",
     "output_dir": "output/ebook",
     "tmp_dir": "tmp",
@@ -60,13 +55,6 @@
     "ollama_local_url": "http://192.168.1.9:11434/api/chat",
     "ollama_cloud_url": "https://api.ollama.com/v1/chat/completions",
     "ffmpeg_path": "/opt/homebrew/bin/ffmpeg",
-    "video_backend": "ffmpeg",
-    "video_backend_settings": {
-        "ffmpeg": {
-            "executable": "/opt/homebrew/bin/ffmpeg",
-            "loglevel": "info"
-        }
-    },
     "thread_count": 5,
     "queue_size": 20,
     "pipeline_mode": false,

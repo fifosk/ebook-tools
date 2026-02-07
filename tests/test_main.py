@@ -1,14 +1,18 @@
 import time
 
 from modules.progress_tracker import ProgressTracker
-
-import main
+from modules import logging_manager as log_mgr
+from modules.cli.progress import (
+    CLIProgressLogger,
+    SystemMetricsSampler,
+    SystemMetricsSnapshot,
+)
 
 
 class _StubSampler:
     def __init__(self):
         self.closed = False
-        self._snapshot = main.SystemMetricsSnapshot(
+        self._snapshot = SystemMetricsSnapshot(
             cpu_percent=12.5,
             memory_percent=42.0,
             memory_rss=512 * 1024 * 1024,
@@ -33,12 +37,12 @@ def test_progress_logger_includes_system_metrics(monkeypatch):
             text = text % args
         messages.append(text)
 
-    monkeypatch.setattr(main.log_mgr, "console_info", fake_console_info)
+    monkeypatch.setattr(log_mgr, "console_info", fake_console_info)
 
     tracker = ProgressTracker()
     sampler = _StubSampler()
-    logger = main.log_mgr.logger
-    progress_logger = main._CLIProgressLogger(
+    logger = log_mgr.logger
+    progress_logger = CLIProgressLogger(
         tracker,
         logger_obj=logger,
         metrics_sampler=sampler,
@@ -56,7 +60,7 @@ def test_progress_logger_includes_system_metrics(monkeypatch):
 
 
 def test_sampler_provides_initial_snapshot():
-    sampler = main._SystemMetricsSampler(interval=60.0)
+    sampler = SystemMetricsSampler(interval=60.0)
     try:
         snapshot = sampler.snapshot()
         assert snapshot is not None

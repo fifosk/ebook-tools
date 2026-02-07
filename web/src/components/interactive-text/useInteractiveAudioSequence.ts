@@ -180,21 +180,19 @@ export function useInteractiveAudioSequence({
     // Derive gates from phaseDurations when gate data is absent
     if (!hasOriginalGate || !hasTranslationGate) {
       const canDerive = chunk.sentences.some((s) => {
-        const r = s as unknown as Record<string, unknown>;
-        return r.phase_durations || r.phaseDurations;
+        return s.phaseDurations;
       });
       if (canDerive) {
         let origCursor = 0;
         let transCursor = 0;
         chunk.sentences.forEach((sentence, index) => {
-          const record = sentence as unknown as Record<string, unknown>;
-          const phases = (record.phase_durations ?? record.phaseDurations) as
+          const phases = sentence.phaseDurations as
             | Record<string, unknown>
             | undefined;
           const origDur = resolveNumericValue(phases?.original) ?? 0;
           const transDur =
             resolveNumericValue(phases?.translation) ??
-            resolveNumericValue(record.total_duration ?? record.totalDuration) ??
+            resolveNumericValue(sentence.totalDuration) ??
             0;
           if (!hasOriginalGate && origDur > 0) {
             segments.push({

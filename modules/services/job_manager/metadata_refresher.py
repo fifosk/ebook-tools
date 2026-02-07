@@ -275,15 +275,6 @@ class PipelineJobMetadataRefresher:
         return dict(payload) if isinstance(payload, Mapping) else None
 
     def _load_refined_sentences(self, job: PipelineJob) -> Sequence[str]:
-        path = self._file_locator.resolve_metadata_path(job.job_id, "sentences.json")
-        if path.exists():
-            try:
-                payload = json.loads(path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                payload = None
-            if isinstance(payload, list):
-                return [entry for entry in payload if isinstance(entry, str)]
-
         if job.result is not None and job.result.refined_sentences:
             return list(job.result.refined_sentences)
 

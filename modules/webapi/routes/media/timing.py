@@ -101,7 +101,7 @@ def _extract_highlighting_policy(entry: Mapping[str, Any]) -> Optional[str]:
         policy = summary.get("policy")
         if isinstance(policy, str) and policy.strip():
             return policy.strip()
-    candidate = entry.get("highlighting_policy") or entry.get("alignment_policy")
+    candidate = entry.get("highlighting_policy")
     if isinstance(candidate, str) and candidate.strip():
         return candidate.strip()
     return None
@@ -110,7 +110,7 @@ def _extract_highlighting_policy(entry: Mapping[str, Any]) -> Optional[str]:
 def _extract_policy_from_timing_tracks(
     payload: Mapping[str, Any],
 ) -> tuple[Optional[str], bool]:
-    tracks = payload.get("timingTracks") or payload.get("timing_tracks")
+    tracks = payload.get("timingTracks")
     if not isinstance(tracks, Mapping):
         tracks = None
     fallback: Optional[str] = None
@@ -339,7 +339,7 @@ async def get_job_timing(
                 for chunk in chunks:
                     if not isinstance(chunk, Mapping):
                         continue
-                    tracks = chunk.get("audio_tracks") or chunk.get("audioTracks")
+                    tracks = chunk.get("audioTracks")
                     if not isinstance(tracks, Mapping):
                         continue
                     for raw_key, raw_value in tracks.items():

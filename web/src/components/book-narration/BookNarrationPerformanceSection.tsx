@@ -6,14 +6,10 @@ type BookNarrationPerformanceSectionProps = {
   queueSize: string;
   jobMaxWorkers: string;
   translationBatchSize: number;
-  slideParallelism: string;
-  slideParallelWorkers: string;
   onThreadCountChange: (value: string) => void;
   onQueueSizeChange: (value: string) => void;
   onJobMaxWorkersChange: (value: string) => void;
   onTranslationBatchSizeChange: (value: number) => void;
-  onSlideParallelismChange: (value: string) => void;
-  onSlideParallelWorkersChange: (value: string) => void;
 };
 
 const BookNarrationPerformanceSection = ({
@@ -24,14 +20,10 @@ const BookNarrationPerformanceSection = ({
   queueSize,
   jobMaxWorkers,
   translationBatchSize,
-  slideParallelism,
-  slideParallelWorkers,
   onThreadCountChange,
   onQueueSizeChange,
   onJobMaxWorkersChange,
-  onTranslationBatchSizeChange,
-  onSlideParallelismChange,
-  onSlideParallelWorkersChange
+  onTranslationBatchSizeChange
 }: BookNarrationPerformanceSectionProps) => {
   return (
     <section className="pipeline-card" aria-labelledby={headingId}>
@@ -102,40 +94,6 @@ const BookNarrationPerformanceSection = ({
             <p className="form-help-text">
               Batches multiple sentences into one LLM call. Use 1 to disable batching.
             </p>
-          </details>
-          <details>
-            <summary>Slide rendering</summary>
-            <p className="form-help-text">
-              Override the default slide rendering strategy if you need to tune CPU or GPU usage.
-            </p>
-            <label htmlFor="slide_parallelism">
-              Parallelism mode
-              <select
-                id="slide_parallelism"
-                name="slide_parallelism"
-                value={slideParallelism}
-                onChange={(event) => onSlideParallelismChange(event.target.value)}
-              >
-                <option value="">Use configured default</option>
-                <option value="off">Off</option>
-                <option value="auto">Auto</option>
-                <option value="thread">Thread</option>
-                <option value="process">Process</option>
-              </select>
-            </label>
-            <label htmlFor="slide_parallel_workers">
-              Parallel slide workers
-              <input
-                id="slide_parallel_workers"
-                name="slide_parallel_workers"
-                type="number"
-                min={1}
-                step={1}
-                value={slideParallelWorkers}
-                onChange={(event) => onSlideParallelWorkersChange(event.target.value)}
-                placeholder="Default"
-              />
-            </label>
           </details>
         </div>
       </div>

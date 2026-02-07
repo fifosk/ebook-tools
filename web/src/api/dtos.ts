@@ -170,12 +170,10 @@ export interface PipelineResponsePayload {
   refined_updated: boolean;
   written_blocks?: string[] | null;
   audio_segments?: number[] | null;
-  batch_video_files?: string[] | null;
   base_dir?: string | null;
   base_output_stem?: string | null;
   stitched_documents: Record<string, string>;
   stitched_audio_path?: string | null;
-  stitched_video_path?: string | null;
   book_metadata: Record<string, unknown>;
   structured_metadata?: import('./mediaMetadata').StructuredMediaMetadata | null;
   generated_files?: Record<string, unknown> | null;
@@ -820,19 +818,13 @@ export interface JobTimingEntry {
   stop?: number;
   lane?: WordTimingLanguage;
   wordIdx?: number;
-  sentence_id?: string | number | null;
   sentenceIdx?: string | number | null;
-  sentenceId?: string | number | null;
   id?: string | number | null;
   policy?: string | null;
   source?: string | null;
   fallback?: boolean;
-  start_gate?: number | null;
-  end_gate?: number | null;
   startGate?: number | null;
   endGate?: number | null;
-  pause_before_ms?: number | null;
-  pause_after_ms?: number | null;
   pauseBeforeMs?: number | null;
   pauseAfterMs?: number | null;
   validation?: {
@@ -892,19 +884,6 @@ export interface TimingToken {
     drift?: number;
     count?: number;
   };
-}
-
-export interface TimingIndexResponse {
-  mix?: TimingToken[];
-  translation?: TimingToken[];
-  original?: TimingToken[];
-  sentences?: Array<{
-    sentenceIdx: number;
-    startGate?: number;
-    endGate?: number;
-    pauseBeforeMs?: number;
-    pauseAfterMs?: number;
-  }>;
 }
 
 export interface AudioTrackMetadata {
@@ -974,20 +953,15 @@ export interface ChunkSentenceMetadata {
   transliteration?: ChunkSentenceVariant | null;
   timeline: ChunkSentenceTimelineEvent[];
   image?: ChunkSentenceImagePayload | null;
-  image_path?: string | null;
   imagePath?: string | null;
-  total_duration?: number | null;
-  start_gate?: number | null;
-  end_gate?: number | null;
+  totalDuration?: number | null;
   startGate?: number | null;
   endGate?: number | null;
-  original_start_gate?: number | null;
-  original_end_gate?: number | null;
   originalStartGate?: number | null;
   originalEndGate?: number | null;
-  highlight_granularity?: string | null;
+  highlightGranularity?: string | null;
   counts?: Record<string, number>;
-  phase_durations?: Record<string, number> | null;
+  phaseDurations?: Record<string, number> | null;
 }
 
 export interface PipelineMediaChunk {
@@ -1000,8 +974,8 @@ export interface PipelineMediaChunk {
   metadata_path?: string | null;
   metadata_url?: string | null;
   sentence_count?: number | null;
-  audio_tracks?: Record<string, AudioTrackMetadata> | null;
-  timing_tracks?: Record<string, unknown[]> | null;
+  audioTracks?: Record<string, AudioTrackMetadata> | null;
+  timingTracks?: Record<string, unknown[]> | null;
 }
 
 export interface PipelineMediaResponse {

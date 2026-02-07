@@ -8,11 +8,7 @@ from modules.config.loader import get_rendering_config
 from .base import (
     AudioSynthesizer,
     ExternalAudioSynthesizer,
-    GolangVideoRenderer,
-    VideoRenderer,
 )
-from modules.video.api import VideoService
-from modules.video.backends import FFmpegVideoRenderer
 from .polly import PollyAudioSynthesizer
 
 _AUDIO_BACKENDS: Dict[str, Type[AudioSynthesizer]] = {
@@ -31,20 +27,8 @@ def get_audio_synthesizer(name: str | None = None) -> AudioSynthesizer:
     return backend_cls()
 
 
-def get_video_renderer(name: str | None = None) -> VideoRenderer:
-    """Instantiate the configured video renderer backend."""
-
-    service = VideoService(backend=name)
-    return service.renderer
-
-
 __all__ = [
     "AudioSynthesizer",
-    "FFmpegVideoRenderer",
-    "GolangVideoRenderer",
     "PollyAudioSynthesizer",
-    "VideoRenderer",
-    "VideoService",
     "get_audio_synthesizer",
-    "get_video_renderer",
 ]

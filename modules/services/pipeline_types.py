@@ -92,7 +92,6 @@ class RenderResult:
 
     written_blocks: List[str]
     audio_segments: Optional[List[AudioSegment]]
-    batch_video_files: List[str]
     base_dir: Optional[str]
     base_output_stem: Optional[str]
 
@@ -103,7 +102,6 @@ class StitchingArtifacts:
 
     documents: Dict[str, str] = field(default_factory=dict)
     audio_path: Optional[str] = None
-    video_path: Optional[str] = None
 
 
 @dataclass(slots=True)

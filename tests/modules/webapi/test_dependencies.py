@@ -7,12 +7,9 @@ import os
 import pytest
 
 from modules.audio.api import AudioService
-from modules.video.backends import BaseVideoRenderer
-from modules.services.video_service import VideoService
 from modules.webapi.dependencies import (
     configure_media_services,
     get_audio_service,
-    get_video_service,
 )
 
 
@@ -30,11 +27,6 @@ def _reset_media_services(monkeypatch: pytest.MonkeyPatch) -> None:
         "EBOOK_AUDIO_API_BASE_URL",
         "EBOOK_AUDIO_API_TIMEOUT_SECONDS",
         "EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS",
-        "EBOOK_VIDEO_BACKEND",
-        "VIDEO_BACKEND",
-        "EBOOK_VIDEO_EXECUTABLE",
-        "EBOOK_FFMPEG_PATH",
-        "FFMPEG_PATH",
     ):
         monkeypatch.delenv(key, raising=False)
     configure_media_services(config=None)
@@ -46,13 +38,10 @@ def test_configure_media_services_falls_back_to_defaults() -> None:
     configure_media_services(config={})
 
     audio_service = get_audio_service()
-    video_service = get_video_service()
 
     assert isinstance(audio_service, AudioService)
     assert audio_service._backend_name_override is None
     assert audio_service._executable_override is None
-    assert isinstance(video_service, VideoService)
-    assert isinstance(video_service._renderer, BaseVideoRenderer)
 
 
 def test_audio_service_honours_environment_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -67,38 +56,6 @@ def test_audio_service_honours_environment_overrides(monkeypatch: pytest.MonkeyP
 
     assert audio_service._backend_name_override == "macos_say"
     assert audio_service._executable_override == "/usr/bin/say"
-
-
-def test_video_service_honours_environment_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Video configuration picks up backend and executable overrides."""
-
-    monkeypatch.setenv("EBOOK_VIDEO_BACKEND", "ffmpeg")
-    monkeypatch.setenv("EBOOK_VIDEO_EXECUTABLE", "/opt/bin/ffmpeg-custom")
-
-    configure_media_services(
-        config={
-            "video_backend_settings": {},
-        }
-    )
-
-    video_service = get_video_service()
-
-    assert getattr(video_service._renderer, "_executable") == "/opt/bin/ffmpeg-custom"
-
-
-def test_video_service_merges_ffmpeg_path_from_config() -> None:
-    """A configured ffmpeg_path is forwarded into backend settings."""
-
-    configure_media_services(
-        config={
-            "video_backend": "ffmpeg",
-            "ffmpeg_path": "/usr/local/bin/ffmpeg",
-        }
-    )
-
-    video_service = get_video_service()
-
-    assert getattr(video_service._renderer, "_executable") == "/usr/local/bin/ffmpeg"
 
 
 def test_configure_media_services_sets_audio_api_environment() -> None:

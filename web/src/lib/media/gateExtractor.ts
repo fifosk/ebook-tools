@@ -1,8 +1,8 @@
 /**
  * Sentence gate and duration extraction.
  *
- * Handles the many key variants (snake_case and camelCase) for reading
- * gate boundaries and phase durations from chunk sentence metadata.
+ * Reads gate boundaries and phase durations from v3 camelCase-only
+ * chunk sentence metadata.
  * Previously inlined in useInteractiveAudioSequence.
  */
 
@@ -41,8 +41,7 @@ export function resolveDurationValue(value: unknown): number | null {
 // ---------------------------------------------------------------------------
 
 /**
- * Read a numeric gate value from sentence metadata, trying each key in
- * order.  Handles both snake_case and camelCase variants.
+ * Read a numeric gate value from sentence metadata by key name.
  */
 export function readSentenceGate(
   sentence: ChunkSentenceMetadata | null | undefined,
@@ -62,7 +61,7 @@ export function readSentenceGate(
 }
 
 /**
- * Read a phase duration from `sentence.phase_durations` (or `phaseDurations`).
+ * Read a phase duration from `sentence.phaseDurations`.
  */
 export function readPhaseDuration(
   sentence: ChunkSentenceMetadata | null | undefined,
@@ -71,13 +70,11 @@ export function readPhaseDuration(
   if (!sentence) {
     return null;
   }
-  const record = sentence as unknown as Record<string, unknown>;
-  const phasePayload = record.phase_durations ?? record.phaseDurations;
+  const phasePayload = sentence.phaseDurations;
   if (!phasePayload || typeof phasePayload !== 'object') {
     return null;
   }
-  const phases = phasePayload as Record<string, unknown>;
-  return resolveDurationValue(phases[key]);
+  return resolveDurationValue(phasePayload[key]);
 }
 
 /**
@@ -89,12 +86,12 @@ export function resolveSentenceGate(
 ): { start: number; end: number } | null {
   const start =
     track === 'original'
-      ? readSentenceGate(sentence, ['original_start_gate', 'originalStartGate', 'original_startGate'])
-      : readSentenceGate(sentence, ['start_gate', 'startGate']);
+      ? readSentenceGate(sentence, ['originalStartGate'])
+      : readSentenceGate(sentence, ['startGate']);
   const end =
     track === 'original'
-      ? readSentenceGate(sentence, ['original_end_gate', 'originalEndGate', 'original_endGate'])
-      : readSentenceGate(sentence, ['end_gate', 'endGate']);
+      ? readSentenceGate(sentence, ['originalEndGate'])
+      : readSentenceGate(sentence, ['endGate']);
   if (start === null || end === null) {
     return null;
   }
@@ -112,7 +109,7 @@ export function resolveSentenceGate(
 /**
  * Resolve a sentence's duration for a given track.
  *
- * Tries gates first, then `phase_durations`, then top-level duration fields.
+ * Tries gates first, then `phaseDurations`, then `totalDuration`.
  */
 export function resolveSentenceDuration(
   sentence: ChunkSentenceMetadata | null | undefined,
@@ -122,8 +119,7 @@ export function resolveSentenceDuration(
     return null;
   }
   if (track === 'combined') {
-    const record = sentence as unknown as Record<string, unknown>;
-    return resolveDurationValue(record.total_duration ?? record.totalDuration ?? record.t1);
+    return resolveDurationValue(sentence.totalDuration);
   }
   const gate = resolveSentenceGate(sentence, track);
   if (gate) {
@@ -135,8 +131,7 @@ export function resolveSentenceDuration(
     return phaseDuration;
   }
   if (track === 'translation') {
-    const record = sentence as unknown as Record<string, unknown>;
-    return resolveDurationValue(record.total_duration ?? record.totalDuration ?? record.t1);
+    return resolveDurationValue(sentence.totalDuration);
   }
   return null;
 }

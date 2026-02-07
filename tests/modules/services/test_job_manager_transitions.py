@@ -56,10 +56,10 @@ def _build_request() -> PipelineRequest:
             selected_voice="",
             output_html=False,
             output_pdf=False,
-            generate_video=False,
+            add_images=False,
             include_transliteration=False,
             tempo=1.0,
-            book_metadata={},
+            media_metadata={},
         ),
     )
     return dataclass_replace(base)

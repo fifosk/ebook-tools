@@ -58,38 +58,15 @@ def _format_limit_value(value: int) -> str:
     return str(value)
 
 
-def _resolve_slide_worker_count(
-    parallelism: Optional[str], configured_workers: Optional[int], thread_count: int
-) -> int:
-    """Return the effective slide worker total for the supplied configuration."""
-
-    if not parallelism:
-        return 0
-
-    normalized = str(parallelism).strip().lower()
-    if normalized in {"off", "none", "disabled"}:
-        return 0
-
-    if configured_workers is None:
-        return max(0, thread_count)
-
-    with suppress(TypeError, ValueError):
-        workers = int(configured_workers)
-        return max(0, workers)
-
-    return max(0, thread_count)
-
-
 def _estimate_required_file_descriptors(
     *,
     thread_count: int,
-    slide_workers: int,
     job_workers: int,
     queue_size: int,
 ) -> int:
     """Estimate the file descriptor requirement for the configured pipeline."""
 
-    workers = max(1, thread_count) + max(0, slide_workers) + max(1, job_workers)
+    workers = max(1, thread_count) + max(1, job_workers)
     queue_allowance = max(0, queue_size)
     base_allowance = 128
     per_worker_budget = workers * 16
@@ -206,16 +183,10 @@ def _ensure_fd_capacity(
     if pipeline_config is None:
         pipeline_config = build_pipeline_config(runtime_context, request.config, overrides=overrides)
 
-    slide_workers = _resolve_slide_worker_count(
-        pipeline_config.slide_parallelism,
-        pipeline_config.slide_parallel_workers,
-        pipeline_config.thread_count,
-    )
     settings = cfg.get_settings()
     job_workers = max(1, int(getattr(settings, "job_max_workers", 1) or 1))
     required = _estimate_required_file_descriptors(
         thread_count=pipeline_config.thread_count,
-        slide_workers=slide_workers,
         job_workers=job_workers,
         queue_size=pipeline_config.queue_size,
     )
@@ -223,8 +194,6 @@ def _ensure_fd_capacity(
     attributes = {
         "thread_count": pipeline_config.thread_count,
         "queue_size": pipeline_config.queue_size,
-        "slide_parallelism": pipeline_config.slide_parallelism,
-        "slide_parallel_workers": pipeline_config.slide_parallel_workers,
         "job_max_workers": job_workers,
     }
 
@@ -337,7 +306,6 @@ def _build_pipeline_input(
         selected_voice=config.get("selected_voice", "gTTS"),
         output_html=config.get("output_html", True),
         output_pdf=config.get("output_pdf", False),
-        generate_video=config.get("generate_video", False),
         add_images=config.get("add_images", False),
         include_transliteration=config.get("include_transliteration", True),
         tempo=config.get("tempo", 1.0),
@@ -465,7 +433,6 @@ def prepare_non_interactive_run(
     config.setdefault("say_path", config.get("tts_executable_path"))
     config.setdefault("output_html", True)
     config.setdefault("output_pdf", False)
-    config.setdefault("generate_video", False)
     config.setdefault("include_transliteration", True)
     config.setdefault("tempo", 1.0)
     config.setdefault("macos_reading_speed", 100)
@@ -473,50 +440,6 @@ def prepare_non_interactive_run(
     config.setdefault("word_highlighting", True)
     config.setdefault("max_words", config.get("max_words", DEFAULT_MAX_WORDS))
     config.setdefault("ollama_model", DEFAULT_MODEL)
-    config.setdefault("slide_parallelism", "off")
-    config.setdefault("slide_parallel_workers", None)
-    config.setdefault("prefer_pillow_simd", False)
-    config.setdefault("slide_render_benchmark", False)
-    config.setdefault("slide_template", "default")
-    config.setdefault("video_backend", "ffmpeg")
-    config.setdefault("video_backend_settings", {})
-
-    if getattr(args, "slide_parallelism", None):
-        config["slide_parallelism"] = args.slide_parallelism
-    if getattr(args, "slide_parallel_workers", None) is not None:
-        config["slide_parallel_workers"] = args.slide_parallel_workers
-    if getattr(args, "prefer_pillow_simd", False):
-        config["prefer_pillow_simd"] = True
-    if getattr(args, "benchmark_slide_rendering", False):
-        config["slide_render_benchmark"] = True
-    if getattr(args, "template", None):
-        config["slide_template"] = args.template
-    if getattr(args, "video_backend", None):
-        config["video_backend"] = args.video_backend
-    video_backend_settings = dict(config.get("video_backend_settings") or {})
-    backend_key = config.get("video_backend", "ffmpeg")
-    backend_overrides = dict(video_backend_settings.get(backend_key, {}))
-    if getattr(args, "video_backend_executable", None):
-        backend_overrides["executable"] = args.video_backend_executable
-    if getattr(args, "video_backend_loglevel", None):
-        backend_overrides["loglevel"] = args.video_backend_loglevel
-    presets_arg = getattr(args, "video_backend_preset", None)
-    if presets_arg:
-        presets = dict(backend_overrides.get("presets", {}))
-        for raw_entry in presets_arg:
-            if not isinstance(raw_entry, str):
-                continue
-            name, _, value = raw_entry.partition("=")
-            name = name.strip()
-            if not name:
-                continue
-            parts = [part.strip() for part in value.split(",") if part.strip()]
-            presets[name] = parts
-        if presets:
-            backend_overrides["presets"] = presets
-    if backend_overrides:
-        video_backend_settings[backend_key] = backend_overrides
-    config["video_backend_settings"] = video_backend_settings
     if getattr(args, "tts_backend", None):
         config["tts_backend"] = args.tts_backend
     if getattr(args, "tts_executable", None):
@@ -566,17 +489,10 @@ def prepare_non_interactive_run(
         "debug": config.get("debug"),
         "ollama_model": config.get("ollama_model"),
         "ollama_url": config.get("ollama_url"),
-        "video_backend": config.get("video_backend"),
-        "video_backend_settings": config.get("video_backend_settings"),
         "ffmpeg_path": overrides.get("ffmpeg_path") or config.get("ffmpeg_path"),
         "thread_count": config.get("thread_count") or overrides.get("thread_count"),
         "queue_size": config.get("queue_size"),
         "pipeline_mode": config.get("pipeline_mode"),
-        "slide_template": config.get("slide_template"),
-        "slide_parallelism": config.get("slide_parallelism"),
-        "slide_parallel_workers": config.get("slide_parallel_workers"),
-        "prefer_pillow_simd": config.get("prefer_pillow_simd"),
-        "slide_render_benchmark": config.get("slide_render_benchmark"),
     }
 
     request = PipelineRequest(
@@ -624,7 +540,6 @@ def run_pipeline_from_args(
         config.setdefault("written_mode", pipeline_input.written_mode)
         config.setdefault("output_html", pipeline_input.output_html)
         config.setdefault("output_pdf", pipeline_input.output_pdf)
-        config.setdefault("generate_video", pipeline_input.generate_video)
         config.setdefault(
             "include_transliteration", pipeline_input.include_transliteration
         )
@@ -633,42 +548,6 @@ def run_pipeline_from_args(
         config.setdefault("word_highlighting", True)
         config.setdefault("max_words", DEFAULT_MAX_WORDS)
         config.setdefault("ollama_model", DEFAULT_MODEL)
-        config.setdefault("slide_parallelism", "off")
-        config.setdefault("slide_parallel_workers", None)
-        config.setdefault("prefer_pillow_simd", False)
-        config.setdefault("slide_render_benchmark", False)
-        config.setdefault("slide_template", "default")
-        config.setdefault("video_backend", "ffmpeg")
-        config.setdefault("video_backend_settings", {})
-
-        if getattr(args, "template", None):
-            config["slide_template"] = args.template
-        if getattr(args, "video_backend", None):
-            config["video_backend"] = args.video_backend
-        video_backend_settings = dict(config.get("video_backend_settings") or {})
-        backend_key = config.get("video_backend", "ffmpeg")
-        backend_overrides = dict(video_backend_settings.get(backend_key, {}))
-        if getattr(args, "video_backend_executable", None):
-            backend_overrides["executable"] = args.video_backend_executable
-        if getattr(args, "video_backend_loglevel", None):
-            backend_overrides["loglevel"] = args.video_backend_loglevel
-        presets_arg = getattr(args, "video_backend_preset", None)
-        if presets_arg:
-            presets = dict(backend_overrides.get("presets", {}))
-            for raw_entry in presets_arg:
-                if not isinstance(raw_entry, str):
-                    continue
-                name, _, value = raw_entry.partition("=")
-                name = name.strip()
-                if not name:
-                    continue
-                parts = [part.strip() for part in value.split(",") if part.strip()]
-                presets[name] = parts
-            if presets:
-                backend_overrides["presets"] = presets
-        if backend_overrides:
-            video_backend_settings[backend_key] = backend_overrides
-        config["video_backend_settings"] = video_backend_settings
 
         if config.get("auto_metadata", True) and pipeline_input.input_file:
             metadata_manager.populate_config_metadata(
@@ -712,17 +591,10 @@ def run_pipeline_from_args(
             "debug": config.get("debug"),
             "ollama_model": config.get("ollama_model", DEFAULT_MODEL),
             "ollama_url": config.get("ollama_url"),
-            "video_backend": config.get("video_backend"),
-            "video_backend_settings": config.get("video_backend_settings"),
             "ffmpeg_path": overrides.get("ffmpeg_path") or config.get("ffmpeg_path"),
             "thread_count": config.get("thread_count") or overrides.get("thread_count"),
             "queue_size": config.get("queue_size"),
             "pipeline_mode": config.get("pipeline_mode"),
-            "slide_parallelism": config.get("slide_parallelism"),
-            "slide_parallel_workers": config.get("slide_parallel_workers"),
-            "prefer_pillow_simd": config.get("prefer_pillow_simd"),
-            "slide_render_benchmark": config.get("slide_render_benchmark"),
-            "slide_template": config.get("slide_template"),
         }
 
         request = PipelineRequest(

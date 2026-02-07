@@ -48,7 +48,6 @@ class EbookToolsSettings(BaseModel):
     target_languages: list[str] = Field(default_factory=lambda: ["Arabic"])
     ollama_model: str = DEFAULT_MODEL
     generate_audio: bool = True
-    generate_video: bool = False
     sentences_per_output_file: int = Field(
         default=10,
         validation_alias=AliasChoices("sentences_per_output_file", "sentences_per_chunk"),
@@ -95,10 +94,6 @@ class EbookToolsSettings(BaseModel):
     alignment_backend: Optional[str] = None
     alignment_model: Optional[str] = None
     alignment_model_overrides: Optional[Dict[str, str]] = None
-    slide_parallelism: str = "off"
-    slide_parallel_workers: Optional[int] = None
-    prefer_pillow_simd: bool = False
-    slide_render_benchmark: bool = False
     working_dir: str = "output"
     output_dir: str = "output/ebook"
     tmp_dir: str = "tmp"
@@ -108,7 +103,6 @@ class EbookToolsSettings(BaseModel):
     ollama_cloud_url: str = DEFAULT_OLLAMA_CLOUD_URL
     lmstudio_url: str = DEFAULT_LMSTUDIO_URL
     ffmpeg_path: Optional[str] = None
-    video_backend: str = "ffmpeg"
     thread_count: int = 5
     queue_size: int = 20
     pipeline_mode: bool = False
@@ -180,9 +174,6 @@ class EnvironmentOverrides(BaseSettings):
     )
     use_ramdisk: Optional[bool] = Field(
         default=None, validation_alias=AliasChoices("EBOOK_USE_RAMDISK")
-    )
-    video_backend: Optional[str] = Field(
-        default=None, validation_alias=AliasChoices("VIDEO_BACKEND", "EBOOK_VIDEO_BACKEND")
     )
     ollama_api_key: Optional[SecretStr] = Field(
         default=None, validation_alias=AliasChoices("OLLAMA_API_KEY", "EBOOK_OLLAMA_API_KEY")

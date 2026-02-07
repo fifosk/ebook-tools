@@ -9,8 +9,6 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import ValidationError
-
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules.audio.api import AudioService
@@ -19,7 +17,6 @@ from modules.observability import record_metric
 from modules.metadata_manager import MetadataLoader
 from modules.services.file_locator import FileLocator
 from modules.services.pipeline_service import PipelineService
-from modules.services.video_service import VideoService
 from modules.user_management import AuthService
 from modules.user_management.user_store_base import UserRecord
 
@@ -31,7 +28,6 @@ from .dependencies import (
     get_pipeline_service,
     get_file_locator,
     get_request_user,
-    get_video_service,
     RequestUserContext,
 )
 from .schemas import (
@@ -40,8 +36,6 @@ from .schemas import (
     MediaErrorResponse,
     MediaGenerationRequestPayload,
     MediaGenerationResponse,
-    VideoGenerationParameters,
-    VideoRenderRequestPayload,
 )
 
 router = APIRouter(prefix="/api/media", tags=["media"])
@@ -52,7 +46,6 @@ _MEDIA_ALLOWED_ROLES: frozenset[str] = frozenset({"admin", "media_producer"})
 AuthorizationHeader = Annotated[str | None, Header(alias="Authorization")]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 AudioServiceDep = Annotated[AudioService, Depends(get_audio_service)]
-VideoServiceDep = Annotated[VideoService, Depends(get_video_service)]
 FileLocatorDep = Annotated[FileLocator, Depends(get_file_locator)]
 
 
@@ -407,94 +400,6 @@ def _export_audio(
     return relative_path, url, normalized_params
 
 
-def _prepare_video_request(
-    job_id: str,
-    parameters: VideoGenerationParameters,
-) -> VideoRenderRequestPayload:
-    """Normalise the inbound video payload for job submission."""
-
-    payload = parameters.request.model_dump()
-
-    audio_entries = payload.get("audio")
-    if isinstance(audio_entries, list):
-        normalized_audio: list[Mapping[str, object]] = []
-        for entry in audio_entries:
-            if not isinstance(entry, Mapping):
-                normalized_audio.append(entry)
-                continue
-            normalized = dict(entry)
-            rel_path = normalized.get("relative_path")
-            if rel_path and "job_id" not in normalized:
-                normalized["job_id"] = job_id
-            normalized_audio.append(normalized)
-        payload["audio"] = normalized_audio
-
-    options = payload.get("options")
-    if isinstance(options, Mapping):
-        options = dict(options)
-        cover_image = options.get("cover_image")
-        if isinstance(cover_image, Mapping):
-            cover_dict = dict(cover_image)
-            rel_path = cover_dict.get("relative_path")
-            if rel_path and "job_id" not in cover_dict:
-                cover_dict["job_id"] = job_id
-            options["cover_image"] = cover_dict
-        payload["options"] = options
-
-    try:
-        return VideoRenderRequestPayload.model_validate(payload)
-    except ValidationError as exc:
-        raise MediaHTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_format_error("invalid_parameters", exc.errors()[0]["msg"]),
-        ) from exc
-
-
-def _submit_video_job(
-    payload: MediaGenerationRequestPayload,
-    *,
-    video_service: VideoService,
-    requested_by: str,
-    correlation_id: str | None,
-) -> MediaGenerationResponse:
-    assert payload.video is not None
-    request_payload = _prepare_video_request(payload.job_id, payload.video)
-
-    snapshot = video_service.enqueue(
-        payload.job_id,
-        request_payload.model_dump(),
-        correlation_id=correlation_id,
-    )
-    logger.info(
-        "Video rendering request %s submitted for pipeline job %s",
-        snapshot.request_id,
-        payload.job_id,
-        extra={
-            "event": "media.video.submit",
-            "attributes": {
-                "slides": len(request_payload.slides),
-                "audio_tracks": len(request_payload.audio),
-                "pipeline_job_id": payload.job_id,
-            },
-        },
-    )
-
-    normalized_params = request_payload.model_dump()
-    return MediaGenerationResponse(
-        request_id=snapshot.request_id,
-        status=snapshot.status,
-        job_id=payload.job_id,
-        media_type="video",
-        requested_by=requested_by,
-        parameters=normalized_params,
-        notes=payload.notes,
-        message="Video rendering job submitted.",
-        artifact_path=snapshot.output_path,
-        artifact_url=None,
-        correlation_id=correlation_id,
-    )
-
-
 async def _handle_media_http_exception(
     _request: Request, exc: MediaHTTPException
 ) -> JSONResponse:
@@ -522,7 +427,6 @@ def request_media_generation(
     payload: MediaGenerationRequestPayload,
     auth_service: AuthServiceDep,
     audio_service: AudioServiceDep,
-    video_service: VideoServiceDep,
     locator: FileLocatorDep,
     request: Request,
     authorization: AuthorizationHeader = None,
@@ -538,8 +442,6 @@ def request_media_generation(
     correlation_override = None
     if payload.media_type == "audio" and payload.audio is not None:
         correlation_override = payload.audio.correlation_id
-    elif payload.media_type == "video" and payload.video is not None:
-        correlation_override = payload.video.correlation_id
 
     header_correlation = request.headers.get("x-request-id")
     correlation_id = correlation_override or header_correlation or uuid4().hex
@@ -574,14 +476,6 @@ def request_media_generation(
                 artifact_path=relative_path,
                 artifact_url=url,
                 correlation_id=active_correlation,
-            )
-
-        if media_type == "video":
-            return _submit_video_job(
-                payload,
-                video_service=video_service,
-                requested_by=user.username,
-                correlation_id=correlation_override or correlation_id,
             )
 
         raise MediaHTTPException(

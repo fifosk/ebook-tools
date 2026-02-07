@@ -1,11 +1,11 @@
-"""Helpers for constructing written and video output blocks."""
+"""Helpers for constructing written and sentence output blocks."""
 
 from __future__ import annotations
 
 from typing import Tuple
 
 
-def build_written_and_video_blocks(
+def build_written_and_sentence_blocks(
     *,
     sentence_number: int,
     sentence: str,
@@ -16,7 +16,7 @@ def build_written_and_video_blocks(
     total_sentences: int,
     include_transliteration: bool,
 ) -> Tuple[str, str]:
-    """Return formatted written and video blocks mirroring the legacy output."""
+    """Return formatted written and sentence blocks mirroring the legacy output."""
 
     percent = (sentence_number / total_sentences * 100) if total_sentences else 0.0
     header = f"{current_target} - {sentence_number} - {percent:.2f}%\n"
@@ -32,8 +32,8 @@ def build_written_and_video_blocks(
 
     if include_transliteration and transliteration:
         written_block = written_block.rstrip() + f"\n{transliteration}\n"
-        video_block = f"{header}{sentence}\n\n{fluent}\n{transliteration}\n"
+        sentence_block = f"{header}{sentence}\n\n{fluent}\n{transliteration}\n"
     else:
-        video_block = f"{header}{sentence}\n\n{fluent}\n"
+        sentence_block = f"{header}{sentence}\n\n{fluent}\n"
 
-    return written_block, video_block
+    return written_block, sentence_block

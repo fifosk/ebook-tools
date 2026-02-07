@@ -29,7 +29,6 @@ class PipelineInputPayload(BaseModel):
     selected_voice: str = "gTTS"
     output_html: bool = False
     output_pdf: bool = False
-    generate_video: bool = False
     add_images: bool = False
     include_transliteration: bool = True
     translation_provider: str = "llm"

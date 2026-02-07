@@ -116,7 +116,7 @@ The React SPA consumes the same endpoints via the shared API client:
   those roles restricted to operators who understand the implications of
   voice/tempo changes.
 - **Metadata verification.** When an operator triggers a regeneration the job
-  manager rewrites `metadata/job.json`, the `chunk_manifest`, and all affected
+  manager rewrites `metadata/job.json`, `generated_files.chunks[]`, and all affected
   `metadata/chunk_XXXX.json` files. Admins should spot-check those artefacts (or
   run `MetadataLoader.for_job(job_id)` from `modules/metadata_manager.py`) before
   promoting the assets so stale highlighting data does not leak to readers.

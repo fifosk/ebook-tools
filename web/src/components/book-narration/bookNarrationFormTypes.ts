@@ -87,8 +87,6 @@ export type FormState = {
   queue_size: string;
   job_max_workers: string;
   image_concurrency: string;
-  slide_parallelism: string;
-  slide_parallel_workers: string;
   config: string;
   environment_overrides: string;
   pipeline_overrides: string;

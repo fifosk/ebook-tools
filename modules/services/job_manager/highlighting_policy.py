@@ -42,7 +42,7 @@ def _extract_highlighting_policy(entry: Mapping[str, Any]) -> Optional[str]:
         policy = summary.get("policy")
         if isinstance(policy, str) and policy.strip():
             return policy.strip()
-    policy = entry.get("highlighting_policy") or entry.get("alignment_policy")
+    policy = entry.get("highlighting_policy")
     if isinstance(policy, str) and policy.strip():
         return policy.strip()
     return None
@@ -56,7 +56,7 @@ def _is_estimated_policy(policy: Optional[str]) -> bool:
 
 
 def _extract_policy_from_timing_tracks(payload: Mapping[str, Any]) -> Optional[str]:
-    tracks = payload.get("timingTracks") or payload.get("timing_tracks")
+    tracks = payload.get("timingTracks")
     if not isinstance(tracks, Mapping):
         return None
     fallback: Optional[str] = None

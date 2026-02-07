@@ -7,7 +7,6 @@ from pydub import AudioSegment
 
 from modules.audio.backends import get_default_backend_name
 from modules.audio.backends.base import SynthesisResult
-from modules.video.backends import BaseVideoRenderer as VideoRenderer
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from modules.progress_tracker import ProgressTracker
@@ -42,19 +41,6 @@ class AudioSynthesizer(Protocol):
         """Render audio for a single translated sentence."""
 
 
-class GolangVideoRenderer(VideoRenderer):
-    """Placeholder renderer for the Go-based implementation."""
-
-    def render_slides(  # pragma: no cover - documentation placeholder
-        self,
-        slides: Sequence[str],
-        audio_tracks: Sequence[AudioSegment],
-        output_path: str,
-        options: Optional[object] = None,
-    ) -> str:
-        raise NotImplementedError("Golang renderer backend has not been implemented yet")
-
-
 class ExternalAudioSynthesizer(AudioSynthesizer):
     """Placeholder synthesizer for external TTS integrations."""
 
@@ -83,7 +69,5 @@ class ExternalAudioSynthesizer(AudioSynthesizer):
 __all__ = [
     "AudioSynthesizer",
     "ExternalAudioSynthesizer",
-    "GolangVideoRenderer",
     "SynthesisResult",
-    "VideoRenderer",
 ]

@@ -40,11 +40,11 @@ def test_derive_audio_tracks_with_original_and_translation() -> None:
     tracks = _derive_audio_tracks_from_segments([combined])
 
     assert "orig" in tracks
-    assert "trans" in tracks
+    assert "translation" in tracks
     assert len(tracks["orig"]) == 1
-    assert len(tracks["trans"]) == 1
+    assert len(tracks["translation"]) == 1
     assert abs(_duration_seconds(tracks["orig"][0]) - _duration_seconds(original)) < 0.01
-    assert abs(_duration_seconds(tracks["trans"][0]) - _duration_seconds(translation)) < 0.01
+    assert abs(_duration_seconds(tracks["translation"][0]) - _duration_seconds(translation)) < 0.01
 
 
 def test_derive_audio_tracks_without_metadata_falls_back_to_translation() -> None:
@@ -57,6 +57,6 @@ def test_derive_audio_tracks_without_metadata_falls_back_to_translation() -> Non
     tracks = _derive_audio_tracks_from_segments([segment])
 
     assert "orig" not in tracks
-    assert "trans" in tracks
-    assert len(tracks["trans"]) == 1
-    assert abs(_duration_seconds(tracks["trans"][0]) - _duration_seconds(segment)) < 0.01
+    assert "translation" in tracks
+    assert len(tracks["translation"]) == 1
+    assert abs(_duration_seconds(tracks["translation"][0]) - _duration_seconds(segment)) < 0.01

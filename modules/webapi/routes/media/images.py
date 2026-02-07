@@ -93,7 +93,7 @@ def _atomic_write_json(path: Path, payload: Mapping[str, Any]) -> None:
 
 
 def _resolve_sentence_number(entry: Mapping[str, Any]) -> Optional[int]:
-    raw_number = entry.get("sentence_number") or entry.get("sentenceNumber")
+    raw_number = entry.get("sentence_number")
     try:
         return int(raw_number)
     except (TypeError, ValueError):
@@ -101,16 +101,11 @@ def _resolve_sentence_number(entry: Mapping[str, Any]) -> Optional[int]:
 
 
 def _extract_sentence_text(entry: Mapping[str, Any]) -> Optional[str]:
-    # Prefer variant-specific text (v3 chunks omit top-level "text")
     original = entry.get("original")
     if isinstance(original, Mapping):
         original_text = original.get("text")
         if isinstance(original_text, str) and original_text.strip():
             return original_text.strip()
-    # Backward compat: top-level text (v1/v2 chunks)
-    text_value = entry.get("text")
-    if isinstance(text_value, str) and text_value.strip():
-        return text_value.strip()
     return None
 
 
@@ -287,10 +282,9 @@ def _extract_sentence_image_path(entry: Mapping[str, Any]) -> Optional[str]:
         path = image.get("path")
         if isinstance(path, str) and path.strip():
             return path.strip()
-    for key in ("image_path", "imagePath"):
-        value = entry.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
+    value = entry.get("imagePath")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
     return None
 
 
@@ -298,8 +292,8 @@ def _extract_sentence_image_batch_range(entry: Mapping[str, Any]) -> tuple[Optio
     image = entry.get("image")
     if not isinstance(image, Mapping):
         return None, None
-    raw_start = image.get("batch_start_sentence") or image.get("batchStartSentence")
-    raw_end = image.get("batch_end_sentence") or image.get("batchEndSentence")
+    raw_start = image.get("batchStartSentence")
+    raw_end = image.get("batchEndSentence")
     start: Optional[int]
     end: Optional[int]
     try:
@@ -351,7 +345,7 @@ def _build_sentence_image_info_response(
     sentence_entry: Mapping[str, Any],
     manifest_entry: Optional[Mapping[str, Any]] = None,
 ) -> SentenceImageInfoResponse:
-    range_fragment = chunk.get("range_fragment") or chunk.get("rangeFragment")
+    range_fragment = chunk.get("range_fragment")
     range_fragment_str = (
         str(range_fragment).strip()
         if isinstance(range_fragment, str) and range_fragment.strip()
@@ -377,8 +371,8 @@ def _resolve_chunk_for_sentence(
     sentence_number: int,
 ) -> Mapping[str, Any] | None:
     for chunk in loader.iter_chunks():
-        start = chunk.get("start_sentence") or chunk.get("startSentence")
-        end = chunk.get("end_sentence") or chunk.get("endSentence")
+        start = chunk.get("start_sentence")
+        end = chunk.get("end_sentence")
         try:
             start_val = int(start)
             end_val = int(end)
@@ -817,7 +811,7 @@ async def regenerate_sentence_image(
         sentence_number=sentence_number,
         job_root=job_root,
     )
-    range_fragment = chunk.get("range_fragment") or chunk.get("rangeFragment")
+    range_fragment = chunk.get("range_fragment")
     range_fragment = (
         range_fragment.strip()
         if isinstance(range_fragment, str) and range_fragment.strip()

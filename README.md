@@ -19,20 +19,16 @@ worker services collaborate.
 
 ## Backend setup
 
-### Audio and video backend architecture
+### Audio backend architecture
 
-The synthesis stack is now modular. Text-to-speech is routed through the
+The synthesis stack is modular. Text-to-speech is routed through the
 `modules.audio.backends` registry, which ships with the Google Translate (gTTS),
 macOS `say`, and Piper integrations but can be extended at runtime. Each backend
 implements the `BaseTTSBackend` contract and is discovered via
 `get_tts_backend()` using the values supplied in your configuration or
-environment. Video rendering follows a similar pattern: a configurable backend
-name is resolved and the concrete implementation (FFmpeg by default) can read
-backend-specific knobs from `video_backend_settings` (see
-`modules/audio/backends/` and `modules/video/backends/`).
+environment.
 
-Key configuration switches now live alongside the rest of the pipeline
-settings:
+Key configuration switches live alongside the rest of the pipeline settings:
 
 - `tts_backend` – Selects the TTS engine (`macos_say`, `gtts`, or `piper`). When
   omitted or set to `auto`, the resolver picks `macos_say` on Darwin hosts and
@@ -40,14 +36,9 @@ settings:
 - `tts_executable_path` – Optional override for the backend binary (e.g., point
   at a Homebrew installation of `say`).
 - `macos_reading_speed` – Words per minute forwarded to the macOS backend.
-- `video_backend` – Chooses the slide renderer (`ffmpeg` out of the box).
-- `video_backend_settings` – Free-form dictionary keyed by backend name used to
-  pass flags like `executable`, `loglevel`, or encoder presets to the selected
-  renderer.
 
 See `conf/config.json` for the canonical defaults and `modules/conf/config.local.json`
-for a macOS-centric example config that pins the `say` binary and a Homebrew
-FFmpeg install.
+for a macOS-centric example config that pins the `say` binary.
 
 #### Optional forced alignment
 
@@ -224,9 +215,6 @@ single-page application:
 - **`EBOOK_AUDIO_EXECUTABLE`** – Absolute path to the binary backing the active
   TTS backend (for example, a Homebrew-installed `say`). If omitted the
   configured path or bundled defaults are used.
-- **`EBOOK_VIDEO_EXECUTABLE`** – Absolute path to the video rendering command
-  (FFmpeg by default). Leaving this blank keeps the renderer pointed at the
-  configured executable or system `ffmpeg`.
 - **`EBOOK_IMAGE_API_BASE_URL`** – Base URL for the Draw Things / Stable
   Diffusion instance used for sentence images (for example,
   `http://192.168.1.9:7860`).
@@ -366,24 +354,6 @@ If the frontend bundle is served, the healthcheck can always be reached at
   python main.py --tts-backend macos --selected-voice "Samantha" \
     --tts-executable /usr/bin/say --macos-reading-speed 180
   ```
-
-- **Override the FFmpeg binary** – Point the renderer at a custom build via the
-  config file or environment:
-
-  ```json
-  {
-    "video_backend": "ffmpeg",
-    "video_backend_settings": {
-      "ffmpeg": {
-        "executable": "/opt/homebrew/bin/ffmpeg",
-        "loglevel": "info"
-      }
-    }
-  }
-  ```
-
-  or set `EBOOK_VIDEO_BACKEND=ffmpeg` and `FFMPEG_PATH=/opt/homebrew/bin/ffmpeg`
-  before launching the pipeline (see `modules/config_manager/settings.py`).
 
 - **Plug a custom backend** – Register an implementation before invoking the
   pipeline. Any class inheriting `BaseTTSBackend` can be named and added to the
@@ -538,7 +508,7 @@ token timing in `word_tokens` (translation) and `original_word_tokens`
 (original). The exporter uses those token timings (or char-weighted fallbacks)
 to build chunk-level `timingTracks`; chunk files store the timing tracks plus
 token arrays and phase/duration metadata, but they no longer persist per-sentence
-`word_tokens` payloads or slide-timeline events.
+`word_tokens` payloads.
 
 On the frontend the interactive reader pulls those chunk metadata files, builds
 an in-memory index of tokens, and maps `<audio>` playback time to the nearest
@@ -680,7 +650,7 @@ core dependency set declared in `pyproject.toml`.
 
 ## Performance tuning and parallel rendering
 
-Slide generation and translation can be CPU intensive. The project exposes a
+Translation and media generation can be CPU intensive. The project exposes a
 few knobs through the interactive menu, CLI arguments, and configuration files
 so you can tune throughput for your hardware.
 
@@ -698,25 +668,11 @@ options:
 
 - `--thread-count` – overrides the number of worker threads used during
   ingestion and media generation.
-- `--slide-parallelism {off,auto,thread,process}` – selects the backend used
-  for per-frame slide rendering. Start with `auto` to let the renderer choose
-  between thread and process pools based on the available worker count.
-- `--slide-parallel-workers N` – caps the pool size used when slide
-  parallelism is enabled. If omitted, the renderer falls back to the machine’s
-  CPU count.
-- `--prefer-pillow-simd` – hints that you have installed a SIMD-enabled Pillow
-  build (e.g. Pillow-SIMD) and should use it for faster glyph rendering.
-- `--benchmark-slide-rendering` – emits detailed timing metrics for slide
-  generation when a parallel backend is not active.
-
 Combine these flags with the `run` command:
 
 ```bash
 python -m modules.cli.main run \
   --thread-count 8 \
-  --slide-parallelism auto \
-  --slide-parallel-workers 8 \
-  --prefer-pillow-simd \
   path/to/book.epub
 ```
 
@@ -728,11 +684,7 @@ the loader will pick them up on the next run.
 
 ```json
 {
-  "thread_count": 8,
-  "slide_parallelism": "auto",
-  "slide_parallel_workers": 8,
-  "prefer_pillow_simd": true,
-  "slide_render_benchmark": false
+  "thread_count": 8
 }
 ```
 
@@ -745,41 +697,24 @@ performance-related toggle (including the aligner fallback) in your
   "thread_count": 16,
   "queue_size": 64,
   "pipeline_mode": true,
-  "slide_parallelism": "auto",
-  "slide_parallel_workers": 16,
-  "prefer_pillow_simd": true,
   "use_ramdisk": true,
   "forced_alignment_enabled": true,
-  "forced_alignment_smoothing": "monotonic_cubic",
-  "slide_render_benchmark": false
+  "forced_alignment_smoothing": "monotonic_cubic"
 }
 ```
 
-Feel free to raise the thread and worker counts if your host CPU and memory can
+Feel free to raise the thread count if your host CPU and memory can
 handle the additional concurrency; the queue size should scale with the number
 of workers so translation and media rendering threads stay saturated.
 
 Environment variables offer a lightweight override layer:
 
 - `EBOOK_THREAD_COUNT` adjusts the global thread pool size.
-- `EBOOK_PIPELINE_MODE`, `EBOOK_QUEUE_SIZE`, and related keys continue to work
-  alongside the new slide-specific settings.
+- `EBOOK_PIPELINE_MODE`, `EBOOK_QUEUE_SIZE`, and related keys work alongside
+  the rest of the pipeline settings.
 - Sentence-image generation has its own worker cap:
   `image_concurrency` (or `EBOOK_IMAGE_CONCURRENCY`) limits how many `txt2img`
   calls can run in parallel when `add_images` is enabled.
-
-### Choosing a backend
-
-Slide rendering falls back to sequential execution when only one frame needs to
-be produced or when parallelism is set to `off`. In `auto` mode the renderer
-promotes to the process pool if more than one worker is available, otherwise it
-sticks with threads. You can force a specific strategy with `thread` or
-`process` if you know the workload benefits from shared memory or completely
-isolated workers.
-
-Benchmarking data is only gathered when parallelism is disabled, so disable it
-temporarily (`--slide-parallelism off --benchmark-slide-rendering`) to capture
-detailed timing metrics before re-enabling your preferred backend.
 
 ## Configuration overview
 
@@ -801,10 +736,9 @@ directory.
   outputs. Cover images are mirrored under `storage/covers/` and each job keeps
   its metadata snapshot under `storage/<job_id>/metadata/`. Defaults to
   `output/`.
-- **`output_dir`**: Location for generated HTML/PDF/EPUB/audio/video files.
+- **`output_dir`**: Location for generated HTML/PDF/EPUB/audio files.
   Defaults to `output/ebook/` inside the working directory.
-- **`tmp_dir`**: Scratch space for intermediate assets such as slide images
-  and concatenation lists. Defaults to `tmp/`.
+- **`tmp_dir`**: Scratch space for intermediate assets. Defaults to `tmp/`.
 
 You can override any of these via the matching CLI flags (`--ebooks-dir`,
 `--working-dir`, `--output-dir`, `--tmp-dir`) or environment variables
@@ -817,8 +751,8 @@ and job metadata stored under `storage/<job_id>/metadata/` follow the same
 rule. Create the folders manually if they do not already exist.
 
 ### External tool settings
-- **`ffmpeg_path`**: Path to the FFmpeg binary used by `pydub` and the video
-  stitching helpers. Defaults to whatever `ffmpeg` is on your `PATH`.
+- **`ffmpeg_path`**: Path to the FFmpeg binary used by `pydub` and the audio/subtitle
+  pipeline. Defaults to whatever `ffmpeg` is on your `PATH`.
 - **`audio_bitrate_kbps`**: Target MP3 bitrate (in kbps) for sentence audio and
   stitched exports. Lower values shrink files at the cost of fidelity
   (default: 320).

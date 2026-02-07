@@ -887,11 +887,6 @@ class MetadataLoader:
             if sentences:
                 payload["sentences"] = sentences
                 sentence_count = len(sentences)
-        elif "sentences" in chunk and not payload.get("metadata_path"):
-            inline = chunk.get("sentences")
-            if isinstance(inline, list) and inline:
-                sentence_count = len(inline)
-
         if (
             sentence_count == 0
             and isinstance(metadata_payload, Mapping)
@@ -915,7 +910,7 @@ class MetadataLoader:
             if isinstance(candidate, Mapping):
                 audio_source = candidate
         if audio_source is None:
-            candidate = chunk.get("audio_tracks") or chunk.get("audioTracks")
+            candidate = chunk.get("audioTracks")
             if isinstance(candidate, Mapping):
                 audio_source = candidate
         audio_tracks = _clone_mapping(audio_source)
@@ -928,7 +923,7 @@ class MetadataLoader:
             if isinstance(candidate, Mapping):
                 timing_source = candidate
         if timing_source is None:
-            candidate = chunk.get("timing_tracks") or chunk.get("timingTracks")
+            candidate = chunk.get("timingTracks")
             if isinstance(candidate, Mapping):
                 timing_source = candidate
         timing_tracks = _clone_mapping(timing_source)
@@ -955,9 +950,6 @@ class MetadataLoader:
             if isinstance(sentences, list):
                 return [copy.deepcopy(entry) for entry in sentences]
 
-        inline = chunk.get("sentences")
-        if isinstance(inline, list):
-            return [copy.deepcopy(entry) for entry in inline]
         return []
 
 

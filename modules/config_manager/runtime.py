@@ -124,8 +124,6 @@ def _hardware_tuning_defaults() -> Dict[str, Any]:
         thread_count = 4
         queue_size = max(DEFAULT_QUEUE_SIZE, thread_count * 5)
         job_max_workers = max(2, min(4, cpu_count // 4))
-        slide_parallelism = "thread"
-        slide_parallel_workers = max(2, min(8, cpu_count // 2))
         defaults.update(
             {
                 "profile": "mac_studio_max_36gb",
@@ -134,8 +132,6 @@ def _hardware_tuning_defaults() -> Dict[str, Any]:
                 "thread_count": thread_count,
                 "queue_size": queue_size,
                 "job_max_workers": job_max_workers,
-                "slide_parallelism": slide_parallelism,
-                "slide_parallel_workers": slide_parallel_workers,
                 "pipeline_mode": True,
             }
         )

@@ -200,22 +200,6 @@ def load_configuration(
         ):
             tuning_updates["job_max_workers"] = recommended_job_workers
 
-        recommended_slide_mode = tuning_defaults.get("slide_parallelism")
-        if (
-            isinstance(recommended_slide_mode, str)
-            and recommended_slide_mode
-            and settings.slide_parallelism == "off"
-        ):
-            tuning_updates["slide_parallelism"] = recommended_slide_mode
-
-        recommended_slide_workers = tuning_defaults.get("slide_parallel_workers")
-        if (
-            isinstance(recommended_slide_workers, int)
-            and recommended_slide_workers > 0
-            and settings.slide_parallel_workers in {None, 0}
-        ):
-            tuning_updates["slide_parallel_workers"] = recommended_slide_workers
-
     settings = apply_settings_updates(settings, tuning_updates)
 
     if default_model is None:

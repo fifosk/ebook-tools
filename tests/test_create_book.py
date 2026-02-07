@@ -64,7 +64,6 @@ class _StubRuntimeContextProvider:
             "tempo": 1.0,
             "selected_voice": "DemoVoice",
             "generate_audio": True,
-            "generate_video": False,
             "use_ramdisk": False,
         }
 
@@ -140,7 +139,7 @@ def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     assert input_file.exists()
     assert input_file.suffix == ".epub"
     assert request.inputs.target_languages == ["French"]
-    metadata_snapshot = request.inputs.book_metadata.as_dict()
+    metadata_snapshot = request.inputs.media_metadata.as_dict()
     creation_summary = metadata_snapshot.get("creation_summary")
     assert isinstance(creation_summary, dict)
     assert creation_summary.get("epub_path", "").endswith(".epub")

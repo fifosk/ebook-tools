@@ -55,7 +55,6 @@ class PipelineInput:
     selected_voice: str
     output_html: bool
     output_pdf: bool
-    generate_video: bool
     add_images: bool
     include_transliteration: bool
     tempo: float
@@ -137,10 +136,6 @@ class PipelineResponse:
         return None if self.render is None else self.render.audio_segments
 
     @property
-    def batch_video_files(self) -> Optional[List[str]]:
-        return None if self.render is None else self.render.batch_video_files
-
-    @property
     def base_dir(self) -> Optional[str]:
         return None if self.render is None else self.render.base_dir
 
@@ -155,10 +150,6 @@ class PipelineResponse:
     @property
     def stitched_audio_path(self) -> Optional[str]:
         return self.stitching.audio_path
-
-    @property
-    def stitched_video_path(self) -> Optional[str]:
-        return self.stitching.video_path
 
     @property
     def media_metadata(self) -> Dict[str, Any]:
@@ -471,12 +462,10 @@ def serialize_pipeline_response(response: PipelineResponse) -> Dict[str, Any]:
         "refined_updated": response.refined_updated,
         "written_blocks": response.written_blocks,
         "audio_segments": audio_segments,
-        "batch_video_files": response.batch_video_files,
         "base_dir": str(response.base_dir) if response.base_dir else None,
         "base_output_stem": response.base_output_stem,
         "stitched_documents": dict(response.stitched_documents),
         "stitched_audio_path": response.stitched_audio_path,
-        "stitched_video_path": response.stitched_video_path,
         "media_metadata": dict(response.media_metadata),
         "generated_files": copy.deepcopy(response.generated_files),
     }
@@ -826,16 +815,11 @@ class PipelineService:
         root.mkdir(parents=True, exist_ok=True)
 
         metadata_path = locator.resolve_metadata_path(job_id, "book.json")
-        sentences_path = locator.resolve_metadata_path(job_id, "sentences.json")
         request_path = locator.resolve_metadata_path(job_id, "request.json")
         config_path = locator.resolve_metadata_path(job_id, "config.json")
 
         metadata_path.write_text(
             json.dumps(snapshot.media_metadata, indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
-        sentences_path.write_text(
-            json.dumps(snapshot.refined_sentences, indent=2),
             encoding="utf-8",
         )
 

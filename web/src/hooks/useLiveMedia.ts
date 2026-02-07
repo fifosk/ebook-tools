@@ -263,8 +263,8 @@ function normaliseWordTimings(source: unknown): WordTiming[] {
     }
     const record = entry as Record<string, unknown>;
     const id = toStringOrNull(record.id);
-    const sentenceId = toNumberOrNull(record.sentence_id ?? record.sentenceId);
-    const tokenIdx = toNumberOrNull(record.token_idx ?? record.tokenIdx);
+    const sentenceId = toNumberOrNull(record.sentenceId);
+    const tokenIdx = toNumberOrNull(record.tokenIdx);
     const lang = normaliseWordLanguage(record.lang);
     const t0 = toNumberOrNull(record.t0);
     const t1 = toNumberOrNull(record.t1);
@@ -474,15 +474,15 @@ function buildWordTimingsFromLegacyTokens(
       return;
     }
     const record = token as Record<string, unknown>;
-    const sentenceId = toNumberOrNull(record.sentenceIdx ?? record.sentence_id ?? record.sentenceId);
-    const tokenIdx = toNumberOrNull(record.wordIdx ?? record.token_idx ?? record.tokenIdx);
+    const sentenceId = toNumberOrNull(record.sentenceIdx ?? record.sentenceId);
+    const tokenIdx = toNumberOrNull(record.wordIdx ?? record.tokenIdx);
     let start = toNumberOrNull(record.start ?? record.t0);
     let end = toNumberOrNull(record.end ?? record.t1 ?? start);
     if (sentenceId === null || tokenIdx === null || start === null || end === null) {
       return;
     }
     if (applyGateOffset) {
-      const gate = toNumberOrNull(record.start_gate ?? record.startGate);
+      const gate = toNumberOrNull(record.startGate);
       if (gate !== null && start >= gate - 1e-3) {
         start -= gate;
         end -= gate;
@@ -626,11 +626,9 @@ function buildStateFromSections(
         : [];
       const audioTracks =
         extractAudioTracks(
-          (payload.audio_tracks as Record<string, unknown> | undefined) ??
-            (payload.audioTracks as Record<string, unknown> | undefined),
+          payload.audioTracks as Record<string, unknown> | undefined,
         ) ?? null;
-      const rawTimingSource =
-        (payload.timing_tracks as unknown) ?? (payload.timingTracks as unknown);
+      const rawTimingSource = payload.timingTracks as unknown;
       const timingTracks = normaliseTrackTimingCollection(
         attachChunkIdToTimingSource(rawTimingSource, chunkId),
       );
@@ -642,7 +640,7 @@ function buildStateFromSections(
             : null;
       // Extract timing version (v2 = pre-scaled timing from backend)
       const timingVersion = toStringOrNull(
-        (payload.timing_version as string | undefined) ?? (payload.timingVersion as string | undefined),
+        payload.timingVersion as string | undefined,
       );
       chunkRecords.push({
         chunkId,

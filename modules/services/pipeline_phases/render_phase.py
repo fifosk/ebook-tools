@@ -10,7 +10,6 @@ from pydub import AudioSegment
 from ... import logging_manager as log_mgr
 from ... import output_formatter
 from ...core.rendering import RenderPhaseRequest, process_epub
-from ...video.api import VideoService
 from ..pipeline_types import (
     ConfigPhaseResult,
     MetadataPhaseResult,
@@ -48,7 +47,6 @@ def execute_render_phase(
         output_html=request.inputs.output_html,
         output_pdf=request.inputs.output_pdf,
         refined_sentences=metadata_result.ingestion.refined_sentences,
-        generate_video=request.inputs.generate_video,
         generate_images=bool(getattr(request.inputs, "add_images", False)),
         include_transliteration=request.inputs.include_transliteration,
         translation_provider=getattr(request.inputs, "translation_provider", None),
@@ -62,7 +60,6 @@ def execute_render_phase(
     (
         written_blocks,
         all_audio_segments,
-        batch_video_files,
         base_dir,
         base_no_ext,
     ) = process_epub(
@@ -83,7 +80,6 @@ def execute_render_phase(
     return RenderResult(
         written_blocks=written_blocks,
         audio_segments=all_audio_segments,
-        batch_video_files=batch_video_files,
         base_dir=base_dir,
         base_output_stem=base_no_ext,
     )
@@ -150,35 +146,7 @@ def build_stitching_artifacts(
         else:
             stitched_audio.export(audio_path_result, format="mp3")
 
-    video_path_result: str | None = None
-    if request.inputs.generate_video and render_result.batch_video_files:
-        logger.info(
-            "Generating stitched video slide output by concatenating batch video files...",
-            extra={
-                "event": "pipeline.stitching.video.start",
-                "console_suppress": True,
-            },
-        )
-        video_path_result = os.path.join(
-            render_result.base_dir,
-            f"{range_fragment}_{stitched_basename}_stitched.mp4",
-        )
-        service = VideoService(
-            backend=config_result.pipeline_config.video_backend,
-            backend_settings=config_result.pipeline_config.video_backend_settings,
-        )
-        service.concatenate(render_result.batch_video_files, video_path_result)
-        logger.info(
-            "Stitched video slide output saved",
-            extra={
-                "event": "pipeline.stitching.video.complete",
-                "attributes": {"path": video_path_result},
-                "console_suppress": True,
-            },
-        )
-
     return StitchingArtifacts(
         documents=documents,
         audio_path=audio_path_result,
-        video_path=video_path_result,
     )

@@ -74,7 +74,6 @@ def _build_request() -> PipelineRequest:
             selected_voice="",
             output_html=False,
             output_pdf=False,
-            generate_video=False,
             include_transliteration=False,
             tempo=1.0,
             book_metadata={},

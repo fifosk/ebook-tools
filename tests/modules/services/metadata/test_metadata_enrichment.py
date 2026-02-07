@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 from modules.services.metadata import (
-    enrich_book_metadata,
+    enrich_media_metadata,
     enrich_movie_metadata,
     enrich_tv_metadata,
     enrich_metadata,
@@ -97,7 +97,7 @@ class TestBookEnrichment:
             "book_author": "George Orwell",
         }
 
-        result = enrich_book_metadata(metadata, service=unified_service)
+        result = enrich_media_metadata(metadata, service=unified_service)
 
         assert result.enriched, "Book should be enriched"
         assert result.confidence is not None
@@ -118,7 +118,7 @@ class TestBookEnrichment:
             "isbn": "978-0451524935",  # 1984 ISBN
         }
 
-        result = enrich_book_metadata(metadata, service=unified_service)
+        result = enrich_media_metadata(metadata, service=unified_service)
 
         assert result.enriched, "Book should be enriched by ISBN"
         print(f"\nISBN enrichment result:")
@@ -133,7 +133,7 @@ class TestBookEnrichment:
             "book_author": "George Orwell",
         }
 
-        result = enrich_book_metadata(metadata, service=unified_service)
+        result = enrich_media_metadata(metadata, service=unified_service)
 
         # Title should be preserved
         assert result.metadata.get("book_title") == "My Custom Title"
@@ -147,7 +147,7 @@ class TestBookEnrichment:
             "book_author": "Jane Austen",
         }
 
-        result = enrich_book_metadata(metadata, service=unified_service)
+        result = enrich_media_metadata(metadata, service=unified_service)
 
         if result.enriched:
             cover = result.metadata.get("book_cover_url") or result.metadata.get("book_cover_file")
@@ -165,7 +165,7 @@ class TestBookEnrichment:
             "_enrichment_confidence": "medium",
         }
 
-        result = enrich_book_metadata(metadata, force=False, service=unified_service)
+        result = enrich_media_metadata(metadata, force=False, service=unified_service)
 
         # Should not re-enrich
         assert not result.enriched, "Should skip already enriched metadata"
@@ -180,7 +180,7 @@ class TestBookEnrichment:
             "_enrichment_confidence": "low",
         }
 
-        result = enrich_book_metadata(metadata, force=True, service=unified_service)
+        result = enrich_media_metadata(metadata, force=True, service=unified_service)
 
         assert result.enriched, "Should re-enrich with force=True"
         print(f"\nForce re-enrichment test: enriched={result.enriched}")
@@ -343,7 +343,7 @@ class TestCoverArtDownload:
             "book_author": "J.K. Rowling",
         }
 
-        result = enrich_book_metadata(metadata, service=unified_service)
+        result = enrich_media_metadata(metadata, service=unified_service)
 
         if result.enriched and result.source_result:
             cover = result.source_result.cover_url
@@ -395,7 +395,7 @@ class TestEnrichmentResultStructure:
             "book_author": "Herman Melville",
         }
 
-        result = enrich_book_metadata(metadata, service=unified_service)
+        result = enrich_media_metadata(metadata, service=unified_service)
 
         if result.enriched:
             # Check provenance fields
@@ -430,7 +430,7 @@ class TestEnrichmentErrorHandling:
 
     def test_handles_empty_metadata(self):
         """Should handle empty metadata gracefully."""
-        result = enrich_book_metadata({})
+        result = enrich_media_metadata({})
 
         assert not result.enriched
         print(f"\nEmpty metadata result: enriched={result.enriched}")
@@ -439,7 +439,7 @@ class TestEnrichmentErrorHandling:
         """Should handle metadata without title."""
         metadata = {"book_author": "Unknown"}
 
-        result = enrich_book_metadata(metadata)
+        result = enrich_media_metadata(metadata)
 
         # Should not crash, may or may not enrich
         print(f"\nMissing title result: enriched={result.enriched}")
@@ -451,7 +451,7 @@ class TestEnrichmentErrorHandling:
             "book_author": "Nobody Real",
         }
 
-        result = enrich_book_metadata(metadata)
+        result = enrich_media_metadata(metadata)
 
         # Should not crash
         print(f"\nNon-existent book result: enriched={result.enriched}")

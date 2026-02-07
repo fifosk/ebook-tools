@@ -151,98 +151,25 @@ export function usePlayerPanelJobInfo({
   }, [jobId]);
 
   useEffect(() => {
-    let cancelled = false;
-
     if (!jobId || chunks.length === 0) {
       setBookSentenceCount(null);
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
 
     const metadataCount = normaliseBookSentenceCount(mediaMetadata);
     if (metadataCount !== null) {
       setBookSentenceCount((current) => (current === metadataCount ? current : metadataCount));
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
 
     if (bookSentenceCount !== null) {
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
 
-    if (playerMode === 'export') {
-      const derivedCount = deriveSentenceCountFromChunks(chunks);
-      if (derivedCount !== null) {
-        setBookSentenceCount((current) => (current === derivedCount ? current : derivedCount));
-      }
-      return () => {
-        cancelled = true;
-      };
+    const derivedCount = deriveSentenceCountFromChunks(chunks);
+    if (derivedCount !== null) {
+      setBookSentenceCount((current) => (current === derivedCount ? current : derivedCount));
     }
-
-    const resolveTargetUrl = (): string | null => {
-      try {
-        return buildStorageUrl('metadata/sentences.json', jobId);
-      } catch (error) {
-        try {
-          const encodedJobId = encodeURIComponent(jobId);
-          return `/pipelines/jobs/${encodedJobId}/metadata/sentences.json`;
-        } catch {
-          return null;
-        }
-      }
-    };
-
-    const targetUrl = resolveTargetUrl();
-    if (!targetUrl || typeof fetch !== 'function') {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    (async () => {
-      try {
-        const response = await fetch(appendAccessTokenToStorageUrl(targetUrl), { credentials: 'include' });
-        if (!response.ok) {
-          return;
-        }
-
-        let payload: unknown = null;
-        if (typeof response.json === 'function') {
-          try {
-            payload = await response.json();
-          } catch {
-            payload = null;
-          }
-        }
-        if (payload === null && typeof response.text === 'function') {
-          try {
-            const raw = await response.text();
-            payload = JSON.parse(raw);
-          } catch {
-            payload = null;
-          }
-        }
-
-        const count = normaliseBookSentenceCount(payload);
-        if (cancelled || count === null) {
-          return;
-        }
-        setBookSentenceCount(count);
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.warn('Unable to load book sentence count', targetUrl, error);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [mediaMetadata, bookSentenceCount, chunks.length, jobId, playerMode]);
 
   useEffect(() => {

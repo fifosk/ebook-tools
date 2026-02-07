@@ -83,8 +83,6 @@ const TUNING_LABELS: Record<string, string> = {
   queue_size: 'Translation queue size',
   job_worker_slots: 'Job worker slots',
   job_max_workers: 'Configured job workers',
-  slide_parallelism: 'Slide parallelism',
-  slide_parallel_workers: 'Slide workers',
 };
 
 const TUNING_DESCRIPTIONS: Record<string, string> = {
@@ -98,8 +96,6 @@ const TUNING_DESCRIPTIONS: Record<string, string> = {
   queue_size: 'Buffer between translation and media workers; larger means more in-flight tasks.',
   job_worker_slots: 'Max concurrent jobs the server can execute.',
   job_max_workers: 'Configured job concurrency limit (may be capped by hardware).',
-  slide_parallelism: 'Slide rendering parallelism mode.',
-  slide_parallel_workers: 'Parallel slide render workers (video/HTML export).',
 };
 
 const TUNING_ORDER: string[] = [
@@ -113,8 +109,6 @@ const TUNING_ORDER: string[] = [
   'queue_size',
   'job_worker_slots',
   'job_max_workers',
-  'slide_parallelism',
-  'slide_parallel_workers',
 ];
 
 export function formatDate(value: string | null | undefined): string {

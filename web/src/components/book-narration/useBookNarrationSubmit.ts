@@ -77,16 +77,6 @@ export function useBookNarrationSubmit({
           pipelineOverrides.job_max_workers = jobMaxWorkers;
         }
 
-        const slideParallelism = formState.slide_parallelism.trim();
-        if (slideParallelism) {
-          pipelineOverrides.slide_parallelism = slideParallelism;
-        }
-
-        const slideParallelWorkers = parseOptionalNumberInput(formState.slide_parallel_workers);
-        if (slideParallelWorkers !== undefined) {
-          pipelineOverrides.slide_parallel_workers = slideParallelWorkers;
-        }
-
         const sanitizedVoiceOverrides: Record<string, string> = {};
         for (const [code, value] of Object.entries(formState.voice_overrides)) {
           if (typeof code !== 'string' || typeof value !== 'string') {

@@ -53,10 +53,6 @@ def _build_context(tmp_path: Path) -> BatchExportContext:
         highlight_granularity="word",
         selected_voice="macOS-auto-male",
         voice_name="macOS-auto-male",
-        slide_render_options=None,
-        template_name=None,
-        video_backend="ffmpeg",
-        video_backend_settings={},
     )
 
 
@@ -72,12 +68,11 @@ def test_build_sentence_metadata_respects_existing_gate_values(tmp_path: Path) -
         translation_phase_duration=0.0,
         gap_before_translation=0.0,
         gap_after_translation=0.0,
-        word_meta={"start_gate": 1.0, "end_gate": 2.75},
+        word_meta={"startGate": 1.0, "endGate": 2.75},
     )
 
-    assert pytest.approx(1.75) == result["slide_duration"]
-    assert result["start_gate"] == pytest.approx(1.0)
-    assert result["end_gate"] == pytest.approx(2.75)
+    assert result["startGate"] == pytest.approx(1.0)
+    assert result["endGate"] == pytest.approx(2.75)
 
 
 def test_exporter_handles_basic_batch_without_audio(tmp_path: Path) -> None:
@@ -92,8 +87,7 @@ def test_exporter_handles_basic_batch_without_audio(tmp_path: Path) -> None:
         output_pdf=False,
         generate_audio=False,
         audio_segments=[],
-        generate_video=False,
-        video_blocks=[block],
+        sentence_blocks=[block],
         sentence_metadata=[{"sentence_number": 1}],
     )
 

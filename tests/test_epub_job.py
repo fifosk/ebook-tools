@@ -201,7 +201,6 @@ def _cli_configuration(
     config["end_sentence"] = None
     config["stitch_full"] = False
     config["generate_audio"] = True
-    config["generate_video"] = True
     config["output_html"] = True
     config["output_pdf"] = False
     config["include_transliteration"] = True
@@ -691,7 +690,6 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
             "selected_voice": config.get("selected_voice", "macOS-auto-male"),
             "output_html": config.get("output_html", True),
             "output_pdf": config.get("output_pdf", False),
-            "generate_video": config.get("generate_video", False),
             "include_transliteration": config.get("include_transliteration", True),
             "tempo": config.get("tempo", 1.0),
             "media_metadata": {
@@ -803,29 +801,10 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
     if not mp3_path.exists():
         pytest.fail(f"MP3 artifact not found at {mp3_path}")
 
-    video_path_value = result_payload.get("stitched_video_path")
-    mp4_path: Path | None = Path(video_path_value) if video_path_value else None
-    if not mp4_path or not mp4_path.exists():
-        mp4_candidates = sorted(base_dir.glob("*.mp4"))
-        mp4_path = mp4_candidates[0] if mp4_candidates else None
-    if not mp4_path:
-        pytest.fail(
-            "Pipeline result missing stitched video path and no MP4 files were found "
-            f"in {base_dir}: {result_payload}"
-        )
-    if not mp4_path.exists():
-        pytest.fail(f"MP4 artifact not found at {mp4_path}")
-
-    batch_videos = result_payload.get("batch_video_files") or []
-    if batch_videos:
-        existing_batches = [path for path in batch_videos if Path(path).exists()]
-        print(f"[artifacts] Batch video segments located: {existing_batches}")
-
     print(
         f"[artifacts] HTML generated at {html_path} ({html_path.stat().st_size} bytes)"
     )
     print(f"[artifacts] MP3 generated at {mp3_path} ({mp3_path.stat().st_size} bytes)")
-    print(f"[artifacts] MP4 generated at {mp4_path} ({mp4_path.stat().st_size} bytes)")
 
     print(f"[webapi] Artifact directory ready for inspection: {base_dir}")
     for path in sorted(base_dir.iterdir()):

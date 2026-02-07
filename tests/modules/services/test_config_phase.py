@@ -47,7 +47,6 @@ def _inputs(selected_voice: str) -> PipelineInput:
         selected_voice=selected_voice,
         output_html=False,
         output_pdf=False,
-        generate_video=False,
         include_transliteration=True,
         tempo=1.0,
     )

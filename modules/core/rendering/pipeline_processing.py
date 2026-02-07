@@ -30,7 +30,7 @@ from modules.transliteration import TransliterationService
 from modules.retry_annotations import is_failure_annotation
 from modules.text import align_token_counts
 
-from .blocks import build_written_and_video_blocks
+from .blocks import build_written_and_sentence_blocks
 from modules.language_constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
 from .exporters import BatchExportRequest, BatchExportResult, BatchExporter
 from .pipeline_image_state import _ImageGenerationState
@@ -125,7 +125,6 @@ def process_sequential(
     input_language: str,
     target_languages: Sequence[str],
     generate_audio: bool,
-    generate_video: bool,
     audio_mode: str,
     written_mode: str,
     sentences_per_file: int,
@@ -280,7 +279,6 @@ def process_sequential(
                 output_html=output_html,
                 output_pdf=output_pdf,
                 generate_audio=generate_audio,
-                generate_video=generate_video,
                 audio_segment=audio_segment,
                 original_audio_segment=original_audio_segment,
                 voice_metadata=voice_metadata,
@@ -305,7 +303,6 @@ def process_pipeline(
     input_language: str,
     target_languages: Sequence[str],
     generate_audio: bool,
-    generate_video: bool,
     generate_images: bool,
     audio_mode: str,
     written_mode: str,
@@ -500,7 +497,7 @@ def process_pipeline(
                         if state.all_original_segments is not None:
                             state.all_original_segments.append(original_audio_segment)
                 self._update_voice_metadata(state, getattr(item, "voice_metadata", None))
-                written_block, video_block = build_written_and_video_blocks(
+                written_block, sentence_block = build_written_and_sentence_blocks(
                     sentence_number=item.sentence_number,
                     sentence=item.sentence,
                     fluent=fluent,
@@ -513,7 +510,7 @@ def process_pipeline(
                     ),
                 )
                 state.written_blocks.append(written_block)
-                state.video_blocks.append(video_block)
+                state.sentence_blocks.append(sentence_block)
 
                 raw_metadata = getattr(item, "metadata", None)
                 metadata_payload: Dict[str, Any]
@@ -602,8 +599,6 @@ def process_pipeline(
                         generate_audio=generate_audio,
                         audio_segments=list(state.current_audio_segments or []),
                         audio_tracks=audio_tracks,
-                        generate_video=generate_video,
-                        video_blocks=list(state.video_blocks),
                         voice_metadata=self._drain_current_voice_metadata(state),
                         sentence_metadata=list(state.current_sentence_metadata),
                     )
@@ -613,7 +608,7 @@ def process_pipeline(
                         partial(self._handle_export_future_completion, state)
                     )
                     state.written_blocks.clear()
-                    state.video_blocks.clear()
+                    state.sentence_blocks.clear()
                     if state.current_audio_segments is not None:
                         state.current_audio_segments.clear()
                     if state.current_original_segments is not None:

@@ -33,7 +33,7 @@ def _build_request() -> PipelineRequest:
             selected_voice="voice",
             output_html=False,
             output_pdf=False,
-            generate_video=False,
+            add_images=False,
             include_transliteration=False,
             tempo=1.0,
             media_metadata=PipelineMetadata.from_mapping({"title": "Test"}),

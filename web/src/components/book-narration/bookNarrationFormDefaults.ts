@@ -59,8 +59,6 @@ export const DEFAULT_FORM_STATE: FormState = {
   queue_size: '',
   job_max_workers: '',
   image_concurrency: '',
-  slide_parallelism: '',
-  slide_parallel_workers: '',
   config: '{}',
   environment_overrides: '{}',
   pipeline_overrides: '{}',

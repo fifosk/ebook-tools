@@ -85,7 +85,6 @@ def confirm_settings(
         selected_voice=config.get("selected_voice", "gTTS"),
         output_html=config.get("output_html", True),
         output_pdf=config.get("output_pdf", False),
-        generate_video=config.get("generate_video", False),
         add_images=config.get("add_images", False),
         include_transliteration=config.get("include_transliteration", True),
         tempo=config.get("tempo", 1.0),

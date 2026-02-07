@@ -153,17 +153,6 @@ class PipelineJobTuner:
         job_max_workers = self._resolve_job_max_workers(request)
         if job_max_workers is not None:
             summary["job_max_workers"] = job_max_workers
-        slide_workers = request.pipeline_overrides.get("slide_parallel_workers")
-        if slide_workers is None:
-            slide_workers = request.config.get("slide_parallel_workers")
-        slide_workers_value = self._coerce_non_negative_int(slide_workers)
-        if slide_workers_value is not None:
-            summary["slide_parallel_workers"] = slide_workers_value
-        slide_mode = request.pipeline_overrides.get("slide_parallelism") or request.config.get(
-            "slide_parallelism"
-        )
-        if slide_mode:
-            summary["slide_parallelism"] = slide_mode
         executor_slots = self._executor_slots_getter()
         if isinstance(executor_slots, int) and executor_slots > 0:
             summary["job_worker_slots"] = executor_slots

@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 from PIL import Image
 from pydub import AudioSegment
 
-from modules import audio_video_generator as av_gen
 from modules import config_manager as cfg
 from modules import output_formatter
 from modules.audio.tts import get_voice_display_name
@@ -24,8 +23,6 @@ from modules.core.rendering.timeline import (
 )
 from modules.render.context import RenderBatchContext
 from modules.render.output_writer import DeferredBatchWriter
-from modules.video.api import VideoService
-from modules.video.slides import SlideRenderOptions
 from modules.audio.highlight import _get_audio_metadata
 from modules.text import split_highlight_tokens
 
@@ -101,14 +98,8 @@ _COMPACT_SENTENCE_DROP_KEYS = {
     "originalWordTokens",
     "original_highlighting_policy",
     "original_highlighting_summary",
-    "original_pause_after_ms",
-    "original_pause_before_ms",
-    "original_word_tokens",
     "pauseAfterMs",
     "pauseBeforeMs",
-    "pause_after_ms",
-    "pause_before_ms",
-    "slide_duration",
     "slideDuration",
     "timing",
     "timeline",
@@ -134,32 +125,19 @@ def serialize_sentence_chunk(
     sentence_meta: Mapping[str, Any],
     *,
     include_timing_tracks: bool = True,
-    include_top_level_text: bool = True,
 ) -> Dict[str, Any]:
     """
     Normalise sentence-level metadata for chunk payloads.
 
-    Builds a backward-compatible structure that keeps sentence timing while
-    exposing detailed word-level tracks when available.
+    Builds a structure that keeps sentence timing while exposing detailed
+    word-level tracks when available.
     """
 
     if not isinstance(sentence_meta, Mapping):
         raise TypeError("sentence_meta must be a mapping")
 
-    sentence_id = (
-        sentence_meta.get("id")
-        or sentence_meta.get("sentence_id")
-        or sentence_meta.get("sentence_number")
-        or ""
-    )
+    sentence_id = sentence_meta.get("sentenceNumber") or sentence_meta.get("sentence_number") or ""
     sentence_id_str = str(sentence_id) if sentence_id is not None else ""
-    if not sentence_id_str:
-        sentence_number_val = sentence_meta.get("sentence_number")
-        if sentence_number_val is not None:
-            sentence_id_str = str(sentence_number_val)
-
-    text_value = sentence_meta.get("text")
-    text_str = str(text_value) if text_value is not None else ""
 
     try:
         t0 = round(float(sentence_meta.get("t0", 0.0)), 3)
@@ -179,9 +157,7 @@ def serialize_sentence_chunk(
         word_events = build_word_events(sentence_meta)
         if word_events:
             timing_tracks_payload["translation"] = word_events
-        original_tokens = sentence_meta.get("original_word_tokens")
-        if original_tokens is None:
-            original_tokens = sentence_meta.get("originalWordTokens")
+        original_tokens = sentence_meta.get("originalWordTokens")
         if isinstance(original_tokens, Sequence):
             original_events = build_word_events({"word_tokens": original_tokens})
             if original_events:
@@ -193,14 +169,10 @@ def serialize_sentence_chunk(
         "t1": t1,
         "timing": {"t0": t0, "t1": t1},
     }
-    if include_top_level_text:
-        chunk_entry["text"] = text_str
     if timing_tracks_payload:
         chunk_entry["timingTracks"] = timing_tracks_payload
 
-    policy_candidate = sentence_meta.get("highlighting_policy") or sentence_meta.get(
-        "alignment_policy"
-    )
+    policy_candidate = sentence_meta.get("highlighting_policy")
     normalized_policy: Optional[str] = None
     if isinstance(policy_candidate, str):
         normalized_policy = policy_candidate.strip() or None
@@ -356,10 +328,6 @@ class BatchExportContext:
     highlight_granularity: str
     selected_voice: str
     voice_name: str
-    slide_render_options: Optional[SlideRenderOptions]
-    template_name: Optional[str]
-    video_backend: str
-    video_backend_settings: Mapping[str, Mapping[str, object]]
     audio_bitrate_kbps: Optional[int] = None
 
 
@@ -375,8 +343,7 @@ class BatchExportRequest:
     output_pdf: bool
     generate_audio: bool
     audio_segments: Sequence[AudioSegment]
-    generate_video: bool
-    video_blocks: Sequence[str]
+    sentence_blocks: Sequence[str]
     sentence_metadata: Sequence[Mapping[str, Any]] = field(default_factory=list)
     voice_metadata: Mapping[str, Mapping[str, Sequence[str]]] = field(
         default_factory=dict
@@ -402,14 +369,10 @@ class BatchExportResult:
 
 
 class BatchExporter:
-    """Persist batch outputs for written, audio, and optional video artifacts."""
+    """Persist batch outputs for written and audio artifacts."""
 
     def __init__(self, context: BatchExportContext) -> None:
         self._context = context
-        self._video_service = VideoService(
-            backend=context.video_backend,
-            backend_settings=context.video_backend_settings,
-        )
 
     def _resolve_audio_bitrate(self) -> Optional[str]:
         raw_value = getattr(self._context, "audio_bitrate_kbps", None)
@@ -550,25 +513,17 @@ class BatchExporter:
             except (TypeError, ValueError):
                 return 0
 
-        pause_before_source = meta_payload.get("pauseBeforeMs")
-        if pause_before_source is None:
-            pause_before_source = meta_payload.get("pause_before_ms")
-        pause_after_source = meta_payload.get("pauseAfterMs")
-        if pause_after_source is None:
-            pause_after_source = meta_payload.get("pause_after_ms")
-        pause_before_ms = max(_coerce_pause_ms(pause_before_source), 0)
-        pause_after_ms = max(_coerce_pause_ms(pause_after_source), 0)
+        pause_before_ms = max(_coerce_pause_ms(meta_payload.get("pauseBeforeMs")), 0)
+        pause_after_ms = max(_coerce_pause_ms(meta_payload.get("pauseAfterMs")), 0)
         meta_payload["pauseBeforeMs"] = pause_before_ms
         meta_payload["pauseAfterMs"] = pause_after_ms
 
-        chunk_entry = serialize_sentence_chunk(meta_payload, include_timing_tracks=False, include_top_level_text=False)
+        chunk_entry = serialize_sentence_chunk(meta_payload, include_timing_tracks=False)
         payload["sentence_id"] = chunk_entry["sentence_id"]
         payload["t0"] = chunk_entry["t0"]
         payload["t1"] = chunk_entry["t1"]
         payload["word_tokens"] = list(meta_payload.get("word_tokens") or [])
-        original_tokens = meta_payload.get("original_word_tokens")
-        if original_tokens is None:
-            original_tokens = meta_payload.get("originalWordTokens")
+        original_tokens = meta_payload.get("originalWordTokens")
         if isinstance(original_tokens, Sequence):
             payload["originalWordTokens"] = list(original_tokens)
         highlighting_summary = chunk_entry.get("highlighting_summary", {})
@@ -592,11 +547,7 @@ class BatchExporter:
             payload["original_highlighting_policy"] = original_policy.strip()
 
         original_pause_before_source = meta_payload.get("originalPauseBeforeMs")
-        if original_pause_before_source is None:
-            original_pause_before_source = meta_payload.get("original_pause_before_ms")
         original_pause_after_source = meta_payload.get("originalPauseAfterMs")
-        if original_pause_after_source is None:
-            original_pause_after_source = meta_payload.get("original_pause_after_ms")
         if original_pause_before_source is not None or original_pause_after_source is not None:
             original_pause_before_ms = max(_coerce_pause_ms(original_pause_before_source), 0)
             original_pause_after_ms = max(_coerce_pause_ms(original_pause_after_source), 0)
@@ -605,12 +556,8 @@ class BatchExporter:
 
         # Prefer any previously-computed gate metadata but fall back to the
         # synthesized timing block so downstream code has consistent values.
-        start_gate_value = meta_payload.get("start_gate")
-        if start_gate_value is None:
-            start_gate_value = meta_payload.get("startGate")
-        end_gate_value = meta_payload.get("end_gate")
-        if end_gate_value is None:
-            end_gate_value = meta_payload.get("endGate")
+        start_gate_value = meta_payload.get("startGate")
+        end_gate_value = meta_payload.get("endGate")
         if start_gate_value is None or end_gate_value is None:
             timing_block = chunk_entry.get("timing")
             if isinstance(timing_block, Mapping):
@@ -623,12 +570,8 @@ class BatchExporter:
             payload.setdefault("startGate", float(start_gate_value))
             payload.setdefault("endGate", float(end_gate_value))
 
-        original_start_gate = meta_payload.get("original_start_gate")
-        if original_start_gate is None:
-            original_start_gate = meta_payload.get("originalStartGate")
-        original_end_gate = meta_payload.get("original_end_gate")
-        if original_end_gate is None:
-            original_end_gate = meta_payload.get("originalEndGate")
+        original_start_gate = meta_payload.get("originalStartGate")
+        original_end_gate = meta_payload.get("originalEndGate")
         if isinstance(original_start_gate, (int, float)) and isinstance(original_end_gate, (int, float)):
             payload.setdefault("originalStartGate", float(original_start_gate))
             payload.setdefault("originalEndGate", float(original_end_gate))
@@ -636,7 +579,7 @@ class BatchExporter:
         image_payload = meta_payload.get("image")
         if isinstance(image_payload, Mapping):
             payload["image"] = dict(image_payload)
-        image_path = meta_payload.get("image_path") or meta_payload.get("imagePath")
+        image_path = meta_payload.get("imagePath")
         if isinstance(image_path, str) and image_path.strip():
             payload["imagePath"] = image_path.strip()
 
@@ -703,11 +646,7 @@ class BatchExporter:
         media_context = {
             "text": {"range_fragment": range_fragment},
             "audio": {"range_fragment": range_fragment},
-            "video": {
-                "range_fragment": range_fragment,
-                "voice_name": voice_display,
-                "voice_lines": voice_lines,
-            },
+
         }
         batch_context = RenderBatchContext(manifest=manifest_context, media=media_context)
         writer = DeferredBatchWriter(Path(self._context.base_dir), batch_context)
@@ -744,7 +683,7 @@ class BatchExporter:
             trans_track_segments = (
                 audio_track_segments.get("translation") or audio_track_segments.get("trans")
             )
-        video_blocks: List[str] = list(request.video_blocks)
+        sentence_blocks: List[str] = list(request.sentence_blocks)
         sentence_payloads: List[Dict[str, object]] = []
         sentence_specs: List[SentenceTimingSpec] = []
 
@@ -757,7 +696,7 @@ class BatchExporter:
         translation_gate_cursor = 0.0
         original_gate_cursor = 0.0
 
-        for offset, block in enumerate(video_blocks):
+        for offset, block in enumerate(sentence_blocks):
             sentence_number = request.start_sentence + offset
             audio_segment = audio_segments[offset] if offset < len(audio_segments) else None
             gap_before_translation = 0.0
@@ -806,18 +745,12 @@ class BatchExporter:
             word_timing_meta = metadata.get("word_timing")
             if not isinstance(word_timing_meta, Mapping):
                 word_timing_meta = {}
-            pause_before_source = metadata.get("pauseBeforeMs")
-            if pause_before_source is None:
-                pause_before_source = metadata.get("pause_before_ms")
-            pause_after_source = metadata.get("pauseAfterMs")
-            if pause_after_source is None:
-                pause_after_source = metadata.get("pause_after_ms")
             try:
-                pause_before_ms = float(pause_before_source)
+                pause_before_ms = float(metadata.get("pauseBeforeMs"))
             except (TypeError, ValueError):
                 pause_before_ms = 0.0
             try:
-                pause_after_ms = float(pause_after_source)
+                pause_after_ms = float(metadata.get("pauseAfterMs"))
             except (TypeError, ValueError):
                 pause_after_ms = 0.0
             translation_duration_value = float(
@@ -860,8 +793,7 @@ class BatchExporter:
                     original_words=list(original_entry.get("tokens") or []),
                     translation_words=list(translation_entry.get("tokens") or []),
                     word_tokens=metadata.get("word_tokens"),
-                    original_word_tokens=metadata.get("originalWordTokens")
-                    or metadata.get("original_word_tokens"),
+                    original_word_tokens=metadata.get("originalWordTokens"),
                     translation_duration=translation_duration_value,
                     original_duration=float(phase_data.get("original") or 0.0),
                     gap_before_translation=float(phase_data.get("gap") or 0.0),
@@ -879,14 +811,10 @@ class BatchExporter:
                     pause_before_ms=pause_before_ms,
                     pause_after_ms=pause_after_ms,
                     original_pause_before_ms=float(
-                        metadata.get("originalPauseBeforeMs")
-                        or metadata.get("original_pause_before_ms")
-                        or 0.0
+                        metadata.get("originalPauseBeforeMs") or 0.0
                     ),
                     original_pause_after_ms=float(
-                        metadata.get("originalPauseAfterMs")
-                        or metadata.get("original_pause_after_ms")
-                        or 0.0
+                        metadata.get("originalPauseAfterMs") or 0.0
                     ),
                 )
             sentence_specs.append(spec)
@@ -982,37 +910,6 @@ class BatchExporter:
                         "sampleRate": sample_rate_value,
                     },
                 )
-
-            video_audio_segments = audio_segments if audio_segments else (orig_track_segments or [])
-            if request.generate_video and video_audio_segments and video_blocks:
-                video_output = av_gen.render_video_slides(
-                    video_blocks,
-                    video_audio_segments,
-                    str(writer.work_dir),
-                    request.start_sentence,
-                    request.end_sentence,
-                    self._context.base_name,
-                    self._context.cover_image,
-                    self._context.book_author,
-                    self._context.book_title,
-                    list(self._context.global_cumulative_word_counts),
-                    self._context.total_book_words,
-                    self._context.macos_reading_speed,
-                    self._context.input_language,
-                    self._context.total_sentences,
-                    self._context.tempo,
-                    self._context.sync_ratio,
-                    self._context.word_highlighting,
-                    self._context.highlight_granularity,
-                    voice_display,
-                    slide_render_options=self._context.slide_render_options,
-                    template_name=self._context.template_name,
-                    video_service=self._video_service,
-                    voice_lines=voice_lines,
-                )
-                video_path = Path(video_output)
-                video_path = writer.stage(video_path)
-                artifacts["video"] = str(video_path)
 
             writer.commit()
         except Exception:
@@ -1142,10 +1039,6 @@ def build_exporter(
     selected_voice: str,
     primary_target_language: str,
     audio_bitrate_kbps: Optional[int] = None,
-    slide_render_options: Optional[SlideRenderOptions],
-    template_name: Optional[str],
-    video_backend: str,
-    video_backend_settings: Mapping[str, Mapping[str, object]],
 ) -> BatchExporter:
     """Construct a :class:`BatchExporter` for the provided pipeline context."""
 
@@ -1173,9 +1066,5 @@ def build_exporter(
         selected_voice=selected_voice,
         audio_bitrate_kbps=audio_bitrate_kbps,
         voice_name=voice_name,
-        slide_render_options=slide_render_options,
-        template_name=template_name,
-        video_backend=video_backend,
-        video_backend_settings=video_backend_settings,
     )
     return BatchExporter(context)

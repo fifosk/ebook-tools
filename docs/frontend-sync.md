@@ -59,9 +59,9 @@ Follow the suggested remediations to restore parity:
 - For image prompt consistency investigations:
   - `prompt_plan`: compare `storage/<job_id>/metadata/image_prompt_plan.json` (scene prompts + seeds).
   - `visual_canon`: compare `storage/<job_id>/metadata/visual_canon.json` and `metadata/scenes/*.json`.
-- Inspect `storage/<job_id>/metadata/job.json` and `metadata/chunk_manifest.json`
-  on each device; mismatched manifests or chunk counts indicate that audio
-  regeneration or metadata compaction ran on only one machine.
+- Inspect `storage/<job_id>/metadata/job.json` on each device; mismatched
+  `generated_files.chunks[]` or chunk counts indicate that audio regeneration
+  or metadata compaction ran on only one machine.
 - Spot-check a few chunk metadata files (`metadata/chunk_XXXX.json`) on each
   machine—especially their `timingTracks` entries—to ensure both environments
   are replaying the same highlight provenance. Legacy jobs may still include a

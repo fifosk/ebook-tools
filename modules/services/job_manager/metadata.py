@@ -43,7 +43,6 @@ class PipelineJobMetadata:
     access: Optional[Dict[str, Any]] = None
     generated_files: Optional[Dict[str, Any]] = None
     media_completed: Optional[bool] = None
-    timing_tracks: Optional[Dict[str, Any]] = None
     retry_summary: Optional[Dict[str, Dict[str, int]]] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -82,8 +81,6 @@ class PipelineJobMetadata:
             payload["generated_files"] = _stable_copy(self.generated_files)
         if self.media_completed is not None:
             payload["media_completed"] = bool(self.media_completed)
-        if self.timing_tracks is not None:
-            payload["timing_tracks"] = _stable_copy(self.timing_tracks)
         return payload
 
     def to_json(self) -> str:
@@ -117,7 +114,6 @@ class PipelineJobMetadata:
             access=data.get("access"),
             generated_files=data.get("generated_files"),
             media_completed=data.get("media_completed"),
-            timing_tracks=data.get("timing_tracks"),
             retry_summary=data.get("retry_summary"),
         )
 

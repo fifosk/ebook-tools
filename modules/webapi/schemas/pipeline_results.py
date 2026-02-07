@@ -20,12 +20,10 @@ class PipelineResponsePayload(BaseModel):
     refined_updated: bool = False
     written_blocks: Optional[List[str]] = None
     audio_segments: Optional[List[float]] = None
-    batch_video_files: Optional[List[str]] = None
     base_dir: Optional[str] = None
     base_output_stem: Optional[str] = None
     stitched_documents: Dict[str, str] = Field(default_factory=dict)
     stitched_audio_path: Optional[str] = None
-    stitched_video_path: Optional[str] = None
     media_metadata: Dict[str, Any] = Field(default_factory=dict, alias="book_metadata")
     structured_metadata: Optional[Dict[str, Any]] = None
     generated_files: Dict[str, Any] = Field(default_factory=dict)
@@ -108,12 +106,10 @@ class PipelineResponsePayload(BaseModel):
             refined_updated=response.refined_updated,
             written_blocks=response.written_blocks,
             audio_segments=audio_segments,
-            batch_video_files=response.batch_video_files,
             base_dir=str(response.base_dir) if response.base_dir else None,
             base_output_stem=response.base_output_stem,
             stitched_documents=dict(response.stitched_documents),
             stitched_audio_path=response.stitched_audio_path,
-            stitched_video_path=response.stitched_video_path,
             media_metadata=media_metadata_dict,
             structured_metadata=structured_metadata,
             generated_files=copy.deepcopy(response.generated_files),

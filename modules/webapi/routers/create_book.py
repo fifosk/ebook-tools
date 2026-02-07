@@ -770,7 +770,6 @@ async def create_book(
             "target_languages": [target_language],
             "selected_voice": selected_voice,
             "generate_audio": bool(config_payload.get("generate_audio", True)),
-            "generate_video": False,
             "book_title": payload.book_name,
             "book_author": payload.author or "Me",
             "book_summary": _build_summary(payload.topic, payload.genre),

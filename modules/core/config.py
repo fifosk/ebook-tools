@@ -17,7 +17,6 @@ from ..epub_parser import (
     DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
     DEFAULT_MAX_WORDS,
 )
-from ..video.slides import SlideRenderOptions
 from ..images.style_templates import resolve_image_style_template
 
 DEFAULT_AUDIO_BITRATE_KBPS = 320
@@ -145,15 +144,6 @@ class PipelineConfig:
     alignment_backend: Optional[str] = None
     alignment_model: Optional[str] = None
     alignment_model_overrides: Optional[Mapping[str, str]] = None
-    slide_parallelism: str = "off"
-    slide_parallel_workers: Optional[int] = None
-    prefer_pillow_simd: bool = False
-    slide_render_benchmark: bool = False
-    slide_template: Optional[str] = "default"
-    video_backend: str = "ffmpeg"
-    video_backend_settings: Mapping[str, Mapping[str, object]] = field(
-        default_factory=dict
-    )
     image_api_base_url: Optional[str] = field(
         default_factory=lambda: (os.environ.get("EBOOK_IMAGE_API_BASE_URL") or "").strip() or None
     )
@@ -230,9 +220,6 @@ class PipelineConfig:
             cloud_api_url=self.cloud_ollama_url,
             cloud_api_key=self.ollama_api_key,
         )
-        if self.video_backend:
-            os.environ["EBOOK_VIDEO_BACKEND"] = self.video_backend
-            get_rendering_config.cache_clear()
         ffmpeg_path = self.ffmpeg_path or self.context.ffmpeg_path
         if ffmpeg_path:
             AudioSegment.converter = ffmpeg_path
@@ -252,16 +239,6 @@ class PipelineConfig:
             )
         else:
             os.environ.pop("EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS", None)
-
-    def get_slide_render_options(self) -> SlideRenderOptions:
-        """Return rendering options used for sentence slide generation."""
-
-        return SlideRenderOptions(
-            parallelism=self.slide_parallelism,
-            workers=self.slide_parallel_workers,
-            prefer_pillow_simd=self.prefer_pillow_simd,
-            benchmark_rendering=self.slide_render_benchmark,
-        )
 
 
 def _select_value(
@@ -406,51 +383,6 @@ def build_pipeline_config(
         _select_value("char_weighted_punctuation_boost", config, overrides, False),
         False,
     )
-
-    raw_parallelism = _select_value("slide_parallelism", config, overrides, "off")
-    if isinstance(raw_parallelism, str):
-        slide_parallelism = raw_parallelism.strip().lower()
-    else:
-        slide_parallelism = "off"
-
-    raw_parallel_workers = _select_value("slide_parallel_workers", config, overrides, None)
-    if raw_parallel_workers is None:
-        slide_parallel_workers: Optional[int] = None
-    else:
-        slide_parallel_workers = max(1, _coerce_int(raw_parallel_workers, 1))
-
-    prefer_pillow_simd = _coerce_bool(
-        _select_value("prefer_pillow_simd", config, overrides, False), False
-    )
-    slide_render_benchmark = _coerce_bool(
-        _select_value("slide_render_benchmark", config, overrides, False), False
-    )
-    raw_template = _select_value("slide_template", config, overrides, "default")
-    if isinstance(raw_template, str):
-        normalized_template = raw_template.strip()
-        slide_template = normalized_template or "default"
-    elif raw_template is None:
-        slide_template = None
-    else:
-        slide_template = "default"
-
-    raw_video_backend = _select_value("video_backend", config, overrides, "ffmpeg")
-    if isinstance(raw_video_backend, str):
-        video_backend = raw_video_backend.strip() or "ffmpeg"
-    else:
-        video_backend = "ffmpeg"
-
-    raw_video_backend_settings = _select_value(
-        "video_backend_settings", config, overrides, {}
-    )
-    if isinstance(raw_video_backend_settings, Mapping):
-        video_backend_settings = {
-            str(key): value
-            for key, value in raw_video_backend_settings.items()
-            if isinstance(key, str) and isinstance(value, Mapping)
-        }
-    else:
-        video_backend_settings = {}
 
     image_api_base_url = _normalize_optional_str(
         _select_value(
@@ -728,13 +660,6 @@ def build_pipeline_config(
         alignment_backend=alignment_backend,
         alignment_model=alignment_model,
         alignment_model_overrides=alignment_model_overrides,
-        slide_parallelism=slide_parallelism,
-        slide_parallel_workers=slide_parallel_workers,
-        prefer_pillow_simd=prefer_pillow_simd,
-        slide_render_benchmark=slide_render_benchmark,
-        slide_template=slide_template,
-        video_backend=video_backend,
-        video_backend_settings=video_backend_settings,
         image_api_base_url=image_api_base_url,
         image_api_base_urls=tuple(image_api_base_urls),
         image_api_timeout_seconds=image_api_timeout_seconds,

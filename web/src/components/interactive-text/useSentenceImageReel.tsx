@@ -136,7 +136,6 @@ export function useSentenceImageReel({
       const imagePayload = entry?.image ?? null;
       return Boolean(
         (typeof imagePayload?.path === 'string' && imagePayload.path.trim()) ||
-          (typeof entry?.image_path === 'string' && entry.image_path.trim()) ||
           (typeof entry?.imagePath === 'string' && entry.imagePath.trim()),
       );
     });
@@ -244,7 +243,6 @@ export function useSentenceImageReel({
       const imagePayload = entry?.image ?? null;
       const explicit =
         (typeof imagePayload?.path === 'string' && imagePayload.path.trim()) ||
-        (typeof entry?.image_path === 'string' && entry.image_path.trim()) ||
         (typeof entry?.imagePath === 'string' && entry.imagePath.trim()) ||
         null;
       if (explicit) return true;
@@ -305,7 +303,6 @@ export function useSentenceImageReel({
       const chunkImagePayload = chunkEntry?.image ?? null;
       const explicitPath =
         (typeof chunkImagePayload?.path === 'string' && chunkImagePayload.path.trim()) ||
-        (typeof chunkEntry?.image_path === 'string' && chunkEntry.image_path.trim()) ||
         (typeof chunkEntry?.imagePath === 'string' && chunkEntry.imagePath.trim()) ||
         null;
       const cached = cache.get(sentenceNumber) ?? null;
@@ -352,7 +349,6 @@ export function useSentenceImageReel({
           const imagePayload = entry?.image ?? null;
           const explicit =
             (typeof imagePayload?.path === 'string' && imagePayload.path.trim()) ||
-            (typeof entry?.image_path === 'string' && entry.image_path.trim()) ||
             (typeof entry?.imagePath === 'string' && entry.imagePath.trim()) ||
             null;
           if (explicit) return explicit.trim();

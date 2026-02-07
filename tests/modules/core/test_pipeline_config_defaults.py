@@ -169,7 +169,6 @@ def test_render_pipeline_passes_audio_api_configuration(monkeypatch, tmp_path):
             input_language="English",
             target_languages=["Arabic"],
             generate_audio=True,
-            generate_video=False,
             audio_mode="1",
             written_mode="4",
             sentences_per_file=1,

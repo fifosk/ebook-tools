@@ -632,10 +632,6 @@ struct PipelineMediaChunk: Decodable, Identifiable {
     }
 }
 
-struct ChunkSentenceImage: Decodable {
-    let path: String?
-}
-
 struct ChunkSentenceMetadata: Decodable, Identifiable {
     var id: Int { sentenceNumber ?? UUID().hashValue }
     let sentenceNumber: Int?
@@ -655,32 +651,20 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
     let originalEndGate: Double?
 
     enum CodingKeys: String, CodingKey {
-        case sentenceNumber = "sentence_number"
-        case sentenceNumberCamel = "sentenceNumber"
+        case sentenceNumber = "sentenceNumber"
         case original
         case translation
         case transliteration
-        case text
-        case image
-        case imagePath = "image_path"
-        case imagePathCamel = "imagePath"
+        case imagePath = "imagePath"
         case timeline
-        case totalDuration = "total_duration"
-        case highlightGranularity = "highlight_granularity"
+        case totalDuration = "totalDuration"
+        case highlightGranularity = "highlightGranularity"
         case counts
-        case phaseDurations = "phase_durations"
-        case totalDurationCamel = "totalDuration"
-        case highlightGranularityCamel = "highlightGranularity"
-        case phaseDurationsCamel = "phaseDurations"
-        // Gate fields - both snake_case and camelCase
-        case startGate = "start_gate"
-        case startGateCamel = "startGate"
-        case endGate = "end_gate"
-        case endGateCamel = "endGate"
-        case originalStartGate = "original_start_gate"
-        case originalStartGateCamel = "originalStartGate"
-        case originalEndGate = "original_end_gate"
-        case originalEndGateCamel = "originalEndGate"
+        case phaseDurations = "phaseDurations"
+        case startGate = "startGate"
+        case endGate = "endGate"
+        case originalStartGate = "originalStartGate"
+        case originalEndGate = "originalEndGate"
     }
 
     init(sentenceNumber: Int?, original: ChunkSentenceVariant, translation: ChunkSentenceVariant?, transliteration: ChunkSentenceVariant?) {
@@ -701,28 +685,8 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
     }
 
     init(from decoder: Decoder) throws {
-        if let singleContainer = try? decoder.singleValueContainer(),
-           let textValue = try? singleContainer.decode(String.self) {
-            sentenceNumber = nil
-            original = ChunkSentenceVariant(text: textValue, tokens: nil)
-            translation = nil
-            transliteration = nil
-            imagePath = nil
-            timeline = []
-            totalDuration = nil
-            highlightGranularity = nil
-            counts = [:]
-            phaseDurations = nil
-            startGate = nil
-            endGate = nil
-            originalStartGate = nil
-            originalEndGate = nil
-            return
-        }
-
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        sentenceNumber = (try? container.decode(Int.self, forKey: .sentenceNumber))
-            ?? (try? container.decode(Int.self, forKey: .sentenceNumberCamel))
+        sentenceNumber = try? container.decode(Int.self, forKey: .sentenceNumber)
 
         let originalValue = try? container.decode(ChunkSentenceVariant.self, forKey: .original)
         let translationValue = try? container.decode(ChunkSentenceVariant.self, forKey: .translation)
@@ -732,8 +696,6 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
             original = originalValue
         } else if let translationValue {
             original = translationValue
-        } else if let textValue = try? container.decode(String.self, forKey: .text) {
-            original = ChunkSentenceVariant(text: textValue, tokens: nil)
         } else {
             original = ChunkSentenceVariant(text: "", tokens: nil)
         }
@@ -741,34 +703,17 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
         translation = translationValue
         transliteration = transliterationValue
 
-        let imagePayload = try? container.decode(ChunkSentenceImage.self, forKey: .image)
-        let imagePathValue = imagePayload?.path.flatMap { $0.nonEmptyValue }
-            ?? (try? container.decode(String.self, forKey: .imagePath))?.nonEmptyValue
-            ?? (try? container.decode(String.self, forKey: .imagePathCamel))?.nonEmptyValue
-        imagePath = imagePathValue
+        imagePath = (try? container.decode(String.self, forKey: .imagePath))?.nonEmptyValue
 
         timeline = (try? container.decode([ChunkSentenceTimelineEvent].self, forKey: .timeline)) ?? []
-        if let rawDuration = try? container.decode(Double.self, forKey: .totalDuration) {
-            totalDuration = rawDuration
-        } else if let rawDuration = try? container.decode(Double.self, forKey: .totalDurationCamel) {
-            totalDuration = rawDuration
-        } else {
-            totalDuration = nil
-        }
-        highlightGranularity = (try? container.decode(String.self, forKey: .highlightGranularity))
-            ?? (try? container.decode(String.self, forKey: .highlightGranularityCamel))
+        totalDuration = try? container.decode(Double.self, forKey: .totalDuration)
+        highlightGranularity = try? container.decode(String.self, forKey: .highlightGranularity)
         counts = (try? container.decode([String: Int].self, forKey: .counts)) ?? [:]
-        phaseDurations = (try? container.decode(ChunkSentencePhaseDurations.self, forKey: .phaseDurations))
-            ?? (try? container.decode(ChunkSentencePhaseDurations.self, forKey: .phaseDurationsCamel))
-        // Parse sentence gate fields for sequence playback
-        startGate = (try? container.decode(Double.self, forKey: .startGate))
-            ?? (try? container.decode(Double.self, forKey: .startGateCamel))
-        endGate = (try? container.decode(Double.self, forKey: .endGate))
-            ?? (try? container.decode(Double.self, forKey: .endGateCamel))
-        originalStartGate = (try? container.decode(Double.self, forKey: .originalStartGate))
-            ?? (try? container.decode(Double.self, forKey: .originalStartGateCamel))
-        originalEndGate = (try? container.decode(Double.self, forKey: .originalEndGate))
-            ?? (try? container.decode(Double.self, forKey: .originalEndGateCamel))
+        phaseDurations = try? container.decode(ChunkSentencePhaseDurations.self, forKey: .phaseDurations)
+        startGate = try? container.decode(Double.self, forKey: .startGate)
+        endGate = try? container.decode(Double.self, forKey: .endGate)
+        originalStartGate = try? container.decode(Double.self, forKey: .originalStartGate)
+        originalEndGate = try? container.decode(Double.self, forKey: .originalEndGate)
     }
 }
 
@@ -910,7 +855,6 @@ struct JobTimingEntry: Decodable, Identifiable {
     let rawID: String?
     let sentenceID: String?
     let sentenceIdx: Int?
-    let sentenceIdMixed: Int?
     let token: String?
     let text: String?
     let t0: Double?
@@ -927,9 +871,8 @@ struct JobTimingEntry: Decodable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case rawID = "id"
-        case sentenceID = "sentence_id"
+        case sentenceID = "sentenceId"
         case sentenceIdx
-        case sentenceIdMixed = "sentenceId"
         case token
         case text
         case t0
@@ -939,10 +882,10 @@ struct JobTimingEntry: Decodable, Identifiable {
         case time
         case begin
         case stop
-        case startGate = "start_gate"
-        case endGate = "end_gate"
-        case pauseBefore = "pause_before_ms"
-        case pauseAfter = "pause_after_ms"
+        case startGate = "startGate"
+        case endGate = "endGate"
+        case pauseBefore = "pauseBeforeMs"
+        case pauseAfter = "pauseAfterMs"
     }
 }
 

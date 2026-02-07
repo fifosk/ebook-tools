@@ -23,7 +23,7 @@ from modules.core.config import PipelineConfig
 from modules.core.translation import ThreadWorkerPool
 from modules.transliteration import TransliterationService, get_transliterator
 
-from .blocks import build_written_and_video_blocks
+from .blocks import build_written_and_sentence_blocks
 from modules.language_constants import LANGUAGE_CODES
 from .exporters import BatchExportRequest, BatchExportResult, BatchExporter, build_exporter
 from .pipeline_processing import _ImageGenerationState, process_pipeline, process_sequential
@@ -34,14 +34,13 @@ class PipelineState:
     """Mutable state tracked while processing sentences."""
 
     written_blocks: List[str] = field(default_factory=list)
-    video_blocks: List[str] = field(default_factory=list)
+    sentence_blocks: List[str] = field(default_factory=list)
     all_audio_segments: Optional[List[AudioSegment]] = None
     current_audio_segments: Optional[List[AudioSegment]] = None
     all_original_segments: Optional[List[AudioSegment]] = None
     current_original_segments: Optional[List[AudioSegment]] = None
     all_sentence_metadata: Optional[List[Dict[str, Any]]] = None
     current_sentence_metadata: List[Dict[str, Any]] = field(default_factory=list)
-    batch_video_files: List[str] = field(default_factory=list)
     current_batch_start: int = 0
     last_target_language: str = ""
     processed: int = 0
@@ -94,7 +93,6 @@ class RenderPipeline:
         output_html: bool,
         output_pdf: bool,
         refined_list: Sequence[str],
-        generate_video: bool,
         generate_images: bool = False,
         include_transliteration: bool = False,
         translation_provider: Optional[str] = None,
@@ -107,7 +105,6 @@ class RenderPipeline:
     ) -> Tuple[
         List[str],
         Optional[List[AudioSegment]],
-        List[str],
         str,
         str,
     ]:
@@ -170,7 +167,6 @@ class RenderPipeline:
         )
 
         global_counts, total_book_words = self._build_word_counts(refined_list)
-        slide_render_options = self._config.get_slide_render_options()
 
         exporter = build_exporter(
             base_dir=base_dir,
@@ -190,10 +186,6 @@ class RenderPipeline:
             selected_voice=self._config.selected_voice,
             primary_target_language=target_languages[0] if target_languages else "",
             audio_bitrate_kbps=getattr(self._config, "audio_bitrate_kbps", None),
-            slide_render_options=slide_render_options,
-            template_name=self._config.slide_template,
-            video_backend=self._config.video_backend,
-            video_backend_settings=self._config.video_backend_settings,
         )
 
         state = self._initial_state(
@@ -231,7 +223,6 @@ class RenderPipeline:
                     input_language=input_language,
                     target_languages=target_languages,
                     generate_audio=generate_audio,
-                    generate_video=generate_video,
                     audio_mode=audio_mode,
                     written_mode=written_mode,
                     sentences_per_file=sentences_per_file,
@@ -261,7 +252,6 @@ class RenderPipeline:
                     input_language=input_language,
                     target_languages=target_languages,
                     generate_audio=generate_audio,
-                    generate_video=generate_video,
                     generate_images=generate_images,
                     audio_mode=audio_mode,
                     written_mode=written_mode,
@@ -303,8 +293,6 @@ class RenderPipeline:
                 generate_audio=generate_audio,
                 audio_segments=list(state.current_audio_segments or []),
                 audio_tracks=audio_tracks,
-                generate_video=generate_video,
-                video_blocks=list(state.video_blocks),
                 voice_metadata=self._drain_current_voice_metadata(state),
                 sentence_metadata=list(state.current_sentence_metadata),
             )
@@ -327,7 +315,6 @@ class RenderPipeline:
         return (
             state.written_blocks,
             state.all_audio_segments,
-            state.batch_video_files,
             base_dir,
             base_name,
         )
@@ -339,9 +326,6 @@ class RenderPipeline:
     ) -> None:
         if result is None:
             return
-        video_path = result.artifacts.get("video")
-        if video_path:
-            state.batch_video_files.append(video_path)
         if self._progress is not None:
             self._record_media_batch_progress(state, result)
             self._progress.record_generated_chunk(
@@ -654,14 +638,13 @@ class RenderPipeline:
         output_html: bool,
         output_pdf: bool,
         generate_audio: bool,
-        generate_video: bool,
         audio_segment: Optional[AudioSegment],
         original_audio_segment: Optional[AudioSegment] = None,
         voice_metadata: Optional[Mapping[str, Mapping[str, str]]] = None,
         first_flush_size: Optional[int] = None,
         first_batch_start: Optional[int] = None,
     ) -> None:
-        written_block, video_block = build_written_and_video_blocks(
+        written_block, sentence_block = build_written_and_sentence_blocks(
             sentence_number=sentence_number,
             sentence=sentence,
             fluent=fluent,
@@ -673,7 +656,7 @@ class RenderPipeline:
         )
         self._update_voice_metadata(state, voice_metadata)
         state.written_blocks.append(written_block)
-        state.video_blocks.append(video_block)
+        state.sentence_blocks.append(sentence_block)
         if generate_audio:
             if audio_segment is not None:
                 if state.current_audio_segments is not None:
@@ -750,15 +733,13 @@ class RenderPipeline:
                 generate_audio=generate_audio,
                 audio_segments=list(state.current_audio_segments or []),
                 audio_tracks=audio_tracks,
-                generate_video=generate_video,
-                video_blocks=list(state.video_blocks),
                 voice_metadata=self._drain_current_voice_metadata(state),
                 sentence_metadata=list(state.current_sentence_metadata),
             )
             export_result = exporter.export(request)
             self._register_export_result(state, export_result)
             state.written_blocks.clear()
-            state.video_blocks.clear()
+            state.sentence_blocks.clear()
             if state.current_audio_segments is not None:
                 state.current_audio_segments.clear()
             if state.current_original_segments is not None:
@@ -781,7 +762,6 @@ class RenderPipeline:
         input_language: str,
         target_languages: Sequence[str],
         generate_audio: bool,
-        generate_video: bool,
         audio_mode: str,
         written_mode: str,
         sentences_per_file: int,
@@ -807,7 +787,6 @@ class RenderPipeline:
             input_language=input_language,
             target_languages=target_languages,
             generate_audio=generate_audio,
-            generate_video=generate_video,
             audio_mode=audio_mode,
             written_mode=written_mode,
             sentences_per_file=sentences_per_file,
@@ -839,7 +818,6 @@ class RenderPipeline:
         input_language: str,
         target_languages: Sequence[str],
         generate_audio: bool,
-        generate_video: bool,
         generate_images: bool,
         audio_mode: str,
         written_mode: str,
@@ -870,7 +848,6 @@ class RenderPipeline:
             input_language=input_language,
             target_languages=target_languages,
             generate_audio=generate_audio,
-            generate_video=generate_video,
             generate_images=generate_images,
             audio_mode=audio_mode,
             written_mode=written_mode,

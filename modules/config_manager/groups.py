@@ -81,23 +81,6 @@ CONFIG_KEY_METADATA: Dict[str, Dict[str, Any]] = {
         "max": 16,
         "requires_restart": True,
     },
-    "slide_parallelism": {
-        "display_name": "Slide Parallelism",
-        "description": "Parallel slide rendering mode (off, thread, process, auto)",
-        "group": ConfigGroup.BACKEND,
-        "type": "string",
-        "choices": ["off", "thread", "process", "auto"],
-        "requires_restart": True,
-    },
-    "slide_parallel_workers": {
-        "display_name": "Slide Parallel Workers",
-        "description": "Number of parallel workers for slide rendering",
-        "group": ConfigGroup.BACKEND,
-        "type": "integer",
-        "min": 1,
-        "max": 32,
-        "requires_restart": True,
-    },
     "use_ramdisk": {
         "display_name": "Use RAM Disk",
         "description": "Use RAM-backed temporary storage for faster I/O",
@@ -186,26 +169,11 @@ CONFIG_KEY_METADATA: Dict[str, Dict[str, Any]] = {
         "requires_restart": False,
     },
     # Video group
-    "video_backend": {
-        "display_name": "Video Backend",
-        "description": "Video rendering backend (ffmpeg)",
-        "group": ConfigGroup.VIDEO,
-        "type": "string",
-        "choices": ["ffmpeg"],
-        "requires_restart": True,
-    },
     "ffmpeg_path": {
         "display_name": "FFmpeg Path",
         "description": "Path to ffmpeg executable",
         "group": ConfigGroup.VIDEO,
         "type": "string",
-        "requires_restart": True,
-    },
-    "video_backend_settings": {
-        "display_name": "Video Backend Settings",
-        "description": "Backend-specific video settings",
-        "group": ConfigGroup.VIDEO,
-        "type": "object",
         "requires_restart": True,
     },
     "sync_ratio": {
@@ -463,13 +431,6 @@ CONFIG_KEY_METADATA: Dict[str, Dict[str, Any]] = {
         "type": "boolean",
         "requires_restart": False,
     },
-    "generate_video": {
-        "display_name": "Generate Video",
-        "description": "Generate video slides by default",
-        "group": ConfigGroup.PROCESSING,
-        "type": "boolean",
-        "requires_restart": False,
-    },
     "output_html": {
         "display_name": "Output HTML",
         "description": "Generate HTML output files",
@@ -552,8 +513,6 @@ class BackendConfig(BaseModel):
     queue_size: int = Field(default=DEFAULT_QUEUE_SIZE, ge=1, le=256)
     pipeline_mode: bool = False
     job_max_workers: int = Field(default=DEFAULT_JOB_MAX_WORKERS, ge=1, le=16)
-    slide_parallelism: str = Field(default="off")
-    slide_parallel_workers: Optional[int] = Field(default=None, ge=1, le=32)
     use_ramdisk: bool = True
     prefer_pillow_simd: bool = False
 
@@ -581,9 +540,7 @@ class VideoConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    video_backend: str = "ffmpeg"
     ffmpeg_path: Optional[str] = Field(default_factory=lambda: DEFAULT_FFMPEG_PATH)
-    video_backend_settings: Dict[str, Any] = Field(default_factory=dict)
     sync_ratio: float = Field(default=0.9, ge=0.5, le=1.5)
 
 
@@ -655,7 +612,6 @@ class ProcessingConfig(BaseModel):
     split_on_comma_semicolon: bool = False
     include_transliteration: bool = True
     generate_audio: bool = True
-    generate_video: bool = False
     output_html: bool = True
     output_pdf: bool = False
     stitch_full: bool = False

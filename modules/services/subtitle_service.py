@@ -299,14 +299,6 @@ class SubtitleService:
                 highlight_granularity = str(
                     getattr(settings, "highlight_granularity", "word") or "word"
                 )
-                video_backend = str(getattr(settings, "video_backend", "ffmpeg") or "ffmpeg")
-                raw_video_backend_settings = getattr(settings, "video_backend_settings", {}) or {}
-                video_backend_settings: Dict[str, Dict[str, object]] = {}
-                if isinstance(raw_video_backend_settings, Mapping):
-                    for key, value in raw_video_backend_settings.items():
-                        if isinstance(key, str) and isinstance(value, Mapping):
-                            video_backend_settings[key] = dict(value)
-
                 base_name = _sanitize_filename_fragment(
                     f"{safe_title}_{input_lang}_{options.target_language}",
                     fallback=safe_title,
@@ -329,10 +321,6 @@ class SubtitleService:
                     selected_voice=selected_voice,
                     primary_target_language=options.target_language,
                     audio_bitrate_kbps=getattr(settings, "audio_bitrate_kbps", None),
-                    slide_render_options=None,
-                    template_name=None,
-                    video_backend=video_backend,
-                    video_backend_settings=video_backend_settings,
                 )
 
                 audio_queue = queue.Queue()
@@ -429,8 +417,7 @@ class SubtitleService:
                                 generate_audio=True,
                                 audio_segments=audio_segments,
                                 audio_tracks=audio_track_segments,
-                                generate_video=False,
-                                video_blocks=[block],
+                                sentence_blocks=[block],
                             )
                             export_result = exporter.export(request)
                             if tracker_local is not None and export_result is not None:

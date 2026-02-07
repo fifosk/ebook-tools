@@ -64,10 +64,10 @@ Keeping these pathways in mind will make it easier to reason about highlight fid
   chunk-level `highlighting_policy` (tokens inside `timingTracks` now keep only
   timing fields).
 - **Metadata creation.** `modules/services/job_manager/persistence.py` emits
-  `metadata/job.json`, `metadata/chunk_manifest.json`, and the per-chunk payloads
-  that the frontend hydrates. Client code should always route through
-  `MetadataLoader.for_job(job_id)` so the new chunked format and legacy single
-  file stay interchangeable.
+  `metadata/job.json` and the per-chunk payloads that the frontend hydrates.
+  Chunk data is accessed via `generated_files.chunks[]` in `job.json`. Client
+  code should always route through `MetadataLoader.for_job(job_id)` so the new
+  chunked format and legacy single file stay interchangeable.
 - **Fallback metadata.** When translation or TTS falls back mid-job, the live
   `generated_files` snapshot records `translation_fallback` / `tts_fallback`
   (trigger, reason, fallback model/voice) so UIs can surface which path was

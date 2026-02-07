@@ -2,12 +2,11 @@
 
 ## Project Overview
 
-**ebook-tools** is a comprehensive toolkit for processing, translating, and narrating ebooks with multimedia output. The system converts EPUB files into multi-language narrated experiences with synchronized audio, video slides, word-level highlighting, and optional AI-generated sentence illustrations.
+**ebook-tools** is a comprehensive toolkit for processing, translating, and narrating ebooks with multimedia output. The system converts EPUB files into multi-language narrated experiences with synchronized audio, word-level highlighting, and optional AI-generated sentence illustrations.
 
 ### Key Capabilities
 - Multi-language translation with LLM fallbacks
 - Text-to-speech synthesis (macOS `say`, Google TTS)
-- Video slide generation with FFmpeg
 - Word-level audio synchronization and highlighting
 - AI-generated sentence images via Stable Diffusion/Draw Things
 - Interactive web reader with real-time word highlighting
@@ -43,18 +42,16 @@
 │   └── config.local.json   # Local overrides (gitignored)
 ├── config/                  # Runtime configuration
 │   ├── users/              # User authentication data
-│   ├── media.yaml          # Media generation settings
-│   └── rendering.yaml      # Rendering pipeline config
+│   └── media.yaml          # Media generation settings
 ├── modules/                 # Python backend modules
 │   ├── audio/              # TTS backends and audio pipeline
 │   ├── cli/                # Command-line interface
 │   ├── core/               # Core processing logic
 │   ├── images/             # Sentence image generation
 │   ├── metadata_manager.py # Job metadata handling
-│   ├── render/             # Audio/video rendering
+│   ├── render/             # Audio rendering pipeline
 │   ├── translation/        # Translation services
 │   ├── user_management/    # Authentication system
-│   ├── video/              # Video slide generation
 │   └── webapi/             # FastAPI application
 ├── web/                     # React frontend
 │   ├── src/                # TypeScript source
@@ -144,33 +141,30 @@ The iOS apps are in `ios/InteractiveReader/`. Use Xcode or command-line builds.
 - `InteractiveReader` - iOS app (iPhone/iPad)
 - `InteractiveReaderTV` - tvOS app (Apple TV)
 
-**Command-line builds** (use full Xcode path since CLI tools may be active):
+**Command-line builds** — always use the full Xcode path and explicit `-project` flag (xcodebuild fails without `-project` when run from the repo root):
 
 ```bash
-# iOS build (iPad)
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -scheme InteractiveReader \
-  -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)' \
-  -quiet build 2>&1 | grep -E "(error:|warning:)" | head -20
+XCBUILD=/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild
+XCPROJ=ios/InteractiveReader/InteractiveReader.xcodeproj
+
+# iOS build — use generic destination (never hardcode simulator names, they change with Xcode versions)
+$XCBUILD -project $XCPROJ -scheme InteractiveReader \
+  -destination 'generic/platform=iOS Simulator' \
+  -quiet build 2>&1 | grep -E "^(error:|Build Failed)" | head -20
 
 # tvOS build
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -scheme InteractiveReaderTV \
+$XCBUILD -project $XCPROJ -scheme InteractiveReaderTV \
   -destination 'generic/platform=tvOS Simulator' \
-  -quiet build 2>&1 | grep -E "(error:|warning:)" | head -20
+  -quiet build 2>&1 | grep -E "^(error:|Build Failed)" | head -20
 
 # List available schemes
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -project ios/InteractiveReader/InteractiveReader.xcodeproj -list
+$XCBUILD -project $XCPROJ -list
 
-# Check build success (no output = success)
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -scheme InteractiveReader \
-  -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)' \
-  -quiet build 2>&1 | tail -5
+# List available simulator destinations (useful for debugging)
+$XCBUILD -project $XCPROJ -scheme InteractiveReader -showdestinations 2>&1 | grep "iOS Simulator"
 ```
 
-**Note**: Simulator names change with Xcode versions. If a destination isn't found, the error output lists available simulators.
+**Build verification**: With `-quiet`, no output = success. Only errors and warnings are printed. Warnings about `@Sendable` or deprecations are safe to ignore — look for `error:` lines only.
 
 **Adding New Swift Files to the Project**:
 
@@ -204,10 +198,9 @@ When creating new Swift files, they must be added to the Xcode project explicitl
 
 #### Backend Modules
 - **`modules/audio/backends/`** - TTS backend implementations (gTTS, macOS)
-- **`modules/video/backends/`** - Video rendering backends (FFmpeg)
 - **`modules/images/`** - Sentence image generation with Draw Things
 - **`modules/translation/`** - Translation service adapters
-- **`modules/render/`** - Core audio/video pipeline logic
+- **`modules/render/`** - Core audio rendering pipeline logic
 - **`modules/webapi/`** - FastAPI routes, schemas, middleware
 - **`modules/services/job_manager/`** - Job lifecycle and persistence
 
@@ -232,7 +225,6 @@ Example local config:
   "thread_count": 8,
   "tts_backend": "macos_say",
   "tts_executable_path": "/usr/bin/say",
-  "video_backend": "ffmpeg",
   "image_api_base_url": "http://192.168.1.9:7860",
   "image_concurrency": 4,
   "add_images": true
@@ -268,14 +260,11 @@ Each job creates a directory under `storage/jobs/<job_id>/`:
 storage/jobs/<job_id>/
 ├── metadata/
 │   ├── job.json              # Job manifest
-│   ├── chunk_manifest.json   # Chunk index
 │   ├── chunk_0001.json       # Per-chunk metadata
-│   ├── content_index.json    # Chapter/section index
-│   └── sentences.json        # Fallback sentence list
+│   └── content_index.json    # Chapter/section index
 ├── media/
 │   ├── audio/                # Audio segments
-│   ├── images/               # Sentence illustrations
-│   └── video/                # Video slides
+│   └── images/               # Sentence illustrations
 └── output/                   # Final deliverables
 ```
 
@@ -510,8 +499,6 @@ curl -N "http://127.0.0.1:8000/pipelines/<job_id>/events?access_token=<jwt>"
   "thread_count": 16,
   "queue_size": 64,
   "pipeline_mode": true,
-  "slide_parallelism": "auto",
-  "slide_parallel_workers": 16,
   "image_concurrency": 4
 }
 ```
@@ -538,20 +525,6 @@ model, metadata = load_align_model("LANG_CODE", "cpu")  # e.g., "de", "fr", "es"
 ```
 
 **Tests:** `pytest tests/modules/test_whisperx_alignment.py`
-
-### Video Rendering
-
-```json
-{
-  "video_backend": "ffmpeg",
-  "video_backend_settings": {
-    "ffmpeg": {
-      "executable": "/opt/homebrew/bin/ffmpeg",
-      "loglevel": "info"
-    }
-  }
-}
-```
 
 ## Troubleshooting
 
@@ -583,9 +556,6 @@ model, metadata = load_align_model("LANG_CODE", "cpu")  # e.g., "de", "fr", "es"
 ```bash
 # Verbose logging
 ebook-tools run --log-level debug
-
-# Benchmark slide rendering
-ebook-tools run --benchmark-slide-rendering
 ```
 
 **Browser Console**:

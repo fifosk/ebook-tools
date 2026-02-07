@@ -35,7 +35,6 @@ class RenderPhaseRequest:
     output_html: bool
     output_pdf: bool
     refined_sentences: Sequence[str]
-    generate_video: bool
     generate_images: bool = False
     include_transliteration: bool = False
     translation_provider: Optional[str] = None
@@ -57,7 +56,6 @@ def process_epub(
 ) -> Tuple[
     List[str],
     Optional[List[AudioSegment]],
-    List[str],
     str,
     str,
 ]:
@@ -84,7 +82,6 @@ def process_epub(
         output_html=request.output_html,
         output_pdf=request.output_pdf,
         refined_list=request.refined_sentences,
-        generate_video=request.generate_video,
         generate_images=request.generate_images,
         include_transliteration=request.include_transliteration,
         translation_provider=request.translation_provider,

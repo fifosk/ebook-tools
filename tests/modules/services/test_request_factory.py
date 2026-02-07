@@ -45,7 +45,6 @@ def test_build_pipeline_input_normalizes_values():
         "selected_voice": "voice1",
         "output_html": "1",
         "output_pdf": 0,
-        "generate_video": "ON",
         "include_transliteration": "no",
         "tempo": "fast",
         "media_metadata": "unexpected",
@@ -63,7 +62,6 @@ def test_build_pipeline_input_normalizes_values():
     assert pipeline_input.audio_mode == ""
     assert pipeline_input.output_html is True
     assert pipeline_input.output_pdf is False
-    assert pipeline_input.generate_video is True
     assert pipeline_input.include_transliteration is False
     assert pipeline_input.tempo == pytest.approx(1.0)
     assert pipeline_input.media_metadata.as_dict() == {}

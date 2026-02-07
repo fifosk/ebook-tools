@@ -209,7 +209,7 @@ extension WordTimingToken {
             return nil
         }
         let textValue = entry.text?.nonEmptyValue ?? entry.token?.nonEmptyValue ?? ""
-        let sentenceIndex = entry.sentenceIdx ?? entry.sentenceIdMixed ?? Int(entry.sentenceID ?? "")
+        let sentenceIndex = entry.sentenceIdx ?? Int(entry.sentenceID ?? "")
         let identifier = entry.rawID ?? UUID().uuidString
         self.init(
             id: identifier,

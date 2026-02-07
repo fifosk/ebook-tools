@@ -64,28 +64,6 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentPars
         help="Select the backend used for per-frame slide rendering.",
     )
     parser.add_argument(
-        "--video-backend",
-        choices=["ffmpeg", "golang"],
-        help="Select the backend used for video assembly.",
-    )
-    parser.add_argument(
-        "--video-backend-executable",
-        help="Override the executable used by the selected video backend.",
-    )
-    parser.add_argument(
-        "--video-backend-loglevel",
-        help="Override the log level passed to the video backend executable.",
-    )
-    parser.add_argument(
-        "--video-backend-preset",
-        action="append",
-        metavar="NAME=VALUES",
-        help=(
-            "Override a video backend preset (repeatable). "
-            "Values are comma-separated command arguments."
-        ),
-    )
-    parser.add_argument(
         "--tts-backend",
         choices=["auto", "macos", "gtts"],
         help="Select the text-to-speech backend (auto, macos, or gtts).",
@@ -112,10 +90,6 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentPars
         "--benchmark-slide-rendering",
         action="store_true",
         help="Emit timing information for slide rendering operations.",
-    )
-    parser.add_argument(
-        "--template",
-        help="Slide template to use for generated videos (e.g. minimal, dark).",
     )
     return _add_shared_arguments(parser)
 

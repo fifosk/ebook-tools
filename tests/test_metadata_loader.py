@@ -68,21 +68,16 @@ def test_metadata_loader_reads_chunk_files(tmp_path: Path) -> None:
     assert detailed[0]["sentences"][0]["original"]["text"] == "Hello"
 
 
-def test_metadata_loader_handles_legacy_sentences(tmp_path: Path) -> None:
-    job_root = tmp_path / "job-legacy"
+def test_metadata_loader_handles_chunk_without_metadata_path(tmp_path: Path) -> None:
+    """Chunks without a metadata_path return no sentences (v3-only)."""
+    job_root = tmp_path / "job-no-path"
     manifest = {
-        "job_id": "job-legacy",
+        "job_id": "job-no-path",
         "generated_files": {
             "chunks": [
                 {
-                    "chunk_id": "chunk-legacy",
-                    "sentences": [
-                        {
-                            "sentence_number": 99,
-                            "original": {"text": "Legacy", "tokens": ["Legacy"]},
-                            "timeline": [],
-                        }
-                    ],
+                    "chunk_id": "chunk-no-path",
+                    "sentence_count": 1,
                     "files": [],
                 }
             ],
@@ -97,5 +92,4 @@ def test_metadata_loader_handles_legacy_sentences(tmp_path: Path) -> None:
     assert summaries[0]["sentence_count"] == 1
 
     detailed = loader.load_chunks(include_sentences=True)
-    sentences = detailed[0]["sentences"]
-    assert sentences and sentences[0]["original"]["text"] == "Legacy"
+    assert "sentences" not in detailed[0] or detailed[0].get("sentences") == []
