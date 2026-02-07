@@ -28,6 +28,8 @@ PipelineJobStatus = job_manager_module.PipelineJobStatus
 def storage_dir(tmp_path, monkeypatch) -> Path:
     path = tmp_path / "storage"
     monkeypatch.setenv("JOB_STORAGE_DIR", str(path))
+    # Ensure load_all_jobs only sees the temp directory, not project storage/
+    monkeypatch.setattr(persistence, "_candidate_storage_dirs", lambda: [path])
     return path
 
 

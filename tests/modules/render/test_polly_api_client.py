@@ -78,7 +78,7 @@ def test_polly_synthesizer_falls_back_on_media_backend_error(monkeypatch):
 
     fallback_calls = []
 
-    def _fake_generate_audio(text, lang_code, voice, speed, config):
+    def _fake_generate_audio(text, lang_code, voice, speed, config, **kwargs):
         fallback_calls.append((text, lang_code, voice, speed, config))
         return AudioSegment.silent(duration=12)
 

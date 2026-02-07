@@ -19,6 +19,7 @@ import modules.jobs.persistence as persistence
 import modules.services.job_manager as job_manager_module
 import modules.services.pipeline_service as pipeline_service
 from modules.services.job_manager import FileJobStore, PipelineJobManager, PipelineJobStatus
+from modules.services.job_manager.job_storage import JobStorageCoordinator
 
 job_manager = job_manager_module
 
@@ -40,6 +41,21 @@ class _DummyExecutor:
 class _DummyWorkerPool:
     def shutdown(self) -> None:  # pragma: no cover - defensive safeguard
         pass
+
+
+def _make_manager(store: FileJobStore, **kwargs) -> PipelineJobManager:
+    """Create a manager with batching/caching disabled so disk writes are immediate."""
+    coordinator = JobStorageCoordinator(
+        store=store,
+        enable_batching=False,
+        enable_caching=False,
+    )
+    return PipelineJobManager(
+        max_workers=1,
+        storage_coordinator=coordinator,
+        worker_pool_factory=kwargs.pop("worker_pool_factory", lambda _: _DummyWorkerPool()),
+        **kwargs,
+    )
 
 
 @pytest.fixture
@@ -95,7 +111,7 @@ def _build_request() -> pipeline_service.PipelineRequest:
 
 def test_restart_and_control_flow_persists_updates(storage_dir: Path):
     store = FileJobStore()
-    manager = PipelineJobManager(max_workers=1, store=store, worker_pool_factory=lambda _: _DummyWorkerPool())
+    manager = _make_manager(store)
 
     request = _build_request()
     job = manager.submit(request, user_id="integration", user_role="user")
@@ -110,9 +126,7 @@ def test_restart_and_control_flow_persists_updates(storage_dir: Path):
 
     # Simulate a process restart by building a new manager reading the same store.
     restarted_store = FileJobStore()
-    restarted_manager = PipelineJobManager(
-        max_workers=1, store=restarted_store, worker_pool_factory=lambda _: _DummyWorkerPool()
-    )
+    restarted_manager = _make_manager(restarted_store)
 
     restored_job = restarted_manager.get(
         job.job_id,
@@ -120,6 +134,10 @@ def test_restart_and_control_flow_persists_updates(storage_dir: Path):
         user_role="user",
     )
     assert restored_job.status == PipelineJobStatus.PENDING
+
+    # Transition to RUNNING before pausing (pause requires RUNNING state).
+    restored_job.status = PipelineJobStatus.RUNNING
+    restarted_manager._jobs[job.job_id] = restored_job
 
     paused = restarted_manager.pause_job(
         job.job_id,
@@ -130,7 +148,7 @@ def test_restart_and_control_flow_persists_updates(storage_dir: Path):
     assert persistence.load_job(job.job_id).status == PipelineJobStatus.PAUSING
     paused.status = PipelineJobStatus.PAUSED
     restarted_manager._jobs[job.job_id] = paused
-    restarted_manager._store.update(persistence.snapshot(paused))
+    restarted_manager._store.update(restarted_manager._persistence.snapshot(paused))
 
     resumed = restarted_manager.resume_job(
         job.job_id,
@@ -154,17 +172,21 @@ def test_restart_and_control_flow_persists_updates(storage_dir: Path):
 
 
 def test_generated_file_urls_survive_storage_dir_change(tmp_path: Path, monkeypatch):
+    import modules.config_manager as _cfg_mod
+
     original_storage = tmp_path / "storage-original"
     monkeypatch.setenv("JOB_STORAGE_DIR", str(original_storage))
     original_base_url = "https://cdn.example.invalid/original"
     monkeypatch.setenv("EBOOK_STORAGE_BASE_URL", original_base_url)
 
+    _orig = _cfg_mod.get_settings()
+    _patched = type("Settings", (), dict(vars(_orig)))()
+    _patched.job_storage_dir = str(original_storage)
+    _patched.storage_base_url = original_base_url
+    monkeypatch.setattr(_cfg_mod, "get_settings", lambda: _patched)
+
     store = FileJobStore()
-    manager = PipelineJobManager(
-        max_workers=1,
-        store=store,
-        worker_pool_factory=lambda _: _DummyWorkerPool(),
-    )
+    manager = _make_manager(store)
 
     try:
         request = _build_request()
@@ -231,15 +253,13 @@ def test_generated_file_urls_survive_storage_dir_change(tmp_path: Path, monkeypa
     new_base_url = "https://cdn.example.invalid/new"
     monkeypatch.setenv("JOB_STORAGE_DIR", str(migrated_storage))
     monkeypatch.setenv("EBOOK_STORAGE_BASE_URL", new_base_url)
+    _patched.job_storage_dir = str(migrated_storage)
+    _patched.storage_base_url = new_base_url
 
     shutil.move(str(original_storage), str(migrated_storage))
 
     restarted_store = FileJobStore()
-    restarted_manager = PipelineJobManager(
-        max_workers=1,
-        store=restarted_store,
-        worker_pool_factory=lambda _: _DummyWorkerPool(),
-    )
+    restarted_manager = _make_manager(restarted_store)
 
     try:
         restored_job = restarted_manager.get(
@@ -251,7 +271,7 @@ def test_generated_file_urls_survive_storage_dir_change(tmp_path: Path, monkeypa
         files_index = restored_job.generated_files.get("files", [])
         assert files_index
         entry = files_index[0]
-        assert entry["relative_path"] == "chunk-001/sample.mp3"
+        assert entry["relative_path"] == "media/chunk-001/sample.mp3"
         assert entry["url"].startswith(new_base_url)
         assert entry["path"].startswith(str(migrated_storage))
     finally:

@@ -371,7 +371,7 @@ class TestTokenizationUtilities:
         # Test romaji transliteration tokenization
         romaji = "konnichiwa sekai watashi wa hon wo yomimasu"
         romaji_tokens = tokenizer(romaji)
-        assert len(romaji_tokens) == 8
+        assert len(romaji_tokens) == 7
 
     def test_korean_tokenization(self, tokenizer):
         """Test Korean text tokenization."""
