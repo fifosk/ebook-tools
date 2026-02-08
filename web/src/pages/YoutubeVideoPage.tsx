@@ -18,8 +18,10 @@ import EmojiIcon from '../components/EmojiIcon';
 import { resolveSubtitleFlag, resolveSubtitleLanguageLabel } from '../utils/subtitles';
 import styles from './YoutubeVideoPage.module.css';
 
-const SUBTITLE_NAS_DIR = '/Volumes/Data/Download/Subtitles';
-const VIDEO_NAS_DIR = '/Volumes/Data/Download/DStation';
+// NAS paths are resolved by the backend — no hardcoded defaults needed.
+// The API returns the configured base_dir in its response.
+const SUBTITLE_NAS_DIR = '';
+const VIDEO_NAS_DIR = '';
 
 function resolveDefaultTrack(tracks: YoutubeSubtitleTrack[]): YoutubeSubtitleTrack | null {
   if (!tracks.length) {
@@ -315,7 +317,7 @@ export default function YoutubeVideoPage() {
     return labels.join(', ');
   }, [selectedTracks]);
 
-  const libraryBaseDir = library?.base_dir ?? VIDEO_NAS_DIR;
+  const libraryBaseDir = library?.base_dir ?? '';
   const canDownload = Boolean(
     !isDownloading && !isLoadingTracks && tracks.length > 0 && selectedTracks.length > 0
   );
@@ -372,9 +374,11 @@ export default function YoutubeVideoPage() {
           <header className={styles.cardHeader}>
             <div>
               <h2 className={styles.cardTitle}>YouTube video</h2>
-              <p className={styles.pathNote}>
-                Subtitles: <code>{SUBTITLE_NAS_DIR}</code> · Videos: <code>{VIDEO_NAS_DIR}</code>
-              </p>
+              {libraryBaseDir ? (
+                <p className={styles.pathNote}>
+                  Videos: <code>{libraryBaseDir}</code>
+                </p>
+              ) : null}
             </div>
             {listing ? (
               <div className={styles.videoBadge}>

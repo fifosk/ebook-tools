@@ -166,7 +166,15 @@ def ensure_standard_directory(path: os.PathLike[str] | str) -> Path:
     if target.exists() and target.is_dir() and _is_ramdisk(target):
         _teardown_ramdisk_mount(target)
         if target.exists() and target.is_dir() and not target.is_symlink():
-            shutil.rmtree(target)
+            try:
+                shutil.rmtree(target)
+            except OSError:
+                # Mount point (e.g. Docker tmpfs) can't be removed — clear contents instead
+                for child in target.iterdir():
+                    if child.is_dir():
+                        shutil.rmtree(child, ignore_errors=True)
+                    else:
+                        child.unlink(missing_ok=True)
 
     if target.exists() and not target.is_dir():
         if target.is_file():

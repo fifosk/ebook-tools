@@ -11,7 +11,9 @@ from modules import logging_manager as log_mgr
 
 logger = log_mgr.get_logger().getChild("services.youtube_dubbing")
 
-DEFAULT_YOUTUBE_VIDEO_ROOT = Path("/Volumes/Data/Download/DStation").expanduser()
+DEFAULT_YOUTUBE_VIDEO_ROOT = Path(
+    os.environ.get("YOUTUBE_VIDEO_ROOT") or "/Volumes/Data/Download/DStation"
+).expanduser()
 
 _VIDEO_EXTENSIONS = {"mp4", "mkv", "mov", "webm", "m4v"}
 _SUBTITLE_EXTENSIONS = {"ass", "srt", "vtt", "sub"}

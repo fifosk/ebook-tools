@@ -1,12 +1,16 @@
 """Local filesystem-backed user store implementation."""
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 import bcrypt
 
 from .user_store_base import UserRecord, UserStoreBase
+
+_log = logging.getLogger(__name__)
 
 
 class LocalUserStore(UserStoreBase):
@@ -82,7 +86,21 @@ class LocalUserStore(UserStoreBase):
         record = self.get_user(username)
         if record is None:
             return False
-        return bcrypt.checkpw(password.encode("utf-8"), record.password_hash.encode("utf-8"))
+
+        stored = record.password_hash
+        pw = password.encode("utf-8")
+
+        # Standard bcrypt hashes start with $2b$ or $2a$
+        if stored.startswith(("$2b$", "$2a$")):
+            return bcrypt.checkpw(pw, stored.encode("utf-8"))
+
+        # Legacy SHA-256 shim: salt$hex_digest (from local bcrypt/ shim)
+        if "$" in stored:
+            salt, digest = stored.split("$", 1)
+            expected = hashlib.sha256(salt.encode("utf-8") + pw).hexdigest()
+            if digest == expected:
+                return True
+        return False
 
     # ------------------------------------------------------------------
     # Internal helpers

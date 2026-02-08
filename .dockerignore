@@ -1,0 +1,58 @@
+# Version control
+.git
+.gitignore
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+htmlcov/
+
+# Node artifacts
+web/node_modules/
+web/dist/
+web/export-dist/
+web/*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Runtime data (mounted as volumes, not baked into image)
+storage/
+output/
+tmp/
+log/
+books/
+
+# Config with secrets (mounted at runtime)
+.env
+.env.local
+.env.docker
+conf/config.local.json
+conf/certs/
+config/users/users.json
+config/apns/
+config/.settings/
+
+# iOS/tvOS (not needed for Docker)
+ios/
+
+# Tests (not needed in production image)
+tests/
+test-results/
+.pytest_cache/
+
+# Documentation
+docs/
+
+# Build artifacts
+*.tar.gz
+*.whl

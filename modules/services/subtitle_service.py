@@ -84,7 +84,7 @@ class SubtitleService:
         self._default_source_dir = Path(
             default_source_dir
         ).expanduser() if default_source_dir is not None else Path(
-            "/Volumes/Data/Download/Subtitles"
+            os.environ.get("SUBTITLE_SOURCE_DIR") or "/Volumes/Data/Download/Subtitles"
         ).expanduser()
         self._mirror_warning_logged = False
 

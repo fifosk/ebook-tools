@@ -27,11 +27,12 @@
 ### Tech Stack
 - **Backend**: Python 3.10+, FastAPI, uvicorn, pydub, Pillow
 - **Frontend**: React, TypeScript, Vite
+- **Deployment**: Docker Compose (backend + Nginx frontend), Synology DSM reverse proxy for TLS
 - **Storage**: Filesystem-based job storage (Redis optional)
 - **Audio**: gTTS, macOS `say`, FFmpeg
 - **Images**: Stable Diffusion/Draw Things API integration
 - **Translation**: Google Translate, Ollama LLMs with fallback support
-- **Auth**: JWT sessions with bcrypt password hashing
+- **Auth**: JWT sessions with bcrypt password hashing (dual-format: real bcrypt + legacy SHA-256 shim)
 
 ## Directory Structure
 
@@ -43,6 +44,12 @@
 ├── config/                  # Runtime configuration
 │   ├── users/              # User authentication data
 │   └── media.yaml          # Media generation settings
+├── docker/                  # Docker deployment
+│   ├── backend/Dockerfile  # Python 3.10 + FFmpeg backend image
+│   └── frontend/           # Nginx frontend image
+│       ├── Dockerfile      # Node build → Nginx serve
+│       └── nginx.conf      # SPA routing + API reverse proxy
+├── docker-compose.yml       # Production Docker Compose orchestration
 ├── modules/                 # Python backend modules
 │   ├── audio/              # TTS backends and audio pipeline
 │   ├── cli/                # Command-line interface
@@ -69,69 +76,106 @@
 
 ## Getting Started
 
-### Backend Setup
+### Docker Deployment (Production — Default)
 
-1. **Create virtual environment**:
+Docker is the primary runtime environment. Both backend and frontend run as containers managed by Docker Compose on the Mac Mini, with Synology DSM reverse proxy handling TLS termination.
+
+```
+Internet → Synology DSM (:443 TLS) → Frontend Container (Nginx :5173)
+                                            ↕ proxy /api/, /pipelines/, /storage/
+                                      Backend Container (FastAPI :8000)
+                                            ↕ volumes
+                                      Host: storage/, config/, NAS mounts
+```
+
+1. **Start both services**:
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   docker compose up -d              # start backend + frontend
+   docker compose logs -f            # follow logs
+   docker compose ps                 # check status
    ```
 
-2. **Install dependencies**:
+2. **Rebuild after code changes**:
    ```bash
-   pip install --upgrade pip
-   pip install -e .
+   docker compose up -d --build      # rebuild images and restart
+   # Or target a single service:
+   docker compose up -d --build backend
+   docker compose up -d --build frontend
    ```
 
-3. **Configure environment**:
+3. **Verify**:
    ```bash
-   cp .env.example .env
-   # Edit .env with your API keys and settings
+   curl http://localhost:8000/_health   # backend → {"status":"ok"}
+   curl http://localhost:5173/          # frontend → HTML (React SPA)
    ```
 
-4. **Launch API server**:
+4. **Makefile shortcuts**:
    ```bash
-   # Standard uvicorn
-   uvicorn modules.webapi.application:create_app --factory --reload --host 0.0.0.0
-
-   # Or using console script
-   ebook-tools-api --reload --log-level debug
-
-   # Or using Python module
-   python -m modules.webapi --reload --port 8000
+   make docker-build                 # build both images
+   make docker-up                    # start services
+   make docker-down                  # stop services
+   make docker-logs                  # follow logs
+   make docker-status                # health check summary
    ```
 
-5. **Verify server**:
-   ```bash
-   curl http://127.0.0.1:8000/
-   # {"status":"ok"}
-   ```
+**Key files**:
+- `docker-compose.yml` — orchestration, volumes, env vars
+- `docker/backend/Dockerfile` — Python 3.10 + FFmpeg + espeak-ng
+- `docker/frontend/Dockerfile` — Node build → Nginx 1.27-alpine serve
+- `docker/frontend/nginx.conf` — SPA routing + API reverse proxy
+- `.env.docker` — optional env var overrides (gitignored; see `.env.docker.example`)
 
-### Frontend Setup
+**Volume mounts** (host → container):
+| Host Path | Container Path | Mode | Purpose |
+|---|---|---|---|
+| `./storage` | `/app/storage` | rw | Jobs, ebooks, covers, library |
+| `./config/users` | `/app/config/users` | rw | User credentials |
+| `./conf/config.local.json` | `/app/conf/config.local.json` | ro | Local config overrides |
+| `./conf/certs` | `/app/conf/certs` | ro | APNs keys |
+| `./log` | `/app/log` | rw | Structured JSON logs |
+| `/Volumes/Data/Download/Ebooks` | `/app/nas/ebooks` | ro | NAS ebook files |
+| `/Volumes/Data/Download/DStation` | `/app/nas/videos` | rw | YouTube downloaded videos |
+| `/Volumes/Data/Download/Subtitles` | `/app/nas/subtitles` | rw | Subtitle mirror directory |
+| (tmpfs) | `/app/tmp` | 1G | Temp workspace (RAM-backed) |
 
-1. **Install dependencies**:
-   ```bash
-   cd web
-   npm install
-   ```
+**Docker-specific env vars** (set in `docker-compose.yml`):
+| Variable | Value | Why |
+|---|---|---|
+| `EBOOK_API_STATIC_ROOT=""` | empty | Frontend is separate Nginx container |
+| `EBOOK_TTS_BACKEND=gtts` | gtts | macOS `say` unavailable in Linux |
+| `EBOOK_USE_RAMDISK=false` | false | Docker tmpfs replaces ramdisk |
+| `JOB_STORAGE_DIR=/app/storage` | container path | Override host-relative default |
+| `EBOOK_LIBRARY_ROOT=/app/storage/library` | container path | Override macOS default |
+| `EBOOK_EBOOKS_DIR=/app/nas/ebooks` | container path | NAS mount |
+| `YOUTUBE_VIDEO_ROOT=/app/nas/videos` | container path | NAS mount |
+| `SUBTITLE_SOURCE_DIR=/app/nas/subtitles` | container path | NAS mount |
 
-2. **Configure environment**:
-   ```bash
-   cp .env.example .env.local
-   # Edit with API URLs
-   ```
+### Local Development (Bare-Metal)
 
-3. **Run dev server**:
-   ```bash
-   npm run dev
-   # Opens at http://localhost:5173
-   ```
+For development with hot-reload, run backend and frontend directly on the host.
 
-4. **Build production**:
-   ```bash
-   npm run build
-   # Output to web/dist/
-   ```
+**Backend**:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip && pip install -e .
+cp .env.example .env  # edit with API keys
+
+# Any of these work:
+uvicorn modules.webapi.application:create_app --factory --reload --host 0.0.0.0
+ebook-tools-api --reload --log-level debug
+python -m modules.webapi --reload --port 8000
+
+curl http://127.0.0.1:8000/  # → {"status":"ok"}
+```
+
+**Frontend**:
+```bash
+cd web
+npm install
+cp .env.example .env.local  # edit with API URLs
+npm run dev                  # → http://localhost:5173
+```
 
 ### iOS/tvOS Setup
 
@@ -235,20 +279,30 @@ Example local config:
 
 ### Key Environment Variables
 
-**Backend**:
-- `EBOOK_API_CORS_ORIGINS` - CORS allowed origins
-- `EBOOK_API_STATIC_ROOT` - Path to built frontend assets
+**Backend (runtime)**:
+- `EBOOK_API_CORS_ORIGINS` - CORS allowed origins (space-separated)
+- `EBOOK_API_STATIC_ROOT` - Path to built frontend assets (empty in Docker)
+- `EBOOK_TTS_BACKEND` - TTS backend (`macos_say` | `gtts` | `piper`)
+- `EBOOK_USE_RAMDISK` - Enable RAMDisk (`false` in Docker — use tmpfs)
+- `JOB_STORAGE_DIR` - Base storage directory (`/app/storage` in Docker)
+- `EBOOK_LIBRARY_ROOT` - Library sync root (`/app/storage/library` in Docker)
+- `EBOOK_EBOOKS_DIR` - EPUB source directory (`/app/nas/ebooks` in Docker)
+- `YOUTUBE_VIDEO_ROOT` - Downloaded video directory (`/app/nas/videos` in Docker)
+- `SUBTITLE_SOURCE_DIR` - Subtitle mirror directory (`/app/nas/subtitles` in Docker)
+- `EBOOK_STORAGE_BASE_URL` - Public storage URL (used in media metadata responses)
 - `JOB_STORE_URL` - Redis URL for job persistence (optional)
-- `EBOOK_AUDIO_BACKEND` - TTS backend (`macos_say` | `gtts`)
 - `EBOOK_IMAGE_API_BASE_URL` - Draw Things/SD API endpoint
 - `EBOOK_IMAGE_CONCURRENCY` - Parallel image generation workers
 - `OLLAMA_URL` - Ollama LLM endpoint
 - `LLM_SOURCE` - LLM source (`local` | `cloud`)
 
-**Frontend**:
-- `VITE_API_BASE_URL` - Backend API URL
-- `VITE_STORAGE_BASE_URL` - Storage endpoint URL
+**Frontend (build-time — baked into JS bundle)**:
+- `VITE_API_BASE_URL` - Backend API URL as seen by browsers
+- `VITE_STORAGE_BASE_URL` - Storage URL (must include `/jobs` segment)
 - `VITE_DEV_HTTPS` - Enable HTTPS in dev server
+
+**Frontend (runtime — Nginx envsubst)**:
+- `BACKEND_HOST` - Backend hostname/IP for Nginx reverse proxy
 
 ### Important File Paths
 
@@ -456,21 +510,21 @@ Adding a new journey JSON file auto-propagates to all 4 platforms.
 
 ### Building for Production
 
-**Backend**:
+Production deployment uses Docker Compose (see [Docker Deployment](#docker-deployment-production--default) above).
+
 ```bash
-# API runs directly from source
-python -m modules.webapi --host 0.0.0.0 --port 8000
+# Build and deploy both containers
+docker compose up -d --build
+
+# Or build images only (without starting)
+make docker-build
+
+# Frontend build-time args (baked into JS bundle):
+#   VITE_API_BASE_URL    — public backend URL as seen by browsers
+#   VITE_STORAGE_BASE_URL — public storage URL (must include /jobs segment)
 ```
 
-**Frontend**:
-```bash
-cd web
-npm run build
-# Output in web/dist/
-
-# Point backend at built files
-export EBOOK_API_STATIC_ROOT=/path/to/ebook-tools/web/dist
-```
+**Important**: `VITE_*` variables are embedded at build time. Changing them requires rebuilding the frontend image.
 
 ## Authentication & Authorization
 
@@ -587,6 +641,33 @@ model, metadata = load_align_model("LANG_CODE", "cpu")  # e.g., "de", "fr", "es"
 
 ## Troubleshooting
 
+### Docker Issues
+
+**Container won't start / health check fails**:
+```bash
+docker compose logs backend --tail 50    # check backend startup errors
+docker compose logs frontend --tail 20   # check Nginx errors
+docker exec ebook-tools-backend python -c "import modules"  # verify Python packages
+```
+
+**NAS paths not accessible** (`"directory is not accessible"`):
+- Frontend may be sending hardcoded macOS paths from localStorage — clear browser storage
+- Verify mount: `docker exec ebook-tools-backend ls /app/nas/ebooks/`
+- Frontend defaults are empty — backend env vars (`YOUTUBE_VIDEO_ROOT`, `SUBTITLE_SOURCE_DIR`, `EBOOK_EBOOKS_DIR`) provide the paths
+
+**Code changes not taking effect**:
+- Backend code requires image rebuild: `docker compose up -d --build backend`
+- Frontend `VITE_*` changes require frontend rebuild: `docker compose up -d --build frontend`
+- `docker compose up -d` (without `--build`) only recreates containers from existing images
+
+**bcrypt "Invalid salt" on login**:
+- Docker uses real bcrypt; local dev may use the SHA-256 shim at `bcrypt/__init__.py`
+- `local_user_store.py` supports both formats — create user locally, it works in Docker
+
+**tmpfs "Device or resource busy"**:
+- Normal at startup — Docker tmpfs mount point can't be removed, only cleared
+- `ramdisk_manager.py` handles this gracefully
+
 ### Common Issues
 
 **API won't start**:
@@ -595,25 +676,32 @@ model, metadata = load_align_model("LANG_CODE", "cpu")  # e.g., "de", "fr", "es"
 - Check port availability: `lsof -i :8000`
 
 **Frontend can't reach API**:
-- Verify `VITE_API_BASE_URL` in `web/.env.local`
+- Docker: verify `BACKEND_HOST` env var and Nginx proxy config
+- Local dev: verify `VITE_API_BASE_URL` in `web/.env.local`
 - Check CORS settings: `EBOOK_API_CORS_ORIGINS`
-- Ensure API is running: `curl http://127.0.0.1:8000/`
 
 **Audio generation fails**:
 - Verify TTS backend: `ffmpeg -version` or `say -v '?'`
+- Docker: only `gtts` and `piper` work (no macOS `say`)
 - Check permissions on output directories
-- Enable debug logging: `--log-level debug`
 
 **Image generation not working**:
 - Verify Draw Things is running: `curl http://<ip>:7860/sdapi/v1/txt2img`
-- Check `image_api_base_url` configuration
+- Docker: use `http://host.docker.internal:7860` to reach host services
 - Increase `image_api_timeout_seconds` for slow models
 
 ### Debug Tools
 
+**Docker**:
+```bash
+docker compose logs -f                   # follow all logs
+docker compose logs backend --tail 100   # recent backend logs
+docker exec ebook-tools-backend ls /app/storage/  # verify mounts
+docker exec -it ebook-tools-backend bash # shell into container
+```
+
 **CLI**:
 ```bash
-# Verbose logging
 ebook-tools run --log-level debug
 ```
 
@@ -625,7 +713,6 @@ window.__HL_DEBUG__ = { enabled: true };
 
 **Validation**:
 ```bash
-# Check word timing accuracy
 python scripts/validate_word_timing.py <job_id>
 ```
 

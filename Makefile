@@ -3,7 +3,9 @@
        test-config test-metadata test-changed \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
-       test-e2e-all test-e2e-apple-parallel
+       test-e2e-all test-e2e-apple-parallel \
+       docker-build-backend docker-build-frontend docker-build \
+       docker-up docker-down docker-logs docker-status
 
 # ── Full suite ───────────────────────────────────────────────────────────
 test:
@@ -165,3 +167,38 @@ test-e2e-all:
 		; EXIT=$$?; \
 	rm -f /tmp/ios_e2e_config.json /tmp/ios_e2e_journey.json; \
 	exit $$EXIT
+
+# ── Docker ──────────────────────────────────────────────────────────
+DOCKER_TAG ?= latest
+BACKEND_IMAGE = ebook-tools-backend
+FRONTEND_IMAGE = ebook-tools-frontend
+
+docker-build-backend:
+	docker build -t $(BACKEND_IMAGE):$(DOCKER_TAG) -f docker/backend/Dockerfile .
+
+docker-build-frontend:
+	docker build -t $(FRONTEND_IMAGE):$(DOCKER_TAG) -f docker/frontend/Dockerfile \
+		--build-arg VITE_API_BASE_URL=https://api.langtools.fifosk.synology.me \
+		--build-arg VITE_STORAGE_BASE_URL=https://api.langtools.fifosk.synology.me/storage/jobs \
+		.
+
+docker-build: docker-build-backend docker-build-frontend
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
+
+docker-status:
+	@docker compose ps
+	@echo ""
+	@echo "Backend health:"
+	@curl -sf http://localhost:8000/_health 2>/dev/null || echo "  not reachable"
+	@echo ""
+	@echo "Frontend:"
+	@curl -sf -o /dev/null -w "  HTTP %{http_code}" http://localhost:5173/ 2>/dev/null || echo "  not reachable"
+	@echo ""

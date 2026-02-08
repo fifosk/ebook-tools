@@ -1,4 +1,4 @@
-export const DEFAULT_VIDEO_DIR = '/Volumes/Data/Download/DStation';
+export const DEFAULT_VIDEO_DIR = '';
 export const DEFAULT_LLM_MODEL = 'ollama_cloud:mistral-large-3:675b-cloud';
 export const DEFAULT_TRANSLATION_BATCH_SIZE = 10;
 export const VIDEO_DUB_STORAGE_KEYS = {

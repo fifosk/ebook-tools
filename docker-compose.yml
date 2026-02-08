@@ -1,0 +1,70 @@
+# ebook-tools — Local Docker Deployment
+#
+# Both containers run on the same Mac Mini, managed via Docker Desktop.
+# Volumes mount directly from the project repo.
+#
+# Usage:
+#   docker compose up -d            # start both services
+#   docker compose logs -f          # follow logs
+#   docker compose down             # stop both services
+#   docker compose up -d --build    # rebuild and restart
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    image: ebook-tools-backend:latest
+    container_name: ebook-tools-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+      - ./config/users:/app/config/users
+      - ./conf/config.local.json:/app/conf/config.local.json:ro
+      - ./conf/certs:/app/conf/certs:ro
+      - ./log:/app/log
+      - /Volumes/Data/Download/Ebooks:/app/nas/ebooks:ro
+      - /Volumes/Data/Download/DStation:/app/nas/videos
+      - /Volumes/Data/Download/Subtitles:/app/nas/subtitles
+    tmpfs:
+      - /app/tmp:size=1G
+    environment:
+      - EBOOK_API_CORS_ORIGINS=https://api.langtools.fifosk.synology.me https://langtools.fifosk.synology.me http://localhost:5173
+      - EBOOK_API_STATIC_ROOT=
+      - EBOOK_TTS_BACKEND=gtts
+      - EBOOK_USE_RAMDISK=false
+      - EBOOK_STORAGE_BASE_URL=https://api.langtools.fifosk.synology.me/storage/jobs
+      - JOB_STORAGE_DIR=/app/storage
+      - EBOOK_LIBRARY_ROOT=/app/storage/library
+      - EBOOK_EBOOKS_DIR=/app/nas/ebooks
+      - YOUTUBE_VIDEO_ROOT=/app/nas/videos
+      - SUBTITLE_SOURCE_DIR=/app/nas/subtitles
+    env_file:
+      - path: .env.docker
+        required: false
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/_health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: https://api.langtools.fifosk.synology.me
+        VITE_STORAGE_BASE_URL: https://api.langtools.fifosk.synology.me/storage/jobs
+    image: ebook-tools-frontend:latest
+    container_name: ebook-tools-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    environment:
+      - BACKEND_HOST=backend
+    depends_on:
+      backend:
+        condition: service_healthy

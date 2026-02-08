@@ -9,7 +9,7 @@ description = "Toolkit for running the ebook tools pipelines and API."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "fastapi>=0.110,<0.112",
+    "fastapi>=0.115,<1",
     "uvicorn[standard]>=0.24,<0.28",
     "pydantic>=2.5,<3",
     "pydantic-settings>=2.1,<3",
@@ -30,6 +30,10 @@ dependencies = [
     "PyJWT[crypto]>=2.8,<3",
     "httpx[http2]>=0.27,<1",
     "piper-tts>=1.2.0",
+    "beautifulsoup4>=4.12,<5",
+    "EbookLib>=0.18,<1",
+    "reportlab>=4.0,<5",
+    "python-multipart>=0.0.7",
 ]
 
 [project.scripts]

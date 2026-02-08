@@ -50,7 +50,6 @@ import VideoDubbingTuningPanel from './video-dubbing/VideoDubbingTuningPanel';
 import {
   DEFAULT_LLM_MODEL,
   DEFAULT_TRANSLATION_BATCH_SIZE,
-  DEFAULT_VIDEO_DIR,
   VIDEO_DUB_STORAGE_KEYS
 } from './video-dubbing/videoDubbingConfig';
 import type { VideoDubbingTab, VideoMetadataSection } from './video-dubbing/videoDubbingTypes';
@@ -80,17 +79,7 @@ export default function VideoDubbingPage({
   prefillParameters = null
 }: Props) {
   const { primaryTargetLanguage, setPrimaryTargetLanguage } = useLanguagePreferences();
-  const [baseDir, setBaseDir] = useState(() => {
-    if (typeof window === 'undefined') {
-      return DEFAULT_VIDEO_DIR;
-    }
-    try {
-      const stored = window.localStorage.getItem(VIDEO_DUB_STORAGE_KEYS.baseDir);
-      return stored && stored.trim() ? stored.trim() : DEFAULT_VIDEO_DIR;
-    } catch {
-      return DEFAULT_VIDEO_DIR;
-    }
-  });
+  const [baseDir, setBaseDir] = useState('');
   const [library, setLibrary] = useState<YoutubeNasLibraryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);

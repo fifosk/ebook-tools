@@ -1,4 +1,4 @@
-export const DEFAULT_SUBTITLE_SOURCE_DIRECTORY = '/Volumes/Data/Download/Subtitles';
+export const DEFAULT_SUBTITLE_SOURCE_DIRECTORY = '';
 export const DEFAULT_WORKER_COUNT = 10;
 export const DEFAULT_BATCH_SIZE = 20;
 export const DEFAULT_TRANSLATION_BATCH_SIZE = 10;
