@@ -67,6 +67,7 @@ markers = [
     "e2e: browser E2E tests via Playwright (requires running app).",
     "database: PostgreSQL/SQLAlchemy database layer tests.",
     "observability: metrics exporter, Prometheus exposition, dashboard coverage.",
+    "analytics: media generation stats, playback tracking.",
 ]
 
 [project.optional-dependencies]

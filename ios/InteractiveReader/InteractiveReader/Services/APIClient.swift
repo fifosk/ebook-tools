@@ -219,6 +219,12 @@ final class APIClient {
         return try decode(ResumePositionDeleteResponse.self, from: data)
     }
 
+    // MARK: - Playback Heartbeat
+
+    func sendPlaybackHeartbeat(payload: PlaybackHeartbeatPayload) async throws {
+        _ = try await sendJSONRequest(path: "/api/playback/heartbeat", method: "POST", payload: payload)
+    }
+
     func login(username: String, password: String) async throws -> SessionStatusResponse {
         let payload = LoginRequestPayload(username: username, password: password)
         let data = try await sendJSONRequest(path: "/api/auth/login", method: "POST", payload: payload)

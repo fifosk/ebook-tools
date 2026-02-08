@@ -58,3 +58,67 @@ ebook_tools_resume_positions:
     - count:
         usage: "GAUGE"
         description: "Total number of resume positions tracked"
+
+ebook_tools_generated_playtime:
+  query: >
+    SELECT
+      language,
+      job_type,
+      track_kind,
+      COALESCE(SUM(duration_seconds), 0) AS total_seconds,
+      COALESCE(SUM(sentence_count), 0) AS total_sentences,
+      COUNT(*) AS job_count
+    FROM media_generation_stats
+    GROUP BY language, job_type, track_kind
+  metrics:
+    - language:
+        usage: "LABEL"
+        description: "Audio language code"
+    - job_type:
+        usage: "LABEL"
+        description: "Job type (book, youtube_dub, subtitle)"
+    - track_kind:
+        usage: "LABEL"
+        description: "Track kind (original, translation)"
+    - total_seconds:
+        usage: "GAUGE"
+        description: "Total generated audio seconds"
+    - total_sentences:
+        usage: "GAUGE"
+        description: "Total sentences processed"
+    - job_count:
+        usage: "GAUGE"
+        description: "Number of completed jobs"
+
+ebook_tools_listened_playtime:
+  query: >
+    SELECT
+      language,
+      track_kind,
+      COALESCE(SUM(duration_seconds), 0) AS total_seconds,
+      COUNT(*) AS session_count
+    FROM playback_sessions
+    GROUP BY language, track_kind
+  metrics:
+    - language:
+        usage: "LABEL"
+        description: "Audio language code"
+    - track_kind:
+        usage: "LABEL"
+        description: "Track kind (original, translation)"
+    - total_seconds:
+        usage: "GAUGE"
+        description: "Total listened audio seconds"
+    - session_count:
+        usage: "GAUGE"
+        description: "Number of playback sessions"
+
+ebook_tools_playback_active:
+  query: >
+    SELECT COUNT(*) AS count
+    FROM playback_sessions
+    WHERE ended_at > NOW() - INTERVAL '5 minutes'
+  metrics:
+    - count:
+        usage: "GAUGE"
+        description: "Currently active playback sessions"

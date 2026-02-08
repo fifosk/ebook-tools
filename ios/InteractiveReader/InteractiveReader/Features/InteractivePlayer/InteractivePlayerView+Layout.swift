@@ -30,6 +30,17 @@ extension InteractivePlayerView {
             loadLlmModelsIfNeeded()
             loadVoiceInventoryIfNeeded()
             refreshBookmarks()
+            if let jobId = viewModel.jobId, let config = viewModel.apiConfiguration {
+                heartbeatManager.start(
+                    jobId: jobId,
+                    originalLanguage: linguistInputLanguage,
+                    translationLanguage: linguistLookupLanguage,
+                    configuration: config,
+                    audioCoordinator: viewModel.audioCoordinator,
+                    sequenceController: viewModel.sequenceController,
+                    audioModeManager: audioModeManager
+                )
+            }
             guard let chunk = viewModel.selectedChunk else { return }
             applyDefaultTrackSelection(for: chunk)
             syncSelectedSentence(for: chunk)
@@ -214,6 +225,7 @@ extension InteractivePlayerView {
             updateReadingBedPlayback()
         })
         view = AnyView(view.onDisappear {
+            heartbeatManager.stop()
             readingBedPauseTask?.cancel()
             readingBedPauseTask = nil
             readingBedCoordinator.reset()

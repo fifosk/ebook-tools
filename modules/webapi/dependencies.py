@@ -330,6 +330,16 @@ def get_resume_service():
 
 
 @lru_cache
+def get_analytics_service():
+    """Return the shared analytics service (PG only, None if no DB)."""
+    if _use_postgres():
+        from ..services.analytics_service import MediaAnalyticsService
+
+        return MediaAnalyticsService()
+    return None
+
+
+@lru_cache
 def get_audio_service() -> AudioService:
     """Return a configured :class:`AudioService` instance."""
 

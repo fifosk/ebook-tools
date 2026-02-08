@@ -289,6 +289,8 @@
 		86FF5D6B165DA6F292D7C9A6 /* PlaybackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DDDBC4E639F934903C0BB79 /* PlaybackTests.swift */; };
 		4B87FE13D70EC5AE3346D785 /* JourneyRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B9D706F6022E09B1743CF52 /* JourneyRunner.swift */; };
 		882D76B9AC49397086CECDD9 /* JourneyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A87D28F7449E229F4AE82305 /* JourneyTests.swift */; };
+		947CD24DB13125A84981EE8F /* PlaybackHeartbeatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4D2D9B2C109F23810FB438 /* PlaybackHeartbeatManager.swift */; };
+		2311A2E1DF997309E3C9BA22 /* PlaybackHeartbeatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4D2D9B2C109F23810FB438 /* PlaybackHeartbeatManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -443,6 +445,7 @@
 		0B9D706F6022E09B1743CF52 /* JourneyRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JourneyRunner.swift"; sourceTree = "<group>"; };
 		A87D28F7449E229F4AE82305 /* JourneyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JourneyTests.swift"; sourceTree = "<group>"; };
 		AC662784D8B0A02C97EEA37A /* InteractiveReaderTVUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InteractiveReaderTVUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8D4D2D9B2C109F23810FB438 /* PlaybackHeartbeatManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlaybackHeartbeatManager.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -697,6 +700,7 @@
 				SEQPLAY002A0001 /* SequencePlaybackController.swift */,
 				CC2B612A42FC410590D84E0A /* VideoPlayerCoordinator.swift */,
 				BA23F5D5E8D347FABACD6126 /* PlayerCoordinating.swift */,
+				8D4D2D9B2C109F23810FB438 /* PlaybackHeartbeatManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -1179,6 +1183,7 @@
 				64DCB2617E09A4485E5317F8 /* InteractivePlayerView+AudioManagement.swift in Sources */,
 				1893CD8B81BFC594F6295C50 /* MyLinguistBubbleViewModel.swift in Sources */,
 				27614F4EC1C58CFF2B875760 /* LinguistLookupUtilities.swift in Sources */,
+				947CD24DB13125A84981EE8F /* PlaybackHeartbeatManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1317,6 +1322,7 @@
 				C64EBD02357C8D11A41C62BA /* InteractivePlayerView+AudioManagement.swift in Sources */,
 				D7AAEABCC8B023972EA1BC6F /* MyLinguistBubbleViewModel.swift in Sources */,
 				5B236E93DC5BABC46BC6984B /* LinguistLookupUtilities.swift in Sources */,
+				2311A2E1DF997309E3C9BA22 /* PlaybackHeartbeatManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

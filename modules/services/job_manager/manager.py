@@ -463,6 +463,9 @@ class PipelineJobManager:
         log_job_finished(job, status)
         # Send push notification for terminal states
         self._dispatch_job_notification(job, status)
+        # Record media generation analytics
+        if status == PipelineJobStatus.COMPLETED:
+            self._record_generation_analytics(job)
 
     def _log_job_error(self, job: PipelineJob, exc: Exception) -> None:
         log_job_error(job, exc)
@@ -475,6 +478,21 @@ class PipelineJobManager:
 
     def _record_job_metric(self, name: str, value: float, attributes: Mapping[str, str]) -> None:
         record_job_metric(name, value, dict(attributes))
+
+    def _record_generation_analytics(self, job: PipelineJob) -> None:
+        """Fire-and-forget generation stats recording."""
+        try:
+            from ...services.analytics_service import get_analytics_service
+
+            service = get_analytics_service()
+            if service is not None:
+                service.record_generation_stats(job)
+        except Exception:
+            self._logger.debug(
+                "Failed to record generation analytics for %s",
+                job.job_id,
+                exc_info=True,
+            )
 
     def _execute_pipeline(self, job_id: str) -> None:
         self._job_executor.execute(job_id)
@@ -527,6 +545,9 @@ class PipelineJobManager:
             log_generic_job_finished(job, job.status)
             # Send push notification for custom job completion
             self._dispatch_job_notification(job, job.status)
+            # Record media generation analytics
+            if job.status == PipelineJobStatus.COMPLETED:
+                self._record_generation_analytics(job)
         finally:
             with self._lock:
                 self._custom_workers.pop(job_id, None)

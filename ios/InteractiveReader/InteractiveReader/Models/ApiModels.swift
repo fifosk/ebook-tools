@@ -1218,3 +1218,19 @@ struct LookupCacheSummaryResponse: Decodable {
         case cacheVersion
     }
 }
+
+// MARK: - Playback Heartbeat
+
+struct PlaybackHeartbeatPayload: Encodable {
+    let jobId: String
+    let language: String
+    let trackKind: String
+    let deltaSeconds: Double
+
+    enum CodingKeys: String, CodingKey {
+        case jobId = "job_id"
+        case language
+        case trackKind = "track_kind"
+        case deltaSeconds = "delta_seconds"
+    }
+}

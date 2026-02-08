@@ -77,6 +77,9 @@ _EXPECTED_METRICS = [
     ("ebook_tools_worker_pool_utilization", "gauge"),
     ("ebook_tools_errors_total", "counter"),
     ("ebook_tools_job_failures_total", "counter"),
+    ("ebook_tools_generated_playtime_seconds", "gauge"),
+    ("ebook_tools_listened_playtime_seconds", "gauge"),
+    ("ebook_tools_playback_sessions_active", "gauge"),
 ]
 
 
@@ -110,6 +113,8 @@ _EXPECTED_LABELS = [
     ("ebook_tools_library_items_total", {"item_type"}),
     ("ebook_tools_auth_attempts", {"method", "result"}),
     ("ebook_tools_pipeline_stage_duration_seconds", {"stage"}),
+    ("ebook_tools_generated_playtime_seconds", {"language", "job_type", "track_kind"}),
+    ("ebook_tools_listened_playtime_seconds", {"language", "track_kind"}),
 ]
 
 
@@ -162,6 +167,16 @@ KNOWN_EXTERNAL_METRICS = {
     "ebook_tools_resume_positions",
     "ebook_tools_resume_positions_count",
     "ebook_tools_users",
+    # Media analytics (monitoring/postgres-exporter/queries.yaml)
+    "ebook_tools_generated_playtime",
+    "ebook_tools_generated_playtime_total_seconds",
+    "ebook_tools_generated_playtime_total_sentences",
+    "ebook_tools_generated_playtime_job_count",
+    "ebook_tools_listened_playtime",
+    "ebook_tools_listened_playtime_total_seconds",
+    "ebook_tools_listened_playtime_session_count",
+    "ebook_tools_playback_active",
+    "ebook_tools_playback_active_count",
 }
 
 # PromQL function names and keywords that aren't metric names.
@@ -176,6 +191,7 @@ _PROMQL_KEYWORDS = frozenset({
     # Common label names appearing in filter expressions
     "le", "datname", "relname", "status", "state", "handler", "item_type",
     "method", "result", "stage", "error_type", "endpoint", "job_type",
+    "language", "track_kind",
     "ebook_tools", "job", "deployment",
 })
 
@@ -310,8 +326,8 @@ def test_dashboard_json_structure():
     assert DASHBOARD_DIR.is_dir(), f"Dashboard dir not found: {DASHBOARD_DIR}"
 
     dashboards = sorted(DASHBOARD_DIR.glob("*.json"))
-    assert len(dashboards) >= 3, (
-        f"Expected at least 3 dashboard files, found {len(dashboards)}"
+    assert len(dashboards) >= 4, (
+        f"Expected at least 4 dashboard files, found {len(dashboards)}"
     )
 
     for json_file in dashboards:

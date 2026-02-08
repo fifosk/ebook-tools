@@ -156,6 +156,26 @@ JOB_FAILURES = Counter(
 )
 
 # ---------------------------------------------------------------------------
+# Media analytics
+# ---------------------------------------------------------------------------
+GENERATED_PLAYTIME = Gauge(
+    "ebook_tools_generated_playtime_seconds",
+    "Total generated audio playtime in seconds",
+    ["language", "job_type", "track_kind"],
+)
+
+LISTENED_PLAYTIME = Gauge(
+    "ebook_tools_listened_playtime_seconds",
+    "Total listened audio playtime in seconds",
+    ["language", "track_kind"],
+)
+
+PLAYBACK_SESSIONS_ACTIVE = Gauge(
+    "ebook_tools_playback_sessions_active",
+    "Number of active playback sessions (ended_at within last 5 minutes)",
+)
+
+# ---------------------------------------------------------------------------
 # Gauge update interval
 # ---------------------------------------------------------------------------
 _GAUGE_UPDATE_INTERVAL_SECONDS = 15
@@ -294,6 +314,66 @@ def _collect_health_gauge() -> None:
         HEALTH_STATUS.set(0.0)
 
 
+def _collect_analytics_gauges() -> None:
+    """Snapshot media analytics from PostgreSQL."""
+    if not os.environ.get("DATABASE_URL", "").strip():
+        return
+    try:
+        from ..database.engine import get_db_session
+        from ..database.models.analytics import (
+            MediaGenerationStatModel,
+            PlaybackSessionModel,
+        )
+        from sqlalchemy import func as sa_func, select
+
+        with get_db_session() as session:
+            # Generated playtime by (language, job_type, track_kind)
+            gen_rows = session.execute(
+                select(
+                    MediaGenerationStatModel.language,
+                    MediaGenerationStatModel.job_type,
+                    MediaGenerationStatModel.track_kind,
+                    sa_func.sum(MediaGenerationStatModel.duration_seconds),
+                ).group_by(
+                    MediaGenerationStatModel.language,
+                    MediaGenerationStatModel.job_type,
+                    MediaGenerationStatModel.track_kind,
+                )
+            ).all()
+            for lang, jtype, tkind, total in gen_rows:
+                GENERATED_PLAYTIME.labels(
+                    language=lang, job_type=jtype, track_kind=tkind,
+                ).set(total or 0)
+
+            # Listened playtime by (language, track_kind)
+            listen_rows = session.execute(
+                select(
+                    PlaybackSessionModel.language,
+                    PlaybackSessionModel.track_kind,
+                    sa_func.sum(PlaybackSessionModel.duration_seconds),
+                ).group_by(
+                    PlaybackSessionModel.language,
+                    PlaybackSessionModel.track_kind,
+                )
+            ).all()
+            for lang, tkind, total in listen_rows:
+                LISTENED_PLAYTIME.labels(
+                    language=lang, track_kind=tkind,
+                ).set(total or 0)
+
+            # Active sessions (ended_at within last 5 minutes)
+            active_count = session.execute(
+                select(sa_func.count())
+                .select_from(PlaybackSessionModel)
+                .where(
+                    PlaybackSessionModel.ended_at > sa_func.now() - __import__("datetime").timedelta(minutes=5)
+                )
+            ).scalar() or 0
+            PLAYBACK_SESSIONS_ACTIVE.set(active_count)
+    except Exception:
+        pass
+
+
 async def _periodic_gauge_update() -> None:
     """Background loop that refreshes gauge metrics."""
     while True:
@@ -302,6 +382,7 @@ async def _periodic_gauge_update() -> None:
             _collect_library_gauges()
             _collect_user_gauges()
             _collect_health_gauge()
+            _collect_analytics_gauges()
         except Exception:
             pass  # Never crash the collector
         await asyncio.sleep(_GAUGE_UPDATE_INTERVAL_SECONDS)

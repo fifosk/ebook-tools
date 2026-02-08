@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import { usePlaybackBookmarks } from '../hooks/usePlaybackBookmarks';
+import { usePlaybackHeartbeat } from '../hooks/usePlaybackHeartbeat';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { useMyLinguist } from '../context/MyLinguistProvider';
 import {
@@ -531,6 +532,19 @@ export default function PlayerPanel({
   const isActiveMediaPlaying = isInlineAudioPlaying;
   const shouldHoldWakeLock = isInlineAudioPlaying;
   useWakeLock(shouldHoldWakeLock);
+
+  // Playback analytics heartbeat
+  const heartbeatTrackKind: 'original' | 'translation' | null =
+    activeTimingTrack === 'original' ? 'original'
+    : activeTimingTrack === 'translation' ? 'translation'
+    : null;
+  usePlaybackHeartbeat({
+    jobId: normalisedJobId || null,
+    language: heartbeatTrackKind === 'original' ? jobOriginalLanguage : jobTranslationLanguage,
+    trackKind: heartbeatTrackKind,
+    isPlaying: isInlineAudioPlaying,
+  });
+
   const isPlaybackDisabled = !playbackControlsAvailable;
   const isFullscreenDisabled = !canRenderInteractiveViewer;
 
