@@ -325,6 +325,11 @@ class PipelineJobPersistence:
             if job.result is not None:
                 job.result.generated_files = copy.deepcopy(updated_generated)
             job.generated_files = copy.deepcopy(updated_generated)
+            # Backfill metadata_path/metadata_url into the tracker so
+            # /media/live returns usable metadataPath during processing.
+            enriched_chunks = updated_generated.get("chunks")
+            if isinstance(enriched_chunks, list) and job.tracker is not None:
+                job.tracker.backfill_chunk_metadata_paths(enriched_chunks)
 
         manifest_payload = ensure_timing_manifest(snapshot.result, job_root)
         snapshot.result = manifest_payload
@@ -501,7 +506,7 @@ class PipelineJobPersistence:
                 if url:
                     normalized_entry["url"] = url
                 chunk_entry.setdefault("files", []).append(normalized_entry)
-            audio_tracks_raw = chunk.get("audioTracks")
+            audio_tracks_raw = chunk.get("audioTracks") or chunk.get("audio_tracks")
             if isinstance(audio_tracks_raw, Mapping) and not has_metadata_file:
                 normalized_tracks: Dict[str, Dict[str, Any]] = {}
                 for track_key, track_value in audio_tracks_raw.items():
@@ -513,7 +518,7 @@ class PipelineJobPersistence:
                 if normalized_tracks:
                     chunk_entry["audioTracks"] = normalized_tracks
 
-            timing_tracks_raw = chunk.get("timingTracks")
+            timing_tracks_raw = chunk.get("timingTracks") or chunk.get("timing_tracks")
             if isinstance(timing_tracks_raw, Mapping) and not has_metadata_file:
                 normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
                 chunk_entry["timingTracks"] = normalized_timing

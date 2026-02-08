@@ -709,6 +709,9 @@ def create_app() -> FastAPI:
 
     _configure_cors(app)
 
+    from .metrics import setup_metrics
+    setup_metrics(app)
+
     @app.get("/_health", tags=["health"])
     def healthcheck() -> dict[str, str]:
         """Simple healthcheck endpoint for smoke-testing the server."""

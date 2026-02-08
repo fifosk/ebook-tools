@@ -790,6 +790,102 @@ python scripts/validate_word_timing.py <job_id>
 - `POST /admin/users/{username}/suspend` - Suspend user
 - `POST /admin/users/{username}/password` - Reset password
 
+## Monitoring & Observability
+
+### Architecture
+
+```
+Backend (:8000/metrics) ──→ Prometheus (:9090) ──→ Grafana (:3000)
+PostgreSQL (:5432)      ──→ postgres-exporter (:9187) ──↗
+```
+
+- **Grafana**: `https://grafana.langtools.fifosk.synology.me` (Synology DSM reverse proxy → `localhost:3000`)
+- **Prometheus**: `https://prometheus.langtools.fifosk.synology.me` (→ `localhost:9090`)
+- **Retention**: 90 days or 20GB (Prometheus TSDB)
+- **Data**: `/Volumes/Data/Monitoring/{prometheus,grafana}`
+
+### Directory Structure
+
+```
+monitoring/
+├── prometheus/prometheus.yml              # Scrape config (backend 10s, PG 30s)
+├── grafana/
+│   ├── provisioning/datasources/          # Auto-provision Prometheus
+│   ├── provisioning/dashboards/           # Dashboard provider
+│   └── dashboards/{overview,backend,database,metrics-qa}.json
+└── postgres-exporter/queries.yaml         # Custom PG queries for app tables
+```
+
+### Makefile Targets
+
+```bash
+make monitoring-up       # Start Prometheus + Grafana + PG exporter
+make monitoring-down     # Stop monitoring services
+make monitoring-logs     # Follow monitoring logs
+make monitoring-status   # Health check all 3 services
+make docker-status       # Includes monitoring health in output
+make db-shell            # psql into PostgreSQL container
+```
+
+### Adding New Metrics
+
+1. Define the metric in `modules/webapi/metrics.py`:
+   ```python
+   MY_COUNTER = Counter("ebook_tools_my_counter", "Description", ["label"])
+   ```
+2. Instrument at the call site with a lazy import:
+   ```python
+   def my_function():
+       try:
+           from modules.webapi.metrics import MY_COUNTER
+           MY_COUNTER.labels(label="value").inc()
+       except Exception:
+           pass
+   ```
+3. For gauge-style metrics that need periodic refresh, add a collector function in `_periodic_gauge_update()`.
+
+### Dashboards
+
+Four auto-provisioned dashboards in the "ebook-tools" folder:
+- **Overview** — system up, health, active jobs, request rate, error rate, sessions
+- **Backend** — request rate by handler, latency percentiles, pipeline stages, job distribution, auth attempts
+- **Database** — PG connections, cache hit ratio, transactions/sec, table sizes, dead tuples
+- **Metrics QA** — compact one-panel-per-metric dashboard for visual smoke-testing (10s refresh, 15m window)
+
+### Observability Tests
+
+```bash
+pytest -m observability -v   # ~26 tests covering metrics E2E pipeline
+make test-observability      # same via Makefile
+```
+
+Tests verify: metric presence & type, label cardinality, dashboard PromQL coverage
+(every expr references an existing metric), HTTP auto-instrumentation, auth counter
+instrumentation, and dashboard JSON structural validity.
+
+### Environment Variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GRAFANA_ADMIN_USER` | `admin` | Grafana admin username |
+| `GRAFANA_ADMIN_PASSWORD` | `ebook_tools_grafana` | Grafana admin password |
+| `POSTGRES_PASSWORD` | `ebook_tools_dev` | Shared with postgres-exporter |
+
+### First-Time Setup
+
+```bash
+# Create persistent storage directories
+mkdir -p /Volumes/Data/Monitoring/prometheus /Volumes/Data/Monitoring/grafana
+chown -R 472:472 /Volumes/Data/Monitoring/grafana
+
+# Enable pg_stat_statements (already in docker-compose command)
+make db-shell
+# => CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
+# Start everything
+docker compose up -d --build
+```
+
 ## Additional Resources
 
 - **Architecture**: `docs/architecture.md`

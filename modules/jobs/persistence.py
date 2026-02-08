@@ -84,14 +84,15 @@ def _job_root(job_id: str, root: Path | None = None) -> Path:
     return base / _sanitize_job_id(job_id)
 
 
-def _job_metadata_dir(job_id: str, root: Path | None = None) -> Path:
+def _job_metadata_dir(job_id: str, root: Path | None = None, *, ensure: bool = False) -> Path:
     metadata_dir = _job_root(job_id, root=root) / "metadata"
-    metadata_dir.mkdir(parents=True, exist_ok=True)
+    if ensure:
+        metadata_dir.mkdir(parents=True, exist_ok=True)
     return metadata_dir
 
 
-def _job_path(job_id: str, root: Path | None = None) -> Path:
-    return _job_metadata_dir(job_id, root=root) / "job.json"
+def _job_path(job_id: str, root: Path | None = None, *, ensure: bool = False) -> Path:
+    return _job_metadata_dir(job_id, root=root, ensure=ensure) / "job.json"
 
 
 def _coerce_metadata(job: "PipelineJobMetadata" | Mapping[str, object]) -> "PipelineJobMetadata":
@@ -108,7 +109,7 @@ def save_job(job: "PipelineJobMetadata" | Mapping[str, object]) -> Path:
     """Persist ``job`` metadata to disk using an atomic write."""
 
     metadata = _coerce_metadata(job)
-    path = _job_path(metadata.job_id)
+    path = _job_path(metadata.job_id, ensure=True)
     payload = metadata.to_json()
     temp_path: Path | None = None
     try:

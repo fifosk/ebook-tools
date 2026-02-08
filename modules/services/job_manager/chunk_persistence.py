@@ -147,7 +147,7 @@ def write_chunk_metadata(
                 "sentence_count": len(sentences),
                 "sentences": sentences,
             }
-            audio_tracks_raw = chunk_entry.get("audioTracks")
+            audio_tracks_raw = chunk_entry.get("audioTracks") or chunk_entry.get("audio_tracks")
             if isinstance(audio_tracks_raw, Mapping):
                 normalized_tracks: Dict[str, Dict[str, Any]] = {}
                 for track_key, track_value in audio_tracks_raw.items():
@@ -159,7 +159,7 @@ def write_chunk_metadata(
                 if normalized_tracks:
                     chunk_payload["audioTracks"] = normalized_tracks
                     chunk_entry["audioTracks"] = normalized_tracks
-            timing_tracks_raw = chunk_entry.get("timingTracks")
+            timing_tracks_raw = chunk_entry.get("timingTracks") or chunk_entry.get("timing_tracks")
             if isinstance(timing_tracks_raw, Mapping):
                 normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
                 chunk_payload["timingTracks"] = normalized_timing
@@ -205,8 +205,11 @@ def write_chunk_metadata(
             for heavy_key in (
                 "sentences",
                 "audioTracks",
+                "audio_tracks",
                 "timingTracks",
+                "timing_tracks",
                 "timingVersion",
+                "timing_version",
             ):
                 chunk_entry.pop(heavy_key, None)
         if isinstance(metadata_path_str, str) and metadata_path_str:

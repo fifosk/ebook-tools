@@ -117,8 +117,8 @@ export async function fetchJobTiming(jobId: string, signal?: AbortSignal): Promi
   const response = await apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/timing`, {
     signal,
     cache: 'no-store'
-  });
-  if (response.status === 404) {
+  }, { suppressUnauthorized: true });
+  if (response.status === 404 || response.status === 403) {
     return null;
   }
   return handleResponse<JobTimingResponse>(response);

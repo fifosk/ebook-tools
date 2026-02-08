@@ -34,6 +34,15 @@ from .schemas import (
 router = APIRouter()
 
 
+def _inc_auth(method: str, result: str) -> None:
+    """Increment the Prometheus auth attempts counter (safe no-op if unavailable)."""
+    try:
+        from .metrics import AUTH_ATTEMPTS
+        AUTH_ATTEMPTS.labels(method=method, result=result).inc()
+    except Exception:
+        pass
+
+
 def _extract_bearer_token(authorization: str | None) -> str | None:
     if not authorization:
         return None
@@ -170,6 +179,7 @@ def login(payload: LoginRequestPayload, auth_service: AuthService = Depends(get_
     try:
         token = auth_service.login(payload.username, payload.password)
     except ValueError as exc:  # Invalid credentials
+        _inc_auth("password", "failure")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
     record = auth_service.user_store.get_user(payload.username)
@@ -180,6 +190,7 @@ def login(payload: LoginRequestPayload, auth_service: AuthService = Depends(get_
     if _is_user_suspended(record):
         # Invalidate the session we just created
         auth_service.logout(token)
+        _inc_auth("password", "suspended")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account is pending activation. Please wait for administrator approval.",
@@ -195,6 +206,7 @@ def login(payload: LoginRequestPayload, auth_service: AuthService = Depends(get_
         # Record removed between reads; fall back to previous snapshot.
         pass
 
+    _inc_auth("password", "success")
     session_data = auth_service.session_manager.get_session(token)
     return _build_session_response(token, record, session_data)
 
@@ -207,8 +219,10 @@ def oauth_login(
     try:
         identity = resolve_oauth_identity(payload.provider, payload.id_token)
     except OAuthConfigurationError as exc:
+        _inc_auth("oauth", "failure")
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except OAuthVerificationError as exc:
+        _inc_auth("oauth", "failure")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
     email_override = _normalise_email(payload.email)
@@ -260,6 +274,7 @@ def oauth_login(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User record not found") from exc
 
     token = auth_service.session_manager.create_session(record.username)
+    _inc_auth("oauth", "success")
     session_data = auth_service.session_manager.get_session(token)
     return _build_session_response(token, record, session_data)
 

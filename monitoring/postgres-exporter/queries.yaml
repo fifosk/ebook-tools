@@ -1,0 +1,60 @@
+# Custom PostgreSQL queries for ebook-tools metrics.
+#
+# These are scraped by postgres_exporter alongside the built-in pg_stat_*
+# collectors and exposed at :9187/metrics.
+
+ebook_tools_library_items:
+  query: >
+    SELECT
+      COALESCE(item_type, 'unknown') AS item_type,
+      COUNT(*) AS count
+    FROM library_items
+    GROUP BY item_type
+  metrics:
+    - item_type:
+        usage: "LABEL"
+        description: "Type of library item (book, video, subtitle)"
+    - count:
+        usage: "GAUGE"
+        description: "Number of library items by type"
+
+ebook_tools_users:
+  query: >
+    SELECT
+      COALESCE(roles->>0, 'viewer') AS role,
+      COUNT(*) AS count
+    FROM users
+    GROUP BY role
+  metrics:
+    - role:
+        usage: "LABEL"
+        description: "Primary user role"
+    - count:
+        usage: "GAUGE"
+        description: "Number of users by role"
+
+ebook_tools_active_sessions:
+  query: >
+    SELECT COUNT(*) AS count
+    FROM sessions
+    WHERE expires_at > NOW() OR expires_at IS NULL
+  metrics:
+    - count:
+        usage: "GAUGE"
+        description: "Number of active (non-expired) sessions"
+
+ebook_tools_bookmarks:
+  query: >
+    SELECT COUNT(*) AS count FROM bookmarks
+  metrics:
+    - count:
+        usage: "GAUGE"
+        description: "Total number of bookmarks"
+
+ebook_tools_resume_positions:
+  query: >
+    SELECT COUNT(*) AS count FROM resume_positions
+  metrics:
+    - count:
+        usage: "GAUGE"
+        description: "Total number of resume positions tracked"

@@ -241,6 +241,14 @@ async def get_job_timing(
         if isinstance(result_value, Mapping):
             result_payload = dict(result_value)
     except PermissionError as exc:
+        # Access-control PermissionError (from _assert_job_access) has no errno.
+        # Filesystem PermissionErrors carry an errno and should be treated as
+        # internal errors rather than authorization failures.
+        if getattr(exc, "errno", None) is not None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal error while loading job",
+            ) from exc
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     else:
         job_root = locator.resolve_path(job_id)

@@ -474,6 +474,45 @@ class ProgressTracker:
             },
         )
 
+    def backfill_chunk_metadata_paths(
+        self, enriched_chunks: list[Mapping[str, object]]
+    ) -> None:
+        """Backfill ``metadata_path`` and ``metadata_url`` from persisted chunk data.
+
+        Called by the persistence layer after ``write_chunk_metadata()`` writes
+        chunk files to disk.  This keeps the in-memory tracker consistent with
+        the on-disk state so that ``/media/live`` returns usable ``metadataPath``
+        values even while the job is still in progress.
+        """
+        if not enriched_chunks:
+            return
+        lookup: Dict[str, Mapping[str, object]] = {}
+        for ec in enriched_chunks:
+            cid = ec.get("chunk_id")
+            if isinstance(cid, str) and cid:
+                lookup[cid] = ec
+        if not lookup:
+            return
+        with self._lock:
+            changed = False
+            for chunk in self._generated_chunks:
+                cid = chunk.get("chunk_id")
+                if not isinstance(cid, str) or cid not in lookup:
+                    continue
+                enriched = lookup[cid]
+                mp = enriched.get("metadata_path")
+                mu = enriched.get("metadata_url")
+                if isinstance(mp, str) and mp and "metadata_path" not in chunk:
+                    chunk["metadata_path"] = mp
+                    changed = True
+                if isinstance(mu, str) and mu and "metadata_url" not in chunk:
+                    chunk["metadata_url"] = mu
+                    changed = True
+            if changed:
+                self._generated_files_snapshot = (
+                    self._build_generated_files_snapshot_locked()
+                )
+
     def get_retry_counts(self) -> Dict[str, Dict[str, int]]:
         """Return a snapshot of retry counters grouped by stage and reason."""
 

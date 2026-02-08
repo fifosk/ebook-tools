@@ -122,7 +122,7 @@ class FileJobStore(JobStore):
     def get(self, job_id: str) -> PipelineJobMetadata:
         try:
             return job_persistence.load_job(job_id)
-        except FileNotFoundError as exc:  # pragma: no cover - passthrough
+        except (FileNotFoundError, PermissionError) as exc:
             raise KeyError(job_id) from exc
 
     def list(

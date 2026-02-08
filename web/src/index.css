@@ -1567,6 +1567,37 @@ main {
   color: var(--color-sidebar-link-active-text);
 }
 
+.sidebar__link--external {
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.sidebar__link-icon {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+}
+
+.sidebar__external-arrow {
+  width: 0.75em;
+  height: 0.75em;
+  margin-left: auto;
+  opacity: 0.45;
+  flex-shrink: 0;
+}
+
+.sidebar__link--external:hover .sidebar__external-arrow {
+  opacity: 0.8;
+}
+
+.sidebar__section-divider {
+  height: 1px;
+  background: var(--color-sidebar-link-border);
+  margin: var(--space-xs) 0;
+  opacity: 0.5;
+}
+
 .sidebar__link--job {
   justify-content: space-between;
 }

@@ -21,6 +21,45 @@ _tracer = trace.get_tracer("ebook_tools.pipeline") if trace else None
 _meter = metrics.get_meter("ebook_tools.pipeline") if metrics else None
 _histograms: Dict[str, object] = {}
 
+# Prometheus bridge — maps OTEL-style metric names to Prometheus Histogram objects.
+# Lazily initialised on first use; safe no-op when prometheus-client is absent.
+_prometheus_bridge: Optional[Dict[str, object]] = None
+
+
+def _init_prometheus_bridge() -> Dict[str, object]:
+    """Build the mapping once on first call."""
+    global _prometheus_bridge
+    if _prometheus_bridge is not None:
+        return _prometheus_bridge
+    try:
+        from modules.webapi.metrics import PIPELINE_STAGE_DURATION
+        _prometheus_bridge = {
+            "pipeline.stage.duration": PIPELINE_STAGE_DURATION,
+            "pipeline.operation.duration": PIPELINE_STAGE_DURATION,
+        }
+    except Exception:
+        _prometheus_bridge = {}
+    return _prometheus_bridge
+
+
+def _bridge_to_prometheus(
+    name: str,
+    value: float,
+    attributes: Mapping[str, object],
+) -> None:
+    """Forward a metric observation to the corresponding Prometheus histogram."""
+    bridge = _init_prometheus_bridge()
+    prom_hist = bridge.get(name)
+    if prom_hist is None:
+        return
+    try:
+        # Extract a single label value; pipeline stage/operation both use "stage"
+        label_key = "stage" if "stage" in attributes else "operation"
+        label_val = str(attributes.get(label_key, "unknown"))
+        prom_hist.labels(stage=label_val).observe(value / 1000.0)  # ms → seconds
+    except Exception:
+        pass
+
 
 def _get_histogram(name: str):  # pragma: no cover - simple helper
     if _meter is None:
@@ -55,6 +94,9 @@ def record_metric(
                     "console_suppress": True,
                 },
             )
+
+    # Bridge to Prometheus histograms when available
+    _bridge_to_prometheus(name, value, attributes)
 
     logger.debug(
         "Metric recorded",

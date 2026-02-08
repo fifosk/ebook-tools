@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import json
-import sys
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
-
-print("[LOOKUP_CACHE_MODULE] Module loaded!", flush=True)  # This prints at import time
 
 from ... import logging_manager as log_mgr
 from ...lookup_cache import LookupCacheManager
@@ -90,9 +87,6 @@ def build_lookup_cache_phase(
     """
     # Check if lookup cache is enabled
     enable_cache = getattr(request.inputs, "enable_lookup_cache", True)
-    # FORCE VISIBLE LOG - use print AND logger.error (error level to ensure it's logged)
-    print(f"[LOOKUP_CACHE] Phase called: job_id={request.job_id}, enable_cache={enable_cache}", flush=True)
-    logger.error(f"[LOOKUP_CACHE] Phase called: job_id={request.job_id}, enable_cache={enable_cache}")
     logger.info(
         "Lookup cache phase starting",
         extra={
@@ -174,10 +168,8 @@ def build_lookup_cache_phase(
             if text:
                 all_sentences.append(text)
 
-    print(f"[LOOKUP_CACHE] Extracted {len(all_sentences)} sentences from {len(chunks)} chunks")
     logger.debug("Lookup cache: extracted %d sentences from %d chunks", len(all_sentences), len(chunks))
     if not all_sentences:
-        print("[LOOKUP_CACHE] No sentences found!")
         logger.debug("No sentences found for lookup cache")
         return None
 
@@ -238,10 +230,8 @@ def build_lookup_cache_phase(
             )
 
         # Save the cache
-        print(f"[LOOKUP_CACHE] Saving cache to {cache_manager.cache_path}")
         cache_manager.save()
         cache_path = cache_manager.cache_path
-        print(f"[LOOKUP_CACHE] Cache saved! Exists: {cache_path.exists()}")
 
         elapsed = time.perf_counter() - start_time
 
@@ -276,7 +266,7 @@ def build_lookup_cache_phase(
                         "llm_calls": cache_manager.cache.stats.llm_calls,
                         "skipped_stopwords": cache_manager.cache.stats.skipped_stopwords,
                         "build_time_seconds": round(elapsed, 2),
-                        "input_language": input_language,
+                        "input_language": lookup_language,
                         "definition_language": definition_language,
                     }
                 }

@@ -37,6 +37,8 @@ dependencies = [
     "sqlalchemy>=2.0,<3",
     "alembic>=1.13,<2",
     "psycopg2-binary>=2.9,<3",
+    "prometheus-client>=0.20,<1",
+    "prometheus-fastapi-instrumentator>=7.0,<8",
 ]
 
 [project.scripts]
@@ -64,6 +66,7 @@ markers = [
     "slow: tests that take >2s (WhisperX, Piper, pipelines).",
     "e2e: browser E2E tests via Playwright (requires running app).",
     "database: PostgreSQL/SQLAlchemy database layer tests.",
+    "observability: metrics exporter, Prometheus exposition, dashboard coverage.",
 ]
 
 [project.optional-dependencies]

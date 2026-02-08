@@ -220,7 +220,13 @@ class PipelineConfig:
             cloud_api_url=self.cloud_ollama_url,
             cloud_api_key=self.ollama_api_key,
         )
-        ffmpeg_path = self.ffmpeg_path or self.context.ffmpeg_path
+        # Environment variable wins over stored job config (Docker containers
+        # may restart jobs created on macOS with stale /opt/homebrew paths).
+        ffmpeg_path = (
+            os.environ.get("FFMPEG_PATH")
+            or self.ffmpeg_path
+            or self.context.ffmpeg_path
+        )
         if ffmpeg_path:
             AudioSegment.converter = ffmpeg_path
         if self.audio_api_base_url:

@@ -455,14 +455,16 @@ class LibrarySync:
             raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
 
         job_root = Path(item.library_path)
-        with DirectoryLock(job_root):
-            if job_root.exists():
-                shutil.rmtree(job_root, ignore_errors=True)
+        if job_root.parent.exists():
+            with DirectoryLock(job_root):
+                if job_root.exists():
+                    shutil.rmtree(job_root, ignore_errors=True)
 
         self._repository.delete_entry(job_id)
         self._library_job_cache.pop(job_id, None)
         self._missing_job_cache.discard(job_id)
-        self._prune_empty_ancestors(job_root)
+        if job_root.parent.exists():
+            self._prune_empty_ancestors(job_root)
 
     def update_metadata(
         self,

@@ -15,6 +15,27 @@ if TYPE_CHECKING:
 logger = log_mgr.logger
 
 
+def _try_inc_job_failure(error_type: str) -> None:
+    """Increment the Prometheus job-failure counter (safe no-op if unavailable)."""
+    try:
+        from modules.webapi.metrics import JOB_FAILURES
+        JOB_FAILURES.labels(error_type=error_type).inc()
+    except Exception:
+        pass
+
+
+def _try_observe_job_duration(job: "PipelineJob", status: PipelineJobStatus) -> None:
+    """Observe job duration in the Prometheus histogram (safe no-op if unavailable)."""
+    try:
+        if job.started_at and job.completed_at:
+            from modules.webapi.metrics import JOB_DURATION
+            duration = (job.completed_at - job.started_at).total_seconds()
+            job_type = getattr(job, "job_type", "pipeline")
+            JOB_DURATION.labels(job_type=job_type, status=status.value).observe(duration)
+    except Exception:
+        pass
+
+
 def _job_correlation_id(job: "PipelineJob") -> Optional[str]:
     """Extract correlation ID from job request."""
 
@@ -52,6 +73,7 @@ def log_job_started(job: "PipelineJob") -> None:
 def log_job_finished(job: "PipelineJob", status: PipelineJobStatus) -> None:
     """Log pipeline job completion event."""
 
+    _try_observe_job_duration(job, status)
     with _log_context(job):
         if status == PipelineJobStatus.PAUSED:
             logger.info(
@@ -76,6 +98,7 @@ def log_job_finished(job: "PipelineJob", status: PipelineJobStatus) -> None:
 def log_job_error(job: "PipelineJob", exc: Exception) -> None:
     """Log pipeline job error event."""
 
+    _try_inc_job_failure(type(exc).__name__)
     with _log_context(job):
         logger.error(
             "Pipeline job encountered an error",
