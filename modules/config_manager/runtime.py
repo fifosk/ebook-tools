@@ -383,11 +383,21 @@ def build_runtime_context(
         working_override or config.get("working_dir"), DEFAULT_WORKING_RELATIVE
     )
 
+    use_ramdisk_override = overrides.get("use_ramdisk") if overrides else None
+    use_ramdisk_value = (
+        use_ramdisk_override
+        if use_ramdisk_override is not None
+        else config.get("use_ramdisk", True)
+    )
+    use_ramdisk = _coerce_bool(use_ramdisk_value)
+
     def _should_use_default(value: Optional[str], default_relative: Path) -> bool:
         return value in [None, "", str(default_relative)]
 
     smb_output_path = None
-    if not output_override and _should_use_default(
+    # Skip SMB probing when ramdisk is disabled (Docker / container environment)
+    # because Docker uses explicit output dirs, not NAS-mounted SMB shares.
+    if use_ramdisk and not output_override and _should_use_default(
         config.get("output_dir"), DEFAULT_OUTPUT_RELATIVE
     ):
         smb_output_path = _try_smb_directory(DEFAULT_SMB_OUTPUT_PATH, require_write=True)
@@ -401,20 +411,18 @@ def build_runtime_context(
     else:
         output_path = working_path / "ebook"
         output_path.mkdir(parents=True, exist_ok=True)
-        logger.info(
-            "SMB ebook share unavailable or unwritable; using local output directory at %s.",
-            output_path,
-        )
+        if use_ramdisk:
+            logger.info(
+                "SMB ebook share unavailable or unwritable; using local output directory at %s.",
+                output_path,
+            )
+        else:
+            logger.debug(
+                "Using local output directory at %s (container mode).",
+                output_path,
+            )
 
     tmp_path = resolve_directory(tmp_override or config.get("tmp_dir"), DEFAULT_TMP_RELATIVE)
-
-    use_ramdisk_override = overrides.get("use_ramdisk") if overrides else None
-    use_ramdisk_value = (
-        use_ramdisk_override
-        if use_ramdisk_override is not None
-        else config.get("use_ramdisk", True)
-    )
-    use_ramdisk = _coerce_bool(use_ramdisk_value)
 
     if use_ramdisk:
         if ramdisk_manager.is_mounted():
@@ -436,7 +444,7 @@ def build_runtime_context(
     tmp_path = Path(tmp_path)
 
     smb_books_path = None
-    if not books_override and _should_use_default(
+    if use_ramdisk and not books_override and _should_use_default(
         config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE
     ):
         smb_books_path = _try_smb_directory(DEFAULT_SMB_BOOKS_PATH, require_write=False)
@@ -449,12 +457,20 @@ def build_runtime_context(
         books_path = smb_books_path
     else:
         books_path = resolve_directory(None, DEFAULT_BOOKS_RELATIVE)
-        logger.info(
-            "SMB ebook share unavailable; using local books directory at %s.",
-            books_path,
-        )
+        if use_ramdisk:
+            logger.info(
+                "SMB ebook share unavailable; using local books directory at %s.",
+                books_path,
+            )
+        else:
+            logger.debug(
+                "Using local books directory at %s (container mode).",
+                books_path,
+            )
 
-    is_tmp_ramdisk = ramdisk_manager.is_ramdisk(tmp_path)
+    # When use_ramdisk is False (Docker/container), the tmpfs is managed by
+    # the container runtime — never attempt to mount/unmount it ourselves.
+    is_tmp_ramdisk = use_ramdisk and ramdisk_manager.is_ramdisk(tmp_path)
 
     ffmpeg_path = os.path.expanduser(
         str(ffmpeg_override or config.get("ffmpeg_path") or DEFAULT_FFMPEG_PATH)

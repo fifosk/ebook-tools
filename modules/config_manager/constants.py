@@ -14,14 +14,18 @@ DEFAULT_OUTPUT_RELATIVE = DEFAULT_WORKING_RELATIVE / "ebook"
 DEFAULT_TMP_RELATIVE = Path("tmp")
 DEFAULT_BOOKS_RELATIVE = Path("storage/ebooks")
 DEFAULT_COVERS_RELATIVE = Path("storage/covers")
-DEFAULT_SMB_SHARE_ROOT = Path("/Volumes/Data/Download/Ebooks")
+DEFAULT_SMB_SHARE_ROOT = Path(
+    os.environ.get("EBOOK_EBOOKS_DIR") or "/Volumes/Data/Download/Ebooks"
+)
 DEFAULT_SMB_OUTPUT_PATH = DEFAULT_SMB_SHARE_ROOT / "ebook"
 DEFAULT_SMB_BOOKS_PATH = DEFAULT_SMB_SHARE_ROOT
 _SMB_WRITE_PROBE_NAME = ".ebook_tools_smb_write_probe"
 CONF_DIR = SCRIPT_DIR / "conf"
 DEFAULT_CONFIG_PATH = CONF_DIR / "config.json"
 DEFAULT_LOCAL_CONFIG_PATH = CONF_DIR / "config.local.json"
-DEFAULT_LIBRARY_ROOT = Path("/Volumes/Data/Video/Library")
+DEFAULT_LIBRARY_ROOT = Path(
+    os.environ.get("EBOOK_LIBRARY_ROOT") or "/Volumes/Data/Video/Library"
+)
 
 # Config DB defaults to NAS location next to Library DB
 # Can be overridden via EBOOK_CONFIG_DB_PATH environment variable
