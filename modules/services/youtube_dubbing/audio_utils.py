@@ -232,6 +232,49 @@ def _coerce_channels(segment: AudioSegment, target_channels: int) -> AudioSegmen
     return mono.set_channels(target_channels)
 
 
+def _extract_audio_from_video(path: Path, *, sample_rate: int = 44100, channels: int = 2) -> AudioSegment:
+    """Extract the audio stream from a video file via FFmpeg.
+
+    Instead of loading the entire video container into memory with
+    ``AudioSegment.from_file()``, this shells out to FFmpeg to extract and
+    transcode only the audio stream to a temporary WAV file, then loads that.
+    For large video files (multi-GB MKVs) this reduces peak memory from
+    several GB down to a few hundred MB.
+    """
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    with tempfile.NamedTemporaryFile(
+        suffix=".wav",
+        delete=False,
+        prefix="dub-extract-audio-",
+        dir=_TEMP_DIR,
+    ) as handle:
+        tmp_wav = Path(handle.name)
+    try:
+        subprocess.run(
+            [
+                ffmpeg_bin,
+                "-y",
+                "-i", str(path),
+                "-vn",                          # drop video
+                "-ac", str(channels),
+                "-ar", str(sample_rate),
+                "-c:a", "pcm_s16le",
+                "-f", "wav",
+                str(tmp_wav),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        audio = AudioSegment.from_file(tmp_wav, format="wav")
+        return audio
+    finally:
+        try:
+            tmp_wav.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def _has_audio_stream(path: Path) -> bool:
     """Return True if ffprobe detects an audio stream."""
 
@@ -361,7 +404,11 @@ def _mix_with_original_audio(
 
     if original_audio is None:
         try:
-            original = AudioSegment.from_file(source_video)
+            original = _extract_audio_from_video(
+                source_video,
+                sample_rate=dubbed_track.frame_rate,
+                channels=dubbed_track.channels,
+            )
         except Exception:
             logger.warning(
                 "Unable to read original audio for underlay; continuing without mix",
