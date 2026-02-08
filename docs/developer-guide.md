@@ -986,6 +986,7 @@ pytest tests/modules/webapi/test_job_media_routes.py -v
 make test-fast                # not slow, not integration
 make test-webapi              # same as pytest -m webapi
 make test-services            # same as pytest -m services
+make test-observability       # Prometheus metrics + dashboard validation
 ```
 
 ### E2E tests (on-demand only)
@@ -1014,6 +1015,76 @@ make test-e2e-all             # Web + iPhone + iPad + tvOS
 ```
 
 Reports are Markdown with embedded screenshots at `test-results/`. Credentials: `E2E_USERNAME` / `E2E_PASSWORD` in `.env`. Adding a new journey JSON file auto-propagates to all 4 platforms.
+
+---
+
+## Observability Development
+
+### Adding Metrics
+
+1. Define the metric in `modules/webapi/metrics.py`:
+
+   ```python
+   MY_COUNTER = Counter("ebook_tools_my_counter", "Description", ["label"])
+   ```
+
+2. Instrument at the call site with a lazy import:
+
+   ```python
+   try:
+       from modules.webapi.metrics import MY_COUNTER
+       MY_COUNTER.labels(label="value").inc()
+   except Exception:
+       pass
+   ```
+
+3. For gauge metrics needing periodic refresh, add a collector in
+   `_periodic_gauge_update()`.
+
+4. Run `pytest -m observability -v` to validate metric presence and
+   dashboard coverage.
+
+### Local Monitoring Stack
+
+```bash
+make monitoring-up        # start Prometheus + Grafana + PG exporter
+make monitoring-status    # verify all 3 services are healthy
+open http://localhost:3000  # Grafana (admin / ebook_tools_grafana)
+```
+
+Dashboards are auto-provisioned from `monitoring/grafana/dashboards/*.json`.
+Edit in the Grafana UI, export, and commit the updated JSON.
+
+See [observability.md](observability.md) for the full guide.
+
+---
+
+## Kubernetes Development (k3s POC)
+
+A Helm chart POC is available for deploying to a local k3s cluster via Lima.
+
+### Quick Start
+
+```bash
+scripts/k3s-control.sh start   # boot Lima VM + k3s
+scripts/k3s-control.sh deploy  # build, import images, helm upgrade
+scripts/k3s-control.sh ports   # port-forward to localhost
+```
+
+### Makefile Targets
+
+```bash
+make k8s-deploy          # helm upgrade --install
+make k8s-status          # kubectl get pods,svc,ingress,pvc
+make k8s-logs            # follow backend pod logs
+make k8s-lint            # helm lint + template validation
+make k8s-teardown        # helm uninstall
+```
+
+The monitoring stack stays on Docker Compose and scrapes the k3s backend
+metrics via port-forward (`localhost:18000`).
+
+See [kubernetes.md](kubernetes.md) for the full guide.
 
 ---
 
@@ -1063,6 +1134,9 @@ window.__HL_DEBUG__ = { enabled: true };
 ## Additional Resources
 
 - [Architecture overview](architecture.md)
+- [Deployment guide](deployment.md)
+- [Observability (Prometheus, Grafana, metrics)](observability.md)
+- [Kubernetes deployment (Helm, k3s, Argo CD)](kubernetes.md)
 - [Sentence images (Draw Things / Stable Diffusion)](sentence_images.md)
 - [Interactive reader metadata flow](interactive_reader_metadata.md)
 - [Frontend sync checklist](frontend-sync.md)

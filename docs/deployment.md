@@ -3,7 +3,10 @@
 This guide covers Docker Compose production deployment, which is the primary
 runtime environment for ebook-tools. Both the backend (FastAPI) and frontend
 (React SPA served by Nginx) run as containers on the same host, managed by
-Docker Compose.
+Docker Compose. The monitoring stack (Prometheus, Grafana, PostgreSQL exporter)
+runs alongside the application containers.
+
+For the Kubernetes/Helm POC deployment, see [kubernetes.md](kubernetes.md).
 
 ## Architecture Overview
 
@@ -12,12 +15,13 @@ Internet --> Synology DSM (:443 TLS) --> Frontend Container (Nginx :5173)
                                                |  proxy /api/, /pipelines/, /storage/
                                                v
                                          Backend Container (FastAPI :8000)
-                                               |  SQLAlchemy    |  volumes
-                                               v                v
-                                         PostgreSQL 16     Host: storage/, NAS mounts
-                                               |
-                                               v
-                                         pg-backup sidecar (daily dump, 7-day retention)
+                                               |  SQLAlchemy    |  volumes    |  /metrics
+                                               v                v             v
+                                         PostgreSQL 16     Host: storage/  Prometheus (:9090)
+                                               |                               |
+                                               v                               v
+                                         pg-backup sidecar              Grafana (:3000)
+                                         pg-exporter (:9187) ----------┘
 ```
 
 The Synology DSM reverse proxy terminates TLS at port 443 and forwards traffic
@@ -326,6 +330,49 @@ immediately. No data migration is needed for rollback.
 
 ---
 
+## Monitoring Stack
+
+The observability stack runs alongside the application containers in the same
+`docker-compose.yml` and is managed through dedicated Makefile targets.
+
+### Services
+
+| Service | Image | Port | Purpose |
+|---------|-------|------|---------|
+| Prometheus | `prom/prometheus:v2.51.0` | 9090 | Scrapes backend metrics (10s) and PG exporter (30s) |
+| Grafana | `grafana/grafana-oss:11.0.0` | 3000 | 4 auto-provisioned dashboards |
+| PG Exporter | `prometheuscommunity/postgres-exporter:v0.15.0` | 9187 | Bridges PostgreSQL stats to Prometheus |
+
+### Makefile Targets
+
+| Target | Description |
+|--------|-------------|
+| `make monitoring-up` | Start Prometheus, Grafana, and PG exporter |
+| `make monitoring-down` | Stop monitoring services |
+| `make monitoring-logs` | Follow monitoring container logs |
+| `make monitoring-status` | Health check all 3 monitoring services |
+
+### Access
+
+| Service | URL |
+|---------|-----|
+| Grafana | `https://grafana.langtools.fifosk.synology.me` |
+| Prometheus | `https://prometheus.langtools.fifosk.synology.me` |
+
+Grafana credentials: `${GRAFANA_ADMIN_USER:-admin}` / `${GRAFANA_ADMIN_PASSWORD:-ebook_tools_grafana}`
+
+### Data Persistence
+
+| Host Path | Purpose |
+|-----------|---------|
+| `/Volumes/Data/Monitoring/prometheus` | Prometheus TSDB (90-day retention, 20 GB cap) |
+| `/Volumes/Data/Monitoring/grafana` | Grafana database and plugins |
+
+For full details on metrics, dashboards, adding new metrics, and observability
+tests, see [observability.md](observability.md).
+
+---
+
 ## Synology DSM Reverse Proxy
 
 TLS termination is handled by the Synology DSM reverse proxy, which listens on
@@ -513,6 +560,35 @@ inside a container, use `host.docker.internal` instead of `localhost`:
 EBOOK_IMAGE_API_BASE_URL=http://host.docker.internal:7860
 OLLAMA_URL=http://host.docker.internal:11434/api/chat
 ```
+
+---
+
+## Kubernetes Deployment (POC)
+
+An alternative Helm chart deployment to k3s is available as a proof of concept.
+It runs in a Lima lightweight Linux VM on macOS and deploys the same four core
+services (PostgreSQL, backend, frontend, pg-backup) via Helm templates.
+
+```bash
+# Quick start
+scripts/k3s-control.sh start   # boot Lima VM + k3s
+scripts/k3s-control.sh deploy  # build, import images, helm upgrade
+scripts/k3s-control.sh ports   # port-forward to localhost:15173 / :18000
+```
+
+| Makefile Target | Description |
+|-----------------|-------------|
+| `make k8s-deploy` | `helm upgrade --install` with local images |
+| `make k8s-status` | `kubectl get pods,svc,ingress,pvc,cronjobs` |
+| `make k8s-logs` | Follow backend pod logs |
+| `make k8s-teardown` | `helm uninstall` |
+| `make k8s-lint` | Validate Helm chart templates |
+
+The monitoring stack stays on Docker Compose and scrapes the k3s backend via
+a port-forward (`localhost:18000`). Optional Argo CD integration is available
+for GitOps-style deployment.
+
+For the full guide, see [kubernetes.md](kubernetes.md).
 
 ---
 

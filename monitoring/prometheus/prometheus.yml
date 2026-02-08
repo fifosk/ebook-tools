@@ -26,6 +26,19 @@ scrape_configs:
         labels:
           service: "postgres"
 
+  # ── k3s POC backend (optional — only scraped when port-forward is active) ──
+  # Reaches the k3s backend via: kubectl port-forward svc/ebook-tools-backend 18000:8000
+  # Prometheus inside Docker reaches host ports via host.docker.internal
+  - job_name: "k3s-backend"
+    scrape_interval: 15s
+    scrape_timeout: 5s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:18000"]
+        labels:
+          service: "backend"
+          deployment: "k3s"
+
   - job_name: "prometheus"
     scrape_interval: 60s
     static_configs:

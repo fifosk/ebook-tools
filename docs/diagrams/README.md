@@ -30,3 +30,10 @@ After editing a diagram, export an SVG to `docs/images/`:
 | `frontend-arch.drawio` | React SPA component and view architecture | [frontend-arch.svg](../images/frontend-arch.svg) |
 | `backend-modules.drawio` | Python backend module dependency map | [backend-modules.svg](../images/backend-modules.svg) |
 | `test-architecture.drawio` | Test suite architecture (unit, integration, E2E across 4 platforms) | [test-architecture.svg](../images/test-architecture.svg) |
+
+## Planned Diagrams
+
+The following diagrams would complement the existing set:
+
+- **Observability stack** -- Prometheus scrape flow, Grafana dashboards, PG exporter
+- **Kubernetes deployment** -- Lima VM, k3s cluster, Helm chart components, Argo CD

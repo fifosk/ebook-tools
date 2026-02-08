@@ -181,6 +181,41 @@ The dual-mode gate in `modules/webapi/dependencies.py` selects the appropriate
 backend at startup based on `DATABASE_URL`. When unset, legacy JSON/SQLite
 backends are used. Job metadata and media files remain on the filesystem.
 
+## Observability
+
+The system exposes Prometheus metrics and is monitored by a three-service stack
+that runs alongside the application containers:
+
+```
+Backend (:8000/metrics) ──(10s)──> Prometheus (:9090) ──> Grafana (:3000)
+PostgreSQL (:5432)      ──(30s)──> PG Exporter (:9187) ─┘
+```
+
+- **Backend metrics** (`modules/webapi/metrics.py`) -- 16 custom metrics
+  (jobs, users, sessions, auth, pipeline stages, errors) plus HTTP
+  auto-instrumentation via `prometheus-fastapi-instrumentator`. A periodic
+  collector refreshes gauge values every 15 seconds.
+- **PostgreSQL metrics** -- The `postgres-exporter` scrapes system views
+  (connections, cache hit ratio, transactions, table sizes) and 5 custom
+  queries for app-specific tables (`monitoring/postgres-exporter/queries.yaml`).
+- **Grafana dashboards** -- 4 auto-provisioned dashboards (Overview, Backend,
+  Database, Metrics QA) in `monitoring/grafana/dashboards/`.
+- **Observability tests** -- 26 tests (`pytest -m observability`) validate
+  metric presence, label cardinality, dashboard PromQL coverage, and JSON
+  structure.
+
+See [observability.md](observability.md) for the full guide.
+
+## Kubernetes Deployment (POC)
+
+A Helm chart (`helm/ebook-tools/`) provides an alternative deployment to a
+k3s cluster running in a Lima VM. It deploys the same four core services
+(PostgreSQL, backend, frontend, pg-backup) and supports optional Argo CD
+GitOps integration. The monitoring stack stays on Docker Compose and scrapes
+the k3s backend via port-forward.
+
+See [kubernetes.md](kubernetes.md) for setup, commands, and Helm values.
+
 ## Runtime Services
 - `modules/services/job_manager/` tracks job metadata, persists state (memory or Redis), and exposes lifecycle operations.
 - `modules/services/subtitle_service.py` schedules subtitle translation jobs and stages generated subtitle files under each job's `subtitles/` directory.

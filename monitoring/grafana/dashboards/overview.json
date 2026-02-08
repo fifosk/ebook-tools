@@ -43,9 +43,12 @@
   ],
   "id": null,
   "uid": "ebook-tools-overview",
-  "title": "ebook-tools — Overview",
+  "title": "ebook-tools \u2014 Overview",
   "description": "Overview dashboard for ebook-tools application metrics",
-  "tags": ["ebook-tools", "overview"],
+  "tags": [
+    "ebook-tools",
+    "overview"
+  ],
   "schemaVersion": 39,
   "version": 1,
   "editable": true,
@@ -59,7 +62,15 @@
     "to": "now"
   },
   "timepicker": {
-    "refresh_intervals": ["10s", "30s", "1m", "5m", "15m", "30m", "1h"]
+    "refresh_intervals": [
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ]
   },
   "timezone": "",
   "annotations": {
@@ -82,7 +93,7 @@
       },
       "targets": [
         {
-          "expr": "ebook_tools_up",
+          "expr": "max without (deployment) (ebook_tools_up{job=\"ebook-tools-backend\"})",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -93,7 +104,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "orientation": "auto",
@@ -156,7 +169,7 @@
       },
       "targets": [
         {
-          "expr": "ebook_tools_health_status",
+          "expr": "max without (deployment) (ebook_tools_health_status{job=\"ebook-tools-backend\"})",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -167,7 +180,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "orientation": "auto",
@@ -237,7 +252,7 @@
       },
       "targets": [
         {
-          "expr": "ebook_tools_jobs_active",
+          "expr": "max without (deployment) (ebook_tools_jobs_active{job=\"ebook-tools-backend\"})",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -248,7 +263,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "orientation": "auto",
@@ -300,7 +317,7 @@
       },
       "targets": [
         {
-          "expr": "ebook_tools_sessions_active",
+          "expr": "max without (deployment) (ebook_tools_sessions_active{job=\"ebook-tools-backend\"})",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -311,7 +328,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "orientation": "auto",
@@ -366,7 +385,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "orientation": "auto",
@@ -422,7 +443,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "orientation": "auto",
@@ -546,7 +569,7 @@
       },
       "targets": [
         {
-          "expr": "ebook_tools_jobs_total",
+          "expr": "max without (deployment) (ebook_tools_jobs_total{job=\"ebook-tools-backend\"})",
           "refId": "A",
           "legendFormat": "{{status}}",
           "datasource": {
@@ -558,7 +581,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "pieType": "pie",
@@ -569,9 +594,14 @@
           "displayMode": "list",
           "placement": "right",
           "showLegend": true,
-          "values": ["value"]
+          "values": [
+            "value"
+          ]
         },
-        "displayLabels": ["name", "percent"]
+        "displayLabels": [
+          "name",
+          "percent"
+        ]
       },
       "fieldConfig": {
         "defaults": {
@@ -598,7 +628,7 @@
       },
       "targets": [
         {
-          "expr": "ebook_tools_jobs_queue_depth",
+          "expr": "ebook_tools_jobs_queue_depth{job=\"ebook-tools-backend\"}",
           "refId": "A",
           "legendFormat": "Queue Depth",
           "datasource": {

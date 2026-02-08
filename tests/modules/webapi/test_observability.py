@@ -137,6 +137,8 @@ def test_metric_labels(metric_families, name, expected_labels):
 
 # Metrics served by postgres-exporter or its custom queries (not in /metrics).
 KNOWN_EXTERNAL_METRICS = {
+    # Built-in Prometheus metrics
+    "up",
     # Built-in postgres-exporter metrics
     "pg_up",
     "pg_stat_activity_count",
@@ -169,12 +171,12 @@ _PROMQL_KEYWORDS = frozenset({
     "round", "clamp_min", "clamp_max", "sort", "sort_desc", "topk",
     "bottomk", "time", "vector", "scalar", "label_replace",
     "label_join", "changes", "resets", "deriv", "predict_linear",
-    # PromQL aggregation keywords
-    "by", "without", "on", "ignoring", "group_left", "group_right",
+    # PromQL aggregation keywords and operators
+    "by", "without", "on", "ignoring", "group_left", "group_right", "or", "and", "unless",
     # Common label names appearing in filter expressions
-    "le", "datname", "relname", "status", "handler", "item_type",
+    "le", "datname", "relname", "status", "state", "handler", "item_type",
     "method", "result", "stage", "error_type", "endpoint", "job_type",
-    "ebook_tools", "job",
+    "ebook_tools", "job", "deployment",
 })
 
 

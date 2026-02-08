@@ -1,8 +1,12 @@
 {
   "id": null,
   "uid": "ebook-tools-database",
-  "title": "ebook-tools — Database",
-  "tags": ["ebook-tools", "database", "postgresql"],
+  "title": "ebook-tools \u2014 Database",
+  "tags": [
+    "ebook-tools",
+    "database",
+    "postgresql"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 0,
@@ -407,7 +411,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
       }
     },
@@ -456,7 +462,9 @@
         "showUnfilled": true,
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
       }
     },
@@ -506,7 +514,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
       }
     }

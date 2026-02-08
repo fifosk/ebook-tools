@@ -61,6 +61,7 @@ All markers are defined in `pyproject.toml` under `[tool.pytest.ini_options]`.
 | `media` | Media | Command runner, media backends |
 | `config` | Config | Config manager, storage settings, runtime context |
 | `ramdisk` | RAMDisk | RAMDisk lifecycle, guard, mount/unmount |
+| `observability` | Observability | Prometheus metrics, dashboard PromQL coverage, JSON validation |
 | `slow` | Slow | Tests that take >2s (WhisperX, Piper, pipelines) |
 | `integration` | Integration | End-to-end workflows requiring external services |
 | `e2e` | E2E | Browser/device tests via Playwright (requires running app) |
@@ -290,6 +291,34 @@ when the real modules are not available. Key fields to note:
 WebAPI tests use FastAPI's `TestClient` via the `test_client` fixture defined
 in `tests/modules/webapi/conftest.py`. This creates an in-process ASGI client
 without starting a real server.
+
+## Observability Tests
+
+The observability test suite validates the Prometheus metrics pipeline and
+Grafana dashboard integrity end-to-end.
+
+```bash
+pytest -m observability -v       # ~26 tests
+make test-observability          # same via Makefile
+```
+
+### Test Layers
+
+| Layer | Tests | What it validates |
+|-------|-------|-------------------|
+| Metric presence | 16 | Every `ebook_tools_*` metric exists in `/metrics` with the correct Prometheus type |
+| Label cardinality | 5 | Labelled metrics expose expected label names |
+| Dashboard coverage | 1 | Every PromQL expression in all 4 dashboards references an existing metric |
+| HTTP auto-instrumentation | 2 | API traffic generates `http_request_duration_seconds`; `/metrics` is excluded |
+| Auth counter | 1 | Failed login increments `ebook_tools_auth_attempts_total{result="failure"}` |
+| Dashboard JSON structure | 1 | All 4 dashboards have valid Grafana JSON with correct datasource UIDs |
+
+The **dashboard coverage test** is particularly valuable: it parses every
+PromQL expression from all dashboard JSON files and verifies that each
+referenced metric name exists in either the `/metrics` endpoint output or
+a known list of external metrics (e.g., `pg_stat_*`).
+
+---
 
 ## E2E Testing
 

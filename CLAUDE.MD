@@ -890,6 +890,8 @@ docker compose up -d --build
 
 - **Architecture**: `docs/architecture.md`
 - **Deployment (Docker + PostgreSQL)**: `docs/deployment.md`
+- **Observability (Prometheus, Grafana, metrics)**: `docs/observability.md`
+- **Kubernetes (Helm, k3s, Argo CD)**: `docs/kubernetes.md`
 - **Sentence Images**: `docs/sentence_images.md`
 - **Word Highlighting**: `docs/interactive_reader_metadata.md`
 - **Frontend Sync**: `docs/frontend-sync.md`

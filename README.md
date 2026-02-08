@@ -16,6 +16,8 @@ interactive playback across Web, iOS, and Apple TV.
 - **YouTube dubbing** — Subtitle extraction, translation, and dubbed audio rendering for video files
 - **Multi-platform** — Web (React SPA), iOS (iPhone/iPad), tvOS (Apple TV)
 - **Role-based access** — JWT authentication with admin, editor, and media_producer roles
+- **Observability** — Prometheus metrics, Grafana dashboards (overview, backend, database, QA), PostgreSQL exporter
+- **Kubernetes (POC)** — Helm chart for k3s with Lima VM, optional Argo CD GitOps
 
 ## Architecture at a Glance
 
@@ -32,16 +34,27 @@ deep-dive and module map.
 
 ## Quick Start
 
-### Docker (Recommended)
+### Docker Compose (Recommended)
 
 ```bash
-docker compose up -d          # start backend + frontend
-docker compose logs -f        # follow logs
+docker compose up -d          # start backend + frontend + PostgreSQL
+make monitoring-up            # start Prometheus + Grafana
 curl http://localhost:8000/_health  # verify backend
 ```
 
 See [docs/deployment.md](docs/deployment.md) for volume mounts, environment
 variables, TLS setup, and troubleshooting.
+
+### Kubernetes (POC)
+
+```bash
+scripts/k3s-control.sh start  # boot Lima VM + k3s
+scripts/k3s-control.sh deploy # build, import images, helm upgrade
+scripts/k3s-control.sh ports  # port-forward to localhost
+```
+
+See [docs/kubernetes.md](docs/kubernetes.md) for Helm chart details, Lima VM
+setup, and Argo CD integration.
 
 ### Local Development
 
@@ -93,6 +106,8 @@ See [docs/user-guide.md](docs/user-guide.md) for the full walkthrough.
 | [Architecture](docs/architecture.md) | System design, module map, metadata flow, MyLinguist |
 | [Developer Guide](docs/developer-guide.md) | Backend/frontend/iOS setup, API reference, CLI, configuration |
 | [Deployment](docs/deployment.md) | Docker Compose, volume mounts, TLS, production access |
+| [Observability](docs/observability.md) | Prometheus metrics, Grafana dashboards, PG exporter, adding metrics |
+| [Kubernetes](docs/kubernetes.md) | Helm chart, k3s + Lima VM, Argo CD GitOps (POC) |
 | [Testing](docs/testing.md) | Test suite, markers, E2E across 4 platforms |
 | [Sentence Images](docs/sentence_images.md) | Draw Things integration, prompt generation, image pipeline |
 | [User Management](docs/user-management.md) | Authentication, roles, sessions, CLI commands |
