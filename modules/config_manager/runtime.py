@@ -439,7 +439,11 @@ def build_runtime_context(
                 )
                 tmp_path = ramdisk_manager.ensure_standard_directory(tmp_path)
     else:
-        tmp_path = ramdisk_manager.ensure_standard_directory(tmp_path)
+        # In container mode (use_ramdisk=false), just ensure the directory
+        # exists.  Do NOT call ensure_standard_directory — it would attempt
+        # to unmount Docker's tmpfs, causing "must be superuser" stderr noise.
+        tmp_path = Path(tmp_path)
+        tmp_path.mkdir(parents=True, exist_ok=True)
 
     tmp_path = Path(tmp_path)
 
