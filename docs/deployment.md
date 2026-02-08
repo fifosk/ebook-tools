@@ -95,6 +95,7 @@ configuration, and NAS access:
 | `./storage` | `/app/storage` | rw | Jobs, ebooks, covers, library, exports |
 | `./config/users` | `/app/config/users` | rw | User credentials (users.json) |
 | `./conf/config.local.json` | `/app/conf/config.local.json` | ro | Local config overrides |
+| `./.env.local` | `/app/.env.local` | ro | OAuth client IDs, SMTP, ML model paths |
 | `./conf/certs` | `/app/conf/certs` | ro | APNs keys and TLS certificates |
 | `./log` | `/app/log` | rw | Structured JSON logs |
 | `/Volumes/Data/Download/Ebooks` | `/app/nas/ebooks` | ro | NAS ebook files |
@@ -126,12 +127,22 @@ containerized runtime:
 | `EBOOK_STORAGE_BASE_URL` | `https://api.langtools.fifosk.synology.me/storage/jobs` | Public URL for media download links |
 | `EBOOK_API_CORS_ORIGINS` | (space-separated list) | Allowed CORS origins for the production domain and localhost |
 
+**Backend OAuth variables** (loaded from `.env.local` volume mount):
+
+| Variable | Description |
+|---|---|
+| `EBOOK_AUTH_GOOGLE_CLIENT_IDS` | Comma-separated Google OAuth client IDs for token verification |
+| `EBOOK_AUTH_APPLE_CLIENT_IDS` | Comma-separated Apple Sign In audience identifiers (bundle IDs + web services ID) |
+
 **Frontend build-time variables** (baked into the JS bundle via Vite):
 
 | Variable | Value | Notes |
 |---|---|---|
 | `VITE_API_BASE_URL` | `https://api.langtools.fifosk.synology.me` | Backend API URL as seen by browsers |
 | `VITE_STORAGE_BASE_URL` | `https://api.langtools.fifosk.synology.me/storage/jobs` | Must include the `/jobs` segment |
+| `VITE_GOOGLE_CLIENT_ID` | (your Google OAuth client ID) | Enables Google Sign In button on login form |
+| `VITE_APPLE_CLIENT_ID` | (your Apple Services ID) | Enables Apple Sign In button on login form |
+| `VITE_APPLE_REDIRECT_URI` | (your redirect URI) | Apple Sign In callback URL |
 | `BACKEND_HOST` | `backend` | Docker service name; used by Nginx `upstream` block at runtime |
 
 **Warning**: `VITE_*` variables are embedded at build time. Changing them

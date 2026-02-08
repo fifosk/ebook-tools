@@ -23,6 +23,7 @@ services:
       - ./storage:/app/storage
       - ./config/users:/app/config/users
       - ./conf/config.local.json:/app/conf/config.local.json:ro
+      - ./.env.local:/app/.env.local:ro
       - ./conf/certs:/app/conf/certs:ro
       - ./log:/app/log
       - /Volumes/Data/Download/Ebooks:/app/nas/ebooks:ro
@@ -41,6 +42,10 @@ services:
       - EBOOK_EBOOKS_DIR=/app/nas/ebooks
       - YOUTUBE_VIDEO_ROOT=/app/nas/videos
       - SUBTITLE_SOURCE_DIR=/app/nas/subtitles
+      # Override macOS-specific ML model paths from .env.local (use container defaults)
+      - EBOOK_PIPER_MODELS_PATH=
+      - EBOOK_WHISPERX_MODELS_PATH=
+      - EBOOK_HF_CACHE_PATH=
     env_file:
       - path: .env.docker
         required: false
@@ -58,6 +63,9 @@ services:
       args:
         VITE_API_BASE_URL: https://api.langtools.fifosk.synology.me
         VITE_STORAGE_BASE_URL: https://api.langtools.fifosk.synology.me/storage/jobs
+        VITE_GOOGLE_CLIENT_ID: "930231338560-c1o7malc7s7v4clg5mm4v7du0l032cm2.apps.googleusercontent.com"
+        VITE_APPLE_CLIENT_ID: "com.example.interactivereader.web"
+        VITE_APPLE_REDIRECT_URI: "https://langtools.fifosk.synology.me/auth/apple/callback"
     image: ebook-tools-frontend:latest
     container_name: ebook-tools-frontend
     restart: unless-stopped
