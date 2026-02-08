@@ -34,6 +34,9 @@ dependencies = [
     "EbookLib>=0.18,<1",
     "reportlab>=4.0,<5",
     "python-multipart>=0.0.7",
+    "sqlalchemy>=2.0,<3",
+    "alembic>=1.13,<2",
+    "psycopg2-binary>=2.9,<3",
 ]
 
 [project.scripts]
@@ -60,6 +63,7 @@ markers = [
     "ramdisk: RAMDisk lifecycle, guard, mount/unmount.",
     "slow: tests that take >2s (WhisperX, Piper, pipelines).",
     "e2e: browser E2E tests via Playwright (requires running app).",
+    "database: PostgreSQL/SQLAlchemy database layer tests.",
 ]
 
 [project.optional-dependencies]

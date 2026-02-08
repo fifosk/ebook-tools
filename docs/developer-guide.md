@@ -14,6 +14,7 @@ For high-level architecture diagrams see [architecture.md](architecture.md). For
 | Node.js | 18+ | For the React/Vite frontend |
 | FFmpeg | any recent | Required by pydub and the audio pipeline |
 | Xcode | latest | iOS/tvOS builds only |
+| PostgreSQL | 16+ | Required for Docker deployment; optional for local dev |
 | Ollama | optional | Local LLM translation and prompt generation |
 | Draw Things | optional | Sentence image generation (Stable Diffusion API) |
 
@@ -296,6 +297,7 @@ Copy `.env.example` to `.env` at the project root. The loader reads files in ord
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `DATABASE_URL` | -- | PostgreSQL connection string (e.g., `postgresql://user:pass@host/db`). When set, all 6 storage domains use PG instead of JSON/SQLite. |
 | `EBOOK_API_CORS_ORIGINS` | localhost + Vite dev URLs | Comma/space-separated CORS origins. `*` allows all; empty disables. |
 | `EBOOK_API_STATIC_ROOT` | `web/dist/` | Built SPA assets path. Empty string = API-only mode. |
 | `EBOOK_API_STATIC_INDEX` | `index.html` | Filename for client-side route fallback |
@@ -414,7 +416,7 @@ curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
   http://127.0.0.1:8000/api/pipelines/jobs/<job_id>/delete
 ```
 
-**Pipeline job persistence**: The API keeps a JSON snapshot of each job in `JOB_STORAGE_DIR` when Redis is not configured. Each job gets its own directory containing `metadata/job.json`. Restarting the application automatically reloads JSON files, pausing in-flight work and allowing it to be resumed, cancelled, or cleaned up via the endpoints above.
+**Pipeline job persistence**: The API keeps a JSON snapshot of each job in `JOB_STORAGE_DIR` when Redis is not configured. Each job gets its own directory containing `metadata/job.json`. Restarting the application automatically reloads JSON files, pausing in-flight work and allowing it to be resumed, cancelled, or cleaned up via the endpoints above. Note: pipeline jobs remain on the filesystem regardless of `DATABASE_URL` -- only users, sessions, library, config, bookmarks, and resume use PostgreSQL.
 
 ```bash
 # Inspect jobs on disk
@@ -905,10 +907,24 @@ See [sentence_images.md](sentence_images.md) for the full flow and example paylo
 
 ## User Accounts, Roles, and Sessions
 
-The CLI bundles a lightweight authentication layer. Credentials are managed via `ebook-tools user` sub-commands. The bundled `LocalUserStore` keeps credentials in `config/users/users.json` and stores active sessions next to the user's home directory.
+The authentication layer supports two storage backends:
 
-- Bootstrap by copying `config/users/users.sample.json` to `config/users/users.json`, then **immediately** rotate the placeholder passwords with `ebook-tools user password <username>`.
-- Pin storage locations or replace the backend in `config/config.local.json`:
+### PostgreSQL mode (Docker default)
+
+When `DATABASE_URL` is set, users and sessions are stored in the `users` and
+`sessions` PostgreSQL tables via `PgUserStore` and `PgSessionManager`. This is
+the default in Docker deployments. No filesystem credential files are needed.
+
+### Legacy JSON mode (local development)
+
+When `DATABASE_URL` is not set, the bundled `LocalUserStore` keeps credentials
+in `config/users/users.json` and stores active sessions in
+`~/.ebooktools_session.json`.
+
+- Bootstrap by copying `config/users/users.sample.json` to
+  `config/users/users.json`, then **immediately** rotate the placeholder
+  passwords with `ebook-tools user password <username>`.
+- Pin storage locations in `config/config.local.json`:
 
 ```json
 {
@@ -926,6 +942,11 @@ The CLI bundles a lightweight authentication layer. Credentials are managed via 
 ```
 
 Override paths at runtime with `EBOOKTOOLS_USER_STORE`, `EBOOKTOOLS_SESSION_FILE`, and `EBOOKTOOLS_ACTIVE_SESSION_FILE`. See [user-management.md](user-management.md) for a deeper walkthrough.
+
+### CLI user management
+
+Credentials are managed via `ebook-tools user` sub-commands. These work with
+both storage backends -- the active backend is determined by `DATABASE_URL`.
 
 ---
 
@@ -951,6 +972,7 @@ pytest -m render              # output writer, text pipeline, parallel dispatch
 pytest -m media               # command runner, media backends
 pytest -m config              # config manager, storage settings
 pytest -m ramdisk             # RAMDisk lifecycle, guard, mount/unmount
+pytest -m database            # PostgreSQL models, repositories, migrations
 pytest -m "not slow and not integration"  # fast feedback loop
 
 # Full suite (only for wide-ranging changes)

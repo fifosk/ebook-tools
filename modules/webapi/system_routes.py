@@ -15,6 +15,7 @@ from typing import Tuple
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from ..config_manager.config_repository import ConfigRepository
+from ..config_manager.pg_config_repository import PgConfigRepository
 from ..config_manager.constants import DEFAULT_CONFIG_DB_DIR, DEFAULT_LIBRARY_ROOT
 from ..config_manager.loader import (
     get_config_state,
@@ -80,8 +81,11 @@ def _require_admin(
     return token, user
 
 
-def _get_config_repository() -> ConfigRepository:
-    """Get the configuration repository instance."""
+def _get_config_repository():
+    """Get the configuration repository instance (PG or SQLite)."""
+    import os
+    if os.environ.get("DATABASE_URL", "").strip():
+        return PgConfigRepository()
     return ConfigRepository()
 
 

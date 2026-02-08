@@ -34,12 +34,13 @@ Exported SVGs are embedded below and in `docs/images/`.
 
 ## Project Layout
 - `main.py` – Compatibility bootstrap that forwards to the unified CLI orchestrator (`modules/cli/orchestrator.py`).
-- `modules/` – Python package containing configuration helpers, pipeline core logic, media synthesis, observability, and web API. The library subsystem now splits responsibilities across `modules/library/library_models.py`, `library_repository.py`, `library_metadata.py`, `library_sync.py`, and the orchestration facade in `library_service.py`.
+- `modules/` – Python package containing configuration helpers, pipeline core logic, media synthesis, observability, and web API. The library subsystem splits responsibilities across `modules/library/library_models.py`, `library_repository.py` (SQLite), `pg_library_repository.py` (PostgreSQL), `library_metadata.py`, `library_sync.py`, and the orchestration facade in `library_service.py`.
+- `modules/database/` – SQLAlchemy 2.0 ORM layer for PostgreSQL: engine singleton, declarative base, and models for all 14 tables. Alembic migrations live in `alembic/`.
 - `modules/images/` – Draw Things / Stable Diffusion client + prompt helpers for sentence/batch image generation.
 - `modules/subtitles/` – Subtitle parsing and translation utilities used by `SubtitleService` and the subtitle job API.
 - `web/` – React/Vite single-page application that talks to the FastAPI backend.
 - `scripts/` – Shell helpers (`run-webapi.sh`, `run-webui.sh`) that wrap common dev workflows.
-- `storage/ebooks/`, `storage/covers/`, `storage/<job_id>/metadata/`, `storage/<job_id>/media/`, `output/`, `tmp/`, `log/` – Default working directories used by the runtime context for source EPUBs, consolidated cover images, per-job metadata snapshots, generated artifacts, temp data, and logs. Highlight metadata now lives in chunked JSON files (`metadata/chunk_0000.json`, etc.) referenced by a compact `metadata/job.json` manifest; `MetadataLoader` in `modules/metadata_manager.py` abstracts loading chunk summaries and legacy single-file payloads.
+- `storage/ebooks/`, `storage/covers/`, `storage/<job_id>/metadata/`, `storage/<job_id>/media/`, `output/`, `tmp/`, `log/` – Default working directories used by the runtime context for source EPUBs, consolidated cover images, per-job metadata snapshots, generated artifacts, temp data, and logs. Highlight metadata lives in chunked JSON files (`metadata/chunk_0000.json`, etc.) referenced by a compact `metadata/job.json` manifest; `MetadataLoader` in `modules/metadata_manager.py` abstracts loading chunk summaries and legacy single-file payloads. User accounts, sessions, library entries, configuration, bookmarks, and resume positions are stored in PostgreSQL when `DATABASE_URL` is configured (see Database Storage Layer below).
 
 ## Pipeline Flow
 1. **Entry point** – `modules/cli/orchestrator.py` parses CLI input and builds a `PipelineRequest` (legacy shims: `main.py`, `modules/ebook_tools.py`).
@@ -150,6 +151,36 @@ flowchart TD
     G --> H[API responses & SSE stream]
 ```
 
+## Database Storage Layer
+
+When `DATABASE_URL` is set, the backend uses PostgreSQL 16 for persistent
+storage via SQLAlchemy 2.0 and Alembic migrations. The `modules/database/`
+package provides:
+
+- **`engine.py`** -- Engine singleton with connection pooling (`pool_size=10`,
+  `pool_pre_ping=True`) and a `get_db_session()` context manager used by all
+  PG repository classes.
+- **`base.py`** -- `DeclarativeBase` and shared mixins.
+- **`models/`** -- SQLAlchemy mapped classes for all 14 tables across 6 domains:
+  users, sessions, library (tsvector FTS with GIN indexes), config (JSONB
+  snapshots, Fernet-encrypted secrets), bookmarks, and resume positions.
+
+Each domain has a PG-backed repository that implements the same interface as its
+filesystem counterpart:
+
+| Domain | Filesystem Backend | PG Backend |
+|--------|-------------------|------------|
+| Users | `LocalUserStore` | `PgUserStore` |
+| Sessions | `SessionManager` (JSON) | `PgSessionManager` |
+| Library | `LibraryRepository` (SQLite) | `PgLibraryRepository` |
+| Config | `ConfigRepository` (SQLite) | `PgConfigRepository` |
+| Bookmarks | `BookmarkService` (JSON) | `PgBookmarkService` |
+| Resume | `ResumeService` (JSON) | `PgResumeService` |
+
+The dual-mode gate in `modules/webapi/dependencies.py` selects the appropriate
+backend at startup based on `DATABASE_URL`. When unset, legacy JSON/SQLite
+backends are used. Job metadata and media files remain on the filesystem.
+
 ## Runtime Services
 - `modules/services/job_manager/` tracks job metadata, persists state (memory or Redis), and exposes lifecycle operations.
 - `modules/services/subtitle_service.py` schedules subtitle translation jobs and stages generated subtitle files under each job's `subtitles/` directory.
@@ -166,7 +197,7 @@ flowchart TD
 ## API Surface
 - `modules/webapi/application.py` creates the FastAPI app, configures CORS, serves SPA assets, and exposes health checks.
 - `modules/webapi/routes.py` offers endpoints to browse files, submit pipeline jobs, refresh metadata, poll status, and stream progress via Server-Sent Events.
-- `modules/webapi/dependencies.py` wires dependency injection for the pipeline service, runtime context, and job store selection.
+- `modules/webapi/dependencies.py` wires dependency injection for the pipeline service, runtime context, job store selection, and dual-mode storage backends (PostgreSQL when `DATABASE_URL` is set, legacy JSON/SQLite otherwise).
 - `modules/webapi/auth_routes.py` issues bearer tokens, reports active session metadata, rotates passwords, and revokes sessions via `AuthService`.
 - `modules/webapi/admin_routes.py` provides CRUD operations for user accounts, normalises profile metadata, and enforces the `admin` role on every request.
 - `modules/webapi/routes/media_routes.py` exposes job media snapshots (`/api/pipelines/jobs/{job_id}/media`) plus sentence-image inspection/regeneration endpoints (`/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}`).

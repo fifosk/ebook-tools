@@ -19,6 +19,7 @@ from ..library import (
     LibraryRepository,
     LibraryService,
     LibrarySync,
+    PgLibraryRepository,
     get_library_service as build_library_service,
 )
 from ..services.file_locator import FileLocator
@@ -32,6 +33,7 @@ from ..services.export_service import ExportService
 from ..services.bookmark_service import BookmarkService
 from ..services.resume_service import ResumeService
 from ..user_management import AuthService, LocalUserStore, SessionManager
+from ..user_management import PgUserStore, PgSessionManager
 from modules.permissions import normalize_role
 from ..services.job_manager import PipelineJobManager
 from ..notifications import APNsConfig, APNsService, NotificationService
@@ -261,11 +263,22 @@ def get_file_locator() -> FileLocator:
 
 @lru_cache
 def get_library_service() -> LibraryService:
-    """Return the shared :class:`LibraryService` instance."""
+    """Return the shared :class:`LibraryService` instance.
 
+    Uses PostgreSQL-backed repository when DATABASE_URL is set,
+    otherwise falls back to the legacy SQLite repository.
+    """
     library_root = cfg.get_library_root(create=True)
     locator = get_file_locator()
     job_manager = get_pipeline_job_manager()
+    if _use_postgres():
+        repo = PgLibraryRepository(library_root)
+        return LibraryService(
+            library_root=library_root,
+            file_locator=locator,
+            repository=repo,
+            job_manager=job_manager,
+        )
     return build_library_service(
         library_root=library_root,
         file_locator=locator,
@@ -299,16 +312,20 @@ def get_export_service() -> ExportService:
 
 
 @lru_cache
-def get_bookmark_service() -> BookmarkService:
-    """Return the shared :class:`BookmarkService` instance."""
-
+def get_bookmark_service():
+    """Return the shared bookmark service (PG or filesystem)."""
+    if _use_postgres():
+        from ..services.pg_bookmark_service import PgBookmarkService
+        return PgBookmarkService()
     return BookmarkService(file_locator=get_file_locator())
 
 
 @lru_cache
-def get_resume_service() -> ResumeService:
-    """Return the shared :class:`ResumeService` instance."""
-
+def get_resume_service():
+    """Return the shared resume service (PG or filesystem)."""
+    if _use_postgres():
+        from ..services.pg_resume_service import PgResumeService
+        return PgResumeService()
     return ResumeService(file_locator=get_file_locator())
 
 
@@ -386,9 +403,20 @@ def _resolve_auth_configuration() -> tuple[Optional[Path], Optional[Path]]:
     return user_store_path, session_file
 
 
+def _use_postgres() -> bool:
+    """Return True if DATABASE_URL is set (PostgreSQL mode)."""
+    return bool(os.environ.get("DATABASE_URL", "").strip())
+
+
 @lru_cache
 def get_auth_service() -> AuthService:
-    """Return a configured :class:`AuthService` instance."""
+    """Return a configured :class:`AuthService` instance.
+
+    Uses PostgreSQL backends when DATABASE_URL is set, otherwise falls
+    back to the legacy JSON-file backends.
+    """
+    if _use_postgres():
+        return AuthService(PgUserStore(), PgSessionManager())
 
     user_store_path, session_file = _resolve_auth_configuration()
     user_store = LocalUserStore(storage_path=user_store_path)

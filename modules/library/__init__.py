@@ -3,6 +3,7 @@
 from .library_metadata import LibraryMetadataManager
 from .library_models import LibraryEntry, LibraryQuery, MetadataSnapshot, UpdateRequest
 from .library_repository import LibraryRepository
+from .pg_library_repository import PgLibraryRepository
 from .library_service import (
     LibraryConflictError,
     LibraryError,
@@ -23,6 +24,7 @@ __all__ = [
     "LibraryOverview",
     "LibraryQuery",
     "LibraryRepository",
+    "PgLibraryRepository",
     "LibrarySearchResult",
     "LibraryService",
     "LibrarySync",

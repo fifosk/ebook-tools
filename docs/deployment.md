@@ -12,9 +12,12 @@ Internet --> Synology DSM (:443 TLS) --> Frontend Container (Nginx :5173)
                                                |  proxy /api/, /pipelines/, /storage/
                                                v
                                          Backend Container (FastAPI :8000)
-                                               |  volumes
+                                               |  SQLAlchemy    |  volumes
+                                               v                v
+                                         PostgreSQL 16     Host: storage/, NAS mounts
+                                               |
                                                v
-                                         Host: storage/, config/, NAS mounts
+                                         pg-backup sidecar (daily dump, 7-day retention)
 ```
 
 The Synology DSM reverse proxy terminates TLS at port 443 and forwards traffic
@@ -38,9 +41,10 @@ docker compose ps                 # check container status
 ```
 
 The frontend container waits for the backend to pass its health check before
-starting (`depends_on: condition: service_healthy`). The backend health check
-polls `http://localhost:8000/_health` every 30 seconds with a 10-second startup
-grace period.
+starting (`depends_on: condition: service_healthy`). The backend waits for
+PostgreSQL to be healthy before starting. The backend health check polls
+`http://localhost:8000/_health` every 30 seconds with a 10-second startup grace
+period.
 
 ### Rebuilding After Code Changes
 
@@ -116,6 +120,7 @@ containerized runtime:
 
 | Variable | Value | Why |
 |---|---|---|
+| `DATABASE_URL` | `postgresql://ebook_tools:...@postgres/ebook_tools` | PostgreSQL connection string; enables PG backends for all 6 domains |
 | `EBOOK_API_STATIC_ROOT` | `""` (empty) | Frontend is a separate Nginx container; disable built-in SPA serving |
 | `EBOOK_TTS_BACKEND` | `gtts` | macOS `say` is unavailable in Linux containers |
 | `EBOOK_USE_RAMDISK` | `false` | Docker tmpfs replaces the macOS RAMDisk |
@@ -187,6 +192,9 @@ Ollama or Draw Things).
 | `docker/frontend/Dockerfile` | Node 20 (pnpm build) then Nginx 1.27-alpine (serve) |
 | `docker/frontend/nginx.conf` | SPA routing + API/pipeline/storage reverse proxy |
 | `.env.docker` | Optional env var overrides (gitignored; see `.env.docker.example`) |
+| `scripts/docker-entrypoint.sh` | Runs Alembic migrations then starts uvicorn |
+| `alembic.ini` + `alembic/` | Database schema migrations (14 tables) |
+| `modules/database/` | SQLAlchemy 2.0 models, engine singleton, session factory |
 
 #### Backend Dockerfile
 
@@ -194,7 +202,8 @@ The backend image is based on `python:3.10-slim-bookworm` and installs:
 
 - **FFmpeg** -- required by pydub for audio format conversion
 - **espeak-ng** + **libespeak-ng-dev** -- required by piper-tts for phoneme generation
-- **gcc / python3-dev / libc6-dev** -- for building C extensions (psutil, bcrypt)
+- **libpq-dev** -- PostgreSQL client library (required by psycopg2)
+- **gcc / python3-dev / libc6-dev** -- for building C extensions (psutil, bcrypt, psycopg2)
 
 A non-root `appuser` (UID 1000) runs the application. Dependencies are cached
 in a separate layer so only source code changes trigger a slow rebuild.
@@ -222,6 +231,98 @@ Key routing rules:
 - `/_health` -- passed through to the backend health endpoint
 - `/` (catch-all) -- serves `index.html` with no-cache headers for client-side
   routing
+
+---
+
+## PostgreSQL Database
+
+The backend persists users, sessions, library entries, configuration, bookmarks,
+and resume positions in a PostgreSQL 16 database. The database runs as a
+container alongside the backend and frontend.
+
+### Container Configuration
+
+The `postgres` service in `docker-compose.yml` runs PostgreSQL 16 Alpine with
+tuned memory settings:
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `shared_buffers` | 256 MB | Shared memory for caching |
+| `effective_cache_size` | 512 MB | Planner hint for OS page cache |
+| `work_mem` | 16 MB | Per-operation sort/hash memory |
+| `max_connections` | 50 | Connection pool ceiling |
+
+Data is stored on the NAS at `/Volumes/Data/Databases/ebook-tools/postgres`.
+
+### Schema
+
+The database contains 14 tables across 6 domains:
+
+| Domain | Tables | Notes |
+|--------|--------|-------|
+| Users | `users` | Username, bcrypt hash, roles (JSONB), metadata |
+| Sessions | `sessions` | Token, user FK, expiry, user agent, IP |
+| Library | `library_items`, `books`, `library_item_grants` | tsvector FTS with GIN index, JSONB metadata |
+| Config | 6 tables (`config_snapshots`, `config_audit_log`, `config_sensitive_keys`, `config_secrets`, `config_group_settings`, `config_validation_rules`, `config_restart_log`) | JSONB config storage, Fernet encryption for secrets |
+| Bookmarks | `bookmarks` | Per-user, per-job playback bookmarks |
+| Resume | `resume_positions` | Per-user, per-job resume positions |
+
+### Alembic Migrations
+
+Schema migrations are managed by Alembic and run automatically at container
+startup via `scripts/docker-entrypoint.sh`:
+
+```bash
+# The entrypoint runs this before starting uvicorn:
+python -m alembic upgrade head
+```
+
+To run migrations manually:
+
+```bash
+docker exec ebook-tools-backend python -m alembic upgrade head
+```
+
+### Backup Sidecar
+
+The `pg-backup` container runs a daily `pg_dump` compressed with gzip. Backups
+are stored on the NAS at `/Volumes/Backups/ebook-tools/postgres` with 7-day
+retention:
+
+```bash
+# Verify backups exist
+ls /Volumes/Backups/ebook-tools/postgres/*.sql.gz
+
+# Restore from a backup
+gunzip -c /path/to/backup.sql.gz | docker exec -i ebook-tools-postgres \
+  psql -U ebook_tools ebook_tools
+```
+
+### Database Volume Mounts
+
+| Host Path | Container Path | Mode | Purpose |
+|---|---|---|---|
+| `/Volumes/Data/Databases/ebook-tools/postgres` | `/var/lib/postgresql/data` | rw | PG data directory |
+| `/Volumes/Backups/ebook-tools/postgres` | `/backups` | rw | Daily backup dumps |
+
+### Makefile Database Targets
+
+| Target | Description |
+|--------|-------------|
+| `make db-shell` | Open `psql` shell in the PostgreSQL container |
+| `make db-migrate` | Run `alembic upgrade head` in the backend container |
+| `make db-backup` | Trigger an immediate `pg_dump` backup |
+| `make db-restore` | Restore from a gzipped SQL dump |
+
+### Dual-Mode Operation
+
+The backend supports running with or without PostgreSQL. When `DATABASE_URL` is
+set in the environment, the backend uses PostgreSQL for all 6 domains. When
+unset, it falls back to the legacy JSON/SQLite storage backends.
+
+**Rollback**: To revert to legacy storage, unset `DATABASE_URL` in
+`docker-compose.yml` and restart. The legacy files (if not archived) are read
+immediately. No data migration is needed for rollback.
 
 ---
 
@@ -376,6 +477,13 @@ The `local_user_store.py` module supports two password hash formats:
 Users created locally work in Docker and vice versa. If you encounter "Invalid
 salt" errors on login, verify that the `users.json` file contains valid bcrypt
 hashes. Recreate the user with `ebook-tools user password <username>` if needed.
+
+### Container Rebuild Invalidates Sessions
+
+Rebuilding the backend container does **not** affect PostgreSQL data (sessions
+persist in the database). However, if you are still using the legacy JSON session
+store, rebuilding the container will lose all in-memory sessions. iOS, tvOS, and
+web clients will need to re-login.
 
 ### tmpfs "Device or Resource Busy" at Startup
 

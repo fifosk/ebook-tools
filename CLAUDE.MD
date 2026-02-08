@@ -27,8 +27,9 @@
 ### Tech Stack
 - **Backend**: Python 3.10+, FastAPI, uvicorn, pydub, Pillow
 - **Frontend**: React, TypeScript, Vite
-- **Deployment**: Docker Compose (backend + Nginx frontend), Synology DSM reverse proxy for TLS
-- **Storage**: Filesystem-based job storage (Redis optional)
+- **Deployment**: Docker Compose (backend + frontend + PostgreSQL), Synology DSM reverse proxy for TLS
+- **Database**: PostgreSQL 16 via SQLAlchemy 2.0 + Alembic (users, sessions, library, config, bookmarks, resume)
+- **Storage**: Filesystem-based job storage (Redis optional); media files stay on disk
 - **Audio**: gTTS, macOS `say`, FFmpeg
 - **Images**: Stable Diffusion/Draw Things API integration
 - **Translation**: Google Translate, Ollama LLMs with fallback support
@@ -50,10 +51,12 @@
 │       ├── Dockerfile      # Node build → Nginx serve
 │       └── nginx.conf      # SPA routing + API reverse proxy
 ├── docker-compose.yml       # Production Docker Compose orchestration
+├── alembic/                 # Database migrations (Alembic)
 ├── modules/                 # Python backend modules
 │   ├── audio/              # TTS backends and audio pipeline
 │   ├── cli/                # Command-line interface
 │   ├── core/               # Core processing logic
+│   ├── database/           # SQLAlchemy 2.0 ORM (engine, base, models/)
 │   ├── images/             # Sentence image generation
 │   ├── metadata_manager.py # Job metadata handling
 │   ├── render/             # Audio rendering pipeline
@@ -141,6 +144,7 @@ Internet → Synology DSM (:443 TLS) → Frontend Container (Nginx :5173)
 **Docker-specific env vars** (set in `docker-compose.yml`):
 | Variable | Value | Why |
 |---|---|---|
+| `DATABASE_URL` | `postgresql://...@postgres/ebook_tools` | Enables PostgreSQL for all 6 storage domains |
 | `EBOOK_API_STATIC_ROOT=""` | empty | Frontend is separate Nginx container |
 | `EBOOK_TTS_BACKEND=gtts` | gtts | macOS `say` unavailable in Linux |
 | `EBOOK_USE_RAMDISK=false` | false | Docker tmpfs replaces ramdisk |
@@ -176,6 +180,39 @@ npm install
 cp .env.example .env.local  # edit with API URLs
 npm run dev                  # → http://localhost:5173
 ```
+
+### PostgreSQL Database
+
+The backend uses PostgreSQL 16 (via SQLAlchemy 2.0 + Alembic) for persistent
+storage of users, sessions, library entries, configuration, bookmarks, and
+resume positions. Job metadata and media files remain on the filesystem.
+
+**Dual-mode operation**: When `DATABASE_URL` is set, PG backends are used. When
+unset, legacy JSON/SQLite backends are used. The gate is in
+`modules/webapi/dependencies.py`.
+
+**Key files**:
+- `modules/database/` — Engine singleton, DeclarativeBase, models for 14 tables
+- `alembic/` — Schema migrations (auto-run at container startup)
+- `scripts/docker-entrypoint.sh` — Runs `alembic upgrade head` before uvicorn
+- `scripts/migrate_to_postgres.py` — One-time data migration (`--dry-run`, `--verify`)
+
+**PG repository classes** (match filesystem service interfaces exactly):
+- `modules/user_management/pg_user_store.py`, `pg_session_manager.py`
+- `modules/services/pg_bookmark_service.py`, `pg_resume_service.py`
+- `modules/library/pg_library_repository.py`
+- `modules/config_manager/pg_config_repository.py`
+
+**Makefile targets**:
+```bash
+make db-shell                 # psql into PostgreSQL container
+make db-migrate               # run alembic upgrade head
+make db-backup                # trigger immediate pg_dump
+make db-restore               # restore from gzipped SQL dump
+```
+
+**Backup**: The `pg-backup` sidecar runs daily `pg_dump | gzip` with 7-day
+retention on NAS (`/Volumes/Backups/ebook-tools/postgres`).
 
 ### iOS/tvOS Setup
 
@@ -244,6 +281,7 @@ When creating new Swift files, they must be added to the Xcode project explicitl
 
 #### Backend Modules
 - **`modules/audio/backends/`** - TTS backend implementations (gTTS, macOS)
+- **`modules/database/`** - SQLAlchemy 2.0 ORM (engine, base, models for 14 PG tables)
 - **`modules/images/`** - Sentence image generation with Draw Things
 - **`modules/translation/`** - Translation service adapters
 - **`modules/render/`** - Core audio rendering pipeline logic
@@ -280,6 +318,7 @@ Example local config:
 ### Key Environment Variables
 
 **Backend (runtime)**:
+- `DATABASE_URL` - PostgreSQL connection string; enables PG backends for all 6 storage domains
 - `EBOOK_API_CORS_ORIGINS` - CORS allowed origins (space-separated)
 - `EBOOK_API_STATIC_ROOT` - Path to built frontend assets (empty in Docker)
 - `EBOOK_TTS_BACKEND` - TTS backend (`macos_say` | `gtts` | `piper`)
@@ -754,6 +793,7 @@ python scripts/validate_word_timing.py <job_id>
 ## Additional Resources
 
 - **Architecture**: `docs/architecture.md`
+- **Deployment (Docker + PostgreSQL)**: `docs/deployment.md`
 - **Sentence Images**: `docs/sentence_images.md`
 - **Word Highlighting**: `docs/interactive_reader_metadata.md`
 - **Frontend Sync**: `docs/frontend-sync.md`

@@ -618,6 +618,15 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     async def _prepare_runtime() -> None:
+        # Initialize PostgreSQL connection pool (if DATABASE_URL is set)
+        if os.environ.get("DATABASE_URL", "").strip():
+            try:
+                from modules.database.engine import get_engine
+                get_engine()
+                LOGGER.info("Database connection pool initialized")
+            except Exception:  # pragma: no cover - defensive logging
+                LOGGER.exception("Failed to initialize database connection")
+
         try:
             _initialise_tmp_workspace()
         except Exception:  # pragma: no cover - defensive logging
@@ -688,6 +697,15 @@ def create_app() -> FastAPI:
             _cleanup_empty_job_folders()
         except Exception:  # pragma: no cover - defensive logging
             LOGGER.exception("Failed to prune empty job folders on shutdown")
+
+        # Dispose database connection pool
+        if os.environ.get("DATABASE_URL", "").strip():
+            try:
+                from modules.database.engine import dispose_engine
+                dispose_engine()
+                LOGGER.debug("Database connection pool disposed")
+            except Exception:  # pragma: no cover - defensive logging
+                LOGGER.exception("Failed to dispose database connection pool")
 
     _configure_cors(app)
 

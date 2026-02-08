@@ -241,9 +241,13 @@ def _load_active_db_snapshot(verbose: bool = False) -> Dict[str, Any]:
     global _ACTIVE_SNAPSHOT_ID
 
     try:
-        from .config_repository import ConfigRepository
-
-        repo = ConfigRepository()
+        import os as _os
+        if _os.environ.get("DATABASE_URL", "").strip():
+            from .pg_config_repository import PgConfigRepository
+            repo = PgConfigRepository()
+        else:
+            from .config_repository import ConfigRepository
+            repo = ConfigRepository()
         result = repo.get_active_snapshot()
 
         if result:
@@ -348,10 +352,15 @@ def save_current_config_to_db(
         The snapshot_id if successful, None if DB is not available
     """
     try:
-        from .config_repository import ConfigRepository
+        import os as _os
+        if _os.environ.get("DATABASE_URL", "").strip():
+            from .pg_config_repository import PgConfigRepository
+            repo = PgConfigRepository()
+        else:
+            from .config_repository import ConfigRepository
+            repo = ConfigRepository()
 
         config = load_configuration()
-        repo = ConfigRepository()
 
         snapshot_id = repo.save_snapshot(
             config,

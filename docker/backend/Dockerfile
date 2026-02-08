@@ -15,6 +15,7 @@ FROM python:3.10-slim-bookworm
 # espeak-ng:        required by piper-tts for phoneme generation
 # libespeak-ng-dev: headers piper needs at build time
 # gcc + python3-dev + libc6-dev: C extensions (psutil, bcrypt, etc.)
+# libpq-dev:        required by psycopg2 for PostgreSQL connectivity
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         espeak-ng \
@@ -22,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc \
         python3-dev \
         libc6-dev \
+        libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Non-root user ────────────────────────────────────────────────────
@@ -53,6 +55,8 @@ RUN pip install --no-cache-dir -e .
 COPY conf/ conf/
 COPY config/ config/
 COPY scripts/ scripts/
+COPY alembic/ alembic/
+COPY alembic.ini ./
 
 # ── Volume mount points ─────────────────────────────────────────────
 RUN mkdir -p \
@@ -79,4 +83,4 @@ USER appuser
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/_health')" || exit 1
 
-CMD ["python", "-m", "modules.webapi", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/scripts/docker-entrypoint.sh"]

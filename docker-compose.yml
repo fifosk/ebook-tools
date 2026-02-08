@@ -1,15 +1,42 @@
 # ebook-tools — Local Docker Deployment
 #
-# Both containers run on the same Mac Mini, managed via Docker Desktop.
+# All containers run on the same Mac Mini, managed via Docker Desktop.
 # Volumes mount directly from the project repo.
 #
 # Usage:
-#   docker compose up -d            # start both services
+#   docker compose up -d            # start all services
 #   docker compose logs -f          # follow logs
-#   docker compose down             # stop both services
+#   docker compose down             # stop all services
 #   docker compose up -d --build    # rebuild and restart
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ebook-tools-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - /Volumes/Data/Databases/ebook-tools/postgres:/var/lib/postgresql/data
+      - /Volumes/Backups/ebook-tools/postgres:/backups
+    environment:
+      - POSTGRES_DB=ebook_tools
+      - POSTGRES_USER=ebook_tools
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ebook_tools_dev}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ebook_tools -d ebook_tools"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command: >
+      postgres
+        -c shared_buffers=256MB
+        -c effective_cache_size=512MB
+        -c work_mem=16MB
+        -c maintenance_work_mem=64MB
+        -c max_connections=50
+
   backend:
     build:
       context: .
@@ -46,9 +73,14 @@ services:
       - EBOOK_PIPER_MODELS_PATH=
       - EBOOK_WHISPERX_MODELS_PATH=
       - EBOOK_HF_CACHE_PATH=
+      # PostgreSQL connection
+      - DATABASE_URL=postgresql+psycopg2://ebook_tools:${POSTGRES_PASSWORD:-ebook_tools_dev}@postgres:5432/ebook_tools
     env_file:
       - path: .env.docker
         required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/_health')"]
       interval: 30s
@@ -76,3 +108,28 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  pg-backup:
+    image: postgres:16-alpine
+    container_name: ebook-tools-pg-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - /Volumes/Backups/ebook-tools/postgres:/backups
+    environment:
+      - PGHOST=postgres
+      - PGUSER=ebook_tools
+      - PGDATABASE=ebook_tools
+      - PGPASSWORD=${POSTGRES_PASSWORD:-ebook_tools_dev}
+    entrypoint: /bin/sh
+    command: >
+      -c "while true; do
+        BACKUP_FILE=/backups/ebook_tools_$$(date +%Y%m%d_%H%M%S).sql.gz;
+        pg_dump | gzip > $$BACKUP_FILE;
+        echo \"Backup created: $$BACKUP_FILE\";
+        find /backups -name '*.sql.gz' -mtime +7 -delete;
+        echo 'Cleaned backups older than 7 days';
+        sleep 86400;
+      done"

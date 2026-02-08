@@ -42,6 +42,9 @@ config/.settings/
 # APNs authentication keys (sensitive)
 config/apns/
 
+# PostgreSQL secrets
+conf/secrets/
+
 # Xcode project backups from scripts
 *.pbxproj.backup
 
