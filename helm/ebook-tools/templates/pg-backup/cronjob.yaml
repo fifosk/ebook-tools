@@ -1,0 +1,57 @@
+{{- if .Values.pgBackup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-pg-backup
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "pg-backup") | nindent 4 }}
+spec:
+  schedule: {{ .Values.pgBackup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "ebook-tools.componentSelectorLabels" (dict "root" . "component" "pg-backup") | nindent 12 }}
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-backup
+              image: "{{ .Values.pgBackup.image.repository }}:{{ .Values.pgBackup.image.tag }}"
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: PGHOST
+                  value: {{ include "ebook-tools.fullname" . }}-postgres
+                - name: PGUSER
+                  value: {{ .Values.postgres.auth.username | quote }}
+                - name: PGDATABASE
+                  value: {{ .Values.postgres.auth.database | quote }}
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "ebook-tools.fullname" . }}-secrets
+                      key: POSTGRES_PASSWORD
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  BACKUP_FILE=/backups/ebook_tools_$(date +%Y%m%d_%H%M%S).sql.gz
+                  echo "Starting backup..."
+                  pg_dump | gzip > "$BACKUP_FILE"
+                  echo "Backup created: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
+                  DELETED=$(find /backups -name '*.sql.gz' -mtime +{{ .Values.pgBackup.retentionDays }} -delete -print | wc -l)
+                  echo "Cleaned $DELETED backups older than {{ .Values.pgBackup.retentionDays }} days"
+              resources:
+                {{- toYaml .Values.pgBackup.resources | nindent 16 }}
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: {{ include "ebook-tools.fullname" . }}-postgres-backups
+{{- end }}

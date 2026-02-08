@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-storage
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "backend") | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.backend.persistence.storage.size }}
+  {{- if .Values.backend.persistence.storage.hostPath }}
+  storageClassName: ""
+  volumeName: {{ include "ebook-tools.fullname" . }}-storage
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-logs
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "backend") | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.backend.persistence.logs.size }}
+  {{- if .Values.backend.persistence.logs.hostPath }}
+  storageClassName: ""
+  volumeName: {{ include "ebook-tools.fullname" . }}-logs
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-config-users
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "backend") | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.backend.persistence.configUsers.size }}
+  {{- if .Values.backend.persistence.configUsers.hostPath }}
+  storageClassName: ""
+  volumeName: {{ include "ebook-tools.fullname" . }}-config-users
+  {{- end }}

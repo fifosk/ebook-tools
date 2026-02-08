@@ -1,0 +1,37 @@
+# ebook-tools Helm Chart — Lima VM overrides
+#
+# Lima --plain mode doesn't auto-mount macOS dirs. We use VM-local paths.
+# For a real deployment, configure Lima mounts or use NFS.
+#
+#   helm install ebook-tools ./helm/ebook-tools \
+#     -f ./helm/ebook-tools/values-lima.yaml \
+#     --namespace ebook-tools --create-namespace
+
+global:
+  imagePullPolicy: Never   # images imported via `docker save | k3s ctr images import`
+
+# VM-local paths (created with: limactl shell k3s sudo mkdir -p /data/...)
+postgres:
+  persistence:
+    data:
+      hostPath: /data/databases/ebook-tools/postgres
+    backups:
+      hostPath: /data/backups/ebook-tools/postgres
+
+backend:
+  persistence:
+    storage:
+      hostPath: /data/storage
+    logs:
+      hostPath: /data/logs
+    configUsers:
+      hostPath: /data/config-users
+
+nas:
+  type: hostPath
+  ebooks:
+    hostPath: /data/nas/ebooks
+  videos:
+    hostPath: /data/nas/videos
+  subtitles:
+    hostPath: /data/nas/subtitles

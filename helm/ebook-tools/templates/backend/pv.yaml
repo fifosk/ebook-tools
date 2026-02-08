@@ -1,0 +1,56 @@
+{{- if .Values.backend.persistence.storage.hostPath }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-storage
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "backend") | nindent 4 }}
+    volume: storage
+spec:
+  capacity:
+    storage: {{ .Values.backend.persistence.storage.size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: {{ .Values.backend.persistence.storage.hostPath }}
+    type: DirectoryOrCreate
+---
+{{- end }}
+{{- if .Values.backend.persistence.logs.hostPath }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-logs
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "backend") | nindent 4 }}
+    volume: logs
+spec:
+  capacity:
+    storage: {{ .Values.backend.persistence.logs.size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: {{ .Values.backend.persistence.logs.hostPath }}
+    type: DirectoryOrCreate
+---
+{{- end }}
+{{- if .Values.backend.persistence.configUsers.hostPath }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-config-users
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "backend") | nindent 4 }}
+    volume: config-users
+spec:
+  capacity:
+    storage: {{ .Values.backend.persistence.configUsers.size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: {{ .Values.backend.persistence.configUsers.hostPath }}
+    type: DirectoryOrCreate
+{{- end }}

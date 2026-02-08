@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-postgres
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "postgres") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgres
+  selector:
+    {{- include "ebook-tools.componentSelectorLabels" (dict "root" . "component" "postgres") | nindent 4 }}

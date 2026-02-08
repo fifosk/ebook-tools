@@ -5,7 +5,11 @@
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-all test-e2e-apple-parallel \
        docker-build-backend docker-build-frontend docker-build \
-       docker-up docker-down docker-logs docker-status
+       docker-up docker-down docker-logs docker-status \
+       monitoring-up monitoring-down monitoring-logs monitoring-status \
+       test-observability \
+       k8s-build k8s-import-images k8s-deploy k8s-status k8s-logs k8s-teardown k8s-lint \
+       argocd-install argocd-app argocd-ui argocd-password argocd-teardown
 
 # ── Full suite ───────────────────────────────────────────────────────────
 test:
@@ -51,6 +55,9 @@ test-config:
 
 test-metadata:
 	pytest -m metadata
+
+test-observability:
+	pytest -m observability -v
 
 # ── E2E browser tests (Playwright) ────────────────────────────────────
 # Artifacts (screenshots, traces) written to test-results/ (gitignored)
@@ -202,3 +209,100 @@ docker-status:
 	@echo "Frontend:"
 	@curl -sf -o /dev/null -w "  HTTP %{http_code}" http://localhost:5173/ 2>/dev/null || echo "  not reachable"
 	@echo ""
+	@echo "Monitoring:"
+	@curl -sf http://localhost:9090/-/healthy 2>/dev/null && echo "  Prometheus: healthy" || echo "  Prometheus: not reachable"
+	@curl -sf -o /dev/null -w "  Grafana: HTTP %{http_code}\n" http://localhost:3000/api/health 2>/dev/null || echo "  Grafana: not reachable"
+	@echo ""
+
+# ── Monitoring ────────────────────────────────────────────────────────────
+monitoring-up:
+	docker compose up -d prometheus grafana postgres-exporter
+
+monitoring-down:
+	docker compose stop prometheus grafana postgres-exporter
+
+monitoring-logs:
+	docker compose logs -f prometheus grafana postgres-exporter
+
+monitoring-status:
+	@echo "Prometheus:"
+	@curl -sf http://localhost:9090/-/healthy 2>/dev/null && echo "  healthy" || echo "  not reachable"
+	@echo "Grafana:"
+	@curl -sf -o /dev/null -w "  HTTP %{http_code}\n" http://localhost:3000/api/health 2>/dev/null || echo "  not reachable"
+	@echo "Postgres Exporter:"
+	@curl -sf -o /dev/null -w "  HTTP %{http_code}\n" http://localhost:9187/metrics 2>/dev/null || echo "  not reachable"
+
+# ── Database helpers ──────────────────────────────────────────────────────
+db-shell:
+	docker exec -it ebook-tools-postgres psql -U ebook_tools -d ebook_tools
+
+db-migrate:
+	docker exec ebook-tools-backend alembic upgrade head
+
+# ── Kubernetes / Helm (POC) ──────────────────────────────────────────────
+K8S_NAMESPACE ?= ebook-tools
+HELM_RELEASE  ?= ebook-tools
+HELM_CHART    ?= helm/ebook-tools
+
+k8s-build: docker-build
+	@echo "Images built. Import into k3s with: make k8s-import-images"
+
+k8s-import-images:
+	docker save ebook-tools-backend:latest | limactl shell k3s sudo k3s ctr images import -
+	docker save ebook-tools-frontend:latest | limactl shell k3s sudo k3s ctr images import -
+	@echo "Images imported into k3s."
+
+k8s-deploy:
+	helm upgrade --install $(HELM_RELEASE) $(HELM_CHART) \
+		--namespace $(K8S_NAMESPACE) --create-namespace \
+		--set global.imagePullPolicy=Never
+
+k8s-status:
+	@echo "=== Pods ==="
+	@kubectl -n $(K8S_NAMESPACE) get pods
+	@echo ""
+	@echo "=== Services ==="
+	@kubectl -n $(K8S_NAMESPACE) get svc
+	@echo ""
+	@echo "=== Ingress ==="
+	@kubectl -n $(K8S_NAMESPACE) get ingress
+	@echo ""
+	@echo "=== PVCs ==="
+	@kubectl -n $(K8S_NAMESPACE) get pvc
+	@echo ""
+	@echo "=== CronJobs ==="
+	@kubectl -n $(K8S_NAMESPACE) get cronjobs
+
+k8s-logs:
+	kubectl -n $(K8S_NAMESPACE) logs -l app.kubernetes.io/component=backend -f --tail=100
+
+k8s-teardown:
+	helm uninstall $(HELM_RELEASE) --namespace $(K8S_NAMESPACE)
+
+k8s-lint:
+	helm lint $(HELM_CHART)
+	helm template $(HELM_RELEASE) $(HELM_CHART) > /dev/null && echo "Template rendering: OK"
+
+# ── Argo CD (optional GitOps layer) ─────────────────────────────────────
+argocd-install:
+	kubectl create namespace argocd 2>/dev/null || true
+	kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+	@echo "Waiting for Argo CD server..."
+	kubectl -n argocd wait --for=condition=available deploy/argocd-server --timeout=180s
+	@echo "Argo CD installed. Run 'make argocd-password' for credentials."
+
+argocd-app:
+	kubectl apply -f helm/argocd/application.yaml
+	@echo "Application registered. Open Argo CD UI with: make argocd-ui"
+
+argocd-ui:
+	@echo "Argo CD UI: https://localhost:8080 (admin / $$(make -s argocd-password))"
+	kubectl -n argocd port-forward svc/argocd-server 8080:443
+
+argocd-password:
+	@kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d; echo
+
+argocd-teardown:
+	kubectl delete -f helm/argocd/application.yaml 2>/dev/null || true
+	kubectl delete namespace argocd 2>/dev/null || true
+	@echo "Argo CD removed."

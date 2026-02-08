@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-postgres
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "postgres") | nindent 4 }}
+data:
+  # These values are passed as command-line args to postgres entrypoint
+  POSTGRES_DB: {{ .Values.postgres.auth.database | quote }}
+  POSTGRES_USER: {{ .Values.postgres.auth.username | quote }}

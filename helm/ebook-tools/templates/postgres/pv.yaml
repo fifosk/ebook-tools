@@ -1,0 +1,37 @@
+{{- if .Values.postgres.persistence.data.hostPath }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-postgres-data
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "postgres") | nindent 4 }}
+    volume: data
+spec:
+  capacity:
+    storage: {{ .Values.postgres.persistence.data.size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: {{ .Values.postgres.persistence.data.hostPath }}
+    type: DirectoryOrCreate
+---
+{{- end }}
+{{- if .Values.postgres.persistence.backups.hostPath }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-postgres-backups
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "postgres") | nindent 4 }}
+    volume: backups
+spec:
+  capacity:
+    storage: {{ .Values.postgres.persistence.backups.size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: {{ .Values.postgres.persistence.backups.hostPath }}
+    type: DirectoryOrCreate
+{{- end }}

@@ -1,0 +1,15 @@
+apiVersion: v2
+name: ebook-tools
+description: >-
+  Comprehensive toolkit for processing, translating, and narrating ebooks
+  with multimedia output. POC Kubernetes deployment via Helm.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: fifo
+keywords:
+  - ebook
+  - tts
+  - translation
+  - fastapi

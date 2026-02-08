@@ -1,0 +1,26 @@
+🎉 ebook-tools has been deployed!
+
+Namespace: {{ .Release.Namespace }}
+
+Services:
+  - PostgreSQL: {{ include "ebook-tools.fullname" . }}-postgres:5432
+  - Backend:    {{ include "ebook-tools.fullname" . }}-backend:8000
+  - Frontend:   {{ include "ebook-tools.fullname" . }}-frontend:80
+
+Quick checks:
+  kubectl -n {{ .Release.Namespace }} get pods
+  kubectl -n {{ .Release.Namespace }} get svc
+  kubectl -n {{ .Release.Namespace }} get ingress
+
+Port-forward to test locally:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "ebook-tools.fullname" . }}-frontend 5173:80
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "ebook-tools.fullname" . }}-backend 8000:8000
+
+Health check:
+  kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "ebook-tools.fullname" . }}-backend -- \
+    python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/_health').read())"
+
+Backup CronJob:
+  kubectl -n {{ .Release.Namespace }} get cronjobs
+  # Trigger manual backup:
+  kubectl -n {{ .Release.Namespace }} create job --from=cronjob/{{ include "ebook-tools.fullname" . }}-pg-backup manual-backup

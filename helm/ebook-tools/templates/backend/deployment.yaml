@@ -1,0 +1,206 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-backend
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "backend") | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "ebook-tools.componentSelectorLabels" (dict "root" . "component" "backend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ebook-tools.componentSelectorLabels" (dict "root" . "component" "backend") | nindent 8 }}
+      annotations:
+        # Force rolling restart when ConfigMap changes
+        checksum/config: {{ include (print $.Template.BasePath "/backend/configmap.yaml") . | sha256sum }}
+        checksum/config-files: {{ include (print $.Template.BasePath "/backend/configmap-files.yaml") . | sha256sum }}
+    spec:
+      # Run as appuser (UID 1000) — matches Dockerfile USER
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+
+      # ── Wait for PostgreSQL before starting ──────────────────
+      initContainers:
+        - name: wait-for-postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL..."
+              until pg_isready -h {{ include "ebook-tools.fullname" . }}-postgres -p 5432 -U {{ .Values.postgres.auth.username }}; do
+                echo "  postgres not ready, retrying in 2s..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready."
+
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+
+          # ── Environment from ConfigMap ─────────────────────
+          envFrom:
+            - configMapRef:
+                name: {{ include "ebook-tools.fullname" . }}-backend
+
+          # ── Environment from Secrets + computed values ─────
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ebook-tools.fullname" . }}-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: "postgresql+psycopg2://{{ .Values.postgres.auth.username }}:$(POSTGRES_PASSWORD)@{{ include "ebook-tools.fullname" . }}-postgres:5432/{{ .Values.postgres.auth.database }}"
+
+          # ── Probes ─────────────────────────────────────────
+          livenessProbe:
+            httpGet:
+              path: /_health
+              port: 8000
+            initialDelaySeconds: {{ .Values.backend.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.backend.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.backend.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /_health
+              port: 8000
+            initialDelaySeconds: {{ .Values.backend.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.backend.probes.readiness.timeoutSeconds }}
+
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+
+          # ── Volume Mounts (mirrors docker-compose 9 mounts + tmpfs) ──
+          volumeMounts:
+            # Primary storage (jobs, ebooks, covers, library, exports)
+            - name: storage
+              mountPath: /app/storage
+
+            # User credentials
+            - name: config-users
+              mountPath: /app/config/users
+
+            # config.local.json (read-only, from ConfigMap)
+            - name: config-files
+              mountPath: /app/conf/config.local.json
+              subPath: config.local.json
+              readOnly: true
+
+            # .env.local (read-only, from pre-created Secret)
+            {{- if .Values.secrets.envLocalSecretName }}
+            - name: env-local
+              mountPath: /app/.env.local
+              subPath: .env.local
+              readOnly: true
+            {{- end }}
+
+            # APNs certs (read-only, from pre-created Secret)
+            {{- if .Values.secrets.apnsCertsSecretName }}
+            - name: apns-certs
+              mountPath: /app/conf/certs
+              readOnly: true
+            {{- end }}
+
+            # Structured JSON logs
+            - name: logs
+              mountPath: /app/log
+
+            # NAS mounts
+            - name: nas-ebooks
+              mountPath: /app/nas/ebooks
+              readOnly: {{ .Values.nas.ebooks.readOnly }}
+            - name: nas-videos
+              mountPath: /app/nas/videos
+              readOnly: {{ .Values.nas.videos.readOnly }}
+            - name: nas-subtitles
+              mountPath: /app/nas/subtitles
+              readOnly: {{ .Values.nas.subtitles.readOnly }}
+
+            # tmpfs workspace (replaces Docker tmpfs mount)
+            - name: tmp-workspace
+              mountPath: /app/tmp
+
+      # ── Volumes ──────────────────────────────────────────────
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: {{ include "ebook-tools.fullname" . }}-storage
+
+        - name: config-users
+          persistentVolumeClaim:
+            claimName: {{ include "ebook-tools.fullname" . }}-config-users
+
+        - name: config-files
+          configMap:
+            name: {{ include "ebook-tools.fullname" . }}-backend-files
+
+        {{- if .Values.secrets.envLocalSecretName }}
+        - name: env-local
+          secret:
+            secretName: {{ .Values.secrets.envLocalSecretName }}
+        {{- end }}
+
+        {{- if .Values.secrets.apnsCertsSecretName }}
+        - name: apns-certs
+          secret:
+            secretName: {{ .Values.secrets.apnsCertsSecretName }}
+        {{- end }}
+
+        - name: logs
+          persistentVolumeClaim:
+            claimName: {{ include "ebook-tools.fullname" . }}-logs
+
+        # NAS volumes — hostPath (single-node) or NFS (multi-node)
+        - name: nas-ebooks
+          {{- if eq .Values.nas.type "nfs" }}
+          nfs:
+            server: {{ .Values.nas.nfs.server }}
+            path: {{ .Values.nas.ebooks.nfsPath }}
+            readOnly: {{ .Values.nas.ebooks.readOnly }}
+          {{- else }}
+          hostPath:
+            path: {{ .Values.nas.ebooks.hostPath }}
+            type: DirectoryOrCreate
+          {{- end }}
+
+        - name: nas-videos
+          {{- if eq .Values.nas.type "nfs" }}
+          nfs:
+            server: {{ .Values.nas.nfs.server }}
+            path: {{ .Values.nas.videos.nfsPath }}
+            readOnly: {{ .Values.nas.videos.readOnly }}
+          {{- else }}
+          hostPath:
+            path: {{ .Values.nas.videos.hostPath }}
+            type: DirectoryOrCreate
+          {{- end }}
+
+        - name: nas-subtitles
+          {{- if eq .Values.nas.type "nfs" }}
+          nfs:
+            server: {{ .Values.nas.nfs.server }}
+            path: {{ .Values.nas.subtitles.nfsPath }}
+            readOnly: {{ .Values.nas.subtitles.readOnly }}
+          {{- else }}
+          hostPath:
+            path: {{ .Values.nas.subtitles.hostPath }}
+            type: DirectoryOrCreate
+          {{- end }}
+
+        # tmpfs — K8s emptyDir with Memory medium (mirrors Docker tmpfs)
+        - name: tmp-workspace
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.backend.tmpfs.sizeLimit }}

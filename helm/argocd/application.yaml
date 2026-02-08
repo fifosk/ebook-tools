@@ -1,0 +1,67 @@
+# Argo CD Application CR — ebook-tools
+#
+# This tells Argo CD to deploy the ebook-tools Helm chart from git
+# and keep the cluster in sync with the repo.
+#
+# Apply after Argo CD is running:
+#   kubectl apply -f helm/argocd/application.yaml
+#
+# Prerequisites:
+#   1. Argo CD installed in argocd namespace
+#   2. Git repo accessible from the cluster
+#   3. Docker images imported into k3s (make k8s-import-images)
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ebook-tools
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # ── Git repository containing the Helm chart ──────────
+    # For local/private repos, configure Argo CD repo credentials:
+    #   argocd repo add <url> --ssh-private-key-path ~/.ssh/id_ed25519
+    repoURL: https://github.com/fifosk/ebook-tools.git
+    targetRevision: HEAD
+    path: helm/ebook-tools
+
+    # ── Helm value overrides ──────────────────────────────
+    helm:
+      releaseName: ebook-tools
+      valueFiles:
+        - values.yaml
+        # Uncomment for Lima VM deployment:
+        # - values-lima.yaml
+      parameters:
+        - name: global.imagePullPolicy
+          value: Never
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ebook-tools
+
+  syncPolicy:
+    # ── Manual sync (safe for POC) ────────────────────────
+    # Change to automated for GitOps demo:
+    #   automated:
+    #     prune: true        # delete resources removed from git
+    #     selfHeal: true     # revert manual kubectl changes
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
+
+  # ── Health checks ─────────────────────────────────────────
+  # Argo CD auto-detects health for Deployments, StatefulSets, etc.
+  # Custom checks can be added here if needed.

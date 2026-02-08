@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-postgres
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "postgres") | nindent 4 }}
+spec:
+  serviceName: {{ include "ebook-tools.fullname" . }}-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "ebook-tools.componentSelectorLabels" (dict "root" . "component" "postgres") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ebook-tools.componentSelectorLabels" (dict "root" . "component" "postgres") | nindent 8 }}
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.auth.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.auth.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ebook-tools.fullname" . }}-secrets
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          # Mirror docker-compose postgres command args
+          args:
+            - "postgres"
+            - "-c"
+            - "shared_buffers={{ .Values.postgres.config.sharedBuffers }}"
+            - "-c"
+            - "effective_cache_size={{ .Values.postgres.config.effectiveCacheSize }}"
+            - "-c"
+            - "work_mem={{ .Values.postgres.config.workMem }}"
+            - "-c"
+            - "maintenance_work_mem={{ .Values.postgres.config.maintenanceWorkMem }}"
+            - "-c"
+            - "max_connections={{ .Values.postgres.config.maxConnections }}"
+            - "-c"
+            - "shared_preload_libraries={{ .Values.postgres.config.sharedPreloadLibraries }}"
+            - "-c"
+            - "pg_stat_statements.track={{ .Values.postgres.config.pgStatStatementsTrack }}"
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - "-U"
+                - {{ .Values.postgres.auth.username | quote }}
+                - "-d"
+                - {{ .Values.postgres.auth.database | quote }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - "-U"
+                - {{ .Values.postgres.auth.username | quote }}
+                - "-d"
+                - {{ .Values.postgres.auth.database | quote }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: postgres-backups
+              mountPath: /backups
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: {{ include "ebook-tools.fullname" . }}-postgres-data
+        - name: postgres-backups
+          persistentVolumeClaim:
+            claimName: {{ include "ebook-tools.fullname" . }}-postgres-backups

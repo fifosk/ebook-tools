@@ -1,0 +1,188 @@
+# ebook-tools Helm Chart — values.yaml
+#
+# POC deployment: 4 core services (postgres, backend, frontend, pg-backup).
+# Monitoring (Prometheus, Grafana, PG exporter) stays on Docker Compose.
+#
+# Override with: helm install -f values-lima.yaml ...
+
+# ── Global ────────────────────────────────────────────────
+nameOverride: ""
+fullnameOverride: ""
+
+global:
+  imagePullPolicy: IfNotPresent   # Use "Never" for locally-imported images
+
+# ── PostgreSQL ────────────────────────────────────────────
+postgres:
+  image:
+    repository: postgres
+    tag: "16-alpine"
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 1Gi
+      cpu: "1"
+  config:
+    sharedBuffers: "256MB"
+    effectiveCacheSize: "512MB"
+    workMem: "16MB"
+    maintenanceWorkMem: "64MB"
+    maxConnections: "50"
+    sharedPreloadLibraries: "pg_stat_statements"
+    pgStatStatementsTrack: "all"
+  auth:
+    database: ebook_tools
+    username: ebook_tools
+    # Password: set via --set secrets.postgresPassword=... or in secrets section
+  persistence:
+    data:
+      # hostPath for single-node POC; set to "" to use default StorageClass
+      hostPath: /Volumes/Data/Databases/ebook-tools/postgres
+      size: 20Gi
+    backups:
+      hostPath: /Volumes/Backups/ebook-tools/postgres
+      size: 10Gi
+
+# ── Backend ───────────────────────────────────────────────
+backend:
+  image:
+    repository: ebook-tools-backend
+    tag: latest
+  replicas: 1
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 500m
+    limits:
+      memory: 2Gi
+      cpu: "2"
+  tmpfs:
+    sizeLimit: 1Gi
+  env:
+    EBOOK_API_CORS_ORIGINS: "https://api.langtools.fifosk.synology.me https://langtools.fifosk.synology.me http://localhost:5173"
+    EBOOK_API_STATIC_ROOT: ""
+    EBOOK_TTS_BACKEND: "gtts"
+    EBOOK_USE_RAMDISK: "false"
+    EBOOK_STORAGE_BASE_URL: "https://api.langtools.fifosk.synology.me/storage/jobs"
+    JOB_STORAGE_DIR: "/app/storage"
+    EBOOK_LIBRARY_ROOT: "/app/storage/library"
+    EBOOK_EBOOKS_DIR: "/app/nas/ebooks"
+    YOUTUBE_VIDEO_ROOT: "/app/nas/videos"
+    SUBTITLE_SOURCE_DIR: "/app/nas/subtitles"
+    FFMPEG_PATH: "ffmpeg"
+    EBOOK_TTS_FALLBACK_VOICE: "piper"
+    EBOOK_PIPER_MODELS_PATH: ""
+    EBOOK_WHISPERX_MODELS_PATH: ""
+    EBOOK_HF_CACHE_PATH: ""
+  # Contents of conf/config.local.json (mounted as ConfigMap)
+  configLocalJson: |
+    {
+      "thread_count": 8,
+      "tts_backend": "gtts"
+    }
+  persistence:
+    storage:
+      hostPath: ""   # empty = use default StorageClass (k3s local-path)
+      size: 50Gi
+    logs:
+      hostPath: ""
+      size: 5Gi
+    configUsers:
+      hostPath: ""
+      size: 1Gi
+  probes:
+    liveness:
+      initialDelaySeconds: 15
+      periodSeconds: 30
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readiness:
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+
+# ── Frontend ──────────────────────────────────────────────
+frontend:
+  image:
+    repository: ebook-tools-frontend
+    tag: latest
+  replicas: 1
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 128Mi
+      cpu: 200m
+  probes:
+    liveness:
+      initialDelaySeconds: 5
+      periodSeconds: 30
+    readiness:
+      initialDelaySeconds: 5
+      periodSeconds: 10
+
+# ── PG Backup CronJob ────────────────────────────────────
+pgBackup:
+  enabled: true
+  schedule: "0 2 * * *"   # daily at 2 AM
+  retentionDays: 7
+  image:
+    repository: postgres
+    tag: "16-alpine"
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+
+# ── NAS Mounts ────────────────────────────────────────────
+# type: "hostPath" for single-node, "nfs" for multi-node with Synology
+nas:
+  type: hostPath
+  ebooks:
+    hostPath: /Volumes/Data/Download/Ebooks
+    nfsPath: /volume1/Data/Download/Ebooks
+    readOnly: true
+  videos:
+    hostPath: /Volumes/Data/Download/DStation
+    nfsPath: /volume1/Data/Download/DStation
+    readOnly: false
+  subtitles:
+    hostPath: /Volumes/Data/Download/Subtitles
+    nfsPath: /volume1/Data/Download/Subtitles
+    readOnly: false
+  nfs:
+    server: ""   # Synology NAS IP (e.g. 192.168.1.5)
+
+# ── Ingress ───────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: traefik
+  annotations: {}
+  hosts:
+    - host: langtools.fifosk.synology.me
+      service: frontend
+      port: 80
+    - host: api.langtools.fifosk.synology.me
+      service: frontend    # Nginx proxies /api/ to backend
+      port: 80
+  tls: []
+  # To enable TLS at ingress level:
+  # tls:
+  #   - secretName: ebook-tools-tls
+  #     hosts:
+  #       - langtools.fifosk.synology.me
+  #       - api.langtools.fifosk.synology.me
+
+# ── Secrets ───────────────────────────────────────────────
+# Set via --set or values override. Not stored in version control.
+secrets:
+  postgresPassword: "ebook_tools_dev"
+  # Pre-created secrets (kubectl create secret generic ...):
+  envLocalSecretName: ""     # name of secret containing .env.local
+  apnsCertsSecretName: ""    # name of secret containing APNs p8 key

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ebook-tools.fullname" . }}-backend-files
+  labels:
+    {{- include "ebook-tools.componentLabels" (dict "root" . "component" "backend") | nindent 4 }}
+data:
+  config.local.json: |
+    {{- .Values.backend.configLocalJson | nindent 4 }}
