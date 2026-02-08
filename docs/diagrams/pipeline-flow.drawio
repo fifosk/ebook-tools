@@ -1,0 +1,143 @@
+<mxfile host="app.diagrams.net" modified="2026-02-08T00:00:00.000Z" agent="draw.io" version="22.0.0" type="device">
+  <diagram id="pipeline-flow" name="Pipeline Flow">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="EPUB Processing Pipeline" style="text;html=1;fontSize=20;fontStyle=1;fillColor=none;align=left;" vertex="1" parent="1">
+          <mxGeometry x="30" y="10" width="400" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== INPUT ==================== -->
+        <mxCell id="input" value="EPUB File&#xa;(uploaded via Web UI or CLI)" style="shape=document;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;size=0.15;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== INGESTION ==================== -->
+        <mxCell id="ingest" value="1. Ingestion&#xa;&#xa;Text extraction&#xa;Sentence splitting&#xa;Metadata enrichment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="280" y="70" width="170" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== TRANSLATION ==================== -->
+        <mxCell id="translate" value="2. Translation&#xa;&#xa;Per-sentence translation&#xa;+ optional transliteration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="510" y="70" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Translation provider detail -->
+        <mxCell id="trans-google" value="Google Translate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="750" y="60" width="130" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="trans-llm" value="Ollama LLM&#xa;(local or cloud)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="750" y="100" width="130" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="trans-fallback" value="Fallback Model&#xa;(gemma3:12b)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="750" y="145" width="130" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="af1" value="primary" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;fontSize=9;fontColor=#666;entryX=0;entryY=0.5;" edge="1" source="translate" target="trans-google" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="af2" value="fallback" style="rounded=1;strokeColor=#d6b656;strokeWidth=1.5;fontSize=9;fontColor=#666;dashed=1;" edge="1" source="trans-google" target="trans-llm" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="af3" value="fallback" style="rounded=1;strokeColor=#b85450;strokeWidth=1.5;fontSize=9;fontColor=#666;dashed=1;" edge="1" source="trans-llm" target="trans-fallback" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== PARALLEL PHASE ==================== -->
+        <mxCell id="parallel-box" value="3. Parallel Media Generation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#4d4d4d;fontStyle=1;fontSize=12;verticalAlign=top;spacingTop=4;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="210" width="840" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- TTS -->
+        <mxCell id="tts-box" value="TTS Synthesis (per sentence)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=11;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="60" y="245" width="350" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="tts-orig" value="Original Audio Track" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="280" width="140" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tts-trans" value="Translation Audio Track" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="320" width="140" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tts-macos" value="macOS say" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="260" y="275" width="80" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="tts-gtts" value="gTTS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="260" y="305" width="80" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="tts-piper" value="Piper" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="260" y="335" width="80" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="tts-backends-label" value="backends" style="text;html=1;fontSize=9;fillColor=none;align=center;fontColor=#996185;" vertex="1" parent="1">
+          <mxGeometry x="260" y="360" width="80" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Alignment -->
+        <mxCell id="align-box" value="WhisperX Alignment&#xa;(optional)&#xa;&#xa;Word-level timing&#xa;when TTS lacks tokens" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="440" y="245" width="160" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Image gen -->
+        <mxCell id="img-box" value="Image Generation&#xa;(optional)&#xa;&#xa;LLM prompt plan&#xa;→ Draw Things txt2img&#xa;→ per-sentence PNGs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="630" y="245" width="170" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== ASSEMBLY ==================== -->
+        <mxCell id="assembly" value="4. Metadata Assembly&#xa;&#xa;chunk_XXXX.json files&#xa;timingTracks, audioTracks&#xa;job.json manifest" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="200" y="450" width="200" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== OUTPUT ==================== -->
+        <mxCell id="output" value="5. Interactive Reader&#xa;&#xa;Word highlighting&#xa;Dual-track audio&#xa;Sentence image reel&#xa;MyLinguist lookups" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="500" y="440" width="180" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Platforms -->
+        <mxCell id="plat-web" value="Web" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="730" y="440" width="70" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="plat-ios" value="iOS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="730" y="478" width="70" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="plat-tvos" value="tvOS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="730" y="516" width="70" height="28" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== ARROWS ==================== -->
+        <mxCell id="e1" style="rounded=1;strokeColor=#4d4d4d;strokeWidth=1.5;" edge="1" source="input" target="ingest" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="rounded=1;strokeColor=#4d4d4d;strokeWidth=1.5;" edge="1" source="ingest" target="translate" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#4d4d4d;strokeWidth=1.5;" edge="1" source="translate" target="tts-box" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="600" y="190" />
+              <mxPoint x="235" y="190" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" style="rounded=1;strokeColor=#4d4d4d;strokeWidth=1.5;" edge="1" source="tts-box" target="align-box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#4d4d4d;strokeWidth=1.5;" edge="1" source="parallel-box" target="assembly" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" style="rounded=1;strokeColor=#4d4d4d;strokeWidth=1.5;" edge="1" source="assembly" target="output" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" style="rounded=1;strokeColor=#82b366;strokeWidth=1.5;" edge="1" source="output" target="plat-web" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" style="rounded=1;strokeColor=#82b366;strokeWidth=1.5;" edge="1" source="output" target="plat-ios" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" style="rounded=1;strokeColor=#82b366;strokeWidth=1.5;" edge="1" source="output" target="plat-tvos" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

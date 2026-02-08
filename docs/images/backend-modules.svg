@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <style>
+    text { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; fill: #1a1a1a; }
+    .title { font-size: 20px; font-weight: 600; }
+    .label { font-size: 12px; font-weight: 600; }
+    .sub { font-size: 10px; fill: #555; }
+    .small { font-size: 9px; fill: #666; }
+    rect { rx: 6; ry: 6; }
+  </style>
+  <defs>
+    <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4b5563" />
+    </marker>
+  </defs>
+
+  <text class="title" x="30" y="32">Backend Module Map — Python Packages</text>
+
+  <!-- ===== API LAYER ===== -->
+  <rect x="30" y="55" width="1140" height="100" fill="#e0eef8" stroke="#6c8ebf" stroke-width="1.5" />
+  <text class="label" x="50" y="75" fill="#2d5986">API Layer</text>
+
+  <rect x="50" y="85" width="250" height="55" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="label" x="65" y="103">modules/webapi/</text>
+  <text class="sub" x="65" y="118">application.py, routes.py, media_routes.py</text>
+  <text class="sub" x="65" y="132">auth_routes.py, admin_routes.py, schemas/</text>
+
+  <rect x="315" y="85" width="170" height="55" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="label" x="330" y="103">modules/cli/</text>
+  <text class="sub" x="330" y="118">orchestrator.py</text>
+  <text class="sub" x="330" y="132">user_commands.py</text>
+
+  <rect x="500" y="85" width="260" height="55" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="label" x="515" y="103">modules/user_management/</text>
+  <text class="sub" x="515" y="118">auth_service.py, local_user_store.py</text>
+  <text class="sub" x="515" y="132">session_manager.py</text>
+
+  <rect x="775" y="85" width="250" height="55" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="label" x="790" y="103">modules/config_manager/</text>
+  <text class="sub" x="790" y="118">settings.py, config resolution</text>
+  <text class="sub" x="790" y="132">environment.py (.env loader)</text>
+
+  <!-- Arrow down -->
+  <line x1="600" y1="157" x2="600" y2="175" stroke="#4b5563" stroke-width="1.5" marker-end="url(#ah)" />
+
+  <!-- ===== SERVICE LAYER ===== -->
+  <rect x="30" y="178" width="1140" height="110" fill="#e8f5e0" stroke="#82b366" stroke-width="1.5" />
+  <text class="label" x="50" y="198" fill="#2d6a2d">Service Layer</text>
+
+  <rect x="50" y="208" width="195" height="65" fill="#fff" stroke="#82b366" stroke-width="1" />
+  <text class="label" x="65" y="226">pipeline_service.py</text>
+  <text class="sub" x="65" y="241">Coordinates full pipeline:</text>
+  <text class="sub" x="65" y="255">ingest  translate  render</text>
+
+  <rect x="260" y="208" width="185" height="65" fill="#fff" stroke="#82b366" stroke-width="1" />
+  <text class="label" x="275" y="226">job_manager/</text>
+  <text class="sub" x="275" y="241">Job lifecycle, persistence</text>
+  <text class="sub" x="275" y="255">state machine, metadata</text>
+
+  <rect x="460" y="208" width="170" height="65" fill="#fff" stroke="#82b366" stroke-width="1" />
+  <text class="label" x="475" y="226">library/</text>
+  <text class="sub" x="475" y="241">library_service.py</text>
+  <text class="sub" x="475" y="255">library_sync.py, repository</text>
+
+  <rect x="645" y="208" width="165" height="65" fill="#fff" stroke="#82b366" stroke-width="1" />
+  <text class="label" x="660" y="226">subtitle_service.py</text>
+  <text class="sub" x="660" y="241">youtube_dubbing/</text>
+  <text class="sub" x="660" y="255">dialogues, webvtt, audio</text>
+
+  <rect x="825" y="208" width="200" height="65" fill="#fff" stroke="#82b366" stroke-width="1" />
+  <text class="label" x="840" y="226">Other services</text>
+  <text class="sub" x="840" y="241">assistant.py (MyLinguist)</text>
+  <text class="sub" x="840" y="255">resume_service, export_service</text>
+
+  <!-- Arrow down -->
+  <line x1="600" y1="290" x2="600" y2="308" stroke="#4b5563" stroke-width="1.5" marker-end="url(#ah)" />
+
+  <!-- ===== CORE LAYER ===== -->
+  <rect x="30" y="310" width="720" height="110" fill="#fef9e7" stroke="#d6b656" stroke-width="1.5" />
+  <text class="label" x="50" y="330" fill="#8b6d1a">Core Processing</text>
+
+  <rect x="50" y="340" width="155" height="65" fill="#fff" stroke="#d6b656" stroke-width="1" />
+  <text class="label" x="65" y="358">core/ingestion.py</text>
+  <text class="sub" x="65" y="373">EPUB text extraction</text>
+  <text class="sub" x="65" y="387">sentence splitting</text>
+
+  <rect x="220" y="340" width="200" height="65" fill="#fff" stroke="#d6b656" stroke-width="1" />
+  <text class="label" x="235" y="358">core/rendering/</text>
+  <text class="sub" x="235" y="373">pipeline.py, exporters.py</text>
+  <text class="sub" x="235" y="387">timeline.py (timing refit)</text>
+
+  <rect x="435" y="340" width="155" height="65" fill="#fff" stroke="#d6b656" stroke-width="1" />
+  <text class="label" x="450" y="358">render/</text>
+  <text class="sub" x="450" y="373">audio_pipeline.py</text>
+  <text class="sub" x="450" y="387">output_writer.py</text>
+
+  <rect x="605" y="340" width="130" height="65" fill="#fff" stroke="#d6b656" stroke-width="1" />
+  <text class="label" x="617" y="358">metadata_manager</text>
+  <text class="sub" x="617" y="373">MetadataLoader</text>
+  <text class="sub" x="617" y="387">(chunks &amp; legacy)</text>
+
+  <!-- Config box (sidebar) -->
+  <rect x="775" y="310" width="240" height="110" fill="#f3e8ef" stroke="#996185" stroke-width="1.5" />
+  <text class="label" x="795" y="330" fill="#7a4a6a">Configuration</text>
+  <text class="sub" x="795" y="350">conf/config.json (defaults)</text>
+  <text class="sub" x="795" y="366">conf/config.local.json (overrides)</text>
+  <text class="sub" x="795" y="382">.env, .env.local</text>
+  <text class="sub" x="795" y="398">Environment variables (EBOOK_*)</text>
+
+  <!-- Arrow down -->
+  <line x1="400" y1="422" x2="400" y2="445" stroke="#4b5563" stroke-width="1.5" marker-end="url(#ah)" />
+
+  <!-- ===== ENGINE LAYER ===== -->
+  <rect x="30" y="448" width="1140" height="110" fill="#fde8e8" stroke="#b85450" stroke-width="1.5" />
+  <text class="label" x="50" y="468" fill="#8b3a36">Backend Engines</text>
+
+  <rect x="50" y="478" width="230" height="65" fill="#fff" stroke="#b85450" stroke-width="1" />
+  <text class="label" x="65" y="496">translation_engine.py</text>
+  <text class="sub" x="65" y="511">Google Translate adapter</text>
+  <text class="sub" x="65" y="525">LLM translation (Ollama)</text>
+  <text class="sub" x="65" y="539">Multi-level fallback chain</text>
+
+  <rect x="295" y="478" width="230" height="65" fill="#fff" stroke="#b85450" stroke-width="1" />
+  <text class="label" x="310" y="496">audio/backends/</text>
+  <text class="sub" x="310" y="511">base.py (BaseTTSBackend)</text>
+  <text class="sub" x="310" y="525">macos_say | gtts | piper</text>
+  <text class="sub" x="310" y="539">Registry + factory pattern</text>
+
+  <rect x="540" y="478" width="195" height="65" fill="#fff" stroke="#b85450" stroke-width="1" />
+  <text class="label" x="555" y="496">align/backends/</text>
+  <text class="sub" x="555" y="511">whisperx_adapter.py</text>
+  <text class="sub" x="555" y="525">Word-level alignment</text>
+  <text class="sub" x="555" y="539">Wav2Vec2 models</text>
+
+  <rect x="750" y="478" width="190" height="65" fill="#fff" stroke="#b85450" stroke-width="1" />
+  <text class="label" x="765" y="496">images/</text>
+  <text class="sub" x="765" y="511">drawthings.py (SD client)</text>
+  <text class="sub" x="765" y="525">prompting.py (LLM prompts)</text>
+  <text class="sub" x="765" y="539">style_templates.py</text>
+
+  <rect x="955" y="478" width="155" height="65" fill="#fff" stroke="#b85450" stroke-width="1" />
+  <text class="label" x="970" y="496">LLM Client</text>
+  <text class="sub" x="970" y="511">llm_client.py</text>
+  <text class="sub" x="970" y="525">llm_endpoints.py</text>
+  <text class="sub" x="970" y="539">llm_providers.py</text>
+
+  <!-- ===== OBSERVABILITY ===== -->
+  <rect x="30" y="580" width="1140" height="50" fill="#f5f5f5" stroke="#666" stroke-width="1.5" />
+  <text class="label" x="50" y="600" fill="#444">Observability &amp; Utilities</text>
+  <rect x="50" y="610" width="130" height="18" fill="#fff" stroke="#666" stroke-width="1" />
+  <text class="small" x="65" y="623">progress_tracker.py</text>
+  <rect x="200" y="610" width="125" height="18" fill="#fff" stroke="#666" stroke-width="1" />
+  <text class="small" x="215" y="623">logging_manager.py</text>
+  <rect x="345" y="610" width="110" height="18" fill="#fff" stroke="#666" stroke-width="1" />
+  <text class="small" x="360" y="623">observability.py</text>
+  <rect x="475" y="610" width="130" height="18" fill="#fff" stroke="#666" stroke-width="1" />
+  <text class="small" x="490" y="623">ramdisk_manager.py</text>
+  <rect x="625" y="610" width="110" height="18" fill="#fff" stroke="#666" stroke-width="1" />
+  <text class="small" x="640" y="623">environment.py</text>
+</svg>

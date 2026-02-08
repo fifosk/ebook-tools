@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620">
+  <style>
+    text { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; fill: #1a1a1a; }
+    .title { font-size: 20px; font-weight: 600; }
+    .label { font-size: 12px; font-weight: 600; }
+    .sub { font-size: 10px; fill: #555; }
+    .small { font-size: 9px; fill: #666; }
+    rect { rx: 6; ry: 6; }
+  </style>
+  <defs>
+    <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4b5563" />
+    </marker>
+    <marker id="ah-g" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#82b366" />
+    </marker>
+    <marker id="ah-r" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#b85450" />
+    </marker>
+  </defs>
+
+  <text class="title" x="30" y="32">EPUB Processing Pipeline</text>
+
+  <!-- ===== INPUT ===== -->
+  <rect x="30" y="65" width="170" height="60" fill="#e8e0f0" stroke="#9673a6" stroke-width="1.5" />
+  <text class="label" x="52" y="90">EPUB File</text>
+  <text class="sub" x="52" y="108">uploaded via Web UI or CLI</text>
+
+  <!-- ===== STEP 1: INGESTION ===== -->
+  <rect x="250" y="55" width="170" height="80" fill="#e0eef8" stroke="#6c8ebf" stroke-width="1.5" />
+  <text class="label" x="270" y="78">1. Ingestion</text>
+  <text class="sub" x="270" y="96">Text extraction</text>
+  <text class="sub" x="270" y="110">Sentence splitting</text>
+  <text class="sub" x="270" y="124">Metadata enrichment</text>
+
+  <!-- ===== STEP 2: TRANSLATION ===== -->
+  <rect x="470" y="55" width="180" height="80" fill="#e0eef8" stroke="#6c8ebf" stroke-width="1.5" />
+  <text class="label" x="490" y="78">2. Translation</text>
+  <text class="sub" x="490" y="96">Per-sentence translation</text>
+  <text class="sub" x="490" y="110">+ optional transliteration</text>
+
+  <!-- Translation providers -->
+  <rect x="710" y="50" width="145" height="28" fill="#e8f5e0" stroke="#82b366" stroke-width="1.5" />
+  <text class="sub" x="730" y="69">Google Translate</text>
+  <rect x="710" y="88" width="145" height="28" fill="#fef9e7" stroke="#d6b656" stroke-width="1.5" />
+  <text class="sub" x="725" y="107">Ollama LLM (local/cloud)</text>
+  <rect x="710" y="126" width="145" height="28" fill="#fde8e8" stroke="#b85450" stroke-width="1.5" />
+  <text class="sub" x="724" y="145">Fallback (gemma3:12b)</text>
+
+  <!-- Provider arrows -->
+  <line x1="652" y1="80" x2="708" y2="64" stroke="#82b366" stroke-width="1.5" marker-end="url(#ah-g)" />
+  <text class="small" x="665" y="60">primary</text>
+  <line x1="857" y1="80" x2="857" y2="86" stroke="#d6b656" stroke-width="1" stroke-dasharray="4 2" marker-end="url(#ah)" />
+  <text class="small" x="865" y="84">fallback</text>
+  <line x1="857" y1="118" x2="857" y2="124" stroke="#b85450" stroke-width="1" stroke-dasharray="4 2" marker-end="url(#ah)" />
+
+  <!-- ===== STEP 3: PARALLEL BOX ===== -->
+  <rect x="30" y="185" width="920" height="210" fill="none" stroke="#4d4d4d" stroke-width="1.5" stroke-dasharray="5 3" />
+  <text class="label" x="50" y="205" fill="#4d4d4d">3. Parallel Media Generation</text>
+
+  <!-- TTS -->
+  <rect x="50" y="220" width="310" height="155" fill="#e8f5e0" stroke="#82b366" stroke-width="1.5" />
+  <text class="label" x="70" y="242" fill="#2d6a2d">TTS Synthesis (per sentence)</text>
+  <rect x="70" y="255" width="140" height="25" fill="#fff" stroke="#82b366" stroke-width="1" />
+  <text class="sub" x="82" y="272">Original Audio Track</text>
+  <rect x="70" y="290" width="140" height="25" fill="#fff" stroke="#82b366" stroke-width="1" />
+  <text class="sub" x="82" y="307">Translation Audio Track</text>
+  <!-- backends -->
+  <rect x="235" y="252" width="80" height="22" fill="#f3e8ef" stroke="#996185" stroke-width="1" />
+  <text class="small" x="249" y="267">macOS say</text>
+  <rect x="235" y="280" width="80" height="22" fill="#f3e8ef" stroke="#996185" stroke-width="1" />
+  <text class="small" x="261" y="295">gTTS</text>
+  <rect x="235" y="308" width="80" height="22" fill="#f3e8ef" stroke="#996185" stroke-width="1" />
+  <text class="small" x="261" y="323">Piper</text>
+  <text class="small" x="245" y="350">backends</text>
+
+  <!-- WhisperX -->
+  <rect x="395" y="220" width="170" height="100" fill="#fef9e7" stroke="#d6b656" stroke-width="1.5" />
+  <text class="label" x="410" y="242" fill="#8b6d1a">WhisperX</text>
+  <text class="sub" x="410" y="258">(optional)</text>
+  <text class="sub" x="410" y="280">Word-level forced</text>
+  <text class="sub" x="410" y="294">alignment when TTS</text>
+  <text class="sub" x="410" y="308">lacks token timing</text>
+
+  <!-- Image gen -->
+  <rect x="600" y="220" width="190" height="120" fill="#fde8e8" stroke="#b85450" stroke-width="1.5" />
+  <text class="label" x="620" y="242" fill="#8b3a36">Image Generation</text>
+  <text class="sub" x="620" y="258">(optional)</text>
+  <text class="sub" x="620" y="280">LLM prompt plan</text>
+  <text class="sub" x="620" y="296">Draw Things txt2img</text>
+  <text class="sub" x="620" y="312">Per-sentence PNGs</text>
+  <text class="sub" x="620" y="328">Style templates</text>
+
+  <!-- ===== STEP 4: ASSEMBLY ===== -->
+  <rect x="180" y="435" width="220" height="90" fill="#e0eef8" stroke="#6c8ebf" stroke-width="1.5" />
+  <text class="label" x="200" y="458">4. Metadata Assembly</text>
+  <text class="sub" x="200" y="476">chunk_XXXX.json files</text>
+  <text class="sub" x="200" y="492">timingTracks, audioTracks</text>
+  <text class="sub" x="200" y="508">job.json manifest</text>
+
+  <!-- ===== STEP 5: OUTPUT ===== -->
+  <rect x="470" y="425" width="200" height="110" fill="#e8e0f0" stroke="#9673a6" stroke-width="1.5" />
+  <text class="label" x="490" y="448">5. Interactive Reader</text>
+  <text class="sub" x="490" y="468">Word-level highlighting</text>
+  <text class="sub" x="490" y="484">Dual-track audio</text>
+  <text class="sub" x="490" y="500">Sentence image reel</text>
+  <text class="sub" x="490" y="516">MyLinguist lookups</text>
+
+  <!-- Platforms -->
+  <rect x="730" y="430" width="80" height="26" fill="#e8f5e0" stroke="#82b366" stroke-width="1.5" />
+  <text class="sub" x="755" y="448">Web</text>
+  <rect x="730" y="466" width="80" height="26" fill="#e8f5e0" stroke="#82b366" stroke-width="1.5" />
+  <text class="sub" x="757" y="484">iOS</text>
+  <rect x="730" y="502" width="80" height="26" fill="#e8f5e0" stroke="#82b366" stroke-width="1.5" />
+  <text class="sub" x="753" y="520">tvOS</text>
+
+  <!-- ===== ARROWS ===== -->
+  <line x1="202" y1="95" x2="248" y2="95" stroke="#4b5563" stroke-width="1.5" marker-end="url(#ah)" />
+  <line x1="422" y1="95" x2="468" y2="95" stroke="#4b5563" stroke-width="1.5" marker-end="url(#ah)" />
+  <!-- translate → parallel phase -->
+  <path d="M 560 137 L 560 160 L 490 160 L 490 183" fill="none" stroke="#4b5563" stroke-width="1.5" marker-end="url(#ah)" />
+  <!-- TTS → WhisperX -->
+  <line x1="362" y1="280" x2="393" y2="280" stroke="#4b5563" stroke-width="1.5" marker-end="url(#ah)" />
+  <!-- Parallel → assembly -->
+  <path d="M 490 397 L 490 410 L 290 410 L 290 433" fill="none" stroke="#4b5563" stroke-width="1.5" marker-end="url(#ah)" />
+  <!-- Assembly → output -->
+  <line x1="402" y1="480" x2="468" y2="480" stroke="#4b5563" stroke-width="1.5" marker-end="url(#ah)" />
+  <!-- Output → platforms -->
+  <line x1="672" y1="443" x2="728" y2="443" stroke="#82b366" stroke-width="1.5" marker-end="url(#ah-g)" />
+  <line x1="672" y1="479" x2="728" y2="479" stroke="#82b366" stroke-width="1.5" marker-end="url(#ah-g)" />
+  <line x1="672" y1="515" x2="728" y2="515" stroke="#82b366" stroke-width="1.5" marker-end="url(#ah-g)" />
+</svg>

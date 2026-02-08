@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650">
+  <style>
+    text { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; fill: #1a1a1a; }
+    .title { font-size: 20px; font-weight: 600; }
+    .label { font-size: 12px; font-weight: 600; }
+    .sub { font-size: 10px; fill: #555; }
+    .small { font-size: 9px; fill: #666; }
+    rect { rx: 6; ry: 6; }
+  </style>
+  <defs>
+    <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4b5563" />
+    </marker>
+  </defs>
+
+  <text class="title" x="30" y="32">Frontend Architecture — React SPA</text>
+
+  <!-- ===== PROVIDERS ===== -->
+  <rect x="30" y="55" width="1140" height="55" fill="#f0f0ff" stroke="#c7d2fe" stroke-width="1.5" />
+  <text class="label" x="50" y="73">Providers</text>
+  <rect x="120" y="78" width="100" height="24" fill="#fff" stroke="#9673a6" stroke-width="1" />
+  <text class="small" x="133" y="94">AuthProvider</text>
+  <rect x="235" y="78" width="110" height="24" fill="#fff" stroke="#9673a6" stroke-width="1" />
+  <text class="small" x="246" y="94">ThemeProvider</text>
+  <rect x="360" y="78" width="100" height="24" fill="#fff" stroke="#9673a6" stroke-width="1" />
+  <text class="small" x="380" y="94">QueryClient</text>
+  <rect x="475" y="78" width="110" height="24" fill="#fff" stroke="#9673a6" stroke-width="1" />
+  <text class="small" x="487" y="94">ErrorBoundary</text>
+
+  <!-- ===== APP SHELL ===== -->
+  <rect x="30" y="125" width="1140" height="50" fill="#e0eef8" stroke="#6c8ebf" stroke-width="1.5" />
+  <text class="label" x="50" y="145" fill="#2d5986">Application Shell</text>
+  <rect x="230" y="140" width="70" height="24" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="small" x="245" y="156">Sidebar</text>
+  <rect x="315" y="140" width="100" height="24" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="small" x="327" y="156">MainContent</text>
+  <rect x="430" y="140" width="100" height="24" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="small" x="442" y="156">Route Guards</text>
+  <rect x="545" y="140" width="110" height="24" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="small" x="555" y="156">Toasts &amp; Modals</text>
+
+  <!-- ===== VIEWS ===== -->
+  <text class="label" x="30" y="200">Views (appViews)</text>
+
+  <!-- Library -->
+  <rect x="30" y="215" width="130" height="90" fill="#e8f5e0" stroke="#82b366" stroke-width="1.5" />
+  <text class="label" x="50" y="235" fill="#2d6a2d">Library</text>
+  <text class="sub" x="50" y="254">Browse books</text>
+  <text class="sub" x="50" y="270">Search &amp; filter</text>
+  <text class="sub" x="50" y="286">Cover grid</text>
+
+  <!-- Book Narration -->
+  <rect x="175" y="215" width="130" height="155" fill="#e8f5e0" stroke="#82b366" stroke-width="1.5" />
+  <text class="label" x="195" y="235" fill="#2d6a2d">Book Narration</text>
+  <text class="sub" x="195" y="256">1. Source (EPUB)</text>
+  <text class="sub" x="195" y="272">2. Metadata</text>
+  <text class="sub" x="195" y="288">3. Languages</text>
+  <text class="sub" x="195" y="304">4. Output</text>
+  <text class="sub" x="195" y="320">5. Images</text>
+  <text class="sub" x="195" y="336">6. Performance</text>
+  <text class="sub" x="195" y="352">7. Submit</text>
+
+  <!-- Job Board -->
+  <rect x="320" y="215" width="130" height="110" fill="#e8f5e0" stroke="#82b366" stroke-width="1.5" />
+  <text class="label" x="340" y="235" fill="#2d6a2d">Job Board</text>
+  <text class="sub" x="340" y="256">Status table</text>
+  <text class="sub" x="340" y="272">Progress bars</text>
+  <text class="sub" x="340" y="288">Pause / Resume</text>
+  <text class="sub" x="340" y="304">Cancel / Delete</text>
+
+  <!-- Interactive Player (larger) -->
+  <rect x="465" y="215" width="365" height="155" fill="#e0eef8" stroke="#6c8ebf" stroke-width="1.5" />
+  <text class="label" x="485" y="235" fill="#2d5986">Interactive Player</text>
+  <rect x="480" y="248" width="140" height="28" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="small" x="492" y="266">TranscriptView</text>
+  <rect x="635" y="248" width="140" height="28" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="small" x="660" y="266">PlayerControls</text>
+  <rect x="480" y="286" width="140" height="28" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="small" x="490" y="304">SentenceImageReel</text>
+  <rect x="635" y="286" width="140" height="28" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="small" x="650" y="304">MyLinguistBubble</text>
+  <rect x="480" y="324" width="140" height="28" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="small" x="490" y="342">NavigationControls</text>
+  <rect x="635" y="324" width="140" height="28" fill="#fff" stroke="#6c8ebf" stroke-width="1" />
+  <text class="small" x="672" y="342">MyPainter</text>
+
+  <!-- Subtitles -->
+  <rect x="845" y="215" width="120" height="90" fill="#e8f5e0" stroke="#82b366" stroke-width="1.5" />
+  <text class="label" x="865" y="235" fill="#2d6a2d">Subtitles</text>
+  <text class="sub" x="865" y="256">Upload SRT/VTT</text>
+  <text class="sub" x="865" y="272">Translate</text>
+  <text class="sub" x="865" y="288">Download</text>
+
+  <!-- YouTube Dubbing -->
+  <rect x="980" y="215" width="120" height="105" fill="#e8f5e0" stroke="#82b366" stroke-width="1.5" />
+  <text class="label" x="995" y="235" fill="#2d6a2d">YouTube</text>
+  <text class="label" x="995" y="250" fill="#2d6a2d">Dubbing</text>
+  <text class="sub" x="1000" y="270">Video select</text>
+  <text class="sub" x="1000" y="286">Dub config</text>
+  <text class="sub" x="1000" y="302">Playback</text>
+
+  <!-- Admin -->
+  <rect x="845" y="330" width="255" height="65" fill="#fde8e8" stroke="#b85450" stroke-width="1.5" />
+  <text class="label" x="865" y="350" fill="#8b3a36">Admin (admin role only)</text>
+  <rect x="860" y="365" width="55" height="22" fill="#fff" stroke="#b85450" stroke-width="1" />
+  <text class="small" x="870" y="380">Users</text>
+  <rect x="925" y="365" width="80" height="22" fill="#fff" stroke="#b85450" stroke-width="1" />
+  <text class="small" x="930" y="380">Reading Beds</text>
+  <rect x="1015" y="365" width="60" height="22" fill="#fff" stroke="#b85450" stroke-width="1" />
+  <text class="small" x="1023" y="380">Settings</text>
+
+  <!-- ===== STATE MANAGEMENT ===== -->
+  <rect x="30" y="410" width="560" height="60" fill="#fef9e7" stroke="#d6b656" stroke-width="1.5" />
+  <text class="label" x="50" y="430" fill="#8b6d1a">State Management (Zustand)</text>
+  <rect x="50" y="440" width="155" height="22" fill="#fff" stroke="#d6b656" stroke-width="1" />
+  <text class="small" x="60" y="455">jobsStore (jobs, status, progress)</text>
+  <rect x="220" y="440" width="155" height="22" fill="#fff" stroke="#d6b656" stroke-width="1" />
+  <text class="small" x="230" y="455">uiStore (view, sidebar, modals)</text>
+  <rect x="390" y="440" width="155" height="22" fill="#fff" stroke="#d6b656" stroke-width="1" />
+  <text class="small" x="400" y="455">timingStore (audio sync, tokens)</text>
+
+  <!-- ===== SHARED LIBS ===== -->
+  <rect x="30" y="490" width="560" height="55" fill="#f5f5f5" stroke="#666" stroke-width="1.5" />
+  <text class="label" x="50" y="510" fill="#444">Shared Libraries (lib/)</text>
+  <rect x="50" y="520" width="80" height="20" fill="#fff" stroke="#666" stroke-width="1" />
+  <text class="small" x="65" y="534">lib/timing</text>
+  <rect x="145" y="520" width="80" height="20" fill="#fff" stroke="#666" stroke-width="1" />
+  <text class="small" x="158" y="534">lib/media</text>
+  <rect x="240" y="520" width="80" height="20" fill="#fff" stroke="#666" stroke-width="1" />
+  <text class="small" x="251" y="534">lib/linguist</text>
+  <rect x="335" y="520" width="85" height="20" fill="#fff" stroke="#666" stroke-width="1" />
+  <text class="small" x="345" y="534">lib/playback</text>
+  <rect x="435" y="520" width="80" height="20" fill="#fff" stroke="#666" stroke-width="1" />
+  <text class="small" x="445" y="534">lib/subtitles</text>
+
+  <!-- ===== BACKEND ===== -->
+  <rect x="640" y="430" width="280" height="50" fill="#e0eef8" stroke="#6c8ebf" stroke-width="1.5" />
+  <text class="label" x="660" y="452" fill="#2d5986">Backend API (FastAPI :8000)</text>
+  <text class="sub" x="660" y="470">REST + SSE + Storage</text>
+
+  <!-- Arrow: state → backend -->
+  <line x1="592" y1="445" x2="638" y2="450" stroke="#6c8ebf" stroke-width="1.5" marker-end="url(#ah)" />
+  <text class="small" x="600" y="440">API client + SSE</text>
+</svg>

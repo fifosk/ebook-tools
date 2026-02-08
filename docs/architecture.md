@@ -1,5 +1,37 @@
 # ebook-tools Architecture
 
+## Diagrams
+
+The architecture is documented through a set of diagrams maintained as
+[draw.io](https://www.diagrams.net/) sources in [`docs/diagrams/`](diagrams/).
+Exported SVGs are embedded below and in `docs/images/`.
+
+### System Overview
+
+![System Overview](images/system-overview.svg)
+
+### Pipeline Data Flow
+
+![Pipeline Flow](images/pipeline-flow.svg)
+
+### Interactive Player User Journey
+
+![Player Journey](images/player-journey.svg)
+
+### Backend Module Map
+
+![Backend Modules](images/backend-modules.svg)
+
+### Frontend Component Architecture
+
+![Frontend Architecture](images/frontend-arch.svg)
+
+### Test Architecture
+
+![Test Architecture](images/test-architecture.svg)
+
+---
+
 ## Project Layout
 - `main.py` – Compatibility bootstrap that forwards to the unified CLI orchestrator (`modules/cli/orchestrator.py`).
 - `modules/` – Python package containing configuration helpers, pipeline core logic, media synthesis, observability, and web API. The library subsystem now splits responsibilities across `modules/library/library_models.py`, `library_repository.py`, `library_metadata.py`, `library_sync.py`, and the orchestration facade in `library_service.py`.
@@ -242,3 +274,27 @@ rendering with tappable words.
 - **Text Sanitisation**: Quote characters are stripped from lookups to improve dictionary matching
 - **Split View**: iPad supports resizable split view with the bubble beside the transcript
 - **Keyboard Navigation**: iPad keyboard shortcuts for bubble control navigation
+
+## End-to-End User Journey
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant UI as SPA (web/)
+    participant API as FastAPI backend
+    participant JM as Job Manager
+
+    U->>UI: Open dashboard & choose login
+    UI->>API: POST /api/auth/login
+    API-->>UI: Bearer token + profile
+    UI->>UI: Persist token via AuthProvider
+    U->>UI: Configure pipeline form & submit
+    UI->>API: POST /api/pipelines with EPUB payload
+    API->>JM: Enqueue job & persist snapshot
+    API-->>UI: Return job_id + initial status
+    UI->>API: Subscribe to /api/pipelines/{job}/events
+    API-->>UI: Stream progress events (SSE)
+    JM-->>API: Update job state until complete
+    API-->>UI: Final snapshot delivered
+    UI-->>U: Present artefact links & admin tools
+```
