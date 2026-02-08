@@ -21,7 +21,7 @@ interactive playback across Web, iOS, and Apple TV.
 
 ## Architecture at a Glance
 
-![System Overview](docs/images/system-overview.svg)
+![System Overview](docs/images/system-overview.png)
 
 The system is composed of a **Python backend** (FastAPI) that orchestrates
 translation, audio synthesis, and image generation through a parallel worker
@@ -73,7 +73,7 @@ reference, CLI usage, and configuration.
 
 ## Processing Pipeline
 
-![Pipeline Flow](docs/images/pipeline-flow.svg)
+![Pipeline Flow](docs/images/pipeline-flow.png)
 
 An EPUB goes through ingestion, translation, parallel TTS synthesis (with
 optional WhisperX alignment and image generation), metadata assembly, and
@@ -82,7 +82,7 @@ SSE.
 
 ## Interactive Player
 
-![Player Journey](docs/images/player-journey.svg)
+![Player Journey](docs/images/player-journey.png)
 
 The Interactive Player is the core experience: word-level highlighting synced
 to dual-track audio, a sentence image reel, and the MyLinguist dictionary
@@ -118,17 +118,17 @@ See [docs/user-guide.md](docs/user-guide.md) for the full walkthrough.
 ## Diagrams
 
 All diagrams are maintained as [draw.io](https://www.diagrams.net/) source
-files in [`docs/diagrams/`](docs/diagrams/). Exported SVGs live in
+files in [`docs/diagrams/`](docs/diagrams/). Exported PNGs live in
 [`docs/images/`](docs/images/).
 
 | Diagram | Description |
 |---|---|
-| [System Overview](docs/images/system-overview.svg) | Full-stack architecture |
-| [Pipeline Flow](docs/images/pipeline-flow.svg) | EPUB processing data flow |
-| [Player Journey](docs/images/player-journey.svg) | Interactive reader user journey |
-| [Frontend Architecture](docs/images/frontend-arch.svg) | React component and view map |
-| [Backend Modules](docs/images/backend-modules.svg) | Python package dependency map |
-| [Test Architecture](docs/images/test-architecture.svg) | Test suite structure |
+| [System Overview](docs/images/system-overview.png) | Full-stack architecture |
+| [Pipeline Flow](docs/images/pipeline-flow.png) | EPUB processing data flow |
+| [Player Journey](docs/images/player-journey.png) | Interactive reader user journey |
+| [Frontend Architecture](docs/images/frontend-arch.png) | React component and view map |
+| [Backend Modules](docs/images/backend-modules.png) | Python package dependency map |
+| [Test Architecture](docs/images/test-architecture.png) | Test suite structure |
 
 ## Testing
 

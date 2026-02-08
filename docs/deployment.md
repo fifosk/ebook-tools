@@ -30,7 +30,7 @@ all unmatched routes and reverse-proxies API, pipeline, and storage requests to
 the backend container. The backend reads and writes data through Docker volume
 mounts that map host directories into the container filesystem.
 
-![System Overview](images/system-overview.svg)
+![System Overview](images/system-overview.png)
 
 ---
 

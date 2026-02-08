@@ -4,31 +4,31 @@
 
 The architecture is documented through a set of diagrams maintained as
 [draw.io](https://www.diagrams.net/) sources in [`docs/diagrams/`](diagrams/).
-Exported SVGs are embedded below and in `docs/images/`.
+Exported PNGs are embedded below and in `docs/images/`.
 
 ### System Overview
 
-![System Overview](images/system-overview.svg)
+![System Overview](images/system-overview.png)
 
 ### Pipeline Data Flow
 
-![Pipeline Flow](images/pipeline-flow.svg)
+![Pipeline Flow](images/pipeline-flow.png)
 
 ### Interactive Player User Journey
 
-![Player Journey](images/player-journey.svg)
+![Player Journey](images/player-journey.png)
 
 ### Backend Module Map
 
-![Backend Modules](images/backend-modules.svg)
+![Backend Modules](images/backend-modules.png)
 
 ### Frontend Component Architecture
 
-![Frontend Architecture](images/frontend-arch.svg)
+![Frontend Architecture](images/frontend-arch.png)
 
 ### Test Architecture
 
-![Test Architecture](images/test-architecture.svg)
+![Test Architecture](images/test-architecture.png)
 
 ---
 

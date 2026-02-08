@@ -7,7 +7,7 @@ are fully green (10 skipped). Tests are organized by domain using pytest markers
 enabling fast targeted runs during development. End-to-end tests run on-demand
 across **4 platforms**: Web (Playwright), iPhone, iPad, and tvOS (XCUITest).
 
-![Test Architecture](images/test-architecture.svg)
+![Test Architecture](images/test-architecture.png)
 
 **Key characteristics:**
 
