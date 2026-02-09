@@ -144,7 +144,7 @@ class LookupCacheManager:
         *,
         llm_client: "LLMClient",
         batch_size: int = 10,
-        skip_stopwords: bool = True,
+        skip_stopwords: bool = False,
         min_word_length: int = 2,
         progress_tracker: Optional["ProgressTracker"] = None,
         timeout_seconds: float = 45.0,

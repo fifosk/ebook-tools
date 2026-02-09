@@ -225,7 +225,7 @@ def build_lookup_cache_phase(
                 sentences=all_sentences,
                 llm_client=resolved_client,
                 batch_size=batch_size,
-                skip_stopwords=True,
+                skip_stopwords=False,
                 progress_tracker=tracker,
             )
 

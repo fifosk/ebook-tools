@@ -25,7 +25,7 @@ Usage Example:
         sentences=["مرحبا بالعالم", "هذا كتاب جميل"],
         llm_client=client,
         batch_size=10,
-        skip_stopwords=True,
+        skip_stopwords=False,
     )
 
     # Link audio references after timing generation
