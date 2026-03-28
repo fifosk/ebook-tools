@@ -84,6 +84,38 @@ final class PlaybackHeartbeatManager {
             }
     }
 
+    func startForVideo(
+        jobId: String,
+        translationLanguage: String,
+        configuration: APIClientConfiguration?,
+        videoCoordinator: VideoPlayerCoordinator
+    ) {
+        stop()
+
+        self.jobId = jobId
+        self.originalLanguage = ""
+        self.translationLanguage = translationLanguage
+        self.configuration = configuration
+
+        self.isPlayingProvider = { [weak videoCoordinator] in
+            videoCoordinator?.isPlaying ?? false
+        }
+
+        // Video dubs are always the translation track
+        self.trackKindProvider = { "translation" }
+
+        playingCancellable = videoCoordinator.$isPlaying
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] isPlaying in
+                if isPlaying {
+                    self?.startAccumulating()
+                } else {
+                    self?.stopAccumulating()
+                }
+            }
+    }
+
     func stop() {
         flush()
         stopAccumulating()

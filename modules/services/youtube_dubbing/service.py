@@ -617,6 +617,18 @@ def _run_dub_job(
                             _copy_into_storage(stitched_vtt)
                         if stitched_ass.exists():
                             _copy_into_storage(stitched_ass)
+                        # Clean up per-batch files now that the stitched output is ready.
+                        for batch_path in batch_candidates:
+                            try:
+                                for artifact in (
+                                    batch_path,
+                                    batch_path.with_suffix(".vtt"),
+                                    batch_path.with_suffix(".ass"),
+                                    batch_path.with_suffix(".srt"),
+                                ):
+                                    artifact.unlink(missing_ok=True)
+                            except Exception:
+                                logger.debug("Unable to clean up batch file %s", batch_path, exc_info=True)
             except Exception:
                 logger.warning("Unable to stitch YouTube dub batches for job %s", job.job_id, exc_info=True)
 

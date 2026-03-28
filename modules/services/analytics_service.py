@@ -74,16 +74,21 @@ class MediaAnalyticsService:
 
     def _record_generation_stats_impl(self, job: Any) -> None:
         generated_files = getattr(job, "generated_files", None) or {}
-        if not generated_files:
-            return
-
         job_id: str = job.job_id
         job_type: str = getattr(job, "job_type", "pipeline") or "pipeline"
 
         input_lang, target_langs = self._resolve_languages(job)
-        entries = self._extract_audio_durations(
-            generated_files, job_type, input_lang, target_langs
-        )
+
+        # youtube_dub jobs produce video files, not audioTracks in chunks.
+        # Extract duration from result_payload.youtube_dub instead.
+        if job_type == "youtube_dub":
+            entries = self._extract_video_dub_stats(job, input_lang, target_langs)
+        else:
+            if not generated_files:
+                return
+            entries = self._extract_audio_durations(
+                generated_files, job_type, input_lang, target_langs
+            )
         if not entries:
             return
 
@@ -192,6 +197,54 @@ class MediaAnalyticsService:
             )
             for (kind, lang), vals in acc.items()
             if vals[0] > 0
+        ]
+
+    # ------------------------------------------------------------------
+    # Video dub stats (youtube_dub jobs)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _extract_video_dub_stats(
+        job: Any,
+        input_language: Optional[str],
+        target_languages: List[str],
+    ) -> List[_GenerationEntry]:
+        """Extract generation stats from a youtube_dub job.
+
+        These jobs produce dubbed video files rather than audio chunks with
+        ``audioTracks``.  Duration and dialogue count come from
+        ``result_payload.youtube_dub``.
+        """
+        result_payload = getattr(job, "result_payload", None) or {}
+        yt = result_payload.get("youtube_dub") or {}
+
+        duration = 0.0
+        try:
+            duration = float(yt.get("dubbed_duration_seconds", 0))
+        except (TypeError, ValueError):
+            pass
+        if duration <= 0:
+            return []
+
+        dialogues = 0
+        try:
+            dialogues = int(yt.get("dialogues", 0))
+        except (TypeError, ValueError):
+            pass
+
+        generated_files = getattr(job, "generated_files", None) or {}
+        chunks = generated_files.get("chunks")
+        chunk_count = len(chunks) if isinstance(chunks, list) else 0
+
+        lang = (target_languages[0] if target_languages else "").strip() or "unknown"
+        return [
+            _GenerationEntry(
+                language=lang,
+                track_kind="translation",
+                duration_seconds=round(duration, 6),
+                sentence_count=dialogues,
+                chunk_count=chunk_count,
+            )
         ]
 
     # ------------------------------------------------------------------

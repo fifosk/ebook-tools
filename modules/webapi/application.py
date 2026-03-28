@@ -34,6 +34,7 @@ from .routers.create_book import router as create_book_router
 from .routers.exports import router as exports_router
 from .routers.library import router as library_router
 from .routers.subtitles import router as subtitles_router
+from .routers.airouter import router as airouter_router
 from .routers.assistant import router as assistant_router
 from .routers.bookmarks import router as bookmarks_router
 from .routers.resume import router as resume_router
@@ -734,6 +735,7 @@ def create_app() -> FastAPI:
     app.include_router(bookmarks_router)
     app.include_router(resume_router)
     app.include_router(playback_router)
+    app.include_router(airouter_router)
     app.include_router(assistant_router)
     app.include_router(exports_router)
     app.include_router(notification_router)

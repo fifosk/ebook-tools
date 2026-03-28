@@ -964,7 +964,7 @@ def generate_dubbed_video(
         )
         if not write_batches and not written_paths:
             written_paths.append(output_path)
-        return final_output, written_paths
+        return final_output, written_paths, flushed_until
     finally:
         try:
             if write_batches:

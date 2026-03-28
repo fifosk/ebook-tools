@@ -77,6 +77,8 @@ services:
       - EBOOK_PIPER_MODELS_PATH=
       - EBOOK_WHISPERX_MODELS_PATH=
       - EBOOK_HF_CACHE_PATH=
+      # AI Router (Ollama Cloud proxy)
+      - OLLAMA_CLOUD_API_KEY=${OLLAMA_CLOUD_API_KEY:-}
       # PostgreSQL connection
       - DATABASE_URL=postgresql+psycopg2://ebook_tools:${POSTGRES_PASSWORD:-ebook_tools_dev}@postgres:5432/ebook_tools
     env_file:

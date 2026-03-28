@@ -52,7 +52,7 @@ DEFAULT_OLLAMA_URL = os.environ.get(
     "OLLAMA_URL", "http://192.168.1.9:11434/api/chat"
 )
 DEFAULT_OLLAMA_CLOUD_URL = os.environ.get(
-    "OLLAMA_CLOUD_URL", "https://api.ollama.com/v1/chat/completions"
+    "OLLAMA_CLOUD_URL", "https://ollama.com/v1/chat/completions"
 )
 DEFAULT_LMSTUDIO_URL = os.environ.get(
     "LMSTUDIO_URL", "http://127.0.0.1:1234/v1/chat/completions"

@@ -212,7 +212,7 @@ def download_youtube_subtitle(
         )
     kind: SubtitleKind = payload.kind
 
-    mirror_dir = Path(payload.video_output_dir).expanduser() if payload.video_output_dir else None
+    mirror_dir = Path(payload.video_output_dir or DEFAULT_YOUTUBE_VIDEO_ROOT).expanduser()
     timestamp_value = parse_timestamp(payload.timestamp)
 
     try:

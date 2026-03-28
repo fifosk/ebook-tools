@@ -64,7 +64,13 @@ _COMMON_YT_OPTS = {
     # Keep built-in retries modest; we handle 429s with our own backoff loop.
     "retries": 3,
     "compat_opts": ["no-youtube-unavailable-videos"],
-    "extractor_args": {"youtube": {"player_client": ["android"]}},
+    "extractor_args": {"youtube": {"player_client": ["default", "web"]}},
+    # Prevent format-selection errors from blocking metadata/subtitle extraction.
+    "ignore_no_formats_error": True,
+    # Use a maximally permissive format selector so yt-dlp never fails with
+    # "Requested format is not available" during metadata-only extraction.
+    # Callers that actually download (download_video) override this.
+    "format": "best/bestaudio/bestvideo",
 }
 _TITLE_SEGMENT_LIMIT = 50
 _ID_SUFFIX_PATTERN = re.compile(r"^(?P<title>.+?)(?P<suffix>\s*\[[^\]]+\].*)$")
