@@ -25,7 +25,6 @@ from .audio_utils import (
     _clamp_original_mix,
     _coerce_channels,
     _compute_reference_rms,
-    _extract_audio_from_video,
     _has_audio_stream,
     _measure_active_window,
     _mix_with_original_audio,
@@ -179,7 +178,7 @@ def generate_dubbed_video(
         source_language = _find_language_token(subtitle_path) or language_code
 
         try:
-            base_original_audio = _extract_audio_from_video(source_video, sample_rate=44100, channels=2)
+            base_original_audio = _coerce_channels(AudioSegment.from_file(source_video).set_frame_rate(44100), 2)
         except Exception:
             base_original_audio = None
             logger.warning("Unable to preload original audio; will retry per flush", exc_info=True)
@@ -964,7 +963,7 @@ def generate_dubbed_video(
         )
         if not write_batches and not written_paths:
             written_paths.append(output_path)
-        return final_output, written_paths, flushed_until
+        return final_output, written_paths
     finally:
         try:
             if write_batches:

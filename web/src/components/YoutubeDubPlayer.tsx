@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import { formatBookmarkTime, usePlaybackBookmarks } from '../hooks/usePlaybackBookmarks';
-import { usePlaybackHeartbeat } from '../hooks/usePlaybackHeartbeat';
 import { useSubtitlePreferences } from '../hooks/useSubtitlePreferences';
 import { useYoutubeKeyboardShortcuts } from '../hooks/useYoutubeKeyboardShortcuts';
 import VideoPlayer from './VideoPlayer';
@@ -187,14 +186,6 @@ export default function YoutubeDubPlayer({
     onFullscreenChange,
     onPlaybackStateChange,
     onVideoPlaybackStateChange,
-  });
-
-  // Playback analytics heartbeat — video dubs are always the translation track
-  usePlaybackHeartbeat({
-    jobId,
-    language: jobTranslationLanguage,
-    trackKind: 'translation',
-    isPlaying,
   });
 
   const [isExporting, setIsExporting] = useState(false);

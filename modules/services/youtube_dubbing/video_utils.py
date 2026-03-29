@@ -694,118 +694,107 @@ def _trim_video_segment(
 
 
 def _concat_video_segments(segments: Sequence[Path], output_path: Path) -> None:
-    """Concatenate ``segments`` into ``output_path`` using the ffmpeg concat demuxer.
-
-    Uses the file-based concat demuxer with re-encoding instead of the
-    ``-filter_complex`` multi-input approach, which loads all segments into
-    memory simultaneously and OOMs on long videos.  The demuxer processes
-    segments sequentially, keeping peak RAM low.
-
-    Segments without an audio stream are pre-processed to add a silent audio
-    track so the concat demuxer sees uniform streams.
-    """
+    """Concatenate ``segments`` into ``output_path`` using ffmpeg concat demuxer."""
 
     if not segments:
         raise ValueError("No segments provided for concatenation")
     ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    inputs: List[str] = []
+    filter_inputs: List[str] = []
+    input_index = 0
 
-    def _probe_duration(path: Path) -> float:
+    def _probe_media(path: Path) -> Tuple[bool, float]:
+        """Return (has_audio, duration_seconds) for the given media path."""
+
+        has_audio = _has_audio_stream(path)
+        duration = 0.0
         ffprobe_bin = ffmpeg_bin.replace("ffmpeg", "ffprobe")
         try:
             result = subprocess.run(
                 [
-                    ffprobe_bin, "-v", "error",
-                    "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    ffprobe_bin,
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
                     str(path),
                 ],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
             )
-            return max(0.0, float(result.stdout.decode().strip() or 0.0))
+            duration = float(result.stdout.decode().strip() or 0.0)
         except Exception:
-            return 0.0
+            duration = 0.0
+        return has_audio, max(0.0, duration)
 
-    # ── validate and pre-process segments ──────────────────────────
-    prepared: List[Path] = []
-    tmp_files: List[Path] = []
+    valid_segments = 0
     for segment in segments:
+        has_audio, duration = _probe_media(segment)
         has_video = _has_video_stream(segment)
-        duration = _probe_duration(segment)
         if not has_video or duration <= 0.1:
             logger.warning(
                 "Skipping invalid concat segment (video=%s, duration=%.3fs)",
-                has_video, duration,
-                extra={"event": "youtube.dub.concat.invalid_segment",
-                       "segment": segment.as_posix(), "duration": duration},
+                has_video,
+                duration,
+                extra={"event": "youtube.dub.concat.invalid_segment", "segment": segment.as_posix(), "duration": duration},
             )
             continue
-
-        if not _has_audio_stream(segment):
+        valid_segments += 1
+        if not has_audio:
             logger.warning(
                 "Segment lacks audio stream; injecting silence to preserve concat timing",
-                extra={"event": "youtube.dub.concat.silence",
-                       "segment": segment.as_posix(), "duration": duration},
+                extra={"event": "youtube.dub.concat.silence", "segment": segment.as_posix(), "duration": duration},
             )
-            # Re-mux with a silent audio track so the demuxer sees uniform streams.
-            patched = segment.with_suffix(".withsil.mp4")
-            patch_cmd = [
-                ffmpeg_bin, "-y",
-                "-i", str(segment),
-                "-f", "lavfi", "-t", f"{duration:.3f}",
-                "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
-                "-c:v", "copy",
-                "-c:a", "aac", "-ac", "2", "-ar", "44100",
-                "-shortest",
-                *_movflags_args(patched),
-                str(patched),
-            ]
-            res = subprocess.run(patch_cmd, stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE, check=False)
-            if res.returncode == 0 and patched.exists():
-                prepared.append(patched)
-                tmp_files.append(patched)
-                continue
-            # Fall through to use the original if patching failed.
-        prepared.append(segment)
-
-    if not prepared:
+        inputs.extend(["-i", str(segment)])
+        video_label = f"[{input_index}:v:0]"
+        audio_label = f"[{input_index}:a:0]"
+        input_index += 1
+        if not has_audio:
+            # Synthesize a silent track so concat never drops audio for this segment.
+            silent_duration = max(duration, 0.1)
+            inputs.extend(
+                [
+                    "-f",
+                    "lavfi",
+                    "-t",
+                    f"{silent_duration:.3f}",
+                    "-i",
+                    "anullsrc=channel_layout=stereo:sample_rate=44100",
+                ]
+            )
+            audio_label = f"[{input_index}:a:0]"
+            input_index += 1
+        filter_inputs.append(f"{video_label}{audio_label}")
+    if valid_segments == 0:
         raise RuntimeError("No valid segments available for concatenation")
-
-    # ── write concat demuxer list file ─────────────────────────────
-    list_handle = tempfile.NamedTemporaryFile(
-        mode="w", suffix=".txt", delete=False,
-        prefix="concat-reencode-", dir=_TEMP_DIR,
-    )
-    list_path = Path(list_handle.name)
-    try:
-        for seg in prepared:
-            escaped = str(seg).replace("'", "'\\''")
-            list_handle.write(f"file '{escaped}'\n")
-        list_handle.close()
-
-        command = [
-            ffmpeg_bin, "-y",
-            "-f", "concat", "-safe", "0",
-            "-i", str(list_path),
-            *_IOS_VIDEO_CODEC_ARGS,
-            "-preset", "veryfast",
-            *_IOS_AUDIO_CODEC_ARGS,
-            *_ios_timing_args(output_path),
-            *_movflags_args(output_path),
-            str(output_path),
-        ]
-        result = subprocess.run(command, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, check=False)
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"ffmpeg concat failed (exit {result.returncode}): "
-                f"{result.stderr.decode(errors='ignore')}"
-            )
-    finally:
-        list_path.unlink(missing_ok=True)
-        for tmp in tmp_files:
-            tmp.unlink(missing_ok=True)
+    filter_concat = "".join(filter_inputs) + f"concat=n={valid_segments}:v=1:a=1[v][a]"
+    command = [
+        ffmpeg_bin,
+        "-y",
+        *inputs,
+        "-filter_complex",
+        filter_concat,
+        "-map",
+        "[v]",
+        "-map",
+        "[a]",
+        *_IOS_VIDEO_CODEC_ARGS,
+        "-preset",
+        "veryfast",
+        *_IOS_AUDIO_CODEC_ARGS,
+        *_ios_timing_args(output_path),
+        *_movflags_args(output_path),
+        str(output_path),
+    ]
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"ffmpeg concat failed (exit {result.returncode}): {result.stderr.decode(errors='ignore')}"
+        )
 
 
 def _concat_video_segments_copy(segments: Sequence[Path], output_path: Path) -> None:

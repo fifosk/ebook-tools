@@ -35,7 +35,6 @@ struct VideoPlayerView: View {
     let bookmarkItemType: String?
 
     @StateObject var coordinator = VideoPlayerCoordinator()
-    @State var heartbeatManager = PlaybackHeartbeatManager()
     @State var cues: [VideoSubtitleCue] = []
     @State var subtitleError: String?
     @State var selectedTrack: VideoSubtitleTrack?
@@ -261,14 +260,6 @@ struct VideoPlayerView: View {
             configureLinguistVM()
             loadLlmModelsIfNeeded()
             refreshBookmarks()
-            if let jobId = bookmarkJobId {
-                heartbeatManager.startForVideo(
-                    jobId: jobId,
-                    translationLanguage: linguistLookupLanguage,
-                    configuration: appState.configuration,
-                    videoCoordinator: coordinator
-                )
-            }
             coordinator.onPlaybackEnded = { [weak coordinator] in
                 guard let coordinator else { return }
                 let duration = coordinator.duration.isFinite && coordinator.duration > 0
@@ -300,7 +291,6 @@ struct VideoPlayerView: View {
             applyPendingBookmarkIfPossible()
         }
         .onDisappear {
-            heartbeatManager.stop()
             coordinator.onPlaybackEnded = nil
         }
         .onChange(of: videoURL) { _, newURL in

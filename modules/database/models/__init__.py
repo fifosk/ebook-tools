@@ -13,7 +13,6 @@ from .config import (
 )
 from .bookmark import BookmarkModel
 from .resume import ResumePositionModel
-from .analytics import MediaGenerationStatModel, PlaybackSessionModel
 
 __all__ = [
     "UserModel",
@@ -30,6 +29,4 @@ __all__ = [
     "ConfigRestartLogModel",
     "BookmarkModel",
     "ResumePositionModel",
-    "MediaGenerationStatModel",
-    "PlaybackSessionModel",
 ]

@@ -153,7 +153,7 @@ def main():
         sentences,
         existing_cache=None,  # Ignore existing cache — full rebuild
         language=input_language,
-        skip_stopwords=False,
+        skip_stopwords=True,
         min_word_length=2,
     )
     print(f"\nUnique words to look up: {len(unique_words)}")
@@ -193,7 +193,7 @@ def main():
             sentences=sentences,
             llm_client=llm_client,
             batch_size=args.batch_size,
-            skip_stopwords=False,
+            skip_stopwords=True,
         )
 
     cache_manager.save()

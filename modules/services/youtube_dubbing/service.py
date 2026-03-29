@@ -157,7 +157,6 @@ def _build_job_result(
     tempo: float,
     macos_reading_speed: int,
     dialogues: int,
-    dubbed_duration_seconds: float,
     start_offset: float,
     end_offset: Optional[float],
     original_mix_percent: float,
@@ -184,7 +183,6 @@ def _build_job_result(
             "tempo": tempo,
             "reading_speed": macos_reading_speed,
             "dialogues": dialogues,
-            "dubbed_duration_seconds": round(dubbed_duration_seconds, 3),
             "start_time_offset_seconds": start_offset,
             "end_time_offset_seconds": end_offset,
             "original_mix_percent": original_mix_percent,
@@ -210,7 +208,7 @@ def _extract_translation_sentences_from_vtt(subtitle_artifacts: List[Path]) -> L
     the translated text.  We parse those cues to get the sentences that users
     will actually see (and tap on) in the video player.
 
-    Only dubbed output VTTs (containing ``.dub.`` in the filename) are parsed.
+    Only dubbed output VTTs (containing ``.dub-`` in the filename) are parsed.
     Source-language VTTs are skipped — their ``<c.translation>`` tags contain
     reversed original text, not real translations.  Among dub VTTs, the
     ``*.full.vtt`` stitched file is preferred to avoid duplicates from
@@ -225,7 +223,7 @@ def _extract_translation_sentences_from_vtt(subtitle_artifacts: List[Path]) -> L
     seen: set[str] = set()
 
     # Prefer the stitched "full" VTT; fall back to per-batch VTTs if absent
-    dub_vtts = [a for a in subtitle_artifacts if a.suffix.lower() == ".vtt" and ".dub." in a.name]
+    dub_vtts = [a for a in subtitle_artifacts if a.suffix.lower() == ".vtt" and ".dub-" in a.name]
     full_vtts = [v for v in dub_vtts if ".full." in v.name]
     candidates = full_vtts or dub_vtts
 
@@ -535,7 +533,7 @@ def _run_dub_job(
         except Exception:
             logger.debug("Unable to publish initial generated media snapshot", exc_info=True)
 
-        final_output, written_paths, dubbed_duration_seconds = generate_dubbed_video(
+        final_output, written_paths = generate_dubbed_video(
             video_path,
             subtitle_path,
             target_language=language_code,
@@ -617,18 +615,6 @@ def _run_dub_job(
                             _copy_into_storage(stitched_vtt)
                         if stitched_ass.exists():
                             _copy_into_storage(stitched_ass)
-                        # Clean up per-batch files now that the stitched output is ready.
-                        for batch_path in batch_candidates:
-                            try:
-                                for artifact in (
-                                    batch_path,
-                                    batch_path.with_suffix(".vtt"),
-                                    batch_path.with_suffix(".ass"),
-                                    batch_path.with_suffix(".srt"),
-                                ):
-                                    artifact.unlink(missing_ok=True)
-                            except Exception:
-                                logger.debug("Unable to clean up batch file %s", batch_path, exc_info=True)
             except Exception:
                 logger.warning("Unable to stitch YouTube dub batches for job %s", job.job_id, exc_info=True)
 
@@ -751,7 +737,6 @@ def _run_dub_job(
         tempo=tempo,
         macos_reading_speed=macos_reading_speed,
         dialogues=len([entry for entry in dialogues if entry.translation]),
-        dubbed_duration_seconds=dubbed_duration_seconds,
         start_offset=start_time_offset or 0.0,
         end_offset=end_time_offset,
         original_mix_percent=_clamp_original_mix(original_mix_percent),
@@ -812,7 +797,7 @@ def _run_dub_job(
                             sentences=cache_sentences,
                             llm_client=llm_client,
                             batch_size=10,
-                            skip_stopwords=False,
+                            skip_stopwords=True,
                             progress_tracker=tracker,
                         )
                     cache_manager.save()

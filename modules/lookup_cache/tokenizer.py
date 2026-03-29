@@ -292,7 +292,7 @@ def extract_unique_words(
     existing_cache: Optional[LookupCache] = None,
     *,
     language: str = "",
-    skip_stopwords: bool = False,
+    skip_stopwords: bool = True,
     min_word_length: int = 2,
 ) -> List[str]:
     """Extract unique words from sentences, filtering out cached and stopwords.
