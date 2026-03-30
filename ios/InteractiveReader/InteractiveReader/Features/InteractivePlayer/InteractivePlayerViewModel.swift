@@ -157,6 +157,36 @@ final class InteractivePlayerViewModel: ObservableObject {
             }
         }
 
+        // Install precise boundary observer on AVPlayer for segment-end detection.
+        // This fires at the exact playback time, eliminating the ~100ms polling lag
+        // that caused audio bleed into the next sentence (especially noticeable on tvOS).
+        sequenceController.onInstallBoundary = { [weak self] time in
+            guard let self else { return }
+            self.audioCoordinator.installBoundaryObserver(at: time)
+        }
+
+        // Apply decode-level fade-out at segment boundaries.
+        // This operates before HDMI/Core Audio output buffers, guaranteeing
+        // no audio from the next sentence bleeds through.
+        sequenceController.onApplySegmentFade = { [weak self] fadeStart, fadeEnd in
+            guard let self else { return }
+            self.audioCoordinator.applySegmentFadeOut(fadeStartTime: fadeStart, fadeEndTime: fadeEnd)
+        }
+
+        // Wire boundary observer callback back to sequence controller
+        audioCoordinator.onBoundaryReached = { [weak self] in
+            guard let self else { return }
+            self.sequenceController.boundaryReached()
+        }
+
+        // Clean up audio effects when sequence controller resets
+        // (prevents stale fade-out from silencing audio in singleTrack mode)
+        sequenceController.onCleanupAudioEffects = { [weak self] in
+            guard let self else { return }
+            self.audioCoordinator.clearAudioMix()
+            self.audioCoordinator.removeBoundaryObserver()
+        }
+
         // Pause during dwell to prevent audio content past segment end from being heard
         // We use pauseForDwell() which pauses without clearing isPlaybackRequested,
         // keeping the reading bed playing during the brief dwell period
@@ -170,11 +200,15 @@ final class InteractivePlayerViewModel: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 print("[Sequence] Resuming after dwell, seeking to \(String(format: "%.3f", time))")
+                // Clear the fade-out mix from the previous segment before seeking
+                self.audioCoordinator.clearAudioMix()
                 // Seek to the new segment's start position, then resume playback
                 self.audioCoordinator.seek(to: time) { [weak self] _ in
                     guard let self else { return }
                     // End transition and resume playback after seek completes
                     self.sequenceController.endTransition(expectedTime: time)
+                    // Restore volume before playing — pauseForDwell mutes to prevent bleed
+                    self.audioCoordinator.restoreVolume()
                     self.audioCoordinator.play()
                 }
             }

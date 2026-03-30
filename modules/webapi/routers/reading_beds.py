@@ -178,6 +178,33 @@ def _find_bed(payload: Dict[str, Any], bed_id: str) -> Dict[str, Any] | None:
     return None
 
 
+def _resolve_bundled_file(entry: Dict[str, Any], bed_id: str) -> Path | None:
+    """Resolve a bundled reading bed to a local file path.
+
+    Searches multiple locations to handle both local dev and Docker deployments.
+    """
+    bundled_url = entry.get("bundled_url")
+    if not isinstance(bundled_url, str) or not bundled_url.strip():
+        bundled_url = DEFAULT_BUNDLED_BED_URL
+    # Extract filename from the URL path (e.g., "/assets/reading-beds/foo.mp3" -> "foo.mp3")
+    filename = Path(bundled_url.strip()).name
+    if not filename:
+        return None
+    project_root = Path(__file__).resolve().parents[3]
+    search_dirs = [
+        # Local dev: web/public and web/dist
+        project_root / "web" / "public" / "assets" / "reading-beds",
+        project_root / "web" / "dist" / "assets" / "reading-beds",
+        # Docker / storage: bundled beds copied to storage
+        FileLocator().storage_root / "reading_beds" / "bundled",
+    ]
+    for assets_dir in search_dirs:
+        candidate = (assets_dir / filename).resolve()
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def _bed_url(entry: Dict[str, Any], bed_id: str) -> str:
     kind = entry.get("kind")
     if kind == "bundled":
@@ -239,6 +266,14 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
 
     kind = entry.get("kind")
     if kind == "bundled":
+        # Serve bundled reading bed files directly instead of redirecting to
+        # /assets/ which is only available through the frontend Nginx container.
+        bundled_file = _resolve_bundled_file(entry, bed_id)
+        if bundled_file and bundled_file.exists():
+            content_type = entry.get("content_type")
+            media_type = content_type.strip() if isinstance(content_type, str) and content_type.strip() else "audio/mpeg"
+            return FileResponse(path=bundled_file, media_type=media_type, filename=bundled_file.name)
+        # Fallback to redirect (works when frontend serves static assets on same origin)
         url = _bed_url(entry, bed_id)
         return RedirectResponse(url=url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 

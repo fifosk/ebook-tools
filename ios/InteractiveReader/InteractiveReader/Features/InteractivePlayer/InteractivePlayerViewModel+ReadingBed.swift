@@ -38,8 +38,26 @@ extension InteractivePlayerViewModel {
                 return localURL
             }
         }
+        // When readingBedBaseURL is nil (online mode), use the API file endpoint
+        // instead of appending the /assets/ path to apiBaseURL (which doesn't serve static assets).
+        if readingBedBaseURL == nil, let apiBase = apiBaseURL, let bedID = selectedEntry?.id ?? bedIDFromPath(rawPath) {
+            let apiURL = apiBase.appendingPathComponent("api/reading-beds/\(bedID)/file")
+            return appendAccessToken(apiURL, token: authToken)
+        }
         guard let url = buildReadingBedURL(from: rawPath, baseURL: baseURL) else { return nil }
         return appendAccessToken(url, token: authToken)
+    }
+
+    /// Extract a reading bed ID from a path like "/assets/reading-beds/lost-in-the-pages.mp3"
+    private func bedIDFromPath(_ path: String) -> String? {
+        let filename = URL(string: path)?.lastPathComponent ?? (path as NSString).lastPathComponent
+        guard !filename.isEmpty else { return nil }
+        // Strip extension to get the bed ID
+        if let dotIndex = filename.lastIndex(of: ".") {
+            let id = String(filename[filename.startIndex..<dotIndex])
+            return id.isEmpty ? nil : id
+        }
+        return filename
     }
 
     func selectReadingBed(from catalog: ReadingBedListResponse?, selectedID: String?) -> ReadingBedEntry? {

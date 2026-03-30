@@ -175,6 +175,17 @@ final class SequencePlaybackController: ObservableObject {
     /// Called when time has stabilized after a transition (expectedPosition cleared)
     /// This signals the view layer to clear any transition-related state
     var onTimeStabilized: (() -> Void)?
+    /// Called when a new segment becomes active, providing the segment end time
+    /// for installing a precise boundary time observer on the AVPlayer.
+    /// This replaces polling-based segment-end detection to prevent audio bleed.
+    var onInstallBoundary: ((Double) -> Void)?
+    /// Called to apply a decode-level fade-out on the current audio item.
+    /// Parameters: (fadeStartTime, fadeEndTime) in seconds within the audio file.
+    /// This prevents audio bleed through HDMI output buffers.
+    var onApplySegmentFade: ((Double, Double) -> Void)?
+    /// Called when the controller resets, to clear fade mix and boundary observer
+    /// from the audio player (prevents stale fade-outs silencing audio in non-sequence modes).
+    var onCleanupAudioEffects: (() -> Void)?
 
     /// Called to check if a track should be skipped during automatic playback progression
     /// Returns true if the track should be skipped (e.g., because it's hidden in the UI)
@@ -356,6 +367,11 @@ final class SequencePlaybackController: ObservableObject {
         currentTrack = hasOriginalSegments ? .original : .translation
         phase = isEnabled ? .playing : .idle
 
+        // Install boundary observer for the first segment
+        if isEnabled {
+            installBoundaryForCurrentSegment()
+        }
+
         if Self.debug {
             print("[SequencePlayback] Plan: \(segments.count) segs, enabled=\(isEnabled), origToggle=\(isOriginalAudioEnabled), transToggle=\(isTranslationAudioEnabled)")
         }
@@ -380,6 +396,58 @@ final class SequencePlaybackController: ObservableObject {
         let nextIndex = currentSegmentIndex + 1
         guard plan.indices.contains(nextIndex) else { return nil }
         return plan[nextIndex]
+    }
+
+    // MARK: - Boundary Observer
+
+    /// Install a boundary observer for the current segment's end time.
+    /// Called whenever a new segment becomes the active playback segment.
+    /// How far before segment.end to place the boundary observer (seconds).
+    private let boundaryHeadroom: Double = 0.05
+
+    /// Duration of the fade-out ramp applied at the decode level (seconds).
+    /// This must be long enough to cover HDMI output buffer depth (~100-200ms).
+    private let fadeOutDuration: Double = 0.15
+
+    private func installBoundaryForCurrentSegment() {
+        guard let segment = currentSegment else { return }
+        // Install boundary slightly before segment end to beat HDMI buffer latency.
+        let boundaryTime = max(segment.start + 0.01, segment.end - boundaryHeadroom)
+        print("[Sequence] Installing boundary at \(String(format: "%.3f", boundaryTime)) (end=\(String(format: "%.3f", segment.end))) for seg[\(currentSegmentIndex)] \(segment.track.rawValue)")
+        onInstallBoundary?(boundaryTime)
+
+        // Apply decode-level fade-out to guarantee silence at segment boundary,
+        // regardless of HDMI/Core Audio output buffer depth.
+        let fadeStart = max(segment.start + 0.01, segment.end - fadeOutDuration)
+        onApplySegmentFade?(fadeStart, segment.end)
+    }
+
+    /// Called by the view layer when the AVPlayer boundary time observer fires.
+    /// Triggers the dwell/advance flow with zero latency.
+    func boundaryReached() {
+        guard isEnabled else { return }
+        // Only react if we're in playing phase (not already dwelling/transitioning)
+        guard case .playing = phase else {
+            print("[Sequence] Boundary IGNORED (phase=\(phase))")
+            return
+        }
+        guard let segment = currentSegment else { return }
+
+        print("[Sequence] BOUNDARY triggered seg[\(currentSegmentIndex)] end=\(String(format: "%.3f", segment.end)) \(segment.track.rawValue)")
+        phase = .dwelling(startedAt: Date())
+
+        // Pause during dwell to prevent audio bleed
+        onPauseForDwell?()
+
+        // Schedule dwell completion
+        dwellWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.completeDwell()
+            }
+        }
+        dwellWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + segmentEndDwellDuration, execute: workItem)
     }
 
     // MARK: - Time Update Loop
@@ -526,28 +594,13 @@ final class SequencePlaybackController: ObservableObject {
             }
         }
 
-        // Check if we've reached the end of the current segment
-        // Use a dwell period to ensure the last word highlight is visible before advancing
+        // Fallback segment-end check: catches cases where the boundary observer missed
+        // (e.g., time jumped past the boundary due to seeking or buffering).
+        // Primary segment-end detection is handled by boundaryReached() via AVPlayer boundary observer.
         if time >= segment.end - tolerance {
-            // First time reaching segment end - start the dwell timer and pause audio
             if case .playing = phase {
-                if Self.debug {
-                    print("[SequencePlayback] Time \(String(format: "%.3f", time)) reached segment[\(currentSegmentIndex)] end \(String(format: "%.3f", segment.end)) - starting dwell, pausing audio")
-                }
-                phase = .dwelling(startedAt: Date())
-
-                // Pause during dwell to prevent audio bleed
-                onPauseForDwell?()
-
-                // Schedule dwell completion since the time observer stops when player is paused
-                dwellWorkItem?.cancel()
-                let workItem = DispatchWorkItem { [weak self] in
-                    Task { @MainActor [weak self] in
-                        self?.completeDwell()
-                    }
-                }
-                dwellWorkItem = workItem
-                DispatchQueue.main.asyncAfter(deadline: .now() + segmentEndDwellDuration, execute: workItem)
+                print("[Sequence] FALLBACK triggered t=\(String(format: "%.3f", time)) seg[\(currentSegmentIndex)] end=\(String(format: "%.3f", segment.end)) \(segment.track.rawValue)")
+                boundaryReached()
             }
             // Whether we just entered dwelling or are already in it, don't process further
             return false
@@ -617,6 +670,9 @@ final class SequencePlaybackController: ObservableObject {
         } else {
             phase = .playing
         }
+
+        // Install boundary observer for the new segment
+        installBoundaryForCurrentSegment()
 
         if Self.debug {
             print("[SequencePlayback] Transition ended, expectedPosition=\(expectedTime.map { String(format: "%.3f", $0) } ?? "nil"), sameSentenceSwitch=\(sameSentenceSwitch)")
@@ -815,5 +871,8 @@ final class SequencePlaybackController: ObservableObject {
         currentTrack = .original
         originalTrackURL = nil
         translationTrackURL = nil
+        // Clear fade-out mix and boundary observer to prevent stale effects
+        // silencing audio when switching away from sequence mode
+        onCleanupAudioEffects?()
     }
 }

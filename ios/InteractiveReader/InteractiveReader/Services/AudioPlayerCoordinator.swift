@@ -28,6 +28,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     private var shouldLoop = false
     private var player: AVPlayer?
     private var timeObserverToken: Any?
+    private var boundaryObserverToken: Any?
     private var endObserver: NSObjectProtocol?
     private var statusObservation: NSKeyValueObservation?
     private var timeControlObservation: NSKeyValueObservation?
@@ -134,6 +135,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     /// Used during sequence dwell periods to prevent audio bleed while keeping
     /// the reading bed playing (which monitors isPlaybackRequested).
     func pauseForDwell() {
+        // Mute FIRST — volume change takes effect in the audio rendering pipeline
+        // immediately, whereas pause() must drain the output buffer (especially
+        // noticeable on tvOS where HDMI adds ~50-100ms of buffered audio).
+        player?.volume = 0
         player?.pause()
         isPlaying = false
         // NOTE: Intentionally NOT clearing isPlaybackRequested
@@ -541,6 +546,91 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         }
     }
 
+    // MARK: - Boundary Time Observer
+
+    /// Callback fired when the boundary time observer triggers
+    var onBoundaryReached: (() -> Void)?
+
+    /// Install a boundary time observer that fires once when playback reaches the given time.
+    /// Used for precise segment-end detection to prevent audio bleed into the next sentence.
+    func installBoundaryObserver(at time: Double) {
+        removeBoundaryObserver()
+        guard let player = player else {
+            print("[AudioPlayer] Boundary NOT installed at \(String(format: "%.3f", time)) - no player")
+            return
+        }
+        guard time > 0 else { return }
+        let boundaryTime = CMTime(seconds: time, preferredTimescale: 600)
+        let token = player.addBoundaryTimeObserver(
+            forTimes: [NSValue(time: boundaryTime)],
+            queue: .main
+        ) { [weak self] in
+            Task { @MainActor [weak self] in
+                print("[AudioPlayer] Boundary observer FIRED at \(String(format: "%.3f", time))")
+                self?.onBoundaryReached?()
+            }
+        }
+        boundaryObserverToken = token
+        print("[AudioPlayer] Boundary installed at \(String(format: "%.3f", time))")
+    }
+
+    /// Remove the current boundary time observer
+    func removeBoundaryObserver() {
+        if let token = boundaryObserverToken {
+            player?.removeTimeObserver(token)
+            boundaryObserverToken = nil
+        }
+    }
+
+    // MARK: - Audio Mix (Segment Fade-Out)
+
+    /// Apply an AVAudioMix that fades volume to 0 at the segment end time.
+    /// This operates at the decode level — before Core Audio and HDMI output buffers —
+    /// guaranteeing no audio bleed regardless of output pipeline latency.
+    /// - Parameters:
+    ///   - fadeStartTime: When to start fading (seconds into the audio file)
+    ///   - fadeEndTime: When volume should reach 0 (seconds into the audio file)
+    func applySegmentFadeOut(fadeStartTime: Double, fadeEndTime: Double) {
+        guard let item = player?.currentItem else {
+            print("[AudioPlayer] Fade NOT applied - no current item")
+            return
+        }
+
+        // Load audio tracks asynchronously (required for remote URLs)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let tracks: [AVAssetTrack]
+            if #available(iOS 15.0, tvOS 15.0, *) {
+                guard let loaded = try? await item.asset.loadTracks(withMediaType: .audio) else {
+                    print("[AudioPlayer] Fade NOT applied - no audio track (async)")
+                    return
+                }
+                tracks = loaded
+            } else {
+                tracks = item.asset.tracks(withMediaType: .audio)
+            }
+            guard let audioTrack = tracks.first else {
+                print("[AudioPlayer] Fade NOT applied - no audio track")
+                return
+            }
+
+            let params = AVMutableAudioMixInputParameters(track: audioTrack)
+            let start = CMTime(seconds: fadeStartTime, preferredTimescale: 600)
+            let end = CMTime(seconds: fadeEndTime, preferredTimescale: 600)
+            params.setVolumeRamp(fromStartVolume: Float(self.targetVolume), toEndVolume: 0, timeRange: CMTimeRange(start: start, end: end))
+
+            let mix = AVMutableAudioMix()
+            mix.inputParameters = [params]
+            item.audioMix = mix
+            print("[AudioPlayer] Fade applied: \(String(format: "%.3f", fadeStartTime)) → \(String(format: "%.3f", fadeEndTime))")
+        }
+    }
+
+    /// Remove any audio mix from the current item (restores normal playback volume).
+    func clearAudioMix() {
+        player?.currentItem?.audioMix = nil
+    }
+
     private func installTimeObserver(on player: AVPlayer) {
         let token = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.1, preferredTimescale: 600), queue: .main) {
             [weak self] time in
@@ -647,6 +737,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         if let token = timeObserverToken {
             player?.removeTimeObserver(token)
             timeObserverToken = nil
+        }
+        if let token = boundaryObserverToken {
+            player?.removeTimeObserver(token)
+            boundaryObserverToken = nil
         }
         if let observer = endObserver {
             NotificationCenter.default.removeObserver(observer)
