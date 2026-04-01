@@ -283,22 +283,18 @@ extension InteractivePlayerViewModel {
         if let seekTime {
             audioCoordinator.seek(to: seekTime) { [weak self] finished in
                 guard let self else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-                    guard let self else { return }
-                    // Re-check token after async delay
-                    guard transitionToken == self.currentTransitionToken else {
-                        if Self.sequenceDebug {
-                            print("[Sequence] Ignoring stale transition completion after seek (token \(transitionToken) != current \(self.currentTransitionToken))")
-                        }
-                        return
+                guard transitionToken == self.currentTransitionToken else {
+                    if Self.sequenceDebug {
+                        print("[Sequence] Ignoring stale transition completion after seek (token \(transitionToken) != current \(self.currentTransitionToken))")
                     }
-                    self.sequenceController.endTransition(expectedTime: seekTime)
-                    self.readyCancellable?.cancel()
-                    self.readyCancellable = nil
-                    self.audioCoordinator.restoreVolume()
-                    if shouldPlay {
-                        self.audioCoordinator.play()
-                    }
+                    return
+                }
+                self.sequenceController.endTransition(expectedTime: seekTime)
+                self.readyCancellable?.cancel()
+                self.readyCancellable = nil
+                self.audioCoordinator.restoreVolume()
+                if shouldPlay {
+                    self.audioCoordinator.play()
                 }
             }
         } else {

@@ -296,6 +296,9 @@ extension InteractivePlayerViewModel {
     func handlePlaybackEnded() {
         guard let chunk = selectedChunk,
               let nextChunk = jobContext?.nextChunk(after: chunk.id) else {
+            // No next chunk — end of book. Stop narration audio so the reading bed
+            // observes isPlaybackRequested == false and pauses.
+            audioCoordinator.pause()
             return
         }
         selectChunk(id: nextChunk.id, autoPlay: true)

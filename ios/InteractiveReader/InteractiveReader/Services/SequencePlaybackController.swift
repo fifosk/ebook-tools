@@ -490,11 +490,10 @@ final class SequencePlaybackController: ObservableObject {
                     }
                     phase = .playing
                 } else if state.settlingCount >= maxSettlingCount {
-                    // Timeout - AVPlayer is still reporting stale times
-                    // Ensure we're at segment 0
-                    currentSegmentIndex = 0
-                    currentTrack = plan.first?.track ?? .original
-
+                    // Timeout — AVPlayer time hasn't reached the expected position.
+                    // Do NOT reset currentSegmentIndex/currentTrack — they were set
+                    // correctly by seekToSentence() or advanceToNextSegment().
+                    // Resetting to segment 0 was the root cause of the desync on resume.
                     state.reseekAttempts += 1
                     if state.reseekAttempts <= maxReseekAttempts {
                         // Request a re-seek to segment start
