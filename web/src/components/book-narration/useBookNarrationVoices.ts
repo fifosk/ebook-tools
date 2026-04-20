@@ -152,14 +152,23 @@ export function useBookNarrationVoices({
 
       const extras: MenuOption[] = [];
       const normalizedCode = languageCode.toLowerCase();
-
-      const gttsMatches = voiceInventory.gtts.filter((entry) => {
-        const entryCode = entry.code.toLowerCase();
-        if (entryCode === normalizedCode) {
+      // Base code stripped of region: "zh-CN" → "zh", "en_US" → "en". This
+      // normalises the dash/underscore separator mismatch between the
+      // frontend's IETF-style codes (zh-CN) and Piper's locale codes (zh_CN).
+      const baseCode = normalizedCode.split(/[-_]/)[0];
+      const langMatches = (voiceLangRaw: string): boolean => {
+        const voiceLang = (voiceLangRaw || '').toLowerCase();
+        if (!voiceLang || !normalizedCode) {
+          return false;
+        }
+        if (voiceLang === normalizedCode) {
           return true;
         }
-        return entryCode.startsWith(`${normalizedCode}-`) || entryCode.startsWith(`${normalizedCode}_`);
-      });
+        const voiceBase = voiceLang.split(/[-_]/)[0];
+        return voiceBase === baseCode;
+      };
+
+      const gttsMatches = voiceInventory.gtts.filter((entry) => langMatches(entry.code));
       const seenGtts = new Set<string>();
       for (const entry of gttsMatches) {
         const shortCode = entry.code.split(/[-_]/)[0].toLowerCase();
@@ -171,14 +180,7 @@ export function useBookNarrationVoices({
         extras.push({ value: identifier, label: `gTTS (${entry.name})`, description: 'gTTS voice' });
       }
 
-      const macVoices = voiceInventory.macos.filter((voice) => {
-        const voiceLang = voice.lang.toLowerCase();
-        return (
-          voiceLang === normalizedCode ||
-          voiceLang.startsWith(`${normalizedCode}-`) ||
-          voiceLang.startsWith(`${normalizedCode}_`)
-        );
-      });
+      const macVoices = voiceInventory.macos.filter((voice) => langMatches(voice.lang));
       macVoices
         .slice()
         .sort((a, b) => a.name.localeCompare(b.name))
@@ -191,15 +193,7 @@ export function useBookNarrationVoices({
         });
 
       // Add Piper voices matching the language
-      const piperVoices = (voiceInventory.piper ?? []).filter((voice) => {
-        const voiceLang = voice.lang.toLowerCase();
-        // Piper voices use format like "en_US", so check prefix
-        return (
-          voiceLang === normalizedCode ||
-          voiceLang.startsWith(`${normalizedCode}_`) ||
-          voiceLang.startsWith(`${normalizedCode}-`)
-        );
-      });
+      const piperVoices = (voiceInventory.piper ?? []).filter((voice) => langMatches(voice.lang));
       piperVoices
         .slice()
         .sort((a, b) => a.name.localeCompare(b.name))

@@ -1132,16 +1132,22 @@ export default function VideoDubbingPage({
       return base;
     }
     const targetCode = (targetLanguageCode || '').toLowerCase();
+    // Base code stripped of region: "zh-CN" → "zh", "en_US" → "en". Matches
+    // whether the voice source uses dash (gTTS) or underscore (Piper) as the
+    // separator.
+    const targetBase = targetCode.split(/[-_]/)[0];
     const matchesTarget = (lang: string): boolean => {
       if (!targetCode) {
         return true;
       }
       const normalized = (lang || '').toLowerCase();
-      return (
-        normalized === targetCode ||
-        normalized.startsWith(`${targetCode}-`) ||
-        normalized.startsWith(`${targetCode}_`)
-      );
+      if (!normalized) {
+        return false;
+      }
+      if (normalized === targetCode) {
+        return true;
+      }
+      return normalized.split(/[-_]/)[0] === targetBase;
     };
 
     // macOS system voices (available when running the backend on macOS)
