@@ -27,6 +27,7 @@ dependencies = [
     "pypinyin>=0.50,<1",
     "pykakasi>=2.2,<3",
     "hangul-romanize>=0.1,<1",
+    "pythainlp>=4.1,<6",
     "yt-dlp>=2024.8,<2025.0",
     "PyJWT[crypto]>=2.8,<3",
     "httpx[http2]>=0.27,<1",

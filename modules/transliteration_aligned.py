@@ -57,6 +57,7 @@ _CJK_PUNCT_TO_ASCII = {
 _HAN_RANGE = re.compile(r"[\u3400-\u9fff]")
 _HIRAGANA_KATAKANA = re.compile(r"[\u3040-\u30ff]")
 _HANGUL = re.compile(r"[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]")
+_THAI_RANGE = re.compile(r"[\u0e00-\u0e7f]")
 
 
 def _normalize_language(value: str) -> str:
@@ -68,12 +69,16 @@ def _normalize_language(value: str) -> str:
         return "japanese"
     if lowered in {"ko", "kor", "korean"}:
         return "korean"
+    if lowered in {"th", "tha", "thai"}:
+        return "thai"
     if "chinese" in lowered:
         return "chinese"
     if "japanese" in lowered:
         return "japanese"
     if "korean" in lowered:
         return "korean"
+    if "thai" in lowered:
+        return "thai"
     return ""
 
 
@@ -139,6 +144,46 @@ def _japanese_word_aligned(translation: str) -> Optional[str]:
     return " ".join(out)
 
 
+def _thai_word_aligned(translation: str) -> Optional[str]:
+    """Return hyphen-joined RTGS romanization, one token per space-separated Thai word.
+
+    Uses ``pythainlp.transliterate.romanize`` (Royal Thai General System) on
+    each syllable of each LLM-spaced word. Syllables within a word are
+    hyphen-joined; words are space-separated. Returns None when pythainlp
+    is unavailable or the input has no Thai characters.
+    """
+    if not _THAI_RANGE.search(translation):
+        return None
+    try:
+        from pythainlp.transliterate import romanize
+        from pythainlp.tokenize import syllable_tokenize
+    except ImportError:
+        return None
+
+    out: list[str] = []
+    for word in translation.split():
+        if not _THAI_RANGE.search(word):
+            out.append(_map_punct(word))
+            continue
+        try:
+            syllables = syllable_tokenize(word) or [word]
+        except Exception:
+            syllables = [word]
+        romanized = []
+        for s in syllables:
+            s = s.strip()
+            if not s:
+                continue
+            try:
+                r = romanize(s).strip()
+            except Exception:
+                r = ""
+            if r:
+                romanized.append(r.replace(" ", ""))
+        out.append("-".join(romanized) if romanized else word)
+    return " ".join(out)
+
+
 def _korean_word_aligned(translation: str) -> Optional[str]:
     """Return hyphen-joined romanization, one token per space-separated Korean word.
 
@@ -198,6 +243,8 @@ def generate_word_aligned_transliteration(
         return _japanese_word_aligned(translation)
     if key == "korean":
         return _korean_word_aligned(translation)
+    if key == "thai":
+        return _thai_word_aligned(translation)
     return None
 
 
