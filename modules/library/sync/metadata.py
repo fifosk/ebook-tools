@@ -124,6 +124,8 @@ def build_entry(
         apply_video_defaults(metadata, job_root)
     elif metadata["item_type"] == "narrated_subtitle":
         apply_narrated_subtitle_defaults(metadata, job_root)
+    elif metadata["item_type"] == "periodical":
+        apply_periodical_defaults(metadata, job_root)
     elif metadata["item_type"] == "book":
         apply_book_defaults(metadata, job_root)
 
@@ -182,7 +184,7 @@ def infer_item_type(metadata: Mapping[str, Any]) -> str:
     explicit = metadata.get("item_type")
     if isinstance(explicit, str):
         normalized = explicit.strip().lower()
-        if normalized in {"book", "video", "narrated_subtitle"}:
+        if normalized in {"book", "video", "narrated_subtitle", "periodical"}:
             return normalized
 
     job_type = metadata.get("job_type")
@@ -373,6 +375,44 @@ def apply_narrated_subtitle_defaults(metadata: Dict[str, Any], job_root: Path) -
         metadata.setdefault("target_language", language_candidate.strip())
         metadata.setdefault("translation_language", language_candidate.strip())
         metadata.setdefault("target_languages", [language_candidate.strip()])
+
+    source_relative = file_ops.resolve_source_relative(metadata, job_root)
+    if source_relative:
+        apply_source_reference(metadata, source_relative)
+
+
+def apply_periodical_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
+    """Populate sensible defaults for periodical (magazine/newspaper) entries."""
+
+    metadata["item_type"] = "periodical"
+
+    def _set_if_blank(key: str, value: Optional[str]) -> None:
+        if value is None:
+            return
+        trimmed = value.strip()
+        if not trimmed:
+            return
+        current = metadata.get(key)
+        if current is None:
+            metadata[key] = trimmed
+            return
+        if isinstance(current, str) and not current.strip():
+            metadata[key] = trimmed
+
+    _set_if_blank("author", metadata.get("publication_name"))
+    _set_if_blank("genre", "Periodical")
+
+    issue_date = metadata.get("issue_date")
+    if isinstance(issue_date, str) and issue_date.strip():
+        metadata.setdefault("issue_date", issue_date.strip())
+
+    frequency = metadata.get("frequency")
+    if isinstance(frequency, str) and frequency.strip():
+        metadata.setdefault("frequency", frequency.strip())
+
+    series_name = metadata.get("series_name")
+    if isinstance(series_name, str) and series_name.strip():
+        metadata.setdefault("series_name", series_name.strip())
 
     source_relative = file_ops.resolve_source_relative(metadata, job_root)
     if source_relative:
@@ -733,6 +773,7 @@ def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
 __all__ = [
     "apply_isbn",
     "apply_narrated_subtitle_defaults",
+    "apply_periodical_defaults",
     "apply_source_reference",
     "build_entry",
     "extract_isbn",

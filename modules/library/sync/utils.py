@@ -7,7 +7,7 @@ from typing import Any, Dict, Literal, Mapping, Optional, Type
 
 from conf.sync_config import SANITIZE_PATTERN
 
-LibraryStatus = Literal["finished", "paused"]
+LibraryStatus = Literal["finished", "paused", "missing"]
 
 def has_generated_media(payload: Mapping[str, Any]) -> bool:
     """Return True when ``payload`` describes at least one generated media file."""
@@ -65,6 +65,8 @@ def normalize_status(status: Any, *, error_cls: Type[Exception]) -> "LibraryStat
         return "finished"
     if candidate == "paused":
         return "paused"
+    if candidate == "missing":
+        return "missing"
     raise error_cls(f"Unsupported library status '{status}'")
 
 

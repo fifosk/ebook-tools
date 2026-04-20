@@ -117,11 +117,14 @@ extension InteractiveTranscriptView {
     }
 
     var backgroundPlaybackTapGesture: some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
+        // NOTE: Use SpatialTapGesture (iOS 16+) rather than DragGesture(minimumDistance: 0).
+        // The DragGesture pattern was firing `.onEnded` spuriously (no physical tap)
+        // during iPad split-view layout changes and SwiftUI gesture-system glitches —
+        // causing mid-sentence pauses. SpatialTapGesture requires an actual finger-lift
+        // tap event from UIKit, which eliminates these synthesized fires.
+        SpatialTapGesture(count: 1, coordinateSpace: .named(TextPlayerTokenCoordinateSpace.name))
             .onEnded { value in
                 guard !suppressPlaybackToggle else { return }
-                let distance = hypot(value.translation.width, value.translation.height)
-                guard distance < 8 else { return }
                 let location = value.location
                 if bubble != nil, bubbleFrame.contains(location) {
                     return

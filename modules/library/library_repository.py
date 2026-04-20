@@ -177,9 +177,18 @@ class LibraryRepository:
 
     def replace_entries(self, entries: Sequence[LibraryEntry]) -> None:
         with self.connect() as connection:
-            connection.execute("DELETE FROM library_items")
-            connection.execute("DELETE FROM books")
-            connection.execute("DELETE FROM library_item_grants")
+            # Preserve periodical entries — managed by magazine registration
+            connection.execute(
+                "DELETE FROM library_item_grants WHERE entry_id IN "
+                "(SELECT id FROM library_items WHERE item_type != 'periodical')"
+            )
+            connection.execute(
+                "DELETE FROM books WHERE id IN "
+                "(SELECT id FROM library_items WHERE item_type != 'periodical')"
+            )
+            connection.execute(
+                "DELETE FROM library_items WHERE item_type != 'periodical'"
+            )
             library_rows = [
                 self._entry_to_db_row(entry)
                 for entry in entries

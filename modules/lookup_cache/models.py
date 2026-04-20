@@ -206,15 +206,74 @@ class LookupCache:
     def get(self, word: str) -> Optional[LookupCacheEntry]:
         """Look up a word in the cache.
 
+        Tries multiple matching strategies:
+        1. Direct lookup by current normalize_word() result.
+        2. Re-normalized index (rebuilds keys with current normalization rules).
+           Handles existing caches that were built with older normalization
+           rules (e.g., cache keys retained Arabic punctuation like 'آسفة،'
+           that current rules would strip).
+        3. Word-parts fallback (splits on internal punctuation). Handles
+           tokens like "qu'elle" where the cache stores "qu"/"elle" separately.
+
         Args:
             word: Word to look up (will be normalized).
 
         Returns:
             Cache entry if found, None otherwise.
         """
-        from .tokenizer import normalize_word
+        from .tokenizer import extract_words, normalize_word
+
         normalized = normalize_word(word)
-        return self.entries.get(normalized)
+        if not normalized:
+            return None
+
+        # Strategy 1: direct lookup
+        entry = self.entries.get(normalized)
+        if entry is not None:
+            return entry
+
+        # Strategy 2: re-normalized index lookup (built lazily).
+        # This reindexes existing cache keys under current normalization rules,
+        # so old caches with stale punctuation in keys still match new queries.
+        reindex = self._get_renormalized_index()
+        entry = reindex.get(normalized)
+        if entry is not None:
+            return entry
+
+        # Strategy 3: word-parts fallback for contractions/hyphenated words.
+        parts = extract_words(word, self.input_language)
+        for part in parts:
+            part_normalized = normalize_word(part)
+            if not part_normalized or part_normalized == normalized:
+                continue
+            entry = self.entries.get(part_normalized) or reindex.get(part_normalized)
+            if entry is not None:
+                return entry
+
+        return None
+
+    def _get_renormalized_index(self) -> Dict[str, "LookupCacheEntry"]:
+        """Lazy secondary index with keys re-normalized under current rules.
+
+        Cached on the instance; cleared automatically if entries are modified
+        via add() or entries changes the length.
+        """
+        from .tokenizer import normalize_word
+
+        cached = getattr(self, "_renormalized_cache", None)
+        cached_len = getattr(self, "_renormalized_cache_len", -1)
+        if cached is not None and cached_len == len(self.entries):
+            return cached
+
+        rebuilt: Dict[str, "LookupCacheEntry"] = {}
+        for key, entry in self.entries.items():
+            renorm = normalize_word(key)
+            if renorm and renorm != key and renorm not in self.entries:
+                rebuilt.setdefault(renorm, entry)
+        # Use object.__setattr__ so this works on frozen/slots dataclasses if used
+        object.__setattr__(self, "_renormalized_cache", rebuilt)
+        object.__setattr__(self, "_renormalized_cache_len", len(self.entries))
+        return rebuilt
 
     def add(self, entry: LookupCacheEntry) -> None:
         """Add or update a cache entry.

@@ -289,6 +289,31 @@ extension InteractivePlayerViewModel {
                     }
                     return
                 }
+                // Verify the playhead actually landed at seekTime before starting playback.
+                // AVPlayer's seek completion with zero tolerance should guarantee this, but
+                // on initial-load and cross-file seeks we've observed the read head linger
+                // at a stale position briefly. If the reported position is off by more than
+                // 100ms, re-seek once to force alignment. This prevents the "audio lags
+                // behind highlighted text" desync on resume/first-play.
+                let observed = self.audioCoordinator.currentTime
+                let drift = abs(observed - seekTime)
+                if drift > 0.1 {
+                    if Self.sequenceDebug {
+                        print("[Sequence] Seek drift detected: observed=\(String(format: "%.3f", observed)) expected=\(String(format: "%.3f", seekTime)) drift=\(String(format: "%.3f", drift))s — re-seeking")
+                    }
+                    self.audioCoordinator.seek(to: seekTime) { [weak self] _ in
+                        guard let self else { return }
+                        guard transitionToken == self.currentTransitionToken else { return }
+                        self.sequenceController.endTransition(expectedTime: seekTime)
+                        self.readyCancellable?.cancel()
+                        self.readyCancellable = nil
+                        self.audioCoordinator.restoreVolume()
+                        if shouldPlay {
+                            self.audioCoordinator.play()
+                        }
+                    }
+                    return
+                }
                 self.sequenceController.endTransition(expectedTime: seekTime)
                 self.readyCancellable?.cancel()
                 self.readyCancellable = nil

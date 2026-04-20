@@ -218,8 +218,14 @@ def normalize_word(word: str) -> str:
 
     # Remove common punctuation at word boundaries
     # But preserve internal characters (e.g., hyphenated words)
-    # Include various Unicode quotation marks
-    punct_chars = ".,;:!?\"'()[]{}«»\u201E\u201C\u201F\u2018\u201A\u2019\u201B"
+    # Include Latin, Arabic, CJK quotation marks and punctuation
+    punct_chars = (
+        ".,;:!?\"'()[]{}«»"
+        "\u201E\u201C\u201F\u2018\u201A\u2019\u201B"  # Smart quotes
+        "\u060C\u061B\u061F\u066A\u066B\u066C\u066D"  # Arabic: ، ؛ ؟ ٪ ٫ ٬ ٭
+        "\u3001\u3002\uFF0C\uFF0E\uFF1B\uFF1F\uFF01"  # CJK: 、 。 , . ; ? !
+        "\u2013\u2014\u2015"                          # Dashes: – — ―
+    )
     normalized = normalized.strip(punct_chars)
 
     return normalized

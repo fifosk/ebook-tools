@@ -112,6 +112,21 @@ final class InteractivePlayerViewModel: ObservableObject {
             self?.handlePlaybackEnded()
         }
 
+        // Persistent-stall recovery: AVPlayer streams that exhaust their buffer
+        // near end-of-file (last ~500ms not yet downloaded) stall indefinitely.
+        // When that happens, advance the sequence to unblock the user — we
+        // lose the trailing snippet but avoid a total stuck state.
+        audioCoordinator.onPersistentStall = { [weak self] in
+            guard let self else { return }
+            guard self.sequenceController.isEnabled else {
+                // Not in sequence mode — treat as playback-ended and advance chunk.
+                self.handlePlaybackEnded()
+                return
+            }
+            print("[Sequence] Persistent stall recovery — force-advancing segment")
+            _ = self.sequenceController.advanceToNextSegment()
+        }
+
         // Set up sequence controller callbacks
         sequenceController.onTrackSwitch = { [weak self] track, time in
             Task { @MainActor [weak self] in

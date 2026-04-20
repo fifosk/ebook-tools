@@ -364,6 +364,22 @@ extension InteractivePlayerViewModel {
                 return
             }
 
+            // CRITICAL: verify the sequence plan was built for THIS chunk. If the
+            // selected chunk changed (e.g., adjacent chunk preload, resume to a
+            // different chunk) without rebuilding the plan, seekToSentence would
+            // return timings from the wrong audio file — causing audio and text
+            // to play different sentences.
+            let chunkOriginalURL = chunk.audioOptions.first(where: { $0.kind == .original })?.primaryURL
+            if let chunkOriginalURL,
+               sequenceController.originalTrackURL != chunkOriginalURL {
+                print("[Sequence] Plan is stale — sequenceController has \(sequenceController.originalTrackURL?.lastPathComponent ?? "nil") but chunk needs \(chunkOriginalURL.lastPathComponent). Rebuilding plan for target sentence \(targetSentenceIndex).")
+                // Rebuild the plan + reload audio for the correct chunk, then the
+                // seek target is computed against the fresh plan.
+                prepareAudio(for: chunk, autoPlay: true, targetSentenceIndex: targetSentenceIndex)
+                pendingSentenceJump = nil
+                return
+            }
+
             // Check if we're already at this sentence (might have been handled by configureSequencePlayback)
             if let currentIdx = sequenceController.currentSentenceIndex, currentIdx == targetSentenceIndex {
                 print("[Sequence] Already at target sentence \(targetSentenceIndex), clearing pending jump")
@@ -403,25 +419,11 @@ extension InteractivePlayerViewModel {
                 // NOTE: We don't pause here to avoid triggering reading bed pause
                 let wasPlaying = audioCoordinator.isPlaying
                 audioCoordinator.setVolume(0)
-                audioCoordinator.seek(to: target.time) { [weak self] finished in
-                    guard let self else { return }
-                    print("[Sequence] Within-chunk seek completed (finished=\(finished))")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-                        guard let self else { return }
-                        // Check if this transition has been superseded
-                        guard token == self.currentTransitionToken else {
-                            print("[Sequence] Ignoring stale within-chunk seek completion (token \(token) != current \(self.currentTransitionToken))")
-                            return
-                        }
-                        self.sequenceController.endTransition(expectedTime: target.time)
-                        // Restore volume to target level (respects music mix setting)
-                        self.audioCoordinator.restoreVolume()
-                        // Resume playback if it was playing (in case seek caused a pause)
-                        if wasPlaying && !self.audioCoordinator.isPlaying {
-                            self.audioCoordinator.play()
-                        }
-                    }
-                }
+                self.performWithinChunkSeekWithDriftCheck(
+                    to: target.time,
+                    wasPlaying: wasPlaying,
+                    token: token
+                )
             }
             return
         }
@@ -430,6 +432,50 @@ extension InteractivePlayerViewModel {
         guard let startTime = startTimeForSentence(pending.sentenceNumber, in: chunk) else { return }
         pendingSentenceJump = nil
         seekPlayback(to: startTime, in: chunk)
+    }
+
+    /// Perform a within-chunk seek with drift verification. Fixes audio-vs-text
+    /// desync on resume: AVPlayer's seek completion can fire while the internal
+    /// read head is still at an older position, so when play() resumes we can
+    /// briefly hear content from before the intended sentence. We re-check the
+    /// observed currentTime after the seek completion; if it's off by more than
+    /// 100ms we force a second seek before resuming playback.
+    private func performWithinChunkSeekWithDriftCheck(
+        to seekTime: Double,
+        wasPlaying: Bool,
+        token: Int
+    ) {
+        audioCoordinator.seek(to: seekTime) { [weak self] finished in
+            guard let self else { return }
+            print("[Sequence] Within-chunk seek completed (finished=\(finished))")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                guard let self else { return }
+                guard token == self.currentTransitionToken else {
+                    print("[Sequence] Ignoring stale within-chunk seek completion (token \(token) != current \(self.currentTransitionToken))")
+                    return
+                }
+                let observed = self.audioCoordinator.currentTime
+                let drift = abs(observed - seekTime)
+                if drift > 0.1 {
+                    print("[Sequence] Within-chunk seek drift: observed=\(String(format: "%.3f", observed)) expected=\(String(format: "%.3f", seekTime)) — re-seeking")
+                    self.audioCoordinator.seek(to: seekTime) { [weak self] _ in
+                        guard let self else { return }
+                        guard token == self.currentTransitionToken else { return }
+                        self.finalizeWithinChunkSeek(seekTime: seekTime, wasPlaying: wasPlaying)
+                    }
+                    return
+                }
+                self.finalizeWithinChunkSeek(seekTime: seekTime, wasPlaying: wasPlaying)
+            }
+        }
+    }
+
+    private func finalizeWithinChunkSeek(seekTime: Double, wasPlaying: Bool) {
+        self.sequenceController.endTransition(expectedTime: seekTime)
+        self.audioCoordinator.restoreVolume()
+        if wasPlaying && !self.audioCoordinator.isPlaying {
+            self.audioCoordinator.play()
+        }
     }
 
     func startTimeForSentence(_ sentenceNumber: Int, in chunk: InteractiveChunk) -> Double? {

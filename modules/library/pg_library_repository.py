@@ -160,9 +160,31 @@ class PgLibraryRepository:
 
     def replace_entries(self, entries: Sequence[LibraryEntry]) -> None:
         with get_db_session() as session:
-            session.execute(delete(LibraryItemGrantModel))
-            session.execute(delete(BookModel))
-            session.execute(delete(LibraryItemModel))
+            # Preserve periodical entries — they are managed by the
+            # magazine registration script, not by filesystem sync.
+            session.execute(
+                delete(LibraryItemGrantModel).where(
+                    LibraryItemGrantModel.entry_id.in_(
+                        select(LibraryItemModel.id).where(
+                            LibraryItemModel.item_type != "periodical"
+                        )
+                    )
+                )
+            )
+            session.execute(
+                delete(BookModel).where(
+                    BookModel.id.in_(
+                        select(LibraryItemModel.id).where(
+                            LibraryItemModel.item_type != "periodical"
+                        )
+                    )
+                )
+            )
+            session.execute(
+                delete(LibraryItemModel).where(
+                    LibraryItemModel.item_type != "periodical"
+                )
+            )
 
             for entry in entries:
                 item_model = self._entry_to_item_model(entry)

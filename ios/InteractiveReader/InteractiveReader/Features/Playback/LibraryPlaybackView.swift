@@ -49,6 +49,14 @@ struct LibraryPlaybackView: View {
             @MainActor in
             await loadEntry()
         }
+        .onChange(of: playbackMode) { _, newMode in
+            // Re-apply the start-over action when user taps "Start from Beginning"
+            // on an item that's already open (iPad split layout keeps the view mounted,
+            // so `.task(id: item.jobId)` doesn't re-run).
+            guard newMode == .startOver else { return }
+            resumeManager?.clearResumeEntry()
+            startPlaybackFromBeginning()
+        }
         .onReceive(viewModel.audioCoordinator.$currentTime) { newValue in
             updateNowPlayingPlayback(time: newValue)
         }
@@ -63,7 +71,11 @@ struct LibraryPlaybackView: View {
         }
         .onDisappear {
             persistResumeOnExit()
-            viewModel.audioCoordinator.reset()
+            // NOTE: Do NOT call audioCoordinator.reset() here. SwiftUI fires
+            // .onDisappear spuriously during iPad split-view layout changes,
+            // navigation transitions, and other non-teardown events — which
+            // would pause active playback mid-sentence. The AudioPlayerCoordinator's
+            // deinit handles teardown when the view model is truly deallocated.
             if scenePhase == .active {
                 nowPlaying.clear()
             }

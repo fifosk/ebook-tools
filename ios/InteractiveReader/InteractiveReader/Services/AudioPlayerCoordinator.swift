@@ -1,5 +1,8 @@
 import AVFoundation
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
 
 enum AudioPlaybackRole {
     case primary
@@ -23,6 +26,15 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     /// This preserves the user's volume mix setting across sentence/track transitions.
     private(set) var targetVolume: Double = 1.0
     var onPlaybackEnded: (() -> Void)?
+    /// Called when playback has been stalled (buffer starved) for an extended
+    /// period without recovery. The view layer can use this to force-advance
+    /// the sequence so the user isn't stuck on a broken segment.
+    var onPersistentStall: (() -> Void)?
+    // Stall recovery tracking
+    private var firstStallAt: Date?
+    private var stallCountAtCurrentTime: Int = 0
+    private var lastStallCurrentTime: Double = -1
+    private var stallRecoveryTask: Task<Void, Never>?
 
     let role: AudioPlaybackRole
     private var shouldLoop = false
@@ -80,6 +92,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         let items = sanitized.enumerated().map { index, url -> AVPlayerItem in
             let item = AVPlayerItem(url: url)
             item.audioTimePitchAlgorithm = .timeDomain
+            // Force AVPlayer to buffer the whole ~30s MP3 instead of stalling 500ms
+            // before EOF waiting for the tail. Our sentences are short; buffering
+            // the full file costs ~500KB per item and eliminates end-of-file stalls.
+            item.preferredForwardBufferDuration = 60
             let identifier = ObjectIdentifier(item)
             itemURLMap[identifier] = url
             itemOrder[identifier] = index
@@ -91,6 +107,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         } else {
             player = AVPlayer(playerItem: items[0])
         }
+        // Disable built-in stall-avoidance waits: we prefer playImmediately() to
+        // proceed with whatever buffer we have, combined with the larger
+        // preferredForwardBufferDuration above to keep the buffer full.
+        player.automaticallyWaitsToMinimizeStalling = false
         self.player = player
         player.volume = Float(volume)
         observeTimeControlStatus(for: player)
@@ -122,13 +142,27 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             player.rate = Float(playbackRate)
         }
         isPlaying = true
+        setIdleTimerDisabled(true)
     }
 
     func pause() {
+        // Log call stack to identify unexpected pause sources. Filter out our own
+        // frame and show the first ~4 app frames after it.
+        let frames = Thread.callStackSymbols
+            .dropFirst(1) // drop the pause() frame itself
+            .prefix(4)
+            .compactMap { frame -> String? in
+                // Extract just the symbol from full frame line
+                let components = frame.split(separator: " ", omittingEmptySubsequences: true)
+                guard components.count >= 4 else { return frame }
+                return components.dropFirst(3).joined(separator: " ")
+            }
+        print("[AudioPlayer] pause() role=\(role) isPlaying=\(isPlaying) t=\(String(format: "%.3f", currentTime)) caller=[\(frames.joined(separator: " ← "))]")
         player?.pause()
         isPlaying = false
         isPlaybackRequested = false
         AudioPlaybackRegistry.shared.endPlayback(for: self)
+        setIdleTimerDisabled(false)
     }
 
     /// Pause playback temporarily without clearing isPlaybackRequested.
@@ -326,6 +360,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         let items = urlsFromTarget.enumerated().map { offset, url -> AVPlayerItem in
             let item = AVPlayerItem(url: url)
             item.audioTimePitchAlgorithm = .timeDomain
+            item.preferredForwardBufferDuration = 60
             let identifier = ObjectIdentifier(item)
             itemURLMap[identifier] = url
             itemOrder[identifier] = fileIndex + offset
@@ -338,6 +373,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         } else {
             player = AVPlayer(playerItem: items[0])
         }
+        player.automaticallyWaitsToMinimizeStalling = false
         self.player = player
         player.volume = Float(volume)
         observeTimeControlStatus(for: player)
@@ -529,16 +565,35 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     }
 
     private func observeTimeControlStatus(for player: AVPlayer) {
-        timeControlObservation = player.observe(\.timeControlStatus, options: [.new, .initial]) { [weak self] player, _ in
+        // Observe only `.new` — NOT `.initial`. The initial state of a freshly-created
+        // AVPlayer is .paused, which (fired asynchronously via Task) races with play()'s
+        // synchronous isPlaying=true assignment and can overwrite it back to false.
+        // The practical symptom was that the sequence time observer silently skipped
+        // updates (guarded on isPlaying), so the boundary observer for seg[0] never
+        // fired and audio played past its segment boundary while the view stayed frozen.
+        timeControlObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
             guard let self else { return }
             Task { @MainActor in
-                switch player.timeControlStatus {
+                // Also guard against stale async updates: only accept the transition
+                // if it still matches the player's current status when the task runs.
+                let current = player.timeControlStatus
+                switch current {
                 case .playing:
+                    if !self.isPlaying {
+                        print("[AudioPlayer] KVO .playing role=\(self.role) at t=\(String(format: "%.3f", self.currentTime))")
+                    }
                     self.isPlaying = true
                 case .paused:
-                    self.isPlaying = false
+                    // Do NOT unset isPlaying if play() was explicitly requested.
+                    // AVPlayer transiently reports .paused during rate changes / seeks
+                    // even when playback is intended. Only treat .paused as a real
+                    // pause when playback wasn't requested.
+                    print("[AudioPlayer] KVO .paused role=\(self.role) at t=\(String(format: "%.3f", self.currentTime)) isPlaybackRequested=\(self.isPlaybackRequested) wasPlaying=\(self.isPlaying)")
+                    if !self.isPlaybackRequested {
+                        self.isPlaying = false
+                    }
                 case .waitingToPlayAtSpecifiedRate:
-                    break
+                    print("[AudioPlayer] KVO .waitingToPlay role=\(self.role) at t=\(String(format: "%.3f", self.currentTime)) reason=\(String(describing: player.reasonForWaitingToPlay?.rawValue ?? "nil"))")
                 @unknown default:
                     break
                 }
@@ -637,7 +692,16 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.updateActiveURL()
-                self.currentTime = time.seconds
+                let newTime = time.seconds
+                // If playback progressed since the last stall, cancel any pending
+                // stall-recovery watchdog — AVPlayer recovered on its own.
+                if self.firstStallAt != nil, newTime > self.lastStallCurrentTime + 0.05 {
+                    self.firstStallAt = nil
+                    self.stallCountAtCurrentTime = 0
+                    self.stallRecoveryTask?.cancel()
+                    self.stallRecoveryTask = nil
+                }
+                self.currentTime = newTime
                 if let duration = self.player?.currentItem?.duration, duration.isNumeric {
                     self.duration = duration.seconds
                 }
@@ -675,6 +739,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 self.isPlaybackRequested = false
                 self.currentTime = 0
                 AudioPlaybackRegistry.shared.endPlayback(for: self)
+                self.setIdleTimerDisabled(false)
                 self.onPlaybackEnded?()
                 return
             }
@@ -719,6 +784,58 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 let errorURL = self.itemURLMap[ObjectIdentifier(errorItem)]
                 print("[AudioPlayer] Error log for \(errorURL?.absoluteString ?? "unknown"): status=\(logEvent.errorStatusCode) uri=\(logEvent.uri ?? "n/a") comment=\(logEvent.errorComment ?? "n/a")")
             }
+        }
+        // Observe playback stalls — fires when streaming buffer runs dry and
+        // playback is paused waiting for more data. Common cause of random
+        // mid-sentence pauses on slow networks.
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemPlaybackStalled,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                guard let self else { return }
+                guard let stalledItem = notification.object as? AVPlayerItem,
+                      self.itemURLMap[ObjectIdentifier(stalledItem)] != nil else {
+                    return
+                }
+                let stalledURL = self.itemURLMap[ObjectIdentifier(stalledItem)]
+                print("[AudioPlayer] STALLED role=\(self.role) at t=\(String(format: "%.3f", self.currentTime)) url=\(stalledURL?.lastPathComponent ?? "unknown") isPlaybackRequested=\(self.isPlaybackRequested)")
+                self.handleStall()
+            }
+        }
+    }
+
+    /// Track stall events and schedule a recovery if playback remains stuck at the
+    /// same position for more than 3 seconds. The stall notification fires repeatedly
+    /// while AVPlayer can't recover the stream (common near end-of-file when the last
+    /// bytes are slow to arrive), so we coalesce them into a single recovery trigger.
+    private func handleStall() {
+        // Only primary (narration) coordinator recovers; reading bed just drops.
+        guard role == .primary else { return }
+        guard isPlaybackRequested else { return }
+
+        if firstStallAt == nil || currentTime != lastStallCurrentTime {
+            // First stall for this position. Start a recovery watchdog.
+            firstStallAt = Date()
+            lastStallCurrentTime = currentTime
+            stallCountAtCurrentTime = 1
+            stallRecoveryTask?.cancel()
+            stallRecoveryTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                guard let self else { return }
+                guard !Task.isCancelled else { return }
+                // Still stuck at same time? Trigger recovery.
+                if self.lastStallCurrentTime == self.currentTime,
+                   self.isPlaybackRequested {
+                    print("[AudioPlayer] Persistent stall recovery: time stuck at \(String(format: "%.3f", self.currentTime)) for 3s, firing onPersistentStall")
+                    self.firstStallAt = nil
+                    self.stallCountAtCurrentTime = 0
+                    self.onPersistentStall?()
+                }
+            }
+        } else {
+            stallCountAtCurrentTime += 1
         }
     }
 
@@ -777,6 +894,17 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         if let index = itemOrder[identifier], currentFileIndex != index {
             currentFileIndex = index
         }
+    }
+
+    /// Prevent the screen from auto-locking while narration is playing.
+    /// Only the primary (narration) coordinator toggles this — ambient players
+    /// (reading bed) ignore it so they don't fight the primary. iOS only; tvOS
+    /// has no idle-lock concept.
+    private func setIdleTimerDisabled(_ disabled: Bool) {
+        #if os(iOS)
+        guard role == .primary else { return }
+        UIApplication.shared.isIdleTimerDisabled = disabled
+        #endif
     }
 }
 
