@@ -18,6 +18,7 @@ from modules import config_manager as cfg, logging_manager as log_mgr
 from modules import llm_batch, prompt_templates, text_normalization as text_norm
 from modules import translation_validation as tv
 from modules.text import align_token_counts
+from modules.transliteration_aligned import generate_word_aligned_transliteration
 from modules.llm_client import LLMClient
 from modules.retry_annotations import is_failure_annotation
 from modules.translation_logging import (
@@ -228,6 +229,21 @@ def parse_batch_translation_payload(
         transliteration = text_norm.collapse_whitespace(raw_transliteration.strip())
         if include_transliteration and transliteration and not text_norm.is_latin_heavy(transliteration):
             transliteration = ""
+
+        # Prefer deterministic per-word transliteration when available
+        # (currently Chinese via pypinyin; eliminates LLM alignment drift).
+        if (
+            align_tokens
+            and include_transliteration
+            and translation
+            and transliteration
+            and target_language
+        ):
+            deterministic = generate_word_aligned_transliteration(
+                translation, target_language
+            )
+            if deterministic:
+                transliteration = deterministic
 
         # Apply token alignment post-processing for CJK languages
         if (

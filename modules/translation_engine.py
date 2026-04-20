@@ -28,6 +28,7 @@ from modules import language_policies
 from modules import text_normalization as text_norm
 from modules import translation_validation as tv
 from modules.text import split_highlight_tokens, align_token_counts
+from modules.transliteration_aligned import generate_word_aligned_transliteration
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.llm_client import LLMClient
 from modules.transliteration import (
@@ -879,7 +880,15 @@ def start_translation_pipeline(
                 finally:
                     elapsed = time.perf_counter() - start_time
                     _log_translation_timing(start_sentence + index, elapsed, pool_mode)
-                # Apply token alignment for CJK languages
+                # Prefer deterministic per-word transliteration when available
+                # (currently Chinese via pypinyin); eliminates LLM alignment drift.
+                if translation and transliteration_text:
+                    deterministic = generate_word_aligned_transliteration(
+                        translation, target
+                    )
+                    if deterministic:
+                        transliteration_text = deterministic
+                # Apply token alignment for CJK languages (no-op if already aligned)
                 if translation and transliteration_text:
                     _, aligned_translit, _ = align_token_counts(
                         translation, transliteration_text, target
@@ -979,7 +988,13 @@ def start_translation_pipeline(
                     translation, transliteration = resolved_items.get(idx, ("", ""))
                     if include_transliteration_for_target and not transliteration:
                         transliteration = transliteration_map.get(idx, "")
-                    # Apply token alignment for CJK languages
+                    if translation and transliteration:
+                        deterministic = generate_word_aligned_transliteration(
+                            translation, target
+                        )
+                        if deterministic:
+                            transliteration = deterministic
+                    # Apply token alignment for CJK languages (no-op if already aligned)
                     if translation and transliteration:
                         _, aligned_translit, _ = align_token_counts(
                             translation, transliteration, target
@@ -1039,7 +1054,13 @@ def start_translation_pipeline(
                                 transliteration_text = text_norm.collapse_whitespace(
                                     (inline_transliteration or "").strip()
                                 )
-                                # Apply token alignment for CJK languages
+                                if translation_text and transliteration_text:
+                                    deterministic = generate_word_aligned_transliteration(
+                                        translation_text, target
+                                    )
+                                    if deterministic:
+                                        transliteration_text = deterministic
+                                # Apply token alignment for CJK languages (no-op if already aligned)
                                 if translation_text and transliteration_text:
                                     _, aligned_translit, _ = align_token_counts(
                                         translation_text, transliteration_text, target
