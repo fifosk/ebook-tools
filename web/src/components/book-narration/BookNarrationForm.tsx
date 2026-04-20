@@ -73,7 +73,9 @@ export function BookNarrationForm({
     inputLanguage: sharedInputLanguage,
     setInputLanguage: setSharedInputLanguage,
     targetLanguages: sharedTargetLanguages,
-    setTargetLanguages: setSharedTargetLanguages
+    setTargetLanguages: setSharedTargetLanguages,
+    enableLookupCache: sharedEnableLookupCache,
+    setEnableLookupCache: setSharedEnableLookupCache
   } = useLanguagePreferences();
   const hasPrefillAddImages = typeof prefillParameters?.add_images === 'boolean';
   const applyImageDefaults = useCallback(
@@ -133,7 +135,11 @@ export function BookNarrationForm({
     target_languages:
       sharedTargetLanguages.length > 0
         ? normalizeSingleTargetLanguages(sharedTargetLanguages)
-        : [...DEFAULT_FORM_STATE.target_languages]
+        : [...DEFAULT_FORM_STATE.target_languages],
+    enable_lookup_cache:
+      typeof sharedEnableLookupCache === 'boolean'
+        ? sharedEnableLookupCache
+        : DEFAULT_FORM_STATE.enable_lookup_cache
   }));
   useEffect(() => {
     setFormState((previous) => applyImageDefaults(previous));
@@ -599,6 +605,8 @@ export function BookNarrationForm({
       if (!areLanguageArraysEqual(sharedTargetLanguages, normalized)) {
         setSharedTargetLanguages(normalized);
       }
+    } else if (key === 'enable_lookup_cache' && typeof value === 'boolean') {
+      setSharedEnableLookupCache(value);
     }
   };
 

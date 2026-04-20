@@ -105,23 +105,79 @@ def _chinese_word_aligned(translation: str) -> Optional[str]:
 
 
 def _japanese_word_aligned(translation: str) -> Optional[str]:
-    """Placeholder: return None so caller falls back to LLM.
+    """Return hyphen-joined hepburn, one token per space-separated Japanese word.
 
-    TODO: use fugashi to re-segment the translation (in case spacing was lost)
-    and pykakasi to produce per-word hepburn, hyphen-join syllables within
-    each word (e.g. ``日本語`` → ``nihongo`` as a single hyphen-free token,
-    multi-word phrases use spaces between).
+    Uses ``pykakasi`` to convert each space-separated word to hepburn syllables.
+    pykakasi may return multiple entries per word when it recognizes internal
+    morpheme boundaries; we hyphen-join those entries to keep 1:1 token
+    alignment with the LLM-emitted translation spacing. Returns None when
+    pykakasi is unavailable or the input has no kana/kanji.
     """
-    return None
+    if not _HIRAGANA_KATAKANA.search(translation) and not _HAN_RANGE.search(translation):
+        return None
+    try:
+        import pykakasi
+    except ImportError:
+        return None
+
+    kks = pykakasi.kakasi()
+    out: list[str] = []
+    for word in translation.split():
+        # Words composed purely of ASCII/latin/punctuation are passed through
+        # (with CJK punctuation mapped). This preserves any romaji or numerics
+        # that the LLM may have left inline.
+        if not (_HIRAGANA_KATAKANA.search(word) or _HAN_RANGE.search(word)):
+            out.append(_map_punct(word))
+            continue
+        parts = kks.convert(word)
+        syllables = [
+            (p.get("hepburn") or "").strip()
+            for p in parts
+            if (p.get("hepburn") or "").strip()
+        ]
+        out.append("-".join(syllables) if syllables else word)
+    return " ".join(out)
 
 
 def _korean_word_aligned(translation: str) -> Optional[str]:
-    """Placeholder: return None so caller falls back to LLM.
+    """Return hyphen-joined romanization, one token per space-separated Korean word.
 
-    TODO: use hangul_romanize per syllable, then hyphen-join syllables within
-    each space-separated Korean word.
+    Uses ``hangul_romanize`` per-syllable so each Hangul syllable block becomes
+    one romanization unit; units within a word are hyphen-joined. Returns None
+    when hangul_romanize is unavailable or the input has no Hangul.
     """
-    return None
+    if not _HANGUL.search(translation):
+        return None
+    try:
+        from hangul_romanize import Transliter
+        from hangul_romanize.rule import academic
+    except ImportError:
+        return None
+
+    transliter = Transliter(academic)
+    out: list[str] = []
+    for word in translation.split():
+        if not _HANGUL.search(word):
+            out.append(_map_punct(word))
+            continue
+        # Per-syllable romanization so multi-syllable Korean words become
+        # hyphen-joined (한국어 → han-gug-eo rather than hanguk-eo as a single
+        # opaque run).
+        syllables: list[str] = []
+        for ch in word:
+            if "\uac00" <= ch <= "\ud7a3":
+                rom = transliter.translit(ch).strip()
+                if rom:
+                    syllables.append(rom)
+            # Jamo and compatibility jamo are rarer; let the transliter handle
+            # them as part of the whole-word fallback below.
+        if syllables:
+            out.append("-".join(syllables))
+        else:
+            # Fallback: whole-word romanize (covers jamo-only content).
+            whole = transliter.translit(word).strip()
+            out.append(whole.replace(" ", "-") if whole else word)
+    return " ".join(out)
 
 
 def generate_word_aligned_transliteration(

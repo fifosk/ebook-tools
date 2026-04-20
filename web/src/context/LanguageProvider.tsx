@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 function sanitizeLanguages(values: string[]): string[] {
   const normalized: string[] = [];
@@ -27,20 +27,85 @@ export interface LanguageContextValue {
   setTargetLanguages: (languages: string[]) => void;
   primaryTargetLanguage: string | null;
   setPrimaryTargetLanguage: (language: string) => void;
+  enableLookupCache: boolean;
+  setEnableLookupCache: (enabled: boolean) => void;
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 const DEFAULT_INPUT_LANGUAGE = 'English';
 const DEFAULT_TARGET_LANGUAGES = ['Arabic'];
+const DEFAULT_ENABLE_LOOKUP_CACHE = true;
+
+const STORAGE_KEY = 'ebookTools.bookJobDefaults.v1';
+
+type PersistedJobDefaults = {
+  inputLanguage?: string;
+  targetLanguages?: string[];
+  enableLookupCache?: boolean;
+};
+
+function readPersisted(): PersistedJobDefaults {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      return parsed as PersistedJobDefaults;
+    }
+  } catch {
+    // Ignore corrupted entries; fall back to defaults.
+  }
+  return {};
+}
+
+function writePersisted(value: PersistedJobDefaults): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // localStorage may be disabled (private browsing); ignore.
+  }
+}
 
 interface LanguageProviderProps {
   children: ReactNode;
 }
 
 export function LanguageProvider({ children }: LanguageProviderProps) {
-  const [inputLanguage, setInputLanguageState] = useState<string>(DEFAULT_INPUT_LANGUAGE);
-  const [targetLanguages, setTargetLanguagesState] = useState<string[]>(DEFAULT_TARGET_LANGUAGES);
+  const [inputLanguage, setInputLanguageState] = useState<string>(() => {
+    const stored = readPersisted().inputLanguage;
+    if (stored && typeof stored === 'string' && stored.trim()) {
+      return stored;
+    }
+    return DEFAULT_INPUT_LANGUAGE;
+  });
+  const [targetLanguages, setTargetLanguagesState] = useState<string[]>(() => {
+    const stored = readPersisted().targetLanguages;
+    if (Array.isArray(stored)) {
+      const sanitized = sanitizeLanguages(stored);
+      if (sanitized.length > 0) {
+        return sanitized;
+      }
+    }
+    return [...DEFAULT_TARGET_LANGUAGES];
+  });
+  const [enableLookupCache, setEnableLookupCacheState] = useState<boolean>(() => {
+    const stored = readPersisted().enableLookupCache;
+    return typeof stored === 'boolean' ? stored : DEFAULT_ENABLE_LOOKUP_CACHE;
+  });
+
+  // Mirror state → localStorage so returning users see their last choices.
+  useEffect(() => {
+    writePersisted({ inputLanguage, targetLanguages, enableLookupCache });
+  }, [inputLanguage, targetLanguages, enableLookupCache]);
 
   const setInputLanguage = useCallback((language: string) => {
     const next = language && language.trim() ? language : DEFAULT_INPUT_LANGUAGE;
@@ -76,6 +141,10 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
     });
   }, []);
 
+  const setEnableLookupCache = useCallback((enabled: boolean) => {
+    setEnableLookupCacheState(Boolean(enabled));
+  }, []);
+
   const contextValue = useMemo<LanguageContextValue>(() => {
     return {
       inputLanguage,
@@ -83,9 +152,19 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
       targetLanguages,
       setTargetLanguages,
       primaryTargetLanguage: targetLanguages.length > 0 ? targetLanguages[0] : null,
-      setPrimaryTargetLanguage
+      setPrimaryTargetLanguage,
+      enableLookupCache,
+      setEnableLookupCache
     };
-  }, [inputLanguage, setInputLanguage, targetLanguages, setTargetLanguages, setPrimaryTargetLanguage]);
+  }, [
+    inputLanguage,
+    setInputLanguage,
+    targetLanguages,
+    setTargetLanguages,
+    setPrimaryTargetLanguage,
+    enableLookupCache,
+    setEnableLookupCache
+  ]);
 
   return <LanguageContext.Provider value={contextValue}>{children}</LanguageContext.Provider>;
 }
