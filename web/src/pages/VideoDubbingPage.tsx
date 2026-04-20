@@ -1132,19 +1132,56 @@ export default function VideoDubbingPage({
       return base;
     }
     const targetCode = (targetLanguageCode || '').toLowerCase();
+    const matchesTarget = (lang: string): boolean => {
+      if (!targetCode) {
+        return true;
+      }
+      const normalized = (lang || '').toLowerCase();
+      return (
+        normalized === targetCode ||
+        normalized.startsWith(`${targetCode}-`) ||
+        normalized.startsWith(`${targetCode}_`)
+      );
+    };
+
+    // macOS system voices (available when running the backend on macOS)
     const macVoices = voiceInventory.macos
-      .filter((voice) => {
-        if (!targetCode) {
-          return true;
-        }
-        return voice.lang.toLowerCase().startsWith(targetCode);
-      })
+      .filter((voice) => matchesTarget(voice.lang))
       .map((voice) => ({
         value: formatMacOSVoiceIdentifier(voice),
         label: formatMacOSVoiceLabel(voice)
       }));
+
+    // Piper neural voices installed on the host
+    const piperVoices = (voiceInventory.piper ?? [])
+      .filter((voice) => matchesTarget(voice.lang))
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((voice) => ({
+        value: voice.name,
+        label: `Piper: ${voice.name}`
+      }));
+
+    // gTTS languages (one option per language code); use short code as identifier
+    const gttsSeen = new Set<string>();
+    const gttsVoices: { value: string; label: string }[] = [];
+    for (const entry of voiceInventory.gtts) {
+      const entryCode = entry.code.toLowerCase();
+      if (!matchesTarget(entryCode)) {
+        continue;
+      }
+      const shortCode = entryCode.split(/[-_]/)[0];
+      if (!shortCode || gttsSeen.has(shortCode)) {
+        continue;
+      }
+      gttsSeen.add(shortCode);
+      gttsVoices.push({ value: `gTTS-${shortCode}`, label: `gTTS (${entry.name})` });
+    }
+
     const merged = new Map<string, { value: string; label: string }>();
-    [...base, ...macVoices].forEach((entry) => merged.set(entry.value, entry));
+    [...base, ...macVoices, ...piperVoices, ...gttsVoices].forEach((entry) =>
+      merged.set(entry.value, entry)
+    );
     return Array.from(merged.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [targetLanguageCode, voiceInventory]);
 

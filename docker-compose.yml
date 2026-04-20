@@ -58,6 +58,7 @@ services:
       - /Volumes/Data/Download/Ebooks:/app/nas/ebooks:ro
       - /Volumes/Data/Download/DStation:/app/nas/videos
       - /Volumes/Data/Download/Subtitles:/app/nas/subtitles
+      - /Volumes/WD-1TB/ml-models/piper-voices:/app/piper-voices:ro
     tmpfs:
       - /app/tmp:size=1G,uid=1000,gid=1000
     environment:
@@ -74,7 +75,7 @@ services:
       # Override macOS-specific paths/values from PG config snapshot (use container defaults)
       - FFMPEG_PATH=ffmpeg
       - EBOOK_TTS_FALLBACK_VOICE=piper
-      - EBOOK_PIPER_MODELS_PATH=
+      - EBOOK_PIPER_MODELS_PATH=/app/piper-voices
       - EBOOK_WHISPERX_MODELS_PATH=
       - EBOOK_HF_CACHE_PATH=
       # PostgreSQL connection
