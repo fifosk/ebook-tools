@@ -42,9 +42,15 @@ _JAPANESE_PATTERN = regex.compile(r"[\p{Hiragana}\p{Katakana}\p{Han}]")
 _JAPANESE_RUN_PATTERN = regex.compile(
     r"[\p{Han}\p{Hiragana}\p{Katakana}ー]+|[A-Za-z0-9]+|[^\s]"
 )
+# Chinese uses Han only (no Hiragana/Katakana). Discriminate from Japanese so
+# CJK tokenization respects LLM-emitted word boundaries instead of re-segmenting
+# with fugashi (which misbehaves on Chinese input).
+_HAN_PATTERN = regex.compile(r"\p{Script=Han}")
+_KANA_PATTERN = regex.compile(r"[\p{Hiragana}\p{Katakana}]")
 _LATIN_OR_MARKS_PATTERN = regex.compile(r"^[\p{Latin}\p{M}0-9'’-]+$")
 _HYPHEN_NORMALIZATION = str.maketrans({"–": "-", "—": "-", "\u2011": "-"})
 _GRAPHEME_PATTERN = regex.compile(r"\X")
+_PUNCT_ONLY_PATTERN = regex.compile(r"^[\p{P}\p{S}]+$")
 
 
 def _is_separator(grapheme: str) -> bool:
@@ -54,6 +60,11 @@ def _is_separator(grapheme: str) -> bool:
         return True
     category = unicodedata.category(grapheme[0])
     return category.startswith("Z")
+
+
+def _is_content_token(token: str) -> bool:
+    """True when a whitespace token carries word content (not pure punctuation)."""
+    return bool(token) and not _PUNCT_ONLY_PATTERN.match(token)
 
 
 def split_highlight_tokens(text: str) -> List[str]:
@@ -76,11 +87,31 @@ def split_highlight_tokens(text: str) -> List[str]:
     stripped = text.strip()
     whitespace_tokens = [token for token in text.split() if token]
 
-    # Check if text has meaningful space segmentation (>= 2 tokens, avg length > 1 char)
+    # Compute "meaningful spaces" over CONTENT tokens only; punctuation is always
+    # 1 char and drags the average below 1.5 for sentences with normal punctuation.
+    content_tokens = [tok for tok in whitespace_tokens if _is_content_token(tok)]
     has_meaningful_spaces = (
-        len(whitespace_tokens) >= 2
-        and sum(len(tok) for tok in whitespace_tokens) / len(whitespace_tokens) > 1.5
+        len(content_tokens) >= 2
+        and sum(len(tok) for tok in content_tokens) / len(content_tokens) > 1.5
     )
+
+    is_chinese_only = (
+        _HAN_PATTERN.search(stripped) is not None
+        and _KANA_PATTERN.search(stripped) is None
+    )
+
+    # Pure Chinese with LLM-emitted word segmentation: respect it. Bypass the
+    # Japanese branch entirely — fugashi re-segments Chinese nonsensically and
+    # destroys the alignment with transliteration.
+    if is_chinese_only and len(content_tokens) >= 2:
+        # Respect spacing unless it's obvious per-character segmentation
+        # (most CONTENT tokens are single Chinese chars AND text is long enough
+        # to conclude the model is over-splitting)
+        single_char_content_ratio = (
+            sum(1 for tok in content_tokens if len(tok) == 1) / len(content_tokens)
+        )
+        if single_char_content_ratio < 0.75 or has_meaningful_spaces:
+            return whitespace_tokens
 
     # For CJK text with explicit meaningful spaces, respect them as word boundaries
     # This handles LLM-generated translations that already have proper segmentation
@@ -93,7 +124,8 @@ def split_highlight_tokens(text: str) -> List[str]:
             return whitespace_tokens
 
     # Japanese often arrives with per-character spacing/newlines; re-segment before returning raw whitespace tokens.
-    if _JAPANESE_PATTERN.search(stripped):
+    # Skip for pure Chinese (handled above) — fugashi destroys Chinese word boundaries.
+    if _JAPANESE_PATTERN.search(stripped) and not is_chinese_only:
         # If whitespace tokens look like per-character segmentation, collapse and retokenize.
         looks_char_spaced = bool(
             whitespace_tokens

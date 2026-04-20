@@ -46,8 +46,8 @@ _SEGMENTATION_REQUIREMENTS = {
     },
     "chinese": {
         "aliases": ("chinese", "zh", "zh-cn", "zh-tw"),
-        "example": "罗谢 带领 科勒 通过 无障碍 坡道",
-        "translit_example": "luo-xie dai-ling ke-le tong-guo wu-zhang-ai po-dao",
+        "example": "我 在 手指 尖 下 捏碎 了 一 块 饼干 。 — 两者 都 有 。",
+        "translit_example": "wo zai shou-zhi jian xia nie-sui le yi kuai bing-gan . — liang-zhe dou you .",
     },
 }
 
@@ -324,10 +324,14 @@ def make_translation_prompt(
             _SEGMENTATION_REQUIREMENTS["chinese"]["aliases"],
         ):
             instructions.append(
-                "PINYIN FORMATTING: Join ALL syllables of each Chinese word with HYPHENS, then separate different words with SPACES. "
-                "The pinyin token count MUST match the Chinese word count. "
-                "WRONG: 罗谢 带领 → luo xie dai ling (4 tokens). "
-                "CORRECT: 罗谢 带领 → luo-xie dai-ling (2 tokens)."
+                "PINYIN FORMATTING RULES (strict — highlighting depends on this alignment):\n"
+                "1. Split the Chinese translation into space-separated WORDS, including single-character words (在, 我, 的, 了, 一).\n"
+                "2. For each Chinese WORD, emit ONE pinyin token on the transliteration line; multi-syllable words use HYPHENS to join syllables, single-syllable words are one plain syllable.\n"
+                "3. Each punctuation character (。, ，, ？, !, —, .) is its OWN token on BOTH lines; copy punctuation as ASCII equivalents on the transliteration line.\n"
+                "4. After splitting on spaces, the Chinese line and the pinyin line MUST have the EXACT SAME number of tokens, in the same order.\n"
+                "5. NEVER hyphen-join across word boundaries. NEVER collapse multiple Chinese words into one pinyin run.\n"
+                "WRONG: 我 在 手指 尖 下 捏碎 → wo-zai-shou-zhi-jian-xia-nie-sui (1 token for 6 words).\n"
+                "CORRECT: 我 在 手指 尖 下 捏碎 → wo zai shou-zhi jian xia nie-sui (6 tokens for 6 words)."
             )
         if _language_matches_any(
             target_lower,
@@ -483,10 +487,14 @@ def make_translation_batch_prompt(
             _SEGMENTATION_REQUIREMENTS["chinese"]["aliases"],
         ):
             instructions.append(
-                "PINYIN FORMATTING: Join ALL syllables of each Chinese word with HYPHENS, then separate different words with SPACES. "
-                "The pinyin token count MUST match the Chinese word count. "
-                "WRONG: 罗谢 带领 → luo xie dai ling (4 tokens). "
-                "CORRECT: 罗谢 带领 → luo-xie dai-ling (2 tokens)."
+                "PINYIN FORMATTING RULES (strict — highlighting depends on this alignment):\n"
+                "1. Split the Chinese translation into space-separated WORDS, including single-character words (在, 我, 的, 了, 一).\n"
+                "2. For each Chinese WORD, emit ONE pinyin token on the transliteration line; multi-syllable words use HYPHENS to join syllables, single-syllable words are one plain syllable.\n"
+                "3. Each punctuation character (。, ，, ？, !, —, .) is its OWN token on BOTH lines; copy punctuation as ASCII equivalents on the transliteration line.\n"
+                "4. After splitting on spaces, the Chinese line and the pinyin line MUST have the EXACT SAME number of tokens, in the same order.\n"
+                "5. NEVER hyphen-join across word boundaries. NEVER collapse multiple Chinese words into one pinyin run.\n"
+                "WRONG: 我 在 手指 尖 下 捏碎 → wo-zai-shou-zhi-jian-xia-nie-sui (1 token for 6 words).\n"
+                "CORRECT: 我 在 手指 尖 下 捏碎 → wo zai shou-zhi jian xia nie-sui (6 tokens for 6 words)."
             )
         if _language_matches_any(
             target_lower,
