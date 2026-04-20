@@ -148,7 +148,7 @@ def _translate_with_llm(
                             attempt,
                             _TRANSLATION_RESPONSE_ATTEMPTS,
                         )
-                elif _is_translation_too_short(sentence, translation_text):
+                elif _is_translation_too_short(sentence, translation_text, target_language):
                     attempt_error = "Translation shorter than expected"
                     if resolved_client.debug_enabled:
                         logger.debug(

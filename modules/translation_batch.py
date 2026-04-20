@@ -321,7 +321,7 @@ def validate_batch_translation(
         return "Invalid or placeholder translation"
     if tv.is_probable_transliteration(original_sentence, translation_text, target_language):
         return "Transliteration returned instead of translation"
-    if tv.is_translation_too_short(original_sentence, translation_text):
+    if tv.is_translation_too_short(original_sentence, translation_text, target_language):
         return "Translation shorter than expected"
     missing_diacritics, label = tv.missing_required_diacritics(translation_text, target_language)
     if missing_diacritics:

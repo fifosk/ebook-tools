@@ -17,6 +17,17 @@ from modules.text import split_highlight_tokens
 _LATIN_LETTER_PATTERN = regex.compile(r"\p{Latin}")
 _NON_LATIN_LETTER_PATTERN = regex.compile(r"(?!\p{Latin})\p{L}")
 _ZERO_WIDTH_SPACE_PATTERN = regex.compile(r"[\u200B\u200C\u200D\u2060]+")
+# CJK + Thai scripts encode multiple phonemes per character, so letter-count
+# ratios vs source-language letters run 4-6× below Latin-to-Latin ratios.
+# Detecting these targets lets is_translation_too_short pick a looser
+# threshold and avoid false-positive retries on valid compressed output.
+_HIGH_DENSITY_TARGET_PATTERN = regex.compile(
+    r"\b(chinese|zh|zh-cn|zh-tw|cmn|mandarin|japanese|ja|jpn|korean|ko|kor|thai|th|tha|lao|khmer|km|myanmar|burmese|my)\b"
+)
+_HIGH_DENSITY_SCRIPT_PATTERN = regex.compile(
+    r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\u0e00-\u0e7f\u0e80-\u0eff"
+    r"\u1780-\u17ff\u1000-\u109f]"
+)
 
 # Diacritic patterns for languages that require them
 _DIACRITIC_PATTERNS = {
@@ -118,16 +129,25 @@ def is_probable_transliteration(
 
 
 def is_translation_too_short(
-    original_sentence: str, translation_text: str
+    original_sentence: str,
+    translation_text: str,
+    target_language: str | None = None,
 ) -> bool:
     """Check if translation is suspiciously shorter than original.
 
     Heuristic for truncated translations. Skip very short inputs to avoid
-    over-triggering on single words.
+    over-triggering on single words. CJK and Thai/Lao/Khmer/Myanmar targets
+    use a looser ratio because those scripts encode multiple phonemes per
+    character and legitimately produce 4-6× fewer "letters" than the Latin
+    source for the same meaning.
 
     Args:
         original_sentence: Original text
-        translation_text: Translated text to check
+        translation_text: Translation to check
+        target_language: Target language name or code (optional). When it
+            identifies a high-density script (Chinese, Japanese, Korean,
+            Thai, Lao, Khmer, Burmese), a looser ratio is applied; otherwise
+            the classic 0.28 threshold is used.
 
     Returns:
         True if translation appears truncated
@@ -139,6 +159,21 @@ def is_translation_too_short(
     translation_letters = letter_count(translation_text)
     if translation_letters == 0:
         return True
+
+    # Detect high-density target by language hint OR by actual script in output.
+    lang_hint = (target_language or "").lower()
+    is_high_density = bool(
+        _HIGH_DENSITY_TARGET_PATTERN.search(lang_hint)
+        or _HIGH_DENSITY_SCRIPT_PATTERN.search(translation_text)
+    )
+    if is_high_density:
+        # Chinese/Japanese/Korean ratios typically land 0.15-0.35; Thai 0.20-0.50.
+        # Only flag genuinely absurd compression (< 0.10) or near-empty output.
+        if original_letters >= 80 and translation_letters < 6:
+            return True
+        ratio = translation_letters / float(original_letters)
+        return original_letters >= 30 and ratio < 0.10
+
     if original_letters >= 80 and translation_letters < 15:
         return True
     ratio = translation_letters / float(original_letters)

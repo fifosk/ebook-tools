@@ -82,8 +82,15 @@ class PipelineJobPersistence:
             if isinstance(complete_flag, bool):
                 job.media_completed = complete_flag
 
-        # Retry summary: shallow dict of dicts with int values - safe to share
-        retry_summary = job.retry_summary or (job.tracker.get_retry_counts() if job.tracker else None)
+        # Retry summary: always prefer the live tracker counters when available.
+        # Previously this short-circuited on any truthy job.retry_summary, so the
+        # first persisted snapshot (often count=1) stuck forever and subsequent
+        # retries never bumped the summary. Fall back to the cached value only
+        # when the tracker is gone (e.g. after job completion).
+        if job.tracker is not None:
+            retry_summary = job.tracker.get_retry_counts() or job.retry_summary
+        else:
+            retry_summary = job.retry_summary
         if retry_summary:
             job.retry_summary = retry_summary
 
