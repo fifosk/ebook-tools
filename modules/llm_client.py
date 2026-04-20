@@ -177,16 +177,22 @@ class LLMClient:
         token_usage: TokenUsage = {}
         raw_chunks: List[Dict[str, Any]] = []
 
-        for line in response.iter_lines(decode_unicode=True):
-            if not line:
+        # Force UTF-8 decoding regardless of server-declared charset. Some
+        # streaming endpoints (e.g. Ollama cloud) send UTF-8 bytes without a
+        # charset parameter on text/event-stream responses; requests then
+        # defaults response.encoding to ISO-8859-1 per RFC 2616, which
+        # mangles multi-byte CJK sequences. Decoding bytes ourselves as
+        # UTF-8 avoids this.
+        for raw_line in response.iter_lines(decode_unicode=False):
+            if not raw_line:
                 continue
-            payload_text = line
-            if isinstance(payload_text, bytes):
-                encoding = response.encoding or "utf-8"
+            if isinstance(raw_line, bytes):
                 try:
-                    payload_text = payload_text.decode(encoding)
+                    payload_text = raw_line.decode("utf-8")
                 except UnicodeDecodeError:
-                    payload_text = payload_text.decode("utf-8", errors="replace")
+                    payload_text = raw_line.decode("utf-8", errors="replace")
+            else:
+                payload_text = raw_line
             if payload_text.startswith("data:"):
                 payload_text = payload_text[len("data:") :].strip()
                 if payload_text == "[DONE]":

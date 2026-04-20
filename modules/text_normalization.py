@@ -41,6 +41,11 @@ _BLOCKED_PHRASES: Tuple[str, ...] = ("please provide the text",)
 _LATIN_PATTERN = regex.compile(r"\p{Latin}")
 _NON_LATIN_LETTER_PATTERN = regex.compile(r"(?!\p{Latin})\p{L}")
 _INLINE_TRANSLIT_SPLIT = regex.compile(r"\s+(\p{Latin})")
+# ASCII whitespace only (space, tab, CR, LF, FF, VT). Deliberately excludes
+# U+00A0 NBSP and other Unicode whitespace so we never split on a byte that
+# might be part of a multi-byte UTF-8 character when the upstream decoded
+# bytes as Latin-1.
+_ASCII_WHITESPACE_SPLIT = regex.compile(r"[ \t\r\n\f\v]+")
 
 
 def _strip_known_prefix(value: str, prefixes: Sequence[str]) -> str:
@@ -118,9 +123,18 @@ def split_translation_and_transliteration(text: str) -> Tuple[str, str]:
 
 
 def collapse_whitespace(value: str) -> str:
-    """Normalize all whitespace (including newlines) to single spaces."""
+    """Normalize all whitespace (including newlines) to single spaces.
 
-    return " ".join(value.split())
+    Uses an explicit ASCII whitespace class rather than Python's default
+    ``str.split()`` (which also splits on U+00A0 non-breaking space). If a
+    response is accidentally decoded as Latin-1, a UTF-8 byte 0xA0 — the
+    trailing byte of characters like 因 (U+56E0) — becomes a NBSP in the
+    string view. Splitting on NBSP there silently destroys the character.
+    Splitting only on ASCII whitespace preserves bytes until the upstream
+    decoding issue is fixed.
+    """
+
+    return " ".join(part for part in _ASCII_WHITESPACE_SPLIT.split(value) if part)
 
 
 def extract_primary_translation(text: str) -> str:
