@@ -87,12 +87,15 @@ def split_highlight_tokens(text: str) -> List[str]:
     stripped = text.strip()
     whitespace_tokens = [token for token in text.split() if token]
 
-    # Compute "meaningful spaces" over CONTENT tokens only; punctuation is always
-    # 1 char and drags the average below 1.5 for sentences with normal punctuation.
+    # "Meaningful spaces" = at least one multi-char CONTENT token. When every
+    # content token is a single character, the spacing is per-char (the LLM
+    # failed to segment) and we should re-tokenize. When any content token is
+    # ≥ 2 chars, the spacing carries real word information and we preserve it.
+    # Punctuation is excluded so a single comma doesn't change the verdict.
     content_tokens = [tok for tok in whitespace_tokens if _is_content_token(tok)]
     has_meaningful_spaces = (
         len(content_tokens) >= 2
-        and sum(len(tok) for tok in content_tokens) / len(content_tokens) > 1.5
+        and any(len(tok) >= 2 for tok in content_tokens)
     )
 
     is_chinese_only = (
@@ -113,18 +116,22 @@ def split_highlight_tokens(text: str) -> List[str]:
         if single_char_content_ratio < 0.75 or has_meaningful_spaces:
             return whitespace_tokens
 
-    # For CJK text with explicit meaningful spaces, respect them as word boundaries
-    # This handles LLM-generated translations that already have proper segmentation
+    # For CJK text with explicit meaningful spaces, respect them as word boundaries.
+    # This handles LLM-generated translations that already have proper segmentation.
+    # Japanese legitimately has many 1-char particles (を, の, し, た, て, に ...),
+    # so the single-char-ratio test is computed on CONTENT tokens only and raised
+    # to 0.75. If the LLM already spaced multi-char content words, trust it.
     if has_meaningful_spaces and _NO_SPACE_SCRIPT_PATTERN.search(stripped):
-        # Check if it looks like per-CHARACTER spacing (most tokens are SINGLE char)
-        # Chinese words are typically 2+ chars, so 1-char tokens indicate per-char spacing
-        single_char_ratio = sum(1 for tok in whitespace_tokens if len(tok) == 1) / len(whitespace_tokens)
-        if single_char_ratio < 0.5:
-            # Meaningful word-level segmentation - return as-is
+        single_char_content_ratio = (
+            sum(1 for tok in content_tokens if len(tok) == 1) / len(content_tokens)
+            if content_tokens
+            else 1.0
+        )
+        if single_char_content_ratio < 0.75:
             return whitespace_tokens
 
-    # Japanese often arrives with per-character spacing/newlines; re-segment before returning raw whitespace tokens.
-    # Skip for pure Chinese (handled above) — fugashi destroys Chinese word boundaries.
+    # Japanese with per-character spacing or a single-run text — re-segment via
+    # fugashi / tinysegmenter. Skipped when we already accepted LLM spacing above.
     if _JAPANESE_PATTERN.search(stripped) and not is_chinese_only:
         # If whitespace tokens look like per-character segmentation, collapse and retokenize.
         looks_char_spaced = bool(
