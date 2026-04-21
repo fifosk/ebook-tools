@@ -10,12 +10,19 @@ import {
 
 type ResolveLatestJobSelection = () => { input?: string | null; base?: string | null } | null;
 
+type ResolveLatestJobSettings = () => {
+  inputLanguage: string | null;
+  targetLanguages: string[] | null;
+  enableLookupCache: boolean | null;
+} | null;
+
 type UseBookNarrationDefaultsOptions = {
   formState: FormState;
   isGeneratedSource: boolean;
   forcedBaseOutputFile: string | null;
   recentJobs: PipelineStatusResponse[] | null;
   resolveLatestJobSelection: ResolveLatestJobSelection;
+  resolveLatestJobSettings: ResolveLatestJobSettings;
   resolveStartFromHistory: (inputPath: string) => number | null;
   applyImageDefaults: (state: FormState) => FormState;
   preserveUserEditedFields: (previous: FormState, next: FormState) => FormState;
@@ -31,6 +38,7 @@ type UseBookNarrationDefaultsOptions = {
   sharedTargetLanguages: string[];
   setSharedInputLanguage: (value: string) => void;
   setSharedTargetLanguages: (value: string[]) => void;
+  setSharedEnableLookupCache: (value: boolean) => void;
 };
 
 export function useBookNarrationDefaults({
@@ -39,6 +47,7 @@ export function useBookNarrationDefaults({
   forcedBaseOutputFile,
   recentJobs,
   resolveLatestJobSelection,
+  resolveLatestJobSettings,
   resolveStartFromHistory,
   applyImageDefaults,
   preserveUserEditedFields,
@@ -54,6 +63,7 @@ export function useBookNarrationDefaults({
   sharedTargetLanguages,
   setSharedInputLanguage,
   setSharedTargetLanguages,
+  setSharedEnableLookupCache,
 }: UseBookNarrationDefaultsOptions) {
   useEffect(() => {
     let cancelled = false;
@@ -225,6 +235,57 @@ export function useBookNarrationDefaults({
     resolveStartFromHistory,
     setFormState,
     userEditedInputRef,
+  ]);
+
+  // Pick up input language, target language(s) and lookup-cache preference
+  // from the most recent book job. Server defaults from fetchPipelineDefaults
+  // arrive first, then this effect (running whenever recentJobs changes)
+  // overrides them with the last actual job settings — but only for fields
+  // the user has not manually edited in the current session.
+  useEffect(() => {
+    const settings = resolveLatestJobSettings();
+    if (!settings) {
+      return;
+    }
+    if (
+      settings.inputLanguage &&
+      !userEditedFieldsRef.current.has('input_language') &&
+      settings.inputLanguage !== sharedInputLanguage
+    ) {
+      setSharedInputLanguage(settings.inputLanguage);
+    }
+    if (
+      settings.targetLanguages &&
+      settings.targetLanguages.length > 0 &&
+      !userEditedFieldsRef.current.has('target_languages')
+    ) {
+      const next = normalizeSingleTargetLanguages(settings.targetLanguages);
+      if (!areLanguageArraysEqual(sharedTargetLanguages, next)) {
+        setSharedTargetLanguages(next);
+      }
+    }
+    if (
+      typeof settings.enableLookupCache === 'boolean' &&
+      !userEditedFieldsRef.current.has('enable_lookup_cache')
+    ) {
+      setSharedEnableLookupCache(settings.enableLookupCache);
+      setFormState((previous) => {
+        if (previous.enable_lookup_cache === settings.enableLookupCache) {
+          return previous;
+        }
+        return { ...previous, enable_lookup_cache: settings.enableLookupCache as boolean };
+      });
+    }
+  }, [
+    recentJobs,
+    resolveLatestJobSettings,
+    sharedInputLanguage,
+    sharedTargetLanguages,
+    setSharedEnableLookupCache,
+    setSharedInputLanguage,
+    setSharedTargetLanguages,
+    setFormState,
+    userEditedFieldsRef,
   ]);
 
   useEffect(() => {

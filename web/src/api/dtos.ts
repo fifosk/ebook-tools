@@ -249,6 +249,7 @@ export interface JobParameterSnapshot {
   transliteration_mode?: string | null;
   transliteration_model?: string | null;
   transliteration_module?: string | null;
+  enable_lookup_cache?: boolean | null;
   target_height?: number | null;
   preserve_aspect_ratio?: boolean | null;
   media_metadata?: Record<string, unknown> | null;

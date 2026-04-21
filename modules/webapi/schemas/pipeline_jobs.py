@@ -57,6 +57,7 @@ class JobParameterSnapshot(BaseModel):
     transliteration_mode: Optional[str] = None
     transliteration_model: Optional[str] = None
     transliteration_module: Optional[str] = None
+    enable_lookup_cache: Optional[bool] = None
     media_metadata: Optional[Dict[str, Any]] = None
 
 
@@ -333,6 +334,7 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
     translation_batch_size = _coerce_int(inputs.get("translation_batch_size"))
     transliteration_mode_raw = _coerce_str(inputs.get("transliteration_mode"))
     transliteration_model_raw = _coerce_str(inputs.get("transliteration_model"))
+    enable_lookup_cache = _coerce_bool(inputs.get("enable_lookup_cache"))
 
     input_file = _coerce_str(inputs.get("input_file"))
     base_output_file = _coerce_str(inputs.get("base_output_file"))
@@ -396,6 +398,7 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         transliteration_mode=normalized_transliteration_mode,
         transliteration_model=transliteration_model,
         transliteration_module=transliteration_module,
+        enable_lookup_cache=enable_lookup_cache,
     )
 
 

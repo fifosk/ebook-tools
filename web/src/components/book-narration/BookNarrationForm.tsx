@@ -320,6 +320,61 @@ export function BookNarrationForm({
     return latest;
   }, []);
 
+  /**
+   * Pick up source language, target languages and lookup-cache preference from
+   * the most recent book job in the user's history. Mirrors how start_sentence
+   * is prefilled from the last job on the same input file — only here the
+   * match is "most recent book job" regardless of input_file. Returns null
+   * when no usable job exists or none of the relevant fields are populated,
+   * so the caller falls back to whatever defaults are already in place.
+   */
+  const resolveLatestJobSettings = useCallback((): {
+    inputLanguage: string | null;
+    targetLanguages: string[] | null;
+    enableLookupCache: boolean | null;
+  } | null => {
+    const jobs = recentJobsRef.current;
+    if (!jobs || jobs.length === 0) {
+      return null;
+    }
+    let latest: {
+      created: number;
+      inputLanguage: string | null;
+      targetLanguages: string[] | null;
+      enableLookupCache: boolean | null;
+    } | null = null;
+    for (const job of jobs) {
+      if (!job || job.job_type === 'subtitle') {
+        continue;
+      }
+      const createdAt = new Date(job.created_at).getTime();
+      if (!Number.isFinite(createdAt)) {
+        continue;
+      }
+      const params = job.parameters;
+      if (!params) {
+        continue;
+      }
+      const inputLanguage =
+        (typeof params.input_language === 'string' && params.input_language.trim()) ||
+        (typeof params.source_language === 'string' && params.source_language.trim()) ||
+        null;
+      const targetLanguages =
+        Array.isArray(params.target_languages) && params.target_languages.length > 0
+          ? params.target_languages.filter((x): x is string => typeof x === 'string' && x.trim() !== '')
+          : null;
+      const enableLookupCache =
+        typeof params.enable_lookup_cache === 'boolean' ? params.enable_lookup_cache : null;
+      if (!inputLanguage && !targetLanguages && enableLookupCache === null) {
+        continue;
+      }
+      if (!latest || createdAt > latest.created) {
+        latest = { created: createdAt, inputLanguage, targetLanguages, enableLookupCache };
+      }
+    }
+    return latest;
+  }, []);
+
   const tabSections: BookNarrationFormSection[] = BOOK_NARRATION_TAB_SECTIONS;
   const [activeTab, setActiveTab] = useState<BookNarrationFormSection>(() => {
     if (activeSection && tabSections.includes(activeSection)) {
@@ -554,6 +609,7 @@ export function BookNarrationForm({
     forcedBaseOutputFile,
     recentJobs,
     resolveLatestJobSelection,
+    resolveLatestJobSettings,
     resolveStartFromHistory,
     applyImageDefaults,
     preserveUserEditedFields,
@@ -568,7 +624,8 @@ export function BookNarrationForm({
     sharedInputLanguage,
     sharedTargetLanguages,
     setSharedInputLanguage,
-    setSharedTargetLanguages
+    setSharedTargetLanguages,
+    setSharedEnableLookupCache
   });
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
