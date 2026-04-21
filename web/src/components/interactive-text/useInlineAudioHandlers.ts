@@ -484,7 +484,13 @@ export function useInlineAudioHandlers({
       // during the transition. seekWithDriftCheck inside mutedTransition
       // re-seeks once if the observed position drifts > 100ms from target.
       void mutedTransition(element, targetSeek);
-      if (safeDuration !== null && !hasTimeline) {
+      // Apply the stashed target sentence index now that the new track has
+      // loaded and seeked. Deferring this from applySequenceSegment avoids
+      // the one-frame flicker where the UI would highlight the next sentence
+      // while the audio element still played the previous track's tail.
+      if (typeof pendingSequenceSeek.targetSentenceIndex === 'number') {
+        setActiveSentenceIndex(pendingSequenceSeek.targetSentenceIndex);
+      } else if (safeDuration !== null && !hasTimeline) {
         updateSentenceForTime(targetSeek, safeDuration);
       }
       updateActiveGateFromTime(targetSeek);

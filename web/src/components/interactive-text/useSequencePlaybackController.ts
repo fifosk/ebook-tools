@@ -378,19 +378,29 @@ export function useSequencePlaybackController({
           autoPlay: shouldPlay,
         });
         sequenceTrackRef.current = segment.track;
-        pendingSequenceSeekRef.current = { time: segment.start, autoPlay: shouldPlay };
+        // Stash targetSentenceIndex so handleLoadedMetadata can apply it
+        // *after* the new track's audio has seeked to the target position.
+        // Applying it synchronously here caused a one-frame flicker where the
+        // UI highlighted the next sentence while the `<audio>` element still
+        // had the previous track's tail queued up (same shape as the iOS
+        // preTransitionSentenceIndex freeze).
+        pendingSequenceSeekRef.current = {
+          time: segment.start,
+          autoPlay: shouldPlay,
+          targetSentenceIndex: segment.sentenceIndex,
+        };
         // Clear word highlight immediately when switching tracks to prevent flickering
         // The AudioSyncController will recalculate once the new timeline is loaded
         timingStore.setLast(null);
-        // Update chunkTime and activeSentenceIndex immediately when switching tracks
-        // This prevents flickering by ensuring the timeline calculations use correct values
-        // before the new audio loads
+        // Update chunkTime immediately so timeline calculations use the
+        // correct playback position (chunkTime=0 is a separate flicker trap —
+        // see the reset-to-0 guard in the timelineDisplay effect).
         setChunkTime(segment.start);
-        setActiveSentenceIndex(segment.sentenceIndex);
+        // NOTE: intentionally no `setActiveSentenceIndex` here. The display
+        // keeps showing the previous sentence until the new audio's seek
+        // completes and handleLoadedMetadata applies the stashed target.
         // Mark as manual seek to prevent timelineDisplay effect from overriding
         // the activeSentenceIndex during the track switch window.
-        // Without this, the timeline's different scaling factor for the new track
-        // can cause a brief forward/backward jump in sentence index.
         lastManualSeekTimeRef.current = Date.now();
         if (import.meta.env.DEV) {
           console.debug('[applySequenceSegment] Set activeSentenceIndex', {
