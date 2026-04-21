@@ -49,6 +49,11 @@ _SEGMENTATION_REQUIREMENTS = {
         "example": "我 在 手指 尖 下 捏碎 了 一 块 饼干 。 — 两者 都 有 。",
         "translit_example": "wo zai shou-zhi jian xia nie-sui le yi kuai bing-gan . — liang-zhe dou you .",
     },
+    "lao": {
+        "aliases": ("lao", "laotian", "lo"),
+        "example": "ຂ້ອຍ ຮັກ ການ ອ່ານ ຫນັງສື ທຸກ ມື້",
+        "translit_example": "khoy hak kan an nangsue thuk mue",
+    },
 }
 
 _DIACRITIC_REQUIREMENTS = {

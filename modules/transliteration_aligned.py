@@ -60,6 +60,7 @@ _HANGUL = re.compile(r"[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]")
 _THAI_RANGE = re.compile(r"[\u0e00-\u0e7f]")
 _KHMER_RANGE = re.compile(r"[\u1780-\u17ff]")
 _MYANMAR_RANGE = re.compile(r"[\u1000-\u109f\uaa60-\uaa7f\ua9e0-\ua9ff]")
+_LAO_RANGE = re.compile(r"[\u0e80-\u0eff]")
 
 
 def _normalize_language(value: str) -> str:
@@ -77,6 +78,8 @@ def _normalize_language(value: str) -> str:
         return "khmer"
     if lowered in {"my", "mya", "bur", "burmese", "myanmar"}:
         return "burmese"
+    if lowered in {"lo", "lao", "laotian", "laos"}:
+        return "lao"
     if "chinese" in lowered:
         return "chinese"
     if "japanese" in lowered:
@@ -89,6 +92,8 @@ def _normalize_language(value: str) -> str:
         return "khmer"
     if "burmese" in lowered or "myanmar" in lowered:
         return "burmese"
+    if "laotian" in lowered or "lao" in lowered:
+        return "lao"
     return ""
 
 
@@ -311,6 +316,17 @@ def _burmese_word_aligned(translation: str) -> Optional[str]:
     return _romanize_icu_per_word(translation, _MYANMAR_RANGE, "Myanmar-Latin")
 
 
+def _lao_word_aligned(translation: str) -> Optional[str]:
+    """Return hyphen-joined ICU Lao→Latin romanization, one token per word.
+
+    Uses PyICU's ``Lao-Latin`` transliterator (CLDR standard). Lao, like
+    Thai/Khmer/Burmese, writes without inter-word spaces natively; this
+    helper relies on the LLM having already emitted space-segmented Lao
+    in the translation line (enforced by the prompt template).
+    """
+    return _romanize_icu_per_word(translation, _LAO_RANGE, "Lao-Latin")
+
+
 def generate_word_aligned_transliteration(
     translation: str, target_language: str
 ) -> Optional[str]:
@@ -335,6 +351,8 @@ def generate_word_aligned_transliteration(
         return _khmer_word_aligned(translation)
     if key == "burmese":
         return _burmese_word_aligned(translation)
+    if key == "lao":
+        return _lao_word_aligned(translation)
     return None
 
 
