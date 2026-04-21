@@ -26,7 +26,57 @@ and wiring it into ``generate_word_aligned_transliteration``.
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Optional
+
+# ── Shared tone-diacritic helpers (Thai + Lao) ──────────────────────────────
+# Map numeric tone digits 1–5 to combining diacritics. Convention matches
+# common Thai textbooks: 1 mid = bare, 2 low = grave, 3 falling = circumflex,
+# 4 high = acute, 5 rising = caron. Lao reuses the same marks via its own
+# tone-mark → digit mapping so output style is consistent across the two
+# Southeast Asian tonal languages.
+_TONE_DIACRITIC_BY_DIGIT = {
+    "1": "",
+    "2": "\u0300",   # combining grave
+    "3": "\u0302",   # combining circumflex
+    "4": "\u0301",   # combining acute
+    "5": "\u030c",   # combining caron
+}
+
+# Vowels that can carry a tone diacritic. Includes ASCII vowels plus the
+# IPA vowels that surface in tltk_ipa output (ɛ ɤ ɯ ɔ ɐ).
+_TONE_BEARING_VOWELS = set("aeiouyAEIOUY\u0250\u025b\u0254\u0264\u026f\u028c")
+
+
+def _apply_tone_diacritic(syllable: str, combining: str) -> str:
+    """Place ``combining`` over the first tone-bearing vowel in ``syllable``.
+
+    Uses NFC after injection so the result is a pre-composed character where
+    one exists (ā, à, á, â, ǎ for Latin vowels) and a decomposed base+mark
+    pair otherwise (e.g. ɛ̂). No-ops when the syllable has no vowel.
+    """
+    if not combining or not syllable:
+        return syllable
+    for i, ch in enumerate(syllable):
+        if ch in _TONE_BEARING_VOWELS:
+            return unicodedata.normalize(
+                "NFC", syllable[: i + 1] + combining + syllable[i + 1 :]
+            )
+    return syllable
+
+
+def _strip_and_diacriticize_syllable(syl: str) -> str:
+    """Strip trailing tone digit from ``syl`` and apply the matching diacritic.
+
+    ``sa2`` → ``sà``, ``baːn3`` → ``bâːn``, ``di:1`` → ``di:`` (mid tone bare).
+    """
+    if not syl:
+        return syl
+    if syl[-1] in _TONE_DIACRITIC_BY_DIGIT:
+        digit = syl[-1]
+        base = syl[:-1]
+        return _apply_tone_diacritic(base, _TONE_DIACRITIC_BY_DIGIT[digit])
+    return syl
 
 # Chinese full-width punctuation → ASCII equivalent, so the transliteration
 # line has one-char ASCII punctuation tokens that match their Chinese
@@ -80,6 +130,8 @@ def _normalize_language(value: str) -> str:
         return "burmese"
     if lowered in {"lo", "lao", "laotian", "laos"}:
         return "lao"
+    if lowered in {"vi", "vie", "vietnamese"}:
+        return "vietnamese"
     if "chinese" in lowered:
         return "chinese"
     if "japanese" in lowered:
@@ -94,6 +146,8 @@ def _normalize_language(value: str) -> str:
         return "burmese"
     if "laotian" in lowered or "lao" in lowered:
         return "lao"
+    if "vietnamese" in lowered:
+        return "vietnamese"
     return ""
 
 
@@ -200,8 +254,16 @@ def _thai_word_aligned(translation: str) -> Optional[str]:
                 return word
         # Normalize the IPA length marker to ASCII so output is greppable.
         raw = raw.replace("ː", ":")
-        # Syllables separated by '.'; collapse any inner whitespace.
-        syllables = [s.strip().replace(" ", "") for s in raw.split(".") if s.strip()]
+        # tltk emits each syllable as <chars><tone-digit>, '.' separated.
+        # Convert the trailing digit into a combining diacritic on the first
+        # vowel so readers see Thai tones as ā/à/á/â/ǎ — same diacritic
+        # system used for Mandarin pinyin, matching how learner materials
+        # frequently present tones.
+        syllables = [
+            _strip_and_diacriticize_syllable(s.strip().replace(" ", ""))
+            for s in raw.split(".")
+            if s.strip()
+        ]
         return "-".join(syllables) if syllables else word
 
     out: list[str] = []
@@ -382,6 +444,42 @@ def _khmer_word_aligned(translation: str) -> Optional[str]:
     return " ".join(out)
 
 
+# ── Vietnamese ──────────────────────────────────────────────────────────────
+# Vietnamese is already written in the Latin alphabet (quốc ngữ) with its
+# tone information carried by combining diacritics. There is nothing to
+# "transliterate" — the translation line itself is the learner-readable
+# tone-marked form. For a transliteration TRACK we still need 1:1 token
+# coverage, so we emit the ASCII-folded form of each Vietnamese word as a
+# pronunciation-aid: 'Tôi yêu đọc sách' → 'Toi yeu doc sach'. Learners who
+# can't yet read the diacritics can follow along with the ASCII row.
+_VI_CHAR_MAP = {"đ": "d", "Đ": "D"}
+
+
+def _vietnamese_word_aligned(translation: str) -> Optional[str]:
+    """Return the ASCII-folded (no-diacritic) Vietnamese, one token per word."""
+    if not translation or not translation.strip():
+        return None
+    # Only engage when the text actually has Vietnamese-style diacritics or
+    # characters specific to the language. Avoids hijacking plain English.
+    has_vi = any(
+        unicodedata.combining(c) or c in _VI_CHAR_MAP for c in translation
+    )
+    if not has_vi:
+        # Fall through to LLM-provided transliteration when the translation
+        # happens to be plain ASCII.
+        return None
+    out: list[str] = []
+    for word in translation.split():
+        decomposed = unicodedata.normalize("NFD", word)
+        folded = "".join(
+            _VI_CHAR_MAP.get(c, c)
+            for c in decomposed
+            if unicodedata.category(c) != "Mn"
+        )
+        out.append(folded if folded else word)
+    return " ".join(out)
+
+
 def _burmese_word_aligned(translation: str) -> Optional[str]:
     """Return hyphen-joined ICU Myanmar→Latin romanization, one token per word.
 
@@ -395,14 +493,16 @@ def _burmese_word_aligned(translation: str) -> Optional[str]:
 # ── Lao → Latin pure-Python fallback ────────────────────────────────────────
 # Same rationale as Khmer above: ICU 72 on bookworm lacks the Lao-Latin table.
 # BGN/PCGN-inspired char-level map; imperfect phonetics but deterministic.
-# Tone marks are emitted as trailing digits 1–4 so learners can distinguish
-# homographs; full phonemic tone derivation (consonant-class × vowel-length
-# × tone-mark) would need a proper engine like pylaolang, which isn't on PyPI.
+# Tone marks are rendered as combining diacritics placed over the next vowel
+# that follows them (same convention we use for Thai, so the two languages
+# read consistently). Tone-mark → Thai-tone-number mapping is approximate —
+# proper Lao tonology depends on consonant-class × vowel-length × mark —
+# but this is good enough for learner-facing output.
 _LAO_TONE_MARKS = {
-    "\u0ec8": "1",  # ່ mai ek
-    "\u0ec9": "2",  # ້ mai tho
-    "\u0eca": "3",  # ໊ mai ti
-    "\u0ecb": "4",  # ໋ mai catawa
+    "\u0ec8": "2",  # ່ mai ek    → low → grave
+    "\u0ec9": "3",  # ້ mai tho   → falling → circumflex
+    "\u0eca": "5",  # ໊ mai ti    → rising → caron
+    "\u0ecb": "4",  # ໋ mai catawa → high → acute
 }
 _LAO_CHAR_MAP = {
     # Consonants
@@ -427,27 +527,36 @@ _LAO_CHAR_MAP = {
 
 
 def _lao_char_fallback(word: str) -> str:
-    """Char-level Lao → Latin with a tone digit appended when a tone mark appears.
+    """Char-level Lao → Latin with tone diacritics injected on vowels.
 
-    Since we don't split the word into syllables, the tone digit lands at the
-    end of the whole word (covers the common monosyllabic particle case). For
-    multi-syllable words the tone info is still captured but not placed on
-    the specific syllable — an improvement over dropping it entirely.
+    Each Lao tone mark encountered stashes a pending combining diacritic;
+    the next romanized character that is a tone-bearing vowel absorbs it
+    (via NFC composition). If no vowel follows (rare), the pending mark
+    is dropped. Result: ``ຂ້ອຍ → khôny``, ``ອ່ານ → àan`` (rather than
+    the old ``khony2`` / ``oan1`` digit-suffix form).
     """
     out: list[str] = []
-    tone_digit = ""
+    pending_combining = ""
     for ch in word:
         if ch in _LAO_TONE_MARKS:
-            tone_digit = _LAO_TONE_MARKS[ch]
+            digit = _LAO_TONE_MARKS[ch]
+            pending_combining = _TONE_DIACRITIC_BY_DIGIT.get(digit, "")
             continue
         if ch in _LAO_CHAR_MAP:
-            out.append(_LAO_CHAR_MAP[ch])
+            mapped = _LAO_CHAR_MAP[ch]
+            if pending_combining and mapped:
+                # Apply the diacritic to the first tone-bearing vowel within
+                # this mapped group; if none, attach to the next group.
+                placed = _apply_tone_diacritic(mapped, pending_combining)
+                if placed != mapped:
+                    pending_combining = ""
+                    mapped = placed
+            out.append(mapped)
         elif _LAO_RANGE.match(ch):
             continue
         else:
             out.append(ch)
-    romanized = "".join(out)
-    return romanized + tone_digit if romanized and tone_digit else romanized
+    return unicodedata.normalize("NFC", "".join(out))
 
 
 def _lao_word_aligned(translation: str) -> Optional[str]:
@@ -497,6 +606,8 @@ def generate_word_aligned_transliteration(
         return _burmese_word_aligned(translation)
     if key == "lao":
         return _lao_word_aligned(translation)
+    if key == "vietnamese":
+        return _vietnamese_word_aligned(translation)
     return None
 
 
