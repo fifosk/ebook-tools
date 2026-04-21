@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { timingStore } from '../../stores/timingStore';
+import { mutedTransition } from './mediaSeek';
 import type { TextPlayerVariantKind } from '../../text-player/TextPlayer';
 import { resolveTokenSeekTarget } from '../../lib/playback/sequencePlan';
 import type {
@@ -424,7 +425,10 @@ export function useSequencePlaybackController({
       // the activeSentenceIndex during the seek
       pendingSequenceSeekRef.current = { time: segment.start, autoPlay: shouldPlay };
       wordSyncControllerRef.current?.handleSeeking();
-      element.currentTime = Math.max(0, segment.start);
+      // Mute during the same-track seek to prevent audio bleed from the
+      // previous sentence; restore volume once `seeked` fires. Re-seeks once
+      // if the observed position drifts > 100ms from target (see mediaSeek.ts).
+      void mutedTransition(element, Math.max(0, segment.start));
       setChunkTime(segment.start);
       setActiveSentenceIndex(segment.sentenceIndex);
       if (!hasTimeline && Number.isFinite(element.duration) && element.duration > 0) {
@@ -579,7 +583,8 @@ export function useSequencePlaybackController({
         0,
         Math.min(time, Number.isFinite(element.duration) ? element.duration : time),
       );
-      element.currentTime = target;
+      // Same mute-during-seek + drift-check treatment as the main seek paths.
+      void mutedTransition(element, target);
       setChunkTime(target);
       if (sentenceIndex != null) setActiveSentenceIndex(sentenceIndex);
       const maybePlay = element.play?.();

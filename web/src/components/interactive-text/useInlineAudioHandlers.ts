@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { timingStore } from '../../stores/timingStore';
+import { mutedTransition } from './mediaSeek';
 import type { WordSyncController, TimelineSentenceRuntime } from './types';
 
 type InlineAudioControls = {
@@ -115,6 +116,15 @@ export function useInlineAudioHandlers({
   // sequencePlan may be from a previous render.
   const maybeAdvanceSequenceRef = useRef(maybeAdvanceSequence);
   maybeAdvanceSequenceRef.current = maybeAdvanceSequence;
+  const advanceSequenceSegmentRef = useRef(advanceSequenceSegment);
+  advanceSequenceSegmentRef.current = advanceSequenceSegment;
+  // Persistent-stall watchdog state — mirrors the iOS recovery. If currentTime
+  // doesn't advance for STALL_RECOVERY_MS while the audio is supposed to be
+  // playing (common with streaming near end-of-file on flaky networks), we
+  // force-advance to the next sequence segment rather than hang indefinitely.
+  const stallLastTimeRef = useRef<number | null>(null);
+  const stallStartedAtRef = useRef<number | null>(null);
+  const STALL_RECOVERY_MS = 3000;
 
   useEffect(() => {
     if (!onRegisterInlineAudioControls) {
@@ -234,6 +244,52 @@ export function useInlineAudioHandlers({
           }
           updateActiveGateFromTime(currentTime);
           maybeAdvanceSequenceRef.current(currentTime);
+
+          // Persistent-stall detection — if the <audio> element is in the
+          // "playing" state but currentTime doesn't change for STALL_RECOVERY_MS,
+          // assume the stream is stuck (tail bytes not delivered on flaky
+          // networks) and advance to the next sequence segment.  Mirrors the
+          // iOS onPersistentStall recovery that was added for sentence 2234.
+          const playing =
+            !mediaEl.paused && !mediaEl.ended && mediaEl.readyState < mediaEl.HAVE_ENOUGH_DATA + 1;
+          // Note: the HAVE_ENOUGH_DATA+1 check above includes all states where
+          // we expect playback to be advancing. A stricter check uses !paused
+          // && !ended, which is sufficient here since paused is what we want
+          // to exclude. Keep the simpler condition:
+          const isActivelyPlaying = !mediaEl.paused && !mediaEl.ended;
+          if (isActivelyPlaying) {
+            const lastTime = stallLastTimeRef.current;
+            const now = Date.now();
+            if (lastTime === null || Math.abs(currentTime - lastTime) > 0.05) {
+              // Progressed — reset watchdog.
+              stallLastTimeRef.current = currentTime;
+              stallStartedAtRef.current = now;
+            } else {
+              // Stuck. Check how long.
+              const stallStart = stallStartedAtRef.current ?? now;
+              if (now - stallStart >= STALL_RECOVERY_MS) {
+                if (import.meta.env.DEV) {
+                  console.warn('[useInlineAudioHandlers] Persistent stall detected', {
+                    currentTime,
+                    stuckForMs: now - stallStart,
+                  });
+                }
+                stallLastTimeRef.current = null;
+                stallStartedAtRef.current = null;
+                // Force-advance to next segment; falls through silently if
+                // sequence mode is disabled or no next segment exists (the
+                // regular `ended` handler will advance the chunk then).
+                try {
+                  advanceSequenceSegmentRef.current?.({ autoPlay: true });
+                } catch {
+                  // Non-fatal — keep the timer running.
+                }
+              }
+            }
+          } else {
+            stallLastTimeRef.current = null;
+            stallStartedAtRef.current = null;
+          }
         }, 120);
       }
     };
@@ -423,7 +479,11 @@ export function useInlineAudioHandlers({
       if (targetSeek < 0 || !Number.isFinite(targetSeek)) {
         targetSeek = 0;
       }
-      element.currentTime = targetSeek;
+      // Mute the element before seeking and restore volume once the seeked
+      // event fires. Avoids audio bleed from the previous sentence/chunk
+      // during the transition. seekWithDriftCheck inside mutedTransition
+      // re-seeks once if the observed position drifts > 100ms from target.
+      void mutedTransition(element, targetSeek);
       if (safeDuration !== null && !hasTimeline) {
         updateSentenceForTime(targetSeek, safeDuration);
       }
