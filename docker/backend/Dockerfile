@@ -8,7 +8,10 @@
 #           --env-file ~/ebook-data/.env.docker \
 #           ebook-tools-backend
 
-FROM python:3.10-slim-bookworm
+# Debian 13 (trixie) ships ICU 74 which has the Khmer-Latin and Lao-Latin
+# transliterators (ICU 72 on bookworm does not). Every other apt dep used
+# here is also present in trixie.
+FROM python:3.10-slim-trixie
 
 # ── System dependencies ──────────────────────────────────────────────
 # ffmpeg:           required by pydub for audio format conversion

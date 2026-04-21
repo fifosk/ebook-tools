@@ -296,14 +296,76 @@ def _romanize_icu_per_word(
     return " ".join(out)
 
 
-def _khmer_word_aligned(translation: str) -> Optional[str]:
-    """Return hyphen-joined ICU Khmer→Latin romanization, one token per word.
+# ── Khmer → Latin pure-Python fallback ──────────────────────────────────────
+# ICU 72 on Debian bookworm ships without Khmer-Latin data (it was added in
+# ICU 74 via CLDR 44). Rather than bumping the base image, we fall back to
+# a compact character-level romanization table. Linguistically imperfect but
+# deterministic and round-trippable, which is all we need for 1:1 alignment.
+_KHMER_CHAR_MAP = {
+    # Consonants
+    "ក": "k", "ខ": "kh", "គ": "k", "ឃ": "kh", "ង": "ng",
+    "ច": "ch", "ឆ": "chh", "ជ": "ch", "ឈ": "chh", "ញ": "nh",
+    "ដ": "d", "ឋ": "th", "ឌ": "d", "ឍ": "th", "ណ": "n",
+    "ត": "t", "ថ": "th", "ទ": "t", "ធ": "th", "ន": "n",
+    "ប": "b", "ផ": "ph", "ព": "p", "ភ": "ph", "ម": "m",
+    "យ": "y", "រ": "r", "ល": "l", "វ": "v",
+    "ស": "s", "ហ": "h", "ឡ": "l", "អ": "a",
+    # Independent vowels
+    "ឥ": "i", "ឦ": "i", "ឧ": "u", "ឨ": "u", "ឩ": "u", "ឪ": "uv",
+    "ឫ": "ru", "ឬ": "ru", "ឭ": "lu", "ឮ": "lu",
+    "ឯ": "e", "ឰ": "ai", "ឱ": "o", "ឲ": "o", "ឳ": "au",
+    # Dependent vowel signs
+    "ា": "a", "ិ": "i", "ី": "i", "ឹ": "oe", "ឺ": "oe",
+    "ុ": "u", "ូ": "u", "ួ": "uo", "ើ": "oe", "ឿ": "ueu",
+    "ៀ": "ie", "េ": "e", "ែ": "ae", "ៃ": "ai",
+    "ោ": "o", "ៅ": "au",
+    # Diacritics
+    "ំ": "m", "ះ": "h", "ៈ": "",
+    "្": "",  # Coeng (subscript marker) — elide
+    "៉": "", "៊": "", "់": "", "៌": "", "៍": "",
+    "៎": "", "៏": "", "័": "",
+    # Digits
+    "០": "0", "១": "1", "២": "2", "៣": "3", "៤": "4",
+    "៥": "5", "៦": "6", "៧": "7", "៨": "8", "៩": "9",
+    # Spaces / punctuation
+    "។": ".", "៕": ".", "៖": ":", "ៗ": "",
+}
 
-    Uses PyICU's ``Khmer-Latin`` transliterator (CLDR standard). Each Khmer
-    word from the LLM-emitted space-segmented translation becomes a single
-    romanized token with syllables hyphen-joined internally.
+
+def _khmer_char_fallback(word: str) -> str:
+    out = []
+    for ch in word:
+        if ch in _KHMER_CHAR_MAP:
+            out.append(_KHMER_CHAR_MAP[ch])
+        elif _KHMER_RANGE.match(ch):
+            # Unknown Khmer char — elide rather than emit raw script so the
+            # romanization stays ASCII-clean.
+            continue
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _khmer_word_aligned(translation: str) -> Optional[str]:
+    """Return romanized Khmer, one token per space-separated word.
+
+    First try PyICU's ``Khmer-Latin`` transliterator. When unavailable
+    (e.g. Debian bookworm / ICU 72), fall back to a compact char-level
+    map so the output still aligns 1:1 with the translation tokens.
     """
-    return _romanize_icu_per_word(translation, _KHMER_RANGE, "Khmer-Latin")
+    result = _romanize_icu_per_word(translation, _KHMER_RANGE, "Khmer-Latin")
+    if result is not None:
+        return result
+    if not _KHMER_RANGE.search(translation):
+        return None
+    out: list[str] = []
+    for word in translation.split():
+        if _KHMER_RANGE.search(word):
+            romanized = _khmer_char_fallback(word).strip()
+            out.append(romanized if romanized else word)
+        else:
+            out.append(_map_punct(word))
+    return " ".join(out)
 
 
 def _burmese_word_aligned(translation: str) -> Optional[str]:
@@ -316,15 +378,62 @@ def _burmese_word_aligned(translation: str) -> Optional[str]:
     return _romanize_icu_per_word(translation, _MYANMAR_RANGE, "Myanmar-Latin")
 
 
-def _lao_word_aligned(translation: str) -> Optional[str]:
-    """Return hyphen-joined ICU Lao→Latin romanization, one token per word.
+# ── Lao → Latin pure-Python fallback ────────────────────────────────────────
+# Same rationale as Khmer above: ICU 72 on bookworm lacks the Lao-Latin table.
+# BGN/PCGN-inspired char-level map; imperfect phonetics but deterministic.
+_LAO_CHAR_MAP = {
+    # Consonants
+    "ກ": "k", "ຂ": "kh", "ຄ": "kh", "ງ": "ng",
+    "ຈ": "ch", "ສ": "s", "ຊ": "x", "ຍ": "ny",
+    "ດ": "d", "ຕ": "t", "ຖ": "th", "ທ": "th", "ນ": "n",
+    "ບ": "b", "ປ": "p", "ຜ": "ph", "ຝ": "f",
+    "ພ": "ph", "ຟ": "f", "ມ": "m",
+    "ຢ": "y", "ຣ": "r", "ລ": "l", "ວ": "v", "ຫ": "h",
+    "ອ": "o", "ຮ": "h", "ໜ": "n", "ໝ": "m",
+    # Vowels
+    "ະ": "a", "າ": "a", "ິ": "i", "ີ": "i", "ຶ": "ue",
+    "ື": "ue", "ຸ": "u", "ູ": "u",
+    "ເ": "e", "ແ": "ae", "ໂ": "o", "ໃ": "ai", "ໄ": "ai",
+    "ຽ": "ia", "ໍ": "o",
+    # Final and tone marks
+    "ຳ": "am", "່": "", "້": "", "໊": "", "໋": "", "໌": "",
+    # Digits
+    "໐": "0", "໑": "1", "໒": "2", "໓": "3", "໔": "4",
+    "໕": "5", "໖": "6", "໗": "7", "໘": "8", "໙": "9",
+}
 
-    Uses PyICU's ``Lao-Latin`` transliterator (CLDR standard). Lao, like
-    Thai/Khmer/Burmese, writes without inter-word spaces natively; this
-    helper relies on the LLM having already emitted space-segmented Lao
-    in the translation line (enforced by the prompt template).
+
+def _lao_char_fallback(word: str) -> str:
+    out = []
+    for ch in word:
+        if ch in _LAO_CHAR_MAP:
+            out.append(_LAO_CHAR_MAP[ch])
+        elif _LAO_RANGE.match(ch):
+            continue
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _lao_word_aligned(translation: str) -> Optional[str]:
+    """Return romanized Lao, one token per space-separated word.
+
+    Tries PyICU's ``Lao-Latin`` first; falls back to a char-level map when
+    ICU is too old to bundle that transliterator (Debian 12 ships ICU 72).
     """
-    return _romanize_icu_per_word(translation, _LAO_RANGE, "Lao-Latin")
+    result = _romanize_icu_per_word(translation, _LAO_RANGE, "Lao-Latin")
+    if result is not None:
+        return result
+    if not _LAO_RANGE.search(translation):
+        return None
+    out: list[str] = []
+    for word in translation.split():
+        if _LAO_RANGE.search(word):
+            romanized = _lao_char_fallback(word).strip()
+            out.append(romanized if romanized else word)
+        else:
+            out.append(_map_punct(word))
+    return " ".join(out)
 
 
 def generate_word_aligned_transliteration(
