@@ -513,9 +513,71 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
             true
         }
 
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            // Also try early — some iPad multitasking layouts delay viewDidAppear,
+            // leaving a window where hardware-key events miss.
+            if !isFirstResponder {
+                becomeFirstResponder()
+            }
+        }
+
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
-            becomeFirstResponder()
+            if !isFirstResponder {
+                becomeFirstResponder()
+            }
+            installFocusObservers()
+        }
+
+        override func viewWillDisappear(_ animated: Bool) {
+            super.viewWillDisappear(animated)
+            removeFocusObservers()
+        }
+
+        private func installFocusObservers() {
+            let center = NotificationCenter.default
+            center.addObserver(
+                self,
+                selector: #selector(reclaimFirstResponderIfAvailable),
+                name: UIApplication.didBecomeActiveNotification,
+                object: nil
+            )
+            center.addObserver(
+                self,
+                selector: #selector(reclaimFirstResponderIfAvailable),
+                name: UIWindow.didBecomeKeyNotification,
+                object: nil
+            )
+            // When a UIKit text field or search bar finishes editing it posts
+            // keyboardDidHideNotification. That's the moment to snap first
+            // responder back to ourselves so Space resumes playback controls.
+            center.addObserver(
+                self,
+                selector: #selector(reclaimFirstResponderIfAvailable),
+                name: UIResponder.keyboardDidHideNotification,
+                object: nil
+            )
+        }
+
+        private func removeFocusObservers() {
+            NotificationCenter.default.removeObserver(self)
+        }
+
+        @objc private func reclaimFirstResponderIfAvailable() {
+            // Defer to next runloop tick so UIKit has finished settling whatever
+            // caused our resignation (sheet dismissal, keyboard hide, app wake).
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                guard self.view.window != nil else { return }
+                // Don't fight legitimate first responders like active text fields.
+                if self.view.window?.firstResponderThatCanEdit() != nil {
+                    return
+                }
+                if !self.isFirstResponder {
+                    self.becomeFirstResponder()
+                }
+            }
         }
 
         override var keyCommands: [UIKeyCommand]? {
@@ -700,6 +762,29 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
             }
             return false
         }
+    }
+}
+
+private extension UIView {
+    /// Walk the responder tree looking for an editable (text-input) first
+    /// responder. Used so we don't yank focus away from a user who is typing
+    /// in a search field, feedback form, etc.
+    func firstResponderThatCanEdit() -> UIResponder? {
+        return findFirstEditableResponder(in: self)
+    }
+
+    private func findFirstEditableResponder(in view: UIView) -> UIResponder? {
+        if view.isFirstResponder {
+            if view is UITextField || view is UITextView || view is UISearchBar {
+                return view
+            }
+        }
+        for subview in view.subviews {
+            if let found = findFirstEditableResponder(in: subview) {
+                return found
+            }
+        }
+        return nil
     }
 }
 #endif
