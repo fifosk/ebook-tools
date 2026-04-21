@@ -195,6 +195,7 @@ export function useAudioModeTransition({
           pendingSequenceSeekRef.current = {
             time: targetSegment.start,
             autoPlay: shouldPlay,
+            targetSentenceIndex: targetSegment.sentenceIndex,
           };
           sequenceTrackRef.current = targetSegment.track;
           setSequenceTrack(targetSegment.track);
