@@ -102,22 +102,30 @@ def _map_punct(token: str) -> str:
 
 
 def _chinese_word_aligned(translation: str) -> Optional[str]:
-    """Return hyphen-joined pinyin, one token per space-separated Chinese word.
+    """Return hyphen-joined pinyin WITH tone numbers, one token per Chinese word.
 
-    Uses ``pypinyin.lazy_pinyin``. Returns None when pypinyin is unavailable
-    or the input has no Chinese characters (caller should keep the LLM output).
+    Uses ``pypinyin.pinyin`` with ``Style.TONE3`` so each syllable carries the
+    Mandarin tone as a trailing digit 1-4 (or nothing for neutral tone), e.g.
+    ``ni3-hao3``. Returns None when pypinyin is unavailable or the input has
+    no Chinese characters.
     """
     if not _HAN_RANGE.search(translation):
         return None
     try:
-        from pypinyin import lazy_pinyin
+        from pypinyin import pinyin, Style
     except ImportError:
         return None
 
     out: list[str] = []
     for word in translation.split():
         if _HAN_RANGE.search(word):
-            syllables = [s for s in lazy_pinyin(word) if s and s.strip()]
+            # pinyin() returns a list of candidate-lists; take the first
+            # candidate for each syllable. Style.TONE3 puts the tone digit
+            # at the end of the syllable with no digit for neutral tone.
+            raw = pinyin(word, style=Style.TONE3, heteronym=False)
+            syllables = [
+                group[0].strip() for group in raw if group and group[0].strip()
+            ]
             out.append("-".join(syllables) if syllables else word)
         else:
             out.append(_map_punct(word))
@@ -160,42 +168,47 @@ def _japanese_word_aligned(translation: str) -> Optional[str]:
 
 
 def _thai_word_aligned(translation: str) -> Optional[str]:
-    """Return hyphen-joined RTGS romanization, one token per space-separated Thai word.
+    """Return hyphen-joined tone-numbered romanization per Thai word.
 
-    Uses ``pythainlp.transliterate.romanize`` (Royal Thai General System) on
-    each syllable of each LLM-spaced word. Syllables within a word are
-    hyphen-joined; words are space-separated. Returns None when pythainlp
-    is unavailable or the input has no Thai characters.
+    Uses pythainlp's ``tltk_ipa`` engine which emits each syllable as
+    ``syllable + tone-digit`` joined with ``.``, e.g. ``sa2.wat2.di:1``.
+    We split on ``.`` to recover syllables, strip the IPA length marker
+    ``ː``/``:``, and hyphen-join them so each Thai word maps to exactly
+    one romanized token with embedded tone numbers (1–5).
+
+    Falls back to the tone-less ``romanize`` engine if tltk is unavailable.
+    Returns None when pythainlp is not installed or the input has no Thai.
     """
     if not _THAI_RANGE.search(translation):
         return None
     try:
-        from pythainlp.transliterate import romanize
-        from pythainlp.tokenize import syllable_tokenize
+        from pythainlp.transliterate import transliterate, romanize
     except ImportError:
         return None
 
+    def _tone_romanize(word: str) -> str:
+        try:
+            raw = transliterate(word, engine="tltk_ipa") or ""
+        except Exception:
+            raw = ""
+        raw = raw.strip()
+        if not raw:
+            try:
+                return romanize(word).strip().replace(" ", "")
+            except Exception:
+                return word
+        # Normalize the IPA length marker to ASCII so output is greppable.
+        raw = raw.replace("ː", ":")
+        # Syllables separated by '.'; collapse any inner whitespace.
+        syllables = [s.strip().replace(" ", "") for s in raw.split(".") if s.strip()]
+        return "-".join(syllables) if syllables else word
+
     out: list[str] = []
     for word in translation.split():
-        if not _THAI_RANGE.search(word):
+        if _THAI_RANGE.search(word):
+            out.append(_tone_romanize(word))
+        else:
             out.append(_map_punct(word))
-            continue
-        try:
-            syllables = syllable_tokenize(word) or [word]
-        except Exception:
-            syllables = [word]
-        romanized = []
-        for s in syllables:
-            s = s.strip()
-            if not s:
-                continue
-            try:
-                r = romanize(s).strip()
-            except Exception:
-                r = ""
-            if r:
-                romanized.append(r.replace(" ", ""))
-        out.append("-".join(romanized) if romanized else word)
     return " ".join(out)
 
 
@@ -381,6 +394,15 @@ def _burmese_word_aligned(translation: str) -> Optional[str]:
 # ── Lao → Latin pure-Python fallback ────────────────────────────────────────
 # Same rationale as Khmer above: ICU 72 on bookworm lacks the Lao-Latin table.
 # BGN/PCGN-inspired char-level map; imperfect phonetics but deterministic.
+# Tone marks are emitted as trailing digits 1–4 so learners can distinguish
+# homographs; full phonemic tone derivation (consonant-class × vowel-length
+# × tone-mark) would need a proper engine like pylaolang, which isn't on PyPI.
+_LAO_TONE_MARKS = {
+    "\u0ec8": "1",  # ່ mai ek
+    "\u0ec9": "2",  # ້ mai tho
+    "\u0eca": "3",  # ໊ mai ti
+    "\u0ecb": "4",  # ໋ mai catawa
+}
 _LAO_CHAR_MAP = {
     # Consonants
     "ກ": "k", "ຂ": "kh", "ຄ": "kh", "ງ": "ng",
@@ -395,8 +417,8 @@ _LAO_CHAR_MAP = {
     "ື": "ue", "ຸ": "u", "ູ": "u",
     "ເ": "e", "ແ": "ae", "ໂ": "o", "ໃ": "ai", "ໄ": "ai",
     "ຽ": "ia", "ໍ": "o",
-    # Final and tone marks
-    "ຳ": "am", "່": "", "້": "", "໊": "", "໋": "", "໌": "",
+    # Final and tone marks — tone marks handled separately, ໌ (silent) elided
+    "ຳ": "am", "໌": "",
     # Digits
     "໐": "0", "໑": "1", "໒": "2", "໓": "3", "໔": "4",
     "໕": "5", "໖": "6", "໗": "7", "໘": "8", "໙": "9",
@@ -404,15 +426,27 @@ _LAO_CHAR_MAP = {
 
 
 def _lao_char_fallback(word: str) -> str:
-    out = []
+    """Char-level Lao → Latin with a tone digit appended when a tone mark appears.
+
+    Since we don't split the word into syllables, the tone digit lands at the
+    end of the whole word (covers the common monosyllabic particle case). For
+    multi-syllable words the tone info is still captured but not placed on
+    the specific syllable — an improvement over dropping it entirely.
+    """
+    out: list[str] = []
+    tone_digit = ""
     for ch in word:
+        if ch in _LAO_TONE_MARKS:
+            tone_digit = _LAO_TONE_MARKS[ch]
+            continue
         if ch in _LAO_CHAR_MAP:
             out.append(_LAO_CHAR_MAP[ch])
         elif _LAO_RANGE.match(ch):
             continue
         else:
             out.append(ch)
-    return "".join(out)
+    romanized = "".join(out)
+    return romanized + tone_digit if romanized and tone_digit else romanized
 
 
 def _lao_word_aligned(translation: str) -> Optional[str]:
