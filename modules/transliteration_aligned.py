@@ -58,6 +58,8 @@ _HAN_RANGE = re.compile(r"[\u3400-\u9fff]")
 _HIRAGANA_KATAKANA = re.compile(r"[\u3040-\u30ff]")
 _HANGUL = re.compile(r"[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]")
 _THAI_RANGE = re.compile(r"[\u0e00-\u0e7f]")
+_KHMER_RANGE = re.compile(r"[\u1780-\u17ff]")
+_MYANMAR_RANGE = re.compile(r"[\u1000-\u109f\uaa60-\uaa7f\ua9e0-\ua9ff]")
 
 
 def _normalize_language(value: str) -> str:
@@ -71,6 +73,10 @@ def _normalize_language(value: str) -> str:
         return "korean"
     if lowered in {"th", "tha", "thai"}:
         return "thai"
+    if lowered in {"km", "khm", "khmer", "cambodian"}:
+        return "khmer"
+    if lowered in {"my", "mya", "bur", "burmese", "myanmar"}:
+        return "burmese"
     if "chinese" in lowered:
         return "chinese"
     if "japanese" in lowered:
@@ -79,6 +85,10 @@ def _normalize_language(value: str) -> str:
         return "korean"
     if "thai" in lowered:
         return "thai"
+    if "khmer" in lowered or "cambodian" in lowered:
+        return "khmer"
+    if "burmese" in lowered or "myanmar" in lowered:
+        return "burmese"
     return ""
 
 
@@ -225,6 +235,82 @@ def _korean_word_aligned(translation: str) -> Optional[str]:
     return " ".join(out)
 
 
+_ICU_TRANSLITERATOR_CACHE: dict[str, object] = {}
+
+
+def _get_icu_transliterator(name: str):
+    """Lazy-initialize an ICU transliterator; cache for reuse. Returns None if PyICU unavailable."""
+    if name in _ICU_TRANSLITERATOR_CACHE:
+        return _ICU_TRANSLITERATOR_CACHE[name]
+    try:
+        from icu import Transliterator  # type: ignore
+    except ImportError:
+        _ICU_TRANSLITERATOR_CACHE[name] = None
+        return None
+    try:
+        translit = Transliterator.createInstance(name)
+    except Exception:
+        _ICU_TRANSLITERATOR_CACHE[name] = None
+        return None
+    _ICU_TRANSLITERATOR_CACHE[name] = translit
+    return translit
+
+
+def _romanize_icu_per_word(
+    translation: str,
+    script_pattern: "re.Pattern[str]",
+    icu_instance_name: str,
+) -> Optional[str]:
+    """Shared per-word romanization via an ICU transliterator.
+
+    Splits ``translation`` on whitespace, transliterates each script-bearing
+    word independently, and collapses any internal whitespace in ICU's output
+    with hyphens so each translation word maps to exactly one output token.
+    Non-script tokens (punctuation) pass through via :func:`_map_punct`.
+    Returns None when ICU is unavailable or the text has no target script.
+    """
+    if not script_pattern.search(translation):
+        return None
+    translit = _get_icu_transliterator(icu_instance_name)
+    if translit is None:
+        return None
+    out: list[str] = []
+    for word in translation.split():
+        if not script_pattern.search(word):
+            out.append(_map_punct(word))
+            continue
+        try:
+            romanized = translit.transliterate(word)
+        except Exception:
+            romanized = ""
+        romanized = (romanized or "").strip()
+        # ICU often inserts spaces between syllables — collapse to hyphens so
+        # the result is exactly one token per translation word.
+        romanized = re.sub(r"\s+", "-", romanized)
+        out.append(romanized if romanized else word)
+    return " ".join(out)
+
+
+def _khmer_word_aligned(translation: str) -> Optional[str]:
+    """Return hyphen-joined ICU Khmer→Latin romanization, one token per word.
+
+    Uses PyICU's ``Khmer-Latin`` transliterator (CLDR standard). Each Khmer
+    word from the LLM-emitted space-segmented translation becomes a single
+    romanized token with syllables hyphen-joined internally.
+    """
+    return _romanize_icu_per_word(translation, _KHMER_RANGE, "Khmer-Latin")
+
+
+def _burmese_word_aligned(translation: str) -> Optional[str]:
+    """Return hyphen-joined ICU Myanmar→Latin romanization, one token per word.
+
+    Uses PyICU's ``Myanmar-Latin`` transliterator (CLDR standard). Each
+    Myanmar word from the LLM-emitted space-segmented translation becomes a
+    single romanized token with syllables hyphen-joined internally.
+    """
+    return _romanize_icu_per_word(translation, _MYANMAR_RANGE, "Myanmar-Latin")
+
+
 def generate_word_aligned_transliteration(
     translation: str, target_language: str
 ) -> Optional[str]:
@@ -245,6 +331,10 @@ def generate_word_aligned_transliteration(
         return _korean_word_aligned(translation)
     if key == "thai":
         return _thai_word_aligned(translation)
+    if key == "khmer":
+        return _khmer_word_aligned(translation)
+    if key == "burmese":
+        return _burmese_word_aligned(translation)
     return None
 
 

@@ -16,14 +16,18 @@ FROM python:3.10-slim-bookworm
 # libespeak-ng-dev: headers piper needs at build time
 # gcc + python3-dev + libc6-dev: C extensions (psutil, bcrypt, etc.)
 # libpq-dev:        required by psycopg2 for PostgreSQL connectivity
+# libicu-dev + pkg-config: required by PyICU for Khmer/Myanmar transliteration
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         espeak-ng \
         libespeak-ng-dev \
         gcc \
+        g++ \
         python3-dev \
         libc6-dev \
         libpq-dev \
+        libicu-dev \
+        pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Non-root user ────────────────────────────────────────────────────
