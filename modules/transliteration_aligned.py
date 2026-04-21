@@ -241,17 +241,32 @@ def _thai_word_aligned(translation: str) -> Optional[str]:
     except ImportError:
         return None
 
+    def _romanize_plain(word: str) -> str:
+        """Last-resort romanization: RTGS (no tones) then strip any residue."""
+        try:
+            plain = (romanize(word) or "").strip().replace(" ", "")
+        except Exception:
+            plain = ""
+        # If even romanize() left Thai characters behind, drop them. Better
+        # to ship a short ASCII token than a mixed-script one that will
+        # confuse the word-highlighter.
+        plain = "".join(c for c in plain if not _THAI_RANGE.match(c))
+        return plain
+
     def _tone_romanize(word: str) -> str:
         try:
             raw = transliterate(word, engine="tltk_ipa") or ""
         except Exception:
             raw = ""
         raw = raw.strip()
-        if not raw:
-            try:
-                return romanize(word).strip().replace(" ", "")
-            except Exception:
-                return word
+        # Guard: tltk_ipa silently returns partial output on compound / rare
+        # words (e.g. กระเป๋า → "" or "กระเป๋า" unchanged). When that happens
+        # the transliteration line ends up mixing Latin and Thai, which
+        # breaks both highlighting and learner readability. Detect any
+        # residual Thai script and fall back to the plain RTGS romanizer.
+        if not raw or _THAI_RANGE.search(raw):
+            plain = _romanize_plain(word)
+            return plain if plain else word
         # Normalize the IPA length marker to ASCII so output is greppable.
         raw = raw.replace("ː", ":")
         # tltk emits each syllable as <chars><tone-digit>, '.' separated.
@@ -264,7 +279,14 @@ def _thai_word_aligned(translation: str) -> Optional[str]:
             for s in raw.split(".")
             if s.strip()
         ]
-        return "-".join(syllables) if syllables else word
+        result = "-".join(syllables) if syllables else word
+        # Safety net in case the pre-tltk Thai slipped past tltk but after
+        # our syllable split somehow survived (shouldn't happen, but zero
+        # cost to enforce).
+        if _THAI_RANGE.search(result):
+            plain = _romanize_plain(word)
+            return plain if plain else result
+        return result
 
     out: list[str] = []
     for word in translation.split():
@@ -365,6 +387,12 @@ def _romanize_icu_per_word(
         except Exception:
             romanized = ""
         romanized = (romanized or "").strip()
+        # Guard: some ICU transliterators leave the script untouched when
+        # they encounter a character outside their table (silently no-op).
+        # If the output still contains the source script, treat it as a
+        # failure so the caller can fall back (e.g. to a char-level map).
+        if script_pattern.search(romanized):
+            return None
         # ICU often inserts spaces between syllables — collapse to hyphens so
         # the result is exactly one token per translation word.
         romanized = re.sub(r"\s+", "-", romanized)
