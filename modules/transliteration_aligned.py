@@ -102,12 +102,12 @@ def _map_punct(token: str) -> str:
 
 
 def _chinese_word_aligned(translation: str) -> Optional[str]:
-    """Return hyphen-joined pinyin WITH tone numbers, one token per Chinese word.
+    """Return hyphen-joined pinyin with tone diacritics, one token per word.
 
-    Uses ``pypinyin.pinyin`` with ``Style.TONE3`` so each syllable carries the
-    Mandarin tone as a trailing digit 1-4 (or nothing for neutral tone), e.g.
-    ``ni3-hao3``. Returns None when pypinyin is unavailable or the input has
-    no Chinese characters.
+    Uses ``pypinyin.pinyin`` with ``Style.TONE`` — Mandarin tones are rendered
+    with the standard diacritic convention learners recognise from textbooks
+    (nǐ, hǎo, mā, dà). Neutral tone carries no mark. Returns None when
+    pypinyin is unavailable or the input has no Chinese characters.
     """
     if not _HAN_RANGE.search(translation):
         return None
@@ -120,9 +120,10 @@ def _chinese_word_aligned(translation: str) -> Optional[str]:
     for word in translation.split():
         if _HAN_RANGE.search(word):
             # pinyin() returns a list of candidate-lists; take the first
-            # candidate for each syllable. Style.TONE3 puts the tone digit
-            # at the end of the syllable with no digit for neutral tone.
-            raw = pinyin(word, style=Style.TONE3, heteronym=False)
+            # candidate for each syllable. Style.TONE puts the tone diacritic
+            # over the appropriate vowel of each syllable (standard pinyin
+            # convention, e.g. 你好 → nǐ hǎo).
+            raw = pinyin(word, style=Style.TONE, heteronym=False)
             syllables = [
                 group[0].strip() for group in raw if group and group[0].strip()
             ]
