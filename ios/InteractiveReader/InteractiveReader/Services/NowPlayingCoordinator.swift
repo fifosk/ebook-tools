@@ -54,14 +54,17 @@ final class NowPlayingCoordinator: ObservableObject {
             let center = MPRemoteCommandCenter.shared()
 
             center.playCommand.addTarget { [weak self] _ in
+                print("[NowPlaying] playCommand fired")
                 self?.invokeHandler(self?.playHandler)
                 return .success
             }
             center.pauseCommand.addTarget { [weak self] _ in
+                print("[NowPlaying] pauseCommand fired")
                 self?.invokeHandler(self?.pauseHandler)
                 return .success
             }
             center.togglePlayPauseCommand.addTarget { [weak self] _ in
+                print("[NowPlaying] togglePlayPauseCommand fired")
                 if let handler = self?.toggleHandler {
                     self?.invokeHandler(handler)
                 } else {
