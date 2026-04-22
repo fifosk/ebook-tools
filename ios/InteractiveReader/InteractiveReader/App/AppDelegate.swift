@@ -2,7 +2,10 @@ import UIKit
 import UserNotifications
 
 /// Application delegate for handling push notification lifecycle events.
-class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+/// Inherits from UIResponder (not NSObject) so we can override
+/// `buildMenu(with:)` and register app-level keyboard shortcuts that are
+/// reachable from any view via the responder chain.
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     func application(
         _ application: UIApplication,
@@ -67,6 +70,101 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         await MainActor.run {
             NotificationManager.shared.handleNotificationTap(userInfo: userInfo)
         }
+    }
+    #endif
+
+    // MARK: - Global keyboard shortcuts
+    //
+    // Register the player's hardware-keyboard shortcuts at UIApplication /
+    // UIApplicationDelegate level via the main menu builder. Menu commands
+    // registered here are consulted from the TOP of the responder chain on
+    // every key press — which means Space / arrows / Return always reach us
+    // regardless of which SwiftUI view currently holds first responder.
+    // We forward to NotificationCenter so any view currently on screen can
+    // react with its own handler without needing to be first responder.
+
+    #if !os(tvOS)
+    override func buildMenu(with builder: UIMenuBuilder) {
+        super.buildMenu(with: builder)
+        guard builder.system == .main else { return }
+
+        let commands: [UIKeyCommand] = [
+            makePriorityCommand(" ",
+                                action: #selector(handleKeyboardPlayPause),
+                                title: "Play / Pause"),
+            makePriorityCommand(UIKeyCommand.inputLeftArrow,
+                                action: #selector(handleKeyboardPrevious),
+                                title: "Previous Word"),
+            makePriorityCommand(UIKeyCommand.inputRightArrow,
+                                action: #selector(handleKeyboardNext),
+                                title: "Next Word"),
+            makePriorityCommand(UIKeyCommand.inputLeftArrow,
+                                modifiers: [.control],
+                                action: #selector(handleKeyboardPreviousSentence),
+                                title: "Previous Sentence"),
+            makePriorityCommand(UIKeyCommand.inputRightArrow,
+                                modifiers: [.control],
+                                action: #selector(handleKeyboardNextSentence),
+                                title: "Next Sentence"),
+            makePriorityCommand("\r",
+                                action: #selector(handleKeyboardLookup),
+                                title: "Look Up Highlighted Word"),
+            makePriorityCommand(UIKeyCommand.inputDownArrow,
+                                action: #selector(handleKeyboardShowMenu),
+                                title: "Show Menu"),
+            makePriorityCommand(UIKeyCommand.inputUpArrow,
+                                action: #selector(handleKeyboardHideMenu),
+                                title: "Hide Menu"),
+        ]
+
+        let menu = UIMenu(title: "Playback",
+                          options: .displayInline,
+                          children: commands)
+        builder.insertChild(menu, atStartOfMenu: .application)
+    }
+
+    private func makePriorityCommand(_ input: String,
+                                     modifiers: UIKeyModifierFlags = [],
+                                     action: Selector,
+                                     title: String) -> UIKeyCommand {
+        let command = UIKeyCommand(input: input,
+                                   modifierFlags: modifiers,
+                                   action: action)
+        command.wantsPriorityOverSystemBehavior = true
+        command.title = title
+        return command
+    }
+
+    @objc private func handleKeyboardPlayPause() {
+        NotificationCenter.default.post(name: .keyboardShortcutPlayPause, object: nil)
+    }
+
+    @objc private func handleKeyboardPrevious() {
+        NotificationCenter.default.post(name: .keyboardShortcutPrevious, object: nil)
+    }
+
+    @objc private func handleKeyboardNext() {
+        NotificationCenter.default.post(name: .keyboardShortcutNext, object: nil)
+    }
+
+    @objc private func handleKeyboardPreviousSentence() {
+        NotificationCenter.default.post(name: .keyboardShortcutPreviousSentence, object: nil)
+    }
+
+    @objc private func handleKeyboardNextSentence() {
+        NotificationCenter.default.post(name: .keyboardShortcutNextSentence, object: nil)
+    }
+
+    @objc private func handleKeyboardLookup() {
+        NotificationCenter.default.post(name: .keyboardShortcutLookup, object: nil)
+    }
+
+    @objc private func handleKeyboardShowMenu() {
+        NotificationCenter.default.post(name: .keyboardShortcutShowMenu, object: nil)
+    }
+
+    @objc private func handleKeyboardHideMenu() {
+        NotificationCenter.default.post(name: .keyboardShortcutHideMenu, object: nil)
     }
     #endif
 }

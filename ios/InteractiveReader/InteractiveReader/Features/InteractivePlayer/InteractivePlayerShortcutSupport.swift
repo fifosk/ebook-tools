@@ -531,6 +531,9 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         // Tracks whether the software keyboard is visible so we don't yank
         // focus away from a user who is actively typing in a text field.
         private var softwareKeyboardVisible = false
+        // Block-based notification observer tokens for app-level shortcut
+        // notifications posted by AppDelegate.
+        private var shortcutObserverTokens: [NSObjectProtocol] = []
 
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
@@ -592,10 +595,6 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
                 name: UIWindow.didBecomeKeyNotification,
                 object: nil
             )
-            // Track software-keyboard visibility via UIKit notifications —
-            // more reliable than walking the subview tree to find a text
-            // first responder (stale hidden-but-attached text fields tripped
-            // the old check and blocked reclaim after lookup bubbles closed).
             center.addObserver(
                 self,
                 selector: #selector(handleKeyboardWillShow),
@@ -608,10 +607,36 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
                 name: UIResponder.keyboardDidHideNotification,
                 object: nil
             )
+            // App-level keyboard shortcuts posted by AppDelegate via
+            // buildMenu — these always fire regardless of first-responder
+            // state, so the handlers below are the guaranteed path to our
+            // callbacks. The local UIKeyCommand set still handles the same
+            // keys when we do happen to hold first responder; either path
+            // invokes the same handlers.
+            let shortcuts: [(Notification.Name, () -> Void)] = [
+                (.keyboardShortcutPlayPause, { [weak self] in self?.handlePlayPause() }),
+                (.keyboardShortcutPrevious, { [weak self] in self?.handlePrevious() }),
+                (.keyboardShortcutNext, { [weak self] in self?.handleNext() }),
+                (.keyboardShortcutPreviousSentence, { [weak self] in self?.handlePreviousWord() }),
+                (.keyboardShortcutNextSentence, { [weak self] in self?.handleNextWord() }),
+                (.keyboardShortcutLookup, { [weak self] in self?.handleLookup() }),
+                (.keyboardShortcutShowMenu, { [weak self] in self?.handleShowMenu() }),
+                (.keyboardShortcutHideMenu, { [weak self] in self?.handleHideMenu() }),
+            ]
+            for (name, handler) in shortcuts {
+                let token = center.addObserver(forName: name, object: nil, queue: .main) { _ in
+                    handler()
+                }
+                shortcutObserverTokens.append(token)
+            }
         }
 
         private func removeFocusObservers() {
             NotificationCenter.default.removeObserver(self)
+            for token in shortcutObserverTokens {
+                NotificationCenter.default.removeObserver(token)
+            }
+            shortcutObserverTokens.removeAll()
         }
 
         @objc private func handleKeyboardWillShow() {
