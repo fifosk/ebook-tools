@@ -689,18 +689,17 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         }
 
         override var keyCommands: [UIKeyCommand]? {
+            // NOTE: Space / Left / Right / Ctrl+Left / Ctrl+Right / Return /
+            // Up / Down are registered exclusively by the SwiftUI CommandMenu
+            // in InteractiveReaderApp. Listing them here too produced
+            // "Keyboard Shortcut duplicate" warnings and caused iPadOS to
+            // silently drop dispatch until the user tapped the screen. The
+            // remaining keys in this array (h, o, i, p, =, -, Shift+arrow)
+            // have no CommandMenu counterpart and work the classic way via
+            // the UIKeyCommand responder chain.
             let commands = [
-                makeCommand(input: " ", action: #selector(handlePlayPause)),
-                makeCommand(input: UIKeyCommand.inputLeftArrow, action: #selector(handlePrevious)),
-                makeCommand(input: UIKeyCommand.inputRightArrow, action: #selector(handleNext)),
-                makeCommand(input: UIKeyCommand.inputLeftArrow, modifiers: [.control], action: #selector(handlePreviousWord)),
-                makeCommand(input: UIKeyCommand.inputRightArrow, modifiers: [.control], action: #selector(handleNextWord)),
                 makeCommand(input: UIKeyCommand.inputLeftArrow, modifiers: [.shift], action: #selector(handleExtendSelectionBackward)),
                 makeCommand(input: UIKeyCommand.inputRightArrow, modifiers: [.shift], action: #selector(handleExtendSelectionForward)),
-                makeCommand(input: "\r", action: #selector(handleLookup)),
-                makeCommand(input: "\n", action: #selector(handleLookup)),
-                makeCommand(input: UIKeyCommand.inputDownArrow, action: #selector(handleShowMenu)),
-                makeCommand(input: UIKeyCommand.inputUpArrow, action: #selector(handleHideMenu)),
                 makeCommand(input: "h", action: #selector(handleToggleHelp)),
                 makeCommand(input: "h", modifiers: [.shift], action: #selector(handleToggleHeader)),
                 makeCommand(input: "o", action: #selector(handleToggleOriginal)),
