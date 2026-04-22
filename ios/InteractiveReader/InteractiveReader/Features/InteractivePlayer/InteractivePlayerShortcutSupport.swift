@@ -539,12 +539,43 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
             }
             installFocusObservers()
             startReclaimTimer()
+            installWindowTouchObserver()
         }
 
         override func viewWillDisappear(_ animated: Bool) {
             super.viewWillDisappear(animated)
             removeFocusObservers()
             stopReclaimTimer()
+            removeWindowTouchObserver()
+        }
+
+        // ── Window-level touch observer ───────────────────────────────────
+        // The periodic timer alone is not enough: SwiftUI buttons and focused
+        // views often take first-responder priority right after a user tap
+        // (e.g. tapping Play starts playback but leaves the button focused
+        // and consuming the Space key). We attach a transparent gesture
+        // recognizer to the key window that watches every touches-ended and
+        // reclaims first responder right after — the same action the user
+        // had to do manually with an extra tap.
+        private var windowTouchObserver: WindowTouchCatcher?
+
+        private func installWindowTouchObserver() {
+            guard windowTouchObserver == nil else { return }
+            guard let window = view.window else { return }
+            let catcher = WindowTouchCatcher()
+            catcher.onTouchesEnded = { [weak self] in
+                self?.reclaimFirstResponderNow()
+            }
+            window.addGestureRecognizer(catcher)
+            windowTouchObserver = catcher
+        }
+
+        private func removeWindowTouchObserver() {
+            if let catcher = windowTouchObserver,
+               let window = catcher.view {
+                window.removeGestureRecognizer(catcher)
+            }
+            windowTouchObserver = nil
         }
 
         private func installFocusObservers() {
@@ -814,6 +845,40 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
             }
             return false
         }
+    }
+}
+
+/// Gesture recognizer that observes every touches-ended without consuming
+/// the touch. Attached to the key window so the shortcut controller can
+/// snap first responder back after any user tap (Play button, lookup
+/// bubble, transcript, sheet dismissal). Always reports `.failed` so no
+/// other gesture is disturbed.
+import UIKit.UIGestureRecognizerSubclass
+
+final class WindowTouchCatcher: UIGestureRecognizer {
+    var onTouchesEnded: (() -> Void)?
+
+    override init(target: Any?, action: Selector?) {
+        super.init(target: target, action: action)
+        cancelsTouchesInView = false
+        delaysTouchesBegan = false
+        delaysTouchesEnded = false
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesBegan(touches, with: event)
+        state = .possible
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesEnded(touches, with: event)
+        onTouchesEnded?()
+        state = .failed
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesCancelled(touches, with: event)
+        state = .failed
     }
 }
 
