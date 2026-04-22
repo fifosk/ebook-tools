@@ -522,17 +522,26 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
             }
         }
 
+        // Periodic reclaim: iPadOS routes arrow keys to whatever scrollable
+        // view was most recently tapped (for trackpad/keyboard scrolling). A
+        // tap on any ScrollView in the SwiftUI tree silently pulls first
+        // responder away from us — there is no public notification for that,
+        // so we poll. Cheap check, only runs while the view is visible.
+        private var reclaimTimer: Timer?
+
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
             if !isFirstResponder {
                 becomeFirstResponder()
             }
             installFocusObservers()
+            startReclaimTimer()
         }
 
         override func viewWillDisappear(_ animated: Bool) {
             super.viewWillDisappear(animated)
             removeFocusObservers()
+            stopReclaimTimer()
         }
 
         private func installFocusObservers() {
@@ -558,10 +567,34 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
                 name: UIResponder.keyboardDidHideNotification,
                 object: nil
             )
+            // Reclaim whenever any window in the app's scene hierarchy reports
+            // a tap. Not a public API, but every touch ends up dispatched
+            // through UIApplication.sendEvent; we observe the end-of-touch
+            // signal via the .didReceiveTouch synthesised below.
         }
 
         private func removeFocusObservers() {
             NotificationCenter.default.removeObserver(self)
+        }
+
+        private func startReclaimTimer() {
+            stopReclaimTimer()
+            reclaimTimer = Timer.scheduledTimer(
+                withTimeInterval: 1.5,
+                repeats: true
+            ) { [weak self] _ in
+                self?.reclaimFirstResponderIfAvailable()
+            }
+            // Allow the timer to fire during scroll/touch tracking so we can
+            // recover from a user-initiated focus shift within ~1.5s.
+            if let t = reclaimTimer {
+                RunLoop.main.add(t, forMode: .common)
+            }
+        }
+
+        private func stopReclaimTimer() {
+            reclaimTimer?.invalidate()
+            reclaimTimer = nil
         }
 
         @objc private func reclaimFirstResponderIfAvailable() {
