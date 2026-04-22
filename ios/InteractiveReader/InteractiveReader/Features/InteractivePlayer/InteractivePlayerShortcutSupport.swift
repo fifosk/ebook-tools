@@ -524,10 +524,13 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
 
         // Periodic reclaim: iPadOS routes arrow keys to whatever scrollable
         // view was most recently tapped (for trackpad/keyboard scrolling). A
-        // tap on any ScrollView in the SwiftUI tree silently pulls first
-        // responder away from us — there is no public notification for that,
-        // so we poll. Cheap check, only runs while the view is visible.
+        // tap on a ScrollView, a dictionary lookup closing, or any other
+        // SwiftUI-internal focus shift silently pulls first responder away
+        // from us — there is no public notification for that, so we poll.
         private var reclaimTimer: Timer?
+        // Tracks whether the software keyboard is visible so we don't yank
+        // focus away from a user who is actively typing in a text field.
+        private var softwareKeyboardVisible = false
 
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
@@ -548,45 +551,57 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
             let center = NotificationCenter.default
             center.addObserver(
                 self,
-                selector: #selector(reclaimFirstResponderIfAvailable),
+                selector: #selector(reclaimFirstResponderNow),
                 name: UIApplication.didBecomeActiveNotification,
                 object: nil
             )
             center.addObserver(
                 self,
-                selector: #selector(reclaimFirstResponderIfAvailable),
+                selector: #selector(reclaimFirstResponderNow),
                 name: UIWindow.didBecomeKeyNotification,
                 object: nil
             )
-            // When a UIKit text field or search bar finishes editing it posts
-            // keyboardDidHideNotification. That's the moment to snap first
-            // responder back to ourselves so Space resumes playback controls.
+            // Track software-keyboard visibility via UIKit notifications —
+            // more reliable than walking the subview tree to find a text
+            // first responder (stale hidden-but-attached text fields tripped
+            // the old check and blocked reclaim after lookup bubbles closed).
             center.addObserver(
                 self,
-                selector: #selector(reclaimFirstResponderIfAvailable),
+                selector: #selector(handleKeyboardWillShow),
+                name: UIResponder.keyboardWillShowNotification,
+                object: nil
+            )
+            center.addObserver(
+                self,
+                selector: #selector(handleKeyboardDidHide),
                 name: UIResponder.keyboardDidHideNotification,
                 object: nil
             )
-            // Reclaim whenever any window in the app's scene hierarchy reports
-            // a tap. Not a public API, but every touch ends up dispatched
-            // through UIApplication.sendEvent; we observe the end-of-touch
-            // signal via the .didReceiveTouch synthesised below.
         }
 
         private func removeFocusObservers() {
             NotificationCenter.default.removeObserver(self)
         }
 
+        @objc private func handleKeyboardWillShow() {
+            softwareKeyboardVisible = true
+        }
+
+        @objc private func handleKeyboardDidHide() {
+            softwareKeyboardVisible = false
+            // Keyboard just dismissed → snap focus back right away, don't
+            // wait for the next timer tick.
+            reclaimFirstResponderNow()
+        }
+
         private func startReclaimTimer() {
             stopReclaimTimer()
             reclaimTimer = Timer.scheduledTimer(
-                withTimeInterval: 1.5,
+                withTimeInterval: 0.5,
                 repeats: true
             ) { [weak self] _ in
-                self?.reclaimFirstResponderIfAvailable()
+                self?.reclaimFirstResponderNow()
             }
-            // Allow the timer to fire during scroll/touch tracking so we can
-            // recover from a user-initiated focus shift within ~1.5s.
             if let t = reclaimTimer {
                 RunLoop.main.add(t, forMode: .common)
             }
@@ -597,19 +612,23 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
             reclaimTimer = nil
         }
 
-        @objc private func reclaimFirstResponderIfAvailable() {
-            // Defer to next runloop tick so UIKit has finished settling whatever
-            // caused our resignation (sheet dismissal, keyboard hide, app wake).
+        @objc private func reclaimFirstResponderNow() {
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 guard self.view.window != nil else { return }
-                // Don't fight legitimate first responders like active text fields.
-                if self.view.window?.firstResponderThatCanEdit() != nil {
+                // Skip only when the user is visibly typing — detected via
+                // the software-keyboard notifications rather than by walking
+                // the subview tree (which caught stale text fields that had
+                // already resigned but were still attached, e.g. inside a
+                // closed lookup bubble).
+                if self.softwareKeyboardVisible {
                     return
                 }
-                if !self.isFirstResponder {
-                    self.becomeFirstResponder()
-                }
+                // Always call becomeFirstResponder: even when isFirstResponder
+                // reports true UIKit occasionally has a stale chain where our
+                // keyCommands aren't actually being consulted. becomeFirstResponder
+                // is idempotent if we really are still first responder.
+                self.becomeFirstResponder()
             }
         }
 
@@ -798,26 +817,4 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
     }
 }
 
-private extension UIView {
-    /// Walk the responder tree looking for an editable (text-input) first
-    /// responder. Used so we don't yank focus away from a user who is typing
-    /// in a search field, feedback form, etc.
-    func firstResponderThatCanEdit() -> UIResponder? {
-        return findFirstEditableResponder(in: self)
-    }
-
-    private func findFirstEditableResponder(in view: UIView) -> UIResponder? {
-        if view.isFirstResponder {
-            if view is UITextField || view is UITextView || view is UISearchBar {
-                return view
-            }
-        }
-        for subview in view.subviews {
-            if let found = findFirstEditableResponder(in: subview) {
-                return found
-            }
-        }
-        return nil
-    }
-}
 #endif
