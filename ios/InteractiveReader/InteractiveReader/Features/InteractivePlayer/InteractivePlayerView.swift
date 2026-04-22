@@ -289,43 +289,6 @@ struct InteractivePlayerView: View {
         #else
         baseContent
             .accessibilityIdentifier("interactivePlayerView")
-            // SwiftUI 17+ hardware-keyboard handling: make the player focusable
-            // and use .onKeyPress. This is the path Magic Keyboard events flow
-            // through natively (before the system media-key interception that
-            // was silently swallowing Space during active playback). Returning
-            // .handled keeps the event from falling through to other handlers.
-            .focusable(isPad)
-            .focusEffectDisabled()
-            .onKeyPress(.space) {
-                print("[OnKeyPress] space fired")
-                audioCoordinator.togglePlayback()
-                return .handled
-            }
-            .onKeyPress(.leftArrow) {
-                print("[OnKeyPress] leftArrow fired")
-                if audioCoordinator.isPlaying {
-                    viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
-                } else if let chunk = viewModel.selectedChunk {
-                    handleWordNavigation(-1, in: chunk)
-                }
-                return .handled
-            }
-            .onKeyPress(.rightArrow) {
-                print("[OnKeyPress] rightArrow fired")
-                if audioCoordinator.isPlaying {
-                    viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
-                } else if let chunk = viewModel.selectedChunk {
-                    handleWordNavigation(1, in: chunk)
-                }
-                return .handled
-            }
-            .onKeyPress(.return) {
-                print("[OnKeyPress] return fired")
-                if let chunk = viewModel.selectedChunk {
-                    handleLinguistLookup(in: chunk)
-                }
-                return .handled
-            }
         #endif
     }
 
