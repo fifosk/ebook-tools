@@ -123,6 +123,93 @@ extension InteractivePlayerView {
         #endif
     }
 
+    /// SwiftUI-native keyboard shortcuts. These are registered as Command
+    /// menu items via SwiftUI and get dispatched by iPadOS's Magic-Keyboard
+    /// integration layer REGARDLESS of which SwiftUI view currently has
+    /// focus. Complements the UIKit UIKeyCommand path (KeyboardCommandHandler)
+    /// — whichever path UIKit picks up first, the same action closures fire.
+    ///
+    /// Invisible Buttons with `.keyboardShortcut` are the supported idiom
+    /// for global hardware-keyboard shortcuts in SwiftUI on iPadOS.
+    @ViewBuilder
+    var swiftUIKeyboardShortcutLayer: some View {
+        #if os(iOS)
+        if isPad {
+            ZStack {
+                Button("Play / Pause") { audioCoordinator.togglePlayback() }
+                    .keyboardShortcut(.space, modifiers: [])
+                Button("Previous") {
+                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
+                        bubbleKeyboardNavigator.navigateLeft()
+                    } else if audioCoordinator.isPlaying {
+                        viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
+                    } else {
+                        handleWordNavigation(-1, in: viewModel.selectedChunk)
+                    }
+                }
+                .keyboardShortcut(.leftArrow, modifiers: [])
+                Button("Next") {
+                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
+                        bubbleKeyboardNavigator.navigateRight()
+                    } else if audioCoordinator.isPlaying {
+                        viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
+                    } else {
+                        handleWordNavigation(1, in: viewModel.selectedChunk)
+                    }
+                }
+                .keyboardShortcut(.rightArrow, modifiers: [])
+                Button("Look Up Highlighted Word") {
+                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
+                        handleBubbleKeyboardActivate()
+                    } else if let chunk = viewModel.selectedChunk {
+                        handleLinguistLookup(in: chunk)
+                    }
+                }
+                .keyboardShortcut(.return, modifiers: [])
+                Button("Previous Sentence") {
+                    if audioCoordinator.isPlaying {
+                        handleWordNavigation(-1, in: viewModel.selectedChunk)
+                    } else {
+                        viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
+                    }
+                }
+                .keyboardShortcut(.leftArrow, modifiers: [.control])
+                Button("Next Sentence") {
+                    if audioCoordinator.isPlaying {
+                        handleWordNavigation(1, in: viewModel.selectedChunk)
+                    } else {
+                        viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
+                    }
+                }
+                .keyboardShortcut(.rightArrow, modifiers: [.control])
+                Button("Show Menu") {
+                    if audioCoordinator.isPlaying {
+                        showMenu()
+                    } else if let chunk = viewModel.selectedChunk {
+                        handleTrackNavigation(1, in: chunk)
+                    }
+                }
+                .keyboardShortcut(.downArrow, modifiers: [])
+                Button("Hide Menu") {
+                    if audioCoordinator.isPlaying {
+                        hideMenu()
+                    } else if bubbleKeyboardNavigator.isKeyboardFocusActive {
+                        bubbleKeyboardNavigator.exitFocus()
+                    } else if let chunk = viewModel.selectedChunk {
+                        handleTrackNavigation(-1, in: chunk)
+                    }
+                }
+                .keyboardShortcut(.upArrow, modifiers: [])
+            }
+            .frame(width: 0, height: 0)
+            .opacity(0)
+            .accessibilityHidden(true)
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+
     @ViewBuilder
     var trackpadSwipeLayer: some View {
         #if os(iOS)

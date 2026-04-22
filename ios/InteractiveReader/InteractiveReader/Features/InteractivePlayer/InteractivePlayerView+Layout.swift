@@ -318,6 +318,7 @@ extension InteractivePlayerView {
         trackpadSwipeLayer
         shortcutHelpOverlay
         keyboardShortcutLayer
+        swiftUIKeyboardShortcutLayer
     }
 
     @ViewBuilder
