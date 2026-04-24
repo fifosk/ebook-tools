@@ -11,15 +11,50 @@ from .job import PipelineJobStatus
 
 
 def _stable_copy(value: Any) -> Any:
-    """Return a deterministically ordered, JSON-serializable copy of ``value``."""
+    """Return a deterministically ordered, JSON-serializable copy of ``value``.
 
+    Unwraps pydantic ``SecretStr`` / ``SecretBytes`` values to a masked
+    placeholder ("***") so job metadata files never contain the real API
+    key or password verbatim on disk. Without this, ``json.dumps`` raises
+    ``TypeError: Object of type SecretStr is not JSON serializable`` and
+    the job persistence layer silently drops updates (see
+    pipeline.job.batch_flush.failed).
+    """
+
+    if value is None:
+        return None
     if isinstance(value, Mapping):
         return {key: _stable_copy(value[key]) for key in sorted(value)}
     if isinstance(value, (list, tuple)):
         return [_stable_copy(item) for item in value]
     if isinstance(value, set):
         return [_stable_copy(item) for item in sorted(value, key=lambda item: repr(item))]
+    # pydantic SecretStr / SecretBytes / anything else with get_secret_value
+    # gets masked so we never persist the plaintext secret.
+    if hasattr(value, "get_secret_value") and callable(value.get_secret_value):
+        return "***" if value.get_secret_value() else ""
     return value
+
+
+def _json_default(value: Any) -> Any:
+    """Fallback encoder for ``json.dumps`` default= argument.
+
+    ``_stable_copy`` should handle everything we know about, but any field
+    stored without going through the normalizer (e.g. nested Pydantic model
+    dumped directly) still needs a safety net so the whole save doesn't
+    fail just because one leaf isn't json-serializable.
+    """
+
+    if hasattr(value, "get_secret_value") and callable(value.get_secret_value):
+        return "***" if value.get_secret_value() else ""
+    if hasattr(value, "model_dump") and callable(value.model_dump):
+        return value.model_dump()
+    if isinstance(value, datetime):
+        return value.isoformat()
+    try:
+        return str(value)
+    except Exception:
+        return repr(value)
 
 
 @dataclass
@@ -85,7 +120,11 @@ class PipelineJobMetadata:
 
     def to_json(self) -> str:
         return json.dumps(
-            self.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            self.to_dict(),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=_json_default,
         )
 
     @staticmethod
