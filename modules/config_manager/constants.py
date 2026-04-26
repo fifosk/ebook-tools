@@ -61,7 +61,7 @@ DEFAULT_LMSTUDIO_MACSTUDIO_URL = os.environ.get(
     os.environ.get("LMSTUDIO_URL", "http://192.168.1.9:1234/v1/chat/completions"),
 )
 DEFAULT_LMSTUDIO_MACBOOK_URL = os.environ.get(
-    "LMSTUDIO_MACBOOK_URL", "http://localhost:1234/v1/chat/completions"
+    "LMSTUDIO_MACBOOK_URL", "http://192.168.1.191:1234/v1/chat/completions"
 )
 DEFAULT_LMSTUDIO_URL = DEFAULT_LMSTUDIO_MACSTUDIO_URL
 VALID_LLM_SOURCES = {"local", "cloud", "lmstudio"}

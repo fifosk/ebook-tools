@@ -46,7 +46,7 @@
         "ollama_local_url": "Fallback URL for the local Ollama instance.",
         "ollama_cloud_url": "Fallback URL for the Ollama Cloud endpoint.",
         "lmstudio_macstudio_url": "LM Studio endpoint on the Mac Studio host (port 1234). Reachable from any machine on the LAN.",
-        "lmstudio_macbook_url": "LM Studio endpoint on the MacBook Pro host (port 1234). Defaults to localhost; override with the LAN IP (e.g. 192.168.1.191:1234) when the Dockerized backend on another host needs to reach it.",
+        "lmstudio_macbook_url": "LM Studio endpoint on the MacBook Pro host (port 1234). Defaults to the MacBook's LAN IP so the Dockerized backend on the Mac Studio can reach it; override to http://localhost:1234/v1/chat/completions in conf/config.local.json when running the backend directly on the MacBook.",
         "ollama_model": "Model identifier used for translation requests.",
         "ffmpeg_path": "Path to the ffmpeg executable.",
         "api_keys": "Holds API keys for external services (store overrides in config.local.json).",
@@ -107,7 +107,7 @@
     "ollama_local_url": "http://192.168.1.9:11434/api/chat",
     "ollama_cloud_url": "https://api.ollama.com/v1/chat/completions",
     "lmstudio_macstudio_url": "http://192.168.1.9:1234/v1/chat/completions",
-    "lmstudio_macbook_url": "http://localhost:1234/v1/chat/completions",
+    "lmstudio_macbook_url": "http://192.168.1.191:1234/v1/chat/completions",
     "ollama_model": "kimi-k2:1t-cloud",
     "ffmpeg_path": "ffmpeg",
     "api_keys": {
