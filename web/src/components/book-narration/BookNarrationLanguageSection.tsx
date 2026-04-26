@@ -1,5 +1,9 @@
 import { useMemo } from 'react';
 import { buildLanguageOptions, sortLanguageLabelsByName } from '../../utils/languages';
+import {
+  bareLlmModelName,
+  groupLlmModelsByProvider
+} from '../../utils/llmModelGroups';
 import LanguageSelect from '../LanguageSelect';
 
 const GOOGLE_TRANSLATION_PROVIDER_ALIASES = new Set([
@@ -149,6 +153,7 @@ const BookNarrationLanguageSection = ({
   const currentModel = ollamaModel.trim();
   const resolvedModels = llmModels.length ? llmModels : currentModel ? [currentModel] : [];
   const modelOptions = Array.from(new Set([...(currentModel ? [currentModel] : []), ...resolvedModels]));
+  const modelGroups = useMemo(() => groupLlmModelsByProvider(modelOptions), [modelOptions]);
   const inputLanguageOptions = useMemo(
     () =>
       sortLanguageLabelsByName(
@@ -177,6 +182,10 @@ const BookNarrationLanguageSection = ({
   const transliterationModelValue = transliterationModel.trim();
   const transliterationModelOptions = Array.from(
     new Set([...(transliterationModelValue ? [transliterationModelValue] : []), ...modelOptions])
+  );
+  const transliterationModelGroups = useMemo(
+    () => groupLlmModelsByProvider(transliterationModelOptions),
+    [transliterationModelOptions]
   );
   const selectedTransliterationOption =
     TRANSLITERATION_MODE_OPTIONS.find((option) => option.value === resolvedTransliterationMode) ??
@@ -227,10 +236,14 @@ const BookNarrationLanguageSection = ({
           disabled={llmModelsLoading && llmModels.length === 0 && currentModel.length === 0}
         >
           <option value="">Use server default</option>
-          {modelOptions.map((model) => (
-            <option key={model} value={model}>
-              {model}
-            </option>
+          {modelGroups.map((group) => (
+            <optgroup key={group.tag} label={group.label}>
+              {group.models.map((model) => (
+                <option key={model} value={model}>
+                  {bareLlmModelName(model)}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
         <small className="form-help-text">
@@ -254,10 +267,14 @@ const BookNarrationLanguageSection = ({
           }
         >
           <option value="">Use translation model</option>
-          {transliterationModelOptions.map((model) => (
-            <option key={model} value={model}>
-              {model}
-            </option>
+          {transliterationModelGroups.map((group) => (
+            <optgroup key={group.tag} label={group.label}>
+              {group.models.map((model) => (
+                <option key={model} value={model}>
+                  {bareLlmModelName(model)}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
         <small className="form-help-text">

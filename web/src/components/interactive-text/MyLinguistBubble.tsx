@@ -4,6 +4,10 @@ import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../../constants/lang
 import { normalizeLanguageLabel } from '../../utils/languages';
 import { parseLinguistLookupResult, type LinguistLookupResult } from '../../utils/myLinguistPrompt';
 import EmojiIcon from '../EmojiIcon';
+import {
+  bareLlmModelName,
+  groupLlmModelsByProvider
+} from '../../utils/llmModelGroups';
 import type { LinguistBubbleFloatingPlacement, LinguistBubbleState } from './types';
 import { containsNonLatinLetters, renderWithNonLatinBoost } from './utils';
 
@@ -151,6 +155,10 @@ export function MyLinguistBubble({
     llmModelOptions.forEach(append);
     return result;
   }, [bubble.llmModel, llmModelOptions]);
+  const resolvedModelGroups = useMemo(
+    () => groupLlmModelsByProvider(resolvedModelOptions),
+    [resolvedModelOptions]
+  );
 
   const resolvedVoiceValue = bubble.ttsVoice?.trim() ?? '';
   const resolvedVoiceOptions = useMemo(() => {
@@ -348,10 +356,14 @@ export function MyLinguistBubble({
                 aria-label="LLM model"
               >
                 <option value="">Auto</option>
-                {resolvedModelOptions.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
+                {resolvedModelGroups.map((group) => (
+                  <optgroup key={group.tag} label={group.label}>
+                    {group.models.map((model) => (
+                      <option key={model} value={model}>
+                        {bareLlmModelName(model)}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </label>

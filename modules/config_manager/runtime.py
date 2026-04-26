@@ -16,6 +16,8 @@ from .constants import (
     DEFAULT_BOOKS_RELATIVE,
     DEFAULT_FFMPEG_PATH,
     DEFAULT_LMSTUDIO_URL,
+    DEFAULT_LMSTUDIO_MACSTUDIO_URL,
+    DEFAULT_LMSTUDIO_MACBOOK_URL,
     DEFAULT_OLLAMA_CLOUD_URL,
     DEFAULT_OLLAMA_URL,
     DEFAULT_OUTPUT_RELATIVE,
@@ -52,6 +54,8 @@ class RuntimeContext:
     local_ollama_url: str
     cloud_ollama_url: str
     lmstudio_url: str
+    lmstudio_macstudio_url: str
+    lmstudio_macbook_url: str
     thread_count: int
     queue_size: int
     pipeline_enabled: bool
@@ -71,6 +75,8 @@ class RuntimeContext:
             "local_ollama_url": self.local_ollama_url,
             "cloud_ollama_url": self.cloud_ollama_url,
             "lmstudio_url": self.lmstudio_url,
+            "lmstudio_macstudio_url": self.lmstudio_macstudio_url,
+            "lmstudio_macbook_url": self.lmstudio_macbook_url,
             "thread_count": self.thread_count,
             "queue_size": self.queue_size,
             "pipeline_enabled": self.pipeline_enabled,
@@ -362,9 +368,17 @@ def build_runtime_context(
     local_override = overrides.get("ollama_local_url") if overrides else None
     cloud_override = overrides.get("ollama_cloud_url") if overrides else None
     lmstudio_override = overrides.get("lmstudio_url") if overrides else None
+    lmstudio_macstudio_override = (
+        overrides.get("lmstudio_macstudio_url") if overrides else None
+    )
+    lmstudio_macbook_override = (
+        overrides.get("lmstudio_macbook_url") if overrides else None
+    )
     config_local_url = config.get("ollama_local_url")
     config_cloud_url = config.get("ollama_cloud_url")
     config_lmstudio_url = config.get("lmstudio_url")
+    config_lmstudio_macstudio_url = config.get("lmstudio_macstudio_url")
+    config_lmstudio_macbook_url = config.get("lmstudio_macbook_url")
 
     local_ollama_url = _resolve_url(
         local_override or config_local_url,
@@ -374,10 +388,23 @@ def build_runtime_context(
         cloud_override or config_cloud_url,
         DEFAULT_OLLAMA_CLOUD_URL,
     )
-    lmstudio_url = _resolve_url(
-        lmstudio_override or config_lmstudio_url,
-        DEFAULT_LMSTUDIO_URL,
+    # `lmstudio_url` is the legacy single-host setting and now aliases the
+    # Mac Studio URL. If the user has set `lmstudio_macstudio_url` explicitly,
+    # that wins; otherwise `lmstudio_url` (back-compat) provides the value.
+    lmstudio_macstudio_url = _resolve_url(
+        lmstudio_macstudio_override
+        or config_lmstudio_macstudio_url
+        or lmstudio_override
+        or config_lmstudio_url,
+        DEFAULT_LMSTUDIO_MACSTUDIO_URL,
     )
+    lmstudio_macbook_url = _resolve_url(
+        lmstudio_macbook_override or config_lmstudio_macbook_url,
+        DEFAULT_LMSTUDIO_MACBOOK_URL,
+    )
+    # `lmstudio_url` itself stays bound to the Mac Studio URL for any code
+    # path that still references the legacy field.
+    lmstudio_url = lmstudio_macstudio_url
 
     working_path = resolve_directory(
         working_override or config.get("working_dir"), DEFAULT_WORKING_RELATIVE
@@ -529,6 +556,8 @@ def build_runtime_context(
         local_ollama_url=local_ollama_url,
         cloud_ollama_url=cloud_ollama_url,
         lmstudio_url=lmstudio_url,
+        lmstudio_macstudio_url=lmstudio_macstudio_url,
+        lmstudio_macbook_url=lmstudio_macbook_url,
         thread_count=thread_count,
         queue_size=queue_size,
         pipeline_enabled=pipeline_enabled,

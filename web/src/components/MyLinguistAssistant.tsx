@@ -24,6 +24,10 @@ import {
 } from '../lib/linguist';
 import type { VoiceOption } from '../lib/linguist';
 import LanguageDropdown from './LanguageDropdown';
+import {
+  bareLlmModelName,
+  groupLlmModelsByProvider
+} from '../utils/llmModelGroups';
 import styles from './MyLinguistAssistant.module.css';
 
 type ChatMessage = AssistantChatMessage & {
@@ -425,6 +429,10 @@ export default function MyLinguistAssistant() {
   }, []);
 
   const resolvedModels = models.length ? models : llmModel ? [llmModel] : [DEFAULT_LLM_MODEL];
+  const resolvedModelGroups = useMemo(
+    () => groupLlmModelsByProvider(resolvedModels),
+    [resolvedModels]
+  );
   const inputLanguageCode = resolveLanguageCode(inputLanguage) ?? resolveLanguageCode(globalInputLanguage);
   const lookupLanguageCode = resolveLanguageCode(lookupLanguage) ?? resolveLanguageCode(DEFAULT_LOOKUP_LANGUAGE);
   const questionVoiceOptions = useMemo(
@@ -642,10 +650,14 @@ export default function MyLinguistAssistant() {
                     disabled={modelsLoading && models.length === 0}
                   >
                     <option value="">Use server default</option>
-                    {resolvedModels.map((model) => (
-                      <option key={model} value={model}>
-                        {model}
-                      </option>
+                    {resolvedModelGroups.map((group) => (
+                      <optgroup key={group.tag} label={group.label}>
+                        {group.models.map((model) => (
+                          <option key={model} value={model}>
+                            {bareLlmModelName(model)}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                   <small className="form-help-text">

@@ -139,7 +139,16 @@ def _iter_sources(primary: LLMSource, fallbacks: Sequence[str], allow_fallback: 
 
     fallback_candidates = [LLMSource.from_value(candidate) for candidate in fallbacks]
     if not fallback_candidates:
-        fallback_candidates = [LLMSource.CLOUD if primary == LLMSource.LOCAL else LLMSource.LOCAL]
+        # Default fallback: local → cloud is useful (same model available in
+        # both places). Cloud → local is NOT safe because the Ollama cloud
+        # catalog returns bare model names (e.g. "deepseek-v4-flash") but the
+        # locally-pulled equivalents carry a ":cloud" suffix ("deepseek-
+        # v4-flash:cloud"), so the local endpoint 404s on the bare name and
+        # masks the real cloud error. Keep fallback only when primary is LOCAL.
+        if primary == LLMSource.LOCAL:
+            fallback_candidates = [LLMSource.CLOUD]
+        else:
+            fallback_candidates = []
 
     for candidate in fallback_candidates:
         if candidate not in seen:

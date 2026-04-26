@@ -6,16 +6,33 @@ from typing import Optional, Tuple
 
 OLLAMA_LOCAL = "ollama_local"
 OLLAMA_CLOUD = "ollama_cloud"
+# `lmstudio_local` is the legacy single-host tag — preserved as an alias of the
+# Mac Studio host for back-compat with persisted configs.
 LMSTUDIO_LOCAL = "lmstudio_local"
+LMSTUDIO_MACSTUDIO = "lmstudio_macstudio"
+LMSTUDIO_MACBOOK = "lmstudio_macbook"
+
+LMSTUDIO_PROVIDERS = frozenset({LMSTUDIO_LOCAL, LMSTUDIO_MACSTUDIO, LMSTUDIO_MACBOOK})
 
 _PROVIDER_ALIASES = {
     "ollama_local": OLLAMA_LOCAL,
     "ollama-local": OLLAMA_LOCAL,
     "ollama_cloud": OLLAMA_CLOUD,
     "ollama-cloud": OLLAMA_CLOUD,
-    "lmstudio": LMSTUDIO_LOCAL,
-    "lmstudio_local": LMSTUDIO_LOCAL,
-    "lmstudio-local": LMSTUDIO_LOCAL,
+    # Legacy single-host LM Studio tag → Mac Studio (the historical default).
+    "lmstudio": LMSTUDIO_MACSTUDIO,
+    "lmstudio_local": LMSTUDIO_MACSTUDIO,
+    "lmstudio-local": LMSTUDIO_MACSTUDIO,
+    "lmstudio_macstudio": LMSTUDIO_MACSTUDIO,
+    "lmstudio-macstudio": LMSTUDIO_MACSTUDIO,
+    "lmstudio_mac_studio": LMSTUDIO_MACSTUDIO,
+    "lmstudio-mac-studio": LMSTUDIO_MACSTUDIO,
+    "lmstudio_macbook": LMSTUDIO_MACBOOK,
+    "lmstudio-macbook": LMSTUDIO_MACBOOK,
+    "lmstudio_macbookpro": LMSTUDIO_MACBOOK,
+    "lmstudio-macbookpro": LMSTUDIO_MACBOOK,
+    "lmstudio_macbook_pro": LMSTUDIO_MACBOOK,
+    "lmstudio-macbook-pro": LMSTUDIO_MACBOOK,
 }
 
 
@@ -73,18 +90,28 @@ def is_local_llm_provider(provider: Optional[str]) -> Optional[bool]:
         return None
     if provider == OLLAMA_CLOUD:
         return False
-    if provider in {OLLAMA_LOCAL, LMSTUDIO_LOCAL}:
+    if provider == OLLAMA_LOCAL or provider in LMSTUDIO_PROVIDERS:
         return True
     return None
+
+
+def is_lmstudio_provider(provider: Optional[str]) -> bool:
+    """Return whether ``provider`` is any of the LM Studio host tags."""
+
+    return provider in LMSTUDIO_PROVIDERS
 
 
 __all__ = [
     "OLLAMA_LOCAL",
     "OLLAMA_CLOUD",
     "LMSTUDIO_LOCAL",
+    "LMSTUDIO_MACSTUDIO",
+    "LMSTUDIO_MACBOOK",
+    "LMSTUDIO_PROVIDERS",
     "classify_ollama_provider",
     "format_llm_model_identifier",
     "is_local_llm_provider",
+    "is_lmstudio_provider",
     "normalize_llm_provider",
     "split_llm_model_identifier",
 ]

@@ -183,14 +183,20 @@ extension LinguistBubbleView {
                 )
             }
         case .model:
-            return configuration.llmModelOptions.map { model in
-                BubblePickerOption(
-                    id: model,
-                    title: model,
-                    value: model,
-                    isSelected: model == configuration.llmModel,
-                    lineLimit: 2
-                )
+            // Flatten the grouped option list so the tvOS picker still shows a
+            // single scrollable column, but prefix each row with the provider
+            // group label so the user can tell Mac Studio / MacBook entries
+            // apart at a glance.
+            return groupedLlmModelOptions.flatMap { group in
+                group.models.map { model in
+                    BubblePickerOption(
+                        id: model,
+                        title: "\(group.title) — \(formatModelLabel(model))",
+                        value: model,
+                        isSelected: model == configuration.llmModel,
+                        lineLimit: 2
+                    )
+                }
             }
         case .voice:
             var options: [BubblePickerOption] = [
@@ -255,13 +261,18 @@ extension LinguistBubbleView {
                 onSelect: { self.actions.onLookupLanguageChange($0.value) }
             )
         case .model:
-            let modelOptions = configuration.llmModelOptions.map { model in
-                iOSPickerOption(
-                    id: model,
-                    title: formatModelLabel(model),
-                    value: model,
-                    isSelected: model == configuration.llmModel
-                )
+            // iPhone sheet flattens the grouped options but prefixes each row
+            // with the provider label so the user sees the same hierarchy as
+            // the iPad/macOS Menu (which uses real Section headers).
+            let modelOptions = groupedLlmModelOptions.flatMap { group in
+                group.models.map { model in
+                    iOSPickerOption(
+                        id: model,
+                        title: "\(group.title) — \(formatModelLabel(model))",
+                        value: model,
+                        isSelected: model == configuration.llmModel
+                    )
+                }
             }
             return (
                 title: "Lookup Model",

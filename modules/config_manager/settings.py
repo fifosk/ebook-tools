@@ -25,6 +25,8 @@ from .constants import (
     DEFAULT_OLLAMA_CLOUD_URL,
     DEFAULT_OLLAMA_URL,
     DEFAULT_LMSTUDIO_URL,
+    DEFAULT_LMSTUDIO_MACSTUDIO_URL,
+    DEFAULT_LMSTUDIO_MACBOOK_URL,
     DEFAULT_TRANSLATION_FALLBACK_MODEL,
     DEFAULT_TRANSLATION_LLM_TIMEOUT_SECONDS,
     DEFAULT_TTS_FALLBACK_VOICE,
@@ -102,12 +104,15 @@ class EbookToolsSettings(BaseModel):
     ollama_local_url: str = DEFAULT_OLLAMA_URL
     ollama_cloud_url: str = DEFAULT_OLLAMA_CLOUD_URL
     lmstudio_url: str = DEFAULT_LMSTUDIO_URL
+    lmstudio_macstudio_url: str = DEFAULT_LMSTUDIO_MACSTUDIO_URL
+    lmstudio_macbook_url: str = DEFAULT_LMSTUDIO_MACBOOK_URL
     ffmpeg_path: Optional[str] = None
     thread_count: int = 5
     queue_size: int = 20
     pipeline_mode: bool = False
     use_ramdisk: bool = True
     ollama_api_key: Optional[SecretStr] = None
+    lmstudio_api_key: Optional[SecretStr] = None
     tmdb_api_key: Optional[SecretStr] = None
     omdb_api_key: Optional[SecretStr] = None
     google_books_api_key: Optional[SecretStr] = None
@@ -148,6 +153,18 @@ class EnvironmentOverrides(BaseSettings):
     lmstudio_url: Optional[str] = Field(
         default=None,
         validation_alias=AliasChoices("LMSTUDIO_URL", "EBOOK_LMSTUDIO_URL"),
+    )
+    lmstudio_macstudio_url: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "LMSTUDIO_MACSTUDIO_URL", "EBOOK_LMSTUDIO_MACSTUDIO_URL"
+        ),
+    )
+    lmstudio_macbook_url: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "LMSTUDIO_MACBOOK_URL", "EBOOK_LMSTUDIO_MACBOOK_URL"
+        ),
     )
     llm_source: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("LLM_SOURCE", "EBOOK_LLM_SOURCE")

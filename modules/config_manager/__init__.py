@@ -16,6 +16,8 @@ from .constants import (
     DEFAULT_OLLAMA_CLOUD_URL,
     DEFAULT_OLLAMA_URL,
     DEFAULT_LMSTUDIO_URL,
+    DEFAULT_LMSTUDIO_MACSTUDIO_URL,
+    DEFAULT_LMSTUDIO_MACBOOK_URL,
     DEFAULT_OUTPUT_RELATIVE,
     DEFAULT_QUEUE_SIZE,
     DEFAULT_JOB_MAX_WORKERS,
@@ -101,16 +103,43 @@ def get_cloud_ollama_url() -> str:
 
 
 def get_lmstudio_url() -> str:
-    """Return the configured LM Studio endpoint URL."""
+    """Return the configured LM Studio endpoint URL (Mac Studio host).
+
+    Legacy alias of :func:`get_lmstudio_macstudio_url` — kept for callers that
+    pre-date the Mac Studio / MacBook split.
+    """
+
+    return get_lmstudio_macstudio_url()
+
+
+def get_lmstudio_macstudio_url() -> str:
+    """Return the configured LM Studio endpoint URL on the Mac Studio host."""
 
     context = get_runtime_context(None)
     if context:
-        return context.lmstudio_url
+        return context.lmstudio_macstudio_url
     settings = get_settings()
-    candidate = getattr(settings, "lmstudio_url", None)
+    candidate = getattr(settings, "lmstudio_macstudio_url", None)
     if isinstance(candidate, str) and candidate.strip():
         return candidate.strip()
-    return DEFAULT_LMSTUDIO_URL
+    # Fall back to the legacy single-host setting if the new field is unset.
+    legacy = getattr(settings, "lmstudio_url", None)
+    if isinstance(legacy, str) and legacy.strip():
+        return legacy.strip()
+    return DEFAULT_LMSTUDIO_MACSTUDIO_URL
+
+
+def get_lmstudio_macbook_url() -> str:
+    """Return the configured LM Studio endpoint URL on the MacBook Pro host."""
+
+    context = get_runtime_context(None)
+    if context:
+        return context.lmstudio_macbook_url
+    settings = get_settings()
+    candidate = getattr(settings, "lmstudio_macbook_url", None)
+    if isinstance(candidate, str) and candidate.strip():
+        return candidate.strip()
+    return DEFAULT_LMSTUDIO_MACBOOK_URL
 
 
 def get_ollama_url() -> str:
@@ -197,6 +226,8 @@ __all__ = [
     "get_llm_source",
     "get_local_ollama_url",
     "get_lmstudio_url",
+    "get_lmstudio_macstudio_url",
+    "get_lmstudio_macbook_url",
     "get_ollama_url",
     "get_translation_fallback_model",
     "get_translation_llm_timeout_seconds",
@@ -224,6 +255,9 @@ __all__ = [
     "DEFAULT_MODEL",
     "DEFAULT_OLLAMA_CLOUD_URL",
     "DEFAULT_OLLAMA_URL",
+    "DEFAULT_LMSTUDIO_URL",
+    "DEFAULT_LMSTUDIO_MACSTUDIO_URL",
+    "DEFAULT_LMSTUDIO_MACBOOK_URL",
     "DEFAULT_OUTPUT_RELATIVE",
     "DEFAULT_QUEUE_SIZE",
     "DEFAULT_JOB_MAX_WORKERS",

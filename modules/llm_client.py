@@ -15,6 +15,9 @@ from modules import logging_manager as log_mgr
 from modules.llm_endpoints import LLMSource, ResolvedEndpoint, resolve_endpoints
 from modules.llm_providers import (
     LMSTUDIO_LOCAL,
+    LMSTUDIO_MACBOOK,
+    LMSTUDIO_MACSTUDIO,
+    LMSTUDIO_PROVIDERS,
     OLLAMA_CLOUD,
     OLLAMA_LOCAL,
     split_llm_model_identifier,
@@ -256,13 +259,27 @@ class LLMClient:
                 choice_message = choice.get("message")
                 if isinstance(choice_message, dict) and isinstance(
                     choice_message.get("content"), str
-                ):
+                ) and choice_message["content"].strip():
                     message = choice_message["content"]
                     break
                 choice_text = choice.get("text")
-                if isinstance(choice_text, str):
+                if isinstance(choice_text, str) and choice_text.strip():
                     message = choice_text
                     break
+                # Reasoning-tier models (DeepSeek-v3.2, Kimi-thinking, etc.) put
+                # their output in `reasoning` when content comes back empty.
+                if isinstance(choice_message, dict) and isinstance(
+                    choice_message.get("reasoning"), str
+                ) and choice_message["reasoning"].strip():
+                    message = choice_message["reasoning"]
+                    break
+
+        # Fall back to top-level message.reasoning (Ollama /api/chat shape used
+        # by some reasoning models).
+        if not message:
+            top_msg = data.get("message")
+            if isinstance(top_msg, dict) and isinstance(top_msg.get("reasoning"), str):
+                message = top_msg["reasoning"]
 
         text = message if isinstance(message, str) else ""
 
@@ -573,9 +590,52 @@ def create_client(
         elif provider == OLLAMA_CLOUD:
             llm_source = "cloud"
             api_url = cloud_api_url or cfg.get_cloud_ollama_url()
-        elif provider == LMSTUDIO_LOCAL:
+        elif provider in LMSTUDIO_PROVIDERS:
             llm_source = "lmstudio"
-            api_url = lmstudio_api_url or cfg.get_lmstudio_url()
+            # LM Studio split: route to Mac Studio or MacBook Pro host based on
+            # the provider tag. `lmstudio_local` is treated as Mac Studio (the
+            # historical single-host default).
+            if provider == LMSTUDIO_MACBOOK:
+                api_url = lmstudio_api_url or cfg.get_lmstudio_macbook_url()
+            else:
+                api_url = lmstudio_api_url or cfg.get_lmstudio_macstudio_url()
+
+    # Auto-load provider-specific API key from config when caller hasn't
+    # passed one. LM Studio uses its own token; Ollama cloud has a different
+    # one. Without this, the cloud/LMS endpoint is marked unavailable and
+    # requests silently fall back (local Ollama 404s on cloud-only tags).
+    # Pass api_key="" to opt out.
+    try:
+        _settings_snapshot = cfg.get_settings()
+    except Exception:
+        _settings_snapshot = None
+
+    def _read_secret(attr: str) -> Optional[str]:
+        if _settings_snapshot is None:
+            return None
+        secret = getattr(_settings_snapshot, attr, None)
+        if secret is None:
+            return None
+        if hasattr(secret, "get_secret_value"):
+            return secret.get_secret_value()
+        return str(secret) if isinstance(secret, str) else None
+
+    _ollama_key = _read_secret("ollama_api_key")
+    _lms_key = _read_secret("lmstudio_api_key")
+
+    # Always populate cloud key from ollama config (used by cloud adapter).
+    if cloud_api_key is None and _ollama_key:
+        cloud_api_key = _ollama_key
+
+    # For api_key, pick provider-appropriate token based on the resolved source.
+    if api_key is None:
+        effective_source = (llm_source or cfg.get_llm_source() or "").lower()
+        if effective_source == "lmstudio":
+            api_key = _lms_key
+        elif effective_source == "cloud":
+            api_key = _ollama_key
+        else:
+            api_key = _ollama_key  # local Ollama tolerates the key, harmless
 
     settings = ClientSettings(
         model=resolved_model,

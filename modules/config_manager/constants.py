@@ -54,9 +54,16 @@ DEFAULT_OLLAMA_URL = os.environ.get(
 DEFAULT_OLLAMA_CLOUD_URL = os.environ.get(
     "OLLAMA_CLOUD_URL", "https://api.ollama.com/v1/chat/completions"
 )
-DEFAULT_LMSTUDIO_URL = os.environ.get(
-    "LMSTUDIO_URL", "http://127.0.0.1:1234/v1/chat/completions"
+# Mac Studio is the existing LM Studio host; the legacy `LMSTUDIO_URL` env var
+# and `lmstudio_url` config key continue to mean Mac Studio for back-compat.
+DEFAULT_LMSTUDIO_MACSTUDIO_URL = os.environ.get(
+    "LMSTUDIO_MACSTUDIO_URL",
+    os.environ.get("LMSTUDIO_URL", "http://192.168.1.9:1234/v1/chat/completions"),
 )
+DEFAULT_LMSTUDIO_MACBOOK_URL = os.environ.get(
+    "LMSTUDIO_MACBOOK_URL", "http://localhost:1234/v1/chat/completions"
+)
+DEFAULT_LMSTUDIO_URL = DEFAULT_LMSTUDIO_MACSTUDIO_URL
 VALID_LLM_SOURCES = {"local", "cloud", "lmstudio"}
 _env_llm_source = os.environ.get("LLM_SOURCE", "local").strip().lower()
 DEFAULT_LLM_SOURCE = _env_llm_source if _env_llm_source in VALID_LLM_SOURCES else "local"
@@ -96,6 +103,8 @@ __all__ = [
     "DEFAULT_OLLAMA_URL",
     "DEFAULT_OLLAMA_CLOUD_URL",
     "DEFAULT_LMSTUDIO_URL",
+    "DEFAULT_LMSTUDIO_MACSTUDIO_URL",
+    "DEFAULT_LMSTUDIO_MACBOOK_URL",
     "VALID_LLM_SOURCES",
     "DEFAULT_LLM_SOURCE",
     "DEFAULT_FFMPEG_PATH",
