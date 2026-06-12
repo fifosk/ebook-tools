@@ -14,7 +14,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Enable pnpm (matches package.json prebuild script)
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
 
 # Copy package manifests first for dependency layer caching
 COPY web/package.json web/pnpm-lock.yaml web/
@@ -54,6 +54,6 @@ COPY --from=builder /app/web/dist /usr/share/nginx/html
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget -qO- http://localhost:80/ || exit 1
+    CMD wget -qO- http://127.0.0.1:80/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

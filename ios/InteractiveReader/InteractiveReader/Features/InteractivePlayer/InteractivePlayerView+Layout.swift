@@ -26,6 +26,13 @@ extension InteractivePlayerView {
         view = AnyView(view.simultaneousGesture(menuToggleGesture, including: .subviews))
         #endif
         view = AnyView(view.onAppear {
+            appState.playerKeyboardShortcutsActive = true
+            #if os(iOS)
+            if isPad {
+                focusedArea = .transcript
+            }
+            #endif
+            requestKeyboardShortcutFocus()
             configureLinguistVM()
             loadLlmModelsIfNeeded()
             loadVoiceInventoryIfNeeded()
@@ -107,6 +114,12 @@ extension InteractivePlayerView {
             }
         })
         view = AnyView(view.onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
+            #if os(iOS)
+            if isPad {
+                focusedArea = .transcript
+            }
+            #endif
+            requestKeyboardShortcutFocus()
             handleNarrationPlaybackChange(isPlaying: isPlaying)
             if isPlaying {
                 // Respect pin state - keep bubble visible during playback if pinned
@@ -120,6 +133,7 @@ extension InteractivePlayerView {
                 if !shouldKeepBubble {
                     clearLinguistState()
                 }
+                requestKeyboardShortcutFocus()
             }
             if isPlaying {
                 // Don't unfreeze during sequence transitions - let the transition handler manage it
@@ -135,6 +149,14 @@ extension InteractivePlayerView {
                     frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
                 }
             }
+        })
+        view = AnyView(view.onChange(of: linguistBubble) { _, _ in
+            #if os(iOS)
+            if isPad {
+                focusedArea = .transcript
+            }
+            #endif
+            requestKeyboardShortcutFocus()
         })
         view = AnyView(view.onChange(of: visibleTracks) { _, _ in
             // Respect pin state - keep bubble visible when tracks change if pinned
@@ -214,6 +236,7 @@ extension InteractivePlayerView {
             updateReadingBedPlayback()
         })
         view = AnyView(view.onDisappear {
+            appState.playerKeyboardShortcutsActive = false
             readingBedPauseTask?.cancel()
             readingBedPauseTask = nil
             readingBedCoordinator.reset()

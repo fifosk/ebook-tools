@@ -71,6 +71,7 @@ markers = [
     "e2e: browser E2E tests via Playwright (requires running app).",
     "database: PostgreSQL/SQLAlchemy database layer tests.",
     "observability: metrics exporter, Prometheus exposition, dashboard coverage.",
+    "llm_probe: diagnostic probes for LLM model compatibility (slow, on-demand, needs network).",
 ]
 
 [project.optional-dependencies]

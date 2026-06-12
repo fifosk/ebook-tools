@@ -59,6 +59,26 @@ test-metadata:
 test-observability:
 	pytest -m observability -v
 
+# ── LLM model probe (diagnostic — slow, on-demand) ────────────────────
+# Probes every available LLM model for translation (EN→FR/AR/HI/ZH) and
+# structured JSON-batch compliance. Records per-model quality + performance
+# and writes a Markdown report. Typically 30s-3min per model; use --models to
+# restrict to a subset.
+#
+# Examples:
+#   make probe-llm-models
+#   make probe-llm-models ARGS='--only-cloud --exclude-tier 90'
+#   make probe-llm-models ARGS='--models ollama_cloud:mistral-large-3:675b'
+probe-llm-models:
+	@mkdir -p test-results
+	docker exec ebook-tools-backend python3 /app/scripts/probe_llm_models.py \
+		--out /app/storage/llm_probe_report.md \
+		--json-out /app/storage/llm_probe_report.json \
+		$(ARGS)
+	@docker cp ebook-tools-backend:/app/storage/llm_probe_report.md test-results/llm_probe_report.md
+	@docker cp ebook-tools-backend:/app/storage/llm_probe_report.json test-results/llm_probe_report.json
+	@echo "Report: test-results/llm_probe_report.md"
+
 # ── E2E browser tests (Playwright) ────────────────────────────────────
 # Artifacts (screenshots, traces) written to test-results/ (gitignored)
 E2E_ARGS = -m e2e -o "addopts=-rs" --screenshot=on --full-page-screenshot --tracing=retain-on-failure

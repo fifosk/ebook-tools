@@ -101,20 +101,35 @@ extension InteractivePlayerViewModel {
     /// Normalize a word for lookup cache key matching.
     /// Mirrors the backend normalize_word() function: strips diacritics, lowercases, trims whitespace.
     private func normalizeWordForLookup(_ word: String) -> String {
-        // Strip Arabic diacritics (tashkeel/harakat) - Unicode range U+064B to U+065F
-        guard let startScalar = Unicode.Scalar(0x064B),
-              let endScalar = Unicode.Scalar(0x065F) else {
-            return word.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        let diacriticRange = startScalar...endScalar
-        var result = ""
-        for scalar in word.unicodeScalars {
-            if !diacriticRange.contains(scalar) {
-                result.append(Character(scalar))
+        let markRanges: [(UInt32, UInt32)] = [
+            (0x0591, 0x05BD), // Hebrew cantillation/niqqud
+            (0x05BF, 0x05BF), // Hebrew rafe
+            (0x05C1, 0x05C2), // Hebrew shin/sin dots
+            (0x05C4, 0x05C5), // Hebrew upper/lower dots
+            (0x05C7, 0x05C7), // Hebrew qamats qatan
+            (0x064B, 0x065F), // Arabic tashkeel/harakat
+        ]
+        let boundaryPunctuation = CharacterSet(charactersIn:
+            ".,;:!?\"'()[]{}«»" +
+            "\u{201E}\u{201C}\u{201F}\u{2018}\u{201A}\u{2019}\u{201B}" +
+            "\u{060C}\u{061B}\u{061F}\u{066A}\u{066B}\u{066C}\u{066D}" +
+            "\u{05BE}\u{05C0}\u{05C3}\u{05C6}" +
+            "\u{3001}\u{3002}\u{FF0C}\u{FF0E}\u{FF1B}\u{FF1F}\u{FF01}" +
+            "\u{2013}\u{2014}\u{2015}"
+        )
+        let trimSet = CharacterSet.whitespacesAndNewlines.union(boundaryPunctuation)
+        var result = String.UnicodeScalarView()
+
+        let canonicalWord = word.precomposedStringWithCanonicalMapping
+        for scalar in canonicalWord.unicodeScalars {
+            let value = scalar.value
+            if markRanges.contains(where: { value >= $0.0 && value <= $0.1 }) {
+                continue
             }
+            result.append(scalar)
         }
-        // Lowercase and trim
-        return result.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return String(result).lowercased().trimmingCharacters(in: trimSet)
     }
 
     /// Fetch lookup cache summary for a job (total entries, languages, etc.)

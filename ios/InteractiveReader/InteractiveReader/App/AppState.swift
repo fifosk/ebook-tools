@@ -14,6 +14,7 @@ final class AppState: ObservableObject {
     /// Whether we're actively validating a stored session token
     /// This is now a brief operation (5s timeout) instead of blocking for 60s
     @Published private(set) var isRestoring: Bool = false
+    @Published var playerKeyboardShortcutsActive: Bool = false
 
     var apiBaseURL: URL? {
         // Allow XCUITest to override the API URL via launch environment

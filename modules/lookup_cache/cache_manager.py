@@ -147,7 +147,7 @@ class LookupCacheManager:
         skip_stopwords: bool = True,
         min_word_length: int = 2,
         progress_tracker: Optional["ProgressTracker"] = None,
-        timeout_seconds: float = 45.0,
+        timeout_seconds: float = 90.0,
     ) -> int:
         """Build cache entries from a batch of sentences.
 
@@ -161,7 +161,11 @@ class LookupCacheManager:
             skip_stopwords: Whether to skip stopwords.
             min_word_length: Minimum word length to include.
             progress_tracker: Optional progress tracker.
-            timeout_seconds: Timeout per LLM call.
+            timeout_seconds: Timeout per LLM call. Default 90s — lookup JSON
+                responses are ~10× heavier than plain translation (batch of 10
+                items + related_languages arrays), and reasoning-tier cloud
+                models (DeepSeek-v4-flash, Kimi-thinking) put output in a
+                separate `reasoning` field which increases round-trip.
 
         Returns:
             Number of new entries added.

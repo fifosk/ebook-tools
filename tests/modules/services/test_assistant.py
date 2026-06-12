@@ -198,6 +198,16 @@ class TestBuildLookupSystemPrompt:
         assert '"language"' in prompt
         assert '"transliteration"' in prompt
 
+    def test_prompt_pushes_related_languages_for_words(self) -> None:
+        """Prompt should make related languages an expected field for words."""
+        prompt = build_lookup_system_prompt(input_language="Hebrew", lookup_language="English")
+
+        assert "this is expected unless no reliable relation exists" in prompt
+        assert "up to 3 reliable" in prompt
+        assert "This applies to every input language" in prompt
+        assert "Semitic cognates/root relatives" in prompt
+        assert "Do not omit the related_languages key" in prompt
+
     def test_prompt_includes_transliteration_instruction(self) -> None:
         """Prompt should instruct to include transliteration for non-Latin scripts."""
         prompt = build_lookup_system_prompt(input_language="Arabic", lookup_language="English")

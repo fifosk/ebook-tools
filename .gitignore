@@ -58,3 +58,7 @@ test-results/*.xcresult
 # Xcode per-user state
 *.xcuserstate
 xcuserdata/
+
+# build output / agent state
+build/
+.claude/

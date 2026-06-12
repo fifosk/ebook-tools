@@ -18,17 +18,23 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - /Volumes/Data/Databases/ebook-tools/postgres:/var/lib/postgresql/data
-      - /Volumes/Backups/ebook-tools/postgres:/backups
+      - /Volumes/Data/work/backups/ebook-tools/postgres:/backups
+      - ./scripts/postgres-guard-entrypoint.sh:/usr/local/bin/ebook-postgres-guard.sh:ro
     environment:
       - POSTGRES_DB=ebook_tools
       - POSTGRES_USER=ebook_tools
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ebook_tools_dev}
+      # Safety: refuse to start if the data volume isn't mounted (empty PGDATA).
+      # Set to "true" ONLY for a genuine first-time database initialization.
+      - ALLOW_PG_INIT=${ALLOW_PG_INIT:-false}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ebook_tools -d ebook_tools"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    # Guard against initializing a blank DB onto an unmounted bind target.
+    entrypoint: ["/usr/local/bin/ebook-postgres-guard.sh"]
     command: >
       postgres
         -c shared_buffers=256MB
@@ -122,7 +128,7 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - /Volumes/Backups/ebook-tools/postgres:/backups
+      - /Volumes/Data/work/backups/ebook-tools/postgres:/backups
     environment:
       - PGHOST=postgres
       - PGUSER=ebook_tools
@@ -162,11 +168,12 @@ services:
     image: prom/prometheus:v2.51.0
     container_name: ebook-tools-prometheus
     restart: unless-stopped
+    profiles: ["monitoring"]
     ports:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - /Volumes/Data/Monitoring/prometheus:/prometheus
+      - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -181,6 +188,7 @@ services:
     image: grafana/grafana-oss:11.0.0
     container_name: ebook-tools-grafana
     restart: unless-stopped
+    profiles: ["monitoring"]
     ports:
       - "3000:3000"
     volumes:
@@ -197,3 +205,6 @@ services:
       - GF_LOG_LEVEL=warn
     depends_on:
       - prometheus
+
+volumes:
+  prometheus_data:

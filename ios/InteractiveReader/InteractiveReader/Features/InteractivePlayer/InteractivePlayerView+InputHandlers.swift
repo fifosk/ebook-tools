@@ -102,7 +102,7 @@ extension InteractivePlayerView {
                     if audioCoordinator.isPlaying {
                         hideMenu()
                     } else if bubbleKeyboardNavigator.isKeyboardFocusActive {
-                        // Exit bubble keyboard focus
+                        // Exit bubble focus
                         bubbleKeyboardNavigator.exitFocus()
                     } else if let chunk = viewModel.selectedChunk {
                         handleTrackNavigation(-1, in: chunk)
@@ -115,7 +115,7 @@ extension InteractivePlayerView {
                     bubbleKeyboardNavigator.navigateRight()
                 }
             )
-            .frame(width: 0, height: 0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityHidden(true)
         }
         #else
@@ -232,6 +232,22 @@ extension InteractivePlayerView {
         } else {
             adjustTrackFontScale(by: increase ? trackFontScaleStep : -trackFontScaleStep)
         }
+    }
+
+    func requestKeyboardShortcutFocus() {
+        #if os(iOS)
+        guard isPad else { return }
+        focusedArea = .transcript
+        NotificationCenter.default.post(name: .keyboardShortcutReclaimFocus, object: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            focusedArea = .transcript
+            NotificationCenter.default.post(name: .keyboardShortcutReclaimFocus, object: nil)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            focusedArea = .transcript
+            NotificationCenter.default.post(name: .keyboardShortcutReclaimFocus, object: nil)
+        }
+        #endif
     }
 
     @ViewBuilder

@@ -116,6 +116,7 @@ extension InteractivePlayerView {
             isTranslationTrack: isTranslation,
             animateBubble: animateBubble
         )
+        requestKeyboardShortcutFocus()
     }
 
     // MARK: - Computed Language / Model Options (delegate to ViewModel)
@@ -179,6 +180,7 @@ extension InteractivePlayerView {
         bubbleFocusEnabled = false
         linguistSelection = nil
         linguistSelectionRange = nil
+        requestKeyboardShortcutFocus()
     }
 
     func closeLinguistBubble() {
@@ -187,6 +189,7 @@ extension InteractivePlayerView {
         #if os(iOS)
         bubbleKeyboardNavigator.exitFocus()
         #endif
+        requestKeyboardShortcutFocus()
     }
 
     /// Play word pronunciation from narration audio using cached timing reference
@@ -198,6 +201,7 @@ extension InteractivePlayerView {
         if !audioCoordinator.isPlaying {
             audioCoordinator.play()
         }
+        requestKeyboardShortcutFocus()
     }
 
     func scheduleAutoLinguistLookup(in chunk: InteractiveChunk) {

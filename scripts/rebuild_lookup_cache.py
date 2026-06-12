@@ -98,11 +98,57 @@ def load_sentences_from_chunks(job_dir: Path) -> list[str]:
     return sentences
 
 
+def infer_lookup_languages(
+    job_dir: Path,
+    *,
+    old_input_language: str | None,
+    old_definition_language: str | None,
+) -> tuple[str, str]:
+    """Infer lookup/definition languages when the cache is missing.
+
+    Lookup cache words come from translated text, so the lookup language is the
+    first target language from the original job request.
+    """
+    input_language = old_input_language
+    definition_language = old_definition_language or "English"
+
+    manifest_path = job_dir / "metadata" / "job.json"
+    if manifest_path.exists() and not input_language:
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest = json.load(f)
+        except Exception:
+            manifest = {}
+
+        request = manifest.get("request") if isinstance(manifest, dict) else {}
+        inputs = request.get("inputs") if isinstance(request, dict) else {}
+        if isinstance(inputs, dict):
+            target_languages = inputs.get("target_languages")
+            if isinstance(target_languages, list) and target_languages:
+                first_target = target_languages[0]
+                if isinstance(first_target, str) and first_target.strip():
+                    input_language = first_target.strip()
+            if not input_language:
+                target_language = inputs.get("target_language")
+                if isinstance(target_language, str) and target_language.strip():
+                    input_language = target_language.strip()
+
+    if not input_language:
+        raise ValueError(
+            "Cannot infer lookup language. Restore the old lookup cache or pass "
+            "--input-language."
+        )
+
+    return input_language, definition_language
+
+
 def main():
     parser = argparse.ArgumentParser(description="Rebuild lookup cache for an existing job")
     parser.add_argument("job", help="Job ID or path to job directory")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be done without rebuilding")
     parser.add_argument("--batch-size", type=int, default=10, help="Words per LLM batch call (default: 10)")
+    parser.add_argument("--input-language", help="Language of translated words to look up")
+    parser.add_argument("--definition-language", help="Language for definitions")
     args = parser.parse_args()
 
     # Find job directory
@@ -144,8 +190,11 @@ def main():
     print(f"Extracted words: {sample_words[:10]}")
 
     # Determine languages
-    input_language = old_lang or "Hindi"
-    definition_language = old_def_lang or "English"
+    input_language, definition_language = infer_lookup_languages(
+        job_dir,
+        old_input_language=args.input_language or old_lang,
+        old_definition_language=args.definition_language or old_def_lang,
+    )
 
     # Count unique new words
     from modules.lookup_cache.tokenizer import extract_unique_words

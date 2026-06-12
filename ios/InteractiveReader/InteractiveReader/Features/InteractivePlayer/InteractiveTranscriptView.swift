@@ -371,6 +371,9 @@ struct InteractiveTranscriptView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .contentShape(Rectangle())
+                    .focusable(!isMenuVisible)
+                    .focused($focusedArea, equals: .transcript)
+                    .focusEffectDisabled()
                     .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
                     .gesture(swipeGesture)
                     #if os(iOS)
@@ -708,4 +711,3 @@ struct InteractiveTranscriptView: View {
 
 
 }
-

@@ -155,10 +155,13 @@ STOPWORD_SETS: dict[str, Set[str]] = {
 # marks (vowel signs, virama, nukta, anusvara, etc.) that Python's \w misses.
 # Without the full block ranges, Indic scripts like Devanagari get split at vowel
 # sign boundaries (e.g., भाग → भ + ग) because \w excludes Mn/Mc categories.
+# The same applies to pointed Hebrew: \w matches letters but not niqqud/dagesh
+# marks, so vocalized words like סִפּוּר were previously split into fragments.
 WORD_PATTERN = re.compile(
     r"(?:"
     r"\w"                       # Word chars (letters, digits, underscore)
     r"|[\u0300-\u036F]"         # Combining Diacritical Marks
+    r"|[\u0590-\u05FF]"         # Hebrew (letters, niqqud, cantillation)
     r"|[\u0600-\u06FF]"         # Arabic
     r"|[\u0750-\u077F]"         # Arabic Supplement
     r"|[\u08A0-\u08FF]"         # Arabic Extended-A
@@ -192,7 +195,7 @@ def normalize_word(word: str) -> str:
     """Normalize a word for cache lookup.
 
     Applies lowercase, Unicode normalization, strips whitespace/punctuation,
-    and removes Arabic diacritics (tashkeel) for consistent matching.
+    and removes Arabic/Hebrew diacritics for consistent matching.
 
     Args:
         word: Word to normalize.
@@ -206,9 +209,14 @@ def normalize_word(word: str) -> str:
     # Unicode NFC normalization
     normalized = unicodedata.normalize("NFC", word)
 
-    # Remove Arabic diacritics (tashkeel/harakat): U+064B to U+065F
-    # These include: fatha, damma, kasra, shadda, sukun, tanween, etc.
-    normalized = re.sub(r"[\u064B-\u065F]", "", normalized)
+    # Remove Hebrew niqqud/cantillation and Arabic tashkeel/harakat.
+    # Hebrew marks include points such as hiriq, dagesh/shuruk, and qamats.
+    # Arabic marks include fatha, damma, kasra, shadda, sukun, tanween, etc.
+    normalized = re.sub(
+        r"[\u0591-\u05BD\u05BF\u05C1-\u05C2\u05C4-\u05C5\u05C7\u064B-\u065F]",
+        "",
+        normalized,
+    )
 
     # Lowercase (works for most scripts)
     normalized = normalized.lower()
@@ -223,6 +231,7 @@ def normalize_word(word: str) -> str:
         ".,;:!?\"'()[]{}«»"
         "\u201E\u201C\u201F\u2018\u201A\u2019\u201B"  # Smart quotes
         "\u060C\u061B\u061F\u066A\u066B\u066C\u066D"  # Arabic: ، ؛ ؟ ٪ ٫ ٬ ٭
+        "\u05BE\u05C0\u05C3\u05C6"                    # Hebrew punctuation
         "\u3001\u3002\uFF0C\uFF0E\uFF1B\uFF1F\uFF01"  # CJK: 、 。 , . ; ? !
         "\u2013\u2014\u2015"                          # Dashes: – — ―
     )

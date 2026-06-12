@@ -65,7 +65,9 @@ Return ONLY valid JSON in this exact format:
       "example_translation": "Translation of example in {resolved_definition}, or null",
       "example_transliteration": "Romanized version if non-Latin script, or null",
       "related_languages": [
-        {{"language": "Persian", "word": "کتاب", "transliteration": "ketāb"}}
+        {{"language": "Persian", "word": "کتاب", "transliteration": "ketāb"}},
+        {{"language": "Arabic", "word": "كِتَاب", "transliteration": "kitāb"}},
+        {{"language": "Hindi", "word": "किताب", "transliteration": "kitāb"}}
       ]
     }}
   ]
@@ -78,7 +80,21 @@ Rules:
 - If uncertain about etymology, use null (do NOT guess)
 - For Arabic: include full tashkīl/harakāt (diacritics)
 - For Hebrew: include full niqqud (vowel points)
-- related_languages: show up to 3 related cognates/borrowings. null if none
+- related_languages is expected for every word unless no reliable relation exists
+- For related_languages, provide up to 3 reliable cognates, ancestor/source forms,
+  direct borrowings, or loanwords. Prefer entries that help a language learner
+  recognize the word across languages.
+- This applies to every input language: first look for same-family cognates or
+  root relatives, then ancestor/source forms, then documented borrowings or
+  loanwords in neighboring/common contact languages.
+- For Hebrew, Arabic, Aramaic, Syriac, Akkadian, and other Semitic words, actively
+  look for Semitic cognates/root relatives before returning null.
+- For loanwords, include the source language when known; otherwise include common
+  cognates/borrowings in nearby languages.
+- Avoid false cognates. If fewer than 3 reliable entries exist, return only the
+  reliable ones.
+- Use null for related_languages only when you genuinely cannot identify a reliable
+  related form. Do not omit the related_languages key.
 - Return items in the same order as input"""
 
 

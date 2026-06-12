@@ -14,6 +14,9 @@ from modules.lookup_cache import (
     LookupCache,
     LookupCacheEntry,
     LookupCacheManager,
+    build_lookup_system_prompt,
+    extract_unique_words,
+    extract_words,
     load_lookup_cache,
     normalize_word,
 )
@@ -177,6 +180,18 @@ class TestLookupCacheManager:
 class TestLookupCacheIntegration:
     """Integration tests for the full lookup cache workflow."""
 
+    def test_batch_lookup_prompt_pushes_related_languages(self) -> None:
+        """Test that batch lookup prompt asks for related language entries."""
+        prompt = build_lookup_system_prompt("Hebrew", "English")
+
+        assert "related_languages is expected for every word" in prompt
+        assert "Do not omit the related_languages key" in prompt
+        assert "up to 3 reliable" in prompt
+        assert "This applies to every input language" in prompt
+        assert "Semitic cognates/root relatives" in prompt
+        assert "Hebrew" in prompt
+        assert "Arabic" in prompt
+
     def test_build_from_sentences_and_persist(self, tmp_path: Path) -> None:
         """Test building cache from sentences and persisting to disk."""
         # Create a mock LLM client
@@ -236,6 +251,35 @@ class TestLookupCacheIntegration:
             f"Diacritic normalization failed: '{normalized_with}' != '{normalized_without}'"
         )
 
+    def test_normalize_word_strips_hebrew_niqqud(self) -> None:
+        """Test that Hebrew niqqud is stripped during normalization."""
+        with_niqqud = "שָׁלוֹם"
+        without_niqqud = "שלום"
+
+        normalized_with = normalize_word(with_niqqud)
+        normalized_without = normalize_word(without_niqqud)
+
+        assert normalized_with == normalized_without == "שלום"
+
+    def test_extract_words_keeps_pointed_hebrew_words_intact(self) -> None:
+        """Test that pointed Hebrew words are not split at vowel marks."""
+        words = extract_words("סִפּוּר יפה", "Hebrew")
+
+        assert "סִפּוּר" in words
+        assert "ס" not in words
+        assert "פּוּר" not in words
+
+    def test_extract_unique_words_normalizes_pointed_hebrew(self) -> None:
+        """Test that cache build candidates use full normalized Hebrew words."""
+        words = extract_unique_words(
+            ["שָׁלוֹם יפה", "שלום אחר"],
+            language="Hebrew",
+            skip_stopwords=False,
+        )
+
+        assert words.count("שלום") == 1
+        assert "יפה" in words
+
     def test_cache_lookup_with_diacritics(self, tmp_path: Path) -> None:
         """Test that cache lookup works with Arabic diacritics."""
         manager = LookupCacheManager(
@@ -260,6 +304,29 @@ class TestLookupCacheIntegration:
         found = manager.get("كِتَابٌ")
         assert found is not None, "Cache lookup with diacritics failed"
         assert found.lookup_result["definition"] == "book"
+
+    def test_cache_lookup_with_hebrew_niqqud(self, tmp_path: Path) -> None:
+        """Test that cache lookup works with Hebrew niqqud."""
+        manager = LookupCacheManager(
+            job_id="test-job",
+            job_dir=tmp_path,
+            input_language="Hebrew",
+            definition_language="English",
+        )
+
+        entry = LookupCacheEntry(
+            word="שלום",
+            word_normalized=normalize_word("שלום"),
+            input_language="Hebrew",
+            definition_language="English",
+            lookup_result={"type": "word", "definition": "peace"},
+            audio_references=[],
+        )
+        manager.add_entry(entry)
+
+        found = manager.get("שָׁלוֹם")
+        assert found is not None, "Cache lookup with Hebrew niqqud failed"
+        assert found.lookup_result["definition"] == "peace"
 
 
 class TestLookupCachePhase:
