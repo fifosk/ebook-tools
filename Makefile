@@ -111,6 +111,8 @@ E2E_TEMP_ROOT ?= /tmp/apple-device-app-pipeline/ebook-tools
 E2E_PROFILE ?= local
 E2E_CONFIG_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PROFILE)/ios_e2e_config.json
 E2E_JOURNEY_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PROFILE)/ios_e2e_journey.json
+IOS_E2E_ONLY_TESTING ?= InteractiveReaderUITests/JourneyTests/testJourney
+TVOS_E2E_ONLY_TESTING ?= InteractiveReaderTVUITests/JourneyTests/testJourney
 
 # Write config + journey to profile-scoped /tmp paths.
 define WRITE_E2E_CONFIG
@@ -139,7 +141,7 @@ IPHONE_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-iphone
 
 test-e2e-iphone: E2E_PROFILE = iphone
 test-e2e-iphone:
-	@rm -rf $(IPHONE_E2E_RESULT) test-results/iphone-e2e-attachments
+	@rm -rf $(IPHONE_E2E_RESULT) $(IPHONE_DERIVED_DATA) test-results/iphone-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
@@ -148,6 +150,7 @@ test-e2e-iphone:
 		-destination $(IPHONE_DESTINATION) \
 		-derivedDataPath $(IPHONE_DERIVED_DATA) \
 		-resultBundlePath $(IPHONE_E2E_RESULT) \
+		-only-testing:$(IOS_E2E_ONLY_TESTING) \
 		2>&1 | tail -30 || status=$$?; \
 	python3 scripts/ios_e2e_report.py \
 		--xcresult $(IPHONE_E2E_RESULT) \
@@ -164,7 +167,7 @@ IPAD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-ipad
 
 test-e2e-ipad: E2E_PROFILE = ipados
 test-e2e-ipad:
-	@rm -rf $(IPAD_E2E_RESULT) test-results/ipad-e2e-attachments
+	@rm -rf $(IPAD_E2E_RESULT) $(IPAD_DERIVED_DATA) test-results/ipad-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
@@ -173,6 +176,7 @@ test-e2e-ipad:
 		-destination $(IPAD_DESTINATION) \
 		-derivedDataPath $(IPAD_DERIVED_DATA) \
 		-resultBundlePath $(IPAD_E2E_RESULT) \
+		-only-testing:$(IOS_E2E_ONLY_TESTING) \
 		2>&1 | tail -30 || status=$$?; \
 	python3 scripts/ios_e2e_report.py \
 		--xcresult $(IPAD_E2E_RESULT) \
@@ -189,7 +193,7 @@ TVOS_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-tvos
 
 test-e2e-tvos: E2E_PROFILE = tvos
 test-e2e-tvos:
-	@rm -rf $(TVOS_E2E_RESULT) test-results/tvos-e2e-attachments
+	@rm -rf $(TVOS_E2E_RESULT) $(TVOS_DERIVED_DATA) test-results/tvos-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
@@ -198,6 +202,7 @@ test-e2e-tvos:
 		-destination $(TVOS_DESTINATION) \
 		-derivedDataPath $(TVOS_DERIVED_DATA) \
 		-resultBundlePath $(TVOS_E2E_RESULT) \
+		-only-testing:$(TVOS_E2E_ONLY_TESTING) \
 		2>&1 | tail -30 || status=$$?; \
 	python3 scripts/ios_e2e_report.py \
 		--xcresult $(TVOS_E2E_RESULT) \

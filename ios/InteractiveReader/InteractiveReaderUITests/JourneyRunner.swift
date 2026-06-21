@@ -182,9 +182,9 @@ final class JourneyRunner {
     private func waitForAnyPlayer(timeout: TimeInterval) -> XCUIElement? {
         let deadline = Date().addingTimeInterval(timeout)
         let candidates = [
-            app.otherElements["interactivePlayerView"],
-            app.otherElements["videoPlayerView"],
-            app.otherElements["libraryPlaybackView"]
+            element(withIdentifier: "interactivePlayerView"),
+            element(withIdentifier: "videoPlayerView"),
+            element(withIdentifier: "libraryPlaybackView")
         ]
 
         while Date() < deadline {
@@ -207,9 +207,9 @@ final class JourneyRunner {
         XCUIRemote.shared.press(.down)
         sleep(1)
 
-        if app.otherElements["videoPlayerView"].exists {
+        if element(withIdentifier: "videoPlayerView").exists {
             XCTAssertTrue(
-                app.otherElements["tvPlaybackControls"].waitForExistence(timeout: 3),
+                element(withIdentifier: "tvPlaybackControls").waitForExistence(timeout: 3),
                 "Video player controls should appear after pressing Down on tvOS"
             )
         }
@@ -256,6 +256,10 @@ final class JourneyRunner {
     }
 
     // MARK: - Helpers
+
+    private func element(withIdentifier identifier: String) -> XCUIElement {
+        app.descendants(matching: .any)[identifier]
+    }
 
     /// Platform-safe element activation: `.tap()` on iOS, remote select on tvOS.
     private func selectElement(_ element: XCUIElement) {
