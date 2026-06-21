@@ -234,7 +234,9 @@ def _query_macos_voice_inventory_via_avfoundation() -> List[Tuple[str, str, str,
     executable = sys.executable or "python3"
     try:
         output = subprocess.check_output(
-            [executable, "-c", script], universal_newlines=True
+            [executable, "-c", script],
+            universal_newlines=True,
+            stderr=subprocess.DEVNULL,
         )
     except Exception as exc:  # pragma: no cover - platform specific
         logger.debug("Unable to query macOS voices via AVFoundation: %s", exc)
