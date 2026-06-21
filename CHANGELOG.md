@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.02
+
+- Advanced visible Apple app versioning to `v2026.06.22.02`.
+- Refactored the Apple browse shell so refresh, selection, search, sign-out, and split-view navigation are handled by named SwiftUI actions instead of inline view-builder closures.
+
 ### 2026.06.22.01
 
 - Advanced visible Apple app versioning to `v2026.06.22.01`.

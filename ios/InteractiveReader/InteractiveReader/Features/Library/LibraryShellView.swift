@@ -83,15 +83,7 @@ struct LibraryShellView: View {
                     JobPlaybackView(job: job, autoPlayOnLoad: $jobsAutoPlay, playbackMode: jobsPlaybackMode)
                 }
         }
-        .onAppear {
-            if viewModel.items.isEmpty {
-                Task { await viewModel.load(using: appState) }
-            }
-            if jobsViewModel.jobs.isEmpty {
-                Task { await jobsViewModel.load(using: appState) }
-            }
-            handleSectionChange(activeSection)
-        }
+        .onAppear(perform: loadBrowseDataIfNeeded)
         .onChange(of: activeSection) { _, newValue in
             handleSectionChange(newValue)
         }
@@ -128,15 +120,7 @@ struct LibraryShellView: View {
                 }
             }
         }
-        .onAppear {
-            if viewModel.items.isEmpty {
-                Task { await viewModel.load(using: appState) }
-            }
-            if jobsViewModel.jobs.isEmpty {
-                Task { await jobsViewModel.load(using: appState) }
-            }
-            handleSectionChange(activeSection)
-        }
+        .onAppear(perform: loadBrowseDataIfNeeded)
         .onChange(of: activeSection) { _, newValue in
             handleSectionChange(newValue)
         }
@@ -215,87 +199,36 @@ struct LibraryShellView: View {
             case .library:
                 LibraryView(
                     viewModel: viewModel,
-                    onRefresh: {
-                        Task { await viewModel.load(using: appState) }
-                    },
-                    onSignOut: {
-                        appState.signOut()
-                    },
-                    onSelect: { item, mode in
-                        selectedItem = item
-                        libraryAutoPlay = true
-                        libraryPlaybackMode = mode
-                        if isSplitLayout {
-                            collapseSidebar()
-                        } else {
-                            navigationPath.append(item)
-                        }
-                    },
+                    onRefresh: refreshLibrary,
+                    onSignOut: signOut,
+                    onSelect: selectLibraryItem,
                     coverResolver: coverURL(for:),
                     resumeUserId: resumeUserId,
                     sectionPicker: sectionPickerForHeader,
                     onCollapseSidebar: isSplitLayout ? { collapseSidebar() } : nil,
-                    onSearchRequested: { activeSection = .search },
+                    onSearchRequested: showSearch,
                     usesDarkBackground: usesDarkBackground
                 )
             case .jobs:
                 JobsView(
                     viewModel: jobsViewModel,
-                    onRefresh: {
-                        Task { await jobsViewModel.load(using: appState) }
-                    },
-                    onSignOut: {
-                        appState.signOut()
-                    },
-                    onSelect: { job, mode in
-                        selectedJob = job
-                        jobsAutoPlay = true
-                        jobsPlaybackMode = mode
-                        if isSplitLayout {
-                            collapseSidebar()
-                        } else {
-                            navigationPath.append(job)
-                        }
-                    },
+                    onRefresh: refreshJobs,
+                    onSignOut: signOut,
+                    onSelect: selectJob,
                     sectionPicker: sectionPickerForHeader,
                     resumeUserId: resumeUserId,
                     onCollapseSidebar: isSplitLayout ? { collapseSidebar() } : nil,
-                    onSearchRequested: { activeSection = .search },
+                    onSearchRequested: showSearch,
                     usesDarkBackground: usesDarkBackground
                 )
             case .search:
                 CombinedSearchView(
                     libraryViewModel: viewModel,
                     jobsViewModel: jobsViewModel,
-                    onRefresh: {
-                        Task {
-                            await viewModel.load(using: appState)
-                            await jobsViewModel.load(using: appState)
-                        }
-                    },
-                    onSignOut: {
-                        appState.signOut()
-                    },
-                    onSelectItem: { item, mode in
-                        selectedItem = item
-                        libraryAutoPlay = true
-                        libraryPlaybackMode = mode
-                        if isSplitLayout {
-                            collapseSidebar()
-                        } else {
-                            navigationPath.append(item)
-                        }
-                    },
-                    onSelectJob: { job, mode in
-                        selectedJob = job
-                        jobsAutoPlay = true
-                        jobsPlaybackMode = mode
-                        if isSplitLayout {
-                            collapseSidebar()
-                        } else {
-                            navigationPath.append(job)
-                        }
-                    },
+                    onRefresh: refreshSearch,
+                    onSignOut: signOut,
+                    onSelectItem: selectLibraryItem,
+                    onSelectJob: selectJob,
                     coverResolver: coverURL(for:),
                     resumeUserId: resumeUserId,
                     sectionPicker: sectionPickerForHeader,
@@ -312,7 +245,7 @@ struct LibraryShellView: View {
                     PlaybackSettingsView(
                         sectionPicker: sectionPickerForHeader,
                         backTitle: isCompactLayout ? lastBrowseSection.rawValue : nil,
-                        onBack: isCompactLayout ? { activeSection = lastBrowseSection } : nil,
+                        onBack: isCompactLayout ? returnToLastBrowseSection : nil,
                         usesDarkBackground: usesDarkBackground
                     )
                 }
@@ -368,6 +301,57 @@ struct LibraryShellView: View {
 
     private var resumeUserId: String? {
         appState.resumeUserKey
+    }
+
+    private func loadBrowseDataIfNeeded() {
+        if viewModel.items.isEmpty {
+            refreshLibrary()
+        }
+        if jobsViewModel.jobs.isEmpty {
+            refreshJobs()
+        }
+        handleSectionChange(activeSection)
+    }
+
+    private func refreshLibrary() {
+        Task { await viewModel.load(using: appState) }
+    }
+
+    private func refreshJobs() {
+        Task { await jobsViewModel.load(using: appState) }
+    }
+
+    private func refreshSearch() {
+        Task {
+            await viewModel.load(using: appState)
+            await jobsViewModel.load(using: appState)
+        }
+    }
+
+    private func signOut() {
+        appState.signOut()
+    }
+
+    private func showSearch() {
+        activeSection = .search
+    }
+
+    private func returnToLastBrowseSection() {
+        activeSection = lastBrowseSection
+    }
+
+    private func selectLibraryItem(_ item: LibraryItem, mode: PlaybackStartMode) {
+        selectedItem = item
+        libraryAutoPlay = true
+        libraryPlaybackMode = mode
+        pushOrReveal(item)
+    }
+
+    private func selectJob(_ job: PipelineStatusResponse, mode: PlaybackStartMode) {
+        selectedJob = job
+        jobsAutoPlay = true
+        jobsPlaybackMode = mode
+        pushOrReveal(job)
     }
 
     private func handleSectionChange(_ newValue: BrowseSection) {
@@ -493,6 +477,14 @@ struct LibraryShellView: View {
             navigationPath.append(item)
         }
         #endif
+    }
+
+    private func pushOrReveal<Value: Hashable>(_ value: Value) {
+        if isSplitLayout {
+            collapseSidebar()
+        } else {
+            navigationPath.append(value)
+        }
     }
 
     private func collapseSidebar() {

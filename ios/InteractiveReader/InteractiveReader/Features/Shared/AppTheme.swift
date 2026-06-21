@@ -35,7 +35,7 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.22.01"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.22.02"
     }
 
     static var displayLabel: String {
@@ -172,8 +172,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.01",
+            version: "2026.06.22.02",
             entries: [
+                AppChangelogEntry(
+                    id: "browse-shell-action-refactor",
+                    title: "Browse shell actions cleaned up",
+                    detail: "Refresh, selection, search, sign-out, and split-view navigation now route through named SwiftUI actions so the iPad browse surface is safer to iterate."
+                ),
                 AppChangelogEntry(
                     id: "auth-duration-metrics",
                     title: "Auth timing is observable",
