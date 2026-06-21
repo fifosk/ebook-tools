@@ -12,7 +12,7 @@ final class AppState: ObservableObject {
 
     @Published private(set) var session: SessionStatusResponse?
     /// Whether we're actively validating a stored session token
-    /// This is now a brief operation (5s timeout) instead of blocking for 60s
+    /// This is a brief operation so startup can fall back to login quickly.
     @Published private(set) var isRestoring: Bool = false
     @Published var playerKeyboardShortcutsActive: Bool = false
 
@@ -104,9 +104,11 @@ final class AppState: ObservableObject {
             let restored = try await client.fetchSessionStatus()
             session = restored
             syncResumeStoreConfiguration()
-        } catch {
-            // On timeout or error, sign out so user can re-authenticate
+        } catch APIClientError.httpError(let statusCode, _) where statusCode == 401 || statusCode == 403 {
             signOut()
+        } catch {
+            // Preserve the stored token on transient connectivity/server errors.
+            // The login screen still appears, but a later launch can restore without forcing re-entry.
         }
     }
 
