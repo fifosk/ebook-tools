@@ -23,6 +23,58 @@ def read_plist_version(path: Path) -> str:
     return value
 
 
+def read_plist(path: Path) -> dict[str, object]:
+    with path.open("rb") as handle:
+        return plistlib.load(handle)
+
+
+def expected_marketing_version(release: str) -> str:
+    year, month, day, _ = release.split(".")
+    return f"{int(year)}.{int(month)}.{int(day)}"
+
+
+def expected_bundle_version(release: str) -> str:
+    year, month, day, build = release.split(".")
+    return f"{year}{month}{day}{build}"
+
+
+def assert_apple_bundle_versions(path: Path, release: str) -> None:
+    payload = read_plist(path)
+    expected_short = expected_marketing_version(release)
+    expected_build = expected_bundle_version(release)
+    actual_short = str(payload.get("CFBundleShortVersionString", "")).strip()
+    actual_build = str(payload.get("CFBundleVersion", "")).strip()
+    if actual_short != expected_short:
+        raise AssertionError(
+            f"{path} CFBundleShortVersionString={actual_short!r}, expected {expected_short!r}"
+        )
+    if actual_build != expected_build:
+        raise AssertionError(
+            f"{path} CFBundleVersion={actual_build!r}, expected {expected_build!r}"
+        )
+
+
+def assert_xcode_build_versions(path: Path, release: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    expected_short = expected_marketing_version(release)
+    expected_build = expected_bundle_version(release)
+    stale_patterns = [
+        (r"CURRENT_PROJECT_VERSION = 1;", "stale CURRENT_PROJECT_VERSION=1"),
+        (r"MARKETING_VERSION = 1\.0;", "stale MARKETING_VERSION=1.0"),
+    ]
+    for pattern, description in stale_patterns:
+        if re.search(pattern, text):
+            raise AssertionError(f"{path} contains {description}")
+    if f"CURRENT_PROJECT_VERSION = {expected_build};" not in text:
+        raise AssertionError(
+            f"{path} is missing CURRENT_PROJECT_VERSION = {expected_build};"
+        )
+    if f"MARKETING_VERSION = {expected_short};" not in text:
+        raise AssertionError(
+            f"{path} is missing MARKETING_VERSION = {expected_short};"
+        )
+
+
 def require_contains(path: Path, pattern: str, description: str) -> None:
     text = path.read_text(encoding="utf-8")
     if not re.search(pattern, text, re.MULTILINE):
@@ -66,6 +118,16 @@ def validate(root: Path = ROOT) -> None:
     release = info_version
     if not VERSION_RE.fullmatch(release):
         raise AssertionError(f"Release version {release!r} does not match YYYY.MM.DD.xx")
+    for plist_path in [
+        root / "ios/InteractiveReader/InteractiveReader/Supporting/Info.plist",
+        root / "ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist",
+        root / "ios/InteractiveReader/NotificationServiceExtension/Info.plist",
+    ]:
+        assert_apple_bundle_versions(plist_path, release)
+    assert_xcode_build_versions(
+        root / "ios/InteractiveReader/InteractiveReader.xcodeproj/project.pbxproj",
+        release,
+    )
 
     app_theme = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/AppTheme.swift"
     require_contains(

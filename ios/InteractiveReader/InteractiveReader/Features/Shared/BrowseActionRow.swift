@@ -43,9 +43,11 @@ struct BrowseActionRow: View {
                 .foregroundStyle(usesDarkListBackground ? .cyan : .blue)
             Text("Language Tools")
                 .lineLimit(1)
+                .truncationMode(.tail)
                 .foregroundStyle(usesDarkListBackground ? .white : .primary)
             AppVersionBadge()
         }
+        .layoutPriority(1)
     }
 
     private var cloudStatusIcon: some View {

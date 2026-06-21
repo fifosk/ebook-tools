@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-21
 
+### 2026.06.21.03
+
+- Fixed the iPad release badge so `v2026.06.21.03` stays as a single horizontal pill in crowded headers.
+- Aligned Apple bundle metadata with the daily release so device inventory can report `2026.6.21 (2026062103)` instead of `1.0 (1)`.
+
 ### 2026.06.21.02
 
 - Added a release-version contract check that keeps iOS/tvOS Info plists, in-app changelog data, Markdown changelog, and journey assertions aligned.

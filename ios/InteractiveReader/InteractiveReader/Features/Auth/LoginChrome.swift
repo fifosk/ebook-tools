@@ -86,6 +86,7 @@ struct LoginHeaderView: View {
 
             AppVersionBadge()
         }
+        .lineLimit(1)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 }

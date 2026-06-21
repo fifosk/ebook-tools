@@ -35,7 +35,7 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.02"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.03"
     }
 
     static var displayLabel: String {
@@ -81,10 +81,15 @@ struct AppVersionBadge: View {
     var body: some View {
         Text(AppVersion.displayLabel)
             .font(versionFont)
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
+            .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(Color.white.opacity(0.08), in: Capsule())
             .foregroundStyle(.secondary)
+            .layoutPriority(2)
             .accessibilityLabel("Version \(AppVersion.release)")
             .accessibilityIdentifier("appVersionBadge")
     }
@@ -116,8 +121,18 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-21",
             dateLabel: "June 21, 2026",
-            version: "2026.06.21.02",
+            version: "2026.06.21.03",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-version-pill-layout",
+                    title: "iPad version badge layout",
+                    detail: "The release pill now stays on one line in crowded iPad headers instead of collapsing into vertical characters."
+                ),
+                AppChangelogEntry(
+                    id: "apple-bundle-versioning",
+                    title: "Device inventory versioning",
+                    detail: "Installed device metadata now carries the daily build number so CoreDevice checks can identify the deployed app."
+                ),
                 AppChangelogEntry(
                     id: "release-contract-guard",
                     title: "Daily release contract guard",
