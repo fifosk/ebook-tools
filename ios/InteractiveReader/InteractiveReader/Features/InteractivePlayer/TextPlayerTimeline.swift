@@ -244,14 +244,11 @@ enum TextPlayerTimeline {
             }
 
             var originalReveal: [Double] = []
-            var originalRevealIsAbsolute = false
             if highlightOriginal {
                 // Use actual original timing tokens when on the original track
                 // and the sentence has word-level timing data
                 if isOriginalTrack && !sentence.originalTimingTokens.isEmpty {
                     originalReveal = sentence.originalTimingTokens.map { $0.startTime }
-                    // Mark as absolute audio times (should not be scaled later)
-                    originalRevealIsAbsolute = true
                     // Ensure we have the right number of reveal times
                     if originalReveal.count != originalTokens.count && !originalTokens.isEmpty {
                         originalReveal = buildUniformRevealTimes(
@@ -259,7 +256,6 @@ enum TextPlayerTimeline {
                             startTime: sentenceStart,
                             duration: originalPhaseDuration
                         )
-                        originalRevealIsAbsolute = false
                     }
                 } else {
                     originalReveal = buildUniformRevealTimes(

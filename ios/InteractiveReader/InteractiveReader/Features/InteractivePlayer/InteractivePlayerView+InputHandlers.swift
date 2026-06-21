@@ -283,7 +283,7 @@ extension InteractivePlayerView {
         #if os(tvOS)
         // Menu is disabled on tvOS - controls are in header pills
         return
-        #endif
+        #else
         guard !isMenuVisible else { return }
         guard viewModel.selectedChunk != nil else { return }
         resumePlaybackAfterMenu = audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying
@@ -293,13 +293,14 @@ extension InteractivePlayerView {
         withAnimation(.easeOut(duration: 0.2)) {
             isMenuVisible = true
         }
+        #endif
     }
 
     func hideMenu() {
         #if os(tvOS)
         // Menu is disabled on tvOS
         return
-        #endif
+        #else
         guard isMenuVisible else { return }
         withAnimation(.easeOut(duration: 0.2)) {
             isMenuVisible = false
@@ -308,5 +309,6 @@ extension InteractivePlayerView {
             audioCoordinator.play()
         }
         resumePlaybackAfterMenu = false
+        #endif
     }
 }

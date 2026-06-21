@@ -424,7 +424,6 @@ extension InteractivePlayerView {
         let isDwelling = viewModel.sequenceController.isDwelling
         let currentSentenceIdx = viewModel.sequenceController.currentSentenceIndex
         let expectedPosition = viewModel.sequenceController.expectedPosition
-        let currentPlaybackKind = playbackPrimaryKind(for: chunk)
 
         // Get timing track directly from sequence controller during transitions
         // This avoids timing issues where isSequenceModeActive might not be updated yet

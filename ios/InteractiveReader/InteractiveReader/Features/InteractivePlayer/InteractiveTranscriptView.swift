@@ -157,7 +157,6 @@ struct InteractiveTranscriptView: View {
                 ? availableHeight * 0.7
                 : availableHeight
             let textHeight = max(min(preferredTextHeight, availableHeight - bubbleReserve), 0)
-            let tvBubbleHeight = tvBubbleSplit ? max(bubbleReserve - stackSpacing, 0) : 0
             let safeAreaBottom: CGFloat = {
                 #if os(iOS)
                 return isPhone ? proxy.safeAreaInsets.bottom : 0

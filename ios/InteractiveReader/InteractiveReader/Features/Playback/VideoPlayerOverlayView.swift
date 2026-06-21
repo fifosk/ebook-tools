@@ -599,7 +599,6 @@ extension VideoPlayerOverlayView {
 
     @ViewBuilder
     private var tvInfoHeaderOverlay: some View {
-        let showHeaderContent = !isHeaderCollapsed
         let timelineLabel = videoTimelineLabel
         let segmentLabel = segmentHeaderLabel
 

@@ -349,8 +349,6 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         // Tear down current player and rebuild from target file
         tearDownPlayer()
 
-        // Restore activeURLs (they were cleared by tearDownPlayer)
-        let allURLs = activeURLs.isEmpty ? [] : activeURLs
         guard !urlsFromTarget.isEmpty else {
             completion?(false)
             return

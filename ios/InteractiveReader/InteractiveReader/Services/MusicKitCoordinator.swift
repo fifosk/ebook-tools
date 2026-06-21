@@ -200,15 +200,15 @@ final class MusicKitCoordinator: ObservableObject {
 
     func cycleRepeatMode() {
         let player = ApplicationMusicPlayer.shared
-        let current = player.state.repeatMode
-        if current == nil || current == .none {
+        switch player.state.repeatMode {
+        case nil, .some(MusicPlayer.RepeatMode.none):
             player.state.repeatMode = .all
             repeatMode = .all
-        } else if current == .all {
+        case .some(.all):
             player.state.repeatMode = .one
             repeatMode = .one
-        } else {
-            player.state.repeatMode = .none
+        default:
+            player.state.repeatMode = MusicPlayer.RepeatMode.none
             repeatMode = .off
         }
         persistModes()
@@ -262,7 +262,7 @@ final class MusicKitCoordinator: ObservableObject {
         switch repeatMode {
         case .all: player.state.repeatMode = .all
         case .one: player.state.repeatMode = .one
-        case .off: player.state.repeatMode = .none
+        case .off: player.state.repeatMode = MusicPlayer.RepeatMode.none
         }
     }
 

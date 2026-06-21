@@ -38,12 +38,7 @@ class NotificationService: UNNotificationServiceExtension {
         }
 
         // Download the image and attach it
-        downloadImage(from: imageURL) { [weak self] fileURL in
-            guard let self else {
-                contentHandler(bestAttemptContent)
-                return
-            }
-
+        downloadImage(from: imageURL) { fileURL in
             if let fileURL,
                let attachment = try? UNNotificationAttachment(
                    identifier: "cover",
@@ -73,7 +68,6 @@ class NotificationService: UNNotificationServiceExtension {
         from userInfo: [AnyHashable: Any]
     ) {
         // Extract metadata fields
-        let title = userInfo["title"] as? String
         let subtitle = userInfo["subtitle"] as? String
         let inputLanguage = userInfo["input_language"] as? String
         let targetLanguage = userInfo["target_language"] as? String

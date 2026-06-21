@@ -16,7 +16,7 @@ struct InteractiveReaderApp: App {
                 .environmentObject(offlineStore)
                 .task {
                     await NotificationManager.shared.checkAuthorizationStatus()
-                    await NotificationManager.shared.registerForPushNotificationsIfNeeded()
+                    NotificationManager.shared.registerForPushNotificationsIfNeeded()
                 }
                 .onChange(of: appState.session) { _, session in
                     // Re-register device token when user logs in
