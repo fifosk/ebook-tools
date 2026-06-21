@@ -111,7 +111,7 @@ python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --devi
 
 Physical iPad M5 Pro evidence from June 21, 2026: the attended Xcode/CoreDevice
 path installed and relaunched `InteractiveReader` with version `2026.6.21` and
-bundle version `2026062106` (`v2026.06.21.06`). Keep the iPad awake and unlocked;
+bundle version `2026062107` (`v2026.06.21.07`). Keep the iPad awake and unlocked;
 for future attended installs, prefer USB-C, tap Trust when prompted, then
 re-enable network deployment from Xcode Devices and Simulators if needed.
 
