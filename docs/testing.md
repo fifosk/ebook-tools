@@ -109,16 +109,17 @@ Device preflight currently sees `Fifo Ipad Pro` through CoreDevice:
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --device-preflight-only
 ```
 
-Latest attended iPad M5 deployment from June 22, 2026: `v2026.06.22.03`
-with marketing version `2026.6.22` and bundle version `2026062203`. The
+Latest attended iPad M5 deployment from June 22, 2026: `v2026.06.22.04`
+with marketing version `2026.6.22` and bundle version `2026062204`. The
 post-install `devicectl` verification reported:
 
 ```text
-InteractiveReader   com.example.InteractiveReader   2026.6.22   2026062203
+InteractiveReader   com.example.InteractiveReader   2026.6.22   2026062204
 ```
 
 The app was built and installed from Xcode with the `InteractiveReader` scheme
-and `Fifo Ipad Pro` run destination, then relaunched outside the debugger with:
+and `Fifo Ipad Pro` run destination. If the iPad is unlocked, relaunch outside
+the debugger with:
 
 ```bash
 xcrun devicectl device process launch \
@@ -127,9 +128,11 @@ xcrun devicectl device process launch \
   com.example.InteractiveReader
 ```
 
-Keep the iPad awake and unlocked; for future attended installs, prefer USB-C,
-tap Trust when prompted, then re-enable network deployment from Xcode Devices
-and Simulators if needed.
+The June 22 `.04` install completed while the iPad was locked; CoreDevice
+verified the installed bundle metadata, but SpringBoard denied launch until the
+device is unlocked. Keep the iPad awake and unlocked for launch verification;
+for future attended installs, prefer USB-C, tap Trust when prompted, then
+re-enable network deployment from Xcode Devices and Simulators if needed.
 
 Generic iOS device signing currently fails before compilation:
 
