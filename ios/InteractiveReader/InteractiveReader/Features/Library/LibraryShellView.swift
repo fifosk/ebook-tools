@@ -927,12 +927,19 @@ private struct CombinedSearchView: View {
                 .focused($isSearchFocused)
                 .submitLabel(.search)
                 .foregroundStyle(usesDarkListBackground ? .white : .primary)
+                .accessibilityIdentifier("combinedSearchField")
             Button {
-                isSearchFocused = true
+                if trimmedQuery.isEmpty {
+                    isSearchFocused = true
+                } else {
+                    query = ""
+                    isSearchFocused = true
+                }
             } label: {
-                Image(systemName: "magnifyingglass")
+                Image(systemName: trimmedQuery.isEmpty ? "magnifyingglass" : "xmark.circle.fill")
             }
             .tint(usesDarkListBackground ? .white : nil)
+            .accessibilityIdentifier("combinedSearchFieldActionButton")
         }
         .padding(.horizontal)
     }

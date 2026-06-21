@@ -24,6 +24,18 @@
       "timeout": 10
     },
     {
+      "action": "enter_text",
+      "selector": "combinedSearchField",
+      "text": "zzzz-no-library-match-0000",
+      "timeout": 10,
+      "screenshot": "search_query_entered"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "combinedSearchEmptyView",
+      "timeout": 10
+    },
+    {
       "action": "navigate_tab",
       "tab": "Jobs",
       "selector": "browseSectionJobsButton",

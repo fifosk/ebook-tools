@@ -9,6 +9,7 @@ struct JourneyStep: Decodable {
     var screenshot: String?
     var skip_if_empty: Bool?
     var selector: String?
+    var text: String?
     var timeout: Int?
     var ms: Int?
 }
@@ -96,6 +97,8 @@ final class JourneyRunner {
             doGoBack(step)
         case "assert_visible":
             doAssertVisible(step)
+        case "enter_text":
+            doEnterText(step)
         case "wait":
             doWait(step)
         default:
@@ -248,6 +251,35 @@ final class JourneyRunner {
             element.waitForExistence(timeout: timeout),
             "\(identifier) should be visible"
         )
+    }
+
+    private func doEnterText(_ step: JourneyStep) {
+        guard let identifier = step.selector else {
+            XCTFail("enter_text requires selector")
+            return
+        }
+        let text = step.text ?? ""
+        let timeout = TimeInterval(step.timeout ?? 10)
+        let element = element(withIdentifier: identifier)
+        XCTAssertTrue(
+            element.waitForExistence(timeout: timeout),
+            "\(identifier) should be visible before entering text"
+        )
+
+        #if os(tvOS)
+        if !element.hasFocus {
+            XCTAssertTrue(focusElement(element), "\(identifier) should be focusable")
+        }
+        XCUIRemote.shared.press(.select)
+        #else
+        element.tap()
+        #endif
+
+        element.typeText(text)
+
+        #if os(tvOS)
+        XCUIRemote.shared.press(.menu)
+        #endif
     }
 
     private func doWait(_ step: JourneyStep) {
