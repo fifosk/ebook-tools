@@ -1,10 +1,12 @@
 import SwiftUI
+import OSLog
 #if os(iOS) || os(tvOS)
 import UIKit
 #endif
 
 /// Set to true to enable verbose transcript/content debug logging
 private let transcriptDebug = false
+private let interactiveLayoutLogger = Logger(subsystem: "InteractiveReader", category: "InteractiveLayout")
 
 extension InteractivePlayerView {
     var baseContent: some View {
@@ -46,9 +48,9 @@ extension InteractivePlayerView {
             // Instead, interactiveContent() handles stale detection and shows appropriate
             // display (static for track switches, fresh for sentence changes) in real-time.
             // The onSequenceWillTransition callback is now a no-op but kept for debugging.
-            if transcriptDebug { print("[TranscriptFreeze] Setting up onSequenceWillTransition callback (no-op)") }
+            if transcriptDebug { interactiveLayoutLogger.debug("Setting up onSequenceWillTransition callback (no-op)") }
             viewModel.onSequenceWillTransition = {
-                if transcriptDebug { print("[TranscriptFreeze] onSequenceWillTransition callback invoked (no-op)") }
+                if transcriptDebug { interactiveLayoutLogger.debug("onSequenceWillTransition callback invoked (no-op)") }
             }
             // Text track visibility should not affect audio playback.
             // Audio track selection is controlled separately via the audio toggle pills.
@@ -199,15 +201,17 @@ extension InteractivePlayerView {
         // stale detection and correction in real-time during renders. This avoids race conditions
         // between frozen state updates and render cycles.
         view = AnyView(view.onChange(of: viewModel.isSequenceTransitioning) { _, isTransitioning in
-            if transcriptDebug { print("[TranscriptFreeze] isSequenceTransitioning changed to \(isTransitioning)") }
+            if transcriptDebug {
+                interactiveLayoutLogger.debug("isSequenceTransitioning changed to \(isTransitioning, privacy: .public)")
+            }
             guard viewModel.isSequenceModeActive else {
-                if transcriptDebug { print("[TranscriptFreeze] Not in sequence mode, skipping") }
+                if transcriptDebug { interactiveLayoutLogger.debug("Not in sequence mode, skipping") }
                 return
             }
             // When transition ends, ensure frozen state is cleared (unless menu is visible)
             if !isTransitioning && !isMenuVisible {
                 if frozenTranscriptSentences != nil || frozenPlaybackPrimaryKind != nil {
-                    if transcriptDebug { print("[TranscriptFreeze] Transition ended, clearing frozen state") }
+                    if transcriptDebug { interactiveLayoutLogger.debug("Transition ended, clearing frozen state") }
                     frozenTranscriptSentences = nil
                     frozenPlaybackPrimaryKind = nil
                 }
@@ -256,7 +260,7 @@ extension InteractivePlayerView {
         // Audio mode change handler - sync to sequence controller when mode changes
         view = AnyView(view.onChange(of: audioModeManager.currentMode) { _, newMode in
             viewModel.sequenceController.audioMode = newMode
-            print("[AudioToggle] Mode changed: \(newMode.description)")
+            interactiveLayoutLogger.debug("Audio mode changed: \(newMode.description, privacy: .public)")
         })
         // Apple Music source change handler
         view = AnyView(view.onChange(of: useAppleMusicForBed) { _, usingAppleMusic in
@@ -457,14 +461,20 @@ extension InteractivePlayerView {
                 // Debug: check if chunk has sentences and if target index is valid
                 if transcriptDebug {
                     if chunk.sentences.isEmpty {
-                        print("[InteractiveContent] WARNING: chunk.sentences is EMPTY during transition, targetIdx=\(targetIdx)")
+                        interactiveLayoutLogger.warning(
+                            "chunk.sentences is empty during transition targetIdx=\(targetIdx, privacy: .public)"
+                        )
                     } else if !chunk.sentences.indices.contains(targetIdx) {
-                        print("[InteractiveContent] WARNING: targetIdx=\(targetIdx) out of bounds, chunk has \(chunk.sentences.count) sentences")
+                        interactiveLayoutLogger.warning(
+                            "targetIdx=\(targetIdx, privacy: .public) out of bounds, sentenceCount=\(chunk.sentences.count, privacy: .public)"
+                        )
                     } else {
                         let sentence = chunk.sentences[targetIdx]
                         let hasTokens = !sentence.originalTokens.isEmpty || !sentence.translationTokens.isEmpty
                         if !hasTokens {
-                            print("[InteractiveContent] WARNING: sentence[\(targetIdx)] has NO TOKENS - original=\(sentence.originalTokens.count), translation=\(sentence.translationTokens.count)")
+                            interactiveLayoutLogger.warning(
+                                "sentence[\(targetIdx, privacy: .public)] has no tokens original=\(sentence.originalTokens.count, privacy: .public), translation=\(sentence.translationTokens.count, privacy: .public)"
+                            )
                         }
                     }
                 }
@@ -477,7 +487,12 @@ extension InteractivePlayerView {
                         activeIndex: targetIdx,
                         newPrimaryTrack: sequenceTimingTrack
                     ) {
-                        if transcriptDebug { print("[InteractiveContent] SAME-SENTENCE SWITCH: transitioning=\(isTransitioning), using track-switch sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))") }
+                        if transcriptDebug {
+                            let variants = debugVariantSummary(display.variants)
+                            interactiveLayoutLogger.debug(
+                                "Same-sentence switch transitioning=\(isTransitioning, privacy: .public), sentence=\(targetIdx, privacy: .public), variants=\(variants, privacy: .public)"
+                            )
+                        }
                         return [display]
                     }
                 } else {
@@ -491,7 +506,11 @@ extension InteractivePlayerView {
                             sentences: chunk.sentences,
                             activeIndex: prevIdx
                         ) {
-                            if transcriptDebug { print("[InteractiveContent] SENTENCE-CHANGE: transitioning=\(isTransitioning), showing PREVIOUS sentence[\(prevIdx)] fully revealed (target=\(targetIdx))") }
+                            if transcriptDebug {
+                                interactiveLayoutLogger.debug(
+                                    "Sentence-change transitioning=\(isTransitioning, privacy: .public), showing previous=\(prevIdx, privacy: .public), target=\(targetIdx, privacy: .public)"
+                                )
+                            }
                             return [display]
                         }
                     }
@@ -502,7 +521,12 @@ extension InteractivePlayerView {
                         activeIndex: targetIdx,
                         primaryTrack: sequenceTimingTrack
                     ) {
-                        if transcriptDebug { print("[InteractiveContent] SENTENCE-CHANGE (fallback): transitioning=\(isTransitioning), using initial sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))") }
+                        if transcriptDebug {
+                            let variants = debugVariantSummary(display.variants)
+                            interactiveLayoutLogger.debug(
+                                "Sentence-change fallback transitioning=\(isTransitioning, privacy: .public), sentence=\(targetIdx, privacy: .public), variants=\(variants, privacy: .public)"
+                            )
+                        }
                         return [display]
                     }
                 }
@@ -525,7 +549,12 @@ extension InteractivePlayerView {
                     audioDuration: durationValue,
                     timingVersion: chunk.timingVersion
                 ) {
-                    if transcriptDebug { print("[InteractiveContent] SAME-SENTENCE SETTLING: sentence[\(targetIdx)] at t=\(String(format: "%.3f", playbackTime)) with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))") }
+                    if transcriptDebug {
+                        let variants = debugVariantSummary(display.variants)
+                        interactiveLayoutLogger.debug(
+                            "Same-sentence settling sentence=\(targetIdx, privacy: .public), time=\(playbackTime, privacy: .public), variants=\(variants, privacy: .public)"
+                        )
+                    }
                     return [display]
                 }
                 // Fallback to static track-switch display
@@ -534,7 +563,11 @@ extension InteractivePlayerView {
                     activeIndex: targetIdx,
                     newPrimaryTrack: sequenceTimingTrack
                 ) {
-                    if transcriptDebug { print("[InteractiveContent] SAME-SENTENCE SETTLING (fallback): using sentence[\(targetIdx)]") }
+                    if transcriptDebug {
+                        interactiveLayoutLogger.debug(
+                            "Same-sentence settling fallback sentence=\(targetIdx, privacy: .public)"
+                        )
+                    }
                     return [display]
                 }
             }
@@ -549,7 +582,11 @@ extension InteractivePlayerView {
                         sentences: chunk.sentences,
                         activeIndex: prevIdx
                     ) {
-                        if transcriptDebug { print("[InteractiveContent] SENTENCE-CHANGE SETTLING: showing PREVIOUS sentence[\(prevIdx)] fully revealed (target=\(currentSentenceIdx ?? -1))") }
+                        if transcriptDebug {
+                            interactiveLayoutLogger.debug(
+                                "Sentence-change settling showing previous=\(prevIdx, privacy: .public), target=\(currentSentenceIdx ?? -1, privacy: .public)"
+                            )
+                        }
                         return [display]
                     }
                 }
@@ -560,7 +597,12 @@ extension InteractivePlayerView {
                         activeIndex: targetIdx,
                         primaryTrack: sequenceTimingTrack
                     ) {
-                        if transcriptDebug { print("[InteractiveContent] SENTENCE-CHANGE SETTLING (fallback): using initial sentence[\(targetIdx)] with variants: \(display.variants.map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }.joined(separator: ", "))") }
+                        if transcriptDebug {
+                            let variants = debugVariantSummary(display.variants)
+                            interactiveLayoutLogger.debug(
+                                "Sentence-change settling fallback sentence=\(targetIdx, privacy: .public), variants=\(variants, privacy: .public)"
+                            )
+                        }
                         return [display]
                     }
                 }
@@ -575,7 +617,11 @@ extension InteractivePlayerView {
                     activeIndex: targetIdx,
                     currentTrack: sequenceTimingTrack
                 ) {
-                    if transcriptDebug { print("[InteractiveContent] DWELL: sentence[\(targetIdx)] current=\(sequenceTimingTrack)") }
+                    if transcriptDebug {
+                        interactiveLayoutLogger.debug(
+                            "Dwell sentence=\(targetIdx, privacy: .public), currentTrack=\(String(describing: sequenceTimingTrack), privacy: .public)"
+                        )
+                    }
                     return [display]
                 }
             }
@@ -598,7 +644,9 @@ extension InteractivePlayerView {
                     activeIndex: targetIdx,
                     primaryTrack: sequenceTimingTrack
                 ) {
-                    if transcriptDebug { print("[InteractiveContent] TRANSITION FALLBACK: using initial sentence[\(targetIdx)]") }
+                    if transcriptDebug {
+                        interactiveLayoutLogger.debug("Transition fallback using initial sentence=\(targetIdx, privacy: .public)")
+                    }
                     return [display]
                 }
             }
@@ -624,7 +672,11 @@ extension InteractivePlayerView {
                     audioDuration: durationValue,
                     timingVersion: chunk.timingVersion
                 ) {
-                    if transcriptDebug { print("[InteractiveContent] POST-STABILIZATION GUARD: sentence[\(targetIdx)] at t=\(String(format: "%.3f", playbackTime))") }
+                    if transcriptDebug {
+                        interactiveLayoutLogger.debug(
+                            "Post-stabilization guard sentence=\(targetIdx, privacy: .public), time=\(playbackTime, privacy: .public)"
+                        )
+                    }
                     return [display]
                 }
             }
@@ -801,6 +853,12 @@ extension InteractivePlayerView {
             .accessibilityAddTraits(.isModal)
             .zIndex(2)
         }
+    }
+
+    private func debugVariantSummary(_ variants: [TextPlayerVariantDisplay]) -> String {
+        variants
+            .map { "\($0.kind.rawValue): \($0.revealedCount)/\($0.tokens.count)" }
+            .joined(separator: ", ")
     }
 
 }

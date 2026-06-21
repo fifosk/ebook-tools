@@ -13,7 +13,7 @@ extension InteractiveReaderUITests {
         let username = config.username
         let password = config.password
         guard !username.isEmpty, !password.isEmpty else {
-            XCTFail("E2E credentials are empty in /tmp/ios_e2e_config.json")
+            XCTFail("E2E credentials are empty in \(Self.configPath)")
             return
         }
 

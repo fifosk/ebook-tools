@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 struct APIClientConfiguration {
     let apiBaseURL: URL
@@ -42,6 +43,7 @@ enum APIClientError: Error, LocalizedError {
 final class APIClient {
     private let configuration: APIClientConfiguration
     private let urlSession: URLSession
+    private let logger = Logger(subsystem: "InteractiveReader", category: "APIClient")
 
     init(configuration: APIClientConfiguration, urlSession: URLSession = .shared) {
         self.configuration = configuration
@@ -272,16 +274,12 @@ final class APIClient {
         // This ensures the URL is properly encoded for the server to decode
         let encodedWord = word.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? word
         let path = "/api/pipelines/jobs/\(encodedJob)/lookup-cache/\(encodedWord)"
-        print("[LookupCache] Request path: \(path)")
-        print("[LookupCache] Original word: '\(word)', encoded: '\(encodedWord)'")
+        logger.debug("Lookup cache request job=\(encodedJob, privacy: .private) wordLength=\(word.count, privacy: .public)")
         guard let data = try await sendRequestAllowingNotFound(path: path) else {
-            print("[LookupCache] No data returned (404 or error)")
+            logger.debug("Lookup cache miss job=\(encodedJob, privacy: .private)")
             return nil
         }
-        // Debug: print raw JSON response
-        if let jsonString = String(data: data, encoding: .utf8) {
-            print("[LookupCache] Raw response: \(jsonString.prefix(500))")
-        }
+        logger.debug("Lookup cache response bytes=\(data.count, privacy: .public)")
         return try decode(LookupCacheEntryResponse.self, from: data)
     }
 
@@ -352,10 +350,7 @@ final class APIClient {
         ]
         let suffix = components.percentEncodedQuery.map { "?\($0)" } ?? ""
         let data = try await sendRequest(path: "/api/pipelines/search\(suffix)")
-        // Debug: always print raw response for search
-        if let jsonString = String(data: data, encoding: .utf8) {
-            print("[APIClient] Search response raw JSON:\n\(jsonString)")
-        }
+        logger.debug("Media search response bytes=\(data.count, privacy: .public)")
         return try decode(MediaSearchResponse.self, from: data)
     }
 
@@ -366,12 +361,10 @@ final class APIClient {
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            // Debug: print raw JSON for MediaSearchResponse decode failures
             if type == MediaSearchResponse.self {
-                if let jsonString = String(data: data, encoding: .utf8) {
-                    print("[APIClient] MediaSearchResponse decode failed. Raw JSON:\n\(jsonString)")
-                }
-                print("[APIClient] Decode error details: \(error)")
+                logger.error(
+                    "Media search decode failed bytes=\(data.count, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
             }
             throw APIClientError.decoding(error)
         }

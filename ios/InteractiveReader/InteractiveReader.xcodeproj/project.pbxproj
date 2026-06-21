@@ -143,6 +143,8 @@
 		99C55C3D1FC8664296FEC475 /* InteractivePlayerViewModel+Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 349CDBB9E48A4D372AC39F1D /* InteractivePlayerViewModel+Selection.swift */; };
 		99CD98CB3EC9F517313A3475 /* InteractivePlayerViewModel+Loading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 919B95631F5F2FA4C4913866 /* InteractivePlayerViewModel+Loading.swift */; };
 		9B3454EB6A7542068F65692F /* InteractivePlayerView+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C248D65273844EFBDC49279 /* InteractivePlayerView+Layout.swift */; };
+		JUMPOVER001A0001 /* JumpControlOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = JUMPOVER002A0001 /* JumpControlOverlayView.swift */; };
+		JUMPOVER001A0002 /* JumpControlOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = JUMPOVER002A0001 /* JumpControlOverlayView.swift */; };
 		9C155AB01A414B92A00898DA /* VideoPlayerView+NowPlaying.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15DA794E7A0944EFA293A694 /* VideoPlayerView+NowPlaying.swift */; };
 		9D44F610CA7475B72F5B7179 /* InteractivePlayerViewModel+Loading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 919B95631F5F2FA4C4913866 /* InteractivePlayerViewModel+Loading.swift */; };
 		9ED2C6403ABB8E95F45DE218 /* JobPlaybackView+Loading.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0081BD6B4B347F9D6C060F5 /* JobPlaybackView+Loading.swift */; };
@@ -171,6 +173,8 @@
 		B926DA4991B74FBCA7793D10 /* VideoPlayerView+Gestures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 128AF7FE0A734C2CB80C47C1 /* VideoPlayerView+Gestures.swift */; };
 		C0A1B2C3D4E5F60718293A4C /* PlayerChannelBugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */; };
 		C0A1B2C3D4E5F60718293A4D /* PlayerChannelBugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */; };
+		BROWSEACT001A0001 /* BrowseActionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BROWSEACT002A0001 /* BrowseActionRow.swift */; };
+		BROWSEACT001A0002 /* BrowseActionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BROWSEACT002A0001 /* BrowseActionRow.swift */; };
 		UNIFCOVER001A0001 /* UnifiedCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UNIFCOVER002A0001 /* UnifiedCoverView.swift */; };
 		UNIFCOVER001A0002 /* UnifiedCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UNIFCOVER002A0001 /* UnifiedCoverView.swift */; };
 		C0B122C01D1542EB88C4DDFE /* PlaybackResumeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270E02CDE81B4E849EE6DC88 /* PlaybackResumeManager.swift */; };
@@ -340,6 +344,7 @@
 		6FDC3A2102F914D000A1D9A1 /* JobLoaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobLoaderView.swift; sourceTree = "<group>"; };
 		6FDC3A2202F914D000A1D9A1 /* InteractivePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePlayerView.swift; sourceTree = "<group>"; };
 		6FDC3A2302F914D000A1D9A1 /* InteractivePlayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePlayerViewModel.swift; sourceTree = "<group>"; };
+		JUMPOVER002A0001 /* JumpControlOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JumpControlOverlayView.swift; sourceTree = "<group>"; };
 		6FDC3A2402F914D000A1D9A1 /* ApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApiModels.swift; sourceTree = "<group>"; };
 		6FDC3A2502F914D000A1D9A1 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		6FDC3A2602F914D000A1D9A1 /* AudioPlayerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerCoordinator.swift; sourceTree = "<group>"; };
@@ -374,6 +379,7 @@
 		BA23F5D5E8D347FABACD6126 /* PlayerCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerCoordinating.swift; sourceTree = "<group>"; };
 		C02A242C108796D05E129BEB /* InteractivePlayerViewModel+Lookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerViewModel+Lookup.swift"; sourceTree = "<group>"; };
 		C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerChannelBugView.swift; sourceTree = "<group>"; };
+		BROWSEACT002A0001 /* BrowseActionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseActionRow.swift; sourceTree = "<group>"; };
 		UNIFCOVER002A0001 /* UnifiedCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedCoverView.swift; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsViewModel.swift; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsView.swift; sourceTree = "<group>"; };
@@ -634,8 +640,6 @@
 				6FDC3A2202F914D000A1D9A1 /* InteractivePlayerView.swift */,
 				DFFB27F7B9307C2DEB5ED919 /* AppleMusicPickerView.swift */,
 				AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */,
-				12E5417D0C30D18B4C578C9D /* MusicSearchService.swift */,
-				DAA1F6854050F5820C7B281F /* MusicKitCoordinator.swift */,
 				1C248D65273844EFBDC49279 /* InteractivePlayerView+Layout.swift */,
 				1107B6845B934259930ED1B9 /* InteractivePlayerView+Menu.swift */,
 				MEDIASEARCH002B0001 /* InteractivePlayerView+Search.swift */,
@@ -643,6 +647,7 @@
 				FBD20FB3803E455183097CAC /* InteractivePlayerView+Transcript.swift */,
 				EA3A539D59C840118551CB0B /* InteractivePlayerView+Bookmarks.swift */,
 				FAB42B31E7C24996A28615F0 /* InteractivePlayerView+ReadingBed.swift */,
+				JUMPOVER002A0001 /* JumpControlOverlayView.swift */,
 				346822151C1A44D98F7E0E0A /* InteractivePlayerView+Linguist.swift */,
 				6FDC3A2302F914D000A1D9A1 /* InteractivePlayerViewModel.swift */,
 				919B95631F5F2FA4C4913866 /* InteractivePlayerViewModel+Loading.swift */,
@@ -757,6 +762,7 @@
 				F1A2B3C4D5E6F708192A3B54 /* AppTheme.swift */,
 				MEDIASEARCH002A0001 /* MediaSearchView.swift */,
 				A1B2C3D4E5F60718293A4E60 /* OfflineSyncBadge.swift */,
+				BROWSEACT002A0001 /* BrowseActionRow.swift */,
 				C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */,
 				UNIFCOVER002A0001 /* UnifiedCoverView.swift */,
 				DFB9B106AB74415AB26FD48B /* LinguistBubbleView.swift */,
@@ -1100,6 +1106,7 @@
 				6FDC3A3702F914D000A1D9A1 /* StorageResolver.swift in Sources */,
 				6FDC3A3202F914D000A1D9A1 /* InteractivePlayerView.swift in Sources */,
 				C0A1B2C3D4E5F60718293A4C /* PlayerChannelBugView.swift in Sources */,
+				BROWSEACT001A0001 /* BrowseActionRow.swift in Sources */,
 				UNIFCOVER001A0001 /* UnifiedCoverView.swift in Sources */,
 				6FDC3A3402F914D000A1D9A1 /* ApiModels.swift in Sources */,
 				6FDC3A3802F914D000A1D9A1 /* String+Extras.swift in Sources */,
@@ -1116,6 +1123,7 @@
 				8DB36216649F4BF0A7A514C4 /* InteractivePlayerView+Tracks.swift in Sources */,
 				5FE9F89A782341D08BA7A31E /* InteractivePlayerView+Bookmarks.swift in Sources */,
 				9FB0B6071FFC449B8391D9FA /* InteractivePlayerView+ReadingBed.swift in Sources */,
+				JUMPOVER001A0001 /* JumpControlOverlayView.swift in Sources */,
 				4DC80F4A10F24C6699D43879 /* InteractivePlayerView+Transcript.swift in Sources */,
 				E0D8C9AF34D042DFB492EA98 /* InteractivePlayerView+Linguist.swift in Sources */,
 				17A2ABD8F0B64CB8BC912340 /* VideoPlaybackModels.swift in Sources */,
@@ -1238,6 +1246,7 @@
 				1798B1642EF9F1A00092A8AF /* StorageResolver.swift in Sources */,
 				1798B1652EF9F1A00092A8AF /* InteractivePlayerView.swift in Sources */,
 				C0A1B2C3D4E5F60718293A4D /* PlayerChannelBugView.swift in Sources */,
+				BROWSEACT001A0002 /* BrowseActionRow.swift in Sources */,
 				UNIFCOVER001A0002 /* UnifiedCoverView.swift in Sources */,
 				1798B1662EF9F1A00092A8AF /* ApiModels.swift in Sources */,
 				AF457B8C1C4541A8934FD7B3 /* InteractivePlayerActions.swift in Sources */,
@@ -1255,6 +1264,7 @@
 				5E49E7A4551947A3AF29123A /* InteractivePlayerView+Tracks.swift in Sources */,
 				FCC4E802E56D418A81E37F21 /* InteractivePlayerView+Bookmarks.swift in Sources */,
 				2396A50CBB0047EB9832C2F3 /* InteractivePlayerView+ReadingBed.swift in Sources */,
+				JUMPOVER001A0002 /* JumpControlOverlayView.swift in Sources */,
 				A52040366BA84D4D8C993939 /* InteractivePlayerView+Transcript.swift in Sources */,
 				1A2972D3F4C54BB895CCE0F3 /* InteractivePlayerView+Linguist.swift in Sources */,
 				55039235808F49B7A1F454EF /* VideoPlaybackModels.swift in Sources */,
@@ -1365,13 +1375,13 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		29B7EF61B08547088C9C574A /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
+			29B7EF61B08547088C9C574A /* Debug */ = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
+					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
@@ -1513,12 +1523,12 @@
 			};
 			name = Release;
 		};
-		'6FDC3A172F914D000A1D9A1' = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
+			'6FDC3A172F914D000A1D9A1' = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
+					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
@@ -1541,12 +1551,12 @@
 			};
 			name = Debug;
 		};
-		'6FDC3A182F914D000A1D9A1' = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
+			'6FDC3A182F914D000A1D9A1' = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
+					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
@@ -1568,13 +1578,13 @@
 			};
 			name = Release;
 		};
-		796ADFC1C1EE475193D99E12 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
+			796ADFC1C1EE475193D99E12 /* Release */ = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
+					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;

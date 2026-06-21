@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 @MainActor
 final class OfflineMediaStore: ObservableObject {
@@ -124,6 +125,7 @@ final class OfflineMediaStore: ObservableObject {
 
     /// UserDefaults key for persisting storage mode
     private static let storageModeKey = "OfflineMediaStorageMode"
+    private nonisolated static let logger = Logger(subsystem: "InteractiveReader", category: "OfflineMedia")
 
     init() {
         let encoder = JSONEncoder()
@@ -164,7 +166,7 @@ final class OfflineMediaStore: ObservableObject {
     func setStorageMode(_ mode: StorageMode) {
         storageMode = mode
         UserDefaults.standard.set(mode.rawValue, forKey: Self.storageModeKey)
-        print("[OfflineStore] Storage mode set to: \(mode.rawValue)")
+        Self.logger.info("Storage mode changed mode=\(mode.rawValue, privacy: .public)")
     }
 
     /// Get a description of the current storage location for debugging
@@ -253,18 +255,18 @@ final class OfflineMediaStore: ObservableObject {
             var lookupCache: LookupCacheOfflineData? = nil
             let lookupCacheFile = manifest.lookupCacheFile ?? lookupCacheFileName
             let lookupCacheURL = itemRoot.appendingPathComponent(lookupCacheFile)
-            print("[OfflinePayload] Looking for lookup cache at: \(lookupCacheURL.path)")
-            print("[OfflinePayload] manifest.lookupCacheFile: \(manifest.lookupCacheFile ?? "nil")")
+            Self.logger.debug("Looking for lookup cache file=\(lookupCacheFile, privacy: .private)")
+            Self.logger.debug("Manifest lookup cache file present=\((manifest.lookupCacheFile != nil), privacy: .public)")
             if let lookupData = try? Data(contentsOf: lookupCacheURL, options: .mappedIfSafe) {
-                print("[OfflinePayload] Loaded lookup cache data: \(lookupData.count) bytes")
+                Self.logger.debug("Loaded lookup cache bytes=\(lookupData.count, privacy: .public)")
                 lookupCache = Self.parseLookupCacheData(lookupData, decoder: decoder)
                 if let cache = lookupCache {
-                    print("[OfflinePayload] Parsed lookup cache: \(cache.entries.count) entries")
+                    Self.logger.debug("Parsed lookup cache entries=\(cache.entries.count, privacy: .public)")
                 } else {
-                    print("[OfflinePayload] Failed to parse lookup cache")
+                    Self.logger.warning("Failed to parse lookup cache")
                 }
             } else {
-                print("[OfflinePayload] Lookup cache file not found or unreadable")
+                Self.logger.debug("Lookup cache file not found or unreadable")
             }
 
             return OfflineMediaPayload(
@@ -571,7 +573,7 @@ final class OfflineMediaStore: ObservableObject {
                 let lookupCacheURL = itemRoot.appendingPathComponent(lookupCacheFileName)
                 try lookupCacheData.write(to: lookupCacheURL, options: .atomic)
                 lookupCacheFileForManifest = lookupCacheFileName
-                print("[OfflineSync] Saved lookup cache (\(lookupCacheData.count) bytes)")
+                Self.logger.debug("Saved lookup cache bytes=\(lookupCacheData.count, privacy: .public)")
             }
             let manifest = OfflineMediaManifest(
                 jobId: jobId,
@@ -677,14 +679,14 @@ final class OfflineMediaStore: ObservableObject {
             if let metadataPath = chunk.metadataPath?.nonEmptyValue {
                 let url = resolver.resolvePath(jobId: jobId, relativePath: metadataPath)
                 if url == nil {
-                    print("[OfflineSync] WARNING: Could not resolve metadataPath: \(metadataPath)")
+                    Self.logger.warning("Could not resolve metadata path path=\(metadataPath, privacy: .private)")
                 }
                 addItem(relativePath: metadataPath, url: url)
             }
             if let metadataURL = chunk.metadataURL?.nonEmptyValue {
                 let url = resolver.resolvePath(jobId: jobId, relativePath: metadataURL)
                 if url == nil {
-                    print("[OfflineSync] WARNING: Could not resolve metadataURL: \(metadataURL)")
+                    Self.logger.warning("Could not resolve metadata URL path=\(metadataURL, privacy: .private)")
                 }
                 addItem(relativePath: metadataURL, url: url)
             }

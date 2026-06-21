@@ -1,6 +1,12 @@
 import Foundation
 import SwiftUI
 import Combine
+import OSLog
+
+private let interactivePlayerViewModelLogger = Logger(
+    subsystem: "InteractiveReader",
+    category: "InteractivePlayerViewModel"
+)
 
 @MainActor
 final class InteractivePlayerViewModel: ObservableObject {
@@ -123,7 +129,7 @@ final class InteractivePlayerViewModel: ObservableObject {
                 self.handlePlaybackEnded()
                 return
             }
-            print("[Sequence] Persistent stall recovery — force-advancing segment")
+            interactivePlayerViewModelLogger.debug("Persistent stall recovery: force-advancing segment")
             _ = self.sequenceController.advanceToNextSegment()
         }
 
@@ -150,23 +156,27 @@ final class InteractivePlayerViewModel: ObservableObject {
             // Capture the current sentence index BEFORE the transition changes state
             // This allows the view to maintain stable display during the transition
             if let currentIndex = self.sequenceController.currentSegment?.sentenceIndex {
-                print("[Sequence] onWillBeginTransition: capturing preTransitionSentenceIndex=\(currentIndex), muted")
+                interactivePlayerViewModelLogger.debug(
+                    "Transition begin: captured preTransitionSentenceIndex=\(currentIndex, privacy: .public), muted"
+                )
                 self.preTransitionSentenceIndex = currentIndex
             }
             // Forward to view layer callback synchronously (we're already on main actor)
-            print("[Sequence] onWillBeginTransition: firing view callback")
+            interactivePlayerViewModelLogger.debug("Transition begin: firing view callback")
             self.onSequenceWillTransition?()
         }
 
         sequenceController.onSeekRequest = { [weak self] time in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                print("[Sequence] Re-seek requested to \(String(format: "%.3f", time))")
+                interactivePlayerViewModelLogger.debug("Re-seek requested time=\(time, privacy: .public)")
                 self.audioCoordinator.seek(to: time)
                 // Small delay to let seek take effect, then end transition
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
                     guard let self else { return }
-                    print("[Sequence] Re-seek completed, ending transition with expectedTime=\(String(format: "%.3f", time))")
+                    interactivePlayerViewModelLogger.debug(
+                        "Re-seek completed, ending transition expectedTime=\(time, privacy: .public)"
+                    )
                     self.sequenceController.endTransition(expectedTime: time)
                 }
             }
@@ -207,14 +217,14 @@ final class InteractivePlayerViewModel: ObservableObject {
         // keeping the reading bed playing during the brief dwell period
         sequenceController.onPauseForDwell = { [weak self] in
             guard let self else { return }
-            print("[Sequence] Dwell started, pausing audio")
+            interactivePlayerViewModelLogger.debug("Dwell started, pausing audio")
             self.audioCoordinator.pauseForDwell()
         }
 
         sequenceController.onResumeAfterDwell = { [weak self] time in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                print("[Sequence] Resuming after dwell, seeking to \(String(format: "%.3f", time))")
+                interactivePlayerViewModelLogger.debug("Resuming after dwell, seeking time=\(time, privacy: .public)")
                 // Clear the fade-out mix from the previous segment before seeking
                 self.audioCoordinator.clearAudioMix()
                 // Seek to the new segment's start position, then resume playback
@@ -233,7 +243,9 @@ final class InteractivePlayerViewModel: ObservableObject {
         // Record timestamp to provide a guard window for the view layer
         sequenceController.onTimeStabilized = { [weak self] in
             guard let self else { return }
-            print("[Sequence] Time stabilized, clearing preTransitionSentenceIndex, setting guard timestamp")
+            interactivePlayerViewModelLogger.debug(
+                "Time stabilized, clearing preTransitionSentenceIndex and setting guard timestamp"
+            )
             self.preTransitionSentenceIndex = nil
             self.timeStabilizedAt = Date()
         }

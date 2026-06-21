@@ -1,4 +1,7 @@
 import SwiftUI
+import OSLog
+
+private let interactiveTranscriptLogger = Logger(subsystem: "InteractiveReader", category: "InteractiveTranscript")
 
 extension InteractivePlayerView {
     func sentenceBinding(
@@ -101,7 +104,9 @@ extension InteractivePlayerView {
 
         // Debug logging for sequence transitions
         if isTransitioning {
-            print("[TranscriptView] Building during transition: track=\(activeTimingTrack), time=\(String(format: "%.3f", playbackTime)), duration=\(durationValue.map { String(format: "%.3f", $0) } ?? "nil")")
+            interactiveTranscriptLogger.debug(
+                "Building during transition: track=\(String(describing: activeTimingTrack), privacy: .public), time=\(playbackTime, privacy: .public), duration=\(durationValue ?? -1, privacy: .public)"
+            )
         }
 
         if let activeSentence = TextPlayerTimeline.buildActiveSentenceDisplay(

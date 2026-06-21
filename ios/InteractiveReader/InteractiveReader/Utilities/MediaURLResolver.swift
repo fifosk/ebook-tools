@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 enum MediaURLOrigin {
     case library(apiBaseURL: URL, accessToken: String?)
@@ -7,6 +8,7 @@ enum MediaURLOrigin {
 
 struct MediaURLResolver {
     let origin: MediaURLOrigin
+    private static let logger = Logger(subsystem: "InteractiveReader", category: "MediaURLResolver")
 
     func resolveAudioURL(jobId: String, track: AudioTrackMetadata) -> URL? {
         switch origin {
@@ -20,7 +22,9 @@ struct MediaURLResolver {
             if let path = track.path, let url = resolveURL(from: path, jobId: jobId) {
                 return url
             }
-            print("[MediaURLResolver] Failed to resolve audio URL: path=\(track.path ?? "nil"), url=\(track.url ?? "nil")")
+            Self.logger.warning(
+                "Failed to resolve audio URL path=\(track.path ?? "nil", privacy: .private) url=\(track.url ?? "nil", privacy: .private)"
+            )
             return nil
         case .library:
             if let urlString = track.url, let url = resolveURL(from: urlString, jobId: jobId) {
@@ -29,11 +33,11 @@ struct MediaURLResolver {
             if let path = track.path {
                 let url = resolveURL(from: path, jobId: jobId)
                 if url == nil {
-                    print("[MediaURLResolver] Failed to resolve library audio URL: path=\(path)")
+                    Self.logger.warning("Failed to resolve library audio URL path=\(path, privacy: .private)")
                 }
                 return url
             }
-            print("[MediaURLResolver] Failed to resolve library audio URL: no path or url provided")
+            Self.logger.warning("Failed to resolve library audio URL: no path or URL provided")
             return nil
         }
     }

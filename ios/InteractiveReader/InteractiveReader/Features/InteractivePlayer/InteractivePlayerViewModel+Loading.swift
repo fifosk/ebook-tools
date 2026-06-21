@@ -1,4 +1,17 @@
 import Foundation
+import OSLog
+
+private let chunkMetadataLogger = Logger(subsystem: "InteractiveReader", category: "ChunkMetadata")
+
+private func logChunkMetadata(_ message: String) {
+    chunkMetadataLogger.debug("\(message, privacy: .private)")
+}
+
+private let mediaDecodeLogger = Logger(subsystem: "InteractiveReader", category: "MediaDecode")
+
+private func logMediaDecode(_ message: String) {
+    mediaDecodeLogger.debug("\(message, privacy: .private)")
+}
 
 extension InteractivePlayerViewModel {
     func loadJob(
@@ -224,11 +237,11 @@ extension InteractivePlayerViewModel {
 
     func loadChunkMetadataIfNeeded(for chunkID: String, force: Bool = false) async {
         guard let jobId, let resolver = mediaResolver else {
-            print("[ChunkMetadata] Skipping: no jobId or resolver")
+            logChunkMetadata("Skipping: no jobId or resolver")
             return
         }
         guard let currentMediaResponse = mediaResponse else {
-            print("[ChunkMetadata] Skipping: no mediaResponse")
+            logChunkMetadata("Skipping: no mediaResponse")
             return
         }
         // When force=true, skip the loaded check to allow reloading
@@ -241,7 +254,7 @@ extension InteractivePlayerViewModel {
         }
 
         guard let index = resolveChunkIndex(chunkID, chunks: currentMediaResponse.chunks) else {
-            print("[ChunkMetadata] Skipping: cannot resolve chunk index for \(chunkID)")
+            logChunkMetadata("Skipping: cannot resolve chunk index for \(chunkID)")
             return
         }
         let chunk = currentMediaResponse.chunks[index]
@@ -258,7 +271,7 @@ extension InteractivePlayerViewModel {
                 return
             }
             if Self.chunkMetadataDebug {
-                print("[ChunkMetadata] Existing sentences lack complete data, loading for \(chunkID)")
+                logChunkMetadata("Existing sentences lack complete data, loading for \(chunkID)")
             }
         }
         let metadataURL = chunk.metadataURL?.nonEmptyValue
@@ -290,17 +303,17 @@ extension InteractivePlayerViewModel {
         do {
             var payloadData: Data? = nil
             if !useAPIFallbackOnly {
-                print("[ChunkMetadata] Loading \(chunkID) with \(candidates.count) candidate paths")
+                logChunkMetadata("Loading \(chunkID) with \(candidates.count) candidate paths")
                 for candidate in candidates {
                 guard let url = resolver.resolvePath(jobId: jobId, relativePath: candidate) else {
-                    print("[ChunkMetadata] Could not resolve path: \(candidate)")
+                    logChunkMetadata("Could not resolve path: \(candidate)")
                     continue
                 }
-                print("[ChunkMetadata] Resolved \(candidate) -> \(url.absoluteString)")
+                logChunkMetadata("Resolved \(candidate) -> \(url.absoluteString)")
                 do {
                     if url.isFileURL {
                         let exists = FileManager.default.fileExists(atPath: url.path)
-                        print("[ChunkMetadata] File URL exists=\(exists): \(url.path)")
+                        logChunkMetadata("File URL exists=\(exists): \(url.path)")
                         if !exists {
                             continue
                         }
@@ -308,9 +321,9 @@ extension InteractivePlayerViewModel {
                         if let resourceValues = try? url.resourceValues(forKeys: [.isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]) {
                             if resourceValues.isUbiquitousItem == true {
                                 let status = resourceValues.ubiquitousItemDownloadingStatus
-                                print("[ChunkMetadata] iCloud status: \(status?.rawValue ?? "unknown")")
+                                logChunkMetadata("iCloud status: \(status?.rawValue ?? "unknown")")
                                 if status != .current {
-                                    print("[ChunkMetadata] Triggering iCloud download for: \(url.lastPathComponent)")
+                                    logChunkMetadata("Triggering iCloud download for: \(url.lastPathComponent)")
                                     try? FileManager.default.startDownloadingUbiquitousItem(at: url)
                                     continue
                                 }
@@ -319,7 +332,7 @@ extension InteractivePlayerViewModel {
                         payloadData = try await Task.detached(priority: .utility) {
                             try Data(contentsOf: url, options: .mappedIfSafe)
                         }.value
-                        print("[ChunkMetadata] Loaded \(payloadData?.count ?? 0) bytes from file")
+                        logChunkMetadata("Loaded \(payloadData?.count ?? 0) bytes from file")
                         break
                     }
                     var request = URLRequest(url: url)
@@ -328,19 +341,19 @@ extension InteractivePlayerViewModel {
                     if let httpResponse = response as? HTTPURLResponse,
                        !(200..<300).contains(httpResponse.statusCode) {
                         if Self.chunkMetadataDebug {
-                            print("[ChunkMetadata] HTTP \(httpResponse.statusCode) from \(url.lastPathComponent)")
+                            logChunkMetadata("HTTP \(httpResponse.statusCode) from \(url.lastPathComponent)")
                         }
                         continue
                     }
                     payloadData = data
                     break
                 } catch {
-                    print("[ChunkMetadata] Error loading \(url.lastPathComponent): \(error.localizedDescription)")
+                    logChunkMetadata("Error loading \(url.lastPathComponent): \(error.localizedDescription)")
                     continue
                 }
                 }
             } else {
-                print("[ChunkMetadata] No candidate paths for \(chunkID), using API fallback")
+                logChunkMetadata("No candidate paths for \(chunkID), using API fallback")
             }
             var sentences: [ChunkSentenceMetadata]? = nil
             if let payloadData {
@@ -350,25 +363,25 @@ extension InteractivePlayerViewModel {
                     let hasTokens = first.original.tokens?.isEmpty == false
                     let hasOrigGates = first.originalStartGate != nil && first.originalEndGate != nil
                     let hasTransGates = first.startGate != nil && first.endGate != nil
-                    print("[ChunkMetadata] Decoded \(sentences.count) sentences, hasTokens=\(hasTokens), hasOrigGates=\(hasOrigGates), hasTransGates=\(hasTransGates)")
+                    logChunkMetadata("Decoded \(sentences.count) sentences, hasTokens=\(hasTokens), hasOrigGates=\(hasOrigGates), hasTransGates=\(hasTransGates)")
                     if !hasOrigGates || !hasTransGates {
-                        print("[ChunkMetadata]   first sentence: originalGates=\(first.originalStartGate.map { String(format: "%.3f", $0) } ?? "nil")..\(first.originalEndGate.map { String(format: "%.3f", $0) } ?? "nil"), translationGates=\(first.startGate.map { String(format: "%.3f", $0) } ?? "nil")..\(first.endGate.map { String(format: "%.3f", $0) } ?? "nil")")
+                        logChunkMetadata("first sentence: originalGates=\(first.originalStartGate.map { String(format: "%.3f", $0) } ?? "nil")..\(first.originalEndGate.map { String(format: "%.3f", $0) } ?? "nil"), translationGates=\(first.startGate.map { String(format: "%.3f", $0) } ?? "nil")..\(first.endGate.map { String(format: "%.3f", $0) } ?? "nil")")
                     }
                 } else {
-                    print("[ChunkMetadata] Decoded 0 sentences from payloadData")
+                    logChunkMetadata("Decoded 0 sentences from payloadData")
                 }
             }
             if sentences == nil || sentences?.isEmpty == true {
-                print("[ChunkMetadata] Trying API fallback for \(chunkID)")
+                logChunkMetadata("Trying API fallback for \(chunkID)")
                 if let fallbackChunk = await fetchChunkMetadataFromAPI(jobId: jobId, chunkID: chunkID) {
                     sentences = fallbackChunk.sentences
-                    print("[ChunkMetadata] API fallback returned \(sentences?.count ?? 0) sentences")
+                    logChunkMetadata("API fallback returned \(sentences?.count ?? 0) sentences")
                 } else {
-                    print("[ChunkMetadata] API fallback returned nil")
+                    logChunkMetadata("API fallback returned nil")
                 }
             }
             guard let sentences, !sentences.isEmpty else {
-                print("[ChunkMetadata] FAILED: No sentences loaded for \(chunkID)")
+                logChunkMetadata("FAILED: No sentences loaded for \(chunkID)")
                 return
             }
 
@@ -446,12 +459,12 @@ extension InteractivePlayerViewModel {
                     let first = chunk.sentences.first!
                     let hasGates = first.startGate != nil || first.originalStartGate != nil
                     let hasTokens = first.original.tokens?.isEmpty == false
-                    print("[MediaDecode] chunk \(chunk.chunkID ?? "nil") has \(chunk.sentences.count) sentences, hasMetadataPath=\(hasMetadataPath), firstHasGates=\(hasGates), firstHasTokens=\(hasTokens)")
+                    logMediaDecode("chunk \(chunk.chunkID ?? "nil") has \(chunk.sentences.count) sentences, hasMetadataPath=\(hasMetadataPath), firstHasGates=\(hasGates), firstHasTokens=\(hasTokens)")
                     if !hasTokens {
-                        print("[MediaDecode]   original.text='\(first.original.text.prefix(50))', original.tokens=\(first.original.tokens ?? [])")
+                        logMediaDecode("original.text='\(first.original.text.prefix(50))', original.tokens=\(first.original.tokens ?? [])")
                     }
                 } else if hasMetadataPath {
-                    print("[MediaDecode] chunk \(chunk.chunkID ?? "nil") has empty sentences, metadataPath=\(chunk.metadataPath ?? chunk.metadataURL ?? "nil")")
+                    logMediaDecode("chunk \(chunk.chunkID ?? "nil") has empty sentences, metadataPath=\(chunk.metadataPath ?? chunk.metadataURL ?? "nil")")
                 }
             }
             let context = try JobContextBuilder.build(
@@ -502,7 +515,7 @@ extension InteractivePlayerViewModel {
             return try await client.fetchJobMediaChunk(jobId: jobId, chunkId: chunkID)
         } catch {
             if Self.chunkMetadataDebug {
-                print("[ChunkMetadata] API fallback error: \(error.localizedDescription)")
+                logChunkMetadata("API fallback error: \(error.localizedDescription)")
             }
             return nil
         }

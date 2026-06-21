@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import OSLog
 #if canImport(MusicKit)
 import MusicKit
 #endif
@@ -53,6 +54,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     /// Whether Apple Music is actively serving as the reading bed.
     var isBackgroundMode: Bool { ownershipState == .appleMusic }
+    private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
 
     #if canImport(MusicKit)
     private var playbackStateTask: Task<Void, Never>?
@@ -83,7 +85,7 @@ final class MusicKitCoordinator: ObservableObject {
             try await player.play()
             updateCurrentTrackInfo()
         } catch {
-            print("[MusicKit] Failed to play song: \(error)")
+            logger.error("Failed to play song: \(String(describing: error), privacy: .private)")
         }
     }
 
@@ -96,7 +98,7 @@ final class MusicKitCoordinator: ObservableObject {
             try await player.play()
             updateCurrentTrackInfo()
         } catch {
-            print("[MusicKit] Failed to play station: \(error)")
+            logger.error("Failed to play station: \(String(describing: error), privacy: .private)")
         }
     }
 
@@ -109,7 +111,7 @@ final class MusicKitCoordinator: ObservableObject {
             try await player.play()
             updateCurrentTrackInfo()
         } catch {
-            print("[MusicKit] Failed to play album: \(error)")
+            logger.error("Failed to play album: \(String(describing: error), privacy: .private)")
         }
     }
 
@@ -122,7 +124,7 @@ final class MusicKitCoordinator: ObservableObject {
             try await player.play()
             updateCurrentTrackInfo()
         } catch {
-            print("[MusicKit] Failed to play playlist: \(error)")
+            logger.error("Failed to play playlist: \(String(describing: error), privacy: .private)")
         }
     }
 
@@ -132,7 +134,7 @@ final class MusicKitCoordinator: ObservableObject {
         do {
             let detailed = try await artist.with([.topSongs])
             guard let topSongs = detailed.topSongs, !topSongs.isEmpty else {
-                print("[MusicKit] No top songs found for artist")
+                logger.info("No top songs found for artist")
                 return
             }
             let player = ApplicationMusicPlayer.shared
@@ -140,7 +142,7 @@ final class MusicKitCoordinator: ObservableObject {
             try await player.play()
             updateCurrentTrackInfo()
         } catch {
-            print("[MusicKit] Failed to play artist top songs: \(error)")
+            logger.error("Failed to play artist top songs: \(String(describing: error), privacy: .private)")
         }
     }
 
@@ -152,7 +154,7 @@ final class MusicKitCoordinator: ObservableObject {
             do {
                 try await player.play()
             } catch {
-                print("[MusicKit] Failed to resume: \(error)")
+                self.logger.error("Failed to resume: \(String(describing: error), privacy: .private)")
             }
         }
     }
@@ -167,7 +169,7 @@ final class MusicKitCoordinator: ObservableObject {
                 try await ApplicationMusicPlayer.shared.skipToNextEntry()
                 updateCurrentTrackInfo()
             } catch {
-                print("[MusicKit] Failed to skip next: \(error)")
+                self.logger.error("Failed to skip next: \(String(describing: error), privacy: .private)")
             }
         }
     }
@@ -178,7 +180,7 @@ final class MusicKitCoordinator: ObservableObject {
                 try await ApplicationMusicPlayer.shared.skipToPreviousEntry()
                 updateCurrentTrackInfo()
             } catch {
-                print("[MusicKit] Failed to skip previous: \(error)")
+                self.logger.error("Failed to skip previous: \(String(describing: error), privacy: .private)")
             }
         }
     }

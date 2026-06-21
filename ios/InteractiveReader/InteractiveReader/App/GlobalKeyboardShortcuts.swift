@@ -2,6 +2,7 @@ import Foundation
 #if os(iOS)
 import GameController
 import ObjectiveC.runtime
+import OSLog
 import UIKit
 #endif
 
@@ -25,6 +26,7 @@ private final class KeyboardShortcutDebugLogger {
     static let shared = KeyboardShortcutDebugLogger()
 
     private let queue = DispatchQueue(label: "com.interactivereader.keyboard-debug-log")
+    private let logger = Logger(subsystem: "InteractiveReader", category: "KeyboardShortcuts")
     private let fileURL: URL?
     private var didPrepareFile = false
 
@@ -45,7 +47,7 @@ private final class KeyboardShortcutDebugLogger {
     }
 
     func log(_ message: String) {
-        print(message)
+        logger.debug("\(message, privacy: .private)")
         queue.async { [fileURL] in
             guard let fileURL else { return }
             if !self.didPrepareFile {

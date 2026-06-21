@@ -39,61 +39,35 @@ struct LibraryRowView: View {
                 height: coverHeight
             )
 
-            VStack(alignment: .leading, spacing: textSpacing) {
-                Text(item.bookTitle.isEmpty ? "Untitled" : item.bookTitle)
-                    .font(titleFont)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.9)
-                    .truncationMode(.tail)
-
-                Text(item.author.isEmpty ? "Unknown author" : item.author)
-                    .font(authorFont)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                    .foregroundStyle(.secondary)
-
-                if let summaryText {
-                    Text(summaryText)
-                        .font(metaFont)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-
-                if let descriptionText {
-                    Text(descriptionText)
-                        .font(metaFont)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(2)
-                        .truncationMode(.tail)
-                }
-
-                HStack(spacing: 6) {
-                    LanguageFlagPairView(flags: languageFlags)
-                        .font(metaFont)
-
-                    Text(resumeStatus.label)
-                        .font(metaFont)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .foregroundStyle(resumeStatus.foreground)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(resumeStatus.background, in: Capsule())
-                }
-            }
+            LibraryRowMetadataStack(
+                title: displayTitle,
+                author: displayAuthor,
+                summaryText: summaryText,
+                descriptionText: descriptionText,
+                languageFlags: languageFlags,
+                resumeStatus: resumeStatus,
+                titleFont: titleFont,
+                authorFont: authorFont,
+                metaFont: metaFont,
+                textSpacing: textSpacing,
+                titleLineLimit: 2,
+                titleScaleFactor: 0.9,
+                descriptionLineLimit: 2,
+                badgeSpacing: 6,
+                titleStyle: AnyShapeStyle(.primary),
+                secondaryTextStyle: AnyShapeStyle(.secondary),
+                tertiaryTextStyle: AnyShapeStyle(.tertiary)
+            )
 
             Spacer(minLength: 4)
 
-            VStack {
-                #if !os(tvOS)
-                OfflineSyncBadge(jobId: item.jobId, kind: .library, isEligible: true)
-                #endif
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-            }
+            LibraryRowAccessory(
+                jobId: item.jobId,
+                style: .compact,
+                secondaryTextColor: .secondary,
+                isSynced: isLibrarySynced,
+                isFocused: isRowFocused
+            )
         }
         .padding(.vertical, rowPadding)
     }
@@ -108,65 +82,35 @@ struct LibraryRowView: View {
                 height: coverHeight
             )
 
-            VStack(alignment: .leading, spacing: textSpacing) {
-                Text(item.bookTitle.isEmpty ? "Untitled" : item.bookTitle)
-                    .font(titleFont)
-                    .lineLimit(titleLineLimit)
-                    .minimumScaleFactor(titleScaleFactor)
-                    .truncationMode(.tail)
-                    .foregroundStyle(titleColor)
-
-                Text(item.author.isEmpty ? "Unknown author" : item.author)
-                    .font(authorFont)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                    .foregroundStyle(secondaryTextColor)
-
-                if let summaryText {
-                    Text(summaryText)
-                        .font(metaFont)
-                        .foregroundStyle(tertiaryTextColor)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-
-                if let descriptionText {
-                    Text(descriptionText)
-                        .font(metaFont)
-                        .foregroundStyle(tertiaryTextColor)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-
-                HStack(spacing: 8) {
-                    LanguageFlagPairView(flags: languageFlags)
-                        .font(metaFont)
-
-                    Text(resumeStatus.label)
-                        .font(metaFont)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .foregroundStyle(resumeStatus.foreground)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(resumeStatus.background, in: Capsule())
-                }
-            }
+            LibraryRowMetadataStack(
+                title: displayTitle,
+                author: displayAuthor,
+                summaryText: summaryText,
+                descriptionText: descriptionText,
+                languageFlags: languageFlags,
+                resumeStatus: resumeStatus,
+                titleFont: titleFont,
+                authorFont: authorFont,
+                metaFont: metaFont,
+                textSpacing: textSpacing,
+                titleLineLimit: titleLineLimit,
+                titleScaleFactor: titleScaleFactor,
+                descriptionLineLimit: 1,
+                badgeSpacing: 8,
+                titleStyle: AnyShapeStyle(titleColor),
+                secondaryTextStyle: AnyShapeStyle(secondaryTextColor),
+                tertiaryTextStyle: AnyShapeStyle(tertiaryTextColor)
+            )
 
             Spacer()
 
-            #if os(tvOS)
-            // Show download indicator on tvOS
-            if offlineStore.status(for: item.jobId, kind: .library).isSynced {
-                Image(systemName: "arrow.down.circle.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(isFocused ? .black.opacity(0.6) : .green)
-            }
-            #else
-            OfflineSyncBadge(jobId: item.jobId, kind: .library, isEligible: true)
-            Image(systemName: "chevron.right")
-                .foregroundStyle(secondaryTextColor)
-            #endif
+            LibraryRowAccessory(
+                jobId: item.jobId,
+                style: .landscape,
+                secondaryTextColor: secondaryTextColor,
+                isSynced: isLibrarySynced,
+                isFocused: isRowFocused
+            )
         }
         .padding(.vertical, rowPadding)
     }
@@ -186,6 +130,30 @@ struct LibraryRowView: View {
             originalLanguage: originalLanguage,
             translationLanguage: translationLanguage
         )
+    }
+
+    private var displayTitle: String {
+        item.bookTitle.isEmpty ? "Untitled" : item.bookTitle
+    }
+
+    private var displayAuthor: String {
+        item.author.isEmpty ? "Unknown author" : item.author
+    }
+
+    private var isLibrarySynced: Bool {
+        #if os(tvOS)
+        offlineStore.status(for: item.jobId, kind: .library).isSynced
+        #else
+        false
+        #endif
+    }
+
+    private var isRowFocused: Bool {
+        #if os(tvOS)
+        isFocused
+        #else
+        false
+        #endif
     }
 
     private var originalLanguage: String? {
@@ -590,6 +558,124 @@ struct LibraryRowView: View {
         return current
     }
 
+}
+
+private enum LibraryRowAccessoryStyle {
+    case compact
+    case landscape
+}
+
+private struct LibraryRowMetadataStack: View {
+    let title: String
+    let author: String
+    let summaryText: String?
+    let descriptionText: String?
+    let languageFlags: [LanguageFlagEntry]
+    let resumeStatus: LibraryRowView.ResumeStatus
+    let titleFont: Font
+    let authorFont: Font
+    let metaFont: Font
+    let textSpacing: CGFloat
+    let titleLineLimit: Int
+    let titleScaleFactor: CGFloat
+    let descriptionLineLimit: Int
+    let badgeSpacing: CGFloat
+    let titleStyle: AnyShapeStyle
+    let secondaryTextStyle: AnyShapeStyle
+    let tertiaryTextStyle: AnyShapeStyle
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: textSpacing) {
+            Text(title)
+                .font(titleFont)
+                .lineLimit(titleLineLimit)
+                .minimumScaleFactor(titleScaleFactor)
+                .truncationMode(.tail)
+                .foregroundStyle(titleStyle)
+
+            Text(author)
+                .font(authorFont)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .foregroundStyle(secondaryTextStyle)
+
+            if let summaryText {
+                Text(summaryText)
+                    .font(metaFont)
+                    .foregroundStyle(tertiaryTextStyle)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+
+            if let descriptionText {
+                Text(descriptionText)
+                    .font(metaFont)
+                    .foregroundStyle(tertiaryTextStyle)
+                    .lineLimit(descriptionLineLimit)
+                    .truncationMode(.tail)
+            }
+
+            HStack(spacing: badgeSpacing) {
+                LanguageFlagPairView(flags: languageFlags)
+                    .font(metaFont)
+
+                Text(resumeStatus.label)
+                    .font(metaFont)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .foregroundStyle(resumeStatus.foreground)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(resumeStatus.background, in: Capsule())
+            }
+        }
+    }
+}
+
+private struct LibraryRowAccessory: View {
+    let jobId: String
+    let style: LibraryRowAccessoryStyle
+    let secondaryTextColor: Color
+    let isSynced: Bool
+    let isFocused: Bool
+
+    var body: some View {
+        switch style {
+        case .compact:
+            compactAccessory
+        case .landscape:
+            landscapeAccessory
+        }
+    }
+
+    private var compactAccessory: some View {
+        VStack {
+            #if !os(tvOS)
+            OfflineSyncBadge(jobId: jobId, kind: .library, isEligible: true)
+            #endif
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .foregroundStyle(secondaryTextColor)
+                .font(.caption)
+        }
+    }
+
+    @ViewBuilder
+    private var landscapeAccessory: some View {
+        #if os(tvOS)
+        if isSynced {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(isFocused ? .black.opacity(0.6) : .green)
+        }
+        #else
+        OfflineSyncBadge(jobId: jobId, kind: .library, isEligible: true)
+        Image(systemName: "chevron.right")
+            .foregroundStyle(secondaryTextColor)
+        #endif
+    }
 }
 
 extension LibraryRowView {

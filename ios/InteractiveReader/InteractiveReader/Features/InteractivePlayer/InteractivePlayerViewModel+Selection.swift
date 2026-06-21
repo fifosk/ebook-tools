@@ -1,6 +1,12 @@
 import Foundation
 import SwiftUI
 import Combine
+import OSLog
+
+private let interactiveSelectionLogger = Logger(
+    subsystem: "InteractiveReader",
+    category: "InteractiveSelection"
+)
 
 extension InteractivePlayerViewModel {
     /// Check if chunk sentences have gate data needed for combined (sequence) mode
@@ -53,7 +59,9 @@ extension InteractivePlayerViewModel {
         let hasGates = sentencesHaveGateData(chunk.sentences)
         let hasTokens = sentencesHaveTokens(chunk.sentences)
         let needsGates = selectedTrackRequiresGates(for: chunk)
-        print("[ConfigureDefaults] chunk=\(chunk.id), sentences=\(chunk.sentences.count), hasGates=\(hasGates), hasTokens=\(hasTokens), needsGates=\(needsGates)")
+        interactiveSelectionLogger.debug(
+            "Configure defaults: chunk=\(chunk.id, privacy: .private), sentences=\(chunk.sentences.count, privacy: .public), hasGates=\(hasGates, privacy: .public), hasTokens=\(hasTokens, privacy: .public), needsGates=\(needsGates, privacy: .public)"
+        )
         if !chunk.sentences.isEmpty && hasTokens && (!needsGates || hasGates) {
             isTranscriptLoading = false
             // Resolve -1 (meaning "last sentence") to actual index
@@ -169,7 +177,9 @@ extension InteractivePlayerViewModel {
             let hasGates = sentencesHaveGateData(chunk.sentences)
             let hasTokens = sentencesHaveTokens(chunk.sentences)
             let needsGates = selectedTrackRequiresGates(for: chunk)
-            print("[ConfigureDefaults] chunk=\(chunk.id), sentences=\(chunk.sentences.count), hasGates=\(hasGates), hasTokens=\(hasTokens), needsGates=\(needsGates)")
+            interactiveSelectionLogger.debug(
+                "Configure defaults: chunk=\(chunk.id, privacy: .private), sentences=\(chunk.sentences.count, privacy: .public), hasGates=\(hasGates, privacy: .public), hasTokens=\(hasTokens, privacy: .public), needsGates=\(needsGates, privacy: .public)"
+            )
             if !chunk.sentences.isEmpty && hasTokens && (!needsGates || hasGates) {
                 isTranscriptLoading = false
                 prepareAudio(for: chunk, autoPlay: false)
@@ -177,7 +187,7 @@ extension InteractivePlayerViewModel {
             }
             // Mark transcript as loading while we fetch metadata
             isTranscriptLoading = true
-            print("[ConfigureDefaults] Loading metadata for chunk \(chunk.id)")
+            interactiveSelectionLogger.debug("Configure defaults: loading metadata for chunk=\(chunk.id, privacy: .private)")
             // Load metadata before preparing audio to ensure transcript is ready
             let chunkId = chunk.id
             Task { [weak self] in
@@ -186,15 +196,17 @@ extension InteractivePlayerViewModel {
                 guard self.selectedChunkID == chunkId else { return }
                 // Get the UPDATED chunk after metadata loaded (may have new sentences)
                 guard let updatedChunk = self.selectedChunk else {
-                    print("[ConfigureDefaults] No updated chunk after metadata load")
+                    interactiveSelectionLogger.debug("Configure defaults: no updated chunk after metadata load")
                     return
                 }
-                print("[ConfigureDefaults] After metadata: sentences=\(updatedChunk.sentences.count)")
+                interactiveSelectionLogger.debug(
+                    "Configure defaults: after metadata sentences=\(updatedChunk.sentences.count, privacy: .public)"
+                )
                 // Clear loading state now that we have the transcript
                 self.isTranscriptLoading = false
                 // Only prepare audio if transcript is now available
                 guard !updatedChunk.sentences.isEmpty else {
-                    print("[ConfigureDefaults] Still no sentences after metadata load")
+                    interactiveSelectionLogger.debug("Configure defaults: still no sentences after metadata load")
                     return
                 }
                 self.prepareAudio(for: updatedChunk, autoPlay: false)
@@ -210,18 +222,22 @@ extension InteractivePlayerViewModel {
     }
 
     func prepareAudio(for chunk: InteractiveChunk, autoPlay: Bool, targetSentenceIndex: Int? = nil) {
-        print("[PrepareAudio] Called with targetSentenceIndex=\(targetSentenceIndex ?? -1), autoPlay=\(autoPlay)")
+        interactiveSelectionLogger.debug(
+            "Prepare audio: targetSentenceIndex=\(targetSentenceIndex ?? -1, privacy: .public), autoPlay=\(autoPlay, privacy: .public)"
+        )
 
         guard let mgr = audioModeManager,
               let instruction = mgr.resolveAudioInstruction(for: chunk, selectedTrackID: selectedAudioTrackID) else {
-            print("[PrepareAudio] Guard failed - no track found or no audioModeManager")
+            interactiveSelectionLogger.debug("Prepare audio guard failed: no track found or no audio mode manager")
             audioCoordinator.reset()
             sequenceController.reset()
             selectedTimingURL = nil
             return
         }
 
-        print("[PrepareAudio] instruction=\(instruction), mode=\(mgr.currentMode.description)")
+        interactiveSelectionLogger.debug(
+            "Prepare audio: instruction=\(String(describing: instruction), privacy: .public), mode=\(mgr.currentMode.description, privacy: .public)"
+        )
 
         switch instruction {
         case .sequence:
@@ -231,7 +247,9 @@ extension InteractivePlayerViewModel {
                     ($0.displayIndex ?? $0.id) == pending.sentenceNumber
                 }
             }()
-            print("[PrepareAudio] Taking SEQUENCE path, effectiveTargetIndex=\(effectiveTargetIndex ?? -1)")
+            interactiveSelectionLogger.debug(
+                "Prepare audio: taking sequence path effectiveTargetIndex=\(effectiveTargetIndex ?? -1, privacy: .public)"
+            )
             configureSequencePlayback(for: chunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)
 
         case .singleOption(let option, _):
@@ -262,7 +280,7 @@ extension InteractivePlayerViewModel {
     /// Handle the case where the same URLs are already loaded (prevent unnecessary reload).
     private func handleSameURLPlayback(autoPlay: Bool, targetSentenceIndex: Int?, chunk: InteractiveChunk) {
         if sequenceController.isEnabled {
-            print("[PrepareAudio] Resetting sequence controller for same-URL single-track mode")
+            interactiveSelectionLogger.debug("Prepare audio: resetting sequence controller for same-URL single-track mode")
             sequenceController.reset()
         }
         if autoPlay && !audioCoordinator.isPlaying {
@@ -359,7 +377,9 @@ extension InteractivePlayerViewModel {
             guard let targetSentenceIndex = chunk.sentences.firstIndex(where: {
                 ($0.displayIndex ?? $0.id) == pending.sentenceNumber
             }) else {
-                print("[Sequence] Could not find sentence index for sentenceNumber \(pending.sentenceNumber)")
+                interactiveSelectionLogger.debug(
+                    "Sequence jump: could not find sentence index for sentenceNumber=\(pending.sentenceNumber, privacy: .public)"
+                )
                 pendingSentenceJump = nil
                 return
             }
@@ -372,7 +392,9 @@ extension InteractivePlayerViewModel {
             let chunkOriginalURL = chunk.audioOptions.first(where: { $0.kind == .original })?.primaryURL
             if let chunkOriginalURL,
                sequenceController.originalTrackURL != chunkOriginalURL {
-                print("[Sequence] Plan is stale — sequenceController has \(sequenceController.originalTrackURL?.lastPathComponent ?? "nil") but chunk needs \(chunkOriginalURL.lastPathComponent). Rebuilding plan for target sentence \(targetSentenceIndex).")
+                interactiveSelectionLogger.debug(
+                    "Sequence jump: stale plan current=\(self.sequenceController.originalTrackURL?.lastPathComponent ?? "nil", privacy: .private), needed=\(chunkOriginalURL.lastPathComponent, privacy: .private), targetSentenceIndex=\(targetSentenceIndex, privacy: .public)"
+                )
                 // Rebuild the plan + reload audio for the correct chunk, then the
                 // seek target is computed against the fresh plan.
                 prepareAudio(for: chunk, autoPlay: true, targetSentenceIndex: targetSentenceIndex)
@@ -382,20 +404,26 @@ extension InteractivePlayerViewModel {
 
             // Check if we're already at this sentence (might have been handled by configureSequencePlayback)
             if let currentIdx = sequenceController.currentSentenceIndex, currentIdx == targetSentenceIndex {
-                print("[Sequence] Already at target sentence \(targetSentenceIndex), clearing pending jump")
+                interactiveSelectionLogger.debug(
+                    "Sequence jump: already at target sentence \(targetSentenceIndex, privacy: .public), clearing pending jump"
+                )
                 pendingSentenceJump = nil
                 return
             }
 
             // Use seekToSentence for within-chunk jumps in sequence mode
-            print("[Sequence] Within-chunk jump to sentence \(targetSentenceIndex) (number \(pending.sentenceNumber))")
+            interactiveSelectionLogger.debug(
+                "Sequence jump: within-chunk targetIndex=\(targetSentenceIndex, privacy: .public), sentenceNumber=\(pending.sentenceNumber, privacy: .public)"
+            )
             pendingSentenceJump = nil
 
             // Capture current track BEFORE updating state
             let previousTrack = sequenceController.currentTrack
 
             guard let target = sequenceController.seekToSentence(targetSentenceIndex, preferredTrack: .original) else {
-                print("[Sequence] seekToSentence returned nil for index \(targetSentenceIndex)")
+                interactiveSelectionLogger.debug(
+                    "Sequence jump: seekToSentence returned nil for index=\(targetSentenceIndex, privacy: .public)"
+                )
                 return
             }
 
@@ -447,17 +475,21 @@ extension InteractivePlayerViewModel {
     ) {
         audioCoordinator.seek(to: seekTime) { [weak self] finished in
             guard let self else { return }
-            print("[Sequence] Within-chunk seek completed (finished=\(finished))")
+            interactiveSelectionLogger.debug("Sequence jump: within-chunk seek completed finished=\(finished, privacy: .public)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
                 guard let self else { return }
                 guard token == self.currentTransitionToken else {
-                    print("[Sequence] Ignoring stale within-chunk seek completion (token \(token) != current \(self.currentTransitionToken))")
+                    interactiveSelectionLogger.debug(
+                        "Sequence jump: ignoring stale within-chunk seek completion token=\(token, privacy: .public), current=\(self.currentTransitionToken, privacy: .public)"
+                    )
                     return
                 }
                 let observed = self.audioCoordinator.currentTime
                 let drift = abs(observed - seekTime)
                 if drift > 0.1 {
-                    print("[Sequence] Within-chunk seek drift: observed=\(String(format: "%.3f", observed)) expected=\(String(format: "%.3f", seekTime)) — re-seeking")
+                    interactiveSelectionLogger.debug(
+                        "Sequence jump: within-chunk seek drift observed=\(String(format: "%.3f", observed), privacy: .public), expected=\(String(format: "%.3f", seekTime), privacy: .public), re-seeking"
+                    )
                     self.audioCoordinator.seek(to: seekTime) { [weak self] _ in
                         guard let self else { return }
                         guard token == self.currentTransitionToken else { return }
@@ -533,7 +565,9 @@ extension InteractivePlayerViewModel {
         // If audio is already ready, seek immediately
         if audioCoordinator.isReady {
             if let startTime = startTimeForSentence(atIndex: targetIndex, in: chunk) {
-                print("[SingleToggle] Audio already ready, seeking immediately to sentence[\(targetIndex)] at time \(String(format: "%.3f", startTime))")
+                interactiveSelectionLogger.debug(
+                    "Single toggle: audio already ready, seeking sentenceIndex=\(targetIndex, privacy: .public), time=\(String(format: "%.3f", startTime), privacy: .public)"
+                )
                 seekPlayback(to: startTime, in: chunk)
                 if autoPlay && !audioCoordinator.isPlaying {
                     audioCoordinator.play()
@@ -558,12 +592,14 @@ extension InteractivePlayerViewModel {
                 if !isReady {
                     seenLoadingState = true
                     isFirstEmission = false
-                    print("[SingleToggle] Audio loading...")
+                    interactiveSelectionLogger.debug("Single toggle: audio loading")
                 } else if seenLoadingState || isFirstEmission {
                     // Either we saw loading->ready transition, or audio was already ready on first emit
                     isFirstEmission = false
                     if let startTime = self.startTimeForSentence(atIndex: targetIndex, in: currentChunk) {
-                        print("[SingleToggle] Audio ready, seeking to sentence[\(targetIndex)] at time \(String(format: "%.3f", startTime))")
+                        interactiveSelectionLogger.debug(
+                            "Single toggle: audio ready, seeking sentenceIndex=\(targetIndex, privacy: .public), time=\(String(format: "%.3f", startTime), privacy: .public)"
+                        )
                         self.seekPlayback(to: startTime, in: currentChunk)
                         if autoPlay && !self.audioCoordinator.isPlaying {
                             self.audioCoordinator.play()

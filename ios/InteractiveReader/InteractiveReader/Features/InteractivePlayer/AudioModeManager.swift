@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import OSLog
 
 /// Represents the audio playback mode
 enum AudioMode: Equatable {
@@ -57,6 +58,7 @@ final class AudioModeManager: ObservableObject {
 
     private static let originalEnabledKey = "player.showOriginalAudio"
     private static let translationEnabledKey = "player.showTranslationAudio"
+    private let logger = Logger(subsystem: "InteractiveReader", category: "AudioMode")
 
     // MARK: - Callbacks
 
@@ -94,7 +96,8 @@ final class AudioModeManager: ObservableObject {
     private func updateMode() {
         let newMode = Self.computeMode(original: isOriginalEnabled, translation: isTranslationEnabled)
         if newMode != currentMode {
-            print("[AudioModeManager] Mode changed: \(currentMode.description) -> \(newMode.description)")
+            let previousMode = currentMode
+            logger.debug("Mode changed: \(previousMode.description, privacy: .public) -> \(newMode.description, privacy: .public)")
             currentMode = newMode
         }
     }
@@ -129,8 +132,11 @@ final class AudioModeManager: ObservableObject {
 
         // Notify if mode actually changed
         if currentMode != previousMode {
-            print("[AudioModeManager] Toggle \(track.rawValue): mode \(previousMode.description) -> \(currentMode.description), preserving sentence \(currentSentenceIndex ?? -1)")
-            onModeChange?(currentMode, currentSentenceIndex)
+            let newMode = currentMode
+            logger.debug(
+                "Toggle \(track.rawValue, privacy: .public): mode \(previousMode.description, privacy: .public) -> \(newMode.description, privacy: .public), preserving sentence \(currentSentenceIndex ?? -1, privacy: .public)"
+            )
+            onModeChange?(newMode, currentSentenceIndex)
         }
     }
 
@@ -151,8 +157,11 @@ final class AudioModeManager: ObservableObject {
 
         // Notify if mode actually changed
         if currentMode != previousMode {
-            print("[AudioModeManager] SetTracks: mode \(previousMode.description) -> \(currentMode.description), preserving sentence \(currentSentenceIndex ?? -1)")
-            onModeChange?(currentMode, currentSentenceIndex)
+            let newMode = currentMode
+            logger.debug(
+                "Set tracks: mode \(previousMode.description, privacy: .public) -> \(newMode.description, privacy: .public), preserving sentence \(currentSentenceIndex ?? -1, privacy: .public)"
+            )
+            onModeChange?(newMode, currentSentenceIndex)
         }
     }
 

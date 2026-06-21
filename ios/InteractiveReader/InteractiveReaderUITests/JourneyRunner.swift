@@ -51,7 +51,9 @@ final class JourneyRunner {
     private let test: InteractiveReaderUITests
     private let platform: E2EPlatform
 
-    static let journeyPath = "/tmp/ios_e2e_journey.json"
+    static var journeyPath: String {
+        ProcessInfo.processInfo.environment["E2E_JOURNEY_PATH"] ?? "/tmp/ios_e2e_journey.json"
+    }
 
     init(app: XCUIApplication, test: InteractiveReaderUITests) {
         self.app = app

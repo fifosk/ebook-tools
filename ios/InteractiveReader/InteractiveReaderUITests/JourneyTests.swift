@@ -2,10 +2,10 @@ import XCTest
 
 /// Runs shared JSON user-journey definitions on the current platform.
 ///
-/// The journey file is written to ``/tmp/ios_e2e_journey.json`` by the
-/// Makefile before test execution.  Each abstract step (login, navigate,
-/// play, etc.) is interpreted by ``JourneyRunner`` with platform-specific
-/// behaviour for iPhone, iPad, and tvOS.
+/// The journey file is written by the Makefile and passed through
+/// ``E2E_JOURNEY_PATH`` before test execution. Each abstract step (login,
+/// navigate, play, etc.) is interpreted by ``JourneyRunner`` with
+/// platform-specific behaviour for iPhone, iPad, and tvOS.
 final class JourneyTests: InteractiveReaderUITests {
 
     func testJourney() throws {

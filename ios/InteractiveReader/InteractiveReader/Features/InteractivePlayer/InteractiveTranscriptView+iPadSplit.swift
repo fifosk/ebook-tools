@@ -1,4 +1,7 @@
 import SwiftUI
+import OSLog
+
+private let iPadSplitLogger = Logger(subsystem: "InteractiveReader", category: "iPadSplit")
 
 // MARK: - Comparable Clamping Extension (duplicated from main file for file-private access)
 
@@ -144,7 +147,11 @@ extension InteractiveTranscriptView {
         // Calculate exact heights for each section
         let trackHeight = max(0, totalHeight * iPadSplitRatio - iPadDividerThickness / 2)
         let bubbleHeight = max(0, totalHeight * (1 - iPadSplitRatio) - iPadDividerThickness / 2)
-        let _ = print("[iPadVerticalSplit] ratio=\(String(format: "%.3f", iPadSplitRatio)), totalHeight=\(String(format: "%.0f", totalHeight)), trackHeight=\(String(format: "%.0f", trackHeight)), bubbleHeight=\(String(format: "%.0f", bubbleHeight))")
+        logVerticalSplitLayout(
+            totalHeight: totalHeight,
+            trackHeight: trackHeight,
+            bubbleHeight: bubbleHeight
+        )
 
         VStack(spacing: 0) {
             // Tracks area - fixed height, clipped to bounds
@@ -191,7 +198,11 @@ extension InteractiveTranscriptView {
         // Calculate exact widths for each section
         let bubbleWidth = max(0, totalWidth * iPadSplitRatio - iPadDividerThickness / 2)
         let trackWidth = max(0, totalWidth * (1 - iPadSplitRatio) - iPadDividerThickness / 2)
-        let _ = print("[iPadHorizontalSplit] ratio=\(String(format: "%.3f", iPadSplitRatio)), totalWidth=\(String(format: "%.0f", totalWidth)), bubbleWidth=\(String(format: "%.0f", bubbleWidth)), trackWidth=\(String(format: "%.0f", trackWidth))")
+        logHorizontalSplitLayout(
+            totalWidth: totalWidth,
+            bubbleWidth: bubbleWidth,
+            trackWidth: trackWidth
+        )
 
         HStack(spacing: 0) {
             // Bubble area (left side, like iPhone landscape) - fixed width, clipped
@@ -252,17 +263,19 @@ extension InteractiveTranscriptView {
                             if !isDraggingDivider {
                                 isDraggingDivider = true
                                 dividerDragStartRatio = iPadSplitRatio
-                                print("[SplitDivider] Drag started, startRatio=\(dividerDragStartRatio)")
+                                iPadSplitLogger.debug("Divider drag started startRatio=\(dividerDragStartRatio, privacy: .public)")
                             }
                             let delta = value.translation.height / availableSize.height
                             let newRatio = (dividerDragStartRatio + delta)
                                 .clamped(to: iPadMinSplitRatio...iPadMaxSplitRatio)
                             iPadSplitRatio = newRatio
-                            print("[SplitDivider] delta=\(String(format: "%.3f", delta)), newRatio=\(String(format: "%.3f", newRatio)), availableHeight=\(String(format: "%.0f", availableSize.height))")
+                            iPadSplitLogger.debug(
+                                "Divider drag delta=\(delta, privacy: .public), newRatio=\(newRatio, privacy: .public), availableHeight=\(availableSize.height, privacy: .public)"
+                            )
                         }
                         .onEnded { _ in
                             isDraggingDivider = false
-                            print("[SplitDivider] Drag ended, finalRatio=\(String(format: "%.3f", iPadSplitRatio))")
+                            iPadSplitLogger.debug("Divider drag ended finalRatio=\(iPadSplitRatio, privacy: .public)")
                         }
                 )
             } else {
@@ -296,6 +309,28 @@ extension InteractiveTranscriptView {
                 )
             }
         }
+    }
+
+    private func logVerticalSplitLayout(
+        totalHeight: CGFloat,
+        trackHeight: CGFloat,
+        bubbleHeight: CGFloat
+    ) -> some View {
+        iPadSplitLogger.debug(
+            "Vertical split ratio=\(iPadSplitRatio, privacy: .public), totalHeight=\(totalHeight, privacy: .public), trackHeight=\(trackHeight, privacy: .public), bubbleHeight=\(bubbleHeight, privacy: .public)"
+        )
+        return EmptyView()
+    }
+
+    private func logHorizontalSplitLayout(
+        totalWidth: CGFloat,
+        bubbleWidth: CGFloat,
+        trackWidth: CGFloat
+    ) -> some View {
+        iPadSplitLogger.debug(
+            "Horizontal split ratio=\(iPadSplitRatio, privacy: .public), totalWidth=\(totalWidth, privacy: .public), bubbleWidth=\(bubbleWidth, privacy: .public), trackWidth=\(trackWidth, privacy: .public)"
+        )
+        return EmptyView()
     }
 
     // MARK: Bubble Content

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, Mapping, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 def _has_generated_media(payload: Mapping[str, Any]) -> bool:
@@ -53,7 +53,8 @@ class MetadataSnapshot(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
-    @validator("data", pre=True)
+    @field_validator("data", mode="before")
+    @classmethod
     def _coerce_mapping(cls, value: Any) -> Dict[str, Any]:
         if isinstance(value, MetadataSnapshot):
             return dict(value.data)
@@ -154,7 +155,8 @@ class LibraryQuery(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
-    @validator("page", pre=True, always=True)
+    @field_validator("page", mode="before")
+    @classmethod
     def _normalize_page(cls, value: Any) -> int:
         try:
             numeric = int(value)
@@ -162,7 +164,8 @@ class LibraryQuery(BaseModel):
             return 1
         return 1 if numeric < 1 else numeric
 
-    @validator("limit", pre=True, always=True)
+    @field_validator("limit", mode="before")
+    @classmethod
     def _normalize_limit(cls, value: Any) -> int:
         try:
             numeric = int(value)

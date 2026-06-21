@@ -1,4 +1,7 @@
 import Foundation
+import OSLog
+
+private let apiModelsLogger = Logger(subsystem: "InteractiveReader", category: "ApiModels")
 
 struct SessionUserPayload: Decodable, Equatable {
     let username: String
@@ -114,7 +117,7 @@ struct LinguistLookupResult: Codable {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             return try decoder.decode(LinguistLookupResult.self, from: data)
         } catch {
-            print("LinguistLookupResult parse error: \(error)")
+            apiModelsLogger.error("LinguistLookupResult parse error: \(String(describing: error), privacy: .private)")
             return nil
         }
     }
@@ -1055,8 +1058,7 @@ struct MediaSearchResponse: Decodable {
         do {
             results = try container.decode([MediaSearchResult].self, forKey: .results)
         } catch {
-            // Log the error for debugging
-            print("[MediaSearchResponse] Failed to decode results: \(error)")
+            apiModelsLogger.error("MediaSearchResponse failed to decode results: \(String(describing: error), privacy: .private)")
             results = []
         }
     }

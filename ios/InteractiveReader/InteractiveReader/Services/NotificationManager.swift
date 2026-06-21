@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import OSLog
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -10,6 +11,8 @@ final class NotificationManager: ObservableObject {
 
     /// Shared singleton instance.
     static let shared = NotificationManager()
+
+    private let logger = Logger(subsystem: "InteractiveReader", category: "Notifications")
 
     /// Whether push notifications are authorized by the user.
     @Published private(set) var isAuthorized: Bool = false
@@ -69,7 +72,7 @@ final class NotificationManager: ObservableObject {
 
             return granted
         } catch {
-            print("[NotificationManager] Failed to request authorization: \(error)")
+            logger.error("Failed to request notification authorization: \(String(describing: error), privacy: .public)")
             return false
         }
     }
@@ -89,19 +92,19 @@ final class NotificationManager: ObservableObject {
     /// Call this after authentication is complete.
     func registerTokenWithBackend() async {
         guard let token = deviceToken else {
-            print("[NotificationManager] No device token to register")
+            logger.debug("No device token to register")
             return
         }
 
         guard notificationsEnabled else {
-            print("[NotificationManager] Notifications disabled, skipping registration")
+            logger.debug("Notifications disabled; skipping device token registration")
             return
         }
 
         // Get API configuration from somewhere accessible
         // This will be called from AppState when auth is ready
         guard let config = await getAPIConfiguration() else {
-            print("[NotificationManager] No API configuration available")
+            logger.debug("No API configuration available for device token registration")
             return
         }
 
@@ -118,9 +121,9 @@ final class NotificationManager: ObservableObject {
                 deviceName: deviceName,
                 bundleId: Bundle.main.bundleIdentifier ?? "com.ebook-tools.interactivereader"
             )
-            print("[NotificationManager] Successfully registered device token with backend")
+            logger.info("Registered device token with backend")
         } catch {
-            print("[NotificationManager] Failed to register device token: \(error)")
+            logger.error("Failed to register device token: \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -139,11 +142,11 @@ final class NotificationManager: ObservableObject {
     /// Handle a tap on a notification with full payload.
     func handleNotificationTap(userInfo: [AnyHashable: Any]) {
         guard let jobId = userInfo["job_id"] as? String else {
-            print("[NotificationManager] No job_id in notification payload")
+            logger.warning("Notification payload missing job_id")
             return
         }
 
-        print("[NotificationManager] Handling notification tap for job: \(jobId)")
+        logger.info("Handling notification tap jobId=\(jobId, privacy: .private)")
 
         // Extract metadata from payload
         let title = userInfo["title"] as? String
@@ -172,7 +175,7 @@ final class NotificationManager: ObservableObject {
 
     /// Handle a tap on a notification (legacy - job ID only).
     func handleNotificationTap(jobId: String) {
-        print("[NotificationManager] Handling notification tap for job: \(jobId)")
+        logger.info("Handling legacy notification tap jobId=\(jobId, privacy: .private)")
         pendingAutoPlay = true
         pendingJobMetadata = nil
         pendingJobId = jobId
@@ -244,9 +247,9 @@ extension NotificationManager {
                     deviceName: deviceName,
                     bundleId: Bundle.main.bundleIdentifier ?? "com.ebook-tools.interactivereader"
                 )
-                print("[NotificationManager] Re-registered device token after login")
+                logger.info("Re-registered device token after login")
             } catch {
-                print("[NotificationManager] Failed to re-register device token: \(error)")
+                logger.error("Failed to re-register device token: \(String(describing: error), privacy: .public)")
             }
         }
     }

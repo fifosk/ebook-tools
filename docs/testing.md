@@ -35,16 +35,22 @@ python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ios
 python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos
 
 # Attended physical deploy dry runs
+python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --signed-build-only
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --dry-run
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile iphone --dry-run
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile appletv --dry-run
+python3 scripts/run_app_device_deploy.py --app ebook-tools --profile cinema --dry-run
 ```
 
 The shared pipeline validates the MacBook simulator lane from the local
 `/Users/fifo/Projects/home/ebook-tools` clone against the Mac Studio/NAS-hosted
 backend topology. It can also repair simulator runtime drift via Xcode platform
-downloads when requested. The Makefile targets below remain the ebook-tools-owned
-authenticated XCUITest journeys and report generation.
+downloads when requested. Physical device installs additionally require the
+target device to be awake/trusted and Xcode provisioning to cover iCloud, Sign in
+with Apple, and Push Notifications. The Makefile targets below remain the
+ebook-tools-owned authenticated XCUITest journeys and report generation.
+Use `--signed-build-only` to check that physical-device provisioning gate before
+attempting an install.
 
 ### Quick Start
 
@@ -446,7 +452,8 @@ once per session:
 **Prerequisites:**
 
 - Xcode with iOS and tvOS simulators
-- `E2E_USERNAME` and `E2E_PASSWORD` set in `.env`
+- `E2E_USERNAME` and `E2E_PASSWORD` set in `.env` or supplied as environment
+  variables by the shared Apple pipeline wrapper
 
 **Key files (iOS):**
 
@@ -469,9 +476,12 @@ once per session:
 | Target | Simulator | Report |
 |--------|-----------|--------|
 | `make test-e2e-iphone` | iPhone 17 Pro | `test-results/iphone-e2e-report.md` |
-| `make test-e2e-ipad` | iPad Air 11-inch (M3) | `test-results/ipad-e2e-report.md` |
-| `make test-e2e-tvos` | Apple TV | `test-results/tvos-e2e-report.md` |
+| `make test-e2e-ipad` | iPad Pro 13-inch (M5) | `test-results/ipad-e2e-report.md` |
+| `make test-e2e-tvos` | Apple TV 4K (3rd generation) | `test-results/tvos-e2e-report.md` |
 | `make test-e2e-ios` | (alias for `test-e2e-iphone`) | |
+
+Override `IPHONE_DESTINATION`, `IPAD_DESTINATION`, or `TVOS_DESTINATION` when a
+different installed simulator model is needed.
 
 **Configuration:** The Makefile writes credentials and journey data to
 temporary files that XCUITest reads at runtime:
@@ -479,7 +489,10 @@ temporary files that XCUITest reads at runtime:
 - `/tmp/ios_e2e_config.json` - Contains `username`, `password`, `api_base_url`
 - `/tmp/ios_e2e_journey.json` - Copy of the journey JSON for the test run
 
-These files are cleaned up after each run.
+Values from the process environment override `.env`, so commands such as
+`run_app_owned_journey.py --env E2E_API_BASE_URL=...` can inject simulator-safe
+configuration without editing local files. These temporary files are cleaned up
+after each run.
 
 **Platform-specific behaviors:**
 
@@ -637,5 +650,6 @@ playwright install
 ### XCUITest config not found
 
 The Makefile writes config to `/tmp/ios_e2e_config.json`. If tests fail with
-config errors, verify the `.env` file exists and contains valid credentials,
-then try running the make target again.
+config errors, verify `.env` contains valid credentials or pass
+`E2E_USERNAME`, `E2E_PASSWORD`, and `E2E_API_BASE_URL` in the process
+environment, then try running the make target again.

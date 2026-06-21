@@ -130,6 +130,11 @@ final class PlaybackResumeStore {
             cloudCache = [:]
             lastCloudUserId = canonicalUserKey
         }
+        guard supportsCloudKit else {
+            lastCloudSyncSucceeded = false
+            lastCloudError = "CloudKit is unavailable for this build."
+            return
+        }
         await updateAccountStatus()
         let hasPending = !loadPendingUploads(for: canonicalUserKey).isEmpty || !loadPendingDeletes(for: canonicalUserKey).isEmpty
         guard isCloudAvailable else {
@@ -229,7 +234,7 @@ final class PlaybackResumeStore {
             recordCount: cloudCache.count,
             pendingUploadCount: pendingUploads,
             pendingDeleteCount: pendingDeletes,
-            containerIdentifier: cloudContainer.containerIdentifier,
+            containerIdentifier: supportsCloudKit ? containerIdentifier : nil,
             bundleIdentifier: Bundle.main.bundleIdentifier,
             recordType: recordType,
             lastError: lastCloudError
@@ -240,8 +245,10 @@ final class PlaybackResumeStore {
         let canonicalUserKey = canonicalUserId(userId)
         ensureUserContext(canonicalUserKey)
         cloudCache[entry.jobId] = entry
-        queuePendingUpload(entry, userId: canonicalUserKey)
-        scheduleSync(userId: canonicalUserKey)
+        if supportsCloudKit {
+            queuePendingUpload(entry, userId: canonicalUserKey)
+            scheduleSync(userId: canonicalUserKey)
+        }
         saveToAPI(entry)
         notifyChange(userId: canonicalUserKey)
     }
@@ -250,8 +257,10 @@ final class PlaybackResumeStore {
         let canonicalUserKey = canonicalUserId(userId)
         ensureUserContext(canonicalUserKey)
         cloudCache.removeValue(forKey: jobId)
-        queuePendingDelete(jobId: jobId, userId: canonicalUserKey)
-        scheduleSync(userId: canonicalUserKey)
+        if supportsCloudKit {
+            queuePendingDelete(jobId: jobId, userId: canonicalUserKey)
+            scheduleSync(userId: canonicalUserKey)
+        }
         deleteFromAPI(jobId: jobId)
         notifyChange(userId: canonicalUserKey)
     }
@@ -261,12 +270,27 @@ final class PlaybackResumeStore {
         syncTask?.cancel()
         syncTask = nil
         queuedSyncUserId = nil
+        guard supportsCloudKit else {
+            lastCloudSyncAttempt = Date().timeIntervalSince1970
+            lastCloudSyncSucceeded = false
+            lastCloudError = "CloudKit is unavailable for this build."
+            notifyChange(userId: canonicalUserKey)
+            return
+        }
         await runSync(userId: canonicalUserKey)
         await refreshCloudEntries(userId: canonicalUserKey, aliases: aliases)
     }
 
+    private var supportsCloudKit: Bool {
+        #if os(tvOS)
+        return false
+        #else
+        return true
+        #endif
+    }
+
     private var isCloudAvailable: Bool {
-        cloudAccountStatus == .available
+        supportsCloudKit && cloudAccountStatus == .available
     }
 
     private func pendingUploadStorageKey(for userId: String) -> String {
@@ -329,6 +353,10 @@ final class PlaybackResumeStore {
     }
 
     private func updateAccountStatus() async {
+        guard supportsCloudKit else {
+            cloudAccountStatus = nil
+            return
+        }
         do {
             cloudAccountStatus = try await cloudContainer.accountStatus()
         } catch {

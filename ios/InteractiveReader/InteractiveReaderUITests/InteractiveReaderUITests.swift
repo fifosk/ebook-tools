@@ -5,12 +5,14 @@ import XCTest
 /// Launches the app with E2E credentials read from a JSON config file
 /// written by the Makefile before test execution.
 ///
-/// Config file location: ``/tmp/ios_e2e_config.json``
+/// Config file location: ``E2E_CONFIG_PATH`` or ``/tmp/ios_e2e_config.json``.
 /// Expected format: ``{"username":"...","password":"...","api_base_url":"..."}``
 class InteractiveReaderUITests: XCTestCase {
     var app: XCUIApplication!
 
-    private static let configPath = "/tmp/ios_e2e_config.json"
+    static var configPath: String {
+        ProcessInfo.processInfo.environment["E2E_CONFIG_PATH"] ?? "/tmp/ios_e2e_config.json"
+    }
 
     struct E2EConfig: Decodable {
         let username: String

@@ -16,6 +16,7 @@ from ..user_management.oauth_providers import (
 from modules.permissions import normalize_role
 from ..user_management.user_store_base import UserRecord
 from .dependencies import get_auth_service
+from .auth_utils import extract_session_token
 from ..user_management.email_service import (
     EmailService,
     generate_initial_password,
@@ -43,17 +44,8 @@ def _inc_auth(method: str, result: str) -> None:
         pass
 
 
-def _extract_bearer_token(authorization: str | None) -> str | None:
-    if not authorization:
-        return None
-    parts = authorization.split(" ", 1)
-    if len(parts) == 2 and parts[0].lower() == "bearer":
-        return parts[1].strip() or None
-    return authorization.strip() or None
-
-
 def _require_token(authorization: str | None) -> str:
-    token = _extract_bearer_token(authorization)
+    token = extract_session_token(authorization)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session token")
     return token

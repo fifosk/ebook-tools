@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+import OSLog
+
+private let interactiveSequenceLogger = Logger(subsystem: "InteractiveReader", category: "InteractiveSequence")
 
 extension InteractivePlayerViewModel {
     /// Set to true to enable verbose sequence playback logging
@@ -39,14 +42,18 @@ extension InteractivePlayerViewModel {
     ///   - targetSentenceIndex: Optional 0-based sentence index to start from (for resume)
     func configureSequencePlayback(for chunk: InteractiveChunk, autoPlay: Bool, targetSentenceIndex: Int? = nil) {
         if Self.sequenceDebug {
-            print("[Sequence] configureSequencePlayback called with targetSentenceIndex=\(targetSentenceIndex ?? -1), autoPlay=\(autoPlay)")
+            interactiveSequenceLogger.debug(
+                "Configure sequence playback: targetSentenceIndex=\(targetSentenceIndex ?? -1, privacy: .public), autoPlay=\(autoPlay, privacy: .public)"
+            )
         }
 
         guard let trackID = selectedAudioTrackID,
               let track = chunk.audioOptions.first(where: { $0.id == trackID }),
               track.kind == .combined else {
             if Self.sequenceDebug {
-                print("[Sequence] Guard failed: trackID=\(selectedAudioTrackID ?? "nil"), track.kind != combined")
+                interactiveSequenceLogger.debug(
+                    "Configure sequence guard failed: trackID=\(self.selectedAudioTrackID ?? "nil", privacy: .private), track.kind != combined"
+                )
             }
             sequenceController.reset()
             return
@@ -60,7 +67,7 @@ extension InteractivePlayerViewModel {
               let translationURL = translationTrack?.primaryURL else {
             // No separate tracks available, fallback to combined track's URLs
             if Self.sequenceDebug {
-                print("[Sequence] No separate tracks available, falling back to combined track URLs")
+                interactiveSequenceLogger.debug("Configure sequence: no separate tracks available, falling back to combined track URLs")
             }
             sequenceController.reset()
             audioCoordinator.load(urls: track.streamURLs, autoPlay: autoPlay)
@@ -75,7 +82,9 @@ extension InteractivePlayerViewModel {
            (sequenceController.isDwelling || sequenceController.isTransitioning),
            targetSentenceIndex == nil {
             if Self.sequenceDebug {
-                print("[Sequence] Skipping reconfigure - mid-sequence (dwelling=\(sequenceController.isDwelling), transitioning=\(sequenceController.isTransitioning))")
+                interactiveSequenceLogger.debug(
+                    "Configure sequence: skipping reconfigure mid-sequence dwelling=\(self.sequenceController.isDwelling, privacy: .public), transitioning=\(self.sequenceController.isTransitioning, privacy: .public)"
+                )
             }
             return
         }
@@ -101,14 +110,18 @@ extension InteractivePlayerViewModel {
 
         // If sequence mode is enabled, load the appropriate track
         if Self.sequenceDebug {
-            print("[Sequence] After buildPlan: isEnabled=\(sequenceController.isEnabled), targetSentenceIndex=\(targetSentenceIndex ?? -1), planCount=\(sequenceController.plan.count)")
+            interactiveSequenceLogger.debug(
+                "Configure sequence: after buildPlan isEnabled=\(self.sequenceController.isEnabled, privacy: .public), targetSentenceIndex=\(targetSentenceIndex ?? -1, privacy: .public), planCount=\(self.sequenceController.plan.count, privacy: .public)"
+            )
         }
         if sequenceController.isEnabled {
             // If we have a target sentence (resume), position to that sentence
             if let targetIndex = targetSentenceIndex,
                let target = sequenceController.seekToSentence(targetIndex, preferredTrack: .original) {
                 if Self.sequenceDebug {
-                    print("[Sequence] Seeking to targetIndex=\(targetIndex), target.track=\(target.track), target.time=\(target.time)")
+                    interactiveSequenceLogger.debug(
+                        "Configure sequence: seeking targetIndex=\(targetIndex, privacy: .public), track=\(target.track.rawValue, privacy: .public), time=\(target.time, privacy: .public)"
+                    )
                 }
                 // For resume/jump, we're going directly to a target sentence.
                 // Set preTransitionSentenceIndex to nil to indicate there's no meaningful "previous"
@@ -143,15 +156,15 @@ extension InteractivePlayerViewModel {
                         if !isReady {
                             seenLoadingState = true
                             isFirstEmission = false
-                            if Self.sequenceDebug { print("[Sequence] Resume audio loading...") }
+                            if Self.sequenceDebug { interactiveSequenceLogger.debug("Configure sequence: resume audio loading") }
                         } else if seenLoadingState {
-                            if Self.sequenceDebug { print("[Sequence] Resume audio ready") }
+                            if Self.sequenceDebug { interactiveSequenceLogger.debug("Configure sequence: resume audio ready") }
                             self.completeSequenceTransition(seekTime: target.time, shouldPlay: autoPlay, transitionToken: token)
                         } else if isFirstEmission {
                             // Audio was already loaded (same URL), no loading transition occurred
                             // Complete the transition immediately
                             isFirstEmission = false
-                            if Self.sequenceDebug { print("[Sequence] Resume audio already ready (no load needed)") }
+                            if Self.sequenceDebug { interactiveSequenceLogger.debug("Configure sequence: resume audio already ready, no load needed") }
                             self.completeSequenceTransition(seekTime: target.time, shouldPlay: autoPlay, transitionToken: token)
                         }
                     }
@@ -159,9 +172,13 @@ extension InteractivePlayerViewModel {
                 // No target sentence OR seekToSentence failed, start from the beginning
                 if Self.sequenceDebug {
                     if let targetIndex = targetSentenceIndex {
-                        print("[Sequence] WARNING: seekToSentence(\(targetIndex)) failed, falling back to start")
+                        interactiveSequenceLogger.debug(
+                            "Configure sequence: seekToSentence failed targetIndex=\(targetIndex, privacy: .public), falling back to start"
+                        )
                     }
-                    print("[Sequence] Sequence mode enabled, starting with \(sequenceController.currentTrack.rawValue) track")
+                    interactiveSequenceLogger.debug(
+                        "Configure sequence: sequence mode enabled, starting track=\(self.sequenceController.currentTrack.rawValue, privacy: .public)"
+                    )
                 }
 
                 // For initial load, there's no meaningful "previous" sentence.
@@ -172,7 +189,7 @@ extension InteractivePlayerViewModel {
 
                 // Fire the pre-transition callback to allow view layer to freeze
                 // This must happen BEFORE beginTransition() sets isTransitioning = true
-                if Self.sequenceDebug { print("[Sequence] Firing onWillBeginTransition for initial load") }
+                if Self.sequenceDebug { interactiveSequenceLogger.debug("Configure sequence: firing onWillBeginTransition for initial load") }
                 onSequenceWillTransition?()
 
                 // Begin transition to prevent time updates during initial load
@@ -199,22 +216,22 @@ extension InteractivePlayerViewModel {
                             // Mark that we've entered the loading state
                             seenLoadingState = true
                             isFirstEmission = false
-                            if Self.sequenceDebug { print("[Sequence] Initial audio loading...") }
+                            if Self.sequenceDebug { interactiveSequenceLogger.debug("Configure sequence: initial audio loading") }
                         } else if seenLoadingState {
                             // We've transitioned from loading to ready - now seek and start playback
-                            if Self.sequenceDebug { print("[Sequence] Initial audio ready") }
+                            if Self.sequenceDebug { interactiveSequenceLogger.debug("Configure sequence: initial audio ready") }
                             self.completeSequenceTransition(seekTime: targetSeekTime, shouldPlay: autoPlay, transitionToken: token)
                         } else if isFirstEmission {
                             // Audio was already loaded (same URL), no loading transition occurred
                             // Complete the transition immediately
                             isFirstEmission = false
-                            if Self.sequenceDebug { print("[Sequence] Initial audio already ready (no load needed)") }
+                            if Self.sequenceDebug { interactiveSequenceLogger.debug("Configure sequence: initial audio already ready, no load needed") }
                             self.completeSequenceTransition(seekTime: targetSeekTime, shouldPlay: autoPlay, transitionToken: token)
                         }
                     }
             }
         } else {
-            if Self.sequenceDebug { print("[Sequence] Sequence mode not available, falling back to combined URLs") }
+            if Self.sequenceDebug { interactiveSequenceLogger.debug("Configure sequence: sequence mode unavailable, falling back to combined URLs") }
             // Fall back to loading the combined track's URLs directly
             audioCoordinator.load(urls: track.streamURLs, autoPlay: autoPlay)
             selectedTimingURL = track.timingURL ?? track.streamURLs.first
@@ -234,7 +251,9 @@ extension InteractivePlayerViewModel {
         }
 
         guard let url else {
-            if Self.sequenceDebug { print("[Sequence] No URL for track \(track.rawValue)") }
+            if Self.sequenceDebug {
+                interactiveSequenceLogger.debug("Load sequence track: no URL for track=\(track.rawValue, privacy: .public)")
+            }
             return nil
         }
 
@@ -244,7 +263,11 @@ extension InteractivePlayerViewModel {
         // The load() call will tear down the old player anyway.
         audioCoordinator.setVolume(0)
 
-        if Self.sequenceDebug { print("[Sequence] Load \(track.rawValue): \(url.lastPathComponent)") }
+        if Self.sequenceDebug {
+            interactiveSequenceLogger.debug(
+                "Load sequence track: track=\(track.rawValue, privacy: .public), file=\(url.lastPathComponent, privacy: .private)"
+            )
+        }
         // Use forceNoAutoPlay when autoPlay is false to prevent audio bleed during track switches
         // (otherwise isPlaybackRequested would cause auto-play even when we don't want it)
         // Use preservePlaybackRequested to keep isPlaybackRequested = true during transitions
@@ -275,7 +298,9 @@ extension InteractivePlayerViewModel {
         // Check if this transition has been superseded by a newer one
         guard transitionToken == currentTransitionToken else {
             if Self.sequenceDebug {
-                print("[Sequence] Ignoring stale transition completion (token \(transitionToken) != current \(currentTransitionToken))")
+                interactiveSequenceLogger.debug(
+                    "Complete sequence transition: ignoring stale completion token=\(transitionToken, privacy: .public), current=\(self.currentTransitionToken, privacy: .public)"
+                )
             }
             return
         }
@@ -285,7 +310,9 @@ extension InteractivePlayerViewModel {
                 guard let self else { return }
                 guard transitionToken == self.currentTransitionToken else {
                     if Self.sequenceDebug {
-                        print("[Sequence] Ignoring stale transition completion after seek (token \(transitionToken) != current \(self.currentTransitionToken))")
+                        interactiveSequenceLogger.debug(
+                            "Complete sequence transition: ignoring stale completion after seek token=\(transitionToken, privacy: .public), current=\(self.currentTransitionToken, privacy: .public)"
+                        )
                     }
                     return
                 }
@@ -299,7 +326,9 @@ extension InteractivePlayerViewModel {
                 let drift = abs(observed - seekTime)
                 if drift > 0.1 {
                     if Self.sequenceDebug {
-                        print("[Sequence] Seek drift detected: observed=\(String(format: "%.3f", observed)) expected=\(String(format: "%.3f", seekTime)) drift=\(String(format: "%.3f", drift))s — re-seeking")
+                        interactiveSequenceLogger.debug(
+                            "Complete sequence transition: seek drift observed=\(String(format: "%.3f", observed), privacy: .public), expected=\(String(format: "%.3f", seekTime), privacy: .public), drift=\(String(format: "%.3f", drift), privacy: .public)s, re-seeking"
+                        )
                     }
                     self.audioCoordinator.seek(to: seekTime) { [weak self] _ in
                         guard let self else { return }
@@ -335,7 +364,9 @@ extension InteractivePlayerViewModel {
 
     /// Handle track switch during sequence playback
     func handleSequenceTrackSwitch(track: SequenceTrack, seekTime: Double) {
-        if Self.sequenceDebug { print("[Sequence] Switch to \(track.rawValue)") }
+        if Self.sequenceDebug {
+            interactiveSequenceLogger.debug("Sequence track switch: track=\(track.rawValue, privacy: .public)")
+        }
 
         if !sequenceController.isTransitioning {
             onSequenceWillTransition?()

@@ -13,6 +13,7 @@ For high-level architecture diagrams see [architecture.md](architecture.md). For
 | Python | 3.10+ | Regularly verified against 3.11 |
 | Node.js | 18+ | For the React/Vite frontend |
 | FFmpeg | any recent | Required by pydub and the audio pipeline |
+| ICU tooling | local ICU version | Required to build PyICU for transliteration support |
 | Xcode | latest | iOS/tvOS builds only |
 | PostgreSQL | 16+ | Required for Docker deployment; optional for local dev |
 | Ollama | optional | Local LLM translation and prompt generation |
@@ -25,14 +26,21 @@ For high-level architecture diagrams see [architecture.md](architecture.md). For
 ### Install dependencies
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-python -m pip install --upgrade pip
+python3 -m pip install --upgrade pip
 pip install -e .                   # runtime dependencies
-pip install -e .[dev]              # adds pytest, linting, coverage
+pip install -e .[e2e]              # adds Playwright E2E dependencies
 ```
 
 The editable install wires up the `ebook-tools-api` console script and pulls in the FastAPI/uvicorn runtime declared in `pyproject.toml`.
+
+On Apple Silicon Macs with Homebrew ICU installed but not linked globally, expose
+ICU before installing PyICU:
+
+```bash
+export PATH="/opt/homebrew/opt/icu4c@78/bin:$PATH"
+```
 
 ### Launch the FastAPI server
 
@@ -43,7 +51,7 @@ With the virtual environment activated, start the backend with any of the follow
 uvicorn modules.webapi.application:create_app --factory --reload --host 0.0.0.0
 
 # Python module entry point (resolves to the same uvicorn call)
-python -m modules.webapi --reload --port 8000
+python3 -m modules.webapi --reload --port 8000
 
 # Installed console script shortcut
 ebook-tools-api --reload --log-level debug
@@ -72,12 +80,12 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout conf/certs/dev.key \
   -out conf/certs/dev.crt
 
-python -m modules.webapi --reload \
+python3 -m modules.webapi --reload \
   --ssl-certfile conf/certs/dev.crt \
   --ssl-keyfile conf/certs/dev.key
 ```
 
-All entry points (`ebook-tools-api`, `python -m modules.webapi`, `./scripts/run-webapi.sh`) accept `--ssl-certfile`, `--ssl-keyfile`, and `--ssl-keyfile-password`. Production deployments should use a trusted CA or a reverse proxy (Caddy, nginx) that manages TLS termination.
+All entry points (`ebook-tools-api`, `python3 -m modules.webapi`, `./scripts/run-webapi.sh`) accept `--ssl-certfile`, `--ssl-keyfile`, and `--ssl-keyfile-password`. Production deployments should use a trusted CA or a reverse proxy (Caddy, nginx) that manages TLS termination.
 
 When using `./scripts/run-webapi.sh`, you can opt-in via environment variables:
 
@@ -174,9 +182,11 @@ python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ios
 python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos
 
 # Attended physical deploy recipes
+python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --signed-build-only
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile iphone --dry-run
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --dry-run
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile appletv --dry-run
+python3 scripts/run_app_device_deploy.py --app ebook-tools --profile cinema --dry-run
 ```
 
 The shared pipeline owns MacBook simulator setup, clean install/launch, Xcode
@@ -189,7 +199,10 @@ uploads, generated media, or other runtime state.
 Remove `--dry-run` from a device deploy command only when the physical iPhone,
 iPad, or Apple TV is awake, unlocked, paired/trusted, and attended. The wrapper
 runs the matching simulator smoke first, then builds, signs, installs, and
-launches through the shared deploy helper.
+launches through the shared deploy helper. Device builds require an authenticated
+Xcode account and provisioning profiles whose App ID includes the app's enabled
+capabilities: iCloud, Sign in with Apple, and Push Notifications. Use
+`--signed-build-only` to validate that device/signing gate without installing.
 
 ### Schemes
 
@@ -673,7 +686,7 @@ Each chunk stores a `highlighting_policy` summary alongside `timingTracks`.
 
 1. **Start the backend.** Activate the virtual environment and launch uvicorn:
    ```bash
-   python -m modules.webapi --reload
+   python3 -m modules.webapi --reload
    ```
    Verify: `curl http://127.0.0.1:8000/` returns `{"status":"ok"}`.
 
@@ -1054,16 +1067,16 @@ make test-e2e-web             # headed, named report
 make test-e2e-web-headless    # headless, named report
 
 # Apple E2E (XCUITest)
-# Requires: Xcode, Simulators, E2E_USERNAME/E2E_PASSWORD in .env
-make test-e2e-iphone          # iPhone 16 Pro simulator
-make test-e2e-ipad            # iPad Pro 13-inch (M4) simulator
-make test-e2e-tvos            # Apple TV simulator
+# Requires: Xcode, Simulators, E2E_USERNAME/E2E_PASSWORD in .env or environment
+make test-e2e-iphone          # iPhone 17 Pro simulator
+make test-e2e-ipad            # iPad Pro 13-inch (M5) simulator
+make test-e2e-tvos            # Apple TV 4K (3rd generation) simulator
 
 # All 4 platforms
 make test-e2e-all             # Web + iPhone + iPad + tvOS
 ```
 
-Reports are Markdown with embedded screenshots at `test-results/`. Credentials: `E2E_USERNAME` / `E2E_PASSWORD` in `.env`. Adding a new journey JSON file auto-propagates to all 4 platforms.
+Reports are Markdown with embedded screenshots at `test-results/`. Credentials: `E2E_USERNAME` / `E2E_PASSWORD` in `.env` or process environment. Adding a new journey JSON file auto-propagates to all 4 platforms.
 
 ---
 

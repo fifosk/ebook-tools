@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import closing
+from contextlib import asynccontextmanager, closing
 from dataclasses import dataclass
 import logging
 import os
@@ -609,103 +609,121 @@ def _configure_static_assets(app: FastAPI) -> bool:
     return True
 
 
+async def _prepare_runtime() -> None:
+    """Initialize runtime resources before the API starts serving requests."""
+
+    # Initialize PostgreSQL connection pool (if DATABASE_URL is set)
+    if os.environ.get("DATABASE_URL", "").strip():
+        try:
+            from modules.database.engine import get_engine
+            get_engine()
+            LOGGER.info("Database connection pool initialized")
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.exception("Failed to initialize database connection")
+
+    try:
+        _initialise_tmp_workspace()
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.exception("Failed to initialize temporary workspace")
+
+    try:
+        media_config = cfg.load_configuration(verbose=False)
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.exception("Failed to load media configuration; using defaults")
+        configure_media_services(config=None)
+    else:
+        configure_media_services(config=media_config)
+
+    try:
+        load_media_config()
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.exception("Failed to parse supplemental media configuration")
+    try:
+        _cleanup_empty_job_folders()
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.exception("Failed to prune empty job folders on startup")
+    try:
+        _cleanup_stale_exports()
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.exception("Failed to clean stale exports on startup")
+    try:
+        _cleanup_orphaned_job_folders()
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.exception("Failed to clean orphaned job folders on startup")
+
+    # Wire up push notification callback
+    try:
+        notification_service = get_notification_service()
+        if notification_service.is_enabled:
+            job_manager = get_pipeline_job_manager()
+            job_manager.set_notification_callback(
+                notification_service.notify_job_completed
+            )
+            LOGGER.info("Push notifications enabled for job completion events")
+        else:
+            LOGGER.debug("Push notifications disabled (APNs not configured)")
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.debug("Failed to configure push notifications", exc_info=True)
+
+    # Start periodic RAMDisk health-check guard.
+    global _RAMDISK_GUARD_TASK
+    ctx = _STARTUP_RUNTIME_CONTEXT
+    if ctx is not None and ctx.is_tmp_ramdisk:
+        _RAMDISK_GUARD_TASK = asyncio.create_task(_ramdisk_guard_loop())
+        LOGGER.debug("RAMDisk guard task started (interval=%ds)", _RAMDISK_GUARD_INTERVAL_SECONDS)
+
+
+async def _cleanup_runtime() -> None:
+    """Release runtime resources during API shutdown."""
+
+    global _RAMDISK_GUARD_TASK
+    if _RAMDISK_GUARD_TASK is not None:
+        _RAMDISK_GUARD_TASK.cancel()
+        try:
+            await _RAMDISK_GUARD_TASK
+        except asyncio.CancelledError:
+            pass
+        _RAMDISK_GUARD_TASK = None
+
+    try:
+        _teardown_tmp_workspace()
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.exception("Failed to clean up temporary workspace")
+    try:
+        _cleanup_empty_job_folders()
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.exception("Failed to prune empty job folders on shutdown")
+
+    # Dispose database connection pool
+    if os.environ.get("DATABASE_URL", "").strip():
+        try:
+            from modules.database.engine import dispose_engine
+            dispose_engine()
+            LOGGER.debug("Database connection pool disposed")
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.exception("Failed to dispose database connection pool")
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """FastAPI lifespan wrapper for runtime and metrics background tasks."""
+
+    await _prepare_runtime()
+    from .metrics import start_gauge_collector, stop_gauge_collector
+    await start_gauge_collector()
+    try:
+        yield
+    finally:
+        await _cleanup_runtime()
+        await stop_gauge_collector()
+
+
 def create_app() -> FastAPI:
     """Instantiate and configure the FastAPI application."""
 
-    app = FastAPI(title="ebook-tools API", version="0.1.0")
+    app = FastAPI(title="ebook-tools API", version="0.1.0", lifespan=_lifespan)
 
     register_media_exception_handlers(app)
-
-    @app.on_event("startup")
-    async def _prepare_runtime() -> None:
-        # Initialize PostgreSQL connection pool (if DATABASE_URL is set)
-        if os.environ.get("DATABASE_URL", "").strip():
-            try:
-                from modules.database.engine import get_engine
-                get_engine()
-                LOGGER.info("Database connection pool initialized")
-            except Exception:  # pragma: no cover - defensive logging
-                LOGGER.exception("Failed to initialize database connection")
-
-        try:
-            _initialise_tmp_workspace()
-        except Exception:  # pragma: no cover - defensive logging
-            LOGGER.exception("Failed to initialize temporary workspace")
-
-        try:
-            media_config = cfg.load_configuration(verbose=False)
-        except Exception:  # pragma: no cover - defensive logging
-            LOGGER.exception("Failed to load media configuration; using defaults")
-            configure_media_services(config=None)
-        else:
-            configure_media_services(config=media_config)
-
-        try:
-            load_media_config()
-        except Exception:  # pragma: no cover - defensive logging
-            LOGGER.exception("Failed to parse supplemental media configuration")
-        try:
-            _cleanup_empty_job_folders()
-        except Exception:  # pragma: no cover - defensive logging
-            LOGGER.exception("Failed to prune empty job folders on startup")
-        try:
-            _cleanup_stale_exports()
-        except Exception:  # pragma: no cover - defensive logging
-            LOGGER.exception("Failed to clean stale exports on startup")
-        try:
-            _cleanup_orphaned_job_folders()
-        except Exception:  # pragma: no cover - defensive logging
-            LOGGER.exception("Failed to clean orphaned job folders on startup")
-
-        # Wire up push notification callback
-        try:
-            notification_service = get_notification_service()
-            if notification_service.is_enabled:
-                job_manager = get_pipeline_job_manager()
-                job_manager.set_notification_callback(
-                    notification_service.notify_job_completed
-                )
-                LOGGER.info("Push notifications enabled for job completion events")
-            else:
-                LOGGER.debug("Push notifications disabled (APNs not configured)")
-        except Exception:  # pragma: no cover - defensive logging
-            LOGGER.debug("Failed to configure push notifications", exc_info=True)
-
-        # Start periodic RAMDisk health-check guard.
-        global _RAMDISK_GUARD_TASK
-        ctx = _STARTUP_RUNTIME_CONTEXT
-        if ctx is not None and ctx.is_tmp_ramdisk:
-            _RAMDISK_GUARD_TASK = asyncio.create_task(_ramdisk_guard_loop())
-            LOGGER.debug("RAMDisk guard task started (interval=%ds)", _RAMDISK_GUARD_INTERVAL_SECONDS)
-
-    @app.on_event("shutdown")
-    async def _cleanup_runtime() -> None:
-        global _RAMDISK_GUARD_TASK
-        if _RAMDISK_GUARD_TASK is not None:
-            _RAMDISK_GUARD_TASK.cancel()
-            try:
-                await _RAMDISK_GUARD_TASK
-            except asyncio.CancelledError:
-                pass
-            _RAMDISK_GUARD_TASK = None
-
-        try:
-            _teardown_tmp_workspace()
-        except Exception:  # pragma: no cover - defensive logging
-            LOGGER.exception("Failed to clean up temporary workspace")
-        try:
-            _cleanup_empty_job_folders()
-        except Exception:  # pragma: no cover - defensive logging
-            LOGGER.exception("Failed to prune empty job folders on shutdown")
-
-        # Dispose database connection pool
-        if os.environ.get("DATABASE_URL", "").strip():
-            try:
-                from modules.database.engine import dispose_engine
-                dispose_engine()
-                LOGGER.debug("Database connection pool disposed")
-            except Exception:  # pragma: no cover - defensive logging
-                LOGGER.exception("Failed to dispose database connection pool")
 
     _configure_cors(app)
 

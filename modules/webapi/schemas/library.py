@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .access import AccessPolicyPayload
 
@@ -30,8 +30,7 @@ class LibraryItemPayload(BaseModel):
     access: Optional[AccessPolicyPayload] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class LibraryMoveRequest(BaseModel):
@@ -41,8 +40,7 @@ class LibraryMoveRequest(BaseModel):
         default=None, alias="statusOverride"
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class LibraryMoveResponse(BaseModel):
@@ -70,8 +68,7 @@ class LibraryMediaRemovalResponse(BaseModel):
     removed: int
     item: Optional[LibraryItemPayload] = None
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class LibraryReindexResponse(BaseModel):
@@ -89,8 +86,7 @@ class LibraryMetadataUpdateRequest(BaseModel):
     language: Optional[str] = Field(default=None)
     isbn: Optional[str] = Field(default=None)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class LibraryIsbnUpdateRequest(BaseModel):
@@ -114,8 +110,7 @@ class LibraryMetadataRefreshRequest(BaseModel):
         description="Also enrich from external sources (OpenLibrary, TMDB, etc.)",
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class LibraryMetadataRefreshResponse(BaseModel):

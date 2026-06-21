@@ -37,6 +37,7 @@ from ..user_management import PgUserStore, PgSessionManager
 from modules.permissions import normalize_role
 from ..services.job_manager import PipelineJobManager
 from ..notifications import APNsConfig, APNsService, NotificationService
+from .auth_utils import extract_session_token
 
 
 logger = log_mgr.logger
@@ -51,15 +52,6 @@ class RequestUserContext:
 
     user_id: str | None
     user_role: str | None
-
-
-def _extract_bearer_token(authorization: str | None) -> str | None:
-    if not authorization:
-        return None
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() == "bearer" and token:
-        return token.strip() or None
-    return authorization.strip() or None
 
 
 def _apply_audio_api_configuration(config: Mapping[str, Any]) -> None:
@@ -495,7 +487,7 @@ def get_request_user(
         user_role = normalize_role(role_value) if role_value else None
         return RequestUserContext(user_id=user_id, user_role=user_role)
 
-    token = _extract_bearer_token(authorization)
+    token = extract_session_token(authorization)
     if not token:
         token = (access_token or "").strip() or None
     if not token:

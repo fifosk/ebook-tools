@@ -193,8 +193,12 @@ struct JobsView: View {
                     .padding()
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
             } else if viewModel.filteredJobs.isEmpty {
-                Text("No jobs found.")
-                    .foregroundStyle(.secondary)
+                ContentUnavailableView {
+                    Label("No jobs found", systemImage: "tray")
+                } description: {
+                    Text(viewModel.query.isEmpty ? "Finished and running jobs will appear here." : "Try a different search term.")
+                }
+                .foregroundStyle(usesDarkListBackground ? .white : .primary)
             }
         }
     }
@@ -212,7 +216,14 @@ struct JobsView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            actionRow
+            BrowseActionRow(
+                iCloudStatus: iCloudStatus,
+                resumeUserId: resumeUserId,
+                isLoading: viewModel.isLoading,
+                usesDarkListBackground: usesDarkListBackground,
+                onRefresh: handleRefresh,
+                onSignOut: onSignOut
+            )
             #if os(tvOS)
             if isSearchPresented {
                 searchRow
@@ -225,7 +236,12 @@ struct JobsView: View {
             if let sectionPicker {
                 sectionPicker
             }
-            filterPicker
+            JobsFilterPicker(
+                activeFilter: $viewModel.activeFilter,
+                usesDarkListBackground: usesDarkListBackground,
+                colorScheme: colorScheme,
+                onRefresh: handleRefresh
+            )
         }
         .padding(.top, 8)
         #if os(tvOS)
@@ -272,86 +288,6 @@ struct JobsView: View {
         .onExitCommand {
             dismissSearch()
         }
-        #endif
-    }
-
-    @ViewBuilder
-    private var filterPicker: some View {
-        #if os(tvOS)
-        Picker("Filter", selection: $viewModel.activeFilter) {
-            ForEach(JobsViewModel.JobFilter.allCases) { filter in
-                Text(filter.rawValue).tag(filter)
-            }
-        }
-        .pickerStyle(.automatic)
-        .padding(.horizontal)
-        .onLongPressGesture(minimumDuration: 0.6) {
-            handleRefresh()
-        }
-        #elseif os(iOS)
-        Picker("Filter", selection: $viewModel.activeFilter) {
-            ForEach(JobsViewModel.JobFilter.allCases) { filter in
-                Text(filter.rawValue).tag(filter)
-            }
-        }
-        .pickerStyle(.segmented)
-        .colorScheme(usesDarkListBackground ? .dark : colorScheme)
-        .padding(.horizontal)
-        #else
-        Picker("Filter", selection: $viewModel.activeFilter) {
-            ForEach(JobsViewModel.JobFilter.allCases) { filter in
-                Text(filter.rawValue).tag(filter)
-            }
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal)
-        #endif
-    }
-
-
-    private var actionRow: some View {
-        let status = iCloudStatus
-        let userLabel = resumeUserId ?? "Log In"
-        let statusLabel = status.isAvailable ? "Online" : "Offline"
-        let iconSize = PlatformMetrics.listIconSize
-        return HStack(spacing: 12) {
-            HStack(spacing: 6) {
-                Image(systemName: "globe")
-                    .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(usesDarkListBackground ? .cyan : .blue)
-                Text("Language Tools")
-                    .lineLimit(1)
-                    .foregroundStyle(usesDarkListBackground ? .white : .primary)
-                AppVersionBadge()
-            }
-            HStack(spacing: 6) {
-                Image(systemName: status.isAvailable ? "icloud" : "icloud.slash")
-                    .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(status.isAvailable ? (usesDarkListBackground ? .cyan : .blue) : (usesDarkListBackground ? .white.opacity(0.6) : .secondary))
-            }
-            .accessibilityLabel(statusLabel)
-            Button(action: handleRefresh) {
-                Image(systemName: "arrow.clockwise")
-            }
-            .disabled(viewModel.isLoading)
-            .accessibilityLabel("Refresh")
-            .tint(usesDarkListBackground ? .white : nil)
-            Spacer()
-            Menu {
-                Button("Log Out", action: onSignOut)
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.crop.circle")
-                    Text(userLabel)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-            }
-            .tint(usesDarkListBackground ? .white : nil)
-        }
-        .padding(.horizontal)
-        #if os(tvOS)
-        .font(PlatformTypography.sectionHeaderFont)
         #endif
     }
 
@@ -538,6 +474,53 @@ struct JobsView: View {
         offlineStore.remove(jobId: job.jobId, kind: .job)
         resumeAvailability.removeValue(forKey: job.jobId)
         iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+    }
+}
+
+private struct JobsFilterPicker: View {
+    @Binding var activeFilter: JobsViewModel.JobFilter
+    let usesDarkListBackground: Bool
+    let colorScheme: ColorScheme
+    let onRefresh: () -> Void
+
+    var body: some View {
+        Picker("Filter", selection: $activeFilter) {
+            ForEach(JobsViewModel.JobFilter.allCases) { filter in
+                Text(filter.rawValue).tag(filter)
+            }
+        }
+        .jobsFilterPickerStyle(
+            usesDarkListBackground: usesDarkListBackground,
+            colorScheme: colorScheme,
+            onRefresh: onRefresh
+        )
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func jobsFilterPickerStyle(
+        usesDarkListBackground: Bool,
+        colorScheme: ColorScheme,
+        onRefresh: @escaping () -> Void
+    ) -> some View {
+        #if os(tvOS)
+        self
+            .pickerStyle(.automatic)
+            .padding(.horizontal)
+            .onLongPressGesture(minimumDuration: 0.6) {
+                onRefresh()
+            }
+        #elseif os(iOS)
+        self
+            .pickerStyle(.segmented)
+            .colorScheme(usesDarkListBackground ? .dark : colorScheme)
+            .padding(.horizontal)
+        #else
+        self
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+        #endif
     }
 }
 

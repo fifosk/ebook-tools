@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import OSLog
 #if os(iOS)
 import UIKit
 #endif
@@ -52,6 +53,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     private var itemOrder: [ObjectIdentifier: Int] = [:]
     /// Per-file durations for multi-file playback (set via setFileDurations)
     private var fileDurations: [Double]?
+    private let logger = Logger(subsystem: "InteractiveReader", category: "AudioPlayer")
 
     init(role: AudioPlaybackRole = .primary) {
         self.role = role
@@ -69,7 +71,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             reset()
             return
         }
-        print("[AudioPlayer] Loading URLs: \(sanitized.map { $0.absoluteString })")
+        logger.debug("Loading audio urls count=\(sanitized.count, privacy: .public)")
         // forceNoAutoPlay overrides isPlaybackRequested to prevent audio bleed during track switches
         let shouldAutoPlay = forceNoAutoPlay ? false : (autoPlay || isPlaybackRequested)
         // preservePlaybackRequested keeps isPlaybackRequested = true during sequence transitions
@@ -134,7 +136,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         configureAudioSession()
         AudioPlaybackRegistry.shared.beginPlayback(for: self)
         isPlaybackRequested = true
-        print("[AudioPlayer] play() called for URL: \(activeURL?.absoluteString ?? "nil")")
+        logger.debug("Play requested role=\(String(describing: self.role), privacy: .public) hasActiveURL=\((self.activeURL != nil), privacy: .public)")
         if #available(iOS 10.0, tvOS 10.0, *) {
             player.playImmediately(atRate: Float(playbackRate))
         } else {
@@ -157,7 +159,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 guard components.count >= 4 else { return frame }
                 return components.dropFirst(3).joined(separator: " ")
             }
-        print("[AudioPlayer] pause() role=\(role) isPlaying=\(isPlaying) t=\(String(format: "%.3f", currentTime)) caller=[\(frames.joined(separator: " ← "))]")
+        logger.debug("Pause role=\(String(describing: self.role), privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) time=\(String(format: "%.3f", self.currentTime), privacy: .public) caller=\(frames.joined(separator: " <- "), privacy: .private)")
         player?.pause()
         isPlaying = false
         isPlaybackRequested = false
@@ -301,7 +303,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             }
         }
 
-        print("[AudioPlayer] seekAcrossFiles: absoluteTime=\(absoluteTime), targetFile=\(targetFileIndex), offsetInFile=\(offsetWithinFile)")
+        logger.debug("Seek across files absoluteTime=\(absoluteTime, privacy: .public) targetFile=\(targetFileIndex, privacy: .public) offset=\(offsetWithinFile, privacy: .public)")
 
         // Get current file index
         guard let currentItem = queuePlayer.currentItem else {
@@ -456,9 +458,9 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 : []
             try session.setCategory(.playback, mode: .spokenAudio, options: options)
             try session.setActive(true)
-            print("[AudioSession] Configured: mixing=\(mixing)")
+            logger.debug("Configured audio session mixing=\(mixing, privacy: .public)")
         } catch {
-            print("[AudioSession] Failed to configure mixing: \(error)")
+            logger.error("Failed to configure audio session mixing: \(String(describing: error), privacy: .public)")
         }
 
         // Clear the flag after a short delay to allow any pending interruption notifications to be ignored
@@ -486,9 +488,9 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             try session.setCategory(.playback, mode: .spokenAudio, options: options)
             try session.setActive(true)
             let label = isMixingEnabled ? "mixing" : "exclusive"
-            print("[AudioSession] Configured: category=playback, mode=spokenAudio (\(label))")
+            logger.debug("Configured audio session category=playback mode=spokenAudio label=\(label, privacy: .public)")
         } catch {
-            print("[AudioSession] Failed to configure: \(error)")
+            logger.error("Failed to configure audio session: \(String(describing: error), privacy: .public)")
         }
         #endif
     }
@@ -507,16 +509,16 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 let type = rawType.flatMap { AVAudioSession.InterruptionType(rawValue: $0) }
                 switch type {
                 case .began:
-                    print("[AudioSession] Interruption BEGAN - wasPlaying=\(self.isPlaying), isPlaybackRequested=\(self.isPlaybackRequested), ignoring=\(self.isIgnoringInterruption)")
+                    self.logger.debug("Audio interruption began wasPlaying=\(self.isPlaying, privacy: .public) requested=\(self.isPlaybackRequested, privacy: .public) ignoring=\(self.isIgnoringInterruption, privacy: .public)")
                     // Ignore interruptions caused by our own audio session changes (e.g., enabling mixing mode)
                     if self.isIgnoringInterruption {
-                        print("[AudioSession] Ignoring self-initiated interruption")
+                        self.logger.debug("Ignoring self-initiated audio interruption")
                         return
                     }
                     self.shouldResumeAfterInterruption = self.isPlaying
                     self.isPlaying = false
                 case .ended:
-                    print("[AudioSession] Interruption ENDED - shouldResume=\(self.shouldResumeAfterInterruption), ignoring=\(self.isIgnoringInterruption)")
+                    self.logger.debug("Audio interruption ended shouldResume=\(self.shouldResumeAfterInterruption, privacy: .public) ignoring=\(self.isIgnoringInterruption, privacy: .public)")
                     // If we're ignoring interruptions, don't try to resume either
                     if self.isIgnoringInterruption {
                         return
@@ -541,19 +543,19 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             Task { @MainActor in
                 switch observedItem.status {
                 case .readyToPlay:
-                    print("[AudioPlayer] Item ready to play, duration: \(observedItem.duration.seconds)")
+                    self.logger.debug("Audio item ready duration=\(observedItem.duration.seconds, privacy: .public)")
                     self.isReady = true
                     if observedItem.duration.isNumeric {
                         self.duration = observedItem.duration.seconds
                     }
                 case .failed:
                     if let error = observedItem.error as NSError? {
-                        print("[AudioPlayer] Item failed: \(error.domain) (\(error.code)) – \(error.localizedDescription)")
+                        self.logger.error("Audio item failed domain=\(error.domain, privacy: .public) code=\(error.code, privacy: .public) message=\(error.localizedDescription, privacy: .public)")
                         if let underlyingError = error.userInfo[NSUnderlyingErrorKey] as? NSError {
-                            print("[AudioPlayer] Underlying: \(underlyingError.domain) (\(underlyingError.code)) – \(underlyingError.localizedDescription)")
+                            self.logger.error("Underlying audio item failure domain=\(underlyingError.domain, privacy: .public) code=\(underlyingError.code, privacy: .public) message=\(underlyingError.localizedDescription, privacy: .public)")
                         }
                     } else {
-                        print("[AudioPlayer] Item failed with unknown error")
+                        self.logger.error("Audio item failed with unknown error")
                     }
                     self.isReady = false
                     self.isPlaying = false
@@ -580,7 +582,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 switch current {
                 case .playing:
                     if !self.isPlaying {
-                        print("[AudioPlayer] KVO .playing role=\(self.role) at t=\(String(format: "%.3f", self.currentTime))")
+                        self.logger.debug("KVO playing role=\(String(describing: self.role), privacy: .public) time=\(String(format: "%.3f", self.currentTime), privacy: .public)")
                     }
                     self.isPlaying = true
                 case .paused:
@@ -588,12 +590,12 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                     // AVPlayer transiently reports .paused during rate changes / seeks
                     // even when playback is intended. Only treat .paused as a real
                     // pause when playback wasn't requested.
-                    print("[AudioPlayer] KVO .paused role=\(self.role) at t=\(String(format: "%.3f", self.currentTime)) isPlaybackRequested=\(self.isPlaybackRequested) wasPlaying=\(self.isPlaying)")
+                    self.logger.debug("KVO paused role=\(String(describing: self.role), privacy: .public) time=\(String(format: "%.3f", self.currentTime), privacy: .public) requested=\(self.isPlaybackRequested, privacy: .public) wasPlaying=\(self.isPlaying, privacy: .public)")
                     if !self.isPlaybackRequested {
                         self.isPlaying = false
                     }
                 case .waitingToPlayAtSpecifiedRate:
-                    print("[AudioPlayer] KVO .waitingToPlay role=\(self.role) at t=\(String(format: "%.3f", self.currentTime)) reason=\(String(describing: player.reasonForWaitingToPlay?.rawValue ?? "nil"))")
+                    self.logger.debug("KVO waiting role=\(String(describing: self.role), privacy: .public) time=\(String(format: "%.3f", self.currentTime), privacy: .public) reason=\(String(describing: player.reasonForWaitingToPlay?.rawValue ?? "nil"), privacy: .public)")
                 @unknown default:
                     break
                 }
@@ -611,7 +613,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     func installBoundaryObserver(at time: Double) {
         removeBoundaryObserver()
         guard let player = player else {
-            print("[AudioPlayer] Boundary NOT installed at \(String(format: "%.3f", time)) - no player")
+            logger.debug("Boundary not installed; no player time=\(String(format: "%.3f", time), privacy: .public)")
             return
         }
         guard time > 0 else { return }
@@ -621,12 +623,12 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             queue: .main
         ) { [weak self] in
             Task { @MainActor [weak self] in
-                print("[AudioPlayer] Boundary observer FIRED at \(String(format: "%.3f", time))")
+                self?.logger.debug("Boundary observer fired time=\(String(format: "%.3f", time), privacy: .public)")
                 self?.onBoundaryReached?()
             }
         }
         boundaryObserverToken = token
-        print("[AudioPlayer] Boundary installed at \(String(format: "%.3f", time))")
+        logger.debug("Boundary installed time=\(String(format: "%.3f", time), privacy: .public)")
     }
 
     /// Remove the current boundary time observer
@@ -647,7 +649,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     ///   - fadeEndTime: When volume should reach 0 (seconds into the audio file)
     func applySegmentFadeOut(fadeStartTime: Double, fadeEndTime: Double) {
         guard let item = player?.currentItem else {
-            print("[AudioPlayer] Fade NOT applied - no current item")
+            logger.debug("Fade not applied; no current item")
             return
         }
 
@@ -657,7 +659,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             let tracks: [AVAssetTrack]
             if #available(iOS 15.0, tvOS 15.0, *) {
                 guard let loaded = try? await item.asset.loadTracks(withMediaType: .audio) else {
-                    print("[AudioPlayer] Fade NOT applied - no audio track (async)")
+                    self.logger.debug("Fade not applied; no async audio track")
                     return
                 }
                 tracks = loaded
@@ -665,7 +667,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 tracks = item.asset.tracks(withMediaType: .audio)
             }
             guard let audioTrack = tracks.first else {
-                print("[AudioPlayer] Fade NOT applied - no audio track")
+                self.logger.debug("Fade not applied; no audio track")
                 return
             }
 
@@ -677,7 +679,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             let mix = AVMutableAudioMix()
             mix.inputParameters = [params]
             item.audioMix = mix
-            print("[AudioPlayer] Fade applied: \(String(format: "%.3f", fadeStartTime)) → \(String(format: "%.3f", fadeEndTime))")
+            self.logger.debug("Fade applied start=\(String(format: "%.3f", fadeStartTime), privacy: .public) end=\(String(format: "%.3f", fadeEndTime), privacy: .public)")
         }
     }
 
@@ -762,9 +764,9 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 }
                 let failedURL = self.itemURLMap[ObjectIdentifier(failedItem)]
                 if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? NSError {
-                    print("[AudioPlayer] Playback failed for URL \(failedURL?.absoluteString ?? "unknown"): \(error.domain) (\(error.code)) – \(error.localizedDescription)")
+                    self.logger.error("Playback failed url=\(failedURL?.absoluteString ?? "unknown", privacy: .private) domain=\(error.domain, privacy: .public) code=\(error.code, privacy: .public) message=\(error.localizedDescription, privacy: .public)")
                 } else {
-                    print("[AudioPlayer] Playback failed for URL \(failedURL?.absoluteString ?? "unknown") with unknown error")
+                    self.logger.error("Playback failed url=\(failedURL?.absoluteString ?? "unknown", privacy: .private) with unknown error")
                 }
             }
         }
@@ -782,7 +784,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 }
                 guard let logEvent = errorItem.errorLog()?.events.last else { return }
                 let errorURL = self.itemURLMap[ObjectIdentifier(errorItem)]
-                print("[AudioPlayer] Error log for \(errorURL?.absoluteString ?? "unknown"): status=\(logEvent.errorStatusCode) uri=\(logEvent.uri ?? "n/a") comment=\(logEvent.errorComment ?? "n/a")")
+                self.logger.error("Playback error log url=\(errorURL?.absoluteString ?? "unknown", privacy: .private) status=\(logEvent.errorStatusCode, privacy: .public) uri=\(logEvent.uri ?? "n/a", privacy: .private) comment=\(logEvent.errorComment ?? "n/a", privacy: .public)")
             }
         }
         // Observe playback stalls — fires when streaming buffer runs dry and
@@ -800,7 +802,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                     return
                 }
                 let stalledURL = self.itemURLMap[ObjectIdentifier(stalledItem)]
-                print("[AudioPlayer] STALLED role=\(self.role) at t=\(String(format: "%.3f", self.currentTime)) url=\(stalledURL?.lastPathComponent ?? "unknown") isPlaybackRequested=\(self.isPlaybackRequested)")
+                self.logger.warning("Playback stalled role=\(String(describing: self.role), privacy: .public) time=\(String(format: "%.3f", self.currentTime), privacy: .public) file=\(stalledURL?.lastPathComponent ?? "unknown", privacy: .private) requested=\(self.isPlaybackRequested, privacy: .public)")
                 self.handleStall()
             }
         }
@@ -828,7 +830,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 // Still stuck at same time? Trigger recovery.
                 if self.lastStallCurrentTime == self.currentTime,
                    self.isPlaybackRequested {
-                    print("[AudioPlayer] Persistent stall recovery: time stuck at \(String(format: "%.3f", self.currentTime)) for 3s, firing onPersistentStall")
+                    self.logger.warning("Persistent stall recovery time=\(String(format: "%.3f", self.currentTime), privacy: .public)")
                     self.firstStallAt = nil
                     self.stallCountAtCurrentTime = 0
                     self.onPersistentStall?()

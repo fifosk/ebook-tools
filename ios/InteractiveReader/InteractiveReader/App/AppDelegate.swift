@@ -1,11 +1,13 @@
 import UIKit
 import UserNotifications
+import OSLog
 
 /// Application delegate for handling push notification lifecycle events.
 /// Inherits from UIResponder (not NSObject) so we can override
 /// `buildMenu(with:)` and register app-level keyboard shortcuts that are
 /// reachable from any view via the responder chain.
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    private let logger = Logger(subsystem: "InteractiveReader", category: "AppDelegate")
 
     func application(
         _ application: UIApplication,
@@ -35,7 +37,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     ) {
         // Convert device token to hex string
         let tokenString = deviceToken.map { String(format: "%02x", $0) }.joined()
-        print("[AppDelegate] Registered for remote notifications with token: \(tokenString.prefix(16))...")
+        logger.info("Registered for remote notifications tokenBytes=\(deviceToken.count, privacy: .public)")
 
         // Send to notification manager
         Task {
@@ -47,7 +49,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
-        print("[AppDelegate] Failed to register for remote notifications: \(error.localizedDescription)")
+        logger.error("Failed to register for remote notifications: \(error.localizedDescription, privacy: .public)")
     }
 
     // MARK: - UNUserNotificationCenterDelegate
@@ -68,7 +70,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         didReceive response: UNNotificationResponse
     ) async {
         let userInfo = response.notification.request.content.userInfo
-        print("[AppDelegate] User tapped notification: \(userInfo)")
+        logger.info("User tapped notification payloadKeys=\(userInfo.keys.count, privacy: .public)")
 
         // Pass full userInfo to notification manager for extraction
         await MainActor.run {

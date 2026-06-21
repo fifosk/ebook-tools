@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import OSLog
 #if canImport(MusicKit)
 import MusicKit
 #endif
@@ -50,6 +51,7 @@ final class MusicSearchService: ObservableObject {
     @Published private(set) var suggestionsLoaded = false
 
     private var searchTask: Task<Void, Never>?
+    private let logger = Logger(subsystem: "InteractiveReader", category: "MusicSearch")
 
     /// Returns search results when searching, or suggestions when idle.
     var activeResults: [MusicSearchResult] {
@@ -180,7 +182,7 @@ final class MusicSearchService: ObservableObject {
             playlistResults = response.playlists.map { Self.from($0) }
             stationResults = response.stations.map { Self.from($0) }
         } catch {
-            print("[MusicSearch] Search failed: \(error)")
+            logger.error("Search failed: \(String(describing: error), privacy: .private)")
             clearAllResults()
         }
     }
@@ -238,7 +240,7 @@ final class MusicSearchService: ObservableObject {
             let response = try await request.response()
             return response.items.prefix(25).map { Self.from($0) }
         } catch {
-            print("[MusicSearch] Recently played songs failed: \(error)")
+            logger.error("Recently played songs failed: \(String(describing: error), privacy: .private)")
             return []
         }
     }
@@ -269,7 +271,7 @@ final class MusicSearchService: ObservableObject {
             let response = try await request.response()
             return response.items.map { Self.from($0) }
         } catch {
-            print("[MusicSearch] Library albums failed: \(error)")
+            logger.error("Library albums failed: \(String(describing: error), privacy: .private)")
             return []
         }
     }
@@ -282,7 +284,7 @@ final class MusicSearchService: ObservableObject {
             let response = try await request.response()
             return response.items.map { Self.from($0) }
         } catch {
-            print("[MusicSearch] Library playlists failed: \(error)")
+            logger.error("Library playlists failed: \(String(describing: error), privacy: .private)")
             return []
         }
     }
@@ -293,7 +295,7 @@ final class MusicSearchService: ObservableObject {
             let response = try await request.response()
             return response.items.prefix(15).map { Self.from($0) }
         } catch {
-            print("[MusicSearch] Recently played stations failed: \(error)")
+            logger.error("Recently played stations failed: \(String(describing: error), privacy: .private)")
             return []
         }
     }
@@ -317,7 +319,7 @@ final class MusicSearchService: ObservableObject {
             }
             return result
         } catch {
-            print("[MusicSearch] Personal recommendations failed: \(error)")
+            logger.error("Personal recommendations failed: \(String(describing: error), privacy: .private)")
             return ContainerResults()
         }
     }

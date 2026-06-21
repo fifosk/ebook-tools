@@ -1,12 +1,13 @@
 {
-  "images" : [
+  "images": [
     {
-      "idiom" : "tv-marketing",
-      "scale" : "1x"
+      "idiom": "tv-marketing",
+      "scale": "1x",
+      "filename": "AppStoreMiddle.png"
     }
   ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
+  "info": {
+    "author": "xcode",
+    "version": 1
   }
 }

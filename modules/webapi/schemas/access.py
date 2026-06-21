@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 AccessPermission = Literal["view", "edit"]
@@ -19,8 +19,7 @@ class AccessGrantPayload(BaseModel):
     granted_by: Optional[str] = Field(default=None, alias="grantedBy")
     granted_at: Optional[str] = Field(default=None, alias="grantedAt")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class AccessPolicyPayload(BaseModel):
@@ -29,13 +28,11 @@ class AccessPolicyPayload(BaseModel):
     updated_by: Optional[str] = Field(default=None, alias="updatedBy")
     updated_at: Optional[str] = Field(default=None, alias="updatedAt")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class AccessPolicyUpdateRequest(BaseModel):
     visibility: Optional[AccessVisibility] = None
     grants: Optional[List[AccessGrantPayload]] = None
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)

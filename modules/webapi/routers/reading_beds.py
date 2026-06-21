@@ -16,6 +16,7 @@ from modules import logging_manager as log_mgr
 from modules.services.file_locator import FileLocator
 from modules.user_management import AuthService
 
+from ..auth_utils import extract_session_token
 from ..dependencies import get_auth_service
 from ..schemas.reading_beds import (
     ReadingBedDeleteResponse,
@@ -36,17 +37,8 @@ DEFAULT_BUNDLED_BED_LABEL = "Lost in the Pages"
 DEFAULT_BUNDLED_BED_URL = "/assets/reading-beds/lost-in-the-pages.mp3"
 
 
-def _extract_bearer_token(authorization: str | None) -> str | None:
-    if not authorization:
-        return None
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() == "bearer" and token:
-        return token.strip() or None
-    return authorization.strip() or None
-
-
 def _require_admin(authorization: str | None, auth_service: AuthService) -> None:
-    token = _extract_bearer_token(authorization)
+    token = extract_session_token(authorization)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session token")
     record = auth_service.authenticate(token)

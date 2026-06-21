@@ -1,4 +1,7 @@
 import SwiftUI
+import OSLog
+
+private let interactiveTracksLogger = Logger(subsystem: "InteractiveReader", category: "InteractiveTracks")
 
 extension InteractivePlayerView {
     func trackLabel(_ kind: TextPlayerVariantKind) -> String {
@@ -96,32 +99,37 @@ extension InteractivePlayerView {
     /// - Parameter chunk: The current chunk
     /// - Returns: The current sentence index, or nil if not found
     func captureCurrentSentenceIndex(for chunk: InteractiveChunk) -> Int? {
-        // Log state BEFORE creating provider
-        print("[AudioToggle] Capturing position - seqEnabled=\(viewModel.sequenceController.isEnabled), seqSentenceIdx=\(viewModel.sequenceController.currentSentenceIndex ?? -1), highlightingTime=\(String(format: "%.3f", viewModel.highlightingTime))")
+        interactiveTracksLogger.debug(
+            "Capturing position: seqEnabled=\(viewModel.sequenceController.isEnabled, privacy: .public), seqSentenceIdx=\(viewModel.sequenceController.currentSentenceIndex ?? -1, privacy: .public), highlightingTime=\(viewModel.highlightingTime, privacy: .public)"
+        )
 
         let positionProvider = SentencePositionProvider.from(
             sequenceController: viewModel.sequenceController,
             transcriptDisplayIndex: { [self] in
                 let display = activeSentenceDisplay(for: chunk)
-                print("[AudioToggle] transcriptDisplayIndex called: index=\(display?.index ?? -1)")
+                interactiveTracksLogger.debug("Transcript display index=\(display?.index ?? -1, privacy: .public)")
                 return display?.index
             },
             timeBasedIndex: { [self] in
                 guard let activeSentence = viewModel.activeSentence(at: viewModel.highlightingTime) else {
-                    print("[AudioToggle] timeBasedIndex: no activeSentence found")
+                    interactiveTracksLogger.debug("Time-based index: no active sentence found")
                     return nil
                 }
                 let index = chunk.sentences.firstIndex { $0.id == activeSentence.id }
-                print("[AudioToggle] timeBasedIndex: found sentence id=\(activeSentence.id), index=\(index ?? -1)")
+                interactiveTracksLogger.debug(
+                    "Time-based index found sentence id=\(activeSentence.id, privacy: .public), index=\(index ?? -1, privacy: .public)"
+                )
                 return index
             }
         )
 
         let positionResult = positionProvider.currentSentenceIndex()
         if let result = positionResult {
-            print("[AudioToggle] Captured position via \(result.strategy.rawValue): sentence \(result.index)")
+            interactiveTracksLogger.debug(
+                "Captured position via \(result.strategy.rawValue, privacy: .public): sentence \(result.index, privacy: .public)"
+            )
         } else {
-            print("[AudioToggle] WARNING: Failed to capture position!")
+            interactiveTracksLogger.warning("Failed to capture position")
         }
         return positionResult?.index
     }
@@ -132,7 +140,9 @@ extension InteractivePlayerView {
     func reconfigureAudioForCurrentToggles(preservingSentence currentSentenceIndex: Int? = nil) {
         guard let chunk = viewModel.selectedChunk else { return }
 
-        print("[AudioToggle] Reconfiguring: mode=\(audioModeManager.currentMode.description), currentSentenceIndex=\(currentSentenceIndex ?? -1), time=\(String(format: "%.3f", viewModel.highlightingTime)), seqEnabled=\(viewModel.sequenceController.isEnabled)")
+        interactiveTracksLogger.debug(
+            "Reconfiguring: mode=\(audioModeManager.currentMode.description, privacy: .public), currentSentenceIndex=\(currentSentenceIndex ?? -1, privacy: .public), time=\(viewModel.highlightingTime, privacy: .public), seqEnabled=\(viewModel.sequenceController.isEnabled, privacy: .public)"
+        )
 
         guard let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) else { return }
 

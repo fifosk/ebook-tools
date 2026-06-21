@@ -1,5 +1,8 @@
 import Foundation
 import AVFoundation
+import OSLog
+
+private let jobPlaybackLoadingLogger = Logger(subsystem: "InteractiveReader", category: "JobPlaybackLoading")
 
 extension JobPlaybackView {
     @MainActor
@@ -19,21 +22,29 @@ extension JobPlaybackView {
         let isOfflinePlayback = offlinePayload != nil
         if let offlinePayload,
            let localResolver = offlineStore.localResolver(for: .job, configuration: configuration) {
-            // Debug: log offline storage info
-            print("[OfflinePlayback] storageMode: \(offlineStore.storageMode.rawValue), baseURL: \(offlinePayload.storageBaseURL)")
+            jobPlaybackLoadingLogger.debug(
+                "Offline playback storage mode=\(offlineStore.storageMode.rawValue, privacy: .public) baseURL=\(offlinePayload.storageBaseURL.absoluteString, privacy: .private)"
+            )
             let jobRoot = offlinePayload.storageBaseURL.appendingPathComponent(job.jobId, isDirectory: true)
             let metadataDir = jobRoot.appendingPathComponent("metadata", isDirectory: true)
             if FileManager.default.fileExists(atPath: metadataDir.path) {
                 if let contents = try? FileManager.default.contentsOfDirectory(atPath: metadataDir.path) {
-                    print("[OfflinePlayback] metadata/ contains \(contents.count) files: \(contents.prefix(5))")
+                    jobPlaybackLoadingLogger.debug(
+                        "Offline metadata directory contains \(contents.count, privacy: .public) files sample=\(String(describing: Array(contents.prefix(5))), privacy: .private)"
+                    )
                 }
             } else {
-                print("[OfflinePlayback] metadata/ directory does not exist at \(metadataDir.path)")
+                jobPlaybackLoadingLogger.debug(
+                    "Offline metadata directory does not exist path=\(metadataDir.path, privacy: .private)"
+                )
             }
-            // Log first chunk's metadata path
             if let firstChunk = offlinePayload.media.chunks.first {
-                print("[OfflinePlayback] First chunk metadataPath: \(firstChunk.metadataPath ?? "nil")")
-                print("[OfflinePlayback] First chunk metadataURL: \(firstChunk.metadataURL ?? "nil")")
+                jobPlaybackLoadingLogger.debug(
+                    "First offline chunk metadataPath=\(firstChunk.metadataPath ?? "nil", privacy: .private)"
+                )
+                jobPlaybackLoadingLogger.debug(
+                    "First offline chunk metadataURL=\(firstChunk.metadataURL ?? "nil", privacy: .private)"
+                )
             }
             let offlineConfig = APIClientConfiguration(
                 apiBaseURL: configuration.apiBaseURL,

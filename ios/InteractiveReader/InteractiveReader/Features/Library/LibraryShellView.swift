@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 
 struct LibraryShellView: View {
     @EnvironmentObject var appState: AppState
@@ -18,6 +19,7 @@ struct LibraryShellView: View {
     #endif
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.colorScheme) private var colorScheme
+    private let logger = Logger(subsystem: "InteractiveReader", category: "LibraryShell")
 
     private enum BrowseSection: String, CaseIterable, Identifiable {
         case jobs = "Jobs"
@@ -26,6 +28,19 @@ struct LibraryShellView: View {
         case search = "Search"
 
         var id: String { rawValue }
+
+        var systemImage: String {
+            switch self {
+            case .jobs:
+                return "tray.full"
+            case .library:
+                return "books.vertical"
+            case .settings:
+                return "gearshape"
+            case .search:
+                return "magnifyingglass"
+            }
+        }
     }
 
     private var isSplitLayout: Bool {
@@ -138,6 +153,7 @@ struct LibraryShellView: View {
             } else {
                 placeholderView(
                     title: "Select a library entry",
+                    systemImage: "books.vertical",
                     subtitle: "Choose a book, subtitle, or video to start playback."
                 )
             }
@@ -148,6 +164,7 @@ struct LibraryShellView: View {
             } else {
                 placeholderView(
                     title: "Select a job",
+                    systemImage: "tray.full",
                     subtitle: "Choose an active or finished job to start playback."
                 )
             }
@@ -161,6 +178,7 @@ struct LibraryShellView: View {
             } else {
                 placeholderView(
                     title: "Search jobs and library",
+                    systemImage: "magnifyingglass",
                     subtitle: "Use the search field to find items across your library and jobs."
                 )
             }
@@ -170,14 +188,13 @@ struct LibraryShellView: View {
     }
 
     @ViewBuilder
-    private func placeholderView(title: String, subtitle: String) -> some View {
-        VStack(spacing: 12) {
-            Text(title)
-                .font(.title3)
-                .foregroundStyle(usesDarkBackground ? .white : .primary)
+    private func placeholderView(title: String, systemImage: String, subtitle: String) -> some View {
+        ContentUnavailableView {
+            Label(title, systemImage: systemImage)
+        } description: {
             Text(subtitle)
-                .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
         }
+        .foregroundStyle(usesDarkBackground ? .white : .primary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(usesDarkBackground ? AppTheme.lightBackground : Color.clear)
         #if os(iOS)
@@ -283,6 +300,7 @@ struct LibraryShellView: View {
                 if isSplitLayout {
                     placeholderView(
                         title: "Settings",
+                        systemImage: "gearshape",
                         subtitle: "Adjust playback options in the detail panel."
                     )
                 } else {
@@ -386,7 +404,7 @@ struct LibraryShellView: View {
     /// Handle notification tap - navigate to job and start playback
     private func handleNotificationTap(jobId: String?) {
         guard let jobId else { return }
-        print("[LibraryShell] Handling notification tap for job: \(jobId)")
+        logger.info("Handling notification tap jobId=\(jobId, privacy: .private)")
 
         // Clear the pending ID immediately to prevent re-triggering
         NotificationManager.shared.clearPendingJobId()
@@ -481,18 +499,7 @@ struct LibraryShellView: View {
 
     @ViewBuilder
     private func sectionPickerLabel(for section: BrowseSection) -> some View {
-        switch section {
-        case .library:
-            Text(section.rawValue)
-        case .jobs:
-            Text(section.rawValue)
-        case .search:
-            Image(systemName: "magnifyingglass")
-                .accessibilityLabel("Search")
-        case .settings:
-            Image(systemName: "gearshape")
-                .accessibilityLabel("Settings")
-        }
+        Label(section.rawValue, systemImage: section.systemImage)
     }
 }
 
@@ -878,46 +885,14 @@ private struct CombinedSearchView: View {
     }
 
     private var actionRow: some View {
-        let status = iCloudStatus
-        let userLabel = resumeUserId ?? "Log In"
-        let statusLabel = status.isAvailable ? "Online" : "Offline"
-        let iconSize = PlatformMetrics.listIconSize
-        return HStack(spacing: 12) {
-            HStack(spacing: 6) {
-                Image(systemName: "globe")
-                    .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(usesDarkListBackground ? .cyan : .blue)
-                Text("Language Tools")
-                    .lineLimit(1)
-                    .foregroundStyle(usesDarkListBackground ? .white : .primary)
-                AppVersionBadge()
-            }
-            HStack(spacing: 6) {
-                Image(systemName: status.isAvailable ? "icloud" : "icloud.slash")
-                    .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(status.isAvailable ? (usesDarkListBackground ? .cyan : .blue) : (usesDarkListBackground ? .white.opacity(0.6) : .secondary))
-            }
-            .accessibilityLabel(statusLabel)
-            Button(action: onRefresh) {
-                Image(systemName: "arrow.clockwise")
-            }
-            .disabled(libraryViewModel.isLoading || jobsViewModel.isLoading)
-            .accessibilityLabel("Refresh")
-            .tint(usesDarkListBackground ? .white : nil)
-            Menu {
-                Button("Log Out", action: onSignOut)
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.crop.circle")
-                    Text(userLabel)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-            }
-            .tint(usesDarkListBackground ? .white : nil)
-            Spacer()
-        }
-        .padding(.horizontal)
+        BrowseActionRow(
+            iCloudStatus: iCloudStatus,
+            resumeUserId: resumeUserId,
+            isLoading: libraryViewModel.isLoading || jobsViewModel.isLoading,
+            usesDarkListBackground: usesDarkListBackground,
+            onRefresh: onRefresh,
+            onSignOut: onSignOut
+        )
     }
 
     private var searchRow: some View {

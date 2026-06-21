@@ -7,9 +7,12 @@ import os
 import pytest
 
 from modules.audio.api import AudioService
+from modules.user_management import AuthService, LocalUserStore, SessionManager
+from modules.webapi.auth_utils import extract_session_token
 from modules.webapi.dependencies import (
     configure_media_services,
     get_audio_service,
+    get_request_user,
 )
 
 pytestmark = pytest.mark.webapi
@@ -74,3 +77,72 @@ def test_configure_media_services_sets_audio_api_environment() -> None:
     assert os.environ["EBOOK_AUDIO_API_BASE_URL"] == "https://audio.example"
     assert os.environ["EBOOK_AUDIO_API_TIMEOUT_SECONDS"] == "42.0"
     assert os.environ["EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS"] == "2.5"
+
+
+@pytest.mark.parametrize(
+    ("authorization", "expected"),
+    [
+        (None, None),
+        ("", None),
+        ("Bearer session-token", "session-token"),
+        ("bearer session-token", "session-token"),
+        ("  Bearer   session-token  ", "session-token"),
+        ("legacy-session-token", "legacy-session-token"),
+        ("Basic session-token", None),
+        ("Token session-token", None),
+    ],
+)
+def test_extract_session_token_accepts_only_bearer_or_bare_tokens(
+    authorization: str | None,
+    expected: str | None,
+) -> None:
+    assert extract_session_token(authorization) == expected
+
+
+def test_get_request_user_accepts_bearer_and_query_tokens(tmp_path) -> None:
+    auth_service = AuthService(
+        LocalUserStore(storage_path=tmp_path / "users.json"),
+        SessionManager(session_file=tmp_path / "sessions.json"),
+    )
+    auth_service.user_store.create_user("alice", "secret", roles=["editor"])
+    token = auth_service.session_manager.create_session("alice")
+
+    header_user = get_request_user(
+        authorization=f"Bearer {token}",
+        header_user_id=None,
+        header_user_role=None,
+        access_token=None,
+        auth_service=auth_service,
+    )
+    query_user = get_request_user(
+        authorization=None,
+        header_user_id=None,
+        header_user_role=None,
+        access_token=token,
+        auth_service=auth_service,
+    )
+
+    assert header_user.user_id == "alice"
+    assert header_user.user_role == "editor"
+    assert query_user.user_id == "alice"
+    assert query_user.user_role == "editor"
+
+
+def test_get_request_user_rejects_malformed_authorization_scheme(tmp_path) -> None:
+    auth_service = AuthService(
+        LocalUserStore(storage_path=tmp_path / "users.json"),
+        SessionManager(session_file=tmp_path / "sessions.json"),
+    )
+    auth_service.user_store.create_user("alice", "secret", roles=["editor"])
+    token = auth_service.session_manager.create_session("alice")
+
+    request_user = get_request_user(
+        authorization=f"Basic {token}",
+        header_user_id=None,
+        header_user_role=None,
+        access_token=None,
+        auth_service=auth_service,
+    )
+
+    assert request_user.user_id is None
+    assert request_user.user_role is None

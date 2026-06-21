@@ -25,6 +25,7 @@ from ..config_manager.loader import (
 from ..config_manager.groups import get_hot_reload_keys
 from ..user_management import AuthService
 from ..user_management.user_store_base import UserRecord
+from .auth_utils import extract_session_token
 from .dependencies import get_auth_service
 from .schemas.config import (
     HealthCheckResponse,
@@ -43,22 +44,12 @@ _RESTART_AT: str | None = None
 _PENDING_RESTART_KEYS: list[str] = []
 
 
-def _extract_bearer_token(authorization: str | None) -> str | None:
-    """Extract bearer token from Authorization header."""
-    if not authorization:
-        return None
-    parts = authorization.split(" ", 1)
-    if len(parts) == 2 and parts[0].lower() == "bearer":
-        return parts[1].strip() or None
-    return authorization.strip() or None
-
-
 def _require_admin(
     authorization: str | None,
     auth_service: AuthService,
 ) -> Tuple[str, UserRecord]:
     """Validate admin authentication and return (token, user)."""
-    token = _extract_bearer_token(authorization)
+    token = extract_session_token(authorization)
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

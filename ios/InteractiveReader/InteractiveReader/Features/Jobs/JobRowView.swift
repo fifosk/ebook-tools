@@ -39,78 +39,42 @@ struct JobRowView: View {
                 height: coverHeight
             )
 
-            VStack(alignment: .leading, spacing: textSpacing) {
-                Text(jobTitle)
-                    .font(titleFont)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.9)
-                    .truncationMode(.tail)
-
-                if let summaryText {
-                    Text(summaryText)
-                        .font(summaryFont)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-
-                if let descriptionText {
-                    Text(descriptionText)
-                        .font(metaFont)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(2)
-                        .truncationMode(.tail)
-                }
-
-                HStack(spacing: 6) {
-                    LanguageFlagPairView(flags: languageFlags)
-                        .font(metaFont)
-
-                    Text(statusGlyph.icon)
-                        .font(statusGlyphFont)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .foregroundStyle(statusColor)
-                        .background(statusColor.opacity(0.18), in: Capsule())
-                        .accessibilityLabel(statusGlyph.label)
-
-                    Text(resumeStatus.label)
-                        .font(metaFont)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .foregroundStyle(resumeStatus.foreground)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(resumeStatus.background, in: Capsule())
-                }
-
-                if let progressLabel {
-                    Text(progressLabel)
-                        .font(metaFont)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
-
-                if let progressValue {
-                    ProgressView(value: progressValue)
-                        .tint(progressTint)
-                }
-            }
+            JobRowMetadataStack(
+                title: jobTitle,
+                summaryText: summaryText,
+                descriptionText: descriptionText,
+                languageFlags: languageFlags,
+                statusIcon: statusGlyph.icon,
+                statusLabel: statusGlyph.label,
+                statusColor: statusColor,
+                resumeStatus: resumeStatus,
+                progressLabel: progressLabel,
+                progressValue: progressValue,
+                progressTint: progressTint,
+                titleFont: titleFont,
+                summaryFont: summaryFont,
+                metaFont: metaFont,
+                statusGlyphFont: statusGlyphFont,
+                textSpacing: textSpacing,
+                titleLineLimit: 2,
+                titleScaleFactor: 0.9,
+                descriptionLineLimit: 2,
+                badgeSpacing: 6,
+                titleStyle: AnyShapeStyle(.primary),
+                secondaryTextStyle: AnyShapeStyle(.secondary),
+                tertiaryTextStyle: AnyShapeStyle(.tertiary)
+            )
 
             Spacer(minLength: 4)
 
-            VStack {
-                #if !os(tvOS)
-                if job.isFinishedForDisplay {
-                    OfflineSyncBadge(jobId: job.jobId, kind: .job, isEligible: true)
-                }
-                #endif
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-            }
+            JobRowAccessory(
+                jobId: job.jobId,
+                isFinished: job.isFinishedForDisplay,
+                style: .compact,
+                secondaryTextColor: .secondary,
+                isSynced: isJobSynced,
+                isFocused: isRowFocused
+            )
         }
         .padding(.vertical, rowPadding)
     }
@@ -125,82 +89,42 @@ struct JobRowView: View {
                 height: coverHeight
             )
 
-            VStack(alignment: .leading, spacing: textSpacing) {
-                Text(jobTitle)
-                    .font(titleFont)
-                    .lineLimit(titleLineLimit)
-                    .minimumScaleFactor(titleScaleFactor)
-                    .truncationMode(.tail)
-                    .foregroundStyle(titleColor)
-
-                if let summaryText {
-                    Text(summaryText)
-                        .font(summaryFont)
-                        .foregroundStyle(secondaryTextColor)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-
-                if let descriptionText {
-                    Text(descriptionText)
-                        .font(metaFont)
-                        .foregroundStyle(tertiaryTextColor)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-
-                HStack(spacing: 8) {
-                    LanguageFlagPairView(flags: languageFlags)
-                        .font(metaFont)
-
-                    Text(statusGlyph.icon)
-                        .font(statusGlyphFont)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .foregroundStyle(statusColor)
-                        .background(statusColor.opacity(0.18), in: Capsule())
-                        .accessibilityLabel(statusGlyph.label)
-
-                    Text(resumeStatus.label)
-                        .font(metaFont)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .foregroundStyle(resumeStatus.foreground)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(resumeStatus.background, in: Capsule())
-                }
-
-                if let progressLabel {
-                    Text(progressLabel)
-                        .font(metaFont)
-                        .foregroundStyle(secondaryTextColor)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
-
-                if let progressValue {
-                    ProgressView(value: progressValue)
-                        .tint(progressTint)
-                }
-            }
+            JobRowMetadataStack(
+                title: jobTitle,
+                summaryText: summaryText,
+                descriptionText: descriptionText,
+                languageFlags: languageFlags,
+                statusIcon: statusGlyph.icon,
+                statusLabel: statusGlyph.label,
+                statusColor: statusColor,
+                resumeStatus: resumeStatus,
+                progressLabel: progressLabel,
+                progressValue: progressValue,
+                progressTint: progressTint,
+                titleFont: titleFont,
+                summaryFont: summaryFont,
+                metaFont: metaFont,
+                statusGlyphFont: statusGlyphFont,
+                textSpacing: textSpacing,
+                titleLineLimit: titleLineLimit,
+                titleScaleFactor: titleScaleFactor,
+                descriptionLineLimit: 1,
+                badgeSpacing: 8,
+                titleStyle: AnyShapeStyle(titleColor),
+                secondaryTextStyle: AnyShapeStyle(secondaryTextColor),
+                tertiaryTextStyle: AnyShapeStyle(tertiaryTextColor)
+            )
 
             Spacer()
 
-            #if os(tvOS)
-            // Show download indicator on tvOS
-            if job.isFinishedForDisplay && offlineStore.status(for: job.jobId, kind: .job).isSynced {
-                Image(systemName: "arrow.down.circle.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(isFocused ? .black.opacity(0.6) : .green)
-            }
-            #else
-            if job.isFinishedForDisplay {
-                OfflineSyncBadge(jobId: job.jobId, kind: .job, isEligible: true)
-            }
-            Image(systemName: "chevron.right")
-                .foregroundStyle(secondaryTextColor)
-            #endif
+            JobRowAccessory(
+                jobId: job.jobId,
+                isFinished: job.isFinishedForDisplay,
+                style: .landscape,
+                secondaryTextColor: secondaryTextColor,
+                isSynced: isJobSynced,
+                isFocused: isRowFocused
+            )
         }
         .padding(.vertical, rowPadding)
     }
@@ -220,6 +144,22 @@ struct JobRowView: View {
             originalLanguage: inputLanguage,
             translationLanguage: translationLanguage
         )
+    }
+
+    private var isJobSynced: Bool {
+        #if os(tvOS)
+        offlineStore.status(for: job.jobId, kind: .job).isSynced
+        #else
+        false
+        #endif
+    }
+
+    private var isRowFocused: Bool {
+        #if os(tvOS)
+        isFocused
+        #else
+        false
+        #endif
     }
 
     private var inputLanguage: String? {
@@ -932,4 +872,149 @@ struct JobRowView: View {
         return nil
     }
 
+}
+
+private enum JobRowAccessoryStyle {
+    case compact
+    case landscape
+}
+
+private struct JobRowMetadataStack: View {
+    let title: String
+    let summaryText: String?
+    let descriptionText: String?
+    let languageFlags: [LanguageFlagEntry]
+    let statusIcon: String
+    let statusLabel: String
+    let statusColor: Color
+    let resumeStatus: LibraryRowView.ResumeStatus
+    let progressLabel: String?
+    let progressValue: Double?
+    let progressTint: Color
+    let titleFont: Font
+    let summaryFont: Font
+    let metaFont: Font
+    let statusGlyphFont: Font
+    let textSpacing: CGFloat
+    let titleLineLimit: Int
+    let titleScaleFactor: CGFloat
+    let descriptionLineLimit: Int
+    let badgeSpacing: CGFloat
+    let titleStyle: AnyShapeStyle
+    let secondaryTextStyle: AnyShapeStyle
+    let tertiaryTextStyle: AnyShapeStyle
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: textSpacing) {
+            Text(title)
+                .font(titleFont)
+                .lineLimit(titleLineLimit)
+                .minimumScaleFactor(titleScaleFactor)
+                .truncationMode(.tail)
+                .foregroundStyle(titleStyle)
+
+            if let summaryText {
+                Text(summaryText)
+                    .font(summaryFont)
+                    .foregroundStyle(secondaryTextStyle)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+
+            if let descriptionText {
+                Text(descriptionText)
+                    .font(metaFont)
+                    .foregroundStyle(tertiaryTextStyle)
+                    .lineLimit(descriptionLineLimit)
+                    .truncationMode(.tail)
+            }
+
+            HStack(spacing: badgeSpacing) {
+                LanguageFlagPairView(flags: languageFlags)
+                    .font(metaFont)
+
+                Text(statusIcon)
+                    .font(statusGlyphFont)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .foregroundStyle(statusColor)
+                    .background(statusColor.opacity(0.18), in: Capsule())
+                    .accessibilityLabel(statusLabel)
+
+                Text(resumeStatus.label)
+                    .font(metaFont)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .foregroundStyle(resumeStatus.foreground)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(resumeStatus.background, in: Capsule())
+            }
+
+            if let progressLabel {
+                Text(progressLabel)
+                    .font(metaFont)
+                    .foregroundStyle(secondaryTextStyle)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+
+            if let progressValue {
+                ProgressView(value: progressValue)
+                    .tint(progressTint)
+            }
+        }
+    }
+}
+
+private struct JobRowAccessory: View {
+    let jobId: String
+    let isFinished: Bool
+    let style: JobRowAccessoryStyle
+    let secondaryTextColor: Color
+    let isSynced: Bool
+    let isFocused: Bool
+
+    var body: some View {
+        switch style {
+        case .compact:
+            compactAccessory
+        case .landscape:
+            landscapeAccessory
+        }
+    }
+
+    private var compactAccessory: some View {
+        VStack {
+            #if !os(tvOS)
+            if isFinished {
+                OfflineSyncBadge(jobId: jobId, kind: .job, isEligible: true)
+            }
+            #endif
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .foregroundStyle(secondaryTextColor)
+                .font(.caption)
+        }
+    }
+
+    @ViewBuilder
+    private var landscapeAccessory: some View {
+        #if os(tvOS)
+        if isFinished && isSynced {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(isFocused ? .black.opacity(0.6) : .green)
+        }
+        #else
+        if isFinished {
+            OfflineSyncBadge(jobId: jobId, kind: .job, isEligible: true)
+        }
+
+        Image(systemName: "chevron.right")
+            .foregroundStyle(secondaryTextColor)
+        #endif
+    }
 }

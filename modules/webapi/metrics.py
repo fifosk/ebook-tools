@@ -321,7 +321,7 @@ def setup_metrics(app: FastAPI) -> None:
     Idempotent — safe to call multiple times (e.g. in test suites that
     recreate the app).
     """
-    global _gauge_task, _setup_done
+    global _setup_done
 
     # Application info (safe to call repeatedly)
     try:
@@ -363,16 +363,25 @@ def setup_metrics(app: FastAPI) -> None:
                 media_type=CONTENT_TYPE_LATEST,
             )
 
-    # -- Start periodic gauge collector --
-    @app.on_event("startup")
-    async def _start_gauge_collector() -> None:
-        global _gauge_task
-        _gauge_task = asyncio.create_task(_periodic_gauge_update())
-        logger.info("Prometheus gauge collector started (interval=%ds)", _GAUGE_UPDATE_INTERVAL_SECONDS)
+async def start_gauge_collector() -> None:
+    """Start the periodic Prometheus gauge collector for the active app."""
 
-    @app.on_event("shutdown")
-    async def _stop_gauge_collector() -> None:
-        global _gauge_task
-        if _gauge_task is not None:
-            _gauge_task.cancel()
-            _gauge_task = None
+    global _gauge_task
+    if _gauge_task is not None and not _gauge_task.done():
+        return
+    _gauge_task = asyncio.create_task(_periodic_gauge_update())
+    logger.info("Prometheus gauge collector started (interval=%ds)", _GAUGE_UPDATE_INTERVAL_SECONDS)
+
+
+async def stop_gauge_collector() -> None:
+    """Stop the periodic Prometheus gauge collector if it is running."""
+
+    global _gauge_task
+    if _gauge_task is None:
+        return
+    _gauge_task.cancel()
+    try:
+        await _gauge_task
+    except asyncio.CancelledError:
+        pass
+    _gauge_task = None

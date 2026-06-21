@@ -20,6 +20,7 @@ from modules.services.pipeline_service import PipelineService
 from modules.user_management import AuthService
 from modules.user_management.user_store_base import UserRecord
 
+from .auth_utils import extract_session_token
 from .routes.media_routes import _stream_local_file
 from .audio_utils import resolve_language, resolve_speed, resolve_voice
 from .dependencies import (
@@ -53,15 +54,6 @@ class MediaHTTPException(HTTPException):
     """HTTP error tailored for media routes."""
 
 
-def _extract_bearer_token(authorization: str | None) -> str | None:
-    if not authorization:
-        return None
-    scheme, _, token = authorization.partition(" ")
-    if token and scheme.lower() == "bearer":
-        return token.strip() or None
-    return authorization.strip() or None
-
-
 def _format_error(error: str, message: str) -> dict[str, str]:
     return MediaErrorResponse(error=error, message=message).model_dump()
 
@@ -70,7 +62,7 @@ def _require_authenticated_user(
     authorization: str | None,
     auth_service: AuthService,
 ) -> tuple[str, UserRecord]:
-    token = _extract_bearer_token(authorization)
+    token = extract_session_token(authorization)
     if not token:
         raise MediaHTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

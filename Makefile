@@ -105,95 +105,116 @@ test-e2e-web-headless:
 XCBUILD = /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild
 XCPROJ = ios/InteractiveReader/InteractiveReader.xcodeproj
 JOURNEY_SRC = tests/e2e/journeys/basic_playback.json
+E2E_TEMP_ROOT ?= /tmp/apple-device-app-pipeline/ebook-tools
+E2E_PROFILE ?= local
+E2E_CONFIG_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PROFILE)/ios_e2e_config.json
+E2E_JOURNEY_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PROFILE)/ios_e2e_journey.json
 
-# Write config + journey to /tmp (idempotent, parallel-safe)
+# Write config + journey to profile-scoped /tmp paths.
 define WRITE_E2E_CONFIG
-python -c "import json; from pathlib import Path; \
+python3 -c "import json, os, shutil; from pathlib import Path; \
 	env={}; \
-	[env.update(dict([l.strip().split('=',1)])) for l in Path('.env').read_text().splitlines() if '=' in l and not l.startswith('#')]; \
-	Path('/tmp/ios_e2e_config.json').write_text(json.dumps({ \
+	env_file = Path('.env'); \
+	text = env_file.read_text() if env_file.exists() else ''; \
+	[env.update(dict([l.strip().split('=',1)])) for l in text.splitlines() if '=' in l and not l.startswith('#')]; \
+	env.update({k: os.environ[k] for k in ('E2E_USERNAME','E2E_PASSWORD','E2E_API_BASE_URL') if os.environ.get(k)}); \
+	config_path = Path(r'$(E2E_CONFIG_PATH)'); \
+	journey_path = Path(r'$(E2E_JOURNEY_PATH)'); \
+	config_path.parent.mkdir(parents=True, exist_ok=True); \
+	journey_path.parent.mkdir(parents=True, exist_ok=True); \
+	config_path.write_text(json.dumps({ \
 		'username': env.get('E2E_USERNAME',''), \
 		'password': env.get('E2E_PASSWORD',''), \
 		'api_base_url': env.get('E2E_API_BASE_URL','https://api.langtools.fifosk.synology.me') \
-	}))" && cp $(JOURNEY_SRC) /tmp/ios_e2e_journey.json
+	})); \
+	shutil.copyfile(r'$(JOURNEY_SRC)', journey_path)"
 endef
 
 # ── iPhone E2E ───────────────────────────────────────────────────────
-IPHONE_DESTINATION = 'platform=iOS Simulator,name=iPhone 17 Pro'
+IPHONE_DESTINATION ?= 'platform=iOS Simulator,name=iPhone 17 Pro'
 IPHONE_E2E_RESULT = $(CURDIR)/test-results/iphone-e2e.xcresult
+IPHONE_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-iphone
 
+test-e2e-iphone: E2E_PROFILE = iphone
 test-e2e-iphone:
 	@rm -rf $(IPHONE_E2E_RESULT) test-results/iphone-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
-	$(XCBUILD) test \
+	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
 		-destination $(IPHONE_DESTINATION) \
+		-derivedDataPath $(IPHONE_DERIVED_DATA) \
 		-resultBundlePath $(IPHONE_E2E_RESULT) \
 		2>&1 | tail -30
-	python scripts/ios_e2e_report.py \
+	python3 scripts/ios_e2e_report.py \
 		--xcresult $(IPHONE_E2E_RESULT) \
 		--output test-results/iphone-e2e-report.md \
 		--title "iPhone E2E Test Report" \
 		--screenshot-prefix iphone
-	@rm -f /tmp/ios_e2e_config.json /tmp/ios_e2e_journey.json
+	@rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"
 
 # ── iPad E2E ─────────────────────────────────────────────────────────
-IPAD_DESTINATION = 'platform=iOS Simulator,name=iPad Air 11-inch (M3)'
+IPAD_DESTINATION ?= 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)'
 IPAD_E2E_RESULT = $(CURDIR)/test-results/ipad-e2e.xcresult
+IPAD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-ipad
 
+test-e2e-ipad: E2E_PROFILE = ipados
 test-e2e-ipad:
 	@rm -rf $(IPAD_E2E_RESULT) test-results/ipad-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
-	$(XCBUILD) test \
+	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
 		-destination $(IPAD_DESTINATION) \
+		-derivedDataPath $(IPAD_DERIVED_DATA) \
 		-resultBundlePath $(IPAD_E2E_RESULT) \
 		2>&1 | tail -30
-	python scripts/ios_e2e_report.py \
+	python3 scripts/ios_e2e_report.py \
 		--xcresult $(IPAD_E2E_RESULT) \
 		--output test-results/ipad-e2e-report.md \
 		--title "iPad E2E Test Report" \
 		--screenshot-prefix ipad
-	@rm -f /tmp/ios_e2e_config.json /tmp/ios_e2e_journey.json
+	@rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"
 
 # ── tvOS E2E ─────────────────────────────────────────────────────────
-TVOS_DESTINATION = 'platform=tvOS Simulator,name=Apple TV'
+TVOS_DESTINATION ?= 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)'
 TVOS_E2E_RESULT = $(CURDIR)/test-results/tvos-e2e.xcresult
+TVOS_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-tvos
 
+test-e2e-tvos: E2E_PROFILE = tvos
 test-e2e-tvos:
 	@rm -rf $(TVOS_E2E_RESULT) test-results/tvos-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
-	$(XCBUILD) test \
+	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderTVUITests \
 		-destination $(TVOS_DESTINATION) \
+		-derivedDataPath $(TVOS_DERIVED_DATA) \
 		-resultBundlePath $(TVOS_E2E_RESULT) \
 		2>&1 | tail -30
-	python scripts/ios_e2e_report.py \
+	python3 scripts/ios_e2e_report.py \
 		--xcresult $(TVOS_E2E_RESULT) \
 		--output test-results/tvos-e2e-report.md \
 		--title "tvOS E2E Test Report" \
 		--screenshot-prefix tvos
-	@rm -f /tmp/ios_e2e_config.json /tmp/ios_e2e_journey.json
+	@rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"
 
 # ── Legacy alias ─────────────────────────────────────────────────────
 test-e2e-ios: test-e2e-iphone
 
 # ── Run all platforms sequentially ────────────────────────────────────
-# Parallel execution (-j4) corrupts xcresult bundles (Xcode mkstemp bug),
-# so we run sequentially.  Use -k to continue on failures.
+# Sequential default. Use -k to continue on failures.
 test-e2e-all:
-	@$(WRITE_E2E_CONFIG)
 	@$(MAKE) -k \
 		test-e2e-web-headless \
 		test-e2e-iphone \
 		test-e2e-ipad \
-		test-e2e-tvos \
-		; EXIT=$$?; \
-	rm -f /tmp/ios_e2e_config.json /tmp/ios_e2e_journey.json; \
-	exit $$EXIT
+		test-e2e-tvos
+
+# ── Run Apple platforms in parallel ─────────────────────────────────
+# Uses profile-scoped config, journey, result, and DerivedData paths.
+test-e2e-apple-parallel:
+	@$(MAKE) -j3 test-e2e-iphone test-e2e-ipad test-e2e-tvos
 
 # ── Docker ──────────────────────────────────────────────────────────
 DOCKER_TAG ?= latest

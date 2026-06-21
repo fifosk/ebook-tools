@@ -46,6 +46,7 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
+from ..auth_utils import extract_session_token
 from ..schemas import PipelineSubmissionResponse
 from ..schemas.create_book import (
     BookCreationRequest,
@@ -70,20 +71,11 @@ _SUMMARY_MAX_CHARACTERS = 600
 logger = log_mgr.get_logger()
 
 
-def _extract_bearer_token(authorization: str | None) -> str | None:
-    if not authorization:
-        return None
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() == "bearer" and token:
-        return token.strip() or None
-    return authorization.strip() or None
-
-
 def _require_authorised_user(
     authorization: str | None,
     auth_service: AuthService,
 ) -> tuple[str, UserRecord]:
-    token = _extract_bearer_token(authorization)
+    token = extract_session_token(authorization)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session token")
     user = auth_service.authenticate(token)

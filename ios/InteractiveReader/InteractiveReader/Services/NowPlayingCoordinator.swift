@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 #if canImport(MediaPlayer)
 import MediaPlayer
@@ -7,6 +8,8 @@ import UIKit
 
 @MainActor
 final class NowPlayingCoordinator: ObservableObject {
+    private let logger = Logger(subsystem: "InteractiveReader", category: "NowPlaying")
+
     #if canImport(MediaPlayer)
     private var metadata: [String: Any] = [:]
     private var lastElapsedUpdate: TimeInterval = 0
@@ -54,17 +57,17 @@ final class NowPlayingCoordinator: ObservableObject {
             let center = MPRemoteCommandCenter.shared()
 
             center.playCommand.addTarget { [weak self] _ in
-                print("[NowPlaying] playCommand fired")
+                self?.logger.debug("Remote play command fired")
                 self?.invokeHandler(self?.playHandler)
                 return .success
             }
             center.pauseCommand.addTarget { [weak self] _ in
-                print("[NowPlaying] pauseCommand fired")
+                self?.logger.debug("Remote pause command fired")
                 self?.invokeHandler(self?.pauseHandler)
                 return .success
             }
             center.togglePlayPauseCommand.addTarget { [weak self] _ in
-                print("[NowPlaying] togglePlayPauseCommand fired")
+                self?.logger.debug("Remote toggle play/pause command fired")
                 if let handler = self?.toggleHandler {
                     self?.invokeHandler(handler)
                 } else {

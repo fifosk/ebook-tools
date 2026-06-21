@@ -1,4 +1,7 @@
 import Foundation
+import OSLog
+
+private let lookupCacheLogger = Logger(subsystem: "InteractiveReader", category: "LookupCache")
 
 extension InteractivePlayerViewModel {
     func lookupAssistant(
@@ -62,10 +65,14 @@ extension InteractivePlayerViewModel {
         if let offlineCache = offlineLookupCache {
             let normalized = normalizeWordForLookup(word)
             if let entry = offlineCache.entries[normalized] {
-                print("[LookupCache] OFFLINE HIT for '\(word)' (normalized: '\(normalized)')")
+                lookupCacheLogger.debug(
+                    "Offline hit word=\(word, privacy: .private) normalized=\(normalized, privacy: .private)"
+                )
                 return entry
             }
-            print("[LookupCache] OFFLINE MISS for '\(word)' (normalized: '\(normalized)'), entries=\(offlineCache.entries.count)")
+            lookupCacheLogger.debug(
+                "Offline miss word=\(word, privacy: .private) normalized=\(normalized, privacy: .private), entries=\(offlineCache.entries.count, privacy: .public)"
+            )
             // If we have offline cache but word not found, return a miss without API call
             // (the word simply doesn't exist in the cache)
             return LookupCacheEntryResponse(
@@ -78,22 +85,26 @@ extension InteractivePlayerViewModel {
         }
 
         // Fallback to API (no offline cache available)
-        print("[LookupCache] No offline cache, falling back to API for '\(word)'")
+        lookupCacheLogger.debug("No offline cache, falling back to API word=\(word, privacy: .private)")
         guard let configuration = apiConfiguration else {
-            print("[LookupCache] No API configuration and no offline cache")
+            lookupCacheLogger.warning("No API configuration and no offline cache")
             return nil
         }
         let client = APIClient(configuration: configuration)
         do {
             let result = try await client.fetchCachedLookup(jobId: jobId, word: word)
             if let result {
-                print("[LookupCache] API \(result.cached ? "HIT" : "MISS") for '\(word)': hasResult=\(result.lookupResult != nil)")
+                lookupCacheLogger.debug(
+                    "API cache result cached=\(result.cached, privacy: .public), hasResult=\(result.lookupResult != nil, privacy: .public), word=\(word, privacy: .private)"
+                )
             } else {
-                print("[LookupCache] No API result for '\(word)'")
+                lookupCacheLogger.debug("No API result word=\(word, privacy: .private)")
             }
             return result
         } catch {
-            print("[LookupCache] Error fetching cache for '\(word)': \(error.localizedDescription)")
+            lookupCacheLogger.error(
+                "Error fetching cache word=\(word, privacy: .private): \(error.localizedDescription, privacy: .private)"
+            )
             return nil
         }
     }

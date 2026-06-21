@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import OSLog
 
 @MainActor
 final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
@@ -15,6 +16,7 @@ final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
     private var statusObservation: NSKeyValueObservation?
     private var timeControlObservation: NSKeyValueObservation?
     private var endObserver: NSObjectProtocol?
+    private let logger = Logger(subsystem: "InteractiveReader", category: "VideoPlayer")
 
     func load(url: URL, autoPlay: Bool = false) {
         tearDownPlayer()
@@ -135,12 +137,16 @@ final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
                         self.duration = observedItem.duration.seconds
                     }
                 case .failed:
-                    print("AVPlayerItem failed: \(String(describing: observedItem.error))")
+                    self.logger.error(
+                        "AVPlayerItem failed: \(String(describing: observedItem.error), privacy: .private)"
+                    )
                     if let errorLog = observedItem.errorLog() {
                         for event in errorLog.events {
                             let status = event.errorStatusCode
                             let comment = event.errorComment ?? ""
-                            print("AVPlayerItem ErrorLog: status=\(status) comment=\(comment)")
+                            self.logger.error(
+                                "AVPlayerItem error log status=\(status, privacy: .public) comment=\(comment, privacy: .private)"
+                            )
                         }
                     }
                 default:

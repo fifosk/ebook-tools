@@ -1,4 +1,7 @@
 import Foundation
+import OSLog
+
+private let interactivePlaybackLogger = Logger(subsystem: "InteractiveReader", category: "InteractivePlayback")
 
 extension InteractivePlayerViewModel {
     var highlightingSummary: String? {
@@ -494,7 +497,9 @@ extension InteractivePlayerViewModel {
             return
         }
 
-        print("[Sequence] Skipping to \(forward ? "next" : "previous") sentence: track=\(target.track.rawValue), time=\(String(format: "%.3f", target.time))")
+        interactivePlaybackLogger.debug(
+            "Skipping to \(forward ? "next" : "previous", privacy: .public) sentence: track=\(target.track.rawValue, privacy: .public), time=\(target.time, privacy: .public)"
+        )
 
         // Check if we need to switch tracks BEFORE committing state
         let needsTrackSwitch = target.track != sequenceController.currentTrack

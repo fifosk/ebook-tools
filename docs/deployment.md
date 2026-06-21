@@ -278,13 +278,13 @@ startup via `scripts/docker-entrypoint.sh`:
 
 ```bash
 # The entrypoint runs this before starting uvicorn:
-python -m alembic upgrade head
+python3 -m alembic upgrade head
 ```
 
 To run migrations manually:
 
 ```bash
-docker exec ebook-tools-backend python -m alembic upgrade head
+docker exec ebook-tools-backend python3 -m alembic upgrade head
 ```
 
 ### Backup Sidecar
@@ -456,7 +456,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout conf/certs/dev.key \
   -out conf/certs/dev.crt
 
-python -m modules.webapi --reload \
+python3 -m modules.webapi --reload \
   --ssl-certfile conf/certs/dev.crt \
   --ssl-keyfile conf/certs/dev.key
 ```
@@ -604,13 +604,13 @@ docker compose logs backend --tail 50
 docker compose logs frontend --tail 20
 
 # Verify Python packages inside the container
-docker exec ebook-tools-backend python -c "import modules"
+docker exec ebook-tools-backend python3 -c "import modules"
 
 # Shell into the backend container for debugging
 docker exec -it ebook-tools-backend bash
 
 # Check if the health endpoint responds
-docker exec ebook-tools-backend python -c \
+docker exec ebook-tools-backend python3 -c \
   "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/_health').read())"
 ```
 

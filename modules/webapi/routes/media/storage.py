@@ -138,7 +138,7 @@ def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> 
             start, end = _parse_byte_range(range_header, file_size)
         except _RangeParseError as exc:
             raise HTTPException(
-                status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+                status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE,
                 detail="Requested range not satisfiable",
                 headers={"Content-Range": f"bytes */{file_size}"},
             ) from exc

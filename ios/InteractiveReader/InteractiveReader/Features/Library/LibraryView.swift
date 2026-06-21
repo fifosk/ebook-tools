@@ -186,8 +186,12 @@ struct LibraryView: View {
                     .padding()
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
             } else if viewModel.filteredItems.isEmpty {
-                Text("No items found.")
-                    .foregroundStyle(.secondary)
+                ContentUnavailableView {
+                    Label("No library items found", systemImage: "books.vertical")
+                } description: {
+                    Text(viewModel.query.isEmpty ? "Move a completed job to the library to keep it here." : "Try a different search term.")
+                }
+                .foregroundStyle(usesDarkListBackground ? .white : .primary)
             }
         }
     }
@@ -288,49 +292,14 @@ struct LibraryView: View {
 
 
     private var actionRow: some View {
-        let status = iCloudStatus
-        let userLabel = resumeUserId ?? "Log In"
-        let statusLabel = status.isAvailable ? "Online" : "Offline"
-        let iconSize = PlatformMetrics.listIconSize
-        return HStack(spacing: 12) {
-            HStack(spacing: 6) {
-                Image(systemName: "globe")
-                    .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(usesDarkListBackground ? .cyan : .blue)
-                Text("Language Tools")
-                    .lineLimit(1)
-                    .foregroundStyle(usesDarkListBackground ? .white : .primary)
-                AppVersionBadge()
-            }
-            HStack(spacing: 6) {
-                Image(systemName: status.isAvailable ? "icloud" : "icloud.slash")
-                    .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(status.isAvailable ? (usesDarkListBackground ? .cyan : .blue) : (usesDarkListBackground ? .white.opacity(0.6) : .secondary))
-            }
-            .accessibilityLabel(statusLabel)
-            Button(action: handleRefresh) {
-                Image(systemName: "arrow.clockwise")
-            }
-            .disabled(viewModel.isLoading)
-            .accessibilityLabel("Refresh")
-            .tint(usesDarkListBackground ? .white : nil)
-            Spacer()
-            Menu {
-                Button("Log Out", action: onSignOut)
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.crop.circle")
-                    Text(userLabel)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-            }
-            .tint(usesDarkListBackground ? .white : nil)
-        }
-        .padding(.horizontal)
-        #if os(tvOS)
-        .font(PlatformTypography.sectionHeaderFont)
-        #endif
+        BrowseActionRow(
+            iCloudStatus: iCloudStatus,
+            resumeUserId: resumeUserId,
+            isLoading: viewModel.isLoading,
+            usesDarkListBackground: usesDarkListBackground,
+            onRefresh: handleRefresh,
+            onSignOut: onSignOut
+        )
     }
 
     private func handleRefresh() {
