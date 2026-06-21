@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.05",
+            version: "2026.06.22.06",
             entries: [
+                AppChangelogEntry(
+                    id: "typed-player-header-overlay",
+                    title: "Player header overlay typed",
+                    detail: "The interactive player header now uses focused SwiftUI builders instead of an erased header view, preserving phone, iPad, and tvOS layout branches while making future overlay work safer."
+                ),
                 AppChangelogEntry(
                     id: "typed-browse-section-picker",
                     title: "Browse header type erasure removed",

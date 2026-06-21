@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.06
+
+- Advanced visible Apple app versioning to `v2026.06.22.06`.
+- Replaced the interactive player header overlay's erased `AnyView` branch with typed SwiftUI builders while preserving the existing phone, iPad, and tvOS header layouts.
+
 ### 2026.06.22.05
 
 - Advanced visible Apple app versioning to `v2026.06.22.05`.

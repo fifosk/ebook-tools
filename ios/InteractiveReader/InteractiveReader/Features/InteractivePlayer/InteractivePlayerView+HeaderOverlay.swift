@@ -9,114 +9,24 @@ extension InteractivePlayerView {
 
     func playerInfoOverlay(for chunk: InteractiveChunk) -> some View {
         let variant = resolveInfoVariant()
-        let label = headerInfo?.itemTypeLabel.isEmpty == false ? headerInfo?.itemTypeLabel : "Job"
+        let rawLabel = headerInfo?.itemTypeLabel.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let label = rawLabel.isEmpty ? "Job" : rawLabel
         let slideLabel = slideIndicatorLabel(for: chunk)
         let timelineLabel = audioTimelineLabel(for: chunk)
         let showHeaderContent = !isHeaderCollapsed
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
 
-        // Main header row with channel bug, title/author, and timeline
-        let mainHeaderRow = HStack(alignment: .top, spacing: 12) {
-            if showHeaderContent {
-                PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
-                if let headerInfo {
-                    infoBadgeView(info: headerInfo, chunk: chunk)
-                }
-            }
-            Spacer(minLength: 12)
-            if showHeaderContent || isTV {
-                VStack(alignment: .trailing, spacing: 6) {
-                    if showHeaderContent {
-                        // iPhone portrait: stack progress pills vertically
-                        // Others: horizontal row
-                        #if os(iOS)
-                        if isPhonePortrait {
-                            VStack(alignment: .trailing, spacing: 3) {
-                                if let slideLabel {
-                                    slideIndicatorView(label: slideLabel)
-                                }
-                                if let timelineLabel {
-                                    audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
-                                }
-                            }
-                        } else {
-                            HStack(spacing: 6) {
-                                if let slideLabel {
-                                    slideIndicatorView(label: slideLabel)
-                                }
-                                if let timelineLabel {
-                                    audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
-                                }
-                            }
-                        }
-                        #else
-                        // Sentence progress and playing time in one row
-                        HStack(spacing: 6) {
-                            if let slideLabel {
-                                slideIndicatorView(label: slideLabel)
-                            }
-                            if let timelineLabel {
-                                audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
-                            }
-                        }
-                        #endif
-                    } else {
-                        // Header collapsed - show music pill and timeline in a row
-                        HStack(spacing: 6) {
-                            musicPillView
-                            if let timelineLabel {
-                                audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
-                            }
-                        }
-                    }
-                    #if os(tvOS)
-                    tvHeaderTogglePill
-                    #endif
-                }
-            }
-        }
-
-        // For iPhone, wrap in VStack to add full-width pills row below
-        let headerView: AnyView = {
-            #if os(iOS)
-            if isPhone, showHeaderContent, let info = headerInfo, !info.languageFlags.isEmpty {
-                return AnyView(
-                    VStack(alignment: .leading, spacing: 8) {
-                        mainHeaderRow
-                        // Full-width pills row for iPhone
-                        HStack(spacing: 0) {
-                            PlayerLanguageFlagRow(
-                                flags: info.languageFlags,
-                                modelLabel: nil,
-                                isTV: false,
-                                sizeScale: infoPillScale,
-                                activeRoles: activeRoles,
-                                availableRoles: availableRoles,
-                                onToggleRole: { role in
-                                    toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
-                                },
-                                showConnector: false
-                            )
-                            Spacer(minLength: 8)
-                            musicPillView
-                            Spacer(minLength: 8)
-                            speedPillView
-                            Spacer(minLength: 8)
-                            jumpPillView
-                            Spacer(minLength: 8)
-                            searchPillView
-                            Spacer(minLength: 8)
-                            bookmarkRibbonPillView
-                        }
-                    }
-                )
-            }
-            #endif
-            return AnyView(mainHeaderRow)
-        }()
-
-        let styledHeaderView = headerView
+        let styledHeaderView = playerInfoHeaderContent(
+            for: chunk,
+            variant: variant,
+            label: label,
+            slideLabel: slideLabel,
+            timelineLabel: timelineLabel,
+            showHeaderContent: showHeaderContent,
+            availableRoles: availableRoles,
+            activeRoles: activeRoles
+        )
             .padding(.horizontal, isPhonePortrait ? 16 : (isPhone ? 12 : 6))
             .padding(.top, 6)
             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -133,6 +43,170 @@ extension InteractivePlayerView {
         #endif
         return headerMagnifyWrapper(finalView)
     }
+
+    @ViewBuilder
+    private func playerInfoHeaderContent(
+        for chunk: InteractiveChunk,
+        variant: PlayerChannelVariant,
+        label: String,
+        slideLabel: String?,
+        timelineLabel: String?,
+        showHeaderContent: Bool,
+        availableRoles: Set<LanguageFlagRole>,
+        activeRoles: Set<LanguageFlagRole>
+    ) -> some View {
+        #if os(iOS)
+        if isPhone, showHeaderContent, let info = headerInfo, !info.languageFlags.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                playerInfoHeaderRow(
+                    for: chunk,
+                    variant: variant,
+                    label: label,
+                    slideLabel: slideLabel,
+                    timelineLabel: timelineLabel,
+                    showHeaderContent: showHeaderContent
+                )
+                phoneHeaderControlsRow(
+                    info: info,
+                    chunk: chunk,
+                    availableRoles: availableRoles,
+                    activeRoles: activeRoles
+                )
+            }
+        } else {
+            playerInfoHeaderRow(
+                for: chunk,
+                variant: variant,
+                label: label,
+                slideLabel: slideLabel,
+                timelineLabel: timelineLabel,
+                showHeaderContent: showHeaderContent
+            )
+        }
+        #else
+        playerInfoHeaderRow(
+            for: chunk,
+            variant: variant,
+            label: label,
+            slideLabel: slideLabel,
+            timelineLabel: timelineLabel,
+            showHeaderContent: showHeaderContent
+        )
+        #endif
+    }
+
+    private func playerInfoHeaderRow(
+        for chunk: InteractiveChunk,
+        variant: PlayerChannelVariant,
+        label: String,
+        slideLabel: String?,
+        timelineLabel: String?,
+        showHeaderContent: Bool
+    ) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            if showHeaderContent {
+                PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
+                if let headerInfo {
+                    infoBadgeView(info: headerInfo, chunk: chunk)
+                }
+            }
+            Spacer(minLength: 12)
+            if showHeaderContent || isTV {
+                headerProgressStack(
+                    slideLabel: slideLabel,
+                    timelineLabel: timelineLabel,
+                    showHeaderContent: showHeaderContent
+                )
+            }
+        }
+    }
+
+    private func headerProgressStack(
+        slideLabel: String?,
+        timelineLabel: String?,
+        showHeaderContent: Bool
+    ) -> some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            if showHeaderContent {
+                headerProgressPills(slideLabel: slideLabel, timelineLabel: timelineLabel)
+            } else {
+                HStack(spacing: 6) {
+                    musicPillView
+                    if let timelineLabel {
+                        audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                    }
+                }
+            }
+            #if os(tvOS)
+            tvHeaderTogglePill
+            #endif
+        }
+    }
+
+    @ViewBuilder
+    private func headerProgressPills(slideLabel: String?, timelineLabel: String?) -> some View {
+        #if os(iOS)
+        if isPhonePortrait {
+            VStack(alignment: .trailing, spacing: 3) {
+                if let slideLabel {
+                    slideIndicatorView(label: slideLabel)
+                }
+                if let timelineLabel {
+                    audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                }
+            }
+        } else {
+            headerProgressPillRow(slideLabel: slideLabel, timelineLabel: timelineLabel)
+        }
+        #else
+        headerProgressPillRow(slideLabel: slideLabel, timelineLabel: timelineLabel)
+        #endif
+    }
+
+    private func headerProgressPillRow(slideLabel: String?, timelineLabel: String?) -> some View {
+        HStack(spacing: 6) {
+            if let slideLabel {
+                slideIndicatorView(label: slideLabel)
+            }
+            if let timelineLabel {
+                audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+            }
+        }
+    }
+
+    #if os(iOS)
+    private func phoneHeaderControlsRow(
+        info: InteractivePlayerHeaderInfo,
+        chunk: InteractiveChunk,
+        availableRoles: Set<LanguageFlagRole>,
+        activeRoles: Set<LanguageFlagRole>
+    ) -> some View {
+        HStack(spacing: 0) {
+            PlayerLanguageFlagRow(
+                flags: info.languageFlags,
+                modelLabel: nil,
+                isTV: false,
+                sizeScale: infoPillScale,
+                activeRoles: activeRoles,
+                availableRoles: availableRoles,
+                onToggleRole: { role in
+                    toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
+                },
+                showConnector: false
+            )
+            Spacer(minLength: 8)
+            musicPillView
+            Spacer(minLength: 8)
+            speedPillView
+            Spacer(minLength: 8)
+            jumpPillView
+            Spacer(minLength: 8)
+            searchPillView
+            Spacer(minLength: 8)
+            bookmarkRibbonPillView
+        }
+    }
+    #endif
 
     func infoBadgeView(info: InteractivePlayerHeaderInfo, chunk: InteractiveChunk) -> some View {
         let availableRoles = availableAudioRoles(for: chunk)
