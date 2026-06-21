@@ -35,7 +35,7 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.07"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.08"
     }
 
     static var displayLabel: String {
@@ -188,8 +188,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-21",
             dateLabel: "June 21, 2026",
-            version: "2026.06.21.07",
+            version: "2026.06.21.08",
             entries: [
+                AppChangelogEntry(
+                    id: "wd-staging-pipeline-contract",
+                    title: "WD staging pipeline aligned",
+                    detail: "ebook-tools and Finance Review now share the same Mac Studio WD staging convention before backend maintenance."
+                ),
                 AppChangelogEntry(
                     id: "compact-version-build-token",
                     title: "iPad version chip fixed",

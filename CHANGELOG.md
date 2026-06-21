@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-21
 
+### 2026.06.21.08
+
+- Advanced visible Apple app versioning to `v2026.06.21.08`.
+- Aligned ebook-tools with the shared WD staging convention at `/Volumes/WD-1TB/Data/staging/ebook-tools`, matching the Finance Review dogfood runtime staging path before backend maintenance.
+- Updated the shared Apple pipeline manifest/docs/tests so both dogfood apps use storage preflights before disk-heavy Mac Studio work.
+
 ### 2026.06.21.07
 
 - Replaced the compact browse-header version text with the short build token `b07`, while keeping the full `v2026.06.21.07` in login, Settings, changelog, metadata, and accessibility.
