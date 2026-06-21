@@ -194,6 +194,13 @@ struct InteractivePlayerView: View {
     var body: some View {
         #if os(tvOS)
         baseContent
+            .accessibilityIdentifier("interactivePlayerView")
+            .overlay(alignment: .topLeading) {
+                Text("Interactive Player")
+                    .frame(width: 1, height: 1)
+                    .opacity(0.001)
+                    .accessibilityIdentifier("interactivePlayerView")
+            }
             .onPlayPauseCommand {
                 audioCoordinator.togglePlayback()
             }

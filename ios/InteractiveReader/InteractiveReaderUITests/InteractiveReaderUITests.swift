@@ -1,4 +1,7 @@
 import XCTest
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Base class for all InteractiveReader UI tests.
 ///
@@ -11,7 +14,21 @@ class InteractiveReaderUITests: XCTestCase {
     var app: XCUIApplication!
 
     static var configPath: String {
-        ProcessInfo.processInfo.environment["E2E_CONFIG_PATH"] ?? "/tmp/ios_e2e_config.json"
+        if let value = ProcessInfo.processInfo.environment["E2E_CONFIG_PATH"], !value.isEmpty {
+            return value
+        }
+        return "/tmp/apple-device-app-pipeline/ebook-tools/\(e2eProfileName)/ios_e2e_config.json"
+    }
+
+    static var e2eProfileName: String {
+        #if os(tvOS)
+        return "tvos"
+        #else
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return "ipados"
+        }
+        return "iphone"
+        #endif
     }
 
     struct E2EConfig: Decodable {

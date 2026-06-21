@@ -261,6 +261,7 @@ struct TVPlaybackControlsBar: View {
         .opacity(showTVControls ? 1 : 0)
         .allowsHitTesting(showTVControls)
         .focusSection()
+        .accessibilityIdentifier("tvPlaybackControls")
         .onMoveCommand { direction in
             guard !showSubtitleSettings else { return }
             if direction == .up {

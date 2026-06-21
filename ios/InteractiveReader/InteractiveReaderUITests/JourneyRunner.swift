@@ -52,7 +52,10 @@ final class JourneyRunner {
     private let platform: E2EPlatform
 
     static var journeyPath: String {
-        ProcessInfo.processInfo.environment["E2E_JOURNEY_PATH"] ?? "/tmp/ios_e2e_journey.json"
+        if let value = ProcessInfo.processInfo.environment["E2E_JOURNEY_PATH"], !value.isEmpty {
+            return value
+        }
+        return "/tmp/apple-device-app-pipeline/ebook-tools/\(InteractiveReaderUITests.e2eProfileName)/ios_e2e_journey.json"
     }
 
     init(app: XCUIApplication, test: InteractiveReaderUITests) {
@@ -87,6 +90,8 @@ final class JourneyRunner {
             doSelectFilter(step)
         case "play_first_item":
             try doPlayFirstItem(step)
+        case "exercise_player_remote":
+            doExercisePlayerRemote(step)
         case "go_back":
             doGoBack(step)
         case "assert_visible":
@@ -166,13 +171,54 @@ final class JourneyRunner {
     }
 
     private func waitForPlayer() {
-        let player = app.otherElements["interactivePlayerView"]
-        if player.waitForExistence(timeout: 25) {
-            // Player loaded successfully
-        } else {
-            // Allow some time for loading even without the accessibility ID
-            sleep(3)
+        if waitForAnyPlayer(timeout: 25) != nil {
+            return
         }
+
+        // Allow some time for loading even without the accessibility ID.
+        sleep(3)
+    }
+
+    private func waitForAnyPlayer(timeout: TimeInterval) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        let candidates = [
+            app.otherElements["interactivePlayerView"],
+            app.otherElements["videoPlayerView"],
+            app.otherElements["libraryPlaybackView"]
+        ]
+
+        while Date() < deadline {
+            if let match = candidates.first(where: { $0.exists }) {
+                return match
+            }
+            usleep(200_000)
+        }
+
+        return candidates.first(where: { $0.exists })
+    }
+
+    private func doExercisePlayerRemote(_ step: JourneyStep) {
+        #if os(tvOS)
+        guard let player = waitForAnyPlayer(timeout: TimeInterval(step.timeout ?? 10)) else {
+            XCTFail("Expected an audio or video player before exercising tvOS remote")
+            return
+        }
+
+        XCUIRemote.shared.press(.down)
+        sleep(1)
+
+        if app.otherElements["videoPlayerView"].exists {
+            XCTAssertTrue(
+                app.otherElements["tvPlaybackControls"].waitForExistence(timeout: 3),
+                "Video player controls should appear after pressing Down on tvOS"
+            )
+        }
+
+        XCUIRemote.shared.press(.left)
+        XCUIRemote.shared.press(.right)
+        XCUIRemote.shared.press(.up)
+        XCTAssertTrue(player.exists, "Player should remain visible after remote navigation")
+        #endif
     }
 
     private func doGoBack(_ step: JourneyStep) {
@@ -214,11 +260,75 @@ final class JourneyRunner {
     /// Platform-safe element activation: `.tap()` on iOS, remote select on tvOS.
     private func selectElement(_ element: XCUIElement) {
         #if os(tvOS)
+        guard focusElement(element) else {
+            XCTFail("Could not move tvOS focus to \(element)")
+            return
+        }
         XCUIRemote.shared.press(.select)
         #else
         element.tap()
         #endif
     }
+
+    #if os(tvOS)
+    private func focusElement(_ element: XCUIElement, timeout: TimeInterval = 8) -> Bool {
+        guard element.exists else { return false }
+        if elementOrDescendantHasFocus(element) { return true }
+
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            guard element.exists else { return false }
+            if elementOrDescendantHasFocus(element) {
+                return true
+            }
+
+            if let focused = currentFocusedElement() {
+                XCUIRemote.shared.press(direction(from: focused.frame, to: element.frame))
+            } else {
+                XCUIRemote.shared.press(.right)
+            }
+            usleep(180_000)
+        }
+
+        return element.exists && elementOrDescendantHasFocus(element)
+    }
+
+    private func elementOrDescendantHasFocus(_ element: XCUIElement) -> Bool {
+        if element.exists && element.hasFocus {
+            return true
+        }
+        guard let focused = currentFocusedElement() else { return false }
+        let targetFrame = element.frame
+        let focusedCenter = CGPoint(x: focused.frame.midX, y: focused.frame.midY)
+        return targetFrame.contains(focusedCenter)
+    }
+
+    private func currentFocusedElement() -> XCUIElement? {
+        let candidates =
+            app.buttons.allElementsBoundByIndex
+            + app.cells.allElementsBoundByIndex
+            + app.textFields.allElementsBoundByIndex
+            + app.secureTextFields.allElementsBoundByIndex
+
+        return candidates.first { candidate in
+            candidate.exists && candidate.hasFocus
+        }
+    }
+
+    private func direction(from focusedFrame: CGRect, to targetFrame: CGRect) -> XCUIRemote.Button {
+        let dx = targetFrame.midX - focusedFrame.midX
+        let dy = targetFrame.midY - focusedFrame.midY
+
+        if abs(dy) > 80 {
+            return dy > 0 ? .down : .up
+        }
+        if abs(dx) > 20 {
+            return dx > 0 ? .right : .left
+        }
+        return .right
+    }
+    #endif
 
     // MARK: - Gestures
 

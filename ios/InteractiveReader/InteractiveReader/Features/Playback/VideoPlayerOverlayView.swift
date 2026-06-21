@@ -908,8 +908,7 @@ extension VideoPlayerOverlayView {
             focusTarget = .subtitles
         case .up:
             if isPlaying {
-                // During playback, ignore up swipe to keep screen real estate maximized
-                return
+                revealTVControls(focus: .header)
             } else {
                 let moved = onNavigateSubtitleTrack(-1)
                 if moved {
@@ -924,7 +923,10 @@ extension VideoPlayerOverlayView {
                 }
             }
         case .down:
-            if isPlaying { return }
+            if isPlaying {
+                revealTVControls(focus: .playPause)
+                return
+            }
             let moved = onNavigateSubtitleTrack(1)
             if moved {
                 suppressControlFocusTemporarily()
@@ -946,10 +948,17 @@ extension VideoPlayerOverlayView {
     private func handleSubtitleTap() {
         guard focusTarget != .bubble else { return }
         if isPlaying {
-            onUserInteraction()
+            revealTVControls(focus: .playPause)
         } else {
             onSubtitleLookup()
         }
+    }
+
+    private func revealTVControls(focus target: TVPlayerControlTarget) {
+        suppressControlFocus = false
+        showTVControls = true
+        focusTarget = .control(target)
+        onUserInteraction()
     }
 
     private func handlePlaybackDirectionalCommand(_ direction: MoveCommandDirection) {

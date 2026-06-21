@@ -39,6 +39,7 @@ struct LibraryPlaybackView: View {
 
     var body: some View {
         bodyContent
+        .accessibilityIdentifier("libraryPlaybackView")
         .navigationTitle(navigationTitleText)
         #if os(iOS)
         .toolbarBackground(shouldUseInteractiveBackground ? Color.black : (usesDarkBackground ? AppTheme.lightBackground : Color.clear), for: .navigationBar)

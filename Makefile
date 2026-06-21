@@ -11,6 +11,8 @@
        k8s-build k8s-import-images k8s-deploy k8s-status k8s-logs k8s-teardown k8s-lint \
        argocd-install argocd-app argocd-ui argocd-password argocd-teardown
 
+SHELL := /bin/bash
+
 # ── Full suite ───────────────────────────────────────────────────────────
 test:
 	pytest
@@ -139,19 +141,21 @@ test-e2e-iphone: E2E_PROFILE = iphone
 test-e2e-iphone:
 	@rm -rf $(IPHONE_E2E_RESULT) test-results/iphone-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
+	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
 		-destination $(IPHONE_DESTINATION) \
 		-derivedDataPath $(IPHONE_DERIVED_DATA) \
 		-resultBundlePath $(IPHONE_E2E_RESULT) \
-		2>&1 | tail -30
+		2>&1 | tail -30 || status=$$?; \
 	python3 scripts/ios_e2e_report.py \
 		--xcresult $(IPHONE_E2E_RESULT) \
 		--output test-results/iphone-e2e-report.md \
 		--title "iPhone E2E Test Report" \
-		--screenshot-prefix iphone
-	@rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"
+		--screenshot-prefix iphone; \
+	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"; \
+	exit $$status
 
 # ── iPad E2E ─────────────────────────────────────────────────────────
 IPAD_DESTINATION ?= 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)'
@@ -162,19 +166,21 @@ test-e2e-ipad: E2E_PROFILE = ipados
 test-e2e-ipad:
 	@rm -rf $(IPAD_E2E_RESULT) test-results/ipad-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
+	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
 		-destination $(IPAD_DESTINATION) \
 		-derivedDataPath $(IPAD_DERIVED_DATA) \
 		-resultBundlePath $(IPAD_E2E_RESULT) \
-		2>&1 | tail -30
+		2>&1 | tail -30 || status=$$?; \
 	python3 scripts/ios_e2e_report.py \
 		--xcresult $(IPAD_E2E_RESULT) \
 		--output test-results/ipad-e2e-report.md \
 		--title "iPad E2E Test Report" \
-		--screenshot-prefix ipad
-	@rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"
+		--screenshot-prefix ipad; \
+	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"; \
+	exit $$status
 
 # ── tvOS E2E ─────────────────────────────────────────────────────────
 TVOS_DESTINATION ?= 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)'
@@ -185,19 +191,21 @@ test-e2e-tvos: E2E_PROFILE = tvos
 test-e2e-tvos:
 	@rm -rf $(TVOS_E2E_RESULT) test-results/tvos-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
+	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderTVUITests \
 		-destination $(TVOS_DESTINATION) \
 		-derivedDataPath $(TVOS_DERIVED_DATA) \
 		-resultBundlePath $(TVOS_E2E_RESULT) \
-		2>&1 | tail -30
+		2>&1 | tail -30 || status=$$?; \
 	python3 scripts/ios_e2e_report.py \
 		--xcresult $(TVOS_E2E_RESULT) \
 		--output test-results/tvos-e2e-report.md \
 		--title "tvOS E2E Test Report" \
-		--screenshot-prefix tvos
-	@rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"
+		--screenshot-prefix tvos; \
+	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"; \
+	exit $$status
 
 # ── Legacy alias ─────────────────────────────────────────────────────
 test-e2e-ios: test-e2e-iphone

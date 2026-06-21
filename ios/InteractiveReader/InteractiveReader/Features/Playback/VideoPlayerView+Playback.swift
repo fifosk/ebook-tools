@@ -39,11 +39,12 @@ extension VideoPlayerView {
 
     func handleUserInteraction() {
         #if os(tvOS)
-        // On tvOS, controls are shown only when user swipes down from subtitles while paused
-        // This function is called to reset auto-hide timer when controls are already visible
-        if showTVControls {
-            scheduleControlsAutoHide()
+        if !showTVControls {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showTVControls = true
+            }
         }
+        scheduleControlsAutoHide()
         #endif
     }
 

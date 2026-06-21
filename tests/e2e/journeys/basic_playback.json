@@ -23,6 +23,11 @@
       "skip_if_empty": true
     },
     {
+      "action": "exercise_player_remote",
+      "screenshot": "player_remote_checked",
+      "timeout": 10
+    },
+    {
       "action": "go_back",
       "screenshot": "returned_to_menu"
     }

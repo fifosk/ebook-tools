@@ -241,6 +241,7 @@ struct VideoPlayerView: View {
         ZStack {
             playerContent
         }
+        .accessibilityIdentifier("videoPlayerView")
         #if os(iOS)
         .overlay(alignment: .leading) {
             if isPhone {
