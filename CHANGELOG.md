@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.05
+
+- Advanced visible Apple app versioning to `v2026.06.22.05`.
+- Replaced the browse shell's erased `AnyView` section picker handoff with a typed SwiftUI `BrowseSectionPicker` shared by Jobs, Library, Search, and Settings.
+
 ### 2026.06.22.04
 
 - Advanced visible Apple app versioning to `v2026.06.22.04`.

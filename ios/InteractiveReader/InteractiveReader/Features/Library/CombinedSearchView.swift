@@ -11,7 +11,7 @@ struct CombinedSearchView: View {
     let onSelectJob: ((PipelineStatusResponse, PlaybackStartMode) -> Void)?
     let coverResolver: (LibraryItem) -> URL?
     let resumeUserId: String?
-    let sectionPicker: AnyView?
+    let sectionPicker: BrowseSectionPicker?
     let usesDarkBackground: Bool
 
     @State private var query: String = ""

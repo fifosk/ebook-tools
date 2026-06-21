@@ -18,7 +18,7 @@ struct LibraryView: View {
     let onSelect: ((LibraryItem, PlaybackStartMode) -> Void)?
     let coverResolver: (LibraryItem) -> URL?
     let resumeUserId: String?
-    let sectionPicker: AnyView?
+    let sectionPicker: BrowseSectionPicker?
     let onCollapseSidebar: (() -> Void)?
     let onSearchRequested: (() -> Void)?
     var usesDarkBackground: Bool = false

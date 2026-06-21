@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.04",
+            version: "2026.06.22.05",
             entries: [
+                AppChangelogEntry(
+                    id: "typed-browse-section-picker",
+                    title: "Browse header type erasure removed",
+                    detail: "Jobs, Library, Search, and Settings now share a typed SwiftUI section picker instead of passing erased header views through the browse shell."
+                ),
                 AppChangelogEntry(
                     id: "version-changelog-split",
                     title: "Version and changelog code split",

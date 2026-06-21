@@ -11,7 +11,7 @@ struct JobsView: View {
     let onRefresh: () -> Void
     let onSignOut: () -> Void
     let onSelect: ((PipelineStatusResponse, PlaybackStartMode) -> Void)?
-    let sectionPicker: AnyView?
+    let sectionPicker: BrowseSectionPicker?
     let resumeUserId: String?
     let onCollapseSidebar: (() -> Void)?
     let onSearchRequested: (() -> Void)?

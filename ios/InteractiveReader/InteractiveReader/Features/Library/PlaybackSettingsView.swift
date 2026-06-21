@@ -3,7 +3,7 @@ import SwiftUI
 struct PlaybackSettingsView: View {
     @EnvironmentObject private var appState: AppState
 
-    let sectionPicker: AnyView?
+    let sectionPicker: BrowseSectionPicker?
     let backTitle: String?
     let onBack: (() -> Void)?
     let usesDarkBackground: Bool
@@ -17,7 +17,7 @@ struct PlaybackSettingsView: View {
     @State private var testAlertMessage = ""
     @State private var backendRuntimeState: BackendRuntimeState = .idle
 
-    init(sectionPicker: AnyView? = nil, backTitle: String? = nil, onBack: (() -> Void)? = nil, usesDarkBackground: Bool = false) {
+    init(sectionPicker: BrowseSectionPicker? = nil, backTitle: String? = nil, onBack: (() -> Void)? = nil, usesDarkBackground: Bool = false) {
         self.sectionPicker = sectionPicker
         self.backTitle = backTitle
         self.onBack = onBack

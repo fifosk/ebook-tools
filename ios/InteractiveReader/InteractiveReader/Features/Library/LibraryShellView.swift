@@ -1,6 +1,59 @@
 import SwiftUI
 import OSLog
 
+enum BrowseSection: String, CaseIterable, Identifiable {
+    case jobs = "Jobs"
+    case library = "Library"
+    case settings = "Settings"
+    case search = "Search"
+
+    var id: String { rawValue }
+
+    var accessibilityIdentifier: String {
+        "browseSection\(rawValue)Button"
+    }
+
+    var systemImage: String {
+        switch self {
+        case .jobs:
+            return "tray.full"
+        case .library:
+            return "books.vertical"
+        case .settings:
+            return "gearshape"
+        case .search:
+            return "magnifyingglass"
+        }
+    }
+}
+
+struct BrowseSectionPicker: View {
+    @Binding var activeSection: BrowseSection
+    let usesDarkBackground: Bool
+    let colorScheme: ColorScheme
+    let onRefresh: () -> Void
+
+    var body: some View {
+        Picker("Browse", selection: $activeSection) {
+            ForEach(orderedSections) { section in
+                Label(section.rawValue, systemImage: section.systemImage)
+                    .accessibilityIdentifier(section.accessibilityIdentifier)
+                    .tag(section)
+            }
+        }
+        .browseSectionPickerStyle(
+            usesDarkBackground: usesDarkBackground,
+            colorScheme: colorScheme,
+            onRefresh: onRefresh
+        )
+        .accessibilityIdentifier("browseSectionPicker")
+    }
+
+    private var orderedSections: [BrowseSection] {
+        [.jobs, .library, .settings, .search]
+    }
+}
+
 struct LibraryShellView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var viewModel = LibraryViewModel()
@@ -20,32 +73,6 @@ struct LibraryShellView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.colorScheme) private var colorScheme
     private let logger = Logger(subsystem: "InteractiveReader", category: "LibraryShell")
-
-    private enum BrowseSection: String, CaseIterable, Identifiable {
-        case jobs = "Jobs"
-        case library = "Library"
-        case settings = "Settings"
-        case search = "Search"
-
-        var id: String { rawValue }
-
-        var accessibilityIdentifier: String {
-            "browseSection\(rawValue)Button"
-        }
-
-        var systemImage: String {
-            switch self {
-            case .jobs:
-                return "tray.full"
-            case .library:
-                return "books.vertical"
-            case .settings:
-                return "gearshape"
-            case .search:
-                return "magnifyingglass"
-            }
-        }
-    }
 
     private var isSplitLayout: Bool {
         #if !os(tvOS)
@@ -262,35 +289,13 @@ struct LibraryShellView: View {
         #endif
     }
 
-    private var sectionPicker: some View {
-        Picker("Browse", selection: $activeSection) {
-            ForEach(orderedSections) { section in
-                sectionPickerLabel(for: section)
-                    .accessibilityIdentifier(section.accessibilityIdentifier)
-                    .tag(section)
-            }
-        }
-        #if os(tvOS)
-        .pickerStyle(.automatic)
-        .onLongPressGesture(minimumDuration: 0.6) {
-            handleSectionRefresh()
-        }
-        #elseif os(iOS)
-        .pickerStyle(.segmented)
-        .colorScheme(usesDarkBackground ? .dark : colorScheme)
-        #else
-        .pickerStyle(.segmented)
-        #endif
-        .padding(.horizontal)
-        .accessibilityIdentifier("browseSectionPicker")
-    }
-
-    private var sectionPickerForHeader: AnyView? {
-        return AnyView(sectionPicker)
-    }
-
-    private var orderedSections: [BrowseSection] {
-        return [.jobs, .library, .settings, .search]
+    private var sectionPickerForHeader: BrowseSectionPicker {
+        BrowseSectionPicker(
+            activeSection: $activeSection,
+            usesDarkBackground: usesDarkBackground,
+            colorScheme: colorScheme,
+            onRefresh: handleSectionRefresh
+        )
     }
 
     private func coverURL(for item: LibraryItem) -> URL? {
@@ -496,9 +501,32 @@ struct LibraryShellView: View {
         #endif
     }
 
+}
+
+private extension View {
     @ViewBuilder
-    private func sectionPickerLabel(for section: BrowseSection) -> some View {
-        Label(section.rawValue, systemImage: section.systemImage)
+    func browseSectionPickerStyle(
+        usesDarkBackground: Bool,
+        colorScheme: ColorScheme,
+        onRefresh: @escaping () -> Void
+    ) -> some View {
+        #if os(tvOS)
+        self
+            .pickerStyle(.automatic)
+            .onLongPressGesture(minimumDuration: 0.6) {
+                onRefresh()
+            }
+            .padding(.horizontal)
+        #elseif os(iOS)
+        self
+            .pickerStyle(.segmented)
+            .colorScheme(usesDarkBackground ? .dark : colorScheme)
+            .padding(.horizontal)
+        #else
+        self
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+        #endif
     }
 }
 
