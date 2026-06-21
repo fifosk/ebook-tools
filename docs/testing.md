@@ -109,12 +109,27 @@ Device preflight currently sees `Fifo Ipad Pro` through CoreDevice:
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --device-preflight-only
 ```
 
-Latest simulator-verified release from June 22, 2026: `v2026.06.22.01` with
-bundle version `2026062201`. Previous attended iPad deployment proved the
-`2026.6.21` daily release train on the iPad M5 Pro; the `.01` build still needs
-an attended physical install. Keep the iPad awake and unlocked; for future
-attended installs, prefer USB-C, tap Trust when prompted, then re-enable network
-deployment from Xcode Devices and Simulators if needed.
+Latest attended iPad M5 deployment from June 22, 2026: `v2026.06.22.03`
+with marketing version `2026.6.22` and bundle version `2026062203`. The
+post-install `devicectl` verification reported:
+
+```text
+InteractiveReader   com.example.InteractiveReader   2026.6.22   2026062203
+```
+
+The app was built and installed from Xcode with the `InteractiveReader` scheme
+and `Fifo Ipad Pro` run destination, then relaunched outside the debugger with:
+
+```bash
+xcrun devicectl device process launch \
+  --device BC4A8986-54B2-543C-83CB-4B28F4F73BB2 \
+  --terminate-existing \
+  com.example.InteractiveReader
+```
+
+Keep the iPad awake and unlocked; for future attended installs, prefer USB-C,
+tap Trust when prompted, then re-enable network deployment from Xcode Devices
+and Simulators if needed.
 
 Generic iOS device signing currently fails before compilation:
 
@@ -133,12 +148,13 @@ the iOS/iPadOS app contract, so fix the App ID/profile rather than removing the
 entitlements.
 
 `-allowProvisioningUpdates` currently also reports `No Accounts: Add a new
-account in Accounts settings`, so command-line signing needs Xcode account state
-or profile refresh before it can match the earlier attended GUI deploy path. A
+account in Accounts settings`, so command-line signing still needs Xcode account
+state or profile refresh before it can match the attended GUI deploy path. A
 cached Xcode UserData profile named `iOS Team Provisioning Profile:
-com.example.InteractiveReader` exists locally and appears to contain the required
-entitlement keys, but automatic CLI signing is still rejecting the selected
-profile. Treat this as an Xcode account/profile refresh gate.
+com.example.InteractiveReader` contains the required entitlement keys, and the
+local `iOS Team Provisioning Profile: *` wildcard can cover the notification
+service extension. Treat CLI failures here as an Xcode account/profile refresh
+gate, not as a reason to remove app entitlements.
 
 To inspect local cached profile capability shape without printing secrets, run:
 
@@ -147,6 +163,17 @@ python3 scripts/ios_profile_capability_check.py \
   --bundle-id com.example.InteractiveReader \
   --entitlements ios/InteractiveReader/InteractiveReader/Supporting/InteractiveReader.entitlements
 ```
+
+The shared pipeline signing contract should pass before physical deploy:
+
+```bash
+python3 scripts/check_app_signing_contract.py --app ebook-tools --profile ipad
+```
+
+This contract checks both `~/Library/MobileDevice/Provisioning Profiles` and
+Xcode-managed profiles under `~/Library/Developer/Xcode/UserData/Provisioning
+Profiles`, including plain `*` wildcard profiles for embedded extension bundle
+ids.
 
 - After every pushed Apple app checkpoint, refresh the Mac Studio runtime clone
   and recheck source sync:
