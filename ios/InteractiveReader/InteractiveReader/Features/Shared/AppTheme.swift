@@ -35,7 +35,7 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.09"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.10"
     }
 
     static var displayLabel: String {
@@ -93,34 +93,19 @@ struct AppVersionBadge: View {
     }
 
     var body: some View {
-        versionText
-            .frame(
-                minWidth: badgeTextWidth,
-                idealWidth: badgeTextWidth,
-                maxWidth: badgeTextWidth,
-                minHeight: badgeHeight,
-                idealHeight: badgeHeight,
-                maxHeight: badgeHeight,
-                alignment: .center
-            )
-            .padding(.horizontal, compact ? 6 : 8)
-            .background(badgeBackground, in: RoundedRectangle(cornerRadius: compact ? 5 : 8, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: compact ? 5 : 8, style: .continuous)
-                    .stroke(badgeBorder, lineWidth: 1)
-            )
-            .frame(
-                minWidth: badgeWidth,
-                idealWidth: badgeWidth,
-                maxWidth: badgeWidth,
-                minHeight: badgeHeight,
-                idealHeight: badgeHeight,
-                maxHeight: badgeHeight,
-                alignment: .center
-            )
-            .fixedSize(horizontal: true, vertical: true)
-            .accessibilityLabel("Version \(AppVersion.release)")
-            .accessibilityIdentifier("appVersionBadge")
+        ZStack {
+            RoundedRectangle(cornerRadius: compact ? 5 : 8, style: .continuous)
+                .fill(badgeBackground)
+            RoundedRectangle(cornerRadius: compact ? 5 : 8, style: .continuous)
+                .stroke(badgeBorder, lineWidth: 1)
+            versionText
+                .frame(width: badgeTextWidth, height: badgeHeight, alignment: .center)
+        }
+        .frame(width: badgeWidth, height: badgeHeight, alignment: .center)
+        .clipped()
+        .fixedSize(horizontal: true, vertical: true)
+        .accessibilityLabel("Version \(AppVersion.release)")
+        .accessibilityIdentifier("appVersionBadge")
     }
 
     private var versionText: some View {
@@ -131,7 +116,6 @@ struct AppVersionBadge: View {
             .minimumScaleFactor(compact ? 1 : 0.72)
             .allowsTightening(!compact)
             .foregroundStyle(badgeForeground)
-            .frame(minWidth: badgeTextWidth, idealWidth: badgeTextWidth, maxWidth: badgeTextWidth, alignment: .center)
             .fixedSize(horizontal: true, vertical: true)
             .layoutPriority(20)
             .dynamicTypeSize(...DynamicTypeSize.large)
@@ -188,8 +172,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-21",
             dateLabel: "June 21, 2026",
-            version: "2026.06.21.09",
+            version: "2026.06.21.10",
             entries: [
+                AppChangelogEntry(
+                    id: "explicit-version-badge-frame",
+                    title: "Version badge frame hardened",
+                    detail: "Version badges now render inside an explicit fixed-size shape so cramped iPad headers cannot reflow the release text into vertical characters."
+                ),
                 AppChangelogEntry(
                     id: "settings-section-refactor",
                     title: "Settings review surface cleaned up",

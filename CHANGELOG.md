@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-21
 
+### 2026.06.21.10
+
+- Advanced visible Apple app versioning to `v2026.06.21.10`.
+- Hardened the in-app version badge so iPad browse/login headers render the release text inside an explicit fixed-size shape instead of accepting narrow text proposals.
+- Kept the shared pipeline rule that simulator runtimes must match detected physical device OS versions across ebook-tools and Finance Review.
+
 ### 2026.06.21.09
 
 - Advanced visible Apple app versioning to `v2026.06.21.09`.
