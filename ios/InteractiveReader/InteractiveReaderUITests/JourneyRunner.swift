@@ -115,7 +115,7 @@ final class JourneyRunner {
 
     private func doNavigateTab(_ step: JourneyStep) {
         let tabName = step.tab ?? "Jobs"
-        let button = app.buttons[tabName]
+        let button = tabButton(named: tabName, timeout: 5)
         if button.waitForExistence(timeout: 5) {
             selectElement(button)
         }
@@ -243,7 +243,7 @@ final class JourneyRunner {
     private func doAssertVisible(_ step: JourneyStep) {
         guard let identifier = step.selector else { return }
         let timeout = TimeInterval(step.timeout ?? 10)
-        let element = app.otherElements[identifier]
+        let element = element(withIdentifier: identifier)
         XCTAssertTrue(
             element.waitForExistence(timeout: timeout),
             "\(identifier) should be visible"
@@ -259,6 +259,15 @@ final class JourneyRunner {
 
     private func element(withIdentifier identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier]
+    }
+
+    private func tabButton(named name: String, timeout: TimeInterval) -> XCUIElement {
+        let predicate = NSPredicate(format: "label == %@", name)
+        let segmentedButton = app.segmentedControls.buttons.matching(predicate).firstMatch
+        if segmentedButton.waitForExistence(timeout: min(timeout, 2)) {
+            return segmentedButton
+        }
+        return app.buttons.matching(predicate).firstMatch
     }
 
     /// Platform-safe element activation: `.tap()` on iOS, remote select on tvOS.

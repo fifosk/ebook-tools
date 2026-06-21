@@ -9,6 +9,16 @@
     },
     {
       "action": "navigate_tab",
+      "tab": "Search",
+      "screenshot": "search_tab"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "combinedSearchPromptView",
+      "timeout": 10
+    },
+    {
+      "action": "navigate_tab",
       "tab": "Jobs",
       "screenshot": "jobs_tab"
     },
