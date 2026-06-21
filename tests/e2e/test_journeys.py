@@ -7,7 +7,12 @@ and runs each one as a parametrized test case.
 from __future__ import annotations
 
 import pytest
-from playwright.sync_api import Page
+
+playwright_sync = pytest.importorskip(
+    "playwright.sync_api",
+    reason="Playwright is required for browser E2E tests.",
+)
+Page = playwright_sync.Page
 
 from .journey_runner import WebJourneyRunner, get_journey_names, load_journey
 

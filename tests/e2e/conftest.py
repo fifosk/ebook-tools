@@ -10,7 +10,14 @@ from dotenv import load_dotenv
 load_dotenv()  # picks up .env at repo root (gitignored)
 
 import pytest
-from playwright.sync_api import Browser, BrowserContext, Page
+
+playwright_sync = pytest.importorskip(
+    "playwright.sync_api",
+    reason="Playwright is required for browser E2E tests.",
+)
+Browser = playwright_sync.Browser
+BrowserContext = playwright_sync.BrowserContext
+Page = playwright_sync.Page
 
 # Type alias from pytest-playwright for the new_context factory fixture
 try:
