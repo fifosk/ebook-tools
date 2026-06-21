@@ -369,7 +369,6 @@
 		A1B2C3D4E5F60718293A4E5F /* OfflineMediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineMediaStore.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4E60 /* OfflineSyncBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineSyncBadge.swift; sourceTree = "<group>"; };
 		A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackResumeStore.swift; sourceTree = "<group>"; };
-		A5B6C7D8E9F0123456789A11 /* InteractiveReader.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = InteractiveReader.entitlements; sourceTree = "<group>"; };
 		A76797FB5F7CFF0514E63856 /* InteractivePlayerViewModel+ReadingBed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerViewModel+ReadingBed.swift"; sourceTree = "<group>"; };
 		ACED9DB5693FC012D964C7C0 /* JobPlaybackModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobPlaybackModels.swift; sourceTree = "<group>"; };
 		B2F0F7C9A1B24E3F9C2D1111 /* PlaybackBookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackBookmarkStore.swift; sourceTree = "<group>"; };
@@ -751,7 +750,6 @@
 			children = (
 				6FDC3A2B02F914D000A1D9A1 /* Info.plist */,
 				FF4AB40AF77346D8BFBD4677 /* Info-tvOS.plist */,
-				A5B6C7D8E9F0123456789A11 /* InteractiveReader.entitlements */,
 			);
 			path = Supporting;
 			sourceTree = "<group>";
