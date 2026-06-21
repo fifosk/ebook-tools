@@ -35,7 +35,7 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.04"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.05"
     }
 
     static var displayLabel: String {
@@ -85,26 +85,49 @@ enum AppVersion {
 
 struct AppVersionBadge: View {
     let compact: Bool
+    let usesDarkBackground: Bool
 
-    init(compact: Bool = false) {
+    init(compact: Bool = false, usesDarkBackground: Bool = true) {
         self.compact = compact
+        self.usesDarkBackground = usesDarkBackground
     }
 
     var body: some View {
+        versionText
+            .padding(.horizontal, 8)
+            .frame(width: compact ? 118 : 170, height: compact ? 26 : 28, alignment: .center)
+            .background(badgeBackground, in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(badgeBorder, lineWidth: 1)
+            )
+            .fixedSize(horizontal: true, vertical: false)
+            .accessibilityLabel("Version \(AppVersion.release)")
+            .accessibilityIdentifier("appVersionBadge")
+    }
+
+    private var versionText: some View {
         Text(compact ? AppVersion.compactDisplayLabel : AppVersion.displayLabel)
             .font(versionFont)
             .monospacedDigit()
             .lineLimit(1)
-            .minimumScaleFactor(0.85)
+            .minimumScaleFactor(0.9)
             .allowsTightening(false)
-            .frame(minWidth: compact ? 76 : 124, minHeight: 20)
-            .padding(.horizontal, 6)
-            .background(Color.white.opacity(0.08), in: Capsule())
-            .foregroundStyle(.secondary)
+            .foregroundStyle(badgeForeground)
             .fixedSize(horizontal: true, vertical: false)
-            .layoutPriority(10)
-            .accessibilityLabel("Version \(AppVersion.release)")
-            .accessibilityIdentifier("appVersionBadge")
+            .layoutPriority(20)
+    }
+
+    private var badgeBackground: Color {
+        usesDarkBackground ? Color.white.opacity(0.14) : Color.primary.opacity(0.08)
+    }
+
+    private var badgeBorder: Color {
+        usesDarkBackground ? Color.white.opacity(0.12) : Color.primary.opacity(0.08)
+    }
+
+    private var badgeForeground: Color {
+        usesDarkBackground ? Color.white.opacity(0.82) : .secondary
     }
 
     private var versionFont: Font {
@@ -134,8 +157,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-21",
             dateLabel: "June 21, 2026",
-            version: "2026.06.21.04",
+            version: "2026.06.21.05",
             entries: [
+                AppChangelogEntry(
+                    id: "version-layout-defensive-rows",
+                    title: "Version layout hardened",
+                    detail: "Version text now owns its ideal width before the pill is drawn, and changelog headers no longer squeeze full version labels beside the date."
+                ),
                 AppChangelogEntry(
                     id: "version-pill-owns-width",
                     title: "Version badge no longer squeezes",
@@ -198,14 +226,9 @@ struct AppChangelogSummaryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(AppVersion.displayLabel)
-                    .font(.headline)
-                    .foregroundStyle(primaryStyle)
-                Spacer(minLength: 8)
-                Text(AppChangelog.days.first?.dateLabel ?? "Latest")
-                    .font(.caption)
-                    .foregroundStyle(secondaryStyle)
+            ViewThatFits(in: .horizontal) {
+                changelogTitleRow
+                changelogTitleStack
             }
 
             if showBuildMetadata {
@@ -245,6 +268,39 @@ struct AppChangelogSummaryView: View {
         .accessibilityIdentifier("appChangelogSummaryView")
     }
 
+    private var changelogTitleRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            changelogVersionText
+            Spacer(minLength: 8)
+            changelogDateText
+        }
+    }
+
+    private var changelogTitleStack: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            changelogVersionText
+            changelogDateText
+        }
+    }
+
+    private var changelogVersionText: some View {
+        Text(AppVersion.displayLabel)
+            .font(.headline)
+            .monospacedDigit()
+            .foregroundStyle(primaryStyle)
+            .lineLimit(1)
+            .minimumScaleFactor(0.9)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var changelogDateText: some View {
+        Text(AppChangelog.days.first?.dateLabel ?? "Latest")
+            .font(.caption)
+            .foregroundStyle(secondaryStyle)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
     private var displayEntries: [AppChangelogEntry] {
         let entries = AppChangelog.days.first?.entries ?? []
         guard let maxEntries else { return entries }
@@ -260,10 +316,10 @@ struct AppChangelogSummaryView: View {
     }
 
     private var backgroundStyle: Color {
-        usesDarkBackground ? Color.white.opacity(0.06) : Color.secondary.opacity(0.08)
+        usesDarkBackground ? Color.white.opacity(0.07) : Color(.secondarySystemBackground)
     }
 
     private var borderStyle: Color {
-        usesDarkBackground ? Color.white.opacity(0.12) : Color.secondary.opacity(0.18)
+        usesDarkBackground ? Color.white.opacity(0.12) : Color(.separator).opacity(0.4)
     }
 }

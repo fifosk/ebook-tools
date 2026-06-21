@@ -22,18 +22,31 @@ struct BrowseActionRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            brandLabel
-            cloudStatusIcon
-            syncButton
-            refreshButton
-            Spacer()
-            accountMenu
+        VStack(alignment: .leading, spacing: 8) {
+            ViewThatFits(in: .horizontal) {
+                topRow(showsUserLabel: true)
+                topRow(showsUserLabel: false)
+            }
+
+            HStack(spacing: 10) {
+                cloudStatusLabel
+                syncButton
+                refreshButton
+                Spacer(minLength: 0)
+            }
         }
         .padding(.horizontal)
         #if os(tvOS)
         .font(PlatformTypography.sectionHeaderFont)
         #endif
+    }
+
+    private func topRow(showsUserLabel: Bool) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            brandLabel
+            Spacer(minLength: 12)
+            accountMenu(showsUserLabel: showsUserLabel)
+        }
     }
 
     private var brandLabel: some View {
@@ -46,18 +59,26 @@ struct BrowseActionRow: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .foregroundStyle(usesDarkListBackground ? .white : .primary)
-                AppVersionBadge(compact: true)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .accessibilityIdentifier("browseActionBrandLabel")
+                AppVersionBadge(compact: true, usesDarkBackground: usesDarkListBackground)
             }
         }
-        .frame(minWidth: 142, alignment: .leading)
-        .layoutPriority(10)
+        .fixedSize(horizontal: true, vertical: false)
+        .layoutPriority(20)
     }
 
-    private var cloudStatusIcon: some View {
-        Image(systemName: iCloudStatus.isAvailable ? "icloud" : "icloud.slash")
-            .font(.system(size: iconSize, weight: .semibold))
-            .foregroundStyle(cloudStatusColor)
-            .accessibilityLabel(statusLabel)
+    private var cloudStatusLabel: some View {
+        HStack(spacing: 6) {
+            Image(systemName: iCloudStatus.isAvailable ? "icloud" : "icloud.slash")
+                .font(.system(size: iconSize, weight: .semibold))
+            Text(statusLabel)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(cloudStatusColor)
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityLabel(statusLabel)
     }
 
     @ViewBuilder
@@ -88,7 +109,7 @@ struct BrowseActionRow: View {
         .tint(usesDarkListBackground ? .white : nil)
     }
 
-    private var accountMenu: some View {
+    private func accountMenu(showsUserLabel: Bool) -> some View {
         Menu {
             if let onSync {
                 Button(action: onSync) {
@@ -100,11 +121,14 @@ struct BrowseActionRow: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "person.crop.circle")
-                Text(userLabel)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                if showsUserLabel {
+                    Text(userLabel)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
         }
         .tint(usesDarkListBackground ? .white : nil)
+        .accessibilityLabel(userLabel)
     }
 }
