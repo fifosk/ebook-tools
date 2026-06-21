@@ -827,13 +827,7 @@ private struct CombinedSearchView: View {
         VStack(spacing: 12) {
             header
             List {
-                if trimmedQuery.isEmpty {
-                    Text("Type to search across jobs and library items.")
-                        .foregroundStyle(usesDarkListBackground ? .white.opacity(0.7) : .secondary)
-                } else if results.isEmpty {
-                    Text("No matches found.")
-                        .foregroundStyle(usesDarkListBackground ? .white.opacity(0.7) : .secondary)
-                } else {
+                if !trimmedQuery.isEmpty {
                     ForEach(results) { result in
                         switch result {
                         case let .library(item):
@@ -846,6 +840,9 @@ private struct CombinedSearchView: View {
             }
             .listStyle(.plain)
             .platformListBackground(usesDark: usesDarkListBackground, colorScheme: colorScheme)
+            .overlay(alignment: .center) {
+                searchOverlay
+            }
         }
         #if os(iOS)
         .background(usesDarkListBackground ? AppTheme.lightBackground : Color.clear)
@@ -870,6 +867,27 @@ private struct CombinedSearchView: View {
 
     private var loweredQuery: String {
         trimmedQuery.lowercased()
+    }
+
+    @ViewBuilder
+    private var searchOverlay: some View {
+        if trimmedQuery.isEmpty {
+            ContentUnavailableView {
+                Label("Search jobs and library", systemImage: "magnifyingglass")
+            } description: {
+                Text("Type to search across jobs and library items.")
+            }
+            .foregroundStyle(usesDarkListBackground ? .white : .primary)
+            .accessibilityIdentifier("combinedSearchPromptView")
+        } else if results.isEmpty {
+            ContentUnavailableView {
+                Label("No matches found", systemImage: "magnifyingglass")
+            } description: {
+                Text("Try a different search term.")
+            }
+            .foregroundStyle(usesDarkListBackground ? .white : .primary)
+            .accessibilityIdentifier("combinedSearchEmptyView")
+        }
     }
 
     private var header: some View {
