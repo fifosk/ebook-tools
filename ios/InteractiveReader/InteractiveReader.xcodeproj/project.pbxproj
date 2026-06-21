@@ -299,6 +299,8 @@
 		C43EB42D8B36F9455229F86B /* SessionTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8F9D50C0ADA14E7FF452149 /* SessionTokenStore.swift */; };
 		A1B34DDD0D222EEBE93DDF41 /* PlaybackSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F21915359C179302A4B8BD /* PlaybackSettingsView.swift */; };
 		5B9B874879D537395E9E0794 /* PlaybackSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F21915359C179302A4B8BD /* PlaybackSettingsView.swift */; };
+		5A46188DE7522A19F5404440 /* CombinedSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A9CC0B7446511FA56B84DB /* CombinedSearchView.swift */; };
+		68B5CE85E0C2F1D119093A54 /* CombinedSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A9CC0B7446511FA56B84DB /* CombinedSearchView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -457,6 +459,7 @@
 		B716259E6CD7BE42AA61D260 /* GlobalKeyboardShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GlobalKeyboardShortcuts.swift"; sourceTree = "<group>"; };
 		B8F9D50C0ADA14E7FF452149 /* SessionTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SessionTokenStore.swift"; sourceTree = "<group>"; };
 		B2F21915359C179302A4B8BD /* PlaybackSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlaybackSettingsView.swift"; sourceTree = "<group>"; };
+		A1A9CC0B7446511FA56B84DB /* CombinedSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CombinedSearchView.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -525,6 +528,7 @@
 				73A95624331046EE991E094F /* LibraryViewModel.swift */,
 				11376CDF07724238B0949959 /* LibraryRowView.swift */,
 				B2F21915359C179302A4B8BD /* PlaybackSettingsView.swift */,
+				A1A9CC0B7446511FA56B84DB /* CombinedSearchView.swift */,
 			);
 			path = Library;
 			sourceTree = "<group>";
@@ -1200,6 +1204,7 @@
 				37965875C3CCAB1C5BE2F3F2 /* GlobalKeyboardShortcuts.swift in Sources */,
 				2231456ECB14B8B0183A7650 /* SessionTokenStore.swift in Sources */,
 				A1B34DDD0D222EEBE93DDF41 /* PlaybackSettingsView.swift in Sources */,
+				5A46188DE7522A19F5404440 /* CombinedSearchView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1343,6 +1348,7 @@
 				1C02074846E100251E0390A2 /* GlobalKeyboardShortcuts.swift in Sources */,
 				C43EB42D8B36F9455229F86B /* SessionTokenStore.swift in Sources */,
 				5B9B874879D537395E9E0794 /* PlaybackSettingsView.swift in Sources */,
+				68B5CE85E0C2F1D119093A54 /* CombinedSearchView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
