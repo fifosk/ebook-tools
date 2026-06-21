@@ -52,6 +52,23 @@ ebook-tools-owned authenticated XCUITest journeys and report generation.
 Use `--signed-build-only` to check that physical-device provisioning gate before
 attempting an install.
 
+Authenticated Apple journeys should also be launched through the shared
+manifest wrapper when dogfooding the home pipeline:
+
+```bash
+cd /Users/fifo/Projects/home/apple-device-app-pipeline
+python3 scripts/run_app_owned_journey.py --app ebook-tools --list
+python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados --dry-run
+python3 scripts/run_app_owned_journey.py --app ebook-tools --profile tvos --use-remote-env
+```
+
+The ebook-tools app manifest allowlists only `E2E_USERNAME`, `E2E_PASSWORD`,
+and `E2E_API_BASE_URL` from the Mac Studio runtime `.env`. The wrapper redacts
+sensitive values in its output and writes profile-scoped XCUITest config under
+`/tmp/apple-device-app-pipeline/ebook-tools/{profile}/`. Real iPhone, iPad, and
+Apple TV installs remain attended; simulator journeys may use injected test
+credentials.
+
 ### Quick Start
 
 ```bash
