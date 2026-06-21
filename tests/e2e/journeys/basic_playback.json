@@ -13,6 +13,11 @@
       "timeout": 10
     },
     {
+      "action": "assert_visible",
+      "selector": "appVersionBadge",
+      "timeout": 10
+    },
+    {
       "action": "navigate_tab",
       "tab": "Search",
       "selector": "browseSectionSearchButton",
