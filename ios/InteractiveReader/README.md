@@ -35,7 +35,7 @@ The client streams library files from `/api/library/media/{job_id}/file/...` and
 
 ### Authentication
 
-The app uses `/api/auth/login` and stores the bearer token locally. Media URLs append `access_token` in the query string for streaming.
+The app uses `/api/auth/login` and stores the bearer token in the device Keychain. Existing installs migrate the older UserDefaults token on first launch. Media URLs append `access_token` in the query string for streaming because AVPlayer cannot attach custom headers to all media requests.
 
 ## Limitations / TODOs
 

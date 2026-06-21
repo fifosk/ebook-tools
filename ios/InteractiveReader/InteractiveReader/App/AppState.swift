@@ -7,14 +7,20 @@ final class AppState: ObservableObject {
     #else
     @AppStorage("apiBaseURL") var apiBaseURLString: String = "https://api.langtools.fifosk.synology.me"
     #endif
-    @AppStorage("authToken") private var storedToken: String = ""
     @AppStorage("lastUsername") var lastUsername: String = ""
 
+    private let sessionTokenStore: SessionTokenStore
+    @Published private var storedToken: String = ""
     @Published private(set) var session: SessionStatusResponse?
     /// Whether we're actively validating a stored session token
     /// This is a brief operation so startup can fall back to login quickly.
     @Published private(set) var isRestoring: Bool = false
     @Published var playerKeyboardShortcutsActive: Bool = false
+
+    init(sessionTokenStore: SessionTokenStore = .shared) {
+        self.sessionTokenStore = sessionTokenStore
+        self.storedToken = sessionTokenStore.loadToken() ?? ""
+    }
 
     var apiBaseURL: URL? {
         // Allow XCUITest to override the API URL via launch environment
@@ -62,12 +68,14 @@ final class AppState: ObservableObject {
 
     func updateSession(_ session: SessionStatusResponse) {
         storedToken = session.token
+        sessionTokenStore.saveToken(session.token)
         self.session = session
         syncResumeStoreConfiguration()
     }
 
     func signOut() {
         storedToken = ""
+        sessionTokenStore.deleteToken()
         session = nil
         PlaybackResumeStore.shared.configureAPI(nil)
     }
