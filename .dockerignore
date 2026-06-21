@@ -44,6 +44,12 @@ config/.settings/
 
 # iOS/tvOS (not needed for Docker)
 ios/
+build/
+DerivedData/
+*.xcresult
+*.xcarchive
+*.noindex/
+XcodeBuildArtifacts/
 
 # Tests (not needed in production image)
 tests/
