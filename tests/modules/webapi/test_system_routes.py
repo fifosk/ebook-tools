@@ -38,8 +38,13 @@ def test_public_runtime_descriptor_returns_non_secret_contract() -> None:
     assert payload["healthPath"] == "/_health"
     assert payload["auth"]["loginPath"] == "/api/auth/login"
     assert payload["auth"]["sessionPath"] == "/api/auth/session"
-    assert payload["clientConfig"]["sessionTokenStorage"] == "client-keychain"
+    assert payload["clientConfig"]["sessionTokenStorage"] == "device-keychain"
+    assert payload["clientConfig"]["legacyTokenMigration"] == "userdefaults-authToken"
     assert "INTERACTIVE_READER_API_BASE_URL" in payload["clientConfig"]["apiBaseUrlEnvironment"]
+    assert payload["clientConfig"]["credentialEnvironment"] == [
+        "E2E_USERNAME",
+        "E2E_PASSWORD",
+    ]
 
     def walk_keys(value: object) -> list[str]:
         if isinstance(value, dict):
@@ -55,7 +60,11 @@ def test_public_runtime_descriptor_returns_non_secret_contract() -> None:
             return keys
         return []
 
-    allowed_sensitive_metadata_keys = {"tokentransport", "sessiontokenstorage"}
+    allowed_sensitive_metadata_keys = {
+        "legacytokenmigration",
+        "sessiontokenstorage",
+        "tokentransport",
+    }
     sensitive_markers = ("password", "secret", "token")
     exposed_keys = [key.lower() for key in walk_keys(payload)]
     assert not any(

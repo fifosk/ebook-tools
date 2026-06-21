@@ -629,7 +629,12 @@ def _runtime_descriptor(app: FastAPI) -> dict[str, object]:
                 "EBOOK_TOOLS_API_BASE_URL",
                 "E2E_API_BASE_URL",
             ],
-            "sessionTokenStorage": "client-keychain",
+            "credentialEnvironment": [
+                "E2E_USERNAME",
+                "E2E_PASSWORD",
+            ],
+            "sessionTokenStorage": "device-keychain",
+            "legacyTokenMigration": "userdefaults-authToken",
         },
     }
 
