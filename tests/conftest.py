@@ -1,4 +1,7 @@
+import os
 import re
+import tempfile
+from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import patch
 
@@ -10,6 +13,43 @@ pytest_plugins = ["tests.e2e.report"]
 # Configure HuggingFace cache to use external SSD BEFORE any HF imports
 # This must happen at module load time, before pytest collects tests
 from modules.core.storage_config import configure_hf_environment
+
+
+_TEST_HF_CACHE_PATH = Path(tempfile.gettempdir()) / "ebook-tools-test-hf-cache"
+
+
+def _is_writable_directory(path: Path) -> bool:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(prefix=".write-check-", dir=path):
+            pass
+    except OSError:
+        return False
+    return True
+
+
+def _prepare_hf_cache_for_tests() -> None:
+    """Use a writable local HF cache when workstation env points at offline media."""
+    configured_path = os.environ.get("EBOOK_HF_CACHE_PATH")
+    if configured_path and _is_writable_directory(Path(configured_path)):
+        return
+
+    fallback_path = Path(
+        os.environ.get("EBOOK_TEST_HF_CACHE_PATH", str(_TEST_HF_CACHE_PATH))
+    )
+    if not _is_writable_directory(fallback_path):
+        return
+
+    os.environ["EBOOK_HF_CACHE_PATH"] = str(fallback_path)
+
+    for key in ("HF_HOME", "HUGGINGFACE_HUB_CACHE", "HF_DATASETS_CACHE"):
+        existing_path = os.environ.get(key)
+        if existing_path and _is_writable_directory(Path(existing_path)):
+            continue
+        os.environ.pop(key, None)
+
+
+_prepare_hf_cache_for_tests()
 configure_hf_environment()
 
 

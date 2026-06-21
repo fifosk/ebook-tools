@@ -117,11 +117,48 @@ class TestHuggingFaceEnvironment:
         # Should keep existing value
         assert os.environ["HF_HOME"] == str(existing_path)
 
+    def test_pytest_hf_cache_falls_back_when_configured_path_unusable(
+        self, monkeypatch, tmp_path
+    ):
+        """Pytest should use a local cache when workstation media is offline."""
+        import tests.conftest as root_conftest
+
+        blocked_path = tmp_path / "offline-volume"
+        blocked_path.write_text("not a directory", encoding="utf-8")
+        fallback_path = tmp_path / "fallback-hf-cache"
+
+        monkeypatch.setenv("EBOOK_HF_CACHE_PATH", str(blocked_path / "huggingface"))
+        monkeypatch.setenv("HF_HOME", str(blocked_path / "hf-home"))
+        monkeypatch.setenv("HUGGINGFACE_HUB_CACHE", str(blocked_path / "hub"))
+        monkeypatch.setenv("HF_DATASETS_CACHE", str(blocked_path / "datasets"))
+        monkeypatch.setenv("EBOOK_TEST_HF_CACHE_PATH", str(fallback_path))
+
+        root_conftest._prepare_hf_cache_for_tests()
+
+        assert os.environ["EBOOK_HF_CACHE_PATH"] == str(fallback_path)
+        assert fallback_path.exists()
+        assert "HF_HOME" not in os.environ
+        assert "HUGGINGFACE_HUB_CACHE" not in os.environ
+        assert "HF_DATASETS_CACHE" not in os.environ
+
+    def test_pytest_hf_cache_keeps_configured_path_when_writable(
+        self, monkeypatch, tmp_path
+    ):
+        """Writable explicit cache paths should remain the test cache."""
+        import tests.conftest as root_conftest
+
+        configured_path = tmp_path / "configured-hf-cache"
+        monkeypatch.setenv("EBOOK_HF_CACHE_PATH", str(configured_path))
+
+        root_conftest._prepare_hf_cache_for_tests()
+
+        assert os.environ["EBOOK_HF_CACHE_PATH"] == str(configured_path)
+
 
 class TestExternalSSDConfiguration:
     """Tests for external SSD storage configuration."""
 
-    def test_external_ssd_paths_configured(self, monkeypatch):
+    def test_external_ssd_paths_configured(self, monkeypatch, tmp_path):
         """Test configuration with external SSD paths like /Volumes/WD-1TB."""
         from modules.core.storage_config import (
             get_hf_cache_path,
@@ -130,12 +167,11 @@ class TestExternalSSDConfiguration:
         )
 
         # Simulate external SSD configuration
-        base_path = "/Volumes/WD-1TB/ml-models"
+        base_path = tmp_path / "Volumes" / "WD-1TB" / "ml-models"
         monkeypatch.setenv("EBOOK_PIPER_MODELS_PATH", f"{base_path}/piper-voices")
         monkeypatch.setenv("EBOOK_WHISPERX_MODELS_PATH", f"{base_path}/whisperx")
         monkeypatch.setenv("EBOOK_HF_CACHE_PATH", f"{base_path}/huggingface")
 
-        # Note: paths won't exist in test environment, but the path strings are correct
         piper_path = get_piper_models_path()
         whisperx_path = get_whisperx_models_path()
         hf_path = get_hf_cache_path()

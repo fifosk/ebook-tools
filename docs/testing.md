@@ -442,6 +442,11 @@ tests:
 
 - **HuggingFace environment** - Configures the HF cache directory at module
   load time (before pytest collects tests) via `configure_hf_environment()`.
+  If the workstation environment points `EBOOK_HF_CACHE_PATH` at an offline or
+  unwritable external volume, pytest falls back to a local temporary cache
+  (`/tmp/ebook-tools-test-hf-cache` by default, or `EBOOK_TEST_HF_CACHE_PATH`).
+  This fallback is test-only; production API/container startup should keep
+  failing visibly when model storage is misconfigured.
 
 #### PipelineInput Stubs
 
