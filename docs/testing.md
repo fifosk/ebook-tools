@@ -77,6 +77,15 @@ parallel dogfood runs.
 
 Current iPad M5 deployment gate:
 
+The authenticated iPadOS simulator journey is green through the shared pipeline:
+
+```bash
+python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados --use-remote-env
+```
+
+Latest result: `InteractiveReaderUITests/JourneyTests/testJourney` passed on the
+`iPad Pro 13-inch (M5)` simulator with 1 test, 0 failures.
+
 Device preflight currently reports `Fifo Ipad Pro` paired but unavailable to
 Xcode/CoreDevice:
 
@@ -102,6 +111,14 @@ include Push Notifications, Sign in with Apple, or iCloud/CloudKit. Those
 capabilities are declared by `InteractiveReader.entitlements` and are part of
 the iOS/iPadOS app contract, so fix the App ID/profile rather than removing the
 entitlements.
+
+`-allowProvisioningUpdates` currently also reports `No Accounts: Add a new
+account in Accounts settings`, so command-line signing needs Xcode account state
+or profile refresh before it can match the earlier attended GUI deploy path. A
+cached Xcode UserData profile named `iOS Team Provisioning Profile:
+com.example.InteractiveReader` exists locally and appears to contain the required
+entitlement keys, but automatic CLI signing is still rejecting the selected
+profile. Treat this as an Xcode account/profile refresh gate.
 
 - After every pushed Apple app checkpoint, refresh the Mac Studio runtime clone
   and recheck source sync:
