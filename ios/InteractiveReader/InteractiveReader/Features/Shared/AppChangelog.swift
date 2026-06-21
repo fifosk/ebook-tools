@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.06",
+            version: "2026.06.22.07",
             entries: [
+                AppChangelogEntry(
+                    id: "typed-player-lifecycle-chain",
+                    title: "Player lifecycle chain typed",
+                    detail: "The interactive player layout now uses staged SwiftUI modifier chains with named lifecycle handlers instead of repeatedly erasing and rebuilding the player stack."
+                ),
                 AppChangelogEntry(
                     id: "typed-player-header-overlay",
                     title: "Player header overlay typed",

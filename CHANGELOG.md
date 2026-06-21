@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.07
+
+- Advanced visible Apple app versioning to `v2026.06.22.07`.
+- Replaced the interactive player layout's erased lifecycle `AnyView` chain with staged typed SwiftUI modifiers and named playback/header handlers.
+
 ### 2026.06.22.06
 
 - Advanced visible Apple app versioning to `v2026.06.22.06`.

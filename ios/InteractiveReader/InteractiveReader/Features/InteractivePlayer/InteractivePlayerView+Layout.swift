@@ -21,282 +21,333 @@ extension InteractivePlayerView {
     }
 
     private func playerContentWrapped() -> some View {
-        let viewModel = self.viewModel
-        let audioCoordinator = self.audioCoordinator
-        var view = AnyView(playerStack)
-        #if !os(tvOS)
-        view = AnyView(view.simultaneousGesture(menuToggleGesture, including: .subviews))
-        #endif
-        view = AnyView(view.onAppear {
-            appState.playerKeyboardShortcutsActive = true
-            #if os(iOS)
-            if isPad {
-                focusedArea = .transcript
-            }
-            #endif
-            requestKeyboardShortcutFocus()
-            configureLinguistVM()
-            loadLlmModelsIfNeeded()
-            loadVoiceInventoryIfNeeded()
-            refreshBookmarks()
-            guard let chunk = viewModel.selectedChunk else { return }
-            applyDefaultTrackSelection(for: chunk)
-            syncSelectedSentence(for: chunk)
-            viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
-            configureReadingBed()
-            // NOTE: We no longer freeze transcript during sequence transitions.
-            // Instead, interactiveContent() handles stale detection and shows appropriate
-            // display (static for track switches, fresh for sentence changes) in real-time.
-            // The onSequenceWillTransition callback is now a no-op but kept for debugging.
-            if transcriptDebug { interactiveLayoutLogger.debug("Setting up onSequenceWillTransition callback (no-op)") }
-            viewModel.onSequenceWillTransition = {
-                if transcriptDebug { interactiveLayoutLogger.debug("onSequenceWillTransition callback invoked (no-op)") }
-            }
-            // Text track visibility should not affect audio playback.
-            // Audio track selection is controlled separately via the audio toggle pills.
-            viewModel.sequenceController.shouldSkipTrack = nil
-            // Sync audio mode manager and sequence controller from AudioModeManager
-            viewModel.audioModeManager = audioModeManager
-            viewModel.sequenceController.audioMode = audioModeManager.currentMode
-            #if os(tvOS)
-            if !didSetInitialFocus {
-                didSetInitialFocus = true
-                Task { @MainActor in
-                    focusedArea = .transcript
-                }
-            }
-            #endif
-        })
-        view = AnyView(view.onChange(of: viewModel.selectedChunk?.id) { _, _ in
-            guard let chunk = viewModel.selectedChunk else { return }
-            // Respect pin state - keep bubble visible across chunk/sentence changes if pinned
-            #if os(iOS)
-            let shouldKeepBubble = isPad && iPadBubblePinned
-            #elseif os(tvOS)
-            let shouldKeepBubble = tvSplitEnabled && tvBubblePinned
-            #else
-            let shouldKeepBubble = false
-            #endif
-            if !shouldKeepBubble {
-                clearLinguistState()
-            }
-            applyDefaultTrackSelection(for: chunk)
-            syncSelectedSentence(for: chunk)
-            viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
-            if isMenuVisible && !audioCoordinator.isPlaying {
-                frozenTranscriptSentences = transcriptSentences(for: chunk)
-                frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
-            } else {
-                frozenTranscriptSentences = nil
-                frozenPlaybackPrimaryKind = nil
-            }
-        })
-        view = AnyView(view.onChange(of: trackAvailabilitySignature) { _, _ in
-            guard let chunk = viewModel.selectedChunk else { return }
-            applyDefaultTrackSelection(for: chunk)
-        })
-        view = AnyView(view.onChange(of: viewModel.highlightingTime) { _, _ in
-            guard !isMenuVisible else { return }
-            guard focusedArea != .controls && focusedArea != .bubble else { return }
-            guard let chunk = viewModel.selectedChunk else { return }
-            if audioCoordinator.isPlaying {
-                viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: true)
-                return
-            }
-            syncSelectedSentence(for: chunk)
-        })
-        view = AnyView(view.onChange(of: viewModel.readingBedURL) { _, _ in
-            configureReadingBed()
-        })
-        view = AnyView(view.onChange(of: readingBedEnabled) { _, newValue in
-            if useAppleMusicForBed && musicCoordinator.isAuthorized {
-                handleReadingBedToggleWithAppleMusic(enabled: newValue)
-            } else {
-                updateReadingBedPlayback()
-            }
-        })
-        view = AnyView(view.onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
-            #if os(iOS)
-            if isPad {
-                focusedArea = .transcript
-            }
-            #endif
-            requestKeyboardShortcutFocus()
-            handleNarrationPlaybackChange(isPlaying: isPlaying)
-            if isPlaying {
-                // Respect pin state - keep bubble visible during playback if pinned
+        playerPresentedContent
+    }
+
+    private var playerPresentedContent: some View {
+        playerExternalObservedContent
+            .sheet(isPresented: $showMusicPicker) {
+                AppleMusicPickerView(
+                    searchService: musicSearchService,
+                    musicCoordinator: musicCoordinator,
+                    onSelect: {
+                        useAppleMusicForBed = true
+                        showMusicPicker = false
+                    },
+                    onDismiss: { showMusicPicker = false }
+                )
                 #if os(iOS)
-                let shouldKeepBubble = isPad && iPadBubblePinned
-                #elseif os(tvOS)
-                let shouldKeepBubble = tvSplitEnabled && tvBubblePinned
-                #else
-                let shouldKeepBubble = false
+                .presentationDetents([.medium, .large])
                 #endif
-                if !shouldKeepBubble {
-                    clearLinguistState()
-                }
-                requestKeyboardShortcutFocus()
             }
-            if isPlaying {
-                // Don't unfreeze during sequence transitions - let the transition handler manage it
-                if !viewModel.isSequenceTransitioning {
-                    frozenTranscriptSentences = nil
-                    frozenPlaybackPrimaryKind = nil
-                }
-                viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: true)
-            } else if let chunk = viewModel.selectedChunk {
-                syncPausedSelection(for: chunk)
-                if isMenuVisible {
-                    frozenTranscriptSentences = transcriptSentences(for: chunk)
-                    frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
-                }
+    }
+
+    private var playerExternalObservedContent: some View {
+        playerStateObservedContent
+            .onReceive(
+                NotificationCenter.default.publisher(for: PlaybackBookmarkStore.didChangeNotification),
+                perform: handleBookmarkStoreChange
+            )
+            .onChange(of: readingBedCoordinator.isPlaying) { _, isPlaying in
+                handleReadingBedPlaybackChange(isPlaying)
             }
-        })
-        view = AnyView(view.onChange(of: linguistBubble) { _, _ in
-            #if os(iOS)
-            if isPad {
+            .onDisappear(perform: handlePlayerDisappear)
+            .onChange(of: audioModeManager.currentMode) { _, newMode in
+                handleAudioModeChange(newMode)
+            }
+            .onChange(of: useAppleMusicForBed) { _, usingAppleMusic in
+                handleAppleMusicSourceChange(usingAppleMusic)
+            }
+            .onChange(of: musicVolume) { _, newVolume in
+                handleMusicVolumeChange(newVolume)
+            }
+            .onChange(of: musicCoordinator.isPlaying) { _, isPlaying in
+                handleAppleMusicPlaybackChange(isPlaying)
+            }
+    }
+
+    private var playerStateObservedContent: some View {
+        playerLifecycleContent
+            .onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
+                handleAudioPlaybackChange(isPlaying)
+            }
+            .onChange(of: linguistBubble) { _, _ in
+                handleLinguistBubbleChange()
+            }
+            .onChange(of: visibleTracks) { _, _ in
+                handleVisibleTracksChange()
+            }
+            .onChange(of: isMenuVisible) { _, visible in
+                handleMenuVisibilityChange(visible)
+            }
+            .onChange(of: viewModel.isSequenceTransitioning) { _, isTransitioning in
+                handleSequenceTransitionChange(isTransitioning)
+            }
+            .onChange(of: bookmarkIdentityKey) { _, _ in
+                refreshBookmarks()
+            }
+    }
+
+    private var playerLifecycleContent: some View {
+        playerStackWithGestures
+            .onAppear(perform: handlePlayerAppear)
+            .onChange(of: viewModel.selectedChunk?.id) { _, _ in
+                handleSelectedChunkChange()
+            }
+            .onChange(of: trackAvailabilitySignature) { _, _ in
+                handleTrackAvailabilityChange()
+            }
+            .onChange(of: viewModel.highlightingTime) { _, _ in
+                handleHighlightingTimeChange()
+            }
+            .onChange(of: viewModel.readingBedURL) { _, _ in
+                configureReadingBed()
+            }
+            .onChange(of: readingBedEnabled) { _, newValue in
+                handleReadingBedEnabledChange(newValue)
+            }
+    }
+
+    @ViewBuilder
+    private var playerStackWithGestures: some View {
+        #if os(tvOS)
+        playerStack
+        #else
+        playerStack.simultaneousGesture(menuToggleGesture, including: .subviews)
+        #endif
+    }
+
+    private func handlePlayerAppear() {
+        appState.playerKeyboardShortcutsActive = true
+        #if os(iOS)
+        if isPad {
+            focusedArea = .transcript
+        }
+        #endif
+        requestKeyboardShortcutFocus()
+        configureLinguistVM()
+        loadLlmModelsIfNeeded()
+        loadVoiceInventoryIfNeeded()
+        refreshBookmarks()
+        guard let chunk = viewModel.selectedChunk else { return }
+        applyDefaultTrackSelection(for: chunk)
+        syncSelectedSentence(for: chunk)
+        viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
+        configureReadingBed()
+        // NOTE: We no longer freeze transcript during sequence transitions.
+        // Instead, interactiveContent() handles stale detection and shows appropriate
+        // display (static for track switches, fresh for sentence changes) in real-time.
+        // The onSequenceWillTransition callback is now a no-op but kept for debugging.
+        if transcriptDebug { interactiveLayoutLogger.debug("Setting up onSequenceWillTransition callback (no-op)") }
+        viewModel.onSequenceWillTransition = {
+            if transcriptDebug { interactiveLayoutLogger.debug("onSequenceWillTransition callback invoked (no-op)") }
+        }
+        // Text track visibility should not affect audio playback.
+        // Audio track selection is controlled separately via the audio toggle pills.
+        viewModel.sequenceController.shouldSkipTrack = nil
+        // Sync audio mode manager and sequence controller from AudioModeManager
+        viewModel.audioModeManager = audioModeManager
+        viewModel.sequenceController.audioMode = audioModeManager.currentMode
+        #if os(tvOS)
+        if !didSetInitialFocus {
+            didSetInitialFocus = true
+            Task { @MainActor in
                 focusedArea = .transcript
             }
-            #endif
-            requestKeyboardShortcutFocus()
-        })
-        view = AnyView(view.onChange(of: visibleTracks) { _, _ in
-            // Respect pin state - keep bubble visible when tracks change if pinned
-            #if os(iOS)
-            let shouldKeepBubble = isPad && iPadBubblePinned
-            #elseif os(tvOS)
-            let shouldKeepBubble = tvSplitEnabled && tvBubblePinned
-            #else
-            let shouldKeepBubble = false
-            #endif
-            if !shouldKeepBubble {
+        }
+        #endif
+    }
+
+    private func handleSelectedChunkChange() {
+        guard let chunk = viewModel.selectedChunk else { return }
+        if !shouldKeepBubbleVisibleForPinnedState {
+            clearLinguistState()
+        }
+        applyDefaultTrackSelection(for: chunk)
+        syncSelectedSentence(for: chunk)
+        viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
+        updateFrozenTranscriptState(for: chunk, shouldFreeze: isMenuVisible && !audioCoordinator.isPlaying)
+    }
+
+    private func handleTrackAvailabilityChange() {
+        guard let chunk = viewModel.selectedChunk else { return }
+        applyDefaultTrackSelection(for: chunk)
+    }
+
+    private func handleHighlightingTimeChange() {
+        guard !isMenuVisible else { return }
+        guard focusedArea != .controls && focusedArea != .bubble else { return }
+        guard let chunk = viewModel.selectedChunk else { return }
+        if audioCoordinator.isPlaying {
+            viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: true)
+            return
+        }
+        syncSelectedSentence(for: chunk)
+    }
+
+    private func handleReadingBedEnabledChange(_ isEnabled: Bool) {
+        if useAppleMusicForBed && musicCoordinator.isAuthorized {
+            handleReadingBedToggleWithAppleMusic(enabled: isEnabled)
+        } else {
+            updateReadingBedPlayback()
+        }
+    }
+
+    private func handleAudioPlaybackChange(_ isPlaying: Bool) {
+        #if os(iOS)
+        if isPad {
+            focusedArea = .transcript
+        }
+        #endif
+        requestKeyboardShortcutFocus()
+        handleNarrationPlaybackChange(isPlaying: isPlaying)
+        if isPlaying {
+            if !shouldKeepBubbleVisibleForPinnedState {
                 clearLinguistState()
             }
-            if isMenuVisible, !audioCoordinator.isPlaying, let chunk = viewModel.selectedChunk {
-                frozenTranscriptSentences = transcriptSentences(for: chunk)
-                frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
-            }
-            // Note: Text track visibility no longer affects audio playback.
-            // Audio track selection is controlled separately via the audio picker.
-            // This prevents counterintuitive behavior where hiding a text track
-            // would also skip its audio in combined/sequence mode.
-        })
-        view = AnyView(view.onChange(of: isMenuVisible) { _, visible in
-            guard let chunk = viewModel.selectedChunk else { return }
-            if visible && !audioCoordinator.isPlaying {
-                frozenTranscriptSentences = transcriptSentences(for: chunk)
-                frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
-            } else {
+            requestKeyboardShortcutFocus()
+        }
+        if isPlaying {
+            // Don't unfreeze during sequence transitions - let the transition handler manage it
+            if !viewModel.isSequenceTransitioning {
                 frozenTranscriptSentences = nil
                 frozenPlaybackPrimaryKind = nil
             }
-            // Only update reading bed when menu closes, not when it opens
-            // This avoids unnecessary state changes during menu interactions
-            if !visible {
-                updateReadingBedPlayback()
+            viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: true)
+        } else if let chunk = viewModel.selectedChunk {
+            syncPausedSelection(for: chunk)
+            if isMenuVisible {
+                updateFrozenTranscriptState(for: chunk, shouldFreeze: true)
             }
-        })
-        // Clear frozen state when sequence transitions complete
-        // NOTE: We no longer freeze during transitions - instead, interactiveContent() handles
-        // stale detection and correction in real-time during renders. This avoids race conditions
-        // between frozen state updates and render cycles.
-        view = AnyView(view.onChange(of: viewModel.isSequenceTransitioning) { _, isTransitioning in
-            if transcriptDebug {
-                interactiveLayoutLogger.debug("isSequenceTransitioning changed to \(isTransitioning, privacy: .public)")
-            }
-            guard viewModel.isSequenceModeActive else {
-                if transcriptDebug { interactiveLayoutLogger.debug("Not in sequence mode, skipping") }
-                return
-            }
-            // When transition ends, ensure frozen state is cleared (unless menu is visible)
-            if !isTransitioning && !isMenuVisible {
-                if frozenTranscriptSentences != nil || frozenPlaybackPrimaryKind != nil {
-                    if transcriptDebug { interactiveLayoutLogger.debug("Transition ended, clearing frozen state") }
-                    frozenTranscriptSentences = nil
-                    frozenPlaybackPrimaryKind = nil
-                }
-            }
-        })
-        view = AnyView(view.onChange(of: bookmarkIdentityKey) { _, _ in
-            refreshBookmarks()
-        })
-        view = AnyView(
-            view.onReceive(NotificationCenter.default.publisher(for: PlaybackBookmarkStore.didChangeNotification)) { notification in
-                guard let jobId = resolvedBookmarkJobId else { return }
-                let userId = resolvedBookmarkUserId
-                if let changedUser = notification.userInfo?["userId"] as? String, changedUser != userId {
-                    return
-                }
-                bookmarks = PlaybackBookmarkStore.shared.bookmarks(for: jobId, userId: userId)
-            }
-        )
-        view = AnyView(view.onChange(of: readingBedCoordinator.isPlaying) { _, isPlaying in
-            guard !isPlaying else { return }
-            guard readingBedEnabled else { return }
-            guard audioCoordinator.isPlaybackRequested else { return }
-            // Only restart reading bed if narration is actively playing
-            // Avoid restarting during transitions
-            guard audioCoordinator.isPlaying else { return }
-            updateReadingBedPlayback()
-        })
-        view = AnyView(view.onDisappear {
-            appState.playerKeyboardShortcutsActive = false
-            readingBedPauseTask?.cancel()
-            readingBedPauseTask = nil
-            readingBedCoordinator.reset()
-            // Clean up Apple Music if it was the active reading bed
-            if useAppleMusicForBed {
-                musicCoordinator.pause()
-                Task { await musicCoordinator.deactivateAsReadingBed() }
-                audioCoordinator.configureAudioSessionForMixing(false)
-                audioCoordinator.setTargetVolume(1.0)
-            }
+        }
+    }
+
+    private func handleLinguistBubbleChange() {
+        #if os(iOS)
+        if isPad {
+            focusedArea = .transcript
+        }
+        #endif
+        requestKeyboardShortcutFocus()
+    }
+
+    private func handleVisibleTracksChange() {
+        if !shouldKeepBubbleVisibleForPinnedState {
             clearLinguistState()
-            // Clear the sequence transition callback to prevent dangling references
-            viewModel.onSequenceWillTransition = nil
-            // Clear the shouldSkipTrack callback
-            viewModel.sequenceController.shouldSkipTrack = nil
-        })
-        // Audio mode change handler - sync to sequence controller when mode changes
-        view = AnyView(view.onChange(of: audioModeManager.currentMode) { _, newMode in
-            viewModel.sequenceController.audioMode = newMode
-            interactiveLayoutLogger.debug("Audio mode changed: \(newMode.description, privacy: .public)")
-        })
-        // Apple Music source change handler
-        view = AnyView(view.onChange(of: useAppleMusicForBed) { _, usingAppleMusic in
-            if usingAppleMusic {
-                switchToAppleMusic()
-            } else {
-                switchToBuiltInBed()
+        }
+        if isMenuVisible, !audioCoordinator.isPlaying, let chunk = viewModel.selectedChunk {
+            updateFrozenTranscriptState(for: chunk, shouldFreeze: true)
+        }
+        // Note: Text track visibility no longer affects audio playback.
+        // Audio track selection is controlled separately via the audio picker.
+        // This prevents counterintuitive behavior where hiding a text track
+        // would also skip its audio in combined/sequence mode.
+    }
+
+    private func handleMenuVisibilityChange(_ isVisible: Bool) {
+        guard let chunk = viewModel.selectedChunk else { return }
+        updateFrozenTranscriptState(for: chunk, shouldFreeze: isVisible && !audioCoordinator.isPlaying)
+        // Only update reading bed when menu closes, not when it opens
+        // This avoids unnecessary state changes during menu interactions
+        if !isVisible {
+            updateReadingBedPlayback()
+        }
+    }
+
+    private func handleSequenceTransitionChange(_ isTransitioning: Bool) {
+        if transcriptDebug {
+            interactiveLayoutLogger.debug("isSequenceTransitioning changed to \(isTransitioning, privacy: .public)")
+        }
+        guard viewModel.isSequenceModeActive else {
+            if transcriptDebug { interactiveLayoutLogger.debug("Not in sequence mode, skipping") }
+            return
+        }
+        // When transition ends, ensure frozen state is cleared (unless menu is visible)
+        if !isTransitioning && !isMenuVisible {
+            if frozenTranscriptSentences != nil || frozenPlaybackPrimaryKind != nil {
+                if transcriptDebug { interactiveLayoutLogger.debug("Transition ended, clearing frozen state") }
+                frozenTranscriptSentences = nil
+                frozenPlaybackPrimaryKind = nil
             }
-        })
-        // Apple Music volume change handler
-        view = AnyView(view.onChange(of: musicVolume) { _, newVolume in
-            handleMusicVolumeChange(newVolume)
-        })
-        // When Apple Music starts/stops playing externally (e.g., from Control Centre)
-        view = AnyView(view.onChange(of: musicCoordinator.isPlaying) { _, isPlaying in
-            if isPlaying && useAppleMusicForBed {
-                // Apple Music started playing - pause built-in reading bed
-                readingBedCoordinator.pause()
-            }
-        })
-        // Music picker sheet presentation
-        view = AnyView(view.sheet(isPresented: $showMusicPicker) {
-            AppleMusicPickerView(
-                searchService: musicSearchService,
-                musicCoordinator: musicCoordinator,
-                onSelect: {
-                    useAppleMusicForBed = true
-                    showMusicPicker = false
-                },
-                onDismiss: { showMusicPicker = false }
-            )
-            #if os(iOS)
-            .presentationDetents([.medium, .large])
-            #endif
-        })
-        return view
+        }
+    }
+
+    private func handleBookmarkStoreChange(_ notification: Notification) {
+        guard let jobId = resolvedBookmarkJobId else { return }
+        let userId = resolvedBookmarkUserId
+        if let changedUser = notification.userInfo?["userId"] as? String, changedUser != userId {
+            return
+        }
+        bookmarks = PlaybackBookmarkStore.shared.bookmarks(for: jobId, userId: userId)
+    }
+
+    private func handleReadingBedPlaybackChange(_ isPlaying: Bool) {
+        guard !isPlaying else { return }
+        guard readingBedEnabled else { return }
+        guard audioCoordinator.isPlaybackRequested else { return }
+        // Only restart reading bed if narration is actively playing
+        // Avoid restarting during transitions
+        guard audioCoordinator.isPlaying else { return }
+        updateReadingBedPlayback()
+    }
+
+    private func handlePlayerDisappear() {
+        appState.playerKeyboardShortcutsActive = false
+        readingBedPauseTask?.cancel()
+        readingBedPauseTask = nil
+        readingBedCoordinator.reset()
+        // Clean up Apple Music if it was the active reading bed
+        if useAppleMusicForBed {
+            musicCoordinator.pause()
+            Task { await musicCoordinator.deactivateAsReadingBed() }
+            audioCoordinator.configureAudioSessionForMixing(false)
+            audioCoordinator.setTargetVolume(1.0)
+        }
+        clearLinguistState()
+        // Clear the sequence transition callback to prevent dangling references
+        viewModel.onSequenceWillTransition = nil
+        // Clear the shouldSkipTrack callback
+        viewModel.sequenceController.shouldSkipTrack = nil
+    }
+
+    private func handleAudioModeChange(_ newMode: AudioMode) {
+        viewModel.sequenceController.audioMode = newMode
+        interactiveLayoutLogger.debug("Audio mode changed: \(newMode.description, privacy: .public)")
+    }
+
+    private func handleAppleMusicSourceChange(_ usingAppleMusic: Bool) {
+        if usingAppleMusic {
+            switchToAppleMusic()
+        } else {
+            switchToBuiltInBed()
+        }
+    }
+
+    private func handleAppleMusicPlaybackChange(_ isPlaying: Bool) {
+        if isPlaying && useAppleMusicForBed {
+            // Apple Music started playing - pause built-in reading bed
+            readingBedCoordinator.pause()
+        }
+    }
+
+    private var shouldKeepBubbleVisibleForPinnedState: Bool {
+        #if os(iOS)
+        return isPad && iPadBubblePinned
+        #elseif os(tvOS)
+        return tvSplitEnabled && tvBubblePinned
+        #else
+        return false
+        #endif
+    }
+
+    private func updateFrozenTranscriptState(for chunk: InteractiveChunk, shouldFreeze: Bool) {
+        if shouldFreeze {
+            frozenTranscriptSentences = transcriptSentences(for: chunk)
+            frozenPlaybackPrimaryKind = playbackPrimaryKind(for: chunk)
+        } else {
+            frozenTranscriptSentences = nil
+            frozenPlaybackPrimaryKind = nil
+        }
     }
 
     private var playerStack: some View {
