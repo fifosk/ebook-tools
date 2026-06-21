@@ -69,6 +69,21 @@ sensitive values in its output and writes profile-scoped XCUITest config under
 Apple TV installs remain attended; simulator journeys may use injected test
 credentials.
 
+When a physical device feels slow after login or session restore, measure the
+authenticated backend path without printing credentials or tokens:
+
+```bash
+scripts/check_auth_latency.py --runs 5
+```
+
+The script reads `E2E_USERNAME`, `E2E_PASSWORD`, and optional
+`E2E_API_BASE_URL` from the environment or `.env`, then reports only HTTP
+status and elapsed time for `/api/auth/login` and `/api/auth/session`. On
+June 21, 2026, the Mac Studio runtime check against the NAS-routed public API
+showed login after warmup at roughly 23-31 ms and session restore at roughly
+18-24 ms, so the observed attended-device login sluggishness should be
+investigated in app launch/debugger/UI sequencing before backend routing.
+
 The Apple Make targets also use the same `tempfile.gettempdir()`-scoped
 simulator mutation lock as the shared pipeline while `xcodebuild test` is
 running. This keeps app-owned XCUITest journeys from racing with shared
