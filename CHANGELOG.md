@@ -2,6 +2,13 @@
 
 Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
+## 2026-06-22
+
+### 2026.06.22.01
+
+- Advanced visible Apple app versioning to `v2026.06.22.01`.
+- Added token-safe backend auth/session duration metrics so slow login reports can be diagnosed from Prometheus without exposing credentials or session tokens.
+
 ## 2026-06-21
 
 ### 2026.06.21.11

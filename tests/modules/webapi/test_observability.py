@@ -73,6 +73,7 @@ _EXPECTED_METRICS = [
     ("ebook_tools_users_total", "gauge"),
     ("ebook_tools_sessions_active", "gauge"),
     ("ebook_tools_auth_attempts_total", "counter"),
+    ("ebook_tools_auth_duration_seconds", "histogram"),
     ("ebook_tools_pipeline_stage_duration_seconds", "histogram"),
     ("ebook_tools_worker_pool_utilization", "gauge"),
     ("ebook_tools_errors_total", "counter"),
@@ -109,6 +110,7 @@ _EXPECTED_LABELS = [
     ("ebook_tools_users_total", {"role"}),
     ("ebook_tools_library_items_total", {"item_type"}),
     ("ebook_tools_auth_attempts", {"method", "result"}),
+    ("ebook_tools_auth_duration_seconds", {"operation", "result"}),
     ("ebook_tools_pipeline_stage_duration_seconds", {"stage"}),
 ]
 

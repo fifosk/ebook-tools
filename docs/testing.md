@@ -109,9 +109,9 @@ Device preflight currently sees `Fifo Ipad Pro` through CoreDevice:
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --device-preflight-only
 ```
 
-Latest simulator-verified release from June 21, 2026: `v2026.06.21.11` with
-bundle version `2026062111`. Previous attended iPad deployment proved the same
-`2026.6.21` daily release train on the iPad M5 Pro; the `.11` build still needs
+Latest simulator-verified release from June 22, 2026: `v2026.06.22.01` with
+bundle version `2026062201`. Previous attended iPad deployment proved the
+`2026.6.21` daily release train on the iPad M5 Pro; the `.01` build still needs
 an attended physical install. Keep the iPad awake and unlocked; for future
 attended installs, prefer USB-C, tap Trust when prompted, then re-enable network
 deployment from Xcode Devices and Simulators if needed.

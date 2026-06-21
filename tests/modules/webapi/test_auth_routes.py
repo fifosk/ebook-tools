@@ -4,6 +4,7 @@ from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
+from prometheus_client.parser import text_string_to_metric_families
 
 from modules.user_management import AuthService, LocalUserStore, SessionManager
 from modules.webapi.application import create_app
@@ -75,3 +76,28 @@ def test_session_status_rejects_missing_or_invalid_tokens(auth_client, authoriza
     response = client.get("/api/auth/session", headers=headers)
 
     assert response.status_code == 401
+
+
+def test_auth_duration_metric_records_session_result(auth_client) -> None:
+    client, _, token = auth_client
+
+    response = client.get(
+        "/api/auth/session",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+
+    metrics = client.get("/metrics")
+    families = {f.name: f for f in text_string_to_metric_families(metrics.text)}
+    auth_duration = families.get("ebook_tools_auth_duration_seconds")
+    assert auth_duration is not None
+
+    count_samples = [
+        sample
+        for sample in auth_duration.samples
+        if sample.name == "ebook_tools_auth_duration_seconds_count"
+        and sample.labels.get("operation") == "session"
+        and sample.labels.get("result") == "success"
+    ]
+    assert count_samples
+    assert any(sample.value >= 1.0 for sample in count_samples)

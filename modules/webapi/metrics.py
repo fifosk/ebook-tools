@@ -125,6 +125,13 @@ AUTH_ATTEMPTS = Counter(
     ["method", "result"],
 )
 
+AUTH_DURATION = Histogram(
+    "ebook_tools_auth_duration_seconds",
+    "Authentication route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+)
+
 # ---------------------------------------------------------------------------
 # Pipeline performance
 # ---------------------------------------------------------------------------

@@ -35,7 +35,7 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.11"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.22.01"
     }
 
     static var displayLabel: String {
@@ -169,6 +169,18 @@ struct AppChangelogDay: Identifiable, Equatable {
 
 enum AppChangelog {
     static let days: [AppChangelogDay] = [
+        AppChangelogDay(
+            id: "2026-06-22",
+            dateLabel: "June 22, 2026",
+            version: "2026.06.22.01",
+            entries: [
+                AppChangelogEntry(
+                    id: "auth-duration-metrics",
+                    title: "Auth timing is observable",
+                    detail: "Backend login and session checks now record token-safe duration metrics so slow sign-in reports can be diagnosed without exposing credentials."
+                )
+            ]
+        ),
         AppChangelogDay(
             id: "2026-06-21",
             dateLabel: "June 21, 2026",

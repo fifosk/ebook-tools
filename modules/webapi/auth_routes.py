@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import secrets
+import time
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
@@ -40,6 +41,15 @@ def _inc_auth(method: str, result: str) -> None:
     try:
         from .metrics import AUTH_ATTEMPTS
         AUTH_ATTEMPTS.labels(method=method, result=result).inc()
+    except Exception:
+        pass
+
+
+def _observe_auth_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe auth route duration (safe no-op if metrics are unavailable)."""
+    try:
+        from .metrics import AUTH_DURATION
+        AUTH_DURATION.labels(operation=operation, result=result).observe(time.perf_counter() - started_at)
     except Exception:
         pass
 
@@ -167,15 +177,20 @@ def _is_user_suspended(record: UserRecord) -> bool:
 
 @router.post("/login", response_model=SessionStatusResponse)
 def login(payload: LoginRequestPayload, auth_service: AuthService = Depends(get_auth_service)) -> SessionStatusResponse:
+    started_at = time.perf_counter()
+    result = "error"
     # First verify credentials
     try:
         token = auth_service.login(payload.username, payload.password)
     except ValueError as exc:  # Invalid credentials
         _inc_auth("password", "failure")
+        result = "failure"
+        _observe_auth_duration("password", result, started_at)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
     record = auth_service.user_store.get_user(payload.username)
     if record is None:
+        _observe_auth_duration("password", result, started_at)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User record not found")
 
     # Check if user is suspended
@@ -183,6 +198,8 @@ def login(payload: LoginRequestPayload, auth_service: AuthService = Depends(get_
         # Invalidate the session we just created
         auth_service.logout(token)
         _inc_auth("password", "suspended")
+        result = "suspended"
+        _observe_auth_duration("password", result, started_at)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account is pending activation. Please wait for administrator approval.",
@@ -200,6 +217,8 @@ def login(payload: LoginRequestPayload, auth_service: AuthService = Depends(get_
 
     _inc_auth("password", "success")
     session_data = auth_service.session_manager.get_session(token)
+    result = "success"
+    _observe_auth_duration("password", result, started_at)
     return _build_session_response(token, record, session_data)
 
 
@@ -208,17 +227,25 @@ def oauth_login(
     payload: OAuthLoginRequestPayload,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SessionStatusResponse:
+    started_at = time.perf_counter()
+    result = "error"
     try:
         identity = resolve_oauth_identity(payload.provider, payload.id_token)
     except OAuthConfigurationError as exc:
         _inc_auth("oauth", "failure")
+        result = "failure"
+        _observe_auth_duration("oauth", result, started_at)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except OAuthVerificationError as exc:
         _inc_auth("oauth", "failure")
+        result = "failure"
+        _observe_auth_duration("oauth", result, started_at)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
     email_override = _normalise_email(payload.email)
     if email_override and email_override != identity.email:
+        result = "failure"
+        _observe_auth_duration("oauth", result, started_at)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="OAuth email mismatch.")
 
     email = email_override or identity.email
@@ -247,6 +274,7 @@ def oauth_login(
                 metadata=metadata,
             )
         except ValueError as exc:
+            _observe_auth_duration("oauth", result, started_at)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     else:
         metadata = dict(record.metadata or {})
@@ -263,11 +291,14 @@ def oauth_login(
         try:
             record = auth_service.user_store.update_user(record.username, metadata=metadata)
         except KeyError as exc:
+            _observe_auth_duration("oauth", result, started_at)
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User record not found") from exc
 
     token = auth_service.session_manager.create_session(record.username)
     _inc_auth("oauth", "success")
     session_data = auth_service.session_manager.get_session(token)
+    result = "success"
+    _observe_auth_duration("oauth", result, started_at)
     return _build_session_response(token, record, session_data)
 
 
@@ -276,12 +307,18 @@ def session_status(
     authorization: str | None = Header(default=None, alias="Authorization"),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SessionStatusResponse:
-    token = _require_token(authorization)
-    record = auth_service.authenticate(token)
-    if record is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token")
-    session_data = auth_service.session_manager.get_session(token)
-    return _build_session_response(token, record, session_data)
+    started_at = time.perf_counter()
+    result = "failure"
+    try:
+        token = _require_token(authorization)
+        record = auth_service.authenticate(token)
+        if record is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token")
+        session_data = auth_service.session_manager.get_session(token)
+        result = "success"
+        return _build_session_response(token, record, session_data)
+    finally:
+        _observe_auth_duration("session", result, started_at)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
