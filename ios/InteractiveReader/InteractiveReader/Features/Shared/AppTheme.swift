@@ -35,7 +35,7 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.01"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.02"
     }
 
     static var displayLabel: String {
@@ -116,8 +116,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-21",
             dateLabel: "June 21, 2026",
-            version: "2026.06.21.01",
+            version: "2026.06.21.02",
             entries: [
+                AppChangelogEntry(
+                    id: "release-contract-guard",
+                    title: "Daily release contract guard",
+                    detail: "A repo check now keeps Info plists, in-app changelog, Markdown changelog, and journey badge assertions in sync."
+                ),
                 AppChangelogEntry(
                     id: "backend-runtime-settings",
                     title: "Backend runtime visible in Settings",

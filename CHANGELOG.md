@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-21
 
+### 2026.06.21.02
+
+- Added a release-version contract check that keeps iOS/tvOS Info plists, in-app changelog data, Markdown changelog, and journey assertions aligned.
+- Advanced the visible Apple app release badge to `v2026.06.21.02`.
+
 ### 2026.06.21.01
 
 - Added visible release versioning across iPhone, iPad, and Apple TV surfaces with `v2026.06.21.01`.
