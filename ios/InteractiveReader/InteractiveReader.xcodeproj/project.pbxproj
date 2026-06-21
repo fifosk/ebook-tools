@@ -303,6 +303,8 @@
 		68B5CE85E0C2F1D119093A54 /* CombinedSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A9CC0B7446511FA56B84DB /* CombinedSearchView.swift */; };
 		2F2FF3C31F647A58FE6157BE /* LibraryRowComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B6EE543E5FA309B9C21D672 /* LibraryRowComponents.swift */; };
 		CC4ED3F050D57651E2103EE5 /* LibraryRowComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B6EE543E5FA309B9C21D672 /* LibraryRowComponents.swift */; };
+		F4DAB2A24A09C43400863D37 /* JobRowComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFD49DA8931383BE8A5051EB /* JobRowComponents.swift */; };
+		2ECCC5649C169FBD3D8AF3BD /* JobRowComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFD49DA8931383BE8A5051EB /* JobRowComponents.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -463,6 +465,7 @@
 		B2F21915359C179302A4B8BD /* PlaybackSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlaybackSettingsView.swift"; sourceTree = "<group>"; };
 		A1A9CC0B7446511FA56B84DB /* CombinedSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CombinedSearchView.swift"; sourceTree = "<group>"; };
 		0B6EE543E5FA309B9C21D672 /* LibraryRowComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryRowComponents.swift"; sourceTree = "<group>"; };
+		AFD49DA8931383BE8A5051EB /* JobRowComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JobRowComponents.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -797,6 +800,7 @@
 				C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */,
 				C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */,
 				C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */,
+				AFD49DA8931383BE8A5051EB /* JobRowComponents.swift */,
 			);
 			path = Jobs;
 			sourceTree = "<group>";
@@ -1210,6 +1214,7 @@
 				A1B34DDD0D222EEBE93DDF41 /* PlaybackSettingsView.swift in Sources */,
 				5A46188DE7522A19F5404440 /* CombinedSearchView.swift in Sources */,
 				2F2FF3C31F647A58FE6157BE /* LibraryRowComponents.swift in Sources */,
+				F4DAB2A24A09C43400863D37 /* JobRowComponents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1355,6 +1360,7 @@
 				5B9B874879D537395E9E0794 /* PlaybackSettingsView.swift in Sources */,
 				68B5CE85E0C2F1D119093A54 /* CombinedSearchView.swift in Sources */,
 				CC4ED3F050D57651E2103EE5 /* LibraryRowComponents.swift in Sources */,
+				2ECCC5649C169FBD3D8AF3BD /* JobRowComponents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
