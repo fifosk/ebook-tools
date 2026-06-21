@@ -1,0 +1,294 @@
+import SwiftUI
+
+struct AppChangelogEntry: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let detail: String
+}
+
+struct AppChangelogDay: Identifiable, Equatable {
+    let id: String
+    let dateLabel: String
+    let version: String
+    let entries: [AppChangelogEntry]
+}
+
+enum AppChangelog {
+    static let days: [AppChangelogDay] = [
+        AppChangelogDay(
+            id: "2026-06-22",
+            dateLabel: "June 22, 2026",
+            version: "2026.06.22.04",
+            entries: [
+                AppChangelogEntry(
+                    id: "version-changelog-split",
+                    title: "Version and changelog code split",
+                    detail: "Release badge metadata and daily changelog rendering now live in focused SwiftUI files instead of the shared theme primitive."
+                ),
+                AppChangelogEntry(
+                    id: "pytest-hf-cache-fallback",
+                    title: "MacBook backend tests hardened",
+                    detail: "Pytest now uses a local HuggingFace cache when workstation env points at offline external model storage, while production still fails visibly on bad runtime paths."
+                ),
+                AppChangelogEntry(
+                    id: "browse-row-action-refactor",
+                    title: "Browse row actions cleaned up",
+                    detail: "Library and Jobs row selection, delete, and move-to-library commands now route through named SwiftUI actions instead of inline row-builder closures."
+                ),
+                AppChangelogEntry(
+                    id: "browse-shell-action-refactor",
+                    title: "Browse shell actions cleaned up",
+                    detail: "Refresh, selection, search, sign-out, and split-view navigation now route through named SwiftUI actions so the iPad browse surface is safer to iterate."
+                ),
+                AppChangelogEntry(
+                    id: "auth-duration-metrics",
+                    title: "Auth timing is observable",
+                    detail: "Backend login and session checks now record token-safe duration metrics so slow sign-in reports can be diagnosed without exposing credentials."
+                )
+            ]
+        ),
+        AppChangelogDay(
+            id: "2026-06-21",
+            dateLabel: "June 21, 2026",
+            version: "2026.06.21.11",
+            entries: [
+                AppChangelogEntry(
+                    id: "root-lifecycle-modifiers",
+                    title: "Root lifecycle cleaned up",
+                    detail: "Notification registration, keyboard shortcuts, session restore, and offline sync now live in focused SwiftUI modifiers for safer cross-device iteration."
+                ),
+                AppChangelogEntry(
+                    id: "explicit-version-badge-frame",
+                    title: "Version badge frame hardened",
+                    detail: "Version badges now render inside an explicit fixed-size shape so cramped iPad headers cannot reflow the release text into vertical characters."
+                ),
+                AppChangelogEntry(
+                    id: "settings-section-refactor",
+                    title: "Settings review surface cleaned up",
+                    detail: "Connection, playback, changelog, voice, and notification settings now render through focused section components for safer iPad and tvOS iteration."
+                ),
+                AppChangelogEntry(
+                    id: "wd-staging-pipeline-contract",
+                    title: "WD staging pipeline aligned",
+                    detail: "ebook-tools and Finance Review now share the same Mac Studio WD staging convention before backend maintenance."
+                ),
+                AppChangelogEntry(
+                    id: "compact-version-build-token",
+                    title: "iPad version chip fixed",
+                    detail: "Compact browse headers now show the short daily build token while full release metadata remains visible in roomy surfaces."
+                ),
+                AppChangelogEntry(
+                    id: "compact-version-chip-width",
+                    title: "Compact version chip width",
+                    detail: "Compact headers now use a shorter fixed-width chip with fixed-size monospaced text so the release cannot stack vertically in split view."
+                ),
+                AppChangelogEntry(
+                    id: "version-layout-defensive-rows",
+                    title: "Version layout hardened",
+                    detail: "Version text now owns its ideal width before the pill is drawn, and changelog headers no longer squeeze full version labels beside the date."
+                ),
+                AppChangelogEntry(
+                    id: "version-pill-owns-width",
+                    title: "Version badge no longer squeezes",
+                    detail: "The login badge now owns a full row and toolbar headers use a compact daily label so iPad cannot stack the version vertically."
+                ),
+                AppChangelogEntry(
+                    id: "ipad-version-pill-layout",
+                    title: "iPad version badge layout",
+                    detail: "The release pill now stays on one line in crowded iPad headers instead of collapsing into vertical characters."
+                ),
+                AppChangelogEntry(
+                    id: "apple-bundle-versioning",
+                    title: "Device inventory versioning",
+                    detail: "Installed device metadata now carries the daily build number so CoreDevice checks can identify the deployed app."
+                ),
+                AppChangelogEntry(
+                    id: "release-contract-guard",
+                    title: "Daily release contract guard",
+                    detail: "A repo check now keeps Info plists, in-app changelog, Markdown changelog, and journey badge assertions in sync."
+                ),
+                AppChangelogEntry(
+                    id: "backend-runtime-settings",
+                    title: "Backend runtime visible in Settings",
+                    detail: "Settings now verifies the public ebook-tools API descriptor and shows the service/version without exposing tokens."
+                ),
+                AppChangelogEntry(
+                    id: "pipeline-backend-preflight",
+                    title: "Pipeline backend preflight",
+                    detail: "Simulator smoke profiles now fail fast on backend health and runtime identity before Xcode builds."
+                ),
+                AppChangelogEntry(
+                    id: "settings-connection-keychain",
+                    title: "Connection and Keychain state",
+                    detail: "Settings shows API host, signed-in session, and Keychain token storage for attended device review."
+                ),
+                AppChangelogEntry(
+                    id: "apple-tv-icon-remote",
+                    title: "tvOS deployment polish",
+                    detail: "Apple TV icon assets and remote-driven playback journeys are covered by the shared pipeline."
+                )
+            ]
+        )
+    ]
+}
+
+struct AppChangelogSummaryView: View {
+    let maxEntries: Int?
+    let showBuildMetadata: Bool
+    let usesDarkBackground: Bool
+
+    init(
+        maxEntries: Int? = nil,
+        showBuildMetadata: Bool = true,
+        usesDarkBackground: Bool = true
+    ) {
+        self.maxEntries = maxEntries
+        self.showBuildMetadata = showBuildMetadata
+        self.usesDarkBackground = usesDarkBackground
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ViewThatFits(in: .horizontal) {
+                ChangelogTitleRow(
+                    primaryStyle: primaryStyle,
+                    secondaryStyle: secondaryStyle
+                )
+                ChangelogTitleStack(
+                    primaryStyle: primaryStyle,
+                    secondaryStyle: secondaryStyle
+                )
+            }
+
+            if showBuildMetadata {
+                Text(AppVersion.buildLabel)
+                    .font(.caption)
+                    .foregroundStyle(secondaryStyle)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .accessibilityIdentifier("appBuildMetadataText")
+            }
+
+            ForEach(displayEntries) { entry in
+                AppChangelogEntryRow(
+                    entry: entry,
+                    primaryStyle: primaryStyle,
+                    secondaryStyle: secondaryStyle
+                )
+            }
+        }
+        .padding(12)
+        .background(backgroundStyle, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(borderStyle, lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("appChangelogSummaryView")
+    }
+
+    private var displayEntries: [AppChangelogEntry] {
+        let entries = AppChangelog.days.first?.entries ?? []
+        guard let maxEntries else { return entries }
+        return Array(entries.prefix(maxEntries))
+    }
+
+    private var primaryStyle: Color {
+        usesDarkBackground ? .white : .primary
+    }
+
+    private var secondaryStyle: Color {
+        usesDarkBackground ? .white.opacity(0.72) : .secondary
+    }
+
+    private var backgroundStyle: Color {
+        #if os(tvOS)
+        return usesDarkBackground ? Color.white.opacity(0.07) : Color.black.opacity(0.08)
+        #else
+        usesDarkBackground ? Color.white.opacity(0.07) : Color(.secondarySystemBackground)
+        #endif
+    }
+
+    private var borderStyle: Color {
+        #if os(tvOS)
+        return usesDarkBackground ? Color.white.opacity(0.12) : Color.primary.opacity(0.16)
+        #else
+        usesDarkBackground ? Color.white.opacity(0.12) : Color(.separator).opacity(0.4)
+        #endif
+    }
+}
+
+private struct ChangelogTitleRow: View {
+    let primaryStyle: Color
+    let secondaryStyle: Color
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            ChangelogVersionText(primaryStyle: primaryStyle)
+            Spacer(minLength: 8)
+            ChangelogDateText(secondaryStyle: secondaryStyle)
+        }
+    }
+}
+
+private struct ChangelogTitleStack: View {
+    let primaryStyle: Color
+    let secondaryStyle: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ChangelogVersionText(primaryStyle: primaryStyle)
+            ChangelogDateText(secondaryStyle: secondaryStyle)
+        }
+    }
+}
+
+private struct ChangelogVersionText: View {
+    let primaryStyle: Color
+
+    var body: some View {
+        Text(AppVersion.displayLabel)
+            .font(.headline)
+            .monospacedDigit()
+            .foregroundStyle(primaryStyle)
+            .lineLimit(1)
+            .minimumScaleFactor(0.9)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+}
+
+private struct ChangelogDateText: View {
+    let secondaryStyle: Color
+
+    var body: some View {
+        Text(AppChangelog.days.first?.dateLabel ?? "Latest")
+            .font(.caption)
+            .foregroundStyle(secondaryStyle)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+}
+
+private struct AppChangelogEntryRow: View {
+    let entry: AppChangelogEntry
+    let primaryStyle: Color
+    let secondaryStyle: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(Color.green)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(primaryStyle)
+                Text(entry.detail)
+                    .font(.caption)
+                    .foregroundStyle(secondaryStyle)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}

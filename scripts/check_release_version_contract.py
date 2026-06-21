@@ -140,14 +140,15 @@ def validate(root: Path = ROOT) -> None:
         release,
     )
 
-    app_theme = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/AppTheme.swift"
+    app_version = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/AppVersion.swift"
+    app_changelog = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelog.swift"
     require_contains(
-        app_theme,
+        app_version,
         rf'readInfoValue\("EBOOK_TOOLS_RELEASE_VERSION"\) \?\? "{re.escape(release)}"',
         "AppVersion fallback release",
     )
     require_contains(
-        app_theme,
+        app_changelog,
         rf'version: "{re.escape(release)}"',
         "AppChangelog latest version",
     )

@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.04
+
+- Advanced visible Apple app versioning to `v2026.06.22.04`.
+- Split release version metadata and in-app changelog rendering out of `AppTheme.swift` into focused Shared SwiftUI files.
+- Hardened MacBook backend test setup so pytest uses a local HuggingFace cache when external model storage is offline, while production runtime paths still fail visibly if misconfigured.
+
 ### 2026.06.22.03
 
 - Advanced visible Apple app versioning to `v2026.06.22.03`.
