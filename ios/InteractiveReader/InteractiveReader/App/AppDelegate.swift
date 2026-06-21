@@ -14,7 +14,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Set ourselves as the notification center delegate
         UNUserNotificationCenter.current().delegate = self
         resetKeyboardShortcutDebugLog()
+        #if os(iOS)
         UIApplication.installInteractiveReaderKeyboardEventInterceptor()
+        #endif
 
         #if DEBUG
         // Suppress constraint warning spam from iOS keyboard system in simulator

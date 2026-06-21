@@ -19,6 +19,33 @@ across **4 platforms**: Web (Playwright), iPhone, iPad, and tvOS (XCUITest).
 
 ## Running Tests
 
+### Apple Pipeline Smoke
+
+For native Apple build/install/launch smoke tests, use the shared home Apple
+pipeline instead of adding another local ebook-tools wrapper:
+
+```bash
+cd /Users/fifo/Projects/home/apple-device-app-pipeline
+python3 scripts/check_app_source_sync.py --app ebook-tools
+python3 scripts/check_app_backend.py --app ebook-tools
+python3 scripts/ensure_simulator_fleet.py --app ebook-tools --dry-run
+python3 scripts/ensure_simulator_fleet.py --app ebook-tools --download-missing
+python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ipados
+python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ios
+python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos
+
+# Attended physical deploy dry runs
+python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --dry-run
+python3 scripts/run_app_device_deploy.py --app ebook-tools --profile iphone --dry-run
+python3 scripts/run_app_device_deploy.py --app ebook-tools --profile appletv --dry-run
+```
+
+The shared pipeline validates the MacBook simulator lane from the local
+`/Users/fifo/Projects/home/ebook-tools` clone against the Mac Studio/NAS-hosted
+backend topology. It can also repair simulator runtime drift via Xcode platform
+downloads when requested. The Makefile targets below remain the ebook-tools-owned
+authenticated XCUITest journeys and report generation.
+
 ### Quick Start
 
 ```bash

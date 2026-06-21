@@ -142,6 +142,55 @@ Setting `VITE_DEV_HTTPS=true` (or `1`, `yes`, `on`) forces HTTPS. Omitting it de
 
 The iOS apps live in `ios/InteractiveReader/`. Use Xcode or command-line builds.
 
+### Shared Apple Pipeline
+
+ebook-tools is registered as the second dogfood consumer of the reusable home
+Apple app pipeline at `/Users/fifo/Projects/home/apple-device-app-pipeline`.
+Use that pipeline for simulator build/install/launch smoke tests before
+physical device deployment. Use the local MacBook clone at
+`/Users/fifo/Projects/home/ebook-tools` for Apple development and simulator
+builds; keep the Mac Studio checkout for backend/container runtime.
+
+```bash
+cd /Users/fifo/Projects/home/apple-device-app-pipeline
+
+# Verify MacBook and Mac Studio clones are on the expected source revision
+python3 scripts/check_app_source_sync.py --app ebook-tools
+
+# Verify the Mac Studio/NAS-routed backend before simulator work
+python3 scripts/check_app_backend.py --app ebook-tools
+
+# Prepare/repair required iOS and tvOS simulator runtimes on the MacBook
+python3 scripts/ensure_simulator_fleet.py --app ebook-tools --dry-run
+python3 scripts/ensure_simulator_fleet.py --app ebook-tools --download-missing
+
+# iPadOS smoke for the existing InteractiveReader target
+python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ipados
+
+# iPhone-shaped smoke
+python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ios
+
+# tvOS smoke for InteractiveReaderTV
+python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos
+
+# Attended physical deploy recipes
+python3 scripts/run_app_device_deploy.py --app ebook-tools --profile iphone --dry-run
+python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --dry-run
+python3 scripts/run_app_device_deploy.py --app ebook-tools --profile appletv --dry-run
+```
+
+The shared pipeline owns MacBook simulator setup, clean install/launch, Xcode
+SDK/runtime preflight, and safe simulator environment injection. Keep backend
+APIs running on Mac Studio containers, with public HTTPS subdomains
+reverse-proxied through the DS923+ NAS when needed. Use GitHub to sync code
+between MacBook and Mac Studio; do not sync `.env`, database volumes, user
+uploads, generated media, or other runtime state.
+
+Remove `--dry-run` from a device deploy command only when the physical iPhone,
+iPad, or Apple TV is awake, unlocked, paired/trusted, and attended. The wrapper
+runs the matching simulator smoke first, then builds, signs, installs, and
+launches through the shared deploy helper.
+
 ### Schemes
 
 | Scheme | Platform | Purpose |
