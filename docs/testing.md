@@ -83,18 +83,22 @@ The authenticated iPadOS simulator journey is green through the shared pipeline:
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados --use-remote-env
 ```
 
-Latest result: `InteractiveReaderUITests/JourneyTests/testJourney` passed on the
-`iPad Pro 13-inch (M5)` simulator with 1 test, 0 failures.
+Latest result on June 21, 2026: `InteractiveReaderUITests/JourneyTests/testJourney`
+passed on the `iPad Pro 13-inch (M5)` simulator with 1 test, 0 failures. The
+journey asserts the visible `appVersionBadge` frame so the pipeline rejects the
+narrow/vertical version-pill regression that was seen on the physical iPad.
 
-Device preflight currently reports `Fifo Ipad Pro` paired but unavailable to
-Xcode/CoreDevice:
+Device preflight currently sees `Fifo Ipad Pro` through CoreDevice:
 
 ```bash
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --device-preflight-only
 ```
 
-Keep the iPad awake and unlocked; for the attended install, prefer USB-C, tap
-Trust, then re-enable network deployment from Xcode Devices and Simulators.
+Physical iPad M5 Pro evidence from June 21, 2026: the attended Xcode/CoreDevice
+path installed and relaunched `InteractiveReader` with version `2026.6.21` and
+bundle version `2026062105` (`v2026.06.21.05`). Keep the iPad awake and unlocked;
+for future attended installs, prefer USB-C, tap Trust when prompted, then
+re-enable network deployment from Xcode Devices and Simulators if needed.
 
 Generic iOS device signing currently fails before compilation:
 
@@ -135,6 +139,10 @@ python3 scripts/ios_profile_capability_check.py \
 ssh mac-studio.local 'cd /Users/fifo/Projects/home/ebook-tools && git pull --ff-only'
 python3 scripts/check_app_source_sync.py --app ebook-tools
 ```
+
+Current checkpoint: local MacBook and Mac Studio clones are clean on `main` at
+`b28b584`, and the Mac Studio clone passes `python3
+scripts/check_release_version_contract.py`.
 
 ### Quick Start
 

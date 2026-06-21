@@ -145,6 +145,13 @@ make test-e2e-all         # E2E: all 4 platforms
 
 See [docs/testing.md](docs/testing.md) for the complete testing guide.
 
+Apple-device development dogfoods the reusable home pipeline at
+`/Users/fifo/Projects/home/apple-device-app-pipeline`: local MacBook clone for
+Xcode/simulator work, Mac Studio containers for backend runtime, and DS923+ NAS
+reverse proxy for public API routes. See the Apple Pipeline Smoke section in
+[docs/testing.md](docs/testing.md#apple-pipeline-smoke) before deploying to
+physical iPhone, iPad, or Apple TV.
+
 ## Contributing
 
 1. Read the [Developer Guide](docs/developer-guide.md) for setup

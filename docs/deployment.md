@@ -25,10 +25,11 @@ Internet --> Synology DSM (:443 TLS) --> Frontend Container (Nginx :5173)
 ```
 
 The Synology DSM reverse proxy terminates TLS at port 443 and forwards traffic
-to the frontend Nginx container on the Mac Mini. Nginx serves the React SPA for
-all unmatched routes and reverse-proxies API, pipeline, and storage requests to
-the backend container. The backend reads and writes data through Docker volume
-mounts that map host directories into the container filesystem.
+to the frontend Nginx container on the Mac Studio runtime host. Nginx serves the
+React SPA for all unmatched routes and reverse-proxies API, pipeline, and
+storage requests to the backend container. The backend reads and writes data
+through Docker volume mounts that map Mac Studio/NAS-mounted host directories
+into the container filesystem.
 
 ![System Overview](images/system-overview.png)
 
@@ -388,7 +389,7 @@ Configure a reverse proxy entry in DSM Control Panel:
 | Description | ebook-tools frontend |
 | Source protocol | HTTPS |
 | Source port | 443 |
-| Destination hostname | `localhost` (or Mac Mini IP) |
+| Destination hostname | `localhost` (or Mac Studio IP/hostname) |
 | Destination port | 5173 |
 | Destination protocol | HTTP |
 
@@ -625,7 +626,8 @@ docker exec ebook-tools-backend python3 -c \
    ```
 
 2. **Check that the host path exists** -- the NAS volume must be mounted on the
-   Mac Mini at the expected path (e.g., `/Volumes/Data/Download/Ebooks`).
+   Mac Studio runtime host at the expected path (e.g.,
+   `/Volumes/Data/Download/Ebooks`).
 
 3. **Clear browser localStorage** -- the frontend may be sending cached macOS
    paths from a previous configuration. Open the browser DevTools, go to
