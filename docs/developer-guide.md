@@ -196,6 +196,13 @@ reverse-proxied through the DS923+ NAS when needed. Use GitHub to sync code
 between MacBook and Mac Studio; do not sync `.env`, database volumes, user
 uploads, generated media, or other runtime state.
 
+The backend exposes two credential-free preflight endpoints for that pipeline:
+`/_health` for liveness and `/api/system/runtime` for non-secret runtime
+identity/config metadata. The runtime descriptor intentionally names only public
+contracts such as auth paths and supported Apple app API-base-url environment
+keys; it does not expose tokens, passwords, user records, storage paths, or
+deployment secrets.
+
 Remove `--dry-run` from a device deploy command only when the physical iPhone,
 iPad, or Apple TV is awake, unlocked, paired/trusted, and attended. The wrapper
 runs the matching simulator smoke first, then builds, signs, installs, and

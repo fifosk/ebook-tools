@@ -40,6 +40,7 @@ deep-dive and module map.
 docker compose up -d          # start backend + frontend + PostgreSQL
 make monitoring-up            # start Prometheus + Grafana
 curl http://localhost:8000/_health  # verify backend
+curl http://localhost:8000/api/system/runtime  # verify public runtime contract
 ```
 
 See [docs/deployment.md](docs/deployment.md) for volume mounts, environment

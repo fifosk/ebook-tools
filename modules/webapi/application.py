@@ -609,6 +609,31 @@ def _configure_static_assets(app: FastAPI) -> bool:
     return True
 
 
+def _runtime_descriptor(app: FastAPI) -> dict[str, object]:
+    """Return non-secret runtime facts safe for simulator/device preflights."""
+
+    return {
+        "status": "ok",
+        "app": "ebook-tools",
+        "service": "ebook-tools-api",
+        "version": app.version,
+        "healthPath": "/_health",
+        "auth": {
+            "loginPath": "/api/auth/login",
+            "sessionPath": "/api/auth/session",
+            "tokenTransport": "Authorization: Bearer",
+        },
+        "clientConfig": {
+            "apiBaseUrlEnvironment": [
+                "INTERACTIVE_READER_API_BASE_URL",
+                "EBOOK_TOOLS_API_BASE_URL",
+                "E2E_API_BASE_URL",
+            ],
+            "sessionTokenStorage": "client-keychain",
+        },
+    }
+
+
 async def _prepare_runtime() -> None:
     """Initialize runtime resources before the API starts serving requests."""
 
@@ -735,6 +760,12 @@ def create_app() -> FastAPI:
         """Simple healthcheck endpoint for smoke-testing the server."""
 
         return {"status": "ok"}
+
+    @app.get("/api/system/runtime", tags=["health"])
+    def public_runtime_descriptor() -> dict[str, object]:
+        """Public non-secret runtime contract for app pipeline preflights."""
+
+        return _runtime_descriptor(app)
 
     app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
     app.include_router(admin_router, prefix="/api/admin", tags=["admin"])

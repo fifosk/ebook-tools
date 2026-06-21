@@ -74,6 +74,9 @@ docker compose up -d --build frontend
 curl http://localhost:8000/_health
 # Expected: {"status":"ok"}
 
+# Public non-secret runtime descriptor for Apple pipeline preflights
+curl http://localhost:8000/api/system/runtime
+
 # Frontend serves the React SPA
 curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/
 # Expected: 200
