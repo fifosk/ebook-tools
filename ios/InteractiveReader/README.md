@@ -27,7 +27,18 @@ ios/InteractiveReader
 1. Open `ios/InteractiveReader/InteractiveReader.xcodeproj` in Xcode.
 2. Select the `InteractiveReader` (iOS/iPadOS) or `InteractiveReaderTV` (tvOS) scheme and a target device.
 3. Run (`⌘R`).
-4. In the UI, set the API base URL (defaults to `https://api.langtools.fifosk.synology.me`), sign in, and open a Library item.
+4. Sign in, then open a Library item or completed Job.
+
+### Runtime configuration
+
+The app defaults to `https://api.langtools.fifosk.synology.me`. Simulator and
+XCUITest runs can override that base URL through launch environment in this
+order: `INTERACTIVE_READER_API_BASE_URL`, `EBOOK_TOOLS_API_BASE_URL`, then
+legacy `E2E_API_BASE_URL`.
+
+Settings shows a non-secret connection readout with the resolved API host, the
+current signed-in session label, and Keychain token storage status. It never
+shows the bearer token.
 
 ### Library media URLs
 

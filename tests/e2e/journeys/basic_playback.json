@@ -1,7 +1,7 @@
 {
   "id": "basic_playback",
   "name": "Basic Book Playback",
-  "description": "Login, navigate to Jobs (Books), play a book, return to menu",
+  "description": "Login, verify settings connection state, navigate to Jobs (Books), play a book, return to menu",
   "steps": [
     {
       "action": "login",
@@ -33,6 +33,22 @@
     {
       "action": "assert_visible",
       "selector": "combinedSearchEmptyView",
+      "timeout": 10
+    },
+    {
+      "action": "navigate_tab",
+      "tab": "Settings",
+      "selector": "browseSectionSettingsButton",
+      "screenshot": "settings_tab"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "settingsAPIHostRow",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "settingsTokenStorageRow",
       "timeout": 10
     },
     {

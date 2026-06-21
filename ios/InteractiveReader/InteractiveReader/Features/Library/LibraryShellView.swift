@@ -577,19 +577,46 @@ private struct PlaybackSettingsView: View {
                     .padding(.horizontal)
             }
             List {
-                Section("Playback") {
+                Section {
+                    SettingsInfoRow(
+                        title: "API Host",
+                        value: apiHostLabel,
+                        systemImage: "network",
+                        accessibilityIdentifier: "settingsAPIHostRow"
+                    )
+
+                    SettingsInfoRow(
+                        title: "Session",
+                        value: sessionLabel,
+                        systemImage: "person.crop.circle.badge.checkmark",
+                        accessibilityIdentifier: "settingsSessionRow"
+                    )
+
+                    SettingsInfoRow(
+                        title: "Token Storage",
+                        value: "Keychain",
+                        systemImage: "key",
+                        accessibilityIdentifier: "settingsTokenStorageRow"
+                    )
+                } header: {
+                    settingsSectionHeader("Connection")
+                }
+
+                Section {
                     Toggle(isOn: $autoScaleEnabled) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Auto-fit transcript")
-                                .foregroundStyle(usesDarkBackground ? .white : .primary)
+                                .foregroundStyle(.primary)
                             Text("Scale active sentences to fit the screen on rotation or font changes.")
                                 .font(.caption)
-                                .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
+                } header: {
+                    settingsSectionHeader("Playback")
                 }
 
-                Section("Voice") {
+                Section {
                     let hasVoiceOverrides = !TtsVoicePreferencesManager.shared.allVoices().isEmpty
                     if hasVoiceOverrides {
                         Button(role: .destructive) {
@@ -600,30 +627,32 @@ private struct PlaybackSettingsView: View {
                                     .foregroundStyle(.red)
                                 Text("Clears custom TTS voice selections for all languages.")
                                     .font(.caption)
-                                    .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     } else {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("No custom voice settings")
-                                .foregroundStyle(usesDarkBackground ? .white : .primary)
+                                .foregroundStyle(.primary)
                             Text("Custom voices selected in MyLinguist will appear here.")
                                 .font(.caption)
-                                .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
+                } header: {
+                    settingsSectionHeader("Voice")
                 }
 
                 #if os(iOS)
-                Section("Notifications") {
+                Section {
                     if notificationManager.isAuthorized {
                         Toggle(isOn: $notificationManager.notificationsEnabled) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Job Notifications")
-                                    .foregroundStyle(usesDarkBackground ? .white : .primary)
+                                    .foregroundStyle(.primary)
                                 Text("Receive alerts when jobs complete or fail.")
                                     .font(.caption)
-                                    .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                                    .foregroundStyle(.secondary)
                             }
                         }
 
@@ -633,10 +662,10 @@ private struct PlaybackSettingsView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Send Test Notification")
-                                        .foregroundStyle(usesDarkBackground ? .white : .primary)
+                                        .foregroundStyle(.primary)
                                     Text("Verify push notifications are working.")
                                         .font(.caption)
-                                        .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 if isSendingTestNotification {
@@ -644,7 +673,7 @@ private struct PlaybackSettingsView: View {
                                         .controlSize(.small)
                                 } else {
                                     Image(systemName: "bell.badge")
-                                        .foregroundStyle(usesDarkBackground ? .white : .accentColor)
+                                        .foregroundStyle(Color.accentColor)
                                 }
                             }
                         }
@@ -656,10 +685,10 @@ private struct PlaybackSettingsView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Send Rich Notification")
-                                        .foregroundStyle(usesDarkBackground ? .white : .primary)
+                                        .foregroundStyle(.primary)
                                     Text("Test notification with cover art image.")
                                         .font(.caption)
-                                        .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 if isSendingRichTestNotification {
@@ -667,7 +696,7 @@ private struct PlaybackSettingsView: View {
                                         .controlSize(.small)
                                 } else {
                                     Image(systemName: "photo.badge.checkmark")
-                                        .foregroundStyle(usesDarkBackground ? .white : .accentColor)
+                                        .foregroundStyle(Color.accentColor)
                                 }
                             }
                         }
@@ -679,10 +708,10 @@ private struct PlaybackSettingsView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Enable Notifications")
-                                        .foregroundStyle(usesDarkBackground ? .white : .primary)
+                                        .foregroundStyle(.primary)
                                     Text("Get alerts when jobs complete or fail.")
                                         .font(.caption)
-                                        .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 if isRequestingPermission {
@@ -690,12 +719,14 @@ private struct PlaybackSettingsView: View {
                                         .controlSize(.small)
                                 } else {
                                     Image(systemName: "bell")
-                                        .foregroundStyle(usesDarkBackground ? .white : .accentColor)
+                                        .foregroundStyle(Color.accentColor)
                                 }
                             }
                         }
                         .disabled(isRequestingPermission)
                     }
+                } header: {
+                    settingsSectionHeader("Notifications")
                 }
                 #endif
             }
@@ -718,6 +749,26 @@ private struct PlaybackSettingsView: View {
             Text(testAlertMessage)
         }
         #endif
+    }
+
+    private func settingsSectionHeader(_ title: String) -> some View {
+        Text(title)
+            .foregroundStyle(usesDarkBackground ? .white.opacity(0.72) : .secondary)
+    }
+
+    private var apiHostLabel: String {
+        guard let url = appState.apiBaseURL else { return "Not configured" }
+        let scheme = url.scheme?.nonEmptyValue ?? "https"
+        let host = url.host?.nonEmptyValue ?? url.absoluteString
+        return "\(scheme)://\(host)"
+    }
+
+    private var sessionLabel: String {
+        guard let user = appState.session?.user else { return "Not signed in" }
+        if let role = user.role.nonEmptyValue {
+            return "\(user.username) · \(role)"
+        }
+        return user.username
     }
 
     #if os(iOS)
@@ -785,6 +836,33 @@ private struct PlaybackSettingsView: View {
         }
     }
     #endif
+}
+
+private struct SettingsInfoRow: View {
+    let title: String
+    let value: String
+    let systemImage: String
+    let accessibilityIdentifier: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .foregroundStyle(.primary)
+                Text(value)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
 }
 
 private struct CombinedSearchView: View {
