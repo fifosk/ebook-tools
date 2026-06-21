@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from ..user_management import AuthService
 from ..user_management.user_store_base import UserRecord
-from .auth_utils import extract_session_token
+from .auth_utils import require_admin_user
 from .dependencies import get_auth_service
 from .schemas import (
     ManagedUserPayload,
@@ -31,18 +31,7 @@ def _require_admin(
     authorization: str | None,
     auth_service: AuthService,
 ) -> Tuple[str, UserRecord]:
-    token = extract_session_token(authorization)
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session token")
-
-    user = auth_service.authenticate(token)
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token")
-
-    if "admin" not in user.roles:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator role required")
-
-    return token, user
+    return require_admin_user(authorization, auth_service)
 
 
 def _normalise_bool(value: Any) -> bool | None:

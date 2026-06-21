@@ -16,7 +16,7 @@ from modules import logging_manager as log_mgr
 from modules.services.file_locator import FileLocator
 from modules.user_management import AuthService
 
-from ..auth_utils import extract_session_token
+from ..auth_utils import require_admin_user
 from ..dependencies import get_auth_service
 from ..schemas.reading_beds import (
     ReadingBedDeleteResponse,
@@ -38,14 +38,7 @@ DEFAULT_BUNDLED_BED_URL = "/assets/reading-beds/lost-in-the-pages.mp3"
 
 
 def _require_admin(authorization: str | None, auth_service: AuthService) -> None:
-    token = extract_session_token(authorization)
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session token")
-    record = auth_service.authenticate(token)
-    if record is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token")
-    if "admin" not in (record.roles or []):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator role required")
+    require_admin_user(authorization, auth_service)
 
 
 def _now_iso() -> str:
