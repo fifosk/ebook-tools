@@ -37,17 +37,20 @@ struct BrowseActionRow: View {
     }
 
     private var brandLabel: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: "globe")
                 .font(.system(size: iconSize, weight: .semibold))
                 .foregroundStyle(usesDarkListBackground ? .cyan : .blue)
-            Text("Language Tools")
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundStyle(usesDarkListBackground ? .white : .primary)
-            AppVersionBadge()
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Language Tools")
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(usesDarkListBackground ? .white : .primary)
+                AppVersionBadge(compact: true)
+            }
         }
-        .layoutPriority(1)
+        .frame(minWidth: 142, alignment: .leading)
+        .layoutPriority(10)
     }
 
     private var cloudStatusIcon: some View {

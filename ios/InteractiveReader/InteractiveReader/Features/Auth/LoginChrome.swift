@@ -66,27 +66,30 @@ struct LoginCard<Content: View>: View {
 
 struct LoginHeaderView: View {
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color(red: 0.23, green: 0.51, blue: 0.96).opacity(0.2))
-                    .overlay(
-                        Circle()
-                            .stroke(Color(red: 0.38, green: 0.65, blue: 0.98).opacity(0.55), lineWidth: 1)
-                    )
-                Image(systemName: "globe")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(Color(red: 0.38, green: 0.65, blue: 0.98))
-            }
-            .frame(width: 46, height: 46)
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color(red: 0.23, green: 0.51, blue: 0.96).opacity(0.2))
+                        .overlay(
+                            Circle()
+                                .stroke(Color(red: 0.38, green: 0.65, blue: 0.98).opacity(0.55), lineWidth: 1)
+                        )
+                    Image(systemName: "globe")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.38, green: 0.65, blue: 0.98))
+                }
+                .frame(width: 46, height: 46)
 
-            Text("Language tools")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(Color.white)
+                Text("Language tools")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
 
             AppVersionBadge()
         }
-        .lineLimit(1)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 }

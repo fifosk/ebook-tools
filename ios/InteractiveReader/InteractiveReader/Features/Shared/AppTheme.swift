@@ -35,11 +35,17 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.03"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.04"
     }
 
     static var displayLabel: String {
         "v\(release)"
+    }
+
+    static var compactDisplayLabel: String {
+        let parts = release.split(separator: ".")
+        guard parts.count == 4 else { return displayLabel }
+        return "v\(parts[1]).\(parts[2]).\(parts[3])"
     }
 
     static var bundleVersion: String {
@@ -78,18 +84,25 @@ enum AppVersion {
 }
 
 struct AppVersionBadge: View {
+    let compact: Bool
+
+    init(compact: Bool = false) {
+        self.compact = compact
+    }
+
     var body: some View {
-        Text(AppVersion.displayLabel)
+        Text(compact ? AppVersion.compactDisplayLabel : AppVersion.displayLabel)
             .font(versionFont)
             .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.85)
-            .fixedSize(horizontal: true, vertical: false)
+            .allowsTightening(false)
+            .frame(minWidth: compact ? 76 : 124, minHeight: 20)
             .padding(.horizontal, 6)
-            .padding(.vertical, 2)
             .background(Color.white.opacity(0.08), in: Capsule())
             .foregroundStyle(.secondary)
-            .layoutPriority(2)
+            .fixedSize(horizontal: true, vertical: false)
+            .layoutPriority(10)
             .accessibilityLabel("Version \(AppVersion.release)")
             .accessibilityIdentifier("appVersionBadge")
     }
@@ -121,8 +134,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-21",
             dateLabel: "June 21, 2026",
-            version: "2026.06.21.03",
+            version: "2026.06.21.04",
             entries: [
+                AppChangelogEntry(
+                    id: "version-pill-owns-width",
+                    title: "Version badge no longer squeezes",
+                    detail: "The login badge now owns a full row and toolbar headers use a compact daily label so iPad cannot stack the version vertically."
+                ),
                 AppChangelogEntry(
                     id: "ipad-version-pill-layout",
                     title: "iPad version badge layout",

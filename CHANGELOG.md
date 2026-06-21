@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-21
 
+### 2026.06.21.04
+
+- Reworked the login/header version badge so `v2026.06.21.04` owns enough horizontal space and cannot collapse into vertically stacked characters on iPad.
+- Switched compact toolbar headers to `v06.21.04` while keeping the full daily version in the login and changelog surfaces.
+
 ### 2026.06.21.03
 
 - Fixed the iPad release badge so `v2026.06.21.03` stays as a single horizontal pill in crowded headers.
