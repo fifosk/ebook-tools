@@ -14,24 +14,7 @@ struct InteractiveReaderApp: App {
             RootView()
                 .environmentObject(appState)
                 .environmentObject(offlineStore)
-                .task {
-                    await NotificationManager.shared.checkAuthorizationStatus()
-                    NotificationManager.shared.registerForPushNotificationsIfNeeded()
-                }
-                .onChange(of: appState.session) { _, session in
-                    // Re-register device token when user logs in
-                    if session != nil, let config = appState.configuration {
-                        NotificationManager.shared.configure(with: config)
-                    }
-                }
-                #if os(iOS)
-                .onAppear {
-                    PlayerKeyboardShortcutBroker.shared.setActive(appState.playerKeyboardShortcutsActive)
-                }
-                .onChange(of: appState.playerKeyboardShortcutsActive) { _, active in
-                    PlayerKeyboardShortcutBroker.shared.setActive(active)
-                }
-                #endif
+                .interactiveReaderLifecycle(appState: appState)
         }
         #if os(iOS)
         .commands {
@@ -80,5 +63,36 @@ struct InteractiveReaderApp: App {
             }
         }
         #endif
+    }
+}
+
+private extension View {
+    func interactiveReaderLifecycle(appState: AppState) -> some View {
+        modifier(InteractiveReaderLifecycleModifier(appState: appState))
+    }
+}
+
+private struct InteractiveReaderLifecycleModifier: ViewModifier {
+    @ObservedObject var appState: AppState
+
+    func body(content: Content) -> some View {
+        content
+            .task {
+                await NotificationManager.shared.checkAuthorizationStatus()
+                NotificationManager.shared.registerForPushNotificationsIfNeeded()
+            }
+            .onChange(of: appState.session) { _, session in
+                if session != nil, let config = appState.configuration {
+                    NotificationManager.shared.configure(with: config)
+                }
+            }
+            #if os(iOS)
+            .onAppear {
+                PlayerKeyboardShortcutBroker.shared.setActive(appState.playerKeyboardShortcutsActive)
+            }
+            .onChange(of: appState.playerKeyboardShortcutsActive) { _, active in
+                PlayerKeyboardShortcutBroker.shared.setActive(active)
+            }
+            #endif
     }
 }

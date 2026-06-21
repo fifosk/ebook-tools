@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-21
 
+### 2026.06.21.11
+
+- Advanced visible Apple app versioning to `v2026.06.21.11`.
+- Moved root notification, keyboard-shortcut, session-restore, and offline sync lifecycle hooks into focused SwiftUI modifiers so the app shell is easier to iterate safely across iPhone, iPad, and tvOS.
+
 ### 2026.06.21.10
 
 - Advanced visible Apple app versioning to `v2026.06.21.10`.

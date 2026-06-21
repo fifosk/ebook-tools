@@ -14,13 +14,7 @@ struct RootView: View {
             mainContent
             #endif
         }
-        .task {
-            await appState.restoreSessionIfNeeded()
-        }
-        .task(id: appState.session?.token) {
-            guard let configuration = appState.configuration else { return }
-            offlineStore.syncSharedReadingBedsIfNeeded(configuration: configuration)
-        }
+        .rootSessionLifecycle(appState: appState, offlineStore: offlineStore)
     }
 
     private var mainContent: some View {
@@ -33,6 +27,28 @@ struct RootView: View {
                 LoginView()
             }
         }
+    }
+}
+
+private extension View {
+    func rootSessionLifecycle(appState: AppState, offlineStore: OfflineMediaStore) -> some View {
+        modifier(RootSessionLifecycleModifier(appState: appState, offlineStore: offlineStore))
+    }
+}
+
+private struct RootSessionLifecycleModifier: ViewModifier {
+    @ObservedObject var appState: AppState
+    @ObservedObject var offlineStore: OfflineMediaStore
+
+    func body(content: Content) -> some View {
+        content
+            .task {
+                await appState.restoreSessionIfNeeded()
+            }
+            .task(id: appState.session?.token) {
+                guard let configuration = appState.configuration else { return }
+                offlineStore.syncSharedReadingBedsIfNeeded(configuration: configuration)
+            }
     }
 }
 

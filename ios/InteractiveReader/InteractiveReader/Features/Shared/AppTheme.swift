@@ -35,7 +35,7 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.10"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.11"
     }
 
     static var displayLabel: String {
@@ -172,8 +172,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-21",
             dateLabel: "June 21, 2026",
-            version: "2026.06.21.10",
+            version: "2026.06.21.11",
             entries: [
+                AppChangelogEntry(
+                    id: "root-lifecycle-modifiers",
+                    title: "Root lifecycle cleaned up",
+                    detail: "Notification registration, keyboard shortcuts, session restore, and offline sync now live in focused SwiftUI modifiers for safer cross-device iteration."
+                ),
                 AppChangelogEntry(
                     id: "explicit-version-badge-frame",
                     title: "Version badge frame hardened",
