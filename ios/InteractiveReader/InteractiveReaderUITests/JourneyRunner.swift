@@ -279,6 +279,8 @@ final class JourneyRunner {
 
         #if os(tvOS)
         XCUIRemote.shared.press(.menu)
+        #else
+        dismissKeyboardIfPresent()
         #endif
     }
 
@@ -394,6 +396,23 @@ final class JourneyRunner {
             withNormalizedOffset: CGVector(dx: 0.7, dy: 0.5)
         )
         leftEdge.press(forDuration: 0.1, thenDragTo: center)
+    }
+
+    private func dismissKeyboardIfPresent() {
+        let keyboard = app.keyboards.firstMatch
+        guard keyboard.waitForExistence(timeout: 1) else { return }
+
+        for label in ["Search", "Done", "Return"] {
+            let button = keyboard.buttons[label]
+            if button.exists && button.isHittable {
+                button.tap()
+                return
+            }
+        }
+
+        app.windows.firstMatch.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.95, dy: 0.08)
+        ).tap()
     }
     #endif
 }

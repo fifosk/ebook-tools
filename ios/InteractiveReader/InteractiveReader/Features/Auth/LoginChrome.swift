@@ -111,6 +111,9 @@ struct LoginServerStatusView: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(Color(red: 0.58, green: 0.64, blue: 0.72).opacity(0.2), lineWidth: 1)
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(status.label)
+        .accessibilityIdentifier("loginServerStatusView")
     }
 }
 
@@ -126,6 +129,7 @@ struct LoginTrafficLightView: View {
         .padding(6)
         .background(Color(red: 0.01, green: 0.02, blue: 0.09).opacity(0.6))
         .clipShape(Capsule())
+        .accessibilityHidden(true)
     }
 
     private func circle(for lane: LoginServerStatus) -> some View {

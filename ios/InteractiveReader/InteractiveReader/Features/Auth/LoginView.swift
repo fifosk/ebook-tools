@@ -111,7 +111,7 @@ private struct LoginCredentialsSection: View {
             SecureField("Password", text: $viewModel.password)
                 .focused(focusedField, equals: .password)
                 .submitLabel(.go)
-                .onSubmit(signIn)
+                .onSubmit(submitCredentials)
                 .loginFieldStyle()
                 .accessibilityIdentifier("loginPasswordField")
 
@@ -119,13 +119,15 @@ private struct LoginCredentialsSection: View {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .font(.callout)
                     .foregroundStyle(.red)
+                    .accessibilityIdentifier("loginErrorMessage")
             }
 
-            Button(action: signIn) {
+            Button(action: submitCredentials) {
                 HStack {
                     if viewModel.isLoading {
                         ProgressView()
                             .tint(.white)
+                            .accessibilityIdentifier("loginSignInProgressView")
                     }
                     Text("Sign In")
                 }
@@ -137,6 +139,11 @@ private struct LoginCredentialsSection: View {
 
             appleSignInButton
         }
+    }
+
+    private func submitCredentials() {
+        guard viewModel.canSubmitCredentials else { return }
+        signIn()
     }
 
     @ViewBuilder
@@ -154,6 +161,7 @@ private struct LoginCredentialsSection: View {
         .foregroundStyle(.white)
         .frame(minHeight: 44)
         .disabled(viewModel.isLoading)
+        .accessibilityIdentifier("loginAppleSignInButton")
         #else
         SignInWithAppleButton(.signIn, onRequest: { request in
             request.requestedScopes = [.fullName, .email]
@@ -161,6 +169,7 @@ private struct LoginCredentialsSection: View {
         .signInWithAppleButtonStyle(.black)
         .frame(minWidth: 200, maxWidth: 375, minHeight: 44)
         .disabled(viewModel.isLoading)
+        .accessibilityIdentifier("loginAppleSignInButton")
         #endif
     }
 }

@@ -298,7 +298,8 @@ struct LibraryShellView: View {
                     },
                     coverResolver: coverURL(for:),
                     resumeUserId: resumeUserId,
-                    sectionPicker: sectionPickerForHeader
+                    sectionPicker: sectionPickerForHeader,
+                    usesDarkBackground: usesDarkBackground
                 )
             case .settings:
                 if isSplitLayout {
@@ -796,23 +797,17 @@ private struct CombinedSearchView: View {
     let coverResolver: (LibraryItem) -> URL?
     let resumeUserId: String?
     let sectionPicker: AnyView?
+    let usesDarkBackground: Bool
 
     @State private var query: String = ""
     @FocusState private var isSearchFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
-    #if os(iOS)
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    #endif
     @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
 
-    /// Whether to use dark background (iPad in light mode, matching tvOS style)
+    /// Whether to use dark background, matching the parent shell's split-view styling.
     private var usesDarkListBackground: Bool {
-        #if os(iOS)
-        return horizontalSizeClass != .compact && colorScheme == .light
-        #else
-        return false
-        #endif
+        usesDarkBackground
     }
 
     private enum SearchResult: Identifiable {
@@ -878,20 +873,18 @@ private struct CombinedSearchView: View {
     @ViewBuilder
     private var searchOverlay: some View {
         if trimmedQuery.isEmpty {
-            ContentUnavailableView {
-                Label("Search jobs and library", systemImage: "magnifyingglass")
-            } description: {
-                Text("Type to search across jobs and library items.")
-            }
-            .foregroundStyle(usesDarkListBackground ? .white : .primary)
+            SearchEmptyStateView(
+                title: "Search jobs and library",
+                message: "Type to search across jobs and library items.",
+                usesDarkListBackground: usesDarkListBackground
+            )
             .accessibilityIdentifier("combinedSearchPromptView")
         } else if results.isEmpty {
-            ContentUnavailableView {
-                Label("No matches found", systemImage: "magnifyingglass")
-            } description: {
-                Text("Try a different search term.")
-            }
-            .foregroundStyle(usesDarkListBackground ? .white : .primary)
+            SearchEmptyStateView(
+                title: "No matches found",
+                message: "Try a different search term.",
+                usesDarkListBackground: usesDarkListBackground
+            )
             .accessibilityIdentifier("combinedSearchEmptyView")
         }
     }
@@ -1220,5 +1213,42 @@ private struct CombinedSearchView: View {
         formatter.allowedUnits = time >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
         formatter.zeroFormattingBehavior = .pad
         return formatter.string(from: time) ?? "0:00"
+    }
+}
+
+private struct SearchEmptyStateView: View {
+    let title: String
+    let message: String
+    let usesDarkListBackground: Bool
+
+    private var primaryColor: Color {
+        usesDarkListBackground ? .white : .primary
+    }
+
+    private var secondaryColor: Color {
+        usesDarkListBackground ? Color.white.opacity(0.74) : .secondary
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 42, weight: .medium))
+                .foregroundStyle(secondaryColor)
+                .accessibilityHidden(true)
+
+            Text(title)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(primaryColor)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(secondaryColor)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: 360)
     }
 }
