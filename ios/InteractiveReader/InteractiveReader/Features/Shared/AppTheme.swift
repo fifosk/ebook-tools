@@ -35,7 +35,7 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.05"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.06"
     }
 
     static var displayLabel: String {
@@ -94,14 +94,15 @@ struct AppVersionBadge: View {
 
     var body: some View {
         versionText
-            .padding(.horizontal, 8)
-            .frame(width: compact ? 118 : 170, height: compact ? 26 : 28, alignment: .center)
-            .background(badgeBackground, in: Capsule())
+            .frame(width: badgeTextWidth, height: badgeHeight, alignment: .center)
+            .padding(.horizontal, compact ? 6 : 8)
+            .background(badgeBackground, in: RoundedRectangle(cornerRadius: compact ? 5 : 8, style: .continuous))
             .overlay(
-                Capsule()
+                RoundedRectangle(cornerRadius: compact ? 5 : 8, style: .continuous)
                     .stroke(badgeBorder, lineWidth: 1)
             )
-            .fixedSize(horizontal: true, vertical: false)
+            .frame(width: badgeWidth, height: badgeHeight, alignment: .center)
+            .fixedSize(horizontal: true, vertical: true)
             .accessibilityLabel("Version \(AppVersion.release)")
             .accessibilityIdentifier("appVersionBadge")
     }
@@ -111,11 +112,24 @@ struct AppVersionBadge: View {
             .font(versionFont)
             .monospacedDigit()
             .lineLimit(1)
-            .minimumScaleFactor(0.9)
-            .allowsTightening(false)
+            .minimumScaleFactor(0.72)
+            .allowsTightening(true)
             .foregroundStyle(badgeForeground)
-            .fixedSize(horizontal: true, vertical: false)
+            .frame(width: badgeTextWidth, alignment: .center)
+            .fixedSize(horizontal: true, vertical: true)
             .layoutPriority(20)
+    }
+
+    private var badgeWidth: CGFloat {
+        compact ? 92 : 164
+    }
+
+    private var badgeTextWidth: CGFloat {
+        compact ? 80 : 148
+    }
+
+    private var badgeHeight: CGFloat {
+        compact ? 24 : 28
     }
 
     private var badgeBackground: Color {
@@ -134,7 +148,7 @@ struct AppVersionBadge: View {
         #if os(tvOS)
         return .system(size: 12, weight: .semibold)
         #else
-        return .caption2
+        return .system(size: compact ? 11 : 12, weight: .semibold, design: .monospaced)
         #endif
     }
 }
@@ -157,8 +171,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-21",
             dateLabel: "June 21, 2026",
-            version: "2026.06.21.05",
+            version: "2026.06.21.06",
             entries: [
+                AppChangelogEntry(
+                    id: "compact-version-chip-width",
+                    title: "iPad version chip fixed",
+                    detail: "Compact headers now use a shorter fixed-width chip with fixed-size monospaced text so the release cannot stack vertically in split view."
+                ),
                 AppChangelogEntry(
                     id: "version-layout-defensive-rows",
                     title: "Version layout hardened",
@@ -316,10 +335,18 @@ struct AppChangelogSummaryView: View {
     }
 
     private var backgroundStyle: Color {
+        #if os(tvOS)
+        return usesDarkBackground ? Color.white.opacity(0.07) : Color.black.opacity(0.08)
+        #else
         usesDarkBackground ? Color.white.opacity(0.07) : Color(.secondarySystemBackground)
+        #endif
     }
 
     private var borderStyle: Color {
+        #if os(tvOS)
+        return usesDarkBackground ? Color.white.opacity(0.12) : Color.primary.opacity(0.16)
+        #else
         usesDarkBackground ? Color.white.opacity(0.12) : Color(.separator).opacity(0.4)
+        #endif
     }
 }

@@ -21,10 +21,10 @@
       "action": "assert_frame",
       "selector": "appVersionBadge",
       "timeout": 10,
-      "min_width": 112,
+      "min_width": 88,
       "min_height": 16,
       "max_height": 34,
-      "min_aspect_ratio": 3.8
+      "min_aspect_ratio": 3.2
     },
     {
       "action": "navigate_tab",
