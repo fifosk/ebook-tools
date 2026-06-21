@@ -104,9 +104,7 @@ struct JobsView: View {
         ForEach(jobs) { job in
             // Always use programmatic navigation to support context menu actions
             #if os(tvOS)
-            Button {
-                onSelect?(job, .resume)
-            } label: {
+            Button(action: { selectJob(job, mode: .resume) }) {
                 JobRowView(job: job, resumeStatus: resumeStatus(for: job))
             }
             .buttonStyle(.plain)
@@ -115,9 +113,7 @@ struct JobsView: View {
                 playbackContextMenu(for: job)
                 offlineContextMenu(for: job)
                 moveToLibraryAction(for: job)
-                Button(role: .destructive) {
-                    Task { await handleDelete(job) }
-                } label: {
+                Button(role: .destructive, action: { deleteJob(job) }) {
                     Label("Delete", systemImage: "trash")
                 }
             }
@@ -127,14 +123,12 @@ struct JobsView: View {
                 .contentShape(Rectangle())
                 .listRowBackground(usesDarkListBackground ? Color.clear : nil)
                 .onTapGesture {
-                    onSelect?(job, .resume)
+                    selectJob(job, mode: .resume)
                 }
                 .contextMenu {
                     playbackContextMenu(for: job)
                     moveToLibraryAction(for: job)
-                    Button(role: .destructive) {
-                        Task { await handleDelete(job) }
-                    } label: {
+                    Button(role: .destructive, action: { deleteJob(job) }) {
                         Label("Delete", systemImage: "trash")
                     }
                 }
@@ -142,9 +136,7 @@ struct JobsView: View {
                     moveToLibraryAction(for: job)
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    Button(role: .destructive) {
-                        Task { await handleDelete(job) }
-                    } label: {
+                    Button(role: .destructive, action: { deleteJob(job) }) {
                         Label("Delete", systemImage: "trash")
                     }
                 }
@@ -199,9 +191,7 @@ struct JobsView: View {
 
     @ViewBuilder
     private func moveToLibraryAction(for job: PipelineStatusResponse) -> some View {
-        Button {
-            Task { await handleMoveToLibrary(job) }
-        } label: {
+        Button(action: { moveJobToLibrary(job) }) {
             Label("Move to Library", systemImage: "books.vertical")
         }
         .tint(.blue)
@@ -242,6 +232,18 @@ struct JobsView: View {
         #if os(tvOS)
         .font(PlatformTypography.sectionHeaderFont)
         #endif
+    }
+
+    private func selectJob(_ job: PipelineStatusResponse, mode: PlaybackStartMode) {
+        onSelect?(job, mode)
+    }
+
+    private func deleteJob(_ job: PipelineStatusResponse) {
+        Task { await handleDelete(job) }
+    }
+
+    private func moveJobToLibrary(_ job: PipelineStatusResponse) {
+        Task { await handleMoveToLibrary(job) }
     }
 
     private func handleMoveToLibrary(_ job: PipelineStatusResponse) async {
@@ -382,7 +384,7 @@ struct JobsView: View {
         let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
 
         Button {
-            onSelect?(job, .resume)
+            selectJob(job, mode: .resume)
         } label: {
             if hasResume {
                 Label(resumeMenuLabel(for: job), systemImage: "play.fill")
@@ -393,7 +395,7 @@ struct JobsView: View {
 
         if hasResume {
             Button {
-                onSelect?(job, .startOver)
+                selectJob(job, mode: .startOver)
             } label: {
                 Label("Start from Beginning", systemImage: "arrow.counterclockwise")
             }

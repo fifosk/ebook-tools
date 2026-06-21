@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.03
+
+- Advanced visible Apple app versioning to `v2026.06.22.03`.
+- Refactored Library and Jobs row actions so selection, delete, and move-to-library commands route through named SwiftUI methods instead of inline row-builder closures.
+
 ### 2026.06.22.02
 
 - Advanced visible Apple app versioning to `v2026.06.22.02`.

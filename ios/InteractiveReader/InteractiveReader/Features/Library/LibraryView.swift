@@ -51,9 +51,7 @@ struct LibraryView: View {
                 ForEach(viewModel.filteredItems) { item in
                     // Always use programmatic navigation to support context menu actions
                     #if os(tvOS)
-                    Button {
-                        onSelect?(item, .resume)
-                    } label: {
+                    Button(action: { selectItem(item, mode: .resume) }) {
                         LibraryRowView(
                             item: item,
                             coverURL: coverResolver(item),
@@ -65,9 +63,7 @@ struct LibraryView: View {
                     .contextMenu {
                         playbackContextMenu(for: item)
                         offlineContextMenu(for: item)
-                        Button(role: .destructive) {
-                            Task { await handleDelete(item) }
-                        } label: {
+                        Button(role: .destructive, action: { deleteItem(item) }) {
                             Label("Delete", systemImage: "trash")
                         }
                     }
@@ -82,20 +78,16 @@ struct LibraryView: View {
                     .contentShape(Rectangle())
                     .listRowBackground(usesDarkListBackground ? Color.clear : nil)
                     .onTapGesture {
-                        onSelect?(item, .resume)
+                        selectItem(item, mode: .resume)
                     }
                     .contextMenu {
                         playbackContextMenu(for: item)
-                        Button(role: .destructive) {
-                            Task { await handleDelete(item) }
-                        } label: {
+                        Button(role: .destructive, action: { deleteItem(item) }) {
                             Label("Delete", systemImage: "trash")
                         }
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            Task { await handleDelete(item) }
-                        } label: {
+                        Button(role: .destructive, action: { deleteItem(item) }) {
                             Label("Delete", systemImage: "trash")
                         }
                     }
@@ -213,7 +205,12 @@ struct LibraryView: View {
             if let sectionPicker {
                 sectionPicker
             }
-            filterPicker
+            LibraryFilterPicker(
+                activeFilter: $viewModel.activeFilter,
+                usesDarkListBackground: usesDarkListBackground,
+                colorScheme: colorScheme,
+                onRefresh: handleRefresh
+            )
         }
         .padding(.top, 8)
         #if os(tvOS)
@@ -259,40 +256,6 @@ struct LibraryView: View {
         #endif
     }
 
-    @ViewBuilder
-    private var filterPicker: some View {
-        #if os(tvOS)
-        Picker("Filter", selection: $viewModel.activeFilter) {
-            ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in
-                Text(filter.rawValue).tag(filter)
-            }
-        }
-        .pickerStyle(.automatic)
-        .padding(.horizontal)
-        .onLongPressGesture(minimumDuration: 0.6) {
-            handleRefresh()
-        }
-        #elseif os(iOS)
-        Picker("Filter", selection: $viewModel.activeFilter) {
-            ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in
-                Text(filter.rawValue).tag(filter)
-            }
-        }
-        .pickerStyle(.segmented)
-        .colorScheme(usesDarkListBackground ? .dark : colorScheme)
-        .padding(.horizontal)
-        #else
-        Picker("Filter", selection: $viewModel.activeFilter) {
-            ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in
-                Text(filter.rawValue).tag(filter)
-            }
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal)
-        #endif
-    }
-
-
     private var actionRow: some View {
         BrowseActionRow(
             iCloudStatus: iCloudStatus,
@@ -303,6 +266,14 @@ struct LibraryView: View {
             onSignOut: onSignOut,
             onSync: handleSync
         )
+    }
+
+    private func selectItem(_ item: LibraryItem, mode: PlaybackStartMode) {
+        onSelect?(item, mode)
+    }
+
+    private func deleteItem(_ item: LibraryItem) {
+        Task { await handleDelete(item) }
     }
 
     private func handleRefresh() {
@@ -401,7 +372,7 @@ struct LibraryView: View {
         let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
 
         Button {
-            onSelect?(item, .resume)
+            selectItem(item, mode: .resume)
         } label: {
             if hasResume {
                 Label(resumeMenuLabel(for: item), systemImage: "play.fill")
@@ -412,7 +383,7 @@ struct LibraryView: View {
 
         if hasResume {
             Button {
-                onSelect?(item, .startOver)
+                selectItem(item, mode: .startOver)
             } label: {
                 Label("Start from Beginning", systemImage: "arrow.counterclockwise")
             }
@@ -487,6 +458,53 @@ struct LibraryView: View {
         offlineStore.remove(jobId: item.jobId, kind: .library)
         resumeAvailability.removeValue(forKey: item.jobId)
         iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+    }
+}
+
+private struct LibraryFilterPicker: View {
+    @Binding var activeFilter: LibraryViewModel.LibraryFilter
+    let usesDarkListBackground: Bool
+    let colorScheme: ColorScheme
+    let onRefresh: () -> Void
+
+    var body: some View {
+        Picker("Filter", selection: $activeFilter) {
+            ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in
+                Text(filter.rawValue).tag(filter)
+            }
+        }
+        .libraryFilterPickerStyle(
+            usesDarkListBackground: usesDarkListBackground,
+            colorScheme: colorScheme,
+            onRefresh: onRefresh
+        )
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func libraryFilterPickerStyle(
+        usesDarkListBackground: Bool,
+        colorScheme: ColorScheme,
+        onRefresh: @escaping () -> Void
+    ) -> some View {
+        #if os(tvOS)
+        self
+            .pickerStyle(.automatic)
+            .padding(.horizontal)
+            .onLongPressGesture(minimumDuration: 0.6) {
+                onRefresh()
+            }
+        #elseif os(iOS)
+        self
+            .pickerStyle(.segmented)
+            .colorScheme(usesDarkListBackground ? .dark : colorScheme)
+            .padding(.horizontal)
+        #else
+        self
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+        #endif
     }
 }
 

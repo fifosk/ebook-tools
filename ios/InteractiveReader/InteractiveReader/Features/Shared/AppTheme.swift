@@ -35,7 +35,7 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.22.02"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.22.03"
     }
 
     static var displayLabel: String {
@@ -172,8 +172,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.02",
+            version: "2026.06.22.03",
             entries: [
+                AppChangelogEntry(
+                    id: "browse-row-action-refactor",
+                    title: "Browse row actions cleaned up",
+                    detail: "Library and Jobs row selection, delete, and move-to-library commands now route through named SwiftUI actions instead of inline row-builder closures."
+                ),
                 AppChangelogEntry(
                     id: "browse-shell-action-refactor",
                     title: "Browse shell actions cleaned up",
