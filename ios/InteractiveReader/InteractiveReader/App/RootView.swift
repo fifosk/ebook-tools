@@ -47,11 +47,11 @@ private struct IOSRootView: View {
         horizontalSizeClass != .compact && colorScheme == .light
     }
 
-    /// In debug builds, skip the "checking session" screen to speed up development
-    /// Show login immediately while session restore happens in background
+    /// In debug builds, keep fresh-login iteration fast, but avoid flashing the
+    /// login form when a saved token is actively being validated.
     private var shouldShowRestoringScreen: Bool {
         #if DEBUG
-        return false  // Skip loading screen in debug - go straight to login
+        return appState.isRestoring && appState.authToken != nil
         #else
         return appState.isRestoring
         #endif
