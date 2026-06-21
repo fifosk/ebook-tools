@@ -91,10 +91,21 @@ def latest_changelog_version(path: Path) -> str:
 
 def assert_journey_checks_version_badge(path: Path) -> None:
     payload = json.loads(path.read_text(encoding="utf-8"))
+    has_visible_assertion = False
+    has_frame_assertion = False
     for step in payload.get("steps", []):
         if step.get("action") == "assert_visible" and step.get("selector") == "appVersionBadge":
-            return
-    raise AssertionError(f"{path} does not assert appVersionBadge visibility")
+            has_visible_assertion = True
+        if step.get("action") == "assert_frame" and step.get("selector") == "appVersionBadge":
+            has_frame_assertion = True
+            if float(step.get("min_width", 0)) < 72:
+                raise AssertionError(f"{path} appVersionBadge frame assertion min_width is too low")
+            if float(step.get("min_aspect_ratio", 0)) < 2.0:
+                raise AssertionError(f"{path} appVersionBadge frame assertion min_aspect_ratio is too low")
+    if not has_visible_assertion:
+        raise AssertionError(f"{path} does not assert appVersionBadge visibility")
+    if not has_frame_assertion:
+        raise AssertionError(f"{path} does not assert appVersionBadge frame geometry")
 
 
 def validate(root: Path = ROOT) -> None:

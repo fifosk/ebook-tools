@@ -18,6 +18,15 @@
       "timeout": 10
     },
     {
+      "action": "assert_frame",
+      "selector": "appVersionBadge",
+      "timeout": 10,
+      "min_width": 72,
+      "min_height": 16,
+      "max_height": 34,
+      "min_aspect_ratio": 2.3
+    },
+    {
       "action": "navigate_tab",
       "tab": "Search",
       "selector": "browseSectionSearchButton",

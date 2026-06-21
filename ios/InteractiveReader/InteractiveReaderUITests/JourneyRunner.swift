@@ -12,6 +12,12 @@ struct JourneyStep: Decodable {
     var text: String?
     var timeout: Int?
     var ms: Int?
+    var min_width: Double?
+    var min_height: Double?
+    var max_width: Double?
+    var max_height: Double?
+    var min_aspect_ratio: Double?
+    var max_aspect_ratio: Double?
 }
 
 struct Journey: Decodable {
@@ -97,6 +103,8 @@ final class JourneyRunner {
             doGoBack(step)
         case "assert_visible":
             doAssertVisible(step)
+        case "assert_frame":
+            doAssertFrame(step)
         case "enter_text":
             doEnterText(step)
         case "wait":
@@ -251,6 +259,68 @@ final class JourneyRunner {
             element.waitForExistence(timeout: timeout),
             "\(identifier) should be visible"
         )
+    }
+
+    private func doAssertFrame(_ step: JourneyStep) {
+        guard let identifier = step.selector else {
+            XCTFail("assert_frame requires selector")
+            return
+        }
+        let timeout = TimeInterval(step.timeout ?? 10)
+        let element = element(withIdentifier: identifier)
+        XCTAssertTrue(
+            element.waitForExistence(timeout: timeout),
+            "\(identifier) should exist before frame assertion"
+        )
+
+        let frame = element.frame
+        XCTAssertFalse(frame.isEmpty, "\(identifier) should have a non-empty frame")
+
+        if let minWidth = step.min_width {
+            XCTAssertGreaterThanOrEqual(
+                frame.width,
+                CGFloat(minWidth),
+                "\(identifier) width \(frame.width) should be >= \(minWidth)"
+            )
+        }
+        if let minHeight = step.min_height {
+            XCTAssertGreaterThanOrEqual(
+                frame.height,
+                CGFloat(minHeight),
+                "\(identifier) height \(frame.height) should be >= \(minHeight)"
+            )
+        }
+        if let maxWidth = step.max_width {
+            XCTAssertLessThanOrEqual(
+                frame.width,
+                CGFloat(maxWidth),
+                "\(identifier) width \(frame.width) should be <= \(maxWidth)"
+            )
+        }
+        if let maxHeight = step.max_height {
+            XCTAssertLessThanOrEqual(
+                frame.height,
+                CGFloat(maxHeight),
+                "\(identifier) height \(frame.height) should be <= \(maxHeight)"
+            )
+        }
+
+        guard frame.height > 0 else { return }
+        let aspectRatio = Double(frame.width / frame.height)
+        if let minAspectRatio = step.min_aspect_ratio {
+            XCTAssertGreaterThanOrEqual(
+                aspectRatio,
+                minAspectRatio,
+                "\(identifier) aspect ratio \(aspectRatio) should be >= \(minAspectRatio)"
+            )
+        }
+        if let maxAspectRatio = step.max_aspect_ratio {
+            XCTAssertLessThanOrEqual(
+                aspectRatio,
+                maxAspectRatio,
+                "\(identifier) aspect ratio \(aspectRatio) should be <= \(maxAspectRatio)"
+            )
+        }
     }
 
     private func doEnterText(_ step: JourneyStep) {
