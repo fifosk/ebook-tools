@@ -10,6 +10,11 @@ final class AppState: ObservableObject {
     @AppStorage("lastUsername") var lastUsername: String = ""
 
     private let sessionTokenStore: SessionTokenStore
+    private static let apiBaseURLLaunchEnvironmentKeys = [
+        "INTERACTIVE_READER_API_BASE_URL",
+        "EBOOK_TOOLS_API_BASE_URL",
+        "E2E_API_BASE_URL"
+    ]
     @Published private var storedToken: String = ""
     @Published private(set) var session: SessionStatusResponse?
     /// Whether we're actively validating a stored session token
@@ -23,10 +28,12 @@ final class AppState: ObservableObject {
     }
 
     var apiBaseURL: URL? {
-        // Allow XCUITest to override the API URL via launch environment
-        if let testURL = ProcessInfo.processInfo.environment["E2E_API_BASE_URL"],
-           !testURL.isEmpty {
-            return URL(string: testURL)
+        for key in Self.apiBaseURLLaunchEnvironmentKeys {
+            let value = ProcessInfo.processInfo.environment[key]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let value, !value.isEmpty {
+                return URL(string: value)
+            }
         }
         return URL(string: apiBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines))
     }
