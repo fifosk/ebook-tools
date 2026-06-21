@@ -42,15 +42,7 @@ struct JobsView: View {
             }
 
             List {
-                if viewModel.filteredJobs.isEmpty {
-                    Text("No jobs yet.")
-                        .foregroundStyle(.secondary)
-                        #if os(tvOS)
-                        .listRowBackground(Color.clear)
-                        #endif
-                } else {
-                    jobRows(viewModel.filteredJobs)
-                }
+                jobRows(viewModel.filteredJobs)
             }
             .listStyle(.plain)
             .platformListBackground(usesDark: usesDarkListBackground, colorScheme: colorScheme)
@@ -192,6 +184,7 @@ struct JobsView: View {
                 ProgressView("Loading jobs…")
                     .padding()
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityIdentifier("jobsLoadingView")
             } else if viewModel.filteredJobs.isEmpty {
                 ContentUnavailableView {
                     Label("No jobs found", systemImage: "tray")
@@ -199,6 +192,7 @@ struct JobsView: View {
                     Text(viewModel.query.isEmpty ? "Finished and running jobs will appear here." : "Try a different search term.")
                 }
                 .foregroundStyle(usesDarkListBackground ? .white : .primary)
+                .accessibilityIdentifier("jobsEmptyView")
             }
         }
     }

@@ -185,6 +185,7 @@ struct LibraryView: View {
                 ProgressView("Loading library…")
                     .padding()
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityIdentifier("libraryLoadingView")
             } else if viewModel.filteredItems.isEmpty {
                 ContentUnavailableView {
                     Label("No library items found", systemImage: "books.vertical")
@@ -192,6 +193,7 @@ struct LibraryView: View {
                     Text(viewModel.query.isEmpty ? "Move a completed job to the library to keep it here." : "Try a different search term.")
                 }
                 .foregroundStyle(usesDarkListBackground ? .white : .primary)
+                .accessibilityIdentifier("libraryEmptyView")
             }
         }
     }
