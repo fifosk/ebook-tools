@@ -120,6 +120,14 @@ com.example.InteractiveReader` exists locally and appears to contain the require
 entitlement keys, but automatic CLI signing is still rejecting the selected
 profile. Treat this as an Xcode account/profile refresh gate.
 
+To inspect local cached profile capability shape without printing secrets, run:
+
+```bash
+python3 scripts/ios_profile_capability_check.py \
+  --bundle-id com.example.InteractiveReader \
+  --entitlements ios/InteractiveReader/InteractiveReader/Supporting/InteractiveReader.entitlements
+```
+
 - After every pushed Apple app checkpoint, refresh the Mac Studio runtime clone
   and recheck source sync:
 
