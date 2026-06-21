@@ -7,6 +7,7 @@ struct BrowseActionRow: View {
     let usesDarkListBackground: Bool
     let onRefresh: () -> Void
     let onSignOut: () -> Void
+    var onSync: (() -> Void)? = nil
 
     private var userLabel: String {
         resumeUserId ?? "Log In"
@@ -24,6 +25,7 @@ struct BrowseActionRow: View {
         HStack(spacing: 12) {
             brandLabel
             cloudStatusIcon
+            syncButton
             refreshButton
             Spacer()
             accountMenu
@@ -53,6 +55,18 @@ struct BrowseActionRow: View {
             .accessibilityLabel(statusLabel)
     }
 
+    @ViewBuilder
+    private var syncButton: some View {
+        if let onSync {
+            Button(action: onSync) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+            }
+            .disabled(resumeUserId == nil || isLoading)
+            .accessibilityLabel("Sync resume positions")
+            .tint(usesDarkListBackground ? .white : nil)
+        }
+    }
+
     private var cloudStatusColor: Color {
         if iCloudStatus.isAvailable {
             return usesDarkListBackground ? .cyan : .blue
@@ -71,6 +85,12 @@ struct BrowseActionRow: View {
 
     private var accountMenu: some View {
         Menu {
+            if let onSync {
+                Button(action: onSync) {
+                    Label("Sync Resume Positions", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(resumeUserId == nil || isLoading)
+            }
             Button("Log Out", action: onSignOut)
         } label: {
             HStack(spacing: 6) {

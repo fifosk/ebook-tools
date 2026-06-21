@@ -300,7 +300,8 @@ struct LibraryView: View {
             isLoading: viewModel.isLoading,
             usesDarkListBackground: usesDarkListBackground,
             onRefresh: handleRefresh,
-            onSignOut: onSignOut
+            onSignOut: onSignOut,
+            onSync: handleSync
         )
     }
 
