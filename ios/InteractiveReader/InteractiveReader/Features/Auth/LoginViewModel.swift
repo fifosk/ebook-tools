@@ -21,6 +21,12 @@ final class LoginViewModel: ObservableObject {
         self.username = username
     }
 
+    var canSubmitCredentials: Bool {
+        !isLoading
+            && !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     func refreshServerStatus(using appState: AppState) async {
         guard let apiBaseURL = appState.apiBaseURL else {
             serverStatus = .offline

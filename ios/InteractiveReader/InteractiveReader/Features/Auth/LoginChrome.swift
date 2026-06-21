@@ -178,10 +178,12 @@ extension View {
 }
 
 struct LoginPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(Color.white)
+            .foregroundStyle(Color.white.opacity(isEnabled ? 1 : 0.72))
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background(
@@ -193,15 +195,21 @@ struct LoginPrimaryButtonStyle: ButtonStyle {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .opacity(configuration.isPressed ? 0.85 : 1)
+                .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.42)
             )
             .clipShape(Capsule())
             .overlay(
                 Capsule()
-                    .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                    .stroke(Color.white.opacity(isEnabled ? 0.25 : 0.12), lineWidth: 1)
             )
-            .shadow(color: Color(red: 0.22, green: 0.74, blue: 0.97).opacity(0.35), radius: 16, x: 0, y: 8)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .shadow(
+                color: Color(red: 0.22, green: 0.74, blue: 0.97).opacity(isEnabled ? 0.35 : 0),
+                radius: 16,
+                x: 0,
+                y: 8
+            )
+            .scaleEffect(isEnabled && configuration.isPressed ? 0.98 : 1)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.15), value: isEnabled)
     }
 }

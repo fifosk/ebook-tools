@@ -20,6 +20,7 @@ struct LoginView: View {
                                 LoginCredentialsSection(
                                     viewModel: viewModel,
                                     focusedField: $focusedField,
+                                    focusPassword: { focusedField = .password },
                                     signIn: signIn,
                                     handleAppleButton: handleAppleButton,
                                     handleAppleSignIn: handleAppleSignIn
@@ -91,6 +92,7 @@ private enum LoginField {
 private struct LoginCredentialsSection: View {
     @ObservedObject var viewModel: LoginViewModel
     let focusedField: FocusState<LoginField?>.Binding
+    let focusPassword: () -> Void
     let signIn: () -> Void
     let handleAppleButton: () -> Void
     let handleAppleSignIn: (Result<ASAuthorization, Error>) -> Void
@@ -101,6 +103,8 @@ private struct LoginCredentialsSection: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .focused(focusedField, equals: .username)
+                .submitLabel(.next)
+                .onSubmit(focusPassword)
                 .loginFieldStyle()
                 .accessibilityIdentifier("loginUsernameField")
 
@@ -121,13 +125,14 @@ private struct LoginCredentialsSection: View {
                 HStack {
                     if viewModel.isLoading {
                         ProgressView()
+                            .tint(.white)
                     }
                     Text("Sign In")
                 }
                 .frame(maxWidth: .infinity)
             }
             .loginPrimaryButtonStyle()
-            .disabled(viewModel.isLoading)
+            .disabled(!viewModel.canSubmitCredentials)
             .accessibilityIdentifier("loginSignInButton")
 
             appleSignInButton
