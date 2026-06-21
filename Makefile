@@ -113,6 +113,7 @@ E2E_CONFIG_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PROFILE)/ios_e2e_config.json
 E2E_JOURNEY_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PROFILE)/ios_e2e_journey.json
 IOS_E2E_ONLY_TESTING ?= InteractiveReaderUITests/JourneyTests/testJourney
 TVOS_E2E_ONLY_TESTING ?= InteractiveReaderTVUITests/JourneyTests/testJourney
+E2E_SIMCTL_LOCK ?= $(shell python3 -c 'import tempfile; print(tempfile.gettempdir() + "/apple-device-app-pipeline-simctl.lock")')
 
 # Write config + journey to profile-scoped /tmp paths.
 define WRITE_E2E_CONFIG
@@ -144,7 +145,8 @@ test-e2e-iphone:
 	@rm -rf $(IPHONE_E2E_RESULT) $(IPHONE_DERIVED_DATA) test-results/iphone-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
-	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
+	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
+		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" python3 scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
 		-destination $(IPHONE_DESTINATION) \
@@ -170,7 +172,8 @@ test-e2e-ipad:
 	@rm -rf $(IPAD_E2E_RESULT) $(IPAD_DERIVED_DATA) test-results/ipad-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
-	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
+	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
+		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" python3 scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
 		-destination $(IPAD_DESTINATION) \
@@ -196,7 +199,8 @@ test-e2e-tvos:
 	@rm -rf $(TVOS_E2E_RESULT) $(TVOS_DERIVED_DATA) test-results/tvos-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
-	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" $(XCBUILD) test \
+	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
+		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" python3 scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderTVUITests \
 		-destination $(TVOS_DESTINATION) \

@@ -69,6 +69,12 @@ sensitive values in its output and writes profile-scoped XCUITest config under
 Apple TV installs remain attended; simulator journeys may use injected test
 credentials.
 
+The Apple Make targets also use the same `tempfile.gettempdir()`-scoped
+simulator mutation lock as the shared pipeline while `xcodebuild test` is
+running. This keeps app-owned XCUITest journeys from racing with shared
+simulator smokes that boot, install, launch, or shut down devices during
+parallel dogfood runs.
+
 ### Quick Start
 
 ```bash

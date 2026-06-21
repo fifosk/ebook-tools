@@ -9,6 +9,14 @@ final class LoginViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var serverStatus: LoginServerStatus = .checking
 
+    private static var authenticationSession: URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 8
+        config.timeoutIntervalForResource = 12
+        config.waitsForConnectivity = false
+        return URLSession(configuration: config)
+    }
+
     init(username: String = "") {
         self.username = username
     }
@@ -67,7 +75,10 @@ final class LoginViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let client = APIClient(configuration: APIClientConfiguration(apiBaseURL: apiBaseURL))
+            let client = APIClient(
+                configuration: APIClientConfiguration(apiBaseURL: apiBaseURL),
+                urlSession: Self.authenticationSession
+            )
             let session = try await client.login(username: trimmedUser, password: trimmedPass)
             appState.lastUsername = trimmedUser
             appState.updateSession(session)
@@ -98,7 +109,10 @@ final class LoginViewModel: ObservableObject {
         let lastName = credential.fullName?.familyName?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
-            let client = APIClient(configuration: APIClientConfiguration(apiBaseURL: apiBaseURL))
+            let client = APIClient(
+                configuration: APIClientConfiguration(apiBaseURL: apiBaseURL),
+                urlSession: Self.authenticationSession
+            )
             let session = try await client.loginWithOAuth(
                 provider: "apple",
                 idToken: token,

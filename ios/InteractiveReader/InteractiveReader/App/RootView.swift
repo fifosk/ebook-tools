@@ -26,12 +26,7 @@ struct RootView: View {
     private var mainContent: some View {
         Group {
             if appState.isRestoring {
-                VStack(spacing: 12) {
-                    ProgressView()
-                    Text("Checking session…")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+                RestoringSessionView()
             } else if appState.session != nil {
                 LibraryShellView()
             } else {
@@ -69,12 +64,7 @@ private struct IOSRootView: View {
                     .ignoresSafeArea()
             }
             if shouldShowRestoringScreen {
-                VStack(spacing: 12) {
-                    ProgressView()
-                    Text("Checking session…")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+                RestoringSessionView()
             } else if appState.session != nil {
                 LibraryShellView()
             } else {
@@ -95,12 +85,7 @@ private struct TVRootView: View {
             AppTheme.background(for: colorScheme)
                 .ignoresSafeArea()
             if appState.isRestoring {
-                VStack(spacing: 12) {
-                    ProgressView()
-                    Text("Checking session…")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+                RestoringSessionView()
             } else if appState.session != nil {
                 LibraryShellView()
             } else {
@@ -110,3 +95,15 @@ private struct TVRootView: View {
     }
 }
 #endif
+
+private struct RestoringSessionView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            Text("Checking session…")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityIdentifier("restoringSessionView")
+    }
+}
