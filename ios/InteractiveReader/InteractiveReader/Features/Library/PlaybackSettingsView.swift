@@ -41,177 +41,33 @@ struct PlaybackSettingsView: View {
                     .padding(.horizontal)
             }
             List {
-                Section {
-                    SettingsInfoRow(
-                        title: "API Host",
-                        value: apiHostLabel,
-                        systemImage: "network",
-                        accessibilityIdentifier: "settingsAPIHostRow"
-                    )
+                SettingsConnectionSection(
+                    apiHostLabel: apiHostLabel,
+                    backendRuntimeState: backendRuntimeState,
+                    sessionLabel: sessionLabel,
+                    usesDarkBackground: usesDarkBackground
+                )
 
-                    SettingsInfoRow(
-                        title: "Backend Runtime",
-                        value: backendRuntimeState.label,
-                        systemImage: backendRuntimeState.systemImage,
-                        accessibilityIdentifier: "settingsBackendRuntimeRow"
-                    )
+                PlaybackSettingsSection(
+                    autoScaleEnabled: $autoScaleEnabled,
+                    usesDarkBackground: usesDarkBackground
+                )
 
-                    SettingsInfoRow(
-                        title: "Session",
-                        value: sessionLabel,
-                        systemImage: "person.crop.circle.badge.checkmark",
-                        accessibilityIdentifier: "settingsSessionRow"
-                    )
+                AppChangelogSettingsSection(usesDarkBackground: usesDarkBackground)
 
-                    SettingsInfoRow(
-                        title: "Token Storage",
-                        value: "Keychain",
-                        systemImage: "key",
-                        accessibilityIdentifier: "settingsTokenStorageRow"
-                    )
-                } header: {
-                    settingsSectionHeader("Connection")
-                }
-
-                Section {
-                    Toggle(isOn: $autoScaleEnabled) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Auto-fit transcript")
-                                .foregroundStyle(.primary)
-                            Text("Scale active sentences to fit the screen on rotation or font changes.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } header: {
-                    settingsSectionHeader("Playback")
-                }
-
-                Section {
-                    AppChangelogSummaryView(
-                        showBuildMetadata: true,
-                        usesDarkBackground: usesDarkBackground
-                    )
-                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-                    #if os(iOS)
-                    .listRowBackground(Color.clear)
-                    #endif
-                } header: {
-                    settingsSectionHeader("Daily Changelog")
-                }
-
-                Section {
-                    let hasVoiceOverrides = !TtsVoicePreferencesManager.shared.allVoices().isEmpty
-                    if hasVoiceOverrides {
-                        Button(role: .destructive) {
-                            TtsVoicePreferencesManager.shared.clearAllVoices()
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Reset Voice Settings")
-                                    .foregroundStyle(.red)
-                                Text("Clears custom TTS voice selections for all languages.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    } else {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("No custom voice settings")
-                                .foregroundStyle(.primary)
-                            Text("Custom voices selected in MyLinguist will appear here.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } header: {
-                    settingsSectionHeader("Voice")
-                }
+                VoiceSettingsSection(usesDarkBackground: usesDarkBackground)
 
                 #if os(iOS)
-                Section {
-                    if notificationManager.isAuthorized {
-                        Toggle(isOn: $notificationManager.notificationsEnabled) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Job Notifications")
-                                    .foregroundStyle(.primary)
-                                Text("Receive alerts when jobs complete or fail.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        Button {
-                            sendTestNotification()
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Send Test Notification")
-                                        .foregroundStyle(.primary)
-                                    Text("Verify push notifications are working.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if isSendingTestNotification {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                } else {
-                                    Image(systemName: "bell.badge")
-                                        .foregroundStyle(Color.accentColor)
-                                }
-                            }
-                        }
-                        .disabled(isSendingTestNotification || !notificationManager.notificationsEnabled)
-
-                        Button {
-                            sendRichTestNotification()
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Send Rich Notification")
-                                        .foregroundStyle(.primary)
-                                    Text("Test notification with cover art image.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if isSendingRichTestNotification {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                } else {
-                                    Image(systemName: "photo.badge.checkmark")
-                                        .foregroundStyle(Color.accentColor)
-                                }
-                            }
-                        }
-                        .disabled(isSendingRichTestNotification || !notificationManager.notificationsEnabled)
-                    } else {
-                        Button {
-                            requestNotificationPermission()
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Enable Notifications")
-                                        .foregroundStyle(.primary)
-                                    Text("Get alerts when jobs complete or fail.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if isRequestingPermission {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                } else {
-                                    Image(systemName: "bell")
-                                        .foregroundStyle(Color.accentColor)
-                                }
-                            }
-                        }
-                        .disabled(isRequestingPermission)
-                    }
-                } header: {
-                    settingsSectionHeader("Notifications")
-                }
+                NotificationSettingsSection(
+                    notificationManager: notificationManager,
+                    isRequestingPermission: isRequestingPermission,
+                    isSendingTestNotification: isSendingTestNotification,
+                    isSendingRichTestNotification: isSendingRichTestNotification,
+                    requestNotificationPermission: requestNotificationPermission,
+                    sendTestNotification: sendTestNotification,
+                    sendRichTestNotification: sendRichTestNotification,
+                    usesDarkBackground: usesDarkBackground
+                )
                 #endif
             }
             #if os(tvOS)
@@ -238,11 +94,6 @@ struct PlaybackSettingsView: View {
             Text(testAlertMessage)
         }
         #endif
-    }
-
-    private func settingsSectionHeader(_ title: String) -> some View {
-        Text(title)
-            .foregroundStyle(usesDarkBackground ? .white.opacity(0.72) : .secondary)
     }
 
     private var apiHostLabel: String {
@@ -381,6 +232,229 @@ private enum BackendRuntimeState: Equatable {
             return "checkmark.seal"
         case .unavailable:
             return "exclamationmark.triangle"
+        }
+    }
+}
+
+private struct SettingsSectionHeader: View {
+    let title: String
+    let usesDarkBackground: Bool
+
+    var body: some View {
+        Text(title)
+            .foregroundStyle(usesDarkBackground ? .white.opacity(0.72) : .secondary)
+    }
+}
+
+private struct SettingsConnectionSection: View {
+    let apiHostLabel: String
+    let backendRuntimeState: BackendRuntimeState
+    let sessionLabel: String
+    let usesDarkBackground: Bool
+
+    var body: some View {
+        Section {
+            SettingsInfoRow(
+                title: "API Host",
+                value: apiHostLabel,
+                systemImage: "network",
+                accessibilityIdentifier: "settingsAPIHostRow"
+            )
+
+            SettingsInfoRow(
+                title: "Backend Runtime",
+                value: backendRuntimeState.label,
+                systemImage: backendRuntimeState.systemImage,
+                accessibilityIdentifier: "settingsBackendRuntimeRow"
+            )
+
+            SettingsInfoRow(
+                title: "Session",
+                value: sessionLabel,
+                systemImage: "person.crop.circle.badge.checkmark",
+                accessibilityIdentifier: "settingsSessionRow"
+            )
+
+            SettingsInfoRow(
+                title: "Token Storage",
+                value: "Keychain",
+                systemImage: "key",
+                accessibilityIdentifier: "settingsTokenStorageRow"
+            )
+        } header: {
+            SettingsSectionHeader(title: "Connection", usesDarkBackground: usesDarkBackground)
+        }
+    }
+}
+
+private struct PlaybackSettingsSection: View {
+    @Binding var autoScaleEnabled: Bool
+    let usesDarkBackground: Bool
+
+    var body: some View {
+        Section {
+            Toggle(isOn: $autoScaleEnabled) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Auto-fit transcript")
+                        .foregroundStyle(.primary)
+                    Text("Scale active sentences to fit the screen on rotation or font changes.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            SettingsSectionHeader(title: "Playback", usesDarkBackground: usesDarkBackground)
+        }
+    }
+}
+
+private struct AppChangelogSettingsSection: View {
+    let usesDarkBackground: Bool
+
+    var body: some View {
+        Section {
+            AppChangelogSummaryView(
+                showBuildMetadata: true,
+                usesDarkBackground: usesDarkBackground
+            )
+            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+            #if os(iOS)
+            .listRowBackground(Color.clear)
+            #endif
+        } header: {
+            SettingsSectionHeader(title: "Daily Changelog", usesDarkBackground: usesDarkBackground)
+        }
+    }
+}
+
+private struct VoiceSettingsSection: View {
+    let usesDarkBackground: Bool
+
+    var body: some View {
+        Section {
+            if hasVoiceOverrides {
+                Button(role: .destructive, action: resetVoiceSettings) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Reset Voice Settings")
+                            .foregroundStyle(.red)
+                        Text("Clears custom TTS voice selections for all languages.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("No custom voice settings")
+                        .foregroundStyle(.primary)
+                    Text("Custom voices selected in MyLinguist will appear here.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            SettingsSectionHeader(title: "Voice", usesDarkBackground: usesDarkBackground)
+        }
+    }
+
+    private var hasVoiceOverrides: Bool {
+        !TtsVoicePreferencesManager.shared.allVoices().isEmpty
+    }
+
+    private func resetVoiceSettings() {
+        TtsVoicePreferencesManager.shared.clearAllVoices()
+    }
+}
+
+#if os(iOS)
+private struct NotificationSettingsSection: View {
+    @ObservedObject var notificationManager: NotificationManager
+    let isRequestingPermission: Bool
+    let isSendingTestNotification: Bool
+    let isSendingRichTestNotification: Bool
+    let requestNotificationPermission: () -> Void
+    let sendTestNotification: () -> Void
+    let sendRichTestNotification: () -> Void
+    let usesDarkBackground: Bool
+
+    var body: some View {
+        Section {
+            if notificationManager.isAuthorized {
+                Toggle(isOn: $notificationManager.notificationsEnabled) {
+                    SettingsRowText(
+                        title: "Job Notifications",
+                        detail: "Receive alerts when jobs complete or fail."
+                    )
+                }
+
+                SettingsActionRow(
+                    title: "Send Test Notification",
+                    detail: "Verify push notifications are working.",
+                    systemImage: "bell.badge",
+                    isLoading: isSendingTestNotification,
+                    action: sendTestNotification
+                )
+                .disabled(isSendingTestNotification || !notificationManager.notificationsEnabled)
+
+                SettingsActionRow(
+                    title: "Send Rich Notification",
+                    detail: "Test notification with cover art image.",
+                    systemImage: "photo.badge.checkmark",
+                    isLoading: isSendingRichTestNotification,
+                    action: sendRichTestNotification
+                )
+                .disabled(isSendingRichTestNotification || !notificationManager.notificationsEnabled)
+            } else {
+                SettingsActionRow(
+                    title: "Enable Notifications",
+                    detail: "Get alerts when jobs complete or fail.",
+                    systemImage: "bell",
+                    isLoading: isRequestingPermission,
+                    action: requestNotificationPermission
+                )
+                .disabled(isRequestingPermission)
+            }
+        } header: {
+            SettingsSectionHeader(title: "Notifications", usesDarkBackground: usesDarkBackground)
+        }
+    }
+}
+
+private struct SettingsActionRow: View {
+    let title: String
+    let detail: String
+    let systemImage: String
+    let isLoading: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                SettingsRowText(title: title, detail: detail)
+                Spacer()
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: systemImage)
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+        }
+    }
+}
+#endif
+
+private struct SettingsRowText: View {
+    let title: String
+    let detail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .foregroundStyle(.primary)
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }

@@ -35,7 +35,7 @@ enum AppTheme {
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.08"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.21.09"
     }
 
     static var displayLabel: String {
@@ -138,11 +138,11 @@ struct AppVersionBadge: View {
     }
 
     private var badgeWidth: CGFloat {
-        compact ? 72 : 164
+        compact ? 96 : 164
     }
 
     private var badgeTextWidth: CGFloat {
-        compact ? 44 : 148
+        compact ? 76 : 148
     }
 
     private var badgeHeight: CGFloat {
@@ -188,8 +188,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-21",
             dateLabel: "June 21, 2026",
-            version: "2026.06.21.08",
+            version: "2026.06.21.09",
             entries: [
+                AppChangelogEntry(
+                    id: "settings-section-refactor",
+                    title: "Settings review surface cleaned up",
+                    detail: "Connection, playback, changelog, voice, and notification settings now render through focused section components for safer iPad and tvOS iteration."
+                ),
                 AppChangelogEntry(
                     id: "wd-staging-pipeline-contract",
                     title: "WD staging pipeline aligned",

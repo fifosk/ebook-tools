@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-21
 
+### 2026.06.21.09
+
+- Advanced visible Apple app versioning to `v2026.06.21.09`.
+- Refactored Settings into focused connection, playback, changelog, voice, and notification sections so iPad and tvOS review surfaces can evolve with less layout risk.
+- Restored the compact browse version chip to a journey-verified 96 pt width after the iPad geometry guard caught a too-narrow badge proposal.
+
 ### 2026.06.21.08
 
 - Advanced visible Apple app versioning to `v2026.06.21.08`.
