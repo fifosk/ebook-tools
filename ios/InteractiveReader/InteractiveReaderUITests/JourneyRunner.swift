@@ -115,7 +115,7 @@ final class JourneyRunner {
 
     private func doNavigateTab(_ step: JourneyStep) {
         let tabName = step.tab ?? "Jobs"
-        let button = tabButton(named: tabName, timeout: 5)
+        let button = tabButton(named: tabName, identifier: step.selector, timeout: 5)
         if button.waitForExistence(timeout: 5) {
             selectElement(button)
         }
@@ -258,10 +258,17 @@ final class JourneyRunner {
     // MARK: - Helpers
 
     private func element(withIdentifier identifier: String) -> XCUIElement {
-        app.descendants(matching: .any)[identifier]
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
-    private func tabButton(named name: String, timeout: TimeInterval) -> XCUIElement {
+    private func tabButton(named name: String, identifier: String?, timeout: TimeInterval) -> XCUIElement {
+        if let identifier {
+            let identifiedButton = element(withIdentifier: identifier)
+            if identifiedButton.waitForExistence(timeout: min(timeout, 2)) {
+                return identifiedButton
+            }
+        }
+
         let predicate = NSPredicate(format: "label == %@", name)
         let segmentedButton = app.segmentedControls.buttons.matching(predicate).firstMatch
         if segmentedButton.waitForExistence(timeout: min(timeout, 2)) {

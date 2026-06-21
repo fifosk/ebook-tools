@@ -8,8 +8,14 @@
       "screenshot": "after_login"
     },
     {
+      "action": "assert_visible",
+      "selector": "browseSectionSearchButton",
+      "timeout": 10
+    },
+    {
       "action": "navigate_tab",
       "tab": "Search",
+      "selector": "browseSectionSearchButton",
       "screenshot": "search_tab"
     },
     {
@@ -20,7 +26,13 @@
     {
       "action": "navigate_tab",
       "tab": "Jobs",
+      "selector": "browseSectionJobsButton",
       "screenshot": "jobs_tab"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "browseSectionJobsButton",
+      "timeout": 10
     },
     {
       "action": "select_filter",

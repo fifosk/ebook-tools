@@ -29,6 +29,10 @@ struct LibraryShellView: View {
 
         var id: String { rawValue }
 
+        var accessibilityIdentifier: String {
+            "browseSection\(rawValue)Button"
+        }
+
         var systemImage: String {
             switch self {
             case .jobs:
@@ -328,6 +332,7 @@ struct LibraryShellView: View {
         Picker("Browse", selection: $activeSection) {
             ForEach(orderedSections) { section in
                 sectionPickerLabel(for: section)
+                    .accessibilityIdentifier(section.accessibilityIdentifier)
                     .tag(section)
             }
         }
@@ -343,6 +348,7 @@ struct LibraryShellView: View {
         .pickerStyle(.segmented)
         #endif
         .padding(.horizontal)
+        .accessibilityIdentifier("browseSectionPicker")
     }
 
     private var sectionPickerForHeader: AnyView? {
