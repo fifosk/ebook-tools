@@ -75,6 +75,42 @@ running. This keeps app-owned XCUITest journeys from racing with shared
 simulator smokes that boot, install, launch, or shut down devices during
 parallel dogfood runs.
 
+Current iPad M5 deployment gate:
+
+Device preflight currently reports `Fifo Ipad Pro` paired but unavailable to
+Xcode/CoreDevice:
+
+```bash
+python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --device-preflight-only
+```
+
+Keep the iPad awake and unlocked; for the attended install, prefer USB-C, tap
+Trust, then re-enable network deployment from Xcode Devices and Simulators.
+
+Generic iOS device signing currently fails before compilation:
+
+```bash
+xcodebuild build \
+  -project ios/InteractiveReader/InteractiveReader.xcodeproj \
+  -scheme InteractiveReader \
+  -destination 'generic/platform=iOS' \
+  -configuration Debug
+```
+
+The active `com.example.InteractiveReader` team provisioning profile does not
+include Push Notifications, Sign in with Apple, or iCloud/CloudKit. Those
+capabilities are declared by `InteractiveReader.entitlements` and are part of
+the iOS/iPadOS app contract, so fix the App ID/profile rather than removing the
+entitlements.
+
+- After every pushed Apple app checkpoint, refresh the Mac Studio runtime clone
+  and recheck source sync:
+
+```bash
+ssh mac-studio.local 'cd /Users/fifo/Projects/home/ebook-tools && git pull --ff-only'
+python3 scripts/check_app_source_sync.py --app ebook-tools
+```
+
 ### Quick Start
 
 ```bash
