@@ -250,6 +250,11 @@ final class APIClient {
         return try decode(SessionStatusResponse.self, from: data)
     }
 
+    func fetchBackendRuntimeDescriptor() async throws -> BackendRuntimeDescriptorResponse {
+        let data = try await sendRequest(path: "/api/system/runtime")
+        return try decode(BackendRuntimeDescriptorResponse.self, from: data)
+    }
+
     func assistantLookup(
         query: String,
         inputLanguage: String,

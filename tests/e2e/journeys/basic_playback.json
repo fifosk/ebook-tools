@@ -48,7 +48,17 @@
     },
     {
       "action": "assert_visible",
+      "selector": "settingsBackendRuntimeRow",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
       "selector": "settingsTokenStorageRow",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "appChangelogSummaryView",
       "timeout": 10
     },
     {

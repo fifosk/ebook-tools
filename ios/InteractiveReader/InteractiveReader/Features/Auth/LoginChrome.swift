@@ -83,6 +83,8 @@ struct LoginHeaderView: View {
             Text("Language tools")
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(Color.white)
+
+            AppVersionBadge()
         }
         .frame(maxWidth: .infinity, alignment: .center)
     }

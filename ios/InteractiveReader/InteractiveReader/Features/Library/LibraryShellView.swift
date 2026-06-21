@@ -552,6 +552,7 @@ private struct PlaybackSettingsView: View {
     @State private var isSendingRichTestNotification = false
     @State private var showTestAlert = false
     @State private var testAlertMessage = ""
+    @State private var backendRuntimeState: BackendRuntimeState = .idle
 
     init(sectionPicker: AnyView? = nil, backTitle: String? = nil, onBack: (() -> Void)? = nil, usesDarkBackground: Bool = false) {
         self.sectionPicker = sectionPicker
@@ -586,6 +587,13 @@ private struct PlaybackSettingsView: View {
                     )
 
                     SettingsInfoRow(
+                        title: "Backend Runtime",
+                        value: backendRuntimeState.label,
+                        systemImage: backendRuntimeState.systemImage,
+                        accessibilityIdentifier: "settingsBackendRuntimeRow"
+                    )
+
+                    SettingsInfoRow(
                         title: "Session",
                         value: sessionLabel,
                         systemImage: "person.crop.circle.badge.checkmark",
@@ -614,6 +622,19 @@ private struct PlaybackSettingsView: View {
                     }
                 } header: {
                     settingsSectionHeader("Playback")
+                }
+
+                Section {
+                    AppChangelogSummaryView(
+                        showBuildMetadata: true,
+                        usesDarkBackground: usesDarkBackground
+                    )
+                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    #if os(iOS)
+                    .listRowBackground(Color.clear)
+                    #endif
+                } header: {
+                    settingsSectionHeader("Daily Changelog")
                 }
 
                 Section {
@@ -743,6 +764,11 @@ private struct PlaybackSettingsView: View {
         .toolbarBackground(usesDarkBackground ? AppTheme.lightBackground : Color.clear, for: .navigationBar)
         .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
         .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
+        #endif
+        .task(id: apiHostLabel) {
+            await refreshBackendRuntimeDescriptor()
+        }
+        #if os(iOS)
         .alert("Test Notification", isPresented: $showTestAlert) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -769,6 +795,33 @@ private struct PlaybackSettingsView: View {
             return "\(user.username) · \(role)"
         }
         return user.username
+    }
+
+    @MainActor
+    private func refreshBackendRuntimeDescriptor() async {
+        guard let apiBaseURL = appState.apiBaseURL else {
+            backendRuntimeState = .unavailable("API URL missing")
+            return
+        }
+
+        backendRuntimeState = .checking
+        do {
+            let client = APIClient(configuration: APIClientConfiguration(apiBaseURL: apiBaseURL))
+            let descriptor = try await client.fetchBackendRuntimeDescriptor()
+            let status = descriptor.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard status == "ok" || status == "healthy" || status == "up" else {
+                backendRuntimeState = .unavailable("Status \(descriptor.status)")
+                return
+            }
+            backendRuntimeState = .verified(
+                service: descriptor.service,
+                version: descriptor.version
+            )
+        } catch is CancellationError {
+            return
+        } catch {
+            backendRuntimeState = .unavailable("Descriptor unavailable")
+        }
     }
 
     #if os(iOS)
@@ -836,6 +889,37 @@ private struct PlaybackSettingsView: View {
         }
     }
     #endif
+}
+
+private enum BackendRuntimeState: Equatable {
+    case idle
+    case checking
+    case verified(service: String, version: String)
+    case unavailable(String)
+
+    var label: String {
+        switch self {
+        case .idle, .checking:
+            return "Checking"
+        case let .verified(service, version):
+            let serviceLabel = service.nonEmptyValue ?? "Backend"
+            let versionLabel = version.nonEmptyValue ?? "unknown"
+            return "\(serviceLabel) · \(versionLabel)"
+        case let .unavailable(message):
+            return message
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .idle, .checking:
+            return "arrow.triangle.2.circlepath"
+        case .verified:
+            return "checkmark.seal"
+        case .unavailable:
+            return "exclamationmark.triangle"
+        }
+    }
 }
 
 private struct SettingsInfoRow: View {

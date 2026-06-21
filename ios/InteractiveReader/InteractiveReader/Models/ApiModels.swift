@@ -17,6 +17,27 @@ struct SessionStatusResponse: Decodable, Equatable {
     let user: SessionUserPayload
 }
 
+struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
+    struct AuthContract: Decodable, Equatable {
+        let loginPath: String
+        let sessionPath: String
+        let tokenTransport: String
+    }
+
+    struct ClientConfig: Decodable, Equatable {
+        let apiBaseUrlEnvironment: [String]
+        let sessionTokenStorage: String
+    }
+
+    let status: String
+    let app: String
+    let service: String
+    let version: String
+    let healthPath: String
+    let auth: AuthContract
+    let clientConfig: ClientConfig
+}
+
 struct LoginRequestPayload: Encodable {
     let username: String
     let password: String

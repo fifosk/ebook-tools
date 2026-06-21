@@ -17,6 +17,7 @@ struct LoginView: View {
                             VStack(alignment: .leading, spacing: 20) {
                                 LoginHeaderView()
                                 LoginServerStatusView(status: viewModel.serverStatus)
+                                AppChangelogSummaryView(maxEntries: 2, showBuildMetadata: false)
                                 LoginCredentialsSection(
                                     viewModel: viewModel,
                                     focusedField: $focusedField,
