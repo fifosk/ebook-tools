@@ -315,7 +315,8 @@ private struct AppChangelogSettingsSection: View {
         Section {
             AppChangelogSummaryView(
                 showBuildMetadata: true,
-                usesDarkBackground: usesDarkBackground
+                usesDarkBackground: usesDarkBackground,
+                maxContentHeight: 420
             )
             .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             #if os(iOS)

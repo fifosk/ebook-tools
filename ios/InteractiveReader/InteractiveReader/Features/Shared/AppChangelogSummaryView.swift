@@ -4,15 +4,18 @@ struct AppChangelogSummaryView: View {
     let maxEntries: Int?
     let showBuildMetadata: Bool
     let usesDarkBackground: Bool
+    let maxContentHeight: CGFloat?
 
     init(
         maxEntries: Int? = nil,
         showBuildMetadata: Bool = true,
-        usesDarkBackground: Bool = true
+        usesDarkBackground: Bool = true,
+        maxContentHeight: CGFloat? = nil
     ) {
         self.maxEntries = maxEntries
         self.showBuildMetadata = showBuildMetadata
         self.usesDarkBackground = usesDarkBackground
+        self.maxContentHeight = maxContentHeight
     }
 
     var body: some View {
@@ -37,13 +40,7 @@ struct AppChangelogSummaryView: View {
                     .accessibilityIdentifier("appBuildMetadataText")
             }
 
-            ForEach(displayEntries) { entry in
-                AppChangelogEntryRow(
-                    entry: entry,
-                    primaryStyle: primaryStyle,
-                    secondaryStyle: secondaryStyle
-                )
-            }
+            entriesSection
         }
         .padding(12)
         .background(backgroundStyle, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -59,6 +56,35 @@ struct AppChangelogSummaryView: View {
         let entries = AppChangelog.days.first?.entries ?? []
         guard let maxEntries else { return entries }
         return Array(entries.prefix(maxEntries))
+    }
+
+    @ViewBuilder
+    private var entriesSection: some View {
+        if let maxContentHeight {
+            ScrollView(.vertical, showsIndicators: true) {
+                entriesList
+                    .padding(.trailing, 10)
+            }
+            .frame(maxHeight: maxContentHeight)
+            #if os(tvOS)
+            .focusable(true)
+            .focusSection()
+            #endif
+        } else {
+            entriesList
+        }
+    }
+
+    private var entriesList: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(displayEntries) { entry in
+                AppChangelogEntryRow(
+                    entry: entry,
+                    primaryStyle: primaryStyle,
+                    secondaryStyle: secondaryStyle
+                )
+            }
+        }
     }
 
     private var primaryStyle: Color {

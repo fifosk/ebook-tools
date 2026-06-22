@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.72",
+            version: "2026.06.22.73",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-changelog-scroll-target",
+                    title: "TV changelog scrolling fixed",
+                    detail: "The TV login and settings changelog now use a bounded focusable scroll area so the remote can reveal the full daily entry list."
+                ),
                 AppChangelogEntry(
                     id: "player-channel-models-file",
                     title: "Player channel models separated",

@@ -17,7 +17,7 @@ struct LoginView: View {
                             VStack(alignment: .leading, spacing: 20) {
                                 LoginHeaderView()
                                 LoginServerStatusView(status: viewModel.serverStatus)
-                                AppChangelogSummaryView(maxEntries: 2, showBuildMetadata: false)
+                                loginChangelog
                                 LoginCredentialsSection(
                                     viewModel: viewModel,
                                     focusedField: $focusedField,
@@ -82,6 +82,18 @@ struct LoginView: View {
             viewModel.errorMessage = error.localizedDescription
         }
         await viewModel.refreshServerStatus(using: appState)
+    }
+
+    @ViewBuilder
+    private var loginChangelog: some View {
+        #if os(tvOS)
+        AppChangelogSummaryView(
+            showBuildMetadata: false,
+            maxContentHeight: 240
+        )
+        #else
+        AppChangelogSummaryView(maxEntries: 2, showBuildMetadata: false)
+        #endif
     }
 }
 
