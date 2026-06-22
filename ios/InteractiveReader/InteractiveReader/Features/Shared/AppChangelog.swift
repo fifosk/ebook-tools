@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.35",
+            version: "2026.06.22.36",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-transcript-layout-handlers",
+                    title: "Transcript layout updates cleaned up",
+                    detail: "Interactive transcript bubble geometry and iPad split layout updates now route through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "subtitle-overlay-frame-handlers",
                     title: "Subtitle frame updates cleaned up",

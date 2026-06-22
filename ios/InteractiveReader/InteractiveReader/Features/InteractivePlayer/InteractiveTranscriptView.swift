@@ -371,11 +371,7 @@ struct InteractiveTranscriptView: View {
                 }
                 #endif
             }
-            .onPreferenceChange(InteractiveBubbleHeightKey.self) { value in
-                if !isPhone {
-                    bubbleHeight = value
-                }
-            }
+            .onPreferenceChange(InteractiveBubbleHeightKey.self, perform: handleBubbleHeightChange)
             .onPreferenceChange(InteractiveAutoScaleTrackHeightKey.self) { value in
                 handleAutoScaleTrackHeightChange(
                     value,
@@ -383,9 +379,7 @@ struct InteractiveTranscriptView: View {
                     textHeightLimit: textHeightLimit
                 )
             }
-            .onPreferenceChange(InteractiveBubbleFrameKey.self) { value in
-                bubbleFrame = value
-            }
+            .onPreferenceChange(InteractiveBubbleFrameKey.self, perform: handleBubbleFrameChange)
             .onChange(of: proxy.size) { _, newSize in
                 handleLayoutSizeChange(
                     newSize,
@@ -433,6 +427,15 @@ struct InteractiveTranscriptView: View {
             autoScaleNeedsUpdate = true
         }
         applyAutoScaleIfNeeded()
+    }
+
+    private func handleBubbleHeightChange(_ value: CGFloat) {
+        guard !isPhone else { return }
+        bubbleHeight = value
+    }
+
+    private func handleBubbleFrameChange(_ value: CGRect) {
+        bubbleFrame = value
     }
 
     private func handleLayoutSizeChange(

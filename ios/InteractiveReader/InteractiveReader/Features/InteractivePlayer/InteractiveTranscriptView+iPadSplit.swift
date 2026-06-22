@@ -60,27 +60,32 @@ extension InteractiveTranscriptView {
             }
         }
         .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
-        .onAppear {
-            // Initialize previous ratio when layout appears
-            previousSplitRatio = iPadSplitRatio
-        }
+        .onAppear(perform: handleIPadSplitAppear)
         .onChange(of: iPadSplitRatio) { oldRatio, newRatio in
-            // Dynamically adjust font scales based on split ratio changes
-            // In vertical: ratio = tracks height percentage, so increasing ratio = more track space
-            // In horizontal: ratio = bubble width percentage, so increasing ratio = more bubble space
-            adjustFontScalesForSplitChange(
-                oldRatio: oldRatio,
-                newRatio: newRatio,
-                isVertical: iPadSplitDirection == .vertical
-            )
+            handleIPadSplitRatioChange(oldRatio: oldRatio, newRatio: newRatio)
         }
         .onChange(of: iPadSplitDirection) { _, _ in
-            // Reset previous ratio when direction changes
-            previousSplitRatio = iPadSplitRatio
+            handleIPadSplitDirectionChange()
         }
     }
 
     // MARK: Font Scale Adjustment
+
+    func handleIPadSplitAppear() {
+        previousSplitRatio = iPadSplitRatio
+    }
+
+    func handleIPadSplitRatioChange(oldRatio: CGFloat, newRatio: CGFloat) {
+        adjustFontScalesForSplitChange(
+            oldRatio: oldRatio,
+            newRatio: newRatio,
+            isVertical: iPadSplitDirection == .vertical
+        )
+    }
+
+    func handleIPadSplitDirectionChange() {
+        previousSplitRatio = iPadSplitRatio
+    }
 
     /// Adjust track and linguist font scales based on split ratio changes
     func adjustFontScalesForSplitChange(
