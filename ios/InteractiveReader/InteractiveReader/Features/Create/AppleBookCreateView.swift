@@ -32,6 +32,8 @@ struct AppleBookCreateView: View {
     @State private var subtitleLlmModel = ""
     @State private var subtitleTransliterationMode = AppleSubtitleTransliterationMode.default
     @State private var subtitleTransliterationModel = ""
+    @State private var subtitleWorkerCount = AppleSubtitleTuning.defaultWorkerCount
+    @State private var subtitleBatchSize = AppleSubtitleTuning.defaultBatchSize
     @State private var subtitleTranslationBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
     @State private var subtitleAssFontSize = AppleSubtitleAssTypography.defaultFontSize
     @State private var subtitleAssEmphasisScale = AppleSubtitleAssTypography.defaultEmphasisScale
@@ -330,6 +332,26 @@ struct AppleBookCreateView: View {
                 }
                 .accessibilityIdentifier("createSubtitleTranslationProviderPicker")
 
+                #if os(iOS)
+                Stepper(
+                    value: subtitleWorkerCountBinding,
+                    in: AppleSubtitleTuning.workerCountRange,
+                    step: 1
+                ) {
+                    LabeledContent("Worker threads", value: "\(clampedSubtitleWorkerCount)")
+                }
+                .accessibilityIdentifier("createSubtitleWorkerCountStepper")
+
+                Stepper(
+                    value: subtitleBatchSizeBinding,
+                    in: AppleSubtitleTuning.batchSizeRange,
+                    step: 5
+                ) {
+                    LabeledContent("Subtitle batch size", value: "\(clampedSubtitleBatchSize)")
+                }
+                .accessibilityIdentifier("createSubtitleBatchSizeStepper")
+                #endif
+
                 if subtitleTranslationProvider == .llm {
                     Picker("Model", selection: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel)) {
                         ForEach(availableSubtitleLlmModels, id: \.self) { option in
@@ -534,6 +556,8 @@ struct AppleBookCreateView: View {
             transliterationModel: subtitleEnableTransliteration && subtitleTransliterationMode.allowsModelOverride
                 ? trimmed(subtitleTransliterationModel).nonEmptyValue
                 : nil,
+            workerCount: clampedSubtitleWorkerCount,
+            batchSize: clampedSubtitleBatchSize,
             translationBatchSize: clampedSubtitleTranslationBatchSize,
             assFontSize: subtitleOutputFormat == .ass ? clampedAssFontSize : nil,
             assEmphasisScale: subtitleOutputFormat == .ass ? clampedAssEmphasisScale : nil
@@ -723,6 +747,20 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private var clampedSubtitleWorkerCount: Int {
+        min(
+            AppleSubtitleTuning.workerCountRange.upperBound,
+            max(AppleSubtitleTuning.workerCountRange.lowerBound, subtitleWorkerCount)
+        )
+    }
+
+    private var clampedSubtitleBatchSize: Int {
+        min(
+            AppleSubtitleTuning.batchSizeRange.upperBound,
+            max(AppleSubtitleTuning.batchSizeRange.lowerBound, subtitleBatchSize)
+        )
+    }
+
     private var sentenceCountBinding: Binding<Int> {
         Binding(
             get: { sentenceCount },
@@ -784,6 +822,32 @@ struct AppleBookCreateView: View {
                 subtitleTranslationBatchSize = min(
                     AppleSubtitleTuning.translationBatchSizeRange.upperBound,
                     max(AppleSubtitleTuning.translationBatchSizeRange.lowerBound, newValue)
+                )
+            }
+        )
+    }
+
+    private var subtitleWorkerCountBinding: Binding<Int> {
+        Binding(
+            get: { clampedSubtitleWorkerCount },
+            set: { newValue in
+                markEdited(.subtitleWorkerCount)
+                subtitleWorkerCount = min(
+                    AppleSubtitleTuning.workerCountRange.upperBound,
+                    max(AppleSubtitleTuning.workerCountRange.lowerBound, newValue)
+                )
+            }
+        )
+    }
+
+    private var subtitleBatchSizeBinding: Binding<Int> {
+        Binding(
+            get: { clampedSubtitleBatchSize },
+            set: { newValue in
+                markEdited(.subtitleBatchSize)
+                subtitleBatchSize = min(
+                    AppleSubtitleTuning.batchSizeRange.upperBound,
+                    max(AppleSubtitleTuning.batchSizeRange.lowerBound, newValue)
                 )
             }
         )
@@ -953,6 +1017,8 @@ private enum AppleBookCreateEditedField: Hashable {
     case subtitleLlmModel
     case subtitleTransliterationMode
     case subtitleTransliterationModel
+    case subtitleWorkerCount
+    case subtitleBatchSize
     case subtitleTranslationBatchSize
     case subtitleAssFontSize
     case subtitleAssEmphasisScale
@@ -1073,6 +1139,10 @@ private enum AppleSubtitleAssTypography {
 }
 
 private enum AppleSubtitleTuning {
+    static let defaultWorkerCount = 10
+    static let workerCountRange = 1...32
+    static let defaultBatchSize = 20
+    static let batchSizeRange = 1...500
     static let defaultTranslationBatchSize = 10
     static let translationBatchSizeRange = 1...50
 }

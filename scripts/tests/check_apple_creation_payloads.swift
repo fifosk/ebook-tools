@@ -210,7 +210,9 @@ struct AppleCreationPayloadCheck {
             highlight: true,
             showOriginal: true,
             generateAudioBook: true,
+            batchSize: 20,
             translationBatchSize: 10,
+            workerCount: 10,
             startTime: "00:00",
             endTime: "+02:00",
             assFontSize: 56,
@@ -250,6 +252,14 @@ struct AppleCreationPayloadCheck {
         require(
             appleSubtitle.multipartFields["translation_batch_size"] == "10",
             "Apple subtitle form should include selected LLM batch size"
+        )
+        require(
+            appleSubtitle.multipartFields["worker_count"] == "10",
+            "Apple subtitle form should include selected worker count"
+        )
+        require(
+            appleSubtitle.multipartFields["batch_size"] == "20",
+            "Apple subtitle form should include selected subtitle batch size"
         )
         require(
             appleSubtitle.multipartFields["ass_font_size"] == "56",

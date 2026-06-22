@@ -74,8 +74,6 @@ Current Apple UI does not yet expose:
 
 - YouTube dubbing submission.
 - Upload/reupload library source files.
-- Low-level subtitle worker/render batch-size tuning; Apple currently exposes
-  the safer LLM batch-size setting but keeps worker controls Web-only.
 
 ## Backend Optimization Targets
 
@@ -172,10 +170,10 @@ After Narrate Ebook:
   server-side subtitle paths or local SRT/VTT/ASS uploads with languages,
   output format, timing, output toggles, provider/model selection, ASS
   typography, transliteration mode/model, LLM batch-size tuning, and
-  mirror-to-source control through `/api/subtitles/jobs`; native time fields
-  validate and normalize Web-style `MM:SS`, `HH:MM:SS`, and `+offset` values
-  before submit. Remaining parity gaps: low-level worker/render batch-size
-  controls and rich TV/film metadata lookup/editing.
+  worker/render batch-size tuning, and mirror-to-source control through
+  `/api/subtitles/jobs`; native time fields validate and normalize Web-style
+  `MM:SS`, `HH:MM:SS`, and `+offset` values before submit. Remaining parity
+  gap: rich TV/film metadata lookup/editing.
 - Generated book job creation on iPad.
 - YouTube dubbing as iPad-first review/submit flow.
 - Apple TV gets read-only job templates or retry controls only if remote navigation stays simple.

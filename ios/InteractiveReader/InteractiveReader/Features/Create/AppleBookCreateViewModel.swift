@@ -282,7 +282,9 @@ final class AppleBookCreateViewModel: ObservableObject {
             highlight: draft.highlight,
             showOriginal: draft.showOriginal,
             generateAudioBook: draft.generateAudioBook,
+            batchSize: draft.batchSize,
             translationBatchSize: draft.translationBatchSize,
+            workerCount: draft.workerCount,
             startTime: draft.startTime,
             endTime: draft.endTime,
             assFontSize: draft.assFontSize,
@@ -350,6 +352,8 @@ struct AppleSubtitleJobDraft: Equatable {
     let llmModel: String?
     let transliterationMode: String?
     let transliterationModel: String?
+    let workerCount: Int
+    let batchSize: Int
     let translationBatchSize: Int
     let assFontSize: Int?
     let assEmphasisScale: Double?
