@@ -169,9 +169,7 @@ extension InteractivePlayerView {
                     currentTime: playbackTime,
                     duration: playbackDuration,
                     scrubbedTime: $scrubbedTime,
-                    onSeek: { target in
-                        viewModel.seekPlayback(to: target, in: chunk)
-                    }
+                    onSeek: { seekPlayback(to: $0, in: chunk) }
                 )
             }
         }
@@ -186,7 +184,7 @@ extension InteractivePlayerView {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack(spacing: 6) {
-                Button(action: { adjustTrackFontScale(by: -trackFontScaleStep) }) {
+                Button(action: decreaseTrackFontScale) {
                     Text("A-")
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 6)
@@ -197,7 +195,7 @@ extension InteractivePlayerView {
                 .disabled(!canDecrease)
                 .focused($focusedArea, equals: .controls)
 
-                Button(action: { adjustTrackFontScale(by: trackFontScaleStep) }) {
+                Button(action: increaseTrackFontScale) {
                     Text("A+")
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 6)
@@ -285,11 +283,7 @@ extension InteractivePlayerView {
             get: {
                 activeChapter(in: entries)?.id ?? entries.first?.id ?? ""
             },
-            set: { newValue in
-                guard let target = entries.first(where: { $0.id == newValue }) else { return }
-                selectedSentenceID = target.startSentence
-                viewModel.jumpToSentence(target.startSentence, autoPlay: audioCoordinator.isPlaying)
-            }
+            set: { selectChapter($0, from: entries) }
         )
     }
 
@@ -432,9 +426,7 @@ extension InteractivePlayerView {
                 #if os(tvOS)
                 Menu {
                     ForEach(chunk.audioOptions) { option in
-                        Button(option.label) {
-                            viewModel.selectAudioTrack(id: option.id)
-                        }
+                        Button(option.label) { selectAudioTrack(option) }
                     }
                 } label: {
                     menuLabel(selectedAudioLabel(for: chunk))
@@ -475,7 +467,7 @@ extension InteractivePlayerView {
             Menu {
                 ForEach(playbackRates, id: \.self) { rate in
                     Button {
-                        audioCoordinator.setPlaybackRate(rate)
+                        selectPlaybackRate(rate)
                     } label: {
                         if isCurrentRate(rate) {
                             Label(playbackRateLabel(rate), systemImage: "checkmark")
@@ -516,8 +508,7 @@ extension InteractivePlayerView {
                     Divider()
                     // Built-in reading bed options
                     Button {
-                        if useAppleMusicForBed { switchToBuiltInBed() }
-                        viewModel.selectReadingBed(id: nil)
+                        selectDefaultReadingBed()
                     } label: {
                         if !useAppleMusicForBed && viewModel.selectedReadingBedID == nil {
                             Label("Default", systemImage: "checkmark")
@@ -528,8 +519,7 @@ extension InteractivePlayerView {
                     ForEach(viewModel.readingBedCatalog?.beds ?? []) { bed in
                         let label = bed.label.isEmpty ? bed.id : bed.label
                         Button {
-                            if useAppleMusicForBed { switchToBuiltInBed() }
-                            viewModel.selectReadingBed(id: bed.id)
+                            selectReadingBed(bed)
                         } label: {
                             if !useAppleMusicForBed && bed.id == viewModel.selectedReadingBedID {
                                 Label(label, systemImage: "checkmark")
@@ -561,9 +551,7 @@ extension InteractivePlayerView {
             Menu {
                 if hasVoiceOverrides {
                     Button(role: .destructive) {
-                        TtsVoicePreferencesManager.shared.clearAllVoices()
-                        // Also clear the legacy stored voice
-                        storedTtsVoice = ""
+                        resetVoiceSettings()
                     } label: {
                         Label("Reset Voice Settings", systemImage: "speaker.wave.2.circle")
                     }
@@ -582,5 +570,48 @@ extension InteractivePlayerView {
             .controlSize(.small)
             .focused($focusedArea, equals: .controls)
         }
+    }
+
+    func seekPlayback(to target: TimeInterval, in chunk: InteractiveChunk) {
+        viewModel.seekPlayback(to: target, in: chunk)
+    }
+
+    #if os(tvOS)
+    func decreaseTrackFontScale() {
+        adjustTrackFontScale(by: -trackFontScaleStep)
+    }
+
+    func increaseTrackFontScale() {
+        adjustTrackFontScale(by: trackFontScaleStep)
+    }
+    #endif
+
+    func selectChapter(_ chapterID: String, from entries: [ChapterNavigationEntry]) {
+        guard let target = entries.first(where: { $0.id == chapterID }) else { return }
+        selectedSentenceID = target.startSentence
+        viewModel.jumpToSentence(target.startSentence, autoPlay: audioCoordinator.isPlaying)
+    }
+
+    func selectAudioTrack(_ option: InteractiveChunk.AudioOption) {
+        viewModel.selectAudioTrack(id: option.id)
+    }
+
+    func selectPlaybackRate(_ rate: Double) {
+        audioCoordinator.setPlaybackRate(rate)
+    }
+
+    func selectDefaultReadingBed() {
+        if useAppleMusicForBed { switchToBuiltInBed() }
+        viewModel.selectReadingBed(id: nil)
+    }
+
+    func selectReadingBed(_ bed: ReadingBedEntry) {
+        if useAppleMusicForBed { switchToBuiltInBed() }
+        viewModel.selectReadingBed(id: bed.id)
+    }
+
+    func resetVoiceSettings() {
+        TtsVoicePreferencesManager.shared.clearAllVoices()
+        storedTtsVoice = ""
     }
 }

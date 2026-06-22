@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.16",
+            version: "2026.06.22.17",
             entries: [
+                AppChangelogEntry(
+                    id: "player-menu-command-handlers",
+                    title: "Player menu controls cleaned up",
+                    detail: "Interactive player menu selection, playback-rate, reading-bed, text-size, seek, and voice-reset commands now run through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "music-overlay-command-handlers",
                     title: "Music overlay controls cleaned up",
