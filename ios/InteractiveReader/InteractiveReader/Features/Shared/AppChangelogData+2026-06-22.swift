@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "library-row-metadata-file",
+            title: "Library row metadata separated",
+            detail: "Library row titles, language flags, media variants, summaries, duration, sentence counts, and TV metadata now live in a focused extension while the base row stays centered on layout and styling."
+        ),
+        AppChangelogEntry(
             id: "interactive-transcript-selection-file",
             title: "Transcript selection separated",
             detail: "Selection hit-testing, drag range updates, tap tolerance, and delayed lookup scheduling now live in a focused extension while the core transcript view stays centered on layout composition."

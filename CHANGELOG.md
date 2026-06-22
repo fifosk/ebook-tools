@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.148
+
+- Advanced visible Apple app versioning to `v2026.06.22.148`.
+- Moved library row title, language, media variant, summary, duration, sentence count, and TV metadata extraction into `LibraryRowView+Metadata.swift`, keeping the base row file centered on layout and styling.
+
 ### 2026.06.22.147
 
 - Advanced visible Apple app versioning to `v2026.06.22.147`.
