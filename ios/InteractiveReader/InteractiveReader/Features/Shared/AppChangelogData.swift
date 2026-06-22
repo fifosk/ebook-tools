@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.128",
+            version: "2026.06.22.129",
             entries: [
+                AppChangelogEntry(
+                    id: "text-player-reveal-state-helper",
+                    title: "Text player reveal rules unified",
+                    detail: "Live timeline display, active sentence rendering, and track-switch settling now share one helper for token reveal counts, current-token selection, and segment-end reveal tolerance."
+                ),
                 AppChangelogEntry(
                     id: "text-player-sentence-view-file",
                     title: "Text player sentences separated",

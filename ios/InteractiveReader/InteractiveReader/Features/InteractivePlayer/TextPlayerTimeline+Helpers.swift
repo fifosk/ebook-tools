@@ -324,4 +324,54 @@ extension TextPlayerTimeline {
         }
         return reveals
     }
+
+    static func resolveVariantRevealState(
+        tokens: [String],
+        revealTimes: [Double],
+        sentenceState: TextPlayerSentenceState,
+        effectiveTime: Double,
+        startTime: Double,
+        endTime: Double,
+        isActiveTrack: Bool
+    ) -> TextPlayerVariantRevealState {
+        let epsilon = 1e-3
+        let forceRevealTolerance = 0.15
+        let safeTime = min(max(effectiveTime, startTime - epsilon), endTime + epsilon)
+        let revealCutoff = min(safeTime, endTime)
+        let progressCount = revealTimes.filter { $0 <= revealCutoff + epsilon }.count
+
+        var revealedCount: Int
+        switch sentenceState {
+        case .past:
+            revealedCount = tokens.count
+        case .future:
+            revealedCount = progressCount
+        case .active:
+            revealedCount = progressCount
+        }
+
+        revealedCount = max(0, min(revealedCount, tokens.count))
+
+        if isActiveTrack && safeTime >= endTime - forceRevealTolerance {
+            revealedCount = tokens.count
+        }
+
+        if isActiveTrack,
+           !revealTimes.isEmpty,
+           sentenceState == .active,
+           safeTime >= startTime - epsilon,
+           revealedCount == 0 {
+            revealedCount = 1
+        }
+
+        var currentIndex: Int? = revealedCount > 0 ? revealedCount - 1 : nil
+        if isActiveTrack && !tokens.isEmpty && (sentenceState == .past || safeTime >= endTime - forceRevealTolerance) {
+            currentIndex = tokens.count - 1
+        }
+
+        return TextPlayerVariantRevealState(
+            revealedCount: revealedCount,
+            currentIndex: currentIndex
+        )
+    }
 }

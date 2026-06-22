@@ -202,11 +202,6 @@ extension TextPlayerTimeline {
         let switchingToTranslation = newPrimaryTrack == .translation
         var variants: [TextPlayerVariantDisplay] = []
 
-        let epsilon = 1e-3
-        let forceRevealTolerance = 0.15
-        let safeTime = min(max(chunkTime, targetRuntime.startTime - epsilon), targetRuntime.endTime + epsilon)
-        let revealCutoff = min(safeTime, targetRuntime.endTime)
-
         func appendVariant(label: String, kind: TextPlayerVariantKind, tokens: [String]) {
             guard !tokens.isEmpty else { return }
 
@@ -224,17 +219,17 @@ extension TextPlayerTimeline {
                     // Translation/transliteration - animate based on current time
                     if let variantRuntime = targetRuntime.variants[kind] {
                         let revealTimes = variantRuntime.revealTimes
-                        var count = revealTimes.filter { $0 <= revealCutoff + epsilon }.count
-                        count = max(0, min(count, tokens.count))
-                        // Force all words revealed when near segment end
-                        if safeTime >= targetRuntime.endTime - forceRevealTolerance {
-                            revealedCount = tokens.count
-                        } else if count == 0 && safeTime >= targetRuntime.startTime - epsilon {
-                            revealedCount = 1 // At least first word
-                        } else {
-                            revealedCount = count
-                        }
-                        currentIndex = revealedCount > 0 ? revealedCount - 1 : nil
+                        let revealState = resolveVariantRevealState(
+                            tokens: tokens,
+                            revealTimes: revealTimes,
+                            sentenceState: .active,
+                            effectiveTime: chunkTime,
+                            startTime: targetRuntime.startTime,
+                            endTime: targetRuntime.endTime,
+                            isActiveTrack: true
+                        )
+                        revealedCount = revealState.revealedCount
+                        currentIndex = revealState.currentIndex
                         seekTimes = revealTimes.isEmpty ? nil : revealTimes
                     } else {
                         // No timing data - show first word revealed
@@ -248,17 +243,17 @@ extension TextPlayerTimeline {
                     // Original - animate based on current time
                     if let variantRuntime = targetRuntime.variants[kind] {
                         let revealTimes = variantRuntime.revealTimes
-                        var count = revealTimes.filter { $0 <= revealCutoff + epsilon }.count
-                        count = max(0, min(count, tokens.count))
-                        // Force all words revealed when near segment end
-                        if safeTime >= targetRuntime.endTime - forceRevealTolerance {
-                            revealedCount = tokens.count
-                        } else if count == 0 && safeTime >= targetRuntime.startTime - epsilon {
-                            revealedCount = 1
-                        } else {
-                            revealedCount = count
-                        }
-                        currentIndex = revealedCount > 0 ? revealedCount - 1 : nil
+                        let revealState = resolveVariantRevealState(
+                            tokens: tokens,
+                            revealTimes: revealTimes,
+                            sentenceState: .active,
+                            effectiveTime: chunkTime,
+                            startTime: targetRuntime.startTime,
+                            endTime: targetRuntime.endTime,
+                            isActiveTrack: true
+                        )
+                        revealedCount = revealState.revealedCount
+                        currentIndex = revealState.currentIndex
                         seekTimes = revealTimes.isEmpty ? nil : revealTimes
                     } else {
                         revealedCount = 1

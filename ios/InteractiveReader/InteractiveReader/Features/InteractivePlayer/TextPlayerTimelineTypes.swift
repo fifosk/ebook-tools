@@ -32,6 +32,11 @@ struct TextPlayerVariantDisplay: Identifiable {
     let seekTimes: [Double]?
 }
 
+struct TextPlayerVariantRevealState {
+    let revealedCount: Int
+    let currentIndex: Int?
+}
+
 struct TextPlayerSentenceDisplay: Identifiable {
     let id: String
     let index: Int

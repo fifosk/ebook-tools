@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.129
+
+- Advanced visible Apple app versioning to `v2026.06.22.129`.
+- Centralized text-player token reveal counts, current-token selection, and segment-end reveal tolerance into one timeline helper so live display, active sentence, and track-switch settling states use the same playback rules.
+
 ### 2026.06.22.128
 
 - Advanced visible Apple app versioning to `v2026.06.22.128`.

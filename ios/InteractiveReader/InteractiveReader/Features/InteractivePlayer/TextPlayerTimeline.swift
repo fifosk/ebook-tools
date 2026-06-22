@@ -370,12 +370,6 @@ enum TextPlayerTimeline {
             timelineSentences: timelineSentences,
             effectiveTime: effectiveTime
         )?.index
-        let epsilon = 1e-3
-        // Larger tolerance for "force all revealed" at segment end
-        // This should be >= the dwell tolerance (0.1s) used in SequencePlaybackController
-        // to ensure last word is revealed during the dwell period before advancing
-        let forceRevealTolerance = 0.15
-
         // Determine which track is currently active (for force reveal logic)
         let isOriginalTrackActive: Bool
         if let track = activeTimingTrack {
@@ -403,50 +397,23 @@ enum TextPlayerTimeline {
 
                 let tokens = variantRuntime.tokens
                 let revealTimes = variantRuntime.revealTimes
-                let safeTime = min(max(effectiveTime, runtime.startTime - epsilon), runtime.endTime + epsilon)
-                let revealCutoff = min(safeTime, runtime.endTime)
-                let progressCount = revealTimes.filter { $0 <= revealCutoff + epsilon }.count
-
-                var revealedCount: Int
-                switch state {
-                case .past:
-                    revealedCount = tokens.count
-                case .future:
-                    revealedCount = progressCount
-                case .active:
-                    revealedCount = progressCount
-                }
-
-                revealedCount = max(0, min(revealedCount, tokens.count))
-                // Force all words revealed when near segment end (using larger tolerance for dwell period)
-                // ONLY for the currently active track - prevents other tracks from being force-revealed
-                if isActiveTrack && safeTime >= runtime.endTime - forceRevealTolerance {
-                    revealedCount = tokens.count
-                }
-                // Ensure at least first word is revealed for the ACTIVE track when playback starts
-                // Only apply to active track to prevent non-playing tracks from getting orange highlight
-                if isActiveTrack,
-                   !revealTimes.isEmpty,
-                   state == .active,
-                   safeTime >= runtime.startTime - epsilon,
-                   revealedCount == 0 {
-                    revealedCount = 1
-                }
-
-                var currentIndex: Int? = revealedCount > 0 ? revealedCount - 1 : nil
-                // Force last word as current when near segment end (matching forceRevealTolerance)
-                // ONLY for the currently active track - prevents other tracks from getting highlight
-                if isActiveTrack && !tokens.isEmpty && (state == .past || safeTime >= runtime.endTime - forceRevealTolerance) {
-                    currentIndex = tokens.count - 1
-                }
+                let revealState = resolveVariantRevealState(
+                    tokens: tokens,
+                    revealTimes: revealTimes,
+                    sentenceState: state,
+                    effectiveTime: effectiveTime,
+                    startTime: runtime.startTime,
+                    endTime: runtime.endTime,
+                    isActiveTrack: isActiveTrack
+                )
 
                 variants.append(
                     TextPlayerVariantDisplay(
                         id: kind.rawValue,
                         label: label,
                         tokens: tokens,
-                        revealedCount: revealedCount,
-                        currentIndex: currentIndex,
+                        revealedCount: revealState.revealedCount,
+                        currentIndex: revealState.currentIndex,
                         kind: kind,
                         seekTimes: revealTimes
                     )
@@ -493,10 +460,6 @@ enum TextPlayerTimeline {
             return nil
         }
 
-        let epsilon = 1e-3
-        // Larger tolerance for "force all revealed" at segment end
-        // This should be >= the dwell tolerance (0.1s) used in SequencePlaybackController
-        let forceRevealTolerance = 0.15
         let state: TextPlayerSentenceState = .active
         var variants: [TextPlayerVariantDisplay] = []
 
@@ -514,50 +477,23 @@ enum TextPlayerTimeline {
 
             let tokens = variantRuntime.tokens
             let revealTimes = variantRuntime.revealTimes
-            let safeTime = min(max(effectiveTime, runtime.startTime - epsilon), runtime.endTime + epsilon)
-            let revealCutoff = min(safeTime, runtime.endTime)
-            let progressCount = revealTimes.filter { $0 <= revealCutoff + epsilon }.count
-
-            var revealedCount: Int
-            switch state {
-            case .past:
-                revealedCount = tokens.count
-            case .future:
-                revealedCount = progressCount
-            case .active:
-                revealedCount = progressCount
-            }
-
-            revealedCount = max(0, min(revealedCount, tokens.count))
-            // Force all words revealed when near segment end (using larger tolerance for dwell period)
-            // ONLY for the currently active track - prevents other tracks from being force-revealed
-            if isActiveTrack && safeTime >= runtime.endTime - forceRevealTolerance {
-                revealedCount = tokens.count
-            }
-            // Ensure at least first word is revealed for the ACTIVE track when playback starts
-            // Only apply to active track to prevent non-playing tracks from getting orange highlight
-            if isActiveTrack,
-               !revealTimes.isEmpty,
-               state == .active,
-               safeTime >= runtime.startTime - epsilon,
-               revealedCount == 0 {
-                revealedCount = 1
-            }
-
-            var currentIndex: Int? = revealedCount > 0 ? revealedCount - 1 : nil
-            // Force last word as current when near segment end (matching forceRevealTolerance)
-            // ONLY for the currently active track - prevents other tracks from getting highlight
-            if isActiveTrack && !tokens.isEmpty && (state == .past || safeTime >= runtime.endTime - forceRevealTolerance) {
-                currentIndex = tokens.count - 1
-            }
+            let revealState = resolveVariantRevealState(
+                tokens: tokens,
+                revealTimes: revealTimes,
+                sentenceState: state,
+                effectiveTime: effectiveTime,
+                startTime: runtime.startTime,
+                endTime: runtime.endTime,
+                isActiveTrack: isActiveTrack
+            )
 
             variants.append(
                 TextPlayerVariantDisplay(
                     id: kind.rawValue,
                     label: label,
                     tokens: tokens,
-                    revealedCount: revealedCount,
-                    currentIndex: currentIndex,
+                    revealedCount: revealState.revealedCount,
+                    currentIndex: revealState.currentIndex,
                     kind: kind,
                     seekTimes: revealTimes
                 )
@@ -756,59 +692,28 @@ enum TextPlayerTimeline {
         let scaledTransliterationRevealTimes = translationRevealIsAbsolute ? adjustedTransliteration : adjustedTransliteration.map { $0 * scale }
         let scaledOriginalReveal = originalRevealIsAbsolute ? originalReveal : originalReveal.map { $0 * scale }
 
-        let epsilon = 1e-3
-        // Larger tolerance for "force all revealed" at segment end
-        // This should be >= the dwell tolerance (0.1s) used in SequencePlaybackController
-        let forceRevealTolerance = 0.15
         let state: TextPlayerSentenceState = .active
         var variants: [TextPlayerVariantDisplay] = []
 
         func appendVariant(label: String, kind: TextPlayerVariantKind, tokens: [String], revealTimes: [Double], isActiveTrack: Bool) {
             guard !tokens.isEmpty else { return }
-            let safeTime = min(max(effectiveTime, scaledStart - epsilon), scaledEnd + epsilon)
-            let revealCutoff = min(safeTime, scaledEnd)
-            let progressCount = revealTimes.filter { $0 <= revealCutoff + epsilon }.count
-
-            var revealedCount: Int
-            switch state {
-            case .past:
-                revealedCount = tokens.count
-            case .future:
-                revealedCount = progressCount
-            case .active:
-                revealedCount = progressCount
-            }
-
-            revealedCount = max(0, min(revealedCount, tokens.count))
-            // Force all words revealed when near segment end (using larger tolerance for dwell period)
-            // ONLY for the currently active track - prevents other tracks from being force-revealed
-            if isActiveTrack && safeTime >= scaledEnd - forceRevealTolerance {
-                revealedCount = tokens.count
-            }
-            // Ensure at least first word is revealed for the ACTIVE track when playback starts
-            // Only apply to active track to prevent non-playing tracks from getting orange highlight
-            if isActiveTrack,
-               !revealTimes.isEmpty,
-               state == .active,
-               safeTime >= scaledStart - epsilon,
-               revealedCount == 0 {
-                revealedCount = 1
-            }
-
-            var currentIndex: Int? = revealedCount > 0 ? revealedCount - 1 : nil
-            // Force last word as current when near segment end (matching forceRevealTolerance)
-            // ONLY for the currently active track - prevents other tracks from getting highlight
-            if isActiveTrack && !tokens.isEmpty && (state == .past || safeTime >= scaledEnd - forceRevealTolerance) {
-                currentIndex = tokens.count - 1
-            }
+            let revealState = resolveVariantRevealState(
+                tokens: tokens,
+                revealTimes: revealTimes,
+                sentenceState: state,
+                effectiveTime: effectiveTime,
+                startTime: scaledStart,
+                endTime: scaledEnd,
+                isActiveTrack: isActiveTrack
+            )
 
             variants.append(
                 TextPlayerVariantDisplay(
                     id: kind.rawValue,
                     label: label,
                     tokens: tokens,
-                    revealedCount: revealedCount,
-                    currentIndex: currentIndex,
+                    revealedCount: revealState.revealedCount,
+                    currentIndex: revealState.currentIndex,
                     kind: kind,
                     seekTimes: revealTimes.isEmpty ? nil : revealTimes
                 )
