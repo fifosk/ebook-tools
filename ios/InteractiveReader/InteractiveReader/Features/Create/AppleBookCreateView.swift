@@ -29,6 +29,8 @@ struct AppleBookCreateView: View {
     @State private var subtitleGenerateAudioBook = true
     @State private var subtitleTranslationProvider = AppleSubtitleTranslationProvider.llm
     @State private var subtitleLlmModel = ""
+    @State private var subtitleAssFontSize = AppleSubtitleAssTypography.defaultFontSize
+    @State private var subtitleAssEmphasisScale = AppleSubtitleAssTypography.defaultEmphasisScale
     @State private var selectedNarrateFileURL: URL?
     @State private var selectedNarrateFileName: String?
     @State private var isImportingNarrateEbook = false
@@ -262,6 +264,20 @@ struct AppleBookCreateView: View {
                 }
                 .accessibilityIdentifier("createSubtitleOutputFormatPicker")
 
+                #if os(iOS)
+                if subtitleOutputFormat == .ass {
+                    Stepper(value: subtitleAssFontSizeBinding, in: AppleSubtitleAssTypography.fontSizeRange, step: 2) {
+                        LabeledContent("ASS font size", value: "\(clampedAssFontSize)")
+                    }
+                    .accessibilityIdentifier("createSubtitleAssFontSizeStepper")
+
+                    Stepper(value: subtitleAssEmphasisScaleBinding, in: AppleSubtitleAssTypography.emphasisScaleRange, step: 0.05) {
+                        LabeledContent("ASS emphasis", value: formattedAssEmphasisScale)
+                    }
+                    .accessibilityIdentifier("createSubtitleAssEmphasisStepper")
+                }
+                #endif
+
                 TextField("Start time", text: textBinding(for: .subtitleStartTime, value: $subtitleStartTime))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -474,7 +490,9 @@ struct AppleBookCreateView: View {
             showOriginal: subtitleShowOriginal,
             generateAudioBook: subtitleGenerateAudioBook,
             translationProvider: subtitleTranslationProvider.backendValue,
-            llmModel: subtitleTranslationProvider == .llm ? trimmed(subtitleLlmModel).nonEmptyValue : nil
+            llmModel: subtitleTranslationProvider == .llm ? trimmed(subtitleLlmModel).nonEmptyValue : nil,
+            assFontSize: subtitleOutputFormat == .ass ? clampedAssFontSize : nil,
+            assEmphasisScale: subtitleOutputFormat == .ass ? clampedAssEmphasisScale : nil
         )
 
         Task {
@@ -619,6 +637,24 @@ struct AppleBookCreateView: View {
         return options
     }
 
+    private var formattedAssEmphasisScale: String {
+        clampedAssEmphasisScale.formatted(.number.precision(.fractionLength(2)))
+    }
+
+    private var clampedAssFontSize: Int {
+        min(
+            AppleSubtitleAssTypography.fontSizeRange.upperBound,
+            max(AppleSubtitleAssTypography.fontSizeRange.lowerBound, subtitleAssFontSize)
+        )
+    }
+
+    private var clampedAssEmphasisScale: Double {
+        min(
+            AppleSubtitleAssTypography.emphasisScaleRange.upperBound,
+            max(AppleSubtitleAssTypography.emphasisScaleRange.lowerBound, subtitleAssEmphasisScale)
+        )
+    }
+
     private var sentenceCountBinding: Binding<Int> {
         Binding(
             get: { sentenceCount },
@@ -655,6 +691,33 @@ struct AppleBookCreateView: View {
             set: { newValue in
                 markEdited(.subtitleTranslationProvider)
                 subtitleTranslationProvider = newValue
+            }
+        )
+    }
+
+    private var subtitleAssFontSizeBinding: Binding<Int> {
+        Binding(
+            get: { clampedAssFontSize },
+            set: { newValue in
+                markEdited(.subtitleAssFontSize)
+                subtitleAssFontSize = min(
+                    AppleSubtitleAssTypography.fontSizeRange.upperBound,
+                    max(AppleSubtitleAssTypography.fontSizeRange.lowerBound, newValue)
+                )
+            }
+        )
+    }
+
+    private var subtitleAssEmphasisScaleBinding: Binding<Double> {
+        Binding(
+            get: { clampedAssEmphasisScale },
+            set: { newValue in
+                markEdited(.subtitleAssEmphasisScale)
+                let rounded = (newValue * 100).rounded() / 100
+                subtitleAssEmphasisScale = min(
+                    AppleSubtitleAssTypography.emphasisScaleRange.upperBound,
+                    max(AppleSubtitleAssTypography.emphasisScaleRange.lowerBound, rounded)
+                )
             }
         )
     }
@@ -788,6 +851,8 @@ private enum AppleBookCreateEditedField: Hashable {
     case subtitleGenerateAudioBook
     case subtitleTranslationProvider
     case subtitleLlmModel
+    case subtitleAssFontSize
+    case subtitleAssEmphasisScale
     case sentenceCount
     case inputLanguage
     case targetLanguage
@@ -866,4 +931,11 @@ private enum AppleSubtitleTranslationProvider: String, CaseIterable, Identifiabl
             return nil
         }
     }
+}
+
+private enum AppleSubtitleAssTypography {
+    static let defaultFontSize = 56
+    static let fontSizeRange = 12...120
+    static let defaultEmphasisScale = 1.3
+    static let emphasisScaleRange = 1.0...2.5
 }

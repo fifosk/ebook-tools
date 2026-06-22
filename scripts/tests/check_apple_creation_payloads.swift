@@ -212,6 +212,8 @@ struct AppleCreationPayloadCheck {
             translationBatchSize: 10,
             startTime: "00:00",
             endTime: "+02:00",
+            assFontSize: 56,
+            assEmphasisScale: 1.3,
             mediaMetadataJSON: #"{"source":"apple"}"#,
             mirrorBatchesToSourceDir: true,
             outputFormat: "ass"
@@ -235,6 +237,14 @@ struct AppleCreationPayloadCheck {
         require(
             appleSubtitle.multipartFields["translation_provider"] == "llm",
             "Apple subtitle form should include selected translation provider"
+        )
+        require(
+            appleSubtitle.multipartFields["ass_font_size"] == "56",
+            "Apple subtitle form should include ASS font size"
+        )
+        require(
+            appleSubtitle.multipartFields["ass_emphasis_scale"] == "1.30",
+            "Apple subtitle form should include ASS emphasis scale"
         )
         require(
             appleSubtitle.multipartFields["end_time"] == "+02:00",

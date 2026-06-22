@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-subtitle-ass-typography",
+            title: "Subtitle typography controls",
+            detail: "On iPhone and iPad, Apple Create Subtitles now exposes ASS font size and emphasis controls and submits the same backend typography fields as Web."
+        ),
+        AppChangelogEntry(
             id: "apple-create-subtitle-provider-model",
             title: "Subtitle provider and model controls",
             detail: "On iPhone and iPad, Apple Create Subtitles now exposes translation provider and LLM model controls and sends the selected backend values with subtitle jobs."

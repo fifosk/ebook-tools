@@ -400,6 +400,8 @@ struct SubtitleJobFormPayload: Equatable {
     let workerCount: Int?
     let startTime: String
     let endTime: String?
+    let assFontSize: Int?
+    let assEmphasisScale: Double?
     let mediaMetadataJSON: String?
     let cleanupSource: Bool
     let mirrorBatchesToSourceDir: Bool
@@ -423,6 +425,8 @@ struct SubtitleJobFormPayload: Equatable {
         workerCount: Int? = nil,
         startTime: String = "00:00",
         endTime: String? = nil,
+        assFontSize: Int? = nil,
+        assEmphasisScale: Double? = nil,
         mediaMetadataJSON: String? = nil,
         cleanupSource: Bool = false,
         mirrorBatchesToSourceDir: Bool = true,
@@ -445,6 +449,8 @@ struct SubtitleJobFormPayload: Equatable {
         self.workerCount = workerCount
         self.startTime = startTime
         self.endTime = endTime
+        self.assFontSize = assFontSize
+        self.assEmphasisScale = assEmphasisScale
         self.mediaMetadataJSON = mediaMetadataJSON
         self.cleanupSource = cleanupSource
         self.mirrorBatchesToSourceDir = mirrorBatchesToSourceDir
@@ -472,6 +478,8 @@ struct SubtitleJobFormPayload: Equatable {
         Self.add(transliterationMode, named: "transliteration_mode", to: &fields)
         Self.add(transliterationModel, named: "transliteration_model", to: &fields)
         Self.add(endTime, named: "end_time", to: &fields)
+        Self.add(assFontSize.map(String.init), named: "ass_font_size", to: &fields)
+        Self.add(assEmphasisScale.map { Self.formDecimal($0) }, named: "ass_emphasis_scale", to: &fields)
         Self.add(mediaMetadataJSON, named: "media_metadata_json", to: &fields)
         Self.add(batchSize.map(String.init), named: "batch_size", to: &fields)
         Self.add(translationBatchSize.map(String.init), named: "translation_batch_size", to: &fields)
@@ -488,6 +496,14 @@ struct SubtitleJobFormPayload: Equatable {
 
     private static func formBool(_ value: Bool) -> String {
         value ? "true" : "false"
+    }
+
+    private static func formDecimal(_ value: Double) -> String {
+        let rounded = (value * 100).rounded() / 100
+        if rounded.rounded() == rounded {
+            return String(Int(rounded))
+        }
+        return String(format: "%.2f", rounded)
     }
 }
 

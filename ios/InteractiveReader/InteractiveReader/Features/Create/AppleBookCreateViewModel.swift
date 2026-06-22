@@ -284,6 +284,8 @@ final class AppleBookCreateViewModel: ObservableObject {
             translationBatchSize: 10,
             startTime: draft.startTime,
             endTime: draft.endTime,
+            assFontSize: draft.assFontSize,
+            assEmphasisScale: draft.assEmphasisScale,
             mediaMetadataJSON: #"{"source":"apple"}"#,
             mirrorBatchesToSourceDir: true,
             outputFormat: draft.outputFormat
@@ -344,6 +346,8 @@ struct AppleSubtitleJobDraft: Equatable {
     let generateAudioBook: Bool
     let translationProvider: String
     let llmModel: String?
+    let assFontSize: Int?
+    let assEmphasisScale: Double?
 }
 
 enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {
