@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.136
+
+- Advanced visible Apple app versioning to `v2026.06.22.136`.
+- Moved timeline active-display builders and active-index resolution into `TextPlayerTimeline+ActiveDisplay.swift`, keeping the base timeline builder focused on sentence runtime construction.
+
 ### 2026.06.22.135
 
 - Advanced visible Apple app versioning to `v2026.06.22.135`.

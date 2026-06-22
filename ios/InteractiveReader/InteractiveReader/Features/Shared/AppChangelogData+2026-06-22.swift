@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "text-player-active-display-file",
+            title: "Text player active display separated",
+            detail: "Timeline active-display builders and active-index resolution now live in a focused extension while the base timeline builder stays centered on sentence runtime construction."
+        ),
+        AppChangelogEntry(
             id: "library-playback-video-file",
             title: "Library video playback separated",
             detail: "Library video preview, fullscreen presentation, tvOS video body, and video resume/progress helpers now live in a focused video extension while the main library playback view keeps load and content state."
