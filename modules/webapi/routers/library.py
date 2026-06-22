@@ -61,6 +61,18 @@ mimetypes.add_type("text/x-srt", ".srt")
 mimetypes.add_type("text/plain", ".ass")
 
 
+def _record_library_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe library route timing if metrics are available."""
+
+    try:
+        from ..metrics import LIBRARY_ROUTE_DURATION
+    except Exception:
+        return
+    LIBRARY_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
 def _library_owner_id(item: LibraryEntry) -> str | None:
     if item.owner_id:
         return item.owner_id
@@ -149,6 +161,10 @@ async def list_library_items(
     sync: LibrarySync = Depends(get_library_sync),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
+    started_at = time.perf_counter()
+    filter_count = sum(
+        1 for value in (author, book, genre, language, status_filter) if value
+    )
     try:
         result = sync.search(
             query=query,
@@ -165,9 +181,36 @@ async def list_library_items(
             user_role=request_user.user_role,
         )
     except LibraryError as exc:
+        duration_ms = (time.perf_counter() - started_at) * 1000.0
+        _record_library_route_duration("list_items", "error", started_at)
+        LOGGER.info(
+            "Library item list failed view=%s page=%s limit=%s query_present=%s filters=%s duration_ms=%.1f",
+            view,
+            page,
+            limit,
+            bool(query),
+            filter_count,
+            duration_ms,
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     items = [LibraryItemPayload.model_validate(sync.serialize_item(entry)) for entry in result.items]
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_library_route_duration("list_items", "success", started_at)
+    group_count = len(result.groups or [])
+    log_method = LOGGER.info if duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Library item list view=%s page=%s limit=%s query_present=%s filters=%s total=%s items=%s groups=%s duration_ms=%.1f",
+        result.view,
+        result.page,
+        result.limit,
+        bool(query),
+        filter_count,
+        result.total,
+        len(items),
+        group_count,
+        duration_ms,
+    )
 
     return LibrarySearchResponse(
         total=result.total,

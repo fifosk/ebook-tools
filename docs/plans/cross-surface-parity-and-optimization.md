@@ -102,6 +102,9 @@ Optimization candidates:
   Status: `/api/pipelines/jobs` now skips filesystem image prompt summary reads
   while preserving those rich summaries for single-job status responses.
 - Add lightweight timing/log counters around job list, library list, media manifest, and search endpoints.
+  Status: Library item listing now records a Prometheus duration histogram and
+  token-safe aggregate logs for success/error paths without recording raw
+  search queries, user identifiers, auth headers, or tokens.
 - Prefer precomputed or cached job summary fields for list rows while keeping full metadata available on detail/media routes.
 - Keep all auth/session headers and token handling out of logs and docs.
 

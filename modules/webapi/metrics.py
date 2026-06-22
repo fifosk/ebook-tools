@@ -105,6 +105,13 @@ LIBRARY_ITEMS = Gauge(
     ["item_type"],
 )
 
+LIBRARY_ROUTE_DURATION = Histogram(
+    "ebook_tools_library_route_duration_seconds",
+    "Library API route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+)
+
 # ---------------------------------------------------------------------------
 # Users & sessions
 # ---------------------------------------------------------------------------
