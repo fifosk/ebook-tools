@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "video-subtitle-loading-file",
+            title: "Subtitle loading split",
+            detail: "Subtitle track selection, fetch, streaming parse, and cache persistence now live in a focused loading extension while subtitle display and navigation stay in the subtitles view extension."
+        ),
+        AppChangelogEntry(
             id: "subtitle-overlay-highlighting-file",
             title: "Subtitle highlighting split",
             detail: "Subtitle playback highlight and shadow-selection logic now lives in a focused extension while the overlay view stays centered on rendering, gestures, and token rows."

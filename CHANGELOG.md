@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.140
+
+- Advanced visible Apple app versioning to `v2026.06.22.140`.
+- Moved subtitle track selection, fetch, streaming parse, and cache persistence into `VideoPlayerView+SubtitleLoading.swift`, keeping `VideoPlayerView+Subtitles.swift` focused on display and navigation controls.
+
 ### 2026.06.22.139
 
 - Advanced visible Apple app versioning to `v2026.06.22.139`.
