@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "interactive-transcript-autoscale-file",
+            title: "Transcript auto-scale separated",
+            detail: "Track auto-scale measurement, resize handlers, and delayed fit recalculation now live in a focused extension while the core transcript view stays centered on layout composition."
+        ),
+        AppChangelogEntry(
             id: "text-player-active-display-file",
             title: "Text player active display separated",
             detail: "Timeline active-display builders and active-index resolution now live in a focused extension while the base timeline builder stays centered on sentence runtime construction."

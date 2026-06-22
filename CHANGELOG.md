@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.137
+
+- Advanced visible Apple app versioning to `v2026.06.22.137`.
+- Moved transcript track auto-scale measurement, resize handlers, and delayed fit recalculation into `InteractiveTranscriptView+AutoScale.swift`, keeping the core transcript view focused on layout composition.
+
 ### 2026.06.22.136
 
 - Advanced visible Apple app versioning to `v2026.06.22.136`.

@@ -11,14 +11,6 @@ struct InteractiveBubbleHeightKey: PreferenceKey {
     }
 }
 
-struct InteractiveAutoScaleTrackHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
 struct InteractiveBubbleFrameKey: PreferenceKey {
     static var defaultValue: CGRect = .zero
 
@@ -99,25 +91,22 @@ struct InteractiveTranscriptView: View {
     /// Track previous split ratio for calculating font scale changes
     @State var previousSplitRatio: CGFloat = 0.5
     #endif
-    @State private var bubbleHeight: CGFloat = 0
-    @State private var trackHeight: CGFloat = 0
-    @State private var effectiveTrackFontScale: CGFloat = 0
+    @State var bubbleHeight: CGFloat = 0
+    @State var trackHeight: CGFloat = 0
+    @State var effectiveTrackFontScale: CGFloat = 0
     @State var suppressPlaybackToggle = false
     @State var suppressPlaybackTask: Task<Void, Never>?
-    @State private var autoScaleNeedsUpdate = false
-    @State private var autoScaleTask: Task<Void, Never>?
-    @State private var lastMeasuredTrackHeight: CGFloat = 0
-    @State private var lastAvailableTrackHeight: CGFloat = 0
-    @State private var lastLayoutSize: CGSize = .zero
+    @State var autoScaleNeedsUpdate = false
+    @State var autoScaleTask: Task<Void, Never>?
+    @State var lastMeasuredTrackHeight: CGFloat = 0
+    @State var lastAvailableTrackHeight: CGFloat = 0
+    @State var lastLayoutSize: CGSize = .zero
     @State var tokenFrames: [TextPlayerTokenFrame] = []
     @State var tapExclusionFrames: [CGRect] = []
     @State var bubbleFrame: CGRect = .zero
     @State var dragSelectionAnchor: TextPlayerWordSelection?
     @State var dragLookupTask: Task<Void, Never>?
     let dragLookupDelayNanos: UInt64 = 350_000_000
-    private var autoScaleHeightTolerance: CGFloat {
-        isPhone ? 8 : 4
-    }
 
     var body: some View {
         transcriptContent
@@ -406,21 +395,6 @@ struct InteractiveTranscriptView: View {
         }
     }
 
-    private func handleAutoScaleTrackHeightChange(
-        _ value: CGFloat,
-        shouldAutoScaleTracks: Bool,
-        textHeightLimit: CGFloat
-    ) {
-        guard shouldAutoScaleTracks else { return }
-        trackHeight = value
-        lastMeasuredTrackHeight = value
-        lastAvailableTrackHeight = textHeightLimit
-        if effectiveTrackFontScale == 0 {
-            autoScaleNeedsUpdate = true
-        }
-        applyAutoScaleIfNeeded()
-    }
-
     private func handleBubbleHeightChange(_ value: CGFloat) {
         guard !isPhone else { return }
         bubbleHeight = value
@@ -428,62 +402,6 @@ struct InteractiveTranscriptView: View {
 
     private func handleBubbleFrameChange(_ value: CGRect) {
         bubbleFrame = value
-    }
-
-    private func handleLayoutSizeChange(
-        _ newSize: CGSize,
-        shouldAutoScaleTracks: Bool,
-        textHeightLimit: CGFloat
-    ) {
-        guard shouldAutoScaleTracks else { return }
-        guard newSize != lastLayoutSize else { return }
-        lastLayoutSize = newSize
-        lastAvailableTrackHeight = textHeightLimit
-        requestAutoScaleUpdate(delay: 250_000_000)
-    }
-
-    private func handleTrackFontScaleChange(shouldAutoScaleTracks: Bool) {
-        guard shouldAutoScaleTracks else { return }
-        effectiveTrackFontScale = trackFontScale
-        requestAutoScaleUpdate()
-    }
-
-    private func handleVisibleTracksChange(shouldAutoScaleTracks: Bool) {
-        guard shouldAutoScaleTracks else { return }
-        autoScaleNeedsUpdate = true
-        requestAutoScaleUpdate()
-    }
-
-    private func handleSentenceSignatureChange(shouldAutoScaleTracks: Bool) {
-        guard shouldAutoScaleTracks else { return }
-        autoScaleNeedsUpdate = true
-        requestAutoScaleUpdate()
-    }
-
-    private func handleAutoScaleEnabledChange(_ enabled: Bool) {
-        effectiveTrackFontScale = trackFontScale
-        autoScaleTask?.cancel()
-        autoScaleTask = nil
-        autoScaleNeedsUpdate = enabled
-        if enabled {
-            requestAutoScaleUpdate()
-        }
-    }
-
-    private func handleBubbleChange(
-        oldBubble: MyLinguistBubbleState?,
-        newBubble: MyLinguistBubbleState?,
-        shouldAutoScaleTracks: Bool,
-        textHeightLimit: CGFloat
-    ) {
-        // Recalculate auto-scale when the phone bubble appears or disappears.
-        guard shouldAutoScaleTracks, isPhone else { return }
-        let bubbleWasOpen = oldBubble != nil
-        let bubbleIsOpen = newBubble != nil
-        guard bubbleWasOpen != bubbleIsOpen else { return }
-        lastAvailableTrackHeight = textHeightLimit
-        autoScaleNeedsUpdate = true
-        requestAutoScaleUpdate(delay: 100_000_000)
     }
 
     private func handleAudioPlayingChange(_ isPlaying: Bool) {
@@ -516,44 +434,6 @@ struct InteractiveTranscriptView: View {
         }
     }
     #endif
-
-    private func updateEffectiveTrackFontScale(measuredHeight: CGFloat, availableHeight: CGFloat) {
-        guard !isTV else { return }
-        guard measuredHeight > 0, availableHeight > 0 else {
-            if effectiveTrackFontScale != trackFontScale {
-                effectiveTrackFontScale = trackFontScale
-            }
-            return
-        }
-        let currentScale = effectiveTrackFontScale == 0 ? trackFontScale : effectiveTrackFontScale
-        let fitHeight = max(availableHeight - autoScaleHeightTolerance, 0)
-        let ratio = fitHeight / measuredHeight
-        let proposed = currentScale * ratio
-        let clamped = max(autoScaleFloor, min(maxTrackFontScale, proposed))
-        if abs(clamped - currentScale) > 0.02 {
-            effectiveTrackFontScale = clamped
-        }
-    }
-
-    private func requestAutoScaleUpdate(delay: UInt64 = 120_000_000) {
-        guard autoScaleEnabled, !isTV else { return }
-        autoScaleNeedsUpdate = true
-        autoScaleTask?.cancel()
-        autoScaleTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: delay)
-            applyAutoScaleIfNeeded()
-        }
-    }
-
-    private func applyAutoScaleIfNeeded() {
-        guard autoScaleNeedsUpdate else { return }
-        guard lastMeasuredTrackHeight > 0, lastAvailableTrackHeight > 0 else { return }
-        updateEffectiveTrackFontScale(
-            measuredHeight: lastMeasuredTrackHeight,
-            availableHeight: lastAvailableTrackHeight
-        )
-        autoScaleNeedsUpdate = false
-    }
 
     func updateSelectionRange(at location: CGPoint) {
         guard let anchor = dragSelectionAnchor else { return }
@@ -673,15 +553,6 @@ struct InteractiveTranscriptView: View {
         #else
         return false
         #endif
-    }
-
-    private var autoScaleFloor: CGFloat {
-        guard isPhone else { return minTrackFontScale }
-        return max(0.75, minTrackFontScale * 0.75)
-    }
-
-    private var sentenceSignature: String {
-        sentences.map(\.id).joined(separator: "|")
     }
 
 }
