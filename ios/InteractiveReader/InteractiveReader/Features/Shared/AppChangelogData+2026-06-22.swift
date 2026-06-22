@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "video-overlay-tv-layout-file",
+            title: "Apple TV video overlay separated",
+            detail: "The tvOS video playback header, timeline pills, summary ticker, and bottom controls now live in a focused TV layout extension while the shared overlay stays centered on subtitle orchestration."
+        ),
+        AppChangelogEntry(
             id: "interactive-transcript-tv-layout-file",
             title: "Apple TV transcript layout separated",
             detail: "The tvOS transcript overlay taps, long-press header toggle, and horizontal split layout now live in a focused TV layout extension while the core transcript view stays less platform-specific."

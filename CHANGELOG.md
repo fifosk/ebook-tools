@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.134
+
+- Advanced visible Apple app versioning to `v2026.06.22.134`.
+- Moved the tvOS video playback overlay header and bottom controls into `VideoPlayerOverlayView+TVLayout.swift`, keeping the shared video overlay focused on iOS and subtitle orchestration.
+
 ### 2026.06.22.133
 
 - Advanced visible Apple app versioning to `v2026.06.22.133`.
