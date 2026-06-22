@@ -16,8 +16,18 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.82",
+            version: "2026.06.22.83",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-changelog-move-command-scroll",
+                    title: "TV changelog remote scroll hardened",
+                    detail: "The daily changelog now responds directly to Siri Remote up and down moves, keeping focus and scroll position aligned past the first visible rows."
+                ),
+                AppChangelogEntry(
+                    id: "row-metadata-lookup-helper",
+                    title: "Row metadata lookup shared",
+                    detail: "Jobs and Library rows now share recursive metadata traversal and nested-path lookup helpers instead of carrying duplicate parsing code."
+                ),
                 AppChangelogEntry(
                     id: "job-row-cover-parsing-helper",
                     title: "Job row cover parsing separated",

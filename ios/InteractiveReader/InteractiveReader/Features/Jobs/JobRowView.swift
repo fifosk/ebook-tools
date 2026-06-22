@@ -610,55 +610,11 @@ struct JobRowView: View {
     }
 
     private func metadataString(for keys: [String], maxDepth: Int = 4) -> String? {
-        let sources = [job.result?.objectValue, job.parameters?.objectValue].compactMap { $0 }
-        for source in sources {
-            if let found = metadataString(in: source, keys: keys, maxDepth: maxDepth) {
-                return found
-            }
-        }
-        return nil
+        RowMetadataLookup.metadataString(in: metadataSources, keys: keys, maxDepth: maxDepth)
     }
 
     private func metadataValue(for keys: [String], maxDepth: Int = 4) -> JSONValue? {
-        let sources = [job.result?.objectValue, job.parameters?.objectValue].compactMap { $0 }
-        for source in sources {
-            if let found = metadataValue(in: source, keys: keys, maxDepth: maxDepth) {
-                return found
-            }
-        }
-        return nil
-    }
-
-    private func metadataValue(in metadata: [String: JSONValue], keys: [String], maxDepth: Int) -> JSONValue? {
-        for key in keys {
-            if let found = metadataValue(in: metadata, key: key, maxDepth: maxDepth) {
-                return found
-            }
-        }
-        return nil
-    }
-
-    private func metadataValue(in metadata: [String: JSONValue], key: String, maxDepth: Int) -> JSONValue? {
-        if let value = metadata[key] {
-            return value
-        }
-        guard maxDepth > 0 else { return nil }
-        for value in metadata.values {
-            if let nested = value.objectValue {
-                if let found = metadataValue(in: nested, key: key, maxDepth: maxDepth - 1) {
-                    return found
-                }
-            }
-            if case let .array(items) = value {
-                for entry in items {
-                    if let nested = entry.objectValue,
-                       let found = metadataValue(in: nested, key: key, maxDepth: maxDepth - 1) {
-                        return found
-                    }
-                }
-            }
-        }
-        return nil
+        RowMetadataLookup.metadataValue(in: metadataSources, keys: keys, maxDepth: maxDepth)
     }
 
     private var isTvSeries: Bool {
@@ -674,17 +630,15 @@ struct JobRowView: View {
     }
 
     private var tvMetadata: [String: JSONValue]? {
-        let sources = [job.result?.objectValue, job.parameters?.objectValue].compactMap { $0 }
-        for source in sources {
-            if let value = extractTvMediaMetadata(from: source) {
-                return value
-            }
-        }
-        return nil
+        RowMetadataLookup.firstObject(in: metadataSources, paths: jobTvMetadataPaths)
     }
 
-    private func extractTvMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
-        let paths: [[String]] = [
+    private var metadataSources: [[String: JSONValue]] {
+        [job.result?.objectValue, job.parameters?.objectValue].compactMap { $0 }
+    }
+
+    private var jobTvMetadataPaths: [[String]] {
+        [
             ["youtube_dub", "media_metadata"],
             ["subtitle", "metadata", "media_metadata"],
             ["result", "youtube_dub", "media_metadata"],
@@ -692,60 +646,5 @@ struct JobRowView: View {
             ["request", "media_metadata"],
             ["media_metadata"]
         ]
-        for path in paths {
-            if let value = nestedValue(metadata, path: path)?.objectValue {
-                return value
-            }
-        }
-        return nil
-    }
-
-    private func nestedValue(_ source: [String: JSONValue], path: [String]) -> JSONValue? {
-        var current: JSONValue = .object(source)
-        for key in path {
-            guard let object = current.objectValue, let next = object[key] else { return nil }
-            current = next
-        }
-        return current
-    }
-
-    private func metadataString(
-        in metadata: [String: JSONValue],
-        keys: [String],
-        maxDepth: Int
-    ) -> String? {
-        for key in keys {
-            if let found = metadataString(in: metadata, key: key, maxDepth: maxDepth) {
-                return found
-            }
-        }
-        return nil
-    }
-
-    private func metadataString(
-        in metadata: [String: JSONValue],
-        key: String,
-        maxDepth: Int
-    ) -> String? {
-        if let value = metadata[key]?.stringValue {
-            return value
-        }
-        guard maxDepth > 0 else { return nil }
-        for value in metadata.values {
-            if let nested = value.objectValue {
-                if let found = metadataString(in: nested, key: key, maxDepth: maxDepth - 1) {
-                    return found
-                }
-            }
-            if case let .array(items) = value {
-                for entry in items {
-                    if let nested = entry.objectValue,
-                       let found = metadataString(in: nested, key: key, maxDepth: maxDepth - 1) {
-                        return found
-                    }
-                }
-            }
-        }
-        return nil
     }
 }

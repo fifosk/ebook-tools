@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.83
+
+- Advanced visible Apple app versioning to `v2026.06.22.83`.
+- Moved shared row metadata traversal and nested-path lookup into a dedicated helper so Jobs and Library rows no longer carry duplicate recursive parsing code.
+- Made the TV changelog respond directly to Siri Remote up/down moves so the bounded daily log can scroll past the first visible rows.
+
 ### 2026.06.22.82
 
 - Advanced visible Apple app versioning to `v2026.06.22.82`.

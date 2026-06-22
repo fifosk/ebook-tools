@@ -93,6 +93,7 @@ struct AppChangelogSummaryView: View {
                         .id(entry.id)
                         .focusable(true)
                         .focused($focusedEntryID, equals: entry.id)
+                        .onMoveCommand(perform: moveFocusedEntry)
                     }
                 }
                 .padding(.trailing, 14)
@@ -100,6 +101,7 @@ struct AppChangelogSummaryView: View {
             }
             .frame(maxHeight: maxContentHeight)
             .focusSection()
+            .onMoveCommand(perform: moveFocusedEntry)
             .onAppear(perform: focusFirstEntryIfNeeded)
             .onChange(of: focusedEntryID) { _, entryID in
                 guard let entryID else { return }
@@ -113,6 +115,25 @@ struct AppChangelogSummaryView: View {
     private func focusFirstEntryIfNeeded() {
         guard focusedEntryID == nil else { return }
         focusedEntryID = displayEntries.first?.id
+    }
+
+    private func moveFocusedEntry(_ direction: MoveCommandDirection) {
+        let offset: Int
+        switch direction {
+        case .up:
+            offset = -1
+        case .down:
+            offset = 1
+        default:
+            return
+        }
+
+        let entries = displayEntries
+        guard !entries.isEmpty else { return }
+        let currentIndex = focusedEntryID
+            .flatMap { focusedID in entries.firstIndex { $0.id == focusedID } } ?? 0
+        let nextIndex = min(max(currentIndex + offset, 0), entries.count - 1)
+        focusedEntryID = entries[nextIndex].id
     }
     #endif
 
