@@ -16,8 +16,18 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.105",
+            version: "2026.06.22.106",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-changelog-focus-pager",
+                    title: "TV changelog pages with the remote",
+                    detail: "The tvOS changelog now uses a focus-paged entry window so the Siri Remote can move through older daily entries without depending on nested scroll gesture handling."
+                ),
+                AppChangelogEntry(
+                    id: "linguist-bubble-header-controls-file",
+                    title: "Linguist bubble header controls separated",
+                    detail: "Header rows, selector menus, and platform-specific bubble controls now live in their own SwiftUI extension file while the main bubble view stays focused on state, lifecycle, and content."
+                ),
                 AppChangelogEntry(
                     id: "linguist-bubble-label-utilities",
                     title: "Linguist bubble label helpers separated",

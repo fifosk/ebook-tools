@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.106
+
+- Advanced visible Apple app versioning to `v2026.06.22.106`.
+- Moved linguist bubble header rows and selector controls into `LinguistBubbleHeaderControls.swift`, keeping the main bubble view focused on state, lifecycle, and content.
+- Reworked the tvOS changelog into a deterministic focus-paged entry window so the Siri Remote can move through older daily entries without relying on nested scroll gesture handling.
+
 ### 2026.06.22.105
 
 - Advanced visible Apple app versioning to `v2026.06.22.105`.

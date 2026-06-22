@@ -84,44 +84,33 @@ struct AppChangelogSummaryView: View {
 
     #if os(tvOS)
     private func tvScrollableEntries(maxContentHeight: CGFloat) -> some View {
-        ScrollViewReader { proxy in
-            VStack(alignment: .leading, spacing: 10) {
-                ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        ForEach(displayEntries) { entry in
-                            tvEntryButton(entry)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.trailing, 18)
-                }
-                .frame(maxWidth: .infinity, maxHeight: maxContentHeight)
-                .focusSection()
-                .onMoveCommand(perform: moveFocusedEntry)
-                .onAppear(perform: focusFirstEntryIfNeeded)
-                .onChange(of: focusedEntryID) { _, focusedID in
-                    guard let focusedID else { return }
-                    withAnimation(.easeInOut(duration: 0.16)) {
-                        proxy.scrollTo(focusedID, anchor: .center)
-                    }
-                }
+        let entryWindow = tvEntryWindow(maxContentHeight: maxContentHeight)
 
-                let entryWindow = tvEntryWindow()
-                if entryWindow.showsPosition {
-                    HStack(spacing: 8) {
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption2.weight(.bold))
-                        Text(entryWindow.positionLabel)
-                            .font(.caption2.weight(.semibold))
-                            .monospacedDigit()
-                    }
-                    .foregroundStyle(secondaryStyle)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .accessibilityIdentifier("appChangelogPositionLabel")
+        return VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(entryWindow.visibleEntries) { entry in
+                    tvEntryButton(entry)
                 }
             }
-            .animation(.easeInOut(duration: 0.16), value: focusedEntryID)
+            .frame(maxWidth: .infinity, maxHeight: maxContentHeight, alignment: .topLeading)
+            .focusSection()
+            .onMoveCommand(perform: moveFocusedEntry)
+            .onAppear(perform: focusFirstEntryIfNeeded)
+
+            if entryWindow.showsPosition {
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2.weight(.bold))
+                    Text(entryWindow.positionLabel)
+                        .font(.caption2.weight(.semibold))
+                        .monospacedDigit()
+                }
+                .foregroundStyle(secondaryStyle)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .accessibilityIdentifier("appChangelogPositionLabel")
+            }
         }
+        .animation(.easeInOut(duration: 0.16), value: focusedEntryID)
     }
 
     private func tvEntriesList(entries: [AppChangelogEntry]) -> some View {
@@ -153,7 +142,16 @@ struct AppChangelogSummaryView: View {
     private func tvEntryWindow() -> TVChangelogEntryWindow {
         TVChangelogEntryWindow(
             entries: displayEntries,
-            focusedEntryID: focusedEntryID
+            focusedEntryID: focusedEntryID,
+            visibleCapacity: nil
+        )
+    }
+
+    private func tvEntryWindow(maxContentHeight: CGFloat) -> TVChangelogEntryWindow {
+        TVChangelogEntryWindow(
+            entries: displayEntries,
+            focusedEntryID: focusedEntryID,
+            visibleCapacity: max(2, Int(maxContentHeight / 92))
         )
     }
 
@@ -220,14 +218,28 @@ struct AppChangelogSummaryView: View {
 private struct TVChangelogEntryWindow {
     let entries: [AppChangelogEntry]
     let focusedEntryID: String?
+    let visibleCapacity: Int?
 
     var showsPosition: Bool {
-        entries.count > 1
+        entries.count > visibleEntries.count
     }
 
     var positionLabel: String {
         guard !entries.isEmpty else { return "" }
         return "\(focusedIndex + 1)/\(entries.count)"
+    }
+
+    var visibleEntries: [AppChangelogEntry] {
+        guard let visibleCapacity else { return entries }
+        guard entries.count > visibleCapacity else { return entries }
+
+        let capacity = min(max(visibleCapacity, 2), entries.count)
+        let halfWindow = capacity / 2
+        let proposedStart = focusedIndex - halfWindow
+        let maxStart = entries.count - capacity
+        let startIndex = min(max(proposedStart, 0), maxStart)
+        let endIndex = min(startIndex + capacity, entries.count)
+        return Array(entries[startIndex..<endIndex])
     }
 
     func entryID(movingBy offset: Int) -> String? {
