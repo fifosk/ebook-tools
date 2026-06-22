@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.71
+
+- Advanced visible Apple app versioning to `v2026.06.22.71`.
+- Moved job-type glyph mapping out of the shared channel badge UI file.
+
 ### 2026.06.22.70
 
 - Advanced visible Apple app versioning to `v2026.06.22.70`.

@@ -175,6 +175,8 @@
 		C0A1B2C3D4E5F60718293A4D /* PlayerChannelBugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */; };
 		MYLINGPREF001A0001 /* MyLinguistPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = MYLINGPREF002A0001 /* MyLinguistPreferences.swift */; };
 		MYLINGPREF001A0002 /* MyLinguistPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = MYLINGPREF002A0001 /* MyLinguistPreferences.swift */; };
+		JOBGLYPH001A0001 /* JobTypeGlyphResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = JOBGLYPH002A0001 /* JobTypeGlyphResolver.swift */; };
+		JOBGLYPH001A0002 /* JobTypeGlyphResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = JOBGLYPH002A0001 /* JobTypeGlyphResolver.swift */; };
 		BROWSEACT001A0001 /* BrowseActionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BROWSEACT002A0001 /* BrowseActionRow.swift */; };
 		BROWSEACT001A0002 /* BrowseActionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BROWSEACT002A0001 /* BrowseActionRow.swift */; };
 		BROWSECOL001A0001 /* BrowseListCollapseInteraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = BROWSECOL002A0001 /* BrowseListCollapseInteraction.swift */; };
@@ -403,6 +405,7 @@
 		C02A242C108796D05E129BEB /* InteractivePlayerViewModel+Lookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerViewModel+Lookup.swift"; sourceTree = "<group>"; };
 		C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerChannelBugView.swift; sourceTree = "<group>"; };
 		MYLINGPREF002A0001 /* MyLinguistPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyLinguistPreferences.swift; sourceTree = "<group>"; };
+		JOBGLYPH002A0001 /* JobTypeGlyphResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTypeGlyphResolver.swift; sourceTree = "<group>"; };
 		BROWSEACT002A0001 /* BrowseActionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseActionRow.swift; sourceTree = "<group>"; };
 		BROWSECOL002A0001 /* BrowseListCollapseInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseListCollapseInteraction.swift; sourceTree = "<group>"; };
 		BROWSERES002A0001 /* BrowseResumeHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseResumeHelpers.swift; sourceTree = "<group>"; };
@@ -809,6 +812,7 @@
 				BROWSERES002A0001 /* BrowseResumeHelpers.swift */,
 				C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */,
 				MYLINGPREF002A0001 /* MyLinguistPreferences.swift */,
+				JOBGLYPH002A0001 /* JobTypeGlyphResolver.swift */,
 				UNIFCOVER002A0001 /* UnifiedCoverView.swift */,
 				DFB9B106AB74415AB26FD48B /* LinguistBubbleView.swift */,
 				45427BC75A1642FC994B1A55 /* PlatformAdapter.swift */,
@@ -1156,6 +1160,7 @@
 				6FDC3A3202F914D000A1D9A1 /* InteractivePlayerView.swift in Sources */,
 				C0A1B2C3D4E5F60718293A4C /* PlayerChannelBugView.swift in Sources */,
 				MYLINGPREF001A0001 /* MyLinguistPreferences.swift in Sources */,
+				JOBGLYPH001A0001 /* JobTypeGlyphResolver.swift in Sources */,
 				BROWSEACT001A0001 /* BrowseActionRow.swift in Sources */,
 				BROWSECOL001A0001 /* BrowseListCollapseInteraction.swift in Sources */,
 				BROWSERES001A0001 /* BrowseResumeHelpers.swift in Sources */,
@@ -1308,6 +1313,7 @@
 				1798B1652EF9F1A00092A8AF /* InteractivePlayerView.swift in Sources */,
 				C0A1B2C3D4E5F60718293A4D /* PlayerChannelBugView.swift in Sources */,
 				MYLINGPREF001A0002 /* MyLinguistPreferences.swift in Sources */,
+				JOBGLYPH001A0002 /* JobTypeGlyphResolver.swift in Sources */,
 				BROWSEACT001A0002 /* BrowseActionRow.swift in Sources */,
 				BROWSECOL001A0002 /* BrowseListCollapseInteraction.swift in Sources */,
 				BROWSERES001A0002 /* BrowseResumeHelpers.swift in Sources */,
@@ -1453,7 +1459,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062270;
+				CURRENT_PROJECT_VERSION = 2026062271;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1600,7 +1606,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062270;
+				CURRENT_PROJECT_VERSION = 2026062271;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1628,7 +1634,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062270;
+				CURRENT_PROJECT_VERSION = 2026062271;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1656,7 +1662,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062270;
+				CURRENT_PROJECT_VERSION = 2026062271;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1683,7 +1689,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062270;
+				CURRENT_PROJECT_VERSION = 2026062271;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1709,7 +1715,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062270;
+				CURRENT_PROJECT_VERSION = 2026062271;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1734,7 +1740,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062270;
+				CURRENT_PROJECT_VERSION = 2026062271;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1752,7 +1758,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062270;
+				CURRENT_PROJECT_VERSION = 2026062271;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1770,7 +1776,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062270;
+				CURRENT_PROJECT_VERSION = 2026062271;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
@@ -1790,7 +1796,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062270;
+				CURRENT_PROJECT_VERSION = 2026062271;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;

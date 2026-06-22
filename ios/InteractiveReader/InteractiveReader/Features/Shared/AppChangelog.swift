@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.70",
+            version: "2026.06.22.71",
             entries: [
+                AppChangelogEntry(
+                    id: "job-type-glyph-resolver-file",
+                    title: "Job glyph mapping separated",
+                    detail: "Job-type glyph mapping now lives outside the shared channel badge UI file."
+                ),
                 AppChangelogEntry(
                     id: "mylinguist-preferences-file",
                     title: "MyLinguist preferences separated",
