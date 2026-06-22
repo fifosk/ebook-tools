@@ -283,6 +283,8 @@
 		E97D53D920475E418A10A0CD /* TextPlayerTimeline+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF18E4DD6053AC2FDF049F0D /* TextPlayerTimeline+Helpers.swift */; };
 		4FA05FBBA17AAF720A629EDF /* LinguistBubblePickerUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037B07E83333F37631E3EC2E /* LinguistBubblePickerUI.swift */; };
 		970914FABB01A3E898A4FA64 /* LinguistBubblePickerUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037B07E83333F37631E3EC2E /* LinguistBubblePickerUI.swift */; };
+		LBPICKMDL001A0001 /* LinguistBubblePickerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = LBPICKMDL002A0001 /* LinguistBubblePickerModels.swift */; };
+		LBPICKMDL001A0002 /* LinguistBubblePickerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = LBPICKMDL002A0001 /* LinguistBubblePickerModels.swift */; };
 		8DD95020FDFE28A45949866E /* LinguistBubbleTextUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C57EC3DF52A62FA7DD72FC5 /* LinguistBubbleTextUtilities.swift */; };
 		B74B90AF18FCAECF019282BC /* LinguistBubbleTextUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C57EC3DF52A62FA7DD72FC5 /* LinguistBubbleTextUtilities.swift */; };
 		3687FF0BE5A9C6546FFBE806 /* StructuredLinguistContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04CE062FBA472A97845A05F7 /* StructuredLinguistContentView.swift */; };
@@ -529,6 +531,7 @@
 		466333924981CAC460E6363E /* TextPlayerTimeline+DisplayBuilders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TextPlayerTimeline+DisplayBuilders.swift"; sourceTree = "<group>"; };
 		FF18E4DD6053AC2FDF049F0D /* TextPlayerTimeline+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TextPlayerTimeline+Helpers.swift"; sourceTree = "<group>"; };
 		037B07E83333F37631E3EC2E /* LinguistBubblePickerUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubblePickerUI.swift"; sourceTree = "<group>"; };
+		LBPICKMDL002A0001 /* LinguistBubblePickerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubblePickerModels.swift"; sourceTree = "<group>"; };
 		0C57EC3DF52A62FA7DD72FC5 /* LinguistBubbleTextUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubbleTextUtilities.swift"; sourceTree = "<group>"; };
 		04CE062FBA472A97845A05F7 /* StructuredLinguistContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StructuredLinguistContentView.swift"; sourceTree = "<group>"; };
 		71CC5D8D8A72DF86DDF78A6F /* LinguistBubbleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubbleModels.swift"; sourceTree = "<group>"; };
@@ -932,6 +935,7 @@
 				LBTVHDR002A0001 /* LinguistBubbleTVHeaderControls.swift */,
 				45427BC75A1642FC994B1A55 /* PlatformAdapter.swift */,
 				037B07E83333F37631E3EC2E /* LinguistBubblePickerUI.swift */,
+				LBPICKMDL002A0001 /* LinguistBubblePickerModels.swift */,
 				0C57EC3DF52A62FA7DD72FC5 /* LinguistBubbleTextUtilities.swift */,
 				04CE062FBA472A97845A05F7 /* StructuredLinguistContentView.swift */,
 				71CC5D8D8A72DF86DDF78A6F /* LinguistBubbleModels.swift */,
@@ -1363,6 +1367,7 @@
 				2BA9F9DF0673BD9698F7F373 /* TextPlayerTimeline+DisplayBuilders.swift in Sources */,
 				9463C294D145591CAEA17683 /* TextPlayerTimeline+Helpers.swift in Sources */,
 				4FA05FBBA17AAF720A629EDF /* LinguistBubblePickerUI.swift in Sources */,
+				LBPICKMDL001A0001 /* LinguistBubblePickerModels.swift in Sources */,
 				8DD95020FDFE28A45949866E /* LinguistBubbleTextUtilities.swift in Sources */,
 				3687FF0BE5A9C6546FFBE806 /* StructuredLinguistContentView.swift in Sources */,
 				AA07EC4D0975CE337561D80D /* LinguistBubbleModels.swift in Sources */,
@@ -1547,6 +1552,7 @@
 				E37647D7D10D5B3B2202DFF0 /* TextPlayerTimeline+DisplayBuilders.swift in Sources */,
 				E97D53D920475E418A10A0CD /* TextPlayerTimeline+Helpers.swift in Sources */,
 				970914FABB01A3E898A4FA64 /* LinguistBubblePickerUI.swift in Sources */,
+				LBPICKMDL001A0002 /* LinguistBubblePickerModels.swift in Sources */,
 				B74B90AF18FCAECF019282BC /* LinguistBubbleTextUtilities.swift in Sources */,
 				A252ECFC23DBD902EC88F4CB /* StructuredLinguistContentView.swift in Sources */,
 				3343889DEE9AB0B7FA38108D /* LinguistBubbleModels.swift in Sources */,
@@ -1639,7 +1645,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622107;
+				CURRENT_PROJECT_VERSION = 20260622108;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1786,7 +1792,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622107;
+				CURRENT_PROJECT_VERSION = 20260622108;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1814,7 +1820,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622107;
+				CURRENT_PROJECT_VERSION = 20260622108;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1842,7 +1848,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622107;
+				CURRENT_PROJECT_VERSION = 20260622108;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1869,7 +1875,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622107;
+				CURRENT_PROJECT_VERSION = 20260622108;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1895,7 +1901,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622107;
+				CURRENT_PROJECT_VERSION = 20260622108;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1920,7 +1926,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622107;
+				CURRENT_PROJECT_VERSION = 20260622108;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1938,7 +1944,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622107;
+				CURRENT_PROJECT_VERSION = 20260622108;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1956,7 +1962,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622107;
+				CURRENT_PROJECT_VERSION = 20260622108;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
@@ -1976,7 +1982,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622107;
+				CURRENT_PROJECT_VERSION = 20260622108;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;

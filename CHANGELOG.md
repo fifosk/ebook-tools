@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.108
+
+- Advanced visible Apple app versioning to `v2026.06.22.108`.
+- Moved linguist bubble picker option models and picker-data builders into `LinguistBubblePickerModels.swift`, keeping `LinguistBubblePickerUI.swift` focused on overlay rendering.
+
 ### 2026.06.22.107
 
 - Advanced visible Apple app versioning to `v2026.06.22.107`.

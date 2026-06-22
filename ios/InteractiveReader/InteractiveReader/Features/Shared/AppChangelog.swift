@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.107",
+            version: "2026.06.22.108",
             entries: [
+                AppChangelogEntry(
+                    id: "linguist-bubble-picker-models-file",
+                    title: "Linguist bubble picker data separated",
+                    detail: "Picker option models and iOS/tvOS picker-data builders now live in their own file so the picker UI file stays focused on overlay rendering."
+                ),
                 AppChangelogEntry(
                     id: "linguist-bubble-platform-header-files",
                     title: "Linguist bubble platform headers split",
