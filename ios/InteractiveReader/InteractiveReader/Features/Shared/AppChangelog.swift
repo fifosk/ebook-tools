@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.90",
+            version: "2026.06.22.91",
             entries: [
+                AppChangelogEntry(
+                    id: "playback-state-api-models-file",
+                    title: "Playback state API models separated",
+                    detail: "Reading-bed, bookmark, and resume-position payloads now live in a dedicated Models file instead of the broad API model file."
+                ),
                 AppChangelogEntry(
                     id: "push-notification-api-models-file",
                     title: "Notification API models separated",
