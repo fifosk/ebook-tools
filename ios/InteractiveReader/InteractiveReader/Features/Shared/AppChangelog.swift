@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.46",
+            version: "2026.06.22.47",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-player-bookmark-menu-row-helpers",
+                    title: "Text-player bookmark menu cleaned up",
+                    detail: "Interactive text-player bookmark menus now route add, jump, and remove rows through named SwiftUI helpers."
+                ),
                 AppChangelogEntry(
                     id: "interactive-player-tvos-directional-handlers",
                     title: "TV text-player navigation cleaned up",

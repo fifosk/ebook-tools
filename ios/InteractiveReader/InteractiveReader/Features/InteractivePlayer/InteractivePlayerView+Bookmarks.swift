@@ -5,23 +5,19 @@ extension InteractivePlayerView {
     func bookmarkMenu(for chunk: InteractiveChunk) -> some View {
         if canUseBookmarks {
             Menu {
-                Button("Add Bookmark") { addBookmarkMenuAction(for: chunk) }
+                addBookmarkMenuButton(for: chunk)
                 if bookmarks.isEmpty {
                     Text("No bookmarks yet.")
                         .foregroundStyle(.secondary)
                 } else {
                     Section("Jump") {
                         ForEach(bookmarks) { bookmark in
-                            Button(bookmark.label) { jumpToBookmarkMenuAction(bookmark) }
+                            jumpBookmarkMenuButton(bookmark)
                         }
                     }
                     Section("Remove") {
                         ForEach(bookmarks) { bookmark in
-                            Button(role: .destructive) {
-                                removeBookmarkMenuAction(bookmark)
-                            } label: {
-                                Text(bookmark.label)
-                            }
+                            removeBookmarkMenuButton(bookmark)
                         }
                     }
                 }
@@ -46,6 +42,26 @@ extension InteractivePlayerView {
                 onRemoveBookmark: removeBookmark,
                 onUserInteraction: {}
             )
+        }
+    }
+
+    func addBookmarkMenuButton(for chunk: InteractiveChunk) -> some View {
+        Button("Add Bookmark") {
+            addBookmarkMenuAction(for: chunk)
+        }
+    }
+
+    func jumpBookmarkMenuButton(_ bookmark: PlaybackBookmarkEntry) -> some View {
+        Button(bookmark.label) {
+            jumpToBookmarkMenuAction(bookmark)
+        }
+    }
+
+    func removeBookmarkMenuButton(_ bookmark: PlaybackBookmarkEntry) -> some View {
+        Button(role: .destructive) {
+            removeBookmarkMenuAction(bookmark)
+        } label: {
+            Text(bookmark.label)
         }
     }
 
