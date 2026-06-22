@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.115",
+            version: "2026.06.22.116",
             entries: [
+                AppChangelogEntry(
+                    id: "subtitle-overlay-models-file",
+                    title: "Subtitle overlay models separated",
+                    detail: "Subtitle selection, token frame reporting, and display-building models now live in a focused playback models file while the subtitle overlay keeps layout, gestures, and token rendering."
+                ),
                 AppChangelogEntry(
                     id: "library-playback-metadata-file",
                     title: "Library playback metadata separated",
