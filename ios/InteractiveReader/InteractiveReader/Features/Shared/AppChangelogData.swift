@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.130",
+            version: "2026.06.22.131",
             entries: [
+                AppChangelogEntry(
+                    id: "runtime-descriptor-sections",
+                    title: "Backend runtime contract clarified",
+                    detail: "The public runtime descriptor now builds auth, client config, and Apple pipeline sections from named non-secret definitions, with regression coverage that simulator and device preflight lists are fresh per response."
+                ),
                 AppChangelogEntry(
                     id: "interactive-shortcut-focus-file",
                     title: "iPad shortcut focus separated",

@@ -48,6 +48,26 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
     assert_runtime_descriptor_is_public(payload)
 
 
+def test_runtime_descriptor_returns_fresh_public_lists() -> None:
+    first = build_runtime_descriptor("test-version")
+    second = build_runtime_descriptor("test-version")
+
+    first["clientConfig"]["apiBaseUrlEnvironment"].append("MUTATED")
+    first["applePipeline"]["simulatorProfiles"].append("mutated")
+
+    assert second["clientConfig"]["apiBaseUrlEnvironment"] == [
+        "INTERACTIVE_READER_API_BASE_URL",
+        "EBOOK_TOOLS_API_BASE_URL",
+        "E2E_API_BASE_URL",
+    ]
+    assert second["applePipeline"]["simulatorProfiles"] == [
+        "ios",
+        "ipados",
+        "tvos",
+        "tvos-cinema",
+    ]
+
+
 def test_runtime_descriptor_guard_flags_secret_like_keys() -> None:
     payload = {
         "clientConfig": {

@@ -12,6 +12,22 @@ API_BASE_URL_ENVIRONMENT = (
 CREDENTIAL_ENVIRONMENT = ("E2E_USERNAME", "E2E_PASSWORD")
 APPLE_PIPELINE_SIMULATOR_PROFILES = ("ios", "ipados", "tvos", "tvos-cinema")
 APPLE_PIPELINE_DEVICE_PROFILES = ("iphone", "ipad", "appletv", "cinema")
+AUTH_DESCRIPTOR = {
+    "loginPath": "/api/auth/login",
+    "sessionPath": "/api/auth/session",
+    "tokenTransport": "Authorization: Bearer",
+}
+CLIENT_CONFIG_DESCRIPTOR = {
+    "apiBaseUrlEnvironment": API_BASE_URL_ENVIRONMENT,
+    "credentialEnvironment": CREDENTIAL_ENVIRONMENT,
+    "sessionTokenStorage": "device-keychain",
+    "legacyTokenMigration": "userdefaults-authToken",
+}
+APPLE_PIPELINE_DESCRIPTOR = {
+    "manifestId": "ebook-tools",
+    "simulatorProfiles": APPLE_PIPELINE_SIMULATOR_PROFILES,
+    "deviceProfiles": APPLE_PIPELINE_DEVICE_PROFILES,
+}
 ALLOWED_PUBLIC_METADATA_KEYS = frozenset(
     {
         "legacytokenmigration",
@@ -31,22 +47,9 @@ def build_runtime_descriptor(version: str) -> dict[str, object]:
         "service": "ebook-tools-api",
         "version": version,
         "healthPath": "/_health",
-        "auth": {
-            "loginPath": "/api/auth/login",
-            "sessionPath": "/api/auth/session",
-            "tokenTransport": "Authorization: Bearer",
-        },
-        "clientConfig": {
-            "apiBaseUrlEnvironment": list(API_BASE_URL_ENVIRONMENT),
-            "credentialEnvironment": list(CREDENTIAL_ENVIRONMENT),
-            "sessionTokenStorage": "device-keychain",
-            "legacyTokenMigration": "userdefaults-authToken",
-        },
-        "applePipeline": {
-            "manifestId": "ebook-tools",
-            "simulatorProfiles": list(APPLE_PIPELINE_SIMULATOR_PROFILES),
-            "deviceProfiles": list(APPLE_PIPELINE_DEVICE_PROFILES),
-        },
+        "auth": _copy_public_descriptor_section(AUTH_DESCRIPTOR),
+        "clientConfig": _copy_public_descriptor_section(CLIENT_CONFIG_DESCRIPTOR),
+        "applePipeline": _copy_public_descriptor_section(APPLE_PIPELINE_DESCRIPTOR),
     }
     assert_runtime_descriptor_is_public(payload)
     return payload
@@ -88,3 +91,10 @@ def _walk_descriptor_keys(value: object) -> list[str]:
             keys.extend(_walk_descriptor_keys(child))
         return keys
     return []
+
+
+def _copy_public_descriptor_section(section: Mapping[str, object]) -> dict[str, object]:
+    return {
+        key: list(value) if isinstance(value, tuple) else value
+        for key, value in section.items()
+    }
