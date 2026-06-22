@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.71",
+            version: "2026.06.22.72",
             entries: [
+                AppChangelogEntry(
+                    id: "player-channel-models-file",
+                    title: "Player channel models separated",
+                    detail: "Shared player channel variants and metrics now live outside the visual channel badge UI file."
+                ),
                 AppChangelogEntry(
                     id: "job-type-glyph-resolver-file",
                     title: "Job glyph mapping separated",

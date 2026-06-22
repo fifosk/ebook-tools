@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.72
+
+- Advanced visible Apple app versioning to `v2026.06.22.72`.
+- Moved shared player channel variants and metrics out of the visual channel badge file.
+
 ### 2026.06.22.71
 
 - Advanced visible Apple app versioning to `v2026.06.22.71`.
