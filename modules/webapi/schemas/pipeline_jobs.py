@@ -184,11 +184,15 @@ def _count_generated_images(payload: Mapping[str, Any]) -> int:
 def _resolve_image_prompt_summary(
     job_id: str,
     generated_files: Optional[Mapping[str, Any]],
+    *,
+    include_filesystem: bool = True,
 ) -> Optional[Dict[str, Any]]:
     if isinstance(generated_files, Mapping):
         summary = generated_files.get("image_prompt_plan_summary")
         if isinstance(summary, Mapping):
             return dict(summary)
+    if not include_filesystem:
+        return None
     return _load_image_prompt_plan_summary(job_id)
 
 
@@ -198,11 +202,16 @@ def _build_image_generation_summary(
     parameters: Optional[JobParameterSnapshot],
     latest_event: Optional[ProgressEventPayload],
     generated_files: Optional[Mapping[str, Any]],
+    include_filesystem_image_summary: bool = True,
 ) -> Optional[ImageGenerationSummary]:
     if job.job_type not in {"pipeline", "book"}:
         return None
     enabled = bool(parameters.add_images) if parameters is not None and parameters.add_images is not None else False
-    summary = _resolve_image_prompt_summary(job.job_id, generated_files)
+    summary = _resolve_image_prompt_summary(
+        job.job_id,
+        generated_files,
+        include_filesystem=include_filesystem_image_summary,
+    )
     if parameters is None or parameters.add_images is None:
         if summary or generated_files:
             enabled = True
@@ -633,7 +642,12 @@ class PipelineStatusResponse(BaseModel):
     image_generation: Optional[ImageGenerationSummary] = None
 
     @classmethod
-    def from_job(cls, job: PipelineJob) -> "PipelineStatusResponse":
+    def from_job(
+        cls,
+        job: PipelineJob,
+        *,
+        include_filesystem_image_summary: bool = True,
+    ) -> "PipelineStatusResponse":
         result_payload: Optional[PipelineResponsePayload | Dict[str, Any]] = None
         if job.job_type in {"pipeline", "book"}:
             if job.result is not None:
@@ -681,6 +695,7 @@ class PipelineStatusResponse(BaseModel):
             parameters=parameters,
             latest_event=latest_event,
             generated_files=generated_files,
+            include_filesystem_image_summary=include_filesystem_image_summary,
         )
         default_visibility = "private" if job.user_id else "public"
         access_policy = resolve_access_policy(job.access, default_visibility=default_visibility)

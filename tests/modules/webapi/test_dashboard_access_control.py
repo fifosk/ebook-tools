@@ -10,6 +10,7 @@ from modules.webapi.dependencies import (
     get_pipeline_service,
     get_runtime_context_provider,
 )
+from modules.webapi.schemas import pipeline_jobs as pipeline_job_schemas
 from modules.services.job_manager.job import PipelineJob, PipelineJobStatus
 
 import pytest
@@ -88,9 +89,22 @@ def test_dashboard_jobs_endpoint_passes_session_metadata() -> None:
     assert stub_service.count_calls == []
 
 
-def test_dashboard_jobs_endpoint_returns_paginated_job_contract() -> None:
+def test_dashboard_jobs_endpoint_returns_paginated_job_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = create_app()
     stub_service = _StubPipelineService()
+    filesystem_summary_calls: list[str] = []
+
+    def _fail_filesystem_summary_load(job_id: str):
+        filesystem_summary_calls.append(job_id)
+        raise AssertionError("job list should not read image prompt summaries from disk")
+
+    monkeypatch.setattr(
+        pipeline_job_schemas,
+        "_load_image_prompt_plan_summary",
+        _fail_filesystem_summary_load,
+    )
     older = PipelineJob(
         job_id="job-older",
         job_type="pipeline",
@@ -152,6 +166,7 @@ def test_dashboard_jobs_endpoint_returns_paginated_job_contract() -> None:
     assert payload["offset"] == 5
     assert payload["limit"] == 2
     assert [job["job_id"] for job in payload["jobs"]] == ["job-newer", "job-older"]
+    assert filesystem_summary_calls == []
     assert stub_service.count_calls == [{"user_id": "alice", "user_role": "editor"}]
     assert stub_service.list_calls == [
         {"user_id": "alice", "user_role": "editor", "offset": 5, "limit": 2}
@@ -172,6 +187,50 @@ def test_dashboard_jobs_endpoint_returns_paginated_job_contract() -> None:
     assert latest["parameters"]["audio_mode"] == "narration"
     assert latest["parameters"]["add_images"] is True
     assert latest["job_label"] == "fast"
+
+
+def test_pipeline_status_response_loads_filesystem_image_summary_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    def _load_filesystem_summary(job_id: str):
+        calls.append(job_id)
+        return {
+            "start_sentence": 1,
+            "end_sentence": 4,
+            "prompt_batch_size": 2,
+            "quality": {"total_batches": 2},
+        }
+
+    monkeypatch.setattr(
+        pipeline_job_schemas,
+        "_load_image_prompt_plan_summary",
+        _load_filesystem_summary,
+    )
+    job = PipelineJob(
+        job_id="job-with-images",
+        job_type="pipeline",
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime(2026, 6, 22, 11, 30, tzinfo=timezone.utc),
+        request_payload={
+            "inputs": {
+                "input_file": "/library/pictured.epub",
+                "base_output_file": "pictured-book",
+                "target_languages": ["es"],
+                "add_images": True,
+            }
+        },
+    )
+
+    payload = pipeline_job_schemas.PipelineStatusResponse.from_job(job)
+
+    assert calls == ["job-with-images"]
+    assert payload.image_generation is not None
+    assert payload.image_generation.enabled is True
+    assert payload.image_generation.expected == 2
+    assert payload.image_generation.sentence_total == 4
+    assert payload.image_generation.batch_size == 2
 
 
 def test_dashboard_submission_uses_session_metadata() -> None:

@@ -95,6 +95,8 @@ Optimization candidates:
   snapshots; service tests pin active admin pagination and persisted-only
   store pagination.
 - Audit repeated filesystem metadata reads during job list/library list rendering.
+  Status: `/api/pipelines/jobs` now skips filesystem image prompt summary reads
+  while preserving those rich summaries for single-job status responses.
 - Add lightweight timing/log counters around job list, library list, media manifest, and search endpoints.
 - Prefer precomputed or cached job summary fields for list rows while keeping full metadata available on detail/media routes.
 - Keep all auth/session headers and token handling out of logs and docs.

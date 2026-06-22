@@ -8,6 +8,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Fixed admin job-list pagination when active in-memory jobs are present, while keeping the cheaper persisted-store page path for admin lists with no active jobs.
 - Added backend contract coverage for `/api/pipelines/jobs` pagination metadata, normalized access payloads, generated files, job labels, and Apple/Web job parameter snapshots.
+- Optimized `/api/pipelines/jobs` list rows to skip filesystem image prompt summary reads while preserving rich image-generation summaries on single-job status responses.
 
 ### 2026.06.22.155
 

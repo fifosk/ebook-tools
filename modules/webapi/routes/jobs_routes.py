@@ -160,7 +160,10 @@ async def list_jobs(
         key=lambda job: job.created_at or datetime.min.replace(tzinfo=timezone.utc),
         reverse=True,
     )
-    payload = [PipelineStatusResponse.from_job(job) for job in ordered]
+    payload = [
+        PipelineStatusResponse.from_job(job, include_filesystem_image_summary=False)
+        for job in ordered
+    ]
     return PipelineJobListResponse(
         jobs=payload,
         total=total,
