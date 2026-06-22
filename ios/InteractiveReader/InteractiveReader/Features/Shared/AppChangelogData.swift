@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.129",
+            version: "2026.06.22.130",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-shortcut-focus-file",
+                    title: "iPad shortcut focus separated",
+                    detail: "Hardware-keyboard first-responder reclaim, software-keyboard guards, focus updates, and window-touch reclaim now live in a focused extension while shortcut support keeps controller lifecycle and key-command mapping."
+                ),
                 AppChangelogEntry(
                     id: "text-player-reveal-state-helper",
                     title: "Text player reveal rules unified",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.130
+
+- Advanced visible Apple app versioning to `v2026.06.22.130`.
+- Moved iPad hardware-keyboard first-responder reclaim, software-keyboard guards, focus updates, and window-touch reclaim into `InteractivePlayerShortcutFocus.swift`, keeping shortcut support focused on controller lifecycle and key-command mapping.
+
 ### 2026.06.22.129
 
 - Advanced visible Apple app versioning to `v2026.06.22.129`.

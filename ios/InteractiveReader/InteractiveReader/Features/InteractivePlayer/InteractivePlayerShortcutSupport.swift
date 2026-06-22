@@ -237,10 +237,10 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         // tap on a ScrollView, a dictionary lookup closing, or any other
         // SwiftUI-internal focus shift silently pulls first responder away
         // from us — there is no public notification for that, so we poll.
-        private var reclaimTimer: Timer?
+        var reclaimTimer: Timer?
         // Tracks whether the software keyboard is visible so we don't yank
         // focus away from a user who is actively typing in a text field.
-        private var softwareKeyboardVisible = false
+        var softwareKeyboardVisible = false
         // Block-based notification observer tokens for app-level shortcut
         // notifications posted by AppDelegate.
         private var shortcutObserverTokens: [NSObjectProtocol] = []
@@ -263,34 +263,7 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
             PlayerKeyboardShortcutBroker.shared.clearActions(owner: self)
         }
 
-        // ── Window-level touch observer ───────────────────────────────────
-        // The periodic timer alone is not enough: SwiftUI buttons and focused
-        // views often take first-responder priority right after a user tap
-        // (e.g. tapping Play starts playback but leaves the button focused
-        // and consuming the Space key). We attach a transparent gesture
-        // recognizer to the key window that watches every touches-ended and
-        // reclaims first responder right after — the same action the user
-        // had to do manually with an extra tap.
-        private var windowTouchObserver: WindowTouchCatcher?
-
-        private func installWindowTouchObserver() {
-            guard windowTouchObserver == nil else { return }
-            guard let window = view.window else { return }
-            let catcher = WindowTouchCatcher()
-            catcher.onTouchesEnded = { [weak self] in
-                self?.reclaimFirstResponderNow()
-            }
-            window.addGestureRecognizer(catcher)
-            windowTouchObserver = catcher
-        }
-
-        private func removeWindowTouchObserver() {
-            if let catcher = windowTouchObserver,
-               let window = catcher.view {
-                window.removeGestureRecognizer(catcher)
-            }
-            windowTouchObserver = nil
-        }
+        var windowTouchObserver: WindowTouchCatcher?
 
         private func installFocusObservers() {
             let center = NotificationCenter.default
@@ -354,102 +327,6 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
                 NotificationCenter.default.removeObserver(token)
             }
             shortcutObserverTokens.removeAll()
-        }
-
-        @objc private func handleKeyboardWillShow() {
-            softwareKeyboardVisible = true
-        }
-
-        @objc private func handleKeyboardDidHide() {
-            softwareKeyboardVisible = false
-            // Keyboard just dismissed → snap focus back right away, don't
-            // wait for the next timer tick.
-            reclaimFirstResponderNow()
-        }
-
-        private func startReclaimTimer() {
-            stopReclaimTimer()
-            reclaimTimer = Timer.scheduledTimer(
-                withTimeInterval: 0.5,
-                repeats: true
-            ) { [weak self] _ in
-                self?.reclaimFirstResponderNow()
-            }
-            if let t = reclaimTimer {
-                RunLoop.main.add(t, forMode: .common)
-            }
-        }
-
-        private func stopReclaimTimer() {
-            reclaimTimer?.invalidate()
-            reclaimTimer = nil
-        }
-
-        @objc private func reclaimFirstResponderNow() {
-            performFirstResponderReclaim(ignoringSoftwareKeyboard: false)
-        }
-
-        @objc private func forceReclaimFirstResponderNow() {
-            performFirstResponderReclaim(ignoringSoftwareKeyboard: true)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-                self?.performFirstResponderReclaim(ignoringSoftwareKeyboard: true)
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-                self?.performFirstResponderReclaim(ignoringSoftwareKeyboard: true)
-            }
-        }
-
-        private func performFirstResponderReclaim(ignoringSoftwareKeyboard: Bool) {
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                guard self.view.window != nil else { return }
-                // Skip only when the user is visibly typing — detected via
-                // the software-keyboard notifications rather than by walking
-                // the subview tree (which caught stale text fields that had
-                // already resigned but were still attached, e.g. inside a
-                // closed lookup bubble).
-                if self.softwareKeyboardVisible && !ignoringSoftwareKeyboard {
-                    return
-                }
-                // Always call becomeFirstResponder: even when isFirstResponder
-                // reports true UIKit occasionally has a stale chain where our
-                // keyCommands aren't actually being consulted. becomeFirstResponder
-                // is idempotent if we really are still first responder.
-                self.focusShortcutResponder()
-            }
-        }
-
-        @discardableResult
-        private func focusShortcutResponder() -> Bool {
-            if let hostView = view as? KeyCommandHostView {
-                focusShortcutItem(hostView)
-                let claimed = hostView.becomeFirstResponder()
-                #if DEBUG
-                if claimed || hostView.isFirstResponder {
-                    hostView.logFocusClaimIfNeeded()
-                }
-                #endif
-                return claimed || hostView.isFirstResponder
-            }
-            let claimed = becomeFirstResponder()
-            view.window?.windowScene?.focusSystem?.requestFocusUpdate(to: view)
-            view.window?.windowScene?.focusSystem?.updateFocusIfNeeded()
-            #if DEBUG
-            if claimed || isFirstResponder {
-                keyboardShortcutDebugLog("[KeyboardShortcut] Key command controller became first responder")
-            }
-            #endif
-            return claimed || isFirstResponder
-        }
-
-        private func focusShortcutItem(_ hostView: KeyCommandHostView) {
-            hostView.setNeedsFocusUpdate()
-            if let focusSystem = hostView.window?.windowScene?.focusSystem {
-                focusSystem.requestFocusUpdate(to: hostView)
-                focusSystem.updateFocusIfNeeded()
-            } else {
-                hostView.updateFocusIfNeeded()
-            }
         }
 
         var hardwareKeyboardInput: GCKeyboardInput?
