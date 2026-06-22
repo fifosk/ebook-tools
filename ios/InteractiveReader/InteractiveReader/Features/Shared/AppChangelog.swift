@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.51",
+            version: "2026.06.22.52",
             entries: [
+                AppChangelogEntry(
+                    id: "media-search-submit-handler",
+                    title: "Media search submit cleaned up",
+                    detail: "Shared media search submit events now route through a named SwiftUI handler."
+                ),
                 AppChangelogEntry(
                     id: "media-search-button-handlers",
                     title: "Media search controls cleaned up",

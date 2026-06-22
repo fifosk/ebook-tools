@@ -693,7 +693,7 @@ struct MediaSearchOverlayView: View {
                 .foregroundStyle(.white)
                 .frame(minWidth: inputFieldWidth)
                 .focused($isTextFieldFocused)
-                .onSubmit { onSearch(query) }
+                .onSubmit(handleSearchSubmit)
             #else
             TextField("Search...", text: $query)
                 .textFieldStyle(.plain)
@@ -702,7 +702,7 @@ struct MediaSearchOverlayView: View {
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .frame(width: inputFieldWidth)
-                .onSubmit { onSearch(query) }
+                .onSubmit(handleSearchSubmit)
             #endif
             if case .searching = state {
                 ProgressView()
@@ -765,6 +765,10 @@ struct MediaSearchOverlayView: View {
     private func handleResultSelection(_ result: MediaSearchResult) {
         onSelect(result)
         dismissOverlay()
+    }
+
+    private func handleSearchSubmit() {
+        onSearch(query)
     }
 
     private func handleClearButtonTap() {
