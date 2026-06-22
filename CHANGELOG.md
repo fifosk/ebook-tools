@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.88
+
+- Advanced visible Apple app versioning to `v2026.06.22.88`.
+- Moved media-search API response models into a dedicated Models file so the large shared API model file no longer owns search-specific decoding and logging.
+
 ### 2026.06.22.87
 
 - Advanced visible Apple app versioning to `v2026.06.22.87`.

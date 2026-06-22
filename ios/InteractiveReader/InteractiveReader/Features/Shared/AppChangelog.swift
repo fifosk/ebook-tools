@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.87",
+            version: "2026.06.22.88",
             entries: [
+                AppChangelogEntry(
+                    id: "media-search-api-models-file",
+                    title: "Media search API models separated",
+                    detail: "Search response decoding and its private logging now live in a dedicated Models file instead of the broad API model file."
+                ),
                 AppChangelogEntry(
                     id: "media-search-view-model-file",
                     title: "Media search state separated",
