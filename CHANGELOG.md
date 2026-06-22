@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.118
+
+- Advanced visible Apple app versioning to `v2026.06.22.118`.
+- Moved iPad hardware-keyboard input host views and the touch observer into `InteractivePlayerShortcutHostViews.swift`, keeping shortcut dispatch focused on command routing.
+
 ### 2026.06.22.117
 
 - Advanced visible Apple app versioning to `v2026.06.22.117`.

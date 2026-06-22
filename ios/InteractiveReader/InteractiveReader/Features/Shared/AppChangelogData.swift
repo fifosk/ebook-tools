@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.117",
+            version: "2026.06.22.118",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-shortcut-host-views-file",
+                    title: "iPad keyboard host views separated",
+                    detail: "Hardware-keyboard input host views and the touch observer now live in a focused UIKit bridge file while shortcut dispatch stays centered on command routing."
+                ),
                 AppChangelogEntry(
                     id: "video-overlay-tv-focus-file",
                     title: "TV playback focus separated",
