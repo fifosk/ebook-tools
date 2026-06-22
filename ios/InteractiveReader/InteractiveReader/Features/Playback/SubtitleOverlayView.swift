@@ -349,9 +349,10 @@ struct SubtitleOverlayView: View {
             .padding(.bottom, 24)
             .transition(.opacity)
             .applyIf(shouldReportTokenFrames) { view in
-                view.onPreferenceChange(VideoSubtitleTokenFramePreferenceKey.self) { frames in
-                    onTokenFramesChange?(frames)
-                }
+                view.onPreferenceChange(
+                    VideoSubtitleTokenFramePreferenceKey.self,
+                    perform: handleTokenFramesChange
+                )
             }
             Group {
                 if lineAlignment == .leading {
@@ -376,14 +377,20 @@ struct SubtitleOverlayView: View {
             #endif
         } else {
             Color.clear
-                .onAppear {
-                    onTokenFramesChange?([])
-                }
+                .onAppear(perform: clearTokenFrames)
         }
     }
 
     private var clampedFontScale: CGFloat {
         max(0.7, min(fontScale, 2.0))
+    }
+
+    private func handleTokenFramesChange(_ frames: [VideoSubtitleTokenFrame]) {
+        onTokenFramesChange?(frames)
+    }
+
+    private func clearTokenFrames() {
+        onTokenFramesChange?([])
     }
 
     private func playbackHighlight(in display: VideoSubtitleDisplay) -> SubtitlePlaybackHighlight? {

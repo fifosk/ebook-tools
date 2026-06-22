@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.34",
+            version: "2026.06.22.35",
             entries: [
+                AppChangelogEntry(
+                    id: "subtitle-overlay-frame-handlers",
+                    title: "Subtitle frame updates cleaned up",
+                    detail: "Subtitle overlay token-frame preference and clear-state updates now route through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "text-player-frame-preference-handlers",
                     title: "Text frame updates cleaned up",
