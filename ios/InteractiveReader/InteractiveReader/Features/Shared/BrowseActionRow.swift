@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct BrowseActionRow: View {
@@ -147,6 +148,66 @@ struct BrowseListRowFrameCapture: View {
         #else
         Color.clear
         #endif
+    }
+}
+
+enum BrowseResumeStatusFormatter {
+    static func rowStatus(
+        for jobId: String,
+        availabilityByJobID: [String: PlaybackResumeAvailability]
+    ) -> LibraryRowView.ResumeStatus {
+        guard let availability = availabilityByJobID[jobId] else {
+            return .none()
+        }
+        let cloudEntry = availability.hasCloud ? availability.cloudEntry : nil
+        guard let cloudEntry else {
+            return .none()
+        }
+        return .cloud(label: resumeLabel(prefix: "C", entry: cloudEntry))
+    }
+
+    static func menuLabel(
+        for jobId: String,
+        availabilityByJobID: [String: PlaybackResumeAvailability]
+    ) -> String {
+        guard let availability = availabilityByJobID[jobId] else {
+            return "Resume"
+        }
+        let entry = availability.cloudEntry ?? availability.localEntry
+        guard let entry else { return "Resume" }
+        switch entry.kind {
+        case .sentence:
+            if let sentence = entry.sentenceNumber, sentence > 0 {
+                return "Resume from Sentence \(sentence)"
+            }
+        case .time:
+            if let time = entry.playbackTime, time > 0 {
+                return "Resume from \(formatPlaybackTime(time))"
+            }
+        }
+        return "Resume"
+    }
+
+    private static func resumeLabel(prefix: String, entry: PlaybackResumeEntry?) -> String {
+        guard let entry else { return "\(prefix)" }
+        switch entry.kind {
+        case .sentence:
+            if let sentence = entry.sentenceNumber, sentence > 0 {
+                return "\(prefix):\(sentence)"
+            }
+        case .time:
+            if let time = entry.playbackTime, time > 0 {
+                return "\(prefix):\(formatPlaybackTime(time))"
+            }
+        }
+        return "\(prefix)"
+    }
+
+    private static func formatPlaybackTime(_ time: Double) -> String {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = time >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
+        formatter.zeroFormattingBehavior = .pad
+        return formatter.string(from: time) ?? "0:00"
     }
 }
 

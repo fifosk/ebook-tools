@@ -342,37 +342,10 @@ struct JobsView: View {
     }
 
     private func resumeStatus(for job: PipelineStatusResponse) -> LibraryRowView.ResumeStatus {
-        guard let availability = resumeAvailability[job.jobId] else {
-            return .none()
-        }
-        let cloudEntry = availability.hasCloud ? availability.cloudEntry : nil
-        guard let cloudEntry else {
-            return .none()
-        }
-        let label = resumeLabel(prefix: "C", entry: cloudEntry)
-        return .cloud(label: label)
-    }
-
-    private func resumeLabel(prefix: String, entry: PlaybackResumeEntry?) -> String {
-        guard let entry else { return "\(prefix)" }
-        switch entry.kind {
-        case .sentence:
-            if let sentence = entry.sentenceNumber, sentence > 0 {
-                return "\(prefix):\(sentence)"
-            }
-        case .time:
-            if let time = entry.playbackTime, time > 0 {
-                return "\(prefix):\(formatPlaybackTime(time))"
-            }
-        }
-        return "\(prefix)"
-    }
-
-    private func formatPlaybackTime(_ time: Double) -> String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = time >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
-        formatter.zeroFormattingBehavior = .pad
-        return formatter.string(from: time) ?? "0:00"
+        BrowseResumeStatusFormatter.rowStatus(
+            for: job.jobId,
+            availabilityByJobID: resumeAvailability
+        )
     }
 
     @ViewBuilder
@@ -461,22 +434,10 @@ struct JobsView: View {
     #endif
 
     private func resumeMenuLabel(for job: PipelineStatusResponse) -> String {
-        guard let availability = resumeAvailability[job.jobId] else {
-            return "Resume"
-        }
-        let entry = availability.cloudEntry ?? availability.localEntry
-        guard let entry else { return "Resume" }
-        switch entry.kind {
-        case .sentence:
-            if let sentence = entry.sentenceNumber, sentence > 0 {
-                return "Resume from Sentence \(sentence)"
-            }
-        case .time:
-            if let time = entry.playbackTime, time > 0 {
-                return "Resume from \(formatPlaybackTime(time))"
-            }
-        }
-        return "Resume"
+        BrowseResumeStatusFormatter.menuLabel(
+            for: job.jobId,
+            availabilityByJobID: resumeAvailability
+        )
     }
 
     @MainActor

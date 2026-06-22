@@ -292,41 +292,17 @@ struct CombinedSearchView: View {
     }
 
     private func resumeMenuLabel(for item: LibraryItem) -> String {
-        guard let availability = resumeAvailability[item.jobId] else {
-            return "Resume"
-        }
-        let entry = availability.cloudEntry ?? availability.localEntry
-        guard let entry else { return "Resume" }
-        switch entry.kind {
-        case .sentence:
-            if let sentence = entry.sentenceNumber, sentence > 0 {
-                return "Resume from Sentence \(sentence)"
-            }
-        case .time:
-            if let time = entry.playbackTime, time > 0 {
-                return "Resume from \(formatPlaybackTime(time))"
-            }
-        }
-        return "Resume"
+        BrowseResumeStatusFormatter.menuLabel(
+            for: item.jobId,
+            availabilityByJobID: resumeAvailability
+        )
     }
 
     private func resumeMenuLabel(for job: PipelineStatusResponse) -> String {
-        guard let availability = resumeAvailability[job.jobId] else {
-            return "Resume"
-        }
-        let entry = availability.cloudEntry ?? availability.localEntry
-        guard let entry else { return "Resume" }
-        switch entry.kind {
-        case .sentence:
-            if let sentence = entry.sentenceNumber, sentence > 0 {
-                return "Resume from Sentence \(sentence)"
-            }
-        case .time:
-            if let time = entry.playbackTime, time > 0 {
-                return "Resume from \(formatPlaybackTime(time))"
-            }
-        }
-        return "Resume"
+        BrowseResumeStatusFormatter.menuLabel(
+            for: job.jobId,
+            availabilityByJobID: resumeAvailability
+        )
     }
 
     private func matches(job: PipelineStatusResponse, query: String) -> Bool {
@@ -402,19 +378,17 @@ struct CombinedSearchView: View {
     }()
 
     private func resumeStatus(for job: PipelineStatusResponse) -> LibraryRowView.ResumeStatus {
-        guard let availability = resumeAvailability[job.jobId] else { return .none() }
-        let entry = availability.hasCloud ? availability.cloudEntry : nil
-        guard let entry else { return .none() }
-        let label = resumeLabel(prefix: "C", entry: entry)
-        return .cloud(label: label)
+        BrowseResumeStatusFormatter.rowStatus(
+            for: job.jobId,
+            availabilityByJobID: resumeAvailability
+        )
     }
 
     private func resumeStatus(for item: LibraryItem) -> LibraryRowView.ResumeStatus {
-        guard let availability = resumeAvailability[item.jobId] else { return .none() }
-        let entry = availability.hasCloud ? availability.cloudEntry : nil
-        guard let entry else { return .none() }
-        let label = resumeLabel(prefix: "C", entry: entry)
-        return .cloud(label: label)
+        BrowseResumeStatusFormatter.rowStatus(
+            for: item.jobId,
+            availabilityByJobID: resumeAvailability
+        )
     }
 
     private func refreshResumeStatus() {
@@ -425,27 +399,6 @@ struct CombinedSearchView: View {
         resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: resumeUserId)
     }
 
-    private func resumeLabel(prefix: String, entry: PlaybackResumeEntry?) -> String {
-        guard let entry else { return "\(prefix)" }
-        switch entry.kind {
-        case .sentence:
-            if let sentence = entry.sentenceNumber, sentence > 0 {
-                return "\(prefix):\(sentence)"
-            }
-        case .time:
-            if let time = entry.playbackTime, time > 0 {
-                return "\(prefix):\(formatPlaybackTime(time))"
-            }
-        }
-        return "\(prefix)"
-    }
-
-    private func formatPlaybackTime(_ time: Double) -> String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = time >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
-        formatter.zeroFormattingBehavior = .pad
-        return formatter.string(from: time) ?? "0:00"
-    }
 }
 
 private struct SearchEmptyStateView: View {

@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.62",
+            version: "2026.06.22.63",
             entries: [
+                AppChangelogEntry(
+                    id: "shared-browse-resume-status-formatter",
+                    title: "Browse resume labels cleaned up",
+                    detail: "Jobs, Library, and Search now share one formatter for resume badges and context-menu labels."
+                ),
                 AppChangelogEntry(
                     id: "shared-browse-list-collapse-interaction",
                     title: "Browse list gestures cleaned up",

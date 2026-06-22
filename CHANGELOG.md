@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.63
+
+- Advanced visible Apple app versioning to `v2026.06.22.63`.
+- Moved shared browse resume badge and context-menu label formatting into one formatter used by Jobs, Library, and Search.
+
 ### 2026.06.22.62
 
 - Advanced visible Apple app versioning to `v2026.06.22.62`.
