@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.98
+
+- Advanced visible Apple app versioning to `v2026.06.22.98`.
+- Split the Apple API client endpoint methods into focused Auth, Library/Jobs, Linguist, Notification, Pipeline Media, and Playback State service extensions while keeping shared transport/auth handling centralized.
+
 ### 2026.06.22.97
 
 - Advanced visible Apple app versioning to `v2026.06.22.97`.

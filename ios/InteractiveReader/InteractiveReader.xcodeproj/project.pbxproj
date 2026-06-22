@@ -363,6 +363,18 @@
 		E9F91C189DF5C24DD9E3B729 /* PipelineSentenceApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8BB4BF040E10C2EB000BE15 /* PipelineSentenceApiModels.swift */; };
 		773E7BF48F041424B01B43FC /* PipelineTimingApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2079D47164599768732FF62 /* PipelineTimingApiModels.swift */; };
 		927D6333E4F7DEFF9D814CF9 /* PipelineTimingApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2079D47164599768732FF62 /* PipelineTimingApiModels.swift */; };
+		8C98EB0388FC11C1B29EF45C /* APIClient+Auth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B21428ED4D9F6D4BCCF49C4 /* APIClient+Auth.swift */; };
+		392424DEA2798332FAE56F10 /* APIClient+Auth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B21428ED4D9F6D4BCCF49C4 /* APIClient+Auth.swift */; };
+		32EEBD6E856555DF6CC4C4BE /* APIClient+LibraryJobs.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABFD5A7FDA0DD0B2EE98AF81 /* APIClient+LibraryJobs.swift */; };
+		06A3C27118E2B24A6C0B7EC0 /* APIClient+LibraryJobs.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABFD5A7FDA0DD0B2EE98AF81 /* APIClient+LibraryJobs.swift */; };
+		0118AF4DB8CBEBBB9D456DD4 /* APIClient+Linguist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BAF39A04B55683AB40B1F7 /* APIClient+Linguist.swift */; };
+		F83A51425EB42270E1154922 /* APIClient+Linguist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BAF39A04B55683AB40B1F7 /* APIClient+Linguist.swift */; };
+		1647FA778C70191871E3B389 /* APIClient+Notifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D69F2100637C18377F6605 /* APIClient+Notifications.swift */; };
+		B0C462000E7BCAB30042B436 /* APIClient+Notifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D69F2100637C18377F6605 /* APIClient+Notifications.swift */; };
+		A50101B50CE36898F7F3F01C /* APIClient+PipelineMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB31F1D315CB90F1F45C378F /* APIClient+PipelineMedia.swift */; };
+		F79918BE8A20538FACD0205D /* APIClient+PipelineMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB31F1D315CB90F1F45C378F /* APIClient+PipelineMedia.swift */; };
+		E53DA567CE4F673D23ADE631 /* APIClient+PlaybackState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A2EB8773D854DFA57022B4B /* APIClient+PlaybackState.swift */; };
+		E5A71FE34ECF7DB87414A059 /* APIClient+PlaybackState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A2EB8773D854DFA57022B4B /* APIClient+PlaybackState.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -553,6 +565,12 @@
 		0825A67DFEECB3E579D806B6 /* LibraryJobApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryJobApiModels.swift"; sourceTree = "<group>"; };
 		E8BB4BF040E10C2EB000BE15 /* PipelineSentenceApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PipelineSentenceApiModels.swift"; sourceTree = "<group>"; };
 		A2079D47164599768732FF62 /* PipelineTimingApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PipelineTimingApiModels.swift"; sourceTree = "<group>"; };
+		9B21428ED4D9F6D4BCCF49C4 /* APIClient+Auth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "APIClient+Auth.swift"; sourceTree = "<group>"; };
+		ABFD5A7FDA0DD0B2EE98AF81 /* APIClient+LibraryJobs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "APIClient+LibraryJobs.swift"; sourceTree = "<group>"; };
+		66BAF39A04B55683AB40B1F7 /* APIClient+Linguist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "APIClient+Linguist.swift"; sourceTree = "<group>"; };
+		01D69F2100637C18377F6605 /* APIClient+Notifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "APIClient+Notifications.swift"; sourceTree = "<group>"; };
+		DB31F1D315CB90F1F45C378F /* APIClient+PipelineMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "APIClient+PipelineMedia.swift"; sourceTree = "<group>"; };
+		2A2EB8773D854DFA57022B4B /* APIClient+PlaybackState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "APIClient+PlaybackState.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -824,6 +842,12 @@
 				CC2B612A42FC410590D84E0A /* VideoPlayerCoordinator.swift */,
 				BA23F5D5E8D347FABACD6126 /* PlayerCoordinating.swift */,
 				B8F9D50C0ADA14E7FF452149 /* SessionTokenStore.swift */,
+				9B21428ED4D9F6D4BCCF49C4 /* APIClient+Auth.swift */,
+				ABFD5A7FDA0DD0B2EE98AF81 /* APIClient+LibraryJobs.swift */,
+				66BAF39A04B55683AB40B1F7 /* APIClient+Linguist.swift */,
+				01D69F2100637C18377F6605 /* APIClient+Notifications.swift */,
+				DB31F1D315CB90F1F45C378F /* APIClient+PipelineMedia.swift */,
+				2A2EB8773D854DFA57022B4B /* APIClient+PlaybackState.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -1360,6 +1384,12 @@
 				B1AA2765A172A72E52A55EB0 /* LibraryJobApiModels.swift in Sources */,
 				72EDA6A9359BBF44C926FB66 /* PipelineSentenceApiModels.swift in Sources */,
 				773E7BF48F041424B01B43FC /* PipelineTimingApiModels.swift in Sources */,
+				8C98EB0388FC11C1B29EF45C /* APIClient+Auth.swift in Sources */,
+				32EEBD6E856555DF6CC4C4BE /* APIClient+LibraryJobs.swift in Sources */,
+				0118AF4DB8CBEBBB9D456DD4 /* APIClient+Linguist.swift in Sources */,
+				1647FA778C70191871E3B389 /* APIClient+Notifications.swift in Sources */,
+				A50101B50CE36898F7F3F01C /* APIClient+PipelineMedia.swift in Sources */,
+				E53DA567CE4F673D23ADE631 /* APIClient+PlaybackState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1535,6 +1565,12 @@
 				D163257E098544F7E9CB4DD1 /* LibraryJobApiModels.swift in Sources */,
 				E9F91C189DF5C24DD9E3B729 /* PipelineSentenceApiModels.swift in Sources */,
 				927D6333E4F7DEFF9D814CF9 /* PipelineTimingApiModels.swift in Sources */,
+				392424DEA2798332FAE56F10 /* APIClient+Auth.swift in Sources */,
+				06A3C27118E2B24A6C0B7EC0 /* APIClient+LibraryJobs.swift in Sources */,
+				F83A51425EB42270E1154922 /* APIClient+Linguist.swift in Sources */,
+				B0C462000E7BCAB30042B436 /* APIClient+Notifications.swift in Sources */,
+				F79918BE8A20538FACD0205D /* APIClient+PipelineMedia.swift in Sources */,
+				E5A71FE34ECF7DB87414A059 /* APIClient+PlaybackState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1585,7 +1621,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062297;
+				CURRENT_PROJECT_VERSION = 2026062298;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1732,7 +1768,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062297;
+				CURRENT_PROJECT_VERSION = 2026062298;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1760,7 +1796,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062297;
+				CURRENT_PROJECT_VERSION = 2026062298;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1788,7 +1824,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062297;
+				CURRENT_PROJECT_VERSION = 2026062298;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1815,7 +1851,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062297;
+				CURRENT_PROJECT_VERSION = 2026062298;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1841,7 +1877,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062297;
+				CURRENT_PROJECT_VERSION = 2026062298;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1866,7 +1902,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062297;
+				CURRENT_PROJECT_VERSION = 2026062298;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1884,7 +1920,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062297;
+				CURRENT_PROJECT_VERSION = 2026062298;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1902,7 +1938,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062297;
+				CURRENT_PROJECT_VERSION = 2026062298;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
@@ -1922,7 +1958,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062297;
+				CURRENT_PROJECT_VERSION = 2026062298;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;

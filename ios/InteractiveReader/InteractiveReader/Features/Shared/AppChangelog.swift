@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.97",
+            version: "2026.06.22.98",
             entries: [
+                AppChangelogEntry(
+                    id: "api-client-endpoint-extensions",
+                    title: "API client endpoints separated",
+                    detail: "Backend endpoint calls now live in focused service extension files for Auth, Library/Jobs, Linguist, Notifications, Pipeline Media, and Playback State while shared transport stays centralized."
+                ),
                 AppChangelogEntry(
                     id: "pipeline-timing-sentence-api-models-files",
                     title: "Pipeline timing models separated",
