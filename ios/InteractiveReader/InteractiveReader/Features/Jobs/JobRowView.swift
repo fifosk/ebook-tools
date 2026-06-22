@@ -32,101 +32,82 @@ struct JobRowView: View {
     // MARK: - Compact Layout (iPhone Portrait)
 
     private var compactLayout: some View {
-        HStack(alignment: .top, spacing: rowSpacing) {
-            UnifiedCoverView(
-                url: coverURL,
-                variant: jobVariant,
-                height: coverHeight
-            )
-
-            JobRowMetadataStack(
-                title: jobTitle,
-                summaryText: summaryText,
-                descriptionText: descriptionText,
-                languageFlags: languageFlags,
-                statusIcon: statusGlyph.icon,
-                statusLabel: statusGlyph.label,
-                statusColor: statusColor,
-                resumeStatus: resumeStatus,
-                progressLabel: progressLabel,
-                progressValue: progressValue,
-                progressTint: progressTint,
-                titleFont: titleFont,
-                summaryFont: summaryFont,
-                metaFont: metaFont,
-                statusGlyphFont: statusGlyphFont,
-                textSpacing: textSpacing,
-                titleLineLimit: 2,
-                titleScaleFactor: 0.9,
-                descriptionLineLimit: 2,
-                badgeSpacing: 6,
-                titleStyle: AnyShapeStyle(.primary),
-                secondaryTextStyle: AnyShapeStyle(.secondary),
-                tertiaryTextStyle: AnyShapeStyle(.tertiary)
-            )
-
-            Spacer(minLength: 4)
-
-            JobRowAccessory(
-                jobId: job.jobId,
-                isFinished: job.isFinishedForDisplay,
-                style: .compact,
-                secondaryTextColor: .secondary,
-                isSynced: isJobSynced,
-                isFocused: isRowFocused
-            )
-        }
-        .padding(.vertical, rowPadding)
+        rowLayout(
+            accessoryStyle: .compact,
+            titleLineLimit: 2,
+            titleScaleFactor: 0.9,
+            descriptionLineLimit: 2,
+            badgeSpacing: 6,
+            titleStyle: AnyShapeStyle(.primary),
+            secondaryTextStyle: AnyShapeStyle(.secondary),
+            tertiaryTextStyle: AnyShapeStyle(.tertiary),
+            accessorySecondaryTextColor: .secondary
+        )
     }
 
     // MARK: - Landscape Layout (iPad / tvOS)
 
     private var landscapeLayout: some View {
-        HStack(spacing: rowSpacing) {
-            UnifiedCoverView(
-                url: coverURL,
-                variant: jobVariant,
-                height: coverHeight
-            )
+        rowLayout(
+            accessoryStyle: .landscape,
+            titleLineLimit: titleLineLimit,
+            titleScaleFactor: titleScaleFactor,
+            descriptionLineLimit: 1,
+            badgeSpacing: 8,
+            titleStyle: AnyShapeStyle(titleColor),
+            secondaryTextStyle: AnyShapeStyle(secondaryTextColor),
+            tertiaryTextStyle: AnyShapeStyle(tertiaryTextColor),
+            accessorySecondaryTextColor: secondaryTextColor
+        )
+    }
 
-            JobRowMetadataStack(
-                title: jobTitle,
-                summaryText: summaryText,
-                descriptionText: descriptionText,
-                languageFlags: languageFlags,
-                statusIcon: statusGlyph.icon,
-                statusLabel: statusGlyph.label,
-                statusColor: statusColor,
-                resumeStatus: resumeStatus,
-                progressLabel: progressLabel,
-                progressValue: progressValue,
-                progressTint: progressTint,
-                titleFont: titleFont,
-                summaryFont: summaryFont,
-                metaFont: metaFont,
-                statusGlyphFont: statusGlyphFont,
-                textSpacing: textSpacing,
-                titleLineLimit: titleLineLimit,
-                titleScaleFactor: titleScaleFactor,
-                descriptionLineLimit: 1,
-                badgeSpacing: 8,
-                titleStyle: AnyShapeStyle(titleColor),
-                secondaryTextStyle: AnyShapeStyle(secondaryTextColor),
-                tertiaryTextStyle: AnyShapeStyle(tertiaryTextColor)
-            )
-
-            Spacer()
-
-            JobRowAccessory(
-                jobId: job.jobId,
-                isFinished: job.isFinishedForDisplay,
-                style: .landscape,
-                secondaryTextColor: secondaryTextColor,
-                isSynced: isJobSynced,
-                isFocused: isRowFocused
-            )
-        }
-        .padding(.vertical, rowPadding)
+    private func rowLayout(
+        accessoryStyle: JobRowAccessoryStyle,
+        titleLineLimit: Int,
+        titleScaleFactor: CGFloat,
+        descriptionLineLimit: Int,
+        badgeSpacing: CGFloat,
+        titleStyle: AnyShapeStyle,
+        secondaryTextStyle: AnyShapeStyle,
+        tertiaryTextStyle: AnyShapeStyle,
+        accessorySecondaryTextColor: Color
+    ) -> some View {
+        JobRowLayout(
+            coverURL: coverURL,
+            variant: jobVariant,
+            coverHeight: coverHeight,
+            rowSpacing: rowSpacing,
+            rowPadding: rowPadding,
+            title: jobTitle,
+            summaryText: summaryText,
+            descriptionText: descriptionText,
+            languageFlags: languageFlags,
+            statusIcon: statusGlyph.icon,
+            statusLabel: statusGlyph.label,
+            statusColor: statusColor,
+            resumeStatus: resumeStatus,
+            progressLabel: progressLabel,
+            progressValue: progressValue,
+            progressTint: progressTint,
+            titleFont: titleFont,
+            summaryFont: summaryFont,
+            metaFont: metaFont,
+            statusGlyphFont: statusGlyphFont,
+            textSpacing: textSpacing,
+            titleLineLimit: titleLineLimit,
+            titleScaleFactor: titleScaleFactor,
+            descriptionLineLimit: descriptionLineLimit,
+            badgeSpacing: badgeSpacing,
+            titleStyle: titleStyle,
+            secondaryTextStyle: secondaryTextStyle,
+            tertiaryTextStyle: tertiaryTextStyle,
+            accessoryJobId: job.jobId,
+            accessoryIsFinished: job.isFinishedForDisplay,
+            accessoryStyle: accessoryStyle,
+            accessorySecondaryTextColor: accessorySecondaryTextColor,
+            isSynced: isJobSynced,
+            isFocused: isRowFocused
+        )
     }
 
     // MARK: - Layout Helpers

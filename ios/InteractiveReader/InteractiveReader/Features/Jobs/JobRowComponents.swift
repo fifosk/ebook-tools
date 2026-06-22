@@ -5,6 +5,109 @@ enum JobRowAccessoryStyle {
     case landscape
 }
 
+struct JobRowLayout: View {
+    let coverURL: URL?
+    let variant: PlayerChannelVariant
+    let coverHeight: CGFloat
+    let rowSpacing: CGFloat
+    let rowPadding: CGFloat
+    let title: String
+    let summaryText: String?
+    let descriptionText: String?
+    let languageFlags: [LanguageFlagEntry]
+    let statusIcon: String
+    let statusLabel: String
+    let statusColor: Color
+    let resumeStatus: LibraryRowView.ResumeStatus
+    let progressLabel: String?
+    let progressValue: Double?
+    let progressTint: Color
+    let titleFont: Font
+    let summaryFont: Font
+    let metaFont: Font
+    let statusGlyphFont: Font
+    let textSpacing: CGFloat
+    let titleLineLimit: Int
+    let titleScaleFactor: CGFloat
+    let descriptionLineLimit: Int
+    let badgeSpacing: CGFloat
+    let titleStyle: AnyShapeStyle
+    let secondaryTextStyle: AnyShapeStyle
+    let tertiaryTextStyle: AnyShapeStyle
+    let accessoryJobId: String
+    let accessoryIsFinished: Bool
+    let accessoryStyle: JobRowAccessoryStyle
+    let accessorySecondaryTextColor: Color
+    let isSynced: Bool
+    let isFocused: Bool
+
+    var body: some View {
+        HStack(alignment: alignment, spacing: rowSpacing) {
+            UnifiedCoverView(
+                url: coverURL,
+                variant: variant,
+                height: coverHeight
+            )
+
+            JobRowMetadataStack(
+                title: title,
+                summaryText: summaryText,
+                descriptionText: descriptionText,
+                languageFlags: languageFlags,
+                statusIcon: statusIcon,
+                statusLabel: statusLabel,
+                statusColor: statusColor,
+                resumeStatus: resumeStatus,
+                progressLabel: progressLabel,
+                progressValue: progressValue,
+                progressTint: progressTint,
+                titleFont: titleFont,
+                summaryFont: summaryFont,
+                metaFont: metaFont,
+                statusGlyphFont: statusGlyphFont,
+                textSpacing: textSpacing,
+                titleLineLimit: titleLineLimit,
+                titleScaleFactor: titleScaleFactor,
+                descriptionLineLimit: descriptionLineLimit,
+                badgeSpacing: badgeSpacing,
+                titleStyle: titleStyle,
+                secondaryTextStyle: secondaryTextStyle,
+                tertiaryTextStyle: tertiaryTextStyle
+            )
+
+            Spacer(minLength: spacerMinLength)
+
+            JobRowAccessory(
+                jobId: accessoryJobId,
+                isFinished: accessoryIsFinished,
+                style: accessoryStyle,
+                secondaryTextColor: accessorySecondaryTextColor,
+                isSynced: isSynced,
+                isFocused: isFocused
+            )
+        }
+        .padding(.vertical, rowPadding)
+    }
+
+    private var alignment: VerticalAlignment {
+        switch accessoryStyle {
+        case .compact:
+            return .top
+        case .landscape:
+            return .center
+        }
+    }
+
+    private var spacerMinLength: CGFloat? {
+        switch accessoryStyle {
+        case .compact:
+            return 4
+        case .landscape:
+            return nil
+        }
+    }
+}
+
 struct JobRowMetadataStack: View {
     let title: String
     let summaryText: String?

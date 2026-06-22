@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.80
+
+- Advanced visible Apple app versioning to `v2026.06.22.80`.
+- Moved the job row compact and landscape shells into the shared job-row components file so responsive row layout is separated from metadata and cover-resolution logic.
+
 ### 2026.06.22.79
 
 - Advanced visible Apple app versioning to `v2026.06.22.79`.

@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.79",
+            version: "2026.06.22.80",
             entries: [
+                AppChangelogEntry(
+                    id: "job-row-layout-component",
+                    title: "Job row layout separated",
+                    detail: "Job row compact and landscape shells now live with the shared job-row components instead of the metadata resolver view."
+                ),
                 AppChangelogEntry(
                     id: "library-playback-chrome-views-file",
                     title: "Library playback chrome separated",
