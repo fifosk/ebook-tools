@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.73",
+            version: "2026.06.22.74",
             entries: [
+                AppChangelogEntry(
+                    id: "player-language-flag-views-file",
+                    title: "Language flag UI separated",
+                    detail: "Shared player language flag rows, badges, and job glyph badges now live outside the channel bug view file."
+                ),
                 AppChangelogEntry(
                     id: "tvos-changelog-scroll-target",
                     title: "TV changelog scrolling fixed",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.74
+
+- Advanced visible Apple app versioning to `v2026.06.22.74`.
+- Moved shared player language flag row and badge UI into a dedicated SwiftUI source file.
+
 ### 2026.06.22.73
 
 - Advanced visible Apple app versioning to `v2026.06.22.73`.
