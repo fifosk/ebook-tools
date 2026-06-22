@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "interactive-header-pills-file",
+            title: "Header pills separated",
+            detail: "Speed and jump header-pill UI now lives in a focused extension while reading-bed code stays centered on music source and ambient playback behavior."
+        ),
+        AppChangelogEntry(
             id: "job-playback-video-file",
             title: "Job video playback split",
             detail: "Job playback video presentation, preview gestures, fullscreen routing, and player construction now live in a focused video extension while the base view stays centered on lifecycle and layout composition."

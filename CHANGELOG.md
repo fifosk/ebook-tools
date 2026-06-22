@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.143
+
+- Advanced visible Apple app versioning to `v2026.06.22.143`.
+- Moved interactive player speed and jump header-pill UI into `InteractivePlayerView+HeaderPills.swift`, leaving the reading-bed extension focused on music source and ambient playback behavior.
+
 ### 2026.06.22.142
 
 - Advanced visible Apple app versioning to `v2026.06.22.142`.

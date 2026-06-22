@@ -83,6 +83,8 @@
 		LBTVHDR001A0001 /* LinguistBubbleTVHeaderControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = LBTVHDR002A0001 /* LinguistBubbleTVHeaderControls.swift */; };
 		1E995D494DBD48DC88CD5FCB /* LoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A55CB165B3497CB0EF8A7D /* LoginViewModel.swift */; };
 		2396A50CBB0047EB9832C2F3 /* InteractivePlayerView+ReadingBed.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAB42B31E7C24996A28615F0 /* InteractivePlayerView+ReadingBed.swift */; };
+		IPHEADPILL001A0001 /* InteractivePlayerView+HeaderPills.swift in Sources */ = {isa = PBXBuildFile; fileRef = IPHEADPILL002A0001 /* InteractivePlayerView+HeaderPills.swift */; };
+		IPHEADPILL001A0002 /* InteractivePlayerView+HeaderPills.swift in Sources */ = {isa = PBXBuildFile; fileRef = IPHEADPILL002A0001 /* InteractivePlayerView+HeaderPills.swift */; };
 		24FC8A72C18646E0BF913305 /* InteractivePlayerLinguistBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06FC2293D3124D86925B77CB /* InteractivePlayerLinguistBubbleView.swift */; };
 		26DD4687BCF741348C22E9E1 /* PronunciationSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B130396E9FB45208CEE80FB /* PronunciationSpeaker.swift */; };
 		274889EEFEFC4A7EAB66B3D9 /* LibraryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73A95624331046EE991E094F /* LibraryViewModel.swift */; };
@@ -613,6 +615,7 @@
 		VPOLINT002A0001 /* VideoPlayerOverlayInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerOverlayInteraction.swift; sourceTree = "<group>"; };
 		VPOLTVLAY002A0001 /* VideoPlayerOverlayView+TVLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoPlayerOverlayView+TVLayout.swift"; sourceTree = "<group>"; };
 		FAB42B31E7C24996A28615F0 /* InteractivePlayerView+ReadingBed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+ReadingBed.swift"; sourceTree = "<group>"; };
+		IPHEADPILL002A0001 /* InteractivePlayerView+HeaderPills.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+HeaderPills.swift"; sourceTree = "<group>"; };
 		FBD20FB3803E455183097CAC /* InteractivePlayerView+Transcript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+Transcript.swift"; sourceTree = "<group>"; };
 		FF4AB40AF77346D8BFBD4677 /* Info-tvOS.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-tvOS.plist"; sourceTree = "<group>"; };
 		FFC908AF6574D91BDD9A7085 /* InteractivePlayerContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePlayerContextBuilder.swift; sourceTree = "<group>"; };
@@ -901,6 +904,7 @@
 				FBD20FB3803E455183097CAC /* InteractivePlayerView+Transcript.swift */,
 				EA3A539D59C840118551CB0B /* InteractivePlayerView+Bookmarks.swift */,
 				FAB42B31E7C24996A28615F0 /* InteractivePlayerView+ReadingBed.swift */,
+				IPHEADPILL002A0001 /* InteractivePlayerView+HeaderPills.swift */,
 				JUMPOVER002A0001 /* JumpControlOverlayView.swift */,
 				346822151C1A44D98F7E0E0A /* InteractivePlayerView+Linguist.swift */,
 				6FDC3A2302F914D000A1D9A1 /* InteractivePlayerViewModel.swift */,
@@ -1471,6 +1475,7 @@
 				8DB36216649F4BF0A7A514C4 /* InteractivePlayerView+Tracks.swift in Sources */,
 				5FE9F89A782341D08BA7A31E /* InteractivePlayerView+Bookmarks.swift in Sources */,
 				9FB0B6071FFC449B8391D9FA /* InteractivePlayerView+ReadingBed.swift in Sources */,
+				IPHEADPILL001A0002 /* InteractivePlayerView+HeaderPills.swift in Sources */,
 				JUMPOVER001A0001 /* JumpControlOverlayView.swift in Sources */,
 				4DC80F4A10F24C6699D43879 /* InteractivePlayerView+Transcript.swift in Sources */,
 				E0D8C9AF34D042DFB492EA98 /* InteractivePlayerView+Linguist.swift in Sources */,
@@ -1690,6 +1695,7 @@
 				5E49E7A4551947A3AF29123A /* InteractivePlayerView+Tracks.swift in Sources */,
 				FCC4E802E56D418A81E37F21 /* InteractivePlayerView+Bookmarks.swift in Sources */,
 				2396A50CBB0047EB9832C2F3 /* InteractivePlayerView+ReadingBed.swift in Sources */,
+				IPHEADPILL001A0001 /* InteractivePlayerView+HeaderPills.swift in Sources */,
 				JUMPOVER001A0002 /* JumpControlOverlayView.swift in Sources */,
 				A52040366BA84D4D8C993939 /* InteractivePlayerView+Transcript.swift in Sources */,
 				1A2972D3F4C54BB895CCE0F3 /* InteractivePlayerView+Linguist.swift in Sources */,
@@ -1849,7 +1855,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622142;
+				CURRENT_PROJECT_VERSION = 20260622143;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1996,7 +2002,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622142;
+				CURRENT_PROJECT_VERSION = 20260622143;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -2024,7 +2030,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622142;
+				CURRENT_PROJECT_VERSION = 20260622143;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -2052,7 +2058,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622142;
+				CURRENT_PROJECT_VERSION = 20260622143;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -2079,7 +2085,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622142;
+				CURRENT_PROJECT_VERSION = 20260622143;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -2105,7 +2111,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622142;
+				CURRENT_PROJECT_VERSION = 20260622143;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -2130,7 +2136,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622142;
+				CURRENT_PROJECT_VERSION = 20260622143;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -2148,7 +2154,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622142;
+				CURRENT_PROJECT_VERSION = 20260622143;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -2166,7 +2172,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622142;
+				CURRENT_PROJECT_VERSION = 20260622143;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
@@ -2186,7 +2192,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622142;
+				CURRENT_PROJECT_VERSION = 20260622143;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
