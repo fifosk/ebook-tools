@@ -85,7 +85,7 @@ struct LibraryView: View {
         ForEach(items) { item in
             // Always use programmatic navigation to support context menu actions.
             #if os(tvOS)
-            Button(action: { handleResumeItemSelection(item) }) {
+            Button(action: { handleLibraryRowTap(item) }) {
                 LibraryRowView(
                     item: item,
                     coverURL: coverResolver(item),
@@ -110,7 +110,7 @@ struct LibraryView: View {
             .contentShape(Rectangle())
             .listRowBackground(usesDarkListBackground ? Color.clear : nil)
             .onTapGesture {
-                handleResumeItemSelection(item)
+                handleLibraryRowTap(item)
             }
             .contextMenu {
                 playbackContextMenu(for: item)
@@ -241,6 +241,10 @@ struct LibraryView: View {
 
     private func handleResumeItemSelection(_ item: LibraryItem) {
         selectItem(item, mode: .resume)
+    }
+
+    private func handleLibraryRowTap(_ item: LibraryItem) {
+        handleResumeItemSelection(item)
     }
 
     private func handleStartOverItemSelection(_ item: LibraryItem) {
@@ -515,8 +519,12 @@ private struct LibraryFilterPicker: View {
         .libraryFilterPickerStyle(
             usesDarkListBackground: usesDarkListBackground,
             colorScheme: colorScheme,
-            onRefresh: onRefresh
+            onRefresh: handleFilterRefreshLongPress
         )
+    }
+
+    private func handleFilterRefreshLongPress() {
+        onRefresh()
     }
 }
 
@@ -531,9 +539,7 @@ private extension View {
         self
             .pickerStyle(.automatic)
             .padding(.horizontal)
-            .onLongPressGesture(minimumDuration: 0.6) {
-                onRefresh()
-            }
+            .onLongPressGesture(minimumDuration: 0.6, perform: onRefresh)
         #elseif os(iOS)
         self
             .pickerStyle(.segmented)

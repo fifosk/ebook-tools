@@ -80,7 +80,7 @@ struct JobsView: View {
         ForEach(jobs) { job in
             // Always use programmatic navigation to support context menu actions
             #if os(tvOS)
-            Button(action: { handleResumeJobSelection(job) }) {
+            Button(action: { handleJobRowTap(job) }) {
                 JobRowView(job: job, resumeStatus: resumeStatus(for: job))
             }
             .buttonStyle(.plain)
@@ -97,7 +97,7 @@ struct JobsView: View {
                 .contentShape(Rectangle())
                 .listRowBackground(usesDarkListBackground ? Color.clear : nil)
                 .onTapGesture {
-                    handleResumeJobSelection(job)
+                    handleJobRowTap(job)
                 }
                 .contextMenu {
                     playbackContextMenu(for: job)
@@ -216,6 +216,10 @@ struct JobsView: View {
 
     private func handleResumeJobSelection(_ job: PipelineStatusResponse) {
         selectJob(job, mode: .resume)
+    }
+
+    private func handleJobRowTap(_ job: PipelineStatusResponse) {
+        handleResumeJobSelection(job)
     }
 
     private func handleStartOverJobSelection(_ job: PipelineStatusResponse) {
@@ -525,8 +529,12 @@ private struct JobsFilterPicker: View {
         .jobsFilterPickerStyle(
             usesDarkListBackground: usesDarkListBackground,
             colorScheme: colorScheme,
-            onRefresh: onRefresh
+            onRefresh: handleFilterRefreshLongPress
         )
+    }
+
+    private func handleFilterRefreshLongPress() {
+        onRefresh()
     }
 }
 
@@ -541,9 +549,7 @@ private extension View {
         self
             .pickerStyle(.automatic)
             .padding(.horizontal)
-            .onLongPressGesture(minimumDuration: 0.6) {
-                onRefresh()
-            }
+            .onLongPressGesture(minimumDuration: 0.6, perform: onRefresh)
         #elseif os(iOS)
         self
             .pickerStyle(.segmented)

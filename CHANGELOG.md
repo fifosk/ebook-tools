@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.31
+
+- Advanced visible Apple app versioning to `v2026.06.22.31`.
+- Moved Jobs and Library browse row taps plus tvOS filter long-press refresh actions into named SwiftUI handlers.
+
 ### 2026.06.22.30
 
 - Advanced visible Apple app versioning to `v2026.06.22.30`.

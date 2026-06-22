@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.30",
+            version: "2026.06.22.31",
             entries: [
+                AppChangelogEntry(
+                    id: "browse-row-filter-handlers",
+                    title: "Browse row taps cleaned up",
+                    detail: "Jobs and Library browse rows now route row taps and tvOS filter long-press refresh actions through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "tvos-transcript-track-handlers",
                     title: "TV transcript focus cleaned up",
