@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "subtitle-overlay-token-views-file",
+            title: "Subtitle token views separated",
+            detail: "Subtitle token line rendering, word highlighting, tap and lookup gestures, and overlay token colors now live in a focused file while the base subtitle overlay stays centered on display assembly and magnification."
+        ),
+        AppChangelogEntry(
             id: "library-row-metadata-file",
             title: "Library row metadata separated",
             detail: "Library row titles, language flags, media variants, summaries, duration, sentence counts, and TV metadata now live in a focused extension while the base row stays centered on layout and styling."

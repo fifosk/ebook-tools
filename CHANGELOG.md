@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.149
+
+- Advanced visible Apple app versioning to `v2026.06.22.149`.
+- Moved subtitle token line rendering, word highlighting, token tap/lookup gestures, and overlay token colors into `SubtitleOverlayTokenViews.swift`, keeping the base subtitle overlay focused on display assembly, reset controls, frame reporting, and magnification.
+
 ### 2026.06.22.148
 
 - Advanced visible Apple app versioning to `v2026.06.22.148`.
