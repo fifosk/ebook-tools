@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.15
+
+- Advanced visible Apple app versioning to `v2026.06.22.15`.
+- Moved Jobs and Library browse list lifecycle, resume-store updates, and sidebar-collapse drag handling into named SwiftUI handlers.
+
 ### 2026.06.22.14
 
 - Advanced visible Apple app versioning to `v2026.06.22.14`.

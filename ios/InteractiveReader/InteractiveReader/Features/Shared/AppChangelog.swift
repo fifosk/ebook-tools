@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.14",
+            version: "2026.06.22.15",
             entries: [
+                AppChangelogEntry(
+                    id: "browse-list-lifecycle-handlers",
+                    title: "Browse lists cleaned up",
+                    detail: "Jobs and Library browse lists now route lifecycle, resume-store updates, and sidebar-collapse drag handling through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "combined-search-action-handlers",
                     title: "Browse search cleaned up",

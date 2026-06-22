@@ -48,22 +48,10 @@ struct JobsView: View {
             .platformListBackground(usesDark: usesDarkListBackground, colorScheme: colorScheme)
             #if os(iOS)
             .coordinateSpace(name: listCoordinateSpace)
-            .onPreferenceChange(RowFramePreferenceKey.self) { frames in
-                rowFrames = frames
-            }
+            .onPreferenceChange(RowFramePreferenceKey.self, perform: updateRowFrames)
             .simultaneousGesture(
                 DragGesture(minimumDistance: 24, coordinateSpace: .named(listCoordinateSpace))
-                    .onEnded { value in
-                        guard let onCollapseSidebar else { return }
-                        let start = value.startLocation
-                        guard !rowFrames.contains(where: { $0.contains(start) }) else { return }
-                        let horizontal = value.translation.width
-                        let vertical = value.translation.height
-                        guard abs(horizontal) > abs(vertical) else { return }
-                        guard horizontal < -70 else { return }
-                        guard abs(vertical) < 50 else { return }
-                        onCollapseSidebar()
-                    }
+                    .onEnded(handleListDragEnd)
             )
             #endif
             .overlay(alignment: .center) {
@@ -78,25 +66,13 @@ struct JobsView: View {
         #if os(iOS)
         .background(usesDarkListBackground ? AppTheme.lightBackground : Color.clear)
         #endif
-        .onAppear {
-            refreshResumeStatus()
-            viewModel.startAutoRefresh(using: appState)
-        }
-        .onChange(of: resumeUserId) { _, _ in
-            refreshResumeStatus()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: PlaybackResumeStore.didChangeNotification)) { notification in
-            guard let resumeUserId else { return }
-            let userId = notification.userInfo?["userId"] as? String
-            guard userId == resumeUserId else { return }
-            Task { @MainActor in
-                resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: resumeUserId)
-                iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
-            }
-        }
-        .onDisappear {
-            viewModel.stopAutoRefresh()
-        }
+        .onAppear(perform: handleJobsAppear)
+        .onChange(of: resumeUserId, initial: false, handleResumeUserChange)
+        .onReceive(
+            NotificationCenter.default.publisher(for: PlaybackResumeStore.didChangeNotification),
+            perform: handleResumeStoreChange
+        )
+        .onDisappear(perform: handleJobsDisappear)
     }
 
     @ViewBuilder
@@ -238,6 +214,46 @@ struct JobsView: View {
         onSelect?(job, mode)
     }
 
+    private func handleJobsAppear() {
+        refreshResumeStatus()
+        viewModel.startAutoRefresh(using: appState)
+    }
+
+    private func handleJobsDisappear() {
+        viewModel.stopAutoRefresh()
+    }
+
+    private func handleResumeUserChange() {
+        refreshResumeStatus()
+    }
+
+    private func handleResumeStoreChange(_ notification: Notification) {
+        guard let resumeUserId else { return }
+        let userId = notification.userInfo?["userId"] as? String
+        guard userId == resumeUserId else { return }
+        Task { @MainActor in
+            refreshResumeEvidence(for: resumeUserId)
+        }
+    }
+
+    #if os(iOS)
+    private func updateRowFrames(_ frames: [CGRect]) {
+        rowFrames = frames
+    }
+
+    private func handleListDragEnd(_ value: DragGesture.Value) {
+        guard let onCollapseSidebar else { return }
+        let start = value.startLocation
+        guard !rowFrames.contains(where: { $0.contains(start) }) else { return }
+        let horizontal = value.translation.width
+        let vertical = value.translation.height
+        guard abs(horizontal) > abs(vertical) else { return }
+        guard horizontal < -70 else { return }
+        guard abs(vertical) < 50 else { return }
+        onCollapseSidebar()
+    }
+    #endif
+
     private func deleteJob(_ job: PipelineStatusResponse) {
         Task { await handleDelete(job) }
     }
@@ -312,10 +328,14 @@ struct JobsView: View {
         Task {
             await PlaybackResumeStore.shared.syncNow(userId: resumeUserId, aliases: appState.resumeUserAliases)
             await MainActor.run {
-                resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: resumeUserId)
-                iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+                refreshResumeEvidence(for: resumeUserId)
             }
         }
+    }
+
+    private func refreshResumeEvidence(for userId: String) {
+        resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: userId)
+        iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     }
 
     private func refreshResumeStatus() {
@@ -330,16 +350,14 @@ struct JobsView: View {
             }
             return
         }
-        resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: resumeUserId)
-        iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+        refreshResumeEvidence(for: resumeUserId)
         Task {
             await PlaybackResumeStore.shared.refreshCloudEntries(
                 userId: resumeUserId,
                 aliases: appState.resumeUserAliases
             )
             await MainActor.run {
-                resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: resumeUserId)
-                iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+                refreshResumeEvidence(for: resumeUserId)
             }
         }
     }
