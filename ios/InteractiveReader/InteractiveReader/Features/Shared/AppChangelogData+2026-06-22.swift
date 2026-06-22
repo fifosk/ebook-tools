@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-epub-file-import",
+            title: "EPUB import added to Create",
+            detail: "On iPhone and iPad, Narrate EPUB can now pick a local EPUB, upload it to the backend, and submit the narration job using the returned server path."
+        ),
+        AppChangelogEntry(
             id: "apple-create-narrate-ebook-mode",
             title: "Narrate EPUB added to Create",
             detail: "On iPhone and iPad, Apple Create now includes a Narrate EPUB mode for server-side EPUB paths and submits pipeline jobs with the same backend defaults used by generated audiobooks."

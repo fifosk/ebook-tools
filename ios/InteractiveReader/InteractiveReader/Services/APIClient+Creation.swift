@@ -22,6 +22,12 @@ extension APIClient {
     }
 
     func uploadPipelineEbook(fileURL: URL, filename: String? = nil) async throws -> PipelineFileEntry {
+        let didAccessSecurityScope = fileURL.startAccessingSecurityScopedResource()
+        defer {
+            if didAccessSecurityScope {
+                fileURL.stopAccessingSecurityScopedResource()
+            }
+        }
         let upload = try MultipartUploadFile(
             fieldName: "file",
             fileURL: fileURL,

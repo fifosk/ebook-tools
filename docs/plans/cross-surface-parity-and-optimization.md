@@ -126,9 +126,8 @@ expanding contract checks whenever a new Web-only creation flow becomes native.
 
 Apple started with generated audiobook creation because it does not require
 attended document import and can safely reuse `/api/books/options`. iPhone/iPad
-now also expose a Narrate EPUB mode for server-side EPUB paths. Document
-import/upload remains the next native creation step because it maps best to the
-current Apple browse/playback model once file picking is ready.
+now also expose a Narrate EPUB mode for server-side EPUB paths and local EPUB
+document import/upload through the same backend file endpoint used by Web.
 
 Target Apple UX:
 
@@ -137,6 +136,9 @@ Target Apple UX:
 - Support simple existing-file submission first. Status: iPhone/iPad support
   server-side EPUB path submission through the Apple Create form.
 - Add EPUB file import/upload next using document picker on iPad/iPhone.
+  Status: implemented in Apple Create Narrate EPUB by picking a local `.epub`,
+  uploading it to `/api/pipelines/files/upload`, and submitting the returned
+  server path to `/api/pipelines`.
 - Route success to the new job in Jobs and start auto-refresh.
 
 Do not add creation to Apple TV in this milestone.

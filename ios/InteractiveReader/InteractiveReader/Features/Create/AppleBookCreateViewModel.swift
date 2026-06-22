@@ -60,7 +60,12 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
     }
 
-    func submitNarrateEbook(_ draft: AppleNarrateEbookDraft, using appState: AppState) async -> String? {
+    func submitNarrateEbook(
+        _ draft: AppleNarrateEbookDraft,
+        localFileURL: URL? = nil,
+        localFilename: String? = nil,
+        using appState: AppState
+    ) async -> String? {
         guard let configuration = appState.configuration else {
             errorMessage = "API configuration is unavailable."
             return nil
@@ -73,7 +78,14 @@ final class AppleBookCreateViewModel: ObservableObject {
 
         do {
             let client = APIClient(configuration: configuration)
-            let response = try await client.submitPipeline(Self.makePipelineSubmission(from: draft))
+            let effectiveDraft: AppleNarrateEbookDraft
+            if let localFileURL {
+                let upload = try await client.uploadPipelineEbook(fileURL: localFileURL, filename: localFilename)
+                effectiveDraft = draft.replacingInputFile(upload.path)
+            } else {
+                effectiveDraft = draft
+            }
+            let response = try await client.submitPipeline(Self.makePipelineSubmission(from: effectiveDraft))
             submittedJobId = response.jobId
             return response.jobId
         } catch {
@@ -227,6 +239,19 @@ struct AppleNarrateEbookDraft: Equatable {
     let includeTransliteration: Bool
     let enableLookupCache: Bool
     let pipelineDefaults: BookCreationPipelineDefaults?
+
+    func replacingInputFile(_ inputFile: String) -> AppleNarrateEbookDraft {
+        AppleNarrateEbookDraft(
+            inputFile: inputFile,
+            baseOutput: baseOutput,
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            voice: voice,
+            includeTransliteration: includeTransliteration,
+            enableLookupCache: enableLookupCache,
+            pipelineDefaults: pipelineDefaults
+        )
+    }
 }
 
 enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {

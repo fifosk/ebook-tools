@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS)
+import UniformTypeIdentifiers
+#endif
 
 struct AppleBookCreateView: View {
     @EnvironmentObject private var appState: AppState
@@ -16,6 +19,9 @@ struct AppleBookCreateView: View {
     @State private var author = "Me"
     @State private var sourcePath = ""
     @State private var sourceBaseOutput = ""
+    @State private var selectedNarrateFileURL: URL?
+    @State private var selectedNarrateFileName: String?
+    @State private var isImportingNarrateEbook = false
     @State private var sentenceCount = 30
     @State private var inputLanguage = AppleBookCreateLanguage.english
     @State private var targetLanguage = AppleBookCreateLanguage.arabic
@@ -57,6 +63,14 @@ struct AppleBookCreateView: View {
         .task(id: creationOptionsLoadKey) {
             await refreshCreationOptions()
         }
+        #if os(iOS)
+        .fileImporter(
+            isPresented: $isImportingNarrateEbook,
+            allowedContentTypes: [Self.epubContentType],
+            allowsMultipleSelection: false,
+            onCompletion: handleNarrateEbookImport
+        )
+        #endif
         .accessibilityIdentifier("appleBookCreateView")
     }
 
@@ -73,7 +87,10 @@ struct AppleBookCreateView: View {
             .accessibilityIdentifier("createJobTypePicker")
 
             if creationMode == .narrateEbook {
-                TextField("EPUB path", text: textBinding(for: .sourcePath, value: $sourcePath))
+                #if os(iOS)
+                narrateEbookImportControl
+                #endif
+                TextField("Server EPUB path", text: textBinding(for: .sourcePath, value: $sourcePath))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("createNarrateSourcePathField")
@@ -84,6 +101,27 @@ struct AppleBookCreateView: View {
             }
         }
     }
+
+    #if os(iOS)
+    private var narrateEbookImportControl: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                isImportingNarrateEbook = true
+            } label: {
+                Label(selectedNarrateFileName ?? "Choose EPUB", systemImage: "doc.badge.plus")
+            }
+            .accessibilityIdentifier("createNarrateFileImportButton")
+
+            if let selectedNarrateFileName {
+                Label(selectedNarrateFileName, systemImage: "checkmark.circle")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .accessibilityIdentifier("createNarrateSelectedFileLabel")
+            }
+        }
+    }
+    #endif
 
     private var promptSection: some View {
         Section("Book") {
@@ -251,7 +289,7 @@ struct AppleBookCreateView: View {
                 && !trimmed(bookName).isEmpty
                 && !trimmed(genre).isEmpty
         case .narrateEbook:
-            return !trimmed(sourcePath).isEmpty
+            return (selectedNarrateFileURL != nil || !trimmed(sourcePath).isEmpty)
                 && !trimmed(sourceBaseOutput).isEmpty
         }
     }
@@ -319,7 +357,12 @@ struct AppleBookCreateView: View {
         )
 
         Task {
-            if let jobId = await viewModel.submitNarrateEbook(draft, using: appState) {
+            if let jobId = await viewModel.submitNarrateEbook(
+                draft,
+                localFileURL: selectedNarrateFileURL,
+                localFilename: selectedNarrateFileName,
+                using: appState
+            ) {
                 onJobSubmitted(jobId)
             }
         }
@@ -328,6 +371,29 @@ struct AppleBookCreateView: View {
     private func trimmed(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    #if os(iOS)
+    private func handleNarrateEbookImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case let .success(urls):
+            guard let url = urls.first else { return }
+            selectedNarrateFileURL = url
+            selectedNarrateFileName = url.lastPathComponent
+            markEdited(.sourcePath)
+            if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
+                sourceBaseOutput = Self.deriveBaseOutputName(url.deletingPathExtension().lastPathComponent)
+            }
+        case let .failure(error):
+            selectedNarrateFileURL = nil
+            selectedNarrateFileName = nil
+            viewModel.errorMessage = error.localizedDescription
+        }
+    }
+
+    private static var epubContentType: UTType {
+        UTType(filenameExtension: "epub") ?? UTType(importedAs: "org.idpf.epub-container")
+    }
+    #endif
 
     private var creationOptionsLoadKey: String {
         guard let configuration = appState.configuration else { return "missing" }
