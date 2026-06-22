@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.84
+
+- Advanced visible Apple app versioning to `v2026.06.22.84`.
+- Moved backwards-compatible MyLinguist/Video linguist bubble state and wrapper adapters into their own SwiftUI compatibility file, leaving the core bubble view focused on layout and interaction.
+
 ### 2026.06.22.83
 
 - Advanced visible Apple app versioning to `v2026.06.22.83`.

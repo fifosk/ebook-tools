@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.83",
+            version: "2026.06.22.84",
             entries: [
+                AppChangelogEntry(
+                    id: "linguist-bubble-compatibility-file",
+                    title: "Linguist bubble adapters separated",
+                    detail: "Backwards-compatible MyLinguist and video bubble state plus wrapper adapters now live outside the core bubble view."
+                ),
                 AppChangelogEntry(
                     id: "tvos-changelog-move-command-scroll",
                     title: "TV changelog remote scroll hardened",
