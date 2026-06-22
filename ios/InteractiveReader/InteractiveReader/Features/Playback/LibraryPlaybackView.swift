@@ -48,43 +48,48 @@ struct LibraryPlaybackView: View {
         #endif
         .task(id: item.jobId) {
             @MainActor in
-            await loadEntry()
+            await handleLibraryLoadTask()
         }
-        .onChange(of: playbackMode) { _, newMode in
-            // Re-apply the start-over action when user taps "Start from Beginning"
-            // on an item that's already open (iPad split layout keeps the view mounted,
-            // so `.task(id: item.jobId)` doesn't re-run).
-            guard newMode == .startOver else { return }
-            resumeManager?.clearResumeEntry()
-            startPlaybackFromBeginning()
+        .onChange(of: playbackMode) { _, newMode in handlePlaybackModeChange(newMode) }
+        .onReceive(viewModel.audioCoordinator.$currentTime) { newValue in handleAudioTimeChange(newValue) }
+        .onReceive(viewModel.audioCoordinator.$isPlaying) { _ in handleAudioStateChange() }
+        .onReceive(viewModel.audioCoordinator.$duration) { _ in handleAudioStateChange() }
+        .onReceive(viewModel.audioCoordinator.$isReady) { _ in handleAudioStateChange() }
+        .onDisappear(perform: handleLibraryDisappear)
+        .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
+    }
+
+    @MainActor
+    private func handleLibraryLoadTask() async {
+        await loadEntry()
+    }
+
+    private func handlePlaybackModeChange(_ newMode: PlaybackStartMode) {
+        // Re-apply start-over when iPad split layout keeps this view mounted.
+        guard newMode == .startOver else { return }
+        resumeManager?.clearResumeEntry()
+        startPlaybackFromBeginning()
+    }
+
+    private func handleAudioTimeChange(_ newValue: Double) {
+        updateNowPlayingPlayback(time: newValue)
+    }
+
+    private func handleAudioStateChange() {
+        updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
+    }
+
+    private func handleLibraryDisappear() {
+        persistResumeOnExit()
+        // Do not reset audio here; iPad split-view can emit incidental disappear events.
+        if scenePhase == .active {
+            nowPlaying.clear()
         }
-        .onReceive(viewModel.audioCoordinator.$currentTime) { newValue in
-            updateNowPlayingPlayback(time: newValue)
-        }
-        .onReceive(viewModel.audioCoordinator.$isPlaying) { _ in
-            updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
-        }
-        .onReceive(viewModel.audioCoordinator.$duration) { _ in
-            updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
-        }
-        .onReceive(viewModel.audioCoordinator.$isReady) { _ in
-            updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
-        }
-        .onDisappear {
-            persistResumeOnExit()
-            // NOTE: Do NOT call audioCoordinator.reset() here. SwiftUI fires
-            // .onDisappear spuriously during iPad split-view layout changes,
-            // navigation transitions, and other non-teardown events — which
-            // would pause active playback mid-sentence. The AudioPlayerCoordinator's
-            // deinit handles teardown when the view model is truly deallocated.
-            if scenePhase == .active {
-                nowPlaying.clear()
-            }
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            guard newPhase != .active else { return }
-            persistResumeOnExit()
-        }
+    }
+
+    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
+        guard newPhase != .active else { return }
+        persistResumeOnExit()
     }
 
     // Computed properties for resume manager values

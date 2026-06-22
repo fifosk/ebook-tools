@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.10",
+            version: "2026.06.22.11",
             entries: [
+                AppChangelogEntry(
+                    id: "playback-host-lifecycle-handlers",
+                    title: "Playback hosts cleaned up",
+                    detail: "Job and library playback hosts now route load, start-over, now-playing, scene-phase, and teardown reactions through named SwiftUI lifecycle handlers."
+                ),
                 AppChangelogEntry(
                     id: "video-player-lifecycle-handlers",
                     title: "Video player lifecycle cleaned up",

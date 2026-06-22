@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.11
+
+- Advanced visible Apple app versioning to `v2026.06.22.11`.
+- Moved job and library playback host lifecycle work into named SwiftUI handlers so load, start-over, now-playing, scene-phase, and teardown reactions are easier to audit on iPad and tvOS.
+
 ### 2026.06.22.10
 
 - Advanced visible Apple app versioning to `v2026.06.22.10`.

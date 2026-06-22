@@ -62,72 +62,79 @@ struct JobPlaybackView: View {
             #endif
             .task(id: job.jobId) {
                 @MainActor in
-                await loadEntry()
+                await handleJobLoadTask()
             }
-            .onChange(of: playbackMode) { _, newMode in
-                // Re-apply the start-over action when user taps "Start from Beginning"
-                // on a job that's already open (iPad split layout keeps the view mounted,
-                // so `.task(id: job.jobId)` doesn't re-run).
-                guard newMode == .startOver else { return }
-                clearResumeEntry()
-                startPlaybackFromBeginning()
-            }
-            .onReceive(viewModel.audioCoordinator.$currentTime) { newValue in
-                updateNowPlayingPlayback(time: newValue)
-            }
-            .onReceive(viewModel.audioCoordinator.$isPlaying) { _ in
-                updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
-            }
-            .onReceive(viewModel.audioCoordinator.$duration) { _ in
-                updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
-            }
-            .onReceive(viewModel.audioCoordinator.$isReady) { _ in
-                updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
-            }
-            .onChange(of: musicOwnership.ownershipState) { _, state in
-                switch state {
-                case .narration:
-                    // Narration owns the lock screen — reassert sentence controls
-                    nowPlaying.setRemoteCommandsEnabled(true)
-                    configureNowPlaying()
-                    updateNowPlayingMetadata(sentenceIndex: sentenceIndex)
-                    nowPlaying.updatePlaybackState(
-                        isPlaying: viewModel.audioCoordinator.isPlaying,
-                        position: viewModel.audioCoordinator.currentTime,
-                        duration: viewModel.audioCoordinator.duration,
-                        force: true
-                    )
-                case .appleMusic:
-                    // Apple Music owns the lock screen — respect iOS behavior
-                    nowPlaying.setRemoteCommandsEnabled(false)
-                    nowPlaying.clear()
-                case .transitioning:
-                    break // Wait for final state
-                }
-            }
-            .onChange(of: videoSegments.map(\.id)) { _, _ in
-                refreshActiveVideoSegment()
-                preloadSegmentDurations()
-            }
-            .onDisappear {
-                persistResumeOnExit()
-                segmentDurationTask?.cancel()
-                segmentDurationTask = nil
-                stopJobRefresh()
-                viewModel.stopLiveUpdates()
-                // NOTE: Do NOT call audioCoordinator.reset() here. SwiftUI fires
-                // .onDisappear spuriously during iPad split-view layout changes,
-                // navigation transitions, and other non-teardown events — which
-                // would pause active playback mid-sentence. The AudioPlayerCoordinator's
-                // deinit handles teardown when the view model is truly deallocated.
-                if scenePhase == .active {
-                    nowPlaying.clear()
-                }
-            }
-            .onChange(of: scenePhase) { _, newPhase in
-                guard newPhase != .active else { return }
-                persistResumeOnExit()
-            }
+            .onChange(of: playbackMode) { _, newMode in handlePlaybackModeChange(newMode) }
+            .onReceive(viewModel.audioCoordinator.$currentTime) { newValue in handleAudioTimeChange(newValue) }
+            .onReceive(viewModel.audioCoordinator.$isPlaying) { _ in handleAudioStateChange() }
+            .onReceive(viewModel.audioCoordinator.$duration) { _ in handleAudioStateChange() }
+            .onReceive(viewModel.audioCoordinator.$isReady) { _ in handleAudioStateChange() }
+            .onChange(of: musicOwnership.ownershipState) { _, state in handleAudioOwnershipChange(state) }
+            .onChange(of: videoSegments.map(\.id)) { _, _ in handleVideoSegmentsChange() }
+            .onDisappear(perform: handleJobDisappear)
+            .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
+    }
+
+    @MainActor
+    private func handleJobLoadTask() async {
+        await loadEntry()
+    }
+
+    private func handlePlaybackModeChange(_ newMode: PlaybackStartMode) {
+        // Re-apply start-over when iPad split layout keeps this view mounted.
+        guard newMode == .startOver else { return }
+        clearResumeEntry()
+        startPlaybackFromBeginning()
+    }
+
+    private func handleAudioTimeChange(_ newValue: Double) {
+        updateNowPlayingPlayback(time: newValue)
+    }
+
+    private func handleAudioStateChange() {
+        updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
+    }
+
+    private func handleAudioOwnershipChange(_ state: AudioOwnership) {
+        switch state {
+        case .narration:
+            nowPlaying.setRemoteCommandsEnabled(true)
+            configureNowPlaying()
+            updateNowPlayingMetadata(sentenceIndex: sentenceIndex)
+            nowPlaying.updatePlaybackState(
+                isPlaying: viewModel.audioCoordinator.isPlaying,
+                position: viewModel.audioCoordinator.currentTime,
+                duration: viewModel.audioCoordinator.duration,
+                force: true
+            )
+        case .appleMusic:
+            nowPlaying.setRemoteCommandsEnabled(false)
+            nowPlaying.clear()
+        case .transitioning:
+            break
+        }
+    }
+
+    private func handleVideoSegmentsChange() {
+        refreshActiveVideoSegment()
+        preloadSegmentDurations()
+    }
+
+    private func handleJobDisappear() {
+        persistResumeOnExit()
+        segmentDurationTask?.cancel()
+        segmentDurationTask = nil
+        stopJobRefresh()
+        viewModel.stopLiveUpdates()
+        // Do not reset audio here; iPad split-view can emit incidental disappear events.
+        if scenePhase == .active {
+            nowPlaying.clear()
+        }
+    }
+
+    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
+        guard newPhase != .active else { return }
+        persistResumeOnExit()
     }
 
     var navigationTitleText: String {
