@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.85",
+            version: "2026.06.22.86",
             entries: [
+                AppChangelogEntry(
+                    id: "media-search-results-views-file",
+                    title: "Media search results separated",
+                    detail: "Search result highlighting, result lists, and result rows now live outside the media search orchestration file."
+                ),
                 AppChangelogEntry(
                     id: "interactive-shortcut-help-overlay-file",
                     title: "Shortcut help overlay separated",
