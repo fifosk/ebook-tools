@@ -276,7 +276,8 @@ final class AppleBookCreateViewModel: ObservableObject {
             originalLanguage: draft.inputLanguage,
             llmModel: draft.llmModel,
             translationProvider: draft.translationProvider,
-            transliterationMode: "default",
+            transliterationMode: draft.transliterationMode ?? "default",
+            transliterationModel: draft.transliterationModel,
             enableTransliteration: draft.enableTransliteration,
             highlight: draft.highlight,
             showOriginal: draft.showOriginal,
@@ -346,6 +347,8 @@ struct AppleSubtitleJobDraft: Equatable {
     let generateAudioBook: Bool
     let translationProvider: String
     let llmModel: String?
+    let transliterationMode: String?
+    let transliterationModel: String?
     let assFontSize: Int?
     let assEmphasisScale: Double?
 }

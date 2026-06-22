@@ -29,6 +29,8 @@ struct AppleBookCreateView: View {
     @State private var subtitleGenerateAudioBook = true
     @State private var subtitleTranslationProvider = AppleSubtitleTranslationProvider.llm
     @State private var subtitleLlmModel = ""
+    @State private var subtitleTransliterationMode = AppleSubtitleTransliterationMode.default
+    @State private var subtitleTransliterationModel = ""
     @State private var subtitleAssFontSize = AppleSubtitleAssTypography.defaultFontSize
     @State private var subtitleAssEmphasisScale = AppleSubtitleAssTypography.defaultEmphasisScale
     @State private var selectedNarrateFileURL: URL?
@@ -289,6 +291,25 @@ struct AppleBookCreateView: View {
 
                 Toggle("Transliteration", isOn: boolBinding(for: .subtitleEnableTransliteration, value: $subtitleEnableTransliteration))
                     .accessibilityIdentifier("createSubtitleTransliterationToggle")
+                if subtitleEnableTransliteration {
+                    Picker("Transliteration Mode", selection: subtitleTransliterationModeBinding) {
+                        ForEach(AppleSubtitleTransliterationMode.allCases) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
+                    .accessibilityIdentifier("createSubtitleTransliterationModePicker")
+
+                    Picker(
+                        "Transliteration Model",
+                        selection: textBinding(for: .subtitleTransliterationModel, value: $subtitleTransliterationModel)
+                    ) {
+                        ForEach(availableSubtitleTransliterationModels, id: \.self) { option in
+                            Text(subtitleTransliterationModelLabel(option)).tag(option)
+                        }
+                    }
+                    .disabled(!subtitleTransliterationMode.allowsModelOverride)
+                    .accessibilityIdentifier("createSubtitleTransliterationModelPicker")
+                }
                 Toggle("Highlight", isOn: boolBinding(for: .subtitleHighlight, value: $subtitleHighlight))
                     .accessibilityIdentifier("createSubtitleHighlightToggle")
                 Toggle("Show Original", isOn: boolBinding(for: .subtitleShowOriginal, value: $subtitleShowOriginal))
@@ -491,6 +512,10 @@ struct AppleBookCreateView: View {
             generateAudioBook: subtitleGenerateAudioBook,
             translationProvider: subtitleTranslationProvider.backendValue,
             llmModel: subtitleTranslationProvider == .llm ? trimmed(subtitleLlmModel).nonEmptyValue : nil,
+            transliterationMode: subtitleEnableTransliteration ? subtitleTransliterationMode.backendValue : nil,
+            transliterationModel: subtitleEnableTransliteration && subtitleTransliterationMode.allowsModelOverride
+                ? trimmed(subtitleTransliterationModel).nonEmptyValue
+                : nil,
             assFontSize: subtitleOutputFormat == .ass ? clampedAssFontSize : nil,
             assEmphasisScale: subtitleOutputFormat == .ass ? clampedAssEmphasisScale : nil
         )
@@ -637,6 +662,23 @@ struct AppleBookCreateView: View {
         return options
     }
 
+    private var availableSubtitleTransliterationModels: [String] {
+        let selected = trimmed(subtitleTransliterationModel)
+        let translationModel = trimmed(subtitleLlmModel)
+        var seen = Set<String>()
+        var options = [""]
+        seen.insert("")
+
+        for model in [selected, translationModel] + viewModel.subtitleLlmModels {
+            let trimmedModel = trimmed(model)
+            guard !trimmedModel.isEmpty else { continue }
+            if seen.insert(trimmedModel.lowercased()).inserted {
+                options.append(trimmedModel)
+            }
+        }
+        return options
+    }
+
     private var formattedAssEmphasisScale: String {
         clampedAssEmphasisScale.formatted(.number.precision(.fractionLength(2)))
     }
@@ -691,6 +733,19 @@ struct AppleBookCreateView: View {
             set: { newValue in
                 markEdited(.subtitleTranslationProvider)
                 subtitleTranslationProvider = newValue
+            }
+        )
+    }
+
+    private var subtitleTransliterationModeBinding: Binding<AppleSubtitleTransliterationMode> {
+        Binding(
+            get: { subtitleTransliterationMode },
+            set: { newValue in
+                markEdited(.subtitleTransliterationMode)
+                subtitleTransliterationMode = newValue
+                if !newValue.allowsModelOverride {
+                    subtitleTransliterationModel = ""
+                }
             }
         )
     }
@@ -817,6 +872,11 @@ struct AppleBookCreateView: View {
         return trimmedModel.isEmpty ? "Backend default" : trimmedModel
     }
 
+    private func subtitleTransliterationModelLabel(_ model: String) -> String {
+        let trimmedModel = trimmed(model)
+        return trimmedModel.isEmpty ? "Use translation model" : trimmedModel
+    }
+
     private func clampSentenceCount(_ value: Int) -> Int {
         max(sentenceBounds.min, min(sentenceBounds.max, value))
     }
@@ -851,6 +911,8 @@ private enum AppleBookCreateEditedField: Hashable {
     case subtitleGenerateAudioBook
     case subtitleTranslationProvider
     case subtitleLlmModel
+    case subtitleTransliterationMode
+    case subtitleTransliterationModel
     case subtitleAssFontSize
     case subtitleAssEmphasisScale
     case sentenceCount
@@ -930,6 +992,35 @@ private enum AppleSubtitleTranslationProvider: String, CaseIterable, Identifiabl
         default:
             return nil
         }
+    }
+}
+
+private enum AppleSubtitleTransliterationMode: String, CaseIterable, Identifiable {
+    case `default`
+    case python
+
+    var id: String { rawValue }
+
+    var backendValue: String {
+        switch self {
+        case .default:
+            return "default"
+        case .python:
+            return "python"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .default:
+            return "Use selected LLM model"
+        case .python:
+            return "Python transliteration module"
+        }
+    }
+
+    var allowsModelOverride: Bool {
+        self != .python
     }
 }
 

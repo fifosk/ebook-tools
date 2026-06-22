@@ -205,6 +205,7 @@ struct AppleCreationPayloadCheck {
             llmModel: "gpt-4.1-mini",
             translationProvider: "llm",
             transliterationMode: "default",
+            transliterationModel: "gpt-4.1",
             enableTransliteration: true,
             highlight: true,
             showOriginal: true,
@@ -237,6 +238,14 @@ struct AppleCreationPayloadCheck {
         require(
             appleSubtitle.multipartFields["translation_provider"] == "llm",
             "Apple subtitle form should include selected translation provider"
+        )
+        require(
+            appleSubtitle.multipartFields["transliteration_mode"] == "default",
+            "Apple subtitle form should include selected transliteration mode"
+        )
+        require(
+            appleSubtitle.multipartFields["transliteration_model"] == "gpt-4.1",
+            "Apple subtitle form should include selected transliteration model"
         )
         require(
             appleSubtitle.multipartFields["ass_font_size"] == "56",
