@@ -27,6 +27,8 @@ struct AppleBookCreateView: View {
     @State private var subtitleHighlight = true
     @State private var subtitleShowOriginal = true
     @State private var subtitleGenerateAudioBook = true
+    @State private var subtitleTranslationProvider = AppleSubtitleTranslationProvider.llm
+    @State private var subtitleLlmModel = ""
     @State private var selectedNarrateFileURL: URL?
     @State private var selectedNarrateFileName: String?
     @State private var isImportingNarrateEbook = false
@@ -73,6 +75,7 @@ struct AppleBookCreateView: View {
         #endif
         .task(id: creationOptionsLoadKey) {
             await refreshCreationOptions()
+            await viewModel.loadSubtitleModels(using: appState, cacheKey: creationOptionsLoadKey)
         }
         #if os(iOS)
         .fileImporter(
@@ -276,6 +279,22 @@ struct AppleBookCreateView: View {
                     .accessibilityIdentifier("createSubtitleShowOriginalToggle")
                 Toggle("Generate Audiobook", isOn: boolBinding(for: .subtitleGenerateAudioBook, value: $subtitleGenerateAudioBook))
                     .accessibilityIdentifier("createSubtitleGenerateAudioToggle")
+
+                Picker("Provider", selection: subtitleTranslationProviderBinding) {
+                    ForEach(AppleSubtitleTranslationProvider.allCases) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+                .accessibilityIdentifier("createSubtitleTranslationProviderPicker")
+
+                if subtitleTranslationProvider == .llm {
+                    Picker("Model", selection: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel)) {
+                        ForEach(availableSubtitleLlmModels, id: \.self) { option in
+                            Text(subtitleModelLabel(option)).tag(option)
+                        }
+                    }
+                    .accessibilityIdentifier("createSubtitleLlmModelPicker")
+                }
             } else {
                 LabeledContent("Path", value: derivedBaseOutput)
                     .accessibilityIdentifier("createBookBaseOutputLabel")
@@ -453,7 +472,9 @@ struct AppleBookCreateView: View {
             enableTransliteration: subtitleEnableTransliteration,
             highlight: subtitleHighlight,
             showOriginal: subtitleShowOriginal,
-            generateAudioBook: subtitleGenerateAudioBook
+            generateAudioBook: subtitleGenerateAudioBook,
+            translationProvider: subtitleTranslationProvider.backendValue,
+            llmModel: subtitleTranslationProvider == .llm ? trimmed(subtitleLlmModel).nonEmptyValue : nil
         )
 
         Task {
@@ -574,6 +595,30 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private var availableSubtitleLlmModels: [String] {
+        let selected = trimmed(subtitleLlmModel)
+        var seen = Set<String>()
+        var options: [String] = []
+
+        if !selected.isEmpty {
+            seen.insert(selected.lowercased())
+            options.append(selected)
+        }
+
+        for model in viewModel.subtitleLlmModels {
+            let trimmedModel = trimmed(model)
+            guard !trimmedModel.isEmpty else { continue }
+            if seen.insert(trimmedModel.lowercased()).inserted {
+                options.append(trimmedModel)
+            }
+        }
+
+        if options.isEmpty {
+            options.append("")
+        }
+        return options
+    }
+
     private var sentenceCountBinding: Binding<Int> {
         Binding(
             get: { sentenceCount },
@@ -600,6 +645,16 @@ struct AppleBookCreateView: View {
             set: { newValue in
                 markEdited(.subtitleOutputFormat)
                 subtitleOutputFormat = newValue
+            }
+        )
+    }
+
+    private var subtitleTranslationProviderBinding: Binding<AppleSubtitleTranslationProvider> {
+        Binding(
+            get: { subtitleTranslationProvider },
+            set: { newValue in
+                markEdited(.subtitleTranslationProvider)
+                subtitleTranslationProvider = newValue
             }
         )
     }
@@ -688,6 +743,15 @@ struct AppleBookCreateView: View {
         if !editedFields.contains(.enableLookupCache) {
             enableLookupCache = options.pipelineDefaults.enableLookupCache
         }
+        if !editedFields.contains(.subtitleTranslationProvider),
+           let provider = AppleSubtitleTranslationProvider(backendValue: options.pipelineDefaults.translationProvider) {
+            subtitleTranslationProvider = provider
+        }
+    }
+
+    private func subtitleModelLabel(_ model: String) -> String {
+        let trimmedModel = trimmed(model)
+        return trimmedModel.isEmpty ? "Backend default" : trimmedModel
     }
 
     private func clampSentenceCount(_ value: Int) -> Int {
@@ -722,6 +786,8 @@ private enum AppleBookCreateEditedField: Hashable {
     case subtitleHighlight
     case subtitleShowOriginal
     case subtitleGenerateAudioBook
+    case subtitleTranslationProvider
+    case subtitleLlmModel
     case sentenceCount
     case inputLanguage
     case targetLanguage
@@ -761,6 +827,43 @@ private enum AppleSubtitleOutputFormat: String, CaseIterable, Identifiable {
             return "ASS"
         case .srt:
             return "SRT"
+        }
+    }
+}
+
+private enum AppleSubtitleTranslationProvider: String, CaseIterable, Identifiable {
+    case llm
+    case googleTranslate
+
+    var id: String { rawValue }
+
+    var backendValue: String {
+        switch self {
+        case .llm:
+            return "llm"
+        case .googleTranslate:
+            return "googletrans"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .llm:
+            return "LLM"
+        case .googleTranslate:
+            return "Google Translate"
+        }
+    }
+
+    init?(backendValue: String) {
+        let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch normalized {
+        case "llm":
+            self = .llm
+        case "googletrans", "google", "google_translate", "google-translate":
+            self = .googleTranslate
+        default:
+            return nil
         }
     }
 }

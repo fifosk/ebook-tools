@@ -202,6 +202,7 @@ struct AppleCreationPayloadCheck {
             targetLanguage: "Arabic",
             sourcePath: "Subtitles/demo.srt",
             originalLanguage: "English",
+            llmModel: "gpt-4.1-mini",
             translationProvider: "llm",
             transliterationMode: "default",
             enableTransliteration: true,
@@ -228,6 +229,14 @@ struct AppleCreationPayloadCheck {
             "Apple subtitle form should keep ASS default"
         )
         require(
+            appleSubtitle.multipartFields["llm_model"] == "gpt-4.1-mini",
+            "Apple subtitle form should include selected LLM model"
+        )
+        require(
+            appleSubtitle.multipartFields["translation_provider"] == "llm",
+            "Apple subtitle form should include selected translation provider"
+        )
+        require(
             appleSubtitle.multipartFields["end_time"] == "+02:00",
             "Apple subtitle form should include relative end time"
         )
@@ -241,7 +250,7 @@ struct AppleCreationPayloadCheck {
             targetLanguage: "Arabic",
             sourcePath: nil,
             originalLanguage: "English",
-            translationProvider: "llm",
+            translationProvider: "googletrans",
             transliterationMode: "default",
             enableTransliteration: true,
             startTime: "00:00",
@@ -253,7 +262,7 @@ struct AppleCreationPayloadCheck {
             "Apple subtitle upload form should omit source_path when using a local file"
         )
         require(
-            appleSubtitleUpload.multipartFields["translation_provider"] == "llm",
+            appleSubtitleUpload.multipartFields["translation_provider"] == "googletrans",
             "Apple subtitle upload form should keep translation provider"
         )
         require(

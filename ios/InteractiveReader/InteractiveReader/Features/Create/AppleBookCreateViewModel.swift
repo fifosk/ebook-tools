@@ -5,10 +5,12 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isSubmitting = false
     @Published private(set) var isLoadingOptions = false
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
+    @Published private(set) var subtitleLlmModels: [String] = []
     @Published private(set) var optionsErrorMessage: String?
     @Published var errorMessage: String?
     @Published private(set) var submittedJobId: String?
     private var loadedOptionsCacheKey: String?
+    private var loadedSubtitleModelsCacheKey: String?
 
     func loadCreationOptions(
         using appState: AppState,
@@ -35,6 +37,28 @@ final class AppleBookCreateViewModel: ObservableObject {
         } catch {
             optionsErrorMessage = error.localizedDescription
             return nil
+        }
+    }
+
+    func loadSubtitleModels(
+        using appState: AppState,
+        cacheKey: String,
+        force: Bool = false
+    ) async {
+        guard let configuration = appState.configuration else {
+            return
+        }
+        if !force, loadedSubtitleModelsCacheKey == cacheKey {
+            return
+        }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.fetchSubtitleLlmModels()
+            subtitleLlmModels = response.models
+            loadedSubtitleModelsCacheKey = cacheKey
+        } catch {
+            return
         }
     }
 
@@ -250,7 +274,8 @@ final class AppleBookCreateViewModel: ObservableObject {
             targetLanguage: draft.targetLanguage,
             sourcePath: draft.sourcePath,
             originalLanguage: draft.inputLanguage,
-            translationProvider: "llm",
+            llmModel: draft.llmModel,
+            translationProvider: draft.translationProvider,
             transliterationMode: "default",
             enableTransliteration: draft.enableTransliteration,
             highlight: draft.highlight,
@@ -317,6 +342,8 @@ struct AppleSubtitleJobDraft: Equatable {
     let highlight: Bool
     let showOriginal: Bool
     let generateAudioBook: Bool
+    let translationProvider: String
+    let llmModel: String?
 }
 
 enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {

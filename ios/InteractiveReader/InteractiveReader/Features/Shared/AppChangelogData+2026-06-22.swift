@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-subtitle-provider-model",
+            title: "Subtitle provider and model controls",
+            detail: "On iPhone and iPad, Apple Create Subtitles now exposes translation provider and LLM model controls and sends the selected backend values with subtitle jobs."
+        ),
+        AppChangelogEntry(
             id: "apple-create-subtitle-timecode-validation",
             title: "Subtitle times validate before submit",
             detail: "On iPhone and iPad, Apple Create Subtitles now normalizes start and end timecodes before submit and flags invalid MM:SS, HH:MM:SS, or +offset values immediately."
