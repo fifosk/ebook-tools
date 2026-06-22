@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.122",
+            version: "2026.06.22.123",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-shortcut-dispatch-file",
+                    title: "iPad shortcut dispatch separated",
+                    detail: "Shortcut identity, duplicate suppression, and UIKit fallback scheduling now live in a focused dispatch extension while keyboard support stays centered on responder ownership and key-command wiring."
+                ),
                 AppChangelogEntry(
                     id: "interactive-shortcut-hardware-fallback-file",
                     title: "iPad keyboard fallback separated",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.123
+
+- Advanced visible Apple app versioning to `v2026.06.22.123`.
+- Moved shortcut dispatch identity, throttling, and UIKit fallback scheduling into `InteractivePlayerShortcutDispatch.swift`, keeping iPad keyboard support focused on responder ownership and key-command wiring.
+
 ### 2026.06.22.122
 
 - Advanced visible Apple app versioning to `v2026.06.22.122`.
