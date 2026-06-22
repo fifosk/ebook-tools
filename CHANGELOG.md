@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.29
+
+- Advanced visible Apple app versioning to `v2026.06.22.29`.
+- Moved video overlay subtitle settings, phone bubble backdrop, playback-change, token-frame, and subtitle drag work into named SwiftUI handlers.
+
 ### 2026.06.22.28
 
 - Advanced visible Apple app versioning to `v2026.06.22.28`.

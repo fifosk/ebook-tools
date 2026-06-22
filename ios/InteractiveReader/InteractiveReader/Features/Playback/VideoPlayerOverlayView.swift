@@ -197,7 +197,7 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
             searchPill: searchPill,
             showBookmarkRibbonPill: true,
             onToggleHeaderCollapsed: onToggleHeaderCollapsed,
-            onShowSubtitleSettings: { showSubtitleSettings = true },
+            onShowSubtitleSettings: handleShowSubtitleSettings,
             onPlaybackRateChange: onPlaybackRateChange,
             onAddBookmark: onAddBookmark,
             onJumpToBookmark: onJumpToBookmark,
@@ -261,13 +261,9 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
             .offset(subtitleDragOffset)
             .simultaneousGesture(subtitleDragGesture, including: .gesture)
             .simultaneousGesture(subtitleSelectionDragGesture, including: .gesture)
-            .onChange(of: isPlaying) { _, playing in
-                if playing { resetSubtitleSelectionDrag() }
-            }
-            .onDisappear { resetSubtitleSelectionDrag() }
-            .onChange(of: subtitleTokenFrames) { _, newFrames in
-                onSubtitleInteractionFrameChange(resolveSubtitleInteractionFrame(from: newFrames))
-            }
+            .onChange(of: isPlaying) { _, playing in handleSubtitlePlaybackChange(playing) }
+            .onDisappear(perform: resetSubtitleSelectionDrag)
+            .onChange(of: subtitleTokenFrames) { _, newFrames in handleSubtitleTokenFramesChange(newFrames) }
         #elseif os(tvOS)
         alignedStack
             .contentShape(Rectangle())
@@ -345,10 +341,7 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
             ZStack {
                 Color.clear
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        onCloseSubtitleBubble()
-                        if !isPlaying { onPlayPause() }
-                    }
+                    .onTapGesture(perform: handleSubtitleBubbleBackdropTap)
                 GeometryReader { proxy in
                     subtitleBubbleContent(subtitleBubble)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -369,7 +362,7 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
     private var subtitleSettingsOverlay: some View {
         Color.black.opacity(0.55)
             .ignoresSafeArea()
-            .onTapGesture { showSubtitleSettings = false }
+            .onTapGesture(perform: handleCloseSubtitleSettings)
         #if os(tvOS)
         VStack {
             Spacer()
@@ -380,7 +373,7 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
                 segmentOptions: segmentOptions,
                 selectedSegmentID: selectedSegmentID,
                 onSelectSegment: onSelectSegment,
-                onClose: { showSubtitleSettings = false }
+                onClose: handleCloseSubtitleSettings
             )
             .frame(maxWidth: 680)
             .padding(.bottom, 36)
@@ -395,7 +388,7 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
             segmentOptions: segmentOptions,
             selectedSegmentID: selectedSegmentID,
             onSelectSegment: onSelectSegment,
-            onClose: { showSubtitleSettings = false }
+            onClose: handleCloseSubtitleSettings
         )
         .padding(.horizontal, 24)
         .transition(.opacity)
@@ -431,6 +424,33 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
     private var shouldOverlayBubbleOnPhone: Bool {
         VideoPlayerPlatform.isPhone
     }
+
+    private func handleShowSubtitleSettings() {
+        showSubtitleSettings = true
+    }
+
+    private func handleCloseSubtitleSettings() {
+        showSubtitleSettings = false
+    }
+
+    #if os(iOS)
+    private func handleSubtitlePlaybackChange(_ playing: Bool) {
+        if playing {
+            resetSubtitleSelectionDrag()
+        }
+    }
+
+    private func handleSubtitleTokenFramesChange(_ frames: [VideoSubtitleTokenFrame]) {
+        onSubtitleInteractionFrameChange(resolveSubtitleInteractionFrame(from: frames))
+    }
+
+    private func handleSubtitleBubbleBackdropTap() {
+        onCloseSubtitleBubble()
+        if !isPlaying {
+            onPlayPause()
+        }
+    }
+    #endif
 }
 
 // MARK: - iOS Gestures
@@ -451,40 +471,48 @@ extension VideoPlayerOverlayView {
 
     private var subtitleDragGesture: some Gesture {
         DragGesture(minimumDistance: 10, coordinateSpace: .local)
-            .onChanged { value in
-                guard abs(value.translation.height) >= abs(value.translation.width) else { return }
-                subtitleDragTranslation = value.translation.height
-            }
-            .onEnded { value in
-                guard abs(value.translation.height) >= abs(value.translation.width) else {
-                    subtitleDragTranslation = 0
-                    return
-                }
-                let proposedHeight = subtitleVerticalOffset + value.translation.height
-                let maxHeight = allowSubtitleDownwardDrag ? subtitleBottomPadding : 0
-                subtitleVerticalOffset = min(proposedHeight, maxHeight)
-                subtitleDragTranslation = 0
-            }
+            .onChanged(handleSubtitleDragChange)
+            .onEnded(handleSubtitleDragEnd)
     }
 
     private var subtitleSelectionDragGesture: some Gesture {
         DragGesture(minimumDistance: 8, coordinateSpace: .named(VideoSubtitleTokenCoordinateSpace.name))
-            .onChanged { value in
-                guard VideoPlayerPlatform.isPad else { return }
-                guard !isPlaying else { return }
-                if dragSelectionAnchor == nil {
-                    guard let anchorToken = tokenFrameContaining(value.startLocation) else { return }
-                    dragSelectionAnchor = VideoSubtitleWordSelection(
-                        lineKind: anchorToken.lineKind,
-                        lineIndex: anchorToken.lineIndex,
-                        tokenIndex: anchorToken.tokenIndex
-                    )
-                }
-                updateSubtitleSelectionRange(at: value.location)
-            }
-            .onEnded { _ in
-                dragSelectionAnchor = nil
-            }
+            .onChanged(handleSubtitleSelectionDragChange)
+            .onEnded(handleSubtitleSelectionDragEnd)
+    }
+
+    private func handleSubtitleDragChange(_ value: DragGesture.Value) {
+        guard abs(value.translation.height) >= abs(value.translation.width) else { return }
+        subtitleDragTranslation = value.translation.height
+    }
+
+    private func handleSubtitleDragEnd(_ value: DragGesture.Value) {
+        guard abs(value.translation.height) >= abs(value.translation.width) else {
+            subtitleDragTranslation = 0
+            return
+        }
+        let proposedHeight = subtitleVerticalOffset + value.translation.height
+        let maxHeight = allowSubtitleDownwardDrag ? subtitleBottomPadding : 0
+        subtitleVerticalOffset = min(proposedHeight, maxHeight)
+        subtitleDragTranslation = 0
+    }
+
+    private func handleSubtitleSelectionDragChange(_ value: DragGesture.Value) {
+        guard VideoPlayerPlatform.isPad else { return }
+        guard !isPlaying else { return }
+        if dragSelectionAnchor == nil {
+            guard let anchorToken = tokenFrameContaining(value.startLocation) else { return }
+            dragSelectionAnchor = VideoSubtitleWordSelection(
+                lineKind: anchorToken.lineKind,
+                lineIndex: anchorToken.lineIndex,
+                tokenIndex: anchorToken.tokenIndex
+            )
+        }
+        updateSubtitleSelectionRange(at: value.location)
+    }
+
+    private func handleSubtitleSelectionDragEnd(_ value: DragGesture.Value) {
+        dragSelectionAnchor = nil
     }
 
     private func updateSubtitleSelectionRange(at location: CGPoint) {
@@ -798,7 +826,7 @@ extension VideoPlayerOverlayView {
                 onUserInteraction()
             },
             onUserInteraction: onUserInteraction,
-            onShowSubtitleSettings: { showSubtitleSettings = true },
+            onShowSubtitleSettings: handleShowSubtitleSettings,
             bookmarkMenu: VideoPlayerBookmarkMenu(
                 bookmarks: bookmarks,
                 onAddBookmark: onAddBookmark,
