@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.55",
+            version: "2026.06.22.56",
             entries: [
+                AppChangelogEntry(
+                    id: "library-offline-menu-handlers",
+                    title: "Library offline menu cleaned up",
+                    detail: "tvOS library offline menu actions now route through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "interactive-header-language-flag-row-helper",
                     title: "Header language flag rows cleaned up",

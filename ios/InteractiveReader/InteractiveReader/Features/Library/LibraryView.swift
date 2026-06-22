@@ -433,7 +433,7 @@ struct LibraryView: View {
         let status = offlineStore.status(for: item.jobId, kind: .library)
 
         if status.isSynced {
-            Button(role: .destructive, action: { handleRemoveOfflineCopy(item) }) {
+            Button(role: .destructive, action: { handleRemoveOfflineCopyMenuTap(item) }) {
                 Label("Remove Offline Copy", systemImage: "trash.circle")
             }
         } else if status.isSyncing {
@@ -442,11 +442,11 @@ struct LibraryView: View {
             }
             .disabled(true)
         } else {
-            Button(action: { handleDownloadOfflineCopy(item, includeLookupCache: true) }) {
+            Button(action: { handleDownloadWithLookupCacheMenuTap(item) }) {
                 Label("Download with Dictionary", systemImage: "arrow.down.circle")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
-            Button(action: { handleDownloadOfflineCopy(item, includeLookupCache: false) }) {
+            Button(action: { handleDownloadWithoutLookupCacheMenuTap(item) }) {
                 Label("Download without Dictionary", systemImage: "arrow.down.circle.dotted")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
@@ -454,6 +454,18 @@ struct LibraryView: View {
     }
 
     private func handleOfflineStatusTap() {}
+
+    private func handleRemoveOfflineCopyMenuTap(_ item: LibraryItem) {
+        handleRemoveOfflineCopy(item)
+    }
+
+    private func handleDownloadWithLookupCacheMenuTap(_ item: LibraryItem) {
+        handleDownloadOfflineCopy(item, includeLookupCache: true)
+    }
+
+    private func handleDownloadWithoutLookupCacheMenuTap(_ item: LibraryItem) {
+        handleDownloadOfflineCopy(item, includeLookupCache: false)
+    }
 
     private func handleRemoveOfflineCopy(_ item: LibraryItem) {
         offlineStore.remove(jobId: item.jobId, kind: .library)
