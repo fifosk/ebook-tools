@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.25
+
+- Advanced visible Apple app versioning to `v2026.06.22.25`.
+- Moved bookmark ribbon add, jump, remove, and tvOS focus movement work into named SwiftUI handlers.
+
 ### 2026.06.22.24
 
 - Advanced visible Apple app versioning to `v2026.06.22.24`.

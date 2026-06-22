@@ -40,12 +40,7 @@ struct BookmarkRibbonPillView: View {
         if let focusTarget {
             menu
                 .focused(focusTarget, equals: .control(.headerBookmark))
-                .onMoveCommand { direction in
-                    guard focusTarget.wrappedValue == .control(.headerBookmark) else { return }
-                    if direction == .right, let onMoveRight {
-                        onMoveRight()
-                    }
-                }
+                .onMoveCommand(perform: handleMoveCommand)
         } else {
             menu
         }
@@ -57,9 +52,7 @@ struct BookmarkRibbonPillView: View {
     @ViewBuilder
     private var menuContent: some View {
         if let onAddBookmark {
-            Button {
-                addBookmark(onAddBookmark)
-            } label: {
+            Button(action: { handleAddBookmark(onAddBookmark) }) {
                 Label("Add Bookmark", systemImage: "bookmark.fill")
             }
         }
@@ -69,13 +62,15 @@ struct BookmarkRibbonPillView: View {
         } else {
             Section("Jump") {
                 ForEach(bookmarks) { bookmark in
-                    Button(bookmark.label) { jumpToBookmark(bookmark) }
+                    Button(bookmark.label) {
+                        handleJumpToBookmark(bookmark)
+                    }
                 }
             }
             Section("Remove") {
                 ForEach(bookmarks) { bookmark in
                     Button(role: .destructive) {
-                        removeBookmark(bookmark)
+                        handleRemoveBookmark(bookmark)
                     } label: {
                         Text(bookmark.label)
                     }
@@ -142,17 +137,25 @@ struct BookmarkRibbonPillView: View {
         return "Bookmarks"
     }
 
-    private func addBookmark(_ action: () -> Void) {
+    #if os(tvOS)
+    private func handleMoveCommand(_ direction: MoveCommandDirection) {
+        guard focusTarget?.wrappedValue == .control(.headerBookmark) else { return }
+        guard direction == .right else { return }
+        onMoveRight?()
+    }
+    #endif
+
+    private func handleAddBookmark(_ action: () -> Void) {
         action()
         onUserInteraction()
     }
 
-    private func jumpToBookmark(_ bookmark: PlaybackBookmarkEntry) {
+    private func handleJumpToBookmark(_ bookmark: PlaybackBookmarkEntry) {
         onJumpToBookmark(bookmark)
         onUserInteraction()
     }
 
-    private func removeBookmark(_ bookmark: PlaybackBookmarkEntry) {
+    private func handleRemoveBookmark(_ bookmark: PlaybackBookmarkEntry) {
         onRemoveBookmark(bookmark)
         onUserInteraction()
     }
