@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.41",
+            version: "2026.06.22.42",
             entries: [
+                AppChangelogEntry(
+                    id: "video-bookmark-menu-row-helpers",
+                    title: "Video bookmark menu cleaned up",
+                    detail: "Video bookmark menus now route jump and remove rows through named SwiftUI helpers."
+                ),
                 AppChangelogEntry(
                     id: "video-subtitle-settings-selection-handlers",
                     title: "Subtitle settings cleaned up",

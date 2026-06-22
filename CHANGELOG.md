@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.42
+
+- Advanced visible Apple app versioning to `v2026.06.22.42`.
+- Moved video bookmark menu jump and remove rows into named SwiftUI helpers.
+
 ### 2026.06.22.41
 
 - Advanced visible Apple app versioning to `v2026.06.22.41`.

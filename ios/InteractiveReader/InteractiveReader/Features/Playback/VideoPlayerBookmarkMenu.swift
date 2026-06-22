@@ -32,16 +32,12 @@ struct VideoPlayerBookmarkMenu: View {
         } else {
             Section("Jump") {
                 ForEach(bookmarks) { bookmark in
-                    Button(bookmark.label) { jumpToBookmark(bookmark) }
+                    jumpBookmarkButton(bookmark)
                 }
             }
             Section("Remove") {
                 ForEach(bookmarks) { bookmark in
-                    Button(role: .destructive) {
-                        removeBookmark(bookmark)
-                    } label: {
-                        Text(bookmark.label)
-                    }
+                    removeBookmarkButton(bookmark)
                 }
             }
         }
@@ -66,6 +62,20 @@ struct VideoPlayerBookmarkMenu: View {
             .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
             .foregroundStyle(.white)
         #endif
+    }
+
+    private func jumpBookmarkButton(_ bookmark: PlaybackBookmarkEntry) -> some View {
+        Button(bookmark.label) {
+            jumpToBookmark(bookmark)
+        }
+    }
+
+    private func removeBookmarkButton(_ bookmark: PlaybackBookmarkEntry) -> some View {
+        Button(role: .destructive) {
+            removeBookmark(bookmark)
+        } label: {
+            Text(bookmark.label)
+        }
     }
 
     private func addBookmark() {
