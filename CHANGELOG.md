@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.78
+
+- Advanced visible Apple app versioning to `v2026.06.22.78`.
+- Added a backend runtime descriptor guard so the public Apple pipeline preflight contract rejects secret-like metadata keys close to the helper that builds it.
+
 ### 2026.06.22.77
 
 - Advanced visible Apple app versioning to `v2026.06.22.77`.

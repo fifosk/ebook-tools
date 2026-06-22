@@ -3,7 +3,11 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from modules.webapi.application import create_app
-from modules.webapi.runtime_descriptor import build_runtime_descriptor
+from modules.webapi.runtime_descriptor import (
+    assert_runtime_descriptor_is_public,
+    build_runtime_descriptor,
+    find_sensitive_descriptor_keys,
+)
 
 import pytest
 
@@ -36,6 +40,21 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
         "sessionTokenStorage": "device-keychain",
         "legacyTokenMigration": "userdefaults-authToken",
     }
+    assert_runtime_descriptor_is_public(payload)
+
+
+def test_runtime_descriptor_guard_flags_secret_like_keys() -> None:
+    payload = {
+        "clientConfig": {
+            "tokenTransport": "Authorization: Bearer",
+            "sessionTokenStorage": "device-keychain",
+            "nested": [{"apiSecret": "redacted"}],
+        }
+    }
+
+    assert find_sensitive_descriptor_keys(payload) == ["apisecret"]
+    with pytest.raises(ValueError, match="apisecret"):
+        assert_runtime_descriptor_is_public(payload)
 
 
 def test_pipeline_defaults_endpoint_returns_config() -> None:
@@ -74,30 +93,4 @@ def test_public_runtime_descriptor_returns_non_secret_contract() -> None:
         "E2E_USERNAME",
         "E2E_PASSWORD",
     ]
-
-    def walk_keys(value: object) -> list[str]:
-        if isinstance(value, dict):
-            keys: list[str] = []
-            for key, child in value.items():
-                keys.append(str(key))
-                keys.extend(walk_keys(child))
-            return keys
-        if isinstance(value, list):
-            keys = []
-            for child in value:
-                keys.extend(walk_keys(child))
-            return keys
-        return []
-
-    allowed_sensitive_metadata_keys = {
-        "legacytokenmigration",
-        "sessiontokenstorage",
-        "tokentransport",
-    }
-    sensitive_markers = ("password", "secret", "token")
-    exposed_keys = [key.lower() for key in walk_keys(payload)]
-    assert not any(
-        marker in key and key not in allowed_sensitive_metadata_keys
-        for key in exposed_keys
-        for marker in sensitive_markers
-    )
+    assert_runtime_descriptor_is_public(payload)

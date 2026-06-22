@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.77",
+            version: "2026.06.22.78",
             entries: [
+                AppChangelogEntry(
+                    id: "backend-runtime-descriptor-public-guard",
+                    title: "Backend runtime descriptor guarded",
+                    detail: "The public runtime descriptor now self-checks for secret-like metadata keys before serving Apple pipeline preflight details."
+                ),
                 AppChangelogEntry(
                     id: "tvos-changelog-row-focus",
                     title: "TV changelog remote scrolling fixed",
