@@ -52,9 +52,7 @@ struct BookmarkRibbonPillView: View {
     @ViewBuilder
     private var menuContent: some View {
         if let onAddBookmark {
-            Button(action: { handleAddBookmark(onAddBookmark) }) {
-                Label("Add Bookmark", systemImage: "bookmark.fill")
-            }
+            addBookmarkButton(onAddBookmark)
         }
         if bookmarks.isEmpty {
             Text("No bookmarks yet.")
@@ -62,20 +60,34 @@ struct BookmarkRibbonPillView: View {
         } else {
             Section("Jump") {
                 ForEach(bookmarks) { bookmark in
-                    Button(bookmark.label) {
-                        handleJumpToBookmark(bookmark)
-                    }
+                    jumpBookmarkButton(bookmark)
                 }
             }
             Section("Remove") {
                 ForEach(bookmarks) { bookmark in
-                    Button(role: .destructive) {
-                        handleRemoveBookmark(bookmark)
-                    } label: {
-                        Text(bookmark.label)
-                    }
+                    removeBookmarkButton(bookmark)
                 }
             }
+        }
+    }
+
+    private func addBookmarkButton(_ action: @escaping () -> Void) -> some View {
+        Button(action: { handleAddBookmark(action) }) {
+            Label("Add Bookmark", systemImage: "bookmark.fill")
+        }
+    }
+
+    private func jumpBookmarkButton(_ bookmark: PlaybackBookmarkEntry) -> some View {
+        Button(bookmark.label) {
+            handleJumpToBookmark(bookmark)
+        }
+    }
+
+    private func removeBookmarkButton(_ bookmark: PlaybackBookmarkEntry) -> some View {
+        Button(role: .destructive) {
+            handleRemoveBookmark(bookmark)
+        } label: {
+            Text(bookmark.label)
         }
     }
 

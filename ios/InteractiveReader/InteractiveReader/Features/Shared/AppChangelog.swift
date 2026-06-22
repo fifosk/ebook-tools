@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.42",
+            version: "2026.06.22.43",
             entries: [
+                AppChangelogEntry(
+                    id: "bookmark-ribbon-menu-row-helpers",
+                    title: "Bookmark ribbon menu cleaned up",
+                    detail: "Bookmark ribbon menus now route add, jump, and remove rows through named SwiftUI helpers."
+                ),
                 AppChangelogEntry(
                     id: "video-bookmark-menu-row-helpers",
                     title: "Video bookmark menu cleaned up",
