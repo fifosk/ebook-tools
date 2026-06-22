@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.36",
+            version: "2026.06.22.37",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-player-layout-handlers",
+                    title: "Player layout updates cleaned up",
+                    detail: "Interactive player music-picker, bookmark-identity, and reading-bed URL reactions now route through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "interactive-transcript-layout-handlers",
                     title: "Transcript layout updates cleaned up",

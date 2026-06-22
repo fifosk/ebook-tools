@@ -30,11 +30,8 @@ extension InteractivePlayerView {
                 AppleMusicPickerView(
                     searchService: musicSearchService,
                     musicCoordinator: musicCoordinator,
-                    onSelect: {
-                        useAppleMusicForBed = true
-                        showMusicPicker = false
-                    },
-                    onDismiss: { showMusicPicker = false }
+                    onSelect: handleMusicPickerSelection,
+                    onDismiss: handleMusicPickerDismiss
                 )
                 #if os(iOS)
                 .presentationDetents([.medium, .large])
@@ -84,7 +81,7 @@ extension InteractivePlayerView {
                 handleSequenceTransitionChange(isTransitioning)
             }
             .onChange(of: bookmarkIdentityKey) { _, _ in
-                refreshBookmarks()
+                handleBookmarkIdentityChange()
             }
     }
 
@@ -101,7 +98,7 @@ extension InteractivePlayerView {
                 handleHighlightingTimeChange()
             }
             .onChange(of: viewModel.readingBedURL) { _, _ in
-                configureReadingBed()
+                handleReadingBedURLChange()
             }
             .onChange(of: readingBedEnabled) { _, newValue in
                 handleReadingBedEnabledChange(newValue)
@@ -156,6 +153,15 @@ extension InteractivePlayerView {
             }
         }
         #endif
+    }
+
+    private func handleMusicPickerSelection() {
+        useAppleMusicForBed = true
+        showMusicPicker = false
+    }
+
+    private func handleMusicPickerDismiss() {
+        showMusicPicker = false
     }
 
     private func handleSelectedChunkChange() {
@@ -270,6 +276,14 @@ extension InteractivePlayerView {
                 frozenPlaybackPrimaryKind = nil
             }
         }
+    }
+
+    private func handleBookmarkIdentityChange() {
+        refreshBookmarks()
+    }
+
+    private func handleReadingBedURLChange() {
+        configureReadingBed()
     }
 
     private func handleBookmarkStoreChange(_ notification: Notification) {

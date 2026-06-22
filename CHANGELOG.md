@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.37
+
+- Advanced visible Apple app versioning to `v2026.06.22.37`.
+- Moved interactive player music-picker, bookmark-identity, and reading-bed URL reactions into named SwiftUI handlers.
+
 ### 2026.06.22.36
 
 - Advanced visible Apple app versioning to `v2026.06.22.36`.
