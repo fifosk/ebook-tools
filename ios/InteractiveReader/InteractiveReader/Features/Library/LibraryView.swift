@@ -85,7 +85,7 @@ struct LibraryView: View {
         ForEach(items) { item in
             // Always use programmatic navigation to support context menu actions.
             #if os(tvOS)
-            Button(action: { selectItem(item, mode: .resume) }) {
+            Button(action: { handleResumeItemSelection(item) }) {
                 LibraryRowView(
                     item: item,
                     coverURL: coverResolver(item),
@@ -110,7 +110,7 @@ struct LibraryView: View {
             .contentShape(Rectangle())
             .listRowBackground(usesDarkListBackground ? Color.clear : nil)
             .onTapGesture {
-                selectItem(item, mode: .resume)
+                handleResumeItemSelection(item)
             }
             .contextMenu {
                 playbackContextMenu(for: item)
@@ -204,30 +204,19 @@ struct LibraryView: View {
                 .focused($isSearchFocused)
                 .submitLabel(.search)
                 .foregroundStyle(usesDarkListBackground ? .white : .primary)
-                .onSubmit {
-                    handleRefresh()
-                    #if os(tvOS)
-                    dismissSearch()
-                    #endif
-                }
+                .onSubmit(handleSearchSubmit)
             Button(action: handleRefresh) {
                 Image(systemName: "magnifyingglass")
             }
             .disabled(viewModel.isLoading)
             .tint(usesDarkListBackground ? .white : nil)
             #if os(tvOS)
-            Button("Cancel") {
-                dismissSearch()
-            }
+            Button("Cancel", action: handleSearchCancel)
             #endif
         }
         .padding(.horizontal)
         #if os(tvOS)
-        .onAppear {
-            DispatchQueue.main.async {
-                isSearchFocused = true
-            }
-        }
+        .onAppear(perform: focusSearchFieldSoon)
         .onExitCommand {
             dismissSearch()
         }
@@ -248,6 +237,14 @@ struct LibraryView: View {
 
     private func selectItem(_ item: LibraryItem, mode: PlaybackStartMode) {
         onSelect?(item, mode)
+    }
+
+    private func handleResumeItemSelection(_ item: LibraryItem) {
+        selectItem(item, mode: .resume)
+    }
+
+    private func handleStartOverItemSelection(_ item: LibraryItem) {
+        selectItem(item, mode: .startOver)
     }
 
     private func handleLibraryAppear() {
@@ -285,12 +282,12 @@ struct LibraryView: View {
     }
     #endif
 
-    private func deleteItem(_ item: LibraryItem) {
+    private func handleDeleteItemRequest(_ item: LibraryItem) {
         Task { await handleDelete(item) }
     }
 
     private func deleteItemAction(for item: LibraryItem) -> some View {
-        Button(role: .destructive, action: { deleteItem(item) }) {
+        Button(role: .destructive, action: { handleDeleteItemRequest(item) }) {
             Label("Delete", systemImage: "trash")
         }
     }
@@ -300,17 +297,32 @@ struct LibraryView: View {
         onRefresh()
     }
 
+    private func handleSearchSubmit() {
+        handleRefresh()
+        #if os(tvOS)
+        dismissSearch()
+        #endif
+    }
+
     #if os(tvOS)
     private func presentSearch() {
         isSearchPresented = true
-        DispatchQueue.main.async {
-            isSearchFocused = true
-        }
+        focusSearchFieldSoon()
     }
 
     private func dismissSearch() {
         isSearchFocused = false
         isSearchPresented = false
+    }
+
+    private func handleSearchCancel() {
+        dismissSearch()
+    }
+
+    private func focusSearchFieldSoon() {
+        DispatchQueue.main.async {
+            isSearchFocused = true
+        }
     }
     #endif
 
@@ -393,7 +405,7 @@ struct LibraryView: View {
         let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
 
         Button {
-            selectItem(item, mode: .resume)
+            handleResumeItemSelection(item)
         } label: {
             if hasResume {
                 Label(resumeMenuLabel(for: item), systemImage: "play.fill")
@@ -404,7 +416,7 @@ struct LibraryView: View {
 
         if hasResume {
             Button {
-                selectItem(item, mode: .startOver)
+                handleStartOverItemSelection(item)
             } label: {
                 Label("Start from Beginning", systemImage: "arrow.counterclockwise")
             }
@@ -417,33 +429,33 @@ struct LibraryView: View {
         let status = offlineStore.status(for: item.jobId, kind: .library)
 
         if status.isSynced {
-            Button(role: .destructive, action: { removeOfflineCopy(for: item) }) {
+            Button(role: .destructive, action: { handleRemoveOfflineCopy(item) }) {
                 Label("Remove Offline Copy", systemImage: "trash.circle")
             }
         } else if status.isSyncing {
-            Button {
-                // No-op, just shows status
-            } label: {
+            Button(action: handleOfflineStatusTap) {
                 Label("Downloading...", systemImage: "arrow.down.circle")
             }
             .disabled(true)
         } else {
-            Button(action: { downloadOfflineCopy(for: item, includeLookupCache: true) }) {
+            Button(action: { handleDownloadOfflineCopy(item, includeLookupCache: true) }) {
                 Label("Download with Dictionary", systemImage: "arrow.down.circle")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
-            Button(action: { downloadOfflineCopy(for: item, includeLookupCache: false) }) {
+            Button(action: { handleDownloadOfflineCopy(item, includeLookupCache: false) }) {
                 Label("Download without Dictionary", systemImage: "arrow.down.circle.dotted")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
         }
     }
 
-    private func removeOfflineCopy(for item: LibraryItem) {
+    private func handleOfflineStatusTap() {}
+
+    private func handleRemoveOfflineCopy(_ item: LibraryItem) {
         offlineStore.remove(jobId: item.jobId, kind: .library)
     }
 
-    private func downloadOfflineCopy(for item: LibraryItem, includeLookupCache: Bool) {
+    private func handleDownloadOfflineCopy(_ item: LibraryItem, includeLookupCache: Bool) {
         guard let configuration = appState.configuration else { return }
         offlineStore.sync(
             jobId: item.jobId,

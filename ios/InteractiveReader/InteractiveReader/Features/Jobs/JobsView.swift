@@ -80,7 +80,7 @@ struct JobsView: View {
         ForEach(jobs) { job in
             // Always use programmatic navigation to support context menu actions
             #if os(tvOS)
-            Button(action: { selectJob(job, mode: .resume) }) {
+            Button(action: { handleResumeJobSelection(job) }) {
                 JobRowView(job: job, resumeStatus: resumeStatus(for: job))
             }
             .buttonStyle(.plain)
@@ -89,9 +89,7 @@ struct JobsView: View {
                 playbackContextMenu(for: job)
                 offlineContextMenu(for: job)
                 moveToLibraryAction(for: job)
-                Button(role: .destructive, action: { deleteJob(job) }) {
-                    Label("Delete", systemImage: "trash")
-                }
+                deleteJobAction(for: job)
             }
             #else
             JobRowView(job: job, resumeStatus: resumeStatus(for: job), usesDarkBackground: usesDarkListBackground)
@@ -99,22 +97,18 @@ struct JobsView: View {
                 .contentShape(Rectangle())
                 .listRowBackground(usesDarkListBackground ? Color.clear : nil)
                 .onTapGesture {
-                    selectJob(job, mode: .resume)
+                    handleResumeJobSelection(job)
                 }
                 .contextMenu {
                     playbackContextMenu(for: job)
                     moveToLibraryAction(for: job)
-                    Button(role: .destructive, action: { deleteJob(job) }) {
-                        Label("Delete", systemImage: "trash")
-                    }
+                    deleteJobAction(for: job)
                 }
                 .swipeActions(edge: .leading, allowsFullSwipe: false) {
                     moveToLibraryAction(for: job)
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    Button(role: .destructive, action: { deleteJob(job) }) {
-                        Label("Delete", systemImage: "trash")
-                    }
+                    deleteJobAction(for: job)
                 }
             #endif
         }
@@ -167,11 +161,17 @@ struct JobsView: View {
 
     @ViewBuilder
     private func moveToLibraryAction(for job: PipelineStatusResponse) -> some View {
-        Button(action: { moveJobToLibrary(job) }) {
+        Button(action: { handleMoveToLibraryRequest(job) }) {
             Label("Move to Library", systemImage: "books.vertical")
         }
         .tint(.blue)
         .disabled(!job.isFinishedForDisplay)
+    }
+
+    private func deleteJobAction(for job: PipelineStatusResponse) -> some View {
+        Button(role: .destructive, action: { handleDeleteJobRequest(job) }) {
+            Label("Delete", systemImage: "trash")
+        }
     }
 
     private var header: some View {
@@ -214,6 +214,14 @@ struct JobsView: View {
         onSelect?(job, mode)
     }
 
+    private func handleResumeJobSelection(_ job: PipelineStatusResponse) {
+        selectJob(job, mode: .resume)
+    }
+
+    private func handleStartOverJobSelection(_ job: PipelineStatusResponse) {
+        selectJob(job, mode: .startOver)
+    }
+
     private func handleJobsAppear() {
         refreshResumeStatus()
         viewModel.startAutoRefresh(using: appState)
@@ -254,11 +262,11 @@ struct JobsView: View {
     }
     #endif
 
-    private func deleteJob(_ job: PipelineStatusResponse) {
+    private func handleDeleteJobRequest(_ job: PipelineStatusResponse) {
         Task { await handleDelete(job) }
     }
 
-    private func moveJobToLibrary(_ job: PipelineStatusResponse) {
+    private func handleMoveToLibraryRequest(_ job: PipelineStatusResponse) {
         Task { await handleMoveToLibrary(job) }
     }
 
@@ -274,30 +282,19 @@ struct JobsView: View {
                 .focused($isSearchFocused)
                 .submitLabel(.search)
                 .foregroundStyle(usesDarkListBackground ? .white : .primary)
-                .onSubmit {
-                    handleRefresh()
-                    #if os(tvOS)
-                    dismissSearch()
-                    #endif
-                }
+                .onSubmit(handleSearchSubmit)
             Button(action: handleRefresh) {
                 Image(systemName: "magnifyingglass")
             }
             .disabled(viewModel.isLoading)
             .tint(usesDarkListBackground ? .white : nil)
             #if os(tvOS)
-            Button("Cancel") {
-                dismissSearch()
-            }
+            Button("Cancel", action: handleSearchCancel)
             #endif
         }
         .padding(.horizontal)
         #if os(tvOS)
-        .onAppear {
-            DispatchQueue.main.async {
-                isSearchFocused = true
-            }
-        }
+        .onAppear(perform: focusSearchFieldSoon)
         .onExitCommand {
             dismissSearch()
         }
@@ -309,17 +306,32 @@ struct JobsView: View {
         onRefresh()
     }
 
+    private func handleSearchSubmit() {
+        handleRefresh()
+        #if os(tvOS)
+        dismissSearch()
+        #endif
+    }
+
     #if os(tvOS)
     private func presentSearch() {
         isSearchPresented = true
-        DispatchQueue.main.async {
-            isSearchFocused = true
-        }
+        focusSearchFieldSoon()
     }
 
     private func dismissSearch() {
         isSearchFocused = false
         isSearchPresented = false
+    }
+
+    private func handleSearchCancel() {
+        dismissSearch()
+    }
+
+    private func focusSearchFieldSoon() {
+        DispatchQueue.main.async {
+            isSearchFocused = true
+        }
     }
     #endif
 
@@ -402,7 +414,7 @@ struct JobsView: View {
         let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
 
         Button {
-            selectJob(job, mode: .resume)
+            handleResumeJobSelection(job)
         } label: {
             if hasResume {
                 Label(resumeMenuLabel(for: job), systemImage: "play.fill")
@@ -413,7 +425,7 @@ struct JobsView: View {
 
         if hasResume {
             Button {
-                selectJob(job, mode: .startOver)
+                handleStartOverJobSelection(job)
             } label: {
                 Label("Start from Beginning", systemImage: "arrow.counterclockwise")
             }
@@ -427,33 +439,33 @@ struct JobsView: View {
         let isEligible = job.isFinishedForDisplay
 
         if status.isSynced {
-            Button(role: .destructive, action: { removeOfflineCopy(for: job) }) {
+            Button(role: .destructive, action: { handleRemoveOfflineCopy(job) }) {
                 Label("Remove Offline Copy", systemImage: "trash.circle")
             }
         } else if status.isSyncing {
-            Button {
-                // No-op, just shows status
-            } label: {
+            Button(action: handleOfflineStatusTap) {
                 Label("Downloading...", systemImage: "arrow.down.circle")
             }
             .disabled(true)
         } else if isEligible {
-            Button(action: { downloadOfflineCopy(for: job, includeLookupCache: true) }) {
+            Button(action: { handleDownloadOfflineCopy(job, includeLookupCache: true) }) {
                 Label("Download with Dictionary", systemImage: "arrow.down.circle")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
-            Button(action: { downloadOfflineCopy(for: job, includeLookupCache: false) }) {
+            Button(action: { handleDownloadOfflineCopy(job, includeLookupCache: false) }) {
                 Label("Download without Dictionary", systemImage: "arrow.down.circle.dotted")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
         }
     }
 
-    private func removeOfflineCopy(for job: PipelineStatusResponse) {
+    private func handleOfflineStatusTap() {}
+
+    private func handleRemoveOfflineCopy(_ job: PipelineStatusResponse) {
         offlineStore.remove(jobId: job.jobId, kind: .job)
     }
 
-    private func downloadOfflineCopy(for job: PipelineStatusResponse, includeLookupCache: Bool) {
+    private func handleDownloadOfflineCopy(_ job: PipelineStatusResponse, includeLookupCache: Bool) {
         guard let configuration = appState.configuration else { return }
         offlineStore.sync(
             jobId: job.jobId,
