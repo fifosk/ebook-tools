@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.125
+
+- Advanced visible Apple app versioning to `v2026.06.22.125`.
+- Moved text-player token chip rendering, tap gestures, context menu, and dictionary lookup presenter into `TextPlayerTokenWordView.swift`, keeping text player views focused on flow and variant composition.
+
 ### 2026.06.22.124
 
 - Advanced visible Apple app versioning to `v2026.06.22.124`.

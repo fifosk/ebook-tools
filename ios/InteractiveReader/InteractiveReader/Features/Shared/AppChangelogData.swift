@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.124",
+            version: "2026.06.22.125",
             entries: [
+                AppChangelogEntry(
+                    id: "text-player-token-word-view-file",
+                    title: "Text player token chips separated",
+                    detail: "Token chip rendering, tap gestures, context menu, and dictionary lookup presentation now live in a focused token view while text player views stay centered on flow and variant composition."
+                ),
                 AppChangelogEntry(
                     id: "text-player-token-geometry-file",
                     title: "Text player token geometry separated",
