@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.09",
+            version: "2026.06.22.10",
             entries: [
+                AppChangelogEntry(
+                    id: "video-player-lifecycle-handlers",
+                    title: "Video player lifecycle cleaned up",
+                    detail: "The video player now routes setup, URL changes, subtitle updates, bookmark refreshes, and playback state changes through named SwiftUI lifecycle handlers instead of inline body closures."
+                ),
                 AppChangelogEntry(
                     id: "typed-tv-video-control-menus",
                     title: "TV video controls typed",

@@ -256,198 +256,26 @@ struct VideoPlayerView: View {
             handleExitCommand()
         }
         #endif
-        .onAppear {
-            isTearingDown = false
-            configureLinguistVM()
-            loadLlmModelsIfNeeded()
-            refreshBookmarks()
-            coordinator.onPlaybackEnded = { [weak coordinator] in
-                guard let coordinator else { return }
-                let duration = coordinator.duration.isFinite && coordinator.duration > 0
-                    ? coordinator.duration
-                : coordinator.currentTime
-                onPlaybackEnded?(duration)
-            }
-            pendingResumeTime = resumeTime
-            let resolvedRate = Self.clampPlaybackRate(playbackRateValue)
-            if resolvedRate != playbackRateValue {
-                playbackRateValue = resolvedRate
-            }
-            coordinator.setPlaybackRate(resolvedRate)
-            coordinator.load(url: videoURL, autoPlay: autoPlay && resumeTime == nil)
-            configureNowPlaying()
-            updateNowPlayingMetadata()
-            updateNowPlayingPlayback()
-            selectDefaultTrackIfNeeded()
-            scrubberValue = 0
-            isScrubbing = false
-            #if os(tvOS)
-            // tvOS: Keep controls hidden by default to maximize screen real estate
-            showTVControls = false
-            #else
-            showTVControls = true
-            scheduleControlsAutoHide()
-            #endif
-            applyPendingResumeIfPossible()
-            applyPendingBookmarkIfPossible()
-        }
-        .onDisappear {
-            coordinator.onPlaybackEnded = nil
-        }
-        .onChange(of: videoURL) { _, newURL in
-            isTearingDown = false
-            subtitleSelection = nil
-            subtitleSelectionRange = nil
-            subtitleCache.removeAll()
-            pendingResumeTime = resumeTime
-            let resolvedRate = Self.clampPlaybackRate(playbackRateValue)
-            if resolvedRate != playbackRateValue {
-                playbackRateValue = resolvedRate
-            }
-            coordinator.setPlaybackRate(resolvedRate)
-            coordinator.load(url: newURL, autoPlay: autoPlay && resumeTime == nil)
-            updateNowPlayingMetadata()
-            updateNowPlayingPlayback()
-            selectDefaultTrackIfNeeded()
-            loadSubtitles()
-            scrubberValue = 0
-            isScrubbing = false
-            #if os(tvOS)
-            // tvOS: Keep controls hidden by default to maximize screen real estate
-            showTVControls = false
-            #else
-            showTVControls = true
-            scheduleControlsAutoHide()
-            #endif
-            applyPendingResumeIfPossible()
-            applyPendingBookmarkIfPossible()
-        }
-        .onChange(of: resumeActionID) { _, _ in
-            pendingResumeTime = resumeTime ?? 0
-            applyPendingResumeIfPossible()
-        }
-        .onChange(of: metadataUpdateKey) { _, _ in
-            updateNowPlayingMetadata()
-        }
-        .onChange(of: resumeTime) { _, newValue in
-            if newValue != nil {
-                pendingResumeTime = newValue
-                applyPendingResumeIfPossible()
-            }
-        }
-        .onChange(of: playbackRateValue) { _, newValue in
-            let resolvedRate = Self.clampPlaybackRate(newValue)
-            if resolvedRate != newValue {
-                playbackRateValue = resolvedRate
-            }
-            coordinator.setPlaybackRate(resolvedRate)
-        }
-        .onChange(of: selectedSegmentID) { _, _ in
-            applyPendingBookmarkIfPossible()
-        }
-        .onChange(of: bookmarkIdentityKey) { _, _ in
-            refreshBookmarks()
-        }
+        .onAppear(perform: handleVideoAppear)
+        .onDisappear(perform: clearPlaybackEndedHandler)
+        .onChange(of: videoURL) { _, newURL in handleVideoURLChange(newURL) }
+        .onChange(of: resumeActionID) { _, _ in handleResumeActionChange() }
+        .onChange(of: metadataUpdateKey) { _, _ in handleMetadataChange() }
+        .onChange(of: resumeTime) { _, newValue in handleResumeTimeChange(newValue) }
+        .onChange(of: playbackRateValue) { _, newValue in handlePlaybackRateChange(newValue) }
+        .onChange(of: selectedSegmentID) { _, _ in handleSelectedSegmentChange() }
+        .onChange(of: bookmarkIdentityKey) { _, _ in handleBookmarkIdentityChange() }
         .onReceive(NotificationCenter.default.publisher(for: PlaybackBookmarkStore.didChangeNotification)) { notification in
-            guard let jobId = resolvedBookmarkJobId else { return }
-            let userId = resolvedBookmarkUserId
-            if let changedUser = notification.userInfo?["userId"] as? String, changedUser != userId {
-                return
-            }
-            bookmarks = PlaybackBookmarkStore.shared.bookmarks(for: jobId, userId: userId)
+            handleBookmarkStoreChange(notification)
         }
-        .onChange(of: subtitleTracks) { _, _ in
-            selectDefaultTrackIfNeeded()
-            loadSubtitles()
-        }
-        .onChange(of: selectedTrack?.id) { _, _ in
-            loadSubtitles()
-        }
-        .onChange(of: subtitleVisibility) { _, _ in
-            if !coordinator.isPlaying {
-                syncSubtitleSelectionIfNeeded(force: true)
-            }
-        }
-        .onChange(of: showSubtitleSettings) { _, isVisible in
-            #if os(tvOS)
-            if isVisible {
-                showTVControls = true
-                controlsHideTask?.cancel()
-            } else {
-                // When settings close, hide controls again to maximize screen real estate
-                showTVControls = false
-            }
-            #endif
-        }
-        .onChange(of: isScrubbing) { _, scrubbing in
-            #if os(tvOS)
-            if scrubbing {
-                showTVControls = true
-                controlsHideTask?.cancel()
-            } else {
-                // When done scrubbing, hide controls again to maximize screen real estate
-                showTVControls = false
-            }
-            #endif
-        }
-        .onReceive(coordinator.$currentTime) { _ in
-            guard !isTearingDown else { return }
-            updateNowPlayingPlayback()
-            if !isScrubbing {
-                scrubberValue = coordinator.currentTime
-            }
-            if !coordinator.isPlaying {
-                syncSubtitleSelectionIfNeeded()
-            }
-            reportPlaybackProgress(time: coordinator.currentTime, isPlaying: coordinator.isPlaying)
-        }
-        .onReceive(coordinator.$isPlaying) { isPlaying in
-            guard !isTearingDown else { return }
-            updateNowPlayingPlayback()
-            #if os(tvOS)
-            if isPlaying {
-                // Hide controls during playback to maximize screen real estate
-                controlsHideTask?.cancel()
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showTVControls = false
-                }
-            } else {
-                // When paused, controls remain hidden until user swipes down from subtitles
-                controlsHideTask?.cancel()
-            }
-            #endif
-            if isPlaying {
-                isManualSubtitleNavigation = false
-                subtitleActiveCueID = nil
-                subtitleSelection = nil
-                subtitleSelectionRange = nil
-                closeSubtitleBubble()
-            } else {
-                syncSubtitleSelectionIfNeeded(force: true)
-            }
-            reportPlaybackProgress(time: coordinator.currentTime, isPlaying: isPlaying)
-        }
-        .onReceive(coordinator.$duration) { _ in
-            guard !isTearingDown else { return }
-            updateNowPlayingPlayback()
-            if coordinator.duration.isFinite, coordinator.duration > 0 {
-                scrubberValue = min(scrubberValue, coordinator.duration)
-            } else {
-                scrubberValue = 0
-            }
-            applyPendingResumeIfPossible()
-            applyPendingBookmarkIfPossible()
-        }
-        .onDisappear {
-            subtitleTask?.cancel()
-            subtitleTask = nil
-            showSubtitleSettings = false
-            controlsHideTask?.cancel()
-            controlsHideTask = nil
-            isTearingDown = true
-            reportPlaybackProgress(time: resolvedPlaybackTime(), isPlaying: false, force: true)
-            coordinator.reset()
-            nowPlaying.clear()
-        }
+        .onChange(of: subtitleTracks) { _, _ in handleSubtitleTracksChange() }
+        .onChange(of: selectedTrack?.id) { _, _ in handleSelectedTrackChange() }
+        .onChange(of: subtitleVisibility) { _, _ in handleSubtitleVisibilityChange() }
+        .onChange(of: showSubtitleSettings) { _, isVisible in handleSubtitleSettingsVisibilityChange(isVisible) }
+        .onChange(of: isScrubbing) { _, scrubbing in handleScrubbingChange(scrubbing) }
+        .onReceive(coordinator.$currentTime) { _ in handleCurrentTimeChange() }
+        .onReceive(coordinator.$isPlaying) { isPlaying in handlePlayingChange(isPlaying) }
+        .onReceive(coordinator.$duration) { _ in handleDurationChange() }
+        .onDisappear(perform: handleVideoDisappear)
     }
 }

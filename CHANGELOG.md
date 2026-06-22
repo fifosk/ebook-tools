@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.10
+
+- Advanced visible Apple app versioning to `v2026.06.22.10`.
+- Moved video player setup, URL-change, subtitle, bookmark, and playback state reactions into named SwiftUI lifecycle handlers so iPad and tvOS playback changes are easier to review.
+
 ### 2026.06.22.09
 
 - Advanced visible Apple app versioning to `v2026.06.22.09`.
