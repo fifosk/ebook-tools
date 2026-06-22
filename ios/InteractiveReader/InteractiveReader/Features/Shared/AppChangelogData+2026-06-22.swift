@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-subtitle-llm-batch-size",
+            title: "Subtitle LLM batch tuning",
+            detail: "On iPhone and iPad, Apple Create Subtitles now exposes LLM batch-size tuning and submits the same translation_batch_size field as Web."
+        ),
+        AppChangelogEntry(
             id: "apple-create-subtitle-transliteration-controls",
             title: "Subtitle transliteration controls",
             detail: "On iPhone and iPad, Apple Create Subtitles now exposes transliteration mode and optional transliteration model controls and submits the same backend fields as Web."

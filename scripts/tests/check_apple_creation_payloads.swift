@@ -248,6 +248,10 @@ struct AppleCreationPayloadCheck {
             "Apple subtitle form should include selected transliteration model"
         )
         require(
+            appleSubtitle.multipartFields["translation_batch_size"] == "10",
+            "Apple subtitle form should include selected LLM batch size"
+        )
+        require(
             appleSubtitle.multipartFields["ass_font_size"] == "56",
             "Apple subtitle form should include ASS font size"
         )
