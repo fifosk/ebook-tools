@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.102",
+            version: "2026.06.22.103",
             entries: [
+                AppChangelogEntry(
+                    id: "tv-controls-shared-time-format",
+                    title: "TV playback time labels shared",
+                    detail: "The TV playback scrubber now uses the shared video time formatter instead of carrying a duplicate local formatter in the controls view."
+                ),
                 AppChangelogEntry(
                     id: "tv-timeline-pill-control",
                     title: "TV playback header controls cleaned up",

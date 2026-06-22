@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.103
+
+- Advanced visible Apple app versioning to `v2026.06.22.103`.
+- Reused the shared video time formatter for TV playback scrubber labels instead of keeping a duplicate formatter inside the tvOS controls view.
+
 ### 2026.06.22.102
 
 - Advanced visible Apple app versioning to `v2026.06.22.102`.

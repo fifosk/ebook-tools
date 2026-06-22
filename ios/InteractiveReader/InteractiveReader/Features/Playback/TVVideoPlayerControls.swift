@@ -343,7 +343,7 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
     @ViewBuilder
     private var scrubberRow: some View {
         HStack(spacing: 12) {
-            Text(formattedTime(displayTime))
+            Text(VideoPlayerTimeFormatter.formatCompact(displayTime))
                 .font(.caption2)
                 .foregroundStyle(.white.opacity(0.8))
                 .frame(width: 64, alignment: .leading)
@@ -356,23 +356,11 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
                 onUserInteraction: onUserInteraction
             )
             .focused(focusTarget, equals: .control(.scrubber))
-            Text(formattedTime(duration))
+            Text(VideoPlayerTimeFormatter.formatCompact(duration))
                 .font(.caption2)
                 .foregroundStyle(.white.opacity(0.8))
                 .frame(width: 64, alignment: .trailing)
         }
-    }
-
-    private func formattedTime(_ seconds: Double) -> String {
-        guard seconds.isFinite else { return "--:--" }
-        let total = max(0, Int(seconds.rounded()))
-        let hours = total / 3600
-        let minutes = (total % 3600) / 60
-        let remainingSeconds = total % 60
-        if hours > 0 {
-            return String(format: "%d:%02d:%02d", hours, minutes, remainingSeconds)
-        }
-        return String(format: "%02d:%02d", minutes, remainingSeconds)
     }
 
     private func handleControlsBarMoveCommand(_ direction: MoveCommandDirection) {
