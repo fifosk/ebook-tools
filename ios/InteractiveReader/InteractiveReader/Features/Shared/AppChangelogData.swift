@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.116",
+            version: "2026.06.22.117",
             entries: [
+                AppChangelogEntry(
+                    id: "video-overlay-tv-focus-file",
+                    title: "TV playback focus separated",
+                    detail: "Apple TV playback focus and Siri Remote navigation handlers now live in a focused tvOS extension while the video overlay view stays centered on composition and chrome rendering."
+                ),
                 AppChangelogEntry(
                     id: "subtitle-overlay-models-file",
                     title: "Subtitle overlay models separated",

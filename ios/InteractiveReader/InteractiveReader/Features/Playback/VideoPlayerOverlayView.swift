@@ -109,11 +109,11 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
     #endif
 
     #if os(tvOS)
-    @FocusState private var focusTarget: VideoPlayerFocusTarget?
-    @State private var pendingSkipTask: Task<Void, Never>?
-    @State private var pendingSkipDirection: MoveCommandDirection?
-    @State private var suppressControlFocus = false
-    @State private var suppressFocusTask: Task<Void, Never>?
+    @FocusState var focusTarget: VideoPlayerFocusTarget?
+    @State var pendingSkipTask: Task<Void, Never>?
+    @State var pendingSkipDirection: MoveCommandDirection?
+    @State var suppressControlFocus = false
+    @State var suppressFocusTask: Task<Void, Never>?
     #endif
 
     // MARK: - Body
@@ -675,201 +675,12 @@ extension VideoPlayerOverlayView {
         )
     }
 
-    private var displayTime: Double {
+    var displayTime: Double {
         isScrubbing ? scrubberValue : currentTime
     }
 
     private var controlsFocusEnabled: Bool {
         showTVControls && !showSubtitleSettings && !suppressControlFocus
-    }
-
-    // MARK: - tvOS Focus Handlers
-
-    private func handleTVAppear() {
-        if showTVControls {
-            focusTarget = .control(.playPause)
-        } else {
-            // Keep focus on subtitles whether playing or paused, so single-tap
-            // can trigger lookup immediately without first acquiring focus.
-            focusTarget = .subtitles
-        }
-    }
-
-    private func handleTVSettingsChange(_ isVisible: Bool) {
-        if isVisible {
-            focusTarget = nil
-        } else if showTVControls {
-            focusTarget = .control(.playPause)
-        } else {
-            // Keep focus on subtitles whether playing or paused for single-tap lookup.
-            focusTarget = .subtitles
-        }
-    }
-
-    private func handleTVControlsChange(_ isVisible: Bool) {
-        if isVisible {
-            focusTarget = .control(.playPause)
-        } else {
-            // Keep focus on subtitles whether playing or paused for single-tap lookup.
-            focusTarget = .subtitles
-        }
-    }
-
-    private func handleTVPlayingChange(_ playing: Bool) {
-        if playing {
-            // Hide controls during playback to maximize screen real estate
-            showTVControls = false
-            focusTarget = .subtitles
-        } else if showTVControls {
-            focusTarget = .control(.playPause)
-        } else {
-            // Keep focus on subtitles when paused so single-tap triggers lookup.
-            focusTarget = .subtitles
-        }
-    }
-
-    private func handleBubbleMoveCommand(_ direction: MoveCommandDirection) {
-        guard focusTarget == .bubble else { return }
-        switch direction {
-        case .up:
-            focusTarget = .control(.header)
-        case .down:
-            focusTarget = .subtitles
-        default:
-            break
-        }
-    }
-
-    private func handleHeaderLongPress() {
-        onToggleHeaderCollapsed()
-    }
-
-    private func handleTimelinePillMoveCommand(_ direction: MoveCommandDirection) {
-        guard focusTarget == .control(.header) else { return }
-        switch direction {
-        case .down:
-            if subtitleBubble != nil {
-                focusTarget = .bubble
-            } else {
-                focusTarget = .subtitles
-            }
-        case .left:
-            if onAddBookmark != nil {
-                focusTarget = .control(.headerBookmark)
-            }
-        default:
-            break
-        }
-    }
-
-    private func handleSubtitleMoveCommand(_ direction: MoveCommandDirection) {
-        guard !showSubtitleSettings else { return }
-        switch direction {
-        case .left:
-            if isPlaying {
-                handlePlaybackDirectionalCommand(direction)
-            } else {
-                onNavigateSubtitleWord(-1)
-            }
-            focusTarget = .subtitles
-        case .right:
-            if isPlaying {
-                handlePlaybackDirectionalCommand(direction)
-            } else {
-                onNavigateSubtitleWord(1)
-            }
-            focusTarget = .subtitles
-        case .up:
-            if isPlaying {
-                revealTVControls(focus: .header)
-            } else {
-                let moved = onNavigateSubtitleTrack(-1)
-                if moved {
-                    suppressControlFocusTemporarily()
-                    focusTarget = .subtitles
-                } else if subtitleBubble != nil {
-                    suppressControlFocus = false
-                    focusTarget = .bubble
-                } else {
-                    suppressControlFocus = false
-                    focusTarget = .control(.header)
-                }
-            }
-        case .down:
-            if isPlaying {
-                revealTVControls(focus: .playPause)
-                return
-            }
-            let moved = onNavigateSubtitleTrack(1)
-            if moved {
-                suppressControlFocusTemporarily()
-                focusTarget = .subtitles
-            } else {
-                suppressControlFocus = false
-                if subtitleBubble != nil {
-                    focusTarget = .bubble
-                } else {
-                    showTVControls = true
-                    focusTarget = .control(.playPause)
-                }
-            }
-        default:
-            break
-        }
-    }
-
-    private func handleSubtitleTap() {
-        guard focusTarget != .bubble else { return }
-        if isPlaying {
-            revealTVControls(focus: .playPause)
-        } else {
-            onSubtitleLookup()
-        }
-    }
-
-    private func revealTVControls(focus target: TVPlayerControlTarget) {
-        suppressControlFocus = false
-        showTVControls = true
-        focusTarget = .control(target)
-        onUserInteraction()
-    }
-
-    private func handlePlaybackDirectionalCommand(_ direction: MoveCommandDirection) {
-        guard direction == .left || direction == .right else { return }
-        if pendingSkipTask != nil, pendingSkipDirection == direction {
-            pendingSkipTask?.cancel()
-            pendingSkipTask = nil
-            pendingSkipDirection = nil
-            beginScrubbing()
-            return
-        }
-        pendingSkipTask?.cancel()
-        pendingSkipDirection = direction
-        let delta = direction == .left ? -1 : 1
-        pendingSkipTask = Task {
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            await MainActor.run {
-                pendingSkipTask = nil
-                pendingSkipDirection = nil
-                onSkipSentence(delta)
-            }
-        }
-    }
-
-    private func beginScrubbing() {
-        showTVControls = true
-        scrubberValue = displayTime
-        focusTarget = .control(.scrubber)
-        onUserInteraction()
-    }
-
-    private func suppressControlFocusTemporarily() {
-        suppressFocusTask?.cancel()
-        suppressControlFocus = true
-        suppressFocusTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 150_000_000)
-            suppressControlFocus = false
-        }
     }
 }
 #endif

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.117
+
+- Advanced visible Apple app versioning to `v2026.06.22.117`.
+- Moved tvOS playback focus and remote navigation handlers into `VideoPlayerOverlayTVFocus.swift`, keeping the video overlay view focused on composition and chrome rendering.
+
 ### 2026.06.22.116
 
 - Advanced visible Apple app versioning to `v2026.06.22.116`.
