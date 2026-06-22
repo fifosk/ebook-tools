@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.40
+
+- Advanced visible Apple app versioning to `v2026.06.22.40`.
+- Moved shared video speed menu rate rows and selection work into named SwiftUI helpers.
+
 ### 2026.06.22.39
 
 - Advanced visible Apple app versioning to `v2026.06.22.39`.

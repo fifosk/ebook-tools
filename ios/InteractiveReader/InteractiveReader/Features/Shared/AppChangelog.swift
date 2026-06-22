@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.39",
+            version: "2026.06.22.40",
             entries: [
+                AppChangelogEntry(
+                    id: "video-speed-menu-row-handlers",
+                    title: "Video speed menu cleaned up",
+                    detail: "Shared video speed menus now route rate rows and selection work through named SwiftUI helpers."
+                ),
                 AppChangelogEntry(
                     id: "interactive-player-menu-row-helpers",
                     title: "Player menu rows cleaned up",

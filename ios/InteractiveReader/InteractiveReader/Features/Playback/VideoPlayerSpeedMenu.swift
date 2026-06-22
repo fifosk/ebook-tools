@@ -14,16 +14,7 @@ struct VideoPlayerSpeedMenu: View {
     var body: some View {
         Menu {
             ForEach(playbackRateOptions, id: \.self) { rate in
-                Button {
-                    onPlaybackRateChange(rate)
-                    onUserInteraction()
-                } label: {
-                    if isCurrentRate(rate) {
-                        Label(rateLabel(rate), systemImage: "checkmark")
-                    } else {
-                        Text(rateLabel(rate))
-                    }
-                }
+                playbackRateButton(rate)
             }
         } label: {
             menuLabel
@@ -52,6 +43,28 @@ struct VideoPlayerSpeedMenu: View {
             .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
             .foregroundStyle(.white)
         #endif
+    }
+
+    private func playbackRateButton(_ rate: Double) -> some View {
+        Button {
+            handlePlaybackRateSelection(rate)
+        } label: {
+            playbackRateMenuLabel(rate)
+        }
+    }
+
+    @ViewBuilder
+    private func playbackRateMenuLabel(_ rate: Double) -> some View {
+        if isCurrentRate(rate) {
+            Label(rateLabel(rate), systemImage: "checkmark")
+        } else {
+            Text(rateLabel(rate))
+        }
+    }
+
+    private func handlePlaybackRateSelection(_ rate: Double) {
+        onPlaybackRateChange(rate)
+        onUserInteraction()
     }
 
     private func rateLabel(_ rate: Double) -> String {
