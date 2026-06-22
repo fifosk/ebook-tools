@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.48",
+            version: "2026.06.22.49",
             entries: [
+                AppChangelogEntry(
+                    id: "phone-bubble-tap-handlers",
+                    title: "iPhone bubble taps cleaned up",
+                    detail: "iPhone transcript bubble backdrop and content taps now route through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "ipad-split-bubble-tap-handlers",
                     title: "iPad bubble taps cleaned up",

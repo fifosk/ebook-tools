@@ -89,12 +89,7 @@ extension InteractiveTranscriptView {
                 Color.clear
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        onCloseBubble()
-                        if !audioCoordinator.isPlaying {
-                            onTogglePlayback()
-                        }
-                    }
+                    .onTapGesture(perform: handlePhoneBubbleBackdropTap)
 
                 // Use GeometryReader to get available height and pass to bubble
                 GeometryReader { bubbleGeo in
@@ -135,8 +130,7 @@ extension InteractiveTranscriptView {
                 .padding(.horizontal, 12)
                 .padding(.bottom, 8)
                 .contentShape(Rectangle())
-                // Consume taps on bubble content to prevent them from reaching the dismiss area
-                .onTapGesture { /* consume tap */ }
+                .onTapGesture(perform: handlePhoneBubbleContentTap)
                 .simultaneousGesture(bubbleAreaSwipeGesture, including: .all)
                 .background(GeometryReader { bubbleProxy in
                     Color.clear.preference(
@@ -169,12 +163,7 @@ extension InteractiveTranscriptView {
                 Color.clear
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        onCloseBubble()
-                        if !audioCoordinator.isPlaying {
-                            onTogglePlayback()
-                        }
-                    }
+                    .onTapGesture(perform: handlePhoneBubbleBackdropTap)
 
                 // Use bubble! since we know it's non-nil (this layout is only used when bubble exists)
                 // Avoiding `if let` prevents SwiftUI from treating content changes as structural changes
@@ -217,8 +206,7 @@ extension InteractiveTranscriptView {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .contentShape(Rectangle())
-                // Consume taps on bubble content to prevent them from reaching the dismiss area
-                .onTapGesture { /* consume tap */ }
+                .onTapGesture(perform: handlePhoneBubbleContentTap)
                 .simultaneousGesture(bubbleAreaSwipeGesture, including: .all)
                 .background(GeometryReader { bubbleProxy in
                     Color.clear.preference(
@@ -243,6 +231,17 @@ extension InteractiveTranscriptView {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .coordinateSpace(name: TextPlayerTokenCoordinateSpace.name)
+    }
+
+    private func handlePhoneBubbleBackdropTap() {
+        onCloseBubble()
+        if !audioCoordinator.isPlaying {
+            onTogglePlayback()
+        }
+    }
+
+    private func handlePhoneBubbleContentTap() {
+        // Consume taps on bubble content so they do not reach the dismiss backdrop.
     }
 }
 #endif
