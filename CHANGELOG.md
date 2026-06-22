@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.94
+
+- Advanced visible Apple app versioning to `v2026.06.22.94`.
+- Moved assistant lookup, structured linguist, model list, voice inventory, and audio synthesis API models into a dedicated Models file.
+
 ### 2026.06.22.93
 
 - Advanced visible Apple app versioning to `v2026.06.22.93`.

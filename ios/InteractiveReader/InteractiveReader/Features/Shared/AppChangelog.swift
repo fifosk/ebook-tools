@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.93",
+            version: "2026.06.22.94",
             entries: [
+                AppChangelogEntry(
+                    id: "linguist-api-models-file",
+                    title: "Linguist API models separated",
+                    detail: "Assistant lookup, structured linguist parsing, model-list, voice inventory, and audio synthesis payloads now live in a dedicated Models file."
+                ),
                 AppChangelogEntry(
                     id: "auth-api-models-file",
                     title: "Auth API models separated",
