@@ -16,32 +16,22 @@ struct OfflineSyncBadge: View {
         #else
         Menu {
             if status.isSynced {
-                Button("Remove offline copy", role: .destructive) {
-                    showRemovePrompt = true
-                }
+                Button("Remove offline copy", role: .destructive, action: showOfflineRemovePrompt)
             } else if status.isSyncing {
                 Text("Syncing...")
             } else {
-                Button("Download with dictionary cache") {
-                    startSync(includeLookupCache: true)
-                }
-                Button("Download without dictionary cache") {
-                    startSync(includeLookupCache: false)
-                }
+                Button("Download with dictionary cache", action: startSyncWithLookupCache)
+                Button("Download without dictionary cache", action: startSyncWithoutLookupCache)
             }
             if status.errorMessage != nil {
-                Button("Retry download") {
-                    startSync(includeLookupCache: true)
-                }
+                Button("Retry download", action: retrySync)
             }
         } label: {
             syncLabel
         }
         .disabled(!isEligible || !offlineStore.isAvailable || appState.configuration == nil)
         .confirmationDialog("Remove offline copy?", isPresented: $showRemovePrompt) {
-            Button("Remove offline copy", role: .destructive) {
-                offlineStore.remove(jobId: jobId, kind: kind)
-            }
+            Button("Remove offline copy", role: .destructive, action: removeOfflineCopy)
         } message: {
             Text("This will delete the locally stored media from iCloud Drive.")
         }
@@ -116,6 +106,26 @@ struct OfflineSyncBadge: View {
         let clamped = min(max(progress, 0), 1)
         let percent = Int((clamped * 100).rounded())
         return "\(percent)%"
+    }
+
+    private func showOfflineRemovePrompt() {
+        showRemovePrompt = true
+    }
+
+    private func removeOfflineCopy() {
+        offlineStore.remove(jobId: jobId, kind: kind)
+    }
+
+    private func startSyncWithLookupCache() {
+        startSync(includeLookupCache: true)
+    }
+
+    private func startSyncWithoutLookupCache() {
+        startSync(includeLookupCache: false)
+    }
+
+    private func retrySync() {
+        startSync(includeLookupCache: true)
     }
 
     private func startSync(includeLookupCache: Bool = true) {

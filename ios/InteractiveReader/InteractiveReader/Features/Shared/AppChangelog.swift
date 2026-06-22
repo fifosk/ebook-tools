@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.21",
+            version: "2026.06.22.22",
             entries: [
+                AppChangelogEntry(
+                    id: "offline-sync-badge-command-handlers",
+                    title: "Offline controls cleaned up",
+                    detail: "Offline download, retry, and remove-copy menu work now runs through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "apple-music-picker-command-handlers",
                     title: "Apple Music picker cleaned up",

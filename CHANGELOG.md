@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.22
+
+- Advanced visible Apple app versioning to `v2026.06.22.22`.
+- Moved offline download, retry, and remove-copy menu work into named SwiftUI handlers.
+
 ### 2026.06.22.21
 
 - Advanced visible Apple app versioning to `v2026.06.22.21`.
