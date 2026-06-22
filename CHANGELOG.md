@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.67
+
+- Advanced visible Apple app versioning to `v2026.06.22.67`.
+- Moved shared browse resume helpers into their own Swift source file.
+
 ### 2026.06.22.66
 
 - Advanced visible Apple app versioning to `v2026.06.22.66`.

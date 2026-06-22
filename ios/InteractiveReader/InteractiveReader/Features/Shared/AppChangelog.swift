@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.66",
+            version: "2026.06.22.67",
             entries: [
+                AppChangelogEntry(
+                    id: "browse-resume-helpers-file",
+                    title: "Browse resume helpers separated",
+                    detail: "Shared browse resume helpers now live in their own Swift source file."
+                ),
                 AppChangelogEntry(
                     id: "shared-browse-resume-snapshot-provider",
                     title: "Browse resume refresh path shared",
