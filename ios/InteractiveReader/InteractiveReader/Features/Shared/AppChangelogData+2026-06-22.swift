@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "library-playback-video-file",
+            title: "Library video playback separated",
+            detail: "Library video preview, fullscreen presentation, tvOS video body, and video resume/progress helpers now live in a focused video extension while the main library playback view keeps load and content state."
+        ),
+        AppChangelogEntry(
             id: "video-overlay-tv-layout-file",
             title: "Apple TV video overlay separated",
             detail: "The tvOS video playback header, timeline pills, summary ticker, and bottom controls now live in a focused TV layout extension while the shared overlay stays centered on subtitle orchestration."

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.135
+
+- Advanced visible Apple app versioning to `v2026.06.22.135`.
+- Moved library video preview, fullscreen presentation, tvOS video body, and video resume/progress helpers into `LibraryPlaybackView+Video.swift`, keeping the main library playback view focused on load and content state.
+
 ### 2026.06.22.134
 
 - Advanced visible Apple app versioning to `v2026.06.22.134`.
