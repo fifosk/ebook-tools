@@ -40,6 +40,11 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
         "sessionTokenStorage": "device-keychain",
         "legacyTokenMigration": "userdefaults-authToken",
     }
+    assert payload["applePipeline"] == {
+        "manifestId": "ebook-tools",
+        "simulatorProfiles": ["ios", "ipados", "tvos", "tvos-cinema"],
+        "deviceProfiles": ["iphone", "ipad", "appletv", "cinema"],
+    }
     assert_runtime_descriptor_is_public(payload)
 
 
@@ -92,5 +97,18 @@ def test_public_runtime_descriptor_returns_non_secret_contract() -> None:
     assert payload["clientConfig"]["credentialEnvironment"] == [
         "E2E_USERNAME",
         "E2E_PASSWORD",
+    ]
+    assert payload["applePipeline"]["manifestId"] == "ebook-tools"
+    assert payload["applePipeline"]["simulatorProfiles"] == [
+        "ios",
+        "ipados",
+        "tvos",
+        "tvos-cinema",
+    ]
+    assert payload["applePipeline"]["deviceProfiles"] == [
+        "iphone",
+        "ipad",
+        "appletv",
+        "cinema",
     ]
     assert_runtime_descriptor_is_public(payload)

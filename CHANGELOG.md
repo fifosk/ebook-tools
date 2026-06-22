@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.104
+
+- Advanced visible Apple app versioning to `v2026.06.22.104`.
+- Added non-secret Apple pipeline identity metadata to the backend runtime descriptor and made the shared backend checker assert the ebook-tools manifest id.
+- Reworked the tvOS visible changelog into compact rows inside a real bounded scroll view with focus-following movement, a wider login card, and an up/down position affordance so the Siri Remote can reveal older daily entries.
+
 ### 2026.06.22.103
 
 - Advanced visible Apple app versioning to `v2026.06.22.103`.

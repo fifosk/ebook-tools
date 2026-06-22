@@ -16,8 +16,18 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.103",
+            version: "2026.06.22.104",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-changelog-real-scroll",
+                    title: "TV changelog remote scroll made visible",
+                    detail: "The tvOS changelog now uses compact rows in a real bounded scroll view with focus-following movement, a wider login card, and an up/down position affordance so older entries can be revealed with the Siri Remote."
+                ),
+                AppChangelogEntry(
+                    id: "backend-runtime-pipeline-identity",
+                    title: "Backend identity check strengthened",
+                    detail: "The public backend runtime descriptor now includes non-secret Apple pipeline metadata so the shared pipeline can verify it is talking to the ebook-tools app runtime."
+                ),
                 AppChangelogEntry(
                     id: "tv-controls-shared-time-format",
                     title: "TV playback time labels shared",

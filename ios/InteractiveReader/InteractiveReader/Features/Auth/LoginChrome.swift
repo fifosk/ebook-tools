@@ -53,7 +53,7 @@ struct LoginCard<Content: View>: View {
         content
             .padding(.vertical, 24)
             .padding(.horizontal, 22)
-            .frame(maxWidth: 420)
+            .frame(maxWidth: maxCardWidth)
             .background(AppTheme.lightBackground.opacity(0.72))
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay(
@@ -61,6 +61,14 @@ struct LoginCard<Content: View>: View {
                     .stroke(Color(red: 0.58, green: 0.64, blue: 0.72).opacity(0.2), lineWidth: 1)
             )
             .shadow(color: Color.black.opacity(0.35), radius: 26, x: 0, y: 18)
+    }
+
+    private var maxCardWidth: CGFloat {
+        #if os(tvOS)
+        760
+        #else
+        420
+        #endif
     }
 }
 

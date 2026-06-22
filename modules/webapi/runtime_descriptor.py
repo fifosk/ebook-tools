@@ -10,6 +10,8 @@ API_BASE_URL_ENVIRONMENT = (
     "E2E_API_BASE_URL",
 )
 CREDENTIAL_ENVIRONMENT = ("E2E_USERNAME", "E2E_PASSWORD")
+APPLE_PIPELINE_SIMULATOR_PROFILES = ("ios", "ipados", "tvos", "tvos-cinema")
+APPLE_PIPELINE_DEVICE_PROFILES = ("iphone", "ipad", "appletv", "cinema")
 ALLOWED_PUBLIC_METADATA_KEYS = frozenset(
     {
         "legacytokenmigration",
@@ -39,6 +41,11 @@ def build_runtime_descriptor(version: str) -> dict[str, object]:
             "credentialEnvironment": list(CREDENTIAL_ENVIRONMENT),
             "sessionTokenStorage": "device-keychain",
             "legacyTokenMigration": "userdefaults-authToken",
+        },
+        "applePipeline": {
+            "manifestId": "ebook-tools",
+            "simulatorProfiles": list(APPLE_PIPELINE_SIMULATOR_PROFILES),
+            "deviceProfiles": list(APPLE_PIPELINE_DEVICE_PROFILES),
         },
     }
     assert_runtime_descriptor_is_public(payload)
