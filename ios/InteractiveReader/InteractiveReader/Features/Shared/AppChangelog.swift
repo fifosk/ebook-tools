@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.89",
+            version: "2026.06.22.90",
             entries: [
+                AppChangelogEntry(
+                    id: "push-notification-api-models-file",
+                    title: "Notification API models separated",
+                    detail: "Push registration, preference, and test-notification payloads now live in a dedicated Models file instead of the broad API model file."
+                ),
                 AppChangelogEntry(
                     id: "lookup-cache-api-models-file",
                     title: "Lookup cache API models separated",

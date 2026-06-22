@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.90
+
+- Advanced visible Apple app versioning to `v2026.06.22.90`.
+- Moved push-notification API request and response models into a dedicated Models file so notification registration and preference decoding no longer live in the broad API model file.
+
 ### 2026.06.22.89
 
 - Advanced visible Apple app versioning to `v2026.06.22.89`.
