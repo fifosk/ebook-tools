@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.110",
+            version: "2026.06.22.111",
             entries: [
+                AppChangelogEntry(
+                    id: "settings-sections-file",
+                    title: "Settings sections separated",
+                    detail: "Connection, playback, changelog, voice, and notification settings now render from a focused SwiftUI sections file while the Settings screen owns state, lifecycle, and backend checks."
+                ),
                 AppChangelogEntry(
                     id: "changelog-data-file",
                     title: "Changelog data separated",

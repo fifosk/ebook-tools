@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.111
+
+- Advanced visible Apple app versioning to `v2026.06.22.111`.
+- Moved Settings connection, playback, changelog, voice, and notification section rendering into `PlaybackSettingsSections.swift`, keeping `PlaybackSettingsView.swift` focused on state, lifecycle, and backend descriptor checks.
+
 ### 2026.06.22.110
 
 - Advanced visible Apple app versioning to `v2026.06.22.110`.
