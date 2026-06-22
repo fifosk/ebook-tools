@@ -1,8 +1,5 @@
 import Foundation
 import SwiftUI
-#if os(tvOS)
-import UIKit
-#endif
 
 enum PlaybackStartMode {
     case resume
@@ -53,11 +50,10 @@ struct LibraryView: View {
             .listStyle(.plain)
             .platformListBackground(usesDark: usesDarkListBackground, colorScheme: colorScheme)
             #if os(iOS)
-            .coordinateSpace(name: listCoordinateSpace)
-            .onPreferenceChange(RowFramePreferenceKey.self, perform: updateRowFrames)
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 24, coordinateSpace: .named(listCoordinateSpace))
-                    .onEnded(handleListDragEnd)
+            .browseListCollapseInteraction(
+                rowFrames: $rowFrames,
+                coordinateSpaceName: listCoordinateSpace,
+                onCollapse: onCollapseSidebar
             )
             #endif
             .overlay(alignment: .center) {
@@ -106,7 +102,7 @@ struct LibraryView: View {
                 resumeStatus: resumeStatus(for: item),
                 usesDarkBackground: usesDarkListBackground
             )
-            .background(rowFrameCapture())
+            .background(BrowseListRowFrameCapture(coordinateSpaceName: listCoordinateSpace))
             .contentShape(Rectangle())
             .listRowBackground(usesDarkListBackground ? Color.clear : nil)
             .onTapGesture {
@@ -133,21 +129,6 @@ struct LibraryView: View {
     private var usesDarkListBackground: Bool {
         usesDarkBackground
     }
-
-    #if os(iOS)
-    private func rowFrameCapture() -> some View {
-        GeometryReader { proxy in
-            Color.clear.preference(
-                key: RowFramePreferenceKey.self,
-                value: [proxy.frame(in: .named(listCoordinateSpace))]
-            )
-        }
-    }
-    #else
-    private func rowFrameCapture() -> some View {
-        Color.clear
-    }
-    #endif
 
     private var listOverlay: some View {
         Group {
@@ -267,24 +248,6 @@ struct LibraryView: View {
             refreshResumeEvidence(for: resumeUserId)
         }
     }
-
-    #if os(iOS)
-    private func updateRowFrames(_ frames: [CGRect]) {
-        rowFrames = frames
-    }
-
-    private func handleListDragEnd(_ value: DragGesture.Value) {
-        guard let onCollapseSidebar else { return }
-        let start = value.startLocation
-        guard !rowFrames.contains(where: { $0.contains(start) }) else { return }
-        let horizontal = value.translation.width
-        let vertical = value.translation.height
-        guard abs(horizontal) > abs(vertical) else { return }
-        guard horizontal < -70 else { return }
-        guard abs(vertical) < 50 else { return }
-        onCollapseSidebar()
-    }
-    #endif
 
     private func handleDeleteItemRequest(_ item: LibraryItem) {
         Task { await handleDelete(item) }
@@ -564,13 +527,3 @@ private extension View {
         #endif
     }
 }
-
-#if os(iOS)
-private struct RowFramePreferenceKey: PreferenceKey {
-    static var defaultValue: [CGRect] = []
-
-    static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) {
-        value.append(contentsOf: nextValue())
-    }
-}
-#endif

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.62
+
+- Advanced visible Apple app versioning to `v2026.06.22.62`.
+- Moved the iPad browse list collapse gesture into one shared SwiftUI modifier used by both Jobs and Library lists.
+
 ### 2026.06.22.61
 
 - Advanced visible Apple app versioning to `v2026.06.22.61`.

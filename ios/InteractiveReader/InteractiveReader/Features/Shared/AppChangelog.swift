@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.61",
+            version: "2026.06.22.62",
             entries: [
+                AppChangelogEntry(
+                    id: "shared-browse-list-collapse-interaction",
+                    title: "Browse list gestures cleaned up",
+                    detail: "Jobs and Library now share one SwiftUI modifier for the iPad split-view collapse gesture."
+                ),
                 AppChangelogEntry(
                     id: "job-playback-video-player-helper",
                     title: "Job video playback wiring cleaned up",
