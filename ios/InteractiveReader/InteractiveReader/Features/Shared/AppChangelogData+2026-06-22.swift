@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-generated-audiobook-create-surface",
+            title: "Generated audiobook creation added",
+            detail: "The Apple app now has a Create section for generated audiobook jobs, reusing backend-aligned creation payloads and showing submitted jobs in the shared Jobs flow."
+        ),
+        AppChangelogEntry(
             id: "apple-creation-api-plumbing",
             title: "Apple creation API plumbing added",
             detail: "Native clients now have backend-aligned request models and API methods for pipeline creation, generated books, subtitle jobs, YouTube dubbing, and EPUB upload so Web-only creation flows can move into Apple surfaces."

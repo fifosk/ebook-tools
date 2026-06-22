@@ -2,6 +2,7 @@ import SwiftUI
 
 enum BrowseSection: String, CaseIterable, Identifiable {
     case jobs = "Jobs"
+    case create = "Create"
     case library = "Library"
     case settings = "Settings"
     case search = "Search"
@@ -16,6 +17,8 @@ enum BrowseSection: String, CaseIterable, Identifiable {
         switch self {
         case .jobs:
             return "tray.full"
+        case .create:
+            return "sparkles"
         case .library:
             return "books.vertical"
         case .settings:
@@ -49,7 +52,7 @@ struct BrowseSectionPicker: View {
     }
 
     private var orderedSections: [BrowseSection] {
-        [.jobs, .library, .settings, .search]
+        [.jobs, .create, .library, .settings, .search]
     }
 }
 

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.152
+
+- Advanced visible Apple app versioning to `v2026.06.22.152`.
+- Added a native Apple Create section for generated audiobook jobs, reusing backend-aligned creation payloads and routing submitted jobs into the shared Jobs flow.
+
 ### 2026.06.22.151
 
 - Advanced visible Apple app versioning to `v2026.06.22.151`.

@@ -108,6 +108,12 @@ struct LibraryShellView: View {
     @ViewBuilder
     private var detailView: some View {
         switch activeSection {
+        case .create:
+            placeholderView(
+                title: "Create audiobook",
+                systemImage: "sparkles",
+                subtitle: "Generated jobs appear in the Jobs section."
+            )
         case .library:
             if let selectedItem {
                 LibraryPlaybackView(item: selectedItem, autoPlayOnLoad: $libraryAutoPlay, playbackMode: libraryPlaybackMode)
@@ -193,6 +199,13 @@ struct LibraryShellView: View {
                     resumeUserId: resumeUserId,
                     onCollapseSidebar: isSplitLayout ? { collapseSidebar() } : nil,
                     onSearchRequested: showSearch,
+                    usesDarkBackground: usesDarkBackground
+                )
+            case .create:
+                AppleBookCreateView(
+                    sectionPicker: sectionPickerForHeader,
+                    onJobSubmitted: handleCreatedJob,
+                    onOpenJobs: openCreatedJob,
                     usesDarkBackground: usesDarkBackground
                 )
             case .search:
@@ -311,6 +324,10 @@ struct LibraryShellView: View {
             lastBrowseSection = newValue
         }
         switch newValue {
+        case .create:
+            jobsViewModel.stopAutoRefresh()
+            libraryAutoPlay = false
+            jobsAutoPlay = false
         case .library:
             jobsViewModel.stopAutoRefresh()
             jobsAutoPlay = false
@@ -330,6 +347,8 @@ struct LibraryShellView: View {
 
     private func handleSectionRefresh() {
         switch activeSection {
+        case .create:
+            return
         case .jobs:
             Task { await jobsViewModel.load(using: appState) }
         case .library:
@@ -341,6 +360,18 @@ struct LibraryShellView: View {
             }
         case .settings:
             return
+        }
+    }
+
+    private func handleCreatedJob(_: String) {
+        Task { await jobsViewModel.load(using: appState) }
+    }
+
+    private func openCreatedJob(_ jobId: String) {
+        activeSection = .jobs
+        Task {
+            await jobsViewModel.load(using: appState)
+            selectedJob = jobsViewModel.jobs.first { $0.jobId == jobId }
         }
     }
 
