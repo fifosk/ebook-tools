@@ -141,17 +141,20 @@ def validate(root: Path = ROOT) -> None:
     )
 
     app_version = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/AppVersion.swift"
-    app_changelog = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelog.swift"
+    changelog_sources = sorted(
+        (root / "ios/InteractiveReader/InteractiveReader/Features/Shared").glob("AppChangelog*.swift")
+    )
     require_contains(
         app_version,
         rf'readInfoValue\("EBOOK_TOOLS_RELEASE_VERSION"\) \?\? "{re.escape(release)}"',
         "AppVersion fallback release",
     )
-    require_contains(
-        app_changelog,
-        rf'version: "{re.escape(release)}"',
-        "AppChangelog latest version",
-    )
+    if not any(
+        re.search(rf'version: "{re.escape(release)}"', path.read_text(encoding="utf-8"))
+        for path in changelog_sources
+    ):
+        names = ", ".join(str(path.relative_to(root)) for path in changelog_sources)
+        raise AssertionError(f"{names} are missing AppChangelog latest version")
     require_contains(
         root / "CHANGELOG.md",
         rf"`v{re.escape(release)}`",
