@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.48
+
+- Advanced visible Apple app versioning to `v2026.06.22.48`.
+- Moved iPad split transcript bubble backdrop and content tap handling into named SwiftUI handlers.
+
 ### 2026.06.22.47
 
 - Advanced visible Apple app versioning to `v2026.06.22.47`.

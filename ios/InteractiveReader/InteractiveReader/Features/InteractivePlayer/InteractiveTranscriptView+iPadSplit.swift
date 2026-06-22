@@ -353,12 +353,7 @@ extension InteractiveTranscriptView {
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
-                .onTapGesture {
-                    onCloseBubble()
-                    if !audioCoordinator.isPlaying {
-                        onTogglePlayback()
-                    }
-                }
+                .onTapGesture(perform: handleIPadBubbleBackdropTap)
 
             MyLinguistBubbleView(
                 bubble: bubble,
@@ -395,8 +390,7 @@ extension InteractiveTranscriptView {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .contentShape(Rectangle())
-        // Consume taps on bubble content
-        .onTapGesture { /* consume tap */ }
+        .onTapGesture(perform: handleIPadBubbleContentTap)
         .simultaneousGesture(bubbleAreaSwipeGesture, including: .all)
         .background(GeometryReader { bubbleProxy in
             Color.clear.preference(
@@ -404,6 +398,17 @@ extension InteractiveTranscriptView {
                 value: bubbleProxy.frame(in: .named(TextPlayerTokenCoordinateSpace.name))
             )
         })
+    }
+
+    private func handleIPadBubbleBackdropTap() {
+        onCloseBubble()
+        if !audioCoordinator.isPlaying {
+            onTogglePlayback()
+        }
+    }
+
+    private func handleIPadBubbleContentTap() {
+        // Consume taps on bubble content so they do not reach the dismiss backdrop.
     }
 }
 #endif
