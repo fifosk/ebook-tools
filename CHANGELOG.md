@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.60
+
+- Advanced visible Apple app versioning to `v2026.06.22.60`.
+- Moved library playback video-player wiring into one shared SwiftUI helper across preview, fullscreen, and tvOS playback paths.
+
 ### 2026.06.22.59
 
 - Advanced visible Apple app versioning to `v2026.06.22.59`.

@@ -184,21 +184,7 @@ struct LibraryPlaybackView: View {
             case .loaded:
                 if isVideoPreferred, let videoURL {
                     #if os(tvOS)
-                    VideoPlayerView(
-                        videoURL: videoURL,
-                        subtitleTracks: subtitleTracks,
-                        metadata: videoMetadata,
-                        autoPlay: videoAutoPlay,
-                        resumeTime: videoResumeTime,
-                        resumeActionID: videoResumeActionID,
-                        nowPlaying: nowPlaying,
-                        linguistInputLanguage: linguistInputLanguage,
-                        linguistLookupLanguage: linguistLookupLanguage,
-                        onPlaybackProgress: handleVideoPlaybackProgress,
-                        bookmarkUserId: resumeUserId,
-                        bookmarkJobId: item.jobId,
-                        bookmarkItemType: bookmarkItemType
-                    )
+                    libraryVideoPlayer(videoURL: videoURL)
                         .frame(maxWidth: .infinity)
                         .aspectRatio(16 / 9, contentMode: .fit)
                     #else
@@ -282,21 +268,7 @@ struct LibraryPlaybackView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
                 if let videoURL {
-                    VideoPlayerView(
-                        videoURL: videoURL,
-                        subtitleTracks: subtitleTracks,
-                        metadata: videoMetadata,
-                        autoPlay: videoAutoPlay,
-                        resumeTime: videoResumeTime,
-                        resumeActionID: videoResumeActionID,
-                        nowPlaying: nowPlaying,
-                        linguistInputLanguage: linguistInputLanguage,
-                        linguistLookupLanguage: linguistLookupLanguage,
-                        onPlaybackProgress: handleVideoPlaybackProgress,
-                        bookmarkUserId: resumeUserId,
-                        bookmarkJobId: item.jobId,
-                        bookmarkItemType: bookmarkItemType
-                    )
+                    libraryVideoPlayer(videoURL: videoURL)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     LibraryPlaybackUnavailableView(usesDarkBackground: true)
@@ -313,21 +285,7 @@ struct LibraryPlaybackView: View {
     @ViewBuilder
     private var fullscreenVideoPlayer: some View {
         if let videoURL {
-            VideoPlayerView(
-                videoURL: videoURL,
-                subtitleTracks: subtitleTracks,
-                metadata: videoMetadata,
-                autoPlay: videoAutoPlay,
-                resumeTime: videoResumeTime,
-                resumeActionID: videoResumeActionID,
-                nowPlaying: nowPlaying,
-                linguistInputLanguage: linguistInputLanguage,
-                linguistLookupLanguage: linguistLookupLanguage,
-                onPlaybackProgress: handleVideoPlaybackProgress,
-                bookmarkUserId: resumeUserId,
-                bookmarkJobId: item.jobId,
-                bookmarkItemType: bookmarkItemType
-            )
+            libraryVideoPlayer(videoURL: videoURL)
             .ignoresSafeArea()
         } else {
             Color.black
@@ -377,6 +335,24 @@ struct LibraryPlaybackView: View {
     }
     #endif
     #endif
+
+    private func libraryVideoPlayer(videoURL: URL) -> VideoPlayerView {
+        VideoPlayerView(
+            videoURL: videoURL,
+            subtitleTracks: subtitleTracks,
+            metadata: videoMetadata,
+            autoPlay: videoAutoPlay,
+            resumeTime: videoResumeTime,
+            resumeActionID: videoResumeActionID,
+            nowPlaying: nowPlaying,
+            linguistInputLanguage: linguistInputLanguage,
+            linguistLookupLanguage: linguistLookupLanguage,
+            onPlaybackProgress: handleVideoPlaybackProgress,
+            bookmarkUserId: resumeUserId,
+            bookmarkJobId: item.jobId,
+            bookmarkItemType: bookmarkItemType
+        )
+    }
 
     @ViewBuilder
     private var header: some View {
