@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.26",
+            version: "2026.06.22.27",
             entries: [
+                AppChangelogEntry(
+                    id: "playback-host-video-handlers",
+                    title: "Playback video hosts cleaned up",
+                    detail: "Job and Library playback hosts now route fullscreen video dismissal, edge-swipe back, and preview dragging through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "backend-request-token-parser",
                     title: "Backend token parsing centralized",

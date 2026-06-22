@@ -250,40 +250,15 @@ struct LibraryPlaybackView: View {
             }
         }
         #if !os(tvOS)
-        .fullScreenCover(isPresented: $showVideoPlayer, onDismiss: {
-            // When video player is dismissed, also dismiss this view to go back to menu
-            dismiss()
-        }) {
-            if let videoURL {
-                VideoPlayerView(
-                    videoURL: videoURL,
-                    subtitleTracks: subtitleTracks,
-                    metadata: videoMetadata,
-                    autoPlay: videoAutoPlay,
-                    resumeTime: videoResumeTime,
-                    resumeActionID: videoResumeActionID,
-                    nowPlaying: nowPlaying,
-                    linguistInputLanguage: linguistInputLanguage,
-                    linguistLookupLanguage: linguistLookupLanguage,
-                    onPlaybackProgress: handleVideoPlaybackProgress,
-                    bookmarkUserId: resumeUserId,
-                    bookmarkJobId: item.jobId,
-                    bookmarkItemType: bookmarkItemType
-                )
-                .ignoresSafeArea()
-            } else {
-                Color.black
-                    .ignoresSafeArea()
-            }
+        .fullScreenCover(isPresented: $showVideoPlayer, onDismiss: handleVideoPlayerDismiss) {
+            fullscreenVideoPlayer
         }
         #endif
         #if os(iOS)
         if shouldHideInteractiveNavigation {
             base
                 .overlay(alignment: .leading) {
-                    EdgeSwipeBackOverlay {
-                        dismiss()
-                    }
+                    EdgeSwipeBackOverlay(onBack: handleEdgeSwipeBack)
                 }
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarBackButtonHidden(true)
@@ -335,6 +310,31 @@ struct LibraryPlaybackView: View {
     #endif
 
     #if !os(tvOS)
+    @ViewBuilder
+    private var fullscreenVideoPlayer: some View {
+        if let videoURL {
+            VideoPlayerView(
+                videoURL: videoURL,
+                subtitleTracks: subtitleTracks,
+                metadata: videoMetadata,
+                autoPlay: videoAutoPlay,
+                resumeTime: videoResumeTime,
+                resumeActionID: videoResumeActionID,
+                nowPlaying: nowPlaying,
+                linguistInputLanguage: linguistInputLanguage,
+                linguistLookupLanguage: linguistLookupLanguage,
+                onPlaybackProgress: handleVideoPlaybackProgress,
+                bookmarkUserId: resumeUserId,
+                bookmarkJobId: item.jobId,
+                bookmarkItemType: bookmarkItemType
+            )
+            .ignoresSafeArea()
+        } else {
+            Color.black
+                .ignoresSafeArea()
+        }
+    }
+
     private var videoPreview: some View {
         Button {
             handleVideoPreviewTap()
@@ -368,17 +368,8 @@ struct LibraryPlaybackView: View {
     #if os(iOS)
     private var videoPreviewDragGesture: some Gesture {
         DragGesture(minimumDistance: 10)
-            .onChanged { value in
-                guard canDragVideoPreview else { return }
-                dragOffset = value.translation.height
-            }
-            .onEnded { value in
-                guard canDragVideoPreview else { return }
-                let newOffset = videoVerticalOffset + Double(value.translation.height)
-                // Clamp between 0 and 300 points
-                videoVerticalOffset = min(max(newOffset, 0), 300)
-                dragOffset = 0
-            }
+            .onChanged(handleVideoPreviewDragChange)
+            .onEnded(handleVideoPreviewDragEnd)
     }
     #else
     private var videoPreviewDragGesture: some Gesture {
@@ -1009,6 +1000,17 @@ struct LibraryPlaybackView: View {
     }
 
     #if !os(tvOS)
+    private func handleVideoPlayerDismiss() {
+        // When video player is dismissed, also dismiss this view to go back to menu.
+        dismiss()
+    }
+
+    #if os(iOS)
+    private func handleEdgeSwipeBack() {
+        dismiss()
+    }
+    #endif
+
     private func handleVideoPreviewTap() {
         // If there's a resume entry, apply it; otherwise start from beginning
         if let manager = resumeManager,
@@ -1018,6 +1020,20 @@ struct LibraryPlaybackView: View {
             startVideoPlayback(at: 0, presentPlayer: true)
         }
     }
+
+    #if os(iOS)
+    private func handleVideoPreviewDragChange(_ value: DragGesture.Value) {
+        guard canDragVideoPreview else { return }
+        dragOffset = value.translation.height
+    }
+
+    private func handleVideoPreviewDragEnd(_ value: DragGesture.Value) {
+        guard canDragVideoPreview else { return }
+        let newOffset = videoVerticalOffset + Double(value.translation.height)
+        videoVerticalOffset = min(max(newOffset, 0), 300)
+        dragOffset = 0
+    }
+    #endif
     #endif
 
     private func handleVideoPlaybackProgress(time: Double, isPlaying: Bool) {

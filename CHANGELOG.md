@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.27
+
+- Advanced visible Apple app versioning to `v2026.06.22.27`.
+- Moved playback host fullscreen video dismissal, edge-swipe back, and preview drag work into named SwiftUI handlers.
+
 ### 2026.06.22.26
 
 - Advanced visible Apple app versioning to `v2026.06.22.26`.
