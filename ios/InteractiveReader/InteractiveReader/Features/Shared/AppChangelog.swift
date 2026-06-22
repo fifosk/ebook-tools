@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.67",
+            version: "2026.06.22.68",
             entries: [
+                AppChangelogEntry(
+                    id: "browse-collapse-interaction-file",
+                    title: "Browse collapse gesture separated",
+                    detail: "The shared iPad browse-list collapse gesture now lives in its own Swift source file."
+                ),
                 AppChangelogEntry(
                     id: "browse-resume-helpers-file",
                     title: "Browse resume helpers separated",
