@@ -5,11 +5,11 @@ struct JobPlaybackView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var offlineStore: OfflineMediaStore
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) private var colorScheme
     #if !os(tvOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.verticalSizeClass) var verticalSizeClass
     #endif
     let job: PipelineStatusResponse
     @Binding var autoPlayOnLoad: Bool
@@ -39,8 +39,8 @@ struct JobPlaybackView: View {
     @State var showVideoPlayer = false
     #endif
     #if os(iOS)
-    @AppStorage("videoPreviewVerticalOffset") private var videoVerticalOffset: Double = 80
-    @State private var dragOffset: CGFloat = 0
+    @AppStorage("videoPreviewVerticalOffset") var videoVerticalOffset: Double = 80
+    @State var dragOffset: CGFloat = 0
     #endif
 
     let jobRefreshInterval: UInt64 = 6_000_000_000
@@ -176,25 +176,6 @@ struct JobPlaybackView: View {
         #endif
     }
 
-    /// Whether video preview position can be adjusted by dragging (iPhone portrait only)
-    private var canDragVideoPreview: Bool {
-        #if os(iOS)
-        return UIDevice.current.userInterfaceIdiom == .phone && verticalSizeClass == .regular
-        #else
-        return false
-        #endif
-    }
-
-    /// Extra top padding for video preview on iPhone portrait mode
-    private var videoTopPadding: CGFloat {
-        #if os(iOS)
-        guard canDragVideoPreview else { return 0 }
-        return CGFloat(videoVerticalOffset) + dragOffset
-        #else
-        return 0
-        #endif
-    }
-
     @ViewBuilder
     var bodyContent: some View {
         #if os(tvOS)
@@ -292,32 +273,6 @@ struct JobPlaybackView: View {
         #endif
     }
 
-    #if os(tvOS)
-    var tvVideoBody: some View {
-        ZStack {
-            switch viewModel.loadState {
-            case .idle, .loading:
-                loadingView
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case let .error(message):
-                errorView(message: message)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .loaded:
-                if let videoURL {
-                    jobVideoPlayer(videoURL: videoURL)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    Text("No playable media found for this job.")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-        }
-        .ignoresSafeArea()
-        .toolbar(.hidden, for: .navigationBar)
-    }
-    #endif
-
     var loadingView: some View {
         VStack(spacing: 12) {
             ProgressView()
@@ -336,108 +291,6 @@ struct JobPlaybackView: View {
                 .font(.callout)
                 .foregroundStyle(usesDarkBackground ? .white.opacity(0.7) : .secondary)
         }
-    }
-
-    #if !os(tvOS)
-    @ViewBuilder
-    private var fullscreenVideoPlayer: some View {
-        if let videoURL {
-            jobVideoPlayer(videoURL: videoURL)
-            .ignoresSafeArea()
-        } else {
-            Color.black
-                .ignoresSafeArea()
-        }
-    }
-
-    var videoPreview: some View {
-        Button {
-            handleVideoPreviewTap()
-        } label: {
-            ZStack {
-                if let coverURL {
-                    AsyncImage(url: coverURL) { phase in
-                        if let image = phase.image {
-                            image.resizable().scaledToFill()
-                        } else {
-                            Color.black.opacity(0.2)
-                        }
-                    }
-                } else {
-                    Color.black.opacity(0.2)
-                }
-                Color.black.opacity(0.35)
-                VStack(spacing: 10) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 34, weight: .semibold))
-                    Text("Play Video")
-                        .font(.headline)
-                }
-                .foregroundStyle(.white)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-        }
-        .buttonStyle(.plain)
-    }
-
-    #if os(iOS)
-    var videoPreviewDragGesture: some Gesture {
-        DragGesture(minimumDistance: 10)
-            .onChanged(handleVideoPreviewDragChange)
-            .onEnded(handleVideoPreviewDragEnd)
-    }
-    #else
-    var videoPreviewDragGesture: some Gesture {
-        DragGesture().onChanged { _ in }
-    }
-    #endif
-
-    private func handleVideoPlayerDismiss() {
-        // When video player is dismissed, also dismiss this view to go back to menu.
-        dismiss()
-    }
-
-    #if os(iOS)
-    private func handleEdgeSwipeBack() {
-        dismiss()
-    }
-
-    private func handleVideoPreviewDragChange(_ value: DragGesture.Value) {
-        guard canDragVideoPreview else { return }
-        dragOffset = value.translation.height
-    }
-
-    private func handleVideoPreviewDragEnd(_ value: DragGesture.Value) {
-        guard canDragVideoPreview else { return }
-        let newOffset = videoVerticalOffset + Double(value.translation.height)
-        videoVerticalOffset = min(max(newOffset, 0), 300)
-        dragOffset = 0
-    }
-    #endif
-    #endif
-
-    private func jobVideoPlayer(videoURL: URL) -> VideoPlayerView {
-        VideoPlayerView(
-            videoURL: videoURL,
-            subtitleTracks: subtitleTracks,
-            metadata: videoMetadata,
-            autoPlay: videoAutoPlay,
-            resumeTime: videoResumeTime,
-            resumeActionID: videoResumeActionID,
-            nowPlaying: nowPlaying,
-            linguistInputLanguage: linguistInputLanguage,
-            linguistLookupLanguage: linguistLookupLanguage,
-            segmentOptions: videoSegmentOptions,
-            selectedSegmentID: activeVideoSegmentID ?? videoSegments.first?.id,
-            onSelectSegment: handleVideoSegmentSelection,
-            jobProgressLabel: jobProgressLabel,
-            jobRemainingLabel: jobRemainingLabel,
-            onPlaybackProgress: handleVideoPlaybackProgress,
-            onPlaybackEnded: handleVideoSegmentEnded,
-            bookmarkUserId: resumeUserId,
-            bookmarkJobId: currentJob.jobId,
-            bookmarkItemType: resumeItemType
-        )
     }
 
     var hasInteractiveChunks: Bool {

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "job-playback-video-file",
+            title: "Job video playback split",
+            detail: "Job playback video presentation, preview gestures, fullscreen routing, and player construction now live in a focused video extension while the base view stays centered on lifecycle and layout composition."
+        ),
+        AppChangelogEntry(
             id: "library-playback-focused-extensions",
             title: "Library playback split",
             detail: "Library playback loading, Now Playing integration, and resume routing now live in focused extensions while the base view stays centered on layout composition."

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.142
+
+- Advanced visible Apple app versioning to `v2026.06.22.142`.
+- Moved job playback video presentation, preview gestures, fullscreen routing, and player construction into `JobPlaybackView+Video.swift`, keeping the base job playback view focused on lifecycle and layout composition.
+
 ### 2026.06.22.141
 
 - Advanced visible Apple app versioning to `v2026.06.22.141`.
