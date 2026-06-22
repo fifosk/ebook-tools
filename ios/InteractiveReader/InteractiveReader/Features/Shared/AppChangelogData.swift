@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.123",
+            version: "2026.06.22.124",
             entries: [
+                AppChangelogEntry(
+                    id: "text-player-token-geometry-file",
+                    title: "Text player token geometry separated",
+                    detail: "Token coordinate-space and preference-key plumbing now live in a focused geometry file while text player rendering stays centered on sentence, variant, and token views."
+                ),
                 AppChangelogEntry(
                     id: "interactive-shortcut-dispatch-file",
                     title: "iPad shortcut dispatch separated",

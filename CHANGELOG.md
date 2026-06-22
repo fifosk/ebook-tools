@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.124
+
+- Advanced visible Apple app versioning to `v2026.06.22.124`.
+- Moved text-player token coordinate-space and preference-key plumbing into `TextPlayerTokenGeometry.swift`, keeping text player rendering focused on sentence, variant, and token views.
+
 ### 2026.06.22.123
 
 - Advanced visible Apple app versioning to `v2026.06.22.123`.
