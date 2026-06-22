@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.75
+
+- Advanced visible Apple app versioning to `v2026.06.22.75`.
+- Moved shared player glyph marks and cover artwork stack into a dedicated SwiftUI source file.
+
 ### 2026.06.22.74
 
 - Advanced visible Apple app versioning to `v2026.06.22.74`.

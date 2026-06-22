@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.74",
+            version: "2026.06.22.75",
             entries: [
+                AppChangelogEntry(
+                    id: "player-artwork-views-file",
+                    title: "Player artwork UI separated",
+                    detail: "Shared YouTube, TV, and cover-stack artwork views now live outside the channel bug view file."
+                ),
                 AppChangelogEntry(
                     id: "player-language-flag-views-file",
                     title: "Language flag UI separated",
