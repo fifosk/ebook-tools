@@ -30,6 +30,9 @@ struct LibraryView: View {
     @State private var rowFrames: [CGRect] = []
     @State private var sourceUploadItem: LibraryItem?
     @State private var isImportingLibrarySource = false
+    @State private var isbnEditItem: LibraryItem?
+    @State private var isbnInput = ""
+    @State private var isApplyingLibraryIsbn = false
     private let listCoordinateSpace = "libraryList"
     #endif
     @Environment(\.colorScheme) private var colorScheme
@@ -86,6 +89,16 @@ struct LibraryView: View {
             allowsMultipleSelection: false,
             onCompletion: handleLibrarySourceImport
         )
+        .alert("Apply ISBN", isPresented: $isApplyingLibraryIsbn) {
+            TextField("ISBN", text: $isbnInput)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Cancel", role: .cancel, action: clearIsbnPrompt)
+            Button("Apply", action: applyCurrentIsbn)
+                .disabled(isbnInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } message: {
+            Text("Fetch book metadata for the selected library item.")
+        }
         #endif
     }
 
@@ -124,6 +137,7 @@ struct LibraryView: View {
             .contextMenu {
                 playbackContextMenu(for: item)
                 sourceUploadAction(for: item)
+                isbnMetadataAction(for: item)
                 deleteItemAction(for: item)
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -156,6 +170,11 @@ struct LibraryView: View {
                     .padding()
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
                     .accessibilityIdentifier("librarySourceUploadLoadingView")
+            } else if viewModel.isApplyingIsbn {
+                ProgressView("Updating metadata…")
+                    .padding()
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityIdentifier("libraryIsbnLoadingView")
             } else if viewModel.filteredItems.isEmpty {
                 ContentUnavailableView {
                     Label("No library items found", systemImage: "books.vertical")
@@ -287,7 +306,38 @@ struct LibraryView: View {
         Button(action: { handleSourceUploadRequest(item) }) {
             Label("Replace Source File", systemImage: "square.and.arrow.up")
         }
-        .disabled(viewModel.isUploadingSource)
+        .disabled(viewModel.isUploadingSource || viewModel.isApplyingIsbn)
+    }
+
+    private func handleIsbnMetadataRequest(_ item: LibraryItem) {
+        isbnEditItem = item
+        isbnInput = item.isbn ?? ""
+        isApplyingLibraryIsbn = true
+    }
+
+    private func isbnMetadataAction(for item: LibraryItem) -> some View {
+        Button(action: { handleIsbnMetadataRequest(item) }) {
+            Label("Apply ISBN Metadata", systemImage: "barcode.viewfinder")
+        }
+        .disabled(viewModel.isUploadingSource || viewModel.isApplyingIsbn)
+    }
+
+    private func clearIsbnPrompt() {
+        isbnEditItem = nil
+        isbnInput = ""
+    }
+
+    private func applyCurrentIsbn() {
+        guard let item = isbnEditItem else { return }
+        let value = isbnInput
+        Task {
+            let applied = await viewModel.applyIsbn(value, to: item, using: appState)
+            await MainActor.run {
+                if applied {
+                    clearIsbnPrompt()
+                }
+            }
+        }
     }
 
     private func handleLibrarySourceImport(_ result: Result<[URL], Error>) {
@@ -322,6 +372,10 @@ struct LibraryView: View {
     }
     #else
     private func sourceUploadAction(for item: LibraryItem) -> some View {
+        EmptyView()
+    }
+
+    private func isbnMetadataAction(for item: LibraryItem) -> some View {
         EmptyView()
     }
     #endif

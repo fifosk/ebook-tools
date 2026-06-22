@@ -24,6 +24,7 @@ final class LibraryViewModel: ObservableObject {
     @Published var items: [LibraryItem] = []
     @Published var isLoading = false
     @Published var isUploadingSource = false
+    @Published var isApplyingIsbn = false
     @Published var errorMessage: String?
     @Published var query: String = ""
     @Published var activeFilter: LibraryFilter = .book
@@ -84,6 +85,40 @@ final class LibraryViewModel: ObservableObject {
                 fileURL: fileURL,
                 filename: filename
             )
+            if let index = items.firstIndex(where: { $0.jobId == updated.jobId }) {
+                items[index] = updated
+            } else {
+                items.insert(updated, at: 0)
+            }
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func applyIsbn(
+        _ isbn: String,
+        to item: LibraryItem,
+        using appState: AppState
+    ) async -> Bool {
+        guard let configuration = appState.configuration else {
+            errorMessage = "Configure a valid API base URL before continuing."
+            return false
+        }
+        let trimmed = isbn.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            errorMessage = "Enter an ISBN before applying metadata."
+            return false
+        }
+
+        isApplyingIsbn = true
+        errorMessage = nil
+        defer { isApplyingIsbn = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let updated = try await client.applyLibraryIsbn(jobId: item.jobId, isbn: trimmed)
             if let index = items.firstIndex(where: { $0.jobId == updated.jobId }) {
                 items[index] = updated
             } else {

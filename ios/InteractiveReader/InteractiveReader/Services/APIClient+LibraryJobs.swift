@@ -69,6 +69,19 @@ extension APIClient {
         return try decode(LibraryItem.self, from: data)
     }
 
+    func applyLibraryIsbn(jobId: String, isbn: String) async throws -> LibraryItem {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        struct LibraryIsbnUpdateRequest: Encodable {
+            let isbn: String
+        }
+        let data = try await sendJSONRequest(
+            path: "/api/library/items/\(encoded)/isbn",
+            method: "POST",
+            payload: LibraryIsbnUpdateRequest(isbn: isbn)
+        )
+        return try decode(LibraryItem.self, from: data)
+    }
+
     func moveJobToLibrary(jobId: String, statusOverride: String? = nil) async throws {
         let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
         if let statusOverride {
