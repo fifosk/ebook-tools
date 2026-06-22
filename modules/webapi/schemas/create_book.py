@@ -53,6 +53,69 @@ class BookCreationResponse(BaseModel):
     sentences_preview: List[str] = Field(default_factory=list)
 
 
+class BookCreationSentenceBounds(BaseModel):
+    """Supported sentence-count bounds for generated books."""
+
+    min: int
+    max: int
+    default: int
+
+
+class BookCreationDefaults(BaseModel):
+    """Default generated-book prompt and narration values."""
+
+    topic: str = ""
+    book_name: str = ""
+    genre: str = ""
+    author: str = "Me"
+    input_language: str = "English"
+    output_language: str = "Arabic"
+    voice: str = "gTTS"
+
+
+class BookCreationPipelineDefaults(BaseModel):
+    """Default pipeline settings used by generated-book creation clients."""
+
+    sentences_per_output_file: int = 10
+    audio_mode: str = "4"
+    audio_bitrate_kbps: int | None = 96
+    written_mode: str = "4"
+    selected_voice: str = "gTTS"
+    generate_audio: bool = True
+    output_html: bool = False
+    output_pdf: bool = False
+    include_transliteration: bool = True
+    translation_provider: str = "llm"
+    translation_batch_size: int = 10
+    transliteration_mode: str = "default"
+    enable_lookup_cache: bool = True
+    lookup_cache_batch_size: int = 10
+    tempo: float = 1.0
+
+
+class BookCreationGeneratedSourceDefaults(BaseModel):
+    """Generated-source defaults layered on top of the shared pipeline form."""
+
+    add_images: bool = False
+    image_prompt_pipeline: str = "prompt_plan"
+    image_style_template: str = "wireframe"
+    image_prompt_context_sentences: int = 0
+    image_width: str = "256"
+    image_height: str = "256"
+
+
+class BookCreationOptionsResponse(BaseModel):
+    """Non-secret options contract for generated-book creation clients."""
+
+    sentence_bounds: BookCreationSentenceBounds
+    defaults: BookCreationDefaults
+    pipeline_defaults: BookCreationPipelineDefaults
+    generated_source_defaults: BookCreationGeneratedSourceDefaults
+    supported_input_languages: List[str] = Field(default_factory=list)
+    supported_output_languages: List[str] = Field(default_factory=list)
+    supported_voices: List[str] = Field(default_factory=list)
+
+
 class BookGenerationJobRequest(BaseModel):
     """Payload for submitting a managed book-generation pipeline job."""
 

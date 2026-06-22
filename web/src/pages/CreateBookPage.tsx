@@ -1,6 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PipelineRequestPayload, PipelineStatusResponse } from '../api/dtos';
-import { submitBookJob, type BookGenerationJobRequest } from '../api/createBook';
+import {
+  fetchBookCreationOptions,
+  submitBookJob,
+  type BookCreationOptionsResponse,
+  type BookGenerationJobRequest
+} from '../api/createBook';
 import BookNarrationForm from '../components/book-narration/BookNarrationForm';
 
 type GeneratorFormState = {
@@ -24,6 +29,12 @@ const DEFAULT_GENERATOR_STATE: GeneratorFormState = {
   num_sentences: 30
 };
 
+const FALLBACK_SENTENCE_BOUNDS = {
+  min: 1,
+  max: 500,
+  default: DEFAULT_GENERATOR_STATE.num_sentences
+};
+
 function deriveBaseOutputName(value: string): string {
   const withoutExtension = value.replace(/\.[^/.]+$/, '');
   const normalized = withoutExtension
@@ -43,14 +54,67 @@ function deriveBaseOutputName(value: string): string {
 
 export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: CreateBookPageProps) {
   const [generatorState, setGeneratorState] = useState<GeneratorFormState>(DEFAULT_GENERATOR_STATE);
+  const [creationOptions, setCreationOptions] = useState<BookCreationOptionsResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [latestJobId, setLatestJobId] = useState<string | null>(null);
+  const sentenceBounds = creationOptions?.sentence_bounds ?? FALLBACK_SENTENCE_BOUNDS;
   const forcedBaseOutput = useMemo(
     () => deriveBaseOutputName(generatorState.book_name || generatorState.topic || 'generated-book'),
     [generatorState.book_name, generatorState.topic]
   );
+  const generatedSourceImageDefaults = useMemo(
+    () => ({
+      add_images: creationOptions?.generated_source_defaults.add_images ?? false,
+      image_prompt_pipeline:
+        creationOptions?.generated_source_defaults.image_prompt_pipeline ?? 'prompt_plan',
+      image_style_template:
+        creationOptions?.generated_source_defaults.image_style_template ?? 'wireframe',
+      image_prompt_context_sentences:
+        creationOptions?.generated_source_defaults.image_prompt_context_sentences ?? 0,
+      image_width: creationOptions?.generated_source_defaults.image_width ?? '256',
+      image_height: creationOptions?.generated_source_defaults.image_height ?? '256'
+    }),
+    [creationOptions]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchBookCreationOptions()
+      .then((options) => {
+        if (cancelled) {
+          return;
+        }
+        setCreationOptions(options);
+        setGeneratorState((previous) => {
+          const nextBounds = options.sentence_bounds;
+          const nextDefaultCount = Math.max(
+            nextBounds.min,
+            Math.min(nextBounds.max, Math.trunc(nextBounds.default))
+          );
+          return {
+            ...previous,
+            author:
+              previous.author === DEFAULT_GENERATOR_STATE.author
+                ? options.defaults.author || DEFAULT_GENERATOR_STATE.author
+                : previous.author,
+            num_sentences:
+              previous.num_sentences === DEFAULT_GENERATOR_STATE.num_sentences
+                ? nextDefaultCount
+                : Math.max(nextBounds.min, Math.min(nextBounds.max, previous.num_sentences))
+          };
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCreationOptions(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updateGenerator = <Key extends keyof GeneratorFormState>(
     key: Key,
@@ -69,7 +133,7 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
 
   const normalizeSentences = (value: number): number => {
     const coerced = Number.isFinite(value) ? value : DEFAULT_GENERATOR_STATE.num_sentences;
-    return Math.max(1, Math.min(500, Math.trunc(coerced)));
+    return Math.max(sentenceBounds.min, Math.min(sentenceBounds.max, Math.trunc(coerced)));
   };
 
   const handleSubmit = async (pipelinePayload: PipelineRequestPayload) => {
@@ -176,8 +240,8 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
         <input
           id="book-sentences"
           type="number"
-          min={1}
-          max={500}
+          min={sentenceBounds.min}
+          max={sentenceBounds.max}
           value={generatorState.num_sentences}
           onChange={(event) => {
             const next = Number(event.target.value);
@@ -207,13 +271,7 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
         sourceMode="generated"
         submitLabel="Generate & process"
         forcedBaseOutputFile={forcedBaseOutput}
-        defaultImageSettings={{
-          add_images: false,
-          image_style_template: 'wireframe',
-          image_prompt_context_sentences: 0,
-          image_width: '256',
-          image_height: '256'
-        }}
+        defaultImageSettings={generatedSourceImageDefaults}
         customSourceSection={bookPromptSection}
         showInfoHeader={false}
         sectionOverrides={{

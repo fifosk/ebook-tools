@@ -49,8 +49,13 @@ from ..dependencies import (
 from ..auth_utils import extract_session_token
 from ..schemas import PipelineSubmissionResponse
 from ..schemas.create_book import (
+    BookCreationDefaults,
+    BookCreationGeneratedSourceDefaults,
+    BookCreationOptionsResponse,
+    BookCreationPipelineDefaults,
     BookCreationRequest,
     BookCreationResponse,
+    BookCreationSentenceBounds,
     BookGenerationJobSubmission,
 )
 
@@ -67,6 +72,15 @@ _PLACEHOLDER_SENTENCES = frozenset(
 _MAX_METADATA_SENTENCES = 50
 _SUMMARY_MAX_SENTENCES = 4
 _SUMMARY_MAX_CHARACTERS = 600
+_DEFAULT_SENTENCE_COUNT = 30
+_MIN_SENTENCE_COUNT = 1
+_MAX_SENTENCE_COUNT = 500
+_DEFAULT_INPUT_LANGUAGE = "English"
+_DEFAULT_OUTPUT_LANGUAGE = "Arabic"
+_DEFAULT_AUTHOR = "Me"
+_DEFAULT_VOICE = "gTTS"
+_SUPPORTED_BOOK_LANGUAGES = ["English", "Arabic", "Slovak", "Spanish", "French", "German"]
+_SUPPORTED_BOOK_VOICES = ["gTTS", "macOS", "edge-tts"]
 
 logger = log_mgr.get_logger()
 
@@ -170,6 +184,74 @@ def _coerce_float(value: object, fallback: float) -> float:
         return float(value)
     except (TypeError, ValueError):
         return fallback
+
+
+def _coerce_bool(value: object, fallback: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    return fallback
+
+
+def _coerce_text(value: object, fallback: str) -> str:
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped:
+            return stripped
+    return fallback
+
+
+def _build_creation_options(config: dict[str, Any]) -> BookCreationOptionsResponse:
+    selected_voice = _coerce_text(config.get("selected_voice"), _DEFAULT_VOICE)
+    input_language = _coerce_text(config.get("input_language"), _DEFAULT_INPUT_LANGUAGE)
+    target_languages = config.get("target_languages")
+    if isinstance(target_languages, list):
+        output_language = next(
+            (entry.strip() for entry in target_languages if isinstance(entry, str) and entry.strip()),
+            _DEFAULT_OUTPUT_LANGUAGE,
+        )
+    else:
+        output_language = _coerce_text(config.get("output_language"), _DEFAULT_OUTPUT_LANGUAGE)
+
+    return BookCreationOptionsResponse(
+        sentence_bounds=BookCreationSentenceBounds(
+            min=_MIN_SENTENCE_COUNT,
+            max=_MAX_SENTENCE_COUNT,
+            default=_DEFAULT_SENTENCE_COUNT,
+        ),
+        defaults=BookCreationDefaults(
+            author=_DEFAULT_AUTHOR,
+            input_language=input_language,
+            output_language=output_language,
+            voice=selected_voice,
+        ),
+        pipeline_defaults=BookCreationPipelineDefaults(
+            sentences_per_output_file=max(1, _coerce_int(config.get("sentences_per_output_file"), 10)),
+            audio_mode=_coerce_text(config.get("audio_mode"), "4"),
+            audio_bitrate_kbps=max(32, _coerce_int(config.get("audio_bitrate_kbps"), 96)),
+            written_mode=_coerce_text(config.get("written_mode"), "4"),
+            selected_voice=selected_voice,
+            generate_audio=_coerce_bool(config.get("generate_audio"), True),
+            output_html=_coerce_bool(config.get("output_html"), False),
+            output_pdf=_coerce_bool(config.get("output_pdf"), False),
+            include_transliteration=_coerce_bool(config.get("include_transliteration"), True),
+            translation_provider=_coerce_text(config.get("translation_provider"), "llm"),
+            translation_batch_size=max(1, _coerce_int(config.get("translation_batch_size"), 10)),
+            transliteration_mode=_coerce_text(config.get("transliteration_mode"), "default"),
+            enable_lookup_cache=_coerce_bool(config.get("enable_lookup_cache"), True),
+            lookup_cache_batch_size=max(1, _coerce_int(config.get("lookup_cache_batch_size"), 10)),
+            tempo=max(0.1, _coerce_float(config.get("tempo"), 1.0)),
+        ),
+        generated_source_defaults=BookCreationGeneratedSourceDefaults(),
+        supported_input_languages=list(_SUPPORTED_BOOK_LANGUAGES),
+        supported_output_languages=list(_SUPPORTED_BOOK_LANGUAGES),
+        supported_voices=list(dict.fromkeys([selected_voice, *_SUPPORTED_BOOK_VOICES])),
+    )
 
 
 def _generate_llm_metadata(
@@ -707,6 +789,17 @@ def _execute_book_job(
         job.error_message = None if response.success else "Pipeline execution reported failure."
     else:
         job.error_message = job.error_message or "Job cancelled during pipeline execution."
+
+
+@router.get("/options", response_model=BookCreationOptionsResponse)
+async def get_book_creation_options(
+    request_user: RequestUserContext = Depends(get_request_user),
+    context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+) -> BookCreationOptionsResponse:
+    """Return non-secret generated-book defaults shared by Web and Apple clients."""
+
+    _ensure_book_role(request_user)
+    return _build_creation_options(context_provider.resolve_config({}))
 
 
 @router.post("/create", response_model=BookCreationResponse)

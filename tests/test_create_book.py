@@ -146,3 +146,55 @@ def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     input_file = Path(body["input_file"])
     assert input_file.exists()
     assert input_file.suffix == ".epub"
+
+
+def test_book_creation_options_endpoint_returns_non_secret_defaults(tmp_path: Path) -> None:
+    app = create_app()
+
+    user = UserRecord(username="editor", password_hash="", roles=["editor"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/books/options",
+        headers={"X-User-Id": "editor", "X-User-Role": "editor"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sentence_bounds"] == {"min": 1, "max": 500, "default": 30}
+    assert body["defaults"]["author"] == "Me"
+    assert body["defaults"]["input_language"] == "English"
+    assert body["defaults"]["output_language"] == "Arabic"
+    assert body["defaults"]["voice"] == "DemoVoice"
+    assert body["pipeline_defaults"]["audio_mode"] == "4"
+    assert body["pipeline_defaults"]["written_mode"] == "4"
+    assert body["pipeline_defaults"]["selected_voice"] == "DemoVoice"
+    assert body["generated_source_defaults"]["image_style_template"] == "wireframe"
+    assert "English" in body["supported_input_languages"]
+    assert "DemoVoice" in body["supported_voices"]
+
+
+def test_book_creation_options_requires_editor_role(tmp_path: Path) -> None:
+    app = create_app()
+
+    user = UserRecord(username="viewer", password_hash="", roles=["viewer"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/books/options",
+        headers={"X-User-Id": "viewer", "X-User-Role": "viewer"},
+    )
+
+    assert response.status_code == 403

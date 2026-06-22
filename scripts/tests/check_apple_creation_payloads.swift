@@ -5,6 +5,55 @@ struct AppleCreationPayloadCheck {
     static func main() throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
+        let decoder = JSONDecoder()
+
+        let optionsJSON = """
+        {
+          "sentence_bounds": {"min": 1, "max": 500, "default": 30},
+          "defaults": {
+            "topic": "",
+            "book_name": "",
+            "genre": "",
+            "author": "Me",
+            "input_language": "English",
+            "output_language": "Arabic",
+            "voice": "gTTS"
+          },
+          "pipeline_defaults": {
+            "sentences_per_output_file": 10,
+            "audio_mode": "4",
+            "audio_bitrate_kbps": 96,
+            "written_mode": "4",
+            "selected_voice": "gTTS",
+            "generate_audio": true,
+            "output_html": false,
+            "output_pdf": false,
+            "include_transliteration": true,
+            "translation_provider": "llm",
+            "translation_batch_size": 10,
+            "transliteration_mode": "default",
+            "enable_lookup_cache": true,
+            "lookup_cache_batch_size": 10,
+            "tempo": 1.0
+          },
+          "generated_source_defaults": {
+            "add_images": false,
+            "image_prompt_pipeline": "prompt_plan",
+            "image_style_template": "wireframe",
+            "image_prompt_context_sentences": 0,
+            "image_width": "256",
+            "image_height": "256"
+          },
+          "supported_input_languages": ["English", "Arabic"],
+          "supported_output_languages": ["English", "Arabic"],
+          "supported_voices": ["gTTS"]
+        }
+        """.data(using: .utf8)!
+        let options = try decoder.decode(BookCreationOptionsResponse.self, from: optionsJSON)
+        require(options.sentenceBounds.default == 30, "creation options should decode sentence default")
+        require(options.defaults.outputLanguage == "Arabic", "creation options should decode output language")
+        require(options.pipelineDefaults.audioMode == "4", "creation options should decode pipeline defaults")
+        require(options.generatedSourceDefaults.imageStyleTemplate == "wireframe", "creation options should decode generated source defaults")
 
         let input = PipelineInputPayload(
             inputFile: "books/demo.epub",

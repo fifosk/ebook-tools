@@ -1,6 +1,11 @@
 import Foundation
 
 extension APIClient {
+    func fetchBookCreationOptions() async throws -> BookCreationOptionsResponse {
+        let data = try await sendRequest(path: "/api/books/options")
+        return try decode(BookCreationOptionsResponse.self, from: data)
+    }
+
     func submitPipeline(_ payload: PipelineRequestPayload) async throws -> PipelineSubmissionResponse {
         let data = try await sendJSONRequest(path: "/api/pipelines", method: "POST", payload: payload)
         return try decode(PipelineSubmissionResponse.self, from: data)

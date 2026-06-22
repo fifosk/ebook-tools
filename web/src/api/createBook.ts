@@ -1,5 +1,5 @@
-import { getAuthContext, withBase } from './client';
 import type { PipelineRequestPayload, PipelineSubmissionResponse } from './dtos';
+import { apiFetch, handleResponse } from './client';
 
 export interface CreateBookPayload {
   input_language: string;
@@ -23,33 +23,66 @@ export interface BookCreationResponse {
   sentences_preview: string[];
 }
 
-export async function createBook(payload: CreateBookPayload): Promise<BookCreationResponse> {
-  const { token, userId, userRole } = getAuthContext();
-  const headers = new Headers({
-    'Content-Type': 'application/json'
-  });
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-  if (userId) {
-    headers.set('X-User-Id', userId);
-  }
-  if (userRole) {
-    headers.set('X-User-Role', userRole);
-  }
+export interface BookCreationOptionsResponse {
+  sentence_bounds: {
+    min: number;
+    max: number;
+    default: number;
+  };
+  defaults: {
+    topic: string;
+    book_name: string;
+    genre: string;
+    author: string;
+    input_language: string;
+    output_language: string;
+    voice: string;
+  };
+  pipeline_defaults: {
+    sentences_per_output_file: number;
+    audio_mode: string;
+    audio_bitrate_kbps: number | null;
+    written_mode: string;
+    selected_voice: string;
+    generate_audio: boolean;
+    output_html: boolean;
+    output_pdf: boolean;
+    include_transliteration: boolean;
+    translation_provider: string;
+    translation_batch_size: number;
+    transliteration_mode: string;
+    enable_lookup_cache: boolean;
+    lookup_cache_batch_size: number;
+    tempo: number;
+  };
+  generated_source_defaults: {
+    add_images: boolean;
+    image_prompt_pipeline: string;
+    image_style_template: string;
+    image_prompt_context_sentences: number;
+    image_width: string;
+    image_height: string;
+  };
+  supported_input_languages: string[];
+  supported_output_languages: string[];
+  supported_voices: string[];
+}
 
-  const response = await fetch(withBase('/api/books/create'), {
+export async function fetchBookCreationOptions(): Promise<BookCreationOptionsResponse> {
+  const response = await apiFetch('/api/books/options');
+  return handleResponse<BookCreationOptionsResponse>(response);
+}
+
+export async function createBook(payload: CreateBookPayload): Promise<BookCreationResponse> {
+  const response = await apiFetch('/api/books/create', {
     method: 'POST',
-    headers,
+    headers: {
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify(payload)
   });
 
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || 'Failed to create book');
-  }
-
-  return (await response.json()) as BookCreationResponse;
+  return handleResponse<BookCreationResponse>(response);
 }
 
 export interface BookGenerationJobRequest {
@@ -69,30 +102,13 @@ export interface BookGenerationJobRequest {
 export async function submitBookJob(
   payload: BookGenerationJobRequest
 ): Promise<PipelineSubmissionResponse> {
-  const { token, userId, userRole } = getAuthContext();
-  const headers = new Headers({
-    'Content-Type': 'application/json'
-  });
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-  if (userId) {
-    headers.set('X-User-Id', userId);
-  }
-  if (userRole) {
-    headers.set('X-User-Role', userRole);
-  }
-
-  const response = await fetch(withBase('/api/books/jobs'), {
+  const response = await apiFetch('/api/books/jobs', {
     method: 'POST',
-    headers,
+    headers: {
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify(payload)
   });
 
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || 'Failed to submit book generation job');
-  }
-
-  return (await response.json()) as PipelineSubmissionResponse;
+  return handleResponse<PipelineSubmissionResponse>(response);
 }

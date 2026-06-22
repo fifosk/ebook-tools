@@ -49,6 +49,13 @@ from .metadata_lookup import (
     YoutubeVideoMetadataResponse,
 )
 from .pipeline_files import PipelineFileBrowserResponse, PipelineFileEntry
+from .create_book import (
+    BookCreationDefaults,
+    BookCreationGeneratedSourceDefaults,
+    BookCreationOptionsResponse,
+    BookCreationPipelineDefaults,
+    BookCreationSentenceBounds,
+)
 from .pipeline_jobs import (
     ImageGenerationSummary,
     JobParameterSnapshot,
@@ -144,6 +151,11 @@ __all__ = [
     "AssistantLookupResponse",
     "AssistantRequestContext",
     "BookContentIndexResponse",
+    "BookCreationDefaults",
+    "BookCreationGeneratedSourceDefaults",
+    "BookCreationOptionsResponse",
+    "BookCreationPipelineDefaults",
+    "BookCreationSentenceBounds",
     "BookOpenLibraryMetadataLookupRequest",
     "BookOpenLibraryMetadataPreviewLookupRequest",
     "BookOpenLibraryMetadataPreviewResponse",

@@ -157,6 +157,106 @@ struct PipelineFileEntry: Decodable, Equatable {
     let type: String
 }
 
+struct BookCreationSentenceBounds: Decodable, Equatable {
+    let min: Int
+    let max: Int
+    let `default`: Int
+}
+
+struct BookCreationDefaults: Decodable, Equatable {
+    let topic: String
+    let bookName: String
+    let genre: String
+    let author: String
+    let inputLanguage: String
+    let outputLanguage: String
+    let voice: String
+
+    enum CodingKeys: String, CodingKey {
+        case topic
+        case bookName = "book_name"
+        case genre
+        case author
+        case inputLanguage = "input_language"
+        case outputLanguage = "output_language"
+        case voice
+    }
+}
+
+struct BookCreationPipelineDefaults: Decodable, Equatable {
+    let sentencesPerOutputFile: Int
+    let audioMode: String
+    let audioBitrateKbps: Int?
+    let writtenMode: String
+    let selectedVoice: String
+    let generateAudio: Bool
+    let outputHtml: Bool
+    let outputPdf: Bool
+    let includeTransliteration: Bool
+    let translationProvider: String
+    let translationBatchSize: Int
+    let transliterationMode: String
+    let enableLookupCache: Bool
+    let lookupCacheBatchSize: Int
+    let tempo: Double
+
+    enum CodingKeys: String, CodingKey {
+        case sentencesPerOutputFile = "sentences_per_output_file"
+        case audioMode = "audio_mode"
+        case audioBitrateKbps = "audio_bitrate_kbps"
+        case writtenMode = "written_mode"
+        case selectedVoice = "selected_voice"
+        case generateAudio = "generate_audio"
+        case outputHtml = "output_html"
+        case outputPdf = "output_pdf"
+        case includeTransliteration = "include_transliteration"
+        case translationProvider = "translation_provider"
+        case translationBatchSize = "translation_batch_size"
+        case transliterationMode = "transliteration_mode"
+        case enableLookupCache = "enable_lookup_cache"
+        case lookupCacheBatchSize = "lookup_cache_batch_size"
+        case tempo
+    }
+}
+
+struct BookCreationGeneratedSourceDefaults: Decodable, Equatable {
+    let addImages: Bool
+    let imagePromptPipeline: String
+    let imageStyleTemplate: String
+    let imagePromptContextSentences: Int
+    let imageWidth: String
+    let imageHeight: String
+
+    enum CodingKeys: String, CodingKey {
+        case addImages = "add_images"
+        case imagePromptPipeline = "image_prompt_pipeline"
+        case imageStyleTemplate = "image_style_template"
+        case imagePromptContextSentences = "image_prompt_context_sentences"
+        case imageWidth = "image_width"
+        case imageHeight = "image_height"
+    }
+}
+
+struct BookCreationOptionsResponse: Decodable, Equatable {
+    let sentenceBounds: BookCreationSentenceBounds
+    let defaults: BookCreationDefaults
+    let pipelineDefaults: BookCreationPipelineDefaults
+    let generatedSourceDefaults: BookCreationGeneratedSourceDefaults
+    let supportedInputLanguages: [String]
+    let supportedOutputLanguages: [String]
+    let supportedVoices: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case sentenceBounds = "sentence_bounds"
+        case defaults
+        case pipelineDefaults = "pipeline_defaults"
+        case generatedSourceDefaults = "generated_source_defaults"
+        case supportedInputLanguages = "supported_input_languages"
+        case supportedOutputLanguages = "supported_output_languages"
+        case supportedVoices = "supported_voices"
+    }
+}
+
 struct BookGenerationRequest: Encodable, Equatable {
     let topic: String
     let bookName: String
