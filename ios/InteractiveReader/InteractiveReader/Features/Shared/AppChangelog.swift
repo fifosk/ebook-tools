@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.45",
+            version: "2026.06.22.46",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-player-tvos-directional-handlers",
+                    title: "TV text-player navigation cleaned up",
+                    detail: "Interactive text-player tvOS directional navigation now routes through named SwiftUI focus handlers."
+                ),
                 AppChangelogEntry(
                     id: "tvos-overlay-focus-handlers",
                     title: "TV overlay focus cleaned up",

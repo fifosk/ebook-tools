@@ -204,92 +204,7 @@ struct InteractivePlayerView: View {
             .onPlayPauseCommand {
                 audioCoordinator.togglePlayback()
             }
-            .onMoveCommand { direction in
-                guard let chunk = viewModel.selectedChunk else { return }
-                if focusedArea == .bubble {
-                    // Handle vertical navigation out of bubble
-                    // Let tvOS focus system handle left/right between bubble controls
-                    switch direction {
-                    case .up:
-                        bubbleFocusEnabled = false
-                        focusedArea = .transcript
-                        return
-                    case .down:
-                        // Already at bottom, consume but do nothing
-                        return
-                    default:
-                        // Left/right - don't return, let tvOS handle focus navigation
-                        break
-                    }
-                }
-                // Note: Menu is disabled on tvOS, but keep this check for safety
-                if isMenuVisible, direction == .up {
-                    hideMenu()
-                    return
-                }
-                if focusedArea == .controls {
-                    // Only handle up/down navigation in controls mode
-                    // Let tvOS handle left/right to navigate between header buttons
-                    switch direction {
-                    case .down:
-                        focusedArea = .transcript
-                        return
-                    case .up:
-                        // Already at top, do nothing
-                        return
-                    default:
-                        // Don't consume left/right - let tvOS focus system handle it
-                        break
-                    }
-                }
-                let isTranscriptFocus = focusedArea == .transcript || focusedArea == nil
-                guard isTranscriptFocus else { return }
-                switch direction {
-                case .left:
-                    if audioCoordinator.isPlaying {
-                        viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
-                    } else {
-                        handleWordNavigation(-1, in: chunk)
-                    }
-                case .right:
-                    if audioCoordinator.isPlaying {
-                        viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
-                    } else {
-                        handleWordNavigation(1, in: chunk)
-                    }
-                case .up:
-                    if audioCoordinator.isPlaying {
-                        focusedArea = .controls
-                    } else {
-                        let moved = handleTrackNavigation(-1, in: chunk)
-                        if moved {
-                            bubbleFocusEnabled = false
-                            focusedArea = .transcript
-                        } else {
-                            bubbleFocusEnabled = false
-                            focusedArea = .controls
-                        }
-                    }
-                case .down:
-                    if audioCoordinator.isPlaying {
-                        showMenu()
-                    } else {
-                        let moved = handleTrackNavigation(1, in: chunk)
-                        if moved {
-                            bubbleFocusEnabled = false
-                            focusedArea = .transcript
-                        } else if linguistBubble != nil {
-                            bubbleFocusEnabled = true
-                            focusedArea = .bubble
-                        } else {
-                            bubbleFocusEnabled = false
-                            focusedArea = .transcript
-                        }
-                    }
-                default:
-                    break
-                }
-            }
+            .onMoveCommand(perform: handleTVMoveCommand)
             .onExitCommand {
                 handleExitCommand()
             }
@@ -300,6 +215,109 @@ struct InteractivePlayerView: View {
     }
 
     #if os(tvOS)
+    private func handleTVMoveCommand(_ direction: MoveCommandDirection) {
+        guard let chunk = viewModel.selectedChunk else { return }
+        if handleBubbleMoveCommand(direction) {
+            return
+        }
+        if handleMenuMoveCommand(direction) {
+            return
+        }
+        if handleControlsMoveCommand(direction) {
+            return
+        }
+        handleTranscriptMoveCommand(direction, chunk: chunk)
+    }
+
+    private func handleBubbleMoveCommand(_ direction: MoveCommandDirection) -> Bool {
+        guard focusedArea == .bubble else { return false }
+        // Let tvOS focus system handle left/right between bubble controls.
+        switch direction {
+        case .up:
+            bubbleFocusEnabled = false
+            focusedArea = .transcript
+            return true
+        case .down:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func handleMenuMoveCommand(_ direction: MoveCommandDirection) -> Bool {
+        // Menu is disabled on tvOS, but keep this check for safety.
+        guard isMenuVisible, direction == .up else { return false }
+        hideMenu()
+        return true
+    }
+
+    private func handleControlsMoveCommand(_ direction: MoveCommandDirection) -> Bool {
+        guard focusedArea == .controls else { return false }
+        // Let tvOS focus system handle left/right between header buttons.
+        switch direction {
+        case .down:
+            focusedArea = .transcript
+            return true
+        case .up:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func handleTranscriptMoveCommand(_ direction: MoveCommandDirection, chunk: InteractiveChunk) {
+        let isTranscriptFocus = focusedArea == .transcript || focusedArea == nil
+        guard isTranscriptFocus else { return }
+        switch direction {
+        case .left:
+            handleTranscriptHorizontalMove(-1, chunk: chunk)
+        case .right:
+            handleTranscriptHorizontalMove(1, chunk: chunk)
+        case .up:
+            handleTranscriptUpMove(chunk)
+        case .down:
+            handleTranscriptDownMove(chunk)
+        default:
+            break
+        }
+    }
+
+    private func handleTranscriptHorizontalMove(_ delta: Int, chunk: InteractiveChunk) {
+        if audioCoordinator.isPlaying {
+            viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
+        } else {
+            handleWordNavigation(delta, in: chunk)
+        }
+    }
+
+    private func handleTranscriptUpMove(_ chunk: InteractiveChunk) {
+        if audioCoordinator.isPlaying {
+            focusedArea = .controls
+        } else {
+            let moved = handleTrackNavigation(-1, in: chunk)
+            bubbleFocusEnabled = false
+            focusedArea = moved ? .transcript : .controls
+        }
+    }
+
+    private func handleTranscriptDownMove(_ chunk: InteractiveChunk) {
+        if audioCoordinator.isPlaying {
+            showMenu()
+        } else {
+            let moved = handleTrackNavigation(1, in: chunk)
+            if moved {
+                bubbleFocusEnabled = false
+                focusedArea = .transcript
+            } else if linguistBubble != nil {
+                bubbleFocusEnabled = true
+                focusedArea = .bubble
+            } else {
+                bubbleFocusEnabled = false
+                focusedArea = .transcript
+            }
+        }
+    }
+
     private func handleExitCommand() {
         // Handle bubble - when pinned, just defocus; when not pinned, close it
         if linguistBubble != nil {

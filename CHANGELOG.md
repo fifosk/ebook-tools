@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.46
+
+- Advanced visible Apple app versioning to `v2026.06.22.46`.
+- Moved interactive text-player tvOS directional navigation into named SwiftUI focus handlers.
+
 ### 2026.06.22.45
 
 - Advanced visible Apple app versioning to `v2026.06.22.45`.
