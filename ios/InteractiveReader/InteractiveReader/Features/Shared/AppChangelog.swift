@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.81",
+            version: "2026.06.22.82",
             entries: [
+                AppChangelogEntry(
+                    id: "job-row-cover-parsing-helper",
+                    title: "Job row cover parsing separated",
+                    detail: "YouTube thumbnail parsing and cover URL normalization now live outside the SwiftUI job row view."
+                ),
                 AppChangelogEntry(
                     id: "library-row-layout-component",
                     title: "Library row layout separated",

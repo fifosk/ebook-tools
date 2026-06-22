@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.82
+
+- Advanced visible Apple app versioning to `v2026.06.22.82`.
+- Moved job-row YouTube thumbnail parsing and cover URL normalization into a dedicated helper so the SwiftUI row view stays focused on row state and layout.
+
 ### 2026.06.22.81
 
 - Advanced visible Apple app versioning to `v2026.06.22.81`.
