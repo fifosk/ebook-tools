@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.112
+
+- Advanced visible Apple app versioning to `v2026.06.22.112`.
+- Moved shared platform slider, picker, playback button, focus, gesture, and list-background helpers into `PlatformControls.swift`, keeping `PlatformAdapter.swift` focused on detection, metrics, typography, and colors.
+
 ### 2026.06.22.111
 
 - Advanced visible Apple app versioning to `v2026.06.22.111`.

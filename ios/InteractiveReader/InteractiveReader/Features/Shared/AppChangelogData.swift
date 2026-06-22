@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.111",
+            version: "2026.06.22.112",
             entries: [
+                AppChangelogEntry(
+                    id: "platform-controls-file",
+                    title: "Platform controls separated",
+                    detail: "Shared slider, picker, button, focus, gesture, and list-background helpers now live in a focused platform controls file while platform detection and metrics stay in the adapter."
+                ),
                 AppChangelogEntry(
                     id: "settings-sections-file",
                     title: "Settings sections separated",
