@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.40",
+            version: "2026.06.22.41",
             entries: [
+                AppChangelogEntry(
+                    id: "video-subtitle-settings-selection-handlers",
+                    title: "Subtitle settings cleaned up",
+                    detail: "Video subtitle settings now route close, segment, subtitles-off, and track selection work through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "video-speed-menu-row-handlers",
                     title: "Video speed menu cleaned up",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.41
+
+- Advanced visible Apple app versioning to `v2026.06.22.41`.
+- Moved video subtitle settings close, segment, and track selection work into named SwiftUI handlers.
+
 ### 2026.06.22.40
 
 - Advanced visible Apple app versioning to `v2026.06.22.40`.

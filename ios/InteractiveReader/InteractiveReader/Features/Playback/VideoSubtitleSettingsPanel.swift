@@ -33,9 +33,7 @@ struct SubtitleSettingsPanel: View {
             Text("Subtitles")
                 .font(.headline)
             Spacer()
-            Button("Done") {
-                onClose()
-            }
+            Button("Done", action: handleClose)
             .font(.subheadline.weight(.semibold))
         }
     }
@@ -49,11 +47,7 @@ struct SubtitleSettingsPanel: View {
                             .font(.caption)
                             .foregroundStyle(.white.opacity(0.7))
                         ForEach(segmentOptions) { segment in
-                            Button {
-                                onSelectSegment?(segment.id)
-                            } label: {
-                                trackRow(label: segment.label, selected: segment.id == selectedSegmentID)
-                            }
+                            segmentOptionButton(segment)
                         }
                     }
 
@@ -65,11 +59,7 @@ struct SubtitleSettingsPanel: View {
                     Text("Tracks")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.7))
-                    Button {
-                        selectedTrack = nil
-                    } label: {
-                        trackRow(label: "Subtitles Off", selected: selectedTrack == nil)
-                    }
+                    subtitlesOffButton
                     if tracks.isEmpty {
                         Text("No subtitle tracks available.")
                             .font(.caption)
@@ -77,12 +67,7 @@ struct SubtitleSettingsPanel: View {
                             .padding(.vertical, 4)
                     } else {
                         ForEach(tracks) { track in
-                            Button {
-                                selectedTrack = track
-                            } label: {
-                                let label = "\(track.label) (\(track.format.label))"
-                                trackRow(label: label, selected: selectedTrack?.id == track.id)
-                            }
+                            subtitleTrackButton(track)
                         }
                     }
                 }
@@ -103,6 +88,28 @@ struct SubtitleSettingsPanel: View {
         .disabled(selectedTrack == nil)
     }
 
+    private var subtitlesOffButton: some View {
+        Button(action: handleSubtitlesOffSelection) {
+            trackRow(label: "Subtitles Off", selected: selectedTrack == nil)
+        }
+    }
+
+    private func segmentOptionButton(_ segment: VideoSegmentOption) -> some View {
+        Button {
+            handleSegmentSelection(segment)
+        } label: {
+            trackRow(label: segment.label, selected: segment.id == selectedSegmentID)
+        }
+    }
+
+    private func subtitleTrackButton(_ track: VideoSubtitleTrack) -> some View {
+        Button {
+            handleSubtitleTrackSelection(track)
+        } label: {
+            trackRow(label: subtitleTrackLabel(track), selected: selectedTrack?.id == track.id)
+        }
+    }
+
     private func trackRow(label: String, selected: Bool) -> some View {
         HStack {
             Text(label)
@@ -113,6 +120,26 @@ struct SubtitleSettingsPanel: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func subtitleTrackLabel(_ track: VideoSubtitleTrack) -> String {
+        "\(track.label) (\(track.format.label))"
+    }
+
+    private func handleClose() {
+        onClose()
+    }
+
+    private func handleSegmentSelection(_ segment: VideoSegmentOption) {
+        onSelectSegment?(segment.id)
+    }
+
+    private func handleSubtitlesOffSelection() {
+        selectedTrack = nil
+    }
+
+    private func handleSubtitleTrackSelection(_ track: VideoSubtitleTrack) {
+        selectedTrack = track
     }
 
     private var panelMaxWidth: CGFloat {
