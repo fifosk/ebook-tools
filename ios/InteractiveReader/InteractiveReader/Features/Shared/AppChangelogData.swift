@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.121",
+            version: "2026.06.22.122",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-shortcut-hardware-fallback-file",
+                    title: "iPad keyboard fallback separated",
+                    detail: "The GameController hardware-keyboard fallback now lives in a focused extension while shortcut support stays centered on responder ownership and UIKit key commands."
+                ),
                 AppChangelogEntry(
                     id: "interactive-player-menu-controls-file",
                     title: "Player menu controls separated",

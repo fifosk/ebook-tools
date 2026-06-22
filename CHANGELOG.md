@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.122
+
+- Advanced visible Apple app versioning to `v2026.06.22.122`.
+- Moved the iPad hardware-keyboard GameController fallback into `InteractivePlayerShortcutHardwareFallback.swift`, keeping shortcut support focused on responder ownership and UIKit key commands.
+
 ### 2026.06.22.121
 
 - Advanced visible Apple app versioning to `v2026.06.22.121`.
