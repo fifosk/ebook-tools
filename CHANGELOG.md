@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.146
+
+- Advanced visible Apple app versioning to `v2026.06.22.146`.
+- Moved interactive player header scaling, top-padding, pinch magnification, and collapse toggle behavior into `InteractivePlayerView+HeaderBehavior.swift`, keeping the overlay file centered on visible badge and progress-pill layout.
+
 ### 2026.06.22.145
 
 - Advanced visible Apple app versioning to `v2026.06.22.145`.

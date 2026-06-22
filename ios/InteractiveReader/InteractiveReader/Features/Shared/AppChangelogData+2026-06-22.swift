@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "interactive-header-behavior-file",
+            title: "Header behavior separated",
+            detail: "Interactive player header scaling, top-padding, pinch magnification, and collapse toggles now live in a focused behavior file while the header overlay stays centered on visible badge and progress-pill layout."
+        ),
+        AppChangelogEntry(
             id: "jobs-offline-menu-filter-files",
             title: "Jobs controls separated",
             detail: "Jobs filter styling and Apple TV offline download menu actions now live in focused files while the Jobs screen stays centered on list routing, search, and resume state."
