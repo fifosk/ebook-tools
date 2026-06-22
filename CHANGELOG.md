@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.51
+
+- Advanced visible Apple app versioning to `v2026.06.22.51`.
+- Moved shared media search clear and dismiss buttons into named SwiftUI handlers.
+
 ### 2026.06.22.50
 
 - Advanced visible Apple app versioning to `v2026.06.22.50`.

@@ -709,14 +709,14 @@ struct MediaSearchOverlayView: View {
                     .scaleEffect(0.6)
                     .tint(.white)
             } else if !query.isEmpty {
-                Button(action: clearQuery) {
+                Button(action: handleClearButtonTap) {
                     Image(systemName: "xmark.circle.fill")
                         .font(iconFont)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
             }
-            Button(action: dismissOverlay) {
+            Button(action: handleDismissButtonTap) {
                 Image(systemName: "xmark")
                     .font(iconFont)
                     .foregroundStyle(.secondary)
@@ -764,6 +764,14 @@ struct MediaSearchOverlayView: View {
 
     private func handleResultSelection(_ result: MediaSearchResult) {
         onSelect(result)
+        dismissOverlay()
+    }
+
+    private func handleClearButtonTap() {
+        clearQuery()
+    }
+
+    private func handleDismissButtonTap() {
         dismissOverlay()
     }
 
