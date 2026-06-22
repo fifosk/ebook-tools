@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.100",
+            version: "2026.06.22.101",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-changelog-window-helper",
+                    title: "TV changelog focus math cleaned up",
+                    detail: "The tvOS changelog now uses one focused window helper for visible rows, position labels, and remote movement so full-day changelog growth stays predictable."
+                ),
                 AppChangelogEntry(
                     id: "tvos-full-changelog-scroll",
                     title: "TV changelog shows the full day",

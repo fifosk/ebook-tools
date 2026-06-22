@@ -84,13 +84,15 @@ struct AppChangelogSummaryView: View {
 
     #if os(tvOS)
     private func tvScrollableEntries(maxContentHeight: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ForEach(tvVisibleEntries(maxContentHeight: maxContentHeight)) { entry in
+        let entryWindow = tvEntryWindow(maxContentHeight: maxContentHeight)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            ForEach(entryWindow.visibleEntries) { entry in
                 tvEntryButton(entry)
             }
 
-            if displayEntries.count > tvVisibleEntryLimit(maxContentHeight: maxContentHeight) {
-                Text(tvPositionLabel)
+            if entryWindow.showsPosition {
+                Text(entryWindow.positionLabel)
                     .font(.caption2.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(secondaryStyle)
@@ -132,33 +134,12 @@ struct AppChangelogSummaryView: View {
         .accessibilityIdentifier("appChangelogEntry.\(entry.id)")
     }
 
-    private func tvVisibleEntries(maxContentHeight: CGFloat) -> [AppChangelogEntry] {
-        let entries = displayEntries
-        guard !entries.isEmpty else { return [] }
-        let limit = tvVisibleEntryLimit(maxContentHeight: maxContentHeight)
-        guard entries.count > limit else { return entries }
-
-        let selectedIndex = focusedEntryIndex(in: entries)
-        let leadingContext = max(0, limit / 2)
-        let maxStart = max(0, entries.count - limit)
-        let startIndex = min(max(selectedIndex - leadingContext, 0), maxStart)
-        let endIndex = min(startIndex + limit, entries.count)
-        return Array(entries[startIndex..<endIndex])
-    }
-
-    private func tvVisibleEntryLimit(maxContentHeight: CGFloat) -> Int {
-        max(2, min(displayEntries.count, Int(maxContentHeight / 86)))
-    }
-
-    private var tvPositionLabel: String {
-        let entries = displayEntries
-        guard !entries.isEmpty else { return "" }
-        return "\(focusedEntryIndex(in: entries) + 1)/\(entries.count)"
-    }
-
-    private func focusedEntryIndex(in entries: [AppChangelogEntry]) -> Int {
-        focusedEntryID
-            .flatMap { focusedID in entries.firstIndex { $0.id == focusedID } } ?? 0
+    private func tvEntryWindow(maxContentHeight: CGFloat? = nil) -> TVChangelogEntryWindow {
+        TVChangelogEntryWindow(
+            entries: displayEntries,
+            focusedEntryID: focusedEntryID,
+            maxContentHeight: maxContentHeight
+        )
     }
 
     private func focusFirstEntryIfNeeded() {
@@ -179,9 +160,7 @@ struct AppChangelogSummaryView: View {
 
         let entries = displayEntries
         guard !entries.isEmpty else { return }
-        let currentIndex = focusedEntryIndex(in: entries)
-        let nextIndex = min(max(currentIndex + offset, 0), entries.count - 1)
-        focusedEntryID = entries[nextIndex].id
+        focusedEntryID = tvEntryWindow().entryID(movingBy: offset)
     }
     #endif
 
@@ -221,6 +200,52 @@ struct AppChangelogSummaryView: View {
         #endif
     }
 }
+
+#if os(tvOS)
+private struct TVChangelogEntryWindow {
+    private static let estimatedEntryHeight: CGFloat = 86
+
+    let entries: [AppChangelogEntry]
+    let focusedEntryID: String?
+    let maxContentHeight: CGFloat?
+
+    var visibleEntries: [AppChangelogEntry] {
+        guard !entries.isEmpty else { return [] }
+        guard showsPosition else { return entries }
+
+        let leadingContext = max(0, visibleLimit / 2)
+        let maxStart = max(0, entries.count - visibleLimit)
+        let startIndex = min(max(focusedIndex - leadingContext, 0), maxStart)
+        let endIndex = min(startIndex + visibleLimit, entries.count)
+        return Array(entries[startIndex..<endIndex])
+    }
+
+    var showsPosition: Bool {
+        entries.count > visibleLimit
+    }
+
+    var positionLabel: String {
+        guard !entries.isEmpty else { return "" }
+        return "\(focusedIndex + 1)/\(entries.count)"
+    }
+
+    func entryID(movingBy offset: Int) -> String? {
+        guard !entries.isEmpty else { return nil }
+        let nextIndex = min(max(focusedIndex + offset, 0), entries.count - 1)
+        return entries[nextIndex].id
+    }
+
+    private var visibleLimit: Int {
+        guard let maxContentHeight else { return entries.count }
+        return max(2, min(entries.count, Int(maxContentHeight / Self.estimatedEntryHeight)))
+    }
+
+    private var focusedIndex: Int {
+        focusedEntryID
+            .flatMap { focusedID in entries.firstIndex { $0.id == focusedID } } ?? 0
+    }
+}
+#endif
 
 private struct ChangelogTitleRow: View {
     let primaryStyle: Color
