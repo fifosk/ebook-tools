@@ -94,7 +94,12 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
     }
 
-    func submitSubtitleJob(_ draft: AppleSubtitleJobDraft, using appState: AppState) async -> String? {
+    func submitSubtitleJob(
+        _ draft: AppleSubtitleJobDraft,
+        localFileURL: URL? = nil,
+        localFilename: String? = nil,
+        using appState: AppState
+    ) async -> String? {
         guard let configuration = appState.configuration else {
             errorMessage = "API configuration is unavailable."
             return nil
@@ -107,7 +112,11 @@ final class AppleBookCreateViewModel: ObservableObject {
 
         do {
             let client = APIClient(configuration: configuration)
-            let response = try await client.submitSubtitleJob(Self.makeSubtitlePayload(from: draft))
+            let response = try await client.submitSubtitleJob(
+                Self.makeSubtitlePayload(from: draft),
+                fileURL: localFileURL,
+                filename: localFilename
+            )
             submittedJobId = response.jobId
             return response.jobId
         } catch {
@@ -298,7 +307,7 @@ struct AppleNarrateEbookDraft: Equatable {
 }
 
 struct AppleSubtitleJobDraft: Equatable {
-    let sourcePath: String
+    let sourcePath: String?
     let inputLanguage: String
     let targetLanguage: String
     let outputFormat: String

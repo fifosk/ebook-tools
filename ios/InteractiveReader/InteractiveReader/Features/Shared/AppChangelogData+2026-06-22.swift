@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-subtitle-file-import",
+            title: "Subtitle import added to Create",
+            detail: "On iPhone and iPad, Apple Create Subtitles can now pick a local SRT, VTT, or ASS file and upload it directly with the subtitle job."
+        ),
+        AppChangelogEntry(
             id: "apple-create-subtitle-jobs",
             title: "Subtitle jobs added to Create",
             detail: "On iPhone and iPad, Apple Create can now submit subtitle translation jobs from an existing server-side subtitle path with language, format, timing, and output toggles."

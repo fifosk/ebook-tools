@@ -51,6 +51,12 @@ extension APIClient {
     ) async throws -> PipelineSubmissionResponse {
         let upload: MultipartUploadFile?
         if let fileURL {
+            let didAccessSecurityScope = fileURL.startAccessingSecurityScopedResource()
+            defer {
+                if didAccessSecurityScope {
+                    fileURL.stopAccessingSecurityScopedResource()
+                }
+            }
             upload = try MultipartUploadFile(
                 fieldName: "file",
                 fileURL: fileURL,

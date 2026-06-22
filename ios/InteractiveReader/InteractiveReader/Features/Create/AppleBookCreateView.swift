@@ -30,6 +30,9 @@ struct AppleBookCreateView: View {
     @State private var selectedNarrateFileURL: URL?
     @State private var selectedNarrateFileName: String?
     @State private var isImportingNarrateEbook = false
+    @State private var selectedSubtitleFileURL: URL?
+    @State private var selectedSubtitleFileName: String?
+    @State private var isImportingSubtitleFile = false
     @State private var sentenceCount = 30
     @State private var inputLanguage = AppleBookCreateLanguage.english
     @State private var targetLanguage = AppleBookCreateLanguage.arabic
@@ -78,6 +81,12 @@ struct AppleBookCreateView: View {
             allowsMultipleSelection: false,
             onCompletion: handleNarrateEbookImport
         )
+        .fileImporter(
+            isPresented: $isImportingSubtitleFile,
+            allowedContentTypes: Self.subtitleContentTypes,
+            allowsMultipleSelection: false,
+            onCompletion: handleSubtitleFileImport
+        )
         #endif
         .accessibilityIdentifier("appleBookCreateView")
     }
@@ -107,7 +116,10 @@ struct AppleBookCreateView: View {
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("createNarrateOutputPathField")
             } else if creationMode == .subtitleJob {
-                TextField("Subtitle path", text: textBinding(for: .subtitleSourcePath, value: $subtitleSourcePath))
+                #if os(iOS)
+                subtitleFileImportControl
+                #endif
+                TextField("Server subtitle path", text: textBinding(for: .subtitleSourcePath, value: $subtitleSourcePath))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("createSubtitleSourcePathField")
@@ -131,6 +143,25 @@ struct AppleBookCreateView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .accessibilityIdentifier("createNarrateSelectedFileLabel")
+            }
+        }
+    }
+
+    private var subtitleFileImportControl: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                isImportingSubtitleFile = true
+            } label: {
+                Label(selectedSubtitleFileName ?? "Choose subtitle file", systemImage: "captions.bubble")
+            }
+            .accessibilityIdentifier("createSubtitleFileImportButton")
+
+            if let selectedSubtitleFileName {
+                Label(selectedSubtitleFileName, systemImage: "checkmark.circle")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .accessibilityIdentifier("createSubtitleSelectedFileLabel")
             }
         }
     }
@@ -336,7 +367,7 @@ struct AppleBookCreateView: View {
             return (selectedNarrateFileURL != nil || !trimmed(sourcePath).isEmpty)
                 && !trimmed(sourceBaseOutput).isEmpty
         case .subtitleJob:
-            return !trimmed(subtitleSourcePath).isEmpty
+            return (selectedSubtitleFileURL != nil || !trimmed(subtitleSourcePath).isEmpty)
                 && !trimmed(subtitleStartTime).isEmpty
         }
     }
@@ -397,7 +428,7 @@ struct AppleBookCreateView: View {
 
     private func submitSubtitleJob() {
         let draft = AppleSubtitleJobDraft(
-            sourcePath: trimmed(subtitleSourcePath),
+            sourcePath: trimmed(subtitleSourcePath).nonEmptyValue,
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
             outputFormat: subtitleOutputFormat.rawValue,
@@ -410,7 +441,12 @@ struct AppleBookCreateView: View {
         )
 
         Task {
-            if let jobId = await viewModel.submitSubtitleJob(draft, using: appState) {
+            if let jobId = await viewModel.submitSubtitleJob(
+                draft,
+                localFileURL: selectedSubtitleFileURL,
+                localFilename: selectedSubtitleFileName,
+                using: appState
+            ) {
                 onJobSubmitted(jobId)
             }
         }
@@ -462,8 +498,31 @@ struct AppleBookCreateView: View {
         }
     }
 
+    private func handleSubtitleFileImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case let .success(urls):
+            guard let url = urls.first else { return }
+            selectedSubtitleFileURL = url
+            selectedSubtitleFileName = url.lastPathComponent
+            markEdited(.subtitleSourcePath)
+        case let .failure(error):
+            selectedSubtitleFileURL = nil
+            selectedSubtitleFileName = nil
+            viewModel.errorMessage = error.localizedDescription
+        }
+    }
+
     private static var epubContentType: UTType {
         UTType(filenameExtension: "epub") ?? UTType(importedAs: "org.idpf.epub-container")
+    }
+
+    private static var subtitleContentTypes: [UTType] {
+        [
+            UTType(filenameExtension: "srt") ?? UTType(importedAs: "com.subrip.srt"),
+            UTType(filenameExtension: "vtt") ?? UTType(importedAs: "org.webvtt"),
+            UTType(filenameExtension: "ass") ?? UTType(importedAs: "org.aegisub.ass"),
+            UTType.plainText
+        ]
     }
     #endif
 

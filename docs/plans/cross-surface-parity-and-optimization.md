@@ -169,9 +169,9 @@ Refactor before restyling:
 After Narrate Ebook:
 
 - Subtitle job creation on iPad/iPhone. Status: initial Apple Create support
-  submits existing server-side subtitle paths with languages, output format,
-  timing, and key output toggles through `/api/subtitles/jobs`. Remaining
-  parity gaps: native source picker/upload, client-side timecode validation,
+  submits existing server-side subtitle paths or local SRT/VTT/ASS uploads with
+  languages, output format, timing, and key output toggles through
+  `/api/subtitles/jobs`. Remaining parity gaps: client-side timecode validation,
   model/provider selection, and ASS typography controls.
 - Generated book job creation on iPad.
 - YouTube dubbing as iPad-first review/submit flow.

@@ -236,6 +236,27 @@ struct AppleCreationPayloadCheck {
             "Apple subtitle form should mark Apple source metadata"
         )
 
+        let appleSubtitleUpload = SubtitleJobFormPayload(
+            inputLanguage: "English",
+            targetLanguage: "Arabic",
+            sourcePath: nil,
+            originalLanguage: "English",
+            translationProvider: "llm",
+            transliterationMode: "default",
+            enableTransliteration: true,
+            startTime: "00:00",
+            mediaMetadataJSON: #"{"source":"apple"}"#,
+            outputFormat: "ass"
+        )
+        require(
+            appleSubtitleUpload.multipartFields["source_path"] == nil,
+            "Apple subtitle upload form should omit source_path when using a local file"
+        )
+        require(
+            appleSubtitleUpload.multipartFields["translation_provider"] == "llm",
+            "Apple subtitle upload form should keep translation provider"
+        )
+
         print("apple creation payload checks passed")
     }
 

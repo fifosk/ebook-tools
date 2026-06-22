@@ -14,6 +14,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Web Create generated-audiobook fields now apply backend topic, title, and genre defaults from `/api/books/options` while preserving any prompt edits already typed before defaults arrive, matching the Apple Create behavior.
 
+### 2026.06.22.158
+
+- Advanced visible Apple app versioning to `v2026.06.22.158`.
+- Apple Create Subtitles can now choose a local SRT/VTT/ASS file on iPhone/iPad and upload it directly with the subtitle job, matching the Web upload flow.
+
 ### 2026.06.22.157
 
 - Advanced visible Apple app versioning to `v2026.06.22.157`.
