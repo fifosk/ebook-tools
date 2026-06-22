@@ -901,39 +901,22 @@ struct PlayerLanguageFlagRow: View {
     }
 
     var body: some View {
-        if !flags.isEmpty {
-            HStack(spacing: badgeSpacing) {
-                ForEach(Array(orderedFlags.enumerated()), id: \.element.id) { index, flag in
-                    let role = flag.role
-                    let isAvailable = availableRoles.contains(role)
-                    let isActive = activeRoles.isEmpty || activeRoles.contains(role)
-                    let badge = LanguageFlagBadge(
-                        entry: flag,
-                        isTV: isTV,
-                        showsLabel: shouldShowLabel,
-                        sizeScale: sizeScale,
-                        isActive: isActive
-                    )
-                    .opacity(flagOpacity(isAvailable: isAvailable, role: role))
-                    if onToggleRole != nil, isAvailable {
-                        Button(action: { handleToggleRole(role) }) {
-                            badge
-                        }
-                        #if os(tvOS)
-                        .buttonStyle(TVLanguageFlagButtonStyle())
-                        #else
-                        .buttonStyle(.plain)
-                        #endif
-                    } else {
-                        badge
-                    }
-                    if index < orderedFlags.count - 1, showConnector {
-                        LanguageConnectorBadge(label: connectorLabel, isTV: isTV, sizeScale: sizeScale)
-                    }
-                }
-                if let modelBadgeLabel {
-                    LanguageModelBadge(label: modelBadgeLabel, isTV: isTV, sizeScale: sizeScale)
-                }
+        HStack(spacing: badgeSpacing) {
+            ForEach(Array(orderedFlags.enumerated()), id: \.element.id) { index, flag in
+                PlayerLanguageFlagRowItem(
+                    flag: flag,
+                    isTV: isTV,
+                    sizeScale: sizeScale,
+                    showsLabel: shouldShowLabel,
+                    isActive: isActive(role: flag.role),
+                    isAvailable: availableRoles.contains(flag.role),
+                    showsConnector: showConnector && index < orderedFlags.count - 1,
+                    connectorLabel: connectorLabel,
+                    onToggleRole: onToggleRole
+                )
+            }
+            if let modelBadgeLabel {
+                LanguageModelBadge(label: modelBadgeLabel, isTV: isTV, sizeScale: sizeScale)
             }
         }
     }
@@ -942,14 +925,9 @@ struct PlayerLanguageFlagRow: View {
         (isTV ? 6 : 4) * sizeScale
     }
 
-    private func flagOpacity(isAvailable: Bool, role: LanguageFlagRole) -> Double {
-        guard isAvailable else { return 0.3 }
-        guard !activeRoles.isEmpty else { return 1.0 }
-        return activeRoles.contains(role) ? 1.0 : 0.55
-    }
-
-    private func handleToggleRole(_ role: LanguageFlagRole) {
-        onToggleRole?(role)
+    private func isActive(role: LanguageFlagRole) -> Bool {
+        guard !activeRoles.isEmpty else { return true }
+        return activeRoles.contains(role)
     }
 
     private var orderedFlags: [LanguageFlagEntry] {
@@ -976,6 +954,61 @@ struct PlayerLanguageFlagRow: View {
     private var shouldShowLabel: Bool {
         // Show short language code next to flag emoji on all platforms
         true
+    }
+}
+
+private struct PlayerLanguageFlagRowItem: View {
+    let flag: LanguageFlagEntry
+    let isTV: Bool
+    let sizeScale: CGFloat
+    let showsLabel: Bool
+    let isActive: Bool
+    let isAvailable: Bool
+    let showsConnector: Bool
+    let connectorLabel: String
+    let onToggleRole: ((LanguageFlagRole) -> Void)?
+
+    var body: some View {
+        flagControl
+        if showsConnector {
+            LanguageConnectorBadge(label: connectorLabel, isTV: isTV, sizeScale: sizeScale)
+        }
+    }
+
+    @ViewBuilder
+    private var flagControl: some View {
+        if onToggleRole != nil, isAvailable {
+            Button(action: handleToggleRole) {
+                flagBadge
+            }
+            #if os(tvOS)
+            .buttonStyle(TVLanguageFlagButtonStyle())
+            #else
+            .buttonStyle(.plain)
+            #endif
+        } else {
+            flagBadge
+        }
+    }
+
+    private var flagBadge: some View {
+        LanguageFlagBadge(
+            entry: flag,
+            isTV: isTV,
+            showsLabel: showsLabel,
+            sizeScale: sizeScale,
+            isActive: isActive
+        )
+        .opacity(flagOpacity)
+    }
+
+    private var flagOpacity: Double {
+        guard isAvailable else { return 0.3 }
+        return isActive ? 1.0 : 0.55
+    }
+
+    private func handleToggleRole() {
+        onToggleRole?(flag.role)
     }
 }
 

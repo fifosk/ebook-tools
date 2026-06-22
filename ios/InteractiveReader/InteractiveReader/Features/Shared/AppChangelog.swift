@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.58",
+            version: "2026.06.22.59",
             entries: [
+                AppChangelogEntry(
+                    id: "language-flag-row-item-subview",
+                    title: "Language flag row layout cleaned up",
+                    detail: "Shared player language flag rows now render each flag item through a focused SwiftUI subview with a stable row structure."
+                ),
                 AppChangelogEntry(
                     id: "audio-mode-atomic-track-state",
                     title: "Audio toggles tightened up",
