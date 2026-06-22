@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "interactive-transcript-tv-layout-file",
+            title: "Apple TV transcript layout separated",
+            detail: "The tvOS transcript overlay taps, long-press header toggle, and horizontal split layout now live in a focused TV layout extension while the core transcript view stays less platform-specific."
+        ),
+        AppChangelogEntry(
             id: "changelog-day-data-file",
             title: "Daily changelog data separated",
             detail: "The growing June 22 changelog entry list now lives in a focused daily data file while the shared changelog data source stays as a compact day index."

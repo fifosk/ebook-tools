@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.133
+
+- Advanced visible Apple app versioning to `v2026.06.22.133`.
+- Moved the tvOS transcript overlay and split-layout handlers into `InteractiveTranscriptView+TVLayout.swift`, keeping the core transcript view less platform-specific.
+
 ### 2026.06.22.132
 
 - Advanced visible Apple app versioning to `v2026.06.22.132`.

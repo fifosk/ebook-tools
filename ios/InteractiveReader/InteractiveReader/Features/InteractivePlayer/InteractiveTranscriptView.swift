@@ -3,14 +3,6 @@ import SwiftUI
 import UIKit
 #endif
 
-// MARK: - Comparable Clamping Extension
-
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
-        min(max(self, range.lowerBound), range.upperBound)
-    }
-}
-
 struct InteractiveBubbleHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
 
@@ -691,99 +683,5 @@ struct InteractiveTranscriptView: View {
     private var sentenceSignature: String {
         sentences.map(\.id).joined(separator: "|")
     }
-
-    #if os(tvOS)
-    private func handleTVOverlayTrackTap() {
-        if bubble != nil {
-            if !iPadBubblePinned {
-                onCloseBubble()
-            }
-        } else {
-            onLookup()
-        }
-    }
-
-    private func handleTVSplitTrackTap() {
-        if !iPadBubblePinned {
-            onCloseBubble()
-        }
-    }
-
-    private func handleTVTrackLongPress() {
-        onToggleHeader?()
-    }
-
-    // MARK: - tvOS Split Layout
-
-    /// tvOS horizontal split layout: 30% bubble on left, 70% tracks on right
-    @ViewBuilder
-    private func tvSplitLayout<TrackContent: View>(
-        trackView: TrackContent,
-        bubble: MyLinguistBubbleState,
-        resolvedLinguistFontScale: CGFloat,
-        bubbleFocusEnabled: Bool,
-        availableWidth: CGFloat,
-        availableHeight: CGFloat
-    ) -> some View {
-        let bubbleRatio: CGFloat = 0.30
-        let trackRatio: CGFloat = 0.70
-        let spacing: CGFloat = 20
-        let bubbleWidth = max(0, availableWidth * bubbleRatio - spacing / 2)
-        let trackWidth = max(0, availableWidth * trackRatio - spacing / 2)
-
-        HStack(spacing: spacing) {
-            // Bubble area (left side, 30%)
-            MyLinguistBubbleView(
-                bubble: bubble,
-                fontScale: resolvedLinguistFontScale,
-                canIncreaseFont: canIncreaseLinguistFont,
-                canDecreaseFont: canDecreaseLinguistFont,
-                lookupLanguage: lookupLanguage,
-                lookupLanguageOptions: lookupLanguageOptions,
-                onLookupLanguageChange: onLookupLanguageChange,
-                llmModel: llmModel,
-                llmModelOptions: llmModelOptions,
-                onLlmModelChange: onLlmModelChange,
-                ttsVoice: ttsVoice,
-                ttsVoiceOptions: ttsVoiceOptions,
-                onTtsVoiceChange: onTtsVoiceChange,
-                onIncreaseFont: onIncreaseLinguistFont,
-                onDecreaseFont: onDecreaseLinguistFont,
-                onClose: onCloseBubble,
-                isFocusEnabled: bubbleFocusEnabled,
-                focusBinding: $focusedArea,
-                availableHeight: availableHeight,
-                onPreviousToken: onBubblePreviousToken,
-                onNextToken: onBubbleNextToken,
-                onToggleLayoutDirection: onToggleLayoutDirection,
-                isPinned: iPadBubblePinned,
-                onTogglePin: onToggleBubblePin,
-                isSplitMode: true,
-                onPlayFromNarration: onPlayFromNarration
-            )
-            .frame(width: bubbleWidth, height: availableHeight)
-            .clipped()
-
-            // Tracks area (right side, 70%)
-            trackView
-                .frame(width: trackWidth, height: availableHeight, alignment: .top)
-                .clipped()
-                .contentShape(Rectangle())
-                .focusable(!isMenuVisible)
-                .focused($focusedArea, equals: .transcript)
-                .focusEffectDisabled()
-                .onTapGesture(perform: handleTVSplitTrackTap)
-                .onLongPressGesture(
-                    minimumDuration: 0.6,
-                    perform: handleTVTrackLongPress
-                )
-                .accessibilityAddTraits(.isButton)
-        }
-        .frame(width: availableWidth, height: availableHeight)
-        .padding(.leading, 12)
-        .padding(.trailing, 24)
-    }
-    #endif
-
 
 }
