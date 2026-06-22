@@ -30,9 +30,7 @@ struct LibraryView: View {
     @State private var rowFrames: [CGRect] = []
     @State private var sourceUploadItem: LibraryItem?
     @State private var isImportingLibrarySource = false
-    @State private var isbnEditItem: LibraryItem?
-    @State private var isbnInput = ""
-    @State private var isApplyingLibraryIsbn = false
+    @State private var isbnMetadataDraft: LibraryIsbnMetadataDraft?
     private let listCoordinateSpace = "libraryList"
     #endif
     @Environment(\.colorScheme) private var colorScheme
@@ -89,15 +87,9 @@ struct LibraryView: View {
             allowsMultipleSelection: false,
             onCompletion: handleLibrarySourceImport
         )
-        .alert("Apply ISBN", isPresented: $isApplyingLibraryIsbn) {
-            TextField("ISBN", text: $isbnInput)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-            Button("Cancel", role: .cancel, action: clearIsbnPrompt)
-            Button("Apply", action: applyCurrentIsbn)
-                .disabled(isbnInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        } message: {
-            Text("Fetch book metadata for the selected library item.")
+        .sheet(item: $isbnMetadataDraft) { draft in
+            LibraryIsbnMetadataSheet(item: draft.item, viewModel: viewModel)
+                .environmentObject(appState)
         }
         #endif
     }
@@ -306,38 +298,18 @@ struct LibraryView: View {
         Button(action: { handleSourceUploadRequest(item) }) {
             Label("Replace Source File", systemImage: "square.and.arrow.up")
         }
-        .disabled(viewModel.isUploadingSource || viewModel.isApplyingIsbn)
+        .disabled(viewModel.isUploadingSource || viewModel.isLookingUpIsbn || viewModel.isApplyingIsbn)
     }
 
     private func handleIsbnMetadataRequest(_ item: LibraryItem) {
-        isbnEditItem = item
-        isbnInput = item.isbn ?? ""
-        isApplyingLibraryIsbn = true
+        isbnMetadataDraft = LibraryIsbnMetadataDraft(item: item)
     }
 
     private func isbnMetadataAction(for item: LibraryItem) -> some View {
         Button(action: { handleIsbnMetadataRequest(item) }) {
-            Label("Apply ISBN Metadata", systemImage: "barcode.viewfinder")
+            Label("Preview ISBN Metadata", systemImage: "barcode.viewfinder")
         }
-        .disabled(viewModel.isUploadingSource || viewModel.isApplyingIsbn)
-    }
-
-    private func clearIsbnPrompt() {
-        isbnEditItem = nil
-        isbnInput = ""
-    }
-
-    private func applyCurrentIsbn() {
-        guard let item = isbnEditItem else { return }
-        let value = isbnInput
-        Task {
-            let applied = await viewModel.applyIsbn(value, to: item, using: appState)
-            await MainActor.run {
-                if applied {
-                    clearIsbnPrompt()
-                }
-            }
-        }
+        .disabled(viewModel.isUploadingSource || viewModel.isLookingUpIsbn || viewModel.isApplyingIsbn)
     }
 
     private func handleLibrarySourceImport(_ result: Result<[URL], Error>) {
@@ -555,6 +527,201 @@ struct LibraryView: View {
         iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     }
 }
+
+#if os(iOS)
+private struct LibraryIsbnMetadataDraft: Identifiable {
+    let item: LibraryItem
+
+    var id: String { item.jobId }
+}
+
+private struct LibraryIsbnMetadataSheet: View {
+    let item: LibraryItem
+    @ObservedObject var viewModel: LibraryViewModel
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var isbn: String
+    @State private var previewMetadata: [String: JSONValue]?
+    @State private var lookupError: String?
+
+    init(item: LibraryItem, viewModel: LibraryViewModel) {
+        self.item = item
+        self.viewModel = viewModel
+        _isbn = State(initialValue: item.isbn ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Library Item") {
+                    LabeledContent("Title", value: item.bookTitle)
+                    LabeledContent("Author", value: item.author)
+                }
+
+                Section("ISBN") {
+                    TextField("ISBN", text: $isbn)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.numbersAndPunctuation)
+                        .accessibilityIdentifier("libraryIsbnMetadataInput")
+                    Button(action: handleLookup) {
+                        if viewModel.isLookingUpIsbn {
+                            ProgressView()
+                        } else {
+                            Label("Preview Metadata", systemImage: "magnifyingglass")
+                        }
+                    }
+                    .disabled(trimmedIsbn.isEmpty || viewModel.isLookingUpIsbn || viewModel.isApplyingIsbn)
+                    .accessibilityIdentifier("libraryIsbnPreviewButton")
+                }
+
+                if let lookupError {
+                    Section {
+                        Label(lookupError, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section("Preview") {
+                    if let previewMetadata {
+                        let rows = previewRows(from: previewMetadata)
+                        if rows.isEmpty {
+                            Text("No display metadata was returned for this ISBN.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(rows) { row in
+                                LabeledContent(row.label, value: row.value)
+                            }
+                        }
+                        DisclosureGroup("Raw Metadata") {
+                            ForEach(previewMetadata.keys.sorted(), id: \.self) { key in
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(key)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text(metadataDisplayValue(previewMetadata[key]))
+                                        .font(.caption)
+                                        .textSelection(.enabled)
+                                }
+                            }
+                        }
+                    } else {
+                        Text("Preview metadata before applying it to this library item.")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section {
+                    Button(action: handleApply) {
+                        if viewModel.isApplyingIsbn {
+                            ProgressView()
+                        } else {
+                            Label("Apply ISBN Metadata", systemImage: "checkmark.circle")
+                        }
+                    }
+                    .disabled(trimmedIsbn.isEmpty || viewModel.isLookingUpIsbn || viewModel.isApplyingIsbn)
+                    .accessibilityIdentifier("libraryIsbnApplyButton")
+                }
+            }
+            .navigationTitle("ISBN Metadata")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private var trimmedIsbn: String {
+        isbn.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func handleLookup() {
+        lookupError = nil
+        Task {
+            let metadata = await viewModel.lookupIsbnMetadata(trimmedIsbn, using: appState)
+            await MainActor.run {
+                if let metadata {
+                    previewMetadata = metadata
+                    lookupError = nil
+                } else {
+                    previewMetadata = nil
+                    lookupError = viewModel.errorMessage ?? "Unable to fetch metadata from ISBN."
+                }
+            }
+        }
+    }
+
+    private func handleApply() {
+        lookupError = nil
+        Task {
+            let applied = await viewModel.applyIsbn(trimmedIsbn, to: item, using: appState)
+            await MainActor.run {
+                if applied {
+                    dismiss()
+                } else {
+                    lookupError = viewModel.errorMessage ?? "Unable to apply ISBN metadata."
+                }
+            }
+        }
+    }
+
+    private func previewRows(from metadata: [String: JSONValue]) -> [LibraryIsbnMetadataPreviewRow] {
+        [
+            ("Title", metadataString(in: metadata, keys: ["book_title", "title", "book_name"])),
+            ("Author", metadataString(in: metadata, keys: ["book_author", "author", "creator"])),
+            ("Genre", metadataString(in: metadata, keys: ["book_genre", "genre"])),
+            ("Language", metadataString(in: metadata, keys: ["book_language", "language"])),
+            ("ISBN", metadataString(in: metadata, keys: ["isbn", "isbn_13", "isbn_10"])),
+            ("Cover", metadataString(in: metadata, keys: ["book_cover_file", "cover_url"])),
+            ("Summary", metadataString(in: metadata, keys: ["book_summary", "summary", "description"]))
+        ]
+        .compactMap { label, candidate in
+            guard let value = candidate?.nonEmptyValue else { return nil }
+            return LibraryIsbnMetadataPreviewRow(label: label, value: value)
+        }
+    }
+
+    private func metadataString(in metadata: [String: JSONValue], keys: [String]) -> String? {
+        for key in keys {
+            if let value = metadata[key]?.stringValue?.nonEmptyValue {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func metadataDisplayValue(_ value: JSONValue?) -> String {
+        guard let value else { return "null" }
+        switch value {
+        case let .string(string):
+            return string
+        case let .number(number):
+            return String(number)
+        case let .bool(boolean):
+            return boolean ? "true" : "false"
+        case let .array(values):
+            return values.map { metadataDisplayValue($0) }.joined(separator: ", ")
+        case let .object(object):
+            return object.keys.sorted()
+                .map { "\($0): \(metadataDisplayValue(object[$0]))" }
+                .joined(separator: ", ")
+        case .null:
+            return "null"
+        }
+    }
+}
+
+private struct LibraryIsbnMetadataPreviewRow: Identifiable {
+    let label: String
+    let value: String
+
+    var id: String { label }
+}
+#endif
 
 private struct LibraryFilterPicker: View {
     @Binding var activeFilter: LibraryViewModel.LibraryFilter

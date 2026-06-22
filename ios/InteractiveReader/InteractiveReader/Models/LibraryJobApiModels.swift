@@ -14,6 +14,10 @@ struct LibraryGroup: Decodable, Identifiable {
     let count: Int?
 }
 
+struct LibraryIsbnLookupResponse: Decodable, Equatable {
+    let metadata: [String: JSONValue]
+}
+
 struct LibraryItem: Decodable, Identifiable {
     var id: String { jobId }
     let jobId: String

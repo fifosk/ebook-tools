@@ -82,6 +82,16 @@ extension APIClient {
         return try decode(LibraryItem.self, from: data)
     }
 
+    func lookupLibraryIsbnMetadata(isbn: String) async throws -> LibraryIsbnLookupResponse {
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "isbn", value: isbn)
+        ]
+        let suffix = components.percentEncodedQuery.map { "?\($0)" } ?? ""
+        let data = try await sendRequest(path: "/api/library/isbn/lookup\(suffix)")
+        return try decode(LibraryIsbnLookupResponse.self, from: data)
+    }
+
     func moveJobToLibrary(jobId: String, statusOverride: String? = nil) async throws {
         let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
         if let statusOverride {

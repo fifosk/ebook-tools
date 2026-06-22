@@ -75,11 +75,11 @@ Current Apple UI partially exposes:
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's EPUB/PDF source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web.
-- ISBN metadata apply. Status: iPhone/iPad Library rows can submit an ISBN to
-  `/api/library/items/{job_id}/isbn` and refresh the row from the backend
-  response, matching the Web metadata update route.
-  Remaining parity gaps: richer source metadata review before upload, ISBN
-  metadata preview/lookup before apply, and TV-safe read-only source diagnostics.
+- ISBN metadata preview/apply. Status: iPhone/iPad Library rows can fetch
+  `/api/library/isbn/lookup` previews and then apply the ISBN through
+  `/api/library/items/{job_id}/isbn`, matching the Web lookup/apply contract.
+  Remaining parity gaps: richer source metadata review before upload and
+  TV-safe read-only source diagnostics.
 
 ## Backend Optimization Targets
 
@@ -191,10 +191,11 @@ After Narrate Ebook:
   expose Replace Source File, open a document picker for EPUB/PDF sources, post
   the file to `/api/library/items/{job_id}/upload-source`, and replace the
   refreshed row returned by the backend. Apple TV remains playback-first.
-- Library ISBN metadata apply on iPhone/iPad. Status: Library row context menus
-  now expose Apply ISBN Metadata, prompt for an ISBN, post it to
-  `/api/library/items/{job_id}/isbn`, and replace the refreshed row returned by
-  the backend. Remaining gap: previewing lookup results before applying.
+- Library ISBN metadata preview/apply on iPhone/iPad. Status: Library row
+  context menus now expose Preview ISBN Metadata, fetch
+  `/api/library/isbn/lookup` results in a sheet, and can then apply the ISBN
+  through `/api/library/items/{job_id}/isbn` before replacing the refreshed row
+  returned by the backend.
 - Apple TV gets read-only job templates or retry controls only if remote navigation stays simple.
 
 ## Feature Backlog

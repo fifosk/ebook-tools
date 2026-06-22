@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-library-isbn-preview",
+            title: "Library ISBN preview",
+            detail: "On iPhone and iPad, Library rows now preview ISBN metadata through the shared lookup route before applying it to the selected item."
+        ),
+        AppChangelogEntry(
             id: "apple-library-isbn-metadata",
             title: "Library ISBN metadata",
             detail: "On iPhone and iPad, Library rows now expose Apply ISBN Metadata to refresh book metadata through the same ISBN backend route used by Web."

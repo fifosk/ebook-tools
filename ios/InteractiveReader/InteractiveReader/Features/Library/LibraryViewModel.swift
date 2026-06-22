@@ -24,6 +24,7 @@ final class LibraryViewModel: ObservableObject {
     @Published var items: [LibraryItem] = []
     @Published var isLoading = false
     @Published var isUploadingSource = false
+    @Published var isLookingUpIsbn = false
     @Published var isApplyingIsbn = false
     @Published var errorMessage: String?
     @Published var query: String = ""
@@ -128,6 +129,34 @@ final class LibraryViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
             return false
+        }
+    }
+
+    func lookupIsbnMetadata(
+        _ isbn: String,
+        using appState: AppState
+    ) async -> [String: JSONValue]? {
+        guard let configuration = appState.configuration else {
+            errorMessage = "Configure a valid API base URL before continuing."
+            return nil
+        }
+        let trimmed = isbn.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            errorMessage = "Enter an ISBN before previewing metadata."
+            return nil
+        }
+
+        isLookingUpIsbn = true
+        errorMessage = nil
+        defer { isLookingUpIsbn = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.lookupLibraryIsbnMetadata(isbn: trimmed)
+            return response.metadata
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
         }
     }
 

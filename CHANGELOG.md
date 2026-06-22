@@ -14,6 +14,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Web Create generated-audiobook fields now apply backend topic, title, and genre defaults from `/api/books/options` while preserving any prompt edits already typed before defaults arrive, matching the Apple Create behavior.
 
+### 2026.06.22.169
+
+- Advanced visible Apple app versioning to `v2026.06.22.169`.
+- Library rows on iPhone/iPad now open an ISBN metadata sheet that previews `/api/library/isbn/lookup` results before applying the ISBN through `/api/library/items/{job_id}/isbn`.
+
 ### 2026.06.22.168
 
 - Advanced visible Apple app versioning to `v2026.06.22.168`.
