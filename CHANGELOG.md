@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.144
+
+- Advanced visible Apple app versioning to `v2026.06.22.144`.
+- Moved browse section tabs, refresh styling, and sidebar swipe chrome into `LibraryBrowseChrome.swift` so the library shell can stay focused on navigation and selection state.
+
 ### 2026.06.22.143
 
 - Advanced visible Apple app versioning to `v2026.06.22.143`.

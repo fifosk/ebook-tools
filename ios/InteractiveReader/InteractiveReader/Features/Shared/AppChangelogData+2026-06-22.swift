@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "library-browse-chrome-file",
+            title: "Library browse chrome separated",
+            detail: "Browse tabs, refresh styling, and sidebar swipe chrome now live in a focused file so Jobs, Library, Search, and Settings can share the same shell controls safely across iPad and tvOS."
+        ),
+        AppChangelogEntry(
             id: "interactive-header-pills-file",
             title: "Header pills separated",
             detail: "Speed and jump header-pill UI now lives in a focused extension while reading-bed code stays centered on music source and ambient playback behavior."
