@@ -21,16 +21,18 @@ struct TVActionButton<Label: View>: View {
         .contentShape(Rectangle())
         .disabled(!isFocusable)
         .focusEffectDisabled()
-        .onMoveCommand { direction in
-            guard isFocused else { return }
-            switch direction {
-            case .up:
-                onMoveUp?()
-            case .down:
-                onMoveDown?()
-            default:
-                break
-            }
+        .onMoveCommand(perform: handleMoveCommand)
+    }
+
+    private func handleMoveCommand(_ direction: MoveCommandDirection) {
+        guard isFocused else { return }
+        switch direction {
+        case .up:
+            onMoveUp?()
+        case .down:
+            onMoveDown?()
+        default:
+            break
         }
     }
 }
@@ -77,32 +79,9 @@ struct TVScrubber: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(isFocused ? Color.white.opacity(0.8) : .clear, lineWidth: 1)
         )
-        .onChange(of: isFocused) { _, focused in
-            onUserInteraction()
-            if !focused {
-                commitScrub()
-            }
-        }
-        .onMoveCommand { direction in
-            guard isFocused else { return }
-            onUserInteraction()
-            beginScrubbing()
-            let step = stepSize
-            switch direction {
-            case .left:
-                value = max(range.lowerBound, value - step)
-            case .right:
-                value = min(range.upperBound, value + step)
-            default:
-                break
-            }
-            scheduleCommit()
-        }
-        .onTapGesture {
-            onUserInteraction()
-            beginScrubbing()
-            scheduleCommit()
-        }
+        .onChange(of: isFocused) { _, focused in handleFocusChange(focused) }
+        .onMoveCommand(perform: handleMoveCommand)
+        .onTapGesture(perform: handleTap)
     }
 
     private var normalizedProgress: CGFloat {
@@ -140,6 +119,39 @@ struct TVScrubber: View {
         guard !isEditing else { return }
         isEditing = true
         onEditingChanged(true)
+    }
+
+    private func handleFocusChange(_ focused: Bool) {
+        onUserInteraction()
+        if !focused {
+            commitScrub()
+        }
+    }
+
+    private func handleMoveCommand(_ direction: MoveCommandDirection) {
+        guard isFocused else { return }
+        onUserInteraction()
+        beginScrubbing()
+        adjustValue(for: direction)
+        scheduleCommit()
+    }
+
+    private func handleTap() {
+        onUserInteraction()
+        beginScrubbing()
+        scheduleCommit()
+    }
+
+    private func adjustValue(for direction: MoveCommandDirection) {
+        let step = stepSize
+        switch direction {
+        case .left:
+            value = max(range.lowerBound, value - step)
+        case .right:
+            value = min(range.upperBound, value + step)
+        default:
+            break
+        }
     }
 }
 
@@ -262,12 +274,7 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
         .allowsHitTesting(showTVControls)
         .focusSection()
         .accessibilityIdentifier("tvPlaybackControls")
-        .onMoveCommand { direction in
-            guard !showSubtitleSettings else { return }
-            if direction == .up {
-                focusTarget.wrappedValue = .subtitles
-            }
-        }
+        .onMoveCommand(perform: handleControlsBarMoveCommand)
     }
 
     private var controlsFocusEnabled: Bool {
@@ -330,14 +337,7 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
                 .focused(focusTarget, equals: .control(.captions))
             }
         }
-        .onMoveCommand { direction in
-            guard !showSubtitleSettings else { return }
-            if direction == .up {
-                focusTarget.wrappedValue = .control(.header)
-            } else if direction == .down {
-                focusTarget.wrappedValue = .subtitles
-            }
-        }
+        .onMoveCommand(perform: handleControlsRowMoveCommand)
     }
 
     @ViewBuilder
@@ -373,6 +373,22 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
             return String(format: "%d:%02d:%02d", hours, minutes, remainingSeconds)
         }
         return String(format: "%02d:%02d", minutes, remainingSeconds)
+    }
+
+    private func handleControlsBarMoveCommand(_ direction: MoveCommandDirection) {
+        guard !showSubtitleSettings else { return }
+        if direction == .up {
+            focusTarget.wrappedValue = .subtitles
+        }
+    }
+
+    private func handleControlsRowMoveCommand(_ direction: MoveCommandDirection) {
+        guard !showSubtitleSettings else { return }
+        if direction == .up {
+            focusTarget.wrappedValue = .control(.header)
+        } else if direction == .down {
+            focusTarget.wrappedValue = .subtitles
+        }
     }
 }
 

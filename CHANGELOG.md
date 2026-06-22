@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.44
+
+- Advanced visible Apple app versioning to `v2026.06.22.44`.
+- Moved tvOS playback button, scrubber, and controls-bar focus events into named SwiftUI handlers.
+
 ### 2026.06.22.43
 
 - Advanced visible Apple app versioning to `v2026.06.22.43`.
