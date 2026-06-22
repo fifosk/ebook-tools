@@ -109,15 +109,15 @@ Device preflight currently sees `Fifo Ipad Pro` through CoreDevice:
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --device-preflight-only
 ```
 
-Latest attended iPad M5 deployment from June 22, 2026: `v2026.06.22.08`
-with marketing version `2026.6.22` and bundle version `2026062208`. The
+Latest attended iPad M5 deployment from June 22, 2026: `v2026.06.22.12`
+with marketing version `2026.6.22` and bundle version `2026062212`. The
 post-install `devicectl` verification reported:
 
 ```text
-InteractiveReader   com.example.InteractiveReader   2026.6.22   2026062208
+InteractiveReader   com.example.InteractiveReader   2026.6.22   2026062212
 ```
 
-The `.08` install used the shared pipeline's iPad simulator gate plus Xcode's
+The `.12` install used the shared pipeline's iPad simulator gate plus Xcode's
 GUI `InteractiveReader` scheme and `Fifo Ipad Pro` run destination. The shared
 CLI deploy wrapper reached the signed device build but failed because
 command-line Xcode account/profile state rejected the app capabilities; the GUI
@@ -131,11 +131,13 @@ xcrun devicectl device process launch \
   com.example.InteractiveReader
 ```
 
-The June 22 `.08` install completed while the iPad was locked; CoreDevice
-verified the installed bundle metadata, but SpringBoard denied launch until the
-device is unlocked. Keep the iPad awake and unlocked for launch verification;
-for future attended installs, prefer USB-C, tap Trust when prompted, then
-re-enable network deployment from Xcode Devices and Simulators if needed.
+The June 22 `.12` install completed while the iPad was locked; CoreDevice
+verified the installed bundle metadata, but Xcode could not launch into a debug
+session until the device was unlocked. After metadata verification, cancel the
+blocked Xcode launch sheet so the app is not left attached to a stalled
+debugger. Keep the iPad awake and unlocked for launch verification; for future
+attended installs, prefer USB-C, tap Trust when prompted, then re-enable network
+deployment from Xcode Devices and Simulators if needed.
 
 Generic iOS device signing currently fails before compilation:
 
