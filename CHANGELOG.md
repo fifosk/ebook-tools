@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.139
+
+- Advanced visible Apple app versioning to `v2026.06.22.139`.
+- Moved subtitle playback highlight and shadow-selection logic into `SubtitleOverlayView+Highlighting.swift`, keeping the subtitle overlay focused on rendering and gestures.
+
 ### 2026.06.22.138
 
 - Advanced visible Apple app versioning to `v2026.06.22.138`.

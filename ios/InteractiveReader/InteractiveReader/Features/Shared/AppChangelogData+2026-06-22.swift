@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "subtitle-overlay-highlighting-file",
+            title: "Subtitle highlighting split",
+            detail: "Subtitle playback highlight and shadow-selection logic now lives in a focused extension while the overlay view stays centered on rendering, gestures, and token rows."
+        ),
+        AppChangelogEntry(
             id: "job-row-presentation-file",
             title: "Jobs rows split cleanly",
             detail: "Jobs row title, metadata, progress, status, and cover URL presentation helpers now live in a focused extension while the row view stays centered on layout and platform styling."
