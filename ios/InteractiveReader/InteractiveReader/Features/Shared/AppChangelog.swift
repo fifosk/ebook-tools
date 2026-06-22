@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.104",
+            version: "2026.06.22.105",
             entries: [
+                AppChangelogEntry(
+                    id: "linguist-bubble-label-utilities",
+                    title: "Linguist bubble label helpers separated",
+                    detail: "Model grouping plus model and voice label parsing now live in the shared text utilities file, keeping the main linguist bubble view focused on SwiftUI layout and controls."
+                ),
                 AppChangelogEntry(
                     id: "tvos-changelog-real-scroll",
                     title: "TV changelog remote scroll made visible",

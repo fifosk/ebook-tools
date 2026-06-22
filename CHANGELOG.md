@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.105
+
+- Advanced visible Apple app versioning to `v2026.06.22.105`.
+- Moved linguist bubble model/voice label parsing and model grouping out of the main SwiftUI view into the shared text utilities file, keeping the bubble view focused on layout and controls.
+
 ### 2026.06.22.104
 
 - Advanced visible Apple app versioning to `v2026.06.22.104`.

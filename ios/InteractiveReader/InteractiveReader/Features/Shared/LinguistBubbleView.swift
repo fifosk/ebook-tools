@@ -629,109 +629,6 @@ struct LinguistBubbleView: View {
         #endif
     }
 
-    /// Format model name for compact display (e.g., "ollama_cloud:mistral-large-3:675b-cloud" → "mistral-large-3").
-    /// LM Studio identifiers carry a host suffix (e.g. "gemma-4-31b · MacBook") so the user can tell
-    /// the two LM Studio destinations apart at a glance.
-    func formatModelLabel(_ model: String) -> String {
-        let info = LinguistBubbleView.parseModelIdentifier(model)
-        let baseLabel: String
-        let trimmedRest = info.modelPart.isEmpty ? model : info.modelPart
-        let parts = trimmedRest.split(separator: ":")
-        if parts.count >= 2 {
-            // "modelName (size)" — same as before, but applied to the part after the provider tag.
-            let modelName = String(parts[0])
-            let sizeInfo = String(parts[1])
-            let sizePart = sizeInfo.split(separator: "-").first.map(String.init) ?? sizeInfo
-            baseLabel = "\(modelName) (\(sizePart))"
-        } else if let lastPart = trimmedRest.split(separator: "/").last {
-            baseLabel = String(lastPart)
-        } else {
-            baseLabel = trimmedRest
-        }
-        if let suffix = info.hostSuffix {
-            return "\(baseLabel) · \(suffix)"
-        }
-        return baseLabel
-    }
-
-    /// A grouped section in the LLM model picker (one per provider/host).
-    struct LlmModelOptionGroup: Identifiable {
-        let id: String
-        let title: String
-        let models: [String]
-    }
-
-    /// Parse a `provider:model` identifier into the provider tag, the bare model
-    /// name, and (when applicable) the LM Studio host short name.
-    static func parseModelIdentifier(_ identifier: String) -> (
-        provider: String?,
-        modelPart: String,
-        hostSuffix: String?
-    ) {
-        let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let colon = trimmed.firstIndex(of: ":") else {
-            return (nil, trimmed, nil)
-        }
-        let prefix = String(trimmed[..<colon]).lowercased()
-        let rest = String(trimmed[trimmed.index(after: colon)...])
-        switch prefix {
-        case "ollama_cloud", "ollama-cloud":
-            return ("ollama_cloud", rest, nil)
-        case "ollama_local", "ollama-local":
-            return ("ollama_local", rest, nil)
-        case "lmstudio_macstudio", "lmstudio-macstudio":
-            return ("lmstudio_macstudio", rest, "Mac Studio")
-        case "lmstudio_macbook", "lmstudio-macbook",
-             "lmstudio_macbookpro", "lmstudio-macbookpro",
-             "lmstudio_macbook_pro", "lmstudio-macbook-pro":
-            return ("lmstudio_macbook", rest, "MacBook")
-        case "lmstudio", "lmstudio_local", "lmstudio-local":
-            // Legacy single-host tag — historical default was the Mac Studio.
-            return ("lmstudio_macstudio", rest, "Mac Studio")
-        default:
-            return (nil, trimmed, nil)
-        }
-    }
-
-    /// Group the flat `llmModelOptions` into ordered sections so the menu can
-    /// show "Ollama Cloud", "Ollama Local", "LM Studio – Mac Studio",
-    /// "LM Studio – MacBook Pro" headers instead of one long list.
-    var groupedLlmModelOptions: [LlmModelOptionGroup] {
-        var bucketsByTag: [String: [String]] = [:]
-        var orderedTags: [String] = []
-        let order = [
-            "ollama_cloud",
-            "ollama_local",
-            "lmstudio_macstudio",
-            "lmstudio_macbook",
-            "other"
-        ]
-        let titles: [String: String] = [
-            "ollama_cloud": "Ollama Cloud",
-            "ollama_local": "Ollama Local",
-            "lmstudio_macstudio": "LM Studio – Mac Studio",
-            "lmstudio_macbook": "LM Studio – MacBook Pro",
-            "other": "Other"
-        ]
-        for model in configuration.llmModelOptions {
-            let info = LinguistBubbleView.parseModelIdentifier(model)
-            let tag = info.provider ?? "other"
-            if bucketsByTag[tag] == nil {
-                bucketsByTag[tag] = []
-                orderedTags.append(tag)
-            }
-            bucketsByTag[tag]?.append(model)
-        }
-        return order.compactMap { tag in
-            guard let models = bucketsByTag[tag], !models.isEmpty else { return nil }
-            return LlmModelOptionGroup(
-                id: tag,
-                title: titles[tag] ?? tag,
-                models: models
-            )
-        }
-    }
-
     // MARK: - Voice Menu
 
     @ViewBuilder
@@ -799,27 +696,6 @@ struct LinguistBubbleView: View {
             .accessibilityLabel("TTS voice")
         }
         #endif
-    }
-
-    /// Format voice name for display
-    func formatVoiceLabel(_ voice: String) -> String {
-        // macOS voice format: "Name - locale"
-        if voice.contains(" - ") {
-            return String(voice.split(separator: " - ").first ?? Substring(voice))
-        }
-        // gTTS format: "gTTS-en"
-        if voice.hasPrefix("gTTS-") {
-            return "gTTS (\(voice.dropFirst(5)))"
-        }
-        // Piper format: "en_US-lessac-medium"
-        let pattern = #"^[a-z]{2}_[A-Z]{2}-(.+)-(?:high|medium|low|x_low)$"#
-        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-           let match = regex.firstMatch(in: voice, range: NSRange(voice.startIndex..., in: voice)),
-           match.numberOfRanges > 1,
-           let range = Range(match.range(at: 1), in: voice) {
-            return String(voice[range])
-        }
-        return voice
     }
 
     // MARK: - Bubble Content

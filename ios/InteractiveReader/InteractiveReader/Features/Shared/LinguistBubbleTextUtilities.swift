@@ -3,6 +3,121 @@ import SwiftUI
 import UIKit
 #endif
 
+// MARK: - Bubble Label Formatting
+
+extension LinguistBubbleView {
+
+    /// A grouped section in the LLM model picker (one per provider/host).
+    struct LlmModelOptionGroup: Identifiable {
+        let id: String
+        let title: String
+        let models: [String]
+    }
+
+    /// Format model name for compact display.
+    /// LM Studio identifiers carry a host suffix so the user can distinguish hosts at a glance.
+    func formatModelLabel(_ model: String) -> String {
+        let info = LinguistBubbleView.parseModelIdentifier(model)
+        let baseLabel: String
+        let trimmedRest = info.modelPart.isEmpty ? model : info.modelPart
+        let parts = trimmedRest.split(separator: ":")
+        if parts.count >= 2 {
+            let modelName = String(parts[0])
+            let sizeInfo = String(parts[1])
+            let sizePart = sizeInfo.split(separator: "-").first.map(String.init) ?? sizeInfo
+            baseLabel = "\(modelName) (\(sizePart))"
+        } else if let lastPart = trimmedRest.split(separator: "/").last {
+            baseLabel = String(lastPart)
+        } else {
+            baseLabel = trimmedRest
+        }
+        if let suffix = info.hostSuffix {
+            return "\(baseLabel) · \(suffix)"
+        }
+        return baseLabel
+    }
+
+    /// Parse a `provider:model` identifier into provider tag, bare model name, and optional host short name.
+    static func parseModelIdentifier(_ identifier: String) -> (
+        provider: String?,
+        modelPart: String,
+        hostSuffix: String?
+    ) {
+        let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let colon = trimmed.firstIndex(of: ":") else {
+            return (nil, trimmed, nil)
+        }
+        let prefix = String(trimmed[..<colon]).lowercased()
+        let rest = String(trimmed[trimmed.index(after: colon)...])
+        switch prefix {
+        case "ollama_cloud", "ollama-cloud":
+            return ("ollama_cloud", rest, nil)
+        case "ollama_local", "ollama-local":
+            return ("ollama_local", rest, nil)
+        case "lmstudio_macstudio", "lmstudio-macstudio":
+            return ("lmstudio_macstudio", rest, "Mac Studio")
+        case "lmstudio_macbook", "lmstudio-macbook",
+             "lmstudio_macbookpro", "lmstudio-macbookpro",
+             "lmstudio_macbook_pro", "lmstudio-macbook-pro":
+            return ("lmstudio_macbook", rest, "MacBook")
+        case "lmstudio", "lmstudio_local", "lmstudio-local":
+            return ("lmstudio_macstudio", rest, "Mac Studio")
+        default:
+            return (nil, trimmed, nil)
+        }
+    }
+
+    /// Group the flat `llmModelOptions` into ordered sections for the model picker.
+    var groupedLlmModelOptions: [LlmModelOptionGroup] {
+        var bucketsByTag: [String: [String]] = [:]
+        let order = [
+            "ollama_cloud",
+            "ollama_local",
+            "lmstudio_macstudio",
+            "lmstudio_macbook",
+            "other"
+        ]
+        let titles: [String: String] = [
+            "ollama_cloud": "Ollama Cloud",
+            "ollama_local": "Ollama Local",
+            "lmstudio_macstudio": "LM Studio – Mac Studio",
+            "lmstudio_macbook": "LM Studio – MacBook Pro",
+            "other": "Other"
+        ]
+        for model in configuration.llmModelOptions {
+            let info = LinguistBubbleView.parseModelIdentifier(model)
+            let tag = info.provider ?? "other"
+            bucketsByTag[tag, default: []].append(model)
+        }
+        return order.compactMap { tag in
+            guard let models = bucketsByTag[tag], !models.isEmpty else { return nil }
+            return LlmModelOptionGroup(
+                id: tag,
+                title: titles[tag] ?? tag,
+                models: models
+            )
+        }
+    }
+
+    /// Format voice name for display.
+    func formatVoiceLabel(_ voice: String) -> String {
+        if voice.contains(" - ") {
+            return String(voice.split(separator: " - ").first ?? Substring(voice))
+        }
+        if voice.hasPrefix("gTTS-") {
+            return "gTTS (\(voice.dropFirst(5)))"
+        }
+        let pattern = #"^[a-z]{2}_[A-Z]{2}-(.+)-(?:high|medium|low|x_low)$"#
+        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+           let match = regex.firstMatch(in: voice, range: NSRange(voice.startIndex..., in: voice)),
+           match.numberOfRanges > 1,
+           let range = Range(match.range(at: 1), in: voice) {
+            return String(voice[range])
+        }
+        return voice
+    }
+}
+
 // MARK: - Shared Types
 
 #if os(iOS)
