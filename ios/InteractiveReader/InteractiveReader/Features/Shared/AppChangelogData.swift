@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.114",
+            version: "2026.06.22.115",
             entries: [
+                AppChangelogEntry(
+                    id: "library-playback-metadata-file",
+                    title: "Library playback metadata separated",
+                    detail: "Library playback metadata, cover, language, media selection, subtitle track, and video metadata derivation now live in a focused playback metadata extension while the main playback view keeps lifecycle, layout, and actions."
+                ),
                 AppChangelogEntry(
                     id: "video-overlay-interaction-file",
                     title: "Video overlay interactions separated",

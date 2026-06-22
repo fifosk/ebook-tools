@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.115
+
+- Advanced visible Apple app versioning to `v2026.06.22.115`.
+- Moved Library playback metadata, cover, language, media selection, subtitle track, and video metadata derivation into `LibraryPlaybackMetadata.swift`, keeping `LibraryPlaybackView.swift` focused on screen lifecycle, layout, and playback actions.
+
 ### 2026.06.22.114
 
 - Advanced visible Apple app versioning to `v2026.06.22.114`.
