@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.33
+
+- Advanced visible Apple app versioning to `v2026.06.22.33`.
+- Moved text-player visible and hidden track header toggles into named SwiftUI handlers.
+
 ### 2026.06.22.32
 
 - Advanced visible Apple app versioning to `v2026.06.22.32`.

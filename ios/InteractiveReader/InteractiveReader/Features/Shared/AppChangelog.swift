@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.32",
+            version: "2026.06.22.33",
             entries: [
+                AppChangelogEntry(
+                    id: "text-player-track-toggle-handlers",
+                    title: "Text track toggles cleaned up",
+                    detail: "Text-player visible and hidden track header toggles now route through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "shortcut-help-dismiss-handlers",
                     title: "Shortcut help dismissals cleaned up",

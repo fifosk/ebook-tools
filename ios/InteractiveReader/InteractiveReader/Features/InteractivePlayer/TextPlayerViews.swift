@@ -137,9 +137,7 @@ struct TextPlayerSentenceView: View {
                     playbackTokenIndex: playbackTokenIndex(for: variant, primaryIndex: playbackPrimaryIndex),
                     playbackShadowIndex: playbackShadowIndex(for: variant, primaryIndex: playbackPrimaryIndex),
                     isVisible: visibleTracks.contains(variant.kind),
-                    onToggleVisibility: {
-                        onToggleTrack?(variant.kind)
-                    },
+                    onToggleVisibility: { handleTrackVisibilityToggle(variant.kind) },
                     fontScale: fontScale,
                     onTokenLookup: { tokenIndex, token in
                         onTokenLookup?(sentence.index, variant.kind, tokenIndex, token)
@@ -172,9 +170,7 @@ struct TextPlayerSentenceView: View {
                     playbackTokenIndex: playbackTokenIndex(for: variant, primaryIndex: playbackPrimaryIndex),
                     playbackShadowIndex: playbackShadowIndex(for: variant, primaryIndex: playbackPrimaryIndex),
                     isVisible: true,
-                    onToggleVisibility: {
-                        onToggleTrack?(variant.kind)
-                    },
+                    onToggleVisibility: { handleTrackVisibilityToggle(variant.kind) },
                     fontScale: fontScale,
                     onTokenLookup: { tokenIndex, token in
                         onTokenLookup?(sentence.index, variant.kind, tokenIndex, token)
@@ -216,9 +212,7 @@ struct TextPlayerSentenceView: View {
     private func hiddenTrackHeaderRow(for hiddenVariants: [TextPlayerVariantDisplay]) -> some View {
         HStack(spacing: 8) {
             ForEach(hiddenVariants) { variant in
-                Button(action: {
-                    onToggleTrack?(variant.kind)
-                }) {
+                Button(action: { handleTrackVisibilityToggle(variant.kind) }) {
                     compactHeaderLabel(for: variant)
                 }
                 .buttonStyle(.plain)
@@ -253,6 +247,10 @@ struct TextPlayerSentenceView: View {
         }
     }
     #endif
+
+    private func handleTrackVisibilityToggle(_ kind: TextPlayerVariantKind) {
+        onToggleTrack?(kind)
+    }
 
     private func selectedTokenIndex(for variant: TextPlayerVariantDisplay) -> Int? {
         guard let selection, selection.sentenceIndex == sentence.index else { return nil }
@@ -535,14 +533,16 @@ struct TextPlayerVariantView: View {
         headerLabel
             .focusEffectDisabled()
         #else
-        Button(action: {
-            onToggleVisibility?()
-        }) {
+        Button(action: handleHeaderToggle) {
             headerLabel
         }
         .buttonStyle(.plain)
         .disabled(onToggleVisibility == nil)
         #endif
+    }
+
+    private func handleHeaderToggle() {
+        onToggleVisibility?()
     }
 
     private var headerLabel: some View {
