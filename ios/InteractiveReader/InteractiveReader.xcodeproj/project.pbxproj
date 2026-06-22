@@ -175,6 +175,8 @@
 		C0A1B2C3D4E5F60718293A4D /* PlayerChannelBugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */; };
 		PLARTVIEW001A0001 /* PlayerArtworkViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLARTVIEW002A0001 /* PlayerArtworkViews.swift */; };
 		PLARTVIEW001A0002 /* PlayerArtworkViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLARTVIEW002A0001 /* PlayerArtworkViews.swift */; };
+		PLFLAGRES001A0001 /* PlayerLanguageFlagResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLFLAGRES002A0001 /* PlayerLanguageFlagResolver.swift */; };
+		PLFLAGRES001A0002 /* PlayerLanguageFlagResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLFLAGRES002A0001 /* PlayerLanguageFlagResolver.swift */; };
 		PLFLAGVIEW001A0001 /* PlayerLanguageFlagViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLFLAGVIEW002A0001 /* PlayerLanguageFlagViews.swift */; };
 		PLFLAGVIEW001A0002 /* PlayerLanguageFlagViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLFLAGVIEW002A0001 /* PlayerLanguageFlagViews.swift */; };
 		MYLINGPREF001A0001 /* MyLinguistPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = MYLINGPREF002A0001 /* MyLinguistPreferences.swift */; };
@@ -411,6 +413,7 @@
 		C02A242C108796D05E129BEB /* InteractivePlayerViewModel+Lookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerViewModel+Lookup.swift"; sourceTree = "<group>"; };
 		C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerChannelBugView.swift; sourceTree = "<group>"; };
 		PLARTVIEW002A0001 /* PlayerArtworkViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerArtworkViews.swift; sourceTree = "<group>"; };
+		PLFLAGRES002A0001 /* PlayerLanguageFlagResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerLanguageFlagResolver.swift; sourceTree = "<group>"; };
 		PLFLAGVIEW002A0001 /* PlayerLanguageFlagViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerLanguageFlagViews.swift; sourceTree = "<group>"; };
 		MYLINGPREF002A0001 /* MyLinguistPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyLinguistPreferences.swift; sourceTree = "<group>"; };
 		JOBGLYPH002A0001 /* JobTypeGlyphResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTypeGlyphResolver.swift; sourceTree = "<group>"; };
@@ -821,6 +824,7 @@
 				BROWSERES002A0001 /* BrowseResumeHelpers.swift */,
 				C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */,
 				PLARTVIEW002A0001 /* PlayerArtworkViews.swift */,
+				PLFLAGRES002A0001 /* PlayerLanguageFlagResolver.swift */,
 				PLFLAGVIEW002A0001 /* PlayerLanguageFlagViews.swift */,
 				PLAYERCHAN002A0001 /* PlayerChannelModels.swift */,
 				MYLINGPREF002A0001 /* MyLinguistPreferences.swift */,
@@ -1172,6 +1176,7 @@
 				6FDC3A3202F914D000A1D9A1 /* InteractivePlayerView.swift in Sources */,
 				C0A1B2C3D4E5F60718293A4C /* PlayerChannelBugView.swift in Sources */,
 				PLARTVIEW001A0001 /* PlayerArtworkViews.swift in Sources */,
+				PLFLAGRES001A0001 /* PlayerLanguageFlagResolver.swift in Sources */,
 				PLFLAGVIEW001A0001 /* PlayerLanguageFlagViews.swift in Sources */,
 				PLAYERCHAN001A0001 /* PlayerChannelModels.swift in Sources */,
 				MYLINGPREF001A0001 /* MyLinguistPreferences.swift in Sources */,
@@ -1328,6 +1333,7 @@
 				1798B1652EF9F1A00092A8AF /* InteractivePlayerView.swift in Sources */,
 				C0A1B2C3D4E5F60718293A4D /* PlayerChannelBugView.swift in Sources */,
 				PLARTVIEW001A0002 /* PlayerArtworkViews.swift in Sources */,
+				PLFLAGRES001A0002 /* PlayerLanguageFlagResolver.swift in Sources */,
 				PLFLAGVIEW001A0002 /* PlayerLanguageFlagViews.swift in Sources */,
 				PLAYERCHAN001A0002 /* PlayerChannelModels.swift in Sources */,
 				MYLINGPREF001A0002 /* MyLinguistPreferences.swift in Sources */,
@@ -1477,7 +1483,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062275;
+				CURRENT_PROJECT_VERSION = 2026062276;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1624,7 +1630,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062275;
+				CURRENT_PROJECT_VERSION = 2026062276;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1652,7 +1658,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062275;
+				CURRENT_PROJECT_VERSION = 2026062276;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1680,7 +1686,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062275;
+				CURRENT_PROJECT_VERSION = 2026062276;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1707,7 +1713,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062275;
+				CURRENT_PROJECT_VERSION = 2026062276;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1733,7 +1739,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062275;
+				CURRENT_PROJECT_VERSION = 2026062276;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1758,7 +1764,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062275;
+				CURRENT_PROJECT_VERSION = 2026062276;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1776,7 +1782,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062275;
+				CURRENT_PROJECT_VERSION = 2026062276;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1794,7 +1800,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062275;
+				CURRENT_PROJECT_VERSION = 2026062276;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
@@ -1814,7 +1820,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026062275;
+				CURRENT_PROJECT_VERSION = 2026062276;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;

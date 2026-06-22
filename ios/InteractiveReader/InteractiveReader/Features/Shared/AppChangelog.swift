@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.75",
+            version: "2026.06.22.76",
             entries: [
+                AppChangelogEntry(
+                    id: "language-flag-resolver-file",
+                    title: "Language flag resolver separated",
+                    detail: "Shared language flag roles, entries, and resolver tables now live outside the channel bug view file."
+                ),
                 AppChangelogEntry(
                     id: "player-artwork-views-file",
                     title: "Player artwork UI separated",
