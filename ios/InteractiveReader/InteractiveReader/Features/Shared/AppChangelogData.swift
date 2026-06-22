@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.125",
+            version: "2026.06.22.126",
             entries: [
+                AppChangelogEntry(
+                    id: "text-player-token-flow-layout-file",
+                    title: "Text player token flow separated",
+                    detail: "The reusable token wrapping layout now lives in a focused SwiftUI layout file while text player views stay centered on sentence and variant composition."
+                ),
                 AppChangelogEntry(
                     id: "text-player-token-word-view-file",
                     title: "Text player token chips separated",
