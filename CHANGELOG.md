@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.153
+
+- Advanced visible Apple app versioning to `v2026.06.22.153`.
+- Apple Create now loads backend book-creation defaults and bounds from `/api/books/options`, preserves user edits when defaults arrive, and submits generated-audiobook jobs with the same pipeline defaults used by Web.
+
 ### 2026.06.22.152
 
 - Advanced visible Apple app versioning to `v2026.06.22.152`.

@@ -19,6 +19,7 @@ struct AppleBookCreateView: View {
     @State private var voice = AppleBookCreateVoice.gtts
     @State private var includeTransliteration = true
     @State private var enableLookupCache = true
+    @State private var editedFields = Set<AppleBookCreateEditedField>()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -47,21 +48,24 @@ struct AppleBookCreateView: View {
         .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
         .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
         #endif
+        .task(id: creationOptionsLoadKey) {
+            await refreshCreationOptions()
+        }
         .accessibilityIdentifier("appleBookCreateView")
     }
 
     private var promptSection: some View {
         Section("Book") {
-            TextField("Topic", text: $topic)
+            TextField("Topic", text: textBinding(for: .topic, value: $topic))
                 .textInputAutocapitalization(.sentences)
                 .accessibilityIdentifier("createBookTopicField")
-            TextField("Title", text: $bookName)
+            TextField("Title", text: textBinding(for: .bookName, value: $bookName))
                 .textInputAutocapitalization(.words)
                 .accessibilityIdentifier("createBookTitleField")
-            TextField("Genre", text: $genre)
+            TextField("Genre", text: textBinding(for: .genre, value: $genre))
                 .textInputAutocapitalization(.words)
                 .accessibilityIdentifier("createBookGenreField")
-            TextField("Author", text: $author)
+            TextField("Author", text: textBinding(for: .author, value: $author))
                 .textInputAutocapitalization(.words)
                 .accessibilityIdentifier("createBookAuthorField")
             sentenceCountControl
@@ -74,11 +78,12 @@ struct AppleBookCreateView: View {
         LabeledContent("Sentences") {
             HStack(spacing: 12) {
                 Button {
-                    sentenceCount = max(1, sentenceCount - 5)
+                    markEdited(.sentenceCount)
+                    sentenceCount = max(sentenceBounds.min, sentenceCount - 5)
                 } label: {
                     Image(systemName: "minus")
                 }
-                .disabled(sentenceCount <= 1)
+                .disabled(sentenceCount <= sentenceBounds.min)
                 .accessibilityLabel("Decrease sentences")
 
                 Text("\(sentenceCount)")
@@ -86,17 +91,18 @@ struct AppleBookCreateView: View {
                     .frame(minWidth: 48)
 
                 Button {
-                    sentenceCount = min(500, sentenceCount + 5)
+                    markEdited(.sentenceCount)
+                    sentenceCount = min(sentenceBounds.max, sentenceCount + 5)
                 } label: {
                     Image(systemName: "plus")
                 }
-                .disabled(sentenceCount >= 500)
+                .disabled(sentenceCount >= sentenceBounds.max)
                 .accessibilityLabel("Increase sentences")
             }
         }
         .accessibilityIdentifier("createBookSentenceControl")
         #else
-        Stepper(value: $sentenceCount, in: 1...500, step: 5) {
+        Stepper(value: sentenceCountBinding, in: sentenceBounds.min...sentenceBounds.max, step: 5) {
             LabeledContent("Sentences", value: "\(sentenceCount)")
         }
         .accessibilityIdentifier("createBookSentenceStepper")
@@ -105,22 +111,22 @@ struct AppleBookCreateView: View {
 
     private var narrationSection: some View {
         Section("Narration") {
-            Picker("Input", selection: $inputLanguage) {
-                ForEach(AppleBookCreateLanguage.allCases) { language in
+            Picker("Input", selection: languageBinding(for: .inputLanguage, value: $inputLanguage)) {
+                ForEach(availableInputLanguages) { language in
                     Text(language.label).tag(language)
                 }
             }
             .accessibilityIdentifier("createBookInputLanguagePicker")
 
-            Picker("Target", selection: $targetLanguage) {
-                ForEach(AppleBookCreateLanguage.allCases) { language in
+            Picker("Target", selection: languageBinding(for: .targetLanguage, value: $targetLanguage)) {
+                ForEach(availableTargetLanguages) { language in
                     Text(language.label).tag(language)
                 }
             }
             .accessibilityIdentifier("createBookTargetLanguagePicker")
 
-            Picker("Voice", selection: $voice) {
-                ForEach(AppleBookCreateVoice.allCases) { option in
+            Picker("Voice", selection: voiceBinding) {
+                ForEach(availableVoices) { option in
                     Text(option.label).tag(option)
                 }
             }
@@ -132,15 +138,39 @@ struct AppleBookCreateView: View {
         Section("Output") {
             LabeledContent("Path", value: derivedBaseOutput)
                 .accessibilityIdentifier("createBookBaseOutputLabel")
-            Toggle("Transliteration", isOn: $includeTransliteration)
+            Toggle("Transliteration", isOn: boolBinding(for: .includeTransliteration, value: $includeTransliteration))
                 .accessibilityIdentifier("createBookTransliterationToggle")
-            Toggle("Lookup Cache", isOn: $enableLookupCache)
+            Toggle("Lookup Cache", isOn: boolBinding(for: .enableLookupCache, value: $enableLookupCache))
                 .accessibilityIdentifier("createBookLookupCacheToggle")
         }
     }
 
     @ViewBuilder
     private var statusSection: some View {
+        if viewModel.isLoadingOptions {
+            Section {
+                Label("Loading backend creation defaults", systemImage: "arrow.triangle.2.circlepath")
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createBookOptionsLoadingLabel")
+            }
+        } else if let optionsErrorMessage = viewModel.optionsErrorMessage {
+            Section {
+                Label("Using built-in defaults", systemImage: "exclamationmark.arrow.triangle.2.circlepath")
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createBookOptionsFallbackLabel")
+                Text(optionsErrorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createBookOptionsErrorLabel")
+                Button {
+                    Task { await refreshCreationOptions(force: true) }
+                } label: {
+                    Label("Retry Defaults", systemImage: "arrow.clockwise")
+                }
+                .accessibilityIdentifier("createBookOptionsRetryButton")
+            }
+        }
+
         if let errorMessage = viewModel.errorMessage {
             Section {
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
@@ -203,7 +233,9 @@ struct AppleBookCreateView: View {
             voice: voice.backendValue,
             baseOutput: derivedBaseOutput,
             includeTransliteration: includeTransliteration,
-            enableLookupCache: enableLookupCache
+            enableLookupCache: enableLookupCache,
+            pipelineDefaults: viewModel.creationOptions?.pipelineDefaults,
+            generatedSourceDefaults: viewModel.creationOptions?.generatedSourceDefaults
         )
 
         Task {
@@ -215,6 +247,147 @@ struct AppleBookCreateView: View {
 
     private func trimmed(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var creationOptionsLoadKey: String {
+        guard let configuration = appState.configuration else { return "missing" }
+        return [
+            configuration.apiBaseURL.absoluteString,
+            configuration.userID ?? "",
+            configuration.userRole ?? ""
+        ].joined(separator: "|")
+    }
+
+    private var sentenceBounds: BookCreationSentenceBounds {
+        viewModel.creationOptions?.sentenceBounds ?? BookCreationSentenceBounds(min: 1, max: 500, default: 30)
+    }
+
+    private var availableInputLanguages: [AppleBookCreateLanguage] {
+        let supported = viewModel.creationOptions?.supportedInputLanguages ?? []
+        let mapped = supported.compactMap(AppleBookCreateLanguage.init(backendValue:))
+        return mapped.isEmpty ? AppleBookCreateLanguage.allCases : mapped
+    }
+
+    private var availableTargetLanguages: [AppleBookCreateLanguage] {
+        let supported = viewModel.creationOptions?.supportedOutputLanguages ?? []
+        let mapped = supported.compactMap(AppleBookCreateLanguage.init(backendValue:))
+        return mapped.isEmpty ? AppleBookCreateLanguage.allCases : mapped
+    }
+
+    private var availableVoices: [AppleBookCreateVoice] {
+        let supported = viewModel.creationOptions?.supportedVoices ?? []
+        let mapped = supported.compactMap(AppleBookCreateVoice.init(backendValue:))
+        return mapped.isEmpty ? AppleBookCreateVoice.allCases : mapped
+    }
+
+    private var sentenceCountBinding: Binding<Int> {
+        Binding(
+            get: { sentenceCount },
+            set: { newValue in
+                markEdited(.sentenceCount)
+                sentenceCount = clampSentenceCount(newValue)
+            }
+        )
+    }
+
+    private var voiceBinding: Binding<AppleBookCreateVoice> {
+        Binding(
+            get: { voice },
+            set: { newValue in
+                markEdited(.voice)
+                voice = newValue
+            }
+        )
+    }
+
+    private func textBinding(for field: AppleBookCreateEditedField, value: Binding<String>) -> Binding<String> {
+        Binding(
+            get: { value.wrappedValue },
+            set: { newValue in
+                markEdited(field)
+                value.wrappedValue = newValue
+            }
+        )
+    }
+
+    private func languageBinding(
+        for field: AppleBookCreateEditedField,
+        value: Binding<AppleBookCreateLanguage>
+    ) -> Binding<AppleBookCreateLanguage> {
+        Binding(
+            get: { value.wrappedValue },
+            set: { newValue in
+                markEdited(field)
+                value.wrappedValue = newValue
+            }
+        )
+    }
+
+    private func boolBinding(for field: AppleBookCreateEditedField, value: Binding<Bool>) -> Binding<Bool> {
+        Binding(
+            get: { value.wrappedValue },
+            set: { newValue in
+                markEdited(field)
+                value.wrappedValue = newValue
+            }
+        )
+    }
+
+    private func markEdited(_ field: AppleBookCreateEditedField) {
+        editedFields.insert(field)
+    }
+
+    private func refreshCreationOptions(force: Bool = false) async {
+        guard let options = await viewModel.loadCreationOptions(
+            using: appState,
+            cacheKey: creationOptionsLoadKey,
+            force: force
+        ) else {
+            return
+        }
+        applyCreationOptions(options)
+    }
+
+    private func applyCreationOptions(_ options: BookCreationOptionsResponse) {
+        if !editedFields.contains(.topic), let value = options.defaults.topic.nonEmptyValue {
+            topic = value
+        }
+        if !editedFields.contains(.bookName), let value = options.defaults.bookName.nonEmptyValue {
+            bookName = value
+        }
+        if !editedFields.contains(.genre), let value = options.defaults.genre.nonEmptyValue {
+            genre = value
+        }
+        if !editedFields.contains(.author) {
+            author = options.defaults.author.nonEmptyValue ?? "Me"
+        }
+        if !editedFields.contains(.sentenceCount) {
+            sentenceCount = clampSentenceCount(options.sentenceBounds.default)
+        } else {
+            sentenceCount = clampSentenceCount(sentenceCount)
+        }
+        if !editedFields.contains(.inputLanguage),
+           let language = AppleBookCreateLanguage(backendValue: options.defaults.inputLanguage) {
+            inputLanguage = language
+        }
+        if !editedFields.contains(.targetLanguage),
+           let language = AppleBookCreateLanguage(backendValue: options.defaults.outputLanguage) {
+            targetLanguage = language
+        }
+        if !editedFields.contains(.voice),
+           let option = AppleBookCreateVoice(backendValue: options.defaults.voice) {
+            voice = option
+        }
+        if !editedFields.contains(.includeTransliteration) {
+            includeTransliteration = options.pipelineDefaults.includeTransliteration
+        }
+        if !editedFields.contains(.enableLookupCache) {
+            enableLookupCache = options.pipelineDefaults.enableLookupCache
+        }
+    }
+
+    private func clampSentenceCount(_ value: Int) -> Int {
+        max(sentenceBounds.min, min(sentenceBounds.max, value))
     }
 
     private static func deriveBaseOutputName(_ value: String) -> String {
@@ -230,134 +403,15 @@ struct AppleBookCreateView: View {
     }
 }
 
-@MainActor
-final class AppleBookCreateViewModel: ObservableObject {
-    @Published private(set) var isSubmitting = false
-    @Published var errorMessage: String?
-    @Published private(set) var submittedJobId: String?
-
-    func submit(_ draft: AppleBookCreateDraft, using appState: AppState) async -> String? {
-        guard let configuration = appState.configuration else {
-            errorMessage = "API configuration is unavailable."
-            return nil
-        }
-
-        isSubmitting = true
-        errorMessage = nil
-        submittedJobId = nil
-        defer { isSubmitting = false }
-
-        do {
-            let client = APIClient(configuration: configuration)
-            let response = try await client.submitBookGenerationJob(Self.makeSubmission(from: draft))
-            submittedJobId = response.jobId
-            return response.jobId
-        } catch {
-            errorMessage = error.localizedDescription
-            return nil
-        }
-    }
-
-    private static func makeSubmission(from draft: AppleBookCreateDraft) -> BookGenerationJobSubmission {
-        let inputFile = "\(draft.baseOutput).epub"
-        let input = PipelineInputPayload(
-            inputFile: inputFile,
-            baseOutputFile: draft.baseOutput,
-            inputLanguage: draft.inputLanguage,
-            targetLanguages: [draft.targetLanguage],
-            sentencesPerOutputFile: 10,
-            startSentence: 1,
-            generateAudio: true,
-            audioMode: "4",
-            audioBitrateKbps: 96,
-            writtenMode: "4",
-            selectedVoice: draft.voice,
-            outputHtml: false,
-            outputPdf: false,
-            addImages: false,
-            includeTransliteration: draft.includeTransliteration,
-            translationProvider: "llm",
-            translationBatchSize: 10,
-            transliterationMode: "default",
-            enableLookupCache: draft.enableLookupCache,
-            lookupCacheBatchSize: 10,
-            tempo: 1.0,
-            bookMetadata: [
-                "title": .string(draft.bookName),
-                "book_title": .string(draft.bookName),
-                "author": .string(draft.author),
-                "genre": .string(draft.genre),
-                "job_label": .string(draft.bookName),
-                "source": .string("apple")
-            ]
-        )
-        let pipeline = PipelineRequestPayload(inputs: input, correlationId: "apple-create")
-        return BookGenerationJobSubmission(
-            generator: BookGenerationRequest(
-                topic: draft.topic,
-                bookName: draft.bookName,
-                genre: draft.genre,
-                author: draft.author,
-                numSentences: draft.sentenceCount,
-                inputLanguage: draft.inputLanguage,
-                outputLanguage: draft.targetLanguage,
-                voice: draft.voice
-            ),
-            pipeline: pipeline
-        )
-    }
-}
-
-struct AppleBookCreateDraft: Equatable {
-    let topic: String
-    let bookName: String
-    let genre: String
-    let author: String
-    let sentenceCount: Int
-    let inputLanguage: String
-    let targetLanguage: String
-    let voice: String
-    let baseOutput: String
-    let includeTransliteration: Bool
-    let enableLookupCache: Bool
-}
-
-enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {
-    case english = "English"
-    case arabic = "Arabic"
-    case slovak = "Slovak"
-    case spanish = "Spanish"
-    case french = "French"
-    case german = "German"
-
-    var id: String { rawValue }
-    var backendValue: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .english: return "English"
-        case .arabic: return "Arabic"
-        case .slovak: return "Slovak"
-        case .spanish: return "Spanish"
-        case .french: return "French"
-        case .german: return "German"
-        }
-    }
-}
-
-enum AppleBookCreateVoice: String, CaseIterable, Identifiable {
-    case gtts = "gTTS"
-    case macos = "macOS"
-    case edge = "edge-tts"
-
-    var id: String { rawValue }
-    var backendValue: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .gtts: return "gTTS"
-        case .macos: return "macOS"
-        case .edge: return "Edge TTS"
-        }
-    }
+private enum AppleBookCreateEditedField: Hashable {
+    case topic
+    case bookName
+    case genre
+    case author
+    case sentenceCount
+    case inputLanguage
+    case targetLanguage
+    case voice
+    case includeTransliteration
+    case enableLookupCache
 }

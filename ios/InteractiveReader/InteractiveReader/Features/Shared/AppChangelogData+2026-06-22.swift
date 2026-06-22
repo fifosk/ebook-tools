@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-backend-options",
+            title: "Create defaults shared with Web",
+            detail: "The Apple Create form now loads generated-book defaults, sentence bounds, voices, languages, and pipeline settings from the backend options contract while preserving user edits."
+        ),
+        AppChangelogEntry(
             id: "apple-generated-audiobook-create-surface",
             title: "Generated audiobook creation added",
             detail: "The Apple app now has a Create section for generated audiobook jobs, reusing backend-aligned creation payloads and showing submitted jobs in the shared Jobs flow."
