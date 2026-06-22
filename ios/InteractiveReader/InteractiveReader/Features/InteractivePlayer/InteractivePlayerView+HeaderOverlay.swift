@@ -33,9 +33,7 @@ extension InteractivePlayerView {
             .allowsHitTesting(true)
         #if os(tvOS)
         let finalView = styledHeaderView
-            .onLongPressGesture(minimumDuration: 0.6) {
-                toggleHeaderCollapsed()
-            }
+            .onLongPressGesture(minimumDuration: 0.6, perform: handleHeaderLongPress)
             .zIndex(1)
         #else
         let finalView = styledHeaderView
@@ -133,7 +131,7 @@ extension InteractivePlayerView {
                 HStack(spacing: 6) {
                     musicPillView
                     if let timelineLabel {
-                        audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                        audioTimelineView(label: timelineLabel)
                     }
                 }
             }
@@ -152,7 +150,7 @@ extension InteractivePlayerView {
                     slideIndicatorView(label: slideLabel)
                 }
                 if let timelineLabel {
-                    audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                    audioTimelineView(label: timelineLabel)
                 }
             }
         } else {
@@ -169,7 +167,7 @@ extension InteractivePlayerView {
                 slideIndicatorView(label: slideLabel)
             }
             if let timelineLabel {
-                audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                audioTimelineView(label: timelineLabel)
             }
         }
     }
@@ -304,7 +302,7 @@ extension InteractivePlayerView {
             )
     }
 
-    func audioTimelineView(label: String, onTap: (() -> Void)? = nil) -> some View {
+    func audioTimelineView(label: String) -> some View {
         Text(label)
             .font(infoIndicatorFont)
             .foregroundStyle(Color.white.opacity(0.75))
@@ -320,9 +318,7 @@ extension InteractivePlayerView {
                     )
             )
             .contentShape(Capsule())
-            .onTapGesture {
-                onTap?()
-            }
+            .onTapGesture(perform: handleAudioTimelineTap)
     }
 
     var infoCoverWidth: CGFloat {
@@ -488,7 +484,7 @@ extension InteractivePlayerView {
                     musicPillView
                     // Timeline pill (tap to expand header)
                     if let timelineLabel {
-                        audioTimelineView(label: timelineLabel, onTap: toggleHeaderCollapsed)
+                        audioTimelineView(label: timelineLabel)
                     }
                 }
                 .padding(.top, 6)
@@ -515,6 +511,14 @@ extension InteractivePlayerView {
             .accessibilityHint("Long press middle button to toggle")
     }
     #endif
+
+    func handleHeaderLongPress() {
+        toggleHeaderCollapsed()
+    }
+
+    func handleAudioTimelineTap() {
+        toggleHeaderCollapsed()
+    }
 
     func toggleHeaderCollapsed() {
         withAnimation(.easeInOut(duration: 0.2)) {

@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.49",
+            version: "2026.06.22.50",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-header-timeline-handlers",
+                    title: "Header timeline controls cleaned up",
+                    detail: "Interactive header timeline taps and tvOS header long-press toggles now route through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "phone-bubble-tap-handlers",
                     title: "iPhone bubble taps cleaned up",
