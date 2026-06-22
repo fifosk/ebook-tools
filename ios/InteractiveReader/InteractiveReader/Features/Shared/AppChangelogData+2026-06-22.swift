@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-creation-api-plumbing",
+            title: "Apple creation API plumbing added",
+            detail: "Native clients now have backend-aligned request models and API methods for pipeline creation, generated books, subtitle jobs, YouTube dubbing, and EPUB upload so Web-only creation flows can move into Apple surfaces."
+        ),
+        AppChangelogEntry(
             id: "video-player-header-components-file",
             title: "Video header components separated",
             detail: "Video player header controls, timeline pills, dismiss chrome, and info badge rendering now live in focused components while the header view stays centered on platform layout and timing labels."

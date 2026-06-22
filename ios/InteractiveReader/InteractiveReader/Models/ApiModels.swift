@@ -24,7 +24,7 @@ struct YoutubeVideoMetadataResponse: Decodable {
     let youtubeMetadata: [String: JSONValue]?
 }
 
-enum JSONValue: Decodable, Hashable {
+enum JSONValue: Codable, Hashable {
     case string(String)
     case number(Double)
     case bool(Bool)
@@ -60,5 +60,23 @@ enum JSONValue: Decodable, Hashable {
             }
         }
         self = .null
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .string(let value):
+            try container.encode(value)
+        case .number(let value):
+            try container.encode(value)
+        case .bool(let value):
+            try container.encode(value)
+        case .object(let value):
+            try container.encode(value)
+        case .array(let value):
+            try container.encode(value)
+        case .null:
+            try container.encodeNil()
+        }
     }
 }

@@ -1,0 +1,420 @@
+import Foundation
+
+struct PipelineInputPayload: Encodable, Equatable {
+    let inputFile: String
+    let baseOutputFile: String
+    let inputLanguage: String
+    let targetLanguages: [String]
+    let sentencesPerOutputFile: Int
+    let startSentence: Int
+    let endSentence: Int?
+    let stitchFull: Bool
+    let generateAudio: Bool
+    let audioMode: String
+    let audioBitrateKbps: Int?
+    let writtenMode: String
+    let selectedVoice: String
+    let voiceOverrides: [String: String]
+    let outputHtml: Bool
+    let outputPdf: Bool
+    let addImages: Bool
+    let includeTransliteration: Bool
+    let translationProvider: String
+    let translationBatchSize: Int
+    let transliterationMode: String
+    let transliterationModel: String?
+    let enableLookupCache: Bool
+    let lookupCacheBatchSize: Int
+    let tempo: Double
+    let bookMetadata: [String: JSONValue]
+
+    init(
+        inputFile: String,
+        baseOutputFile: String,
+        inputLanguage: String,
+        targetLanguages: [String],
+        sentencesPerOutputFile: Int = 10,
+        startSentence: Int = 1,
+        endSentence: Int? = nil,
+        stitchFull: Bool = false,
+        generateAudio: Bool = true,
+        audioMode: String = "1",
+        audioBitrateKbps: Int? = nil,
+        writtenMode: String = "4",
+        selectedVoice: String = "gTTS",
+        voiceOverrides: [String: String] = [:],
+        outputHtml: Bool = false,
+        outputPdf: Bool = false,
+        addImages: Bool = false,
+        includeTransliteration: Bool = true,
+        translationProvider: String = "llm",
+        translationBatchSize: Int = 10,
+        transliterationMode: String = "default",
+        transliterationModel: String? = nil,
+        enableLookupCache: Bool = true,
+        lookupCacheBatchSize: Int = 10,
+        tempo: Double = 1.0,
+        bookMetadata: [String: JSONValue] = [:]
+    ) {
+        self.inputFile = inputFile
+        self.baseOutputFile = baseOutputFile
+        self.inputLanguage = inputLanguage
+        self.targetLanguages = targetLanguages
+        self.sentencesPerOutputFile = sentencesPerOutputFile
+        self.startSentence = startSentence
+        self.endSentence = endSentence
+        self.stitchFull = stitchFull
+        self.generateAudio = generateAudio
+        self.audioMode = audioMode
+        self.audioBitrateKbps = audioBitrateKbps
+        self.writtenMode = writtenMode
+        self.selectedVoice = selectedVoice
+        self.voiceOverrides = voiceOverrides
+        self.outputHtml = outputHtml
+        self.outputPdf = outputPdf
+        self.addImages = addImages
+        self.includeTransliteration = includeTransliteration
+        self.translationProvider = translationProvider
+        self.translationBatchSize = translationBatchSize
+        self.transliterationMode = transliterationMode
+        self.transliterationModel = transliterationModel
+        self.enableLookupCache = enableLookupCache
+        self.lookupCacheBatchSize = lookupCacheBatchSize
+        self.tempo = tempo
+        self.bookMetadata = bookMetadata
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case inputFile = "input_file"
+        case baseOutputFile = "base_output_file"
+        case inputLanguage = "input_language"
+        case targetLanguages = "target_languages"
+        case sentencesPerOutputFile = "sentences_per_output_file"
+        case startSentence = "start_sentence"
+        case endSentence = "end_sentence"
+        case stitchFull = "stitch_full"
+        case generateAudio = "generate_audio"
+        case audioMode = "audio_mode"
+        case audioBitrateKbps = "audio_bitrate_kbps"
+        case writtenMode = "written_mode"
+        case selectedVoice = "selected_voice"
+        case voiceOverrides = "voice_overrides"
+        case outputHtml = "output_html"
+        case outputPdf = "output_pdf"
+        case addImages = "add_images"
+        case includeTransliteration = "include_transliteration"
+        case translationProvider = "translation_provider"
+        case translationBatchSize = "translation_batch_size"
+        case transliterationMode = "transliteration_mode"
+        case transliterationModel = "transliteration_model"
+        case enableLookupCache = "enable_lookup_cache"
+        case lookupCacheBatchSize = "lookup_cache_batch_size"
+        case tempo
+        case bookMetadata = "book_metadata"
+    }
+}
+
+struct PipelineRequestPayload: Encodable, Equatable {
+    let config: [String: JSONValue]
+    let environmentOverrides: [String: JSONValue]
+    let pipelineOverrides: [String: JSONValue]
+    let inputs: PipelineInputPayload
+    let correlationId: String?
+
+    init(
+        config: [String: JSONValue] = [:],
+        environmentOverrides: [String: JSONValue] = [:],
+        pipelineOverrides: [String: JSONValue] = [:],
+        inputs: PipelineInputPayload,
+        correlationId: String? = nil
+    ) {
+        self.config = config
+        self.environmentOverrides = environmentOverrides
+        self.pipelineOverrides = pipelineOverrides
+        self.inputs = inputs
+        self.correlationId = correlationId
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case config
+        case environmentOverrides = "environment_overrides"
+        case pipelineOverrides = "pipeline_overrides"
+        case inputs
+        case correlationId = "correlation_id"
+    }
+}
+
+struct PipelineSubmissionResponse: Decodable, Equatable {
+    let jobId: String
+    let status: PipelineJobStatus
+    let createdAt: String
+    let jobType: String
+}
+
+struct PipelineFileEntry: Decodable, Equatable {
+    let name: String
+    let path: String
+    let type: String
+}
+
+struct BookGenerationRequest: Encodable, Equatable {
+    let topic: String
+    let bookName: String
+    let genre: String
+    let author: String
+    let numSentences: Int
+    let inputLanguage: String?
+    let outputLanguage: String?
+    let voice: String?
+
+    init(
+        topic: String,
+        bookName: String,
+        genre: String,
+        author: String = "Me",
+        numSentences: Int = 10,
+        inputLanguage: String? = nil,
+        outputLanguage: String? = nil,
+        voice: String? = nil
+    ) {
+        self.topic = topic
+        self.bookName = bookName
+        self.genre = genre
+        self.author = author
+        self.numSentences = numSentences
+        self.inputLanguage = inputLanguage
+        self.outputLanguage = outputLanguage
+        self.voice = voice
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case topic
+        case bookName = "book_name"
+        case genre
+        case author
+        case numSentences = "num_sentences"
+        case inputLanguage = "input_language"
+        case outputLanguage = "output_language"
+        case voice
+    }
+}
+
+struct BookGenerationJobSubmission: Encodable, Equatable {
+    let generator: BookGenerationRequest
+    let pipeline: PipelineRequestPayload
+}
+
+struct SubtitleJobFormPayload: Equatable {
+    let inputLanguage: String
+    let targetLanguage: String
+    let sourcePath: String?
+    let originalLanguage: String?
+    let llmModel: String?
+    let translationProvider: String?
+    let transliterationMode: String?
+    let transliterationModel: String?
+    let enableTransliteration: Bool
+    let highlight: Bool
+    let showOriginal: Bool
+    let generateAudioBook: Bool
+    let batchSize: Int?
+    let translationBatchSize: Int?
+    let workerCount: Int?
+    let startTime: String
+    let endTime: String?
+    let mediaMetadataJSON: String?
+    let cleanupSource: Bool
+    let mirrorBatchesToSourceDir: Bool
+    let outputFormat: String
+
+    init(
+        inputLanguage: String,
+        targetLanguage: String,
+        sourcePath: String? = nil,
+        originalLanguage: String? = nil,
+        llmModel: String? = nil,
+        translationProvider: String? = nil,
+        transliterationMode: String? = nil,
+        transliterationModel: String? = nil,
+        enableTransliteration: Bool = false,
+        highlight: Bool = true,
+        showOriginal: Bool = true,
+        generateAudioBook: Bool = true,
+        batchSize: Int? = nil,
+        translationBatchSize: Int? = nil,
+        workerCount: Int? = nil,
+        startTime: String = "00:00",
+        endTime: String? = nil,
+        mediaMetadataJSON: String? = nil,
+        cleanupSource: Bool = false,
+        mirrorBatchesToSourceDir: Bool = true,
+        outputFormat: String = "srt"
+    ) {
+        self.inputLanguage = inputLanguage
+        self.targetLanguage = targetLanguage
+        self.sourcePath = sourcePath
+        self.originalLanguage = originalLanguage
+        self.llmModel = llmModel
+        self.translationProvider = translationProvider
+        self.transliterationMode = transliterationMode
+        self.transliterationModel = transliterationModel
+        self.enableTransliteration = enableTransliteration
+        self.highlight = highlight
+        self.showOriginal = showOriginal
+        self.generateAudioBook = generateAudioBook
+        self.batchSize = batchSize
+        self.translationBatchSize = translationBatchSize
+        self.workerCount = workerCount
+        self.startTime = startTime
+        self.endTime = endTime
+        self.mediaMetadataJSON = mediaMetadataJSON
+        self.cleanupSource = cleanupSource
+        self.mirrorBatchesToSourceDir = mirrorBatchesToSourceDir
+        self.outputFormat = outputFormat
+    }
+
+    var multipartFields: [String: String] {
+        var fields: [String: String] = [
+            "input_language": inputLanguage,
+            "target_language": targetLanguage,
+            "enable_transliteration": Self.formBool(enableTransliteration),
+            "highlight": Self.formBool(highlight),
+            "show_original": Self.formBool(showOriginal),
+            "generate_audio_book": Self.formBool(generateAudioBook),
+            "start_time": startTime,
+            "cleanup_source": Self.formBool(cleanupSource),
+            "mirror_batches_to_source_dir": Self.formBool(mirrorBatchesToSourceDir),
+            "output_format": outputFormat,
+        ]
+
+        Self.add(sourcePath, named: "source_path", to: &fields)
+        Self.add(originalLanguage, named: "original_language", to: &fields)
+        Self.add(llmModel, named: "llm_model", to: &fields)
+        Self.add(translationProvider, named: "translation_provider", to: &fields)
+        Self.add(transliterationMode, named: "transliteration_mode", to: &fields)
+        Self.add(transliterationModel, named: "transliteration_model", to: &fields)
+        Self.add(endTime, named: "end_time", to: &fields)
+        Self.add(mediaMetadataJSON, named: "media_metadata_json", to: &fields)
+        Self.add(batchSize.map(String.init), named: "batch_size", to: &fields)
+        Self.add(translationBatchSize.map(String.init), named: "translation_batch_size", to: &fields)
+        Self.add(workerCount.map(String.init), named: "worker_count", to: &fields)
+        return fields
+    }
+
+    private static func add(_ value: String?, named name: String, to fields: inout [String: String]) {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return
+        }
+        fields[name] = value
+    }
+
+    private static func formBool(_ value: Bool) -> String {
+        value ? "true" : "false"
+    }
+}
+
+struct YoutubeDubRequestPayload: Encodable, Equatable {
+    let videoPath: String
+    let subtitlePath: String
+    let mediaMetadata: [String: JSONValue]?
+    let sourceLanguage: String?
+    let targetLanguage: String?
+    let voice: String?
+    let tempo: Double?
+    let macosReadingSpeed: Int?
+    let outputDir: String?
+    let startTimeOffset: String?
+    let endTimeOffset: String?
+    let originalMixPercent: Double?
+    let flushSentences: Int?
+    let llmModel: String?
+    let translationProvider: String?
+    let translationBatchSize: Int?
+    let transliterationMode: String?
+    let transliterationModel: String?
+    let splitBatches: Bool?
+    let stitchBatches: Bool?
+    let includeTransliteration: Bool?
+    let targetHeight: Int?
+    let preserveAspectRatio: Bool?
+    let enableLookupCache: Bool?
+
+    init(
+        videoPath: String,
+        subtitlePath: String,
+        mediaMetadata: [String: JSONValue]? = nil,
+        sourceLanguage: String? = nil,
+        targetLanguage: String? = nil,
+        voice: String? = nil,
+        tempo: Double? = nil,
+        macosReadingSpeed: Int? = nil,
+        outputDir: String? = nil,
+        startTimeOffset: String? = nil,
+        endTimeOffset: String? = nil,
+        originalMixPercent: Double? = nil,
+        flushSentences: Int? = nil,
+        llmModel: String? = nil,
+        translationProvider: String? = nil,
+        translationBatchSize: Int? = nil,
+        transliterationMode: String? = nil,
+        transliterationModel: String? = nil,
+        splitBatches: Bool? = nil,
+        stitchBatches: Bool? = nil,
+        includeTransliteration: Bool? = nil,
+        targetHeight: Int? = nil,
+        preserveAspectRatio: Bool? = nil,
+        enableLookupCache: Bool? = nil
+    ) {
+        self.videoPath = videoPath
+        self.subtitlePath = subtitlePath
+        self.mediaMetadata = mediaMetadata
+        self.sourceLanguage = sourceLanguage
+        self.targetLanguage = targetLanguage
+        self.voice = voice
+        self.tempo = tempo
+        self.macosReadingSpeed = macosReadingSpeed
+        self.outputDir = outputDir
+        self.startTimeOffset = startTimeOffset
+        self.endTimeOffset = endTimeOffset
+        self.originalMixPercent = originalMixPercent
+        self.flushSentences = flushSentences
+        self.llmModel = llmModel
+        self.translationProvider = translationProvider
+        self.translationBatchSize = translationBatchSize
+        self.transliterationMode = transliterationMode
+        self.transliterationModel = transliterationModel
+        self.splitBatches = splitBatches
+        self.stitchBatches = stitchBatches
+        self.includeTransliteration = includeTransliteration
+        self.targetHeight = targetHeight
+        self.preserveAspectRatio = preserveAspectRatio
+        self.enableLookupCache = enableLookupCache
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case videoPath = "video_path"
+        case subtitlePath = "subtitle_path"
+        case mediaMetadata = "media_metadata"
+        case sourceLanguage = "source_language"
+        case targetLanguage = "target_language"
+        case voice
+        case tempo
+        case macosReadingSpeed = "macos_reading_speed"
+        case outputDir = "output_dir"
+        case startTimeOffset = "start_time_offset"
+        case endTimeOffset = "end_time_offset"
+        case originalMixPercent = "original_mix_percent"
+        case flushSentences = "flush_sentences"
+        case llmModel = "llm_model"
+        case translationProvider = "translation_provider"
+        case translationBatchSize = "translation_batch_size"
+        case transliterationMode = "transliteration_mode"
+        case transliterationModel = "transliteration_model"
+        case splitBatches = "split_batches"
+        case stitchBatches = "stitch_batches"
+        case includeTransliteration = "include_transliteration"
+        case targetHeight = "target_height"
+        case preserveAspectRatio = "preserve_aspect_ratio"
+        case enableLookupCache = "enable_lookup_cache"
+    }
+}

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.151
+
+- Advanced visible Apple app versioning to `v2026.06.22.151`.
+- Added native Apple request models and API client plumbing for pipeline creation, generated books, subtitle jobs, YouTube dubbing, and EPUB upload so Web-only creation flows can move onto iPhone, iPad, and Apple TV surfaces.
+
 ### 2026.06.22.150
 
 - Advanced visible Apple app versioning to `v2026.06.22.150`.
