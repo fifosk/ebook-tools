@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.92",
+            version: "2026.06.22.93",
             entries: [
+                AppChangelogEntry(
+                    id: "auth-api-models-file",
+                    title: "Auth API models separated",
+                    detail: "Login, session, OAuth, and backend runtime descriptor payloads now live in a dedicated Models file instead of the broad API model file."
+                ),
                 AppChangelogEntry(
                     id: "pipeline-media-api-models-file",
                     title: "Pipeline media API models separated",

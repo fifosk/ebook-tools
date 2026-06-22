@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.93
+
+- Advanced visible Apple app versioning to `v2026.06.22.93`.
+- Moved login, session, OAuth, and backend runtime descriptor API models into a dedicated Models file so authentication contract decoding is separated from unrelated API payloads.
+
 ### 2026.06.22.92
 
 - Advanced visible Apple app versioning to `v2026.06.22.92`.
