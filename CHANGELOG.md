@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.55
+
+- Advanced visible Apple app versioning to `v2026.06.22.55`.
+- Moved interactive player header language flag rows into one SwiftUI helper with a named role-toggle handler.
+
 ### 2026.06.22.54
 
 - Advanced visible Apple app versioning to `v2026.06.22.54`.

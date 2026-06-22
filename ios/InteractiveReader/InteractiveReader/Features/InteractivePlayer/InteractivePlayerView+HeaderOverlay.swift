@@ -172,6 +172,27 @@ extension InteractivePlayerView {
         }
     }
 
+    private func headerLanguageFlagRow(
+        info: InteractivePlayerHeaderInfo,
+        chunk: InteractiveChunk,
+        availableRoles: Set<LanguageFlagRole>,
+        activeRoles: Set<LanguageFlagRole>,
+        showConnector: Bool
+    ) -> some View {
+        PlayerLanguageFlagRow(
+            flags: info.languageFlags,
+            modelLabel: nil,
+            isTV: isTV,
+            sizeScale: infoPillScale,
+            activeRoles: activeRoles,
+            availableRoles: availableRoles,
+            onToggleRole: { role in
+                handleHeaderLanguageRoleToggle(role, for: chunk, availableRoles: availableRoles)
+            },
+            showConnector: showConnector
+        )
+    }
+
     #if os(iOS)
     private func phoneHeaderControlsRow(
         info: InteractivePlayerHeaderInfo,
@@ -180,16 +201,11 @@ extension InteractivePlayerView {
         activeRoles: Set<LanguageFlagRole>
     ) -> some View {
         HStack(spacing: 0) {
-            PlayerLanguageFlagRow(
-                flags: info.languageFlags,
-                modelLabel: nil,
-                isTV: false,
-                sizeScale: infoPillScale,
-                activeRoles: activeRoles,
+            headerLanguageFlagRow(
+                info: info,
+                chunk: chunk,
                 availableRoles: availableRoles,
-                onToggleRole: { role in
-                    toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
-                },
+                activeRoles: activeRoles,
                 showConnector: false
             )
             Spacer(minLength: 8)
@@ -237,16 +253,11 @@ extension InteractivePlayerView {
                     if !isPhone, !info.languageFlags.isEmpty {
                         #if os(tvOS)
                         HStack(spacing: 8 * infoPillScale) {
-                            PlayerLanguageFlagRow(
-                                flags: info.languageFlags,
-                                modelLabel: nil,
-                                isTV: isTV,
-                                sizeScale: infoPillScale,
-                                activeRoles: activeRoles,
+                            headerLanguageFlagRow(
+                                info: info,
+                                chunk: chunk,
                                 availableRoles: availableRoles,
-                                onToggleRole: { role in
-                                    toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
-                                },
+                                activeRoles: activeRoles,
                                 showConnector: !isPhone
                             )
                             musicPillView
@@ -259,16 +270,11 @@ extension InteractivePlayerView {
                         .focused($focusedArea, equals: .controls)
                         #else
                         HStack(spacing: 8 * infoPillScale) {
-                            PlayerLanguageFlagRow(
-                                flags: info.languageFlags,
-                                modelLabel: nil,
-                                isTV: isTV,
-                                sizeScale: infoPillScale,
-                                activeRoles: activeRoles,
+                            headerLanguageFlagRow(
+                                info: info,
+                                chunk: chunk,
                                 availableRoles: availableRoles,
-                                onToggleRole: { role in
-                                    toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
-                                },
+                                activeRoles: activeRoles,
                                 showConnector: !isPhone
                             )
                             musicPillView
@@ -283,6 +289,14 @@ extension InteractivePlayerView {
             }
             // iPhone pills row is now handled in playerInfoOverlay for full-width layout
         }
+    }
+
+    private func handleHeaderLanguageRoleToggle(
+        _ role: LanguageFlagRole,
+        for chunk: InteractiveChunk,
+        availableRoles: Set<LanguageFlagRole>
+    ) {
+        toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
     }
 
     func slideIndicatorView(label: String) -> some View {

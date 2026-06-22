@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.54",
+            version: "2026.06.22.55",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-header-language-flag-row-helper",
+                    title: "Header language flag rows cleaned up",
+                    detail: "Interactive player header language flag rows now share one SwiftUI helper and named role-toggle handler."
+                ),
                 AppChangelogEntry(
                     id: "language-flag-role-toggle-handler",
                     title: "Language flag toggles cleaned up",
