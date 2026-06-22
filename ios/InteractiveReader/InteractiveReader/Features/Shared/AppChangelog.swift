@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.84",
+            version: "2026.06.22.85",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-shortcut-help-overlay-file",
+                    title: "Shortcut help overlay separated",
+                    detail: "Interactive player keyboard shortcut help now lives in its own SwiftUI source file instead of the hardware input support file."
+                ),
                 AppChangelogEntry(
                     id: "linguist-bubble-compatibility-file",
                     title: "Linguist bubble adapters separated",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.85
+
+- Advanced visible Apple app versioning to `v2026.06.22.85`.
+- Moved the interactive player keyboard shortcut help overlay into its own SwiftUI source file so input bridge code no longer carries overlay layout and keycap rendering.
+
 ### 2026.06.22.84
 
 - Advanced visible Apple app versioning to `v2026.06.22.84`.
