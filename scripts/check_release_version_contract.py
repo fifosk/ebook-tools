@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION_RE = re.compile(r"^\d{4}\.\d{2}\.\d{2}\.\d{2}$")
+VERSION_RE = re.compile(r"^\d{4}\.\d{2}\.\d{2}\.\d+$")
 
 
 def read_plist_version(path: Path) -> str:
@@ -83,7 +83,7 @@ def require_contains(path: Path, pattern: str, description: str) -> None:
 
 def latest_changelog_version(path: Path) -> str:
     text = path.read_text(encoding="utf-8")
-    match = re.search(r"^###\s+(\d{4}\.\d{2}\.\d{2}\.\d{2})\s*$", text, re.MULTILINE)
+    match = re.search(r"^###\s+(\d{4}\.\d{2}\.\d{2}\.\d+)\s*$", text, re.MULTILINE)
     if match is None:
         raise AssertionError(f"{path} is missing a YYYY.MM.DD.xx version heading")
     return match.group(1)

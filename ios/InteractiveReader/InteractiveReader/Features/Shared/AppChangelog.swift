@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.99",
+            version: "2026.06.22.100",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-full-changelog-scroll",
+                    title: "TV changelog shows the full day",
+                    detail: "Login and Settings now use a bounded remote-scroll changelog with a position counter, so the Siri Remote can move through the full current-day entry list."
+                ),
                 AppChangelogEntry(
                     id: "tvos-changelog-regression-auto-anchor",
                     title: "TV changelog test hardened",

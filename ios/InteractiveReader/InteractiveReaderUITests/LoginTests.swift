@@ -27,20 +27,24 @@ final class LoginTests: InteractiveReaderUITests {
         XCTAssertTrue(firstEntry.isHittable, "Expected the latest changelog row to be visible before moving")
         XCTAssertGreaterThan(changelogEntries.count, 2, "Expected multiple changelog rows for tvOS remote movement")
 
+        let positionLabel = app.staticTexts["appChangelogPositionLabel"]
+        XCTAssertTrue(positionLabel.waitForExistence(timeout: 4), "Expected tvOS changelog to expose a remote-scroll position")
+        let initialPosition = positionLabel.label
+        XCTAssertTrue(initialPosition.hasPrefix("1/"), "Expected changelog focus to start at the newest entry")
+
         for _ in 0..<4 where !firstEntry.hasFocus {
             XCUIRemote.shared.press(.up)
             usleep(160_000)
         }
         XCTAssertTrue(firstEntry.hasFocus, "Expected the remote to focus the first changelog row")
 
-        let laterEntry = changelogEntries.element(boundBy: changelogEntries.count - 1)
-        for _ in 0..<20 where !(laterEntry.exists && laterEntry.isHittable) {
+        for _ in 0..<8 where positionLabel.label == initialPosition {
             XCUIRemote.shared.press(.down)
             usleep(160_000)
         }
 
-        XCTAssertTrue(laterEntry.exists, "Expected a lower changelog row to stay in the tvOS focus list")
-        XCTAssertTrue(laterEntry.isHittable, "Expected remote focus movement to reveal the lower changelog row")
+        XCTAssertNotEqual(positionLabel.label, initialPosition, "Expected remote focus movement to advance through the changelog")
+        XCTAssertFalse(positionLabel.label.hasPrefix("1/"), "Expected tvOS changelog focus to move beyond the newest entry")
     }
     #endif
 

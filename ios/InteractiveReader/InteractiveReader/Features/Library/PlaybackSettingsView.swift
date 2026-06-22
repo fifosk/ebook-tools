@@ -326,10 +326,9 @@ private struct AppChangelogSettingsSection: View {
     private var changelogSummary: some View {
         #if os(tvOS)
         AppChangelogSummaryView(
-            maxEntries: 12,
             showBuildMetadata: true,
             usesDarkBackground: usesDarkBackground,
-            maxContentHeight: nil
+            maxContentHeight: 520
         )
         #else
         AppChangelogSummaryView(

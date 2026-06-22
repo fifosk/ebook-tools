@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.100
+
+- Advanced visible Apple app versioning to `v2026.06.22.100`.
+- Made the tvOS login and settings changelog use the bounded remote-scroll list for the full current-day changelog, with a position counter proving the Siri Remote can move beyond the first visible rows.
+
 ### 2026.06.22.99
 
 - Advanced visible Apple app versioning to `v2026.06.22.99`.

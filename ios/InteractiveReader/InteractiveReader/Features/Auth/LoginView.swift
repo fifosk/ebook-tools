@@ -88,9 +88,8 @@ struct LoginView: View {
     private var loginChangelog: some View {
         #if os(tvOS)
         AppChangelogSummaryView(
-            maxEntries: 8,
             showBuildMetadata: false,
-            maxContentHeight: nil
+            maxContentHeight: 360
         )
         #else
         AppChangelogSummaryView(maxEntries: 2, showBuildMetadata: false)
