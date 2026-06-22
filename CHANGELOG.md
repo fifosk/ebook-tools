@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.69
+
+- Advanced visible Apple app versioning to `v2026.06.22.69`.
+- Moved the visible changelog summary UI into its own Swift source file.
+
 ### 2026.06.22.68
 
 - Advanced visible Apple app versioning to `v2026.06.22.68`.
