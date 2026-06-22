@@ -216,7 +216,7 @@ struct AppleCreationPayloadCheck {
             assFontSize: 56,
             assEmphasisScale: 1.3,
             mediaMetadataJSON: #"{"source":"apple"}"#,
-            mirrorBatchesToSourceDir: true,
+            mirrorBatchesToSourceDir: false,
             outputFormat: "ass"
         )
         require(
@@ -266,6 +266,10 @@ struct AppleCreationPayloadCheck {
         require(
             appleSubtitle.multipartFields["media_metadata_json"] == #"{"source":"apple"}"#,
             "Apple subtitle form should mark Apple source metadata"
+        )
+        require(
+            appleSubtitle.multipartFields["mirror_batches_to_source_dir"] == "false",
+            "Apple subtitle form should include selected mirror-to-source setting"
         )
 
         let appleSubtitleUpload = SubtitleJobFormPayload(

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-subtitle-mirror-batches",
+            title: "Subtitle mirror option",
+            detail: "On iPhone and iPad, Apple Create Subtitles now exposes the mirror-batches-to-source option and submits the same mirror_batches_to_source_dir field as Web."
+        ),
+        AppChangelogEntry(
             id: "apple-create-subtitle-llm-batch-size",
             title: "Subtitle LLM batch tuning",
             detail: "On iPhone and iPad, Apple Create Subtitles now exposes LLM batch-size tuning and submits the same translation_batch_size field as Web."

@@ -27,6 +27,7 @@ struct AppleBookCreateView: View {
     @State private var subtitleHighlight = true
     @State private var subtitleShowOriginal = true
     @State private var subtitleGenerateAudioBook = true
+    @State private var subtitleMirrorBatchesToSourceDir = true
     @State private var subtitleTranslationProvider = AppleSubtitleTranslationProvider.llm
     @State private var subtitleLlmModel = ""
     @State private var subtitleTransliterationMode = AppleSubtitleTransliterationMode.default
@@ -317,6 +318,10 @@ struct AppleBookCreateView: View {
                     .accessibilityIdentifier("createSubtitleShowOriginalToggle")
                 Toggle("Generate Audiobook", isOn: boolBinding(for: .subtitleGenerateAudioBook, value: $subtitleGenerateAudioBook))
                     .accessibilityIdentifier("createSubtitleGenerateAudioToggle")
+                #if os(iOS)
+                Toggle("Mirror batches to source", isOn: boolBinding(for: .subtitleMirrorBatchesToSourceDir, value: $subtitleMirrorBatchesToSourceDir))
+                    .accessibilityIdentifier("createSubtitleMirrorBatchesToggle")
+                #endif
 
                 Picker("Provider", selection: subtitleTranslationProviderBinding) {
                     ForEach(AppleSubtitleTranslationProvider.allCases) { option in
@@ -522,6 +527,7 @@ struct AppleBookCreateView: View {
             highlight: subtitleHighlight,
             showOriginal: subtitleShowOriginal,
             generateAudioBook: subtitleGenerateAudioBook,
+            mirrorBatchesToSourceDir: subtitleMirrorBatchesToSourceDir,
             translationProvider: subtitleTranslationProvider.backendValue,
             llmModel: subtitleTranslationProvider == .llm ? trimmed(subtitleLlmModel).nonEmptyValue : nil,
             transliterationMode: subtitleEnableTransliteration ? subtitleTransliterationMode.backendValue : nil,
@@ -942,6 +948,7 @@ private enum AppleBookCreateEditedField: Hashable {
     case subtitleHighlight
     case subtitleShowOriginal
     case subtitleGenerateAudioBook
+    case subtitleMirrorBatchesToSourceDir
     case subtitleTranslationProvider
     case subtitleLlmModel
     case subtitleTransliterationMode

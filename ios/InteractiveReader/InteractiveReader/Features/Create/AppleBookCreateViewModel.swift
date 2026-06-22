@@ -288,7 +288,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             assFontSize: draft.assFontSize,
             assEmphasisScale: draft.assEmphasisScale,
             mediaMetadataJSON: #"{"source":"apple"}"#,
-            mirrorBatchesToSourceDir: true,
+            mirrorBatchesToSourceDir: draft.mirrorBatchesToSourceDir,
             outputFormat: draft.outputFormat
         )
     }
@@ -345,6 +345,7 @@ struct AppleSubtitleJobDraft: Equatable {
     let highlight: Bool
     let showOriginal: Bool
     let generateAudioBook: Bool
+    let mirrorBatchesToSourceDir: Bool
     let translationProvider: String
     let llmModel: String?
     let transliterationMode: String?
