@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.120
+
+- Advanced visible Apple app versioning to `v2026.06.22.120`.
+- Moved interactive transcript composition into `InteractivePlayerView+InteractiveContent.swift`, keeping `InteractivePlayerView+Layout.swift` focused on the screen shell and overlay layers.
+
 ### 2026.06.22.119
 
 - Advanced visible Apple app versioning to `v2026.06.22.119`.

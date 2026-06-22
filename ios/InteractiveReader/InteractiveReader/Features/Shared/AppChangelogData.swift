@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.119",
+            version: "2026.06.22.120",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-player-content-file",
+                    title: "Player transcript composition separated",
+                    detail: "Interactive transcript composition now lives in a focused extension while the player layout file stays centered on the screen shell and overlay layers."
+                ),
                 AppChangelogEntry(
                     id: "interactive-player-lifecycle-observers-file",
                     title: "Player lifecycle observers separated",
