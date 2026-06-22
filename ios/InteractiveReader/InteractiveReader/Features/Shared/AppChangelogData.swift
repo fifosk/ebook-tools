@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.118",
+            version: "2026.06.22.119",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-player-lifecycle-observers-file",
+                    title: "Player lifecycle observers separated",
+                    detail: "Interactive player lifecycle observers and playback side-effect handlers now live in a focused extension while the layout file stays centered on screen composition."
+                ),
                 AppChangelogEntry(
                     id: "interactive-shortcut-host-views-file",
                     title: "iPad keyboard host views separated",

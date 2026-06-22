@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.119
+
+- Advanced visible Apple app versioning to `v2026.06.22.119`.
+- Moved interactive player lifecycle observers and playback side-effect handlers into `InteractivePlayerView+LifecycleObservers.swift`, keeping `InteractivePlayerView+Layout.swift` focused on screen composition.
+
 ### 2026.06.22.118
 
 - Advanced visible Apple app versioning to `v2026.06.22.118`.

@@ -159,6 +159,7 @@
 		99C55C3D1FC8664296FEC475 /* InteractivePlayerViewModel+Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 349CDBB9E48A4D372AC39F1D /* InteractivePlayerViewModel+Selection.swift */; };
 		99CD98CB3EC9F517313A3475 /* InteractivePlayerViewModel+Loading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 919B95631F5F2FA4C4913866 /* InteractivePlayerViewModel+Loading.swift */; };
 		9B3454EB6A7542068F65692F /* InteractivePlayerView+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C248D65273844EFBDC49279 /* InteractivePlayerView+Layout.swift */; };
+		D3AE00202317C3165B70D8EC /* InteractivePlayerView+LifecycleObservers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EA8EFD24531C1E61600A343 /* InteractivePlayerView+LifecycleObservers.swift */; };
 		JUMPOVER001A0001 /* JumpControlOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = JUMPOVER002A0001 /* JumpControlOverlayView.swift */; };
 		JUMPOVER001A0002 /* JumpControlOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = JUMPOVER002A0001 /* JumpControlOverlayView.swift */; };
 		9C155AB01A414B92A00898DA /* VideoPlayerView+NowPlaying.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15DA794E7A0944EFA293A694 /* VideoPlayerView+NowPlaying.swift */; };
@@ -237,6 +238,7 @@
 		D6CA6C00E95343CEAD94AEE8 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C52CBAA7D2D4EEA82595A11 /* RootView.swift */; };
 		D79F3C7ADC984177BB57B84B /* VideoPlayerView+Linguist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3553CDF2D94848C887BB0711 /* VideoPlayerView+Linguist.swift */; };
 		D94687A54B7C4AB39038A821 /* InteractivePlayerView+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C248D65273844EFBDC49279 /* InteractivePlayerView+Layout.swift */; };
+		9392E4E458DF55EBDAB05FDF /* InteractivePlayerView+LifecycleObservers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EA8EFD24531C1E61600A343 /* InteractivePlayerView+LifecycleObservers.swift */; };
 		DAE84199866DD186336FA1F5 /* VideoPlayerBookmarkMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4084B95A23C18B87E714466 /* VideoPlayerBookmarkMenu.swift */; };
 		BKMKRIBBON001A0002 /* BookmarkRibbonPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BKMKRIBBON002A0001 /* BookmarkRibbonPillView.swift */; };
 		E0D8C9AF34D042DFB492EA98 /* InteractivePlayerView+Linguist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 346822151C1A44D98F7E0E0A /* InteractivePlayerView+Linguist.swift */; };
@@ -513,6 +515,7 @@
 		CD4BA66DFE8B48D5AABAA921 /* VideoKeyboardSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoKeyboardSupport.swift; sourceTree = "<group>"; };
 		D0081BD6B4B347F9D6C060F5 /* JobPlaybackView+Loading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JobPlaybackView+Loading.swift"; sourceTree = "<group>"; };
 		D0657868686F47FF90870555 /* InteractivePlayerControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePlayerControls.swift; sourceTree = "<group>"; };
+		0EA8EFD24531C1E61600A343 /* InteractivePlayerView+LifecycleObservers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+LifecycleObservers.swift"; sourceTree = "<group>"; };
 		D11352FEF0FF447A9FDB05C0 /* InteractivePlayerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePlayerModels.swift; sourceTree = "<group>"; };
 		D7024EBBA5632C370AD9C039 /* VideoPlayerHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VideoPlayerHeaderView.swift; path = InteractiveReader/Features/Playback/VideoPlayerHeaderView.swift; sourceTree = SOURCE_ROOT; };
 		DDA3471FB4598DAD33C59571 /* VideoPlayerOverlayStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VideoPlayerOverlayStyles.swift; path = InteractiveReader/Features/Playback/VideoPlayerOverlayStyles.swift; sourceTree = SOURCE_ROOT; };
@@ -812,6 +815,7 @@
 				DFFB27F7B9307C2DEB5ED919 /* AppleMusicPickerView.swift */,
 				AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */,
 				1C248D65273844EFBDC49279 /* InteractivePlayerView+Layout.swift */,
+				0EA8EFD24531C1E61600A343 /* InteractivePlayerView+LifecycleObservers.swift */,
 				1107B6845B934259930ED1B9 /* InteractivePlayerView+Menu.swift */,
 				MEDIASEARCH002B0001 /* InteractivePlayerView+Search.swift */,
 				3B2FDF8F67CF4A78A4A96FFD /* InteractivePlayerView+Tracks.swift */,
@@ -1353,6 +1357,7 @@
 				F404B3BAA3290A64DCB21A7D /* InteractivePlayerShortcutHostViews.swift in Sources */,
 				66E5224CEEB7410F874E6E37 /* TextPlayerViews.swift in Sources */,
 				D94687A54B7C4AB39038A821 /* InteractivePlayerView+Layout.swift in Sources */,
+				9392E4E458DF55EBDAB05FDF /* InteractivePlayerView+LifecycleObservers.swift in Sources */,
 				06C1C25F028B496981D6F17F /* InteractivePlayerView+Menu.swift in Sources */,
 				8DB36216649F4BF0A7A514C4 /* InteractivePlayerView+Tracks.swift in Sources */,
 				5FE9F89A782341D08BA7A31E /* InteractivePlayerView+Bookmarks.swift in Sources */,
@@ -1548,6 +1553,7 @@
 				57D4FC3A9ADEA26AFB0756BA /* InteractivePlayerShortcutHostViews.swift in Sources */,
 				18E14A6A94EE44CE9F867DF7 /* TextPlayerViews.swift in Sources */,
 				9B3454EB6A7542068F65692F /* InteractivePlayerView+Layout.swift in Sources */,
+				D3AE00202317C3165B70D8EC /* InteractivePlayerView+LifecycleObservers.swift in Sources */,
 				7B16AC04BD9A4010BCC81AA0 /* InteractivePlayerView+Menu.swift in Sources */,
 				5E49E7A4551947A3AF29123A /* InteractivePlayerView+Tracks.swift in Sources */,
 				FCC4E802E56D418A81E37F21 /* InteractivePlayerView+Bookmarks.swift in Sources */,
@@ -1705,7 +1711,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622118;
+				CURRENT_PROJECT_VERSION = 20260622119;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1852,7 +1858,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622118;
+				CURRENT_PROJECT_VERSION = 20260622119;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1880,7 +1886,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622118;
+				CURRENT_PROJECT_VERSION = 20260622119;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1908,7 +1914,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622118;
+				CURRENT_PROJECT_VERSION = 20260622119;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1935,7 +1941,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622118;
+				CURRENT_PROJECT_VERSION = 20260622119;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1961,7 +1967,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622118;
+				CURRENT_PROJECT_VERSION = 20260622119;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1986,7 +1992,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622118;
+				CURRENT_PROJECT_VERSION = 20260622119;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -2004,7 +2010,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622118;
+				CURRENT_PROJECT_VERSION = 20260622119;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -2022,7 +2028,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622118;
+				CURRENT_PROJECT_VERSION = 20260622119;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
@@ -2042,7 +2048,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622118;
+				CURRENT_PROJECT_VERSION = 20260622119;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
