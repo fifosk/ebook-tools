@@ -443,7 +443,7 @@ struct JobsView: View {
         let isEligible = job.isFinishedForDisplay
 
         if status.isSynced {
-            Button(role: .destructive, action: { handleRemoveOfflineCopy(job) }) {
+            Button(role: .destructive, action: { handleRemoveOfflineCopyMenuTap(job) }) {
                 Label("Remove Offline Copy", systemImage: "trash.circle")
             }
         } else if status.isSyncing {
@@ -452,11 +452,11 @@ struct JobsView: View {
             }
             .disabled(true)
         } else if isEligible {
-            Button(action: { handleDownloadOfflineCopy(job, includeLookupCache: true) }) {
+            Button(action: { handleDownloadWithLookupCacheMenuTap(job) }) {
                 Label("Download with Dictionary", systemImage: "arrow.down.circle")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
-            Button(action: { handleDownloadOfflineCopy(job, includeLookupCache: false) }) {
+            Button(action: { handleDownloadWithoutLookupCacheMenuTap(job) }) {
                 Label("Download without Dictionary", systemImage: "arrow.down.circle.dotted")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
@@ -464,6 +464,18 @@ struct JobsView: View {
     }
 
     private func handleOfflineStatusTap() {}
+
+    private func handleRemoveOfflineCopyMenuTap(_ job: PipelineStatusResponse) {
+        handleRemoveOfflineCopy(job)
+    }
+
+    private func handleDownloadWithLookupCacheMenuTap(_ job: PipelineStatusResponse) {
+        handleDownloadOfflineCopy(job, includeLookupCache: true)
+    }
+
+    private func handleDownloadWithoutLookupCacheMenuTap(_ job: PipelineStatusResponse) {
+        handleDownloadOfflineCopy(job, includeLookupCache: false)
+    }
 
     private func handleRemoveOfflineCopy(_ job: PipelineStatusResponse) {
         offlineStore.remove(jobId: job.jobId, kind: .job)
