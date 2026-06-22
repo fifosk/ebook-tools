@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.60",
+            version: "2026.06.22.61",
             entries: [
+                AppChangelogEntry(
+                    id: "job-playback-video-player-helper",
+                    title: "Job video playback wiring cleaned up",
+                    detail: "Job playback now builds its video player through one shared SwiftUI helper for preview, fullscreen, and tvOS paths."
+                ),
                 AppChangelogEntry(
                     id: "library-playback-video-player-helper",
                     title: "Library video playback wiring cleaned up",

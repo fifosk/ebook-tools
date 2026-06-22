@@ -219,27 +219,7 @@ struct JobPlaybackView: View {
             case .loaded:
                 if isVideoPreferred, let videoURL {
                     #if os(tvOS)
-                    VideoPlayerView(
-                        videoURL: videoURL,
-                        subtitleTracks: subtitleTracks,
-                        metadata: videoMetadata,
-                        autoPlay: videoAutoPlay,
-                        resumeTime: videoResumeTime,
-                        resumeActionID: videoResumeActionID,
-                        nowPlaying: nowPlaying,
-                        linguistInputLanguage: linguistInputLanguage,
-                        linguistLookupLanguage: linguistLookupLanguage,
-                        segmentOptions: videoSegmentOptions,
-                        selectedSegmentID: activeVideoSegmentID ?? videoSegments.first?.id,
-                        onSelectSegment: handleVideoSegmentSelection,
-                        jobProgressLabel: jobProgressLabel,
-                        jobRemainingLabel: jobRemainingLabel,
-                        onPlaybackProgress: handleVideoPlaybackProgress,
-                        onPlaybackEnded: handleVideoSegmentEnded,
-                        bookmarkUserId: resumeUserId,
-                        bookmarkJobId: currentJob.jobId,
-                        bookmarkItemType: resumeItemType
-                    )
+                    jobVideoPlayer(videoURL: videoURL)
                     .frame(maxWidth: .infinity)
                     .aspectRatio(16 / 9, contentMode: .fit)
                     #else
@@ -324,27 +304,7 @@ struct JobPlaybackView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
                 if let videoURL {
-                    VideoPlayerView(
-                        videoURL: videoURL,
-                        subtitleTracks: subtitleTracks,
-                        metadata: videoMetadata,
-                        autoPlay: videoAutoPlay,
-                        resumeTime: videoResumeTime,
-                        resumeActionID: videoResumeActionID,
-                        nowPlaying: nowPlaying,
-                        linguistInputLanguage: linguistInputLanguage,
-                        linguistLookupLanguage: linguistLookupLanguage,
-                        segmentOptions: videoSegmentOptions,
-                        selectedSegmentID: activeVideoSegmentID ?? videoSegments.first?.id,
-                        onSelectSegment: handleVideoSegmentSelection,
-                        jobProgressLabel: jobProgressLabel,
-                        jobRemainingLabel: jobRemainingLabel,
-                        onPlaybackProgress: handleVideoPlaybackProgress,
-                        onPlaybackEnded: handleVideoSegmentEnded,
-                        bookmarkUserId: resumeUserId,
-                        bookmarkJobId: currentJob.jobId,
-                        bookmarkItemType: resumeItemType
-                    )
+                    jobVideoPlayer(videoURL: videoURL)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     Text("No playable media found for this job.")
@@ -382,27 +342,7 @@ struct JobPlaybackView: View {
     @ViewBuilder
     private var fullscreenVideoPlayer: some View {
         if let videoURL {
-            VideoPlayerView(
-                videoURL: videoURL,
-                subtitleTracks: subtitleTracks,
-                metadata: videoMetadata,
-                autoPlay: videoAutoPlay,
-                resumeTime: videoResumeTime,
-                resumeActionID: videoResumeActionID,
-                nowPlaying: nowPlaying,
-                linguistInputLanguage: linguistInputLanguage,
-                linguistLookupLanguage: linguistLookupLanguage,
-                segmentOptions: videoSegmentOptions,
-                selectedSegmentID: activeVideoSegmentID ?? videoSegments.first?.id,
-                onSelectSegment: handleVideoSegmentSelection,
-                jobProgressLabel: jobProgressLabel,
-                jobRemainingLabel: jobRemainingLabel,
-                onPlaybackProgress: handleVideoPlaybackProgress,
-                onPlaybackEnded: handleVideoSegmentEnded,
-                bookmarkUserId: resumeUserId,
-                bookmarkJobId: currentJob.jobId,
-                bookmarkItemType: resumeItemType
-            )
+            jobVideoPlayer(videoURL: videoURL)
             .ignoresSafeArea()
         } else {
             Color.black
@@ -475,6 +415,30 @@ struct JobPlaybackView: View {
     }
     #endif
     #endif
+
+    private func jobVideoPlayer(videoURL: URL) -> VideoPlayerView {
+        VideoPlayerView(
+            videoURL: videoURL,
+            subtitleTracks: subtitleTracks,
+            metadata: videoMetadata,
+            autoPlay: videoAutoPlay,
+            resumeTime: videoResumeTime,
+            resumeActionID: videoResumeActionID,
+            nowPlaying: nowPlaying,
+            linguistInputLanguage: linguistInputLanguage,
+            linguistLookupLanguage: linguistLookupLanguage,
+            segmentOptions: videoSegmentOptions,
+            selectedSegmentID: activeVideoSegmentID ?? videoSegments.first?.id,
+            onSelectSegment: handleVideoSegmentSelection,
+            jobProgressLabel: jobProgressLabel,
+            jobRemainingLabel: jobRemainingLabel,
+            onPlaybackProgress: handleVideoPlaybackProgress,
+            onPlaybackEnded: handleVideoSegmentEnded,
+            bookmarkUserId: resumeUserId,
+            bookmarkJobId: currentJob.jobId,
+            bookmarkItemType: resumeItemType
+        )
+    }
 
     var hasInteractiveChunks: Bool {
         guard let chunks = viewModel.jobContext?.chunks else { return false }
