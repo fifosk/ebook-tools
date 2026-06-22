@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.127",
+            version: "2026.06.22.128",
             entries: [
+                AppChangelogEntry(
+                    id: "text-player-sentence-view-file",
+                    title: "Text player sentences separated",
+                    detail: "Sentence track filtering, hidden-track controls, selection mapping, and playback shadow mapping now live in a focused sentence view while text player views keep the frame shell and shared styling helpers."
+                ),
                 AppChangelogEntry(
                     id: "text-player-variant-view-file",
                     title: "Text player variants separated",

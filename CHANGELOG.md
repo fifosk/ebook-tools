@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.128
+
+- Advanced visible Apple app versioning to `v2026.06.22.128`.
+- Moved text-player sentence track filtering, hidden-track controls, selection mapping, and playback shadow mapping into `TextPlayerSentenceView.swift`, keeping text player views focused on the frame shell and shared styling helpers.
+
 ### 2026.06.22.127
 
 - Advanced visible Apple app versioning to `v2026.06.22.127`.
