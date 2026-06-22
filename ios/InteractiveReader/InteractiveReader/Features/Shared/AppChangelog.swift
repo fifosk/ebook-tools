@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.07",
+            version: "2026.06.22.08",
             entries: [
+                AppChangelogEntry(
+                    id: "typed-transcript-track-layout",
+                    title: "Transcript track layout typed",
+                    detail: "Phone, iPad split, and tvOS transcript layouts now pass the measured track view through typed SwiftUI helpers instead of erasing it before layout."
+                ),
                 AppChangelogEntry(
                     id: "typed-player-lifecycle-chain",
                     title: "Player lifecycle chain typed",

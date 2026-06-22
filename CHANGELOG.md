@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.08
+
+- Advanced visible Apple app versioning to `v2026.06.22.08`.
+- Removed transcript track layout type erasure so phone, iPad split, and tvOS transcript branches pass the measured track view through typed SwiftUI helpers.
+
 ### 2026.06.22.07
 
 - Advanced visible Apple app versioning to `v2026.06.22.07`.

@@ -6,18 +6,15 @@ import SwiftUI
 extension InteractiveTranscriptView {
 
     @ViewBuilder
-    func phoneLayout(
-        trackView: AnyView,
+    func phoneLayout<TrackContent: View>(
+        trackView: TrackContent,
         bubble: MyLinguistBubbleState?,
         resolvedLinguistFontScale: CGFloat,
         bubbleFocusEnabled: Bool,
         availableHeight: CGFloat,
         layoutSize: CGSize
     ) -> some View {
-        let trackViewWithPlayback = AnyView(
-            trackView
-                .contentShape(Rectangle())
-        )
+        let trackViewWithPlayback = trackView.contentShape(Rectangle())
         let isPortrait = isPortraitLayout(size: layoutSize)
 
         if bubble != nil {
@@ -63,8 +60,8 @@ extension InteractiveTranscriptView {
     }
 
     @ViewBuilder
-    func phonePortraitBubbleLayout(
-        trackViewWithPlayback: AnyView,
+    func phonePortraitBubbleLayout<TrackContent: View>(
+        trackViewWithPlayback: TrackContent,
         bubble: MyLinguistBubbleState?,
         resolvedLinguistFontScale: CGFloat,
         bubbleFocusEnabled: Bool,
@@ -155,8 +152,8 @@ extension InteractiveTranscriptView {
     }
 
     @ViewBuilder
-    func phoneLandscapeBubbleLayout(
-        trackViewWithPlayback: AnyView,
+    func phoneLandscapeBubbleLayout<TrackContent: View>(
+        trackViewWithPlayback: TrackContent,
         bubble: MyLinguistBubbleState?,
         resolvedLinguistFontScale: CGFloat,
         bubbleFocusEnabled: Bool,

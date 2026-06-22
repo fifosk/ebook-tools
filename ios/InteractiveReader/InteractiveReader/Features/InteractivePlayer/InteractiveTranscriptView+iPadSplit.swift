@@ -31,14 +31,14 @@ extension InteractiveTranscriptView {
     // MARK: Split Layout
 
     @ViewBuilder
-    func iPadSplitLayout(
-        trackView: AnyView,
+    func iPadSplitLayout<TrackContent: View>(
+        trackView: TrackContent,
         bubble: MyLinguistBubbleState?,
         resolvedLinguistFontScale: CGFloat,
         bubbleFocusEnabled: Bool,
         availableSize: CGSize
     ) -> some View {
-        let trackViewWithPlayback = AnyView(trackView.contentShape(Rectangle()))
+        let trackViewWithPlayback = trackView.contentShape(Rectangle())
 
         Group {
             if iPadSplitDirection == .vertical {
@@ -136,8 +136,8 @@ extension InteractiveTranscriptView {
     // MARK: Vertical Split
 
     @ViewBuilder
-    func iPadVerticalSplitLayout(
-        trackViewWithPlayback: AnyView,
+    func iPadVerticalSplitLayout<TrackContent: View>(
+        trackViewWithPlayback: TrackContent,
         bubble: MyLinguistBubbleState?,
         resolvedLinguistFontScale: CGFloat,
         bubbleFocusEnabled: Bool,
@@ -187,8 +187,8 @@ extension InteractiveTranscriptView {
     // MARK: Horizontal Split
 
     @ViewBuilder
-    func iPadHorizontalSplitLayout(
-        trackViewWithPlayback: AnyView,
+    func iPadHorizontalSplitLayout<TrackContent: View>(
+        trackViewWithPlayback: TrackContent,
         bubble: MyLinguistBubbleState?,
         resolvedLinguistFontScale: CGFloat,
         bubbleFocusEnabled: Bool,

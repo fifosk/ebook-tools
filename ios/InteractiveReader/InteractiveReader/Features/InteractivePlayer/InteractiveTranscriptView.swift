@@ -250,7 +250,7 @@ struct InteractiveTranscriptView: View {
                         value: trackProxy.size.height
                     )
                 })
-            let trackView: AnyView = AnyView(measuredTrackView)
+            let trackView = measuredTrackView
 
             Group {
                 #if os(tvOS)
@@ -355,18 +355,8 @@ struct InteractiveTranscriptView: View {
                     )
                 } else {
                     // iPad without bubble or other platforms
-                    let trackViewWithPlayback: AnyView = {
-                        if isPad {
-                            return AnyView(trackView.contentShape(Rectangle()))
-                        }
-                        return AnyView(
-                            trackView
-                                .contentShape(Rectangle())
-                                .simultaneousGesture(doubleTapGesture, including: .gesture)
-                        )
-                    }()
                     VStack(alignment: .leading, spacing: stackSpacing) {
-                        trackViewWithPlayback
+                        playbackTrackView(trackView)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .contentShape(Rectangle())
@@ -463,6 +453,19 @@ struct InteractiveTranscriptView: View {
     }
 
 
+    #if !os(tvOS)
+    @ViewBuilder
+    private func playbackTrackView<TrackContent: View>(_ trackView: TrackContent) -> some View {
+        if isPad {
+            trackView
+                .contentShape(Rectangle())
+        } else {
+            trackView
+                .contentShape(Rectangle())
+                .simultaneousGesture(doubleTapGesture, including: .gesture)
+        }
+    }
+    #endif
 
     private func updateEffectiveTrackFontScale(measuredHeight: CGFloat, availableHeight: CGFloat) {
         guard !isTV else { return }
@@ -636,8 +639,8 @@ struct InteractiveTranscriptView: View {
 
     /// tvOS horizontal split layout: 30% bubble on left, 70% tracks on right
     @ViewBuilder
-    private func tvSplitLayout(
-        trackView: AnyView,
+    private func tvSplitLayout<TrackContent: View>(
+        trackView: TrackContent,
         bubble: MyLinguistBubbleState,
         resolvedLinguistFontScale: CGFloat,
         bubbleFocusEnabled: Bool,
