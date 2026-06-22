@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.23
+
+- Advanced visible Apple app versioning to `v2026.06.22.23`.
+- Matched the Library browse list to the Jobs row-builder structure so iPad and tvOS row actions are easier to audit.
+
 ### 2026.06.22.22
 
 - Advanced visible Apple app versioning to `v2026.06.22.22`.

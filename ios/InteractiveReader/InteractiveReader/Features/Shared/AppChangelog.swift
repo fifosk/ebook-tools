@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.22",
+            version: "2026.06.22.23",
             entries: [
+                AppChangelogEntry(
+                    id: "library-row-builder-alignment",
+                    title: "Library rows cleaned up",
+                    detail: "The Library browse list now matches the Jobs row-builder structure, making iPad and tvOS row actions easier to audit."
+                ),
                 AppChangelogEntry(
                     id: "offline-sync-badge-command-handlers",
                     title: "Offline controls cleaned up",

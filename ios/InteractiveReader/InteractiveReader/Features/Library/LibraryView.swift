@@ -48,51 +48,7 @@ struct LibraryView: View {
             }
 
             List {
-                ForEach(viewModel.filteredItems) { item in
-                    // Always use programmatic navigation to support context menu actions
-                    #if os(tvOS)
-                    Button(action: { selectItem(item, mode: .resume) }) {
-                        LibraryRowView(
-                            item: item,
-                            coverURL: coverResolver(item),
-                            resumeStatus: resumeStatus(for: item)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .listRowBackground(Color.clear)
-                    .contextMenu {
-                        playbackContextMenu(for: item)
-                        offlineContextMenu(for: item)
-                        Button(role: .destructive, action: { deleteItem(item) }) {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                    #else
-                    LibraryRowView(
-                        item: item,
-                        coverURL: coverResolver(item),
-                        resumeStatus: resumeStatus(for: item),
-                        usesDarkBackground: usesDarkListBackground
-                    )
-                    .background(rowFrameCapture())
-                    .contentShape(Rectangle())
-                    .listRowBackground(usesDarkListBackground ? Color.clear : nil)
-                    .onTapGesture {
-                        selectItem(item, mode: .resume)
-                    }
-                    .contextMenu {
-                        playbackContextMenu(for: item)
-                        Button(role: .destructive, action: { deleteItem(item) }) {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive, action: { deleteItem(item) }) {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                    #endif
-                }
+                libraryRows(viewModel.filteredItems)
             }
             .listStyle(.plain)
             .platformListBackground(usesDark: usesDarkListBackground, colorScheme: colorScheme)
@@ -122,6 +78,49 @@ struct LibraryView: View {
             NotificationCenter.default.publisher(for: PlaybackResumeStore.didChangeNotification),
             perform: handleResumeStoreChange
         )
+    }
+
+    @ViewBuilder
+    private func libraryRows(_ items: [LibraryItem]) -> some View {
+        ForEach(items) { item in
+            // Always use programmatic navigation to support context menu actions.
+            #if os(tvOS)
+            Button(action: { selectItem(item, mode: .resume) }) {
+                LibraryRowView(
+                    item: item,
+                    coverURL: coverResolver(item),
+                    resumeStatus: resumeStatus(for: item)
+                )
+            }
+            .buttonStyle(.plain)
+            .listRowBackground(Color.clear)
+            .contextMenu {
+                playbackContextMenu(for: item)
+                offlineContextMenu(for: item)
+                deleteItemAction(for: item)
+            }
+            #else
+            LibraryRowView(
+                item: item,
+                coverURL: coverResolver(item),
+                resumeStatus: resumeStatus(for: item),
+                usesDarkBackground: usesDarkListBackground
+            )
+            .background(rowFrameCapture())
+            .contentShape(Rectangle())
+            .listRowBackground(usesDarkListBackground ? Color.clear : nil)
+            .onTapGesture {
+                selectItem(item, mode: .resume)
+            }
+            .contextMenu {
+                playbackContextMenu(for: item)
+                deleteItemAction(for: item)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                deleteItemAction(for: item)
+            }
+            #endif
+        }
     }
 
     private func errorRow(message: String) -> some View {
@@ -288,6 +287,12 @@ struct LibraryView: View {
 
     private func deleteItem(_ item: LibraryItem) {
         Task { await handleDelete(item) }
+    }
+
+    private func deleteItemAction(for item: LibraryItem) -> some View {
+        Button(role: .destructive, action: { deleteItem(item) }) {
+            Label("Delete", systemImage: "trash")
+        }
     }
 
     private func handleRefresh() {
