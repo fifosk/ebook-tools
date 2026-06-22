@@ -41,6 +41,34 @@ extension APIClient {
         _ = try await sendRequest(path: "/api/library/remove/\(encoded)", method: "DELETE")
     }
 
+    func uploadLibrarySource(
+        jobId: String,
+        fileURL: URL,
+        filename: String? = nil
+    ) async throws -> LibraryItem {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let didAccessSecurityScope = fileURL.startAccessingSecurityScopedResource()
+        defer {
+            if didAccessSecurityScope {
+                fileURL.stopAccessingSecurityScopedResource()
+            }
+        }
+        let upload = try MultipartUploadFile(
+            fieldName: "file",
+            fileURL: fileURL,
+            filename: filename,
+            contentType: "application/octet-stream"
+        )
+        let multipart = MultipartFormDataBuilder.makeBody(fields: [:], file: upload)
+        let data = try await sendRequest(
+            path: "/api/library/items/\(encoded)/upload-source",
+            method: "POST",
+            body: multipart.body,
+            contentType: multipart.contentType
+        )
+        return try decode(LibraryItem.self, from: data)
+    }
+
     func moveJobToLibrary(jobId: String, statusOverride: String? = nil) async throws {
         let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
         if let statusOverride {

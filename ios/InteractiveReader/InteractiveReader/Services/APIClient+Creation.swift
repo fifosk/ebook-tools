@@ -83,7 +83,7 @@ extension APIClient {
     }
 }
 
-private struct MultipartUploadFile {
+struct MultipartUploadFile {
     let fieldName: String
     let filename: String
     let contentType: String
@@ -97,7 +97,7 @@ private struct MultipartUploadFile {
     }
 }
 
-private enum MultipartFormDataBuilder {
+enum MultipartFormDataBuilder {
     static func makeBody(fields: [String: String], file: MultipartUploadFile?) -> (body: Data, contentType: String) {
         let boundary = "ebook-tools-\(UUID().uuidString)"
         var body = Data()

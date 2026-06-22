@@ -1,5 +1,8 @@
 import Foundation
 import SwiftUI
+#if os(iOS)
+import UniformTypeIdentifiers
+#endif
 
 enum PlaybackStartMode {
     case resume
@@ -25,6 +28,8 @@ struct LibraryView: View {
     @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     #if os(iOS)
     @State private var rowFrames: [CGRect] = []
+    @State private var sourceUploadItem: LibraryItem?
+    @State private var isImportingLibrarySource = false
     private let listCoordinateSpace = "libraryList"
     #endif
     @Environment(\.colorScheme) private var colorScheme
@@ -74,6 +79,14 @@ struct LibraryView: View {
             NotificationCenter.default.publisher(for: PlaybackResumeStore.didChangeNotification),
             perform: handleResumeStoreChange
         )
+        #if os(iOS)
+        .fileImporter(
+            isPresented: $isImportingLibrarySource,
+            allowedContentTypes: Self.librarySourceContentTypes,
+            allowsMultipleSelection: false,
+            onCompletion: handleLibrarySourceImport
+        )
+        #endif
     }
 
     @ViewBuilder
@@ -110,6 +123,7 @@ struct LibraryView: View {
             }
             .contextMenu {
                 playbackContextMenu(for: item)
+                sourceUploadAction(for: item)
                 deleteItemAction(for: item)
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -137,6 +151,11 @@ struct LibraryView: View {
                     .padding()
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
                     .accessibilityIdentifier("libraryLoadingView")
+            } else if viewModel.isUploadingSource {
+                ProgressView("Uploading source…")
+                    .padding()
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityIdentifier("librarySourceUploadLoadingView")
             } else if viewModel.filteredItems.isEmpty {
                 ContentUnavailableView {
                     Label("No library items found", systemImage: "books.vertical")
@@ -257,6 +276,55 @@ struct LibraryView: View {
             Label("Delete", systemImage: "trash")
         }
     }
+
+    #if os(iOS)
+    private func handleSourceUploadRequest(_ item: LibraryItem) {
+        sourceUploadItem = item
+        isImportingLibrarySource = true
+    }
+
+    private func sourceUploadAction(for item: LibraryItem) -> some View {
+        Button(action: { handleSourceUploadRequest(item) }) {
+            Label("Replace Source File", systemImage: "square.and.arrow.up")
+        }
+        .disabled(viewModel.isUploadingSource)
+    }
+
+    private func handleLibrarySourceImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case let .success(urls):
+            guard let item = sourceUploadItem, let url = urls.first else { return }
+            Task {
+                let uploaded = await viewModel.uploadSource(
+                    for: item,
+                    fileURL: url,
+                    filename: url.lastPathComponent,
+                    using: appState
+                )
+                await MainActor.run {
+                    sourceUploadItem = nil
+                    if uploaded {
+                        refreshResumeStatus()
+                    }
+                }
+            }
+        case let .failure(error):
+            sourceUploadItem = nil
+            viewModel.errorMessage = error.localizedDescription
+        }
+    }
+
+    private static var librarySourceContentTypes: [UTType] {
+        [
+            UTType(filenameExtension: "epub") ?? UTType(importedAs: "org.idpf.epub-container"),
+            UTType.pdf
+        ]
+    }
+    #else
+    private func sourceUploadAction(for item: LibraryItem) -> some View {
+        EmptyView()
+    }
+    #endif
 
     private func handleRefresh() {
         refreshResumeStatus()

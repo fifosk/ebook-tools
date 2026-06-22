@@ -23,6 +23,7 @@ final class LibraryViewModel: ObservableObject {
 
     @Published var items: [LibraryItem] = []
     @Published var isLoading = false
+    @Published var isUploadingSource = false
     @Published var errorMessage: String?
     @Published var query: String = ""
     @Published var activeFilter: LibraryFilter = .book
@@ -55,6 +56,39 @@ final class LibraryViewModel: ObservableObject {
             try await client.deleteLibraryItem(jobId: jobId)
             items.removeAll { $0.jobId == jobId }
             errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func uploadSource(
+        for item: LibraryItem,
+        fileURL: URL,
+        filename: String?,
+        using appState: AppState
+    ) async -> Bool {
+        guard let configuration = appState.configuration else {
+            errorMessage = "Configure a valid API base URL before continuing."
+            return false
+        }
+        isUploadingSource = true
+        errorMessage = nil
+        defer { isUploadingSource = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let updated = try await client.uploadLibrarySource(
+                jobId: item.jobId,
+                fileURL: fileURL,
+                filename: filename
+            )
+            if let index = items.firstIndex(where: { $0.jobId == updated.jobId }) {
+                items[index] = updated
+            } else {
+                items.insert(updated, at: 0)
+            }
             return true
         } catch {
             errorMessage = error.localizedDescription

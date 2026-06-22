@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-library-source-reupload",
+            title: "Library source replacement",
+            detail: "On iPhone and iPad, Library rows now expose Replace Source File to upload a new EPUB or PDF through the same backend source reupload route used by Web."
+        ),
+        AppChangelogEntry(
             id: "apple-create-youtube-dub-mode",
             title: "YouTube Dub added to Create",
             detail: "On iPhone and iPad, Apple Create now submits YouTube dubbing jobs for existing backend video and subtitle paths with Web-aligned language, voice, clip-window, batching, output, and lookup-cache options."

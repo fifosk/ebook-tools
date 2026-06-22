@@ -70,9 +70,13 @@ Current Apple API client supports:
 - Submit subtitle jobs via `/api/subtitles/jobs`.
 - Submit YouTube dubbing jobs via `/api/subtitles/youtube/dub`.
 
-Current Apple UI does not yet expose:
+Current Apple UI partially exposes:
 
-- Upload/reupload library source files.
+- Upload/reupload library source files. Status: iPhone/iPad Library rows can
+  replace an existing library item's EPUB/PDF source through the same
+  `/api/library/items/{job_id}/upload-source` backend route used by Web.
+  Remaining parity gaps: richer source metadata review before upload, ISBN
+  metadata lookup/apply, and TV-safe read-only source diagnostics.
 
 ## Backend Optimization Targets
 
@@ -180,6 +184,10 @@ After Narrate Ebook:
   language, voice, clip-window, batching, provider/model, output, and
   lookup-cache options. Remaining parity gaps: NAS library picker, inline
   subtitle extraction, voice preview, and rich TV/YouTube metadata lookup/editing.
+- Library source reupload on iPhone/iPad. Status: Library row context menus now
+  expose Replace Source File, open a document picker for EPUB/PDF sources, post
+  the file to `/api/library/items/{job_id}/upload-source`, and replace the
+  refreshed row returned by the backend. Apple TV remains playback-first.
 - Apple TV gets read-only job templates or retry controls only if remote navigation stays simple.
 
 ## Feature Backlog
