@@ -3,10 +3,39 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from modules.webapi.application import create_app
+from modules.webapi.runtime_descriptor import build_runtime_descriptor
 
 import pytest
 
 pytestmark = pytest.mark.webapi
+
+
+def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
+    payload = build_runtime_descriptor("test-version")
+
+    assert payload["status"] == "ok"
+    assert payload["app"] == "ebook-tools"
+    assert payload["service"] == "ebook-tools-api"
+    assert payload["version"] == "test-version"
+    assert payload["healthPath"] == "/_health"
+    assert payload["auth"] == {
+        "loginPath": "/api/auth/login",
+        "sessionPath": "/api/auth/session",
+        "tokenTransport": "Authorization: Bearer",
+    }
+    assert payload["clientConfig"] == {
+        "apiBaseUrlEnvironment": [
+            "INTERACTIVE_READER_API_BASE_URL",
+            "EBOOK_TOOLS_API_BASE_URL",
+            "E2E_API_BASE_URL",
+        ],
+        "credentialEnvironment": [
+            "E2E_USERNAME",
+            "E2E_PASSWORD",
+        ],
+        "sessionTokenStorage": "device-keychain",
+        "legacyTokenMigration": "userdefaults-authToken",
+    }
 
 
 def test_pipeline_defaults_endpoint_returns_config() -> None:

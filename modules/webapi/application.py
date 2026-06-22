@@ -38,6 +38,7 @@ from .routers.assistant import router as assistant_router
 from .routers.bookmarks import router as bookmarks_router
 from .routers.resume import router as resume_router
 from .auth_routes import router as auth_router
+from .runtime_descriptor import build_runtime_descriptor
 from .routers.reading_beds import admin_router as reading_beds_admin_router
 from .routers.reading_beds import router as reading_beds_router
 from .routes.notification_routes import router as notification_router
@@ -609,36 +610,6 @@ def _configure_static_assets(app: FastAPI) -> bool:
     return True
 
 
-def _runtime_descriptor(app: FastAPI) -> dict[str, object]:
-    """Return non-secret runtime facts safe for simulator/device preflights."""
-
-    return {
-        "status": "ok",
-        "app": "ebook-tools",
-        "service": "ebook-tools-api",
-        "version": app.version,
-        "healthPath": "/_health",
-        "auth": {
-            "loginPath": "/api/auth/login",
-            "sessionPath": "/api/auth/session",
-            "tokenTransport": "Authorization: Bearer",
-        },
-        "clientConfig": {
-            "apiBaseUrlEnvironment": [
-                "INTERACTIVE_READER_API_BASE_URL",
-                "EBOOK_TOOLS_API_BASE_URL",
-                "E2E_API_BASE_URL",
-            ],
-            "credentialEnvironment": [
-                "E2E_USERNAME",
-                "E2E_PASSWORD",
-            ],
-            "sessionTokenStorage": "device-keychain",
-            "legacyTokenMigration": "userdefaults-authToken",
-        },
-    }
-
-
 async def _prepare_runtime() -> None:
     """Initialize runtime resources before the API starts serving requests."""
 
@@ -770,7 +741,7 @@ def create_app() -> FastAPI:
     def public_runtime_descriptor() -> dict[str, object]:
         """Public non-secret runtime contract for app pipeline preflights."""
 
-        return _runtime_descriptor(app)
+        return build_runtime_descriptor(app.version)
 
     app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
     app.include_router(admin_router, prefix="/api/admin", tags=["admin"])

@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.64",
+            version: "2026.06.22.65",
             entries: [
+                AppChangelogEntry(
+                    id: "backend-runtime-descriptor-helper",
+                    title: "Backend runtime preflight contract cleaned up",
+                    detail: "The public backend runtime descriptor now lives in a dedicated helper with direct contract coverage for Apple pipeline preflights."
+                ),
                 AppChangelogEntry(
                     id: "shared-browse-resume-refresh-helpers",
                     title: "Browse resume refresh logic cleaned up",
