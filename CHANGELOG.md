@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.127
+
+- Advanced visible Apple app versioning to `v2026.06.22.127`.
+- Moved text-player variant headers, token flow composition, platform font sizing, seek lookup, and token color state into `TextPlayerVariantView.swift`, keeping text player views focused on frame and sentence orchestration.
+
 ### 2026.06.22.126
 
 - Advanced visible Apple app versioning to `v2026.06.22.126`.

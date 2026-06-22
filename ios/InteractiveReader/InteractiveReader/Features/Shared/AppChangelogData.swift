@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.126",
+            version: "2026.06.22.127",
             entries: [
+                AppChangelogEntry(
+                    id: "text-player-variant-view-file",
+                    title: "Text player variants separated",
+                    detail: "Variant headers, token flow composition, platform font sizing, seek lookup, and token color state now live in a focused variant view while text player views stay centered on frame and sentence orchestration."
+                ),
                 AppChangelogEntry(
                     id: "text-player-token-flow-layout-file",
                     title: "Text player token flow separated",
