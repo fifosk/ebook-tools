@@ -76,17 +76,13 @@ struct MusicControlOverlayView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     HStack(spacing: 16) {
-                        Button {
-                            musicVolume = max(0, musicVolume - 0.1)
-                        } label: {
+                        Button(action: decreaseMusicVolume) {
                             Image(systemName: "speaker.wave.1")
                         }
                         Text("\(Int(musicVolume * 100))%")
                             .font(.body.monospacedDigit())
                             .frame(minWidth: 44)
-                        Button {
-                            musicVolume = min(1, musicVolume + 0.1)
-                        } label: {
+                        Button(action: increaseMusicVolume) {
                             Image(systemName: "speaker.wave.3")
                         }
                     }
@@ -118,7 +114,7 @@ struct MusicControlOverlayView: View {
     private var transportControls: some View {
         HStack(spacing: 0) {
             // Shuffle
-            Button { musicCoordinator.toggleShuffle() } label: {
+            Button(action: toggleShuffle) {
                 Image(systemName: "shuffle")
                     .font(.caption)
                     .foregroundStyle(musicCoordinator.shuffleMode == .songs ? Color.accentColor : .secondary)
@@ -127,7 +123,7 @@ struct MusicControlOverlayView: View {
             .frame(maxWidth: .infinity)
 
             // Skip back
-            Button { musicCoordinator.skipToPrevious() } label: {
+            Button(action: skipToPrevious) {
                 Image(systemName: "backward.fill")
                     .font(.subheadline)
             }
@@ -135,13 +131,7 @@ struct MusicControlOverlayView: View {
             .frame(maxWidth: .infinity)
 
             // Play/Pause
-            Button {
-                if musicCoordinator.isPlaying {
-                    musicCoordinator.pause()
-                } else {
-                    musicCoordinator.resume()
-                }
-            } label: {
+            Button(action: togglePlayback) {
                 Image(systemName: musicCoordinator.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title3)
             }
@@ -149,7 +139,7 @@ struct MusicControlOverlayView: View {
             .frame(maxWidth: .infinity)
 
             // Skip forward
-            Button { musicCoordinator.skipToNext() } label: {
+            Button(action: skipToNext) {
                 Image(systemName: "forward.fill")
                     .font(.subheadline)
             }
@@ -157,7 +147,7 @@ struct MusicControlOverlayView: View {
             .frame(maxWidth: .infinity)
 
             // Repeat
-            Button { musicCoordinator.cycleRepeatMode() } label: {
+            Button(action: cycleRepeatMode) {
                 Image(systemName: repeatIconName)
                     .font(.caption)
                     .foregroundStyle(musicCoordinator.repeatMode != .off ? Color.accentColor : .secondary)
@@ -179,31 +169,17 @@ struct MusicControlOverlayView: View {
                 #if os(iOS)
                 Slider(
                     value: Binding(
-                        get: { currentTime },
-                        set: { newValue in
-                            scrubTime = newValue
-                            if !isScrubbing {
-                                isScrubbing = true
-                            }
-                        }
+                        get: { isScrubbing ? scrubTime : musicCoordinator.playbackTime },
+                        set: updateScrubTime
                     ),
                     in: 0...duration,
-                    onEditingChanged: { editing in
-                        if !editing {
-                            // User released the slider - seek to the new position
-                            musicCoordinator.seek(to: scrubTime)
-                            isScrubbing = false
-                        }
-                    }
+                    onEditingChanged: handleScrubEditingChanged
                 )
                 .tint(.accentColor)
                 #else
                 // tvOS: progress bar with skip buttons
                 HStack(spacing: 12) {
-                    Button {
-                        let newTime = max(0, musicCoordinator.playbackTime - 15)
-                        musicCoordinator.seek(to: newTime)
-                    } label: {
+                    Button(action: seekBackward) {
                         Image(systemName: "gobackward.15")
                             .font(.caption)
                     }
@@ -221,10 +197,7 @@ struct MusicControlOverlayView: View {
                     }
                     .frame(height: 4)
 
-                    Button {
-                        let newTime = min(duration, musicCoordinator.playbackTime + 15)
-                        musicCoordinator.seek(to: newTime)
-                    } label: {
+                    Button(action: seekForward) {
                         Image(systemName: "goforward.15")
                             .font(.caption)
                     }
@@ -287,14 +260,74 @@ struct MusicControlOverlayView: View {
                     }
                 }
                 Spacer()
-                Button("Change") { onChangeSong() }
+                Button("Change", action: changeSong)
                     .font(.caption)
                     .buttonStyle(.bordered)
                     .controlSize(.mini)
             }
         } else {
-            Button("Choose Music...") { onChangeSong() }
+            Button("Choose Music...", action: changeSong)
                 .font(.subheadline)
         }
+    }
+
+    private func decreaseMusicVolume() {
+        musicVolume = max(0, musicVolume - 0.1)
+    }
+
+    private func increaseMusicVolume() {
+        musicVolume = min(1, musicVolume + 0.1)
+    }
+
+    private func toggleShuffle() {
+        musicCoordinator.toggleShuffle()
+    }
+
+    private func skipToPrevious() {
+        musicCoordinator.skipToPrevious()
+    }
+
+    private func togglePlayback() {
+        if musicCoordinator.isPlaying {
+            musicCoordinator.pause()
+        } else {
+            musicCoordinator.resume()
+        }
+    }
+
+    private func skipToNext() {
+        musicCoordinator.skipToNext()
+    }
+
+    private func cycleRepeatMode() {
+        musicCoordinator.cycleRepeatMode()
+    }
+
+    private func updateScrubTime(_ newValue: TimeInterval) {
+        scrubTime = newValue
+        if !isScrubbing {
+            isScrubbing = true
+        }
+    }
+
+    private func handleScrubEditingChanged(_ editing: Bool) {
+        guard !editing else { return }
+        musicCoordinator.seek(to: scrubTime)
+        isScrubbing = false
+    }
+
+    private func seekBackward() {
+        let newTime = max(0, musicCoordinator.playbackTime - 15)
+        musicCoordinator.seek(to: newTime)
+    }
+
+    private func seekForward() {
+        let duration = musicCoordinator.playbackDuration
+        let newTime = min(duration, musicCoordinator.playbackTime + 15)
+        musicCoordinator.seek(to: newTime)
+    }
+
+    private func changeSong() {
+        onChangeSong()
     }
 }

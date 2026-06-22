@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.15",
+            version: "2026.06.22.16",
             entries: [
+                AppChangelogEntry(
+                    id: "music-overlay-command-handlers",
+                    title: "Music overlay controls cleaned up",
+                    detail: "Background music transport, volume, scrubbing, and song-selection commands now run through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "browse-list-lifecycle-handlers",
                     title: "Browse lists cleaned up",

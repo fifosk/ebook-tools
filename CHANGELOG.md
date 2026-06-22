@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.16
+
+- Advanced visible Apple app versioning to `v2026.06.22.16`.
+- Moved background music overlay transport, volume, scrubbing, and song-selection commands into named SwiftUI handlers.
+
 ### 2026.06.22.15
 
 - Advanced visible Apple app versioning to `v2026.06.22.15`.
