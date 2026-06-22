@@ -7,6 +7,7 @@ import {
   type BookGenerationJobRequest
 } from '../api/createBook';
 import BookNarrationForm from '../components/book-narration/BookNarrationForm';
+import type { BookNarrationPipelineDefaults } from '../components/book-narration/bookNarrationFormTypes';
 
 type GeneratorFormState = {
   topic: string;
@@ -78,6 +79,19 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
     }),
     [creationOptions]
   );
+  const generatedSourcePipelineDefaults = useMemo<BookNarrationPipelineDefaults | null>(() => {
+    if (!creationOptions) {
+      return null;
+    }
+    const pipelineDefaults = creationOptions.pipeline_defaults;
+    const promptDefaults = creationOptions.defaults;
+    return {
+      ...pipelineDefaults,
+      input_language: promptDefaults.input_language || undefined,
+      target_languages: promptDefaults.output_language ? [promptDefaults.output_language] : undefined,
+      selected_voice: promptDefaults.voice || pipelineDefaults.selected_voice
+    };
+  }, [creationOptions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -272,6 +286,7 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
         submitLabel="Generate & process"
         forcedBaseOutputFile={forcedBaseOutput}
         defaultImageSettings={generatedSourceImageDefaults}
+        defaultPipelineSettings={generatedSourcePipelineDefaults}
         customSourceSection={bookPromptSection}
         showInfoHeader={false}
         sectionOverrides={{

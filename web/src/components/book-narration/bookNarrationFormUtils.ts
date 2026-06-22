@@ -425,6 +425,16 @@ export function applyConfigDefaults(previous: FormState, config: Record<string, 
     next.transliteration_model = transliterationModel.trim();
   }
 
+  const enableLookupCache = config['enable_lookup_cache'];
+  if (typeof enableLookupCache === 'boolean') {
+    next.enable_lookup_cache = enableLookupCache;
+  }
+
+  const lookupCacheBatchSize = coerceNumber(config['lookup_cache_batch_size']);
+  if (lookupCacheBatchSize !== undefined) {
+    next.lookup_cache_batch_size = Math.max(1, Math.trunc(lookupCacheBatchSize));
+  }
+
   const tempo = coerceNumber(config['tempo']);
   if (tempo !== undefined) {
     next.tempo = tempo;

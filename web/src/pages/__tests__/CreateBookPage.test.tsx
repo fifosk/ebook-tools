@@ -19,6 +19,9 @@ vi.mock('../../components/book-narration/BookNarrationForm', () => ({
       <div data-testid="image-defaults">
         {JSON.stringify(props.defaultImageSettings)}
       </div>
+      <div data-testid="pipeline-defaults">
+        {JSON.stringify(props.defaultPipelineSettings)}
+      </div>
       {props.customSourceSection}
     </div>
   )),
@@ -40,21 +43,21 @@ const creationOptions: BookCreationOptionsResponse = {
     voice: 'gTTS',
   },
   pipeline_defaults: {
-    sentences_per_output_file: 10,
-    audio_mode: '4',
-    audio_bitrate_kbps: 96,
-    written_mode: '4',
-    selected_voice: 'gTTS',
-    generate_audio: true,
-    output_html: false,
+    sentences_per_output_file: 12,
+    audio_mode: '2',
+    audio_bitrate_kbps: 128,
+    written_mode: '3',
+    selected_voice: 'macOS-auto',
+    generate_audio: false,
+    output_html: true,
     output_pdf: false,
-    include_transliteration: true,
-    translation_provider: 'llm',
-    translation_batch_size: 10,
-    transliteration_mode: 'default',
-    enable_lookup_cache: true,
-    lookup_cache_batch_size: 10,
-    tempo: 1,
+    include_transliteration: false,
+    translation_provider: 'googletrans',
+    translation_batch_size: 8,
+    transliteration_mode: 'python',
+    enable_lookup_cache: false,
+    lookup_cache_batch_size: 6,
+    tempo: 1.1,
   },
   generated_source_defaults: {
     add_images: true,
@@ -93,5 +96,10 @@ describe('CreateBookPage', () => {
     expect(screen.getByLabelText(/Author/i)).toHaveValue('Pipeline Author');
     expect(screen.getByTestId('image-defaults')).toHaveTextContent('"image_style_template":"ink"');
     expect(screen.getByTestId('image-defaults')).toHaveTextContent('"image_width":"384"');
+    expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"target_languages":["Arabic"]');
+    expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"sentences_per_output_file":12');
+    expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"audio_bitrate_kbps":128');
+    expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"translation_provider":"googletrans"');
+    expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"enable_lookup_cache":false');
   });
 });

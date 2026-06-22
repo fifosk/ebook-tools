@@ -64,7 +64,8 @@ export function BookNarrationForm({
   sectionOverrides = {},
   showInfoHeader = true,
   showOutputPathControls = true,
-  defaultImageSettings = null
+  defaultImageSettings = null,
+  defaultPipelineSettings = null
 }: BookNarrationFormProps) {
   const isGeneratedSource = sourceMode === 'generated';
   const imageDefaults = defaultImageSettings ?? null;
@@ -612,6 +613,7 @@ export function BookNarrationForm({
     resolveLatestJobSettings,
     resolveStartFromHistory,
     applyImageDefaults,
+    defaultPipelineSettings,
     preserveUserEditedFields,
     defaultsAppliedRef,
     userEditedFieldsRef,

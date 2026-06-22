@@ -32,6 +32,7 @@ export type BookNarrationFormProps = {
   showInfoHeader?: boolean;
   showOutputPathControls?: boolean;
   defaultImageSettings?: ImageDefaults | null;
+  defaultPipelineSettings?: BookNarrationPipelineDefaults | null;
 };
 
 export type JsonFields =
@@ -100,4 +101,24 @@ export type ImageDefaults = {
   image_prompt_context_sentences: number;
   image_width: string;
   image_height: string;
+};
+
+export type BookNarrationPipelineDefaults = {
+  input_language?: string;
+  target_languages?: string[];
+  sentences_per_output_file?: number;
+  audio_mode?: string;
+  audio_bitrate_kbps?: number | null;
+  written_mode?: string;
+  selected_voice?: string;
+  generate_audio?: boolean;
+  output_html?: boolean;
+  output_pdf?: boolean;
+  include_transliteration?: boolean;
+  translation_provider?: string;
+  translation_batch_size?: number;
+  transliteration_mode?: string;
+  enable_lookup_cache?: boolean;
+  lookup_cache_batch_size?: number;
+  tempo?: number;
 };

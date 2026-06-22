@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { fetchPipelineDefaults } from '../../api/client';
 import type { PipelineStatusResponse } from '../../api/dtos';
-import type { FormState } from './bookNarrationFormTypes';
+import type { BookNarrationPipelineDefaults, FormState } from './bookNarrationFormTypes';
 import {
   applyConfigDefaults,
   areLanguageArraysEqual,
@@ -25,6 +25,7 @@ type UseBookNarrationDefaultsOptions = {
   resolveLatestJobSettings: ResolveLatestJobSettings;
   resolveStartFromHistory: (inputPath: string) => number | null;
   applyImageDefaults: (state: FormState) => FormState;
+  defaultPipelineSettings: BookNarrationPipelineDefaults | null;
   preserveUserEditedFields: (previous: FormState, next: FormState) => FormState;
   defaultsAppliedRef: React.MutableRefObject<boolean>;
   userEditedFieldsRef: React.MutableRefObject<Set<keyof FormState>>;
@@ -41,6 +42,36 @@ type UseBookNarrationDefaultsOptions = {
   setSharedEnableLookupCache: (value: boolean) => void;
 };
 
+function compactPipelineDefaults(
+  defaults: BookNarrationPipelineDefaults | null
+): Record<string, unknown> | null {
+  if (!defaults) {
+    return null;
+  }
+  const config: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(defaults)) {
+    if (value !== undefined && value !== null) {
+      config[key] = value;
+    }
+  }
+  return Object.keys(config).length > 0 ? config : null;
+}
+
+function targetLanguagesFromConfig(config: Record<string, unknown>): string[] {
+  const targetLanguages = config['target_languages'];
+  if (!Array.isArray(targetLanguages)) {
+    return [];
+  }
+  return Array.from(
+    new Set(
+      targetLanguages
+        .filter((language): language is string => typeof language === 'string')
+        .map((language) => language.trim())
+        .filter((language) => language.length > 0),
+    ),
+  );
+}
+
 export function useBookNarrationDefaults({
   formState,
   isGeneratedSource,
@@ -50,6 +81,7 @@ export function useBookNarrationDefaults({
   resolveLatestJobSettings,
   resolveStartFromHistory,
   applyImageDefaults,
+  defaultPipelineSettings,
   preserveUserEditedFields,
   defaultsAppliedRef,
   userEditedFieldsRef,
@@ -146,6 +178,13 @@ export function useBookNarrationDefaults({
         if (allowTargetDefaults && targetLanguages.length > 0) {
           setSharedTargetLanguages(normalizeSingleTargetLanguages(targetLanguages));
         }
+        const enableLookupCache = config['enable_lookup_cache'];
+        if (
+          typeof enableLookupCache === 'boolean' &&
+          !userEditedFieldsRef.current.has('enable_lookup_cache')
+        ) {
+          setSharedEnableLookupCache(enableLookupCache);
+        }
         defaultsAppliedRef.current = true;
       } catch (defaultsError) {
         console.warn('Unable to load pipeline defaults', defaultsError);
@@ -165,12 +204,70 @@ export function useBookNarrationDefaults({
     setFormState,
     setSharedInputLanguage,
     setSharedTargetLanguages,
+    setSharedEnableLookupCache,
     userEditedFieldsRef,
     userEditedImageDefaultsRef,
     userEditedInputRef,
     userEditedStartRef,
     userEditedEndRef,
     lastAutoEndSentenceRef,
+  ]);
+
+  useEffect(() => {
+    const config = compactPipelineDefaults(defaultPipelineSettings);
+    if (!config) {
+      return;
+    }
+    const allowInputDefaults = !userEditedFieldsRef.current.has('input_language');
+    const allowTargetDefaults = !userEditedFieldsRef.current.has('target_languages');
+    lastAutoEndSentenceRef.current = null;
+    setFormState((previous) => {
+      let next = applyConfigDefaults(previous, config);
+      if (isGeneratedSource || userEditedInputRef.current) {
+        next = { ...next, input_file: previous.input_file };
+      }
+      if (userEditedStartRef.current) {
+        next = { ...next, start_sentence: previous.start_sentence };
+      }
+      if (userEditedEndRef.current) {
+        next = { ...next, end_sentence: previous.end_sentence };
+      }
+      next = preserveUserEditedFields(previous, next);
+      return {
+        ...next,
+        base_output_file: forcedBaseOutputFile ?? next.base_output_file,
+      };
+    });
+
+    const inputLanguage = typeof config['input_language'] === 'string' ? config['input_language'] : null;
+    if (allowInputDefaults && inputLanguage) {
+      setSharedInputLanguage(inputLanguage);
+    }
+    const targetLanguages = targetLanguagesFromConfig(config);
+    if (allowTargetDefaults && targetLanguages.length > 0) {
+      setSharedTargetLanguages(normalizeSingleTargetLanguages(targetLanguages));
+    }
+    const enableLookupCache = config['enable_lookup_cache'];
+    if (
+      typeof enableLookupCache === 'boolean' &&
+      !userEditedFieldsRef.current.has('enable_lookup_cache')
+    ) {
+      setSharedEnableLookupCache(enableLookupCache);
+    }
+  }, [
+    defaultPipelineSettings,
+    forcedBaseOutputFile,
+    isGeneratedSource,
+    lastAutoEndSentenceRef,
+    preserveUserEditedFields,
+    setFormState,
+    setSharedEnableLookupCache,
+    setSharedInputLanguage,
+    setSharedTargetLanguages,
+    userEditedEndRef,
+    userEditedFieldsRef,
+    userEditedInputRef,
+    userEditedStartRef,
   ]);
 
   useEffect(() => {

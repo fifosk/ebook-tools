@@ -242,6 +242,76 @@ describe('BookNarrationForm', () => {
     expect(metadataField.value).toContain('"book_author": "Jane Doe"');
   });
 
+  it('applies create-specific pipeline defaults without waiting for global defaults', async () => {
+    const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
+    const user = userEvent.setup();
+
+    await act(async () => {
+      renderWithLanguageProvider(
+        <BookNarrationForm
+          onSubmit={handleSubmit}
+          forcedBaseOutputFile="generated-source"
+          defaultPipelineSettings={{
+            input_language: 'Spanish',
+            target_languages: ['German'],
+            sentences_per_output_file: 14,
+            audio_mode: '2',
+            audio_bitrate_kbps: 128,
+            written_mode: '3',
+            selected_voice: 'macOS-auto-male',
+            generate_audio: false,
+            output_html: true,
+            output_pdf: true,
+            include_transliteration: false,
+            translation_provider: 'googletrans',
+            translation_batch_size: 7,
+            transliteration_mode: 'python',
+            enable_lookup_cache: false,
+            lookup_cache_batch_size: 4,
+            tempo: 1.2,
+          }}
+        />
+      );
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.click(screen.getByRole('tab', { name: /Language & translation/i }));
+    await waitFor(() => expect(getInputLanguageField()).toHaveValue('Spanish'));
+    expect(getSelectedTargetLanguages()).toEqual(['German']);
+    expect(screen.getByLabelText(/Sentences per chunk/i)).toHaveValue(14);
+    expect(screen.getByLabelText(/Use Google Translate/i)).toBeChecked();
+    expect(screen.getByLabelText(/^Transliteration mode$/i)).toHaveValue('python');
+    expect(screen.getByLabelText(/Cache word lookups/i)).not.toBeChecked();
+
+    await user.click(screen.getByRole('tab', { name: /Output & narration/i }));
+    expect(screen.getByLabelText(/Generate narration tracks/i)).not.toBeChecked();
+    expect(screen.getByLabelText(/Audio quality/i)).toHaveValue('128');
+    expect(screen.getByLabelText(/Narration voice/i)).toHaveValue('macOS-auto-male');
+    expect(screen.getByLabelText(/Generate HTML output/i)).toBeChecked();
+    expect(screen.getByLabelText(/Generate PDF output/i)).toBeChecked();
+    expect(screen.getByLabelText(/Include transliteration in written output/i)).not.toBeChecked();
+    expect(screen.getByLabelText(/Tempo/i)).toHaveValue(1.2);
+
+    await user.click(screen.getByRole('tab', { name: /Performance tuning/i }));
+    expect(screen.getByLabelText(/LLM batch size/i)).toHaveValue(7);
+
+    await user.click(screen.getByRole('tab', { name: /^Source$/i }));
+    await user.clear(screen.getByLabelText(/Input file path/i));
+    await user.type(screen.getByLabelText(/Input file path/i), '/tmp/generated.epub');
+    await user.click(screen.getByRole('button', { name: /Submit job/i }));
+
+    expect(handleSubmit).toHaveBeenCalled();
+    const [payload] = handleSubmit.mock.calls[0];
+    expect(payload.inputs.base_output_file).toBe('generated-source');
+    expect(payload.inputs.input_language).toBe('Spanish');
+    expect(payload.inputs.target_languages).toEqual(['German']);
+    expect(payload.inputs.enable_lookup_cache).toBe(false);
+    expect(payload.inputs.lookup_cache_batch_size).toBe(4);
+  });
+
   it('allows selecting files from the dialog', async () => {
     const user = userEvent.setup();
     await act(async () => {
