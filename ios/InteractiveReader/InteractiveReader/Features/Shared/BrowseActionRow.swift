@@ -227,6 +227,38 @@ enum BrowseResumeNotificationFilter {
     }
 }
 
+struct BrowseResumeSnapshot {
+    let availabilityByJobID: [String: PlaybackResumeAvailability]
+    let iCloudStatus: PlaybackICloudStatus
+}
+
+enum BrowseResumeSnapshotProvider {
+    static func snapshot(for userId: String?) -> BrowseResumeSnapshot {
+        guard let userId else {
+            return BrowseResumeSnapshot(
+                availabilityByJobID: [:],
+                iCloudStatus: PlaybackResumeStore.shared.iCloudStatus()
+            )
+        }
+        return BrowseResumeSnapshot(
+            availabilityByJobID: PlaybackResumeStore.shared.availabilitySnapshot(for: userId),
+            iCloudStatus: PlaybackResumeStore.shared.iCloudStatus()
+        )
+    }
+
+    static func refreshedSnapshot(for userId: String?, aliases: [String]) async -> BrowseResumeSnapshot {
+        guard let userId else {
+            await PlaybackResumeStore.shared.refreshCloudEntries(userId: "anonymous")
+            return BrowseResumeSnapshot(
+                availabilityByJobID: [:],
+                iCloudStatus: PlaybackResumeStore.shared.iCloudStatus()
+            )
+        }
+        await PlaybackResumeStore.shared.refreshCloudEntries(userId: userId, aliases: aliases)
+        return snapshot(for: userId)
+    }
+}
+
 extension View {
     @ViewBuilder
     func browseListCollapseInteraction(

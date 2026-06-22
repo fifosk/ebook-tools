@@ -306,38 +306,31 @@ struct JobsView: View {
         Task {
             await PlaybackResumeStore.shared.syncNow(userId: resumeUserId, aliases: appState.resumeUserAliases)
             await MainActor.run {
-                refreshResumeEvidence(for: resumeUserId)
+                applyResumeSnapshot(BrowseResumeSnapshotProvider.snapshot(for: resumeUserId))
             }
         }
     }
 
     private func refreshResumeEvidence(for userId: String) {
-        resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: userId)
-        iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+        applyResumeSnapshot(BrowseResumeSnapshotProvider.snapshot(for: userId))
     }
 
     private func refreshResumeStatus() {
-        guard let resumeUserId else {
-            resumeAvailability = [:]
-            iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
-            Task {
-                await PlaybackResumeStore.shared.refreshCloudEntries(userId: "anonymous")
-                await MainActor.run {
-                    iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
-                }
-            }
-            return
-        }
-        refreshResumeEvidence(for: resumeUserId)
+        applyResumeSnapshot(BrowseResumeSnapshotProvider.snapshot(for: resumeUserId))
         Task {
-            await PlaybackResumeStore.shared.refreshCloudEntries(
-                userId: resumeUserId,
+            let snapshot = await BrowseResumeSnapshotProvider.refreshedSnapshot(
+                for: resumeUserId,
                 aliases: appState.resumeUserAliases
             )
             await MainActor.run {
-                refreshResumeEvidence(for: resumeUserId)
+                applyResumeSnapshot(snapshot)
             }
         }
+    }
+
+    private func applyResumeSnapshot(_ snapshot: BrowseResumeSnapshot) {
+        resumeAvailability = snapshot.availabilityByJobID
+        iCloudStatus = snapshot.iCloudStatus
     }
 
     private func resumeStatus(for job: PipelineStatusResponse) -> LibraryRowView.ResumeStatus {

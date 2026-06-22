@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.65",
+            version: "2026.06.22.66",
             entries: [
+                AppChangelogEntry(
+                    id: "shared-browse-resume-snapshot-provider",
+                    title: "Browse resume refresh path shared",
+                    detail: "Jobs, Library, and Search now use one provider for resume and iCloud snapshot refresh."
+                ),
                 AppChangelogEntry(
                     id: "backend-runtime-descriptor-helper",
                     title: "Backend runtime preflight contract cleaned up",

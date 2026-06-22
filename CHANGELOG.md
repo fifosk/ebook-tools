@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.66
+
+- Advanced visible Apple app versioning to `v2026.06.22.66`.
+- Moved browse resume/iCloud snapshot refresh into a shared provider used by Jobs, Library, and Search.
+
 ### 2026.06.22.65
 
 - Advanced visible Apple app versioning to `v2026.06.22.65`.

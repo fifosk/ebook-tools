@@ -274,8 +274,7 @@ struct CombinedSearchView: View {
     }
 
     private func refreshResumeEvidence() {
-        iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
-        refreshResumeStatus()
+        applyResumeSnapshot(BrowseResumeSnapshotProvider.snapshot(for: resumeUserId))
     }
 
     private func handleSearchFieldAction() {
@@ -394,11 +393,12 @@ struct CombinedSearchView: View {
     }
 
     private func refreshResumeStatus() {
-        guard let resumeUserId else {
-            resumeAvailability = [:]
-            return
-        }
-        resumeAvailability = PlaybackResumeStore.shared.availabilitySnapshot(for: resumeUserId)
+        applyResumeSnapshot(BrowseResumeSnapshotProvider.snapshot(for: resumeUserId))
+    }
+
+    private func applyResumeSnapshot(_ snapshot: BrowseResumeSnapshot) {
+        resumeAvailability = snapshot.availabilityByJobID
+        iCloudStatus = snapshot.iCloudStatus
     }
 
 }
