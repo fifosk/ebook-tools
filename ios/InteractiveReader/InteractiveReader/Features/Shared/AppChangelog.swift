@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.88",
+            version: "2026.06.22.89",
             entries: [
+                AppChangelogEntry(
+                    id: "lookup-cache-api-models-file",
+                    title: "Lookup cache API models separated",
+                    detail: "Dictionary cache response decoding now lives in a dedicated Models file instead of the broad API model file."
+                ),
                 AppChangelogEntry(
                     id: "media-search-api-models-file",
                     title: "Media search API models separated",
