@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "library-playback-focused-extensions",
+            title: "Library playback split",
+            detail: "Library playback loading, Now Playing integration, and resume routing now live in focused extensions while the base view stays centered on layout composition."
+        ),
+        AppChangelogEntry(
             id: "video-subtitle-loading-file",
             title: "Subtitle loading split",
             detail: "Subtitle track selection, fetch, streaming parse, and cache persistence now live in a focused loading extension while subtitle display and navigation stay in the subtitles view extension."

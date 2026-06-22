@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.141
+
+- Advanced visible Apple app versioning to `v2026.06.22.141`.
+- Split library playback loading, Now Playing integration, and resume routing into focused `LibraryPlaybackView` extensions while keeping the base view centered on layout composition.
+
 ### 2026.06.22.140
 
 - Advanced visible Apple app versioning to `v2026.06.22.140`.
