@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.30
+
+- Advanced visible Apple app versioning to `v2026.06.22.30`.
+- Moved tvOS transcript track tap and long-press focus actions into named SwiftUI handlers.
+
 ### 2026.06.22.29
 
 - Advanced visible Apple app versioning to `v2026.06.22.29`.

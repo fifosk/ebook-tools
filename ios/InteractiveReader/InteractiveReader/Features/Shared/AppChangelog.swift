@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.29",
+            version: "2026.06.22.30",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-transcript-track-handlers",
+                    title: "TV transcript focus cleaned up",
+                    detail: "The tvOS transcript track now routes tap and long-press focus actions through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "video-overlay-subtitle-handlers",
                     title: "Video subtitle overlay cleaned up",

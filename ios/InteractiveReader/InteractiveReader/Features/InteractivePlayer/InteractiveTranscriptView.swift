@@ -282,19 +282,11 @@ struct InteractiveTranscriptView: View {
                             .focusable(canFocusTracks)
                             .focused($focusedArea, equals: .transcript)
                             .focusEffectDisabled()
-                            .onTapGesture {
-                                if bubble != nil {
-                                    // Respect pin state - don't close if pinned
-                                    if !iPadBubblePinned {
-                                        onCloseBubble()
-                                    }
-                                } else {
-                                    onLookup()
-                                }
-                            }
-                            .onLongPressGesture(minimumDuration: 0.6) {
-                                onToggleHeader?()
-                            }
+                            .onTapGesture(perform: handleTVOverlayTrackTap)
+                            .onLongPressGesture(
+                                minimumDuration: 0.6,
+                                perform: handleTVTrackLongPress
+                            )
                             .accessibilityAddTraits(.isButton)
 
                         // Bubble layer (overlays tracks from bottom)
@@ -698,6 +690,26 @@ struct InteractiveTranscriptView: View {
     }
 
     #if os(tvOS)
+    private func handleTVOverlayTrackTap() {
+        if bubble != nil {
+            if !iPadBubblePinned {
+                onCloseBubble()
+            }
+        } else {
+            onLookup()
+        }
+    }
+
+    private func handleTVSplitTrackTap() {
+        if !iPadBubblePinned {
+            onCloseBubble()
+        }
+    }
+
+    private func handleTVTrackLongPress() {
+        onToggleHeader?()
+    }
+
     // MARK: - tvOS Split Layout
 
     /// tvOS horizontal split layout: 30% bubble on left, 70% tracks on right
@@ -757,15 +769,11 @@ struct InteractiveTranscriptView: View {
                 .focusable(!isMenuVisible)
                 .focused($focusedArea, equals: .transcript)
                 .focusEffectDisabled()
-                .onTapGesture {
-                    // Respect pin state on tvOS - don't close if pinned
-                    if !iPadBubblePinned {
-                        onCloseBubble()
-                    }
-                }
-                .onLongPressGesture(minimumDuration: 0.6) {
-                    onToggleHeader?()
-                }
+                .onTapGesture(perform: handleTVSplitTrackTap)
+                .onLongPressGesture(
+                    minimumDuration: 0.6,
+                    perform: handleTVTrackLongPress
+                )
                 .accessibilityAddTraits(.isButton)
         }
         .frame(width: availableWidth, height: availableHeight)
