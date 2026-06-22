@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.112",
+            version: "2026.06.22.113",
             entries: [
+                AppChangelogEntry(
+                    id: "media-search-controls-file",
+                    title: "Media search controls separated",
+                    detail: "Search state, actions, pill buttons, and input controls now live in a focused shared SwiftUI controls file while the search panel and overlay own presentation."
+                ),
                 AppChangelogEntry(
                     id: "platform-controls-file",
                     title: "Platform controls separated",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.113
+
+- Advanced visible Apple app versioning to `v2026.06.22.113`.
+- Moved shared media search state, actions, pill buttons, and input controls into `MediaSearchControls.swift`, keeping `MediaSearchView.swift` focused on panel and overlay presentation.
+
 ### 2026.06.22.112
 
 - Advanced visible Apple app versioning to `v2026.06.22.112`.

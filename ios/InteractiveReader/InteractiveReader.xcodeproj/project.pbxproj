@@ -263,6 +263,8 @@
 		FEDB4D1C8B40AABFF2865FB5 /* VideoPlayerOverlayConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B44CF3819114CB82CABC21 /* VideoPlayerOverlayConfiguration.swift */; };
 		MEDIASEARCH001A0001 /* MediaSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MEDIASEARCH002A0001 /* MediaSearchView.swift */; };
 		MEDIASEARCH001A0002 /* MediaSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MEDIASEARCH002A0001 /* MediaSearchView.swift */; };
+		MEDSRCHCTRL001A0001 /* MediaSearchControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = MEDSRCHCTRL002A0001 /* MediaSearchControls.swift */; };
+		MEDSRCHCTRL001A0002 /* MediaSearchControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = MEDSRCHCTRL002A0001 /* MediaSearchControls.swift */; };
 		MEDIASEARCH001B0001 /* InteractivePlayerView+Search.swift in Sources */ = {isa = PBXBuildFile; fileRef = MEDIASEARCH002B0001 /* InteractivePlayerView+Search.swift */; };
 		MEDIASEARCH001B0002 /* InteractivePlayerView+Search.swift in Sources */ = {isa = PBXBuildFile; fileRef = MEDIASEARCH002B0001 /* InteractivePlayerView+Search.swift */; };
 		MEDIASEARCH001C0001 /* VideoPlayerView+Search.swift in Sources */ = {isa = PBXBuildFile; fileRef = MEDIASEARCH002C0001 /* VideoPlayerView+Search.swift */; };
@@ -397,6 +399,7 @@
 		NOTIFY002A0001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		NOTIFY002B0001 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		MEDIASEARCH002A0001 /* MediaSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSearchView.swift; sourceTree = "<group>"; };
+		MEDSRCHCTRL002A0001 /* MediaSearchControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSearchControls.swift; sourceTree = "<group>"; };
 		MEDIASEARCH002B0001 /* InteractivePlayerView+Search.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+Search.swift"; sourceTree = "<group>"; };
 		MEDIASEARCH002C0001 /* VideoPlayerView+Search.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoPlayerView+Search.swift"; sourceTree = "<group>"; };
 		037801B0B0FD5F3158751071 /* InteractivePlayerViewModel+Metadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerViewModel+Metadata.swift"; sourceTree = "<group>"; };
@@ -931,6 +934,7 @@
 				APPCHDAT002A0001 /* AppChangelogData.swift */,
 				APPCHSUM002A0001 /* AppChangelogSummaryView.swift */,
 				MEDIASEARCH002A0001 /* MediaSearchView.swift */,
+				MEDSRCHCTRL002A0001 /* MediaSearchControls.swift */,
 				A1B2C3D4E5F60718293A4E60 /* OfflineSyncBadge.swift */,
 				BROWSEACT002A0001 /* BrowseActionRow.swift */,
 				BROWSECOL002A0001 /* BrowseListCollapseInteraction.swift */,
@@ -1374,6 +1378,7 @@
 				C753453581005CC793B2B3F2 /* VideoPlayerSpeedMenu.swift in Sources */,
 				531C49E0B5FBBD8EBD771B6A /* VideoPlayerHeaderView.swift in Sources */,
 				MEDIASEARCH001A0001 /* MediaSearchView.swift in Sources */,
+				MEDSRCHCTRL001A0001 /* MediaSearchControls.swift in Sources */,
 				MEDIASEARCH001B0001 /* InteractivePlayerView+Search.swift in Sources */,
 				MEDIASEARCH001C0001 /* VideoPlayerView+Search.swift in Sources */,
 				30803A10C343786F04F20799 /* MusicKitCoordinator.swift in Sources */,
@@ -1563,6 +1568,7 @@
 				F2574D4A8A01F07A65431AA8 /* VideoPlayerSpeedMenu.swift in Sources */,
 				50BD4304B753A7A8EDB5EBF3 /* VideoPlayerHeaderView.swift in Sources */,
 				MEDIASEARCH001A0002 /* MediaSearchView.swift in Sources */,
+				MEDSRCHCTRL001A0002 /* MediaSearchControls.swift in Sources */,
 				MEDIASEARCH001B0002 /* InteractivePlayerView+Search.swift in Sources */,
 				MEDIASEARCH001C0002 /* VideoPlayerView+Search.swift in Sources */,
 				A9D0BD69F12150194C7FAE4D /* MusicKitCoordinator.swift in Sources */,
@@ -1669,7 +1675,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622112;
+				CURRENT_PROJECT_VERSION = 20260622113;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1816,7 +1822,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622112;
+				CURRENT_PROJECT_VERSION = 20260622113;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1844,7 +1850,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622112;
+				CURRENT_PROJECT_VERSION = 20260622113;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1872,7 +1878,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622112;
+				CURRENT_PROJECT_VERSION = 20260622113;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1899,7 +1905,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622112;
+				CURRENT_PROJECT_VERSION = 20260622113;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1925,7 +1931,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622112;
+				CURRENT_PROJECT_VERSION = 20260622113;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1950,7 +1956,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622112;
+				CURRENT_PROJECT_VERSION = 20260622113;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1968,7 +1974,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622112;
+				CURRENT_PROJECT_VERSION = 20260622113;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1986,7 +1992,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622112;
+				CURRENT_PROJECT_VERSION = 20260622113;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
@@ -2006,7 +2012,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622112;
+				CURRENT_PROJECT_VERSION = 20260622113;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
