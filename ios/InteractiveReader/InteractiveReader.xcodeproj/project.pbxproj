@@ -257,6 +257,10 @@
 		C753453581005CC793B2B3F2 /* VideoPlayerSpeedMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 860C4D8DBFEE8DD01DFC78AD /* VideoPlayerSpeedMenu.swift */; };
 		C8D9E0F1A2B3C4D5E6F70821 /* JobsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */; };
 		C8D9E0F1A2B3C4D5E6F70822 /* JobsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */; };
+		JOBFILTER001A0001 /* JobsFilterPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = JOBFILTER002A0001 /* JobsFilterPicker.swift */; };
+		JOBFILTER001A0002 /* JobsFilterPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = JOBFILTER002A0001 /* JobsFilterPicker.swift */; };
+		JOBOFFMENU001A0001 /* JobsView+OfflineMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = JOBOFFMENU002A0001 /* JobsView+OfflineMenu.swift */; };
+		JOBOFFMENU001A0002 /* JobsView+OfflineMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = JOBOFFMENU002A0001 /* JobsView+OfflineMenu.swift */; };
 		C8D9E0F1A2B3C4D5E6F70823 /* JobRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */; };
 		JOBROWPRE001A0001 /* JobRowView+Presentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = JOBROWPRE002A0001 /* JobRowView+Presentation.swift */; };
 		C8D9E0F1A2B3C4D5E6F70824 /* JobPlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70804 /* JobPlaybackView.swift */; };
@@ -572,6 +576,8 @@
 		UNIFCOVER002A0001 /* UnifiedCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedCoverView.swift; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsViewModel.swift; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsView.swift; sourceTree = "<group>"; };
+		JOBFILTER002A0001 /* JobsFilterPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsFilterPicker.swift; sourceTree = "<group>"; };
+		JOBOFFMENU002A0001 /* JobsView+OfflineMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JobsView+OfflineMenu.swift"; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRowView.swift; sourceTree = "<group>"; };
 		JOBROWPRE002A0001 /* JobRowView+Presentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JobRowView+Presentation.swift"; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70804 /* JobPlaybackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobPlaybackView.swift; sourceTree = "<group>"; };
@@ -1096,6 +1102,8 @@
 			isa = PBXGroup;
 			children = (
 				C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */,
+				JOBOFFMENU002A0001 /* JobsView+OfflineMenu.swift */,
+				JOBFILTER002A0001 /* JobsFilterPicker.swift */,
 				C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */,
 				C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */,
 				JOBROWPRE002A0001 /* JobRowView+Presentation.swift */,
@@ -1417,6 +1425,8 @@
 				LIBPBMETA001A0002 /* LibraryPlaybackMetadata.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70824 /* JobPlaybackView.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70822 /* JobsView.swift in Sources */,
+				JOBOFFMENU001A0001 /* JobsView+OfflineMenu.swift in Sources */,
+				JOBFILTER001A0001 /* JobsFilterPicker.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70823 /* JobRowView.swift in Sources */,
 				JOBROWPRE001A0001 /* JobRowView+Presentation.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70821 /* JobsViewModel.swift in Sources */,
@@ -1637,6 +1647,8 @@
 				LIBPBMETA001A0001 /* LibraryPlaybackMetadata.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70834 /* JobPlaybackView.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70832 /* JobsView.swift in Sources */,
+				JOBOFFMENU001A0002 /* JobsView+OfflineMenu.swift in Sources */,
+				JOBFILTER001A0002 /* JobsFilterPicker.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70833 /* JobRowView.swift in Sources */,
 				JOBROWPRE001A0002 /* JobRowView+Presentation.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70831 /* JobsViewModel.swift in Sources */,
@@ -1861,7 +1873,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622144;
+				CURRENT_PROJECT_VERSION = 20260622145;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -2008,7 +2020,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622144;
+				CURRENT_PROJECT_VERSION = 20260622145;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -2036,7 +2048,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622144;
+				CURRENT_PROJECT_VERSION = 20260622145;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -2064,7 +2076,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622144;
+				CURRENT_PROJECT_VERSION = 20260622145;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -2091,7 +2103,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622144;
+				CURRENT_PROJECT_VERSION = 20260622145;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -2117,7 +2129,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622144;
+				CURRENT_PROJECT_VERSION = 20260622145;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -2142,7 +2154,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622144;
+				CURRENT_PROJECT_VERSION = 20260622145;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -2160,7 +2172,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622144;
+				CURRENT_PROJECT_VERSION = 20260622145;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -2178,7 +2190,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622144;
+				CURRENT_PROJECT_VERSION = 20260622145;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
@@ -2198,7 +2210,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622144;
+				CURRENT_PROJECT_VERSION = 20260622145;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;

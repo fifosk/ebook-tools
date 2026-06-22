@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.145
+
+- Advanced visible Apple app versioning to `v2026.06.22.145`.
+- Moved Jobs filter styling and Apple TV offline download menu actions into `JobsFilterPicker.swift` and `JobsView+OfflineMenu.swift`, keeping the Jobs screen focused on list routing, search, and resume state.
+
 ### 2026.06.22.144
 
 - Advanced visible Apple app versioning to `v2026.06.22.144`.

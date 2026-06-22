@@ -366,67 +366,6 @@ struct JobsView: View {
         }
     }
 
-    #if os(tvOS)
-    @ViewBuilder
-    private func offlineContextMenu(for job: PipelineStatusResponse) -> some View {
-        let status = offlineStore.status(for: job.jobId, kind: .job)
-        let isEligible = job.isFinishedForDisplay
-
-        if status.isSynced {
-            Button(role: .destructive, action: { handleRemoveOfflineCopyMenuTap(job) }) {
-                Label("Remove Offline Copy", systemImage: "trash.circle")
-            }
-        } else if status.isSyncing {
-            Button(action: handleOfflineStatusTap) {
-                Label("Downloading...", systemImage: "arrow.down.circle")
-            }
-            .disabled(true)
-        } else if isEligible {
-            Button(action: { handleDownloadWithLookupCacheMenuTap(job) }) {
-                Label("Download with Dictionary", systemImage: "arrow.down.circle")
-            }
-            .disabled(!offlineStore.isAvailable || appState.configuration == nil)
-            Button(action: { handleDownloadWithoutLookupCacheMenuTap(job) }) {
-                Label("Download without Dictionary", systemImage: "arrow.down.circle.dotted")
-            }
-            .disabled(!offlineStore.isAvailable || appState.configuration == nil)
-        }
-    }
-
-    private func handleOfflineStatusTap() {}
-
-    private func handleRemoveOfflineCopyMenuTap(_ job: PipelineStatusResponse) {
-        handleRemoveOfflineCopy(job)
-    }
-
-    private func handleDownloadWithLookupCacheMenuTap(_ job: PipelineStatusResponse) {
-        handleDownloadOfflineCopy(job, includeLookupCache: true)
-    }
-
-    private func handleDownloadWithoutLookupCacheMenuTap(_ job: PipelineStatusResponse) {
-        handleDownloadOfflineCopy(job, includeLookupCache: false)
-    }
-
-    private func handleRemoveOfflineCopy(_ job: PipelineStatusResponse) {
-        offlineStore.remove(jobId: job.jobId, kind: .job)
-    }
-
-    private func handleDownloadOfflineCopy(_ job: PipelineStatusResponse, includeLookupCache: Bool) {
-        guard let configuration = appState.configuration else { return }
-        offlineStore.sync(
-            jobId: job.jobId,
-            kind: .job,
-            configuration: configuration,
-            includeLookupCache: includeLookupCache
-        )
-    }
-    #else
-    @ViewBuilder
-    private func offlineContextMenu(for job: PipelineStatusResponse) -> some View {
-        EmptyView()
-    }
-    #endif
-
     private func resumeMenuLabel(for job: PipelineStatusResponse) -> String {
         BrowseResumeStatusFormatter.menuLabel(
             for: job.jobId,
@@ -441,54 +380,5 @@ struct JobsView: View {
         offlineStore.remove(jobId: job.jobId, kind: .job)
         resumeAvailability.removeValue(forKey: job.jobId)
         iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
-    }
-}
-
-private struct JobsFilterPicker: View {
-    @Binding var activeFilter: JobsViewModel.JobFilter
-    let usesDarkListBackground: Bool
-    let colorScheme: ColorScheme
-    let onRefresh: () -> Void
-
-    var body: some View {
-        Picker("Filter", selection: $activeFilter) {
-            ForEach(JobsViewModel.JobFilter.allCases) { filter in
-                Text(filter.rawValue).tag(filter)
-            }
-        }
-        .jobsFilterPickerStyle(
-            usesDarkListBackground: usesDarkListBackground,
-            colorScheme: colorScheme,
-            onRefresh: handleFilterRefreshLongPress
-        )
-    }
-
-    private func handleFilterRefreshLongPress() {
-        onRefresh()
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func jobsFilterPickerStyle(
-        usesDarkListBackground: Bool,
-        colorScheme: ColorScheme,
-        onRefresh: @escaping () -> Void
-    ) -> some View {
-        #if os(tvOS)
-        self
-            .pickerStyle(.automatic)
-            .padding(.horizontal)
-            .onLongPressGesture(minimumDuration: 0.6, perform: onRefresh)
-        #elseif os(iOS)
-        self
-            .pickerStyle(.segmented)
-            .colorScheme(usesDarkListBackground ? .dark : colorScheme)
-            .padding(.horizontal)
-        #else
-        self
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-        #endif
     }
 }
