@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.92
+
+- Advanced visible Apple app versioning to `v2026.06.22.92`.
+- Moved pipeline media, chunk sentence, audio-track, and timing API models into a dedicated Models file so media playback decoding no longer lives in the broad API model file.
+
 ### 2026.06.22.91
 
 - Advanced visible Apple app versioning to `v2026.06.22.91`.
