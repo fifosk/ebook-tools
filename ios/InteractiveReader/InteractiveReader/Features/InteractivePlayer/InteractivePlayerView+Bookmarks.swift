@@ -5,24 +5,20 @@ extension InteractivePlayerView {
     func bookmarkMenu(for chunk: InteractiveChunk) -> some View {
         if canUseBookmarks {
             Menu {
-                Button("Add Bookmark") {
-                    addBookmark(for: chunk)
-                }
+                Button("Add Bookmark") { addBookmarkMenuAction(for: chunk) }
                 if bookmarks.isEmpty {
                     Text("No bookmarks yet.")
                         .foregroundStyle(.secondary)
                 } else {
                     Section("Jump") {
                         ForEach(bookmarks) { bookmark in
-                            Button(bookmark.label) {
-                                jumpToBookmark(bookmark)
-                            }
+                            Button(bookmark.label) { jumpToBookmarkMenuAction(bookmark) }
                         }
                     }
                     Section("Remove") {
                         ForEach(bookmarks) { bookmark in
                             Button(role: .destructive) {
-                                removeBookmark(bookmark)
+                                removeBookmarkMenuAction(bookmark)
                             } label: {
                                 Text(bookmark.label)
                             }
@@ -53,6 +49,18 @@ extension InteractivePlayerView {
         }
     }
 
+    func addBookmarkMenuAction(for chunk: InteractiveChunk) {
+        addBookmark(for: chunk)
+    }
+
+    func jumpToBookmarkMenuAction(_ bookmark: PlaybackBookmarkEntry) {
+        jumpToBookmark(bookmark)
+    }
+
+    func removeBookmarkMenuAction(_ bookmark: PlaybackBookmarkEntry) {
+        removeBookmark(bookmark)
+    }
+
     func refreshBookmarks() {
         guard let jobId = resolvedBookmarkJobId else {
             bookmarks = []
@@ -60,9 +68,11 @@ extension InteractivePlayerView {
         }
         bookmarks = PlaybackBookmarkStore.shared.bookmarks(for: jobId, userId: resolvedBookmarkUserId)
         guard let configuration = appState.configuration else { return }
-        Task {
-            await syncRemoteBookmarks(jobId: jobId, configuration: configuration)
-        }
+        startRemoteBookmarkSync(jobId: jobId, configuration: configuration)
+    }
+
+    func startRemoteBookmarkSync(jobId: String, configuration: APIClientConfiguration) {
+        Task { await syncRemoteBookmarks(jobId: jobId, configuration: configuration) }
     }
 
     func syncRemoteBookmarks(jobId: String, configuration: APIClientConfiguration) async {
@@ -118,28 +128,48 @@ extension InteractivePlayerView {
             segmentId: nil
         )
         guard let configuration = appState.configuration else {
-            PlaybackBookmarkStore.shared.addBookmark(entry, userId: resolvedBookmarkUserId)
+            storeBookmark(entry)
             return
         }
-        Task {
-            let client = APIClient(configuration: configuration)
-            let payload = PlaybackBookmarkCreateRequest(
-                id: entry.id,
-                label: entry.label,
-                kind: entry.kind,
-                createdAt: entry.createdAt,
-                position: entry.playbackTime,
-                sentence: entry.sentenceNumber,
-                mediaType: entry.kind == .sentence ? "text" : "audio",
-                mediaId: nil,
-                baseId: nil,
-                segmentId: entry.segmentId,
-                chunkId: entry.chunkId,
-                itemType: entry.itemType
-            )
-            do {
-                let response = try await client.createPlaybackBookmark(jobId: jobId, payload: payload)
-                let stored = PlaybackBookmarkEntry(
+        createRemoteBookmark(entry, jobId: jobId, configuration: configuration)
+    }
+
+    func storeBookmark(_ entry: PlaybackBookmarkEntry) {
+        PlaybackBookmarkStore.shared.addBookmark(entry, userId: resolvedBookmarkUserId)
+    }
+
+    func createRemoteBookmark(
+        _ entry: PlaybackBookmarkEntry,
+        jobId: String,
+        configuration: APIClientConfiguration
+    ) {
+        Task { await createRemoteBookmarkAsync(entry, jobId: jobId, configuration: configuration) }
+    }
+
+    func createRemoteBookmarkAsync(
+        _ entry: PlaybackBookmarkEntry,
+        jobId: String,
+        configuration: APIClientConfiguration
+    ) async {
+        let client = APIClient(configuration: configuration)
+        let payload = PlaybackBookmarkCreateRequest(
+            id: entry.id,
+            label: entry.label,
+            kind: entry.kind,
+            createdAt: entry.createdAt,
+            position: entry.playbackTime,
+            sentence: entry.sentenceNumber,
+            mediaType: entry.kind == .sentence ? "text" : "audio",
+            mediaId: nil,
+            baseId: nil,
+            segmentId: entry.segmentId,
+            chunkId: entry.chunkId,
+            itemType: entry.itemType
+        )
+        do {
+            let response = try await client.createPlaybackBookmark(jobId: jobId, payload: payload)
+            storeBookmark(
+                PlaybackBookmarkEntry(
                     id: response.id,
                     jobId: response.jobId,
                     itemType: response.itemType ?? entry.itemType,
@@ -151,10 +181,9 @@ extension InteractivePlayerView {
                     chunkId: response.chunkId,
                     segmentId: response.segmentId
                 )
-                PlaybackBookmarkStore.shared.addBookmark(stored, userId: resolvedBookmarkUserId)
-            } catch {
-                PlaybackBookmarkStore.shared.addBookmark(entry, userId: resolvedBookmarkUserId)
-            }
+            )
+        } catch {
+            storeBookmark(entry)
         }
     }
 
@@ -180,27 +209,41 @@ extension InteractivePlayerView {
     func removeBookmark(_ bookmark: PlaybackBookmarkEntry) {
         guard let jobId = resolvedBookmarkJobId else { return }
         guard let configuration = appState.configuration else {
-            PlaybackBookmarkStore.shared.removeBookmark(
-                id: bookmark.id,
-                jobId: jobId,
-                userId: resolvedBookmarkUserId
-            )
+            removeStoredBookmark(bookmark, jobId: jobId)
             return
         }
-        Task {
-            let client = APIClient(configuration: configuration)
-            do {
-                let response = try await client.deletePlaybackBookmark(jobId: jobId, bookmarkId: bookmark.id)
-                if response.deleted {
-                    PlaybackBookmarkStore.shared.removeBookmark(
-                        id: bookmark.id,
-                        jobId: jobId,
-                        userId: resolvedBookmarkUserId
-                    )
-                }
-            } catch {
-                return
+        deleteRemoteBookmark(bookmark, jobId: jobId, configuration: configuration)
+    }
+
+    func removeStoredBookmark(_ bookmark: PlaybackBookmarkEntry, jobId: String) {
+        PlaybackBookmarkStore.shared.removeBookmark(
+            id: bookmark.id,
+            jobId: jobId,
+            userId: resolvedBookmarkUserId
+        )
+    }
+
+    func deleteRemoteBookmark(
+        _ bookmark: PlaybackBookmarkEntry,
+        jobId: String,
+        configuration: APIClientConfiguration
+    ) {
+        Task { await deleteRemoteBookmarkAsync(bookmark, jobId: jobId, configuration: configuration) }
+    }
+
+    func deleteRemoteBookmarkAsync(
+        _ bookmark: PlaybackBookmarkEntry,
+        jobId: String,
+        configuration: APIClientConfiguration
+    ) async {
+        let client = APIClient(configuration: configuration)
+        do {
+            let response = try await client.deletePlaybackBookmark(jobId: jobId, bookmarkId: bookmark.id)
+            if response.deleted {
+                removeStoredBookmark(bookmark, jobId: jobId)
             }
+        } catch {
+            return
         }
     }
 

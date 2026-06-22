@@ -58,8 +58,7 @@ struct BookmarkRibbonPillView: View {
     private var menuContent: some View {
         if let onAddBookmark {
             Button {
-                onAddBookmark()
-                onUserInteraction()
+                addBookmark(onAddBookmark)
             } label: {
                 Label("Add Bookmark", systemImage: "bookmark.fill")
             }
@@ -70,17 +69,13 @@ struct BookmarkRibbonPillView: View {
         } else {
             Section("Jump") {
                 ForEach(bookmarks) { bookmark in
-                    Button(bookmark.label) {
-                        onJumpToBookmark(bookmark)
-                        onUserInteraction()
-                    }
+                    Button(bookmark.label) { jumpToBookmark(bookmark) }
                 }
             }
             Section("Remove") {
                 ForEach(bookmarks) { bookmark in
                     Button(role: .destructive) {
-                        onRemoveBookmark(bookmark)
-                        onUserInteraction()
+                        removeBookmark(bookmark)
                     } label: {
                         Text(bookmark.label)
                     }
@@ -145,6 +140,21 @@ struct BookmarkRibbonPillView: View {
             return "Bookmarks: \(bookmarkCount)"
         }
         return "Bookmarks"
+    }
+
+    private func addBookmark(_ action: () -> Void) {
+        action()
+        onUserInteraction()
+    }
+
+    private func jumpToBookmark(_ bookmark: PlaybackBookmarkEntry) {
+        onJumpToBookmark(bookmark)
+        onUserInteraction()
+    }
+
+    private func removeBookmark(_ bookmark: PlaybackBookmarkEntry) {
+        onRemoveBookmark(bookmark)
+        onUserInteraction()
     }
 }
 

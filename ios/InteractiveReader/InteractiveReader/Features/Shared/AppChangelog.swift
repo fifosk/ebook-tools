@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.17",
+            version: "2026.06.22.18",
             entries: [
+                AppChangelogEntry(
+                    id: "bookmark-command-handlers",
+                    title: "Bookmark controls cleaned up",
+                    detail: "Interactive player and video bookmark menu commands plus remote bookmark create/delete work now run through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "player-menu-command-handlers",
                     title: "Player menu controls cleaned up",

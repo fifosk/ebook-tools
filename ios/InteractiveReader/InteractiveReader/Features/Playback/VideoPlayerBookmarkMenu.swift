@@ -25,27 +25,20 @@ struct VideoPlayerBookmarkMenu: View {
 
     @ViewBuilder
     private var menuContent: some View {
-        Button("Add Bookmark") {
-            onAddBookmark?()
-            onUserInteraction()
-        }
+        Button("Add Bookmark", action: addBookmark)
         if bookmarks.isEmpty {
             Text("No bookmarks yet.")
                 .foregroundStyle(.secondary)
         } else {
             Section("Jump") {
                 ForEach(bookmarks) { bookmark in
-                    Button(bookmark.label) {
-                        onJumpToBookmark(bookmark)
-                        onUserInteraction()
-                    }
+                    Button(bookmark.label) { jumpToBookmark(bookmark) }
                 }
             }
             Section("Remove") {
                 ForEach(bookmarks) { bookmark in
                     Button(role: .destructive) {
-                        onRemoveBookmark(bookmark)
-                        onUserInteraction()
+                        removeBookmark(bookmark)
                     } label: {
                         Text(bookmark.label)
                     }
@@ -73,5 +66,20 @@ struct VideoPlayerBookmarkMenu: View {
             .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
             .foregroundStyle(.white)
         #endif
+    }
+
+    private func addBookmark() {
+        onAddBookmark?()
+        onUserInteraction()
+    }
+
+    private func jumpToBookmark(_ bookmark: PlaybackBookmarkEntry) {
+        onJumpToBookmark(bookmark)
+        onUserInteraction()
+    }
+
+    private func removeBookmark(_ bookmark: PlaybackBookmarkEntry) {
+        onRemoveBookmark(bookmark)
+        onUserInteraction()
     }
 }
