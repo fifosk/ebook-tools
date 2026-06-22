@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.69",
+            version: "2026.06.22.70",
             entries: [
+                AppChangelogEntry(
+                    id: "mylinguist-preferences-file",
+                    title: "MyLinguist preferences separated",
+                    detail: "Preference keys and TTS voice storage now live outside the shared channel badge UI file."
+                ),
                 AppChangelogEntry(
                     id: "changelog-summary-view-file",
                     title: "Changelog summary UI separated",
