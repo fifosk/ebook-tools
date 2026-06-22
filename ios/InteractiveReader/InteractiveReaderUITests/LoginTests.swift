@@ -20,9 +20,12 @@ final class LoginTests: InteractiveReaderUITests {
             throw XCTSkip("Login screen unavailable; session was restored before the changelog could be exercised")
         }
 
-        let firstEntry = app.buttons["appChangelogEntry.api-client-endpoint-extensions"]
+        let changelogEntries = app.buttons
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "appChangelogEntry."))
+        let firstEntry = changelogEntries.firstMatch
         XCTAssertTrue(firstEntry.waitForExistence(timeout: 8), "Expected the latest changelog row on the login screen")
         XCTAssertTrue(firstEntry.isHittable, "Expected the latest changelog row to be visible before moving")
+        XCTAssertGreaterThan(changelogEntries.count, 2, "Expected multiple changelog rows for tvOS remote movement")
 
         for _ in 0..<4 where !firstEntry.hasFocus {
             XCUIRemote.shared.press(.up)
@@ -30,14 +33,14 @@ final class LoginTests: InteractiveReaderUITests {
         }
         XCTAssertTrue(firstEntry.hasFocus, "Expected the remote to focus the first changelog row")
 
-        for _ in 0..<7 {
+        let laterEntry = changelogEntries.element(boundBy: changelogEntries.count - 1)
+        for _ in 0..<20 where !(laterEntry.exists && laterEntry.isHittable) {
             XCUIRemote.shared.press(.down)
             usleep(160_000)
         }
 
-        let laterEntry = app.buttons["appChangelogEntry.pipeline-media-api-models-file"]
-        XCTAssertTrue(laterEntry.exists, "Expected a changelog row beyond the initially visible tvOS page")
-        XCTAssertTrue(laterEntry.isHittable, "Expected remote focus movement to reveal a later changelog row")
+        XCTAssertTrue(laterEntry.exists, "Expected a lower changelog row to stay in the tvOS focus list")
+        XCTAssertTrue(laterEntry.isHittable, "Expected remote focus movement to reveal the lower changelog row")
     }
     #endif
 

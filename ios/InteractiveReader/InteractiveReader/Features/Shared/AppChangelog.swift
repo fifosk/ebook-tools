@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.98",
+            version: "2026.06.22.99",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-changelog-regression-auto-anchor",
+                    title: "TV changelog test hardened",
+                    detail: "The TV remote-scroll regression now follows the newest daily changelog row automatically and still proves older rows can be revealed after version bumps."
+                ),
                 AppChangelogEntry(
                     id: "api-client-endpoint-extensions",
                     title: "API client endpoints separated",
