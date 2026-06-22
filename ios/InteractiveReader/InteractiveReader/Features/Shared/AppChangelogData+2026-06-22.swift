@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-backend-voice-options",
+            title: "Create voices follow backend defaults",
+            detail: "The Apple Create form now keeps backend-provided narration voices, including macOS auto voices, selectable and submits the same voice value as the shared Web defaults contract."
+        ),
+        AppChangelogEntry(
             id: "apple-create-backend-options",
             title: "Create defaults shared with Web",
             detail: "The Apple Create form now loads generated-book defaults, sentence bounds, voices, languages, and pipeline settings from the backend options contract while preserving user edits."

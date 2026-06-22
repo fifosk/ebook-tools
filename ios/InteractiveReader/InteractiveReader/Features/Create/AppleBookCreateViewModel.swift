@@ -176,28 +176,3 @@ enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {
         self = match
     }
 }
-
-enum AppleBookCreateVoice: String, CaseIterable, Identifiable {
-    case gtts = "gTTS"
-    case macos = "macOS"
-    case edge = "edge-tts"
-
-    var id: String { rawValue }
-    var backendValue: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .gtts: return "gTTS"
-        case .macos: return "macOS"
-        case .edge: return "Edge TTS"
-        }
-    }
-
-    init?(backendValue: String) {
-        let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard let match = Self.allCases.first(where: { $0.rawValue.lowercased() == normalized }) else {
-            return nil
-        }
-        self = match
-    }
-}

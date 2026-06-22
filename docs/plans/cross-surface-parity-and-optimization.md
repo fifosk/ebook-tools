@@ -63,14 +63,18 @@ Current Apple API client supports:
 - Fetch job status via `/api/pipelines/{job_id}`.
 - Delete jobs, delete library items, move jobs to Library.
 - Fetch media/timing for jobs and library entries.
-
-Current Apple API client does not yet support:
-
+- Fetch book creation options via `/api/books/options`.
 - Submit pipeline jobs via `/api/pipelines`.
 - Upload EPUB files via `/api/pipelines/files/upload`.
 - Submit generated book jobs via `/api/books/jobs`.
 - Submit subtitle jobs via `/api/subtitles/jobs`.
 - Submit YouTube dubbing jobs via `/api/subtitles/youtube/dub`.
+
+Current Apple UI does not yet expose:
+
+- Narrate Ebook file import/upload submission.
+- Subtitle job submission.
+- YouTube dubbing submission.
 - Upload/reupload library source files.
 
 ## Backend Optimization Targets
@@ -109,9 +113,15 @@ Expected Apple work:
 - Add unit tests for encoding and path selection without printing tokens.
 - Keep physical device deployment attended and on-request only.
 
+Status: API plumbing and generated-book payload coverage are in place. Continue
+expanding contract checks whenever a new Web-only creation flow becomes native.
+
 ### Milestone 2: iPad/iPhone Native New Job
 
-Start with Narrate Ebook because it maps best to the current Apple browse/playback model.
+Apple now starts with generated audiobook creation because it does not require
+attended document import and can safely reuse `/api/books/options`. Narrate Ebook
+remains the next native creation flow because it maps best to the current Apple
+browse/playback model once EPUB import/upload is ready.
 
 Target Apple UX:
 

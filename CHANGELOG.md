@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.154
+
+- Advanced visible Apple app versioning to `v2026.06.22.154`.
+- Apple Create now keeps backend-provided narration voices such as `macOS-auto-male` selectable and submits the exact voice value used by the shared Web defaults contract.
+
 ### 2026.06.22.153
 
 - Advanced visible Apple app versioning to `v2026.06.22.153`.

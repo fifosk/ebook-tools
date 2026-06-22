@@ -257,6 +257,84 @@ struct BookCreationOptionsResponse: Decodable, Equatable {
     }
 }
 
+struct AppleBookCreateVoiceOption: Hashable, Identifiable {
+    let value: String
+
+    var id: String { value }
+    var backendValue: String { value }
+    var label: String { Self.displayLabel(for: value) }
+
+    init?(_ value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        self.value = trimmed
+    }
+
+    init?(backendValue: String) {
+        self.init(backendValue)
+    }
+
+    static let gtts = AppleBookCreateVoiceOption("gTTS")!
+
+    static let fallbackOptions: [AppleBookCreateVoiceOption] = [
+        "gTTS",
+        "macOS-auto",
+        "macOS-auto-male",
+        "macOS-auto-female",
+        "piper-auto",
+        "macOS",
+        "edge-tts",
+    ].compactMap { AppleBookCreateVoiceOption($0) }
+
+    static func options(
+        from supportedValues: [String],
+        selected: AppleBookCreateVoiceOption?
+    ) -> [AppleBookCreateVoiceOption] {
+        var seen = Set<String>()
+        var options = supportedValues.compactMap { AppleBookCreateVoiceOption($0) }.filter { option in
+            seen.insert(option.value.lowercased()).inserted
+        }
+
+        if options.isEmpty {
+            options = fallbackOptions
+            seen = Set(options.map { $0.value.lowercased() })
+        }
+
+        if let selected, !seen.contains(selected.value.lowercased()) {
+            options.insert(selected, at: 0)
+        }
+
+        return options
+    }
+
+    private static func displayLabel(for value: String) -> String {
+        if value.contains(" - ") {
+            return String(value.split(separator: " - ").first ?? Substring(value))
+        }
+        if value.hasPrefix("gTTS-") {
+            return "gTTS (\(value.dropFirst(5)))"
+        }
+        switch value {
+        case "gTTS":
+            return "gTTS"
+        case "macOS":
+            return "macOS"
+        case "macOS-auto":
+            return "macOS Auto"
+        case "macOS-auto-male":
+            return "macOS Auto Male"
+        case "macOS-auto-female":
+            return "macOS Auto Female"
+        case "piper-auto":
+            return "Piper Auto"
+        case "edge-tts":
+            return "Edge TTS"
+        default:
+            return value
+        }
+    }
+}
+
 struct BookGenerationRequest: Encodable, Equatable {
     let topic: String
     let bookName: String

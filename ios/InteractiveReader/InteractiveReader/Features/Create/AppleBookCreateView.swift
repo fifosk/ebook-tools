@@ -16,7 +16,7 @@ struct AppleBookCreateView: View {
     @State private var sentenceCount = 30
     @State private var inputLanguage = AppleBookCreateLanguage.english
     @State private var targetLanguage = AppleBookCreateLanguage.arabic
-    @State private var voice = AppleBookCreateVoice.gtts
+    @State private var voice = AppleBookCreateVoiceOption.gtts
     @State private var includeTransliteration = true
     @State private var enableLookupCache = true
     @State private var editedFields = Set<AppleBookCreateEditedField>()
@@ -274,10 +274,11 @@ struct AppleBookCreateView: View {
         return mapped.isEmpty ? AppleBookCreateLanguage.allCases : mapped
     }
 
-    private var availableVoices: [AppleBookCreateVoice] {
-        let supported = viewModel.creationOptions?.supportedVoices ?? []
-        let mapped = supported.compactMap(AppleBookCreateVoice.init(backendValue:))
-        return mapped.isEmpty ? AppleBookCreateVoice.allCases : mapped
+    private var availableVoices: [AppleBookCreateVoiceOption] {
+        AppleBookCreateVoiceOption.options(
+            from: viewModel.creationOptions?.supportedVoices ?? [],
+            selected: voice
+        )
     }
 
     private var sentenceCountBinding: Binding<Int> {
@@ -290,7 +291,7 @@ struct AppleBookCreateView: View {
         )
     }
 
-    private var voiceBinding: Binding<AppleBookCreateVoice> {
+    private var voiceBinding: Binding<AppleBookCreateVoiceOption> {
         Binding(
             get: { voice },
             set: { newValue in
@@ -375,7 +376,7 @@ struct AppleBookCreateView: View {
             targetLanguage = language
         }
         if !editedFields.contains(.voice),
-           let option = AppleBookCreateVoice(backendValue: options.defaults.voice) {
+           let option = AppleBookCreateVoiceOption(backendValue: options.defaults.voice) {
             voice = option
         }
         if !editedFields.contains(.includeTransliteration) {

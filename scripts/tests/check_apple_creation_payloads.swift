@@ -17,14 +17,14 @@ struct AppleCreationPayloadCheck {
             "author": "Me",
             "input_language": "English",
             "output_language": "Arabic",
-            "voice": "gTTS"
+            "voice": "macOS-auto-male"
           },
           "pipeline_defaults": {
             "sentences_per_output_file": 10,
             "audio_mode": "4",
             "audio_bitrate_kbps": 96,
             "written_mode": "4",
-            "selected_voice": "gTTS",
+            "selected_voice": "macOS-auto-male",
             "generate_audio": true,
             "output_html": false,
             "output_pdf": false,
@@ -46,14 +46,28 @@ struct AppleCreationPayloadCheck {
           },
           "supported_input_languages": ["English", "Arabic"],
           "supported_output_languages": ["English", "Arabic"],
-          "supported_voices": ["gTTS"]
+          "supported_voices": ["gTTS", "macOS-auto-male", "piper-auto"]
         }
         """.data(using: .utf8)!
         let options = try decoder.decode(BookCreationOptionsResponse.self, from: optionsJSON)
         require(options.sentenceBounds.default == 30, "creation options should decode sentence default")
         require(options.defaults.outputLanguage == "Arabic", "creation options should decode output language")
+        require(options.defaults.voice == "macOS-auto-male", "creation options should decode backend default voice")
         require(options.pipelineDefaults.audioMode == "4", "creation options should decode pipeline defaults")
+        require(options.pipelineDefaults.selectedVoice == "macOS-auto-male", "creation options should decode pipeline voice")
         require(options.generatedSourceDefaults.imageStyleTemplate == "wireframe", "creation options should decode generated source defaults")
+        let voiceOptions = AppleBookCreateVoiceOption.options(
+            from: options.supportedVoices,
+            selected: AppleBookCreateVoiceOption(backendValue: options.defaults.voice)
+        )
+        require(
+            voiceOptions.map(\.backendValue).contains("macOS-auto-male"),
+            "Apple Create voice picker should keep backend-supported macOS auto voices"
+        )
+        require(
+            AppleBookCreateVoiceOption("Samantha - en_US - (Premium) female")?.label == "Samantha",
+            "Apple Create voice labels should shorten macOS inventory identifiers"
+        )
 
         let input = PipelineInputPayload(
             inputFile: "books/demo.epub",
@@ -62,7 +76,7 @@ struct AppleCreationPayloadCheck {
             targetLanguages: ["sk"],
             sentencesPerOutputFile: 12,
             generateAudio: true,
-            selectedVoice: "gTTS",
+            selectedVoice: "macOS-auto-male",
             bookMetadata: [
                 "book_title": .string("Demo Book"),
                 "chapter_count": .number(3),
@@ -84,6 +98,7 @@ struct AppleCreationPayloadCheck {
         require(encodedInputs?["input_file"] as? String == "books/demo.epub", "pipeline inputs should encode input_file")
         require(encodedInputs?["target_languages"] as? [String] == ["sk"], "pipeline inputs should encode target_languages")
         require(encodedInputs?["sentences_per_output_file"] as? Int == 12, "pipeline inputs should encode sentence count")
+        require(encodedInputs?["selected_voice"] as? String == "macOS-auto-male", "pipeline inputs should encode selected_voice")
         let metadata = encodedInputs?["book_metadata"] as? [String: Any]
         require(metadata?["book_title"] as? String == "Demo Book", "pipeline inputs should encode book_metadata")
 
