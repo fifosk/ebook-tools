@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-subtitle-jobs",
+            title: "Subtitle jobs added to Create",
+            detail: "On iPhone and iPad, Apple Create can now submit subtitle translation jobs from an existing server-side subtitle path with language, format, timing, and output toggles."
+        ),
+        AppChangelogEntry(
             id: "apple-create-epub-file-import",
             title: "EPUB import added to Create",
             detail: "On iPhone and iPad, Narrate EPUB can now pick a local EPUB, upload it to the backend, and submit the narration job using the returned server path."

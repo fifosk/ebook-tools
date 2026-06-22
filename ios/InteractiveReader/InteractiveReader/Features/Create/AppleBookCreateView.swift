@@ -19,6 +19,14 @@ struct AppleBookCreateView: View {
     @State private var author = "Me"
     @State private var sourcePath = ""
     @State private var sourceBaseOutput = ""
+    @State private var subtitleSourcePath = ""
+    @State private var subtitleOutputFormat = AppleSubtitleOutputFormat.ass
+    @State private var subtitleStartTime = "00:00"
+    @State private var subtitleEndTime = ""
+    @State private var subtitleEnableTransliteration = true
+    @State private var subtitleHighlight = true
+    @State private var subtitleShowOriginal = true
+    @State private var subtitleGenerateAudioBook = true
     @State private var selectedNarrateFileURL: URL?
     @State private var selectedNarrateFileName: String?
     @State private var isImportingNarrateEbook = false
@@ -98,6 +106,11 @@ struct AppleBookCreateView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("createNarrateOutputPathField")
+            } else if creationMode == .subtitleJob {
+                TextField("Subtitle path", text: textBinding(for: .subtitleSourcePath, value: $subtitleSourcePath))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createSubtitleSourcePathField")
             }
         }
     }
@@ -179,7 +192,7 @@ struct AppleBookCreateView: View {
     }
 
     private var narrationSection: some View {
-        Section("Narration") {
+        Section(creationMode == .subtitleJob ? "Languages" : "Narration") {
             Picker("Input", selection: languageBinding(for: .inputLanguage, value: $inputLanguage)) {
                 ForEach(availableInputLanguages) { language in
                     Text(language.label).tag(language)
@@ -194,23 +207,52 @@ struct AppleBookCreateView: View {
             }
             .accessibilityIdentifier("createBookTargetLanguagePicker")
 
-            Picker("Voice", selection: voiceBinding) {
-                ForEach(availableVoices) { option in
-                    Text(option.label).tag(option)
+            if creationMode != .subtitleJob {
+                Picker("Voice", selection: voiceBinding) {
+                    ForEach(availableVoices) { option in
+                        Text(option.label).tag(option)
+                    }
                 }
+                .accessibilityIdentifier("createBookVoicePicker")
             }
-            .accessibilityIdentifier("createBookVoicePicker")
         }
     }
 
     private var outputSection: some View {
         Section("Output") {
-            LabeledContent("Path", value: derivedBaseOutput)
-                .accessibilityIdentifier("createBookBaseOutputLabel")
-            Toggle("Transliteration", isOn: boolBinding(for: .includeTransliteration, value: $includeTransliteration))
-                .accessibilityIdentifier("createBookTransliterationToggle")
-            Toggle("Lookup Cache", isOn: boolBinding(for: .enableLookupCache, value: $enableLookupCache))
-                .accessibilityIdentifier("createBookLookupCacheToggle")
+            if creationMode == .subtitleJob {
+                Picker("Format", selection: subtitleOutputFormatBinding) {
+                    ForEach(AppleSubtitleOutputFormat.allCases) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+                .accessibilityIdentifier("createSubtitleOutputFormatPicker")
+
+                TextField("Start time", text: textBinding(for: .subtitleStartTime, value: $subtitleStartTime))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createSubtitleStartTimeField")
+                TextField("End time", text: textBinding(for: .subtitleEndTime, value: $subtitleEndTime))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createSubtitleEndTimeField")
+
+                Toggle("Transliteration", isOn: boolBinding(for: .subtitleEnableTransliteration, value: $subtitleEnableTransliteration))
+                    .accessibilityIdentifier("createSubtitleTransliterationToggle")
+                Toggle("Highlight", isOn: boolBinding(for: .subtitleHighlight, value: $subtitleHighlight))
+                    .accessibilityIdentifier("createSubtitleHighlightToggle")
+                Toggle("Show Original", isOn: boolBinding(for: .subtitleShowOriginal, value: $subtitleShowOriginal))
+                    .accessibilityIdentifier("createSubtitleShowOriginalToggle")
+                Toggle("Generate Audiobook", isOn: boolBinding(for: .subtitleGenerateAudioBook, value: $subtitleGenerateAudioBook))
+                    .accessibilityIdentifier("createSubtitleGenerateAudioToggle")
+            } else {
+                LabeledContent("Path", value: derivedBaseOutput)
+                    .accessibilityIdentifier("createBookBaseOutputLabel")
+                Toggle("Transliteration", isOn: boolBinding(for: .includeTransliteration, value: $includeTransliteration))
+                    .accessibilityIdentifier("createBookTransliterationToggle")
+                Toggle("Lookup Cache", isOn: boolBinding(for: .enableLookupCache, value: $enableLookupCache))
+                    .accessibilityIdentifier("createBookLookupCacheToggle")
+            }
         }
     }
 
@@ -272,6 +314,8 @@ struct AppleBookCreateView: View {
                     Label("Submitting", systemImage: "hourglass")
                 } else if creationMode == .narrateEbook {
                     Label("Narrate EPUB", systemImage: "book")
+                } else if creationMode == .subtitleJob {
+                    Label("Create Subtitles", systemImage: "captions.bubble")
                 } else {
                     Label("Generate Audiobook", systemImage: "sparkles")
                 }
@@ -291,6 +335,9 @@ struct AppleBookCreateView: View {
         case .narrateEbook:
             return (selectedNarrateFileURL != nil || !trimmed(sourcePath).isEmpty)
                 && !trimmed(sourceBaseOutput).isEmpty
+        case .subtitleJob:
+            return !trimmed(subtitleSourcePath).isEmpty
+                && !trimmed(subtitleStartTime).isEmpty
         }
     }
 
@@ -308,6 +355,8 @@ struct AppleBookCreateView: View {
             return Self.deriveBaseOutputName(bookName.isEmpty ? topic : bookName)
         case .narrateEbook:
             return trimmed(sourceBaseOutput)
+        case .subtitleJob:
+            return Self.deriveBaseOutputName(subtitleSourcePath)
         }
     }
 
@@ -317,6 +366,8 @@ struct AppleBookCreateView: View {
             submitGeneratedBook()
         case .narrateEbook:
             submitNarrateEbook()
+        case .subtitleJob:
+            submitSubtitleJob()
         }
     }
 
@@ -339,6 +390,27 @@ struct AppleBookCreateView: View {
 
         Task {
             if let jobId = await viewModel.submitGeneratedBook(draft, using: appState) {
+                onJobSubmitted(jobId)
+            }
+        }
+    }
+
+    private func submitSubtitleJob() {
+        let draft = AppleSubtitleJobDraft(
+            sourcePath: trimmed(subtitleSourcePath),
+            inputLanguage: inputLanguage.backendValue,
+            targetLanguage: targetLanguage.backendValue,
+            outputFormat: subtitleOutputFormat.rawValue,
+            startTime: trimmed(subtitleStartTime).nonEmptyValue ?? "00:00",
+            endTime: trimmed(subtitleEndTime).nonEmptyValue,
+            enableTransliteration: subtitleEnableTransliteration,
+            highlight: subtitleHighlight,
+            showOriginal: subtitleShowOriginal,
+            generateAudioBook: subtitleGenerateAudioBook
+        )
+
+        Task {
+            if let jobId = await viewModel.submitSubtitleJob(draft, using: appState) {
                 onJobSubmitted(jobId)
             }
         }
@@ -443,6 +515,16 @@ struct AppleBookCreateView: View {
             set: { newValue in
                 markEdited(.voice)
                 voice = newValue
+            }
+        )
+    }
+
+    private var subtitleOutputFormatBinding: Binding<AppleSubtitleOutputFormat> {
+        Binding(
+            get: { subtitleOutputFormat },
+            set: { newValue in
+                markEdited(.subtitleOutputFormat)
+                subtitleOutputFormat = newValue
             }
         )
     }
@@ -557,6 +639,14 @@ private enum AppleBookCreateEditedField: Hashable {
     case author
     case sourcePath
     case sourceBaseOutput
+    case subtitleSourcePath
+    case subtitleOutputFormat
+    case subtitleStartTime
+    case subtitleEndTime
+    case subtitleEnableTransliteration
+    case subtitleHighlight
+    case subtitleShowOriginal
+    case subtitleGenerateAudioBook
     case sentenceCount
     case inputLanguage
     case targetLanguage
@@ -568,6 +658,7 @@ private enum AppleBookCreateEditedField: Hashable {
 private enum AppleCreateMode: String, CaseIterable, Identifiable {
     case generatedBook
     case narrateEbook
+    case subtitleJob
 
     var id: String { rawValue }
 
@@ -577,6 +668,24 @@ private enum AppleCreateMode: String, CaseIterable, Identifiable {
             return "Generate"
         case .narrateEbook:
             return "Narrate EPUB"
+        case .subtitleJob:
+            return "Subtitles"
+        }
+    }
+}
+
+private enum AppleSubtitleOutputFormat: String, CaseIterable, Identifiable {
+    case ass
+    case srt
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .ass:
+            return "ASS"
+        case .srt:
+            return "SRT"
         }
     }
 }

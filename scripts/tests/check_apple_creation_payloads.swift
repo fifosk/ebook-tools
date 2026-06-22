@@ -197,6 +197,45 @@ struct AppleCreationPayloadCheck {
         require(subtitle.multipartFields["translation_batch_size"] == "6", "subtitle form should stringify translation_batch_size")
         require(subtitle.multipartFields["mirror_batches_to_source_dir"] == "true", "subtitle form should include mirror default")
 
+        let appleSubtitle = SubtitleJobFormPayload(
+            inputLanguage: "English",
+            targetLanguage: "Arabic",
+            sourcePath: "Subtitles/demo.srt",
+            originalLanguage: "English",
+            translationProvider: "llm",
+            transliterationMode: "default",
+            enableTransliteration: true,
+            highlight: true,
+            showOriginal: true,
+            generateAudioBook: true,
+            translationBatchSize: 10,
+            startTime: "00:00",
+            endTime: "+02:00",
+            mediaMetadataJSON: #"{"source":"apple"}"#,
+            mirrorBatchesToSourceDir: true,
+            outputFormat: "ass"
+        )
+        require(
+            appleSubtitle.multipartFields["source_path"] == "Subtitles/demo.srt",
+            "Apple subtitle form should submit server subtitle path"
+        )
+        require(
+            appleSubtitle.multipartFields["original_language"] == "English",
+            "Apple subtitle form should include original_language"
+        )
+        require(
+            appleSubtitle.multipartFields["output_format"] == "ass",
+            "Apple subtitle form should keep ASS default"
+        )
+        require(
+            appleSubtitle.multipartFields["end_time"] == "+02:00",
+            "Apple subtitle form should include relative end time"
+        )
+        require(
+            appleSubtitle.multipartFields["media_metadata_json"] == #"{"source":"apple"}"#,
+            "Apple subtitle form should mark Apple source metadata"
+        )
+
         print("apple creation payload checks passed")
     }
 

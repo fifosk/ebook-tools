@@ -94,6 +94,28 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
     }
 
+    func submitSubtitleJob(_ draft: AppleSubtitleJobDraft, using appState: AppState) async -> String? {
+        guard let configuration = appState.configuration else {
+            errorMessage = "API configuration is unavailable."
+            return nil
+        }
+
+        isSubmitting = true
+        errorMessage = nil
+        submittedJobId = nil
+        defer { isSubmitting = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.submitSubtitleJob(Self.makeSubtitlePayload(from: draft))
+            submittedJobId = response.jobId
+            return response.jobId
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     private static func makeSubmission(from draft: AppleBookCreateDraft) -> BookGenerationJobSubmission {
         let inputFile = "\(draft.baseOutput).epub"
         let generatedDefaults = draft.generatedSourceDefaults
@@ -212,6 +234,27 @@ final class AppleBookCreateViewModel: ObservableObject {
             "image_height": .string(defaults.imageHeight)
         ]
     }
+
+    private static func makeSubtitlePayload(from draft: AppleSubtitleJobDraft) -> SubtitleJobFormPayload {
+        SubtitleJobFormPayload(
+            inputLanguage: draft.inputLanguage,
+            targetLanguage: draft.targetLanguage,
+            sourcePath: draft.sourcePath,
+            originalLanguage: draft.inputLanguage,
+            translationProvider: "llm",
+            transliterationMode: "default",
+            enableTransliteration: draft.enableTransliteration,
+            highlight: draft.highlight,
+            showOriginal: draft.showOriginal,
+            generateAudioBook: draft.generateAudioBook,
+            translationBatchSize: 10,
+            startTime: draft.startTime,
+            endTime: draft.endTime,
+            mediaMetadataJSON: #"{"source":"apple"}"#,
+            mirrorBatchesToSourceDir: true,
+            outputFormat: draft.outputFormat
+        )
+    }
 }
 
 struct AppleBookCreateDraft: Equatable {
@@ -252,6 +295,19 @@ struct AppleNarrateEbookDraft: Equatable {
             pipelineDefaults: pipelineDefaults
         )
     }
+}
+
+struct AppleSubtitleJobDraft: Equatable {
+    let sourcePath: String
+    let inputLanguage: String
+    let targetLanguage: String
+    let outputFormat: String
+    let startTime: String
+    let endTime: String?
+    let enableTransliteration: Bool
+    let highlight: Bool
+    let showOriginal: Bool
+    let generateAudioBook: Bool
 }
 
 enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {
