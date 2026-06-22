@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.11",
+            version: "2026.06.22.12",
             entries: [
+                AppChangelogEntry(
+                    id: "transcript-lifecycle-handlers",
+                    title: "Transcript lifecycle cleaned up",
+                    detail: "Transcript audio-duration recording, auto-scale measurement, bubble-change recalculation, playback cleanup, and disappear cleanup now run through named SwiftUI lifecycle handlers."
+                ),
                 AppChangelogEntry(
                     id: "playback-host-lifecycle-handlers",
                     title: "Playback hosts cleaned up",

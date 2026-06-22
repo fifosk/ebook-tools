@@ -130,15 +130,21 @@ struct InteractiveTranscriptView: View {
     var body: some View {
         transcriptContent
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isTV ? .top : .center)
-            .onChange(of: audioCoordinator.duration) { _, newValue in
-                viewModel.recordAudioDuration(newValue, for: audioCoordinator.activeURL)
-            }
-            .onChange(of: audioCoordinator.activeURL) { _, _ in
-                viewModel.recordAudioDuration(audioCoordinator.duration, for: audioCoordinator.activeURL)
-            }
-            .onAppear {
-                viewModel.recordAudioDuration(audioCoordinator.duration, for: audioCoordinator.activeURL)
-            }
+            .onChange(of: audioCoordinator.duration) { _, newValue in handleAudioDurationChange(newValue) }
+            .onChange(of: audioCoordinator.activeURL) { _, _ in handleAudioURLChange() }
+            .onAppear(perform: handleTranscriptAppear)
+    }
+
+    private func handleAudioDurationChange(_ newValue: Double) {
+        viewModel.recordAudioDuration(newValue, for: audioCoordinator.activeURL)
+    }
+
+    private func handleAudioURLChange() {
+        viewModel.recordAudioDuration(audioCoordinator.duration, for: audioCoordinator.activeURL)
+    }
+
+    private func handleTranscriptAppear() {
+        viewModel.recordAudioDuration(audioCoordinator.duration, for: audioCoordinator.activeURL)
     }
 
     @ViewBuilder
@@ -379,77 +385,134 @@ struct InteractiveTranscriptView: View {
                 }
             }
             .onPreferenceChange(InteractiveAutoScaleTrackHeightKey.self) { value in
-                guard shouldAutoScaleTracks else { return }
-                trackHeight = value
-                lastMeasuredTrackHeight = value
-                lastAvailableTrackHeight = textHeightLimit
-                if effectiveTrackFontScale == 0 {
-                    autoScaleNeedsUpdate = true
-                }
-                applyAutoScaleIfNeeded()
+                handleAutoScaleTrackHeightChange(
+                    value,
+                    shouldAutoScaleTracks: shouldAutoScaleTracks,
+                    textHeightLimit: textHeightLimit
+                )
             }
             .onPreferenceChange(InteractiveBubbleFrameKey.self) { value in
                 bubbleFrame = value
             }
             .onChange(of: proxy.size) { _, newSize in
-                guard shouldAutoScaleTracks else { return }
-                guard newSize != lastLayoutSize else { return }
-                lastLayoutSize = newSize
-                lastAvailableTrackHeight = textHeightLimit
-                requestAutoScaleUpdate(delay: 250_000_000)
+                handleLayoutSizeChange(
+                    newSize,
+                    shouldAutoScaleTracks: shouldAutoScaleTracks,
+                    textHeightLimit: textHeightLimit
+                )
             }
             .onChange(of: trackFontScale) { _, _ in
-                guard shouldAutoScaleTracks else { return }
-                effectiveTrackFontScale = trackFontScale
-                requestAutoScaleUpdate()
+                handleTrackFontScaleChange(shouldAutoScaleTracks: shouldAutoScaleTracks)
             }
             .onChange(of: visibleTracks) { _, _ in
-                guard shouldAutoScaleTracks else { return }
-                autoScaleNeedsUpdate = true
-                requestAutoScaleUpdate()
+                handleVisibleTracksChange(shouldAutoScaleTracks: shouldAutoScaleTracks)
             }
             .onChange(of: sentenceSignature) { _, _ in
-                guard shouldAutoScaleTracks else { return }
-                autoScaleNeedsUpdate = true
-                requestAutoScaleUpdate()
+                handleSentenceSignatureChange(shouldAutoScaleTracks: shouldAutoScaleTracks)
             }
             .onChange(of: autoScaleEnabled) { _, enabled in
-                effectiveTrackFontScale = trackFontScale
-                autoScaleTask?.cancel()
-                autoScaleTask = nil
-                autoScaleNeedsUpdate = enabled
-                if enabled {
-                    requestAutoScaleUpdate()
-                }
+                handleAutoScaleEnabledChange(enabled)
             }
             .onChange(of: bubble) { oldBubble, newBubble in
-                // Recalculate auto-scale when bubble appears/disappears
-                // as the available track height changes
-                guard shouldAutoScaleTracks, isPhone else { return }
-                let bubbleWasOpen = oldBubble != nil
-                let bubbleIsOpen = newBubble != nil
-                if bubbleWasOpen != bubbleIsOpen {
-                    lastAvailableTrackHeight = textHeightLimit
-                    autoScaleNeedsUpdate = true
-                    requestAutoScaleUpdate(delay: 100_000_000)
-                }
+                handleBubbleChange(
+                    oldBubble: oldBubble,
+                    newBubble: newBubble,
+                    shouldAutoScaleTracks: shouldAutoScaleTracks,
+                    textHeightLimit: textHeightLimit
+                )
             }
             .onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
-                if isPlaying {
-                    dragSelectionAnchor = nil
-                    dragLookupTask?.cancel()
-                    dragLookupTask = nil
-                }
+                handleAudioPlayingChange(isPlaying)
             }
-            .onDisappear {
-                suppressPlaybackTask?.cancel()
-                suppressPlaybackTask = nil
-                autoScaleTask?.cancel()
-                autoScaleTask = nil
-                dragLookupTask?.cancel()
-                dragLookupTask = nil
-            }
+            .onDisappear(perform: handleTranscriptDisappear)
         }
+    }
+
+    private func handleAutoScaleTrackHeightChange(
+        _ value: CGFloat,
+        shouldAutoScaleTracks: Bool,
+        textHeightLimit: CGFloat
+    ) {
+        guard shouldAutoScaleTracks else { return }
+        trackHeight = value
+        lastMeasuredTrackHeight = value
+        lastAvailableTrackHeight = textHeightLimit
+        if effectiveTrackFontScale == 0 {
+            autoScaleNeedsUpdate = true
+        }
+        applyAutoScaleIfNeeded()
+    }
+
+    private func handleLayoutSizeChange(
+        _ newSize: CGSize,
+        shouldAutoScaleTracks: Bool,
+        textHeightLimit: CGFloat
+    ) {
+        guard shouldAutoScaleTracks else { return }
+        guard newSize != lastLayoutSize else { return }
+        lastLayoutSize = newSize
+        lastAvailableTrackHeight = textHeightLimit
+        requestAutoScaleUpdate(delay: 250_000_000)
+    }
+
+    private func handleTrackFontScaleChange(shouldAutoScaleTracks: Bool) {
+        guard shouldAutoScaleTracks else { return }
+        effectiveTrackFontScale = trackFontScale
+        requestAutoScaleUpdate()
+    }
+
+    private func handleVisibleTracksChange(shouldAutoScaleTracks: Bool) {
+        guard shouldAutoScaleTracks else { return }
+        autoScaleNeedsUpdate = true
+        requestAutoScaleUpdate()
+    }
+
+    private func handleSentenceSignatureChange(shouldAutoScaleTracks: Bool) {
+        guard shouldAutoScaleTracks else { return }
+        autoScaleNeedsUpdate = true
+        requestAutoScaleUpdate()
+    }
+
+    private func handleAutoScaleEnabledChange(_ enabled: Bool) {
+        effectiveTrackFontScale = trackFontScale
+        autoScaleTask?.cancel()
+        autoScaleTask = nil
+        autoScaleNeedsUpdate = enabled
+        if enabled {
+            requestAutoScaleUpdate()
+        }
+    }
+
+    private func handleBubbleChange(
+        oldBubble: MyLinguistBubbleState?,
+        newBubble: MyLinguistBubbleState?,
+        shouldAutoScaleTracks: Bool,
+        textHeightLimit: CGFloat
+    ) {
+        // Recalculate auto-scale when the phone bubble appears or disappears.
+        guard shouldAutoScaleTracks, isPhone else { return }
+        let bubbleWasOpen = oldBubble != nil
+        let bubbleIsOpen = newBubble != nil
+        guard bubbleWasOpen != bubbleIsOpen else { return }
+        lastAvailableTrackHeight = textHeightLimit
+        autoScaleNeedsUpdate = true
+        requestAutoScaleUpdate(delay: 100_000_000)
+    }
+
+    private func handleAudioPlayingChange(_ isPlaying: Bool) {
+        guard isPlaying else { return }
+        dragSelectionAnchor = nil
+        dragLookupTask?.cancel()
+        dragLookupTask = nil
+    }
+
+    private func handleTranscriptDisappear() {
+        suppressPlaybackTask?.cancel()
+        suppressPlaybackTask = nil
+        autoScaleTask?.cancel()
+        autoScaleTask = nil
+        dragLookupTask?.cancel()
+        dragLookupTask = nil
     }
 
 

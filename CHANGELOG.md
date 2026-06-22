@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.12
+
+- Advanced visible Apple app versioning to `v2026.06.22.12`.
+- Moved transcript audio-duration recording, auto-scale measurement, bubble-change recalculation, playback cleanup, and disappear cleanup into named SwiftUI lifecycle handlers.
+
 ### 2026.06.22.11
 
 - Advanced visible Apple app versioning to `v2026.06.22.11`.
