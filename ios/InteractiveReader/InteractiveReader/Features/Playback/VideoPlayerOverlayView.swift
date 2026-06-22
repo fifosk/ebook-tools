@@ -229,9 +229,7 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
                     #if os(tvOS)
                     .focusSection()
                     .focused($focusTarget, equals: .bubble)
-                    .onMoveCommand { direction in
-                        handleBubbleMoveCommand(direction)
-                    }
+                    .onMoveCommand(perform: handleBubbleMoveCommand)
                     #endif
             }
             SubtitleOverlayView(
@@ -662,9 +660,7 @@ extension VideoPlayerOverlayView {
                     .stroke(Color.white.opacity(0.12), lineWidth: 1)
             )
             .frame(maxWidth: .infinity, alignment: .topLeading)
-            .onLongPressGesture(minimumDuration: 0.6) {
-                onToggleHeaderCollapsed()
-            }
+            .onLongPressGesture(minimumDuration: 0.6, perform: handleHeaderLongPress)
         }
     }
 
@@ -675,9 +671,7 @@ extension VideoPlayerOverlayView {
                 .frame(maxWidth: .infinity, alignment: .topTrailing)
                 .padding(.top, 6)
                 .padding(.trailing, 6)
-                .onLongPressGesture(minimumDuration: 0.6) {
-                    onToggleHeaderCollapsed()
-                }
+                .onLongPressGesture(minimumDuration: 0.6, perform: handleHeaderLongPress)
         }
     }
 
@@ -700,24 +694,7 @@ extension VideoPlayerOverlayView {
         }
         .buttonStyle(TVTimelinePillButtonStyle())
         .focused($focusTarget, equals: .control(.header))
-        .onMoveCommand { direction in
-            guard focusTarget == .control(.header) else { return }
-            switch direction {
-            case .down:
-                if subtitleBubble != nil {
-                    focusTarget = .bubble
-                } else {
-                    focusTarget = .subtitles
-                }
-            case .left:
-                // Navigate left to bookmark ribbon pill if available
-                if onAddBookmark != nil {
-                    focusTarget = .control(.headerBookmark)
-                }
-            default:
-                break
-            }
-        }
+        .onMoveCommand(perform: handleTimelinePillMoveCommand)
     }
 
     private var tvInfoHeaderContent: some View {
@@ -907,6 +884,28 @@ extension VideoPlayerOverlayView {
             focusTarget = .control(.header)
         case .down:
             focusTarget = .subtitles
+        default:
+            break
+        }
+    }
+
+    private func handleHeaderLongPress() {
+        onToggleHeaderCollapsed()
+    }
+
+    private func handleTimelinePillMoveCommand(_ direction: MoveCommandDirection) {
+        guard focusTarget == .control(.header) else { return }
+        switch direction {
+        case .down:
+            if subtitleBubble != nil {
+                focusTarget = .bubble
+            } else {
+                focusTarget = .subtitles
+            }
+        case .left:
+            if onAddBookmark != nil {
+                focusTarget = .control(.headerBookmark)
+            }
         default:
             break
         }
