@@ -102,6 +102,58 @@ struct AppleCreationPayloadCheck {
         let metadata = encodedInputs?["book_metadata"] as? [String: Any]
         require(metadata?["book_title"] as? String == "Demo Book", "pipeline inputs should encode book_metadata")
 
+        let narrateInput = PipelineInputPayload(
+            inputFile: "ebooks/imports/demo.epub",
+            baseOutputFile: "apple/demo-narration",
+            inputLanguage: "English",
+            targetLanguages: ["Arabic"],
+            sentencesPerOutputFile: options.pipelineDefaults.sentencesPerOutputFile,
+            generateAudio: options.pipelineDefaults.generateAudio,
+            audioMode: options.pipelineDefaults.audioMode,
+            audioBitrateKbps: options.pipelineDefaults.audioBitrateKbps,
+            writtenMode: options.pipelineDefaults.writtenMode,
+            selectedVoice: options.pipelineDefaults.selectedVoice,
+            outputHtml: options.pipelineDefaults.outputHtml,
+            outputPdf: options.pipelineDefaults.outputPdf,
+            includeTransliteration: options.pipelineDefaults.includeTransliteration,
+            translationProvider: options.pipelineDefaults.translationProvider,
+            translationBatchSize: options.pipelineDefaults.translationBatchSize,
+            transliterationMode: options.pipelineDefaults.transliterationMode,
+            enableLookupCache: options.pipelineDefaults.enableLookupCache,
+            lookupCacheBatchSize: options.pipelineDefaults.lookupCacheBatchSize,
+            tempo: options.pipelineDefaults.tempo,
+            bookMetadata: [
+                "job_label": .string("apple/demo-narration"),
+                "source": .string("apple"),
+            ]
+        )
+        let narratePipeline = PipelineRequestPayload(
+            inputs: narrateInput,
+            correlationId: "apple-narrate-ebook"
+        )
+        let narrateObject = try jsonObject(from: encoder.encode(narratePipeline))
+        require(
+            narrateObject["correlation_id"] as? String == "apple-narrate-ebook",
+            "narrate pipeline should encode correlation_id"
+        )
+        let narrateInputs = narrateObject["inputs"] as? [String: Any]
+        require(
+            narrateInputs?["input_file"] as? String == "ebooks/imports/demo.epub",
+            "narrate pipeline should encode server EPUB path"
+        )
+        require(
+            narrateInputs?["base_output_file"] as? String == "apple/demo-narration",
+            "narrate pipeline should encode base output"
+        )
+        require(
+            narrateInputs?["selected_voice"] as? String == "macOS-auto-male",
+            "narrate pipeline should keep backend default voice"
+        )
+        require(
+            narrateInputs?["enable_lookup_cache"] as? Bool == true,
+            "narrate pipeline should keep backend lookup-cache default"
+        )
+
         let book = BookGenerationJobSubmission(
             generator: BookGenerationRequest(
                 topic: "Portable Apple clients",

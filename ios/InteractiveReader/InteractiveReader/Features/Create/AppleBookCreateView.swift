@@ -9,10 +9,13 @@ struct AppleBookCreateView: View {
     let onOpenJobs: (String) -> Void
     let usesDarkBackground: Bool
 
+    @State private var creationMode = AppleCreateMode.generatedBook
     @State private var topic = ""
     @State private var bookName = ""
     @State private var genre = ""
     @State private var author = "Me"
+    @State private var sourcePath = ""
+    @State private var sourceBaseOutput = ""
     @State private var sentenceCount = 30
     @State private var inputLanguage = AppleBookCreateLanguage.english
     @State private var targetLanguage = AppleBookCreateLanguage.arabic
@@ -28,7 +31,10 @@ struct AppleBookCreateView: View {
             }
 
             List {
-                promptSection
+                sourceSection
+                if creationMode == .generatedBook {
+                    promptSection
+                }
                 narrationSection
                 outputSection
                 statusSection
@@ -52,6 +58,31 @@ struct AppleBookCreateView: View {
             await refreshCreationOptions()
         }
         .accessibilityIdentifier("appleBookCreateView")
+    }
+
+    private var sourceSection: some View {
+        Section("Source") {
+            Picker("Job type", selection: $creationMode) {
+                ForEach(availableCreateModes) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            #if os(iOS)
+            .pickerStyle(.segmented)
+            #endif
+            .accessibilityIdentifier("createJobTypePicker")
+
+            if creationMode == .narrateEbook {
+                TextField("EPUB path", text: textBinding(for: .sourcePath, value: $sourcePath))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createNarrateSourcePathField")
+                TextField("Output path", text: textBinding(for: .sourceBaseOutput, value: $sourceBaseOutput))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createNarrateOutputPathField")
+            }
+        }
     }
 
     private var promptSection: some View {
@@ -201,6 +232,8 @@ struct AppleBookCreateView: View {
             } label: {
                 if viewModel.isSubmitting {
                     Label("Submitting", systemImage: "hourglass")
+                } else if creationMode == .narrateEbook {
+                    Label("Narrate EPUB", systemImage: "book")
                 } else {
                     Label("Generate Audiobook", systemImage: "sparkles")
                 }
@@ -211,17 +244,45 @@ struct AppleBookCreateView: View {
     }
 
     private var canSubmit: Bool {
-        !trimmed(topic).isEmpty
-            && !trimmed(bookName).isEmpty
-            && !trimmed(genre).isEmpty
-            && appState.configuration != nil
+        guard appState.configuration != nil else { return false }
+        switch creationMode {
+        case .generatedBook:
+            return !trimmed(topic).isEmpty
+                && !trimmed(bookName).isEmpty
+                && !trimmed(genre).isEmpty
+        case .narrateEbook:
+            return !trimmed(sourcePath).isEmpty
+                && !trimmed(sourceBaseOutput).isEmpty
+        }
+    }
+
+    private var availableCreateModes: [AppleCreateMode] {
+        #if os(tvOS)
+        return [.generatedBook]
+        #else
+        return AppleCreateMode.allCases
+        #endif
     }
 
     private var derivedBaseOutput: String {
-        Self.deriveBaseOutputName(bookName.isEmpty ? topic : bookName)
+        switch creationMode {
+        case .generatedBook:
+            return Self.deriveBaseOutputName(bookName.isEmpty ? topic : bookName)
+        case .narrateEbook:
+            return trimmed(sourceBaseOutput)
+        }
     }
 
     private func submit() {
+        switch creationMode {
+        case .generatedBook:
+            submitGeneratedBook()
+        case .narrateEbook:
+            submitNarrateEbook()
+        }
+    }
+
+    private func submitGeneratedBook() {
         let draft = AppleBookCreateDraft(
             topic: trimmed(topic),
             bookName: trimmed(bookName),
@@ -239,7 +300,26 @@ struct AppleBookCreateView: View {
         )
 
         Task {
-            if let jobId = await viewModel.submit(draft, using: appState) {
+            if let jobId = await viewModel.submitGeneratedBook(draft, using: appState) {
+                onJobSubmitted(jobId)
+            }
+        }
+    }
+
+    private func submitNarrateEbook() {
+        let draft = AppleNarrateEbookDraft(
+            inputFile: trimmed(sourcePath),
+            baseOutput: trimmed(sourceBaseOutput),
+            inputLanguage: inputLanguage.backendValue,
+            targetLanguage: targetLanguage.backendValue,
+            voice: voice.backendValue,
+            includeTransliteration: includeTransliteration,
+            enableLookupCache: enableLookupCache,
+            pipelineDefaults: viewModel.creationOptions?.pipelineDefaults
+        )
+
+        Task {
+            if let jobId = await viewModel.submitNarrateEbook(draft, using: appState) {
                 onJobSubmitted(jobId)
             }
         }
@@ -409,10 +489,28 @@ private enum AppleBookCreateEditedField: Hashable {
     case bookName
     case genre
     case author
+    case sourcePath
+    case sourceBaseOutput
     case sentenceCount
     case inputLanguage
     case targetLanguage
     case voice
     case includeTransliteration
     case enableLookupCache
+}
+
+private enum AppleCreateMode: String, CaseIterable, Identifiable {
+    case generatedBook
+    case narrateEbook
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .generatedBook:
+            return "Generate"
+        case .narrateEbook:
+            return "Narrate EPUB"
+        }
+    }
 }

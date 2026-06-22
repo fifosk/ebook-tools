@@ -72,7 +72,7 @@ Current Apple API client supports:
 
 Current Apple UI does not yet expose:
 
-- Narrate Ebook file import/upload submission.
+- Narrate Ebook document import/upload submission.
 - Subtitle job submission.
 - YouTube dubbing submission.
 - Upload/reupload library source files.
@@ -118,16 +118,18 @@ expanding contract checks whenever a new Web-only creation flow becomes native.
 
 ### Milestone 2: iPad/iPhone Native New Job
 
-Apple now starts with generated audiobook creation because it does not require
-attended document import and can safely reuse `/api/books/options`. Narrate Ebook
-remains the next native creation flow because it maps best to the current Apple
-browse/playback model once EPUB import/upload is ready.
+Apple started with generated audiobook creation because it does not require
+attended document import and can safely reuse `/api/books/options`. iPhone/iPad
+now also expose a Narrate EPUB mode for server-side EPUB paths. Document
+import/upload remains the next native creation step because it maps best to the
+current Apple browse/playback model once file picking is ready.
 
 Target Apple UX:
 
 - Add a `New Job` entry to the iPad/iPhone browse shell.
 - Use SwiftUI `Form`/`NavigationStack` with sections for source, languages, audio, output, and advanced settings.
-- Support simple existing-file submission first.
+- Support simple existing-file submission first. Status: iPhone/iPad support
+  server-side EPUB path submission through the Apple Create form.
 - Add EPUB file import/upload next using document picker on iPad/iPhone.
 - Route success to the new job in Jobs and start auto-refresh.
 

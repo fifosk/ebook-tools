@@ -38,7 +38,7 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
     }
 
-    func submit(_ draft: AppleBookCreateDraft, using appState: AppState) async -> String? {
+    func submitGeneratedBook(_ draft: AppleBookCreateDraft, using appState: AppState) async -> String? {
         guard let configuration = appState.configuration else {
             errorMessage = "API configuration is unavailable."
             return nil
@@ -60,33 +60,43 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
     }
 
+    func submitNarrateEbook(_ draft: AppleNarrateEbookDraft, using appState: AppState) async -> String? {
+        guard let configuration = appState.configuration else {
+            errorMessage = "API configuration is unavailable."
+            return nil
+        }
+
+        isSubmitting = true
+        errorMessage = nil
+        submittedJobId = nil
+        defer { isSubmitting = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.submitPipeline(Self.makePipelineSubmission(from: draft))
+            submittedJobId = response.jobId
+            return response.jobId
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     private static func makeSubmission(from draft: AppleBookCreateDraft) -> BookGenerationJobSubmission {
         let inputFile = "\(draft.baseOutput).epub"
-        let pipelineDefaults = draft.pipelineDefaults
         let generatedDefaults = draft.generatedSourceDefaults
-        let pipelineOverrides = makePipelineOverrides(from: generatedDefaults)
-        let input = PipelineInputPayload(
+        let pipeline = makePipelineSubmission(
             inputFile: inputFile,
             baseOutputFile: draft.baseOutput,
             inputLanguage: draft.inputLanguage,
-            targetLanguages: [draft.targetLanguage],
-            sentencesPerOutputFile: pipelineDefaults?.sentencesPerOutputFile ?? 10,
-            startSentence: 1,
-            generateAudio: pipelineDefaults?.generateAudio ?? true,
-            audioMode: pipelineDefaults?.audioMode ?? "4",
-            audioBitrateKbps: pipelineDefaults?.audioBitrateKbps ?? 96,
-            writtenMode: pipelineDefaults?.writtenMode ?? "4",
+            targetLanguage: draft.targetLanguage,
             selectedVoice: draft.voice,
-            outputHtml: pipelineDefaults?.outputHtml ?? false,
-            outputPdf: pipelineDefaults?.outputPdf ?? false,
             addImages: generatedDefaults?.addImages ?? false,
             includeTransliteration: draft.includeTransliteration,
-            translationProvider: pipelineDefaults?.translationProvider ?? "llm",
-            translationBatchSize: pipelineDefaults?.translationBatchSize ?? 10,
-            transliterationMode: pipelineDefaults?.transliterationMode ?? "default",
             enableLookupCache: draft.enableLookupCache,
-            lookupCacheBatchSize: pipelineDefaults?.lookupCacheBatchSize ?? 10,
-            tempo: pipelineDefaults?.tempo ?? 1.0,
+            pipelineDefaults: draft.pipelineDefaults,
+            pipelineOverrides: makePipelineOverrides(from: generatedDefaults),
+            correlationId: "apple-create",
             bookMetadata: [
                 "title": .string(draft.bookName),
                 "book_title": .string(draft.bookName),
@@ -95,11 +105,6 @@ final class AppleBookCreateViewModel: ObservableObject {
                 "job_label": .string(draft.bookName),
                 "source": .string("apple")
             ]
-        )
-        let pipeline = PipelineRequestPayload(
-            pipelineOverrides: pipelineOverrides,
-            inputs: input,
-            correlationId: "apple-create"
         )
         return BookGenerationJobSubmission(
             generator: BookGenerationRequest(
@@ -113,6 +118,73 @@ final class AppleBookCreateViewModel: ObservableObject {
                 voice: draft.voice
             ),
             pipeline: pipeline
+        )
+    }
+
+    private static func makePipelineSubmission(from draft: AppleNarrateEbookDraft) -> PipelineRequestPayload {
+        makePipelineSubmission(
+            inputFile: draft.inputFile,
+            baseOutputFile: draft.baseOutput,
+            inputLanguage: draft.inputLanguage,
+            targetLanguage: draft.targetLanguage,
+            selectedVoice: draft.voice,
+            addImages: false,
+            includeTransliteration: draft.includeTransliteration,
+            enableLookupCache: draft.enableLookupCache,
+            pipelineDefaults: draft.pipelineDefaults,
+            pipelineOverrides: [:],
+            correlationId: "apple-narrate-ebook",
+            bookMetadata: [
+                "title": .string(draft.baseOutput),
+                "book_title": .string(draft.baseOutput),
+                "job_label": .string(draft.baseOutput),
+                "source": .string("apple")
+            ]
+        )
+    }
+
+    private static func makePipelineSubmission(
+        inputFile: String,
+        baseOutputFile: String,
+        inputLanguage: String,
+        targetLanguage: String,
+        selectedVoice: String,
+        addImages: Bool,
+        includeTransliteration: Bool,
+        enableLookupCache: Bool,
+        pipelineDefaults: BookCreationPipelineDefaults?,
+        pipelineOverrides: [String: JSONValue],
+        correlationId: String,
+        bookMetadata: [String: JSONValue]
+    ) -> PipelineRequestPayload {
+        let input = PipelineInputPayload(
+            inputFile: inputFile,
+            baseOutputFile: baseOutputFile,
+            inputLanguage: inputLanguage,
+            targetLanguages: [targetLanguage],
+            sentencesPerOutputFile: pipelineDefaults?.sentencesPerOutputFile ?? 10,
+            startSentence: 1,
+            generateAudio: pipelineDefaults?.generateAudio ?? true,
+            audioMode: pipelineDefaults?.audioMode ?? "4",
+            audioBitrateKbps: pipelineDefaults?.audioBitrateKbps ?? 96,
+            writtenMode: pipelineDefaults?.writtenMode ?? "4",
+            selectedVoice: selectedVoice,
+            outputHtml: pipelineDefaults?.outputHtml ?? false,
+            outputPdf: pipelineDefaults?.outputPdf ?? false,
+            addImages: addImages,
+            includeTransliteration: includeTransliteration,
+            translationProvider: pipelineDefaults?.translationProvider ?? "llm",
+            translationBatchSize: pipelineDefaults?.translationBatchSize ?? 10,
+            transliterationMode: pipelineDefaults?.transliterationMode ?? "default",
+            enableLookupCache: enableLookupCache,
+            lookupCacheBatchSize: pipelineDefaults?.lookupCacheBatchSize ?? 10,
+            tempo: pipelineDefaults?.tempo ?? 1.0,
+            bookMetadata: bookMetadata
+        )
+        return PipelineRequestPayload(
+            pipelineOverrides: pipelineOverrides,
+            inputs: input,
+            correlationId: correlationId
         )
     }
 
@@ -144,6 +216,17 @@ struct AppleBookCreateDraft: Equatable {
     let enableLookupCache: Bool
     let pipelineDefaults: BookCreationPipelineDefaults?
     let generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
+}
+
+struct AppleNarrateEbookDraft: Equatable {
+    let inputFile: String
+    let baseOutput: String
+    let inputLanguage: String
+    let targetLanguage: String
+    let voice: String
+    let includeTransliteration: Bool
+    let enableLookupCache: Bool
+    let pipelineDefaults: BookCreationPipelineDefaults?
 }
 
 enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {

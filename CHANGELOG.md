@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.155
+
+- Advanced visible Apple app versioning to `v2026.06.22.155`.
+- Apple Create now adds an iPhone/iPad Narrate EPUB mode for server-side EPUB paths, submitting `/api/pipelines` with the same backend defaults used by generated audiobook jobs.
+
 ### 2026.06.22.154
 
 - Advanced visible Apple app versioning to `v2026.06.22.154`.

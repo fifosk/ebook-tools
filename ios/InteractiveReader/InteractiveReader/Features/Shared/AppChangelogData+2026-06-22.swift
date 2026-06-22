@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-narrate-ebook-mode",
+            title: "Narrate EPUB added to Create",
+            detail: "On iPhone and iPad, Apple Create now includes a Narrate EPUB mode for server-side EPUB paths and submits pipeline jobs with the same backend defaults used by generated audiobooks."
+        ),
+        AppChangelogEntry(
             id: "apple-create-backend-voice-options",
             title: "Create voices follow backend defaults",
             detail: "The Apple Create form now keeps backend-provided narration voices, including macOS auto voices, selectable and submits the same voice value as the shared Web defaults contract."
