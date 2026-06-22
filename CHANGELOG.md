@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.79
+
+- Advanced visible Apple app versioning to `v2026.06.22.79`.
+- Moved the library playback header, loading, error, unavailable, and image-reel chrome into a dedicated SwiftUI file so the playback view stays focused on orchestration and resume behavior.
+
 ### 2026.06.22.78
 
 - Advanced visible Apple app versioning to `v2026.06.22.78`.

@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.78",
+            version: "2026.06.22.79",
             entries: [
+                AppChangelogEntry(
+                    id: "library-playback-chrome-views-file",
+                    title: "Library playback chrome separated",
+                    detail: "Library playback header, loading, error, unavailable, and image-reel UI now live in a dedicated SwiftUI source file."
+                ),
                 AppChangelogEntry(
                     id: "backend-runtime-descriptor-public-guard",
                     title: "Backend runtime descriptor guarded",
