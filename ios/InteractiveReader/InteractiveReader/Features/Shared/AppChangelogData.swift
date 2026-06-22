@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.120",
+            version: "2026.06.22.121",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-player-menu-controls-file",
+                    title: "Player menu controls separated",
+                    detail: "Player menu pickers and selection handlers now live in a focused controls extension while the menu file stays centered on header imagery, the control bar shell, and TV text-size controls."
+                ),
                 AppChangelogEntry(
                     id: "interactive-player-content-file",
                     title: "Player transcript composition separated",

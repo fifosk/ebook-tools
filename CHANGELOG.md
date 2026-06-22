@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.121
+
+- Advanced visible Apple app versioning to `v2026.06.22.121`.
+- Moved player menu pickers and selection handlers into `InteractivePlayerView+MenuControls.swift`, keeping the menu file focused on header imagery, the control bar shell, and TV text-size controls.
+
 ### 2026.06.22.120
 
 - Advanced visible Apple app versioning to `v2026.06.22.120`.
