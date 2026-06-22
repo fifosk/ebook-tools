@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.38",
+            version: "2026.06.22.39",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-player-menu-row-helpers",
+                    title: "Player menu rows cleaned up",
+                    detail: "Interactive player audio, speed, reading-bed, and settings menu rows now use named SwiftUI helpers, and the shared pipeline now keeps physical installs on-request only."
+                ),
                 AppChangelogEntry(
                     id: "interactive-player-keyboard-command-handlers",
                     title: "iPad keyboard commands cleaned up",

@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.39
+
+- Advanced visible Apple app versioning to `v2026.06.22.39`.
+- Moved interactive player menu rows for audio, speed, reading-bed, and settings commands into named SwiftUI helpers.
+- Updated the shared Apple pipeline rule so physical device installs are attended and only run when explicitly requested for a named device.
+
 ### 2026.06.22.38
 
 - Advanced visible Apple app versioning to `v2026.06.22.38`.

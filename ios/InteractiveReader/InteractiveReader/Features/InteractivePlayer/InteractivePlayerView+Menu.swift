@@ -426,7 +426,7 @@ extension InteractivePlayerView {
                 #if os(tvOS)
                 Menu {
                     ForEach(chunk.audioOptions) { option in
-                        Button(option.label) { selectAudioTrack(option) }
+                        audioTrackButton(option)
                     }
                 } label: {
                     menuLabel(selectedAudioLabel(for: chunk))
@@ -466,15 +466,7 @@ extension InteractivePlayerView {
                 .foregroundStyle(.secondary)
             Menu {
                 ForEach(playbackRates, id: \.self) { rate in
-                    Button {
-                        selectPlaybackRate(rate)
-                    } label: {
-                        if isCurrentRate(rate) {
-                            Label(playbackRateLabel(rate), systemImage: "checkmark")
-                        } else {
-                            Text(playbackRateLabel(rate))
-                        }
-                    }
+                    playbackRateButton(rate)
                 }
             } label: {
                 menuLabel(playbackRateLabel(audioCoordinator.playbackRate))
@@ -507,26 +499,9 @@ extension InteractivePlayerView {
                     }
                     Divider()
                     // Built-in reading bed options
-                    Button {
-                        selectDefaultReadingBed()
-                    } label: {
-                        if !useAppleMusicForBed && viewModel.selectedReadingBedID == nil {
-                            Label("Default", systemImage: "checkmark")
-                        } else {
-                            Text("Default")
-                        }
-                    }
+                    defaultReadingBedButton()
                     ForEach(viewModel.readingBedCatalog?.beds ?? []) { bed in
-                        let label = bed.label.isEmpty ? bed.id : bed.label
-                        Button {
-                            selectReadingBed(bed)
-                        } label: {
-                            if !useAppleMusicForBed && bed.id == viewModel.selectedReadingBedID {
-                                Label(label, systemImage: "checkmark")
-                            } else {
-                                Text(label)
-                            }
-                        }
+                        readingBedButton(bed)
                     }
                 } label: {
                     menuLabel(
@@ -550,11 +525,7 @@ extension InteractivePlayerView {
                 .foregroundStyle(.secondary)
             Menu {
                 if hasVoiceOverrides {
-                    Button(role: .destructive) {
-                        resetVoiceSettings()
-                    } label: {
-                        Label("Reset Voice Settings", systemImage: "speaker.wave.2.circle")
-                    }
+                    resetVoiceSettingsButton()
                     Text("Clears custom TTS voice selections for all languages")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -569,6 +540,63 @@ extension InteractivePlayerView {
             .buttonStyle(.bordered)
             .controlSize(.small)
             .focused($focusedArea, equals: .controls)
+        }
+    }
+
+    func audioTrackButton(_ option: InteractiveChunk.AudioOption) -> some View {
+        Button(option.label) {
+            selectAudioTrack(option)
+        }
+    }
+
+    func playbackRateButton(_ rate: Double) -> some View {
+        Button {
+            selectPlaybackRate(rate)
+        } label: {
+            playbackRateMenuLabel(rate)
+        }
+    }
+
+    @ViewBuilder
+    func playbackRateMenuLabel(_ rate: Double) -> some View {
+        if isCurrentRate(rate) {
+            Label(playbackRateLabel(rate), systemImage: "checkmark")
+        } else {
+            Text(playbackRateLabel(rate))
+        }
+    }
+
+    func defaultReadingBedButton() -> some View {
+        Button {
+            selectDefaultReadingBed()
+        } label: {
+            if !useAppleMusicForBed && viewModel.selectedReadingBedID == nil {
+                Label("Default", systemImage: "checkmark")
+            } else {
+                Text("Default")
+            }
+        }
+    }
+
+    func readingBedButton(_ bed: ReadingBedEntry) -> some View {
+        Button {
+            selectReadingBed(bed)
+        } label: {
+            if !useAppleMusicForBed && bed.id == viewModel.selectedReadingBedID {
+                Label(readingBedMenuLabel(for: bed), systemImage: "checkmark")
+            } else {
+                Text(readingBedMenuLabel(for: bed))
+            }
+        }
+    }
+
+    func readingBedMenuLabel(for bed: ReadingBedEntry) -> String {
+        bed.label.isEmpty ? bed.id : bed.label
+    }
+
+    func resetVoiceSettingsButton() -> some View {
+        Button(role: .destructive, action: resetVoiceSettings) {
+            Label("Reset Voice Settings", systemImage: "speaker.wave.2.circle")
         }
     }
 
