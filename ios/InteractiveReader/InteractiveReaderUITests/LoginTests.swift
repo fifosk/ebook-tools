@@ -20,7 +20,7 @@ final class LoginTests: InteractiveReaderUITests {
             throw XCTSkip("Login screen unavailable; session was restored before the changelog could be exercised")
         }
 
-        let firstEntry = app.buttons["appChangelogEntry.tvos-changelog-focus-buttons"]
+        let firstEntry = app.buttons["appChangelogEntry.pipeline-timing-sentence-api-models-files"]
         XCTAssertTrue(firstEntry.waitForExistence(timeout: 8), "Expected the latest changelog row on the login screen")
         XCTAssertTrue(firstEntry.isHittable, "Expected the latest changelog row to be visible before moving")
 
@@ -30,7 +30,7 @@ final class LoginTests: InteractiveReaderUITests {
         }
         XCTAssertTrue(firstEntry.hasFocus, "Expected the remote to focus the first changelog row")
 
-        for _ in 0..<5 {
+        for _ in 0..<6 {
             XCUIRemote.shared.press(.down)
             usleep(160_000)
         }

@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.96",
+            version: "2026.06.22.97",
             entries: [
+                AppChangelogEntry(
+                    id: "pipeline-timing-sentence-api-models-files",
+                    title: "Pipeline timing models separated",
+                    detail: "Sentence metadata and job timing payloads now live in their own Models files so media file and chunk decoding stays focused."
+                ),
                 AppChangelogEntry(
                     id: "tvos-changelog-focus-buttons",
                     title: "TV changelog remote focus fixed",
@@ -46,7 +51,7 @@ enum AppChangelog {
                 AppChangelogEntry(
                     id: "pipeline-media-api-models-file",
                     title: "Pipeline media API models separated",
-                    detail: "Media files, chunks, sentence metadata, audio tracks, and timing payloads now live in a dedicated Models file instead of the broad API model file."
+                    detail: "Media files, chunks, and audio-track payloads now live in a dedicated Models file instead of the broad API model file."
                 ),
                 AppChangelogEntry(
                     id: "playback-state-api-models-file",

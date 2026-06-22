@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.97
+
+- Advanced visible Apple app versioning to `v2026.06.22.97`.
+- Split Pipeline sentence metadata and job timing API payloads into dedicated model files so media file/chunk decoding is no longer coupled to timed-text contracts.
+
 ### 2026.06.22.96
 
 - Advanced visible Apple app versioning to `v2026.06.22.96`.
