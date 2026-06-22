@@ -427,9 +427,7 @@ struct JobsView: View {
         let isEligible = job.isFinishedForDisplay
 
         if status.isSynced {
-            Button(role: .destructive) {
-                offlineStore.remove(jobId: job.jobId, kind: .job)
-            } label: {
+            Button(role: .destructive, action: { removeOfflineCopy(for: job) }) {
                 Label("Remove Offline Copy", systemImage: "trash.circle")
             }
         } else if status.isSyncing {
@@ -440,21 +438,29 @@ struct JobsView: View {
             }
             .disabled(true)
         } else if isEligible {
-            Button {
-                guard let configuration = appState.configuration else { return }
-                offlineStore.sync(jobId: job.jobId, kind: .job, configuration: configuration, includeLookupCache: true)
-            } label: {
+            Button(action: { downloadOfflineCopy(for: job, includeLookupCache: true) }) {
                 Label("Download with Dictionary", systemImage: "arrow.down.circle")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
-            Button {
-                guard let configuration = appState.configuration else { return }
-                offlineStore.sync(jobId: job.jobId, kind: .job, configuration: configuration, includeLookupCache: false)
-            } label: {
+            Button(action: { downloadOfflineCopy(for: job, includeLookupCache: false) }) {
                 Label("Download without Dictionary", systemImage: "arrow.down.circle.dotted")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
         }
+    }
+
+    private func removeOfflineCopy(for job: PipelineStatusResponse) {
+        offlineStore.remove(jobId: job.jobId, kind: .job)
+    }
+
+    private func downloadOfflineCopy(for job: PipelineStatusResponse, includeLookupCache: Bool) {
+        guard let configuration = appState.configuration else { return }
+        offlineStore.sync(
+            jobId: job.jobId,
+            kind: .job,
+            configuration: configuration,
+            includeLookupCache: includeLookupCache
+        )
     }
     #else
     @ViewBuilder

@@ -417,9 +417,7 @@ struct LibraryView: View {
         let status = offlineStore.status(for: item.jobId, kind: .library)
 
         if status.isSynced {
-            Button(role: .destructive) {
-                offlineStore.remove(jobId: item.jobId, kind: .library)
-            } label: {
+            Button(role: .destructive, action: { removeOfflineCopy(for: item) }) {
                 Label("Remove Offline Copy", systemImage: "trash.circle")
             }
         } else if status.isSyncing {
@@ -430,21 +428,29 @@ struct LibraryView: View {
             }
             .disabled(true)
         } else {
-            Button {
-                guard let configuration = appState.configuration else { return }
-                offlineStore.sync(jobId: item.jobId, kind: .library, configuration: configuration, includeLookupCache: true)
-            } label: {
+            Button(action: { downloadOfflineCopy(for: item, includeLookupCache: true) }) {
                 Label("Download with Dictionary", systemImage: "arrow.down.circle")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
-            Button {
-                guard let configuration = appState.configuration else { return }
-                offlineStore.sync(jobId: item.jobId, kind: .library, configuration: configuration, includeLookupCache: false)
-            } label: {
+            Button(action: { downloadOfflineCopy(for: item, includeLookupCache: false) }) {
                 Label("Download without Dictionary", systemImage: "arrow.down.circle.dotted")
             }
             .disabled(!offlineStore.isAvailable || appState.configuration == nil)
         }
+    }
+
+    private func removeOfflineCopy(for item: LibraryItem) {
+        offlineStore.remove(jobId: item.jobId, kind: .library)
+    }
+
+    private func downloadOfflineCopy(for item: LibraryItem, includeLookupCache: Bool) {
+        guard let configuration = appState.configuration else { return }
+        offlineStore.sync(
+            jobId: item.jobId,
+            kind: .library,
+            configuration: configuration,
+            includeLookupCache: includeLookupCache
+        )
     }
     #else
     @ViewBuilder
