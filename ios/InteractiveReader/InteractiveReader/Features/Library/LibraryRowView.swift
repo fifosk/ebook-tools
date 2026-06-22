@@ -32,87 +32,75 @@ struct LibraryRowView: View {
     // MARK: - Compact Layout (iPhone Portrait)
 
     private var compactLayout: some View {
-        HStack(alignment: .top, spacing: rowSpacing) {
-            UnifiedCoverView(
-                url: coverURL,
-                variant: itemVariant,
-                height: coverHeight
-            )
-
-            LibraryRowMetadataStack(
-                title: displayTitle,
-                author: displayAuthor,
-                summaryText: summaryText,
-                descriptionText: descriptionText,
-                languageFlags: languageFlags,
-                resumeStatus: resumeStatus,
-                titleFont: titleFont,
-                authorFont: authorFont,
-                metaFont: metaFont,
-                textSpacing: textSpacing,
-                titleLineLimit: 2,
-                titleScaleFactor: 0.9,
-                descriptionLineLimit: 2,
-                badgeSpacing: 6,
-                titleStyle: AnyShapeStyle(.primary),
-                secondaryTextStyle: AnyShapeStyle(.secondary),
-                tertiaryTextStyle: AnyShapeStyle(.tertiary)
-            )
-
-            Spacer(minLength: 4)
-
-            LibraryRowAccessory(
-                jobId: item.jobId,
-                style: .compact,
-                secondaryTextColor: .secondary,
-                isSynced: isLibrarySynced,
-                isFocused: isRowFocused
-            )
-        }
-        .padding(.vertical, rowPadding)
+        rowLayout(
+            accessoryStyle: .compact,
+            titleLineLimit: 2,
+            titleScaleFactor: 0.9,
+            descriptionLineLimit: 2,
+            badgeSpacing: 6,
+            titleStyle: AnyShapeStyle(.primary),
+            secondaryTextStyle: AnyShapeStyle(.secondary),
+            tertiaryTextStyle: AnyShapeStyle(.tertiary),
+            accessorySecondaryTextColor: .secondary
+        )
     }
 
     // MARK: - Landscape Layout (iPad / tvOS)
 
     private var landscapeLayout: some View {
-        HStack(spacing: rowSpacing) {
-            UnifiedCoverView(
-                url: coverURL,
-                variant: itemVariant,
-                height: coverHeight
-            )
+        rowLayout(
+            accessoryStyle: .landscape,
+            titleLineLimit: titleLineLimit,
+            titleScaleFactor: titleScaleFactor,
+            descriptionLineLimit: 1,
+            badgeSpacing: 8,
+            titleStyle: AnyShapeStyle(titleColor),
+            secondaryTextStyle: AnyShapeStyle(secondaryTextColor),
+            tertiaryTextStyle: AnyShapeStyle(tertiaryTextColor),
+            accessorySecondaryTextColor: secondaryTextColor
+        )
+    }
 
-            LibraryRowMetadataStack(
-                title: displayTitle,
-                author: displayAuthor,
-                summaryText: summaryText,
-                descriptionText: descriptionText,
-                languageFlags: languageFlags,
-                resumeStatus: resumeStatus,
-                titleFont: titleFont,
-                authorFont: authorFont,
-                metaFont: metaFont,
-                textSpacing: textSpacing,
-                titleLineLimit: titleLineLimit,
-                titleScaleFactor: titleScaleFactor,
-                descriptionLineLimit: 1,
-                badgeSpacing: 8,
-                titleStyle: AnyShapeStyle(titleColor),
-                secondaryTextStyle: AnyShapeStyle(secondaryTextColor),
-                tertiaryTextStyle: AnyShapeStyle(tertiaryTextColor)
-            )
-
-            Spacer()
-
-            LibraryRowAccessory(
-                jobId: item.jobId,
-                style: .landscape,
-                secondaryTextColor: secondaryTextColor,
-                isSynced: isLibrarySynced,
-                isFocused: isRowFocused
-            )
-        }
-        .padding(.vertical, rowPadding)
+    private func rowLayout(
+        accessoryStyle: LibraryRowAccessoryStyle,
+        titleLineLimit: Int,
+        titleScaleFactor: CGFloat,
+        descriptionLineLimit: Int,
+        badgeSpacing: CGFloat,
+        titleStyle: AnyShapeStyle,
+        secondaryTextStyle: AnyShapeStyle,
+        tertiaryTextStyle: AnyShapeStyle,
+        accessorySecondaryTextColor: Color
+    ) -> some View {
+        LibraryRowLayout(
+            coverURL: coverURL,
+            variant: itemVariant,
+            coverHeight: coverHeight,
+            rowSpacing: rowSpacing,
+            rowPadding: rowPadding,
+            title: displayTitle,
+            author: displayAuthor,
+            summaryText: summaryText,
+            descriptionText: descriptionText,
+            languageFlags: languageFlags,
+            resumeStatus: resumeStatus,
+            titleFont: titleFont,
+            authorFont: authorFont,
+            metaFont: metaFont,
+            textSpacing: textSpacing,
+            titleLineLimit: titleLineLimit,
+            titleScaleFactor: titleScaleFactor,
+            descriptionLineLimit: descriptionLineLimit,
+            badgeSpacing: badgeSpacing,
+            titleStyle: titleStyle,
+            secondaryTextStyle: secondaryTextStyle,
+            tertiaryTextStyle: tertiaryTextStyle,
+            accessoryJobId: item.jobId,
+            accessoryStyle: accessoryStyle,
+            accessorySecondaryTextColor: accessorySecondaryTextColor,
+            isSynced: isLibrarySynced,
+            isFocused: isRowFocused
+        )
     }
 
     // MARK: - Layout Helpers

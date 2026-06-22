@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.80",
+            version: "2026.06.22.81",
             entries: [
+                AppChangelogEntry(
+                    id: "library-row-layout-component",
+                    title: "Library row layout separated",
+                    detail: "Library row compact and landscape shells now live with the shared library-row components, matching the job row layout pattern."
+                ),
                 AppChangelogEntry(
                     id: "job-row-layout-component",
                     title: "Job row layout separated",
