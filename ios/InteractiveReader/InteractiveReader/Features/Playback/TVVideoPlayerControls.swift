@@ -212,7 +212,7 @@ struct TVControlButton: View {
 
 // MARK: - TV Playback Controls Bar
 
-struct TVPlaybackControlsBar: View {
+struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
     let isPlaying: Bool
     let showTVControls: Bool
     let showSubtitleSettings: Bool
@@ -234,8 +234,8 @@ struct TVPlaybackControlsBar: View {
     let onShowSubtitleSettings: () -> Void
 
     // Menus
-    let bookmarkMenu: AnyView?
-    let speedMenu: AnyView
+    let bookmarkMenu: BookmarkMenu
+    let speedMenu: SpeedMenu
 
     var body: some View {
         VStack(spacing: 10) {
@@ -308,7 +308,7 @@ struct TVPlaybackControlsBar: View {
             )
             .focused(focusTarget, equals: .control(.skipForward))
 
-            if let bookmarkMenu, canShowBookmarks {
+            if canShowBookmarks {
                 bookmarkMenu
                     .focused(focusTarget, equals: .control(.bookmark))
             }

@@ -799,26 +799,22 @@ extension VideoPlayerOverlayView {
             },
             onUserInteraction: onUserInteraction,
             onShowSubtitleSettings: { showSubtitleSettings = true },
-            bookmarkMenu: onAddBookmark != nil ? AnyView(
-                VideoPlayerBookmarkMenu(
-                    bookmarks: bookmarks,
-                    onAddBookmark: onAddBookmark,
-                    onJumpToBookmark: onJumpToBookmark,
-                    onRemoveBookmark: onRemoveBookmark,
-                    onUserInteraction: onUserInteraction,
-                    isFocused: focusTarget == .control(.bookmark),
-                    isDisabled: !controlsFocusEnabled
-                )
-            ) : nil,
-            speedMenu: AnyView(
-                VideoPlayerSpeedMenu(
-                    playbackRate: playbackRate,
-                    playbackRateOptions: playbackRateOptions,
-                    onPlaybackRateChange: onPlaybackRateChange,
-                    onUserInteraction: onUserInteraction,
-                    isFocused: focusTarget == .control(.speed),
-                    isDisabled: !controlsFocusEnabled
-                )
+            bookmarkMenu: VideoPlayerBookmarkMenu(
+                bookmarks: bookmarks,
+                onAddBookmark: onAddBookmark,
+                onJumpToBookmark: onJumpToBookmark,
+                onRemoveBookmark: onRemoveBookmark,
+                onUserInteraction: onUserInteraction,
+                isFocused: focusTarget == .control(.bookmark),
+                isDisabled: !controlsFocusEnabled
+            ),
+            speedMenu: VideoPlayerSpeedMenu(
+                playbackRate: playbackRate,
+                playbackRateOptions: playbackRateOptions,
+                onPlaybackRateChange: onPlaybackRateChange,
+                onUserInteraction: onUserInteraction,
+                isFocused: focusTarget == .control(.speed),
+                isDisabled: !controlsFocusEnabled
             )
         )
     }

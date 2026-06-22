@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.08",
+            version: "2026.06.22.09",
             entries: [
+                AppChangelogEntry(
+                    id: "typed-tv-video-control-menus",
+                    title: "TV video controls typed",
+                    detail: "The tvOS video overlay now passes bookmark and speed menus through typed SwiftUI controls instead of erasing those menu views before focus layout."
+                ),
                 AppChangelogEntry(
                     id: "typed-transcript-track-layout",
                     title: "Transcript track layout typed",

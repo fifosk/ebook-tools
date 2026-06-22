@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.09
+
+- Advanced visible Apple app versioning to `v2026.06.22.09`.
+- Removed tvOS video control menu type erasure so bookmark and playback speed menus stay concrete SwiftUI views through the focusable controls bar.
+
 ### 2026.06.22.08
 
 - Advanced visible Apple app versioning to `v2026.06.22.08`.
