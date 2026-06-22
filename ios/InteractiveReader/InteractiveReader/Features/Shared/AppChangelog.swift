@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.53",
+            version: "2026.06.22.54",
             entries: [
+                AppChangelogEntry(
+                    id: "language-flag-role-toggle-handler",
+                    title: "Language flag toggles cleaned up",
+                    detail: "Shared player language flag role toggles now route through a named SwiftUI handler."
+                ),
                 AppChangelogEntry(
                     id: "media-search-row-selection-handler",
                     title: "Media search row taps cleaned up",

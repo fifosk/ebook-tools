@@ -915,8 +915,8 @@ struct PlayerLanguageFlagRow: View {
                         isActive: isActive
                     )
                     .opacity(flagOpacity(isAvailable: isAvailable, role: role))
-                    if let onToggleRole, isAvailable {
-                        Button(action: { onToggleRole(role) }) {
+                    if onToggleRole != nil, isAvailable {
+                        Button(action: { handleToggleRole(role) }) {
                             badge
                         }
                         #if os(tvOS)
@@ -946,6 +946,10 @@ struct PlayerLanguageFlagRow: View {
         guard isAvailable else { return 0.3 }
         guard !activeRoles.isEmpty else { return 1.0 }
         return activeRoles.contains(role) ? 1.0 : 0.55
+    }
+
+    private func handleToggleRole(_ role: LanguageFlagRole) {
+        onToggleRole?(role)
     }
 
     private var orderedFlags: [LanguageFlagEntry] {
