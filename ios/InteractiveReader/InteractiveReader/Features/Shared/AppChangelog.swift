@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.106",
+            version: "2026.06.22.107",
             entries: [
+                AppChangelogEntry(
+                    id: "linguist-bubble-platform-header-files",
+                    title: "Linguist bubble platform headers split",
+                    detail: "iOS and tvOS bubble header controls now live in platform-specific SwiftUI extension files while shared selector menus stay in the common controls file."
+                ),
                 AppChangelogEntry(
                     id: "tvos-changelog-focus-pager",
                     title: "TV changelog pages with the remote",

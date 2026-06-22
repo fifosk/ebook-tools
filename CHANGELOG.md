@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.107
+
+- Advanced visible Apple app versioning to `v2026.06.22.107`.
+- Split iOS and tvOS linguist bubble header controls into platform-specific SwiftUI extension files while keeping shared selector menus in the common header controls file.
+
 ### 2026.06.22.106
 
 - Advanced visible Apple app versioning to `v2026.06.22.106`.
