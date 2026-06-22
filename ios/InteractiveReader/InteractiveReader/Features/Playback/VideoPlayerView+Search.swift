@@ -31,6 +31,36 @@ extension VideoPlayerView {
         let client = APIClient(configuration: config)
         searchViewModel.debouncedSearch(jobId: resolvedBookmarkJobId, using: client)
     }
+
+    func toggleVideoSearchOverlay() {
+        setVideoSearchOverlayVisible(!searchViewModel.isExpanded)
+        if searchViewModel.isExpanded {
+            controlsHideTask?.cancel()
+        }
+    }
+
+    func dismissVideoSearchOverlay() {
+        setVideoSearchOverlayVisible(false)
+        scheduleControlsAutoHide()
+    }
+
+    func handleVideoSearchQueryChange() {
+        performDebouncedVideoSearch()
+    }
+
+    func handleVideoSearchSubmit() {
+        performVideoSearch()
+    }
+
+    func handleVideoSearchSelection(_ result: MediaSearchResult) {
+        handleSearchResult(result)
+    }
+
+    private func setVideoSearchOverlayVisible(_ isVisible: Bool) {
+        withAnimation(.easeOut(duration: 0.2)) {
+            searchViewModel.isExpanded = isVisible
+        }
+    }
 }
 
 // MARK: - Search UI Components for Video Player
@@ -48,15 +78,7 @@ extension VideoPlayerView {
             isSearching: searchViewModel.isSearching,
             isTV: isTV,
             sizeScale: videoHeaderScaleValue,
-            onTap: {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    searchViewModel.isExpanded.toggle()
-                }
-                if searchViewModel.isExpanded {
-                    // Pause controls auto-hide when searching
-                    controlsHideTask?.cancel()
-                }
-            }
+            onTap: toggleVideoSearchOverlay
         )
     }
 
@@ -70,12 +92,10 @@ extension VideoPlayerView {
             isTV: isTV,
             sizeScale: videoHeaderScaleValue,
             actionType: .seekToTime,
-            onSearch: { _ in performVideoSearch() },
-            onSelect: { result in handleSearchResult(result) }
+            onSearch: { _ in handleVideoSearchSubmit() },
+            onSelect: handleVideoSearchSelection
         )
-        .onChange(of: searchViewModel.query) { _, _ in
-            performDebouncedVideoSearch()
-        }
+        .onChange(of: searchViewModel.query) { _, _ in handleVideoSearchQueryChange() }
     }
 
     @ViewBuilder
@@ -85,12 +105,7 @@ extension VideoPlayerView {
                 // Background dismissal area
                 Color.black.opacity(0.3)
                     #if !os(tvOS)
-                    .onTapGesture {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            searchViewModel.isExpanded = false
-                        }
-                        scheduleControlsAutoHide()
-                    }
+                    .onTapGesture(perform: dismissVideoSearchOverlay)
                     #endif
 
                 // Search content
@@ -107,12 +122,7 @@ extension VideoPlayerView {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             #if os(tvOS)
             .focusScope(searchFocusNamespace)
-            .onExitCommand {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    searchViewModel.isExpanded = false
-                }
-                scheduleControlsAutoHide()
-            }
+            .onExitCommand(perform: dismissVideoSearchOverlay)
             #endif
             .zIndex(100)
         }
