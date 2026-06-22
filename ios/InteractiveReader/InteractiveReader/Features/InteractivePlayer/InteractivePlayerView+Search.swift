@@ -23,6 +23,32 @@ extension InteractivePlayerView {
         let client = APIClient(configuration: config)
         searchViewModel.debouncedSearch(jobId: viewModel.jobId, using: client)
     }
+
+    func toggleTextSearchOverlay() {
+        setTextSearchOverlayVisible(!searchViewModel.isExpanded)
+    }
+
+    func dismissTextSearchOverlay() {
+        setTextSearchOverlayVisible(false)
+    }
+
+    func handleTextSearchQueryChange() {
+        performDebouncedSearch()
+    }
+
+    func handleTextSearchSubmit() {
+        performSearch()
+    }
+
+    func handleTextSearchSelection(_ result: MediaSearchResult) {
+        handleSearchResult(result)
+    }
+
+    private func setTextSearchOverlayVisible(_ isVisible: Bool) {
+        withAnimation(.easeOut(duration: 0.2)) {
+            searchViewModel.isExpanded = isVisible
+        }
+    }
 }
 
 // MARK: - Search UI Components for Interactive Player
@@ -36,11 +62,7 @@ extension InteractivePlayerView {
             isSearching: searchViewModel.isSearching,
             isTV: isTV,
             sizeScale: infoPillScale,
-            onTap: {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    searchViewModel.isExpanded.toggle()
-                }
-            }
+            onTap: toggleTextSearchOverlay
         )
     }
 
@@ -54,11 +76,9 @@ extension InteractivePlayerView {
             isTV: isTV,
             sizeScale: infoHeaderScale,
             actionType: .jumpToSentence,
-            onSearch: { _ in performSearch() },
-            onSelect: { result in handleSearchResult(result) }
+            onSearch: { _ in handleTextSearchSubmit() },
+            onSelect: handleTextSearchSelection
         )
-        .onChange(of: searchViewModel.query) { _, _ in
-            performDebouncedSearch()
-        }
+        .onChange(of: searchViewModel.query) { _, _ in handleTextSearchQueryChange() }
     }
 }

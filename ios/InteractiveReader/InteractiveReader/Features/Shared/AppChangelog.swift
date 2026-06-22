@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.19",
+            version: "2026.06.22.20",
             entries: [
+                AppChangelogEntry(
+                    id: "text-search-command-handlers",
+                    title: "Text search controls cleaned up",
+                    detail: "Interactive text search overlay toggle, dismiss, submit, query-change, and result-selection work now runs through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "video-search-command-handlers",
                     title: "Video search controls cleaned up",

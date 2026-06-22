@@ -405,11 +405,7 @@ extension InteractivePlayerView {
                 // Background dismissal area
                 Color.black.opacity(0.3)
                     #if !os(tvOS)
-                    .onTapGesture {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            searchViewModel.isExpanded = false
-                        }
-                    }
+                    .onTapGesture(perform: dismissTextSearchOverlay)
                     #endif
 
                 // Search content
@@ -426,11 +422,7 @@ extension InteractivePlayerView {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             #if os(tvOS)
             .focusScope(searchFocusNamespace)
-            .onExitCommand {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    searchViewModel.isExpanded = false
-                }
-            }
+            .onExitCommand(perform: dismissTextSearchOverlay)
             #endif
             .zIndex(3)
         }

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.20
+
+- Advanced visible Apple app versioning to `v2026.06.22.20`.
+- Moved interactive text search overlay toggle, dismiss, submit, query-change, and result-selection work into named SwiftUI handlers.
+
 ### 2026.06.22.19
 
 - Advanced visible Apple app versioning to `v2026.06.22.19`.
