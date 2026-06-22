@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.114
+
+- Advanced visible Apple app versioning to `v2026.06.22.114`.
+- Moved video overlay subtitle drag selection, phone subtitle positioning, and shared overlay labels into `VideoPlayerOverlayInteraction.swift`, keeping `VideoPlayerOverlayView.swift` focused on composition and TV focus orchestration.
+
 ### 2026.06.22.113
 
 - Advanced visible Apple app versioning to `v2026.06.22.113`.

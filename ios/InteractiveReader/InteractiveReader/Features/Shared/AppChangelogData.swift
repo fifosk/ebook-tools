@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.113",
+            version: "2026.06.22.114",
             entries: [
+                AppChangelogEntry(
+                    id: "video-overlay-interaction-file",
+                    title: "Video overlay interactions separated",
+                    detail: "Subtitle drag selection, phone subtitle positioning, and shared video overlay labels now live in a focused playback interaction extension while the main video overlay keeps composition and TV focus orchestration."
+                ),
                 AppChangelogEntry(
                     id: "media-search-controls-file",
                     title: "Media search controls separated",
