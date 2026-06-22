@@ -16,8 +16,23 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.94",
+            version: "2026.06.22.96",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-changelog-focus-buttons",
+                    title: "TV changelog remote focus fixed",
+                    detail: "Login and Settings changelog rows now use capped tvOS focus targets so the Siri Remote can move down through entries beyond the first visible rows."
+                ),
+                AppChangelogEntry(
+                    id: "e2e-disable-session-restore",
+                    title: "Simulator login tests stabilized",
+                    detail: "Debug UI tests can now force the login screen without reusing stored sessions, keeping TV changelog checks repeatable."
+                ),
+                AppChangelogEntry(
+                    id: "library-job-api-models-file",
+                    title: "Library and job API models separated",
+                    detail: "Library browse responses and Pipeline job status/progress payloads now live in a dedicated Models file."
+                ),
                 AppChangelogEntry(
                     id: "linguist-api-models-file",
                     title: "Linguist API models separated",

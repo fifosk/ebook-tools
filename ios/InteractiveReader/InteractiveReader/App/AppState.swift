@@ -15,6 +15,7 @@ final class AppState: ObservableObject {
         "EBOOK_TOOLS_API_BASE_URL",
         "E2E_API_BASE_URL"
     ]
+    private static let disableSessionRestoreLaunchEnvironmentKey = "E2E_DISABLE_SESSION_RESTORE"
     @Published private var storedToken: String = ""
     @Published private(set) var session: SessionStatusResponse?
     /// Whether we're actively validating a stored session token
@@ -24,7 +25,12 @@ final class AppState: ObservableObject {
 
     init(sessionTokenStore: SessionTokenStore = .shared) {
         self.sessionTokenStore = sessionTokenStore
-        self.storedToken = sessionTokenStore.loadToken() ?? ""
+        if Self.disablesSessionRestoreForE2E {
+            sessionTokenStore.deleteToken()
+            self.storedToken = ""
+        } else {
+            self.storedToken = sessionTokenStore.loadToken() ?? ""
+        }
     }
 
     var apiBaseURL: URL? {
@@ -88,6 +94,10 @@ final class AppState: ObservableObject {
     }
 
     func restoreSessionIfNeeded() async {
+        guard !Self.disablesSessionRestoreForE2E else {
+            signOut()
+            return
+        }
         guard session == nil else { return }
         guard let apiBaseURL, let token = authToken else { return }
 
@@ -129,5 +139,16 @@ final class AppState: ObservableObject {
 
     private func syncResumeStoreConfiguration() {
         PlaybackResumeStore.shared.configureAPI(configuration)
+    }
+
+    private static var disablesSessionRestoreForE2E: Bool {
+        #if DEBUG
+        let value = ProcessInfo.processInfo.environment[disableSessionRestoreLaunchEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return ["1", "true", "yes"].contains(value)
+        #else
+        return false
+        #endif
     }
 }

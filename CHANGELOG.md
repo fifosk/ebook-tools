@@ -4,6 +4,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.96
+
+- Advanced visible Apple app versioning to `v2026.06.22.96`.
+- Made the tvOS daily changelog in login and settings use capped, remote-focusable rows so the Siri Remote can move through entries beyond the first visible rows.
+- Added a DEBUG-only E2E launch flag so simulator UI tests can force the login surface without reusing stored sessions.
+- Moved Library browse and Pipeline job status/progress API models into a dedicated Models file, leaving the broad API model file focused on generic JSON and media metadata helpers.
+
 ### 2026.06.22.94
 
 - Advanced visible Apple app versioning to `v2026.06.22.94`.

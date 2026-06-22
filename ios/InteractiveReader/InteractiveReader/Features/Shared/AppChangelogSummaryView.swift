@@ -74,42 +74,91 @@ struct AppChangelogSummaryView: View {
             .frame(maxHeight: maxContentHeight)
             #endif
         } else {
+            #if os(tvOS)
+            tvEntriesList(entries: displayEntries)
+            #else
             entriesList
+            #endif
         }
     }
 
     #if os(tvOS)
     private func tvScrollableEntries(maxContentHeight: CGFloat) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView(.vertical, showsIndicators: true) {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    ForEach(displayEntries) { entry in
-                        AppChangelogEntryRow(
-                            entry: entry,
-                            primaryStyle: primaryStyle,
-                            secondaryStyle: secondaryStyle,
-                            isFocused: focusedEntryID == entry.id
-                        )
-                        .id(entry.id)
-                        .focusable(true)
-                        .focused($focusedEntryID, equals: entry.id)
-                        .onMoveCommand(perform: moveFocusedEntry)
-                    }
-                }
-                .padding(.trailing, 14)
-                .padding(.vertical, 4)
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(tvVisibleEntries(maxContentHeight: maxContentHeight)) { entry in
+                tvEntryButton(entry)
             }
-            .frame(maxHeight: maxContentHeight)
-            .focusSection()
-            .onMoveCommand(perform: moveFocusedEntry)
-            .onAppear(perform: focusFirstEntryIfNeeded)
-            .onChange(of: focusedEntryID) { _, entryID in
-                guard let entryID else { return }
-                withAnimation(.easeInOut(duration: 0.16)) {
-                    proxy.scrollTo(entryID, anchor: .center)
-                }
+
+            if displayEntries.count > tvVisibleEntryLimit(maxContentHeight: maxContentHeight) {
+                Text(tvPositionLabel)
+                    .font(.caption2.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(secondaryStyle)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .accessibilityIdentifier("appChangelogPositionLabel")
             }
         }
+        .frame(maxHeight: maxContentHeight, alignment: .top)
+        .clipped()
+        .focusSection()
+        .onMoveCommand(perform: moveFocusedEntry)
+        .onAppear(perform: focusFirstEntryIfNeeded)
+        .animation(.easeInOut(duration: 0.16), value: focusedEntryID)
+    }
+
+    private func tvEntriesList(entries: [AppChangelogEntry]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(entries) { entry in
+                tvEntryButton(entry)
+            }
+        }
+        .focusSection()
+        .onAppear(perform: focusFirstEntryIfNeeded)
+    }
+
+    private func tvEntryButton(_ entry: AppChangelogEntry) -> some View {
+        Button(action: {}) {
+            AppChangelogEntryRow(
+                entry: entry,
+                primaryStyle: primaryStyle,
+                secondaryStyle: secondaryStyle,
+                isFocused: focusedEntryID == entry.id
+            )
+        }
+        .buttonStyle(.plain)
+        .id(entry.id)
+        .focused($focusedEntryID, equals: entry.id)
+        .onMoveCommand(perform: moveFocusedEntry)
+        .accessibilityIdentifier("appChangelogEntry.\(entry.id)")
+    }
+
+    private func tvVisibleEntries(maxContentHeight: CGFloat) -> [AppChangelogEntry] {
+        let entries = displayEntries
+        guard !entries.isEmpty else { return [] }
+        let limit = tvVisibleEntryLimit(maxContentHeight: maxContentHeight)
+        guard entries.count > limit else { return entries }
+
+        let selectedIndex = focusedEntryIndex(in: entries)
+        let leadingContext = max(0, limit / 2)
+        let maxStart = max(0, entries.count - limit)
+        let startIndex = min(max(selectedIndex - leadingContext, 0), maxStart)
+        let endIndex = min(startIndex + limit, entries.count)
+        return Array(entries[startIndex..<endIndex])
+    }
+
+    private func tvVisibleEntryLimit(maxContentHeight: CGFloat) -> Int {
+        max(2, min(displayEntries.count, Int(maxContentHeight / 86)))
+    }
+
+    private var tvPositionLabel: String {
+        let entries = displayEntries
+        guard !entries.isEmpty else { return "" }
+        return "\(focusedEntryIndex(in: entries) + 1)/\(entries.count)"
+    }
+
+    private func focusedEntryIndex(in entries: [AppChangelogEntry]) -> Int {
+        focusedEntryID
+            .flatMap { focusedID in entries.firstIndex { $0.id == focusedID } } ?? 0
     }
 
     private func focusFirstEntryIfNeeded() {
@@ -130,8 +179,7 @@ struct AppChangelogSummaryView: View {
 
         let entries = displayEntries
         guard !entries.isEmpty else { return }
-        let currentIndex = focusedEntryID
-            .flatMap { focusedID in entries.firstIndex { $0.id == focusedID } } ?? 0
+        let currentIndex = focusedEntryIndex(in: entries)
         let nextIndex = min(max(currentIndex + offset, 0), entries.count - 1)
         focusedEntryID = entries[nextIndex].id
     }
@@ -252,6 +300,8 @@ private struct AppChangelogEntryRow: View {
         #if os(tvOS)
         row
             .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(isFocused ? Color.white.opacity(0.14) : Color.clear)

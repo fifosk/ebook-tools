@@ -54,6 +54,7 @@ class InteractiveReaderUITests: XCTestCase {
         app.launchEnvironment["E2E_USERNAME"] = config.username
         app.launchEnvironment["E2E_PASSWORD"] = config.password
         app.launchEnvironment["E2E_API_BASE_URL"] = config.api_base_url
+        app.launchEnvironment["E2E_DISABLE_SESSION_RESTORE"] = "1"
 
         app.launch()
     }

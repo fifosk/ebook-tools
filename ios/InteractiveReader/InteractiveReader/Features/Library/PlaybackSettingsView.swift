@@ -313,11 +313,7 @@ private struct AppChangelogSettingsSection: View {
 
     var body: some View {
         Section {
-            AppChangelogSummaryView(
-                showBuildMetadata: true,
-                usesDarkBackground: usesDarkBackground,
-                maxContentHeight: 420
-            )
+            changelogSummary
             .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             #if os(iOS)
             .listRowBackground(Color.clear)
@@ -325,6 +321,23 @@ private struct AppChangelogSettingsSection: View {
         } header: {
             SettingsSectionHeader(title: "Daily Changelog", usesDarkBackground: usesDarkBackground)
         }
+    }
+
+    private var changelogSummary: some View {
+        #if os(tvOS)
+        AppChangelogSummaryView(
+            maxEntries: 12,
+            showBuildMetadata: true,
+            usesDarkBackground: usesDarkBackground,
+            maxContentHeight: nil
+        )
+        #else
+        AppChangelogSummaryView(
+            showBuildMetadata: true,
+            usesDarkBackground: usesDarkBackground,
+            maxContentHeight: 420
+        )
+        #endif
     }
 }
 
