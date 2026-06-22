@@ -14,6 +14,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Web Create generated-audiobook fields now apply backend topic, title, and genre defaults from `/api/books/options` while preserving any prompt edits already typed before defaults arrive, matching the Apple Create behavior.
 
+### 2026.06.22.159
+
+- Advanced visible Apple app versioning to `v2026.06.22.159`.
+- Apple Create Subtitles now validates and normalizes start/end timecodes on iPhone/iPad before submitting, matching the Web `MM:SS`, `HH:MM:SS`, and `+offset` behavior.
+
 ### 2026.06.22.158
 
 - Advanced visible Apple app versioning to `v2026.06.22.158`.

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-subtitle-timecode-validation",
+            title: "Subtitle times validate before submit",
+            detail: "On iPhone and iPad, Apple Create Subtitles now normalizes start and end timecodes before submit and flags invalid MM:SS, HH:MM:SS, or +offset values immediately."
+        ),
+        AppChangelogEntry(
             id: "apple-create-subtitle-file-import",
             title: "Subtitle import added to Create",
             detail: "On iPhone and iPad, Apple Create Subtitles can now pick a local SRT, VTT, or ASS file and upload it directly with the subtitle job."

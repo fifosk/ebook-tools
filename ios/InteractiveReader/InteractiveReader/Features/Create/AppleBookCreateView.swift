@@ -367,8 +367,7 @@ struct AppleBookCreateView: View {
             return (selectedNarrateFileURL != nil || !trimmed(sourcePath).isEmpty)
                 && !trimmed(sourceBaseOutput).isEmpty
         case .subtitleJob:
-            return (selectedSubtitleFileURL != nil || !trimmed(subtitleSourcePath).isEmpty)
-                && !trimmed(subtitleStartTime).isEmpty
+            return selectedSubtitleFileURL != nil || !trimmed(subtitleSourcePath).isEmpty
         }
     }
 
@@ -427,13 +426,30 @@ struct AppleBookCreateView: View {
     }
 
     private func submitSubtitleJob() {
+        guard let normalizedStartTime = SubtitleTimecodeInput.normalize(
+            subtitleStartTime,
+            emptyValue: "00:00"
+        ) else {
+            viewModel.errorMessage = "Enter a valid start time in MM:SS or HH:MM:SS format."
+            return
+        }
+        guard let normalizedEndTime = SubtitleTimecodeInput.normalize(
+            subtitleEndTime,
+            allowRelative: true
+        ) else {
+            viewModel.errorMessage = "Enter a valid end time in MM:SS, HH:MM:SS, or +offset format."
+            return
+        }
+        subtitleStartTime = normalizedStartTime
+        subtitleEndTime = normalizedEndTime
+
         let draft = AppleSubtitleJobDraft(
             sourcePath: trimmed(subtitleSourcePath).nonEmptyValue,
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
             outputFormat: subtitleOutputFormat.rawValue,
-            startTime: trimmed(subtitleStartTime).nonEmptyValue ?? "00:00",
-            endTime: trimmed(subtitleEndTime).nonEmptyValue,
+            startTime: normalizedStartTime,
+            endTime: normalizedEndTime.nonEmptyValue,
             enableTransliteration: subtitleEnableTransliteration,
             highlight: subtitleHighlight,
             showOriginal: subtitleShowOriginal,

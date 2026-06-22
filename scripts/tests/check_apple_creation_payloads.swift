@@ -256,6 +256,34 @@ struct AppleCreationPayloadCheck {
             appleSubtitleUpload.multipartFields["translation_provider"] == "llm",
             "Apple subtitle upload form should keep translation provider"
         )
+        require(
+            SubtitleTimecodeInput.normalize("1:02") == "01:02",
+            "Subtitle timecode should normalize MM:SS"
+        )
+        require(
+            SubtitleTimecodeInput.normalize("1:02:03") == "01:02:03",
+            "Subtitle timecode should normalize HH:MM:SS"
+        )
+        require(
+            SubtitleTimecodeInput.normalize("", emptyValue: "00:00") == "00:00",
+            "Empty subtitle start time should use default"
+        )
+        require(
+            SubtitleTimecodeInput.normalize("+5", allowRelative: true) == "+05:00",
+            "Relative subtitle end time should treat bare values as minutes"
+        )
+        require(
+            SubtitleTimecodeInput.normalize("+1:02:03", allowRelative: true) == "+01:02:03",
+            "Relative subtitle end time should normalize HH:MM:SS offsets"
+        )
+        require(
+            SubtitleTimecodeInput.normalize("1:70") == nil,
+            "Subtitle timecode should reject invalid seconds"
+        )
+        require(
+            SubtitleTimecodeInput.normalize("+bad", allowRelative: true) == nil,
+            "Subtitle timecode should reject invalid relative offsets"
+        )
 
         print("apple creation payload checks passed")
     }
