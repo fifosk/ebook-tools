@@ -62,18 +62,11 @@ struct CombinedSearchView: View {
         #if os(iOS)
         .background(usesDarkListBackground ? AppTheme.lightBackground : Color.clear)
         #endif
-        .onAppear {
-            isSearchFocused = true
-            iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
-            refreshResumeStatus()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: PlaybackResumeStore.didChangeNotification)) { notification in
-            guard let resumeUserId else { return }
-            let userId = notification.userInfo?["userId"] as? String
-            guard userId == resumeUserId else { return }
-            iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
-            refreshResumeStatus()
-        }
+        .onAppear(perform: handleSearchAppear)
+        .onReceive(
+            NotificationCenter.default.publisher(for: PlaybackResumeStore.didChangeNotification),
+            perform: handleResumeStoreChange
+        )
     }
 
     private var trimmedQuery: String {
@@ -135,14 +128,7 @@ struct CombinedSearchView: View {
                 .submitLabel(.search)
                 .foregroundStyle(usesDarkListBackground ? .white : .primary)
                 .accessibilityIdentifier("combinedSearchField")
-            Button {
-                if trimmedQuery.isEmpty {
-                    isSearchFocused = true
-                } else {
-                    query = ""
-                    isSearchFocused = true
-                }
-            } label: {
+            Button(action: handleSearchFieldAction) {
                 Image(systemName: trimmedQuery.isEmpty ? "magnifyingglass" : "xmark.circle.fill")
             }
             .tint(usesDarkListBackground ? .white : nil)
@@ -169,7 +155,7 @@ struct CombinedSearchView: View {
         // Always use programmatic navigation to support context menu actions
         #if os(tvOS)
         Button {
-            onSelectJob?(job, .resume)
+            selectJob(job, mode: .resume)
         } label: {
             JobRowView(job: job, resumeStatus: resumeStatus(for: job))
         }
@@ -182,7 +168,7 @@ struct CombinedSearchView: View {
             .contentShape(Rectangle())
             .listRowBackground(usesDarkListBackground ? Color.clear : nil)
             .onTapGesture {
-                onSelectJob?(job, .resume)
+                selectJob(job, mode: .resume)
             }
             .contextMenu {
                 playbackContextMenu(for: job)
@@ -195,7 +181,7 @@ struct CombinedSearchView: View {
         // Always use programmatic navigation to support context menu actions
         #if os(tvOS)
         Button {
-            onSelectItem?(item, .resume)
+            selectItem(item, mode: .resume)
         } label: {
             LibraryRowView(
                 item: item,
@@ -217,7 +203,7 @@ struct CombinedSearchView: View {
         .contentShape(Rectangle())
         .listRowBackground(usesDarkListBackground ? Color.clear : nil)
         .onTapGesture {
-            onSelectItem?(item, .resume)
+            selectItem(item, mode: .resume)
         }
         .contextMenu {
             playbackContextMenu(for: item)
@@ -231,7 +217,7 @@ struct CombinedSearchView: View {
         let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
 
         Button {
-            onSelectItem?(item, .resume)
+            selectItem(item, mode: .resume)
         } label: {
             if hasResume {
                 Label(resumeMenuLabel(for: item), systemImage: "play.fill")
@@ -242,7 +228,7 @@ struct CombinedSearchView: View {
 
         if hasResume {
             Button {
-                onSelectItem?(item, .startOver)
+                selectItem(item, mode: .startOver)
             } label: {
                 Label("Start from Beginning", systemImage: "arrow.counterclockwise")
             }
@@ -255,7 +241,7 @@ struct CombinedSearchView: View {
         let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
 
         Button {
-            onSelectJob?(job, .resume)
+            selectJob(job, mode: .resume)
         } label: {
             if hasResume {
                 Label(resumeMenuLabel(for: job), systemImage: "play.fill")
@@ -266,11 +252,43 @@ struct CombinedSearchView: View {
 
         if hasResume {
             Button {
-                onSelectJob?(job, .startOver)
+                selectJob(job, mode: .startOver)
             } label: {
                 Label("Start from Beginning", systemImage: "arrow.counterclockwise")
             }
         }
+    }
+
+    private func handleSearchAppear() {
+        isSearchFocused = true
+        refreshResumeEvidence()
+    }
+
+    private func handleResumeStoreChange(_ notification: Notification) {
+        guard let resumeUserId else { return }
+        let userId = notification.userInfo?["userId"] as? String
+        guard userId == resumeUserId else { return }
+        refreshResumeEvidence()
+    }
+
+    private func refreshResumeEvidence() {
+        iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+        refreshResumeStatus()
+    }
+
+    private func handleSearchFieldAction() {
+        if !trimmedQuery.isEmpty {
+            query = ""
+        }
+        isSearchFocused = true
+    }
+
+    private func selectItem(_ item: LibraryItem, mode: PlaybackStartMode) {
+        onSelectItem?(item, mode)
+    }
+
+    private func selectJob(_ job: PipelineStatusResponse, mode: PlaybackStartMode) {
+        onSelectJob?(job, mode)
     }
 
     private func resumeMenuLabel(for item: LibraryItem) -> String {
