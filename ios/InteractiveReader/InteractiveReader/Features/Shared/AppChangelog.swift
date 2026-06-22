@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.86",
+            version: "2026.06.22.87",
             entries: [
+                AppChangelogEntry(
+                    id: "media-search-view-model-file",
+                    title: "Media search state separated",
+                    detail: "Async search state, debouncing, and result-target calculations now live outside the SwiftUI search controls file."
+                ),
                 AppChangelogEntry(
                     id: "media-search-results-views-file",
                     title: "Media search results separated",

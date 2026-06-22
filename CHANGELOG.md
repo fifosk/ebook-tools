@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.87
+
+- Advanced visible Apple app versioning to `v2026.06.22.87`.
+- Moved media-search async search state and result-target calculations into a dedicated view-model source file so the SwiftUI search view stays focused on controls and layout.
+
 ### 2026.06.22.86
 
 - Advanced visible Apple app versioning to `v2026.06.22.86`.
