@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Any, List, Mapping, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from modules import logging_manager
 from modules.library import LibraryError, LibrarySync
 from modules.permissions import can_access, resolve_access_policy
 
@@ -24,6 +26,20 @@ from ..schemas import MediaSearchHit, MediaSearchResponse, PipelineMediaFile
 from ...search import search_generated_media
 
 router = APIRouter()
+LOGGER = logging_manager.get_logger().getChild("webapi.search")
+
+
+def _record_search_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe search route timing if metrics are available."""
+
+    try:
+        from ..metrics import SEARCH_ROUTE_DURATION
+    except Exception:
+        return
+    SEARCH_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
 
 def _extract_match_snippet(text: Any, query: str) -> Optional[str]:
     if not isinstance(text, str):
@@ -137,8 +153,17 @@ async def search_pipeline_media(
 ):
     """Search across generated ebook media for the provided query."""
 
+    started_at = time.perf_counter()
     normalized_query = query.strip()
     if not normalized_query:
+        duration_ms = (time.perf_counter() - started_at) * 1000.0
+        _record_search_route_duration("pipeline_media", "blank", started_at)
+        LOGGER.debug(
+            "Pipeline media search skipped blank query job_id_present=%s limit=%s duration_ms=%.1f",
+            bool(job_id),
+            limit,
+            duration_ms,
+        )
         return MediaSearchResponse(query=query, limit=limit, count=0, results=[])
 
     library_item = library_sync.get_item(job_id) if library_sync is not None else None
@@ -152,9 +177,27 @@ async def search_pipeline_media(
     except KeyError:
         job = None
     except PermissionError as exc:
+        duration_ms = (time.perf_counter() - started_at) * 1000.0
+        _record_search_route_duration("pipeline_media", "forbidden", started_at)
+        LOGGER.info(
+            "Pipeline media search forbidden job_id_present=%s limit=%s query_present=%s duration_ms=%.1f",
+            bool(job_id),
+            limit,
+            True,
+            duration_ms,
+        )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     if job is None and library_item is None:  # pragma: no cover - defensive guard
+        duration_ms = (time.perf_counter() - started_at) * 1000.0
+        _record_search_route_duration("pipeline_media", "not_found", started_at)
+        LOGGER.info(
+            "Pipeline media search missing target job_id_present=%s limit=%s query_present=%s duration_ms=%.1f",
+            bool(job_id),
+            limit,
+            True,
+            duration_ms,
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     if job is None and library_item is not None:
@@ -170,6 +213,15 @@ async def search_pipeline_media(
             user_role=request_user.user_role,
             permission="view",
         ):
+            duration_ms = (time.perf_counter() - started_at) * 1000.0
+            _record_search_route_duration("pipeline_media", "forbidden", started_at)
+            LOGGER.info(
+                "Pipeline media search forbidden library target job_id_present=%s limit=%s query_present=%s duration_ms=%.1f",
+                bool(job_id),
+                limit,
+                True,
+                duration_ms,
+            )
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access library item")
 
     jobs_to_search: List[PipelineJob | _LibrarySearchJobAdapter] = []
@@ -260,6 +312,7 @@ async def search_pipeline_media(
 
     available_slots = max(limit - len(serialized_hits), 0)
     library_hits: list[MediaSearchHit] = []
+    library_fallback_error = False
     if library_sync is not None and available_slots > 0:
         try:
             library_search = library_sync.search(
@@ -270,6 +323,7 @@ async def search_pipeline_media(
                 user_role=request_user.user_role,
             )
         except LibraryError:
+            library_fallback_error = True
             library_search = None
 
         if library_search is not None:
@@ -310,6 +364,21 @@ async def search_pipeline_media(
                     break
 
     combined_results = serialized_hits + library_hits
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_search_route_duration("pipeline_media", "success", started_at)
+    log_method = LOGGER.info if duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Pipeline media search completed job_id_present=%s pipeline_target=%s library_target=%s limit=%s pipeline_hits=%s library_hits=%s total=%s library_fallback_error=%s duration_ms=%.1f",
+        bool(job_id),
+        job is not None,
+        library_item is not None,
+        limit,
+        len(serialized_hits),
+        len(library_hits),
+        len(combined_results),
+        library_fallback_error,
+        duration_ms,
+    )
 
     return MediaSearchResponse(
         query=normalized_query,

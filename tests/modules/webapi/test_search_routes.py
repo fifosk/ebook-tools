@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
+from prometheus_client.parser import text_string_to_metric_families
 
 from modules.library import LibraryService
 from modules.services.file_locator import FileLocator
@@ -20,8 +21,20 @@ from modules.webapi.dependencies import (
     get_pipeline_service,
 )
 from modules.services.job_manager import PipelineJob, PipelineJobStatus
+from modules.webapi.routes import library_routes
 
 pytestmark = pytest.mark.webapi
+
+
+class _RecordingLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def debug(self, message: str, *args: object, **_kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
+
+    def info(self, message: str, *args: object, **_kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
 
 
 class _StubPipelineService:
@@ -206,6 +219,62 @@ def test_search_returns_matching_snippet(api_app) -> None:
     assert "video" in media
     video_entry = media["video"][0]
     assert video_entry["relative_path"] == "chunk-001/sample.mp4"
+
+
+def test_search_records_safe_timing(api_app, monkeypatch: pytest.MonkeyPatch) -> None:
+    app, file_locator = api_app
+    job_id = "search-observability-job"
+    secret_query = "SecretSearchNeedle"
+    user_id = "sensitive-user-id"
+    logger = _RecordingLogger()
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+
+    monkeypatch.setattr(library_routes, "LOGGER", logger)
+    app.dependency_overrides[get_pipeline_service] = lambda: _StubPipelineService([job])
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync()
+    app.dependency_overrides[get_library_service] = lambda: _StubLibraryService()
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get(
+            "/api/pipelines/search",
+            params={"query": secret_query, "job_id": job_id, "limit": 5},
+            headers={"X-User-Id": user_id, "X-User-Role": "admin"},
+        )
+        metrics_response = client.get("/metrics")
+
+    app.dependency_overrides.pop(get_pipeline_service, None)
+    app.dependency_overrides.pop(get_library_sync, None)
+    app.dependency_overrides.pop(get_library_service, None)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["count"] == 0
+
+    rendered_logs = "\n".join(logger.messages)
+    assert "Pipeline media search completed" in rendered_logs
+    assert "job_id_present=True" in rendered_logs
+    assert "pipeline_target=True" in rendered_logs
+    assert "pipeline_hits=0" in rendered_logs
+    assert "library_hits=0" in rendered_logs
+    assert secret_query not in rendered_logs
+    assert job_id not in rendered_logs
+    assert user_id not in rendered_logs
+
+    families = {
+        family.name: family
+        for family in text_string_to_metric_families(metrics_response.text)
+    }
+    metric = families["ebook_tools_search_route_duration_seconds"]
+    assert any(
+        sample.labels.get("operation") == "pipeline_media"
+        and sample.labels.get("result") == "success"
+        and sample.name.endswith("_count")
+        and sample.value >= 1
+        for sample in metric.samples
+    )
 
 
 def test_search_returns_404_for_unknown_job(api_app) -> None:

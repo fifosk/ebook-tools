@@ -104,7 +104,9 @@ Optimization candidates:
 - Add lightweight timing/log counters around job list, library list, media manifest, and search endpoints.
   Status: Library item listing now records a Prometheus duration histogram and
   token-safe aggregate logs for success/error paths without recording raw
-  search queries, user identifiers, auth headers, or tokens.
+  search queries, user identifiers, auth headers, or tokens. Pipeline media
+  search now records the same token-safe duration and aggregate hit-count
+  telemetry for blank, forbidden, not-found, and success outcomes.
 - Prefer precomputed or cached job summary fields for list rows while keeping full metadata available on detail/media routes.
 - Keep all auth/session headers and token handling out of logs and docs.
 

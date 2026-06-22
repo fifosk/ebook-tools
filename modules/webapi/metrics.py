@@ -112,6 +112,13 @@ LIBRARY_ROUTE_DURATION = Histogram(
     buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
 )
 
+SEARCH_ROUTE_DURATION = Histogram(
+    "ebook_tools_search_route_duration_seconds",
+    "Search API route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+)
+
 # ---------------------------------------------------------------------------
 # Users & sessions
 # ---------------------------------------------------------------------------
