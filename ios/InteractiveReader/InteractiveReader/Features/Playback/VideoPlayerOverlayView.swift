@@ -676,25 +676,12 @@ extension VideoPlayerOverlayView {
     }
 
     private func tvTimelinePillButton(label: String) -> some View {
-        Button(action: onToggleHeaderCollapsed) {
-            Text(label)
-                .font(.callout.weight(.semibold))
-                .foregroundStyle(Color.white.opacity(0.75))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(Color.black.opacity(0.5))
-                        .overlay(
-                            Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
-                        )
-                )
-        }
-        .buttonStyle(TVTimelinePillButtonStyle())
-        .focused($focusTarget, equals: .control(.header))
-        .onMoveCommand(perform: handleTimelinePillMoveCommand)
+        TVTimelinePillButton(
+            label: label,
+            focusTarget: $focusTarget,
+            onToggle: onToggleHeaderCollapsed,
+            onMoveCommand: handleTimelinePillMoveCommand
+        )
     }
 
     private var tvInfoHeaderContent: some View {
@@ -1066,20 +1053,3 @@ extension VideoPlayerOverlayView {
         !metadata.title.isEmpty || (metadata.subtitle?.isEmpty == false) || metadata.artworkURL != nil
     }
 }
-
-// MARK: - tvOS Button Style
-
-#if os(tvOS)
-struct TVTimelinePillButtonStyle: ButtonStyle {
-    @Environment(\.isFocused) var isFocused
-
-    func makeBody(configuration: Configuration) -> some View {
-        let scale: CGFloat = configuration.isPressed ? 0.95 : (isFocused ? 1.05 : 1.0)
-        let brightness: Double = isFocused ? 0.1 : 0
-
-        configuration.label
-            .scaleEffect(scale)
-            .brightness(brightness)
-    }
-}
-#endif

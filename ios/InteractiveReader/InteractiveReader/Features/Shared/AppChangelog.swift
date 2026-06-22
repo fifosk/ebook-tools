@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.101",
+            version: "2026.06.22.102",
             entries: [
+                AppChangelogEntry(
+                    id: "tv-timeline-pill-control",
+                    title: "TV playback header controls cleaned up",
+                    detail: "The TV playback timeline pill now lives with the rest of the tvOS playback controls, keeping the overlay focused on layout and focus orchestration."
+                ),
                 AppChangelogEntry(
                     id: "tvos-changelog-window-helper",
                     title: "TV changelog focus math cleaned up",

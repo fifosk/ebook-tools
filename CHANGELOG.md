@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.102
+
+- Advanced visible Apple app versioning to `v2026.06.22.102`.
+- Moved the TV playback timeline pill into the tvOS playback controls module so the overlay stays focused on layout and focus orchestration.
+
 ### 2026.06.22.101
 
 - Advanced visible Apple app versioning to `v2026.06.22.101`.

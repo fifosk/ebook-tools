@@ -392,6 +392,50 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
     }
 }
 
+// MARK: - TV Timeline Pill
+
+struct TVTimelinePillButton: View {
+    let label: String
+    var focusTarget: FocusState<VideoPlayerFocusTarget?>.Binding
+    let onToggle: () -> Void
+    let onMoveCommand: (MoveCommandDirection) -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            Text(label)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(Color.white.opacity(0.75))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(Color.black.opacity(0.5))
+                        .overlay(
+                            Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
+                        )
+                )
+        }
+        .buttonStyle(TVTimelinePillButtonStyle())
+        .focused(focusTarget, equals: .control(.header))
+        .onMoveCommand(perform: onMoveCommand)
+    }
+}
+
+private struct TVTimelinePillButtonStyle: ButtonStyle {
+    @Environment(\.isFocused) var isFocused
+
+    func makeBody(configuration: Configuration) -> some View {
+        let scale: CGFloat = configuration.isPressed ? 0.95 : (isFocused ? 1.05 : 1.0)
+        let brightness: Double = isFocused ? 0.1 : 0
+
+        configuration.label
+            .scaleEffect(scale)
+            .brightness(brightness)
+    }
+}
+
 // MARK: - TV Header Toggle Pill
 
 struct TVHeaderTogglePill: View {
