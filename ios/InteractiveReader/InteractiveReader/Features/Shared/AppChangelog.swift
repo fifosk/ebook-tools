@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.108",
+            version: "2026.06.22.109",
             entries: [
+                AppChangelogEntry(
+                    id: "linguist-bubble-content-controls-file",
+                    title: "Linguist bubble content controls separated",
+                    detail: "Answer rendering plus shared close and font controls now live in a focused SwiftUI extension file while the main bubble view owns state, measurement, and gestures."
+                ),
                 AppChangelogEntry(
                     id: "linguist-bubble-picker-models-file",
                     title: "Linguist bubble picker data separated",

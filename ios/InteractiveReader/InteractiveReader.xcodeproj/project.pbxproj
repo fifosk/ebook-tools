@@ -62,6 +62,7 @@
 		1C7E6432E5EE4F159B7FF104 /* InteractivePlayerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11352FEF0FF447A9FDB05C0 /* InteractivePlayerModels.swift */; };
 		1D43548DB67A03981CD7D6A5 /* InteractivePlayerViewModel+Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 349CDBB9E48A4D372AC39F1D /* InteractivePlayerViewModel+Selection.swift */; };
 		1D48295EC5BC4E84A35ECEEA /* LinguistBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFB9B106AB74415AB26FD48B /* LinguistBubbleView.swift */; };
+		LBCONTROLS001A0001 /* LinguistBubbleContentControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = LBCONTROLS002A0001 /* LinguistBubbleContentControls.swift */; };
 		72E85057B5DE49499D7431D0 /* LinguistBubbleHeaderControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CA85E7BF944944A89877AC /* LinguistBubbleHeaderControls.swift */; };
 		LBIOHDR001A0001 /* LinguistBubbleIOSHeaderControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = LBIOHDR002A0001 /* LinguistBubbleIOSHeaderControls.swift */; };
 		LBTVHDR001A0001 /* LinguistBubbleTVHeaderControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = LBTVHDR002A0001 /* LinguistBubbleTVHeaderControls.swift */; };
@@ -88,6 +89,7 @@
 		477FFF07110849B4971A7417 /* InteractiveTranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E234209DAADA46AAA744A1CD /* InteractiveTranscriptView.swift */; };
 		4DC80F4A10F24C6699D43879 /* InteractivePlayerView+Transcript.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBD20FB3803E455183097CAC /* InteractivePlayerView+Transcript.swift */; };
 		4E3D531ED5C04B22AE1CAA85 /* LinguistBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFB9B106AB74415AB26FD48B /* LinguistBubbleView.swift */; };
+		LBCONTROLS001A0002 /* LinguistBubbleContentControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = LBCONTROLS002A0001 /* LinguistBubbleContentControls.swift */; };
 		8FE9539913F64F668BEDEB0A /* LinguistBubbleHeaderControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CA85E7BF944944A89877AC /* LinguistBubbleHeaderControls.swift */; };
 		LBIOHDR001A0002 /* LinguistBubbleIOSHeaderControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = LBIOHDR002A0001 /* LinguistBubbleIOSHeaderControls.swift */; };
 		LBTVHDR001A0002 /* LinguistBubbleTVHeaderControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = LBTVHDR002A0001 /* LinguistBubbleTVHeaderControls.swift */; };
@@ -491,6 +493,7 @@
 		D7024EBBA5632C370AD9C039 /* VideoPlayerHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VideoPlayerHeaderView.swift; path = InteractiveReader/Features/Playback/VideoPlayerHeaderView.swift; sourceTree = SOURCE_ROOT; };
 		DDA3471FB4598DAD33C59571 /* VideoPlayerOverlayStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VideoPlayerOverlayStyles.swift; path = InteractiveReader/Features/Playback/VideoPlayerOverlayStyles.swift; sourceTree = SOURCE_ROOT; };
 		DFB9B106AB74415AB26FD48B /* LinguistBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinguistBubbleView.swift; sourceTree = "<group>"; };
+		LBCONTROLS002A0001 /* LinguistBubbleContentControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubbleContentControls.swift"; sourceTree = "<group>"; };
 		00CA85E7BF944944A89877AC /* LinguistBubbleHeaderControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubbleHeaderControls.swift"; sourceTree = "<group>"; };
 		LBIOHDR002A0001 /* LinguistBubbleIOSHeaderControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubbleIOSHeaderControls.swift"; sourceTree = "<group>"; };
 		LBTVHDR002A0001 /* LinguistBubbleTVHeaderControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinguistBubbleTVHeaderControls.swift"; sourceTree = "<group>"; };
@@ -930,6 +933,7 @@
 				JOBGLYPH002A0001 /* JobTypeGlyphResolver.swift */,
 				UNIFCOVER002A0001 /* UnifiedCoverView.swift */,
 				DFB9B106AB74415AB26FD48B /* LinguistBubbleView.swift */,
+				LBCONTROLS002A0001 /* LinguistBubbleContentControls.swift */,
 				00CA85E7BF944944A89877AC /* LinguistBubbleHeaderControls.swift */,
 				LBIOHDR002A0001 /* LinguistBubbleIOSHeaderControls.swift */,
 				LBTVHDR002A0001 /* LinguistBubbleTVHeaderControls.swift */,
@@ -1298,6 +1302,7 @@
 				5AEDB61B11084619B145063D /* InteractivePlayerModels.swift in Sources */,
 				24FC8A72C18646E0BF913305 /* InteractivePlayerLinguistBubbleView.swift in Sources */,
 				4E3D531ED5C04B22AE1CAA85 /* LinguistBubbleView.swift in Sources */,
+				LBCONTROLS001A0002 /* LinguistBubbleContentControls.swift in Sources */,
 				8FE9539913F64F668BEDEB0A /* LinguistBubbleHeaderControls.swift in Sources */,
 				LBIOHDR001A0002 /* LinguistBubbleIOSHeaderControls.swift in Sources */,
 				LBTVHDR001A0002 /* LinguistBubbleTVHeaderControls.swift in Sources */,
@@ -1483,6 +1488,7 @@
 				1C7E6432E5EE4F159B7FF104 /* InteractivePlayerModels.swift in Sources */,
 				53663119F5D949F2A36CDB74 /* InteractivePlayerLinguistBubbleView.swift in Sources */,
 				1D48295EC5BC4E84A35ECEEA /* LinguistBubbleView.swift in Sources */,
+				LBCONTROLS001A0001 /* LinguistBubbleContentControls.swift in Sources */,
 				72E85057B5DE49499D7431D0 /* LinguistBubbleHeaderControls.swift in Sources */,
 				LBIOHDR001A0001 /* LinguistBubbleIOSHeaderControls.swift in Sources */,
 				LBTVHDR001A0001 /* LinguistBubbleTVHeaderControls.swift in Sources */,
@@ -1645,7 +1651,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622108;
+				CURRENT_PROJECT_VERSION = 20260622109;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1792,7 +1798,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622108;
+				CURRENT_PROJECT_VERSION = 20260622109;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1820,7 +1826,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622108;
+				CURRENT_PROJECT_VERSION = 20260622109;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1848,7 +1854,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622108;
+				CURRENT_PROJECT_VERSION = 20260622109;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1875,7 +1881,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622108;
+				CURRENT_PROJECT_VERSION = 20260622109;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1901,7 +1907,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622108;
+				CURRENT_PROJECT_VERSION = 20260622109;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -1926,7 +1932,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622108;
+				CURRENT_PROJECT_VERSION = 20260622109;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1944,7 +1950,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622108;
+				CURRENT_PROJECT_VERSION = 20260622109;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1962,7 +1968,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622108;
+				CURRENT_PROJECT_VERSION = 20260622109;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
@@ -1982,7 +1988,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622108;
+				CURRENT_PROJECT_VERSION = 20260622109;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;

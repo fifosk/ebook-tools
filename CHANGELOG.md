@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.109
+
+- Advanced visible Apple app versioning to `v2026.06.22.109`.
+- Moved linguist bubble answer rendering plus shared close/font controls into `LinguistBubbleContentControls.swift`, keeping the main bubble view focused on state, measurement, and gestures.
+
 ### 2026.06.22.108
 
 - Advanced visible Apple app versioning to `v2026.06.22.108`.
