@@ -149,6 +149,31 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
     }
 
+    func submitYoutubeDub(
+        _ draft: AppleYoutubeDubDraft,
+        using appState: AppState
+    ) async -> String? {
+        guard let configuration = appState.configuration else {
+            errorMessage = "API configuration is unavailable."
+            return nil
+        }
+
+        isSubmitting = true
+        errorMessage = nil
+        submittedJobId = nil
+        defer { isSubmitting = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.submitYoutubeDub(Self.makeYoutubeDubPayload(from: draft))
+            submittedJobId = response.jobId
+            return response.jobId
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     private static func makeSubmission(from draft: AppleBookCreateDraft) -> BookGenerationJobSubmission {
         let inputFile = "\(draft.baseOutput).epub"
         let generatedDefaults = draft.generatedSourceDefaults
@@ -294,6 +319,32 @@ final class AppleBookCreateViewModel: ObservableObject {
             outputFormat: draft.outputFormat
         )
     }
+
+    private static func makeYoutubeDubPayload(from draft: AppleYoutubeDubDraft) -> YoutubeDubRequestPayload {
+        YoutubeDubRequestPayload(
+            videoPath: draft.videoPath,
+            subtitlePath: draft.subtitlePath,
+            mediaMetadata: ["source": .string("apple")],
+            sourceLanguage: draft.sourceLanguage,
+            targetLanguage: draft.targetLanguage,
+            voice: draft.voice,
+            startTimeOffset: draft.startTimeOffset,
+            endTimeOffset: draft.endTimeOffset,
+            originalMixPercent: draft.originalMixPercent,
+            flushSentences: draft.flushSentences,
+            llmModel: draft.llmModel,
+            translationProvider: draft.translationProvider,
+            translationBatchSize: draft.translationBatchSize,
+            transliterationMode: draft.transliterationMode,
+            transliterationModel: draft.transliterationModel,
+            splitBatches: draft.splitBatches,
+            stitchBatches: draft.stitchBatches,
+            includeTransliteration: draft.includeTransliteration,
+            targetHeight: draft.targetHeight,
+            preserveAspectRatio: draft.preserveAspectRatio,
+            enableLookupCache: draft.enableLookupCache
+        )
+    }
 }
 
 struct AppleBookCreateDraft: Equatable {
@@ -357,6 +408,29 @@ struct AppleSubtitleJobDraft: Equatable {
     let translationBatchSize: Int
     let assFontSize: Int?
     let assEmphasisScale: Double?
+}
+
+struct AppleYoutubeDubDraft: Equatable {
+    let videoPath: String
+    let subtitlePath: String
+    let sourceLanguage: String?
+    let targetLanguage: String?
+    let voice: String
+    let startTimeOffset: String?
+    let endTimeOffset: String?
+    let originalMixPercent: Double
+    let flushSentences: Int
+    let llmModel: String?
+    let translationProvider: String
+    let translationBatchSize: Int
+    let transliterationMode: String?
+    let transliterationModel: String?
+    let splitBatches: Bool
+    let stitchBatches: Bool
+    let includeTransliteration: Bool
+    let targetHeight: Int
+    let preserveAspectRatio: Bool
+    let enableLookupCache: Bool
 }
 
 enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {

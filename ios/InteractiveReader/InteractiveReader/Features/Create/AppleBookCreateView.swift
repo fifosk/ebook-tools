@@ -20,6 +20,16 @@ struct AppleBookCreateView: View {
     @State private var sourcePath = ""
     @State private var sourceBaseOutput = ""
     @State private var subtitleSourcePath = ""
+    @State private var youtubeVideoPath = ""
+    @State private var youtubeSubtitlePath = ""
+    @State private var youtubeStartOffset = ""
+    @State private var youtubeEndOffset = ""
+    @State private var youtubeOriginalMixPercent = 5.0
+    @State private var youtubeFlushSentences = 10
+    @State private var youtubeTargetHeight = AppleYoutubeDubTargetHeight.p480
+    @State private var youtubePreserveAspectRatio = true
+    @State private var youtubeSplitBatches = true
+    @State private var youtubeStitchBatches = true
     @State private var subtitleOutputFormat = AppleSubtitleOutputFormat.ass
     @State private var subtitleStartTime = "00:00"
     @State private var subtitleEndTime = ""
@@ -134,6 +144,15 @@ struct AppleBookCreateView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("createSubtitleSourcePathField")
+            } else if creationMode == .youtubeDub {
+                TextField("Video path", text: textBinding(for: .youtubeVideoPath, value: $youtubeVideoPath))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createYoutubeVideoPathField")
+                TextField("Subtitle path", text: textBinding(for: .youtubeSubtitlePath, value: $youtubeSubtitlePath))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createYoutubeSubtitlePathField")
             }
         }
     }
@@ -368,9 +387,74 @@ struct AppleBookCreateView: View {
                     ) {
                         LabeledContent("LLM batch size", value: "\(clampedSubtitleTranslationBatchSize)")
                     }
-                    .accessibilityIdentifier("createSubtitleTranslationBatchSizeStepper")
+                        .accessibilityIdentifier("createSubtitleTranslationBatchSizeStepper")
                     #endif
                 }
+            } else if creationMode == .youtubeDub {
+                Picker("Provider", selection: subtitleTranslationProviderBinding) {
+                    ForEach(AppleSubtitleTranslationProvider.allCases) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+                .accessibilityIdentifier("createYoutubeTranslationProviderPicker")
+
+                if subtitleTranslationProvider == .llm {
+                    Picker("Model", selection: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel)) {
+                        ForEach(availableSubtitleLlmModels, id: \.self) { option in
+                            Text(subtitleModelLabel(option)).tag(option)
+                        }
+                    }
+                    .accessibilityIdentifier("createYoutubeLlmModelPicker")
+                }
+
+                Picker("Target resolution", selection: youtubeTargetHeightBinding) {
+                    ForEach(AppleYoutubeDubTargetHeight.allCases) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+                .accessibilityIdentifier("createYoutubeTargetHeightPicker")
+
+                TextField("Start offset", text: textBinding(for: .youtubeStartOffset, value: $youtubeStartOffset))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createYoutubeStartOffsetField")
+                TextField("End offset", text: textBinding(for: .youtubeEndOffset, value: $youtubeEndOffset))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createYoutubeEndOffsetField")
+
+                #if os(iOS)
+                Stepper(value: youtubeOriginalMixPercentBinding, in: 0...100, step: 5) {
+                    LabeledContent("Original audio mix", value: formattedYoutubeOriginalMixPercent)
+                }
+                .accessibilityIdentifier("createYoutubeOriginalMixStepper")
+
+                Stepper(value: youtubeFlushSentencesBinding, in: 1...200, step: 1) {
+                    LabeledContent("Flush interval", value: "\(clampedYoutubeFlushSentences)")
+                }
+                .accessibilityIdentifier("createYoutubeFlushSentencesStepper")
+
+                Stepper(
+                    value: subtitleTranslationBatchSizeBinding,
+                    in: AppleSubtitleTuning.translationBatchSizeRange,
+                    step: 1
+                ) {
+                    LabeledContent("LLM batch size", value: "\(clampedSubtitleTranslationBatchSize)")
+                }
+                .accessibilityIdentifier("createYoutubeTranslationBatchSizeStepper")
+                #endif
+
+                Toggle("Split batches", isOn: boolBinding(for: .youtubeSplitBatches, value: $youtubeSplitBatches))
+                    .accessibilityIdentifier("createYoutubeSplitBatchesToggle")
+                Toggle("Stitch batches", isOn: boolBinding(for: .youtubeStitchBatches, value: $youtubeStitchBatches))
+                    .disabled(!youtubeSplitBatches)
+                    .accessibilityIdentifier("createYoutubeStitchBatchesToggle")
+                Toggle("Keep aspect ratio", isOn: boolBinding(for: .youtubePreserveAspectRatio, value: $youtubePreserveAspectRatio))
+                    .accessibilityIdentifier("createYoutubePreserveAspectRatioToggle")
+                Toggle("Transliteration track", isOn: boolBinding(for: .includeTransliteration, value: $includeTransliteration))
+                    .accessibilityIdentifier("createYoutubeTransliterationToggle")
+                Toggle("Lookup Cache", isOn: boolBinding(for: .enableLookupCache, value: $enableLookupCache))
+                    .accessibilityIdentifier("createYoutubeLookupCacheToggle")
             } else {
                 LabeledContent("Path", value: derivedBaseOutput)
                     .accessibilityIdentifier("createBookBaseOutputLabel")
@@ -442,6 +526,8 @@ struct AppleBookCreateView: View {
                     Label("Narrate EPUB", systemImage: "book")
                 } else if creationMode == .subtitleJob {
                     Label("Create Subtitles", systemImage: "captions.bubble")
+                } else if creationMode == .youtubeDub {
+                    Label("Create Dub", systemImage: "video")
                 } else {
                     Label("Generate Audiobook", systemImage: "sparkles")
                 }
@@ -463,6 +549,9 @@ struct AppleBookCreateView: View {
                 && !trimmed(sourceBaseOutput).isEmpty
         case .subtitleJob:
             return selectedSubtitleFileURL != nil || !trimmed(subtitleSourcePath).isEmpty
+        case .youtubeDub:
+            return !trimmed(youtubeVideoPath).isEmpty
+                && !trimmed(youtubeSubtitlePath).isEmpty
         }
     }
 
@@ -482,6 +571,8 @@ struct AppleBookCreateView: View {
             return trimmed(sourceBaseOutput)
         case .subtitleJob:
             return Self.deriveBaseOutputName(subtitleSourcePath)
+        case .youtubeDub:
+            return Self.deriveBaseOutputName(youtubeVideoPath)
         }
     }
 
@@ -493,6 +584,8 @@ struct AppleBookCreateView: View {
             submitNarrateEbook()
         case .subtitleJob:
             submitSubtitleJob()
+        case .youtubeDub:
+            submitYoutubeDub()
         }
     }
 
@@ -575,6 +668,50 @@ struct AppleBookCreateView: View {
         }
     }
 
+    private func submitYoutubeDub() {
+        guard let normalizedStartOffset = normalizeYoutubeOffset(youtubeStartOffset) else {
+            viewModel.errorMessage = "Enter a valid start offset in seconds, MM:SS, or HH:MM:SS format."
+            return
+        }
+        guard let normalizedEndOffset = normalizeYoutubeOffset(youtubeEndOffset) else {
+            viewModel.errorMessage = "Enter a valid end offset in seconds, MM:SS, or HH:MM:SS format."
+            return
+        }
+        youtubeStartOffset = normalizedStartOffset
+        youtubeEndOffset = normalizedEndOffset
+
+        let draft = AppleYoutubeDubDraft(
+            videoPath: trimmed(youtubeVideoPath),
+            subtitlePath: trimmed(youtubeSubtitlePath),
+            sourceLanguage: inputLanguage.backendValue,
+            targetLanguage: targetLanguage.backendValue,
+            voice: voice.backendValue,
+            startTimeOffset: normalizedStartOffset.nonEmptyValue,
+            endTimeOffset: normalizedEndOffset.nonEmptyValue,
+            originalMixPercent: clampedYoutubeOriginalMixPercent,
+            flushSentences: clampedYoutubeFlushSentences,
+            llmModel: subtitleTranslationProvider == .llm ? trimmed(subtitleLlmModel).nonEmptyValue : nil,
+            translationProvider: subtitleTranslationProvider.backendValue,
+            translationBatchSize: clampedSubtitleTranslationBatchSize,
+            transliterationMode: includeTransliteration ? subtitleTransliterationMode.backendValue : nil,
+            transliterationModel: includeTransliteration && subtitleTransliterationMode.allowsModelOverride
+                ? trimmed(subtitleTransliterationModel).nonEmptyValue
+                : nil,
+            splitBatches: youtubeSplitBatches,
+            stitchBatches: youtubeSplitBatches && youtubeStitchBatches,
+            includeTransliteration: includeTransliteration,
+            targetHeight: youtubeTargetHeight.backendValue,
+            preserveAspectRatio: youtubePreserveAspectRatio,
+            enableLookupCache: enableLookupCache
+        )
+
+        Task {
+            if let jobId = await viewModel.submitYoutubeDub(draft, using: appState) {
+                onJobSubmitted(jobId)
+            }
+        }
+    }
+
     private func submitNarrateEbook() {
         let draft = AppleNarrateEbookDraft(
             inputFile: trimmed(sourcePath),
@@ -601,6 +738,17 @@ struct AppleBookCreateView: View {
 
     private func trimmed(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func normalizeYoutubeOffset(_ value: String) -> String? {
+        let trimmedValue = trimmed(value)
+        if trimmedValue.isEmpty {
+            return ""
+        }
+        if let seconds = Int(trimmedValue), seconds >= 0 {
+            return "\(seconds)"
+        }
+        return SubtitleTimecodeInput.normalize(trimmedValue)
     }
 
     #if os(iOS)
@@ -726,6 +874,10 @@ struct AppleBookCreateView: View {
         clampedAssEmphasisScale.formatted(.number.precision(.fractionLength(2)))
     }
 
+    private var formattedYoutubeOriginalMixPercent: String {
+        "\(Int(clampedYoutubeOriginalMixPercent.rounded()))%"
+    }
+
     private var clampedAssFontSize: Int {
         min(
             AppleSubtitleAssTypography.fontSizeRange.upperBound,
@@ -759,6 +911,14 @@ struct AppleBookCreateView: View {
             AppleSubtitleTuning.batchSizeRange.upperBound,
             max(AppleSubtitleTuning.batchSizeRange.lowerBound, subtitleBatchSize)
         )
+    }
+
+    private var clampedYoutubeOriginalMixPercent: Double {
+        min(100, max(0, youtubeOriginalMixPercent))
+    }
+
+    private var clampedYoutubeFlushSentences: Int {
+        min(200, max(1, youtubeFlushSentences))
     }
 
     private var sentenceCountBinding: Binding<Int> {
@@ -876,6 +1036,36 @@ struct AppleBookCreateView: View {
                     AppleSubtitleAssTypography.emphasisScaleRange.upperBound,
                     max(AppleSubtitleAssTypography.emphasisScaleRange.lowerBound, rounded)
                 )
+            }
+        )
+    }
+
+    private var youtubeTargetHeightBinding: Binding<AppleYoutubeDubTargetHeight> {
+        Binding(
+            get: { youtubeTargetHeight },
+            set: { newValue in
+                markEdited(.youtubeTargetHeight)
+                youtubeTargetHeight = newValue
+            }
+        )
+    }
+
+    private var youtubeOriginalMixPercentBinding: Binding<Double> {
+        Binding(
+            get: { clampedYoutubeOriginalMixPercent },
+            set: { newValue in
+                markEdited(.youtubeOriginalMixPercent)
+                youtubeOriginalMixPercent = min(100, max(0, (newValue / 5).rounded() * 5))
+            }
+        )
+    }
+
+    private var youtubeFlushSentencesBinding: Binding<Int> {
+        Binding(
+            get: { clampedYoutubeFlushSentences },
+            set: { newValue in
+                markEdited(.youtubeFlushSentences)
+                youtubeFlushSentences = min(200, max(1, newValue))
             }
         )
     }
@@ -1005,6 +1195,16 @@ private enum AppleBookCreateEditedField: Hashable {
     case sourcePath
     case sourceBaseOutput
     case subtitleSourcePath
+    case youtubeVideoPath
+    case youtubeSubtitlePath
+    case youtubeStartOffset
+    case youtubeEndOffset
+    case youtubeOriginalMixPercent
+    case youtubeFlushSentences
+    case youtubeTargetHeight
+    case youtubePreserveAspectRatio
+    case youtubeSplitBatches
+    case youtubeStitchBatches
     case subtitleOutputFormat
     case subtitleStartTime
     case subtitleEndTime
@@ -1034,6 +1234,7 @@ private enum AppleCreateMode: String, CaseIterable, Identifiable {
     case generatedBook
     case narrateEbook
     case subtitleJob
+    case youtubeDub
 
     var id: String { rawValue }
 
@@ -1045,6 +1246,28 @@ private enum AppleCreateMode: String, CaseIterable, Identifiable {
             return "Narrate EPUB"
         case .subtitleJob:
             return "Subtitles"
+        case .youtubeDub:
+            return "YouTube Dub"
+        }
+    }
+}
+
+private enum AppleYoutubeDubTargetHeight: Int, CaseIterable, Identifiable {
+    case p320 = 320
+    case p480 = 480
+    case p720 = 720
+
+    var id: Int { rawValue }
+    var backendValue: Int { rawValue }
+
+    var label: String {
+        switch self {
+        case .p320:
+            return "320p"
+        case .p480:
+            return "480p"
+        case .p720:
+            return "720p"
         }
     }
 }

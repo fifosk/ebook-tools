@@ -173,7 +173,20 @@ struct AppleCreationPayloadCheck {
             videoPath: "incoming/demo.mp4",
             subtitlePath: "incoming/demo.srt",
             mediaMetadata: ["source": .string("apple")],
+            sourceLanguage: "English",
             targetLanguage: "sk",
+            voice: "gTTS",
+            startTimeOffset: "00:45",
+            endTimeOffset: "01:30",
+            originalMixPercent: 5,
+            flushSentences: 10,
+            llmModel: "gpt-4.1-mini",
+            translationProvider: "llm",
+            translationBatchSize: 10,
+            transliterationMode: "default",
+            splitBatches: true,
+            stitchBatches: true,
+            includeTransliteration: true,
             targetHeight: 720,
             preserveAspectRatio: true,
             enableLookupCache: true
@@ -181,7 +194,20 @@ struct AppleCreationPayloadCheck {
         let youtubeObject = try jsonObject(from: encoder.encode(youtube))
         require(youtubeObject["video_path"] as? String == "incoming/demo.mp4", "youtube dub should encode video_path")
         require(youtubeObject["subtitle_path"] as? String == "incoming/demo.srt", "youtube dub should encode subtitle_path")
+        require(youtubeObject["source_language"] as? String == "English", "youtube dub should encode source_language")
+        require(youtubeObject["target_language"] as? String == "sk", "youtube dub should encode target_language")
+        require(youtubeObject["voice"] as? String == "gTTS", "youtube dub should encode voice")
+        require(youtubeObject["start_time_offset"] as? String == "00:45", "youtube dub should encode start_time_offset")
+        require(youtubeObject["end_time_offset"] as? String == "01:30", "youtube dub should encode end_time_offset")
+        require((youtubeObject["original_mix_percent"] as? NSNumber)?.doubleValue == 5, "youtube dub should encode original_mix_percent")
+        require(youtubeObject["flush_sentences"] as? Int == 10, "youtube dub should encode flush_sentences")
+        require(youtubeObject["translation_provider"] as? String == "llm", "youtube dub should encode translation_provider")
+        require(youtubeObject["translation_batch_size"] as? Int == 10, "youtube dub should encode translation_batch_size")
+        require(youtubeObject["split_batches"] as? Bool == true, "youtube dub should encode split_batches")
+        require(youtubeObject["stitch_batches"] as? Bool == true, "youtube dub should encode stitch_batches")
+        require(youtubeObject["include_transliteration"] as? Bool == true, "youtube dub should encode include_transliteration")
         require(youtubeObject["target_height"] as? Int == 720, "youtube dub should encode target_height")
+        require(youtubeObject["preserve_aspect_ratio"] as? Bool == true, "youtube dub should encode preserve_aspect_ratio")
         require(youtubeObject["enable_lookup_cache"] as? Bool == true, "youtube dub should encode enable_lookup_cache")
 
         let subtitle = SubtitleJobFormPayload(

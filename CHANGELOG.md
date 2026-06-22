@@ -14,6 +14,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Web Create generated-audiobook fields now apply backend topic, title, and genre defaults from `/api/books/options` while preserving any prompt edits already typed before defaults arrive, matching the Apple Create behavior.
 
+### 2026.06.22.166
+
+- Advanced visible Apple app versioning to `v2026.06.22.166`.
+- Apple Create now exposes an iPhone/iPad YouTube Dub mode for existing backend/NAS video and subtitle paths, submitting `/api/subtitles/youtube/dub` with Web-aligned language, voice, clip-window, batching, output, and lookup-cache options.
+
 ### 2026.06.22.165
 
 - Advanced visible Apple app versioning to `v2026.06.22.165`.

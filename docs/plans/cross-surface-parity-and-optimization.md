@@ -72,7 +72,6 @@ Current Apple API client supports:
 
 Current Apple UI does not yet expose:
 
-- YouTube dubbing submission.
 - Upload/reupload library source files.
 
 ## Backend Optimization Targets
@@ -175,7 +174,12 @@ After Narrate Ebook:
   `MM:SS`, `HH:MM:SS`, and `+offset` values before submit. Remaining parity
   gap: rich TV/film metadata lookup/editing.
 - Generated book job creation on iPad.
-- YouTube dubbing as iPad-first review/submit flow.
+- YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
+  exposes a path-based iPhone/iPad YouTube Dub mode for existing backend/NAS
+  video and subtitle files and submits `/api/subtitles/youtube/dub` with
+  language, voice, clip-window, batching, provider/model, output, and
+  lookup-cache options. Remaining parity gaps: NAS library picker, inline
+  subtitle extraction, voice preview, and rich TV/YouTube metadata lookup/editing.
 - Apple TV gets read-only job templates or retry controls only if remote navigation stays simple.
 
 ## Feature Backlog
