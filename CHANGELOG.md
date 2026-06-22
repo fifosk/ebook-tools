@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.138
+
+- Advanced visible Apple app versioning to `v2026.06.22.138`.
+- Moved Jobs row title, metadata, progress, status, and cover URL presentation helpers into `JobRowView+Presentation.swift`, keeping `JobRowView.swift` focused on row layout and platform styling.
+
 ### 2026.06.22.137
 
 - Advanced visible Apple app versioning to `v2026.06.22.137`.

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "job-row-presentation-file",
+            title: "Jobs rows split cleanly",
+            detail: "Jobs row title, metadata, progress, status, and cover URL presentation helpers now live in a focused extension while the row view stays centered on layout and platform styling."
+        ),
+        AppChangelogEntry(
             id: "interactive-transcript-autoscale-file",
             title: "Transcript auto-scale separated",
             detail: "Track auto-scale measurement, resize handlers, and delayed fit recalculation now live in a focused extension while the core transcript view stays centered on layout composition."

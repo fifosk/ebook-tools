@@ -242,12 +242,14 @@
 		C8D9E0F1A2B3C4D5E6F70821 /* JobsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */; };
 		C8D9E0F1A2B3C4D5E6F70822 /* JobsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */; };
 		C8D9E0F1A2B3C4D5E6F70823 /* JobRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */; };
+		JOBROWPRE001A0001 /* JobRowView+Presentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = JOBROWPRE002A0001 /* JobRowView+Presentation.swift */; };
 		C8D9E0F1A2B3C4D5E6F70824 /* JobPlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70804 /* JobPlaybackView.swift */; };
 		C8D9E0F1A2B3C4D5E6F70825 /* JSONValue+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70805 /* JSONValue+Helpers.swift */; };
 		C8D9E0F1A2B3C4D5E6F70826 /* PipelineJobStatus+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70806 /* PipelineJobStatus+Helpers.swift */; };
 		C8D9E0F1A2B3C4D5E6F70831 /* JobsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */; };
 		C8D9E0F1A2B3C4D5E6F70832 /* JobsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */; };
 		C8D9E0F1A2B3C4D5E6F70833 /* JobRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */; };
+		JOBROWPRE001A0002 /* JobRowView+Presentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = JOBROWPRE002A0001 /* JobRowView+Presentation.swift */; };
 		C8D9E0F1A2B3C4D5E6F70834 /* JobPlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70804 /* JobPlaybackView.swift */; };
 		C8D9E0F1A2B3C4D5E6F70835 /* JSONValue+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70805 /* JSONValue+Helpers.swift */; };
 		C8D9E0F1A2B3C4D5E6F70836 /* PipelineJobStatus+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70806 /* PipelineJobStatus+Helpers.swift */; };
@@ -549,6 +551,7 @@
 		C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsViewModel.swift; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsView.swift; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRowView.swift; sourceTree = "<group>"; };
+		JOBROWPRE002A0001 /* JobRowView+Presentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JobRowView+Presentation.swift"; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70804 /* JobPlaybackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobPlaybackView.swift; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70805 /* JSONValue+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JSONValue+Helpers.swift"; sourceTree = "<group>"; };
 		C8D9E0F1A2B3C4D5E6F70806 /* PipelineJobStatus+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PipelineJobStatus+Helpers.swift"; sourceTree = "<group>"; };
@@ -1063,6 +1066,7 @@
 				C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */,
 				C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */,
 				C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */,
+				JOBROWPRE002A0001 /* JobRowView+Presentation.swift */,
 				AFD49DA8931383BE8A5051EB /* JobRowComponents.swift */,
 				DA600C63DA2FCBB54AE69189 /* JobRowCoverParsing.swift */,
 			);
@@ -1378,6 +1382,7 @@
 				C8D9E0F1A2B3C4D5E6F70824 /* JobPlaybackView.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70822 /* JobsView.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70823 /* JobRowView.swift in Sources */,
+				JOBROWPRE001A0001 /* JobRowView+Presentation.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70821 /* JobsViewModel.swift in Sources */,
 				D079469EF5C746E3929B197D /* VideoPlayerView.swift in Sources */,
 				2DA78C3AF84F33717333B09C /* SubtitleOverlayModels.swift in Sources */,
@@ -1589,6 +1594,7 @@
 				C8D9E0F1A2B3C4D5E6F70834 /* JobPlaybackView.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70832 /* JobsView.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70833 /* JobRowView.swift in Sources */,
+				JOBROWPRE001A0002 /* JobRowView+Presentation.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70831 /* JobsViewModel.swift in Sources */,
 				1798B15E2EF9F1A00092A8AF /* VideoPlayerView.swift in Sources */,
 				4FCBDB13D057A4C10251CD6E /* SubtitleOverlayModels.swift in Sources */,
@@ -1807,7 +1813,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622137;
+				CURRENT_PROJECT_VERSION = 20260622138;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1954,7 +1960,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622137;
+				CURRENT_PROJECT_VERSION = 20260622138;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -1982,7 +1988,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622137;
+				CURRENT_PROJECT_VERSION = 20260622138;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -2010,7 +2016,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622137;
+				CURRENT_PROJECT_VERSION = 20260622138;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -2037,7 +2043,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622137;
+				CURRENT_PROJECT_VERSION = 20260622138;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -2063,7 +2069,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622137;
+				CURRENT_PROJECT_VERSION = 20260622138;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -2088,7 +2094,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622137;
+				CURRENT_PROJECT_VERSION = 20260622138;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -2106,7 +2112,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622137;
+				CURRENT_PROJECT_VERSION = 20260622138;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -2124,7 +2130,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622137;
+				CURRENT_PROJECT_VERSION = 20260622138;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
@@ -2144,7 +2150,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622137;
+				CURRENT_PROJECT_VERSION = 20260622138;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 2026.6.22;
