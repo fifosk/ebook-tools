@@ -16,8 +16,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.76",
+            version: "2026.06.22.77",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-changelog-row-focus",
+                    title: "TV changelog remote scrolling fixed",
+                    detail: "Daily changelog rows are now individual TV focus targets so the Siri Remote can move down and reveal the full entry list."
+                ),
                 AppChangelogEntry(
                     id: "language-flag-resolver-file",
                     title: "Language flag resolver separated",

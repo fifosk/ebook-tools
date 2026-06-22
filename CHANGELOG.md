@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.77
+
+- Advanced visible Apple app versioning to `v2026.06.22.77`.
+- Made TV changelog rows individually focusable so the Siri Remote can move down through the full daily change list instead of stopping after the first visible lines.
+
 ### 2026.06.22.76
 
 - Advanced visible Apple app versioning to `v2026.06.22.76`.

@@ -5,6 +5,9 @@ struct AppChangelogSummaryView: View {
     let showBuildMetadata: Bool
     let usesDarkBackground: Bool
     let maxContentHeight: CGFloat?
+    #if os(tvOS)
+    @FocusState private var focusedEntryID: String?
+    #endif
 
     init(
         maxEntries: Int? = nil,
@@ -61,19 +64,57 @@ struct AppChangelogSummaryView: View {
     @ViewBuilder
     private var entriesSection: some View {
         if let maxContentHeight {
+            #if os(tvOS)
+            tvScrollableEntries(maxContentHeight: maxContentHeight)
+            #else
             ScrollView(.vertical, showsIndicators: true) {
                 entriesList
                     .padding(.trailing, 10)
             }
             .frame(maxHeight: maxContentHeight)
-            #if os(tvOS)
-            .focusable(true)
-            .focusSection()
             #endif
         } else {
             entriesList
         }
     }
+
+    #if os(tvOS)
+    private func tvScrollableEntries(maxContentHeight: CGFloat) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: true) {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    ForEach(displayEntries) { entry in
+                        AppChangelogEntryRow(
+                            entry: entry,
+                            primaryStyle: primaryStyle,
+                            secondaryStyle: secondaryStyle,
+                            isFocused: focusedEntryID == entry.id
+                        )
+                        .id(entry.id)
+                        .focusable(true)
+                        .focused($focusedEntryID, equals: entry.id)
+                    }
+                }
+                .padding(.trailing, 14)
+                .padding(.vertical, 4)
+            }
+            .frame(maxHeight: maxContentHeight)
+            .focusSection()
+            .onAppear(perform: focusFirstEntryIfNeeded)
+            .onChange(of: focusedEntryID) { _, entryID in
+                guard let entryID else { return }
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    proxy.scrollTo(entryID, anchor: .center)
+                }
+            }
+        }
+    }
+
+    private func focusFirstEntryIfNeeded() {
+        guard focusedEntryID == nil else { return }
+        focusedEntryID = displayEntries.first?.id
+    }
+    #endif
 
     private var entriesList: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -167,9 +208,11 @@ private struct AppChangelogEntryRow: View {
     let entry: AppChangelogEntry
     let primaryStyle: Color
     let secondaryStyle: Color
+    var isFocused = false
 
+    @ViewBuilder
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        let row = HStack(alignment: .top, spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.caption)
                 .foregroundStyle(Color.green)
@@ -184,5 +227,20 @@ private struct AppChangelogEntryRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+
+        #if os(tvOS)
+        row
+            .padding(8)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isFocused ? Color.white.opacity(0.14) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(isFocused ? Color.white.opacity(0.28) : Color.clear, lineWidth: 1)
+            )
+        #else
+        row
+        #endif
     }
 }
