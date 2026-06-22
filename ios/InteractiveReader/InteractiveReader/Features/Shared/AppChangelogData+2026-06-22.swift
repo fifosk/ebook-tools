@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "video-player-header-components-file",
+            title: "Video header components separated",
+            detail: "Video player header controls, timeline pills, dismiss chrome, and info badge rendering now live in focused components while the header view stays centered on platform layout and timing labels."
+        ),
+        AppChangelogEntry(
             id: "subtitle-overlay-token-views-file",
             title: "Subtitle token views separated",
             detail: "Subtitle token line rendering, word highlighting, tap and lookup gestures, and overlay token colors now live in a focused file while the base subtitle overlay stays centered on display assembly and magnification."

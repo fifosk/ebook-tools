@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.150
+
+- Advanced visible Apple app versioning to `v2026.06.22.150`.
+- Moved video player header controls, timeline pills, dismiss chrome, and info badge rendering into `VideoPlayerHeaderComponents.swift`, keeping `VideoPlayerHeaderView.swift` focused on platform layout and timing labels.
+
 ### 2026.06.22.149
 
 - Advanced visible Apple app versioning to `v2026.06.22.149`.

@@ -140,29 +140,12 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
     @ViewBuilder
     private func collapsedHeaderPill(timelineLabel: String?) -> some View {
         if let timelineLabel {
-            Button {
-                onToggleHeaderCollapsed()
-            } label: {
-                Text(timelineLabel)
-                    .font(infoIndicatorFont)
-                    .foregroundStyle(Color.white.opacity(0.75))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.black.opacity(0.5))
-                            .overlay(
-                                Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
-                            )
-                    )
-            }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity, alignment: .center)
-            // Position lower to avoid iOS status bar icons (wifi, battery, etc.)
-            .padding(.top, 36 + headerTopInset)
-            .padding(.horizontal, 12)
+            CollapsedVideoHeaderPill(
+                timelineLabel: timelineLabel,
+                font: infoIndicatorFont,
+                headerTopInset: headerTopInset,
+                onTap: onToggleHeaderCollapsed
+            )
         }
     }
 
@@ -174,42 +157,22 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
-                dismissButton
+                VideoPlayerHeaderDismissButton(onDismiss: onDismiss)
                 Spacer(minLength: 12)
-                HStack(spacing: 8) {
-                    if let searchPill {
-                        searchPill
-                    }
-                    if showBookmarkRibbonPill && canShowBookmarks {
-                        bookmarkRibbonPill
-                    }
-                    if hasOptions {
-                        subtitleButton
-                    }
-                    if canShowBookmarks && !showBookmarkRibbonPill {
-                        bookmarkMenu
-                    }
-                    speedMenu
-                }
+                controlsRow
             }
             HStack(alignment: .top, spacing: 12) {
                 if shouldShowHeaderInfo {
                     infoHeaderContent
                 }
                 Spacer(minLength: 12)
-                VStack(alignment: .trailing, spacing: 6) {
-                    if shouldShowHeaderInfo {
-                        if let segmentLabel {
-                            VideoTimelinePill(label: segmentLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
-                        }
-                        if let timelineLabel {
-                            VideoTimelinePill(label: timelineLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
-                        }
-                    } else if let timelineLabel {
-                        // Show collapsed timeline pill to allow expanding
-                        VideoTimelinePill(label: timelineLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
-                    }
-                }
+                VideoPlayerHeaderTimelineStack(
+                    timelineLabel: timelineLabel,
+                    segmentLabel: segmentLabel,
+                    shouldShowHeaderInfo: shouldShowHeaderInfo,
+                    font: infoIndicatorFont,
+                    onToggleHeaderCollapsed: onToggleHeaderCollapsed
+                )
             }
             if shouldShowHeaderInfo {
                 summaryTickerView
@@ -227,39 +190,21 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
-                dismissButton
+                VideoPlayerHeaderDismissButton(onDismiss: onDismiss)
                 if shouldShowHeaderInfo {
                     infoHeaderContent
                 }
                 Spacer(minLength: 12)
                 if timelineLabel != nil || hasOptions {
                     VStack(alignment: .trailing, spacing: 6) {
-                        if shouldShowHeaderInfo {
-                            if let segmentLabel {
-                                VideoTimelinePill(label: segmentLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
-                            }
-                            if let timelineLabel {
-                                VideoTimelinePill(label: timelineLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
-                            }
-                        } else if let timelineLabel {
-                            // Show collapsed timeline pill to allow expanding
-                            VideoTimelinePill(label: timelineLabel, font: infoIndicatorFont, onTap: onToggleHeaderCollapsed)
-                        }
-                        HStack(spacing: 8) {
-                            if let searchPill {
-                                searchPill
-                            }
-                            if showBookmarkRibbonPill && canShowBookmarks {
-                                bookmarkRibbonPill
-                            }
-                            if hasOptions {
-                                subtitleButton
-                            }
-                            if canShowBookmarks && !showBookmarkRibbonPill {
-                                bookmarkMenu
-                            }
-                            speedMenu
-                        }
+                        VideoPlayerHeaderTimelineStack(
+                            timelineLabel: timelineLabel,
+                            segmentLabel: segmentLabel,
+                            shouldShowHeaderInfo: shouldShowHeaderInfo,
+                            font: infoIndicatorFont,
+                            onToggleHeaderCollapsed: onToggleHeaderCollapsed
+                        )
+                        controlsRow
                     }
                 }
             }
@@ -271,104 +216,35 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
         .padding(.horizontal, 12)
     }
 
-    private var dismissButton: some View {
-        Button(action: onDismiss) {
-            Image(systemName: "xmark")
-                .font(.caption.weight(.semibold))
-                .padding(8)
-                .background(.black.opacity(0.45), in: Circle())
-                .foregroundStyle(.white)
-        }
-    }
-
-    private var subtitleButton: some View {
-        VideoPlayerSubtitleButton(
-            labelText: hasTracks ? selectedTrackLabel : "Options",
-            onTap: onShowSubtitleSettings
+    private var infoHeaderContent: some View {
+        VideoPlayerHeaderInfoView(
+            metadata: metadata,
+            headerScale: infoHeaderScale,
+            coverWidth: infoCoverWidth,
+            coverHeight: infoCoverHeight,
+            titleFont: infoTitleFont,
+            metaFont: infoMetaFont
         )
     }
 
-    private var bookmarkMenu: some View {
-        VideoPlayerBookmarkMenu(
+    private var controlsRow: some View {
+        VideoPlayerHeaderControlsRow(
+            searchPill: searchPill,
+            showBookmarkRibbonPill: showBookmarkRibbonPill,
+            canShowBookmarks: canShowBookmarks,
+            hasOptions: hasOptions,
+            subtitleLabel: hasTracks ? selectedTrackLabel : "Options",
+            isPad: isPad,
             bookmarks: bookmarks,
-            onAddBookmark: onAddBookmark,
-            onJumpToBookmark: onJumpToBookmark,
-            onRemoveBookmark: onRemoveBookmark,
-            onUserInteraction: onUserInteraction
-        )
-    }
-
-    private var speedMenu: some View {
-        VideoPlayerSpeedMenu(
             playbackRate: playbackRate,
             playbackRateOptions: playbackRateOptions,
+            onShowSubtitleSettings: onShowSubtitleSettings,
             onPlaybackRateChange: onPlaybackRateChange,
-            onUserInteraction: onUserInteraction
-        )
-    }
-
-    private var bookmarkRibbonPill: some View {
-        BookmarkRibbonPillView(
-            bookmarkCount: bookmarks.count,
-            isTV: false,
-            sizeScale: isPad ? 1.5 : 1.0,
-            bookmarks: bookmarks,
             onAddBookmark: onAddBookmark,
             onJumpToBookmark: onJumpToBookmark,
             onRemoveBookmark: onRemoveBookmark,
             onUserInteraction: onUserInteraction
         )
-    }
-
-    private var infoHeaderContent: some View {
-        HStack(alignment: .top, spacing: 12) {
-            PlayerChannelBugView(
-                variant: metadata.channelVariant,
-                label: metadata.channelLabel,
-                sizeScale: infoHeaderScale
-            )
-            if hasInfoBadge {
-                infoBadgeView
-            }
-        }
-    }
-
-    private var infoBadgeView: some View {
-        HStack(alignment: .top, spacing: 8) {
-            if metadata.artworkURL != nil || metadata.secondaryArtworkURL != nil {
-                PlayerCoverStackView(
-                    primaryURL: metadata.artworkURL,
-                    secondaryURL: metadata.secondaryArtworkURL,
-                    width: infoCoverWidth,
-                    height: infoCoverHeight,
-                    isTV: false
-                )
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                if !metadata.title.isEmpty {
-                    Text(metadata.title)
-                        .font(infoTitleFont)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                        .foregroundStyle(.white)
-                }
-                if let subtitle = metadata.subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(infoMetaFont)
-                        .foregroundStyle(Color.white.opacity(0.75))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                }
-                if !metadata.languageFlags.isEmpty {
-                    PlayerLanguageFlagRow(
-                        flags: metadata.languageFlags,
-                        modelLabel: metadata.translationModel,
-                        isTV: false,
-                        sizeScale: infoHeaderScale
-                    )
-                }
-            }
-        }
     }
 
     @ViewBuilder
@@ -427,10 +303,6 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
 
     private var canShowBookmarks: Bool {
         onAddBookmark != nil
-    }
-
-    private var hasInfoBadge: Bool {
-        !metadata.title.isEmpty || (metadata.subtitle?.isEmpty == false) || metadata.artworkURL != nil
     }
 
     private var selectedTrackLabel: String {
