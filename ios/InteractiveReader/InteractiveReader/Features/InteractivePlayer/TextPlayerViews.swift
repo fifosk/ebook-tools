@@ -79,12 +79,8 @@ struct TextPlayerFrame: View {
         .frame(maxWidth: .infinity)
         .background(TextPlayerTheme.frameBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .onPreferenceChange(TextPlayerTokenFramePreferenceKey.self) { frames in
-            onTokenFramesChange?(frames)
-        }
-        .onPreferenceChange(TextPlayerTapExclusionPreferenceKey.self) { frames in
-            onTapExclusionFramesChange?(frames)
-        }
+        .onPreferenceChange(TextPlayerTokenFramePreferenceKey.self, perform: handleTokenFramesChange)
+        .onPreferenceChange(TextPlayerTapExclusionPreferenceKey.self, perform: handleTapExclusionFramesChange)
     }
 
     private var framePadding: CGFloat {
@@ -93,6 +89,14 @@ struct TextPlayerFrame: View {
         #else
         return 14
         #endif
+    }
+
+    private func handleTokenFramesChange(_ frames: [TextPlayerTokenFrame]) {
+        onTokenFramesChange?(frames)
+    }
+
+    private func handleTapExclusionFramesChange(_ frames: [CGRect]) {
+        onTapExclusionFramesChange?(frames)
     }
 }
 

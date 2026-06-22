@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.33",
+            version: "2026.06.22.34",
             entries: [
+                AppChangelogEntry(
+                    id: "text-player-frame-preference-handlers",
+                    title: "Text frame updates cleaned up",
+                    detail: "Text-player token-frame and tap-exclusion preference changes now route through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "text-player-track-toggle-handlers",
                     title: "Text track toggles cleaned up",

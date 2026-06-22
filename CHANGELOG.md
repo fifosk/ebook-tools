@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.34
+
+- Advanced visible Apple app versioning to `v2026.06.22.34`.
+- Moved text-player token-frame and tap-exclusion preference changes into named SwiftUI handlers.
+
 ### 2026.06.22.33
 
 - Advanced visible Apple app versioning to `v2026.06.22.33`.
