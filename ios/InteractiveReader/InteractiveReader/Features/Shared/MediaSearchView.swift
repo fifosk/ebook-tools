@@ -301,7 +301,7 @@ struct MediaSearchResultsListView: View {
                             model: model,
                             actionType: actionType,
                             isTV: isTV,
-                            onSelect: { onSelect(model.result) }
+                            onSelect: onSelect
                         )
                     }
                 }
@@ -314,7 +314,7 @@ struct MediaSearchResultsListView: View {
                             model: model,
                             actionType: actionType,
                             isTV: isTV,
-                            onSelect: { onSelect(model.result) }
+                            onSelect: onSelect
                         )
                         if model.id != displayModels.last?.id {
                             Divider()
@@ -374,16 +374,16 @@ struct MediaSearchResultRowView: View {
     let model: SearchResultDisplayModel
     let actionType: MediaSearchActionType
     let isTV: Bool
-    let onSelect: () -> Void
+    let onSelect: (MediaSearchResult) -> Void
 
     var body: some View {
         #if os(tvOS)
-        Button(action: onSelect) {
+        Button(action: handleSelect) {
             tvRowContent
         }
         .buttonStyle(TVSearchResultCardStyle())
         #else
-        Button(action: onSelect) {
+        Button(action: handleSelect) {
             rowContent
         }
         .buttonStyle(.plain)
@@ -517,6 +517,10 @@ struct MediaSearchResultRowView: View {
 
     private var buttonFont: Font {
         isTV ? .caption : .caption2.weight(.semibold)
+    }
+
+    private func handleSelect() {
+        onSelect(model.result)
     }
 }
 
