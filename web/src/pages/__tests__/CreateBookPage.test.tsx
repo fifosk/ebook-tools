@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CreateBookPage from '../CreateBookPage';
 import {
@@ -85,15 +85,29 @@ describe('CreateBookPage', () => {
   });
 
   it('uses backend creation options for generated-book prompt defaults', async () => {
+    vi.mocked(fetchBookCreationOptions).mockResolvedValue({
+      ...creationOptions,
+      defaults: {
+        ...creationOptions.defaults,
+        topic: 'Backend topic',
+        book_name: 'Backend Book',
+        genre: 'Backend genre',
+      },
+    });
+
     render(<CreateBookPage />);
 
     await waitFor(() => expect(fetchBookCreationOptions).toHaveBeenCalled());
 
+    expect(screen.getByLabelText(/Topic/i)).toHaveValue('Backend topic');
+    expect(screen.getByLabelText(/Book name/i)).toHaveValue('Backend Book');
+    expect(screen.getByLabelText(/Genre/i)).toHaveValue('Backend genre');
     const sentenceInput = screen.getByLabelText(/Number of sentences/i);
     expect(sentenceInput).toHaveAttribute('min', '3');
     expect(sentenceInput).toHaveAttribute('max', '120');
     expect(sentenceInput).toHaveValue(45);
     expect(screen.getByLabelText(/Author/i)).toHaveValue('Pipeline Author');
+    expect(screen.getByTestId('forced-base-output')).toHaveTextContent('backend-book');
     expect(screen.getByTestId('image-defaults')).toHaveTextContent('"image_style_template":"ink"');
     expect(screen.getByTestId('image-defaults')).toHaveTextContent('"image_width":"384"');
     expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"target_languages":["Arabic"]');
@@ -101,5 +115,44 @@ describe('CreateBookPage', () => {
     expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"audio_bitrate_kbps":128');
     expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"translation_provider":"googletrans"');
     expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"enable_lookup_cache":false');
+  });
+
+  it('preserves generated-book prompt edits when backend defaults arrive late', async () => {
+    let resolveOptions: ((value: BookCreationOptionsResponse) => void) | null = null;
+    vi.mocked(fetchBookCreationOptions).mockImplementationOnce(
+      () =>
+        new Promise<BookCreationOptionsResponse>((resolve) => {
+          resolveOptions = resolve;
+        }),
+    );
+
+    render(<CreateBookPage />);
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Topic/i), { target: { value: 'My topic' } });
+      fireEvent.change(screen.getByLabelText(/Book name/i), { target: { value: 'My Book' } });
+      fireEvent.change(screen.getByLabelText(/Genre/i), { target: { value: 'My genre' } });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      resolveOptions?.({
+        ...creationOptions,
+        defaults: {
+          ...creationOptions.defaults,
+          topic: 'Backend topic',
+          book_name: 'Backend Book',
+          genre: 'Backend genre',
+        },
+      });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(screen.getByLabelText(/Author/i)).toHaveValue('Pipeline Author'));
+
+    expect(screen.getByLabelText(/Topic/i)).toHaveValue('My topic');
+    expect(screen.getByLabelText(/Book name/i)).toHaveValue('My Book');
+    expect(screen.getByLabelText(/Genre/i)).toHaveValue('My genre');
+    expect(screen.getByTestId('forced-base-output')).toHaveTextContent('my-book');
   });
 });

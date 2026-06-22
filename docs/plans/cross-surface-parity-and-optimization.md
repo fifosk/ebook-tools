@@ -157,6 +157,10 @@ Refactor before restyling:
 
 - Split large route files into page shell, toolbar, filters, list/detail, and action modules.
 - Move repeated status/glyph/metadata row logic into shared components.
+- Keep generated-audiobook defaults consistent across Web and Apple. Status:
+  Web Create now applies backend topic, title, and genre defaults from
+  `/api/books/options` while preserving prompt edits that happen before defaults
+  arrive.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 

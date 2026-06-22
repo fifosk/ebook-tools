@@ -109,6 +109,18 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
           );
           return {
             ...previous,
+            topic:
+              previous.topic === DEFAULT_GENERATOR_STATE.topic
+                ? options.defaults.topic || DEFAULT_GENERATOR_STATE.topic
+                : previous.topic,
+            book_name:
+              previous.book_name === DEFAULT_GENERATOR_STATE.book_name
+                ? options.defaults.book_name || DEFAULT_GENERATOR_STATE.book_name
+                : previous.book_name,
+            genre:
+              previous.genre === DEFAULT_GENERATOR_STATE.genre
+                ? options.defaults.genre || DEFAULT_GENERATOR_STATE.genre
+                : previous.genre,
             author:
               previous.author === DEFAULT_GENERATOR_STATE.author
                 ? options.defaults.author || DEFAULT_GENERATOR_STATE.author

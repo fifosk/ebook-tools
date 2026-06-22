@@ -10,6 +10,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Added backend contract coverage for `/api/pipelines/jobs` pagination metadata, normalized access payloads, generated files, job labels, and Apple/Web job parameter snapshots.
 - Optimized `/api/pipelines/jobs` list rows to skip filesystem image prompt summary reads while preserving rich image-generation summaries on single-job status responses.
 
+### Web UI
+
+- Web Create generated-audiobook fields now apply backend topic, title, and genre defaults from `/api/books/options` while preserving any prompt edits already typed before defaults arrive, matching the Apple Create behavior.
+
 ### 2026.06.22.156
 
 - Advanced visible Apple app versioning to `v2026.06.22.156`.
