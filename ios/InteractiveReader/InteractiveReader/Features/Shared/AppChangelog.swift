@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.37",
+            version: "2026.06.22.38",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-player-keyboard-command-handlers",
+                    title: "iPad keyboard commands cleaned up",
+                    detail: "Interactive player keyboard shortcut commands now route through named SwiftUI handlers shared by the iPad input layers."
+                ),
                 AppChangelogEntry(
                     id: "interactive-player-layout-handlers",
                     title: "Player layout updates cleaned up",

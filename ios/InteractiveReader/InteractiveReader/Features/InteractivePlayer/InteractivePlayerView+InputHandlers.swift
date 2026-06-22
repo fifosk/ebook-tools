@@ -9,62 +9,17 @@ extension InteractivePlayerView {
         #if os(iOS)
         if isPad {
             KeyboardCommandHandler(
-                onPlayPause: { audioCoordinator.togglePlayback() },
-                onPrevious: {
-                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
-                        bubbleKeyboardNavigator.navigateLeft()
-                    } else if audioCoordinator.isPlaying {
-                        viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
-                    } else {
-                        handleWordNavigation(-1, in: viewModel.selectedChunk)
-                    }
-                },
-                onNext: {
-                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
-                        bubbleKeyboardNavigator.navigateRight()
-                    } else if audioCoordinator.isPlaying {
-                        viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
-                    } else {
-                        handleWordNavigation(1, in: viewModel.selectedChunk)
-                    }
-                },
-                onPreviousWord: { handleWordNavigation(-1, in: viewModel.selectedChunk) },
-                onNextWord: { handleWordNavigation(1, in: viewModel.selectedChunk) },
+                onPlayPause: handleKeyboardPlayPause,
+                onPrevious: handleKeyboardPrevious,
+                onNext: handleKeyboardNext,
+                onPreviousWord: handleKeyboardPreviousWord,
+                onNextWord: handleKeyboardNextWord,
                 // Ctrl+Arrow: sentence navigation when paused (keeps bubble visible), word navigation when playing
-                onPreviousSentence: {
-                    if audioCoordinator.isPlaying {
-                        handleWordNavigation(-1, in: viewModel.selectedChunk)
-                    } else {
-                        // Navigate to previous sentence while paused (bubble stays visible)
-                        viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
-                    }
-                },
-                onNextSentence: {
-                    if audioCoordinator.isPlaying {
-                        handleWordNavigation(1, in: viewModel.selectedChunk)
-                    } else {
-                        // Navigate to next sentence while paused (bubble stays visible)
-                        viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
-                    }
-                },
-                onExtendSelectionBackward: {
-                    guard let chunk = viewModel.selectedChunk else { return }
-                    handleWordRangeSelection(-1, in: chunk)
-                },
-                onExtendSelectionForward: {
-                    guard let chunk = viewModel.selectedChunk else { return }
-                    handleWordRangeSelection(1, in: chunk)
-                },
-                onLookup: {
-                    // Handle Enter key when in bubble keyboard focus mode
-                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
-                        handleBubbleKeyboardActivate()
-                        return
-                    }
-                    guard !audioCoordinator.isPlaying else { return }
-                    guard let chunk = viewModel.selectedChunk else { return }
-                    handleLinguistLookup(in: chunk)
-                },
+                onPreviousSentence: handleKeyboardPreviousSentence,
+                onNextSentence: handleKeyboardNextSentence,
+                onExtendSelectionBackward: handleKeyboardExtendSelectionBackward,
+                onExtendSelectionForward: handleKeyboardExtendSelectionForward,
+                onLookup: handleUIKitKeyboardLookup,
                 onIncreaseFont: { adjustTrackFontScale(by: trackFontScaleStep) },
                 onDecreaseFont: { adjustTrackFontScale(by: -trackFontScaleStep) },
                 onToggleOriginal: { toggleTrackIfAvailable(.original) },
@@ -81,39 +36,10 @@ extension InteractivePlayerView {
                 onDecreaseHeaderScale: { adjustHeaderScale(by: -headerScaleStep) },
                 onOptionKeyDown: { showShortcutHelpModifier() },
                 onOptionKeyUp: { hideShortcutHelpModifier() },
-                onShowMenu: {
-                    if audioCoordinator.isPlaying {
-                        showMenu()
-                    } else if bubbleKeyboardNavigator.isKeyboardFocusActive {
-                        // Already in bubble focus mode, ignore down arrow
-                        return
-                    } else if linguistBubble != nil, let chunk = viewModel.selectedChunk {
-                        // Bubble is open, try to navigate down to it
-                        let moved = handleTrackNavigation(1, in: chunk)
-                        if !moved {
-                            // At bottom track, enter bubble keyboard focus
-                            bubbleKeyboardNavigator.enterFocus()
-                        }
-                    } else if let chunk = viewModel.selectedChunk {
-                        handleTrackNavigation(1, in: chunk)
-                    }
-                },
-                onHideMenu: {
-                    if audioCoordinator.isPlaying {
-                        hideMenu()
-                    } else if bubbleKeyboardNavigator.isKeyboardFocusActive {
-                        // Exit bubble focus
-                        bubbleKeyboardNavigator.exitFocus()
-                    } else if let chunk = viewModel.selectedChunk {
-                        handleTrackNavigation(-1, in: chunk)
-                    }
-                },
-                onBubbleNavigateLeft: {
-                    bubbleKeyboardNavigator.navigateLeft()
-                },
-                onBubbleNavigateRight: {
-                    bubbleKeyboardNavigator.navigateRight()
-                }
+                onShowMenu: handleUIKitKeyboardShowMenu,
+                onHideMenu: handleKeyboardHideMenu,
+                onBubbleNavigateLeft: handleKeyboardBubbleNavigateLeft,
+                onBubbleNavigateRight: handleKeyboardBubbleNavigateRight
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityHidden(true)
@@ -136,70 +62,22 @@ extension InteractivePlayerView {
         #if os(iOS)
         if isPad {
             ZStack {
-                Button("Play / Pause") { audioCoordinator.togglePlayback() }
+                Button("Play / Pause", action: handleKeyboardPlayPause)
                     .keyboardShortcut(.space, modifiers: [])
-                Button("Previous") {
-                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
-                        bubbleKeyboardNavigator.navigateLeft()
-                    } else if audioCoordinator.isPlaying {
-                        viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
-                    } else {
-                        handleWordNavigation(-1, in: viewModel.selectedChunk)
-                    }
-                }
-                .keyboardShortcut(.leftArrow, modifiers: [])
-                Button("Next") {
-                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
-                        bubbleKeyboardNavigator.navigateRight()
-                    } else if audioCoordinator.isPlaying {
-                        viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
-                    } else {
-                        handleWordNavigation(1, in: viewModel.selectedChunk)
-                    }
-                }
-                .keyboardShortcut(.rightArrow, modifiers: [])
-                Button("Look Up Highlighted Word") {
-                    if bubbleKeyboardNavigator.isKeyboardFocusActive {
-                        handleBubbleKeyboardActivate()
-                    } else if let chunk = viewModel.selectedChunk {
-                        handleLinguistLookup(in: chunk)
-                    }
-                }
-                .keyboardShortcut(.return, modifiers: [])
-                Button("Previous Sentence") {
-                    if audioCoordinator.isPlaying {
-                        handleWordNavigation(-1, in: viewModel.selectedChunk)
-                    } else {
-                        viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
-                    }
-                }
-                .keyboardShortcut(.leftArrow, modifiers: [.control])
-                Button("Next Sentence") {
-                    if audioCoordinator.isPlaying {
-                        handleWordNavigation(1, in: viewModel.selectedChunk)
-                    } else {
-                        viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
-                    }
-                }
-                .keyboardShortcut(.rightArrow, modifiers: [.control])
-                Button("Show Menu") {
-                    if audioCoordinator.isPlaying {
-                        showMenu()
-                    } else if let chunk = viewModel.selectedChunk {
-                        handleTrackNavigation(1, in: chunk)
-                    }
-                }
-                .keyboardShortcut(.downArrow, modifiers: [])
-                Button("Hide Menu") {
-                    if audioCoordinator.isPlaying {
-                        hideMenu()
-                    } else if bubbleKeyboardNavigator.isKeyboardFocusActive {
-                        bubbleKeyboardNavigator.exitFocus()
-                    } else if let chunk = viewModel.selectedChunk {
-                        handleTrackNavigation(-1, in: chunk)
-                    }
-                }
-                .keyboardShortcut(.upArrow, modifiers: [])
+                Button("Previous", action: handleKeyboardPrevious)
+                    .keyboardShortcut(.leftArrow, modifiers: [])
+                Button("Next", action: handleKeyboardNext)
+                    .keyboardShortcut(.rightArrow, modifiers: [])
+                Button("Look Up Highlighted Word", action: handleSwiftUIKeyboardLookup)
+                    .keyboardShortcut(.return, modifiers: [])
+                Button("Previous Sentence", action: handleKeyboardPreviousSentence)
+                    .keyboardShortcut(.leftArrow, modifiers: [.control])
+                Button("Next Sentence", action: handleKeyboardNextSentence)
+                    .keyboardShortcut(.rightArrow, modifiers: [.control])
+                Button("Show Menu", action: handleSwiftUIKeyboardShowMenu)
+                    .keyboardShortcut(.downArrow, modifiers: [])
+                Button("Hide Menu", action: handleKeyboardHideMenu)
+                    .keyboardShortcut(.upArrow, modifiers: [])
             }
             .frame(width: 0, height: 0)
             .opacity(0)
@@ -215,8 +93,8 @@ extension InteractivePlayerView {
         #if os(iOS)
         if isPad {
             TrackpadSwipeHandler(
-                onSwipeDown: { showMenu() },
-                onSwipeUp: { hideMenu() }
+                onSwipeDown: showMenu,
+                onSwipeUp: hideMenu
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityHidden(true)
@@ -225,6 +103,125 @@ extension InteractivePlayerView {
         EmptyView()
         #endif
     }
+
+    #if os(iOS)
+    func handleKeyboardPlayPause() {
+        audioCoordinator.togglePlayback()
+    }
+
+    func handleKeyboardPrevious() {
+        if bubbleKeyboardNavigator.isKeyboardFocusActive {
+            bubbleKeyboardNavigator.navigateLeft()
+        } else if audioCoordinator.isPlaying {
+            viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
+        } else {
+            handleWordNavigation(-1, in: viewModel.selectedChunk)
+        }
+    }
+
+    func handleKeyboardNext() {
+        if bubbleKeyboardNavigator.isKeyboardFocusActive {
+            bubbleKeyboardNavigator.navigateRight()
+        } else if audioCoordinator.isPlaying {
+            viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
+        } else {
+            handleWordNavigation(1, in: viewModel.selectedChunk)
+        }
+    }
+
+    func handleKeyboardPreviousWord() {
+        handleWordNavigation(-1, in: viewModel.selectedChunk)
+    }
+
+    func handleKeyboardNextWord() {
+        handleWordNavigation(1, in: viewModel.selectedChunk)
+    }
+
+    func handleKeyboardPreviousSentence() {
+        if audioCoordinator.isPlaying {
+            handleWordNavigation(-1, in: viewModel.selectedChunk)
+        } else {
+            viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
+        }
+    }
+
+    func handleKeyboardNextSentence() {
+        if audioCoordinator.isPlaying {
+            handleWordNavigation(1, in: viewModel.selectedChunk)
+        } else {
+            viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
+        }
+    }
+
+    func handleKeyboardExtendSelectionBackward() {
+        guard let chunk = viewModel.selectedChunk else { return }
+        handleWordRangeSelection(-1, in: chunk)
+    }
+
+    func handleKeyboardExtendSelectionForward() {
+        guard let chunk = viewModel.selectedChunk else { return }
+        handleWordRangeSelection(1, in: chunk)
+    }
+
+    func handleUIKitKeyboardLookup() {
+        if bubbleKeyboardNavigator.isKeyboardFocusActive {
+            handleBubbleKeyboardActivate()
+            return
+        }
+        guard !audioCoordinator.isPlaying else { return }
+        guard let chunk = viewModel.selectedChunk else { return }
+        handleLinguistLookup(in: chunk)
+    }
+
+    func handleSwiftUIKeyboardLookup() {
+        if bubbleKeyboardNavigator.isKeyboardFocusActive {
+            handleBubbleKeyboardActivate()
+        } else if let chunk = viewModel.selectedChunk {
+            handleLinguistLookup(in: chunk)
+        }
+    }
+
+    func handleUIKitKeyboardShowMenu() {
+        if audioCoordinator.isPlaying {
+            showMenu()
+        } else if bubbleKeyboardNavigator.isKeyboardFocusActive {
+            return
+        } else if linguistBubble != nil, let chunk = viewModel.selectedChunk {
+            let moved = handleTrackNavigation(1, in: chunk)
+            if !moved {
+                bubbleKeyboardNavigator.enterFocus()
+            }
+        } else if let chunk = viewModel.selectedChunk {
+            handleTrackNavigation(1, in: chunk)
+        }
+    }
+
+    func handleSwiftUIKeyboardShowMenu() {
+        if audioCoordinator.isPlaying {
+            showMenu()
+        } else if let chunk = viewModel.selectedChunk {
+            handleTrackNavigation(1, in: chunk)
+        }
+    }
+
+    func handleKeyboardHideMenu() {
+        if audioCoordinator.isPlaying {
+            hideMenu()
+        } else if bubbleKeyboardNavigator.isKeyboardFocusActive {
+            bubbleKeyboardNavigator.exitFocus()
+        } else if let chunk = viewModel.selectedChunk {
+            handleTrackNavigation(-1, in: chunk)
+        }
+    }
+
+    func handleKeyboardBubbleNavigateLeft() {
+        bubbleKeyboardNavigator.navigateLeft()
+    }
+
+    func handleKeyboardBubbleNavigateRight() {
+        bubbleKeyboardNavigator.navigateRight()
+    }
+    #endif
 
     func handleKeyboardFontAdjust(increase: Bool) {
         if linguistBubble != nil {
