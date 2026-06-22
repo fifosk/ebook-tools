@@ -89,7 +89,11 @@ Initial backend hotspots to inspect before changing behavior:
 
 Optimization candidates:
 
-- Add response-shape tests for paginated `/api/pipelines/jobs` before changing list internals.
+- Guard paginated `/api/pipelines/jobs` response shape before changing list internals. Status:
+  backend tests now pin `total`, `offset`, `limit`, newest-first route ordering,
+  access payload normalization, generated files, job labels, and parameter
+  snapshots; service tests pin active admin pagination and persisted-only
+  store pagination.
 - Audit repeated filesystem metadata reads during job list/library list rendering.
 - Add lightweight timing/log counters around job list, library list, media manifest, and search endpoints.
 - Prefer precomputed or cached job summary fields for list rows while keeping full metadata available on detail/media routes.

@@ -872,13 +872,28 @@ class PipelineJobManager:
     ) -> Dict[str, PipelineJob]:
         """Return a snapshot mapping of jobs respecting role-based visibility."""
 
-        if self._is_admin(user_role) and (offset is not None or limit is not None):
+        def _apply_pagination(jobs: Dict[str, PipelineJob]) -> Dict[str, PipelineJob]:
+            if offset is None and limit is None:
+                return jobs
+            items = list(jobs.items())
+            start = offset or 0
+            end = start + limit if limit is not None else None
+            return dict(items[start:end])
+
+        with self._lock:
+            active_jobs = dict(self._jobs)
+
+        pagination_applied_by_store = (
+            self._is_admin(user_role)
+            and not active_jobs
+            and (offset is not None or limit is not None)
+        )
+        if pagination_applied_by_store:
             stored = self._store.list(offset=offset, limit=limit)
         else:
             stored = self._store.list()
 
         with self._lock:
-            active_jobs = dict(self._jobs)
             terminal_states = {
                 PipelineJobStatus.COMPLETED,
                 PipelineJobStatus.FAILED,
@@ -899,7 +914,9 @@ class PipelineJobManager:
             active_jobs.setdefault(job_id, self._persistence.build_job(metadata))
 
         if self._is_admin(user_role):
-            return active_jobs
+            if pagination_applied_by_store:
+                return active_jobs
+            return _apply_pagination(active_jobs)
 
         filtered: Dict[str, PipelineJob] = {}
         for job_id, job in active_jobs.items():
@@ -914,13 +931,7 @@ class PipelineJobManager:
             ):
                 filtered[job_id] = job
 
-        if offset is not None or limit is not None:
-            items = list(filtered.items())
-            start = offset or 0
-            end = start + limit if limit is not None else None
-            filtered = dict(items[start:end])
-
-        return filtered
+        return _apply_pagination(filtered)
 
     def refresh_metadata(
         self,

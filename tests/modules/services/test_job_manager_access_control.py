@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace as dataclass_replace
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ from modules.services.job_manager import manager as manager_module
 from modules.services.job_manager.execution_adapter import PipelineExecutionAdapter
 from modules.services.job_manager.job import PipelineJobStatus
 from modules.services.job_manager.manager import PipelineJobManager
+from modules.services.job_manager.metadata import PipelineJobMetadata
 from modules.services.job_manager.stores import InMemoryJobStore
 from modules.services.pipeline_service import (
     PipelineInput,
@@ -20,6 +22,16 @@ from modules.services.pipeline_service import (
 from .conftest import DummyExecutor, DummyWorkerPool
 
 pytestmark = pytest.mark.services
+
+
+class _RecordingInMemoryJobStore(InMemoryJobStore):
+    def __init__(self) -> None:
+        super().__init__()
+        self.list_calls: list[dict[str, int | None]] = []
+
+    def list(self, *, offset=None, limit=None):
+        self.list_calls.append({"offset": offset, "limit": limit})
+        return super().list(offset=offset, limit=limit)
 
 
 @pytest.fixture(autouse=True)
@@ -94,6 +106,70 @@ def test_list_jobs_respects_role_visibility(tmp_path: Path) -> None:
         stored = store.list()
         assert stored[alice_job.job_id].user_id == "alice"
         assert stored[alice_job.job_id].user_role == "editor"
+    finally:
+        manager._executor.shutdown()
+
+
+def test_admin_list_jobs_paginates_active_job_snapshot(tmp_path: Path) -> None:
+    store = InMemoryJobStore()
+    manager = PipelineJobManager(
+        max_workers=1,
+        store=store,
+        worker_pool_factory=lambda _: DummyWorkerPool(),
+    )
+    service = PipelineService(manager)
+
+    first_job = service.enqueue(_build_request(), user_id="admin", user_role="admin")
+    second_job = service.enqueue(_build_request(), user_id="alice", user_role="editor")
+    third_job = service.enqueue(_build_request(), user_id="bob", user_role="viewer")
+
+    try:
+        paged_jobs = service.list_jobs(
+            user_id="admin",
+            user_role="admin",
+            offset=1,
+            limit=1,
+        )
+
+        assert service.count_jobs(user_id="admin", user_role="admin") == 3
+        assert list(paged_jobs.keys()) == [second_job.job_id]
+        assert first_job.job_id not in paged_jobs
+        assert third_job.job_id not in paged_jobs
+    finally:
+        manager._executor.shutdown()
+
+
+def test_admin_list_jobs_uses_store_pagination_without_active_jobs(tmp_path: Path) -> None:
+    store = _RecordingInMemoryJobStore()
+    for index in range(3):
+        store.save(
+            PipelineJobMetadata(
+                job_id=f"stored-{index}",
+                job_type="pipeline",
+                status=PipelineJobStatus.COMPLETED,
+                created_at=datetime(2026, 6, 22, 10, index, tzinfo=timezone.utc),
+                user_id=f"user-{index}",
+                user_role="editor",
+            )
+        )
+    manager = PipelineJobManager(
+        max_workers=1,
+        store=store,
+        worker_pool_factory=lambda _: DummyWorkerPool(),
+    )
+    service = PipelineService(manager)
+    store.list_calls.clear()
+
+    try:
+        paged_jobs = service.list_jobs(
+            user_id="admin",
+            user_role="admin",
+            offset=1,
+            limit=1,
+        )
+
+        assert store.list_calls == [{"offset": 1, "limit": 1}]
+        assert list(paged_jobs.keys()) == ["stored-1"]
     finally:
         manager._executor.shutdown()
 

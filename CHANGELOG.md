@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### Backend/API
+
+- Fixed admin job-list pagination when active in-memory jobs are present, while keeping the cheaper persisted-store page path for admin lists with no active jobs.
+- Added backend contract coverage for `/api/pipelines/jobs` pagination metadata, normalized access payloads, generated files, job labels, and Apple/Web job parameter snapshots.
+
 ### 2026.06.22.155
 
 - Advanced visible Apple app versioning to `v2026.06.22.155`.
