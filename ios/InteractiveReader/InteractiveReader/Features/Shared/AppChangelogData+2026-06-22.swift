@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "interactive-transcript-selection-file",
+            title: "Transcript selection separated",
+            detail: "Selection hit-testing, drag range updates, tap tolerance, and delayed lookup scheduling now live in a focused extension while the core transcript view stays centered on layout composition."
+        ),
+        AppChangelogEntry(
             id: "interactive-header-behavior-file",
             title: "Header behavior separated",
             detail: "Interactive player header scaling, top-padding, pinch magnification, and collapse toggles now live in a focused behavior file while the header overlay stays centered on visible badge and progress-pill layout."

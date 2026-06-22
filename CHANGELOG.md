@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.147
+
+- Advanced visible Apple app versioning to `v2026.06.22.147`.
+- Moved transcript selection hit-testing, drag range updates, tap tolerance, and delayed lookup scheduling into `InteractiveTranscriptView+Selection.swift`, keeping the core transcript view focused on layout composition.
+
 ### 2026.06.22.146
 
 - Advanced visible Apple app versioning to `v2026.06.22.146`.
