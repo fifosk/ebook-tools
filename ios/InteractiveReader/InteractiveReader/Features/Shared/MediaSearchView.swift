@@ -148,9 +148,7 @@ struct MediaSearchPillView: View {
     let onTap: () -> Void
 
     var body: some View {
-        Button(action: {
-            onTap()
-        }) {
+        Button(action: onTap) {
             HStack(spacing: iconSpacing) {
                 Image(systemName: "magnifyingglass")
                     .font(iconFont)
@@ -540,11 +538,8 @@ struct MediaSearchPanelView: View {
                 query: $query,
                 placeholder: "Search text...",
                 isTV: isTV,
-                onSubmit: { onSearch(query) },
-                onClear: {
-                    query = ""
-                    state = .idle
-                }
+                onSubmit: handleSubmit,
+                onClear: handleClear
             )
 
             switch state {
@@ -602,6 +597,15 @@ struct MediaSearchPanelView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.opacity(0.9))
     }
+
+    private func handleSubmit() {
+        onSearch(query)
+    }
+
+    private func handleClear() {
+        query = ""
+        state = .idle
+    }
 }
 
 // MARK: - Search Overlay (for Header Integration)
@@ -632,23 +636,15 @@ struct MediaSearchOverlayView: View {
                         query: query,
                         isTV: isTV,
                         actionType: actionType,
-                        onSelect: { result in
-                            onSelect(result)
-                            isPresented = false
-                        },
-                        onDismiss: { isPresented = false }
+                        onSelect: handleResultSelection,
+                        onDismiss: dismissOverlay
                     )
                     .frame(maxWidth: overlayMaxWidth)
                 }
             }
             .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
             #if os(tvOS)
-            .onAppear {
-                // Auto-focus the text field when overlay appears on tvOS
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    isTextFieldFocused = true
-                }
-            }
+            .onAppear(perform: focusSearchFieldSoon)
             #endif
         }
     }
@@ -713,17 +709,14 @@ struct MediaSearchOverlayView: View {
                     .scaleEffect(0.6)
                     .tint(.white)
             } else if !query.isEmpty {
-                Button(action: {
-                    query = ""
-                    state = .idle
-                }) {
+                Button(action: clearQuery) {
                     Image(systemName: "xmark.circle.fill")
                         .font(iconFont)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
             }
-            Button(action: { isPresented = false }) {
+            Button(action: dismissOverlay) {
                 Image(systemName: "xmark")
                     .font(iconFont)
                     .foregroundStyle(.secondary)
@@ -768,6 +761,28 @@ struct MediaSearchOverlayView: View {
         return .system(size: 12 * sizeScale, weight: weight)
         #endif
     }
+
+    private func handleResultSelection(_ result: MediaSearchResult) {
+        onSelect(result)
+        dismissOverlay()
+    }
+
+    private func clearQuery() {
+        query = ""
+        state = .idle
+    }
+
+    private func dismissOverlay() {
+        isPresented = false
+    }
+
+    #if os(tvOS)
+    private func focusSearchFieldSoon() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isTextFieldFocused = true
+        }
+    }
+    #endif
 }
 
 // MARK: - Search View Model
@@ -811,38 +826,14 @@ final class MediaSearchViewModel: ObservableObject {
         state = .searching
 
         searchTask = Task {
-            do {
-                let response = try await client.searchMedia(jobId: jobId, query: trimmed)
-                guard !Task.isCancelled else { return }
-                if response.results.isEmpty {
-                    // Check if count > 0 but results empty - indicates decoding issue
-                    if response.count > 0 {
-                        state = .error("Decode error: \(response.count) results expected but 0 decoded")
-                    } else {
-                        state = .empty(trimmed)
-                    }
-                } else {
-                    state = .results(response.results)
-                }
-            } catch is CancellationError {
-                // Ignore cancellation
-            } catch {
-                guard !Task.isCancelled else { return }
-                state = .error(error.localizedDescription)
-            }
+            await runSearch(jobId: jobId, query: trimmed, using: client)
         }
     }
 
     func debouncedSearch(jobId: String?, using client: APIClient) {
         debounceTask?.cancel()
         debounceTask = Task {
-            do {
-                try await Task.sleep(for: debounceInterval)
-                guard !Task.isCancelled else { return }
-                search(jobId: jobId, using: client)
-            } catch {
-                // Ignore cancellation
-            }
+            await runDebouncedSearch(jobId: jobId, using: client)
         }
     }
 
@@ -877,5 +868,41 @@ final class MediaSearchViewModel: ObservableObject {
             return cueStart
         }
         return nil
+    }
+
+    private func runSearch(jobId: String, query: String, using client: APIClient) async {
+        do {
+            let response = try await client.searchMedia(jobId: jobId, query: query)
+            guard !Task.isCancelled else { return }
+            applySearchResponse(response, query: query)
+        } catch is CancellationError {
+            // Ignore cancellation.
+        } catch {
+            guard !Task.isCancelled else { return }
+            state = .error(error.localizedDescription)
+        }
+    }
+
+    private func applySearchResponse(_ response: MediaSearchResponse, query: String) {
+        if response.results.isEmpty {
+            // A non-zero count with no decoded results indicates a response-shape mismatch.
+            if response.count > 0 {
+                state = .error("Decode error: \(response.count) results expected but 0 decoded")
+            } else {
+                state = .empty(query)
+            }
+        } else {
+            state = .results(response.results)
+        }
+    }
+
+    private func runDebouncedSearch(jobId: String?, using client: APIClient) async {
+        do {
+            try await Task.sleep(for: debounceInterval)
+            guard !Task.isCancelled else { return }
+            search(jobId: jobId, using: client)
+        } catch {
+            // Ignore cancellation.
+        }
     }
 }
