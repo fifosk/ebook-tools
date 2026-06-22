@@ -82,9 +82,7 @@ struct ShortcutHelpOverlayView: View {
         ZStack {
             Color.black.opacity(0.35)
                 .ignoresSafeArea()
-                .onTapGesture {
-                    onDismiss()
-                }
+                .onTapGesture(perform: handleBackdropTap)
             VStack(alignment: .leading, spacing: 12) {
                 header
                 Divider()
@@ -115,7 +113,7 @@ struct ShortcutHelpOverlayView: View {
             Label("Keyboard Shortcuts", systemImage: "keyboard")
                 .font(.headline.weight(.semibold))
             Spacer()
-            Button(action: onDismiss) {
+            Button(action: handleCloseButtonTap) {
                 Image(systemName: "xmark")
                     .font(.caption.weight(.semibold))
                     .padding(8)
@@ -134,6 +132,14 @@ struct ShortcutHelpOverlayView: View {
 
     private var keycapColumnWidth: CGFloat {
         isPad ? 150 : 170
+    }
+
+    private func handleBackdropTap() {
+        onDismiss()
+    }
+
+    private func handleCloseButtonTap() {
+        onDismiss()
     }
 
     private var isPad: Bool {

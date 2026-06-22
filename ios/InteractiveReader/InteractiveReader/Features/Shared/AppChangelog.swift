@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.31",
+            version: "2026.06.22.32",
             entries: [
+                AppChangelogEntry(
+                    id: "shortcut-help-dismiss-handlers",
+                    title: "Shortcut help dismissals cleaned up",
+                    detail: "Text and video shortcut-help overlays now route backdrop and close-button dismissals through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "browse-row-filter-handlers",
                     title: "Browse row taps cleaned up",
