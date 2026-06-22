@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.58
+
+- Advanced visible Apple app versioning to `v2026.06.22.58`.
+- Made interactive player audio track mode changes atomic so toggling original/translation audio cannot publish a transient no-track state.
+
 ### 2026.06.22.57
 
 - Advanced visible Apple app versioning to `v2026.06.22.57`.

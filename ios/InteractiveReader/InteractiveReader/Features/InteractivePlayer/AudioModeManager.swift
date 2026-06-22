@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 import Combine
 import OSLog
 
@@ -34,30 +33,14 @@ final class AudioModeManager: ObservableObject {
     // MARK: - Published State
 
     /// Whether original audio track is enabled
-    @Published private(set) var isOriginalEnabled: Bool {
-        didSet {
-            // Persist to UserDefaults
-            UserDefaults.standard.set(isOriginalEnabled, forKey: Self.originalEnabledKey)
-            updateMode()
-        }
-    }
+    @Published private(set) var isOriginalEnabled: Bool
 
     /// Whether translation audio track is enabled
-    @Published private(set) var isTranslationEnabled: Bool {
-        didSet {
-            // Persist to UserDefaults
-            UserDefaults.standard.set(isTranslationEnabled, forKey: Self.translationEnabledKey)
-            updateMode()
-        }
-    }
+    @Published private(set) var isTranslationEnabled: Bool
 
     /// The current audio mode (computed from toggle state)
-    @Published private(set) var currentMode: AudioMode = .sequence
+    @Published private(set) var currentMode: AudioMode
 
-    // MARK: - Persistence Keys
-
-    private static let originalEnabledKey = "player.showOriginalAudio"
-    private static let translationEnabledKey = "player.showTranslationAudio"
     private let logger = Logger(subsystem: "InteractiveReader", category: "AudioMode")
 
     // MARK: - Callbacks
@@ -93,12 +76,47 @@ final class AudioModeManager: ObservableObject {
         }
     }
 
-    private func updateMode() {
-        let newMode = Self.computeMode(original: isOriginalEnabled, translation: isTranslationEnabled)
+    private static func normalizedTrackState(original: Bool, translation: Bool) -> (original: Bool, translation: Bool) {
+        guard original || translation else { return (true, true) }
+        return (original, translation)
+    }
+
+    private func applyTrackState(
+        original: Bool,
+        translation: Bool,
+        preservingPosition currentSentenceIndex: Int?,
+        reason: String
+    ) {
+        let normalized = Self.normalizedTrackState(original: original, translation: translation)
+        let newMode = Self.computeMode(original: normalized.original, translation: normalized.translation)
+        let previousMode = currentMode
+
+        guard normalized.original != isOriginalEnabled
+            || normalized.translation != isTranslationEnabled
+            || newMode != currentMode else {
+            return
+        }
+
+        // Enable additions before removals so observers never see both tracks disabled.
+        if normalized.original && !isOriginalEnabled {
+            isOriginalEnabled = true
+        }
+        if normalized.translation && !isTranslationEnabled {
+            isTranslationEnabled = true
+        }
+        if !normalized.original && isOriginalEnabled {
+            isOriginalEnabled = false
+        }
+        if !normalized.translation && isTranslationEnabled {
+            isTranslationEnabled = false
+        }
+
         if newMode != currentMode {
-            let previousMode = currentMode
-            logger.debug("Mode changed: \(previousMode.description, privacy: .public) -> \(newMode.description, privacy: .public)")
+            logger.debug(
+                "\(reason, privacy: .public): mode \(previousMode.description, privacy: .public) -> \(newMode.description, privacy: .public), preserving sentence \(currentSentenceIndex ?? -1, privacy: .public)"
+            )
             currentMode = newMode
+            onModeChange?(newMode, currentSentenceIndex)
         }
     }
 
@@ -109,35 +127,34 @@ final class AudioModeManager: ObservableObject {
     ///   - track: The track to toggle
     ///   - currentSentenceIndex: The current sentence index to preserve during mode change
     func toggle(_ track: SequenceTrack, preservingPosition currentSentenceIndex: Int? = nil) {
-        let previousMode = currentMode
+        var nextOriginal = isOriginalEnabled
+        var nextTranslation = isTranslationEnabled
 
         switch track {
         case .original:
-            if isOriginalEnabled && !isTranslationEnabled {
+            if nextOriginal && !nextTranslation {
                 // Currently only original is on - switch to only translation
-                isOriginalEnabled = false
-                isTranslationEnabled = true
+                nextOriginal = false
+                nextTranslation = true
             } else {
-                isOriginalEnabled.toggle()
+                nextOriginal.toggle()
             }
         case .translation:
-            if isTranslationEnabled && !isOriginalEnabled {
+            if nextTranslation && !nextOriginal {
                 // Currently only translation is on - switch to only original
-                isTranslationEnabled = false
-                isOriginalEnabled = true
+                nextTranslation = false
+                nextOriginal = true
             } else {
-                isTranslationEnabled.toggle()
+                nextTranslation.toggle()
             }
         }
 
-        // Notify if mode actually changed
-        if currentMode != previousMode {
-            let newMode = currentMode
-            logger.debug(
-                "Toggle \(track.rawValue, privacy: .public): mode \(previousMode.description, privacy: .public) -> \(newMode.description, privacy: .public), preserving sentence \(currentSentenceIndex ?? -1, privacy: .public)"
-            )
-            onModeChange?(newMode, currentSentenceIndex)
-        }
+        applyTrackState(
+            original: nextOriginal,
+            translation: nextTranslation,
+            preservingPosition: currentSentenceIndex,
+            reason: "Toggle \(track.rawValue)"
+        )
     }
 
     /// Set both tracks at once (e.g., for enabling combined/sequence mode)
@@ -146,23 +163,12 @@ final class AudioModeManager: ObservableObject {
     ///   - translation: Whether translation should be enabled
     ///   - currentSentenceIndex: The current sentence index to preserve during mode change
     func setTracks(original: Bool, translation: Bool, preservingPosition currentSentenceIndex: Int? = nil) {
-        let previousMode = currentMode
-
-        // Ensure at least one track is enabled
-        let finalOriginal = original || !translation
-        let finalTranslation = translation || !original
-
-        isOriginalEnabled = finalOriginal
-        isTranslationEnabled = finalTranslation
-
-        // Notify if mode actually changed
-        if currentMode != previousMode {
-            let newMode = currentMode
-            logger.debug(
-                "Set tracks: mode \(previousMode.description, privacy: .public) -> \(newMode.description, privacy: .public), preserving sentence \(currentSentenceIndex ?? -1, privacy: .public)"
-            )
-            onModeChange?(newMode, currentSentenceIndex)
-        }
+        applyTrackState(
+            original: original,
+            translation: translation,
+            preservingPosition: currentSentenceIndex,
+            reason: "Set tracks"
+        )
     }
 
     /// Enable sequence mode (both tracks enabled)

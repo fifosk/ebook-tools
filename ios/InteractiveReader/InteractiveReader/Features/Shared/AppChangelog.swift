@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.57",
+            version: "2026.06.22.58",
             entries: [
+                AppChangelogEntry(
+                    id: "audio-mode-atomic-track-state",
+                    title: "Audio toggles tightened up",
+                    detail: "Original and translation audio toggles now switch through one normalized state path so playback never observes a no-track transition."
+                ),
                 AppChangelogEntry(
                     id: "jobs-offline-menu-handlers",
                     title: "Jobs offline menu cleaned up",
