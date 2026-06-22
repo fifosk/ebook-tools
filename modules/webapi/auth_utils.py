@@ -38,6 +38,23 @@ def extract_session_token(authorization: str | None) -> str | None:
     return value
 
 
+def extract_request_session_token(
+    authorization: str | None,
+    access_token: str | None = None,
+) -> str | None:
+    """Extract a session token from supported request transports.
+
+    Authorization headers are preferred. The ``access_token`` query parameter
+    remains available for media/player clients that cannot set headers, but it
+    follows the same Bearer-or-bare-token parsing rules.
+    """
+
+    token = extract_session_token(authorization)
+    if token:
+        return token
+    return extract_session_token(access_token)
+
+
 def require_authenticated_user(
     authorization: str | None,
     auth_service: AuthService,
@@ -90,6 +107,7 @@ def require_admin_user(
 
 
 __all__ = [
+    "extract_request_session_token",
     "extract_session_token",
     "require_admin_user",
     "require_authenticated_user",

@@ -9,7 +9,11 @@ from fastapi import HTTPException
 
 from modules.audio.api import AudioService
 from modules.user_management import AuthService, LocalUserStore, SessionManager
-from modules.webapi.auth_utils import extract_session_token, require_admin_user
+from modules.webapi.auth_utils import (
+    extract_request_session_token,
+    extract_session_token,
+    require_admin_user,
+)
 from modules.webapi.dependencies import (
     configure_media_services,
     get_audio_service,
@@ -100,6 +104,24 @@ def test_extract_session_token_accepts_only_bearer_or_bare_tokens(
     assert extract_session_token(authorization) == expected
 
 
+@pytest.mark.parametrize(
+    ("authorization", "access_token", "expected"),
+    [
+        ("Bearer header-token", "query-token", "header-token"),
+        (None, "Bearer query-token", "query-token"),
+        (None, "query-token", "query-token"),
+        (None, "Basic query-token", None),
+        ("Basic header-token", "Bearer query-token", "query-token"),
+    ],
+)
+def test_extract_request_session_token_supports_query_fallback(
+    authorization: str | None,
+    access_token: str | None,
+    expected: str | None,
+) -> None:
+    assert extract_request_session_token(authorization, access_token) == expected
+
+
 def test_get_request_user_accepts_bearer_and_query_tokens(tmp_path) -> None:
     auth_service = AuthService(
         LocalUserStore(storage_path=tmp_path / "users.json"),
@@ -122,11 +144,40 @@ def test_get_request_user_accepts_bearer_and_query_tokens(tmp_path) -> None:
         access_token=token,
         auth_service=auth_service,
     )
+    query_bearer_user = get_request_user(
+        authorization=None,
+        header_user_id=None,
+        header_user_role=None,
+        access_token=f"Bearer {token}",
+        auth_service=auth_service,
+    )
 
     assert header_user.user_id == "alice"
     assert header_user.user_role == "editor"
     assert query_user.user_id == "alice"
     assert query_user.user_role == "editor"
+    assert query_bearer_user.user_id == "alice"
+    assert query_bearer_user.user_role == "editor"
+
+
+def test_get_request_user_rejects_malformed_query_token_scheme(tmp_path) -> None:
+    auth_service = AuthService(
+        LocalUserStore(storage_path=tmp_path / "users.json"),
+        SessionManager(session_file=tmp_path / "sessions.json"),
+    )
+    auth_service.user_store.create_user("alice", "secret", roles=["editor"])
+    token = auth_service.session_manager.create_session("alice")
+
+    request_user = get_request_user(
+        authorization=None,
+        header_user_id=None,
+        header_user_role=None,
+        access_token=f"Basic {token}",
+        auth_service=auth_service,
+    )
+
+    assert request_user.user_id is None
+    assert request_user.user_role is None
 
 
 def test_get_request_user_rejects_malformed_authorization_scheme(tmp_path) -> None:

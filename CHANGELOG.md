@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.26
+
+- Advanced visible Apple app versioning to `v2026.06.22.26`.
+- Centralized backend request session-token parsing for Authorization headers and `access_token` query fallback.
+
 ### 2026.06.22.25
 
 - Advanced visible Apple app versioning to `v2026.06.22.25`.

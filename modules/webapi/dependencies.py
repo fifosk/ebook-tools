@@ -37,7 +37,7 @@ from ..user_management import PgUserStore, PgSessionManager
 from modules.permissions import normalize_role
 from ..services.job_manager import PipelineJobManager
 from ..notifications import APNsConfig, APNsService, NotificationService
-from .auth_utils import extract_session_token
+from .auth_utils import extract_request_session_token
 
 
 logger = log_mgr.logger
@@ -487,9 +487,7 @@ def get_request_user(
         user_role = normalize_role(role_value) if role_value else None
         return RequestUserContext(user_id=user_id, user_role=user_role)
 
-    token = extract_session_token(authorization)
-    if not token:
-        token = (access_token or "").strip() or None
+    token = extract_request_session_token(authorization, access_token)
     if not token:
         return RequestUserContext(user_id=None, user_role=None)
 

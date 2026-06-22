@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.25",
+            version: "2026.06.22.26",
             entries: [
+                AppChangelogEntry(
+                    id: "backend-request-token-parser",
+                    title: "Backend token parsing centralized",
+                    detail: "Backend request identity now uses one token parser for Authorization headers and access_token query fallback."
+                ),
                 AppChangelogEntry(
                     id: "bookmark-ribbon-command-handlers",
                     title: "Bookmark ribbon cleaned up",
