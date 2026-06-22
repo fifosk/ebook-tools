@@ -221,9 +221,8 @@ struct JobsView: View {
     }
 
     private func handleResumeStoreChange(_ notification: Notification) {
-        guard let resumeUserId else { return }
-        let userId = notification.userInfo?["userId"] as? String
-        guard userId == resumeUserId else { return }
+        guard BrowseResumeNotificationFilter.matches(notification, resumeUserId: resumeUserId),
+              let resumeUserId else { return }
         Task { @MainActor in
             refreshResumeEvidence(for: resumeUserId)
         }
@@ -350,8 +349,10 @@ struct JobsView: View {
 
     @ViewBuilder
     private func playbackContextMenu(for job: PipelineStatusResponse) -> some View {
-        let availability = resumeAvailability[job.jobId]
-        let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
+        let hasResume = BrowseResumeStatusFormatter.hasResume(
+            for: job.jobId,
+            availabilityByJobID: resumeAvailability
+        )
 
         Button {
             handleResumeJobSelection(job)

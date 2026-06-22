@@ -213,8 +213,10 @@ struct CombinedSearchView: View {
 
     @ViewBuilder
     private func playbackContextMenu(for item: LibraryItem) -> some View {
-        let availability = resumeAvailability[item.jobId]
-        let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
+        let hasResume = BrowseResumeStatusFormatter.hasResume(
+            for: item.jobId,
+            availabilityByJobID: resumeAvailability
+        )
 
         Button {
             selectItem(item, mode: .resume)
@@ -237,8 +239,10 @@ struct CombinedSearchView: View {
 
     @ViewBuilder
     private func playbackContextMenu(for job: PipelineStatusResponse) -> some View {
-        let availability = resumeAvailability[job.jobId]
-        let hasResume = availability?.hasCloud == true || availability?.hasLocal == true
+        let hasResume = BrowseResumeStatusFormatter.hasResume(
+            for: job.jobId,
+            availabilityByJobID: resumeAvailability
+        )
 
         Button {
             selectJob(job, mode: .resume)
@@ -265,9 +269,7 @@ struct CombinedSearchView: View {
     }
 
     private func handleResumeStoreChange(_ notification: Notification) {
-        guard let resumeUserId else { return }
-        let userId = notification.userInfo?["userId"] as? String
-        guard userId == resumeUserId else { return }
+        guard BrowseResumeNotificationFilter.matches(notification, resumeUserId: resumeUserId) else { return }
         refreshResumeEvidence()
     }
 

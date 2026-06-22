@@ -152,6 +152,14 @@ struct BrowseListRowFrameCapture: View {
 }
 
 enum BrowseResumeStatusFormatter {
+    static func hasResume(
+        for jobId: String,
+        availabilityByJobID: [String: PlaybackResumeAvailability]
+    ) -> Bool {
+        let availability = availabilityByJobID[jobId]
+        return availability?.hasCloud == true || availability?.hasLocal == true
+    }
+
     static func rowStatus(
         for jobId: String,
         availabilityByJobID: [String: PlaybackResumeAvailability]
@@ -208,6 +216,14 @@ enum BrowseResumeStatusFormatter {
         formatter.allowedUnits = time >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
         formatter.zeroFormattingBehavior = .pad
         return formatter.string(from: time) ?? "0:00"
+    }
+}
+
+enum BrowseResumeNotificationFilter {
+    static func matches(_ notification: Notification, resumeUserId: String?) -> Bool {
+        guard let resumeUserId else { return false }
+        let userId = notification.userInfo?["userId"] as? String
+        return userId == resumeUserId
     }
 }
 

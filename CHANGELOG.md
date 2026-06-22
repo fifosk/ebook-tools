@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.64
+
+- Advanced visible Apple app versioning to `v2026.06.22.64`.
+- Moved browse resume notification filtering and resume-availability checks into shared helpers used by Jobs, Library, and Search.
+
 ### 2026.06.22.63
 
 - Advanced visible Apple app versioning to `v2026.06.22.63`.
