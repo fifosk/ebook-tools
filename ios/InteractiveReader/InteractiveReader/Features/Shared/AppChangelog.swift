@@ -18,8 +18,13 @@ enum AppChangelog {
         AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
-            version: "2026.06.22.20",
+            version: "2026.06.22.21",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-music-picker-command-handlers",
+                    title: "Apple Music picker cleaned up",
+                    detail: "Apple Music picker dismiss, authorization, search, clear, stop, tab, suggestion-load, and result-selection work now runs through named SwiftUI handlers."
+                ),
                 AppChangelogEntry(
                     id: "text-search-command-handlers",
                     title: "Text search controls cleaned up",

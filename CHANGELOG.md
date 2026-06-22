@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-22
 
+### 2026.06.22.21
+
+- Advanced visible Apple app versioning to `v2026.06.22.21`.
+- Moved Apple Music picker dismiss, authorization, search, clear, stop, tab, suggestion-load, and result-selection work into named SwiftUI handlers.
+
 ### 2026.06.22.20
 
 - Advanced visible Apple app versioning to `v2026.06.22.20`.

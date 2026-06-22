@@ -15,7 +15,7 @@ struct AppleMusicPickerView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Done") { onDismiss() }
+                        Button("Done", action: dismissPicker)
                     }
                 }
         }
@@ -28,7 +28,7 @@ struct AppleMusicPickerView: View {
         VStack {
             Text("Apple Music is not available on this platform.")
                 .foregroundStyle(.secondary)
-            Button("Done") { onDismiss() }
+            Button("Done", action: dismissPicker)
         }
         #endif
     }
@@ -57,11 +57,7 @@ struct AppleMusicPickerView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
-            Button("Allow Access") {
-                Task {
-                    _ = await musicCoordinator.requestAuthorization()
-                }
-            }
+            Button("Allow Access", action: requestMusicAuthorization)
             .buttonStyle(.borderedProminent)
             Spacer()
         }
@@ -80,14 +76,9 @@ struct AppleMusicPickerView: View {
                     #if os(iOS)
                     .autocorrectionDisabled()
                     #endif
-                    .onChange(of: searchService.searchText) { _, _ in
-                        searchService.searchDebounced()
-                    }
+                    .onChange(of: searchService.searchText) { _, _ in handleSearchTextChange() }
                 if !searchService.searchText.isEmpty {
-                    Button {
-                        searchService.searchText = ""
-                        searchService.clearAllResults()
-                    } label: {
+                    Button(action: clearMusicSearch) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
                     }
@@ -121,9 +112,7 @@ struct AppleMusicPickerView: View {
                         .lineLimit(1)
                     Spacer()
                     if musicCoordinator.isPlaying {
-                        Button("Stop") {
-                            musicCoordinator.stop()
-                        }
+                        Button("Stop", action: stopCurrentSong)
                         .font(.caption)
                         .buttonStyle(.bordered)
                         .controlSize(.mini)
@@ -159,7 +148,7 @@ struct AppleMusicPickerView: View {
                         Section {
                             ForEach(searchService.activeResults) { result in
                                 Button {
-                                    selectResult(result)
+                                    handleMusicResultSelection(result)
                                 } label: {
                                     resultRow(result)
                                 }
@@ -176,7 +165,7 @@ struct AppleMusicPickerView: View {
                     } else {
                         ForEach(searchService.activeResults) { result in
                             Button {
-                                selectResult(result)
+                                handleMusicResultSelection(result)
                             } label: {
                                 resultRow(result)
                             }
@@ -189,9 +178,7 @@ struct AppleMusicPickerView: View {
                 .listStyle(.plain)
             }
         }
-        .onAppear {
-            searchService.loadSuggestions()
-        }
+        .onAppear(perform: loadMusicSuggestions)
         #else
         Text("Apple Music search is not available on this platform.")
             .foregroundStyle(.secondary)
@@ -206,7 +193,7 @@ struct AppleMusicPickerView: View {
                 ForEach(MusicItemKind.allCases) { kind in
                     let isSelected = searchService.activeTab == kind
                     Button {
-                        searchService.activeTab = kind
+                        selectMusicTab(kind)
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: kind.systemImage)
@@ -279,6 +266,45 @@ struct AppleMusicPickerView: View {
                 .foregroundStyle(.tertiary)
         }
     }
+
+    // MARK: - Actions
+
+    private func dismissPicker() {
+        onDismiss()
+    }
+
+    private func requestMusicAuthorization() {
+        Task {
+            _ = await musicCoordinator.requestAuthorization()
+        }
+    }
+
+    private func handleSearchTextChange() {
+        searchService.searchDebounced()
+    }
+
+    private func clearMusicSearch() {
+        searchService.searchText = ""
+        searchService.clearAllResults()
+    }
+
+    private func stopCurrentSong() {
+        musicCoordinator.stop()
+    }
+
+    private func loadMusicSuggestions() {
+        searchService.loadSuggestions()
+    }
+
+    private func selectMusicTab(_ kind: MusicItemKind) {
+        searchService.activeTab = kind
+    }
+
+    #if canImport(MusicKit)
+    private func handleMusicResultSelection(_ result: MusicSearchService.MusicSearchResult) {
+        selectResult(result)
+    }
+    #endif
 
     // MARK: - Selection
 
