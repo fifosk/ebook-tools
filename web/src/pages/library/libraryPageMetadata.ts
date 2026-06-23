@@ -63,6 +63,33 @@ export function selectActiveLibraryItems(
   }
 }
 
+export function resolveLibraryTotalPages(total: number, pageSize: number): number {
+  if (total <= 0 || pageSize <= 0) {
+    return 1;
+  }
+  return Math.max(1, Math.ceil(total / pageSize));
+}
+
+export function formatLibraryRangeLabel({
+  total,
+  page,
+  pageSize,
+  itemCount,
+}: {
+  total: number;
+  page: number;
+  pageSize: number;
+  itemCount: number;
+}): string {
+  if (total <= 0 || itemCount <= 0 || pageSize <= 0) {
+    return 'No results';
+  }
+  const safePage = Math.max(1, page);
+  const start = (safePage - 1) * pageSize + 1;
+  const end = Math.min(total, start + itemCount - 1);
+  return `Showing ${start}–${end} of ${total}`;
+}
+
 export function readNestedValue(source: unknown, path: string[]): unknown {
   let current: unknown = source;
   for (const key of path) {

@@ -5,6 +5,7 @@ import {
   extractTvMediaMetadata,
   extractYoutubeVideoMetadata,
   formatCount,
+  formatLibraryRangeLabel,
   formatYoutubeUploadDate,
   mergeIsbnMetadataIntoEditValues,
   readNestedValue,
@@ -13,6 +14,7 @@ import {
   resolveIsbnPreviewCoverCandidate,
   resolveItemType,
   resolveLibraryAssetUrl,
+  resolveLibraryTotalPages,
   selectActiveLibraryItems,
   resolveTitle,
   resolveTvImage,
@@ -73,6 +75,23 @@ describe('libraryPageMetadata', () => {
     expect(selectActiveLibraryItems(buckets, 'video')).toBe(buckets.videoItems);
     expect(selectActiveLibraryItems(buckets, 'narrated_subtitle')).toBe(buckets.subtitleItems);
     expect(selectActiveLibraryItems(buckets, 'book')).toBe(buckets.bookItems);
+  });
+
+  it('formats library pagination totals and range labels', () => {
+    expect(resolveLibraryTotalPages(0, 25)).toBe(1);
+    expect(resolveLibraryTotalPages(51, 25)).toBe(3);
+    expect(resolveLibraryTotalPages(10, 0)).toBe(1);
+
+    expect(formatLibraryRangeLabel({ total: 0, page: 1, pageSize: 25, itemCount: 0 })).toBe('No results');
+    expect(formatLibraryRangeLabel({ total: 51, page: 1, pageSize: 25, itemCount: 25 })).toBe(
+      'Showing 1–25 of 51',
+    );
+    expect(formatLibraryRangeLabel({ total: 51, page: 3, pageSize: 25, itemCount: 1 })).toBe(
+      'Showing 51–51 of 51',
+    );
+    expect(formatLibraryRangeLabel({ total: 3, page: -2, pageSize: 25, itemCount: 3 })).toBe(
+      'Showing 1–3 of 3',
+    );
   });
 
   it('extracts TV and YouTube metadata from nested backend payloads', () => {

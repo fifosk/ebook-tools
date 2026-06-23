@@ -26,12 +26,14 @@ import {
   extractTvMediaMetadata,
   extractYoutubeVideoMetadata,
   formatCount,
+  formatLibraryRangeLabel,
   formatYoutubeUploadDate,
   mergeIsbnMetadataIntoEditValues,
   resolveAuthor,
   resolveGenre,
   resolveIsbnPreviewCoverCandidate,
   resolveItemType,
+  resolveLibraryTotalPages,
   resolveTitle,
   resolveTvImage,
   resolveYoutubeThumbnail,
@@ -595,19 +597,16 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
   );
 
   const totalPages = useMemo(() => {
-    if (total === 0) {
-      return 1;
-    }
-    return Math.max(1, Math.ceil(total / PAGE_SIZE));
+    return resolveLibraryTotalPages(total, PAGE_SIZE);
   }, [total]);
 
   const rangeLabel = useMemo(() => {
-    if (total === 0) {
-      return 'No results';
-    }
-    const start = (page - 1) * PAGE_SIZE + 1;
-    const end = Math.min(total, start + items.length - 1);
-    return `Showing ${start}–${end} of ${total}`;
+    return formatLibraryRangeLabel({
+      total,
+      page,
+      pageSize: PAGE_SIZE,
+      itemCount: items.length,
+    });
   }, [items.length, page, total]);
 
   const selectedItemType = useMemo(() => resolveItemType(selectedItem), [selectedItem]);
