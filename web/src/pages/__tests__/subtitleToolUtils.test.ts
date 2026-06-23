@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { JobParameterSnapshot, SubtitleSourceEntry } from '../../api/dtos';
+import type { JobState } from '../../components/JobList';
 import {
   formatSubmittedSubtitleSummary,
+  isAssSubtitleSelection,
   normalizeSubtitleTimecodeInput,
   pickLatestSubtitleSource,
+  resolveSubtitleMetadataSourceName,
+  resolveSubtitleSourceFormat,
   resolveSubtitlePrefillValues,
   resolveSubtitleSubmitValues,
+  selectMissingCompletedSubtitleJobs,
+  sortSubtitleJobsNewestFirst,
   type SubtitleSubmitInput,
   sortSubtitleSourcesForSelection
 } from '../subtitle-tool/subtitleToolUtils';
@@ -17,6 +23,32 @@ function source(overrides: Partial<SubtitleSourceEntry>): SubtitleSourceEntry {
     format: overrides.format ?? 'srt',
     language: overrides.language ?? null,
     modified_at: overrides.modified_at ?? null
+  };
+}
+
+function job(overrides: {
+  jobId: string;
+  jobType?: string;
+  status?: string;
+  createdAt?: string;
+}): JobState {
+  return {
+    jobId: overrides.jobId,
+    status: {
+      job_id: overrides.jobId,
+      job_type: overrides.jobType ?? 'subtitle',
+      status: overrides.status ?? 'completed',
+      created_at: overrides.createdAt ?? '2026-06-23T10:00:00Z',
+      started_at: null,
+      completed_at: null,
+      result: null,
+      error: null,
+      latest_event: null,
+      tuning: null
+    } as JobState['status'],
+    isReloading: false,
+    isMutating: false,
+    canManage: true
   };
 }
 
@@ -47,6 +79,45 @@ describe('sortSubtitleSourcesForSelection', () => {
       '/subtitles/source.srt',
       '/subtitles/generated.ass'
     ]);
+  });
+});
+
+describe('source metadata helpers', () => {
+  it('resolves source format from explicit format or file extension', () => {
+    expect(resolveSubtitleSourceFormat(source({ path: '/a/generated.ass', format: '' }))).toBe('ass');
+    expect(resolveSubtitleSourceFormat(source({ path: '/a/source.srt', format: 'VTT' }))).toBe('vtt');
+    expect(resolveSubtitleSourceFormat(null)).toBe('');
+  });
+
+  it('flags generated ASS selections only for existing-source mode', () => {
+    const ass = source({ path: '/a/generated.ass', format: 'ass' });
+
+    expect(isAssSubtitleSelection('existing', ass)).toBe(true);
+    expect(isAssSubtitleSelection('upload', ass)).toBe(false);
+    expect(isAssSubtitleSelection('existing', source({ path: '/a/source.srt', format: 'srt' }))).toBe(false);
+  });
+
+  it('resolves metadata source names from upload files, selected names, or path basenames', () => {
+    expect(
+      resolveSubtitleMetadataSourceName({
+        sourceMode: 'upload',
+        uploadFileName: 'upload.srt',
+        selectedSourcePath: '/ignored/source.srt'
+      })
+    ).toBe('upload.srt');
+    expect(
+      resolveSubtitleMetadataSourceName({
+        sourceMode: 'existing',
+        selectedSourceName: 'Friendly Source',
+        selectedSourcePath: '/media/source.srt'
+      })
+    ).toBe('Friendly Source');
+    expect(
+      resolveSubtitleMetadataSourceName({
+        sourceMode: 'existing',
+        selectedSourcePath: '/media/fallback.srt'
+      })
+    ).toBe('fallback.srt');
   });
 });
 
@@ -423,5 +494,34 @@ describe('resolveSubtitleSubmitValues', () => {
         resolvedAssEmphasis: 2.5
       }
     });
+  });
+});
+
+describe('subtitle job helpers', () => {
+  it('selects completed subtitle jobs that are missing cached result payloads', () => {
+    const jobs = [
+      job({ jobId: 'ready-missing' }),
+      job({ jobId: 'ready-cached' }),
+      job({ jobId: 'running', status: 'running' }),
+      job({ jobId: 'book', jobType: 'book' })
+    ];
+
+    expect(selectMissingCompletedSubtitleJobs(jobs, { 'ready-cached': { ok: true } }).map((entry) => entry.jobId)).toEqual([
+      'ready-missing'
+    ]);
+  });
+
+  it('sorts subtitle jobs newest first without mutating the input array', () => {
+    const oldest = job({ jobId: 'oldest', createdAt: '2026-06-23T09:00:00Z' });
+    const newest = job({ jobId: 'newest', createdAt: '2026-06-23T11:00:00Z' });
+    const middle = job({ jobId: 'middle', createdAt: '2026-06-23T10:00:00Z' });
+    const input = [oldest, newest, middle];
+
+    expect(sortSubtitleJobsNewestFirst(input).map((entry) => entry.jobId)).toEqual([
+      'newest',
+      'middle',
+      'oldest'
+    ]);
+    expect(input.map((entry) => entry.jobId)).toEqual(['oldest', 'newest', 'middle']);
   });
 });

@@ -17,7 +17,6 @@ import {
   normalizeLanguageLabel,
   sortLanguageLabelsByName
 } from '../utils/languages';
-import { subtitleFormatFromPath } from '../utils/subtitles';
 import SubtitleJobsPanel from './subtitle-tool/SubtitleJobsPanel';
 import SubtitleMetadataPanel from './subtitle-tool/SubtitleMetadataPanel';
 import SubtitleOptionsPanel from './subtitle-tool/SubtitleOptionsPanel';
@@ -41,13 +40,16 @@ import type {
   SubtitleToolTab
 } from './subtitle-tool/subtitleToolTypes';
 import {
-  basenameFromPath,
   coerceRecord,
   formatSubmittedSubtitleSummary,
+  isAssSubtitleSelection,
   normalizeLanguageInput,
   pickLatestSubtitleSource,
+  resolveSubtitleMetadataSourceName,
   resolveSubtitlePrefillValues,
   resolveSubtitleSubmitValues,
+  selectMissingCompletedSubtitleJobs,
+  sortSubtitleJobsNewestFirst,
   sortSubtitleSourcesForSelection
 } from './subtitle-tool/subtitleToolUtils';
 import styles from './SubtitleToolPage.module.css';
@@ -100,25 +102,23 @@ export default function SubtitleToolPage({
     () => sources.find((entry) => entry.path === selectedSource) ?? null,
     [selectedSource, sources]
   );
-  const selectedSourceFormat = useMemo(() => {
-    if (!selectedSourceEntry) {
-      return '';
-    }
-    return (selectedSourceEntry.format || subtitleFormatFromPath(selectedSourceEntry.path) || '').toLowerCase();
-  }, [selectedSourceEntry]);
   const isAssSelection = useMemo(
-    () => sourceMode === 'existing' && selectedSourceFormat === 'ass',
-    [sourceMode, selectedSourceFormat]
+    () => isAssSubtitleSelection(sourceMode, selectedSourceEntry),
+    [sourceMode, selectedSourceEntry]
   );
   const sortedSources = useMemo(() => sortSubtitleSourcesForSelection(sources), [sources]);
   const sourceDirectory = DEFAULT_SUBTITLE_SOURCE_DIRECTORY;
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const metadataSourceName = useMemo(() => {
-    if (sourceMode === 'upload') {
-      return uploadFile?.name ?? '';
-    }
-    return selectedSourceEntry?.name ?? (selectedSource ? basenameFromPath(selectedSource) : '');
-  }, [selectedSource, selectedSourceEntry, sourceMode, uploadFile]);
+  const metadataSourceName = useMemo(
+    () =>
+      resolveSubtitleMetadataSourceName({
+        sourceMode,
+        uploadFileName: uploadFile?.name,
+        selectedSourceName: selectedSourceEntry?.name,
+        selectedSourcePath: selectedSource
+      }),
+    [selectedSource, selectedSourceEntry, sourceMode, uploadFile]
+  );
   const [metadataLookupSourceName, setMetadataLookupSourceName] = useState<string>('');
   const [metadataPreview, setMetadataPreview] = useState<SubtitleTvMetadataPreviewResponse | null>(null);
   const [mediaMetadataDraft, setMediaMetadataDraft] = useState<Record<string, unknown> | null>(null);
@@ -435,10 +435,7 @@ export default function SubtitleToolPage({
   }, [metadataSourceName, performMetadataLookup]);
 
   useEffect(() => {
-    const completedSubtitleJobs = subtitleJobs.filter(
-      (job) => job.status.job_type === 'subtitle' && job.status.status === 'completed'
-    );
-    const missing = completedSubtitleJobs.filter((job) => jobResults[job.jobId] === undefined);
+    const missing = selectMissingCompletedSubtitleJobs(subtitleJobs, jobResults);
     if (missing.length === 0) {
       return;
     }
@@ -682,13 +679,7 @@ export default function SubtitleToolPage({
     ]
   );
 
-  const sortedSubtitleJobs = useMemo(() => {
-    return [...subtitleJobs].sort((a, b) => {
-      const left = new Date(a.status.created_at).getTime();
-      const right = new Date(b.status.created_at).getTime();
-      return right - left;
-    });
-  }, [subtitleJobs]);
+  const sortedSubtitleJobs = useMemo(() => sortSubtitleJobsNewestFirst(subtitleJobs), [subtitleJobs]);
 
   return (
     <div className={styles.container}>

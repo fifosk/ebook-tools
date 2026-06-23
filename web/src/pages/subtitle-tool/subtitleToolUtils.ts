@@ -413,8 +413,30 @@ export function resolveSubtitleSubmitValues(input: SubtitleSubmitInput): Subtitl
   };
 }
 
-function subtitleSourceFormat(entry: SubtitleSourceEntry): string {
+export function resolveSubtitleSourceFormat(entry: SubtitleSourceEntry | null | undefined): string {
+  if (!entry) {
+    return '';
+  }
   return (entry.format || subtitleFormatFromPath(entry.path) || '').toLowerCase();
+}
+
+export function isAssSubtitleSelection(
+  sourceMode: SubtitleSourceMode,
+  selectedSourceEntry: SubtitleSourceEntry | null | undefined
+): boolean {
+  return sourceMode === 'existing' && resolveSubtitleSourceFormat(selectedSourceEntry) === 'ass';
+}
+
+export function resolveSubtitleMetadataSourceName(input: {
+  sourceMode: SubtitleSourceMode;
+  uploadFileName?: string | null;
+  selectedSourceName?: string | null;
+  selectedSourcePath: string;
+}): string {
+  if (input.sourceMode === 'upload') {
+    return input.uploadFileName ?? '';
+  }
+  return input.selectedSourceName ?? (input.selectedSourcePath ? basenameFromPath(input.selectedSourcePath) : '');
 }
 
 function parseModifiedTime(value: string | null | undefined): number {
@@ -429,8 +451,8 @@ export function sortSubtitleSourcesForSelection(sources: SubtitleSourceEntry[]):
   return [...sources]
     .map((entry, index) => ({ entry, index }))
     .sort((left, right) => {
-      const leftWeight = subtitleSourceFormat(left.entry) === 'ass' ? 1 : 0;
-      const rightWeight = subtitleSourceFormat(right.entry) === 'ass' ? 1 : 0;
+      const leftWeight = resolveSubtitleSourceFormat(left.entry) === 'ass' ? 1 : 0;
+      const rightWeight = resolveSubtitleSourceFormat(right.entry) === 'ass' ? 1 : 0;
       if (leftWeight !== rightWeight) {
         return leftWeight - rightWeight;
       }
@@ -440,7 +462,7 @@ export function sortSubtitleSourcesForSelection(sources: SubtitleSourceEntry[]):
 }
 
 export function pickLatestSubtitleSource(sources: SubtitleSourceEntry[]): string {
-  const preferred = sources.filter((item) => subtitleSourceFormat(item) !== 'ass');
+  const preferred = sources.filter((item) => resolveSubtitleSourceFormat(item) !== 'ass');
   const pool = preferred.length > 0 ? preferred : sources;
   if (pool.length === 0) {
     return '';
@@ -460,6 +482,26 @@ export function pickLatestSubtitleSource(sources: SubtitleSourceEntry[]): string
     }
     return latest;
   }, '');
+}
+
+export function selectMissingCompletedSubtitleJobs<T>(
+  jobs: JobState[],
+  jobResults: Record<string, T>
+): JobState[] {
+  return jobs.filter(
+    (job) =>
+      job.status.job_type === 'subtitle' &&
+      job.status.status === 'completed' &&
+      jobResults[job.jobId] === undefined
+  );
+}
+
+export function sortSubtitleJobsNewestFirst(jobs: JobState[]): JobState[] {
+  return [...jobs].sort((a, b) => {
+    const left = new Date(a.status.created_at).getTime();
+    const right = new Date(b.status.created_at).getTime();
+    return right - left;
+  });
 }
 
 export type SubmittedSubtitleSummary = {
