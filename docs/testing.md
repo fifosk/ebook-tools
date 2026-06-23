@@ -59,6 +59,7 @@ manifest wrapper when dogfooding the home pipeline:
 cd /Users/fifo/Projects/home/apple-device-app-pipeline
 python3 scripts/run_app_owned_journey.py --app ebook-tools --list
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados --dry-run
+python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados-create --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile tvos --use-remote-env
 ```
 
@@ -104,6 +105,11 @@ against a shared backend:
 ```bash
 python3 scripts/check_apple_create_readiness.py --env-file .env
 ```
+
+The reusable manifest also exposes stricter native Create journeys as
+`iphone-create` and `ipados-create`. They run the same preflight before Xcode
+and then execute the `create_readiness.json` journey, which verifies Narrate
+EPUB, subtitle, and YouTube dubbing defaults from backend-visible sources.
 
 The preflight verifies backend-visible EPUBs, subtitle sources, YouTube/NAS
 video subtitle pairs, and the broad book language inventory from
