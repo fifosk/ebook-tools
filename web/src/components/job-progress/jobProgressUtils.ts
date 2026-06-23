@@ -274,6 +274,42 @@ export function formatFallbackValue(value: Record<string, unknown>): string {
   return parts.join(' | ');
 }
 
+export function buildFallbackEntries(generatedFiles: unknown): Array<[string, string]> {
+  const generated = coerceRecord(generatedFiles);
+  if (!generated) {
+    return [];
+  }
+  const entries: Array<[string, string]> = [];
+  const translationFallback = coerceRecord(generated['translation_fallback']);
+  if (translationFallback) {
+    const value = formatFallbackValue(translationFallback);
+    if (value) {
+      entries.push(['Translation fallback', value]);
+    }
+  }
+  const ttsFallback = coerceRecord(generated['tts_fallback']);
+  if (ttsFallback) {
+    const value = formatFallbackValue(ttsFallback);
+    if (value) {
+      entries.push(['TTS fallback', value]);
+    }
+  }
+  return entries;
+}
+
+export function areTranslationsUnavailable(translations: unknown): boolean {
+  if (!Array.isArray(translations) || translations.length === 0) {
+    return false;
+  }
+  return translations.every((block) => {
+    if (typeof block !== 'string') {
+      return false;
+    }
+    const cleaned = block.trim();
+    return cleaned.length === 0 || cleaned.toUpperCase() === 'N/A';
+  });
+}
+
 export function normaliseStringList(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];

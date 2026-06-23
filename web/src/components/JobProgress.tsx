@@ -24,14 +24,14 @@ import {
   CREATION_METADATA_KEYS,
   TECHNICAL_METADATA_KEYS,
   TERMINAL_STATES,
+  areTranslationsUnavailable,
   buildBatchProgress,
   buildBatchStatEntries,
+  buildFallbackEntries,
   buildImageClusterNodes,
   buildParallelismEntries,
   coerceNumber,
-  coerceRecord,
   formatDate,
-  formatFallbackValue,
   formatMetadataLabel,
   formatMetadataValue,
   formatProgressValue,
@@ -276,37 +276,10 @@ export function JobProgress({
     translationProvider
   ]);
   const fallbackEntries = useMemo(() => {
-    const generated = coerceRecord(status?.generated_files);
-    if (!generated) {
-      return [];
-    }
-    const entries: Array<[string, string]> = [];
-    const translationFallback = coerceRecord(generated['translation_fallback']);
-    if (translationFallback) {
-      const value = formatFallbackValue(translationFallback);
-      if (value) {
-        entries.push(['Translation fallback', value]);
-      }
-    }
-    const ttsFallback = coerceRecord(generated['tts_fallback']);
-    if (ttsFallback) {
-      const value = formatFallbackValue(ttsFallback);
-      if (value) {
-        entries.push(['TTS fallback', value]);
-      }
-    }
-    return entries;
+    return buildFallbackEntries(status?.generated_files);
   }, [status?.generated_files]);
   const translations = pipelineResult?.written_blocks ?? [];
-  const translationsUnavailable = Array.isArray(translations)
-    ? translations.length > 0 && translations.every((block) => {
-        if (typeof block !== 'string') {
-          return false;
-        }
-        const cleaned = block.trim();
-        return cleaned.length === 0 || cleaned.toUpperCase() === 'N/A';
-      })
-    : false;
+  const translationsUnavailable = areTranslationsUnavailable(translations);
 
   const translationBatchStats = useMemo(() => {
     return resolveGeneratedFileRecord(status?.generated_files, 'translation_batch_stats');

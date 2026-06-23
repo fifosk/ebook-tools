@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  areTranslationsUnavailable,
   buildBatchProgress,
   buildBatchStatEntries,
+  buildFallbackEntries,
   buildParallelismEntries,
   formatProgressValue,
   resolveGeneratedFileRecord,
@@ -34,6 +36,46 @@ function progressEvent(overrides: Partial<{
 }
 
 describe('jobProgressUtils progress helpers', () => {
+  it('builds fallback display rows from generated-file fallback records', () => {
+    expect(
+      buildFallbackEntries({
+        translation_fallback: {
+          fallback_model: 'gpt-4.1-mini',
+          source_provider: 'ollama_local',
+          trigger: 'timeout',
+          elapsed_seconds: 12.345,
+        },
+        tts_fallback: {
+          scope: 'media',
+          fallback_voice: 'gTTS',
+          source_voice: 'Alloy',
+          reason: 'voice unavailable',
+        },
+      }),
+    ).toEqual([
+      ['Translation fallback', 'model gpt-4.1-mini | source ollama_local | trigger timeout | elapsed 12.3 s'],
+      ['TTS fallback', 'scope media | voice gTTS | source Alloy | voice unavailable'],
+    ]);
+  });
+
+  it('omits empty or malformed fallback rows', () => {
+    expect(
+      buildFallbackEntries({
+        translation_fallback: {},
+        tts_fallback: 'not-a-record',
+      }),
+    ).toEqual([]);
+    expect(buildFallbackEntries(null)).toEqual([]);
+  });
+
+  it('detects placeholder-only translation blocks', () => {
+    expect(areTranslationsUnavailable(['', '  n/a ', 'N/A'])).toBe(true);
+    expect(areTranslationsUnavailable(['N/A', 'A translated sentence.'])).toBe(false);
+    expect(areTranslationsUnavailable(['N/A', 42])).toBe(false);
+    expect(areTranslationsUnavailable([])).toBe(false);
+    expect(areTranslationsUnavailable(null)).toBe(false);
+  });
+
   it('resolves generated-file stat records by key', () => {
     const generated = {
       translation_batch_stats: {
