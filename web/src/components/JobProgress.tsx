@@ -25,6 +25,8 @@ import {
   CREATION_METADATA_KEYS,
   TECHNICAL_METADATA_KEYS,
   TERMINAL_STATES,
+  buildBatchProgress,
+  buildBatchStatEntries,
   buildImageClusterNodes,
   coerceNumber,
   coerceRecord,
@@ -32,6 +34,7 @@ import {
   formatFallbackValue,
   formatMetadataLabel,
   formatMetadataValue,
+  formatProgressValue,
   formatSeconds,
   formatSecondsPerImage,
   formatTuningDescription,
@@ -42,7 +45,10 @@ import {
   normalizeMetadataValue,
   normalizeTranslationProvider,
   normalizeTextValue,
+  resolveGeneratedFileRecord,
   resolveImageClusterSummary,
+  resolveLookupCacheBuildingProgress,
+  resolveLookupCacheProgress,
   sortTuningEntries,
 } from './job-progress/jobProgressUtils';
 
@@ -389,73 +395,36 @@ export function JobProgress({
     : false;
 
   const translationBatchStats = useMemo(() => {
-    const generated = status?.generated_files;
-    if (!generated || typeof generated !== 'object') {
-      return null;
-    }
-    return coerceRecord((generated as Record<string, unknown>)['translation_batch_stats']);
+    return resolveGeneratedFileRecord(status?.generated_files, 'translation_batch_stats');
   }, [status?.generated_files]);
   const transliterationBatchStats = useMemo(() => {
-    const generated = status?.generated_files;
-    if (!generated || typeof generated !== 'object') {
-      return null;
-    }
-    return coerceRecord((generated as Record<string, unknown>)['transliteration_batch_stats']);
+    return resolveGeneratedFileRecord(status?.generated_files, 'transliteration_batch_stats');
   }, [status?.generated_files]);
   const mediaBatchStats = useMemo(() => {
-    const generated = status?.generated_files;
-    if (!generated || typeof generated !== 'object') {
-      return null;
-    }
-    return coerceRecord((generated as Record<string, unknown>)['media_batch_stats']);
+    return resolveGeneratedFileRecord(status?.generated_files, 'media_batch_stats');
   }, [status?.generated_files]);
   const lookupCacheStats = useMemo(() => {
-    const generated = status?.generated_files;
-    if (!generated || typeof generated !== 'object') {
-      return null;
-    }
-    return coerceRecord((generated as Record<string, unknown>)['lookup_cache']);
+    return resolveGeneratedFileRecord(status?.generated_files, 'lookup_cache');
   }, [status?.generated_files]);
   const translationBatchSize =
     coerceNumber(translationBatchStats?.['batch_size']) ?? configuredBatchSize;
   const useBatchProgress =
     Boolean(translationBatchStats || transliterationBatchStats || mediaBatchStats) ||
     (translationBatchSize !== null && translationBatchSize > 1 && translationProvider === 'llm');
-  const buildBatchProgress = useCallback((stats: Record<string, unknown> | null) => {
-    if (!stats) {
-      return null;
-    }
-    const completed = coerceNumber(stats['batches_completed']);
-    if (completed === null) {
-      return null;
-    }
-    const total = coerceNumber(stats['batches_total']);
-    return { completed, total };
-  }, []);
   const translationBatchProgress = useMemo(
     () => (useBatchProgress ? buildBatchProgress(translationBatchStats) : null),
-    [buildBatchProgress, translationBatchStats, useBatchProgress]
+    [translationBatchStats, useBatchProgress]
   );
   const transliterationBatchProgress = useMemo(
     () => (useBatchProgress ? buildBatchProgress(transliterationBatchStats) : null),
-    [buildBatchProgress, transliterationBatchStats, useBatchProgress]
+    [transliterationBatchStats, useBatchProgress]
   );
   const mediaBatchProgress = useMemo(
     () => (useBatchProgress ? buildBatchProgress(mediaBatchStats) : null),
-    [buildBatchProgress, mediaBatchStats, useBatchProgress]
+    [mediaBatchStats, useBatchProgress]
   );
   const lookupCacheProgress = useMemo(() => {
-    if (!lookupCacheStats) {
-      return null;
-    }
-    const wordCount = coerceNumber(lookupCacheStats['word_count']);
-    const llmCalls = coerceNumber(lookupCacheStats['llm_calls']);
-    const skippedStopwords = coerceNumber(lookupCacheStats['skipped_stopwords']);
-    const buildTimeSeconds = coerceNumber(lookupCacheStats['build_time_seconds']);
-    if (wordCount === null) {
-      return null;
-    }
-    return { wordCount, llmCalls, skippedStopwords, buildTimeSeconds };
+    return resolveLookupCacheProgress(lookupCacheStats);
   }, [lookupCacheStats]);
   const translationProgress = useMemo(() => {
     if (useBatchProgress || !translationEvent) {
@@ -499,17 +468,6 @@ export function JobProgress({
     }
     return null;
   }, [latestPlayableEvent, mediaBatchStats]);
-  const formatProgressValue = useCallback((progress: { completed: number; total: number | null }) => {
-    const completedLabel =
-      typeof progress.completed === 'number' && Number.isFinite(progress.completed)
-        ? Math.max(0, Math.round(progress.completed)).toString()
-        : '0';
-    if (typeof progress.total === 'number' && Number.isFinite(progress.total)) {
-      return `${completedLabel} / ${Math.max(0, Math.round(progress.total))}`;
-    }
-    return completedLabel;
-  }, []);
-
   const canPause =
     isBookJob && canManage && !isTerminal && statusValue !== 'paused' && statusValue !== 'pausing';
   const canResume = isBookJob && canManage && statusValue === 'paused';
@@ -534,42 +492,7 @@ export function JobProgress({
   const showLibraryReadyNotice = canManage && isLibraryCandidate;
   const jobParameterEntries = useMemo(() => buildJobParameterEntries(status), [status]);
   const batchStatEntries = useMemo(() => {
-    const entries: [string, string][] = [];
-    const resolvedBatchSize = translationBatchSize;
-    if (resolvedBatchSize !== null && resolvedBatchSize > 1) {
-      entries.push(['Batch size', resolvedBatchSize.toString()]);
-    }
-    if (!translationBatchStats) {
-      if (resolvedBatchSize !== null && resolvedBatchSize > 1) {
-        entries.push(['Batches completed', '0']);
-        entries.push(['Items translated', '0']);
-      }
-      return entries;
-    }
-    const batches = coerceNumber(translationBatchStats['batches_completed']);
-    if (batches !== null) {
-      entries.push(['Batches completed', batches.toString()]);
-    }
-    const items = coerceNumber(translationBatchStats['items_completed']);
-    if (items !== null) {
-      entries.push(['Items translated', items.toString()]);
-    }
-    const avgBatch = coerceNumber(translationBatchStats['avg_batch_seconds']);
-    if (avgBatch !== null) {
-      entries.push(['Avg batch time', formatSeconds(avgBatch, 's/batch')]);
-    }
-    const avgItem = coerceNumber(translationBatchStats['avg_item_seconds']);
-    if (avgItem !== null) {
-      entries.push(['Avg item time', formatSeconds(avgItem, 's/item')]);
-    }
-    const lastBatch = coerceNumber(translationBatchStats['last_batch_seconds']);
-    const lastItems = coerceNumber(translationBatchStats['last_batch_items']);
-    if (lastBatch !== null) {
-      const suffix =
-        lastItems !== null ? ` (${lastItems} sentence${lastItems === 1 ? '' : 's'})` : '';
-      entries.push(['Last batch time', `${formatSeconds(lastBatch, 's/batch')}${suffix}`]);
-    }
-    return entries;
+    return buildBatchStatEntries(translationBatchSize, translationBatchStats);
   }, [translationBatchSize, translationBatchStats]);
   const showBatchStageProgress =
     useBatchProgress &&
@@ -582,36 +505,7 @@ export function JobProgress({
   const showLookupCacheProgress = Boolean(lookupCacheProgress);
   // Track lookup cache building status and progress from SSE events
   const lookupCacheBuildingProgress = useMemo(() => {
-    const meta = event?.metadata;
-    if (!meta || typeof meta !== 'object') {
-      return null;
-    }
-    const metaRecord = meta as Record<string, unknown>;
-    const status = metaRecord['lookup_cache_status'];
-    // Extract detailed progress if available
-    const progress = coerceRecord(metaRecord['lookup_cache_progress']);
-    if (progress) {
-      return {
-        status: 'building' as const,
-        batchesCompleted: coerceNumber(progress['batches_completed']),
-        batchesTotal: coerceNumber(progress['batches_total']),
-        wordsToLookup: coerceNumber(progress['words_to_lookup']),
-        cachedEntries: coerceNumber(progress['cached_entries']),
-        llmCalls: coerceNumber(progress['llm_calls']),
-      };
-    }
-    // Only show building indicator if status is explicitly "building"
-    if (status === 'building') {
-      return {
-        status: 'building' as const,
-        batchesCompleted: null,
-        batchesTotal: null,
-        wordsToLookup: null,
-        cachedEntries: null,
-        llmCalls: null,
-      };
-    }
-    return null;
+    return resolveLookupCacheBuildingProgress(event?.metadata);
   }, [event?.metadata]);
   const showLookupCacheBuilding = lookupCacheBuildingProgress !== null && !showLookupCacheProgress;
   const statusGlyph = getStatusGlyph(statusValue);

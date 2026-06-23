@@ -3,6 +3,7 @@ import { formatModelLabel } from '../../utils/modelInfo';
 import type {
   PipelineJobStatus,
   PipelineStatusResponse,
+  ProgressEventPayload,
 } from '../../api/dtos';
 import { IMAGE_API_NODE_OPTIONS } from '../../constants/imageNodes';
 
@@ -368,6 +369,95 @@ export function coerceNumber(value: unknown): number | null {
   return null;
 }
 
+export type ProgressCount = {
+  completed: number;
+  total: number | null;
+};
+
+export type LookupCacheProgress = {
+  wordCount: number;
+  llmCalls: number | null;
+  skippedStopwords: number | null;
+  buildTimeSeconds: number | null;
+};
+
+export type LookupCacheBuildingProgress = {
+  status: 'building';
+  batchesCompleted: number | null;
+  batchesTotal: number | null;
+  wordsToLookup: number | null;
+  cachedEntries: number | null;
+  llmCalls: number | null;
+};
+
+export function resolveGeneratedFileRecord(
+  generatedFiles: unknown,
+  key: string,
+): Record<string, unknown> | null {
+  const generated = coerceRecord(generatedFiles);
+  return generated ? coerceRecord(generated[key]) : null;
+}
+
+export function buildBatchProgress(stats: Record<string, unknown> | null): ProgressCount | null {
+  if (!stats) {
+    return null;
+  }
+  const completed = coerceNumber(stats['batches_completed']);
+  if (completed === null) {
+    return null;
+  }
+  const total = coerceNumber(stats['batches_total']);
+  return { completed, total };
+}
+
+export function resolveLookupCacheProgress(
+  stats: Record<string, unknown> | null,
+): LookupCacheProgress | null {
+  if (!stats) {
+    return null;
+  }
+  const wordCount = coerceNumber(stats['word_count']);
+  const llmCalls = coerceNumber(stats['llm_calls']);
+  const skippedStopwords = coerceNumber(stats['skipped_stopwords']);
+  const buildTimeSeconds = coerceNumber(stats['build_time_seconds']);
+  if (wordCount === null) {
+    return null;
+  }
+  return { wordCount, llmCalls, skippedStopwords, buildTimeSeconds };
+}
+
+export function resolveLookupCacheBuildingProgress(
+  metadata: ProgressEventPayload['metadata'] | null | undefined,
+): LookupCacheBuildingProgress | null {
+  const metaRecord = coerceRecord(metadata);
+  if (!metaRecord) {
+    return null;
+  }
+  const status = metaRecord['lookup_cache_status'];
+  const progress = coerceRecord(metaRecord['lookup_cache_progress']);
+  if (progress) {
+    return {
+      status: 'building',
+      batchesCompleted: coerceNumber(progress['batches_completed']),
+      batchesTotal: coerceNumber(progress['batches_total']),
+      wordsToLookup: coerceNumber(progress['words_to_lookup']),
+      cachedEntries: coerceNumber(progress['cached_entries']),
+      llmCalls: coerceNumber(progress['llm_calls']),
+    };
+  }
+  if (status === 'building') {
+    return {
+      status: 'building',
+      batchesCompleted: null,
+      batchesTotal: null,
+      wordsToLookup: null,
+      cachedEntries: null,
+      llmCalls: null,
+    };
+  }
+  return null;
+}
+
 export function resolveGeneratedChunks(
   status: PipelineStatusResponse | undefined,
 ): Record<string, unknown>[] {
@@ -669,6 +759,58 @@ export function formatSeconds(value: number | null, suffix: string = 's'): strin
     return `${value.toFixed(1)} ${suffix}`;
   }
   return `${Math.round(value)} ${suffix}`;
+}
+
+export function formatProgressValue(progress: ProgressCount): string {
+  const completedLabel =
+    typeof progress.completed === 'number' && Number.isFinite(progress.completed)
+      ? Math.max(0, Math.round(progress.completed)).toString()
+      : '0';
+  if (typeof progress.total === 'number' && Number.isFinite(progress.total)) {
+    return `${completedLabel} / ${Math.max(0, Math.round(progress.total))}`;
+  }
+  return completedLabel;
+}
+
+export function buildBatchStatEntries(
+  translationBatchSize: number | null,
+  translationBatchStats: Record<string, unknown> | null,
+): [string, string][] {
+  const entries: [string, string][] = [];
+  if (translationBatchSize !== null && translationBatchSize > 1) {
+    entries.push(['Batch size', translationBatchSize.toString()]);
+  }
+  if (!translationBatchStats) {
+    if (translationBatchSize !== null && translationBatchSize > 1) {
+      entries.push(['Batches completed', '0']);
+      entries.push(['Items translated', '0']);
+    }
+    return entries;
+  }
+  const batches = coerceNumber(translationBatchStats['batches_completed']);
+  if (batches !== null) {
+    entries.push(['Batches completed', batches.toString()]);
+  }
+  const items = coerceNumber(translationBatchStats['items_completed']);
+  if (items !== null) {
+    entries.push(['Items translated', items.toString()]);
+  }
+  const avgBatch = coerceNumber(translationBatchStats['avg_batch_seconds']);
+  if (avgBatch !== null) {
+    entries.push(['Avg batch time', formatSeconds(avgBatch, 's/batch')]);
+  }
+  const avgItem = coerceNumber(translationBatchStats['avg_item_seconds']);
+  if (avgItem !== null) {
+    entries.push(['Avg item time', formatSeconds(avgItem, 's/item')]);
+  }
+  const lastBatch = coerceNumber(translationBatchStats['last_batch_seconds']);
+  const lastItems = coerceNumber(translationBatchStats['last_batch_items']);
+  if (lastBatch !== null) {
+    const suffix =
+      lastItems !== null ? ` (${lastItems} sentence${lastItems === 1 ? '' : 's'})` : '';
+    entries.push(['Last batch time', `${formatSeconds(lastBatch, 's/batch')}${suffix}`]);
+  }
+  return entries;
 }
 
 export function countGeneratedImages(status: PipelineStatusResponse | undefined): number {
