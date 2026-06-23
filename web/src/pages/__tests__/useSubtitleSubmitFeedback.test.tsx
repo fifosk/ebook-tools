@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { PipelineSubmissionResponse } from '../../api/dtos';
 import { useSubtitleSubmitFeedback } from '../subtitle-tool/useSubtitleSubmitFeedback';
-import type { ResolvedSubtitleSubmitValues } from '../subtitle-tool/subtitleToolUtils';
+import type { ResolvedSubtitleSubmitValues } from '../subtitle-tool/subtitleSubmitUtils';
 
 function response(jobId = 'subtitle-job-1'): PipelineSubmissionResponse {
   return {

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.70",
+            version: "2026.06.23.71",
             entries: [
+                AppChangelogEntry(
+                    id: "web-subtitle-submit-utils",
+                    title: "Subtitle submit utilities",
+                    detail: "Web Subtitle Tool submit and timecode normalization helpers now live in a focused module so creation payload tests target the Web-to-Apple parity contract directly."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-submit-hook",
                     title: "Subtitle submit flow",

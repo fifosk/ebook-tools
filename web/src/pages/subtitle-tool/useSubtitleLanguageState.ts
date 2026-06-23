@@ -5,7 +5,7 @@ import {
   normalizeLanguageLabel,
   sortLanguageLabelsByName
 } from '../../utils/languages';
-import { normalizeLanguageInput } from './subtitleToolUtils';
+import { normalizeLanguageInput } from './subtitleSubmitUtils';
 import { useSubtitleLanguageDefaults } from './useSubtitleLanguageDefaults';
 
 export function useSubtitleLanguageState() {

@@ -6,7 +6,7 @@ import {
   buildSubtitleSubmitFormData,
   resolveSubtitleSubmitValues,
   type SubtitleSubmitInput
-} from './subtitleToolUtils';
+} from './subtitleSubmitUtils';
 import type { RecordSubtitleSubmitInput } from './useSubtitleSubmitFeedback';
 
 type UseSubtitleSubmitOptions = Omit<SubtitleSubmitInput, 'hasUploadFile'> & {

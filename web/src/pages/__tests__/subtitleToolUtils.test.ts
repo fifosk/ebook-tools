@@ -2,24 +2,26 @@ import { describe, expect, it } from 'vitest';
 import type { JobParameterSnapshot, SubtitleSourceEntry } from '../../api/dtos';
 import type { JobState } from '../../components/JobList';
 import {
-  buildSubtitleSubmitFormData,
   formatSubmittedSubtitleSummary,
   isAssSubtitleSelection,
-  normalizeSubtitleTimecodeInput,
   pickLatestSubtitleSource,
   resolveSubtitleLanguageDefaults,
   resolveSubtitleMetadataSourceName,
   resolveSubtitleSourceFormat,
   resolveSubtitlePrefillValues,
   resolveSubtitleSourceSelectionAfterRefresh,
-  resolveSubtitleSubmitValues,
   selectMissingCompletedSubtitleJobs,
   sortSubtitleJobsNewestFirst,
-  type SubtitleSubmitInput,
   sortSubtitleSourcesForSelection,
   updateSubtitleMediaMetadataDraft,
   updateSubtitleMediaMetadataSection
 } from '../subtitle-tool/subtitleToolUtils';
+import {
+  buildSubtitleSubmitFormData,
+  normalizeSubtitleTimecodeInput,
+  resolveSubtitleSubmitValues,
+  type SubtitleSubmitInput
+} from '../subtitle-tool/subtitleSubmitUtils';
 
 function source(overrides: Partial<SubtitleSourceEntry>): SubtitleSourceEntry {
   return {

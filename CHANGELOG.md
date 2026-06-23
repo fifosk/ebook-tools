@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.71
+
+- Advanced visible Apple app versioning to `v2026.06.23.71`.
+- Web Subtitle Tool submit and timecode normalization helpers now live in a focused module so creation payload tests target the Web-to-Apple parity contract directly.
+
 ### 2026.06.23.70
 
 - Advanced visible Apple app versioning to `v2026.06.23.70`.
