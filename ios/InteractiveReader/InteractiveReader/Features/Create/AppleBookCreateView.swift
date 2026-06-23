@@ -357,6 +357,7 @@ struct AppleBookCreateView: View {
                     writtenMode: textBinding(for: .writtenMode, value: $writtenMode),
                     tempo: tempoBinding,
                     formattedTempo: formattedTempo,
+                    estimatedAudioDurationLabel: estimatedAudioDurationLabel,
                     sentencesPerOutputFile: bookSentencesPerOutputFileBinding,
                     clampedSentencesPerOutputFile: clampedBookSentencesPerOutputFile,
                     stitchFull: boolBinding(for: .stitchFull, value: $stitchFull),
@@ -884,6 +885,22 @@ struct AppleBookCreateView: View {
 
     private var formattedTempo: String {
         AppleBookCreatePresentation.clampTempo(tempo).formatted(.number.precision(.fractionLength(1)))
+    }
+
+    private var estimatedAudioDurationLabel: String? {
+        switch creationMode {
+        case .generatedBook:
+            return AppleBookCreatePresentation.estimatedAudioDurationLabel(sentenceCount: sentenceCount)
+        case .narrateEbook:
+            return AppleBookCreatePresentation.estimatedAudioDurationLabel(
+                sentenceCount: AppleBookCreatePresentation.estimatedNarrateSentenceCount(
+                    startSentence: sourceStartSentence,
+                    endSentence: sourceEndSentence
+                )
+            )
+        case .subtitleJob, .youtubeDub:
+            return nil
+        }
     }
 
     private var clampedAssFontSize: Int {

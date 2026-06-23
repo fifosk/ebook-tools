@@ -216,6 +216,10 @@ struct AppleCreateChapterRangeSelection: Equatable {
     }
 }
 
+struct AppleCreateEstimatedAudio {
+    static let secondsPerSentence = 6.4
+}
+
 enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {
     case english = "English"
     case arabic = "Arabic"
@@ -695,8 +699,13 @@ enum AppleBookCreatePresentation {
     }
 
     static func normalizedEndSentence(_ value: String, startSentence: Int) -> Int? {
-        guard let parsed = normalizedPositiveInteger(value) else { return nil }
-        return max(startSentence, parsed)
+        let trimmedValue = trimmed(value)
+        guard !trimmedValue.isEmpty else { return nil }
+        let isOffset = trimmedValue.hasPrefix("+")
+        let numericValue = isOffset ? trimmed(String(trimmedValue.dropFirst())) : trimmedValue
+        guard let parsed = normalizedPositiveInteger(numericValue) else { return nil }
+        let candidate = isOffset ? startSentence + parsed - 1 : parsed
+        return max(startSentence, candidate)
     }
 
     static func normalizedPositiveNumber(_ value: String) -> Double? {
@@ -995,6 +1004,32 @@ enum AppleBookCreatePresentation {
 
     static func formattedYoutubeOriginalMixPercent(_ value: Double) -> String {
         "\(Int(clampYoutubeOriginalMixPercent(value).rounded()))%"
+    }
+
+    static func formatDurationLabel(seconds: Double) -> String {
+        let totalSeconds = max(0, Int(seconds.rounded(.down)))
+        let hours = totalSeconds / 3_600
+        let minutes = (totalSeconds % 3_600) / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+
+    static func estimatedAudioDurationLabel(sentenceCount: Int?) -> String? {
+        guard let sentenceCount, sentenceCount > 0 else {
+            return nil
+        }
+        let seconds = Double(sentenceCount) * AppleCreateEstimatedAudio.secondsPerSentence
+        let sentenceLabel = sentenceCount == 1 ? "sentence" : "sentences"
+        return "Estimated audio duration: ~\(formatDurationLabel(seconds: seconds)) (\(sentenceCount) \(sentenceLabel), 6.4s/sentence)"
+    }
+
+    static func estimatedNarrateSentenceCount(startSentence: String, endSentence: String) -> Int? {
+        let normalizedStart = normalizedPositiveInteger(startSentence) ?? 1
+        guard let normalizedEnd = normalizedEndSentence(endSentence, startSentence: normalizedStart) else {
+            return nil
+        }
+        let count = normalizedEnd - normalizedStart + 1
+        return count > 0 ? count : nil
     }
 
     static func clampAssFontSize(_ value: Int) -> Int {

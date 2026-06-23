@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.41",
+            version: "2026.06.23.42",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-audio-duration-estimate",
+                    title: "Apple duration estimate",
+                    detail: "Apple generated-book and Narrate EPUB creation now show Web-aligned estimated audio duration, and Narrate EPUB accepts +offset end-sentence windows before submit."
+                ),
                 AppChangelogEntry(
                     id: "apple-narrate-ebook-chapter-ranges",
                     title: "Narrate EPUB chapter ranges",

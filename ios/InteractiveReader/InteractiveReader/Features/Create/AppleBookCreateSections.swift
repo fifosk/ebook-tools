@@ -505,6 +505,7 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var writtenMode: String
     @Binding var tempo: Double
     let formattedTempo: String
+    let estimatedAudioDurationLabel: String?
     @Binding var sentencesPerOutputFile: Int
     let clampedSentencesPerOutputFile: Int
     @Binding var stitchFull: Bool
@@ -582,6 +583,12 @@ struct AppleBookCreateGeneratedOutputControls: View {
         }
         .accessibilityIdentifier("createBookTempoStepper")
         #endif
+        if let estimatedAudioDurationLabel {
+            Text(estimatedAudioDurationLabel)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createBookEstimatedAudioDurationLabel")
+        }
         if supportsImages {
             Toggle("Illustrations", isOn: $includeImages)
                 .accessibilityIdentifier("createBookIllustrationsToggle")

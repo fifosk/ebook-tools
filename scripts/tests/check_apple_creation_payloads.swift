@@ -371,6 +371,27 @@ struct AppleCreationPayloadCheck {
             "YouTube original mix display should clamp and format as percent"
         )
         require(
+            AppleBookCreatePresentation.estimatedAudioDurationLabel(sentenceCount: 10)
+                == "Estimated audio duration: ~00:01:04 (10 sentences, 6.4s/sentence)",
+            "Apple Create estimated audio label should match the Web sentence-duration estimate"
+        )
+        require(
+            AppleBookCreatePresentation.estimatedAudioDurationLabel(sentenceCount: 1)
+                == "Estimated audio duration: ~00:00:06 (1 sentence, 6.4s/sentence)",
+            "Apple Create estimated audio label should use a singular sentence label"
+        )
+        require(
+            AppleBookCreatePresentation.estimatedAudioDurationLabel(sentenceCount: nil) == nil,
+            "Apple Create estimated audio label should stay hidden without a known sentence count"
+        )
+        require(
+            AppleBookCreatePresentation.estimatedNarrateSentenceCount(
+                startSentence: "7",
+                endSentence: "+10"
+            ) == 10,
+            "Apple Narrate EPUB estimated sentence count should support Web-aligned +offset end values"
+        )
+        require(
             AppleBookCreatePresentation.clampYoutubeFlushSentences(0) == 1,
             "YouTube flush interval should clamp to lower bound"
         )
@@ -873,6 +894,50 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.threadCount == 4, "Narrate draft should trim selected worker threads")
         require(narrateDraft.queueSize == nil, "Narrate draft should omit blank queue size")
         require(narrateDraft.jobMaxWorkers == 2, "Narrate draft should floor selected max job workers")
+
+        let narrateOffsetDraft = AppleBookCreatePresentation.narrateEbookDraft(
+            inputFile: "imports/demo.epub",
+            baseOutput: "apple/demo",
+            title: "",
+            author: "",
+            genre: "",
+            summary: "",
+            year: "",
+            isbn: "",
+            coverFile: "",
+            startSentence: "7",
+            endSentence: "+10",
+            inputLanguage: .english,
+            targetLanguage: .arabic,
+            additionalTargetLanguages: "",
+            voice: .gtts,
+            targetVoice: AppleBookCreateVoiceOption("macOS-auto-male")!,
+            generateAudio: true,
+            audioMode: "",
+            audioBitrateKbps: "",
+            writtenMode: "",
+            tempo: options.pipelineDefaults.tempo,
+            sentencesPerOutputFile: options.pipelineDefaults.sentencesPerOutputFile,
+            stitchFull: options.pipelineDefaults.stitchFull,
+            includeTransliteration: options.pipelineDefaults.includeTransliteration,
+            translationProvider: .googleTranslate,
+            llmModel: "",
+            translationBatchSize: options.pipelineDefaults.translationBatchSize,
+            transliterationMode: .default,
+            transliterationModel: "",
+            enableLookupCache: options.pipelineDefaults.enableLookupCache,
+            lookupCacheBatchSize: options.pipelineDefaults.lookupCacheBatchSize,
+            outputHtml: options.pipelineDefaults.outputHtml,
+            outputPdf: options.pipelineDefaults.outputPdf,
+            threadCount: "",
+            queueSize: "",
+            jobMaxWorkers: "",
+            pipelineDefaults: options.pipelineDefaults
+        )
+        require(
+            narrateOffsetDraft.endSentence == 16,
+            "Narrate draft should support Web-aligned +offset end sentence values"
+        )
 
         let subtitleDraft = AppleBookCreatePresentation.subtitleJobDraft(
             sourcePath: " Subtitles/demo.srt ",

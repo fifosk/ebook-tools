@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.42
+
+- Advanced visible Apple app versioning to `v2026.06.23.42`.
+- Apple generated-book and Narrate EPUB creation now show Web-aligned estimated audio duration, and Narrate EPUB accepts `+offset` end-sentence windows before submit.
+
 ### 2026.06.23.41
 
 - Advanced visible Apple app versioning to `v2026.06.23.41`.
