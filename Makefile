@@ -14,6 +14,7 @@
        argocd-install argocd-app argocd-ui argocd-password argocd-teardown
 
 SHELL := /bin/bash
+PYTHON ?= $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
 # ── Full suite ───────────────────────────────────────────────────────────
 test:
@@ -64,6 +65,7 @@ test-observability:
 	pytest -m observability -v
 
 test-apple-contracts:
+	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py
 	bash scripts/check_apple_creation_payloads.sh
 	bash scripts/check_apple_macos_ipad_style_helper.sh
 	bash scripts/check_apple_device_update_helper.sh

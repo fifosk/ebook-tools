@@ -153,9 +153,10 @@ deployment helpers, or simulator journey config wiring:
 make test-apple-contracts
 ```
 
-This compiles the Swift creation payload contract and checks the macOS
-iPad-style build helper, guarded physical-device update helper, and XCUITest
-config writer without installing to iPhone, iPad, or Apple TV hardware.
+This checks backend/Web/Apple language catalogue parity, preflight/config
+parsing, the Swift creation payload contract, the macOS iPad-style build helper,
+the guarded physical-device update helper, and the XCUITest config writer
+without installing to iPhone, iPad, or Apple TV hardware.
 
 Use dry-runs to inspect the exact unattended command sequence before a physical
 update:
