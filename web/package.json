@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "clean:artifacts": "node ./scripts/clean-stale-artifacts.mjs",
-    "prebuild": "pnpm run clean:artifacts",
+    "prebuild": "node ./scripts/clean-stale-artifacts.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build && vite build --mode export",
     "build:export": "vite build --mode export",

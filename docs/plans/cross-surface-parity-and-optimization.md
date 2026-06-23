@@ -355,7 +355,10 @@ Suggested features to evaluate after parity scaffolding:
 Every cross-surface change should pass the relevant subset:
 
 - Backend: targeted `pytest` for touched routers/services.
-- Web: `pnpm --dir web test` or focused Vitest files, plus `pnpm --dir web build` for UI changes.
+- Web: focused Vitest files plus a production/export build. Use the package
+  manager available in the checkout, for example `npm --prefix web test -- --run
+  ...` and `npm --prefix web run build`; the Web build script should remain
+  package-manager neutral.
 - Apple: release contract, iOS/tvOS simulator builds, and shared pipeline simulator smokes.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
