@@ -121,6 +121,55 @@ def test_validate_summary_reports_missing_create_sources() -> None:
     ]
 
 
+def test_runtime_create_contract_validation() -> None:
+    assert module.validate_runtime_create_contract(
+        {
+            "creation": {
+                "bookOptionsPath": "/api/books/options",
+                "bookJobsPath": "/api/books/jobs",
+            }
+        }
+    ) == []
+
+    assert module.validate_runtime_create_contract({}) == [
+        "runtime descriptor is missing creation metadata"
+    ]
+
+    assert module.validate_runtime_create_contract(
+        {
+            "creation": {
+                "bookOptionsPath": "/old/books/options",
+                "bookJobsPath": "",
+            }
+        }
+    ) == [
+        "bookOptionsPath=/old/books/options expected /api/books/options",
+        "bookJobsPath=<missing> expected /api/books/jobs",
+    ]
+
+
+def test_fetch_readiness_checks_runtime_before_inventory(monkeypatch) -> None:
+    paths: list[str] = []
+
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        paths.append(path)
+        return {"status": "ok"}
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    try:
+        module.fetch_readiness("https://api.example.test", "token", 1.0)
+    except RuntimeError as exc:
+        assert str(exc) == (
+            "Backend runtime Create contract is not ready: "
+            "runtime descriptor is missing creation metadata"
+        )
+    else:
+        raise AssertionError("fetch_readiness should fail on missing runtime Create contract")
+
+    assert paths == ["/api/system/runtime"]
+
+
 def test_env_file_parsing_does_not_require_dotenv(tmp_path: Path) -> None:
     env_file = tmp_path / ".env"
     env_file.write_text(

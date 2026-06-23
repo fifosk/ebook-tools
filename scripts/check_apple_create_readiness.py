@@ -14,6 +14,8 @@ from urllib import error, parse, request
 
 
 DEFAULT_API_BASE_URL = "https://api.langtools.fifosk.synology.me"
+EXPECTED_BOOK_OPTIONS_PATH = "/api/books/options"
+EXPECTED_BOOK_JOBS_PATH = "/api/books/jobs"
 MIN_SUPPORTED_BOOK_LANGUAGES = 50
 REQUIRED_BOOK_LANGUAGE_SENTINELS = (
     "English",
@@ -188,7 +190,43 @@ def language_inventory(payload: Any) -> dict[str, Any]:
     }
 
 
+def validate_runtime_create_contract(payload: Any) -> list[str]:
+    if not isinstance(payload, dict):
+        return ["runtime descriptor was not a JSON object"]
+
+    creation = payload.get("creation")
+    if not isinstance(creation, dict):
+        return ["runtime descriptor is missing creation metadata"]
+
+    errors: list[str] = []
+    options_path = str(creation.get("bookOptionsPath") or "").strip()
+    jobs_path = str(creation.get("bookJobsPath") or "").strip()
+    if options_path != EXPECTED_BOOK_OPTIONS_PATH:
+        errors.append(
+            "bookOptionsPath="
+            + (options_path or "<missing>")
+            + f" expected {EXPECTED_BOOK_OPTIONS_PATH}"
+        )
+    if jobs_path != EXPECTED_BOOK_JOBS_PATH:
+        errors.append(
+            "bookJobsPath="
+            + (jobs_path or "<missing>")
+            + f" expected {EXPECTED_BOOK_JOBS_PATH}"
+        )
+    return errors
+
+
+def require_runtime_create_contract(api_base_url: str, timeout: float) -> None:
+    runtime = json_request(api_base_url, "/api/system/runtime", timeout=timeout)
+    errors = validate_runtime_create_contract(runtime)
+    if errors:
+        raise RuntimeError(
+            "Backend runtime Create contract is not ready: " + "; ".join(errors)
+        )
+
+
 def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, Any]:
+    require_runtime_create_contract(api_base_url, timeout)
     files = json_request(api_base_url, "/api/pipelines/files", token=token, timeout=timeout)
     subtitles = json_request(api_base_url, "/api/subtitles/sources", token=token, timeout=timeout)
     youtube = json_request(
@@ -197,7 +235,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         token=token,
         timeout=timeout,
     )
-    book_options = json_request(api_base_url, "/api/books/options", token=token, timeout=timeout)
+    book_options = json_request(api_base_url, EXPECTED_BOOK_OPTIONS_PATH, token=token, timeout=timeout)
     youtube_videos, youtube_subtitles = count_youtube_pairs(youtube)
     return {
         "epubs": count_epubs(files),
