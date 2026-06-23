@@ -33,12 +33,20 @@ def write_config_and_journey(
     config_path: Path,
     journey_src: Path,
     journey_path: Path,
+    fallback_config_path: Path | None = None,
+    fallback_journey_path: Path | None = None,
 ) -> dict[str, str]:
     config = resolve_config(env_file)
     config_path.parent.mkdir(parents=True, exist_ok=True)
     journey_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(config), encoding="utf-8")
     shutil.copyfile(journey_src, journey_path)
+    if fallback_config_path and fallback_config_path != config_path:
+        fallback_config_path.parent.mkdir(parents=True, exist_ok=True)
+        fallback_config_path.write_text(json.dumps(config), encoding="utf-8")
+    if fallback_journey_path and fallback_journey_path != journey_path:
+        fallback_journey_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(journey_src, fallback_journey_path)
     return config
 
 
@@ -48,6 +56,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config-path", required=True, help="Output JSON config path")
     parser.add_argument("--journey-src", required=True, help="Source journey JSON path")
     parser.add_argument("--journey-path", required=True, help="Output journey JSON path")
+    parser.add_argument("--fallback-config-path", help="Optional platform-default config path to mirror")
+    parser.add_argument("--fallback-journey-path", help="Optional platform-default journey path to mirror")
     return parser
 
 
@@ -58,6 +68,8 @@ def main(argv: list[str] | None = None) -> int:
         config_path=Path(args.config_path),
         journey_src=Path(args.journey_src),
         journey_path=Path(args.journey_path),
+        fallback_config_path=Path(args.fallback_config_path) if args.fallback_config_path else None,
+        fallback_journey_path=Path(args.fallback_journey_path) if args.fallback_journey_path else None,
     )
     return 0
 

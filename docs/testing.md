@@ -763,6 +763,10 @@ after each run. The Makefile writes them through
 `scripts/write_apple_e2e_config.py`, which shares the preflight env-file
 parsing behavior: single- or double-quoted values such as
 `E2E_USERNAME='editor'` are stripped before XCUITest reads the temporary config.
+For reusable-pipeline profiles such as `ipados-create`, the writer also mirrors
+the files to the platform default profile (`ipados`, `iphone`, or `tvos`) so the
+XCTest bundle can still load them when Xcode does not propagate shell
+environment variables into the test runner.
 
 ```bash
 E2E_ENV_FILE=.env.local make test-e2e-ipad-create-readiness

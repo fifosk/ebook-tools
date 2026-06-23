@@ -115,3 +115,20 @@ def test_ipad_split_view_keeps_settings_in_detail_panel() -> None:
     assert detail_settings
     assert browse_placeholder
     assert browse_compact_settings
+
+
+def test_ios_create_languages_use_reachable_list_selector() -> None:
+    source = _source(CREATE_SECTIONS)
+
+    assert "#if os(tvOS)" in source
+    assert 'Picker("Input", selection: $inputLanguage)' in source
+    assert "AppleBookCreateLanguageSelector(" in source
+    assert 'accessibilityIdentifier: "createBookInputLanguagePicker"' in source
+    assert 'accessibilityIdentifier: "createBookTargetLanguagePicker"' in source
+    assert "#if !os(tvOS)" in source
+    assert "private struct AppleBookCreateLanguageSelector: View" in source
+    assert "@State private var searchText = \"\"" in source
+    assert "private var filteredOptions: [AppleBookCreateLanguage]" in source
+    assert '.searchable(text: $searchText, prompt: "Search Languages")' in source
+    assert '.sheet(item: $selectedLanguage)' in source
+    assert '.accessibilityIdentifier("\\(accessibilityIdentifier).\\(language.id)")' in source

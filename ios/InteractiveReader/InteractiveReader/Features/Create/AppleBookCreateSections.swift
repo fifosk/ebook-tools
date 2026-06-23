@@ -469,6 +469,7 @@ struct AppleBookCreateNarrationSection: View {
 
     var body: some View {
         Section(creationMode == .subtitleJob ? "Languages" : "Narration") {
+            #if os(tvOS)
             Picker("Input", selection: $inputLanguage) {
                 ForEach(availableInputLanguages) { language in
                     Text(language.label).tag(language)
@@ -482,6 +483,21 @@ struct AppleBookCreateNarrationSection: View {
                 }
             }
             .accessibilityIdentifier("createBookTargetLanguagePicker")
+            #else
+            AppleBookCreateLanguageSelector(
+                title: "Input",
+                selection: $inputLanguage,
+                options: availableInputLanguages,
+                accessibilityIdentifier: "createBookInputLanguagePicker"
+            )
+
+            AppleBookCreateLanguageSelector(
+                title: "Target",
+                selection: $targetLanguage,
+                options: availableTargetLanguages,
+                accessibilityIdentifier: "createBookTargetLanguagePicker"
+            )
+            #endif
 
             if creationMode == .generatedBook || creationMode == .narrateEbook {
                 TextField("Additional targets", text: $additionalTargetLanguages)
@@ -645,6 +661,77 @@ struct AppleBookCreateNarrationSection: View {
         )
     }
 }
+
+#if !os(tvOS)
+private struct AppleBookCreateLanguageSelector: View {
+    let title: String
+    @Binding var selection: AppleBookCreateLanguage
+    let options: [AppleBookCreateLanguage]
+    let accessibilityIdentifier: String
+
+    @State private var selectedLanguage: AppleBookCreateLanguage?
+    @State private var searchText = ""
+
+    private var filteredOptions: [AppleBookCreateLanguage] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return options }
+        return options.filter { language in
+            language.label.localizedCaseInsensitiveContains(query)
+                || language.backendValue.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var body: some View {
+        Button {
+            searchText = ""
+            selectedLanguage = selection
+        } label: {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(selection.label)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityIdentifier(accessibilityIdentifier)
+        .accessibilityValue(selection.label)
+        .sheet(item: $selectedLanguage) { _ in
+            NavigationStack {
+                List(filteredOptions) { language in
+                    Button {
+                        selection = language
+                        searchText = ""
+                        selectedLanguage = nil
+                    } label: {
+                        HStack {
+                            Text(language.label)
+                            Spacer()
+                            if language == selection {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.accent)
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("\(accessibilityIdentifier).\(language.id)")
+                }
+                .searchable(text: $searchText, prompt: "Search Languages")
+                .navigationTitle(title)
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") {
+                            searchText = ""
+                            selectedLanguage = nil
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#endif
 
 struct AppleBookCreateSubtitleOutputControls: View {
     @Binding var outputFormat: AppleSubtitleOutputFormat

@@ -65,7 +65,7 @@ test-observability:
 	pytest -m observability -v
 
 test-apple-contracts:
-	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_e2e_env_file_contract.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py
+	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py
 	bash scripts/check_apple_runtime_descriptor_payload.sh
 	bash scripts/check_apple_creation_payloads.sh
 	bash scripts/check_apple_macos_ipad_style_helper.sh
@@ -139,6 +139,9 @@ E2E_PROFILE ?= local
 E2E_ENV_FILE ?= $(if $(wildcard .env),.env,$(if $(wildcard .env.local),.env.local,.env))
 E2E_CONFIG_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PROFILE)/ios_e2e_config.json
 E2E_JOURNEY_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PROFILE)/ios_e2e_journey.json
+E2E_PLATFORM_PROFILE ?= $(E2E_PROFILE)
+E2E_PLATFORM_CONFIG_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PLATFORM_PROFILE)/ios_e2e_config.json
+E2E_PLATFORM_JOURNEY_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PLATFORM_PROFILE)/ios_e2e_journey.json
 IOS_E2E_ONLY_TESTING ?= InteractiveReaderUITests/JourneyTests/testJourney
 TVOS_E2E_ONLY_TESTING ?= InteractiveReaderTVUITests/JourneyTests/testJourney
 E2E_SIMCTL_LOCK ?= $(shell $(PYTHON) -c 'import tempfile; print(tempfile.gettempdir() + "/apple-device-app-pipeline-simctl.lock")')
@@ -149,7 +152,9 @@ $(PYTHON) scripts/write_apple_e2e_config.py \
 	--env-file "$(E2E_ENV_FILE)" \
 	--config-path "$(E2E_CONFIG_PATH)" \
 	--journey-src "$(JOURNEY_SRC)" \
-	--journey-path "$(E2E_JOURNEY_PATH)"
+	--journey-path "$(E2E_JOURNEY_PATH)" \
+	--fallback-config-path "$(E2E_PLATFORM_CONFIG_PATH)" \
+	--fallback-journey-path "$(E2E_PLATFORM_JOURNEY_PATH)"
 endef
 
 # ── iPhone E2E ───────────────────────────────────────────────────────
@@ -158,6 +163,7 @@ IPHONE_E2E_RESULT = $(CURDIR)/test-results/iphone-e2e.xcresult
 IPHONE_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-iphone
 
 test-e2e-iphone: E2E_PROFILE = iphone
+test-e2e-iphone: E2E_PLATFORM_PROFILE = iphone
 test-e2e-iphone:
 	@rm -rf $(IPHONE_E2E_RESULT) $(IPHONE_DERIVED_DATA) test-results/iphone-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
@@ -176,7 +182,7 @@ test-e2e-iphone:
 		--output test-results/iphone-e2e-report.md \
 		--title "iPhone E2E Test Report" \
 		--screenshot-prefix iphone; \
-	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"; \
+	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)" "$(E2E_PLATFORM_CONFIG_PATH)" "$(E2E_PLATFORM_JOURNEY_PATH)"; \
 	exit $$status
 
 test-e2e-iphone-create-readiness:
@@ -191,6 +197,7 @@ IPAD_E2E_RESULT = $(CURDIR)/test-results/ipad-e2e.xcresult
 IPAD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-ipad
 
 test-e2e-ipad: E2E_PROFILE = ipados
+test-e2e-ipad: E2E_PLATFORM_PROFILE = ipados
 test-e2e-ipad:
 	@rm -rf $(IPAD_E2E_RESULT) $(IPAD_DERIVED_DATA) test-results/ipad-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
@@ -209,7 +216,7 @@ test-e2e-ipad:
 		--output test-results/ipad-e2e-report.md \
 		--title "iPad E2E Test Report" \
 		--screenshot-prefix ipad; \
-	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"; \
+	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)" "$(E2E_PLATFORM_CONFIG_PATH)" "$(E2E_PLATFORM_JOURNEY_PATH)"; \
 	exit $$status
 
 test-e2e-ipad-create-readiness:
@@ -224,6 +231,7 @@ TVOS_E2E_RESULT = $(CURDIR)/test-results/tvos-e2e.xcresult
 TVOS_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-tvos
 
 test-e2e-tvos: E2E_PROFILE = tvos
+test-e2e-tvos: E2E_PLATFORM_PROFILE = tvos
 test-e2e-tvos:
 	@rm -rf $(TVOS_E2E_RESULT) $(TVOS_DERIVED_DATA) test-results/tvos-e2e-attachments
 	@$(WRITE_E2E_CONFIG)
@@ -242,7 +250,7 @@ test-e2e-tvos:
 		--output test-results/tvos-e2e-report.md \
 		--title "tvOS E2E Test Report" \
 		--screenshot-prefix tvos; \
-	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"; \
+	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)" "$(E2E_PLATFORM_CONFIG_PATH)" "$(E2E_PLATFORM_JOURNEY_PATH)"; \
 	exit $$status
 
 # ── Legacy alias ─────────────────────────────────────────────────────

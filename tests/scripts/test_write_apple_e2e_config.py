@@ -29,6 +29,8 @@ def test_write_config_strips_env_quotes_and_copies_journey(tmp_path: Path, monke
     journey_src.write_text('{"id":"create_readiness","steps":[]}', encoding="utf-8")
     config_path = tmp_path / "profile" / "ios_e2e_config.json"
     journey_path = tmp_path / "profile" / "ios_e2e_journey.json"
+    fallback_config_path = tmp_path / "ipados" / "ios_e2e_config.json"
+    fallback_journey_path = tmp_path / "ipados" / "ios_e2e_journey.json"
 
     monkeypatch.delenv("E2E_USERNAME", raising=False)
     monkeypatch.delenv("E2E_PASSWORD", raising=False)
@@ -39,6 +41,8 @@ def test_write_config_strips_env_quotes_and_copies_journey(tmp_path: Path, monke
         config_path=config_path,
         journey_src=journey_src,
         journey_path=journey_path,
+        fallback_config_path=fallback_config_path,
+        fallback_journey_path=fallback_journey_path,
     )
 
     assert config == {
@@ -48,6 +52,8 @@ def test_write_config_strips_env_quotes_and_copies_journey(tmp_path: Path, monke
     }
     assert json.loads(config_path.read_text(encoding="utf-8")) == config
     assert journey_path.read_text(encoding="utf-8") == journey_src.read_text(encoding="utf-8")
+    assert json.loads(fallback_config_path.read_text(encoding="utf-8")) == config
+    assert fallback_journey_path.read_text(encoding="utf-8") == journey_src.read_text(encoding="utf-8")
 
 
 def test_environment_values_override_env_file(tmp_path: Path, monkeypatch) -> None:

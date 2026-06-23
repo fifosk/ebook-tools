@@ -22,6 +22,7 @@ extension InteractiveReaderUITests {
         // Focus ring is on the username field after launch.
         XCUIRemote.shared.press(.select)  // activate keyboard for username
         sleep(1)
+        clearTextField(usernameField)
         usernameField.typeText(username)
 
         // Dismiss keyboard by pressing Menu, then swipe down to password
@@ -36,6 +37,7 @@ extension InteractiveReaderUITests {
         sleep(1)
         XCUIRemote.shared.press(.select) // activate keyboard for password
         sleep(1)
+        clearTextField(passwordField)
         passwordField.typeText(password)
 
         // Dismiss keyboard and press sign-in
@@ -46,12 +48,14 @@ extension InteractiveReaderUITests {
         XCUIRemote.shared.press(.select) // press sign-in
         #else
         usernameField.tap()
+        clearTextField(usernameField)
         usernameField.typeText(username)
 
         let passwordField = app.secureTextFields["loginPasswordField"]
         XCTAssertTrue(passwordField.waitForExistence(timeout: 3),
                       "Password field not found")
         passwordField.tap()
+        clearTextField(passwordField)
         passwordField.typeText(password)
 
         app.buttons["loginSignInButton"].tap()
@@ -61,6 +65,12 @@ extension InteractiveReaderUITests {
         let library = app.otherElements["libraryShellView"]
         XCTAssertTrue(library.waitForExistence(timeout: 20),
                       "Library did not appear after login")
+    }
+
+    private func clearTextField(_ element: XCUIElement) {
+        guard let value = element.value as? String, !value.isEmpty else { return }
+        let deleteText = String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count)
+        element.typeText(deleteText)
     }
 
     /// Capture a screenshot and attach it to the test's xcresult bundle.

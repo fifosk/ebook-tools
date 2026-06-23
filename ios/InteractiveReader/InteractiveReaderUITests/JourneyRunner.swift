@@ -381,10 +381,10 @@ final class JourneyRunner {
         )
 
         let option = waitForOption(label: optionLabel, in: container, timeout: timeout)
-        XCTAssertTrue(
-            option.waitForExistence(timeout: 1),
-            "\(optionLabel) option should exist in \(identifier)"
-        )
+        guard option.waitForExistence(timeout: 1) else {
+            XCTFail("\(optionLabel) option should exist in \(identifier)")
+            return
+        }
         scrollElementIntoView(option, timeout: min(timeout, 4))
         selectElement(option)
         sleep(1)
@@ -500,6 +500,7 @@ final class JourneyRunner {
     ) -> XCUIElement {
         let deadline = Date().addingTimeInterval(timeout)
         var didOpenContainer = false
+        var didSearch = false
         var latestCandidate = optionElement(label: optionLabel, in: container)
 
         while Date() < deadline {
@@ -507,10 +508,15 @@ final class JourneyRunner {
             if latestCandidate.exists && latestCandidate.isHittable {
                 return latestCandidate
             }
+            if latestCandidate.exists && !latestCandidate.frame.isEmpty {
+                return latestCandidate
+            }
 
             if !didOpenContainer {
                 selectElement(container)
                 didOpenContainer = true
+            } else if !didSearch && searchForOption(optionLabel) {
+                didSearch = true
             } else {
                 scrollForward()
             }
@@ -541,6 +547,28 @@ final class JourneyRunner {
         return globalButton
     }
 
+    private func searchForOption(_ optionLabel: String) -> Bool {
+        #if os(tvOS)
+        return false
+        #else
+        let searchField = app.searchFields.firstMatch
+        guard searchField.waitForExistence(timeout: 1) else { return false }
+        selectElement(searchField)
+        clearTextInput(searchField)
+        searchField.typeText(optionLabel)
+        dismissKeyboardIfPresent()
+        return true
+        #endif
+    }
+
+    #if !os(tvOS)
+    private func clearTextInput(_ element: XCUIElement) {
+        guard let value = element.value as? String, !value.isEmpty else { return }
+        let deleteText = String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count)
+        element.typeText(deleteText)
+    }
+    #endif
+
     /// Platform-safe element activation: `.tap()` on iOS, remote select on tvOS.
     private func selectElement(_ element: XCUIElement) {
         #if os(tvOS)
@@ -550,7 +578,19 @@ final class JourneyRunner {
         }
         XCUIRemote.shared.press(.select)
         #else
-        element.tap()
+        if element.isHittable {
+            element.tap()
+            return
+        }
+
+        let frame = element.frame
+        let windowFrame = app.windows.firstMatch.frame
+        if !frame.isEmpty && windowFrame.intersects(frame) {
+            element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            return
+        }
+
+        XCTFail("Could not tap \(element)")
         #endif
     }
 
