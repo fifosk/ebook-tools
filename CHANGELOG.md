@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.96
+
+- Advanced visible Apple app versioning to `v2026.06.23.96`.
+- On iPad and local Mac Designed for iPad, Apple Create now keeps the job type and creation settings in the detail panel instead of spending sidebar space on job settings.
+
 ### 2026.06.23.95
 
 - Advanced visible Apple app versioning to `v2026.06.23.95`.

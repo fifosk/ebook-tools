@@ -69,18 +69,12 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert '.accessibilityIdentifier("createJobTypePicker")' in source
 
 
-def test_ipad_split_view_keeps_create_picker_in_sidebar() -> None:
+def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
     source = _source(LIBRARY_SHELL)
 
     assert "@State private var createMode = AppleCreateMode.generatedBook" in source
-    assert "createModeSidebarList" in source
-    assert re.search(
-        r"Picker\(\"Job type\", selection: \$createMode\).*?"
-        r"\.pickerStyle\(\.inline\).*?"
-        r"\.accessibilityIdentifier\(\"createJobTypePicker\"\)",
-        source,
-        flags=re.S,
-    )
+    assert "createModeSidebarList" not in source
+    assert 'Label("Create", systemImage: "square.and.pencil")' in source
 
     call_positions = [
         match.start()
@@ -93,6 +87,6 @@ def test_ipad_split_view_keeps_create_picker_in_sidebar() -> None:
     compact_call = next(call for call in calls if "sectionPicker: sectionPickerForHeader" in call)
 
     assert "creationMode: $createMode" in detail_call
-    assert "showsInlineJobTypePicker: false" in detail_call
+    assert "showsInlineJobTypePicker: true" in detail_call
     assert "creationMode: $createMode" in compact_call
     assert "showsInlineJobTypePicker: true" in compact_call

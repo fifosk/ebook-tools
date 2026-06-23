@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.95",
+            version: "2026.06.23.96",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-ipad-detail-settings",
+                    title: "Create settings moved right",
+                    detail: "On iPad and local Mac Designed for iPad, Apple Create now keeps the job type and creation settings in the detail panel instead of spending sidebar space on job settings."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-generated-book-history-defaults",
                     title: "Create remembers generated books",

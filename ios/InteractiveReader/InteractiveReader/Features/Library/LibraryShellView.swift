@@ -113,7 +113,7 @@ struct LibraryShellView: View {
             AppleBookCreateView(
                 sectionPicker: nil,
                 creationMode: $createMode,
-                showsInlineJobTypePicker: false,
+                showsInlineJobTypePicker: true,
                 onJobSubmitted: handleCreatedJob,
                 onOpenJobs: openCreatedJob,
                 recentJobs: jobsViewModel.jobs,
@@ -264,31 +264,17 @@ struct LibraryShellView: View {
     private var createSidebarPlaceholder: some View {
         VStack(spacing: 12) {
             sectionPickerForHeader
-            createModeSidebarList
+            ContentUnavailableView {
+                Label("Create", systemImage: "square.and.pencil")
+            }
+            .foregroundStyle(usesDarkBackground ? .white : .primary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(usesDarkBackground ? AppTheme.lightBackground : Color.clear)
         #if os(iOS)
         .toolbarBackground(usesDarkBackground ? AppTheme.lightBackground : Color.clear, for: .navigationBar)
         .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
         .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
-        #endif
-    }
-
-    private var createModeSidebarList: some View {
-        List {
-            Section("Job Type") {
-                Picker("Job type", selection: $createMode) {
-                    ForEach(AppleBookCreatePresentation.availableCreateModes(isTV: false)) { mode in
-                        Text(mode.label).tag(mode)
-                    }
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-                .accessibilityIdentifier("createJobTypePicker")
-            }
-        }
-        #if os(iOS)
-        .scrollContentBackground(usesDarkBackground ? .hidden : .automatic)
         #endif
     }
 
