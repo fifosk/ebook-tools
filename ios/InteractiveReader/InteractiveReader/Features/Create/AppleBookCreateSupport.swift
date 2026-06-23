@@ -630,6 +630,29 @@ enum AppleBookCreatePresentation {
         return AppleYoutubeSourceSelection(video: video, subtitle: preferredYoutubeSubtitle(for: video))
     }
 
+    static func youtubeSelection(
+        from library: YoutubeNasLibraryResponse?,
+        storedVideoPath: String?,
+        storedSubtitlePath: String?
+    ) -> AppleYoutubeSourceSelection? {
+        guard let videos = library?.videos, !videos.isEmpty else {
+            return nil
+        }
+
+        let requestedVideoPath = storedVideoPath?.nonEmptyValue
+        let selectedVideo = videos.first { $0.path == requestedVideoPath }
+            ?? preferredYoutubeSelection(from: library)?.video
+            ?? videos[0]
+        let subtitleCandidates = playableYoutubeSubtitles(for: selectedVideo)
+        let requestedSubtitlePath = storedSubtitlePath?.nonEmptyValue
+        let storedSubtitle = requestedVideoPath == selectedVideo.path
+            ? subtitleCandidates.first { $0.path == requestedSubtitlePath }
+            : nil
+        let subtitle = storedSubtitle ?? preferredYoutubeSubtitle(for: selectedVideo)
+
+        return AppleYoutubeSourceSelection(video: selectedVideo, subtitle: subtitle)
+    }
+
     static func narrationHistoryDefaults(
         from jobs: [PipelineStatusResponse],
         currentInputFile: String

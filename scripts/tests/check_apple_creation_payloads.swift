@@ -146,6 +146,67 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.preferredSubtitleSource(from: subtitleSources)?.path == "/subtitles/latest.vtt",
             "Apple Create should prefer the latest usable SRT/VTT subtitle source and ignore ASS for subtitle jobs"
         )
+        let youtubeVideoA = YoutubeNasVideoEntry(
+            path: "/nas/video-a.mp4",
+            filename: "video-a.mp4",
+            folder: "/nas",
+            sizeBytes: 120,
+            modifiedAt: "2026-06-23T10:00:00Z",
+            source: nil,
+            linkedJobIds: [],
+            subtitles: [
+                YoutubeNasSubtitleEntry(
+                    path: "/nas/video-a.en.srt",
+                    filename: "video-a.en.srt",
+                    language: "en",
+                    format: "srt"
+                )
+            ]
+        )
+        let youtubeVideoB = YoutubeNasVideoEntry(
+            path: "/nas/video-b.mp4",
+            filename: "video-b.mp4",
+            folder: "/nas",
+            sizeBytes: 140,
+            modifiedAt: "2026-06-23T11:00:00Z",
+            source: nil,
+            linkedJobIds: [],
+            subtitles: [
+                YoutubeNasSubtitleEntry(
+                    path: "/nas/video-b.sk.vtt",
+                    filename: "video-b.sk.vtt",
+                    language: "sk",
+                    format: "vtt"
+                ),
+                YoutubeNasSubtitleEntry(
+                    path: "/nas/video-b.en.ass",
+                    filename: "video-b.en.ass",
+                    language: "en",
+                    format: "ass"
+                )
+            ]
+        )
+        let youtubeLibrary = YoutubeNasLibraryResponse(baseDir: "/nas", videos: [youtubeVideoA, youtubeVideoB])
+        let restoredYoutubeSelection = AppleBookCreatePresentation.youtubeSelection(
+            from: youtubeLibrary,
+            storedVideoPath: " /nas/video-b.mp4 ",
+            storedSubtitlePath: " /nas/video-b.sk.vtt "
+        )
+        require(
+            restoredYoutubeSelection?.video.path == "/nas/video-b.mp4"
+                && restoredYoutubeSelection?.subtitle?.path == "/nas/video-b.sk.vtt",
+            "Apple Create should restore the last valid NAS video/subtitle selection for YouTube dubbing"
+        )
+        let staleYoutubeSelection = AppleBookCreatePresentation.youtubeSelection(
+            from: youtubeLibrary,
+            storedVideoPath: "/nas/missing.mp4",
+            storedSubtitlePath: "/nas/video-b.sk.vtt"
+        )
+        require(
+            staleYoutubeSelection?.video.path == "/nas/video-a.mp4"
+                && staleYoutubeSelection?.subtitle?.path == "/nas/video-a.en.srt",
+            "Apple Create should fall back to the preferred NAS video when the stored YouTube source is stale"
+        )
         let narrationJobsJSON = """
         {
           "jobs": [

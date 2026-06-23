@@ -111,6 +111,7 @@ struct AppleBookCreateView: View {
     @State private var bookQueueSize = ""
     @State private var bookJobMaxWorkers = ""
     @State private var editedFields = Set<AppleBookCreateEditedField>()
+    @State private var youtubeSelectionStorageScope = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -157,6 +158,12 @@ struct AppleBookCreateView: View {
         }
         .onChange(of: recentJobs) { _, _ in
             applyNarrationHistoryDefaults()
+        }
+        .onChange(of: youtubeVideoPath) { _, newValue in
+            persistYoutubeSelectionPath(newValue, field: "video")
+        }
+        .onChange(of: youtubeSubtitlePath) { _, newValue in
+            persistYoutubeSelectionPath(newValue, field: "subtitle")
         }
         #if os(iOS)
         .fileImporter(
@@ -953,14 +960,20 @@ struct AppleBookCreateView: View {
     }
 
     private func applyPreferredYoutubeSource(from library: YoutubeNasLibraryResponse?) {
-        guard let selection = AppleBookCreatePresentation.preferredYoutubeSelection(from: library) else {
+        let scopeChanged = youtubeSelectionStorageScope != creationOptionsLoadKey
+        youtubeSelectionStorageScope = creationOptionsLoadKey
+        guard let selection = AppleBookCreatePresentation.youtubeSelection(
+            from: library,
+            storedVideoPath: storedYoutubeSelectionPath(field: "video"),
+            storedSubtitlePath: storedYoutubeSelectionPath(field: "subtitle")
+        ) else {
             return
         }
 
-        if !editedFields.contains(.youtubeVideoPath), trimmed(youtubeVideoPath).isEmpty {
+        if !editedFields.contains(.youtubeVideoPath), trimmed(youtubeVideoPath).isEmpty || scopeChanged {
             youtubeVideoPath = selection.video.path
         }
-        if !editedFields.contains(.youtubeSubtitlePath), trimmed(youtubeSubtitlePath).isEmpty {
+        if !editedFields.contains(.youtubeSubtitlePath), trimmed(youtubeSubtitlePath).isEmpty || scopeChanged {
             youtubeSubtitlePath = selection.subtitle?.path ?? ""
         }
     }
@@ -1012,6 +1025,23 @@ struct AppleBookCreateView: View {
 
     private func trimmed(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func storedYoutubeSelectionPath(field: String) -> String? {
+        UserDefaults.standard.string(forKey: youtubeSelectionStorageKey(field: field))?.nonEmptyValue
+    }
+
+    private func persistYoutubeSelectionPath(_ path: String, field: String) {
+        let key = youtubeSelectionStorageKey(field: field)
+        if let value = path.nonEmptyValue {
+            UserDefaults.standard.set(value, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+
+    private func youtubeSelectionStorageKey(field: String) -> String {
+        "ebookTools.appleCreate.youtubeDub.\(field).\(creationOptionsLoadKey)"
     }
 
     #if os(iOS)

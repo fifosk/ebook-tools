@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.89",
+            version: "2026.06.23.90",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-youtube-source-memory",
+                    title: "Create remembers videos",
+                    detail: "Apple Create now remembers the last YouTube dubbing NAS video and subtitle selection per API/user scope and restores it when those files are still available."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-latest-subtitle-source",
                     title: "Create picks latest subtitles",
