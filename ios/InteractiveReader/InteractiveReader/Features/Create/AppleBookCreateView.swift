@@ -37,6 +37,7 @@ struct AppleBookCreateView: View {
     @State private var selectedNarrateStartChapterID = ""
     @State private var selectedNarrateEndChapterID = ""
     @State private var subtitleSourcePath = ""
+    @State private var subtitleMetadataLookupSourceName = ""
     @State private var youtubeBaseDir = ""
     @State private var youtubeVideoPath = ""
     @State private var youtubeSubtitlePath = ""
@@ -163,6 +164,7 @@ struct AppleBookCreateView: View {
             persistYoutubeBaseDir(newValue)
         }
         .onChange(of: subtitleSourcePath) { _, _ in
+            subtitleMetadataLookupSourceName = defaultSubtitleMetadataLookupSourceName
             viewModel.clearSubtitleMetadata()
         }
         .onChange(of: youtubeVideoPath) { _, newValue in
@@ -618,6 +620,7 @@ struct AppleBookCreateView: View {
         Section("Metadata") {
             AppleBookCreateSubtitleMetadataControls(
                 sourceName: subtitleMetadataSourceName,
+                lookupSourceName: $subtitleMetadataLookupSourceName,
                 isLoading: viewModel.isLoadingSubtitleTvMetadata,
                 message: viewModel.subtitleMetadataMessage,
                 errorMessage: viewModel.subtitleMetadataErrorMessage,
@@ -630,7 +633,7 @@ struct AppleBookCreateView: View {
                 onLookup: {
                     Task {
                         await viewModel.lookupSubtitleTvMetadata(
-                            sourceName: subtitleMetadataSourceName,
+                            sourceName: subtitleMetadataLookupSourceName,
                             using: appState
                         )
                     }
@@ -638,7 +641,7 @@ struct AppleBookCreateView: View {
                 onRefresh: {
                     Task {
                         await viewModel.lookupSubtitleTvMetadata(
-                            sourceName: subtitleMetadataSourceName,
+                            sourceName: subtitleMetadataLookupSourceName,
                             force: true,
                             using: appState
                         )
@@ -822,6 +825,10 @@ struct AppleBookCreateView: View {
     }
 
     private var subtitleMetadataSourceName: String {
+        defaultSubtitleMetadataLookupSourceName
+    }
+
+    private var defaultSubtitleMetadataLookupSourceName: String {
         if let fileName = selectedSubtitleFileName?.nonEmptyValue {
             return fileName
         }
@@ -1206,6 +1213,7 @@ struct AppleBookCreateView: View {
         }
 
         subtitleSourcePath = entry.path
+        subtitleMetadataLookupSourceName = entry.name
     }
 
     private func applyPreferredYoutubeSource(from library: YoutubeNasLibraryResponse?) {
@@ -1657,6 +1665,7 @@ struct AppleBookCreateView: View {
             guard let url = urls.first else { return }
             selectedSubtitleFileURL = url
             selectedSubtitleFileName = url.lastPathComponent
+            subtitleMetadataLookupSourceName = url.lastPathComponent
             viewModel.clearSubtitleMetadata()
             markEdited(.subtitleSourcePath)
         case let .failure(error):

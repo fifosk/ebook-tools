@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.4",
+            version: "2026.06.24.5",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-subtitle-metadata-lookup-name",
+                    title: "Create edits metadata lookup",
+                    detail: "Apple Create subtitle metadata lookup now exposes an editable lookup filename before Lookup or Refresh, matching the Web metadata loader for renamed or manually selected subtitle sources."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-subtitle-metadata-preview",
                     title: "Create loads subtitle metadata",

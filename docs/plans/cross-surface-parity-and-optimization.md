@@ -353,10 +353,11 @@ After Narrate Ebook:
   typography, transliteration mode/model, LLM batch-size tuning, and
   worker/render batch-size tuning, mirror-to-source control, and pre-submit TV
   metadata lookup plus job label/show/season/episode/title/airdate edits
-  through `/api/subtitles/jobs`; native time fields validate and normalize
-  Web-style `MM:SS`, `HH:MM:SS`, and `+offset` values before submit.
-  Remaining parity gap: full Web-level metadata image preview, custom lookup
-  filename editing, and cache-management controls.
+  through `/api/subtitles/jobs`; the native metadata section now also exposes
+  an editable lookup filename before lookup/refresh. Native time fields
+  validate and normalize Web-style `MM:SS`, `HH:MM:SS`, and `+offset` values
+  before submit. Remaining parity gap: full Web-level metadata image preview
+  and cache-management controls.
 - Generated book job creation on iPad.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle

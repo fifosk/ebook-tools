@@ -952,6 +952,7 @@ struct AppleBookCreateSubtitleOutputControls: View {
 
 struct AppleBookCreateSubtitleMetadataControls: View {
     let sourceName: String
+    @Binding var lookupSourceName: String
     let isLoading: Bool
     let message: String?
     let errorMessage: String?
@@ -972,20 +973,22 @@ struct AppleBookCreateSubtitleMetadataControls: View {
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("createSubtitleMetadataEmpty")
         } else {
-            LabeledContent("Lookup filename", value: sourceName)
-                .accessibilityIdentifier("createSubtitleMetadataSourceLabel")
+            TextField("Lookup filename", text: $lookupSourceName)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createSubtitleMetadataLookupField")
 
             HStack(spacing: 12) {
                 Button(action: onLookup) {
                     Label(isLoading ? "Looking up" : "Lookup", systemImage: isLoading ? "hourglass" : "tv")
                 }
-                .disabled(isLoading)
+                .disabled(isLoading || lookupSourceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .accessibilityIdentifier("createSubtitleMetadataLookupButton")
 
                 Button(action: onRefresh) {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .disabled(isLoading)
+                .disabled(isLoading || lookupSourceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .accessibilityIdentifier("createSubtitleMetadataRefreshButton")
 
                 Button(action: onClear) {

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.5
+
+- Advanced visible Apple app versioning to `v2026.06.24.5`.
+- Apple Create subtitle metadata lookup now exposes an editable lookup filename before Lookup or Refresh, matching the Web metadata loader for renamed or manually selected subtitle sources.
+
 ### 2026.06.24.4
 
 - Advanced visible Apple app versioning to `v2026.06.24.4`.

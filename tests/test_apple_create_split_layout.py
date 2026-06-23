@@ -181,3 +181,15 @@ def test_youtube_create_exposes_inline_subtitle_extraction_controls() -> None:
     assert "youtubeInlineSubtitleStreams: viewModel.youtubeInlineSubtitleStreams" in view_source
     assert "onInspectYoutubeSubtitles: inspectYoutubeSubtitles" in view_source
     assert "onExtractYoutubeSubtitles: extractYoutubeSubtitles" in view_source
+
+
+def test_subtitle_create_exposes_editable_metadata_lookup_name() -> None:
+    sections_source = _source(CREATE_SECTIONS)
+    view_source = _source(CREATE_VIEW)
+
+    assert "AppleBookCreateSubtitleMetadataControls" in sections_source
+    assert "@Binding var lookupSourceName: String" in sections_source
+    assert 'TextField("Lookup filename", text: $lookupSourceName)' in sections_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataLookupField")' in sections_source
+    assert "subtitleMetadataLookupSourceName" in view_source
+    assert "sourceName: subtitleMetadataLookupSourceName" in view_source
