@@ -1,4 +1,4 @@
-# Interactive Reader (iOS, iPadOS, tvOS)
+# Interactive Reader (iOS, iPadOS, macOS iPad-style, tvOS)
 
 A SwiftUI app that authenticates against the ebook-tools FastAPI backend, lists Library entries, and plays book, subtitle, and video items with an interactive reader experience similar to the web client. Library playback relies on `/api/library/media/{job_id}` plus `/api/jobs/{job_id}/timing`, and uses the same access-token query pattern as the web player for media URLs.
 
@@ -25,9 +25,49 @@ ios/InteractiveReader
 ## Running the app
 
 1. Open `ios/InteractiveReader/InteractiveReader.xcodeproj` in Xcode.
-2. Select the `InteractiveReader` (iOS/iPadOS) or `InteractiveReaderTV` (tvOS) scheme and a target device.
+2. Select the `InteractiveReader` (iOS/iPadOS, or local macOS "Designed for iPad/iPhone") or `InteractiveReaderTV` (tvOS) scheme and a target device.
 3. Run (`⌘R`).
 4. Sign in, then open a Library item or completed Job.
+
+### Local macOS iPad-style build
+
+The iOS/iPadOS target exposes a local Mac destination as `platform:macOS` with
+the `Designed for [iPad,iPhone]` variant. For unattended compile checks, use:
+
+```bash
+make build-apple-macos-ipad-style
+```
+
+The target resolves the local Mac destination from `xcodebuild -showdestinations`
+and builds with `CODE_SIGNING_ALLOWED=NO` by default so placeholder local signing
+profiles do not block CI-style checks. Override `MACOS_IPAD_DESTINATION`,
+`MACOS_IPAD_DERIVED_DATA`, or `CODE_SIGNING_ALLOWED` when a signed local run is
+needed.
+
+### Unattended iPhone/iPad updates
+
+Physical-device updates can be driven without opening Xcode, but installing to a
+device remains explicitly gated. First inspect connected devices:
+
+```bash
+make apple-devices
+```
+
+Then dry-run the command for the intended device:
+
+```bash
+APPLE_DEVICE_ID=<device-id-or-name> bash scripts/apple_unattended_device_update.sh --dry-run --install
+```
+
+When a physical update is explicitly desired, build and install with:
+
+```bash
+APPLE_DEVICE_ID=<device-id-or-name> CONFIRM_PHYSICAL_DEVICE_UPDATE=YES make apple-device-update
+```
+
+Add `--launch` when calling `scripts/apple_unattended_device_update.sh` directly
+to launch the installed app after the update. The helper uses `xcodebuild` for
+the device build and `xcrun devicectl device install app` for installation.
 
 ### Runtime configuration
 

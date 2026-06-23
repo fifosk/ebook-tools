@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.83",
+            version: "2026.06.23.84",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-local-macos-ipad-style",
+                    title: "Local Mac build destination",
+                    detail: "The Apple pipeline now includes a repeatable local macOS Designed for iPad/iPhone build target and a guarded command-line helper for unattended iPhone/iPad updates when explicitly confirmed."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-server-ebook-picker",
                     title: "Create finds server EPUBs",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.84
+
+- Advanced visible Apple app versioning to `v2026.06.23.84`.
+- Added a repeatable local macOS Designed for iPad/iPhone build target plus a guarded command-line helper for unattended iPhone/iPad build-install updates when explicitly confirmed.
+
 ### 2026.06.23.83
 
 - Advanced visible Apple app versioning to `v2026.06.23.83`.

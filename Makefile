@@ -1,7 +1,7 @@
 .PHONY: test test-fast test-audio test-translation test-webapi test-services \
        test-pipeline test-cli test-auth test-library test-render test-media \
        test-config test-metadata test-changed \
-       test-apple-contracts \
+       test-apple-contracts build-apple-macos-ipad-style apple-devices apple-device-update \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-all test-e2e-apple-parallel \
@@ -64,6 +64,15 @@ test-observability:
 
 test-apple-contracts:
 	bash scripts/check_apple_creation_payloads.sh
+
+build-apple-macos-ipad-style:
+	bash scripts/apple_build_macos_ipad_style.sh
+
+apple-devices:
+	bash scripts/apple_unattended_device_update.sh --list
+
+apple-device-update:
+	bash scripts/apple_unattended_device_update.sh --install
 
 # ── LLM model probe (diagnostic — slow, on-demand) ────────────────────
 # Probes every available LLM model for translation (EN→FR/AR/HI/ZH) and
