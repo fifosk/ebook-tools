@@ -117,6 +117,36 @@ enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {
     }
 }
 
+struct AppleCreateTimeRange: Equatable {
+    let start: String
+    let end: String
+}
+
+struct AppleCreateOffsetRange: Equatable {
+    let start: String
+    let end: String
+}
+
+enum AppleCreateValidationError: Error, Equatable {
+    case subtitleStartTime
+    case subtitleEndTime
+    case youtubeStartOffset
+    case youtubeEndOffset
+
+    var message: String {
+        switch self {
+        case .subtitleStartTime:
+            return "Enter a valid start time in MM:SS or HH:MM:SS format."
+        case .subtitleEndTime:
+            return "Enter a valid end time in MM:SS, HH:MM:SS, or +offset format."
+        case .youtubeStartOffset:
+            return "Enter a valid start offset in seconds, MM:SS, or HH:MM:SS format."
+        case .youtubeEndOffset:
+            return "Enter a valid end offset in seconds, MM:SS, or HH:MM:SS format."
+        }
+    }
+}
+
 enum AppleCreateMode: String, CaseIterable, Identifiable {
     case generatedBook
     case narrateEbook
@@ -286,6 +316,38 @@ enum AppleBookCreatePresentation {
             return "\(seconds)"
         }
         return SubtitleTimecodeInput.normalize(trimmedValue)
+    }
+
+    static func normalizedSubtitleTimeRange(
+        start: String,
+        end: String
+    ) -> Result<AppleCreateTimeRange, AppleCreateValidationError> {
+        guard let normalizedStart = SubtitleTimecodeInput.normalize(
+            start,
+            emptyValue: "00:00"
+        ) else {
+            return .failure(.subtitleStartTime)
+        }
+        guard let normalizedEnd = SubtitleTimecodeInput.normalize(
+            end,
+            allowRelative: true
+        ) else {
+            return .failure(.subtitleEndTime)
+        }
+        return .success(AppleCreateTimeRange(start: normalizedStart, end: normalizedEnd))
+    }
+
+    static func normalizedYoutubeOffsetRange(
+        start: String,
+        end: String
+    ) -> Result<AppleCreateOffsetRange, AppleCreateValidationError> {
+        guard let normalizedStart = normalizeYoutubeOffset(start) else {
+            return .failure(.youtubeStartOffset)
+        }
+        guard let normalizedEnd = normalizeYoutubeOffset(end) else {
+            return .failure(.youtubeEndOffset)
+        }
+        return .success(AppleCreateOffsetRange(start: normalizedStart, end: normalizedEnd))
     }
 
     static func generatedBookDraft(

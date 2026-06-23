@@ -195,6 +195,62 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.normalizeYoutubeOffset("-1") == nil,
             "YouTube offset should reject negative seconds"
         )
+        switch AppleBookCreatePresentation.normalizedSubtitleTimeRange(start: "", end: "+5") {
+        case let .success(range):
+            require(range == AppleCreateTimeRange(start: "00:00", end: "+05:00"), "Subtitle range should normalize empty start and relative end")
+        case let .failure(error):
+            require(false, "Subtitle range should accept empty start and relative end, got \(error)")
+        }
+        switch AppleBookCreatePresentation.normalizedSubtitleTimeRange(start: "bad", end: "") {
+        case .success:
+            require(false, "Subtitle range should reject invalid start time")
+        case let .failure(error):
+            require(
+                error == .subtitleStartTime,
+                "Subtitle range should report invalid start time"
+            )
+            require(
+                error.message == "Enter a valid start time in MM:SS or HH:MM:SS format.",
+                "Subtitle start error should keep visible copy"
+            )
+        }
+        switch AppleBookCreatePresentation.normalizedSubtitleTimeRange(start: "00:00", end: "+bad") {
+        case .success:
+            require(false, "Subtitle range should reject invalid end time")
+        case let .failure(error):
+            require(
+                error == .subtitleEndTime,
+                "Subtitle range should report invalid end time"
+            )
+        }
+        switch AppleBookCreatePresentation.normalizedYoutubeOffsetRange(start: "45", end: "1:30") {
+        case let .success(range):
+            require(range == AppleCreateOffsetRange(start: "45", end: "01:30"), "YouTube range should normalize numeric and MM:SS offsets")
+        case let .failure(error):
+            require(false, "YouTube range should accept valid offsets, got \(error)")
+        }
+        switch AppleBookCreatePresentation.normalizedYoutubeOffsetRange(start: "-1", end: "") {
+        case .success:
+            require(false, "YouTube range should reject invalid start offset")
+        case let .failure(error):
+            require(
+                error == .youtubeStartOffset,
+                "YouTube range should report invalid start offset"
+            )
+            require(
+                error.message == "Enter a valid start offset in seconds, MM:SS, or HH:MM:SS format.",
+                "YouTube start error should keep visible copy"
+            )
+        }
+        switch AppleBookCreatePresentation.normalizedYoutubeOffsetRange(start: "", end: "-1") {
+        case .success:
+            require(false, "YouTube range should reject invalid end offset")
+        case let .failure(error):
+            require(
+                error == .youtubeEndOffset,
+                "YouTube range should report invalid end offset"
+            )
+        }
         let generatedDraft = AppleBookCreatePresentation.generatedBookDraft(
             topic: "  Portable Apple clients  ",
             bookName: " Native Creation ",

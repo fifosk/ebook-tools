@@ -610,30 +610,27 @@ struct AppleBookCreateView: View {
     }
 
     private func submitSubtitleJob() {
-        guard let normalizedStartTime = SubtitleTimecodeInput.normalize(
-            subtitleStartTime,
-            emptyValue: "00:00"
-        ) else {
-            viewModel.errorMessage = "Enter a valid start time in MM:SS or HH:MM:SS format."
+        let timeRange: AppleCreateTimeRange
+        switch AppleBookCreatePresentation.normalizedSubtitleTimeRange(
+            start: subtitleStartTime,
+            end: subtitleEndTime
+        ) {
+        case let .success(normalizedRange):
+            timeRange = normalizedRange
+        case let .failure(error):
+            viewModel.errorMessage = error.message
             return
         }
-        guard let normalizedEndTime = SubtitleTimecodeInput.normalize(
-            subtitleEndTime,
-            allowRelative: true
-        ) else {
-            viewModel.errorMessage = "Enter a valid end time in MM:SS, HH:MM:SS, or +offset format."
-            return
-        }
-        subtitleStartTime = normalizedStartTime
-        subtitleEndTime = normalizedEndTime
+        subtitleStartTime = timeRange.start
+        subtitleEndTime = timeRange.end
 
         let draft = AppleBookCreatePresentation.subtitleJobDraft(
             sourcePath: subtitleSourcePath,
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
             outputFormat: subtitleOutputFormat,
-            startTime: normalizedStartTime,
-            endTime: normalizedEndTime,
+            startTime: timeRange.start,
+            endTime: timeRange.end,
             enableTransliteration: subtitleEnableTransliteration,
             highlight: subtitleHighlight,
             showOriginal: subtitleShowOriginal,
@@ -663,16 +660,19 @@ struct AppleBookCreateView: View {
     }
 
     private func submitYoutubeDub() {
-        guard let normalizedStartOffset = AppleBookCreatePresentation.normalizeYoutubeOffset(youtubeStartOffset) else {
-            viewModel.errorMessage = "Enter a valid start offset in seconds, MM:SS, or HH:MM:SS format."
+        let offsetRange: AppleCreateOffsetRange
+        switch AppleBookCreatePresentation.normalizedYoutubeOffsetRange(
+            start: youtubeStartOffset,
+            end: youtubeEndOffset
+        ) {
+        case let .success(normalizedRange):
+            offsetRange = normalizedRange
+        case let .failure(error):
+            viewModel.errorMessage = error.message
             return
         }
-        guard let normalizedEndOffset = AppleBookCreatePresentation.normalizeYoutubeOffset(youtubeEndOffset) else {
-            viewModel.errorMessage = "Enter a valid end offset in seconds, MM:SS, or HH:MM:SS format."
-            return
-        }
-        youtubeStartOffset = normalizedStartOffset
-        youtubeEndOffset = normalizedEndOffset
+        youtubeStartOffset = offsetRange.start
+        youtubeEndOffset = offsetRange.end
 
         let draft = AppleBookCreatePresentation.youtubeDubDraft(
             videoPath: youtubeVideoPath,
@@ -680,8 +680,8 @@ struct AppleBookCreateView: View {
             sourceLanguage: inputLanguage,
             targetLanguage: targetLanguage,
             voice: voice,
-            startTimeOffset: normalizedStartOffset,
-            endTimeOffset: normalizedEndOffset,
+            startTimeOffset: offsetRange.start,
+            endTimeOffset: offsetRange.end,
             originalMixPercent: youtubeOriginalMixPercent,
             flushSentences: youtubeFlushSentences,
             translationProvider: subtitleTranslationProvider,
