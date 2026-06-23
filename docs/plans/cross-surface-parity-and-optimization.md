@@ -305,7 +305,10 @@ Refactor before restyling:
   Web Create now applies backend topic, title, genre, author, sentence,
   generated-source image, and pipeline defaults from `/api/books/options`
   through tested helper functions, preserving explicit prompt edits, including
-  cleared fields, that happen before defaults arrive.
+  cleared fields, that happen before defaults arrive. Apple Create now also
+  accepts multi-target backend defaults, using the first target for the native
+  picker and preserving remaining de-duplicated targets in the visible
+  Additional target languages field.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 

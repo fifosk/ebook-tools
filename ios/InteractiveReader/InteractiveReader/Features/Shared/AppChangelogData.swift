@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.47",
+            version: "2026.06.23.48",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-book-default-target-languages",
+                    title: "Apple target defaults",
+                    detail: "Apple generated-book and Narrate EPUB creation now preserve multi-target backend defaults in the visible Additional target languages field."
+                ),
                 AppChangelogEntry(
                     id: "web-book-default-target-languages",
                     title: "Web target defaults",

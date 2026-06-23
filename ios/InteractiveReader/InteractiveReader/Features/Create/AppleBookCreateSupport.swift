@@ -452,6 +452,7 @@ struct AppleCreateResolvedDefaults: Equatable {
     let sentenceCount: Int
     let inputLanguage: AppleBookCreateLanguage?
     let targetLanguage: AppleBookCreateLanguage?
+    let additionalTargetLanguages: String?
     let voice: AppleBookCreateVoiceOption?
     let generateAudio: Bool?
     let audioMode: String?
@@ -497,6 +498,11 @@ enum AppleCreateMode: String, CaseIterable, Identifiable {
             return "YouTube Dub"
         }
     }
+}
+
+struct AppleCreateTargetLanguageDefaults: Equatable {
+    let primary: AppleBookCreateLanguage?
+    let additionalTargets: String
 }
 
 struct AppleCreateSubmitPresentation: Equatable {
@@ -545,7 +551,10 @@ enum AppleBookCreatePresentation {
                 : AppleBookCreateLanguage(backendValue: options.defaults.inputLanguage),
             targetLanguage: editedFields.contains(.targetLanguage)
                 ? nil
-                : AppleBookCreateLanguage(backendValue: options.defaults.outputLanguage),
+                : targetLanguageDefaults(from: options.defaults).primary,
+            additionalTargetLanguages: editedFields.contains(.additionalTargetLanguages)
+                ? nil
+                : targetLanguageDefaults(from: options.defaults).additionalTargets,
             voice: editedFields.contains(.voice)
                 ? nil
                 : AppleBookCreateVoiceOption(backendValue: options.defaults.voice),
@@ -762,6 +771,28 @@ enum AppleBookCreatePresentation {
         )
     }
 
+    static func targetLanguageDefaults(
+        from defaults: BookCreationDefaults
+    ) -> AppleCreateTargetLanguageDefaults {
+        let targetCandidates = defaults.targetLanguages?.isEmpty == false
+            ? defaults.targetLanguages ?? []
+            : (
+                defaults.outputLanguages?.isEmpty == false
+                    ? defaults.outputLanguages ?? []
+                    : [defaults.outputLanguage]
+            )
+        let normalized = normalizedLanguageList(targetCandidates)
+        guard let first = normalized.first else {
+            return AppleCreateTargetLanguageDefaults(
+                primary: AppleBookCreateLanguage(backendValue: defaults.outputLanguage),
+                additionalTargets: ""
+            )
+        }
+        let primary = AppleBookCreateLanguage(backendValue: first)
+        let additionalTargets = normalized.dropFirst().joined(separator: ", ")
+        return AppleCreateTargetLanguageDefaults(primary: primary, additionalTargets: additionalTargets)
+    }
+
     static func voiceOverrides(
         targetLanguages: [String],
         targetVoice: AppleBookCreateVoiceOption?,
@@ -822,6 +853,20 @@ enum AppleBookCreatePresentation {
             targetLanguages.append(target)
         }
         return targetLanguages
+    }
+
+    static func normalizedLanguageList(_ languages: [String]) -> [String] {
+        var normalized = [String]()
+        var seen = Set<String>()
+        for language in languages {
+            let value = trimmed(language)
+            guard !value.isEmpty else { continue }
+            let lookupKey = value.lowercased()
+            guard !seen.contains(lookupKey) else { continue }
+            seen.insert(lookupKey)
+            normalized.append(value)
+        }
+        return normalized
     }
 
     static func normalizedBookGenres(_ value: String) -> [String] {

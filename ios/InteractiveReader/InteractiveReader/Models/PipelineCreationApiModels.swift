@@ -180,6 +180,8 @@ struct BookCreationDefaults: Decodable, Equatable {
     let author: String
     let inputLanguage: String
     let outputLanguage: String
+    let targetLanguages: [String]?
+    let outputLanguages: [String]?
     let voice: String
 
     enum CodingKeys: String, CodingKey {
@@ -189,6 +191,8 @@ struct BookCreationDefaults: Decodable, Equatable {
         case author
         case inputLanguage = "input_language"
         case outputLanguage = "output_language"
+        case targetLanguages = "target_languages"
+        case outputLanguages = "output_languages"
         case voice
     }
 }

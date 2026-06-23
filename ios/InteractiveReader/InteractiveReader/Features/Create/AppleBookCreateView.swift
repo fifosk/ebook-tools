@@ -1356,6 +1356,9 @@ struct AppleBookCreateView: View {
         if let language = defaults.targetLanguage {
             targetLanguage = language
         }
+        if let value = defaults.additionalTargetLanguages {
+            additionalTargetLanguages = value
+        }
         if let option = defaults.voice {
             voice = option
         }

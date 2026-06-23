@@ -424,6 +424,10 @@ struct AppleCreationPayloadCheck {
         require(resolvedDefaults.inputLanguage == .english, "Input language default should map from backend options")
         require(resolvedDefaults.targetLanguage == .arabic, "Target language default should map from backend options")
         require(
+            resolvedDefaults.additionalTargetLanguages == "",
+            "Legacy single-language defaults should leave Apple additional targets blank"
+        )
+        require(
             resolvedDefaults.voice?.backendValue == "macOS-auto-male",
             "Voice default should map from backend options"
         )
@@ -527,6 +531,10 @@ struct AppleCreationPayloadCheck {
         )
         require(editedDefaults.author == nil, "Edited author should not be overwritten by backend defaults")
         require(editedDefaults.targetLanguage == nil, "Edited target language should not be overwritten")
+        require(
+            editedDefaults.additionalTargetLanguages == "",
+            "Unedited additional targets should still accept backend defaults when only the primary target is edited"
+        )
         require(editedDefaults.voice == nil, "Edited voice should not be overwritten")
         require(editedDefaults.generateAudio == nil, "Edited generate-audio toggle should not be overwritten")
         require(editedDefaults.audioMode == nil, "Edited audio mode should not be overwritten")
@@ -545,6 +553,77 @@ struct AppleCreationPayloadCheck {
         require(editedDefaults.imageWidth == nil, "Edited image width should not be overwritten")
         require(editedDefaults.imageHeight == nil, "Edited image height should not be overwritten")
         require(editedDefaults.sentenceCount == 500, "Edited sentence count should still clamp to backend max")
+        let multiTargetOptionsJSON = """
+        {
+          "sentence_bounds": {"min": 1, "max": 500, "default": 30},
+          "defaults": {
+            "topic": "",
+            "book_name": "",
+            "genre": "",
+            "author": "Me",
+            "input_language": "English",
+            "output_language": "Arabic",
+            "target_languages": [" German ", "French", "german", "", "Italian"],
+            "voice": "macOS-auto-male"
+          },
+          "pipeline_defaults": {
+            "sentences_per_output_file": 10,
+            "stitch_full": true,
+            "audio_mode": "4",
+            "audio_bitrate_kbps": 96,
+            "written_mode": "4",
+            "selected_voice": "macOS-auto-male",
+            "generate_audio": true,
+            "output_html": false,
+            "output_pdf": false,
+            "include_transliteration": true,
+            "translation_provider": "llm",
+            "translation_batch_size": 10,
+            "transliteration_mode": "default",
+            "enable_lookup_cache": true,
+            "lookup_cache_batch_size": 10,
+            "tempo": 1.0
+          },
+          "generated_source_defaults": {
+            "add_images": false,
+            "image_prompt_pipeline": "prompt_plan",
+            "image_style_template": "wireframe",
+            "image_prompt_context_sentences": 0,
+            "image_width": "256",
+            "image_height": "256"
+          },
+          "supported_input_languages": ["English", "German", "French"],
+          "supported_output_languages": ["English", "German", "French"],
+          "supported_voices": ["gTTS", "macOS-auto-male", "piper-auto"]
+        }
+        """.data(using: .utf8)!
+        let multiTargetOptions = try decoder.decode(BookCreationOptionsResponse.self, from: multiTargetOptionsJSON)
+        let multiTargetDefaults = AppleBookCreatePresentation.resolvedDefaults(
+            from: multiTargetOptions,
+            editedFields: [],
+            currentSentenceCount: 30
+        )
+        require(
+            multiTargetDefaults.targetLanguage == .german,
+            "Apple Create should use the first backend target language as the primary picker default"
+        )
+        require(
+            multiTargetDefaults.additionalTargetLanguages == "French, Italian",
+            "Apple Create should preserve remaining backend target defaults in the Additional targets field"
+        )
+        let editedAdditionalTargetDefaults = AppleBookCreatePresentation.resolvedDefaults(
+            from: multiTargetOptions,
+            editedFields: [.additionalTargetLanguages],
+            currentSentenceCount: 30
+        )
+        require(
+            editedAdditionalTargetDefaults.targetLanguage == .german,
+            "Edited additional targets should not block the primary backend target default"
+        )
+        require(
+            editedAdditionalTargetDefaults.additionalTargetLanguages == nil,
+            "Edited additional targets should not be overwritten by backend defaults"
+        )
         require(
             AppleBookCreatePresentation.clampSentenceCount(0, bounds: options.sentenceBounds) == 1,
             "Sentence count helper should clamp to backend lower bound"
