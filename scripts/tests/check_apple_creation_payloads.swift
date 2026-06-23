@@ -564,6 +564,7 @@ struct AppleCreationPayloadCheck {
             author: "   ",
             summary: " A portable creation flow. ",
             year: " 2026 ",
+            isbn: " 9780140328721 ",
             coverFile: " covers/native.jpg ",
             sentenceCount: 42,
             inputLanguage: .english,
@@ -616,6 +617,7 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.author == "Me", "Generated draft should default blank author to Me")
         require(generatedDraft.summary == "A portable creation flow.", "Generated draft should trim metadata summary")
         require(generatedDraft.year == "2026", "Generated draft should trim metadata year")
+        require(generatedDraft.isbn == "9780140328721", "Generated draft should trim metadata ISBN")
         require(generatedDraft.coverFile == "covers/native.jpg", "Generated draft should trim metadata cover path")
         require(generatedDraft.targetLanguage == "Slovak", "Generated draft should map target language")
         require(
@@ -698,6 +700,7 @@ struct AppleCreationPayloadCheck {
             baseOutput: " apple/demo ",
             summary: " Imported EPUB summary. ",
             year: " 2025 ",
+            isbn: " 9780000000002 ",
             coverFile: " covers/imported.jpg ",
             startSentence: "7.9",
             endSentence: "3",
@@ -732,6 +735,7 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.baseOutput == "apple/demo", "Narrate draft should trim output path")
         require(narrateDraft.summary == "Imported EPUB summary.", "Narrate draft should trim metadata summary")
         require(narrateDraft.year == "2025", "Narrate draft should trim metadata year")
+        require(narrateDraft.isbn == "9780000000002", "Narrate draft should trim metadata ISBN")
         require(narrateDraft.coverFile == "covers/imported.jpg", "Narrate draft should trim metadata cover path")
         require(
             narrateDraft.targetLanguages == ["Arabic", "German", "French"],
@@ -888,7 +892,10 @@ struct AppleCreationPayloadCheck {
             tempo: 1.7,
             bookMetadata: [
                 "book_title": .string("Demo Book"),
+                "book_genre": .string("technical"),
                 "book_year": .string("2026"),
+                "isbn": .string("9780140328721"),
+                "book_isbn": .string("9780140328721"),
                 "book_summary": .string("A portable creation flow."),
                 "book_cover_file": .string("covers/native.jpg"),
                 "chapter_count": .number(3),
@@ -898,7 +905,9 @@ struct AppleCreationPayloadCheck {
         let pipeline = PipelineRequestPayload(
             config: [
                 "book_title": .string("Demo Book"),
+                "book_genre": .string("technical"),
                 "book_year": .string("2026"),
+                "book_isbn": .string("9780140328721"),
                 "book_summary": .string("A portable creation flow."),
                 "book_cover_file": .string("covers/native.jpg")
             ],
@@ -943,8 +952,10 @@ struct AppleCreationPayloadCheck {
         require(pipelineObject["pipeline_overrides"] != nil, "pipeline should encode pipeline_overrides")
         require(pipelineObject["correlation_id"] as? String == "apple-smoke", "pipeline should encode correlation_id")
         let config = pipelineObject["config"] as? [String: Any]
+        require(config?["book_genre"] as? String == "technical", "pipeline config should encode metadata genre")
         require(config?["book_summary"] as? String == "A portable creation flow.", "pipeline config should encode metadata summary")
         require(config?["book_year"] as? String == "2026", "pipeline config should encode metadata year")
+        require(config?["book_isbn"] as? String == "9780140328721", "pipeline config should encode metadata ISBN")
         require(config?["book_cover_file"] as? String == "covers/native.jpg", "pipeline config should encode cover file")
         let pipelineOverrides = pipelineObject["pipeline_overrides"] as? [String: Any]
         require(
@@ -1073,7 +1084,10 @@ struct AppleCreationPayloadCheck {
         require((encodedInputs?["tempo"] as? NSNumber)?.doubleValue == 1.7, "pipeline inputs should encode tempo")
         let metadata = encodedInputs?["book_metadata"] as? [String: Any]
         require(metadata?["book_title"] as? String == "Demo Book", "pipeline inputs should encode book_metadata")
+        require(metadata?["book_genre"] as? String == "technical", "pipeline inputs should encode metadata genre")
         require(metadata?["book_year"] as? String == "2026", "pipeline inputs should encode metadata year")
+        require(metadata?["isbn"] as? String == "9780140328721", "pipeline inputs should encode ISBN")
+        require(metadata?["book_isbn"] as? String == "9780140328721", "pipeline inputs should encode metadata ISBN")
         require(metadata?["book_cover_file"] as? String == "covers/native.jpg", "pipeline inputs should encode cover file")
 
         let narrateInput = PipelineInputPayload(
@@ -1103,6 +1117,8 @@ struct AppleCreationPayloadCheck {
                 "source": .string("apple"),
                 "book_summary": .string("Imported EPUB summary."),
                 "book_year": .string("2025"),
+                "isbn": .string("9780000000002"),
+                "book_isbn": .string("9780000000002"),
                 "book_cover_file": .string("covers/imported.jpg"),
             ]
         )
@@ -1110,6 +1126,7 @@ struct AppleCreationPayloadCheck {
             config: [
                 "book_summary": .string("Imported EPUB summary."),
                 "book_year": .string("2025"),
+                "book_isbn": .string("9780000000002"),
                 "book_cover_file": .string("covers/imported.jpg"),
             ],
             inputs: narrateInput,
@@ -1128,6 +1145,10 @@ struct AppleCreationPayloadCheck {
         require(
             narrateConfig?["book_year"] as? String == "2025",
             "narrate pipeline config should encode metadata year"
+        )
+        require(
+            narrateConfig?["book_isbn"] as? String == "9780000000002",
+            "narrate pipeline config should encode metadata ISBN"
         )
         require(
             narrateConfig?["book_cover_file"] as? String == "covers/imported.jpg",
@@ -1166,6 +1187,14 @@ struct AppleCreationPayloadCheck {
         require(
             narrateMetadata?["book_year"] as? String == "2025",
             "narrate pipeline metadata should encode year"
+        )
+        require(
+            narrateMetadata?["isbn"] as? String == "9780000000002",
+            "narrate pipeline metadata should encode ISBN"
+        )
+        require(
+            narrateMetadata?["book_isbn"] as? String == "9780000000002",
+            "narrate pipeline metadata should encode book_isbn"
         )
         require(
             narrateMetadata?["book_cover_file"] as? String == "covers/imported.jpg",

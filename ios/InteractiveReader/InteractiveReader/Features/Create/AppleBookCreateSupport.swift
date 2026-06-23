@@ -7,6 +7,7 @@ struct AppleBookCreateDraft: Equatable {
     let author: String
     let summary: String?
     let year: String?
+    let isbn: String?
     let coverFile: String?
     let sentenceCount: Int
     let inputLanguage: String
@@ -61,6 +62,7 @@ struct AppleNarrateEbookDraft: Equatable {
     let baseOutput: String
     let summary: String?
     let year: String?
+    let isbn: String?
     let coverFile: String?
     let startSentence: Int
     let endSentence: Int?
@@ -97,6 +99,7 @@ struct AppleNarrateEbookDraft: Equatable {
             baseOutput: baseOutput,
             summary: summary,
             year: year,
+            isbn: isbn,
             coverFile: coverFile,
             startSentence: startSentence,
             endSentence: endSentence,
@@ -317,6 +320,7 @@ enum AppleBookCreateEditedField: Hashable {
     case author
     case bookSummary
     case bookYear
+    case bookIsbn
     case bookCoverFile
     case sourcePath
     case sourceBaseOutput
@@ -954,6 +958,7 @@ enum AppleBookCreatePresentation {
         author: String,
         summary: String,
         year: String,
+        isbn: String,
         coverFile: String,
         sentenceCount: Int,
         inputLanguage: AppleBookCreateLanguage,
@@ -1014,6 +1019,7 @@ enum AppleBookCreatePresentation {
             author: trimmed(author).nonEmptyValue ?? "Me",
             summary: trimmed(summary).nonEmptyValue,
             year: trimmed(year).nonEmptyValue,
+            isbn: trimmed(isbn).nonEmptyValue,
             coverFile: trimmed(coverFile).nonEmptyValue,
             sentenceCount: sentenceCount,
             inputLanguage: inputLanguage.backendValue,
@@ -1071,6 +1077,7 @@ enum AppleBookCreatePresentation {
         baseOutput: String,
         summary: String,
         year: String,
+        isbn: String,
         coverFile: String,
         startSentence: String,
         endSentence: String,
@@ -1112,6 +1119,7 @@ enum AppleBookCreatePresentation {
             baseOutput: trimmed(baseOutput),
             summary: trimmed(summary).nonEmptyValue,
             year: trimmed(year).nonEmptyValue,
+            isbn: trimmed(isbn).nonEmptyValue,
             coverFile: trimmed(coverFile).nonEmptyValue,
             startSentence: normalizedStart,
             endSentence: normalizedEndSentence(endSentence, startSentence: normalizedStart),

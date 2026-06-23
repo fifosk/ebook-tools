@@ -210,6 +210,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             genre: draft.genre,
             summary: draft.summary,
             year: draft.year,
+            isbn: draft.isbn,
             coverFile: draft.coverFile
         )
 
@@ -275,6 +276,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             genre: nil,
             summary: draft.summary,
             year: draft.year,
+            isbn: draft.isbn,
             coverFile: draft.coverFile
         )
 
@@ -317,6 +319,7 @@ final class AppleBookCreateViewModel: ObservableObject {
         genre: String?,
         summary: String?,
         year: String?,
+        isbn: String?,
         coverFile: String?
     ) -> [String: JSONValue] {
         let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -332,12 +335,17 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
         if let genre = genre?.trimmingCharacters(in: .whitespacesAndNewlines), !genre.isEmpty {
             metadata["genre"] = .string(genre)
+            metadata["book_genre"] = .string(genre)
         }
         if let summary = summary?.trimmingCharacters(in: .whitespacesAndNewlines), !summary.isEmpty {
             metadata["book_summary"] = .string(summary)
         }
         if let year = year?.trimmingCharacters(in: .whitespacesAndNewlines), !year.isEmpty {
             metadata["book_year"] = .string(year)
+        }
+        if let isbn = isbn?.trimmingCharacters(in: .whitespacesAndNewlines), !isbn.isEmpty {
+            metadata["isbn"] = .string(isbn)
+            metadata["book_isbn"] = .string(isbn)
         }
         if let coverFile = coverFile?.trimmingCharacters(in: .whitespacesAndNewlines), !coverFile.isEmpty {
             metadata["book_cover_file"] = .string(coverFile)
@@ -414,7 +422,15 @@ final class AppleBookCreateViewModel: ObservableObject {
 
     private static func makeBookConfig(from metadata: [String: JSONValue]) -> [String: JSONValue] {
         var config = [String: JSONValue]()
-        for key in ["book_title", "book_author", "book_year", "book_summary", "book_cover_file"] {
+        for key in [
+            "book_title",
+            "book_author",
+            "book_genre",
+            "book_year",
+            "book_isbn",
+            "book_summary",
+            "book_cover_file"
+        ] {
             if let value = metadata[key] {
                 config[key] = value
             }
