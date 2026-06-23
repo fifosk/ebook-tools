@@ -566,6 +566,7 @@ struct AppleCreationPayloadCheck {
             inputLanguage: .english,
             targetLanguage: .slovak,
             voice: AppleBookCreateVoiceOption(" macOS-auto-male ")!,
+            targetVoice: AppleBookCreateVoiceOption(" piper-auto ")!,
             baseOutput: "native-creation",
             generateAudio: false,
             audioMode: " 2 ",
@@ -606,6 +607,10 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.author == "Me", "Generated draft should default blank author to Me")
         require(generatedDraft.targetLanguage == "Slovak", "Generated draft should map target language")
         require(generatedDraft.voice == "macOS-auto-male", "Generated draft should trim and map voice")
+        require(
+            generatedDraft.voiceOverrides == ["Slovak": "piper-auto"],
+            "Generated draft should map a target-language voice override"
+        )
         require(generatedDraft.generateAudio == false, "Generated draft should keep selected audio toggle")
         require(generatedDraft.audioMode == "2", "Generated draft should trim selected audio mode")
         require(generatedDraft.audioBitrateKbps == 32, "Generated draft should floor selected audio bitrate")
@@ -668,6 +673,7 @@ struct AppleCreationPayloadCheck {
             inputLanguage: .english,
             targetLanguage: .arabic,
             voice: .gtts,
+            targetVoice: nil,
             generateAudio: true,
             audioMode: "",
             audioBitrateKbps: "",
@@ -696,6 +702,7 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.tempo == 0.5, "Narrate draft should clamp low tempo")
         require(narrateDraft.sentencesPerOutputFile == 100, "Narrate draft should clamp sentences per file")
         require(narrateDraft.stitchFull == false, "Narrate draft should keep stitch-full toggle")
+        require(narrateDraft.voiceOverrides.isEmpty, "Narrate draft should omit target voice overrides by default")
         require(narrateDraft.includeTransliteration == false, "Narrate draft should keep transliteration toggle")
         require(narrateDraft.translationProvider == "llm", "Narrate draft should map selected provider")
         require(narrateDraft.translationBatchSize == 12, "Narrate draft should keep selected translation batch size")
@@ -799,6 +806,7 @@ struct AppleCreationPayloadCheck {
             audioBitrateKbps: 32,
             writtenMode: "3",
             selectedVoice: "macOS-auto-male",
+            voiceOverrides: ["sk": "piper-auto"],
             outputHtml: true,
             outputPdf: true,
             includeTransliteration: true,
@@ -913,6 +921,10 @@ struct AppleCreationPayloadCheck {
         require(encodedInputs?["audio_bitrate_kbps"] as? Int == 32, "pipeline inputs should encode audio_bitrate_kbps")
         require(encodedInputs?["written_mode"] as? String == "3", "pipeline inputs should encode written_mode")
         require(encodedInputs?["selected_voice"] as? String == "macOS-auto-male", "pipeline inputs should encode selected_voice")
+        require(
+            encodedInputs?["voice_overrides"] as? [String: String] == ["sk": "piper-auto"],
+            "pipeline inputs should encode target-language voice overrides"
+        )
         require(encodedInputs?["output_html"] as? Bool == true, "pipeline inputs should encode output_html")
         require(encodedInputs?["output_pdf"] as? Bool == true, "pipeline inputs should encode output_pdf")
         require(encodedInputs?["translation_provider"] as? String == "googletrans", "pipeline inputs should encode provider")

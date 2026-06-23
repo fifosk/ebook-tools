@@ -59,6 +59,7 @@ struct AppleBookCreateView: View {
     @State private var inputLanguage = AppleBookCreateLanguage.english
     @State private var targetLanguage = AppleBookCreateLanguage.arabic
     @State private var voice = AppleBookCreateVoiceOption.gtts
+    @State private var targetVoice: AppleBookCreateVoiceOption?
     @State private var generateAudio = true
     @State private var audioMode = "4"
     @State private var audioBitrateKbps = "96"
@@ -223,9 +224,11 @@ struct AppleBookCreateView: View {
             inputLanguage: languageBinding(for: .inputLanguage, value: $inputLanguage),
             targetLanguage: languageBinding(for: .targetLanguage, value: $targetLanguage),
             voice: voiceBinding,
+            targetVoice: targetVoiceBinding,
             availableInputLanguages: availableInputLanguages,
             availableTargetLanguages: availableTargetLanguages,
-            availableVoices: availableVoices
+            availableVoices: availableVoices,
+            availableTargetVoices: availableTargetVoices
         )
     }
 
@@ -481,6 +484,7 @@ struct AppleBookCreateView: View {
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
             voice: voice,
+            targetVoice: targetVoice,
             baseOutput: derivedBaseOutput,
             generateAudio: generateAudio,
             audioMode: audioMode,
@@ -629,6 +633,7 @@ struct AppleBookCreateView: View {
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
             voice: voice,
+            targetVoice: targetVoice,
             generateAudio: generateAudio,
             audioMode: audioMode,
             audioBitrateKbps: audioBitrateKbps,
@@ -737,6 +742,10 @@ struct AppleBookCreateView: View {
         AppleBookCreatePresentation.availableVoices(from: viewModel.creationOptions, selected: voice)
     }
 
+    private var availableTargetVoices: [AppleBookCreateVoiceOption] {
+        AppleBookCreatePresentation.availableVoices(from: viewModel.creationOptions, selected: targetVoice ?? voice)
+    }
+
     private var availableSubtitleLlmModels: [String] {
         AppleBookCreatePresentation.availableSubtitleLlmModels(
             selected: subtitleLlmModel,
@@ -840,6 +849,16 @@ struct AppleBookCreateView: View {
             set: { newValue in
                 markEdited(.voice)
                 voice = newValue
+            }
+        )
+    }
+
+    private var targetVoiceBinding: Binding<AppleBookCreateVoiceOption?> {
+        Binding(
+            get: { targetVoice },
+            set: { newValue in
+                markEdited(.targetVoice)
+                targetVoice = newValue
             }
         )
     }

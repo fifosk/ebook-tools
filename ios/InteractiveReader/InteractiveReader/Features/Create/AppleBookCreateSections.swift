@@ -135,9 +135,11 @@ struct AppleBookCreateNarrationSection: View {
     @Binding var inputLanguage: AppleBookCreateLanguage
     @Binding var targetLanguage: AppleBookCreateLanguage
     @Binding var voice: AppleBookCreateVoiceOption
+    @Binding var targetVoice: AppleBookCreateVoiceOption?
     let availableInputLanguages: [AppleBookCreateLanguage]
     let availableTargetLanguages: [AppleBookCreateLanguage]
     let availableVoices: [AppleBookCreateVoiceOption]
+    let availableTargetVoices: [AppleBookCreateVoiceOption]
 
     var body: some View {
         Section(creationMode == .subtitleJob ? "Languages" : "Narration") {
@@ -162,6 +164,16 @@ struct AppleBookCreateNarrationSection: View {
                     }
                 }
                 .accessibilityIdentifier("createBookVoicePicker")
+
+                if creationMode == .generatedBook || creationMode == .narrateEbook {
+                    Picker("Target voice", selection: $targetVoice) {
+                        Text("Same as voice").tag(nil as AppleBookCreateVoiceOption?)
+                        ForEach(availableTargetVoices) { option in
+                            Text(option.label).tag(Optional(option))
+                        }
+                    }
+                    .accessibilityIdentifier("createBookTargetVoicePicker")
+                }
             }
         }
     }

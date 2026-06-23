@@ -9,6 +9,7 @@ struct AppleBookCreateDraft: Equatable {
     let inputLanguage: String
     let targetLanguage: String
     let voice: String
+    let voiceOverrides: [String: String]
     let baseOutput: String
     let generateAudio: Bool
     let audioMode: String
@@ -54,6 +55,7 @@ struct AppleNarrateEbookDraft: Equatable {
     let inputLanguage: String
     let targetLanguage: String
     let voice: String
+    let voiceOverrides: [String: String]
     let generateAudio: Bool
     let audioMode: String
     let audioBitrateKbps: Int?
@@ -81,6 +83,7 @@ struct AppleNarrateEbookDraft: Equatable {
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
             voice: voice,
+            voiceOverrides: voiceOverrides,
             generateAudio: generateAudio,
             audioMode: audioMode,
             audioBitrateKbps: audioBitrateKbps,
@@ -323,6 +326,7 @@ enum AppleBookCreateEditedField: Hashable {
     case inputLanguage
     case targetLanguage
     case voice
+    case targetVoice
     case generateAudio
     case audioMode
     case audioBitrateKbps
@@ -654,6 +658,16 @@ enum AppleBookCreatePresentation {
         )
     }
 
+    static func voiceOverrides(
+        targetLanguage: String,
+        targetVoice: AppleBookCreateVoiceOption?
+    ) -> [String: String] {
+        guard let targetVoice else { return [:] }
+        let language = trimmed(targetLanguage)
+        guard !language.isEmpty else { return [:] }
+        return [language: targetVoice.backendValue]
+    }
+
     static func submitButtonPresentation(
         for mode: AppleCreateMode,
         isSubmitting: Bool
@@ -852,6 +866,7 @@ enum AppleBookCreatePresentation {
         inputLanguage: AppleBookCreateLanguage,
         targetLanguage: AppleBookCreateLanguage,
         voice: AppleBookCreateVoiceOption,
+        targetVoice: AppleBookCreateVoiceOption?,
         baseOutput: String,
         generateAudio: Bool,
         audioMode: String,
@@ -897,6 +912,7 @@ enum AppleBookCreatePresentation {
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
             voice: voice.backendValue,
+            voiceOverrides: voiceOverrides(targetLanguage: targetLanguage.backendValue, targetVoice: targetVoice),
             baseOutput: baseOutput,
             generateAudio: generateAudio,
             audioMode: normalizedMode(audioMode, fallback: "4"),
@@ -945,6 +961,7 @@ enum AppleBookCreatePresentation {
         inputLanguage: AppleBookCreateLanguage,
         targetLanguage: AppleBookCreateLanguage,
         voice: AppleBookCreateVoiceOption,
+        targetVoice: AppleBookCreateVoiceOption?,
         generateAudio: Bool,
         audioMode: String,
         audioBitrateKbps: String,
@@ -972,6 +989,7 @@ enum AppleBookCreatePresentation {
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
             voice: voice.backendValue,
+            voiceOverrides: voiceOverrides(targetLanguage: targetLanguage.backendValue, targetVoice: targetVoice),
             generateAudio: generateAudio,
             audioMode: normalizedMode(audioMode, fallback: "4"),
             audioBitrateKbps: normalizedAudioBitrate(audioBitrateKbps),
