@@ -233,6 +233,21 @@ debugger. Keep the iPad awake and unlocked for launch verification; for future
 attended installs, prefer USB-C, tap Trust when prompted, then re-enable network
 deployment from Xcode Devices and Simulators if needed.
 
+June 24, 2026 iPad M5 deploy attempt: the shared wrapper passed device preflight
+for `Fifo Ipad Pro`, passed the registered iPad simulator smoke, and then failed
+at the signed device build before install. Xcode CLI and Xcode GUI both reported
+`No Accounts: Add a new account in Accounts settings` plus missing Push
+Notifications, Sign in with Apple, and iCloud capabilities for
+`iOS Team Provisioning Profile: com.example.InteractiveReader`. The local
+profile cache still contains an Xcode-managed `com.example.InteractiveReader`
+profile with those entitlement keys, and an iOS wildcard profile for the
+notification extension. Current device metadata after the failed attempt still
+shows the previously installed app:
+
+```text
+InteractiveReader   com.example.InteractiveReader   2026.6.23   2026062395
+```
+
 Generic iOS device signing currently fails before compilation:
 
 ```bash
@@ -263,8 +278,14 @@ To inspect local cached profile capability shape without printing secrets, run:
 ```bash
 python3 scripts/ios_profile_capability_check.py \
   --bundle-id com.example.InteractiveReader \
-  --entitlements ios/InteractiveReader/InteractiveReader/Supporting/InteractiveReader.entitlements
+  --entitlements ios/InteractiveReader/InteractiveReader/Supporting/InteractiveReader.entitlements \
+  --embedded-bundle-id com.example.InteractiveReader.NotificationServiceExtension
 ```
+
+The checker filters profiles to `iOS` by default, reports profile UUIDs, app-id
+suffixes, platforms, paths, and whether a profile is Xcode-managed, and accepts
+iOS wildcard profiles only for embedded bundle IDs that do not declare their own
+entitlement file.
 
 The shared pipeline signing contract should pass before physical deploy:
 
