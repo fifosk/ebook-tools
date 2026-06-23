@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.04",
+            version: "2026.06.23.05",
             entries: [
+                AppChangelogEntry(
+                    id: "backend-search-match-summary",
+                    title: "Search backend allocation trimmed",
+                    detail: "Generated-media search now keeps the first match span and occurrence count without building a large tuple list for repeated common terms, preserving Web and Apple search results."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-source-refresh-selection",
                     title: "Web Subtitle source selection fixed",

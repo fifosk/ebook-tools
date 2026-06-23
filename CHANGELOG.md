@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.05
+
+- Advanced visible Apple app versioning to `v2026.06.23.05`.
+- Backend generated-media search now keeps only the first match span plus the occurrence count, preserving Web and Apple search responses while avoiding large per-chunk match tuple allocations for common terms.
+- The shared Apple device app pipeline backend gate now covers the repeated-term search contract for ebook-tools.
+
 ### 2026.06.23.04
 
 - Advanced visible Apple app versioning to `v2026.06.23.04`.

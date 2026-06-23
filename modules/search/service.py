@@ -86,6 +86,18 @@ class SearchMediaResult:
     media: MediaBucket
     cue_start_seconds: float | None = None
     cue_end_seconds: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _TextMatchSummary:
+    first_start: int | None
+    first_end: int | None
+    occurrence_count: int
+
+    def __bool__(self) -> bool:
+        return self.occurrence_count > 0
+
+
 def _coerce_inputs_mapping(candidate: object) -> Optional[Mapping[str, object]]:
     if candidate is None:
         return None
@@ -210,28 +222,47 @@ def _iterate_chunk_entries(generated: Mapping[str, object]) -> Iterator[Mapping[
     return (chunk for chunk in chunks if isinstance(chunk, Mapping))
 
 
-def _find_matches(text: str, query: str) -> List[Tuple[int, int]]:
+def _find_matches(text: str, query: str) -> _TextMatchSummary:
+    if not text or not query:
+        return _TextMatchSummary(None, None, 0)
+    if len(query) > len(text):
+        return _TextMatchSummary(None, None, 0)
+
     lowered = text.lower()
     needle = query.lower()
-    matches: List[Tuple[int, int]] = []
+    if not needle:
+        return _TextMatchSummary(None, None, 0)
+
     start = 0
     length = len(needle)
+    first_start: int | None = None
+    first_end: int | None = None
+    occurrence_count = 0
     while True:
         position = lowered.find(needle, start)
         if position == -1:
             break
-        matches.append((position, position + length))
+        if first_start is None:
+            first_start = position
+            first_end = position + length
+        occurrence_count += 1
         start = position + length
-    return matches
+    return _TextMatchSummary(first_start, first_end, occurrence_count)
 
 
-def _build_snippet(text: str, matches: Sequence[Tuple[int, int]], context: int = 80) -> Tuple[str, int]:
+def _build_snippet(text: str, matches: _TextMatchSummary, context: int = 80) -> Tuple[str, int]:
     if not matches:
         snippet = text[: context * 2]
         shortened = textwrap.shorten(snippet, width=context * 2 + 20, placeholder="…")
         return shortened, 0
 
-    first_start, first_end = matches[0]
+    first_start = matches.first_start
+    first_end = matches.first_end
+    if first_start is None or first_end is None:
+        snippet = text[: context * 2]
+        shortened = textwrap.shorten(snippet, width=context * 2 + 20, placeholder="…")
+        return shortened, 0
+
     span_start = max(0, first_start - context)
     span_end = min(len(text), first_end + context)
 
@@ -245,7 +276,7 @@ def _build_snippet(text: str, matches: Sequence[Tuple[int, int]], context: int =
     prefix = "…" if span_start > 0 else ""
     suffix = "…" if span_end < len(text) else ""
     snippet_with_context = f"{prefix}{snippet}{suffix}".strip()
-    return snippet_with_context, len(matches)
+    return snippet_with_context, matches.occurrence_count
 
 
 def _gather_media_entries(
@@ -577,7 +608,10 @@ def _collect_subtitle_matches(
         hit_points = _find_matches(merged_text, query)
         if hit_points:
             snippet, occurrence_count = _build_snippet(merged_text, hit_points)
-            match_start, match_end = hit_points[0]
+            match_start = hit_points.first_start
+            match_end = hit_points.first_end
+            if match_start is None or match_end is None:
+                return
             text_length = len(merged_text)
             offset_ratio = (
                 max(min(match_start / text_length, 1.0), 0.0) if text_length else 0.0
@@ -988,8 +1022,10 @@ def search_generated_media(
                         base_id = Path(chunk_candidate).stem.lower()
 
             text_length = len(text_content)
-            match_start = matches[0][0]
-            match_end = matches[0][1]
+            match_start = matches.first_start
+            match_end = matches.first_end
+            if match_start is None or match_end is None:
+                continue
             offset_ratio: Optional[float] = None
             if text_length > 0:
                 offset_ratio = max(min(match_start / text_length, 1.0), 0.0)

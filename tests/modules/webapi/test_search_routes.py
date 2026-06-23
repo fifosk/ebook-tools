@@ -14,6 +14,7 @@ from modules.library import LibraryService
 from modules.services.file_locator import FileLocator
 from modules.webapi import dependencies
 from modules.webapi.application import create_app
+from modules.search import service as search_service
 from modules.webapi.dependencies import (
     get_file_locator,
     get_library_service,
@@ -227,6 +228,19 @@ def test_search_returns_matching_snippet(api_app) -> None:
     assert "video" in media
     video_entry = media["video"][0]
     assert video_entry["relative_path"] == "chunk-001/sample.mp4"
+
+
+def test_search_match_summary_counts_repeated_terms_without_tuple_list() -> None:
+    text = "fortune " * 1200 + "arrives at the final table"
+
+    matches = search_service._find_matches(text, "fortune")
+    snippet, occurrence_count = search_service._build_snippet(text, matches)
+
+    assert matches.first_start == 0
+    assert matches.first_end == len("fortune")
+    assert matches.occurrence_count == 1200
+    assert occurrence_count == 1200
+    assert "fortune" in snippet
 
 
 def test_search_records_safe_timing(api_app, monkeypatch: pytest.MonkeyPatch) -> None:
