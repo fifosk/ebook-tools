@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.23
+
+- Advanced visible Apple app versioning to `v2026.06.23.23`.
+- Apple generated-book and Narrate EPUB creation now expose a Web-aligned cover file path field, submitting `book_cover_file` through metadata and config.
+
 ### 2026.06.23.22
 
 - Advanced visible Apple app versioning to `v2026.06.23.22`.

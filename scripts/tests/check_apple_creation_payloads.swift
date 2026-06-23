@@ -564,6 +564,7 @@ struct AppleCreationPayloadCheck {
             author: "   ",
             summary: " A portable creation flow. ",
             year: " 2026 ",
+            coverFile: " covers/native.jpg ",
             sentenceCount: 42,
             inputLanguage: .english,
             targetLanguage: .slovak,
@@ -610,6 +611,7 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.author == "Me", "Generated draft should default blank author to Me")
         require(generatedDraft.summary == "A portable creation flow.", "Generated draft should trim metadata summary")
         require(generatedDraft.year == "2026", "Generated draft should trim metadata year")
+        require(generatedDraft.coverFile == "covers/native.jpg", "Generated draft should trim metadata cover path")
         require(generatedDraft.targetLanguage == "Slovak", "Generated draft should map target language")
         require(generatedDraft.voice == "macOS-auto-male", "Generated draft should trim and map voice")
         require(
@@ -676,6 +678,7 @@ struct AppleCreationPayloadCheck {
             baseOutput: " apple/demo ",
             summary: " Imported EPUB summary. ",
             year: " 2025 ",
+            coverFile: " covers/imported.jpg ",
             startSentence: "7.9",
             endSentence: "3",
             inputLanguage: .english,
@@ -705,6 +708,7 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.baseOutput == "apple/demo", "Narrate draft should trim output path")
         require(narrateDraft.summary == "Imported EPUB summary.", "Narrate draft should trim metadata summary")
         require(narrateDraft.year == "2025", "Narrate draft should trim metadata year")
+        require(narrateDraft.coverFile == "covers/imported.jpg", "Narrate draft should trim metadata cover path")
         require(narrateDraft.startSentence == 7, "Narrate draft should floor selected start sentence")
         require(narrateDraft.endSentence == 7, "Narrate draft should clamp end sentence to start sentence")
         require(narrateDraft.audioMode == "4", "Narrate draft should use fallback audio mode for blank selection")
@@ -832,6 +836,7 @@ struct AppleCreationPayloadCheck {
                 "book_title": .string("Demo Book"),
                 "book_year": .string("2026"),
                 "book_summary": .string("A portable creation flow."),
+                "book_cover_file": .string("covers/native.jpg"),
                 "chapter_count": .number(3),
                 "indexed": .bool(true),
             ]
@@ -840,7 +845,8 @@ struct AppleCreationPayloadCheck {
             config: [
                 "book_title": .string("Demo Book"),
                 "book_year": .string("2026"),
-                "book_summary": .string("A portable creation flow.")
+                "book_summary": .string("A portable creation flow."),
+                "book_cover_file": .string("covers/native.jpg")
             ],
             environmentOverrides: ["BOOKS_DIR": .string("/runtime/books")],
             pipelineOverrides: [
@@ -872,6 +878,7 @@ struct AppleCreationPayloadCheck {
         let config = pipelineObject["config"] as? [String: Any]
         require(config?["book_summary"] as? String == "A portable creation flow.", "pipeline config should encode metadata summary")
         require(config?["book_year"] as? String == "2026", "pipeline config should encode metadata year")
+        require(config?["book_cover_file"] as? String == "covers/native.jpg", "pipeline config should encode cover file")
         let pipelineOverrides = pipelineObject["pipeline_overrides"] as? [String: Any]
         require(
             pipelineOverrides?["image_style_template"] as? String == "children_book",
@@ -962,6 +969,7 @@ struct AppleCreationPayloadCheck {
         let metadata = encodedInputs?["book_metadata"] as? [String: Any]
         require(metadata?["book_title"] as? String == "Demo Book", "pipeline inputs should encode book_metadata")
         require(metadata?["book_year"] as? String == "2026", "pipeline inputs should encode metadata year")
+        require(metadata?["book_cover_file"] as? String == "covers/native.jpg", "pipeline inputs should encode cover file")
 
         let narrateInput = PipelineInputPayload(
             inputFile: "ebooks/imports/demo.epub",
@@ -990,12 +998,14 @@ struct AppleCreationPayloadCheck {
                 "source": .string("apple"),
                 "book_summary": .string("Imported EPUB summary."),
                 "book_year": .string("2025"),
+                "book_cover_file": .string("covers/imported.jpg"),
             ]
         )
         let narratePipeline = PipelineRequestPayload(
             config: [
                 "book_summary": .string("Imported EPUB summary."),
                 "book_year": .string("2025"),
+                "book_cover_file": .string("covers/imported.jpg"),
             ],
             inputs: narrateInput,
             correlationId: "apple-narrate-ebook"
@@ -1013,6 +1023,10 @@ struct AppleCreationPayloadCheck {
         require(
             narrateConfig?["book_year"] as? String == "2025",
             "narrate pipeline config should encode metadata year"
+        )
+        require(
+            narrateConfig?["book_cover_file"] as? String == "covers/imported.jpg",
+            "narrate pipeline config should encode cover file"
         )
         let narrateInputs = narrateObject["inputs"] as? [String: Any]
         require(
@@ -1047,6 +1061,10 @@ struct AppleCreationPayloadCheck {
         require(
             narrateMetadata?["book_year"] as? String == "2025",
             "narrate pipeline metadata should encode year"
+        )
+        require(
+            narrateMetadata?["book_cover_file"] as? String == "covers/imported.jpg",
+            "narrate pipeline metadata should encode cover file"
         )
 
         let book = BookGenerationJobSubmission(

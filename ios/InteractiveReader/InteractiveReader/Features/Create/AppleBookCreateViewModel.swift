@@ -201,7 +201,8 @@ final class AppleBookCreateViewModel: ObservableObject {
             author: draft.author,
             genre: draft.genre,
             summary: draft.summary,
-            year: draft.year
+            year: draft.year,
+            coverFile: draft.coverFile
         )
 
         let pipeline = makePipelineSubmission(
@@ -258,7 +259,8 @@ final class AppleBookCreateViewModel: ObservableObject {
             author: nil,
             genre: nil,
             summary: draft.summary,
-            year: draft.year
+            year: draft.year,
+            coverFile: draft.coverFile
         )
 
         return makePipelineSubmission(
@@ -299,7 +301,8 @@ final class AppleBookCreateViewModel: ObservableObject {
         author: String?,
         genre: String?,
         summary: String?,
-        year: String?
+        year: String?,
+        coverFile: String?
     ) -> [String: JSONValue] {
         let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         var metadata: [String: JSONValue] = [
@@ -320,6 +323,9 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
         if let year = year?.trimmingCharacters(in: .whitespacesAndNewlines), !year.isEmpty {
             metadata["book_year"] = .string(year)
+        }
+        if let coverFile = coverFile?.trimmingCharacters(in: .whitespacesAndNewlines), !coverFile.isEmpty {
+            metadata["book_cover_file"] = .string(coverFile)
         }
         return metadata
     }
@@ -393,7 +399,7 @@ final class AppleBookCreateViewModel: ObservableObject {
 
     private static func makeBookConfig(from metadata: [String: JSONValue]) -> [String: JSONValue] {
         var config = [String: JSONValue]()
-        for key in ["book_title", "book_author", "book_year", "book_summary"] {
+        for key in ["book_title", "book_author", "book_year", "book_summary", "book_cover_file"] {
             if let value = metadata[key] {
                 config[key] = value
             }

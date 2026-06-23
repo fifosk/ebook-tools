@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.22",
+            version: "2026.06.23.23",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-book-cover-file",
+                    title: "Apple book cover path",
+                    detail: "Generated-book and Narrate EPUB creation now expose a Web-aligned cover file path field, submitting book_cover_file through metadata and config."
+                ),
                 AppChangelogEntry(
                     id: "apple-book-metadata-fields",
                     title: "Apple book metadata",

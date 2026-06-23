@@ -7,6 +7,7 @@ struct AppleBookCreateDraft: Equatable {
     let author: String
     let summary: String?
     let year: String?
+    let coverFile: String?
     let sentenceCount: Int
     let inputLanguage: String
     let targetLanguage: String
@@ -55,6 +56,7 @@ struct AppleNarrateEbookDraft: Equatable {
     let baseOutput: String
     let summary: String?
     let year: String?
+    let coverFile: String?
     let startSentence: Int
     let endSentence: Int?
     let inputLanguage: String
@@ -86,6 +88,7 @@ struct AppleNarrateEbookDraft: Equatable {
             baseOutput: baseOutput,
             summary: summary,
             year: year,
+            coverFile: coverFile,
             startSentence: startSentence,
             endSentence: endSentence,
             inputLanguage: inputLanguage,
@@ -301,6 +304,7 @@ enum AppleBookCreateEditedField: Hashable {
     case author
     case bookSummary
     case bookYear
+    case bookCoverFile
     case sourcePath
     case sourceBaseOutput
     case sourceStartSentence
@@ -876,6 +880,7 @@ enum AppleBookCreatePresentation {
         author: String,
         summary: String,
         year: String,
+        coverFile: String,
         sentenceCount: Int,
         inputLanguage: AppleBookCreateLanguage,
         targetLanguage: AppleBookCreateLanguage,
@@ -925,6 +930,7 @@ enum AppleBookCreatePresentation {
             author: trimmed(author).nonEmptyValue ?? "Me",
             summary: trimmed(summary).nonEmptyValue,
             year: trimmed(year).nonEmptyValue,
+            coverFile: trimmed(coverFile).nonEmptyValue,
             sentenceCount: sentenceCount,
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
@@ -976,6 +982,7 @@ enum AppleBookCreatePresentation {
         baseOutput: String,
         summary: String,
         year: String,
+        coverFile: String,
         startSentence: String,
         endSentence: String,
         inputLanguage: AppleBookCreateLanguage,
@@ -1007,6 +1014,7 @@ enum AppleBookCreatePresentation {
             baseOutput: trimmed(baseOutput),
             summary: trimmed(summary).nonEmptyValue,
             year: trimmed(year).nonEmptyValue,
+            coverFile: trimmed(coverFile).nonEmptyValue,
             startSentence: normalizedStart,
             endSentence: normalizedEndSentence(endSentence, startSentence: normalizedStart),
             inputLanguage: inputLanguage.backendValue,

@@ -19,6 +19,7 @@ struct AppleBookCreateView: View {
     @State private var author = "Me"
     @State private var bookSummary = ""
     @State private var bookYear = ""
+    @State private var bookCoverFile = ""
     @State private var sourcePath = ""
     @State private var sourceBaseOutput = ""
     @State private var sourceStartSentence = "1"
@@ -198,6 +199,10 @@ struct AppleBookCreateView: View {
                 .keyboardType(.numberPad)
                 #endif
                 .accessibilityIdentifier("createBookYearField")
+            TextField("Cover file path", text: textBinding(for: .bookCoverFile, value: $bookCoverFile))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createBookCoverFileField")
         }
     }
 
@@ -505,6 +510,7 @@ struct AppleBookCreateView: View {
             author: author,
             summary: bookSummary,
             year: bookYear,
+            coverFile: bookCoverFile,
             sentenceCount: sentenceCount,
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
@@ -656,6 +662,7 @@ struct AppleBookCreateView: View {
             baseOutput: sourceBaseOutput,
             summary: bookSummary,
             year: bookYear,
+            coverFile: bookCoverFile,
             startSentence: sourceStartSentence,
             endSentence: sourceEndSentence,
             inputLanguage: inputLanguage,
