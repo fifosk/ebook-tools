@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 struct AppleBookCreateView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.openURL) private var openURL
     @StateObject private var viewModel = AppleBookCreateViewModel()
 
     let sectionPicker: BrowseSectionPicker?
@@ -486,6 +487,16 @@ struct AppleBookCreateView: View {
             }
             .disabled(!canSubmit || viewModel.isSubmitting)
             .accessibilityIdentifier("createBookSubmitButton")
+            #if !os(tvOS)
+            if let handoffURL = webCreateHandoffURL {
+                Button {
+                    openURL(handoffURL)
+                } label: {
+                    Label("Open Web Create", systemImage: "safari")
+                }
+                .accessibilityIdentifier("createBookOpenWebCreateButton")
+            }
+            #endif
         }
     }
 
@@ -512,6 +523,13 @@ struct AppleBookCreateView: View {
 
     private var availableCreateModes: [AppleCreateMode] {
         AppleBookCreatePresentation.availableCreateModes(isTV: Self.isTVPlatform)
+    }
+
+    private var webCreateHandoffURL: URL? {
+        AppleBookCreatePresentation.webCreateHandoffURL(
+            apiBaseURL: appState.apiBaseURL,
+            mode: creationMode
+        )
     }
 
     private var derivedBaseOutput: String {

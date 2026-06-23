@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.49
+
+- Advanced visible Apple app versioning to `v2026.06.23.49`.
+- Apple Create on iPhone and iPad now includes an Open Web Create handoff that deep-links to the matching advanced Web creation surface.
+
 ### 2026.06.23.48
 
 - Advanced visible Apple app versioning to `v2026.06.23.48`.

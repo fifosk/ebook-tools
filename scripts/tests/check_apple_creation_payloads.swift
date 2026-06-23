@@ -78,6 +78,50 @@ struct AppleCreationPayloadCheck {
             "iPhone/iPad Create mode list should expose all native creation modes"
         )
         require(
+            AppleBookCreatePresentation.webCreateViewID(for: .generatedBook) == "books:create",
+            "Generated-book Web handoff should target the Web book creation view"
+        )
+        require(
+            AppleBookCreatePresentation.webCreateViewID(for: .narrateEbook) == "pipeline:source",
+            "Narrate EPUB Web handoff should target the Web book narration pipeline"
+        )
+        require(
+            AppleBookCreatePresentation.webCreateViewID(for: .subtitleJob) == "subtitles:home",
+            "Subtitle Web handoff should target the Web subtitle creation view"
+        )
+        require(
+            AppleBookCreatePresentation.webCreateViewID(for: .youtubeDub) == "subtitles:youtube-dub",
+            "YouTube Dub Web handoff should target the Web dubbing creation view"
+        )
+        let publicWebHandoff = try requireURL(
+            AppleBookCreatePresentation.webCreateHandoffURL(
+                apiBaseURL: URL(string: "https://api.langtools.fifosk.synology.me/v1"),
+                mode: .generatedBook
+            ),
+            "public Web handoff URL should derive from API base URL"
+        )
+        require(publicWebHandoff.scheme == "https", "public Web handoff should keep the API scheme")
+        require(publicWebHandoff.host == "langtools.fifosk.synology.me", "public Web handoff should strip api host prefix")
+        require(
+            URLComponents(url: publicWebHandoff, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "view" })?.value == "books:create",
+            "public Web handoff should encode the target Web view"
+        )
+        let localWebHandoff = try requireURL(
+            AppleBookCreatePresentation.webCreateHandoffURL(
+                apiBaseURL: URL(string: "http://127.0.0.1:8000"),
+                mode: .youtubeDub
+            ),
+            "local Web handoff URL should derive from local API base URL"
+        )
+        require(localWebHandoff.host == "127.0.0.1", "local Web handoff should keep localhost host")
+        require(localWebHandoff.port == 5173, "local Web handoff should point local API port 8000 to Vite port 5173")
+        require(
+            URLComponents(url: localWebHandoff, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "view" })?.value == "subtitles:youtube-dub",
+            "local Web handoff should encode the YouTube Dub Web view"
+        )
+        require(
             AppleBookCreatePresentation.deriveBaseOutputName("  My Book: Arabic/Slovak!  ") == "my-book-arabic-slovak",
             "Apple Create base output names should be filesystem-friendly"
         )
@@ -1726,6 +1770,13 @@ struct AppleCreationPayloadCheck {
             fputs("check failed: \(message)\n", stderr)
             exit(1)
         }
+    }
+
+    private static func requireURL(_ url: URL?, _ message: String) throws -> URL {
+        guard let url else {
+            throw CheckFailure(message)
+        }
+        return url
     }
 }
 

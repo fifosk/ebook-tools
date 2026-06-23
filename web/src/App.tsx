@@ -10,6 +10,7 @@ import { useJobsStore } from './stores/jobsStore';
 import { useUIStore } from './stores/uiStore';
 import { fetchPipelineStatus } from './api/client';
 import { normalizeRole } from './utils/accessControl';
+import { parseDeepLinkedAppView } from './utils/appViewDeepLink';
 import {
   APP_BRANCH,
   JOB_PROGRESS_VIEW,
@@ -143,6 +144,13 @@ export function App() {
     youtubeDubPrefillParameters,
     subtitleRefreshKey
   } = useUIStore();
+
+  useEffect(() => {
+    const deepLinkedView = parseDeepLinkedAppView(window.location);
+    if (deepLinkedView) {
+      setSelectedView(deepLinkedView);
+    }
+  }, [setSelectedView]);
 
   // Enforce role-based view access
   useEffect(() => {

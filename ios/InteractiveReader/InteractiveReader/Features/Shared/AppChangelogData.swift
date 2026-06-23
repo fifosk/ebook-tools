@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.48",
+            version: "2026.06.23.49",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-web-create-handoff",
+                    title: "Web create handoff",
+                    detail: "Apple Create on iPhone and iPad now includes an Open Web Create action that deep-links to the matching advanced Web creation surface."
+                ),
                 AppChangelogEntry(
                     id: "apple-book-default-target-languages",
                     title: "Apple target defaults",

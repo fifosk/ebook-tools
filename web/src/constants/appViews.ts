@@ -36,6 +36,34 @@ export type SelectedView =
   | typeof YOUTUBE_SUBTITLES_VIEW
   | typeof YOUTUBE_DUB_VIEW;
 
+export const APP_VIEW_QUERY_PARAM = 'view' as const;
+
+export const ALL_APP_VIEWS: readonly SelectedView[] = [
+  'pipeline:source',
+  'pipeline:metadata',
+  'pipeline:language',
+  'pipeline:output',
+  'pipeline:images',
+  'pipeline:performance',
+  'pipeline:submit',
+  ADMIN_USER_MANAGEMENT_VIEW,
+  ADMIN_READING_BEDS_VIEW,
+  ADMIN_SETTINGS_VIEW,
+  ADMIN_SYSTEM_VIEW,
+  JOB_PROGRESS_VIEW,
+  JOB_MEDIA_VIEW,
+  LIBRARY_VIEW,
+  CREATE_BOOK_VIEW,
+  SUBTITLES_VIEW,
+  YOUTUBE_SUBTITLES_VIEW,
+  YOUTUBE_DUB_VIEW
+];
+
+const APP_VIEW_SET = new Set<SelectedView>(ALL_APP_VIEWS);
+
+export const isSelectedView = (value: string): value is SelectedView =>
+  APP_VIEW_SET.has(value as SelectedView);
+
 export const BOOK_NARRATION_SECTION_MAP: Record<PipelineMenuView, BookNarrationFormSection> = {
   'pipeline:source': 'source',
   'pipeline:metadata': 'metadata',
