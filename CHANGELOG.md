@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.69
+
+- Advanced visible Apple app versioning to `v2026.06.23.69`.
+- Web Subtitle Tool submit status now lives in a focused hook with coverage for queue-capacity rejection, request failures, and submit busy-state transitions.
+
 ### 2026.06.23.68
 
 - Advanced visible Apple app versioning to `v2026.06.23.68`.

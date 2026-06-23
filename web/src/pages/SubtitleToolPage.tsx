@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useState } from 'react';
+import { FormEvent, useCallback } from 'react';
 import type { JobState } from '../components/JobList';
 import { submitSubtitleJob } from '../api/client';
 import type { JobParameterSnapshot } from '../api/dtos';
@@ -23,6 +23,7 @@ import { useSubtitleShowOriginalPreference } from './subtitle-tool/useSubtitleSh
 import { useSubtitleSourceMode } from './subtitle-tool/useSubtitleSourceMode';
 import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
 import { useSubtitleSubmitFeedback } from './subtitle-tool/useSubtitleSubmitFeedback';
+import { useSubtitleSubmitStatus } from './subtitle-tool/useSubtitleSubmitStatus';
 import { useSubtitleTabState } from './subtitle-tool/useSubtitleTabState';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
 import {
@@ -79,9 +80,16 @@ export default function SubtitleToolPage({
     refreshSources,
     handleDeleteSource
   } = useSubtitleSources({ sourceDirectory, refreshSignal });
-  const [isSubmitting, setSubmitting] = useState<boolean>(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const resetSubmitError = useCallback(() => setSubmitError(null), []);
+  const {
+    isSubmitting,
+    submitError,
+    setSubmitError,
+    resetSubmitError,
+    beginSubmit,
+    finishSubmit,
+    rejectAtCapacity,
+    failSubmit
+  } = useSubtitleSubmitStatus();
   const {
     sourceMode,
     uploadFile,
@@ -170,7 +178,7 @@ export default function SubtitleToolPage({
       event.preventDefault();
       setSubmitError(null);
       if (isIntakeAtCapacity) {
-        setSubmitError('Job queue is at capacity. Wait for pending jobs to clear before creating a subtitle job.');
+        rejectAtCapacity();
         return;
       }
 
@@ -217,7 +225,7 @@ export default function SubtitleToolPage({
         mediaMetadataDraft
       });
 
-      setSubmitting(true);
+      beginSubmit();
       try {
         const response = await submitSubtitleJob(formData);
         recordSubmission({
@@ -247,10 +255,9 @@ export default function SubtitleToolPage({
         }
         await refreshIntakeStatus();
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unable to submit subtitle job.';
-        setSubmitError(message);
+        failSubmit(error);
       } finally {
-        setSubmitting(false);
+        finishSubmit();
       }
     },
     [
@@ -280,6 +287,11 @@ export default function SubtitleToolPage({
       transliterationMode,
       transliterationModel,
       isIntakeAtCapacity,
+      setSubmitError,
+      beginSubmit,
+      rejectAtCapacity,
+      failSubmit,
+      finishSubmit,
       refreshIntakeStatus,
       recordSubmission,
       clearUploadFile
