@@ -13,6 +13,8 @@ export interface PipelineFileEntry {
   name: string;
   path: string;
   type: PipelineFileEntryType;
+  size_bytes?: number | null;
+  modified_at?: string | null;
 }
 
 export interface PipelineFileBrowserResponse {

@@ -5,6 +5,7 @@ from __future__ import annotations
 import mimetypes
 import io
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
@@ -108,17 +109,26 @@ def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
     if not root.exists():
         return entries
-    for path in sorted(root.glob("*.epub")):
+    for path in root.glob("*.epub"):
         if not path.is_file():
             continue
+        stat = path.stat()
         entries.append(
             PipelineFileEntry(
                 name=path.name,
                 path=_format_relative_path(path, root),
                 type="file",
+                size_bytes=stat.st_size,
+                modified_at=datetime.fromtimestamp(stat.st_mtime),
             )
         )
-    return entries
+    return sorted(
+        entries,
+        key=lambda entry: (
+            -entry.modified_at.timestamp() if entry.modified_at else 0,
+            entry.path.lower(),
+        ),
+    )
 
 
 def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
@@ -129,11 +139,14 @@ def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
         if path.name.startswith("."):
             continue
         entry_type = "directory" if path.is_dir() else "file"
+        stat = path.stat()
         entries.append(
             PipelineFileEntry(
                 name=path.name,
                 path=_format_relative_path(path, root),
                 type=entry_type,
+                size_bytes=stat.st_size if path.is_file() else None,
+                modified_at=datetime.fromtimestamp(stat.st_mtime),
             )
         )
     return entries
@@ -239,10 +252,13 @@ async def upload_pipeline_ebook(
         finally:
             await file.close()
 
+    stat = destination.stat()
     return PipelineFileEntry(
         name=destination.name,
         path=_format_relative_path(destination, destination_dir),
         type="file",
+        size_bytes=stat.st_size,
+        modified_at=datetime.fromtimestamp(stat.st_mtime),
     )
 
 
@@ -311,10 +327,13 @@ async def upload_cover_file(
         finally:
             await file.close()
 
+    stat = destination.stat()
     return PipelineFileEntry(
         name=destination.name,
         path=f"storage/covers/{destination.name}",
         type="file",
+        size_bytes=stat.st_size,
+        modified_at=datetime.fromtimestamp(stat.st_mtime),
     )
 
 

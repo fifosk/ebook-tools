@@ -181,6 +181,11 @@ python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ios
 # tvOS smoke for InteractiveReaderTV
 python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos
 
+# Local Mac Designed for iPad/iPhone compile checks
+make apple-macos-ipad-destination
+make build-apple-macos-ipad-style-dry-run
+make build-apple-macos-ipad-style
+
 # Attended physical deploy recipes
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --signed-build-only
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile iphone --dry-run

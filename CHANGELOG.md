@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.87
+
+- Advanced visible Apple app versioning to `v2026.06.23.87`.
+- `/api/pipelines/files` now returns EPUB metadata and sorts backend-visible EPUBs newest-first, so Web and Apple Create auto-fill the latest NAS ebook when no source was edited.
+- The local macOS Designed for iPad/iPhone build helper now supports dry-run/destination inspection and reports the Xcode-resolved app path.
+
 ### 2026.06.23.86
 
 - Advanced visible Apple app versioning to `v2026.06.23.86`.

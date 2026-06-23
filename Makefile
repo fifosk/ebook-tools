@@ -1,7 +1,8 @@
 .PHONY: test test-fast test-audio test-translation test-webapi test-services \
        test-pipeline test-cli test-auth test-library test-render test-media \
        test-config test-metadata test-changed \
-       test-apple-contracts build-apple-macos-ipad-style apple-devices apple-device-update \
+       test-apple-contracts build-apple-macos-ipad-style apple-macos-ipad-destination \
+       build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-all test-e2e-apple-parallel \
@@ -67,6 +68,12 @@ test-apple-contracts:
 
 build-apple-macos-ipad-style:
 	bash scripts/apple_build_macos_ipad_style.sh
+
+apple-macos-ipad-destination:
+	bash scripts/apple_build_macos_ipad_style.sh --show-destination
+
+build-apple-macos-ipad-style-dry-run:
+	bash scripts/apple_build_macos_ipad_style.sh --dry-run
 
 apple-devices:
 	bash scripts/apple_unattended_device_update.sh --list

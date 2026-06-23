@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.86",
+            version: "2026.06.23.87",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-newest-nas-ebook",
+                    title: "Create picks latest EPUB",
+                    detail: "Web and Apple Create now receive newest-first EPUB listings with file metadata, so Narrate EPUB defaults to the latest backend-visible NAS ebook when the source has not been edited."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-voice-preview",
                     title: "Create previews voices",

@@ -109,6 +109,18 @@ Device preflight currently sees `Fifo Ipad Pro` through CoreDevice:
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --device-preflight-only
 ```
 
+For the repo-owned local macOS Designed for iPad/iPhone destination, use the
+non-deploying helper checks before a compile:
+
+```bash
+make apple-macos-ipad-destination
+make build-apple-macos-ipad-style-dry-run
+make build-apple-macos-ipad-style
+```
+
+These commands resolve the local Mac destination and app product path without
+touching physical iPhone/iPad/Apple TV devices.
+
 Latest attended iPad M5 deployment from June 22, 2026: `v2026.06.22.12`
 with marketing version `2026.6.22` and bundle version `2026062212`. The
 post-install `devicectl` verification reported:

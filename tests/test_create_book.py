@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -15,6 +16,7 @@ from modules.webapi.dependencies import (
     get_pipeline_service,
     get_runtime_context_provider,
 )
+from modules.webapi.routes.books_routes import _list_ebook_files
 
 pytestmark = pytest.mark.pipeline
 
@@ -81,6 +83,27 @@ class _StubRuntimeContextProvider:
         overrides: dict[str, object] | None = None,
     ):
         return cfg.build_runtime_context(dict(config), overrides or {})
+
+
+def test_pipeline_ebook_listing_is_newest_first_with_metadata(tmp_path: Path) -> None:
+    books_dir = tmp_path / "books"
+    books_dir.mkdir()
+    older = books_dir / "z-older.epub"
+    newer = books_dir / "a-newer.epub"
+    older.write_bytes(b"older")
+    newer.write_bytes(b"newer ebook")
+    older_mtime = 1_700_000_000
+    newer_mtime = 1_700_000_200
+    older.touch()
+    newer.touch()
+    os.utime(older, (older_mtime, older_mtime))
+    os.utime(newer, (newer_mtime, newer_mtime))
+
+    entries = _list_ebook_files(books_dir)
+
+    assert [entry.name for entry in entries] == ["a-newer.epub", "z-older.epub"]
+    assert entries[0].size_bytes == len(b"newer ebook")
+    assert entries[0].modified_at is not None
 
 
 def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

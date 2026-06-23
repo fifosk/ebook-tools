@@ -165,6 +165,30 @@ struct PipelineFileEntry: Decodable, Equatable {
     let name: String
     let path: String
     let type: String
+    let sizeBytes: Int?
+    let modifiedAt: String?
+
+    init(
+        name: String,
+        path: String,
+        type: String,
+        sizeBytes: Int? = nil,
+        modifiedAt: String? = nil
+    ) {
+        self.name = name
+        self.path = path
+        self.type = type
+        self.sizeBytes = sizeBytes
+        self.modifiedAt = modifiedAt
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case path
+        case type
+        case sizeBytes = "size_bytes"
+        case modifiedAt = "modified_at"
+    }
 }
 
 struct PipelineFileBrowserResponse: Decodable, Equatable {

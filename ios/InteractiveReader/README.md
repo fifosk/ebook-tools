@@ -36,13 +36,16 @@ the `Designed for [iPad,iPhone]` variant. For unattended compile checks, use:
 
 ```bash
 make build-apple-macos-ipad-style
+make apple-macos-ipad-destination
+make build-apple-macos-ipad-style-dry-run
 ```
 
 The target resolves the local Mac destination from `xcodebuild -showdestinations`
 and builds with `CODE_SIGNING_ALLOWED=NO` by default so placeholder local signing
 profiles do not block CI-style checks. Override `MACOS_IPAD_DESTINATION`,
 `MACOS_IPAD_DERIVED_DATA`, or `CODE_SIGNING_ALLOWED` when a signed local run is
-needed.
+needed. The helper reports the resolved destination and Xcode-derived app path
+before building.
 
 ### Unattended iPhone/iPad updates
 
@@ -86,6 +89,9 @@ The iOS/iPadOS/macOS iPad-style Create surface mirrors the Web creation sources
 for editor users. Narrate EPUB loads `/api/pipelines/files`, subtitle jobs load
 usable SRT/VTT entries from `/api/subtitles/sources`, and YouTube dubbing loads
 NAS videos plus adjacent subtitles from `/api/subtitles/youtube/library`.
+Pipeline EPUB listings are newest-first and include optional file metadata, so
+the untouched Narrate EPUB source defaults to the latest backend-visible NAS
+EPUB after the preferred sample book rule.
 Manual path entry remains available when the backend list is empty or a source
 is outside the default browser roots. tvOS intentionally keeps Create narrowed
 to generated-book jobs.
