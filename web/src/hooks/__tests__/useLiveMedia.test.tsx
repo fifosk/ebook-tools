@@ -4,10 +4,13 @@ import { useLiveMedia } from '../useLiveMedia';
 import { PipelineMediaResponse, ProgressEventPayload } from '../../api/dtos';
 
 const fetchLiveJobMediaMock = vi.hoisted(() => vi.fn<[], Promise<PipelineMediaResponse>>());
+const fetchJobMediaMock = vi.hoisted(() => vi.fn<[], Promise<PipelineMediaResponse>>());
 const subscribeToJobEventsMock = vi.hoisted(() => vi.fn());
 const resolveStorageMock = vi.hoisted(() => vi.fn<[string | null | undefined, string | null | undefined], string>());
 
 vi.mock('../../api/client', () => ({
+  appendAccessTokenToStorageUrl: (url: string) => url,
+  fetchJobMedia: fetchJobMediaMock,
   fetchLiveJobMedia: fetchLiveJobMediaMock
 }));
 
@@ -27,6 +30,8 @@ vi.mock('../../utils/storageResolver', async () => {
 
 describe('useLiveMedia', () => {
   beforeEach(() => {
+    fetchJobMediaMock.mockReset();
+    fetchJobMediaMock.mockResolvedValue({ media: {}, chunks: [], complete: false });
     fetchLiveJobMediaMock.mockReset();
     subscribeToJobEventsMock.mockReset();
     resolveStorageMock.mockReset();
@@ -46,7 +51,21 @@ describe('useLiveMedia', () => {
         ]
       },
       chunks: [],
-      complete: false
+      complete: false,
+      diagnostics: {
+        mediaFileCount: 1,
+        chunkCount: 0,
+        chunkFileCount: 0,
+        audioFileCount: 0,
+        imageFileCount: 0,
+        chunksWithAudio: 0,
+        chunksWithTiming: 0,
+        chunksWithImages: 0,
+        chunksWithoutFiles: 0,
+        chunksWithoutMetadata: 0,
+        filesWithoutUrl: 0,
+        filesWithoutSize: 0
+      }
     });
 
     const listeners: Array<(event: ProgressEventPayload) => void> = [];
@@ -68,6 +87,11 @@ describe('useLiveMedia', () => {
     });
 
     expect(result.current.chunks).toHaveLength(0);
+    expect(result.current.diagnostics).toMatchObject({
+      mediaFileCount: 1,
+      chunkCount: 0,
+      chunksWithTiming: 0
+    });
     expect(result.current.isComplete).toBe(false);
 
     expect(result.current.media.text[0]).toMatchObject({
@@ -105,6 +129,7 @@ describe('useLiveMedia', () => {
     await waitFor(() => {
       expect(result.current.media.audio).toHaveLength(1);
     });
+    expect(result.current.diagnostics).toBeNull();
 
     expect(resolveStorageMock).toHaveBeenCalledWith('job-1', 'html/001-010_output.html');
     expect(resolveStorageMock).toHaveBeenCalledWith('job-1', 'audio/001-010_output.mp3');

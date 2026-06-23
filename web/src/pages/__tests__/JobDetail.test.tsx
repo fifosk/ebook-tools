@@ -1,6 +1,5 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import JobDetail from '../JobDetail';
 import type { PipelineMediaResponse, ProgressEventPayload } from '../../api/dtos';
 
 const fetchLiveJobMediaMock = vi.hoisted(() => vi.fn<[], Promise<PipelineMediaResponse>>());
@@ -27,6 +26,27 @@ vi.mock('../../utils/storageResolver', async () => {
     resolve: resolveStorageMock,
   };
 });
+
+vi.mock('../../components/PlayerPanel', () => ({
+  default: ({ media }: { media: { text: Array<{ name: string }> } }) => (
+    <div data-testid="player-panel">
+      <button role="tab" aria-selected="true" type="button">
+        Interactive Reader ({media.text.length})
+      </button>
+      {media.text[0] ? (
+        <p>Selected media: {media.text[0].name}</p>
+      ) : (
+        <p>No interactive reader media yet.</p>
+      )}
+    </div>
+  ),
+}));
+
+vi.mock('../../components/YoutubeDubPlayer', () => ({
+  default: () => <div data-testid="youtube-dub-player" />,
+}));
+
+import JobDetail from '../JobDetail';
 
 describe('JobDetail', () => {
   let playSpy: ReturnType<typeof vi.spyOn>;
@@ -70,6 +90,20 @@ describe('JobDetail', () => {
       },
       chunks: [],
       complete: false,
+      diagnostics: {
+        mediaFileCount: 1,
+        chunkCount: 0,
+        chunkFileCount: 0,
+        audioFileCount: 0,
+        imageFileCount: 0,
+        chunksWithAudio: 0,
+        chunksWithTiming: 0,
+        chunksWithImages: 0,
+        chunksWithoutFiles: 0,
+        chunksWithoutMetadata: 0,
+        filesWithoutUrl: 0,
+        filesWithoutSize: 0,
+      },
     });
 
     const listeners: Array<(event: ProgressEventPayload) => void> = [];
@@ -97,6 +131,13 @@ describe('JobDetail', () => {
     await waitFor(() => {
       expect(screen.getByText(/Selected media: 001-010_output\.html/i)).toBeInTheDocument();
     });
+
+    const diagnostics = screen.getByLabelText(/Media diagnostics/i);
+    expect(within(diagnostics).getByText('Files')).toBeInTheDocument();
+    expect(within(diagnostics).getByText('1')).toBeInTheDocument();
+    const timingItem = within(diagnostics).getByText('Timing').closest('.media-diagnostics__item');
+    expect(timingItem).not.toBeNull();
+    expect(within(timingItem as HTMLElement).getByText('0')).toBeInTheDocument();
 
     expect(screen.getByRole('tab', { name: /Interactive Reader \(1\)/i })).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByRole('tab', { name: /Audio/i })).toBeNull();

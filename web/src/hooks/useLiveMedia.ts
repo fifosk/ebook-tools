@@ -4,6 +4,7 @@ import { appendAccessTokenToStorageUrl, fetchJobMedia, fetchLiveJobMedia } from 
 import {
   AudioTrackMetadata,
   PipelineMediaFile,
+  PipelineMediaDiagnostics,
   PipelineMediaResponse,
   ProgressEventPayload,
   ChunkSentenceMetadata,
@@ -51,6 +52,7 @@ export interface UseLiveMediaOptions {
 export interface UseLiveMediaResult {
   media: LiveMediaState;
   chunks: LiveMediaChunk[];
+  diagnostics: PipelineMediaDiagnostics | null;
   isComplete: boolean;
   isLoading: boolean;
   error: Error | null;
@@ -868,10 +870,11 @@ export function normaliseFetchedMedia(
   media: LiveMediaState;
   chunks: LiveMediaChunk[];
   complete: boolean;
+  diagnostics: PipelineMediaDiagnostics | null;
   index: MediaIndex;
 } {
   if (!response || typeof response !== 'object') {
-    return { media: createEmptyState(), chunks: [], complete: false, index: new Map() };
+    return { media: createEmptyState(), chunks: [], complete: false, diagnostics: null, index: new Map() };
   }
 
   const { media, chunks, index } = buildStateFromSections(
@@ -883,6 +886,7 @@ export function normaliseFetchedMedia(
     media,
     chunks,
     complete: Boolean(response.complete),
+    diagnostics: response.diagnostics ?? null,
     index,
   };
 }
@@ -1087,6 +1091,7 @@ export function useLiveMedia(
   const { enabled = true } = options;
   const [media, setMedia] = useState<LiveMediaState>(() => createEmptyState());
   const [chunks, setChunks] = useState<LiveMediaChunk[]>([]);
+  const [diagnostics, setDiagnostics] = useState<PipelineMediaDiagnostics | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -1095,6 +1100,7 @@ export function useLiveMedia(
     if (!enabled || !jobId) {
       setMedia(createEmptyState());
       setChunks([]);
+      setDiagnostics(null);
       setIsComplete(false);
       setIsLoading(false);
       setError(null);
@@ -1110,9 +1116,15 @@ export function useLiveMedia(
         if (cancelled) {
           return null;
         }
-        const { media: initialMedia, chunks: initialChunks, complete } = normaliseFetchedMedia(response, jobId);
+        const {
+          media: initialMedia,
+          chunks: initialChunks,
+          complete,
+          diagnostics: initialDiagnostics,
+        } = normaliseFetchedMedia(response, jobId);
         setMedia(initialMedia);
         setChunks(initialChunks);
+        setDiagnostics(initialDiagnostics);
         setIsComplete(complete);
         return { initialMedia, initialChunks, complete };
       })
@@ -1132,12 +1144,14 @@ export function useLiveMedia(
               media: fallbackMedia,
               chunks: fallbackChunks,
               complete: fallbackComplete,
+              diagnostics: fallbackDiagnostics,
             } = normaliseFetchedMedia(fallbackResponse, jobId);
             if (fallbackMedia.text.length + fallbackMedia.audio.length + fallbackMedia.video.length === 0) {
               return;
             }
             setMedia(fallbackMedia);
             setChunks(fallbackChunks);
+            setDiagnostics(fallbackDiagnostics);
             setIsComplete(fallbackComplete || payload.complete);
           })
           .catch(() => {
@@ -1153,6 +1167,7 @@ export function useLiveMedia(
         setError(errorInstance);
         setMedia(createEmptyState());
         setChunks([]);
+        setDiagnostics(null);
         setIsComplete(false);
       })
       .finally(() => {
@@ -1177,9 +1192,15 @@ export function useLiveMedia(
           setIsComplete(true);
           fetchJobMedia(jobId)
             .then((fallbackResponse: PipelineMediaResponse) => {
-              const { media: nextMedia, chunks: nextChunks, complete } = normaliseFetchedMedia(fallbackResponse, jobId);
+              const {
+                media: nextMedia,
+                chunks: nextChunks,
+                complete,
+                diagnostics: nextDiagnostics,
+              } = normaliseFetchedMedia(fallbackResponse, jobId);
               setMedia(nextMedia);
               setChunks(nextChunks);
+              setDiagnostics(nextDiagnostics);
               if (complete) {
                 setIsComplete(true);
               }
@@ -1196,9 +1217,15 @@ export function useLiveMedia(
           setIsComplete(true);
           fetchJobMedia(jobId)
             .then((fallbackResponse: PipelineMediaResponse) => {
-              const { media: nextMedia, chunks: nextChunks, complete } = normaliseFetchedMedia(fallbackResponse, jobId);
+              const {
+                media: nextMedia,
+                chunks: nextChunks,
+                complete,
+                diagnostics: nextDiagnostics,
+              } = normaliseFetchedMedia(fallbackResponse, jobId);
               setMedia(nextMedia);
               setChunks(nextChunks);
+              setDiagnostics(nextDiagnostics);
               if (complete) {
                 setIsComplete(true);
               }
@@ -1219,6 +1246,7 @@ export function useLiveMedia(
         if (event.event_type === 'progress' && metadataRecord.media_reset === true) {
           setMedia(nextMedia);
           setChunks(incomingChunks);
+          setDiagnostics(null);
           setIsComplete(complete);
           return;
         }
@@ -1231,6 +1259,7 @@ export function useLiveMedia(
         if (incomingChunks.length > 0) {
           setChunks((current) => mergeChunkCollections(current, incomingChunks));
         }
+        setDiagnostics(null);
         if (complete) {
           setIsComplete(true);
         }
@@ -1242,11 +1271,12 @@ export function useLiveMedia(
     () => ({
       media,
       chunks,
+      diagnostics,
       isComplete,
       isLoading,
       error
     }),
-    [media, chunks, isComplete, isLoading, error]
+    [media, chunks, diagnostics, isComplete, isLoading, error]
   );
 }
 

@@ -221,7 +221,8 @@ Suggested features to evaluate after parity scaffolding:
 - Shared media diagnostics: surface missing timing/audio/image assets without
   opening logs. Status: media manifest responses now include a token-safe
   aggregate diagnostics object with media, chunk, audio, image, timing,
-  metadata, URL, and size counts; Web and Apple display work remains.
+  metadata, URL, and size counts; Web Job Detail now shows a compact manifest
+  health strip when diagnostics are available. Apple display work remains.
 - Offline export from Apple: request `/api/exports` for a completed job/library item and show status in Jobs.
 
 ## Verification Contract

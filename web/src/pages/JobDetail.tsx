@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import PlayerPanel from '../components/PlayerPanel';
 import YoutubeDubPlayer from '../components/YoutubeDubPlayer';
 import { useLiveMedia } from '../hooks/useLiveMedia';
+import type { PipelineMediaDiagnostics } from '../api/dtos';
 import type { LibraryOpenInput, MediaSelectionRequest } from '../types/player';
 
 export interface JobDetailProps {
@@ -15,6 +16,53 @@ export interface JobDetailProps {
   selectionRequest?: MediaSelectionRequest | null;
 }
 
+function MediaDiagnosticsStrip({ diagnostics }: { diagnostics: PipelineMediaDiagnostics | null }) {
+  if (!diagnostics) {
+    return null;
+  }
+
+  const missingCount =
+    diagnostics.chunksWithoutMetadata +
+    diagnostics.filesWithoutUrl +
+    diagnostics.filesWithoutSize;
+  const state = missingCount > 0 ? 'warning' : 'ready';
+  const timingLabel =
+    diagnostics.chunkCount > 0
+      ? `${diagnostics.chunksWithTiming}/${diagnostics.chunkCount}`
+      : String(diagnostics.chunksWithTiming);
+
+  return (
+    <dl className="media-diagnostics" data-state={state} aria-label="Media diagnostics">
+      <div className="media-diagnostics__item">
+        <dt>Files</dt>
+        <dd>{diagnostics.mediaFileCount}</dd>
+      </div>
+      <div className="media-diagnostics__item">
+        <dt>Chunks</dt>
+        <dd>{diagnostics.chunkCount}</dd>
+      </div>
+      <div className="media-diagnostics__item">
+        <dt>Audio</dt>
+        <dd>{diagnostics.chunksWithAudio}</dd>
+      </div>
+      <div className="media-diagnostics__item">
+        <dt>Timing</dt>
+        <dd>{timingLabel}</dd>
+      </div>
+      <div className="media-diagnostics__item">
+        <dt>Images</dt>
+        <dd>{diagnostics.chunksWithImages}</dd>
+      </div>
+      {missingCount > 0 ? (
+        <div className="media-diagnostics__item media-diagnostics__item--warning">
+          <dt>Gaps</dt>
+          <dd>{missingCount}</dd>
+        </div>
+      ) : null}
+    </dl>
+  );
+}
+
 export default function JobDetail({
   jobId,
   jobType = null,
@@ -26,7 +74,7 @@ export default function JobDetail({
   selectionRequest = null
 }: JobDetailProps) {
   const normalisedJobId = jobId ?? null;
-  const { media, chunks, isComplete, isLoading, error } = useLiveMedia(normalisedJobId, {
+  const { media, chunks, diagnostics, isComplete, isLoading, error } = useLiveMedia(normalisedJobId, {
     enabled: Boolean(normalisedJobId),
   });
 
@@ -56,6 +104,7 @@ export default function JobDetail({
 
   return (
     <div className="job-detail" role="region" aria-label={`Job ${normalisedJobId} detail`}>
+      <MediaDiagnosticsStrip diagnostics={diagnostics} />
       {isYoutubeDub ? (
         <YoutubeDubPlayer
           jobId={normalisedJobId}
