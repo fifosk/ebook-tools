@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { SubtitleSourceEntry } from '../../api/dtos';
+import type { JobParameterSnapshot, SubtitleSourceEntry } from '../../api/dtos';
 import {
   formatSubmittedSubtitleSummary,
   pickLatestSubtitleSource,
+  resolveSubtitlePrefillValues,
   sortSubtitleSourcesForSelection
 } from '../subtitle-tool/subtitleToolUtils';
 
@@ -159,5 +160,111 @@ describe('formatSubmittedSubtitleSummary', () => {
     ).toBe(
       'Submitted subtitle job job-3 using 1 thread, ending at 12:34 and SRT subtitles. Live status appears in the Jobs tab.'
     );
+  });
+});
+
+describe('resolveSubtitlePrefillValues', () => {
+  it('maps subtitle rerun parameters into page-ready prefill values', () => {
+    const parameters: JobParameterSnapshot = {
+      target_languages: ['  French  ', 'German'],
+      input_language: '  English ',
+      enable_transliteration: false,
+      show_original: false,
+      worker_count: 4,
+      batch_size: 20,
+      translation_batch_size: 8,
+      start_time_offset_seconds: 62,
+      end_time_offset_seconds: 3723,
+      llm_model: ' gpt-test ',
+      translation_provider: ' llm ',
+      transliteration_mode: ' custom ',
+      transliteration_model: ' romanizer ',
+      subtitle_path: ' /media/show.srt ',
+      input_file: '/fallback/input.srt'
+    };
+
+    expect(resolveSubtitlePrefillValues(parameters)).toEqual({
+      targetLanguage: 'French',
+      inputLanguage: 'English',
+      enableTransliteration: false,
+      showOriginal: false,
+      workerCount: 4,
+      batchSize: 20,
+      translationBatchSize: 8,
+      startTime: '01:02',
+      endTime: '01:02:03',
+      selectedModel: 'gpt-test',
+      translationProvider: 'llm',
+      transliterationMode: 'custom',
+      transliterationModel: 'romanizer',
+      sourcePath: '/media/show.srt'
+    });
+  });
+
+  it('falls back to input_file when subtitle_path is absent', () => {
+    expect(
+      resolveSubtitlePrefillValues({
+        input_file: ' /media/fallback.srt '
+      }).sourcePath
+    ).toBe('/media/fallback.srt');
+  });
+
+  it('preserves subtitle_path precedence even when it trims to an empty value', () => {
+    expect(
+      resolveSubtitlePrefillValues({
+        subtitle_path: ' ',
+        input_file: '/media/fallback.srt'
+      }).sourcePath
+    ).toBeNull();
+  });
+
+  it('ignores blank strings, invalid target languages, and non-finite numbers', () => {
+    const parameters = {
+      target_languages: [' ', 42, '  Spanish  '],
+      input_language: ' ',
+      worker_count: Number.NaN,
+      batch_size: Number.POSITIVE_INFINITY,
+      translation_batch_size: Number.NEGATIVE_INFINITY,
+      start_time_offset_seconds: -1,
+      end_time_offset_seconds: null,
+      llm_model: '',
+      translation_provider: '   ',
+      transliteration_mode: '',
+      transliteration_model: '   '
+    } as unknown as JobParameterSnapshot;
+
+    expect(resolveSubtitlePrefillValues(parameters)).toMatchObject({
+      targetLanguage: 'Spanish',
+      inputLanguage: null,
+      workerCount: null,
+      batchSize: null,
+      translationBatchSize: null,
+      startTime: '',
+      endTime: null,
+      selectedModel: null,
+      translationProvider: null,
+      transliterationMode: null,
+      transliterationModel: null,
+      sourcePath: null
+    });
+  });
+
+  it('returns empty prefill values when no snapshot is available', () => {
+    expect(resolveSubtitlePrefillValues(null)).toEqual({
+      targetLanguage: null,
+      inputLanguage: null,
+      enableTransliteration: null,
+      showOriginal: null,
+      workerCount: null,
+      batchSize: null,
+      translationBatchSize: null,
+      startTime: null,
+      endTime: null,
+      selectedModel: null,
+      translationProvider: null,
+      transliterationMode: null,
+      transliterationModel: null,
+      sourcePath: null
+    });
   });
 });

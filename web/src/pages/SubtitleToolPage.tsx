@@ -48,10 +48,10 @@ import {
   basenameFromPath,
   coerceRecord,
   formatSubmittedSubtitleSummary,
-  formatTimecodeFromSeconds,
   normalizeLanguageInput,
   normalizeSubtitleTimecodeInput,
   pickLatestSubtitleSource,
+  resolveSubtitlePrefillValues,
   sortSubtitleSourcesForSelection
 } from './subtitle-tool/subtitleToolUtils';
 import styles from './SubtitleToolPage.module.css';
@@ -215,62 +215,49 @@ export default function SubtitleToolPage({
     if (!prefillParameters) {
       return;
     }
-    const targetLanguages = Array.isArray(prefillParameters.target_languages)
-      ? prefillParameters.target_languages
-          .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
-          .filter((entry) => entry.length > 0)
-      : [];
-    if (targetLanguages.length > 0) {
-      setTargetLanguage(targetLanguages[0]);
-      setPrimaryTargetLanguage(targetLanguages[0]);
+    const prefill = resolveSubtitlePrefillValues(prefillParameters);
+    if (prefill.targetLanguage) {
+      setTargetLanguage(prefill.targetLanguage);
+      setPrimaryTargetLanguage(prefill.targetLanguage);
     }
-    if (prefillParameters.input_language && typeof prefillParameters.input_language === 'string') {
-      setInputLanguage(prefillParameters.input_language.trim());
+    if (prefill.inputLanguage) {
+      setInputLanguage(prefill.inputLanguage);
     }
-    if (typeof prefillParameters.enable_transliteration === 'boolean') {
-      setEnableTransliteration(prefillParameters.enable_transliteration);
+    if (prefill.enableTransliteration !== null) {
+      setEnableTransliteration(prefill.enableTransliteration);
     }
-    if (typeof prefillParameters.show_original === 'boolean') {
-      setShowOriginal(prefillParameters.show_original);
+    if (prefill.showOriginal !== null) {
+      setShowOriginal(prefill.showOriginal);
     }
-    if (typeof prefillParameters.worker_count === 'number' && Number.isFinite(prefillParameters.worker_count)) {
-      setWorkerCount(prefillParameters.worker_count);
+    if (prefill.workerCount !== null) {
+      setWorkerCount(prefill.workerCount);
     }
-    if (typeof prefillParameters.batch_size === 'number' && Number.isFinite(prefillParameters.batch_size)) {
-      setBatchSize(prefillParameters.batch_size);
+    if (prefill.batchSize !== null) {
+      setBatchSize(prefill.batchSize);
     }
-    if (
-      typeof prefillParameters.translation_batch_size === 'number' &&
-      Number.isFinite(prefillParameters.translation_batch_size)
-    ) {
-      setTranslationBatchSize(prefillParameters.translation_batch_size);
+    if (prefill.translationBatchSize !== null) {
+      setTranslationBatchSize(prefill.translationBatchSize);
     }
-    if (typeof prefillParameters.start_time_offset_seconds === 'number') {
-      setStartTime(formatTimecodeFromSeconds(prefillParameters.start_time_offset_seconds));
+    if (prefill.startTime !== null) {
+      setStartTime(prefill.startTime);
     }
-    if (typeof prefillParameters.end_time_offset_seconds === 'number') {
-      setEndTime(formatTimecodeFromSeconds(prefillParameters.end_time_offset_seconds));
+    if (prefill.endTime !== null) {
+      setEndTime(prefill.endTime);
     }
-    if (prefillParameters.llm_model && typeof prefillParameters.llm_model === 'string') {
-      setSelectedModel(prefillParameters.llm_model.trim());
+    if (prefill.selectedModel) {
+      setSelectedModel(prefill.selectedModel);
     }
-    if (prefillParameters.translation_provider && typeof prefillParameters.translation_provider === 'string') {
-      setTranslationProvider(prefillParameters.translation_provider.trim());
+    if (prefill.translationProvider) {
+      setTranslationProvider(prefill.translationProvider);
     }
-    if (prefillParameters.transliteration_mode && typeof prefillParameters.transliteration_mode === 'string') {
-      setTransliterationMode(prefillParameters.transliteration_mode.trim());
+    if (prefill.transliterationMode) {
+      setTransliterationMode(prefill.transliterationMode);
     }
-    if (prefillParameters.transliteration_model && typeof prefillParameters.transliteration_model === 'string') {
-      setTransliterationModel(prefillParameters.transliteration_model.trim());
+    if (prefill.transliterationModel) {
+      setTransliterationModel(prefill.transliterationModel);
     }
-    const sourcePath =
-      typeof prefillParameters.subtitle_path === 'string'
-        ? prefillParameters.subtitle_path.trim()
-        : typeof prefillParameters.input_file === 'string' && prefillParameters.input_file
-          ? prefillParameters.input_file.trim()
-          : '';
-    if (sourcePath) {
-      setSelectedSource(sourcePath);
+    if (prefill.sourcePath) {
+      setSelectedSource(prefill.sourcePath);
     }
   }, [
     prefillParameters,
