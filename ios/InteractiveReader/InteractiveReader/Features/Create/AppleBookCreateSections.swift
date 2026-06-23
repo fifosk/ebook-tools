@@ -6,7 +6,6 @@ struct AppleBookCreateSourceSection: View {
     let availableCreateModes: [AppleCreateMode]
     let showsJobTypePicker: Bool
     @Binding var sourcePath: String
-    @Binding var sourceBaseOutput: String
     @Binding var sourceStartSentence: String
     @Binding var sourceEndSentence: String
     @Binding var subtitleSourcePath: String
@@ -177,20 +176,6 @@ struct AppleBookCreateSourceSection: View {
                 }
             }
         }
-        TextField("Output path", text: $sourceBaseOutput)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .accessibilityIdentifier("createNarrateOutputPathField")
-        TextField("Start sentence", text: $sourceStartSentence)
-            #if os(iOS)
-            .keyboardType(.numberPad)
-            #endif
-            .accessibilityIdentifier("createNarrateStartSentenceField")
-        TextField("End sentence", text: $sourceEndSentence)
-            #if os(iOS)
-            .keyboardType(.numbersAndPunctuation)
-            #endif
-            .accessibilityIdentifier("createNarrateEndSentenceField")
     }
 
     private var narrateServerEbooks: [PipelineFileEntry] {

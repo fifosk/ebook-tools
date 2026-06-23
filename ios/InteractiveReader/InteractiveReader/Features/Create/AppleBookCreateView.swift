@@ -4,11 +4,11 @@ import UniformTypeIdentifiers
 #endif
 
 struct AppleBookCreateView: View {
-    private static let setupPaneMinWidth: CGFloat = 260
-    private static let setupPaneIdealWidth: CGFloat = 300
-    private static let setupPaneMaxWidth: CGFloat = 320
-    private static let settingsPaneMinWidth: CGFloat = 440
-    private static let settingsPaneIdealWidth: CGFloat = 620
+    private static let setupPaneMinWidth: CGFloat = 220
+    private static let setupPaneIdealWidth: CGFloat = 260
+    private static let setupPaneMaxWidth: CGFloat = 280
+    private static let settingsPaneMinWidth: CGFloat = 480
+    private static let settingsPaneIdealWidth: CGFloat = 680
 
     @EnvironmentObject private var appState: AppState
     @Environment(\.openURL) private var openURL
@@ -226,6 +226,7 @@ struct AppleBookCreateView: View {
                 maxWidth: Self.setupPaneMaxWidth,
                 maxHeight: .infinity
             )
+            .layoutPriority(0)
 
             Divider()
 
@@ -264,6 +265,7 @@ struct AppleBookCreateView: View {
 
     @ViewBuilder
     private var createSettingsSections: some View {
+        jobSettingsSection
         narrationSection
         if creationMode == .subtitleJob {
             subtitleMetadataSection
@@ -298,7 +300,6 @@ struct AppleBookCreateView: View {
             availableCreateModes: availableCreateModes,
             showsJobTypePicker: showsInlineJobTypePicker,
             sourcePath: narrateSourcePathBinding,
-            sourceBaseOutput: textBinding(for: .sourceBaseOutput, value: $sourceBaseOutput),
             sourceStartSentence: textBinding(for: .sourceStartSentence, value: $sourceStartSentence),
             sourceEndSentence: textBinding(for: .sourceEndSentence, value: $sourceEndSentence),
             subtitleSourcePath: textBinding(for: .subtitleSourcePath, value: $subtitleSourcePath),
@@ -358,7 +359,6 @@ struct AppleBookCreateView: View {
             TextField("Author", text: textBinding(for: .author, value: $author))
                 .textInputAutocapitalization(.words)
                 .accessibilityIdentifier("createBookAuthorField")
-            sentenceCountControl
         }
     }
 
@@ -472,6 +472,32 @@ struct AppleBookCreateView: View {
                 )
             }
         )
+    }
+
+    @ViewBuilder
+    private var jobSettingsSection: some View {
+        if creationMode == .generatedBook {
+            Section("Job Settings") {
+                sentenceCountControl
+            }
+        } else if creationMode == .narrateEbook {
+            Section("Job Settings") {
+                TextField("Output path", text: textBinding(for: .sourceBaseOutput, value: $sourceBaseOutput))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createNarrateOutputPathField")
+                TextField("Start sentence", text: textBinding(for: .sourceStartSentence, value: $sourceStartSentence))
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                    .accessibilityIdentifier("createNarrateStartSentenceField")
+                TextField("End sentence", text: textBinding(for: .sourceEndSentence, value: $sourceEndSentence))
+                    #if os(iOS)
+                    .keyboardType(.numbersAndPunctuation)
+                    #endif
+                    .accessibilityIdentifier("createNarrateEndSentenceField")
+            }
+        }
     }
 
     private var outputSection: some View {

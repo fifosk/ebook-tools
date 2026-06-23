@@ -31,6 +31,7 @@ struct LibraryView: View {
     @State private var rowFrames: [CGRect] = []
     @State private var sourceUploadItem: LibraryItem?
     @State private var isImportingLibrarySource = false
+    @State private var metadataEditDraft: LibraryMetadataEditDraft?
     @State private var isbnMetadataDraft: LibraryIsbnMetadataDraft?
     private let listCoordinateSpace = "libraryList"
     #endif
@@ -92,6 +93,10 @@ struct LibraryView: View {
             LibraryIsbnMetadataSheet(item: draft.item, viewModel: viewModel)
                 .environmentObject(appState)
         }
+        .sheet(item: $metadataEditDraft) { draft in
+            LibraryMetadataEditSheet(item: draft.item, viewModel: viewModel)
+                .environmentObject(appState)
+        }
         #endif
     }
 
@@ -133,6 +138,7 @@ struct LibraryView: View {
                 playbackContextMenu(for: item)
                 enrichMetadataAction(for: item)
                 offlineExportAction(for: item)
+                metadataEditAction(for: item)
                 sourceUploadAction(for: item)
                 isbnMetadataAction(for: item)
                 deleteItemAction(for: item)
@@ -334,9 +340,21 @@ struct LibraryView: View {
             || viewModel.isLookingUpIsbn
             || viewModel.isApplyingIsbn
             || viewModel.isEnrichingMetadata
+            || viewModel.isUpdatingMetadata
     }
 
     #if os(iOS)
+    private func handleMetadataEditRequest(_ item: LibraryItem) {
+        metadataEditDraft = LibraryMetadataEditDraft(item: item)
+    }
+
+    private func metadataEditAction(for item: LibraryItem) -> some View {
+        Button(action: { handleMetadataEditRequest(item) }) {
+            Label("Edit Metadata", systemImage: "pencil")
+        }
+        .disabled(isMetadataMutationInProgress || appState.configuration == nil)
+    }
+
     private func handleSourceUploadRequest(_ item: LibraryItem) {
         sourceUploadItem = item
         isImportingLibrarySource = true
@@ -391,6 +409,10 @@ struct LibraryView: View {
         ]
     }
     #else
+    private func metadataEditAction(for item: LibraryItem) -> some View {
+        EmptyView()
+    }
+
     private func sourceUploadAction(for item: LibraryItem) -> some View {
         EmptyView()
     }
@@ -577,10 +599,121 @@ struct LibraryView: View {
 }
 
 #if os(iOS)
+private struct LibraryMetadataEditDraft: Identifiable {
+    let item: LibraryItem
+
+    var id: String { item.jobId }
+}
+
 private struct LibraryIsbnMetadataDraft: Identifiable {
     let item: LibraryItem
 
     var id: String { item.jobId }
+}
+
+private struct LibraryMetadataEditSheet: View {
+    let item: LibraryItem
+    @ObservedObject var viewModel: LibraryViewModel
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var title: String
+    @State private var author: String
+    @State private var genre: String
+    @State private var language: String
+    @State private var isbn: String
+    @State private var saveError: String?
+
+    init(item: LibraryItem, viewModel: LibraryViewModel) {
+        self.item = item
+        self.viewModel = viewModel
+        _title = State(initialValue: item.bookTitle)
+        _author = State(initialValue: item.author)
+        _genre = State(initialValue: item.genre ?? "")
+        _language = State(initialValue: item.language)
+        _isbn = State(initialValue: item.isbn ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Metadata") {
+                    TextField("Title", text: $title)
+                        .textInputAutocapitalization(.words)
+                        .accessibilityIdentifier("libraryMetadataTitleField")
+                    TextField("Author", text: $author)
+                        .textInputAutocapitalization(.words)
+                        .accessibilityIdentifier("libraryMetadataAuthorField")
+                    TextField("Genre", text: $genre)
+                        .textInputAutocapitalization(.words)
+                        .accessibilityIdentifier("libraryMetadataGenreField")
+                    TextField("Language", text: $language)
+                        .textInputAutocapitalization(.words)
+                        .accessibilityIdentifier("libraryMetadataLanguageField")
+                    TextField("ISBN", text: $isbn)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.numbersAndPunctuation)
+                        .accessibilityIdentifier("libraryMetadataIsbnField")
+                }
+
+                if let saveError {
+                    Section {
+                        Label(saveError, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section {
+                    Button(action: handleSave) {
+                        if viewModel.isUpdatingMetadata {
+                            ProgressView()
+                        } else {
+                            Label("Save Metadata", systemImage: "checkmark.circle")
+                        }
+                    }
+                    .disabled(!canSave || viewModel.isUpdatingMetadata)
+                    .accessibilityIdentifier("libraryMetadataSaveButton")
+                }
+            }
+            .navigationTitle("Edit Metadata")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private var canSave: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !author.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !language.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func handleSave() {
+        saveError = nil
+        Task {
+            let saved = await viewModel.updateMetadata(
+                for: item,
+                title: title,
+                author: author,
+                genre: genre,
+                language: language,
+                isbn: isbn,
+                using: appState
+            )
+            await MainActor.run {
+                if saved {
+                    dismiss()
+                } else {
+                    saveError = viewModel.errorMessage ?? "Unable to save library metadata."
+                }
+            }
+        }
+    }
 }
 
 private struct LibraryIsbnMetadataSheet: View {

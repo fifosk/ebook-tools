@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.12
+
+- Advanced visible Apple app versioning to `v2026.06.24.12`.
+- Apple Library rows on iPhone and iPad now expose an Edit Metadata sheet for title, author, genre, language, and ISBN, using the same backend PATCH contract as Web.
+- iPad and local Mac Designed for iPad Create now keep generated-book sentence count plus Narrate EPUB output and sentence-range settings in the right-hand job settings pane instead of the left setup pane.
+
 ### 2026.06.24.10
 
 - Advanced visible Apple app versioning to `v2026.06.24.10`.

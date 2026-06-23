@@ -41,6 +41,36 @@ extension APIClient {
         _ = try await sendRequest(path: "/api/library/remove/\(encoded)", method: "DELETE")
     }
 
+    func updateLibraryMetadata(
+        jobId: String,
+        title: String?,
+        author: String?,
+        genre: String?,
+        language: String?,
+        isbn: String?
+    ) async throws -> LibraryItem {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        struct LibraryMetadataUpdateRequest: Encodable {
+            let title: String?
+            let author: String?
+            let genre: String?
+            let language: String?
+            let isbn: String?
+        }
+        let data = try await sendJSONRequest(
+            path: "/api/library/items/\(encoded)",
+            method: "PATCH",
+            payload: LibraryMetadataUpdateRequest(
+                title: title,
+                author: author,
+                genre: genre,
+                language: language,
+                isbn: isbn
+            )
+        )
+        return try decode(LibraryItem.self, from: data)
+    }
+
     func uploadLibrarySource(
         jobId: String,
         fileURL: URL,

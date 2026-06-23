@@ -23,6 +23,7 @@ final class LibraryViewModel: ObservableObject {
 
     @Published var items: [LibraryItem] = []
     @Published var isLoading = false
+    @Published var isUpdatingMetadata = false
     @Published var isUploadingSource = false
     @Published var isLookingUpIsbn = false
     @Published var isApplyingIsbn = false
@@ -60,6 +61,42 @@ final class LibraryViewModel: ObservableObject {
             try await client.deleteLibraryItem(jobId: jobId)
             items.removeAll { $0.jobId == jobId }
             errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func updateMetadata(
+        for item: LibraryItem,
+        title: String,
+        author: String,
+        genre: String,
+        language: String,
+        isbn: String,
+        using appState: AppState
+    ) async -> Bool {
+        guard let configuration = appState.configuration else {
+            errorMessage = "Configure a valid API base URL before continuing."
+            return false
+        }
+
+        isUpdatingMetadata = true
+        errorMessage = nil
+        defer { isUpdatingMetadata = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let updated = try await client.updateLibraryMetadata(
+                jobId: item.jobId,
+                title: normalizedRequiredText(title),
+                author: normalizedRequiredText(author),
+                genre: normalizedOptionalText(genre),
+                language: normalizedRequiredText(language),
+                isbn: normalizedOptionalText(isbn)
+            )
+            upsert(updated)
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -215,6 +252,15 @@ final class LibraryViewModel: ObservableObject {
         } else {
             items.insert(item, at: 0)
         }
+    }
+
+    private func normalizedRequiredText(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func normalizedOptionalText(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private static func resolveExportDownloadURL(

@@ -110,20 +110,22 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "regularWidthCreateLayout" in source
     assert 'accessibilityIdentifier: "appleBookCreateSetupPane"' in source
     assert 'accessibilityIdentifier: "appleBookCreateSettingsPane"' in source
-    assert "private static let setupPaneMinWidth: CGFloat = 260" in source
-    assert "private static let setupPaneIdealWidth: CGFloat = 300" in source
-    assert "private static let setupPaneMaxWidth: CGFloat = 320" in source
-    assert "private static let settingsPaneMinWidth: CGFloat = 440" in source
-    assert "private static let settingsPaneIdealWidth: CGFloat = 620" in source
+    assert "private static let setupPaneMinWidth: CGFloat = 220" in source
+    assert "private static let setupPaneIdealWidth: CGFloat = 260" in source
+    assert "private static let setupPaneMaxWidth: CGFloat = 280" in source
+    assert "private static let settingsPaneMinWidth: CGFloat = 480" in source
+    assert "private static let settingsPaneIdealWidth: CGFloat = 680" in source
     assert "minWidth: Self.setupPaneMinWidth" in source
     assert "idealWidth: Self.setupPaneIdealWidth" in source
     assert "maxWidth: Self.setupPaneMaxWidth" in source
+    assert ".layoutPriority(0)" in source
     assert 'createList(accessibilityIdentifier: "appleBookCreateSettingsPane")' in source
     assert "minWidth: Self.settingsPaneMinWidth" in source
     assert "idealWidth: Self.settingsPaneIdealWidth" in source
     assert ".layoutPriority(2)" in source
     assert "private var createSetupSections: some View" in source
     assert "private var createSettingsSections: some View" in source
+    assert "private var jobSettingsSection: some View" in source
 
     setup_sections = re.search(
         r"private var createSetupSections: some View \{(?P<body>.*?)\n    \}",
@@ -141,9 +143,30 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "sourceSection" in setup_sections.group("body")
     assert "promptSection" in setup_sections.group("body")
     assert "metadataSection" in setup_sections.group("body")
+    assert "jobSettingsSection" not in setup_sections.group("body")
+    assert "jobSettingsSection" in settings_sections.group("body")
     assert "narrationSection" in settings_sections.group("body")
     assert "outputSection" in settings_sections.group("body")
     assert "submitSection" in settings_sections.group("body")
+
+    prompt_section = re.search(
+        r"private var promptSection: some View \{(?P<body>.*?)\n    \}",
+        source,
+        re.DOTALL,
+    )
+    job_settings_section = re.search(
+        r"private var jobSettingsSection: some View \{(?P<body>.*?)\n    \}",
+        source,
+        re.DOTALL,
+    )
+
+    assert prompt_section
+    assert job_settings_section
+    assert "sentenceCountControl" not in prompt_section.group("body")
+    assert "sentenceCountControl" in job_settings_section.group("body")
+    assert 'accessibilityIdentifier("createNarrateOutputPathField")' in job_settings_section.group("body")
+    assert 'accessibilityIdentifier("createNarrateStartSentenceField")' in job_settings_section.group("body")
+    assert 'accessibilityIdentifier("createNarrateEndSentenceField")' in job_settings_section.group("body")
 
 
 def test_ipad_split_view_keeps_settings_in_detail_panel() -> None:
