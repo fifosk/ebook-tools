@@ -17,6 +17,118 @@ struct LanguageFlagEntry: Identifiable, Equatable {
     }
 }
 
+enum AppleLanguageCatalog {
+    static let entries: [(name: String, code: String)] = [
+        ("Afrikaans", "af"),
+        ("Albanian", "sq"),
+        ("Arabic", "ar"),
+        ("Amharic", "am"),
+        ("Armenian", "hy"),
+        ("Basque", "eu"),
+        ("Belarusian", "be"),
+        ("Bengali", "bn"),
+        ("Bulgarian", "bg"),
+        ("Bosnian", "bs"),
+        ("Burmese", "my"),
+        ("Catalan", "ca"),
+        ("Kazakh", "kk"),
+        ("Kyrgyz", "ky"),
+        ("Mongolian", "mn"),
+        ("Tajik", "tg"),
+        ("Turkmen", "tk"),
+        ("Uzbek", "uz"),
+        ("Chinese (Simplified)", "zh-CN"),
+        ("Chinese (Traditional)", "zh-TW"),
+        ("Czech", "cs"),
+        ("Croatian", "hr"),
+        ("Danish", "da"),
+        ("Dutch", "nl"),
+        ("English", "en"),
+        ("Esperanto", "eo"),
+        ("Estonian", "et"),
+        ("Faroese", "fo"),
+        ("Filipino", "tl"),
+        ("Finnish", "fi"),
+        ("French", "fr"),
+        ("German", "de"),
+        ("Georgian", "ka"),
+        ("Greek", "el"),
+        ("Gujarati", "gu"),
+        ("Hausa", "ha"),
+        ("Hebrew", "he"),
+        ("Hindi", "hi"),
+        ("Hungarian", "hu"),
+        ("Irish", "ga"),
+        ("Icelandic", "is"),
+        ("Indonesian", "id"),
+        ("Italian", "it"),
+        ("Japanese", "ja"),
+        ("Javanese", "jw"),
+        ("Kannada", "kn"),
+        ("Khmer", "km"),
+        ("Korean", "ko"),
+        ("Latin", "la"),
+        ("Latvian", "lv"),
+        ("Lithuanian", "lt"),
+        ("Luxembourgish", "lb"),
+        ("Macedonian", "mk"),
+        ("Malay", "ms"),
+        ("Malayalam", "ml"),
+        ("Maltese", "mt"),
+        ("Marathi", "mr"),
+        ("Nepali", "ne"),
+        ("Norwegian", "no"),
+        ("Pashto", "ps"),
+        ("Polish", "pl"),
+        ("Portuguese", "pt"),
+        ("Punjabi", "pa"),
+        ("Scots", "sco"),
+        ("Scottish Gaelic", "gd"),
+        ("Galician", "gl"),
+        ("Romani", "rom"),
+        ("Spanish", "es"),
+        ("Romanian", "ro"),
+        ("Russian", "ru"),
+        ("Sinhala", "si"),
+        ("Slovak", "sk"),
+        ("Slovenian", "sl"),
+        ("Serbian", "sr"),
+        ("Sundanese", "su"),
+        ("Swahili", "sw"),
+        ("Swedish", "sv"),
+        ("Tamil", "ta"),
+        ("Telugu", "te"),
+        ("Thai", "th"),
+        ("Turkish", "tr"),
+        ("Ukrainian", "uk"),
+        ("Urdu", "ur"),
+        ("Vietnamese", "vi"),
+        ("Welsh", "cy"),
+        ("Xhosa", "xh"),
+        ("Yoruba", "yo"),
+        ("Zulu", "zu"),
+        ("Persian", "fa")
+    ]
+
+    static let orderedLanguageNames = entries.map(\.name)
+    static let languageCodes = Dictionary(uniqueKeysWithValues: entries.map { ($0.name, $0.code) })
+
+    static let languageNameMap: [String: String] = {
+        var map: [String: String] = [:]
+        for entry in entries {
+            map[entry.code.lowercased()] = entry.name
+        }
+        return map
+    }()
+
+    static func availableLanguageLabels() -> [String] {
+        let unique = Set(languageNameMap.values)
+        return unique.sorted { left, right in
+            left.localizedCaseInsensitiveCompare(right) == .orderedAscending
+        }
+    }
+}
+
 enum LanguageFlagResolver {
     static func resolveFlags(originalLanguage: String?, translationLanguage: String?) -> [LanguageFlagEntry] {
         let originalLabel = resolveLanguageLabel(for: originalLanguage)
@@ -54,10 +166,7 @@ enum LanguageFlagResolver {
     }
 
     static func availableLanguageLabels() -> [String] {
-        let unique = Set(languageNameMap.values)
-        return unique.sorted { left, right in
-            left.localizedCaseInsensitiveCompare(right) == .orderedAscending
-        }
+        AppleLanguageCatalog.availableLanguageLabels()
     }
 
     private static func resolveFlag(for language: String?) -> String? {
@@ -86,7 +195,7 @@ enum LanguageFlagResolver {
         let trimmed = language.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
-        if let direct = languageCodes[trimmed] {
+        if let direct = AppleLanguageCatalog.languageCodes[trimmed] {
             return direct
         }
 
@@ -95,7 +204,7 @@ enum LanguageFlagResolver {
             return alias
         }
 
-        if let matched = languageCodes.first(where: { $0.key.lowercased() == normalized })?.value {
+        if let matched = AppleLanguageCatalog.languageCodes.first(where: { $0.key.lowercased() == normalized })?.value {
             return matched
         }
 
@@ -110,18 +219,18 @@ enum LanguageFlagResolver {
         let trimmed = language?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !trimmed.isEmpty else { return "Unknown" }
 
-        if languageCodes[trimmed] != nil {
+        if AppleLanguageCatalog.languageCodes[trimmed] != nil {
             return trimmed
         }
 
         let code = (resolveLanguageCode(trimmed) ?? trimmed)
             .lowercased()
             .replacingOccurrences(of: "_", with: "-")
-        if let name = languageNameMap[code] {
+        if let name = AppleLanguageCatalog.languageNameMap[code] {
             return name
         }
         if let base = code.split(separator: "-").first,
-           let name = languageNameMap[String(base)] {
+           let name = AppleLanguageCatalog.languageNameMap[String(base)] {
             return name
         }
         return trimmed
@@ -166,98 +275,6 @@ enum LanguageFlagResolver {
         guard let scalar = UnicodeScalar(0x1F310) else { return "" }
         return String(scalar)
     }()
-
-    private static let languageCodes: [String: String] = [
-        "Afrikaans": "af",
-        "Albanian": "sq",
-        "Arabic": "ar",
-        "Amharic": "am",
-        "Armenian": "hy",
-        "Basque": "eu",
-        "Belarusian": "be",
-        "Bengali": "bn",
-        "Bulgarian": "bg",
-        "Bosnian": "bs",
-        "Burmese": "my",
-        "Catalan": "ca",
-        "Kazakh": "kk",
-        "Kyrgyz": "ky",
-        "Mongolian": "mn",
-        "Tajik": "tg",
-        "Turkmen": "tk",
-        "Uzbek": "uz",
-        "Chinese (Simplified)": "zh-CN",
-        "Chinese (Traditional)": "zh-TW",
-        "Czech": "cs",
-        "Croatian": "hr",
-        "Danish": "da",
-        "Dutch": "nl",
-        "English": "en",
-        "Esperanto": "eo",
-        "Estonian": "et",
-        "Faroese": "fo",
-        "Filipino": "tl",
-        "Finnish": "fi",
-        "French": "fr",
-        "German": "de",
-        "Georgian": "ka",
-        "Greek": "el",
-        "Gujarati": "gu",
-        "Hausa": "ha",
-        "Hebrew": "he",
-        "Hindi": "hi",
-        "Hungarian": "hu",
-        "Irish": "ga",
-        "Icelandic": "is",
-        "Indonesian": "id",
-        "Italian": "it",
-        "Japanese": "ja",
-        "Javanese": "jw",
-        "Kannada": "kn",
-        "Khmer": "km",
-        "Korean": "ko",
-        "Latin": "la",
-        "Latvian": "lv",
-        "Lithuanian": "lt",
-        "Luxembourgish": "lb",
-        "Macedonian": "mk",
-        "Malay": "ms",
-        "Malayalam": "ml",
-        "Maltese": "mt",
-        "Marathi": "mr",
-        "Nepali": "ne",
-        "Norwegian": "no",
-        "Pashto": "ps",
-        "Polish": "pl",
-        "Portuguese": "pt",
-        "Punjabi": "pa",
-        "Scots": "sco",
-        "Scottish Gaelic": "gd",
-        "Galician": "gl",
-        "Romani": "rom",
-        "Spanish": "es",
-        "Romanian": "ro",
-        "Russian": "ru",
-        "Sinhala": "si",
-        "Slovak": "sk",
-        "Slovenian": "sl",
-        "Serbian": "sr",
-        "Sundanese": "su",
-        "Swahili": "sw",
-        "Swedish": "sv",
-        "Tamil": "ta",
-        "Telugu": "te",
-        "Thai": "th",
-        "Turkish": "tr",
-        "Ukrainian": "uk",
-        "Urdu": "ur",
-        "Vietnamese": "vi",
-        "Welsh": "cy",
-        "Xhosa": "xh",
-        "Yoruba": "yo",
-        "Zulu": "zu",
-        "Persian": "fa"
-    ]
 
     private static let languageCodeAliases: [String: String] = [
         "amh": "am",
@@ -320,14 +337,6 @@ enum LanguageFlagResolver {
         "vie": "vi",
         "zho": "zh-cn"
     ]
-
-    private static let languageNameMap: [String: String] = {
-        var map: [String: String] = [:]
-        for (name, code) in languageCodes {
-            map[code.lowercased()] = name
-        }
-        return map
-    }()
 
     private static let languageRegionMap: [String: String] = [
         "af": "ZA",
