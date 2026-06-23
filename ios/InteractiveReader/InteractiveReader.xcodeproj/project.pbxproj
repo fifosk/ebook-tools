@@ -1947,7 +1947,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622170;
+				CURRENT_PROJECT_VERSION = 2026062301;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -1958,7 +1958,7 @@
 					"@executable_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/InteractiveReader/Features/Playback";
-				MARKETING_VERSION = 2026.6.22;
+				MARKETING_VERSION = 2026.6.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.tvos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;
@@ -2094,7 +2094,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622170;
+				CURRENT_PROJECT_VERSION = 2026062301;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -2104,7 +2104,7 @@
 					"@executable_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/InteractiveReader/Features/Playback";
-				MARKETING_VERSION = 2026.6.22;
+				MARKETING_VERSION = 2026.6.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE = YES;
@@ -2122,7 +2122,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622170;
+				CURRENT_PROJECT_VERSION = 2026062301;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -2132,7 +2132,7 @@
 					"@executable_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/InteractiveReader/Features/Playback";
-				MARKETING_VERSION = 2026.6.22;
+				MARKETING_VERSION = 2026.6.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE = YES;
@@ -2150,7 +2150,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622170;
+				CURRENT_PROJECT_VERSION = 2026062301;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -2161,7 +2161,7 @@
 					"@executable_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/InteractiveReader/Features/Playback";
-				MARKETING_VERSION = 2026.6.22;
+				MARKETING_VERSION = 2026.6.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.tvos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;
@@ -2177,7 +2177,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622170;
+				CURRENT_PROJECT_VERSION = 2026062301;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -2188,7 +2188,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2026.6.22;
+				MARKETING_VERSION = 2026.6.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.NotificationServiceExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2203,7 +2203,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622170;
+				CURRENT_PROJECT_VERSION = 2026062301;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -2214,7 +2214,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2026.6.22;
+				MARKETING_VERSION = 2026.6.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.NotificationServiceExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2228,11 +2228,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622170;
+				CURRENT_PROJECT_VERSION = 2026062301;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 2026.6.22;
+				MARKETING_VERSION = 2026.6.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -2246,11 +2246,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622170;
+				CURRENT_PROJECT_VERSION = 2026062301;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 2026.6.22;
+				MARKETING_VERSION = 2026.6.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -2264,10 +2264,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622170;
+				CURRENT_PROJECT_VERSION = 2026062301;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 2026.6.22;
+				MARKETING_VERSION = 2026.6.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.TVUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;
@@ -2284,10 +2284,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260622170;
+				CURRENT_PROJECT_VERSION = 2026062301;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 2026.6.22;
+				MARKETING_VERSION = 2026.6.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.TVUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;

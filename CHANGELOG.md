@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.01
+
+- Advanced visible Apple app versioning to `v2026.06.23.01`.
+- Apple Jobs rows now show compact generated-book creation summary context from backend metadata, including warnings, creation messages, sample sentences, or seed EPUB paths.
+
 ### Web UI
 
 - Refactored the Job Detail creation-summary section into a reusable Web component while preserving its metadata-tab behavior and adding focused coverage for generated-book summary messages, sample sentences, seed EPUB paths, and warnings.

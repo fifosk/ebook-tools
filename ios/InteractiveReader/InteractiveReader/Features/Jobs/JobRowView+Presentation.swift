@@ -57,6 +57,10 @@ extension JobRowView {
             return summary
         }
 
+        if let creationSummaryText {
+            return creationSummaryText
+        }
+
         if let desc = metadataString(for: [
             "description",
             "book_description",
@@ -205,6 +209,54 @@ extension JobRowView {
     private var tvShowSummary: String? {
         guard let metadata = tvMetadata else { return nil }
         return metadata["show"]?.objectValue?["summary"]?.stringValue
+    }
+
+    private var creationSummaryText: String? {
+        if let summary = creationSummaryObject {
+            if let warning = firstCreationString(in: summary, keys: ["warnings"]) {
+                return "Creation warning: \(warning)"
+            }
+            if let message = firstCreationString(in: summary, keys: ["messages"]) {
+                return "Creation: \(message)"
+            }
+            if let sample = firstCreationString(in: summary, keys: ["sentences_preview", "sentencesPreview"]) {
+                return "Sample: \(sample)"
+            }
+            if let path = firstCreationString(in: summary, keys: ["epub_path", "epubPath"]) {
+                return "Seed EPUB: \(path)"
+            }
+        }
+
+        if let warning = metadataString(for: ["creation_warnings", "creationWarnings"], maxDepth: 6)?.nonEmptyValue {
+            return "Creation warning: \(warning)"
+        }
+        if let message = metadataString(for: ["creation_messages", "creationMessages"], maxDepth: 6)?.nonEmptyValue {
+            return "Creation: \(message)"
+        }
+        if let sample = metadataString(
+            for: ["creation_sentences_preview", "creationSentencesPreview"],
+            maxDepth: 6
+        )?.nonEmptyValue {
+            return "Sample: \(sample)"
+        }
+        if let path = metadataString(for: ["seed_epub_path", "seedEpubPath"], maxDepth: 6)?.nonEmptyValue {
+            return "Seed EPUB: \(path)"
+        }
+
+        return nil
+    }
+
+    private var creationSummaryObject: [String: JSONValue]? {
+        metadataValue(for: ["creation_summary", "creationSummary"], maxDepth: 6)?.objectValue
+    }
+
+    private func firstCreationString(in summary: [String: JSONValue], keys: [String]) -> String? {
+        for key in keys {
+            if let value = summary[key]?.stringValue?.nonEmptyValue {
+                return value
+            }
+        }
+        return nil
     }
 
     private var formattedDuration: String? {

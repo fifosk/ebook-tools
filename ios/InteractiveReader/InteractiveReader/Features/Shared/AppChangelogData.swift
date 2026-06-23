@@ -1,6 +1,18 @@
 enum AppChangelogData {
     static let days: [AppChangelogDay] = [
         AppChangelogDay(
+            id: "2026-06-23",
+            dateLabel: "June 23, 2026",
+            version: "2026.06.23.01",
+            entries: [
+                AppChangelogEntry(
+                    id: "apple-job-creation-summary",
+                    title: "Creation summaries in Jobs",
+                    detail: "Job rows on iPhone, iPad, and Apple TV now surface generated-book creation messages, warnings, sample sentences, or seed EPUB context from backend metadata."
+                )
+            ]
+        ),
+        AppChangelogDay(
             id: "2026-06-22",
             dateLabel: "June 22, 2026",
             version: "2026.06.22.170",
