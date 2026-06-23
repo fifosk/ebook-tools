@@ -404,6 +404,7 @@ enum AppleBookCreateEditedField: Hashable {
     case additionalTargetLanguages
     case voice
     case targetVoice
+    case languageVoiceOverrides
     case generateAudio
     case audioMode
     case audioBitrateKbps
@@ -763,14 +764,26 @@ enum AppleBookCreatePresentation {
 
     static func voiceOverrides(
         targetLanguages: [String],
-        targetVoice: AppleBookCreateVoiceOption?
+        targetVoice: AppleBookCreateVoiceOption?,
+        languageVoiceOverrides: [String: String] = [:]
     ) -> [String: String] {
-        guard let targetVoice else { return [:] }
         var overrides = [String: String]()
+        var normalizedTargets = Set<String>()
         for targetLanguage in targetLanguages {
             let language = trimmed(targetLanguage)
             guard !language.isEmpty else { continue }
-            overrides[language] = targetVoice.backendValue
+            normalizedTargets.insert(language.lowercased())
+            if let targetVoice {
+                overrides[language] = targetVoice.backendValue
+            }
+        }
+
+        for (targetLanguage, voice) in languageVoiceOverrides {
+            let language = trimmed(targetLanguage)
+            let voiceValue = trimmed(voice)
+            guard !language.isEmpty, !voiceValue.isEmpty else { continue }
+            guard normalizedTargets.contains(language.lowercased()) else { continue }
+            overrides[language] = voiceValue
         }
         return overrides
     }
@@ -1118,6 +1131,7 @@ enum AppleBookCreatePresentation {
         additionalTargetLanguages: String,
         voice: AppleBookCreateVoiceOption,
         targetVoice: AppleBookCreateVoiceOption?,
+        languageVoiceOverrides: [String: String] = [:],
         baseOutput: String,
         generateAudio: Bool,
         audioMode: String,
@@ -1178,7 +1192,11 @@ enum AppleBookCreatePresentation {
             targetLanguage: targetLanguageValue,
             targetLanguages: targetLanguages,
             voice: voice.backendValue,
-            voiceOverrides: voiceOverrides(targetLanguages: targetLanguages, targetVoice: targetVoice),
+            voiceOverrides: voiceOverrides(
+                targetLanguages: targetLanguages,
+                targetVoice: targetVoice,
+                languageVoiceOverrides: languageVoiceOverrides
+            ),
             baseOutput: baseOutput,
             generateAudio: generateAudio,
             audioMode: normalizedMode(audioMode, fallback: "4"),
@@ -1241,6 +1259,7 @@ enum AppleBookCreatePresentation {
         additionalTargetLanguages: String,
         voice: AppleBookCreateVoiceOption,
         targetVoice: AppleBookCreateVoiceOption?,
+        languageVoiceOverrides: [String: String] = [:],
         generateAudio: Bool,
         audioMode: String,
         audioBitrateKbps: String,
@@ -1285,7 +1304,11 @@ enum AppleBookCreatePresentation {
             targetLanguage: targetLanguageValue,
             targetLanguages: targetLanguages,
             voice: voice.backendValue,
-            voiceOverrides: voiceOverrides(targetLanguages: targetLanguages, targetVoice: targetVoice),
+            voiceOverrides: voiceOverrides(
+                targetLanguages: targetLanguages,
+                targetVoice: targetVoice,
+                languageVoiceOverrides: languageVoiceOverrides
+            ),
             generateAudio: generateAudio,
             audioMode: normalizedMode(audioMode, fallback: "4"),
             audioBitrateKbps: normalizedAudioBitrate(audioBitrateKbps),

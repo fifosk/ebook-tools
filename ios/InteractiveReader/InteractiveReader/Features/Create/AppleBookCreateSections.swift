@@ -219,10 +219,12 @@ struct AppleBookCreateNarrationSection: View {
     @Binding var additionalTargetLanguages: String
     @Binding var voice: AppleBookCreateVoiceOption
     @Binding var targetVoice: AppleBookCreateVoiceOption?
+    @Binding var languageVoiceOverrides: [String: String]
     let availableInputLanguages: [AppleBookCreateLanguage]
     let availableTargetLanguages: [AppleBookCreateLanguage]
     let availableVoices: [AppleBookCreateVoiceOption]
     let availableTargetVoices: [AppleBookCreateVoiceOption]
+    let targetLanguagesForVoiceOverrides: [String]
 
     var body: some View {
         Section(creationMode == .subtitleJob ? "Languages" : "Narration") {
@@ -263,9 +265,40 @@ struct AppleBookCreateNarrationSection: View {
                         }
                     }
                     .accessibilityIdentifier("createBookTargetVoicePicker")
+
+                    if !targetLanguagesForVoiceOverrides.isEmpty {
+                        ForEach(targetLanguagesForVoiceOverrides, id: \.self) { language in
+                            Picker(
+                                "\(language) voice",
+                                selection: voiceOverrideBinding(for: language)
+                            ) {
+                                Text("Default").tag("")
+                                ForEach(availableTargetVoices) { option in
+                                    Text(option.label).tag(option.backendValue)
+                                }
+                            }
+                            .accessibilityIdentifier("createBookVoiceOverridePicker-\(language)")
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private func voiceOverrideBinding(for language: String) -> Binding<String> {
+        Binding(
+            get: {
+                languageVoiceOverrides[language] ?? ""
+            },
+            set: { newValue in
+                let normalizedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if normalizedValue.isEmpty {
+                    languageVoiceOverrides.removeValue(forKey: language)
+                } else {
+                    languageVoiceOverrides[language] = normalizedValue
+                }
+            }
+        )
     }
 }
 

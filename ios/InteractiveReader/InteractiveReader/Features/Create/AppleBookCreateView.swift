@@ -70,6 +70,7 @@ struct AppleBookCreateView: View {
     @State private var additionalTargetLanguages = ""
     @State private var voice = AppleBookCreateVoiceOption.gtts
     @State private var targetVoice: AppleBookCreateVoiceOption?
+    @State private var languageVoiceOverrides = [String: String]()
     @State private var generateAudio = true
     @State private var audioMode = "4"
     @State private var audioBitrateKbps = "96"
@@ -286,10 +287,12 @@ struct AppleBookCreateView: View {
             ),
             voice: voiceBinding,
             targetVoice: targetVoiceBinding,
+            languageVoiceOverrides: voiceOverridesBinding,
             availableInputLanguages: availableInputLanguages,
             availableTargetLanguages: availableTargetLanguages,
             availableVoices: availableVoices,
-            availableTargetVoices: availableTargetVoices
+            availableTargetVoices: availableTargetVoices,
+            targetLanguagesForVoiceOverrides: targetLanguagesForVoiceOverrides
         )
     }
 
@@ -559,6 +562,7 @@ struct AppleBookCreateView: View {
             additionalTargetLanguages: additionalTargetLanguages,
             voice: voice,
             targetVoice: targetVoice,
+            languageVoiceOverrides: languageVoiceOverrides,
             baseOutput: derivedBaseOutput,
             generateAudio: generateAudio,
             audioMode: audioMode,
@@ -721,6 +725,7 @@ struct AppleBookCreateView: View {
             additionalTargetLanguages: additionalTargetLanguages,
             voice: voice,
             targetVoice: targetVoice,
+            languageVoiceOverrides: languageVoiceOverrides,
             generateAudio: generateAudio,
             audioMode: audioMode,
             audioBitrateKbps: audioBitrateKbps,
@@ -852,6 +857,18 @@ struct AppleBookCreateView: View {
         AppleBookCreatePresentation.availableVoices(from: viewModel.creationOptions, selected: targetVoice ?? voice)
     }
 
+    private var targetLanguagesForVoiceOverrides: [String] {
+        switch creationMode {
+        case .generatedBook, .narrateEbook:
+            return AppleBookCreatePresentation.normalizedTargetLanguages(
+                primary: targetLanguage.backendValue,
+                additionalTargets: additionalTargetLanguages
+            )
+        case .subtitleJob, .youtubeDub:
+            return []
+        }
+    }
+
     private var availableSubtitleLlmModels: [String] {
         AppleBookCreatePresentation.availableSubtitleLlmModels(
             selected: subtitleLlmModel,
@@ -981,6 +998,16 @@ struct AppleBookCreateView: View {
             set: { newValue in
                 markEdited(.targetVoice)
                 targetVoice = newValue
+            }
+        )
+    }
+
+    private var voiceOverridesBinding: Binding<[String: String]> {
+        Binding(
+            get: { languageVoiceOverrides },
+            set: { newValue in
+                markEdited(.languageVoiceOverrides)
+                languageVoiceOverrides = newValue
             }
         )
     }

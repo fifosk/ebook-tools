@@ -676,6 +676,11 @@ struct AppleCreationPayloadCheck {
             additionalTargetLanguages: " German, Arabic\nSlovak , German ",
             voice: AppleBookCreateVoiceOption(" macOS-auto-male ")!,
             targetVoice: AppleBookCreateVoiceOption(" piper-auto ")!,
+            languageVoiceOverrides: [
+                " German ": " macOS-auto ",
+                "Arabic": "",
+                "Spanish": "edge-tts",
+            ],
             baseOutput: "native-creation",
             generateAudio: false,
             audioMode: " 2 ",
@@ -732,10 +737,10 @@ struct AppleCreationPayloadCheck {
         require(
             generatedDraft.voiceOverrides == [
                 "Slovak": "piper-auto",
-                "German": "piper-auto",
+                "German": "macOS-auto",
                 "Arabic": "piper-auto",
             ],
-            "Generated draft should map selected target voice across target languages"
+            "Generated draft should map selected target voice and Web-shaped per-language overrides"
         )
         require(generatedDraft.generateAudio == false, "Generated draft should keep selected audio toggle")
         require(generatedDraft.audioMode == "2", "Generated draft should trim selected audio mode")
@@ -816,6 +821,10 @@ struct AppleCreationPayloadCheck {
             additionalTargetLanguages: "German, Arabic\nFrench",
             voice: .gtts,
             targetVoice: AppleBookCreateVoiceOption(" piper-auto ")!,
+            languageVoiceOverrides: [
+                "French": "macOS-auto-female",
+                "Spanish": "edge-tts",
+            ],
             generateAudio: true,
             audioMode: "",
             audioBitrateKbps: "",
@@ -867,9 +876,9 @@ struct AppleCreationPayloadCheck {
             narrateDraft.voiceOverrides == [
                 "Arabic": "piper-auto",
                 "German": "piper-auto",
-                "French": "piper-auto",
+                "French": "macOS-auto-female",
             ],
-            "Narrate draft should map selected target voice across target languages"
+            "Narrate draft should map selected target voice and Web-shaped per-language overrides"
         )
         let voiceOverrideValue = AppleBookCreatePresentation.voiceOverridePipelineValue([
             " Arabic ": " piper-auto ",

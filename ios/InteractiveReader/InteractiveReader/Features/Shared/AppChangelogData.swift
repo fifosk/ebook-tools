@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.43",
+            version: "2026.06.23.44",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-per-language-voice-overrides",
+                    title: "Target voice overrides",
+                    detail: "Apple generated-book and Narrate EPUB creation now expose per-target-language voice override pickers, matching the Web voice override payload shape while preserving the global target voice fallback."
+                ),
                 AppChangelogEntry(
                     id: "apple-narrate-offset-keyboard",
                     title: "Narrate EPUB offsets",
