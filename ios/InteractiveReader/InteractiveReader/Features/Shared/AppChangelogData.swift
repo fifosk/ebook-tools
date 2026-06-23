@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.88",
+            version: "2026.06.23.89",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-latest-subtitle-source",
+                    title: "Create picks latest subtitles",
+                    detail: "Apple Create subtitle jobs now decode source modification timestamps and default to the latest usable SRT/VTT source, matching Web source-selection behavior."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-recent-job-defaults",
                     title: "Create remembers narration",

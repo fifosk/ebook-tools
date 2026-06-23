@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.89
+
+- Advanced visible Apple app versioning to `v2026.06.23.89`.
+- Apple Create subtitle jobs now decode source modification timestamps and default to the latest usable SRT/VTT source, matching Web source-selection behavior.
+
 ### 2026.06.23.88
 
 - Advanced visible Apple app versioning to `v2026.06.23.88`.

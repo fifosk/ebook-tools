@@ -110,6 +110,42 @@ struct AppleCreationPayloadCheck {
             )?.path == "First.epub",
             "Apple Create should fall back to the first backend-listed EPUB"
         )
+        let subtitleSourcesJSON = """
+        {
+          "sources": [
+            {
+              "name": "older.srt",
+              "path": "/subtitles/older.srt",
+              "format": "srt",
+              "language": "en",
+              "modified_at": "2026-06-23T10:00:00Z"
+            },
+            {
+              "name": "newer.ass",
+              "path": "/subtitles/newer.ass",
+              "format": "ass",
+              "language": "en",
+              "modified_at": "2026-06-23T12:00:00Z"
+            },
+            {
+              "name": "latest.vtt",
+              "path": "/subtitles/latest.vtt",
+              "format": "vtt",
+              "language": "en",
+              "modified_at": "2026-06-23T11:00:00Z"
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+        let subtitleSources = try decoder.decode(SubtitleSourceListResponse.self, from: subtitleSourcesJSON)
+        require(
+            subtitleSources.sources.first?.modifiedAt == "2026-06-23T10:00:00Z",
+            "Apple Create should decode subtitle source modified_at timestamps"
+        )
+        require(
+            AppleBookCreatePresentation.preferredSubtitleSource(from: subtitleSources)?.path == "/subtitles/latest.vtt",
+            "Apple Create should prefer the latest usable SRT/VTT subtitle source and ignore ASS for subtitle jobs"
+        )
         let narrationJobsJSON = """
         {
           "jobs": [

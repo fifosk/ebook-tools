@@ -598,7 +598,14 @@ enum AppleBookCreatePresentation {
     }
 
     static func preferredSubtitleSource(from response: SubtitleSourceListResponse?) -> SubtitleSourceEntry? {
-        subtitleJobSources(from: response).first
+        subtitleJobSources(from: response).sorted { left, right in
+            let leftDate = parseSubtitleSourceDate(left.modifiedAt)
+            let rightDate = parseSubtitleSourceDate(right.modifiedAt)
+            if leftDate != rightDate {
+                return leftDate > rightDate
+            }
+            return left.path.localizedStandardCompare(right.path) == .orderedAscending
+        }.first
     }
 
     static func playableYoutubeSubtitles(for video: YoutubeNasVideoEntry?) -> [YoutubeNasSubtitleEntry] {
@@ -1261,6 +1268,13 @@ enum AppleBookCreatePresentation {
         jobDateFormatterWithFractional.date(from: value) ?? jobDateFormatter.date(from: value)
     }
 
+    private static func parseSubtitleSourceDate(_ value: String?) -> Date {
+        guard let value = value?.nonEmptyValue else { return .distantPast }
+        return subtitleSourceDateFormatterWithFractional.date(from: value)
+            ?? subtitleSourceDateFormatter.date(from: value)
+            ?? .distantPast
+    }
+
     private static let jobDateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
@@ -1268,6 +1282,18 @@ enum AppleBookCreatePresentation {
     }()
 
     private static let jobDateFormatterWithFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let subtitleSourceDateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    private static let subtitleSourceDateFormatterWithFractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter

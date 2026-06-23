@@ -221,6 +221,14 @@ struct SubtitleSourceEntry: Decodable, Equatable {
     let format: String
     let language: String?
     let modifiedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case path
+        case format
+        case language
+        case modifiedAt = "modified_at"
+    }
 }
 
 struct SubtitleSourceListResponse: Decodable, Equatable {
