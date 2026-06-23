@@ -388,6 +388,7 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var includeTransliteration: Bool
     @Binding var enableLookupCache: Bool
     @Binding var includeImages: Bool
+    @Binding var imageStyleTemplate: AppleGeneratedBookImageStyleTemplate
     let supportsImages: Bool
 
     var body: some View {
@@ -396,6 +397,14 @@ struct AppleBookCreateGeneratedOutputControls: View {
         if supportsImages {
             Toggle("Illustrations", isOn: $includeImages)
                 .accessibilityIdentifier("createBookIllustrationsToggle")
+            if includeImages {
+                Picker("Style", selection: $imageStyleTemplate) {
+                    ForEach(AppleGeneratedBookImageStyleTemplate.allCases) { style in
+                        Text(style.label).tag(style)
+                    }
+                }
+                .accessibilityIdentifier("createBookImageStylePicker")
+            }
         }
         Toggle("Transliteration", isOn: $includeTransliteration)
             .accessibilityIdentifier("createBookTransliterationToggle")

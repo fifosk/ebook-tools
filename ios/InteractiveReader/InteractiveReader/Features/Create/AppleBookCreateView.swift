@@ -60,6 +60,7 @@ struct AppleBookCreateView: View {
     @State private var includeTransliteration = true
     @State private var enableLookupCache = true
     @State private var includeImages = false
+    @State private var imageStyleTemplate = AppleGeneratedBookImageStyleTemplate.wireframe
     @State private var editedFields = Set<AppleBookCreateEditedField>()
 
     var body: some View {
@@ -257,6 +258,7 @@ struct AppleBookCreateView: View {
                     includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
                     enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache),
                     includeImages: boolBinding(for: .includeImages, value: $includeImages),
+                    imageStyleTemplate: imageStyleTemplateBinding,
                     supportsImages: creationMode == .generatedBook
                 )
             }
@@ -399,6 +401,7 @@ struct AppleBookCreateView: View {
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
             includeImages: includeImages,
+            imageStyleTemplate: imageStyleTemplate,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults,
             generatedSourceDefaults: viewModel.creationOptions?.generatedSourceDefaults
         )
@@ -839,6 +842,16 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private var imageStyleTemplateBinding: Binding<AppleGeneratedBookImageStyleTemplate> {
+        Binding(
+            get: { imageStyleTemplate },
+            set: { newValue in
+                markEdited(.imageStyleTemplate)
+                imageStyleTemplate = newValue
+            }
+        )
+    }
+
     private func markEdited(_ field: AppleBookCreateEditedField) {
         editedFields.insert(field)
     }
@@ -890,6 +903,9 @@ struct AppleBookCreateView: View {
         }
         if let value = defaults.includeImages {
             includeImages = value
+        }
+        if let value = defaults.imageStyleTemplate {
+            imageStyleTemplate = value
         }
         if let provider = defaults.subtitleTranslationProvider {
             subtitleTranslationProvider = provider

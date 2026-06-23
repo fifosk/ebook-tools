@@ -187,7 +187,10 @@ final class AppleBookCreateViewModel: ObservableObject {
             includeTransliteration: draft.includeTransliteration,
             enableLookupCache: draft.enableLookupCache,
             pipelineDefaults: draft.pipelineDefaults,
-            pipelineOverrides: makePipelineOverrides(from: generatedDefaults),
+            pipelineOverrides: makePipelineOverrides(
+                from: generatedDefaults,
+                imageStyleTemplate: draft.imageStyleTemplate
+            ),
             correlationId: "apple-create",
             bookMetadata: [
                 "title": .string(draft.bookName),
@@ -281,16 +284,24 @@ final class AppleBookCreateViewModel: ObservableObject {
     }
 
     private static func makePipelineOverrides(
-        from defaults: BookCreationGeneratedSourceDefaults?
+        from defaults: BookCreationGeneratedSourceDefaults?,
+        imageStyleTemplate: String? = nil
     ) -> [String: JSONValue] {
-        guard let defaults else { return [:] }
-        return [
-            "image_prompt_pipeline": .string(defaults.imagePromptPipeline),
-            "image_style_template": .string(defaults.imageStyleTemplate),
-            "image_prompt_context_sentences": .number(Double(defaults.imagePromptContextSentences)),
-            "image_width": .string(defaults.imageWidth),
-            "image_height": .string(defaults.imageHeight)
-        ]
+        var overrides = [String: JSONValue]()
+        if let defaults {
+            overrides = [
+                "image_prompt_pipeline": .string(defaults.imagePromptPipeline),
+                "image_style_template": .string(defaults.imageStyleTemplate),
+                "image_prompt_context_sentences": .number(Double(defaults.imagePromptContextSentences)),
+                "image_width": .string(defaults.imageWidth),
+                "image_height": .string(defaults.imageHeight)
+            ]
+        }
+        if let imageStyleTemplate = imageStyleTemplate?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !imageStyleTemplate.isEmpty {
+            overrides["image_style_template"] = .string(imageStyleTemplate)
+        }
+        return overrides
     }
 
     private static func makeSubtitlePayload(from draft: AppleSubtitleJobDraft) -> SubtitleJobFormPayload {

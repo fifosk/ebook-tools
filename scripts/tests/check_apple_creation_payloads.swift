@@ -85,6 +85,14 @@ struct AppleCreationPayloadCheck {
             "Apple Create base output names should keep the generated-book fallback"
         )
         require(
+            AppleGeneratedBookImageStyleTemplate(backendValue: "children_book") == .childrenBook,
+            "Apple Create image style should map backend style ids"
+        )
+        require(
+            AppleGeneratedBookImageStyleTemplate(backendValue: "comic panel") == .comics,
+            "Apple Create image style should accept backend-normalized aliases"
+        )
+        require(
             AppleBookCreatePresentation.derivedBaseOutput(
                 for: .generatedBook,
                 topic: "Topic fallback",
@@ -323,12 +331,24 @@ struct AppleCreationPayloadCheck {
             "Generated-book illustrations toggle should use backend generated-source default"
         )
         require(
+            resolvedDefaults.imageStyleTemplate == .wireframe,
+            "Generated-book image style should map from backend generated-source default"
+        )
+        require(
             resolvedDefaults.subtitleTranslationProvider == .llm,
             "Subtitle provider should map from backend pipeline default"
         )
         let editedDefaults = AppleBookCreatePresentation.resolvedDefaults(
             from: options,
-            editedFields: [.author, .sentenceCount, .targetLanguage, .voice, .enableLookupCache, .includeImages],
+            editedFields: [
+                .author,
+                .sentenceCount,
+                .targetLanguage,
+                .voice,
+                .enableLookupCache,
+                .includeImages,
+                .imageStyleTemplate
+            ],
             currentSentenceCount: 999
         )
         require(editedDefaults.author == nil, "Edited author should not be overwritten by backend defaults")
@@ -336,6 +356,7 @@ struct AppleCreationPayloadCheck {
         require(editedDefaults.voice == nil, "Edited voice should not be overwritten")
         require(editedDefaults.enableLookupCache == nil, "Edited lookup-cache toggle should not be overwritten")
         require(editedDefaults.includeImages == nil, "Edited illustrations toggle should not be overwritten")
+        require(editedDefaults.imageStyleTemplate == nil, "Edited image style should not be overwritten")
         require(editedDefaults.sentenceCount == 500, "Edited sentence count should still clamp to backend max")
         require(
             AppleBookCreatePresentation.clampSentenceCount(0, bounds: options.sentenceBounds) == 1,
@@ -410,6 +431,7 @@ struct AppleCreationPayloadCheck {
             includeTransliteration: true,
             enableLookupCache: false,
             includeImages: true,
+            imageStyleTemplate: .childrenBook,
             pipelineDefaults: options.pipelineDefaults,
             generatedSourceDefaults: options.generatedSourceDefaults
         )
@@ -418,6 +440,10 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.targetLanguage == "Slovak", "Generated draft should map target language")
         require(generatedDraft.voice == "macOS-auto-male", "Generated draft should trim and map voice")
         require(generatedDraft.includeImages == true, "Generated draft should keep the native illustrations toggle")
+        require(
+            generatedDraft.imageStyleTemplate == "children_book",
+            "Generated draft should keep the selected image style backend id"
+        )
         require(generatedDraft.pipelineDefaults == options.pipelineDefaults, "Generated draft should carry pipeline defaults")
         require(
             generatedDraft.generatedSourceDefaults == options.generatedSourceDefaults,
@@ -537,7 +563,7 @@ struct AppleCreationPayloadCheck {
         )
         let pipeline = PipelineRequestPayload(
             environmentOverrides: ["BOOKS_DIR": .string("/runtime/books")],
-            pipelineOverrides: ["tempo": .number(1.08)],
+            pipelineOverrides: ["image_style_template": .string("children_book"), "tempo": .number(1.08)],
             inputs: input,
             correlationId: "apple-smoke"
         )
@@ -545,6 +571,11 @@ struct AppleCreationPayloadCheck {
         require(pipelineObject["environment_overrides"] != nil, "pipeline should encode environment_overrides")
         require(pipelineObject["pipeline_overrides"] != nil, "pipeline should encode pipeline_overrides")
         require(pipelineObject["correlation_id"] as? String == "apple-smoke", "pipeline should encode correlation_id")
+        let pipelineOverrides = pipelineObject["pipeline_overrides"] as? [String: Any]
+        require(
+            pipelineOverrides?["image_style_template"] as? String == "children_book",
+            "pipeline overrides should encode selected image style"
+        )
 
         let encodedInputs = pipelineObject["inputs"] as? [String: Any]
         require(encodedInputs?["input_file"] as? String == "books/demo.epub", "pipeline inputs should encode input_file")

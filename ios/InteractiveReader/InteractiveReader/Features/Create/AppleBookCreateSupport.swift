@@ -13,6 +13,7 @@ struct AppleBookCreateDraft: Equatable {
     let includeTransliteration: Bool
     let enableLookupCache: Bool
     let includeImages: Bool
+    let imageStyleTemplate: String
     let pipelineDefaults: BookCreationPipelineDefaults?
     let generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
 }
@@ -118,6 +119,50 @@ enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {
     }
 }
 
+enum AppleGeneratedBookImageStyleTemplate: String, CaseIterable, Identifiable {
+    case photorealistic
+    case comics
+    case childrenBook = "children_book"
+    case wireframe
+
+    var id: String { rawValue }
+    var backendValue: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .photorealistic:
+            return "Photorealistic"
+        case .comics:
+            return "Comics"
+        case .childrenBook:
+            return "Children's book"
+        case .wireframe:
+            return "Wireframe"
+        }
+    }
+
+    init?(backendValue: String) {
+        let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let aliases = [
+            "comic": "comics",
+            "comic panel": "comics",
+            "graphic novel": "comics",
+            "storybook": "children_book",
+            "children": "children_book",
+            "children book": "children_book",
+            "children's book": "children_book",
+            "wire frame": "wireframe",
+            "blueprint": "wireframe",
+            "line art": "wireframe"
+        ]
+        let candidate = aliases[normalized] ?? normalized
+        guard let match = Self.allCases.first(where: { $0.rawValue == candidate }) else {
+            return nil
+        }
+        self = match
+    }
+}
+
 struct AppleCreateTimeRange: Equatable {
     let start: String
     let end: String
@@ -190,6 +235,7 @@ enum AppleBookCreateEditedField: Hashable {
     case includeTransliteration
     case enableLookupCache
     case includeImages
+    case imageStyleTemplate
 }
 
 struct AppleCreateResolvedDefaults: Equatable {
@@ -204,6 +250,7 @@ struct AppleCreateResolvedDefaults: Equatable {
     let includeTransliteration: Bool?
     let enableLookupCache: Bool?
     let includeImages: Bool?
+    let imageStyleTemplate: AppleGeneratedBookImageStyleTemplate?
     let subtitleTranslationProvider: AppleSubtitleTranslationProvider?
 }
 
@@ -288,6 +335,13 @@ enum AppleBookCreatePresentation {
             includeImages: editedFields.contains(.includeImages)
                 ? nil
                 : options.generatedSourceDefaults.addImages,
+            imageStyleTemplate: editedFields.contains(.imageStyleTemplate)
+                ? nil
+                : (
+                    AppleGeneratedBookImageStyleTemplate(
+                        backendValue: options.generatedSourceDefaults.imageStyleTemplate
+                    ) ?? .wireframe
+                ),
             subtitleTranslationProvider: editedFields.contains(.subtitleTranslationProvider)
                 ? nil
                 : AppleSubtitleTranslationProvider(backendValue: options.pipelineDefaults.translationProvider)
@@ -525,6 +579,7 @@ enum AppleBookCreatePresentation {
         includeTransliteration: Bool,
         enableLookupCache: Bool,
         includeImages: Bool,
+        imageStyleTemplate: AppleGeneratedBookImageStyleTemplate,
         pipelineDefaults: BookCreationPipelineDefaults?,
         generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
     ) -> AppleBookCreateDraft {
@@ -541,6 +596,7 @@ enum AppleBookCreatePresentation {
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
             includeImages: includeImages,
+            imageStyleTemplate: imageStyleTemplate.backendValue,
             pipelineDefaults: pipelineDefaults,
             generatedSourceDefaults: generatedSourceDefaults
         )
