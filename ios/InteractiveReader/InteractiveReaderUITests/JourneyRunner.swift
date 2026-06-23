@@ -10,6 +10,7 @@ struct JourneyStep: Decodable {
     var skip_if_empty: Bool?
     var selector: String?
     var text: String?
+    var placeholder: String?
     var timeout: Int?
     var ms: Int?
     var min_width: Double?
@@ -107,6 +108,10 @@ final class JourneyRunner {
             doAssertFrame(step)
         case "enter_text":
             doEnterText(step)
+        case "select_option":
+            doSelectOption(step)
+        case "assert_non_empty_value":
+            try doAssertNonEmptyValue(step)
         case "wait":
             doWait(step)
         default:
@@ -354,6 +359,63 @@ final class JourneyRunner {
         #endif
     }
 
+    private func doSelectOption(_ step: JourneyStep) {
+        guard let identifier = step.selector else {
+            XCTFail("select_option requires selector")
+            return
+        }
+        guard let optionLabel = step.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !optionLabel.isEmpty else {
+            XCTFail("select_option requires text")
+            return
+        }
+
+        let timeout = TimeInterval(step.timeout ?? 10)
+        let container = element(withIdentifier: identifier)
+        XCTAssertTrue(
+            container.waitForExistence(timeout: timeout),
+            "\(identifier) should be visible before selecting \(optionLabel)"
+        )
+
+        let predicate = NSPredicate(format: "label == %@", optionLabel)
+        let scopedButton = container.descendants(matching: .button).matching(predicate).firstMatch
+        let option = scopedButton.waitForExistence(timeout: 2)
+            ? scopedButton
+            : app.buttons.matching(predicate).firstMatch
+        XCTAssertTrue(
+            option.waitForExistence(timeout: timeout),
+            "\(optionLabel) option should exist in \(identifier)"
+        )
+        selectElement(option)
+        sleep(1)
+    }
+
+    private func doAssertNonEmptyValue(_ step: JourneyStep) throws {
+        guard let identifier = step.selector else {
+            XCTFail("assert_non_empty_value requires selector")
+            return
+        }
+        let timeout = TimeInterval(step.timeout ?? 10)
+        let deadline = Date().addingTimeInterval(timeout)
+        let element = element(withIdentifier: identifier)
+        var latestValue = ""
+
+        while Date() < deadline {
+            if element.exists {
+                latestValue = normalizedValue(for: element)
+                if isMeaningfulValue(latestValue, placeholder: step.placeholder) {
+                    return
+                }
+            }
+            usleep(200_000)
+        }
+
+        if step.skip_if_empty == true {
+            throw XCTSkip("\(identifier) did not receive a non-empty value")
+        }
+        XCTFail("\(identifier) should have a non-empty value; latest value was \(latestValue)")
+    }
+
     private func doWait(_ step: JourneyStep) {
         let seconds = UInt32(step.ms ?? 1000) / 1000
         sleep(max(seconds, 1))
@@ -363,6 +425,27 @@ final class JourneyRunner {
 
     private func element(withIdentifier identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
+    private func normalizedValue(for element: XCUIElement) -> String {
+        if let value = element.value as? String {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                return trimmed
+            }
+        }
+        return element.label.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func isMeaningfulValue(_ value: String, placeholder: String?) -> Bool {
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return false }
+        if let placeholder = placeholder?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !placeholder.isEmpty,
+           normalized == placeholder {
+            return false
+        }
+        return true
     }
 
     private func tabButton(named name: String, identifier: String?, timeout: TimeInterval) -> XCUIElement {

@@ -177,7 +177,10 @@ Current Apple UI partially exposes:
   support, preserving selected voices that are absent from backend inventory.
   The refactor reduces the view from 1371 to 1098 lines and the view model to
   348 lines while preserving iPhone/iPad/tvOS behavior through focused Swift
-  payload checks and shared iPadOS/tvOS simulator smokes.
+  payload checks and shared iPadOS/tvOS simulator smokes. The Apple journey
+  runner can now select Create picker options and assert non-empty field values,
+  with opt-in iPhone/iPad Create-readiness Make targets that verify Narrate
+  EPUB, subtitle, and YouTube/NAS default source loading against a populated API.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's EPUB/PDF source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web.

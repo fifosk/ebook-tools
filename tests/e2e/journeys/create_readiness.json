@@ -1,0 +1,87 @@
+{
+  "id": "create_readiness",
+  "name": "Apple Create Readiness",
+  "description": "Login, open native Apple Create, and verify default source loading for Narrate EPUB, subtitle, and YouTube dubbing jobs",
+  "steps": [
+    {
+      "action": "login",
+      "screenshot": "after_login"
+    },
+    {
+      "action": "navigate_tab",
+      "tab": "Create",
+      "selector": "browseSectionCreateButton",
+      "screenshot": "create_tab"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "appleBookCreateView",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createJobTypePicker",
+      "timeout": 15
+    },
+    {
+      "action": "select_option",
+      "selector": "createJobTypePicker",
+      "text": "Narrate EPUB",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createNarrateSourcePathField",
+      "timeout": 20
+    },
+    {
+      "action": "assert_non_empty_value",
+      "selector": "createNarrateSourcePathField",
+      "placeholder": "Server EPUB path",
+      "timeout": 25,
+      "screenshot": "narrate_epub_defaults"
+    },
+    {
+      "action": "select_option",
+      "selector": "createJobTypePicker",
+      "text": "Subtitles",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createSubtitleSourcePathField",
+      "timeout": 20
+    },
+    {
+      "action": "assert_non_empty_value",
+      "selector": "createSubtitleSourcePathField",
+      "placeholder": "Server subtitle path",
+      "timeout": 25,
+      "screenshot": "subtitle_defaults"
+    },
+    {
+      "action": "select_option",
+      "selector": "createJobTypePicker",
+      "text": "YouTube Dub",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createYoutubeVideoPathField",
+      "timeout": 20
+    },
+    {
+      "action": "assert_non_empty_value",
+      "selector": "createYoutubeVideoPathField",
+      "placeholder": "Video path",
+      "timeout": 25
+    },
+    {
+      "action": "assert_non_empty_value",
+      "selector": "createYoutubeSubtitlePathField",
+      "placeholder": "Subtitle path",
+      "timeout": 25,
+      "screenshot": "youtube_dub_defaults"
+    }
+  ]
+}

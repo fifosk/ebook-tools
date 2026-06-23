@@ -682,6 +682,20 @@ repo-owned Make targets do not depend on per-user Xcode scheme state.
 Override `IPHONE_DESTINATION`, `IPAD_DESTINATION`, or `TVOS_DESTINATION` when a
 different installed simulator model is needed.
 
+Create-readiness probes use `tests/e2e/journeys/create_readiness.json` to open
+native Apple Create and verify that Narrate EPUB, subtitle, and YouTube dubbing
+source fields auto-populate from backend-visible sources:
+
+```bash
+make test-e2e-iphone-create-readiness
+make test-e2e-ipad-create-readiness
+make test-e2e-apple-create-readiness
+```
+
+These probes are intentionally stricter than the default playback journey and
+should be run against an API whose EPUB, subtitle, and YouTube/NAS inventories
+are expected to be populated.
+
 **Configuration:** The Makefile writes credentials and journey data to
 temporary files that XCUITest reads at runtime:
 

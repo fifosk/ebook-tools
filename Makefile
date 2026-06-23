@@ -128,6 +128,7 @@ test-e2e-web-headless:
 XCBUILD = /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild
 XCPROJ = ios/InteractiveReader/InteractiveReader.xcodeproj
 JOURNEY_SRC = tests/e2e/journeys/basic_playback.json
+CREATE_READINESS_JOURNEY_SRC = tests/e2e/journeys/create_readiness.json
 E2E_TEMP_ROOT ?= /tmp/apple-device-app-pipeline/ebook-tools
 E2E_PROFILE ?= local
 E2E_CONFIG_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PROFILE)/ios_e2e_config.json
@@ -183,6 +184,11 @@ test-e2e-iphone:
 	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"; \
 	exit $$status
 
+test-e2e-iphone-create-readiness:
+	@$(MAKE) test-e2e-iphone \
+		JOURNEY_SRC=$(CREATE_READINESS_JOURNEY_SRC) \
+		E2E_PROFILE=iphone-create
+
 # ── iPad E2E ─────────────────────────────────────────────────────────
 IPAD_DESTINATION ?= 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)'
 IPAD_E2E_RESULT = $(CURDIR)/test-results/ipad-e2e.xcresult
@@ -209,6 +215,11 @@ test-e2e-ipad:
 		--screenshot-prefix ipad; \
 	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)"; \
 	exit $$status
+
+test-e2e-ipad-create-readiness:
+	@$(MAKE) test-e2e-ipad \
+		JOURNEY_SRC=$(CREATE_READINESS_JOURNEY_SRC) \
+		E2E_PROFILE=ipados-create
 
 # ── tvOS E2E ─────────────────────────────────────────────────────────
 TVOS_DESTINATION ?= 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)'
@@ -253,6 +264,10 @@ test-e2e-all:
 # Uses profile-scoped config, journey, result, and DerivedData paths.
 test-e2e-apple-parallel:
 	@$(MAKE) -j3 test-e2e-iphone test-e2e-ipad test-e2e-tvos
+
+test-e2e-apple-create-readiness:
+	@$(MAKE) test-e2e-iphone-create-readiness
+	@$(MAKE) test-e2e-ipad-create-readiness
 
 # ── Docker ──────────────────────────────────────────────────────────
 DOCKER_TAG ?= latest
