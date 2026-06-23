@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.75",
+            version: "2026.06.23.76",
             entries: [
+                AppChangelogEntry(
+                    id: "web-subtitle-metadata-utils",
+                    title: "Subtitle metadata helpers",
+                    detail: "Web Subtitle Tool TV metadata draft helpers now live in a focused module with direct pipeline coverage for record coercion, editable metadata copying, text cleanup, and episode-code formatting."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-source-utils",
                     title: "Subtitle source selection",

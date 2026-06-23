@@ -3,9 +3,7 @@ import type { JobParameterSnapshot } from '../../api/dtos';
 import type { JobState } from '../../components/JobList';
 import {
   selectMissingCompletedSubtitleJobs,
-  sortSubtitleJobsNewestFirst,
-  updateSubtitleMediaMetadataDraft,
-  updateSubtitleMediaMetadataSection
+  sortSubtitleJobsNewestFirst
 } from '../subtitle-tool/subtitleToolUtils';
 import { resolveSubtitleLanguageDefaults } from '../subtitle-tool/subtitleLanguageDefaultsUtils';
 import { resolveSubtitlePrefillValues } from '../subtitle-tool/subtitlePrefillUtils';
@@ -42,70 +40,6 @@ function job(overrides: {
     canManage: true
   };
 }
-
-describe('metadata draft helpers', () => {
-  it('copies the current draft before applying top-level metadata edits', () => {
-    const current = {
-      job_label: 'Original label',
-      show: { name: 'Example Show' }
-    };
-
-    const next = updateSubtitleMediaMetadataDraft(current, (draft) => {
-      draft['job_label'] = 'Updated label';
-    });
-
-    expect(next).toEqual({
-      job_label: 'Updated label',
-      show: { name: 'Example Show' }
-    });
-    expect(current).toEqual({
-      job_label: 'Original label',
-      show: { name: 'Example Show' }
-    });
-    expect(next).not.toBe(current);
-  });
-
-  it('creates a draft when editing metadata without an existing payload', () => {
-    expect(
-      updateSubtitleMediaMetadataDraft(null, (draft) => {
-        draft['job_label'] = 'New label';
-      })
-    ).toEqual({
-      job_label: 'New label'
-    });
-  });
-
-  it('copies nested metadata sections before applying edits', () => {
-    const episode = { season: 1, number: 2, name: 'Old title' };
-    const current = {
-      episode,
-      show: { name: 'Example Show' }
-    };
-
-    const next = updateSubtitleMediaMetadataSection(current, 'episode', (section) => {
-      section['name'] = 'New title';
-      section['number'] = 3;
-    });
-
-    expect(next).toEqual({
-      episode: { season: 1, number: 3, name: 'New title' },
-      show: { name: 'Example Show' }
-    });
-    expect(current.episode).toBe(episode);
-    expect(current.episode).toEqual({ season: 1, number: 2, name: 'Old title' });
-    expect(next.episode).not.toBe(episode);
-  });
-
-  it('creates missing nested metadata sections', () => {
-    expect(
-      updateSubtitleMediaMetadataSection(null, 'show', (section) => {
-        section['name'] = 'Example Show';
-      })
-    ).toEqual({
-      show: { name: 'Example Show' }
-    });
-  });
-});
 
 describe('formatSubmittedSubtitleSummary', () => {
   it('describes auto-detected submissions when no tuning details were captured', () => {

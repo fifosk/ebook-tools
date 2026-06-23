@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.76
+
+- Advanced visible Apple app versioning to `v2026.06.23.76`.
+- Web Subtitle Tool TV metadata draft helpers now live in a focused module with direct pipeline coverage for record coercion, editable metadata copying, text cleanup, and episode-code formatting.
+
 ### 2026.06.23.75
 
 - Advanced visible Apple app versioning to `v2026.06.23.75`.

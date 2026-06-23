@@ -3,7 +3,7 @@ import {
   coerceRecord,
   formatEpisodeCode,
   normalizeTextValue
-} from './subtitleToolUtils';
+} from './subtitleMetadataUtils';
 import styles from '../SubtitleToolPage.module.css';
 
 type SubtitleMetadataPanelProps = {

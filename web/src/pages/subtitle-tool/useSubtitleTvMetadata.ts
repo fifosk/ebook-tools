@@ -4,7 +4,7 @@ import type { SubtitleTvMetadataPreviewResponse } from '../../api/dtos';
 import {
   updateSubtitleMediaMetadataDraft,
   updateSubtitleMediaMetadataSection
-} from './subtitleToolUtils';
+} from './subtitleMetadataUtils';
 
 export function useSubtitleTvMetadata(metadataSourceName: string) {
   const [metadataLookupSourceName, setMetadataLookupSourceName] = useState<string>('');
