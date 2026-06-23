@@ -149,6 +149,12 @@ struct PlaybackSettingsView: View {
         else {
             return .unavailable
         }
+        guard
+            optionsPath == AppleCreateRuntimeContract.bookOptionsPath,
+            jobsPath == AppleCreateRuntimeContract.bookJobsPath
+        else {
+            return .mismatch(optionsPath: optionsPath, jobsPath: jobsPath)
+        }
         return .ready(optionsPath: optionsPath, jobsPath: jobsPath)
     }
 

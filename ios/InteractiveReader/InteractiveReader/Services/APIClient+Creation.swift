@@ -1,8 +1,13 @@
 import Foundation
 
+enum AppleCreateRuntimeContract {
+    static let bookOptionsPath = "/api/books/options"
+    static let bookJobsPath = "/api/books/jobs"
+}
+
 extension APIClient {
     func fetchBookCreationOptions() async throws -> BookCreationOptionsResponse {
-        let data = try await sendRequest(path: "/api/books/options")
+        let data = try await sendRequest(path: AppleCreateRuntimeContract.bookOptionsPath)
         return try decode(BookCreationOptionsResponse.self, from: data)
     }
 
@@ -62,7 +67,11 @@ extension APIClient {
     }
 
     func submitBookGenerationJob(_ payload: BookGenerationJobSubmission) async throws -> PipelineSubmissionResponse {
-        let data = try await sendJSONRequest(path: "/api/books/jobs", method: "POST", payload: payload)
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.bookJobsPath,
+            method: "POST",
+            payload: payload
+        )
         return try decode(PipelineSubmissionResponse.self, from: data)
     }
 

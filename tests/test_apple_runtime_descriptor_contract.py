@@ -25,6 +25,23 @@ PLAYBACK_SETTINGS_SECTIONS = (
     / "Library"
     / "PlaybackSettingsSections.swift"
 )
+PLAYBACK_SETTINGS_VIEW = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Library"
+    / "PlaybackSettingsView.swift"
+)
+API_CLIENT_CREATION = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Services"
+    / "APIClient+Creation.swift"
+)
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -68,6 +85,21 @@ def test_settings_surfaces_create_contract_runtime_status() -> None:
 
     assert "enum BackendCreateContractState: Equatable" in source
     assert "case ready(optionsPath: String, jobsPath: String)" in source
+    assert "case mismatch(optionsPath: String, jobsPath: String)" in source
     assert "case unavailable" in source
     assert 'title: "Create Contract"' in source
     assert 'accessibilityIdentifier: "settingsCreateContractRow"' in source
+
+
+def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None:
+    creation_source = API_CLIENT_CREATION.read_text(encoding="utf-8")
+    settings_source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
+
+    assert "enum AppleCreateRuntimeContract" in creation_source
+    assert 'static let bookOptionsPath = "/api/books/options"' in creation_source
+    assert 'static let bookJobsPath = "/api/books/jobs"' in creation_source
+    assert "sendRequest(path: AppleCreateRuntimeContract.bookOptionsPath)" in creation_source
+    assert "path: AppleCreateRuntimeContract.bookJobsPath" in creation_source
+    assert "optionsPath == AppleCreateRuntimeContract.bookOptionsPath" in settings_source
+    assert "jobsPath == AppleCreateRuntimeContract.bookJobsPath" in settings_source
+    assert "return .mismatch(optionsPath: optionsPath, jobsPath: jobsPath)" in settings_source
