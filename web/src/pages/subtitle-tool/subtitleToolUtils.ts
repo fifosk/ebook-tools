@@ -1,7 +1,14 @@
 import type { JobState } from '../../components/JobList';
 import type { JobParameterSnapshot, SubtitleSourceEntry } from '../../api/dtos';
 import { subtitleFormatFromPath } from '../../utils/subtitles';
-import type { SubtitleOutputFormat } from './subtitleToolTypes';
+import {
+  DEFAULT_START_TIME,
+  MAX_ASS_EMPHASIS,
+  MAX_ASS_FONT_SIZE,
+  MIN_ASS_EMPHASIS,
+  MIN_ASS_FONT_SIZE
+} from './subtitleToolConfig';
+import type { SubtitleOutputFormat, SubtitleSourceMode } from './subtitleToolTypes';
 
 export function formatSubtitleRetryCounts(counts?: Record<string, number> | null): string | null {
   if (!counts) {
@@ -99,7 +106,7 @@ type ParsedTimecode = {
 
 function parseAbsoluteTimecode(value: string): ParsedTimecode | null {
   const trimmed = value.trim();
-  const match = trimmed.match(/^(\\d+):(\\d{1,2})(?::(\\d{1,2}))?$/);
+  const match = trimmed.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/);
   if (!match) {
     return null;
   }
@@ -154,7 +161,7 @@ function formatRelativeDuration(totalSeconds: number): string {
 
 function parseRelativeTimecode(value: string): ParsedTimecode | null {
   const trimmed = value.trim();
-  if (/^\\d+$/.test(trimmed)) {
+  if (/^\d+$/.test(trimmed)) {
     const minutes = Number(trimmed);
     if (!Number.isInteger(minutes) || minutes < 0) {
       return null;
@@ -280,6 +287,129 @@ export function resolveSubtitlePrefillValues(
     transliterationMode: normalizeOptionalText(parameters?.transliteration_mode),
     transliterationModel: normalizeOptionalText(parameters?.transliteration_model),
     sourcePath: sourcePath && sourcePath.length > 0 ? sourcePath : null
+  };
+}
+
+export type SubtitleSubmitInput = {
+  inputLanguage: string;
+  targetLanguage: string;
+  isAssSelection: boolean;
+  sourceMode: SubtitleSourceMode;
+  selectedSource: string;
+  hasUploadFile: boolean;
+  startTime: string;
+  endTime: string;
+  outputFormat: SubtitleOutputFormat;
+  assFontSize: number | '';
+  assEmphasis: number | '';
+  selectedModel: string;
+  translationProvider: string;
+  transliterationMode: string;
+  transliterationModel: string;
+  workerCount: number | '';
+  batchSize: number | '';
+  translationBatchSize: number | '';
+};
+
+export type ResolvedSubtitleSubmitValues = {
+  originalLanguage: string;
+  targetLanguage: string;
+  normalizedStartTime: string;
+  normalizedEndTime: string;
+  resolvedAssFontSize: number | null;
+  resolvedAssEmphasis: number | null;
+  selectedModel: string | null;
+  translationProvider: string | null;
+  transliterationMode: string | null;
+  transliterationModel: string | null;
+  sourcePath: string | null;
+  workerCount: number | null;
+  batchSize: number | null;
+  translationBatchSize: number | null;
+};
+
+export type SubtitleSubmitResolution =
+  | { ok: true; values: ResolvedSubtitleSubmitValues }
+  | { ok: false; error: string };
+
+export function resolveSubtitleSubmitValues(input: SubtitleSubmitInput): SubtitleSubmitResolution {
+  const originalLanguage = normalizeLanguageInput(input.inputLanguage);
+  if (!originalLanguage) {
+    return { ok: false, error: 'Choose an original language.' };
+  }
+  if (input.isAssSelection) {
+    return {
+      ok: false,
+      error: 'Generated ASS files cannot be used as sources. Choose the original SRT/VTT or upload a new subtitle.'
+    };
+  }
+  const targetLanguage = normalizeLanguageInput(input.targetLanguage);
+  if (!targetLanguage) {
+    return { ok: false, error: 'Choose a target language.' };
+  }
+  const sourcePath = input.selectedSource.trim();
+  if (input.sourceMode === 'existing' && !sourcePath) {
+    return { ok: false, error: 'Select a subtitle file to process.' };
+  }
+  if (input.sourceMode === 'upload' && !input.hasUploadFile) {
+    return { ok: false, error: 'Choose a subtitle file to upload.' };
+  }
+
+  const normalizedStartTime = normalizeSubtitleTimecodeInput(input.startTime, {
+    emptyValue: DEFAULT_START_TIME
+  });
+  if (normalizedStartTime === null) {
+    return { ok: false, error: 'Enter a valid start time in MM:SS or HH:MM:SS format.' };
+  }
+  const normalizedEndTime = normalizeSubtitleTimecodeInput(input.endTime, {
+    allowRelative: true,
+    emptyValue: ''
+  });
+  if (normalizedEndTime === null) {
+    return { ok: false, error: 'Enter a valid end time in MM:SS, HH:MM:SS, or +offset format.' };
+  }
+
+  let resolvedAssFontSize: number | null = null;
+  let resolvedAssEmphasis: number | null = null;
+  if (input.outputFormat === 'ass') {
+    if (typeof input.assFontSize !== 'number' || Number.isNaN(input.assFontSize)) {
+      return { ok: false, error: 'Enter a numeric ASS base font size.' };
+    }
+    resolvedAssFontSize = Math.max(
+      MIN_ASS_FONT_SIZE,
+      Math.min(MAX_ASS_FONT_SIZE, Math.round(input.assFontSize))
+    );
+
+    if (typeof input.assEmphasis !== 'number' || Number.isNaN(input.assEmphasis)) {
+      return { ok: false, error: 'Enter a numeric ASS emphasis scale.' };
+    }
+    resolvedAssEmphasis = Math.max(
+      MIN_ASS_EMPHASIS,
+      Math.min(MAX_ASS_EMPHASIS, Math.round(input.assEmphasis * 100) / 100)
+    );
+  }
+
+  return {
+    ok: true,
+    values: {
+      originalLanguage,
+      targetLanguage,
+      normalizedStartTime,
+      normalizedEndTime,
+      resolvedAssFontSize,
+      resolvedAssEmphasis,
+      selectedModel: normalizeOptionalText(input.selectedModel),
+      translationProvider: normalizeOptionalText(input.translationProvider),
+      transliterationMode: normalizeOptionalText(input.transliterationMode),
+      transliterationModel: normalizeOptionalText(input.transliterationModel),
+      sourcePath: input.sourceMode === 'existing' ? sourcePath : null,
+      workerCount: typeof input.workerCount === 'number' && input.workerCount > 0 ? input.workerCount : null,
+      batchSize: typeof input.batchSize === 'number' && input.batchSize > 0 ? input.batchSize : null,
+      translationBatchSize:
+        typeof input.translationBatchSize === 'number' && input.translationBatchSize > 0
+          ? input.translationBatchSize
+          : null
+    }
   };
 }
 

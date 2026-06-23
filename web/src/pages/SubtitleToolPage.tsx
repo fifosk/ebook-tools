@@ -33,10 +33,6 @@ import {
   DEFAULT_SUBTITLE_SOURCE_DIRECTORY,
   DEFAULT_TRANSLATION_BATCH_SIZE,
   DEFAULT_WORKER_COUNT,
-  MAX_ASS_EMPHASIS,
-  MAX_ASS_FONT_SIZE,
-  MIN_ASS_EMPHASIS,
-  MIN_ASS_FONT_SIZE,
   SHOW_ORIGINAL_STORAGE_KEY
 } from './subtitle-tool/subtitleToolConfig';
 import type {
@@ -49,9 +45,9 @@ import {
   coerceRecord,
   formatSubmittedSubtitleSummary,
   normalizeLanguageInput,
-  normalizeSubtitleTimecodeInput,
   pickLatestSubtitleSource,
   resolveSubtitlePrefillValues,
+  resolveSubtitleSubmitValues,
   sortSubtitleSourcesForSelection
 } from './subtitle-tool/subtitleToolUtils';
 import styles from './SubtitleToolPage.module.css';
@@ -535,115 +531,84 @@ export default function SubtitleToolPage({
       event.preventDefault();
       setSubmitError(null);
 
-      const trimmedOriginal = normalizeLanguageInput(inputLanguage);
-      if (!trimmedOriginal) {
-        setSubmitError('Choose an original language.');
-        return;
-      }
-      if (isAssSelection) {
-        setSubmitError(
-          'Generated ASS files cannot be used as sources. Choose the original SRT/VTT or upload a new subtitle.'
-        );
-        return;
-      }
-      const trimmedTarget = normalizeLanguageInput(targetLanguage);
-      if (!trimmedTarget) {
-        setSubmitError('Choose a target language.');
-        return;
-      }
-
-      if (sourceMode === 'existing' && !selectedSource.trim()) {
-        setSubmitError('Select a subtitle file to process.');
-        return;
-      }
-      if (sourceMode === 'upload' && !uploadFile) {
-        setSubmitError('Choose a subtitle file to upload.');
-        return;
-      }
-
-      const normalisedStartTime = normalizeSubtitleTimecodeInput(startTime, {
-        emptyValue: DEFAULT_START_TIME
+      const submitResolution = resolveSubtitleSubmitValues({
+        inputLanguage,
+        targetLanguage,
+        isAssSelection,
+        sourceMode,
+        selectedSource,
+        hasUploadFile: Boolean(uploadFile),
+        startTime,
+        endTime,
+        outputFormat,
+        assFontSize,
+        assEmphasis,
+        selectedModel,
+        translationProvider,
+        transliterationMode,
+        transliterationModel,
+        workerCount,
+        batchSize,
+        translationBatchSize
       });
-      if (normalisedStartTime === null) {
-        setSubmitError('Enter a valid start time in MM:SS or HH:MM:SS format.');
+      if (!submitResolution.ok) {
+        setSubmitError(submitResolution.error);
         return;
       }
-
-      const normalisedEndTime = normalizeSubtitleTimecodeInput(endTime, {
-        allowRelative: true,
-        emptyValue: ''
-      });
-      if (normalisedEndTime === null) {
-        setSubmitError('Enter a valid end time in MM:SS, HH:MM:SS, or +offset format.');
-        return;
-      }
-
-      let resolvedAssFontSize: number | null = null;
-      let resolvedAssEmphasis: number | null = null;
-      if (outputFormat === 'ass') {
-        if (typeof assFontSize !== 'number' || Number.isNaN(assFontSize)) {
-          setSubmitError('Enter a numeric ASS base font size.');
-          return;
-        }
-        const clamped = Math.max(MIN_ASS_FONT_SIZE, Math.min(MAX_ASS_FONT_SIZE, Math.round(assFontSize)));
-        resolvedAssFontSize = clamped;
-
-        if (typeof assEmphasis !== 'number' || Number.isNaN(assEmphasis)) {
-          setSubmitError('Enter a numeric ASS emphasis scale.');
-          return;
-        }
-        const normalized = Math.max(
-          MIN_ASS_EMPHASIS,
-          Math.min(MAX_ASS_EMPHASIS, Math.round(assEmphasis * 100) / 100)
-        );
-        resolvedAssEmphasis = normalized;
-      }
+      const {
+        originalLanguage,
+        targetLanguage: resolvedTargetLanguage,
+        normalizedStartTime,
+        normalizedEndTime,
+        resolvedAssFontSize,
+        resolvedAssEmphasis
+      } = submitResolution.values;
 
       const formData = new FormData();
-      formData.append('input_language', trimmedOriginal);
-      formData.append('original_language', trimmedOriginal);
-      formData.append('target_language', trimmedTarget);
+      formData.append('input_language', originalLanguage);
+      formData.append('original_language', originalLanguage);
+      formData.append('target_language', resolvedTargetLanguage);
       formData.append('enable_transliteration', String(enableTransliteration));
       formData.append('highlight', String(enableHighlight));
       formData.append('show_original', String(showOriginal));
       formData.append('generate_audio_book', String(generateAudioBook));
       formData.append('output_format', outputFormat);
       formData.append('mirror_batches_to_source_dir', String(mirrorToSourceDir));
-      formData.append('start_time', normalisedStartTime);
+      formData.append('start_time', normalizedStartTime);
       if (resolvedAssFontSize !== null) {
         formData.append('ass_font_size', String(resolvedAssFontSize));
       }
       if (resolvedAssEmphasis !== null) {
         formData.append('ass_emphasis_scale', String(resolvedAssEmphasis));
       }
-      if (selectedModel.trim()) {
-        formData.append('llm_model', selectedModel.trim());
+      if (submitResolution.values.selectedModel) {
+        formData.append('llm_model', submitResolution.values.selectedModel);
       }
-      if (translationProvider.trim()) {
-        formData.append('translation_provider', translationProvider.trim());
+      if (submitResolution.values.translationProvider) {
+        formData.append('translation_provider', submitResolution.values.translationProvider);
       }
-      if (transliterationMode.trim()) {
-        formData.append('transliteration_mode', transliterationMode.trim());
+      if (submitResolution.values.transliterationMode) {
+        formData.append('transliteration_mode', submitResolution.values.transliterationMode);
       }
-      if (transliterationModel.trim()) {
-        formData.append('transliteration_model', transliterationModel.trim());
+      if (submitResolution.values.transliterationModel) {
+        formData.append('transliteration_model', submitResolution.values.transliterationModel);
       }
-      if (normalisedEndTime) {
-        formData.append('end_time', normalisedEndTime);
+      if (normalizedEndTime) {
+        formData.append('end_time', normalizedEndTime);
       }
-      if (sourceMode === 'existing') {
-        formData.append('source_path', selectedSource.trim());
+      if (submitResolution.values.sourcePath) {
+        formData.append('source_path', submitResolution.values.sourcePath);
       } else if (uploadFile) {
         formData.append('file', uploadFile, uploadFile.name);
       }
-      if (typeof workerCount === 'number' && workerCount > 0) {
-        formData.append('worker_count', String(workerCount));
+      if (submitResolution.values.workerCount !== null) {
+        formData.append('worker_count', String(submitResolution.values.workerCount));
       }
-      if (typeof batchSize === 'number' && batchSize > 0) {
-        formData.append('batch_size', String(batchSize));
+      if (submitResolution.values.batchSize !== null) {
+        formData.append('batch_size', String(submitResolution.values.batchSize));
       }
-      if (typeof translationBatchSize === 'number' && translationBatchSize > 0) {
-        formData.append('translation_batch_size', String(translationBatchSize));
+      if (submitResolution.values.translationBatchSize !== null) {
+        formData.append('translation_batch_size', String(submitResolution.values.translationBatchSize));
       }
       if (mediaMetadataDraft) {
         formData.append('media_metadata_json', JSON.stringify(mediaMetadataDraft));
@@ -658,17 +623,17 @@ export default function SubtitleToolPage({
         setLastSubmittedTranslationBatchSize(
           typeof translationBatchSize === 'number' ? translationBatchSize : null
         );
-        setLastSubmittedStartTime(normalisedStartTime);
-        setLastSubmittedEndTime(normalisedEndTime || null);
-        setLastSubmittedModel(selectedModel.trim() ? selectedModel.trim() : null);
+        setLastSubmittedStartTime(normalizedStartTime);
+        setLastSubmittedEndTime(normalizedEndTime || null);
+        setLastSubmittedModel(submitResolution.values.selectedModel);
         setLastSubmittedFormat(outputFormat);
         setLastSubmittedAssFontSize(resolvedAssFontSize);
         setLastSubmittedAssEmphasis(resolvedAssEmphasis);
-        if (normalisedStartTime !== startTime) {
-          setStartTime(normalisedStartTime);
+        if (normalizedStartTime !== startTime) {
+          setStartTime(normalizedStartTime);
         }
-        if (normalisedEndTime !== endTime) {
-          setEndTime(normalisedEndTime);
+        if (normalizedEndTime !== endTime) {
+          setEndTime(normalizedEndTime);
         }
         if (resolvedAssFontSize !== null && assFontSize !== resolvedAssFontSize) {
           setAssFontSize(resolvedAssFontSize);

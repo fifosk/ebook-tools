@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { JobParameterSnapshot, SubtitleSourceEntry } from '../../api/dtos';
 import {
   formatSubmittedSubtitleSummary,
+  normalizeSubtitleTimecodeInput,
   pickLatestSubtitleSource,
   resolveSubtitlePrefillValues,
+  resolveSubtitleSubmitValues,
+  type SubtitleSubmitInput,
   sortSubtitleSourcesForSelection
 } from '../subtitle-tool/subtitleToolUtils';
 
@@ -265,6 +268,160 @@ describe('resolveSubtitlePrefillValues', () => {
       transliterationMode: null,
       transliterationModel: null,
       sourcePath: null
+    });
+  });
+});
+
+describe('normalizeSubtitleTimecodeInput', () => {
+  it('normalizes MM:SS and HH:MM:SS absolute timecodes', () => {
+    expect(normalizeSubtitleTimecodeInput('1:02')).toBe('01:02');
+    expect(normalizeSubtitleTimecodeInput('1:02:03')).toBe('01:02:03');
+  });
+
+  it('normalizes relative minute and duration offsets when enabled', () => {
+    expect(normalizeSubtitleTimecodeInput('+3', { allowRelative: true })).toBe('+03:00');
+    expect(normalizeSubtitleTimecodeInput('+1:02:03', { allowRelative: true })).toBe('+01:02:03');
+  });
+
+  it('rejects invalid minute and second values', () => {
+    expect(normalizeSubtitleTimecodeInput('99:99')).toBeNull();
+    expect(normalizeSubtitleTimecodeInput('+99:99', { allowRelative: true })).toBeNull();
+  });
+});
+
+const baseSubmitInput: SubtitleSubmitInput = {
+  inputLanguage: ' English ',
+  targetLanguage: ' French ',
+  isAssSelection: false,
+  sourceMode: 'existing' as const,
+  selectedSource: ' /media/source.srt ',
+  hasUploadFile: false,
+  startTime: '1:02',
+  endTime: '+3',
+  outputFormat: 'ass' as const,
+  assFontSize: 130,
+  assEmphasis: 1.234,
+  selectedModel: ' gpt-test ',
+  translationProvider: ' llm ',
+  transliterationMode: ' default ',
+  transliterationModel: ' romanizer ',
+  workerCount: 4,
+  batchSize: 20,
+  translationBatchSize: 8
+};
+
+describe('resolveSubtitleSubmitValues', () => {
+  it('normalizes a valid existing-source ASS submission', () => {
+    expect(resolveSubtitleSubmitValues(baseSubmitInput)).toEqual({
+      ok: true,
+      values: {
+        originalLanguage: 'English',
+        targetLanguage: 'French',
+        normalizedStartTime: '01:02',
+        normalizedEndTime: '+03:00',
+        resolvedAssFontSize: 120,
+        resolvedAssEmphasis: 1.23,
+        selectedModel: 'gpt-test',
+        translationProvider: 'llm',
+        transliterationMode: 'default',
+        transliterationModel: 'romanizer',
+        sourcePath: '/media/source.srt',
+        workerCount: 4,
+        batchSize: 20,
+        translationBatchSize: 8
+      }
+    });
+  });
+
+  it('accepts upload submissions and omits source path and non-positive tuning fields', () => {
+    expect(
+      resolveSubtitleSubmitValues({
+        ...baseSubmitInput,
+        sourceMode: 'upload',
+        selectedSource: '',
+        hasUploadFile: true,
+        outputFormat: 'srt',
+        assFontSize: '',
+        assEmphasis: '',
+        selectedModel: ' ',
+        translationProvider: '',
+        transliterationMode: ' ',
+        transliterationModel: '',
+        workerCount: 0,
+        batchSize: -1,
+        translationBatchSize: ''
+      })
+    ).toEqual({
+      ok: true,
+      values: {
+        originalLanguage: 'English',
+        targetLanguage: 'French',
+        normalizedStartTime: '01:02',
+        normalizedEndTime: '+03:00',
+        resolvedAssFontSize: null,
+        resolvedAssEmphasis: null,
+        selectedModel: null,
+        translationProvider: null,
+        transliterationMode: null,
+        transliterationModel: null,
+        sourcePath: null,
+        workerCount: null,
+        batchSize: null,
+        translationBatchSize: null
+      }
+    });
+  });
+
+  const invalidCases: Array<[Partial<SubtitleSubmitInput>, string]> = [
+    [{ inputLanguage: ' ' }, 'Choose an original language.'],
+    [
+      { isAssSelection: true },
+      'Generated ASS files cannot be used as sources. Choose the original SRT/VTT or upload a new subtitle.'
+    ],
+    [{ targetLanguage: ' ' }, 'Choose a target language.'],
+    [{ selectedSource: ' ' }, 'Select a subtitle file to process.'],
+    [
+      { sourceMode: 'upload' as const, selectedSource: '', hasUploadFile: false },
+      'Choose a subtitle file to upload.'
+    ],
+    [{ startTime: '99:99' }, 'Enter a valid start time in MM:SS or HH:MM:SS format.'],
+    [{ endTime: '+99:99' }, 'Enter a valid end time in MM:SS, HH:MM:SS, or +offset format.'],
+    [{ assFontSize: '' }, 'Enter a numeric ASS base font size.'],
+    [{ assEmphasis: '' }, 'Enter a numeric ASS emphasis scale.']
+  ];
+
+  it.each(invalidCases)('returns %s for invalid submit input', (overrides, expectedError) => {
+    expect(resolveSubtitleSubmitValues({ ...baseSubmitInput, ...overrides })).toEqual({
+      ok: false,
+      error: expectedError
+    });
+  });
+
+  it('clamps ASS typography values to the supported range', () => {
+    const low = resolveSubtitleSubmitValues({
+      ...baseSubmitInput,
+      assFontSize: 1,
+      assEmphasis: 0.2
+    });
+    expect(low).toMatchObject({
+      ok: true,
+      values: {
+        resolvedAssFontSize: 12,
+        resolvedAssEmphasis: 1
+      }
+    });
+
+    const high = resolveSubtitleSubmitValues({
+      ...baseSubmitInput,
+      assFontSize: 500,
+      assEmphasis: 9
+    });
+    expect(high).toMatchObject({
+      ok: true,
+      values: {
+        resolvedAssFontSize: 120,
+        resolvedAssEmphasis: 2.5
+      }
     });
   });
 });
