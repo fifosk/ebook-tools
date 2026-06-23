@@ -92,6 +92,31 @@ extension APIClient {
         return try decode(LibraryIsbnLookupResponse.self, from: data)
     }
 
+    func createOfflineExport(sourceKind: String, sourceId: String) async throws -> OfflineExportResponse {
+        struct ExportRequest: Encodable {
+            let sourceKind: String
+            let sourceId: String
+            let playerType: String
+
+            enum CodingKeys: String, CodingKey {
+                case sourceKind = "source_kind"
+                case sourceId = "source_id"
+                case playerType = "player_type"
+            }
+        }
+
+        let data = try await sendJSONRequest(
+            path: "/api/exports",
+            method: "POST",
+            payload: ExportRequest(
+                sourceKind: sourceKind,
+                sourceId: sourceId,
+                playerType: "interactive-text"
+            )
+        )
+        return try decode(OfflineExportResponse.self, from: data)
+    }
+
     func moveJobToLibrary(jobId: String, statusOverride: String? = nil) async throws {
         let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
         if let statusOverride {

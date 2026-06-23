@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.8",
+            version: "2026.06.24.9",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-library-job-offline-export",
+                    title: "Apple exports players",
+                    detail: "Jobs and Library rows on Apple surfaces can now request the shared backend offline-player export zip and open the returned download URL, matching the Web export action for completed media."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-ipad-wide-settings-pane",
                     title: "Create widens settings",

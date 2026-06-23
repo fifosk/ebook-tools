@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.9
+
+- Advanced visible Apple app versioning to `v2026.06.24.9`.
+- Jobs and Library rows on Apple surfaces can now request the shared backend offline-player export zip and open the returned download URL, matching the Web export action for completed media.
+
 ### 2026.06.24.8
 
 - Advanced visible Apple app versioning to `v2026.06.24.8`.

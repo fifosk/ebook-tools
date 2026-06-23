@@ -12,6 +12,7 @@ enum PlaybackStartMode {
 struct LibraryView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var offlineStore: OfflineMediaStore
+    @Environment(\.openURL) private var openURL
     @ObservedObject var viewModel: LibraryViewModel
     let onRefresh: () -> Void
     let onSignOut: () -> Void
@@ -111,6 +112,7 @@ struct LibraryView: View {
             .contextMenu {
                 playbackContextMenu(for: item)
                 offlineContextMenu(for: item)
+                offlineExportAction(for: item)
                 deleteItemAction(for: item)
             }
             #else
@@ -128,6 +130,7 @@ struct LibraryView: View {
             }
             .contextMenu {
                 playbackContextMenu(for: item)
+                offlineExportAction(for: item)
                 sourceUploadAction(for: item)
                 isbnMetadataAction(for: item)
                 deleteItemAction(for: item)
@@ -286,6 +289,24 @@ struct LibraryView: View {
         Button(role: .destructive, action: { handleDeleteItemRequest(item) }) {
             Label("Delete", systemImage: "trash")
         }
+    }
+
+    private func handleOfflineExportRequest(_ item: LibraryItem) {
+        Task {
+            let url = await viewModel.createOfflineExport(for: item, using: appState)
+            await MainActor.run {
+                if let url {
+                    openURL(url)
+                }
+            }
+        }
+    }
+
+    private func offlineExportAction(for item: LibraryItem) -> some View {
+        Button(action: { handleOfflineExportRequest(item) }) {
+            Label("Export Offline Player", systemImage: "square.and.arrow.down")
+        }
+        .disabled(!item.mediaCompleted || viewModel.isCreatingExport || appState.configuration == nil)
     }
 
     #if os(iOS)

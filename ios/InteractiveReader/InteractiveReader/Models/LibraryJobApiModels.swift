@@ -18,6 +18,13 @@ struct LibraryIsbnLookupResponse: Decodable, Equatable {
     let metadata: [String: JSONValue]
 }
 
+struct OfflineExportResponse: Decodable, Equatable {
+    let exportId: String
+    let downloadUrl: String
+    let filename: String
+    let createdAt: String
+}
+
 struct LibraryItem: Decodable, Identifiable {
     var id: String { jobId }
     let jobId: String

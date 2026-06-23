@@ -4,6 +4,7 @@ import SwiftUI
 struct JobsView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var offlineStore: OfflineMediaStore
+    @Environment(\.openURL) private var openURL
     @ObservedObject var viewModel: JobsViewModel
     let onRefresh: () -> Void
     let onSignOut: () -> Void
@@ -84,6 +85,7 @@ struct JobsView: View {
             .contextMenu {
                 playbackContextMenu(for: job)
                 offlineContextMenu(for: job)
+                offlineExportAction(for: job)
                 moveToLibraryAction(for: job)
                 deleteJobAction(for: job)
             }
@@ -97,6 +99,7 @@ struct JobsView: View {
                 }
                 .contextMenu {
                     playbackContextMenu(for: job)
+                    offlineExportAction(for: job)
                     moveToLibraryAction(for: job)
                     deleteJobAction(for: job)
                 }
@@ -153,6 +156,17 @@ struct JobsView: View {
         Button(role: .destructive, action: { handleDeleteJobRequest(job) }) {
             Label("Delete", systemImage: "trash")
         }
+    }
+
+    private func offlineExportAction(for job: PipelineStatusResponse) -> some View {
+        Button(action: { handleOfflineExportRequest(job) }) {
+            Label("Export Offline Player", systemImage: "square.and.arrow.down")
+        }
+        .disabled(!canExportOfflinePlayer(job) || viewModel.isCreatingExport || appState.configuration == nil)
+    }
+
+    private func canExportOfflinePlayer(_ job: PipelineStatusResponse) -> Bool {
+        job.isFinishedForDisplay && job.mediaCompleted == true
     }
 
     private var header: some View {
@@ -234,6 +248,17 @@ struct JobsView: View {
 
     private func handleMoveToLibraryRequest(_ job: PipelineStatusResponse) {
         Task { await handleMoveToLibrary(job) }
+    }
+
+    private func handleOfflineExportRequest(_ job: PipelineStatusResponse) {
+        Task {
+            let url = await viewModel.createOfflineExport(for: job, using: appState)
+            await MainActor.run {
+                if let url {
+                    openURL(url)
+                }
+            }
+        }
     }
 
     private func handleMoveToLibrary(_ job: PipelineStatusResponse) async {

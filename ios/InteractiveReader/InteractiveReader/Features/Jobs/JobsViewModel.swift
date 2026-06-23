@@ -12,6 +12,7 @@ final class JobsViewModel: ObservableObject {
 
     @Published var jobs: [PipelineStatusResponse] = []
     @Published var isLoading = false
+    @Published var isCreatingExport = false
     @Published var errorMessage: String?
     @Published var query: String = ""
     @Published var activeFilter: JobFilter = .video
@@ -79,6 +80,33 @@ final class JobsViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
             return false
+        }
+    }
+
+    func createOfflineExport(
+        for job: PipelineStatusResponse,
+        using appState: AppState
+    ) async -> URL? {
+        guard job.isFinishedForDisplay, job.mediaCompleted == true else {
+            errorMessage = "Offline player export is available after media finishes processing."
+            return nil
+        }
+        guard let configuration = appState.configuration else {
+            errorMessage = "Configure a valid API base URL before continuing."
+            return nil
+        }
+
+        isCreatingExport = true
+        errorMessage = nil
+        defer { isCreatingExport = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.createOfflineExport(sourceKind: "job", sourceId: job.jobId)
+            return Self.resolveExportDownloadURL(response.downloadUrl, configuration: configuration)
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
         }
     }
 
@@ -190,5 +218,15 @@ final class JobsViewModel: ObservableObject {
 
     private static func parseDate(_ value: String) -> Date? {
         dateFormatterWithFractional.date(from: value) ?? dateFormatter.date(from: value)
+    }
+
+    private static func resolveExportDownloadURL(
+        _ downloadURL: String,
+        configuration: APIClientConfiguration
+    ) -> URL? {
+        if let absoluteURL = URL(string: downloadURL), absoluteURL.scheme != nil {
+            return absoluteURL
+        }
+        return URL(string: downloadURL, relativeTo: configuration.apiBaseURL)?.absoluteURL
     }
 }

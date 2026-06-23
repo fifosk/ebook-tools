@@ -26,6 +26,7 @@ final class LibraryViewModel: ObservableObject {
     @Published var isUploadingSource = false
     @Published var isLookingUpIsbn = false
     @Published var isApplyingIsbn = false
+    @Published var isCreatingExport = false
     @Published var errorMessage: String?
     @Published var query: String = ""
     @Published var activeFilter: LibraryFilter = .book
@@ -160,7 +161,44 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
+    func createOfflineExport(
+        for item: LibraryItem,
+        using appState: AppState
+    ) async -> URL? {
+        guard item.mediaCompleted else {
+            errorMessage = "Offline player export is available after media finishes processing."
+            return nil
+        }
+        guard let configuration = appState.configuration else {
+            errorMessage = "Configure a valid API base URL before continuing."
+            return nil
+        }
+
+        isCreatingExport = true
+        errorMessage = nil
+        defer { isCreatingExport = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.createOfflineExport(sourceKind: "library", sourceId: item.jobId)
+            return Self.resolveExportDownloadURL(response.downloadUrl, configuration: configuration)
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     var filteredItems: [LibraryItem] {
         items.filter { $0.itemType == activeFilter.itemType }
+    }
+
+    private static func resolveExportDownloadURL(
+        _ downloadURL: String,
+        configuration: APIClientConfiguration
+    ) -> URL? {
+        if let absoluteURL = URL(string: downloadURL), absoluteURL.scheme != nil {
+            return absoluteURL
+        }
+        return URL(string: downloadURL, relativeTo: configuration.apiBaseURL)?.absoluteURL
     }
 }
