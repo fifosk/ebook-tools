@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveMediaItem } from './useLiveMedia';
 import type { ResumePositionPayload } from '../api/dtos';
 import { fetchResumePosition, saveResumePosition } from '../api/client/resume';
+import { getBrowserStorage, getStorageItem, setStorageItem } from '../utils/browserStorage';
 
 type MediaCategory = 'text' | 'audio' | 'video';
 
@@ -38,19 +39,6 @@ const STORAGE_PREFIX = 'media-memory';
 
 /** Debounce interval for API saves (ms). */
 const API_SAVE_DEBOUNCE_MS = 5_000;
-
-type StorageProvider = Pick<Storage, 'getItem' | 'setItem'>;
-
-function getSessionStorage(): StorageProvider | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  try {
-    return window.sessionStorage;
-  } catch (error) {
-    return null;
-  }
-}
 
 function normalizeId(value: string): string {
   try {
@@ -156,13 +144,13 @@ export interface UseMediaMemoryResult {
 }
 
 export function useMediaMemory({ jobId }: UseMediaMemoryArgs): UseMediaMemoryResult {
-  const storage = getSessionStorage();
+  const storage = getBrowserStorage('session');
   const storageKey = jobId ? `${STORAGE_PREFIX}:${jobId}` : null;
   const [state, setState] = useState<PersistentMediaState>(() => {
     if (!storageKey || !storage) {
       return INITIAL_STATE;
     }
-    return parseStoredState(storage.getItem(storageKey));
+    return parseStoredState(getStorageItem(storage, storageKey));
   });
 
   // Track whether the server resume has been fetched for the current jobId.
@@ -178,7 +166,7 @@ export function useMediaMemory({ jobId }: UseMediaMemoryArgs): UseMediaMemoryRes
       return;
     }
 
-    setState(parseStoredState(storage.getItem(storageKey)));
+    setState(parseStoredState(getStorageItem(storage, storageKey)));
   }, [storage, storageKey]);
 
   // Fetch server-side resume position on mount / jobId change.
@@ -227,11 +215,7 @@ export function useMediaMemory({ jobId }: UseMediaMemoryArgs): UseMediaMemoryRes
       return;
     }
 
-    try {
-      storage.setItem(storageKey, JSON.stringify(state));
-    } catch (error) {
-      // Ignore write failures (e.g., storage quota exceeded).
-    }
+    setStorageItem(storage, storageKey, JSON.stringify(state));
   }, [state, storage, storageKey]);
 
   // Debounced save to server API.

@@ -9,6 +9,12 @@ import type {
   PlaybackBookmarkCreatePayload,
   PlaybackBookmarkEntry as ApiPlaybackBookmarkEntry,
 } from '../api/dtos';
+import {
+  type BrowserStorage,
+  getBrowserStorage,
+  getStorageItem,
+  setStorageItem,
+} from '../utils/browserStorage';
 
 export type BookmarkKind = 'time' | 'sentence';
 export type BookmarkMediaType = 'text' | 'audio' | 'video';
@@ -28,28 +34,15 @@ export interface PlaybackBookmark {
 const STORAGE_PREFIX = 'player.bookmarks';
 const MAX_BOOKMARKS = 200;
 
-type StorageProvider = Pick<Storage, 'getItem' | 'setItem'>;
-
-function getLocalStorage(): StorageProvider | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  try {
-    return window.localStorage;
-  } catch (error) {
-    return null;
-  }
-}
-
-function loadBookmarks(storage: StorageProvider | null, jobId: string | null | undefined): PlaybackBookmark[] {
+function loadBookmarks(storage: BrowserStorage | null, jobId: string | null | undefined): PlaybackBookmark[] {
   if (!storage || !jobId) {
     return [];
   }
-  const raw = storage.getItem(`${STORAGE_PREFIX}:${jobId}`);
-  if (!raw) {
-    return [];
-  }
   try {
+    const raw = getStorageItem(storage, `${STORAGE_PREFIX}:${jobId}`);
+    if (!raw) {
+      return [];
+    }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {
       return [];
@@ -60,15 +53,11 @@ function loadBookmarks(storage: StorageProvider | null, jobId: string | null | u
   }
 }
 
-function persistBookmarks(storage: StorageProvider | null, jobId: string | null | undefined, bookmarks: PlaybackBookmark[]) {
+function persistBookmarks(storage: BrowserStorage | null, jobId: string | null | undefined, bookmarks: PlaybackBookmark[]) {
   if (!storage || !jobId) {
     return;
   }
-  try {
-    storage.setItem(`${STORAGE_PREFIX}:${jobId}`, JSON.stringify(bookmarks));
-  } catch (error) {
-    // Ignore quota errors.
-  }
+  setStorageItem(storage, `${STORAGE_PREFIX}:${jobId}`, JSON.stringify(bookmarks));
 }
 
 function buildBookmarkId(): string {
@@ -151,7 +140,7 @@ const toApiPayload = (
 });
 
 export function usePlaybackBookmarks({ jobId, userId, useRemote }: UsePlaybackBookmarksArgs) {
-  const storage = getLocalStorage();
+  const storage = getBrowserStorage('local');
   const [bookmarks, setBookmarks] = useState<PlaybackBookmark[]>(() => loadBookmarks(storage, jobId));
   const authContext = getAuthContext();
   const resolvedUserId = userId ?? authContext.userId;

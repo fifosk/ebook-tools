@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReadingBedEntry, ReadingBedListResponse } from '../../api/dtos';
 import { fetchReadingBeds, withBase } from '../../api/client';
 import { useReadingBed } from '../../hooks/useReadingBed';
+import { getLocalStorageItem, removeLocalStorageItem, setLocalStorageItem } from '../../utils/browserStorage';
 import { DEFAULT_READING_BED_VOLUME_PERCENT } from './constants';
 
 const READING_BED_ENABLED_STORAGE_KEY = 'player-panel.readingBed.enabled';
@@ -54,20 +55,14 @@ export function useReadingBedControls({
   }, [bedOverride]);
   const readingBed = useReadingBed();
   const [readingBedEnabled, setReadingBedEnabled] = useState<boolean>(() => {
-    if (typeof window === 'undefined') {
-      return true;
-    }
-    const stored = window.localStorage.getItem(READING_BED_ENABLED_STORAGE_KEY);
+    const stored = getLocalStorageItem(READING_BED_ENABLED_STORAGE_KEY);
     if (stored === null) {
       return true;
     }
     return stored === 'true';
   });
   const [readingBedVolumePercent, setReadingBedVolumePercent] = useState<number>(() => {
-    if (typeof window === 'undefined') {
-      return DEFAULT_READING_BED_VOLUME_PERCENT;
-    }
-    const raw = Number.parseFloat(window.localStorage.getItem(READING_BED_VOLUME_STORAGE_KEY) ?? '');
+    const raw = Number.parseFloat(getLocalStorageItem(READING_BED_VOLUME_STORAGE_KEY) ?? '');
     if (!Number.isFinite(raw)) {
       return DEFAULT_READING_BED_VOLUME_PERCENT;
     }
@@ -121,10 +116,7 @@ export function useReadingBedControls({
   }, [resolvedReadingBeds]);
 
   const [readingBedTrackSelection, setReadingBedTrackSelection] = useState<string | null>(() => {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-    const raw = window.localStorage.getItem(READING_BED_TRACK_STORAGE_KEY) ?? '';
+    const raw = getLocalStorageItem(READING_BED_TRACK_STORAGE_KEY) ?? '';
     return raw.trim() ? raw.trim() : null;
   });
 
@@ -156,28 +148,19 @@ export function useReadingBedControls({
   }, [resolvedReadingBeds]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(READING_BED_ENABLED_STORAGE_KEY, readingBedEnabled ? 'true' : 'false');
+    setLocalStorageItem(READING_BED_ENABLED_STORAGE_KEY, readingBedEnabled ? 'true' : 'false');
   }, [readingBedEnabled]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(READING_BED_VOLUME_STORAGE_KEY, String(readingBedVolumePercent));
+    setLocalStorageItem(READING_BED_VOLUME_STORAGE_KEY, String(readingBedVolumePercent));
   }, [readingBedVolumePercent]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
     if (!readingBedTrackSelection) {
-      window.localStorage.removeItem(READING_BED_TRACK_STORAGE_KEY);
+      removeLocalStorageItem(READING_BED_TRACK_STORAGE_KEY);
       return;
     }
-    window.localStorage.setItem(READING_BED_TRACK_STORAGE_KEY, String(readingBedTrackSelection));
+    setLocalStorageItem(READING_BED_TRACK_STORAGE_KEY, String(readingBedTrackSelection));
   }, [readingBedTrackSelection]);
 
   useEffect(() => {

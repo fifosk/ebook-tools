@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { InteractiveTextTheme } from '../../types/interactiveTextTheme';
 import { DEFAULT_INTERACTIVE_TEXT_THEME, loadInteractiveTextTheme } from '../../types/interactiveTextTheme';
+import { getLocalStorageItem, setLocalStorageItem } from '../../utils/browserStorage';
 import {
   DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT,
   DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT,
@@ -50,10 +51,7 @@ const clampPercent = (value: number) => Math.round(Math.min(Math.max(value, 0), 
 export function useInteractiveTextSettings(): UseInteractiveTextSettingsResult {
   const [interactiveTextVisibility, setInteractiveTextVisibility] = useState<CueVisibility>(() => {
     const fallback = { original: true, transliteration: true, translation: true };
-    if (typeof window === 'undefined') {
-      return fallback;
-    }
-    const stored = window.localStorage.getItem(INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY);
+    const stored = getLocalStorageItem(INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY);
     if (!stored) {
       return fallback;
     }
@@ -71,30 +69,21 @@ export function useInteractiveTextSettings(): UseInteractiveTextSettingsResult {
   });
   const [translationSpeed, setTranslationSpeedState] = useState<TranslationSpeed>(DEFAULT_TRANSLATION_SPEED);
   const [fontScalePercent, setFontScalePercentState] = useState<number>(() => {
-    if (typeof window === 'undefined') {
-      return DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT;
-    }
-    const raw = Number.parseFloat(window.localStorage.getItem(FONT_SCALE_STORAGE_KEY) ?? '');
+    const raw = Number.parseFloat(getLocalStorageItem(FONT_SCALE_STORAGE_KEY) ?? '');
     return Number.isFinite(raw) ? clampFontScalePercent(raw) : DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT;
   });
   const [interactiveTextTheme, setInteractiveTextThemeState] = useState<InteractiveTextTheme>(() =>
     loadInteractiveTextTheme(INTERACTIVE_TEXT_THEME_STORAGE_KEY),
   );
   const [interactiveBackgroundOpacityPercent, setInteractiveBackgroundOpacityPercentState] = useState<number>(() => {
-    if (typeof window === 'undefined') {
-      return DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT;
-    }
-    const raw = Number.parseFloat(window.localStorage.getItem(INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY) ?? '');
+    const raw = Number.parseFloat(getLocalStorageItem(INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY) ?? '');
     if (!Number.isFinite(raw)) {
       return DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT;
     }
     return clampPercent(raw);
   });
   const [interactiveSentenceCardOpacityPercent, setInteractiveSentenceCardOpacityPercentState] = useState<number>(() => {
-    if (typeof window === 'undefined') {
-      return DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT;
-    }
-    const raw = Number.parseFloat(window.localStorage.getItem(INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_STORAGE_KEY) ?? '');
+    const raw = Number.parseFloat(getLocalStorageItem(INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_STORAGE_KEY) ?? '');
     if (!Number.isFinite(raw)) {
       return DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT;
     }
@@ -102,38 +91,23 @@ export function useInteractiveTextSettings(): UseInteractiveTextSettingsResult {
   });
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY, JSON.stringify(interactiveTextVisibility));
+    setLocalStorageItem(INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY, JSON.stringify(interactiveTextVisibility));
   }, [interactiveTextVisibility]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScalePercent));
+    setLocalStorageItem(FONT_SCALE_STORAGE_KEY, String(fontScalePercent));
   }, [fontScalePercent]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(INTERACTIVE_TEXT_THEME_STORAGE_KEY, JSON.stringify(interactiveTextTheme));
+    setLocalStorageItem(INTERACTIVE_TEXT_THEME_STORAGE_KEY, JSON.stringify(interactiveTextTheme));
   }, [interactiveTextTheme]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY, String(interactiveBackgroundOpacityPercent));
+    setLocalStorageItem(INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY, String(interactiveBackgroundOpacityPercent));
   }, [interactiveBackgroundOpacityPercent]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(
+    setLocalStorageItem(
       INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_STORAGE_KEY,
       String(interactiveSentenceCardOpacityPercent),
     );

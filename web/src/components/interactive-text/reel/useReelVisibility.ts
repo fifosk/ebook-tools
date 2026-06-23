@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getLocalStorageItem, setLocalStorageItem } from '../../../utils/browserStorage';
 
 const VISIBILITY_STORAGE_KEY = 'player.sentenceImageReelVisible';
 
@@ -7,10 +8,7 @@ const VISIBILITY_STORAGE_KEY = 'player.sentenceImageReelVisible';
  */
 export function useReelVisibility() {
   const [isVisible, setVisible] = useState<boolean>(() => {
-    if (typeof window === 'undefined') {
-      return true;
-    }
-    const stored = window.localStorage.getItem(VISIBILITY_STORAGE_KEY);
+    const stored = getLocalStorageItem(VISIBILITY_STORAGE_KEY);
     if (stored === null) {
       return true;
     }
@@ -19,14 +17,7 @@ export function useReelVisibility() {
 
   // Persist to localStorage
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    try {
-      window.localStorage.setItem(VISIBILITY_STORAGE_KEY, isVisible ? 'true' : 'false');
-    } catch {
-      // ignore
-    }
+    setLocalStorageItem(VISIBILITY_STORAGE_KEY, isVisible ? 'true' : 'false');
   }, [isVisible]);
 
   // Keyboard shortcut (R) to toggle visibility

@@ -23,7 +23,9 @@ import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelIntera
 import {
   buildInteractiveAudioCatalog,
   fallbackTextFromSentences,
-  isAudioFileType,
+  resolveActiveTextChunk,
+  resolveChunkForSelectedItem,
+  resolveSelectedTextItem,
 } from './player-panel/utils';
 import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, MediaSelectionRequest, PlayerFeatureFlags, PlayerMode } from '../types/player';
@@ -55,6 +57,7 @@ import { usePlayerPanelActions } from './player-panel/usePlayerPanelActions';
 import { buildInteractiveViewerProps, buildNavigationBaseProps } from './player-panel/playerPanelProps';
 import { useInteractiveFullscreenPreference } from './player-panel/useInteractiveFullscreenPreference';
 import { usePlayerPanelScrollMemory } from './player-panel/usePlayerPanelScrollMemory';
+import { getLocalStorageItem, setLocalStorageItem } from '../utils/browserStorage';
 
 type ReadingBedOverride = {
   id: string;
@@ -139,20 +142,14 @@ export default function PlayerPanel({
     rememberSelection,
   });
   const [showOriginalAudio, setShowOriginalAudio] = useState<boolean>(() => {
-    if (typeof window === 'undefined') {
-      return true;
-    }
-    const stored = window.localStorage.getItem('player.showOriginalAudio');
+    const stored = getLocalStorageItem('player.showOriginalAudio');
     if (stored === null) {
       return true;
     }
     return stored === 'true';
   });
   const [showTranslationAudio, setShowTranslationAudio] = useState<boolean>(() => {
-    if (typeof window === 'undefined') {
-      return true;
-    }
-    const stored = window.localStorage.getItem('player.showTranslationAudio');
+    const stored = getLocalStorageItem('player.showTranslationAudio');
     if (stored === null) {
       return true;
     }
@@ -336,97 +333,35 @@ export default function PlayerPanel({
   }, [isInlineAudioPlaying, onPlaybackStateChange]);
   const selectedItemId = selectedItemIds.text;
   const textPlaybackPosition = getPosition(selectedItemIds.text);
-  const selectedItem = useMemo(() => {
-    if (media.text.length === 0) {
-      return null;
-    }
-    if (!selectedItemId) {
-      return media.text[0] ?? null;
-    }
-    return media.text.find((item) => item.url === selectedItemId) ?? media.text[0] ?? null;
-  }, [media.text, selectedItemId]);
+  const selectedItem = useMemo(
+    () => resolveSelectedTextItem(media.text, selectedItemId),
+    [media.text, selectedItemId],
+  );
   const allowTextPreview =
     playerMode !== 'export' || (typeof window !== 'undefined' && window.location.protocol !== 'file:');
   const { textPreview, textLoading, textError } = useTextPreview(selectedItem?.url, {
     enabled: allowTextPreview,
   });
-  const selectedChunk = useMemo(() => {
-    if (!selectedItem) {
-      return null;
-    }
-    return (
-      chunks.find((chunk) => {
-        if (selectedItem.chunk_id && chunk.chunkId) {
-          return chunk.chunkId === selectedItem.chunk_id;
-        }
-        if (selectedItem.range_fragment && chunk.rangeFragment) {
-          return chunk.rangeFragment === selectedItem.range_fragment;
-        }
-        if (selectedItem.url) {
-          return chunk.files.some((file) => file.url === selectedItem.url);
-        }
-        return false;
-      }) ?? null
-    );
-  }, [chunks, selectedItem]);
+  const selectedChunk = useMemo(
+    () => resolveChunkForSelectedItem(chunks, selectedItem),
+    [chunks, selectedItem],
+  );
   const {
     playlist: interactiveAudioPlaylist,
     nameMap: interactiveAudioNameMap,
     chunkIndexMap: audioChunkIndexMap,
   } = useMemo(() => buildInteractiveAudioCatalog(chunks, media.audio), [chunks, media.audio]);
-  const activeTextChunk = useMemo(() => {
-    if (selectedChunk) {
-      return selectedChunk;
-    }
-    if (!chunks.length) {
-      return null;
-    }
-    if (inlineAudioSelection) {
-      const mappedIndex = audioChunkIndexMap.get(inlineAudioSelection);
-      if (typeof mappedIndex === 'number' && mappedIndex >= 0 && mappedIndex < chunks.length) {
-        return chunks[mappedIndex];
-      }
-      // For multi-sentence chunks, check if inlineAudioSelection matches any audioTracks URL
-      // (URLs may have access tokens appended, so we do a substring match)
-      const matchedByAudioTracks = chunks.find((chunk) => {
-        const tracks = chunk.audioTracks;
-        if (!tracks || typeof tracks !== 'object') {
-          return false;
-        }
-        return Object.values(tracks).some((trackMeta) => {
-          if (!trackMeta || typeof trackMeta !== 'object') {
-            return false;
-          }
-          const trackUrl = (trackMeta as { url?: string; path?: string }).url ?? (trackMeta as { url?: string; path?: string }).path;
-          if (!trackUrl) {
-            return false;
-          }
-          // Check if the inlineAudioSelection contains this track URL (handles access tokens)
-          return inlineAudioSelection.includes(trackUrl) || trackUrl.includes(inlineAudioSelection.split('?')[0]);
-        });
-      });
-      if (matchedByAudioTracks) {
-        return matchedByAudioTracks;
-      }
-    }
-    const audioId = selectedItemIds.audio;
-    if (audioId) {
-      const mappedIndex = audioChunkIndexMap.get(audioId);
-      if (typeof mappedIndex === 'number' && mappedIndex >= 0 && mappedIndex < chunks.length) {
-        return chunks[mappedIndex];
-      }
-      const matchedByAudio = chunks.find((chunk) =>
-    chunk.files.some((file) => isAudioFileType(file.type) && file.url === audioId),
-      );
-      if (matchedByAudio) {
-        return matchedByAudio;
-      }
-    }
-    const firstWithSentences = chunks.find(
-      (chunk) => Array.isArray(chunk.sentences) && chunk.sentences.length > 0,
-    );
-    return firstWithSentences ?? chunks[0];
-  }, [audioChunkIndexMap, chunks, inlineAudioSelection, selectedChunk, selectedItemIds.audio]);
+  const activeTextChunk = useMemo(
+    () =>
+      resolveActiveTextChunk({
+        chunks,
+        selectedChunk,
+        inlineAudioSelection,
+        audioChunkIndexMap,
+        selectedAudioId: selectedItemIds.audio,
+      }),
+    [audioChunkIndexMap, chunks, inlineAudioSelection, selectedChunk, selectedItemIds.audio],
+  );
   const activeTextChunkIndex = useMemo(
     () => (activeTextChunk ? chunks.findIndex((chunk) => chunk === activeTextChunk) : -1),
     [activeTextChunk, chunks],
@@ -781,16 +716,10 @@ export default function PlayerPanel({
   }, [isInteractiveFullscreen, onFullscreenChange]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem('player.showOriginalAudio', showOriginalAudio ? 'true' : 'false');
+    setLocalStorageItem('player.showOriginalAudio', showOriginalAudio ? 'true' : 'false');
   }, [showOriginalAudio]);
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem('player.showTranslationAudio', showTranslationAudio ? 'true' : 'false');
+    setLocalStorageItem('player.showTranslationAudio', showTranslationAudio ? 'true' : 'false');
   }, [showTranslationAudio]);
 
   const handleResetInteractiveLayout = useCallback(() => {

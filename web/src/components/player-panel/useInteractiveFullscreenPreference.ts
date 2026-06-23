@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getLocalStorageItem, setLocalStorageItem } from '../../utils/browserStorage';
 
 type UseInteractiveFullscreenPreferenceArgs = {
   canRenderInteractiveViewer: boolean;
@@ -17,10 +18,7 @@ export function useInteractiveFullscreenPreference({
   hasInteractiveChunks,
 }: UseInteractiveFullscreenPreferenceArgs): UseInteractiveFullscreenPreferenceResult {
   const resolveStoredInteractiveFullscreenPreference = () => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-    return window.localStorage.getItem('player.textFullscreenPreferred') === 'true';
+    return getLocalStorageItem('player.textFullscreenPreferred') === 'true';
   };
   const [isInteractiveFullscreen, setIsInteractiveFullscreen] = useState<boolean>(() =>
     resolveStoredInteractiveFullscreenPreference(),
@@ -28,9 +26,7 @@ export function useInteractiveFullscreenPreference({
   const interactiveFullscreenPreferenceRef = useRef<boolean>(isInteractiveFullscreen);
   const updateInteractiveFullscreenPreference = useCallback((next: boolean) => {
     interactiveFullscreenPreferenceRef.current = next;
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('player.textFullscreenPreferred', next ? 'true' : 'false');
-    }
+    setLocalStorageItem('player.textFullscreenPreferred', next ? 'true' : 'false');
   }, []);
 
   const handleInteractiveFullscreenToggle = useCallback(() => {

@@ -1,3 +1,5 @@
+import { getLocalStorageItem } from '../utils/browserStorage';
+
 export type InteractiveTextTheme = {
   background: string;
   original: string;
@@ -41,10 +43,7 @@ export function normalizeHexColor(value: string | null | undefined, fallback: st
 }
 
 export function loadInteractiveTextTheme(storageKey: string): InteractiveTextTheme {
-  if (typeof window === 'undefined') {
-    return DEFAULT_INTERACTIVE_TEXT_THEME;
-  }
-  const stored = window.localStorage.getItem(storageKey);
+  const stored = getLocalStorageItem(storageKey);
   if (!stored) {
     return DEFAULT_INTERACTIVE_TEXT_THEME;
   }

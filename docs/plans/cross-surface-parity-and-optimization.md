@@ -66,7 +66,12 @@ Large Web UI hotspots to split before redesign work:
   disabled action-state rules now live in
   `web/src/components/library-list/libraryListActions.ts` with focused Vitest
   coverage.
-- `web/src/components/PlayerPanel.tsx` - 1085 lines.
+- `web/src/components/PlayerPanel.tsx` - 1014 lines. Status: selected text
+  item, selected chunk, and active text chunk resolution now live in
+  `web/src/components/player-panel/utils.ts` with focused Vitest coverage.
+  Browser storage reads/writes used by PlayerPanel, interactive text, reading
+  bed, media memory, and bookmarks now route through
+  `web/src/utils/browserStorage.ts` with focused Vitest coverage.
 - `web/src/components/Sidebar.tsx` - 963 lines.
 - `web/src/components/book-narration/BookNarrationForm.tsx` - 956 lines.
 
@@ -234,6 +239,11 @@ Refactor before restyling:
   `LibraryList.tsx` now imports tested helpers for permission defaults, export
   readiness, and disabled action states from
   `web/src/components/library-list/libraryListActions.ts`.
+- Isolate Player panel active selection before visual redesign. Status:
+  `PlayerPanel.tsx` now imports tested helpers for selected text item,
+  selected chunk, and active text chunk resolution from
+  `web/src/components/player-panel/utils.ts`, and player preference storage now
+  uses the shared safe browser storage wrapper.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, and genre defaults from
   `/api/books/options` while preserving prompt edits that happen before defaults

@@ -5,16 +5,14 @@ import {
   REEL_SCALE_STEP,
   clampReelScale,
 } from './constants';
+import { getLocalStorageItem, setLocalStorageItem } from '../../../utils/browserStorage';
 
 /**
  * Hook to manage reel scale with localStorage persistence and keyboard shortcuts.
  */
 export function useReelScale() {
   const [reelScale, setReelScale] = useState<number>(() => {
-    if (typeof window === 'undefined') {
-      return REEL_SCALE_DEFAULT;
-    }
-    const stored = window.localStorage.getItem(REEL_SCALE_STORAGE_KEY);
+    const stored = getLocalStorageItem(REEL_SCALE_STORAGE_KEY);
     if (!stored) {
       return REEL_SCALE_DEFAULT;
     }
@@ -27,14 +25,7 @@ export function useReelScale() {
 
   // Persist to localStorage
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    try {
-      window.localStorage.setItem(REEL_SCALE_STORAGE_KEY, String(reelScale));
-    } catch {
-      // ignore
-    }
+    setLocalStorageItem(REEL_SCALE_STORAGE_KEY, String(reelScale));
   }, [reelScale]);
 
   // Keyboard shortcuts for scaling (Shift + +/-)
