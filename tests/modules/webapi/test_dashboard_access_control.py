@@ -4,18 +4,31 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
+from prometheus_client.parser import text_string_to_metric_families
 
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
     get_pipeline_service,
     get_runtime_context_provider,
 )
+from modules.webapi.routes import jobs_routes
 from modules.webapi.schemas import pipeline_jobs as pipeline_job_schemas
 from modules.services.job_manager.job import PipelineJob, PipelineJobStatus
 
 import pytest
 
 pytestmark = pytest.mark.webapi
+
+
+class _RecordingLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def debug(self, message: str, *args: object, **_kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
+
+    def info(self, message: str, *args: object, **_kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
 
 
 class _StubPipelineService:
@@ -187,6 +200,60 @@ def test_dashboard_jobs_endpoint_returns_paginated_job_contract(
     assert latest["parameters"]["audio_mode"] == "narration"
     assert latest["parameters"]["add_images"] is True
     assert latest["job_label"] == "fast"
+
+
+def test_dashboard_jobs_endpoint_records_safe_timing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    stub_service = _StubPipelineService()
+    logger = _RecordingLogger()
+    user_id = "sensitive-user-id"
+    job = PipelineJob(
+        job_id="sensitive-job-id",
+        job_type="pipeline",
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime(2026, 6, 22, 9, 30, tzinfo=timezone.utc),
+        user_id=user_id,
+        user_role="editor",
+    )
+    stub_service.jobs = {job.job_id: job}
+    stub_service.total = 1
+    monkeypatch.setattr(jobs_routes, "logger", logger)
+    app.dependency_overrides[get_pipeline_service] = lambda: stub_service
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/pipelines/jobs?offset=0&limit=10",
+            headers={"X-User-Id": user_id, "X-User-Role": "editor"},
+        )
+        metrics_response = client.get("/metrics")
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    rendered_logs = "\n".join(logger.messages)
+    assert "Pipeline job list completed" in rendered_logs
+    assert "paginated=True" in rendered_logs
+    assert "offset=0" in rendered_logs
+    assert "limit=10" in rendered_logs
+    assert "jobs=1" in rendered_logs
+    assert user_id not in rendered_logs
+    assert job.job_id not in rendered_logs
+
+    families = {
+        family.name: family
+        for family in text_string_to_metric_families(metrics_response.text)
+    }
+    metric = families["ebook_tools_job_list_route_duration_seconds"]
+    assert any(
+        sample.labels.get("operation") == "list_jobs"
+        and sample.labels.get("result") == "success"
+        and sample.name.endswith("_count")
+        and sample.value >= 1
+        for sample in metric.samples
+    )
 
 
 def test_pipeline_status_response_loads_filesystem_image_summary_by_default(

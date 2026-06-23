@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 import logging
+import time
 from typing import AsyncIterator, Callable
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -45,6 +46,19 @@ from modules.permissions import resolve_access_policy
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _record_job_list_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe job-list route timing if metrics are available."""
+
+    try:
+        from ..metrics import JOB_LIST_ROUTE_DURATION
+    except Exception:
+        return
+    JOB_LIST_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
 
 def _build_action_response(
     job: PipelineJob, *, error: str | None = None
@@ -141,29 +155,56 @@ async def list_jobs(
     When pagination is used, the response includes `total`, `offset`, and `limit` fields.
     """
 
-    # Get total count for pagination metadata (only when paginating)
-    total = None
-    if offset is not None or limit is not None:
-        total = pipeline_service.count_jobs(
+    started_at = time.perf_counter()
+    paginated = offset is not None or limit is not None
+    try:
+        # Get total count for pagination metadata (only when paginating)
+        total = None
+        if paginated:
+            total = pipeline_service.count_jobs(
+                user_id=request_user.user_id,
+                user_role=request_user.user_role,
+            )
+
+        jobs = pipeline_service.list_jobs(
             user_id=request_user.user_id,
             user_role=request_user.user_role,
+            offset=offset,
+            limit=limit,
+        ).values()
+        ordered = sorted(
+            jobs,
+            key=lambda job: job.created_at or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
         )
+        payload = [
+            PipelineStatusResponse.from_job(job, include_filesystem_image_summary=False)
+            for job in ordered
+        ]
+    except Exception:
+        duration_ms = (time.perf_counter() - started_at) * 1000.0
+        _record_job_list_route_duration("list_jobs", "error", started_at)
+        logger.info(
+            "Pipeline job list failed paginated=%s offset=%s limit=%s duration_ms=%.1f",
+            paginated,
+            offset,
+            limit,
+            duration_ms,
+        )
+        raise
 
-    jobs = pipeline_service.list_jobs(
-        user_id=request_user.user_id,
-        user_role=request_user.user_role,
-        offset=offset,
-        limit=limit,
-    ).values()
-    ordered = sorted(
-        jobs,
-        key=lambda job: job.created_at or datetime.min.replace(tzinfo=timezone.utc),
-        reverse=True,
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_job_list_route_duration("list_jobs", "success", started_at)
+    log_method = logger.info if duration_ms >= 250 else logger.debug
+    log_method(
+        "Pipeline job list completed paginated=%s offset=%s limit=%s total_known=%s jobs=%s duration_ms=%.1f",
+        paginated,
+        offset,
+        limit,
+        total is not None,
+        len(payload),
+        duration_ms,
     )
-    payload = [
-        PipelineStatusResponse.from_job(job, include_filesystem_image_summary=False)
-        for job in ordered
-    ]
     return PipelineJobListResponse(
         jobs=payload,
         total=total,

@@ -106,7 +106,9 @@ Optimization candidates:
   token-safe aggregate logs for success/error paths without recording raw
   search queries, user identifiers, auth headers, or tokens. Pipeline media
   search now records the same token-safe duration and aggregate hit-count
-  telemetry for blank, forbidden, not-found, and success outcomes.
+  telemetry for blank, forbidden, not-found, and success outcomes. Pipeline job
+  listing now records token-safe duration and pagination/result-count telemetry
+  for success/error outcomes without logging user ids or job ids.
 - Prefer precomputed or cached job summary fields for list rows while keeping full metadata available on detail/media routes.
 - Keep all auth/session headers and token handling out of logs and docs.
 

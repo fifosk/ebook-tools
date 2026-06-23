@@ -119,6 +119,13 @@ SEARCH_ROUTE_DURATION = Histogram(
     buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
 )
 
+JOB_LIST_ROUTE_DURATION = Histogram(
+    "ebook_tools_job_list_route_duration_seconds",
+    "Pipeline job list route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+)
+
 # ---------------------------------------------------------------------------
 # Users & sessions
 # ---------------------------------------------------------------------------
