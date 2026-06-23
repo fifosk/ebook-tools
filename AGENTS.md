@@ -45,6 +45,7 @@ This repository powers the ebook-tools platform, bundling a FastAPI backend, bac
 - Local Mac iPad-style Apple builds use `make build-apple-macos-ipad-style`; `make apple-macos-ipad-destination` and `make build-apple-macos-ipad-style-dry-run` inspect the resolved destination/build command without physical device deployment.
 - Run the test suite via `pytest` from the repository root.
 - Apple Create readiness targets use `E2E_ENV_FILE`, defaulting to `.env` when present and `.env.local` otherwise, before running XCUITest (`make test-e2e-ipad-create-readiness`, `make test-e2e-iphone-create-readiness`).
+- Keep the explicit `torch>=2.0,<2.11` dependency bound unless Docker resolver evidence shows a better range; newer Linux aarch64 Torch wheels pull CUDA packages and bloat backend rebuilds.
 - Library storage defaults to `/Volumes/Data/Video/Library`; override via `library_root` in `config/config.local.json` or the `LIBRARY_ROOT` environment variable when running services locally.
 
 ## Style Reminders

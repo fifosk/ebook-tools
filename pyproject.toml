@@ -23,6 +23,9 @@ dependencies = [
     "PyYAML>=6.0.1,<7",
     "bcrypt>=4.0,<5",
     "camel-tools>=1.5,<2",
+    # Keep camel-tools' transitive Torch dependency on lean CPU-only aarch64 wheels.
+    # Torch 2.11+ pulls CUDA wheels on Linux aarch64 and makes backend images huge.
+    "torch>=2.0,<2.11",
     "googletrans>=4.0.2,<5",
     "pypinyin>=0.50,<1",
     "pykakasi>=2.2,<3",

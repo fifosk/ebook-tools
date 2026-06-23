@@ -90,3 +90,28 @@ def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
     assert "showsInlineJobTypePicker: true" in detail_call
     assert "creationMode: $createMode" in compact_call
     assert "showsInlineJobTypePicker: true" in compact_call
+
+
+def test_ipad_split_view_keeps_settings_in_detail_panel() -> None:
+    source = _source(LIBRARY_SHELL)
+
+    assert "private var detailView: some View" in source
+    assert "private func browseList() -> some View" in source
+
+    detail_settings = re.search(
+        r"case \.settings:\s+PlaybackSettingsView\(",
+        source,
+    )
+    browse_placeholder = re.search(
+        r"case \.settings:\s+if isSplitLayout \{\s+placeholderView\(\s+title: \"Settings\",\s+systemImage: \"gearshape\",\s+subtitle: \"Adjust playback options in the detail panel\.\"",
+        source,
+    )
+    browse_compact_settings = re.search(
+        r"case \.settings:\s+if isSplitLayout \{.*?\} else \{\s+PlaybackSettingsView\(\s+sectionPicker: sectionPickerForHeader",
+        source,
+        re.DOTALL,
+    )
+
+    assert detail_settings
+    assert browse_placeholder
+    assert browse_compact_settings
