@@ -101,6 +101,15 @@ def _normalize_openlibrary_language(value: Any) -> Optional[str]:
     return None
 
 
+def _book_lookup_aliases(*, isbn: Optional[str], genres: Sequence[str]) -> Dict[str, Any]:
+    genre_label = ", ".join(genres) if genres else None
+    return {
+        "book_isbn": isbn,
+        "book_genre": genre_label,
+        "book_genres": list(genres),
+    }
+
+
 def _normalize_title(value: str) -> Optional[str]:
     cleaned = value.strip()
     if not cleaned:
@@ -694,6 +703,7 @@ class MediaMetadataService:
         job_label = _build_job_label(title=result.title, author=result.author, fallback=source_name)
 
         # Build provider-specific keys
+        isbn = result.source_ids.isbn or result.source_ids.isbn_13
         book_payload: Dict[str, Any] = {
             "title": result.title,
             "author": result.author,
@@ -701,10 +711,11 @@ class MediaMetadataService:
             "book_language": result.language,
             "year": str(result.year) if result.year else None,
             "summary": result.summary,
-            "isbn": result.source_ids.isbn or result.source_ids.isbn_13,
+            "isbn": isbn,
             "cover_url": result.cover_url,
             "cover_file": result.cover_file,
             "genre": ", ".join(result.genres) if result.genres else None,
+            **_book_lookup_aliases(isbn=isbn, genres=result.genres),
         }
 
         # Add source-specific identifiers
@@ -859,6 +870,7 @@ class MediaMetadataService:
                 "cover_url": cover_url,
                 "cover_file": cover_file,
                 "genre": ", ".join(result.genres) if result.genres else None,
+                **_book_lookup_aliases(isbn=isbn, genres=result.genres),
                 "google_books_id": result.source_ids.google_books_id,
             },
         }
@@ -1000,6 +1012,7 @@ class MediaMetadataService:
                     "cover_url": cover_url,
                     "cover_file": cover_file,
                     "genre": ", ".join(genres) if genres else None,
+                    **_book_lookup_aliases(isbn=query.isbn, genres=genres),
                     "openlibrary_book_key": book_key,
                     "openlibrary_book_url": book_url,
                 },
@@ -1132,6 +1145,7 @@ class MediaMetadataService:
                 "cover_url": cover_url,
                 "cover_file": cover_file,
                 "genre": ", ".join(genres) if genres else None,
+                **_book_lookup_aliases(isbn=isbn, genres=genres),
                 "openlibrary_work_key": work_key,
                 "openlibrary_work_url": work_url,
                 "openlibrary_cover_id": cover_id if isinstance(cover_id, int) else None,

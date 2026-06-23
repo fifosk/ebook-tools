@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.34
+
+- Advanced visible Apple app versioning to `v2026.06.23.34`.
+- Backend book lookup payloads now emit `book_isbn`, `book_genre`, and `book_genres` aliases directly across OpenLibrary, Google Books fallback, and unified metadata results.
+
 ### 2026.06.23.33
 
 - Advanced visible Apple app versioning to `v2026.06.23.33`.

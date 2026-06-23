@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.33",
+            version: "2026.06.23.34",
             entries: [
+                AppChangelogEntry(
+                    id: "backend-book-lookup-aliases",
+                    title: "Book lookup aliases",
+                    detail: "Backend book lookup payloads now emit book_isbn, book_genre, and book_genres aliases directly across OpenLibrary, Google Books fallback, and unified metadata results."
+                ),
                 AppChangelogEntry(
                     id: "google-books-language-genre",
                     title: "Google Books metadata",

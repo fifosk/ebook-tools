@@ -68,4 +68,34 @@ def test_google_books_fallback_preserves_language_and_genre_aliases() -> None:
     assert payload["provider"] == "google_books"
     assert payload["book"]["language"] == "en"
     assert payload["book"]["book_language"] == "en"
+    assert payload["book"]["book_isbn"] == "9780140328721"
     assert payload["book"]["genre"] == "Adventure, Fantasy"
+    assert payload["book"]["book_genre"] == "Adventure, Fantasy"
+    assert payload["book"]["book_genres"] == ["Adventure", "Fantasy"]
+
+
+def test_pipeline_result_payload_exposes_web_aligned_book_aliases() -> None:
+    service = object.__new__(MediaMetadataService)
+
+    payload = service._convert_pipeline_result_to_payload(
+        UnifiedMetadataResult(
+            title="Example Book",
+            type=MediaType.BOOK,
+            year=2025,
+            genres=["Adventure", "Fantasy"],
+            source_ids=SourceIds(isbn="0140328726"),
+            confidence=ConfidenceLevel.HIGH,
+            primary_source=MetadataSource.OPENLIBRARY,
+            contributing_sources=[MetadataSource.OPENLIBRARY],
+            author="Jane Doe",
+            language="en",
+        ),
+        BookLookupQuery(title="Example Book", author="Jane Doe", isbn=None, source_name="example.epub"),
+    )
+
+    book = payload["book"]
+    assert book["isbn"] == "0140328726"
+    assert book["book_isbn"] == "0140328726"
+    assert book["genre"] == "Adventure, Fantasy"
+    assert book["book_genre"] == "Adventure, Fantasy"
+    assert book["book_genres"] == ["Adventure", "Fantasy"]
