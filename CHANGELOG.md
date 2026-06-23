@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.66
+
+- Advanced visible Apple app versioning to `v2026.06.23.66`.
+- Web Subtitle Tool source mode and upload-file state now live in a focused hook with coverage for ASS-source detection, upload labels, and stale error clearing.
+
 ### 2026.06.23.65
 
 - Advanced visible Apple app versioning to `v2026.06.23.65`.

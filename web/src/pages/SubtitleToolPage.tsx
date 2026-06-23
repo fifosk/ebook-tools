@@ -22,7 +22,6 @@ import {
 } from './subtitle-tool/subtitleToolConfig';
 import type {
   SubtitleOutputFormat,
-  SubtitleSourceMode,
   SubtitleToolTab
 } from './subtitle-tool/subtitleToolTypes';
 import { useSubtitleJobResults } from './subtitle-tool/useSubtitleJobResults';
@@ -30,13 +29,12 @@ import { useSubtitleLanguageState } from './subtitle-tool/useSubtitleLanguageSta
 import { useSubtitleModels } from './subtitle-tool/useSubtitleModels';
 import { useSubtitlePrefill } from './subtitle-tool/useSubtitlePrefill';
 import { useSubtitleShowOriginalPreference } from './subtitle-tool/useSubtitleShowOriginalPreference';
+import { useSubtitleSourceMode } from './subtitle-tool/useSubtitleSourceMode';
 import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
 import { useSubtitleSubmitFeedback } from './subtitle-tool/useSubtitleSubmitFeedback';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
 import {
   buildSubtitleSubmitFormData,
-  isAssSubtitleSelection,
-  resolveSubtitleMetadataSourceName,
   resolveSubtitleSubmitValues,
   sortSubtitleJobsNewestFirst
 } from './subtitle-tool/subtitleToolUtils';
@@ -76,7 +74,6 @@ export default function SubtitleToolPage({
     handleInputLanguageChange,
     handleTargetLanguageChange
   } = useSubtitleLanguageState();
-  const [sourceMode, setSourceMode] = useState<SubtitleSourceMode>('existing');
   const sourceDirectory = DEFAULT_SUBTITLE_SOURCE_DIRECTORY;
   const {
     sources,
@@ -91,21 +88,22 @@ export default function SubtitleToolPage({
     refreshSources,
     handleDeleteSource
   } = useSubtitleSources({ sourceDirectory, refreshSignal });
-  const isAssSelection = useMemo(
-    () => isAssSubtitleSelection(sourceMode, selectedSourceEntry),
-    [sourceMode, selectedSourceEntry]
-  );
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const metadataSourceName = useMemo(
-    () =>
-      resolveSubtitleMetadataSourceName({
-        sourceMode,
-        uploadFileName: uploadFile?.name,
-        selectedSourceName: selectedSourceEntry?.name,
-        selectedSourcePath: selectedSource
-      }),
-    [selectedSource, selectedSourceEntry, sourceMode, uploadFile]
-  );
+  const [isSubmitting, setSubmitting] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const resetSubmitError = useCallback(() => setSubmitError(null), []);
+  const {
+    sourceMode,
+    uploadFile,
+    isAssSelection,
+    metadataSourceName,
+    handleSourceModeChange,
+    handleUploadFileChange,
+    clearUploadFile
+  } = useSubtitleSourceMode({
+    selectedSource,
+    selectedSourceEntry,
+    onSubmitErrorReset: resetSubmitError
+  });
   const {
     metadataLookupSourceName,
     setMetadataLookupSourceName,
@@ -138,8 +136,6 @@ export default function SubtitleToolPage({
   const [transliterationModel, setTransliterationModel] = useState<string>('');
   const [translationProvider, setTranslationProvider] = useState<string>('llm');
   const [transliterationMode, setTransliterationMode] = useState<string>('default');
-  const [isSubmitting, setSubmitting] = useState<boolean>(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const jobResults = useSubtitleJobResults(subtitleJobs);
   const { submittedSummary, recordSubmission } = useSubtitleSubmitFeedback({
     defaultStartTime: DEFAULT_START_TIME
@@ -162,15 +158,6 @@ export default function SubtitleToolPage({
     setTransliterationModel,
     setSelectedSource
   });
-  const handleSourceModeChange = useCallback((mode: SubtitleSourceMode) => {
-    setSourceMode(mode);
-    setSubmitError(null);
-  }, []);
-
-  const handleUploadFileChange = useCallback((file: File | null) => {
-    setUploadFile(file);
-  }, []);
-
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -249,7 +236,7 @@ export default function SubtitleToolPage({
         onJobCreated(response.job_id);
         setActiveTab('jobs');
         if (sourceMode === 'upload') {
-          setUploadFile(null);
+          clearUploadFile();
         }
         await refreshIntakeStatus();
       } catch (error) {
@@ -287,7 +274,8 @@ export default function SubtitleToolPage({
       transliterationModel,
       isIntakeAtCapacity,
       refreshIntakeStatus,
-      recordSubmission
+      recordSubmission,
+      clearUploadFile
     ]
   );
 
