@@ -15,6 +15,8 @@ struct AppleBookCreateDraft: Equatable {
     let audioBitrateKbps: Int?
     let writtenMode: String
     let tempo: Double
+    let sentencesPerOutputFile: Int
+    let stitchFull: Bool
     let includeTransliteration: Bool
     let translationProvider: String
     let translationBatchSize: Int
@@ -57,6 +59,8 @@ struct AppleNarrateEbookDraft: Equatable {
     let audioBitrateKbps: Int?
     let writtenMode: String
     let tempo: Double
+    let sentencesPerOutputFile: Int
+    let stitchFull: Bool
     let includeTransliteration: Bool
     let translationProvider: String
     let translationBatchSize: Int
@@ -82,6 +86,8 @@ struct AppleNarrateEbookDraft: Equatable {
             audioBitrateKbps: audioBitrateKbps,
             writtenMode: writtenMode,
             tempo: tempo,
+            sentencesPerOutputFile: sentencesPerOutputFile,
+            stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: translationProvider,
             translationBatchSize: translationBatchSize,
@@ -322,6 +328,8 @@ enum AppleBookCreateEditedField: Hashable {
     case audioBitrateKbps
     case writtenMode
     case tempo
+    case bookSentencesPerOutputFile
+    case stitchFull
     case includeTransliteration
     case bookTranslationProvider
     case bookTranslationBatchSize
@@ -363,6 +371,8 @@ struct AppleCreateResolvedDefaults: Equatable {
     let audioBitrateKbps: String?
     let writtenMode: String?
     let tempo: Double?
+    let bookSentencesPerOutputFile: Int?
+    let stitchFull: Bool?
     let includeTransliteration: Bool?
     let bookTranslationProvider: AppleSubtitleTranslationProvider?
     let bookTranslationBatchSize: Int?
@@ -467,6 +477,12 @@ enum AppleBookCreatePresentation {
             tempo: editedFields.contains(.tempo)
                 ? nil
                 : clampTempo(options.pipelineDefaults.tempo),
+            bookSentencesPerOutputFile: editedFields.contains(.bookSentencesPerOutputFile)
+                ? nil
+                : clampBookSentencesPerOutputFile(options.pipelineDefaults.sentencesPerOutputFile),
+            stitchFull: editedFields.contains(.stitchFull)
+                ? nil
+                : options.pipelineDefaults.stitchFull,
             includeTransliteration: editedFields.contains(.includeTransliteration)
                 ? nil
                 : options.pipelineDefaults.includeTransliteration,
@@ -536,6 +552,10 @@ enum AppleBookCreatePresentation {
 
     static func clampImagePromptBatchSize(_ value: Int) -> Int {
         clamp(value, to: 1...50)
+    }
+
+    static func clampBookSentencesPerOutputFile(_ value: Int) -> Int {
+        clamp(value, to: AppleBookOutputChunking.sentencesPerOutputFileRange)
     }
 
     static func normalizedImageDimension(_ value: String) -> String {
@@ -838,6 +858,8 @@ enum AppleBookCreatePresentation {
         audioBitrateKbps: String,
         writtenMode: String,
         tempo: Double,
+        sentencesPerOutputFile: Int,
+        stitchFull: Bool,
         includeTransliteration: Bool,
         translationProvider: AppleSubtitleTranslationProvider,
         translationBatchSize: Int,
@@ -881,6 +903,8 @@ enum AppleBookCreatePresentation {
             audioBitrateKbps: normalizedAudioBitrate(audioBitrateKbps),
             writtenMode: normalizedMode(writtenMode, fallback: "4"),
             tempo: clampTempo(tempo),
+            sentencesPerOutputFile: clampBookSentencesPerOutputFile(sentencesPerOutputFile),
+            stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: translationProvider.backendValue,
             translationBatchSize: clampSubtitleTranslationBatchSize(translationBatchSize),
@@ -926,6 +950,8 @@ enum AppleBookCreatePresentation {
         audioBitrateKbps: String,
         writtenMode: String,
         tempo: Double,
+        sentencesPerOutputFile: Int,
+        stitchFull: Bool,
         includeTransliteration: Bool,
         translationProvider: AppleSubtitleTranslationProvider,
         translationBatchSize: Int,
@@ -951,6 +977,8 @@ enum AppleBookCreatePresentation {
             audioBitrateKbps: normalizedAudioBitrate(audioBitrateKbps),
             writtenMode: normalizedMode(writtenMode, fallback: "4"),
             tempo: clampTempo(tempo),
+            sentencesPerOutputFile: clampBookSentencesPerOutputFile(sentencesPerOutputFile),
+            stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: translationProvider.backendValue,
             translationBatchSize: clampSubtitleTranslationBatchSize(translationBatchSize),
@@ -1216,4 +1244,9 @@ enum AppleSubtitleTuning {
     static let batchSizeRange = 1...500
     static let defaultTranslationBatchSize = 10
     static let translationBatchSizeRange = 1...50
+}
+
+enum AppleBookOutputChunking {
+    static let defaultSentencesPerOutputFile = 10
+    static let sentencesPerOutputFileRange = 1...100
 }

@@ -173,6 +173,7 @@ def test_book_creation_options_endpoint_returns_non_secret_defaults(tmp_path: Pa
     assert body["defaults"]["output_language"] == "Arabic"
     assert body["defaults"]["voice"] == "DemoVoice"
     assert body["pipeline_defaults"]["audio_mode"] == "4"
+    assert body["pipeline_defaults"]["stitch_full"] is False
     assert body["pipeline_defaults"]["written_mode"] == "4"
     assert body["pipeline_defaults"]["selected_voice"] == "DemoVoice"
     assert body["generated_source_defaults"]["image_style_template"] == "wireframe"

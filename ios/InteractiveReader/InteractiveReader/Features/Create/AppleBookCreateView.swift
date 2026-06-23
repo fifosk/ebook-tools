@@ -64,6 +64,8 @@ struct AppleBookCreateView: View {
     @State private var audioBitrateKbps = "96"
     @State private var writtenMode = "4"
     @State private var tempo = 1.0
+    @State private var bookSentencesPerOutputFile = AppleBookOutputChunking.defaultSentencesPerOutputFile
+    @State private var stitchFull = false
     @State private var includeTransliteration = true
     @State private var bookTranslationProvider = AppleSubtitleTranslationProvider.llm
     @State private var bookTranslationBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
@@ -291,6 +293,9 @@ struct AppleBookCreateView: View {
                     writtenMode: textBinding(for: .writtenMode, value: $writtenMode),
                     tempo: tempoBinding,
                     formattedTempo: formattedTempo,
+                    sentencesPerOutputFile: bookSentencesPerOutputFileBinding,
+                    clampedSentencesPerOutputFile: clampedBookSentencesPerOutputFile,
+                    stitchFull: boolBinding(for: .stitchFull, value: $stitchFull),
                     includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
                     translationProvider: bookTranslationProviderBinding,
                     translationBatchSize: bookTranslationBatchSizeBinding,
@@ -482,6 +487,8 @@ struct AppleBookCreateView: View {
             audioBitrateKbps: audioBitrateKbps,
             writtenMode: writtenMode,
             tempo: tempo,
+            sentencesPerOutputFile: bookSentencesPerOutputFile,
+            stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: bookTranslationProvider,
             translationBatchSize: bookTranslationBatchSize,
@@ -627,6 +634,8 @@ struct AppleBookCreateView: View {
             audioBitrateKbps: audioBitrateKbps,
             writtenMode: writtenMode,
             tempo: tempo,
+            sentencesPerOutputFile: bookSentencesPerOutputFile,
+            stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: bookTranslationProvider,
             translationBatchSize: bookTranslationBatchSize,
@@ -779,6 +788,10 @@ struct AppleBookCreateView: View {
         AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(bookTranslationBatchSize)
     }
 
+    private var clampedBookSentencesPerOutputFile: Int {
+        AppleBookCreatePresentation.clampBookSentencesPerOutputFile(bookSentencesPerOutputFile)
+    }
+
     private var clampedBookLookupCacheBatchSize: Int {
         AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(bookLookupCacheBatchSize)
     }
@@ -908,6 +921,19 @@ struct AppleBookCreateView: View {
                 bookTranslationBatchSize = min(
                     AppleSubtitleTuning.translationBatchSizeRange.upperBound,
                     max(AppleSubtitleTuning.translationBatchSizeRange.lowerBound, newValue)
+                )
+            }
+        )
+    }
+
+    private var bookSentencesPerOutputFileBinding: Binding<Int> {
+        Binding(
+            get: { clampedBookSentencesPerOutputFile },
+            set: { newValue in
+                markEdited(.bookSentencesPerOutputFile)
+                bookSentencesPerOutputFile = min(
+                    AppleBookOutputChunking.sentencesPerOutputFileRange.upperBound,
+                    max(AppleBookOutputChunking.sentencesPerOutputFileRange.lowerBound, newValue)
                 )
             }
         )
@@ -1160,6 +1186,12 @@ struct AppleBookCreateView: View {
         }
         if let value = defaults.tempo {
             tempo = value
+        }
+        if let value = defaults.bookSentencesPerOutputFile {
+            bookSentencesPerOutputFile = value
+        }
+        if let value = defaults.stitchFull {
+            stitchFull = value
         }
         if let value = defaults.includeTransliteration {
             includeTransliteration = value

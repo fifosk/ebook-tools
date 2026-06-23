@@ -403,6 +403,9 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var writtenMode: String
     @Binding var tempo: Double
     let formattedTempo: String
+    @Binding var sentencesPerOutputFile: Int
+    let clampedSentencesPerOutputFile: Int
+    @Binding var stitchFull: Bool
     @Binding var includeTransliteration: Bool
     @Binding var translationProvider: AppleSubtitleTranslationProvider
     @Binding var translationBatchSize: Int
@@ -552,6 +555,53 @@ struct AppleBookCreateGeneratedOutputControls: View {
             .accessibilityIdentifier("createBookOutputHtmlToggle")
         Toggle("PDF output", isOn: $outputPdf)
             .accessibilityIdentifier("createBookOutputPdfToggle")
+        #if os(iOS)
+        Stepper(
+            value: $sentencesPerOutputFile,
+            in: AppleBookOutputChunking.sentencesPerOutputFileRange,
+            step: 1
+        ) {
+            LabeledContent("Sentences per file", value: "\(clampedSentencesPerOutputFile)")
+        }
+        .accessibilityIdentifier("createBookSentencesPerFileStepper")
+        #else
+        LabeledContent("Sentences per file") {
+            HStack(spacing: 12) {
+                Button {
+                    sentencesPerOutputFile = max(
+                        AppleBookOutputChunking.sentencesPerOutputFileRange.lowerBound,
+                        clampedSentencesPerOutputFile - 1
+                    )
+                } label: {
+                    Image(systemName: "minus")
+                }
+                .disabled(
+                    clampedSentencesPerOutputFile <= AppleBookOutputChunking.sentencesPerOutputFileRange.lowerBound
+                )
+                .accessibilityLabel("Decrease sentences per file")
+
+                Text("\(clampedSentencesPerOutputFile)")
+                    .monospacedDigit()
+                    .frame(minWidth: 48)
+
+                Button {
+                    sentencesPerOutputFile = min(
+                        AppleBookOutputChunking.sentencesPerOutputFileRange.upperBound,
+                        clampedSentencesPerOutputFile + 1
+                    )
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .disabled(
+                    clampedSentencesPerOutputFile >= AppleBookOutputChunking.sentencesPerOutputFileRange.upperBound
+                )
+                .accessibilityLabel("Increase sentences per file")
+            }
+        }
+        .accessibilityIdentifier("createBookSentencesPerFileControl")
+        #endif
+        Toggle("Stitch full book", isOn: $stitchFull)
+            .accessibilityIdentifier("createBookStitchFullToggle")
         Toggle("Transliteration", isOn: $includeTransliteration)
             .accessibilityIdentifier("createBookTransliterationToggle")
         Picker("Translation provider", selection: $translationProvider) {

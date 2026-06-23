@@ -40,6 +40,7 @@ export interface BookCreationOptionsResponse {
   };
   pipeline_defaults: {
     sentences_per_output_file: number;
+    stitch_full: boolean;
     audio_mode: string;
     audio_bitrate_kbps: number | null;
     written_mode: string;

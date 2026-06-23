@@ -185,6 +185,7 @@ struct BookCreationDefaults: Decodable, Equatable {
 
 struct BookCreationPipelineDefaults: Decodable, Equatable {
     let sentencesPerOutputFile: Int
+    let stitchFull: Bool
     let audioMode: String
     let audioBitrateKbps: Int?
     let writtenMode: String
@@ -202,6 +203,7 @@ struct BookCreationPipelineDefaults: Decodable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case sentencesPerOutputFile = "sentences_per_output_file"
+        case stitchFull = "stitch_full"
         case audioMode = "audio_mode"
         case audioBitrateKbps = "audio_bitrate_kbps"
         case writtenMode = "written_mode"

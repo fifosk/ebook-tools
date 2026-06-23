@@ -21,6 +21,7 @@ struct AppleCreationPayloadCheck {
           },
           "pipeline_defaults": {
             "sentences_per_output_file": 10,
+            "stitch_full": true,
             "audio_mode": "4",
             "audio_bitrate_kbps": 96,
             "written_mode": "4",
@@ -343,6 +344,14 @@ struct AppleCreationPayloadCheck {
             "Tempo should use backend pipeline default"
         )
         require(
+            resolvedDefaults.bookSentencesPerOutputFile == 10,
+            "Sentences-per-file should use backend pipeline default"
+        )
+        require(
+            resolvedDefaults.stitchFull == true,
+            "Stitch-full toggle should use backend pipeline default"
+        )
+        require(
             resolvedDefaults.includeTransliteration == true,
             "Transliteration toggle should use backend pipeline default"
         )
@@ -398,6 +407,8 @@ struct AppleCreationPayloadCheck {
                 .audioBitrateKbps,
                 .writtenMode,
                 .tempo,
+                .bookSentencesPerOutputFile,
+                .stitchFull,
                 .enableLookupCache,
                 .outputHtml,
                 .outputPdf,
@@ -418,6 +429,8 @@ struct AppleCreationPayloadCheck {
         require(editedDefaults.audioBitrateKbps == nil, "Edited audio bitrate should not be overwritten")
         require(editedDefaults.writtenMode == nil, "Edited written mode should not be overwritten")
         require(editedDefaults.tempo == nil, "Edited tempo should not be overwritten")
+        require(editedDefaults.bookSentencesPerOutputFile == nil, "Edited sentences-per-file should not be overwritten")
+        require(editedDefaults.stitchFull == nil, "Edited stitch-full toggle should not be overwritten")
         require(editedDefaults.outputHtml == nil, "Edited HTML output should not be overwritten")
         require(editedDefaults.outputPdf == nil, "Edited PDF output should not be overwritten")
         require(editedDefaults.enableLookupCache == nil, "Edited lookup-cache toggle should not be overwritten")
@@ -443,6 +456,14 @@ struct AppleCreationPayloadCheck {
         require(
             AppleBookCreatePresentation.clampImagePromptBatchSize(99) == 50,
             "Image prompt batch size should clamp to the Web submission upper bound"
+        )
+        require(
+            AppleBookCreatePresentation.clampBookSentencesPerOutputFile(0) == 1,
+            "Book sentences-per-file should clamp to the Web submission lower bound"
+        )
+        require(
+            AppleBookCreatePresentation.clampBookSentencesPerOutputFile(999) == 100,
+            "Book sentences-per-file should clamp to the Web submission upper bound"
         )
         require(
             AppleBookCreatePresentation.normalizedImageDimension("63.9") == "64",
@@ -551,6 +572,8 @@ struct AppleCreationPayloadCheck {
             audioBitrateKbps: "31",
             writtenMode: " 3 ",
             tempo: 2.9,
+            sentencesPerOutputFile: 0,
+            stitchFull: true,
             includeTransliteration: true,
             translationProvider: .googleTranslate,
             translationBatchSize: 0,
@@ -588,6 +611,8 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.audioBitrateKbps == 32, "Generated draft should floor selected audio bitrate")
         require(generatedDraft.writtenMode == "3", "Generated draft should trim selected written mode")
         require(generatedDraft.tempo == 2.0, "Generated draft should clamp selected tempo")
+        require(generatedDraft.sentencesPerOutputFile == 1, "Generated draft should clamp sentences per file")
+        require(generatedDraft.stitchFull == true, "Generated draft should keep stitch-full toggle")
         require(generatedDraft.translationProvider == "googletrans", "Generated draft should map selected provider")
         require(generatedDraft.translationBatchSize == 1, "Generated draft should clamp translation batch size")
         require(generatedDraft.transliterationMode == "python", "Generated draft should map transliteration mode")
@@ -648,6 +673,8 @@ struct AppleCreationPayloadCheck {
             audioBitrateKbps: "",
             writtenMode: "",
             tempo: 0.2,
+            sentencesPerOutputFile: 999,
+            stitchFull: false,
             includeTransliteration: false,
             translationProvider: .llm,
             translationBatchSize: 12,
@@ -667,6 +694,8 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.audioBitrateKbps == nil, "Narrate draft should preserve backend-default audio bitrate")
         require(narrateDraft.writtenMode == "4", "Narrate draft should use fallback written mode for blank selection")
         require(narrateDraft.tempo == 0.5, "Narrate draft should clamp low tempo")
+        require(narrateDraft.sentencesPerOutputFile == 100, "Narrate draft should clamp sentences per file")
+        require(narrateDraft.stitchFull == false, "Narrate draft should keep stitch-full toggle")
         require(narrateDraft.includeTransliteration == false, "Narrate draft should keep transliteration toggle")
         require(narrateDraft.translationProvider == "llm", "Narrate draft should map selected provider")
         require(narrateDraft.translationBatchSize == 12, "Narrate draft should keep selected translation batch size")
@@ -764,6 +793,7 @@ struct AppleCreationPayloadCheck {
             inputLanguage: "en",
             targetLanguages: ["sk"],
             sentencesPerOutputFile: 12,
+            stitchFull: true,
             generateAudio: false,
             audioMode: "2",
             audioBitrateKbps: 32,
@@ -877,6 +907,7 @@ struct AppleCreationPayloadCheck {
         require(encodedInputs?["input_file"] as? String == "books/demo.epub", "pipeline inputs should encode input_file")
         require(encodedInputs?["target_languages"] as? [String] == ["sk"], "pipeline inputs should encode target_languages")
         require(encodedInputs?["sentences_per_output_file"] as? Int == 12, "pipeline inputs should encode sentence count")
+        require(encodedInputs?["stitch_full"] as? Bool == true, "pipeline inputs should encode stitch_full")
         require(encodedInputs?["generate_audio"] as? Bool == false, "pipeline inputs should encode generate_audio")
         require(encodedInputs?["audio_mode"] as? String == "2", "pipeline inputs should encode audio_mode")
         require(encodedInputs?["audio_bitrate_kbps"] as? Int == 32, "pipeline inputs should encode audio_bitrate_kbps")

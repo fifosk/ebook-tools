@@ -232,6 +232,7 @@ def _build_creation_options(config: dict[str, Any]) -> BookCreationOptionsRespon
         ),
         pipeline_defaults=BookCreationPipelineDefaults(
             sentences_per_output_file=max(1, _coerce_int(config.get("sentences_per_output_file"), 10)),
+            stitch_full=_coerce_bool(config.get("stitch_full"), False),
             audio_mode=_coerce_text(config.get("audio_mode"), "4"),
             audio_bitrate_kbps=max(32, _coerce_int(config.get("audio_bitrate_kbps"), 96)),
             written_mode=_coerce_text(config.get("written_mode"), "4"),

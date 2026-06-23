@@ -77,6 +77,7 @@ class BookCreationPipelineDefaults(BaseModel):
     """Default pipeline settings used by generated-book creation clients."""
 
     sentences_per_output_file: int = 10
+    stitch_full: bool = False
     audio_mode: str = "4"
     audio_bitrate_kbps: int | None = 96
     written_mode: str = "4"

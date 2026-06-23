@@ -44,6 +44,7 @@ const creationOptions: BookCreationOptionsResponse = {
   },
   pipeline_defaults: {
     sentences_per_output_file: 12,
+    stitch_full: true,
     audio_mode: '2',
     audio_bitrate_kbps: 128,
     written_mode: '3',
