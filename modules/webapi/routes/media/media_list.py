@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import copy
 from datetime import datetime, timezone
+import logging
 from pathlib import Path
+import time
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -21,6 +23,46 @@ from ...dependencies import (
 from ...schemas import PipelineMediaChunk, PipelineMediaFile, PipelineMediaResponse
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+def _record_media_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe media route timing if metrics are available."""
+
+    try:
+        from ...metrics import MEDIA_ROUTE_DURATION
+    except Exception:
+        return
+    MEDIA_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
+def _log_media_manifest(
+    operation: str,
+    started_at: float,
+    *,
+    result: str,
+    source: str,
+    category_count: int = 0,
+    media_file_count: int = 0,
+    chunk_count: int = 0,
+    complete: Optional[bool] = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_media_route_duration(operation, result, started_at)
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(
+        "Pipeline media manifest operation=%s result=%s source=%s categories=%s files=%s chunks=%s complete=%s duration_ms=%.1f",
+        operation,
+        result,
+        source,
+        category_count,
+        media_file_count,
+        chunk_count,
+        complete,
+        duration_ms,
+    )
 
 
 def _resolve_media_path(
@@ -568,6 +610,8 @@ async def get_job_media(
 ):
     """Return generated media metadata for a job."""
 
+    started_at = time.perf_counter()
+    operation = "job_media"
     try:
         job = pipeline_service.get_job(
             job_id,
@@ -575,23 +619,40 @@ async def get_job_media(
             user_role=request_user.user_role,
         )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        _log_media_manifest(operation, started_at, result="not_found", source="completed")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
     except PermissionError as exc:
+        _log_media_manifest(operation, started_at, result="forbidden", source="completed")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
-    generated_payload: Optional[Mapping[str, Any]] = None
-    if job.media_completed and job.generated_files is not None:
-        generated_payload = job.generated_files
-    elif job.tracker is not None:
-        generated_payload = job.tracker.get_generated_files()
-    elif job.generated_files is not None:
-        generated_payload = job.generated_files
+    try:
+        generated_payload: Optional[Mapping[str, Any]] = None
+        if job.media_completed and job.generated_files is not None:
+            generated_payload = job.generated_files
+        elif job.tracker is not None:
+            generated_payload = job.tracker.get_generated_files()
+        elif job.generated_files is not None:
+            generated_payload = job.generated_files
 
-    media_entries, chunk_entries, complete = _serialize_media_entries(
-        job.job_id,
-        generated_payload,
-        file_locator,
+        media_entries, chunk_entries, complete = _serialize_media_entries(
+            job.job_id,
+            generated_payload,
+            file_locator,
+            source="completed",
+        )
+    except Exception:
+        _log_media_manifest(operation, started_at, result="error", source="completed")
+        raise
+    media_file_count = sum(len(entries) for entries in media_entries.values())
+    _log_media_manifest(
+        operation,
+        started_at,
+        result="success",
         source="completed",
+        category_count=len(media_entries),
+        media_file_count=media_file_count,
+        chunk_count=len(chunk_entries),
+        complete=complete,
     )
     return PipelineMediaResponse(media=media_entries, chunks=chunk_entries, complete=complete)
 
@@ -668,6 +729,8 @@ async def get_job_media_live(
 ):
     """Return live generated media metadata from the active progress tracker."""
 
+    started_at = time.perf_counter()
+    operation = "job_media_live"
     try:
         job = pipeline_service.get_job(
             job_id,
@@ -675,22 +738,39 @@ async def get_job_media_live(
             user_role=request_user.user_role,
         )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        _log_media_manifest(operation, started_at, result="not_found", source="live")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
     except PermissionError as exc:
+        _log_media_manifest(operation, started_at, result="forbidden", source="live")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
-    generated_payload: Optional[Mapping[str, Any]] = None
-    if job.media_completed and job.generated_files is not None:
-        generated_payload = job.generated_files
-    elif job.tracker is not None:
-        generated_payload = job.tracker.get_generated_files()
-    elif job.generated_files is not None:
-        generated_payload = job.generated_files
+    try:
+        generated_payload: Optional[Mapping[str, Any]] = None
+        if job.media_completed and job.generated_files is not None:
+            generated_payload = job.generated_files
+        elif job.tracker is not None:
+            generated_payload = job.tracker.get_generated_files()
+        elif job.generated_files is not None:
+            generated_payload = job.generated_files
 
-    media_entries, chunk_entries, complete = _serialize_media_entries(
-        job.job_id,
-        generated_payload,
-        file_locator,
+        media_entries, chunk_entries, complete = _serialize_media_entries(
+            job.job_id,
+            generated_payload,
+            file_locator,
+            source="live",
+        )
+    except Exception:
+        _log_media_manifest(operation, started_at, result="error", source="live")
+        raise
+    media_file_count = sum(len(entries) for entries in media_entries.values())
+    _log_media_manifest(
+        operation,
+        started_at,
+        result="success",
         source="live",
+        category_count=len(media_entries),
+        media_file_count=media_file_count,
+        chunk_count=len(chunk_entries),
+        complete=complete,
     )
     return PipelineMediaResponse(media=media_entries, chunks=chunk_entries, complete=complete)

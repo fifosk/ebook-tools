@@ -126,6 +126,13 @@ JOB_LIST_ROUTE_DURATION = Histogram(
     buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
 )
 
+MEDIA_ROUTE_DURATION = Histogram(
+    "ebook_tools_media_route_duration_seconds",
+    "Pipeline media manifest route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+)
+
 # ---------------------------------------------------------------------------
 # Users & sessions
 # ---------------------------------------------------------------------------

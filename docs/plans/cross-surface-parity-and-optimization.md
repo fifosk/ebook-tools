@@ -1,6 +1,6 @@
 # Cross-Surface Parity And Optimization Plan
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 ## Goal
 
@@ -108,7 +108,10 @@ Optimization candidates:
   search now records the same token-safe duration and aggregate hit-count
   telemetry for blank, forbidden, not-found, and success outcomes. Pipeline job
   listing now records token-safe duration and pagination/result-count telemetry
-  for success/error outcomes without logging user ids or job ids.
+  for success/error outcomes without logging user ids or job ids. Pipeline media
+  manifests now record token-safe duration and aggregate category/file/chunk
+  counts for completed and live manifest routes without logging job ids, user
+  ids, auth headers, tokens, or file names.
 - Prefer precomputed or cached job summary fields for list rows while keeping full metadata available on detail/media routes.
 - Keep all auth/session headers and token handling out of logs and docs.
 
