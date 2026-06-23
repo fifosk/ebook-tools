@@ -8,10 +8,8 @@ import {
 } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MutableRefObject, PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import type { TextPlayerVariantKind } from '../../text-player/TextPlayer';
 import { fetchLlmModels, fetchVoiceInventory } from '../../api/client';
 import type { VoiceInventoryResponse } from '../../api/dtos';
-import { resolveLanguageCode } from '../../constants/languageCodes';
 import { MyLinguistBubble } from '../interactive-text/MyLinguistBubble';
 import {
   MY_LINGUIST_BUBBLE_MAX_CHARS,
@@ -27,25 +25,25 @@ import {
   buildMyLinguistModelOptions,
   storeMyLinguistStored,
 } from '../interactive-text/utils';
-import { type SubtitleTrack, type AssSubtitleCue, type AssSubtitleTrackKind, parseAssSubtitles, isAssSubtitleTrack, decodeDataUrl } from '../../lib/subtitles';
-import { findActiveIndex, findInsertIndex, Accessors } from '../../lib/timing/timeSearch';
+import { type SubtitleTrack, type AssSubtitleCue, parseAssSubtitles, isAssSubtitleTrack, decodeDataUrl } from '../../lib/subtitles';
+import {
+  EMPTY_LINE_MAP,
+  TRACK_RENDER_ORDER,
+  buildSubtitleTtsVoiceOptions,
+  clampOffset,
+  clampOpacity,
+  clampScale,
+  findActiveCueIndex,
+  findCueInsertIndex,
+  moveIndexWithinLine,
+  resolveDefaultSelection,
+  resolveShadowTarget,
+  toVariantKind,
+  type SubtitleTokenSelection,
+  type TrackKind,
+  type TrackLineMap,
+} from './subtitleTrackOverlayUtils';
 import styles from './SubtitleTrackOverlay.module.css';
-
-type TrackKind = AssSubtitleTrackKind;
-
-type Selection = {
-  track: TrackKind;
-  index: number;
-};
-
-type TrackLineMap = {
-  lines: number[][];
-  tokenLine: Map<number, number>;
-};
-
-const TRACK_RENDER_ORDER: TrackKind[] = ['original', 'transliteration', 'translation'];
-
-const EMPTY_LINE_MAP: TrackLineMap = { lines: [], tokenLine: new Map() };
 
 const EMPTY_VISIBILITY = {
   original: true,
@@ -53,127 +51,6 @@ const EMPTY_VISIBILITY = {
   transliteration: true,
 };
 const SUBTITLE_VERTICAL_OFFSET_KEY = 'video.subtitle.verticalOffset';
-function clampScale(value: number | null | undefined): number {
-  if (!Number.isFinite(value) || !value) {
-    return 1;
-  }
-  return Math.max(0.25, Math.min(4, value));
-}
-
-function clampOpacity(value: number | null | undefined): number {
-  if (!Number.isFinite(value ?? NaN)) {
-    return 0.6;
-  }
-  return Math.max(0, Math.min(1, value ?? 0.6));
-}
-
-const cueAccessor = Accessors.startEnd;
-
-function findActiveCueIndex(cues: AssSubtitleCue[], time: number, lastIndex: number): number {
-  // Fast path: reuse last index when time is still within its range
-  if (lastIndex >= 0 && lastIndex < cues.length) {
-    const last = cues[lastIndex];
-    if (time >= last.start && time < last.end) {
-      return lastIndex;
-    }
-  }
-  return findActiveIndex(cues, time, cueAccessor);
-}
-
-function findCueInsertIndex(cues: AssSubtitleCue[], time: number): number {
-  return findInsertIndex(cues, time, cueAccessor);
-}
-
-function clampOffset(value: number, containerHeight: number): number {
-  const maxUp = Math.max(120, Math.min(containerHeight * 0.45, 360));
-  return Math.min(0, Math.max(value, -maxUp));
-}
-
-function toVariantKind(track: TrackKind): TextPlayerVariantKind {
-  if (track === 'transliteration') {
-    return 'translit';
-  }
-  return track === 'translation' ? 'translation' : 'original';
-}
-
-function resolveDefaultSelection(
-  order: TrackKind[],
-  tracks: Partial<Record<TrackKind, AssSubtitleCue['tracks'][TrackKind]>>,
-): Selection | null {
-  for (const track of ['translation', 'transliteration', 'original'] as TrackKind[]) {
-    if (!order.includes(track)) {
-      continue;
-    }
-    const entry = tracks[track];
-    if (!entry || entry.tokens.length === 0) {
-      continue;
-    }
-    const currentIndex = entry.currentIndex ?? 0;
-    const safeIndex = Math.max(0, Math.min(currentIndex, entry.tokens.length - 1));
-    return { track, index: safeIndex };
-  }
-  return null;
-}
-
-function resolveShadowTarget(
-  track: TrackKind,
-  index: number,
-  translationTokens: string[] | null,
-  transliterationTokens: string[] | null,
-): { track: TrackKind; index: number } | null {
-  if (!translationTokens || !transliterationTokens) {
-    return null;
-  }
-  if (translationTokens.length !== transliterationTokens.length) {
-    return null;
-  }
-  if (track === 'translation' && index < transliterationTokens.length) {
-    return { track: 'transliteration', index };
-  }
-  if (track === 'transliteration' && index < translationTokens.length) {
-    return { track: 'translation', index };
-  }
-  return null;
-}
-
-function lineMapForTrack(lineMaps: MutableRefObject<Record<TrackKind, TrackLineMap>>, track: TrackKind): TrackLineMap {
-  return lineMaps.current[track] ?? EMPTY_LINE_MAP;
-}
-
-function moveIndexWithinLine(
-  track: TrackKind,
-  index: number,
-  delta: -1 | 1,
-  tokenCount: number,
-  lineMaps: MutableRefObject<Record<TrackKind, TrackLineMap>>,
-): number {
-  if (tokenCount <= 1) {
-    return 0;
-  }
-  const map = lineMapForTrack(lineMaps, track);
-  const lineIndex = map.tokenLine.get(index);
-  if (lineIndex === undefined) {
-    const next = (index + delta + tokenCount) % tokenCount;
-    return next;
-  }
-  const lineTokens = map.lines[lineIndex] ?? [];
-  if (lineTokens.length === 0) {
-    const next = (index + delta + tokenCount) % tokenCount;
-    return next;
-  }
-  const pos = lineTokens.indexOf(index);
-  if (pos === -1) {
-    const next = (index + delta + tokenCount) % tokenCount;
-    return next;
-  }
-  let nextPos = pos + delta;
-  if (nextPos < 0) {
-    nextPos = lineTokens.length - 1;
-  } else if (nextPos >= lineTokens.length) {
-    nextPos = 0;
-  }
-  return lineTokens[nextPos] ?? index;
-}
 
 interface SubtitleTrackOverlayProps {
   videoRef: MutableRefObject<HTMLVideoElement | null>;
@@ -228,7 +105,7 @@ export default function SubtitleTrackOverlay({
   const [activeCueIndex, setActiveCueIndex] = useState(-1);
   const activeCueIndexRef = useRef(-1);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [selection, setSelection] = useState<Selection | null>(null);
+  const [selection, setSelection] = useState<SubtitleTokenSelection | null>(null);
   const [bubble, setBubble] = useState<LinguistBubbleState | null>(null);
   const [verticalOffset, setVerticalOffset] = useState(0);
   const [isDraggingSubtitles, setIsDraggingSubtitles] = useState(false);
@@ -294,45 +171,11 @@ export default function SubtitleTrackOverlay({
     [availableLlmModels, bubble?.llmModel],
   );
   const ttsVoiceOptions = useMemo(() => {
-    if (!voiceInventory) {
-      return [];
-    }
-    const ttsLang = bubble?.ttsLanguage ?? globalInputLanguage ?? '';
-    // Convert language name (e.g., "English") to code (e.g., "en") if needed
-    const resolvedCode = resolveLanguageCode(ttsLang) ?? ttsLang;
-    const baseLang = resolvedCode.split(/[-_]/)[0]?.toLowerCase() ?? '';
-    const result: string[] = [];
-    const seen = new Set<string>();
-    const append = (voice: string) => {
-      const lower = voice.toLowerCase();
-      if (seen.has(lower)) {
-        return;
-      }
-      seen.add(lower);
-      result.push(voice);
-    };
-    if (bubble?.ttsVoice) {
-      append(bubble.ttsVoice);
-    }
-    for (const voice of voiceInventory.piper ?? []) {
-      const piperLang = voice.lang.split(/[-_]/)[0]?.toLowerCase() ?? '';
-      if (baseLang && piperLang === baseLang) {
-        append(voice.name);
-      }
-    }
-    for (const voice of voiceInventory.macos ?? []) {
-      const macLang = (voice.lang ?? '').split(/[-_]/)[0]?.toLowerCase() ?? '';
-      if (baseLang && macLang === baseLang) {
-        append(voice.name);
-      }
-    }
-    for (const entry of voiceInventory.gtts ?? []) {
-      const gLang = (entry.code ?? '').split(/[-_]/)[0]?.toLowerCase() ?? '';
-      if (baseLang && gLang === baseLang) {
-        append(`gTTS-${entry.code}`);
-      }
-    }
-    return result;
+    return buildSubtitleTtsVoiceOptions(
+      voiceInventory,
+      bubble?.ttsLanguage ?? globalInputLanguage,
+      bubble?.ttsVoice
+    );
   }, [voiceInventory, bubble?.ttsLanguage, bubble?.ttsVoice, globalInputLanguage]);
 
   const lookup = useLinguistBubbleLookup({
@@ -993,7 +836,7 @@ export default function SubtitleTrackOverlay({
           current.index,
           key === 'ArrowLeft' ? -1 : 1,
           tokenCount,
-          lineMapsRef,
+          lineMapsRef.current,
         );
         setSelection({ track: current.track, index: nextIndex });
         return;
@@ -1114,7 +957,7 @@ export default function SubtitleTrackOverlay({
     };
   }, [isPlaying, openSelectionLookup, overlayActive, seekCueByOffset, videoRef]);
 
-  const playbackSelection = useMemo<Selection | null>(() => {
+  const playbackSelection = useMemo<SubtitleTokenSelection | null>(() => {
     if (!isPlaying) {
       return null;
     }

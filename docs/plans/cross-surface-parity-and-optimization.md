@@ -42,7 +42,11 @@ Large Web UI hotspots to split before redesign work:
   subtitle defaulting and voice inventory option building now live in
   `web/src/pages/video-dubbing/videoDubbingUtils.ts` with focused Vitest
   coverage.
-- `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1276 lines.
+- `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1119 lines.
+  Status: subtitle cue lookup, token navigation, selection shadowing, clamp
+  math, track variant mapping, and TTS voice option helpers now live in
+  `web/src/components/video-subtitles/subtitleTrackOverlayUtils.ts` with
+  focused Vitest coverage.
 - `web/src/components/JobProgress.tsx` - 1107 lines. Status: generated-file
   stat lookup, batch progress, lookup-cache progress, and progress label
   helpers now live in `web/src/components/job-progress/jobProgressUtils.ts`
@@ -191,6 +195,11 @@ Refactor before restyling:
   `JobProgress.tsx` now imports tested helpers for generated-file stat lookup,
   LLM batch progress, lookup-cache progress, and progress labels from
   `web/src/components/job-progress/jobProgressUtils.ts`.
+- Isolate subtitle overlay helpers before visual redesign. Status:
+  `SubtitleTrackOverlay.tsx` now imports tested helpers for ASS cue lookup,
+  token navigation, selection shadowing, clamping, variant mapping, and
+  subtitle TTS voice options from
+  `web/src/components/video-subtitles/subtitleTrackOverlayUtils.ts`.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, and genre defaults from
   `/api/books/options` while preserving prompt edits that happen before defaults
