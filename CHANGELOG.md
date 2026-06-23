@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.54
+
+- Advanced visible Apple app versioning to `v2026.06.23.54`.
+- Web and Apple Create now show a visible "Checking job intake..." state while the queue snapshot is loading.
+
 ### 2026.06.23.53
 
 - Advanced visible Apple app versioning to `v2026.06.23.53`.

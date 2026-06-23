@@ -119,6 +119,7 @@ export function BookNarrationForm({
         : DEFAULT_FORM_STATE.enable_lookup_cache
   }));
   const [intakeStatus, setIntakeStatus] = useState<PipelineIntakeStatusResponse | null>(null);
+  const [isLoadingIntakeStatus, setIsLoadingIntakeStatus] = useState<boolean>(false);
   const isMountedRef = useRef(true);
   useEffect(() => {
     return () => {
@@ -527,6 +528,9 @@ export function BookNarrationForm({
   }, [forcedBaseOutputFile]);
 
   const refreshIntakeStatus = useCallback(async () => {
+    if (isMountedRef.current) {
+      setIsLoadingIntakeStatus(true);
+    }
     try {
       const status = await fetchPipelineIntakeStatus();
       if (isMountedRef.current) {
@@ -535,6 +539,10 @@ export function BookNarrationForm({
     } catch {
       if (isMountedRef.current) {
         setIntakeStatus(null);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingIntakeStatus(false);
       }
     }
   }, []);
@@ -593,6 +601,8 @@ export function BookNarrationForm({
       : `Job queue is at capacity: ${intakeStatus.queueDepth} pending${
           intakeStatus.hardLimit ? ` of ${intakeStatus.hardLimit}` : ''
         }. New submissions are paused until pending jobs clear.`
+    : isLoadingIntakeStatus
+    ? 'Checking job intake...'
     : null;
   return (
     <div className="pipeline-settings">
@@ -633,7 +643,9 @@ export function BookNarrationForm({
             className={`form-callout ${
               isIntakeAtCapacity || intakeStatus?.isUnderPressure
                 ? 'form-callout--warning'
-                : 'form-callout--success'
+                : intakeStatus
+                ? 'form-callout--success'
+                : 'form-callout--info'
             }`}
             role={isIntakeAtCapacity ? 'alert' : 'status'}
           >

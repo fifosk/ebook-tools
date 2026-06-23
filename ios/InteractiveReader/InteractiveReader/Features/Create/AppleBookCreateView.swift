@@ -466,6 +466,12 @@ struct AppleBookCreateView: View {
                     .foregroundStyle(intakeStatusForegroundStyle(for: intakeStatus))
                     .accessibilityIdentifier("createBookIntakeStatusLabel")
             }
+        } else if viewModel.isLoadingIntakeStatus {
+            Section {
+                Label("Checking job intake...", systemImage: "clock.arrow.circlepath")
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createBookIntakeStatusLoadingLabel")
+            }
         }
 
         if let submittedJobId = viewModel.submittedJobId {

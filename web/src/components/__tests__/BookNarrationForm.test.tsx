@@ -235,6 +235,38 @@ describe('BookNarrationForm', () => {
     expect(handleSubmit).not.toHaveBeenCalled();
   }, 10000);
 
+  it('shows an intake loading state before the queue snapshot arrives', async () => {
+    let resolveIntake: ((value: PipelineIntakeStatusResponse | null) => void) | null = null;
+    vi.mocked(fetchPipelineIntakeStatus).mockImplementation(
+      () =>
+        new Promise<PipelineIntakeStatusResponse | null>((resolve) => {
+          resolveIntake = resolve;
+        })
+    );
+
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} />);
+    });
+
+    expect(await screen.findByText('Checking job intake...')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveIntake?.({
+        acceptingJobs: true,
+        isUnderPressure: false,
+        queueDepth: 0,
+        activeCount: 1,
+        softLimit: 3,
+        hardLimit: 6,
+        delayCount: 0
+      });
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText('Job intake is available: 0 pending and 1 running.')).toBeInTheDocument();
+    expect(screen.queryByText('Checking job intake...')).not.toBeInTheDocument();
+  }, 10000);
+
   it('does not refresh intake status after a rejected submission', async () => {
     const user = userEvent.setup();
     const handleSubmit = vi

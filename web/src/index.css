@@ -2726,6 +2726,12 @@ button.link-button:focus {
   color: var(--color-status-success-text);
 }
 
+.form-callout--info {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

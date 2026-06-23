@@ -4,6 +4,7 @@ import SwiftUI
 final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isSubmitting = false
     @Published private(set) var isLoadingOptions = false
+    @Published private(set) var isLoadingIntakeStatus = false
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
     @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
     @Published private(set) var subtitleLlmModels: [String] = []
@@ -78,6 +79,9 @@ final class AppleBookCreateViewModel: ObservableObject {
         if !force, loadedIntakeStatusCacheKey == cacheKey {
             return
         }
+
+        isLoadingIntakeStatus = true
+        defer { isLoadingIntakeStatus = false }
 
         do {
             let client = APIClient(configuration: configuration)

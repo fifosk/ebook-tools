@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.53",
+            version: "2026.06.23.54",
             entries: [
+                AppChangelogEntry(
+                    id: "create-intake-loading-state",
+                    title: "Create intake loading",
+                    detail: "Web and Apple Create now show a visible Checking job intake state while the queue snapshot is loading."
+                ),
                 AppChangelogEntry(
                     id: "web-create-intake-refresh-success",
                     title: "Create refresh accuracy",
