@@ -129,7 +129,7 @@ struct AppleBookCreateSourceSection: View {
             .accessibilityIdentifier("createNarrateStartSentenceField")
         TextField("End sentence", text: $sourceEndSentence)
             #if os(iOS)
-            .keyboardType(.numberPad)
+            .keyboardType(.numbersAndPunctuation)
             #endif
             .accessibilityIdentifier("createNarrateEndSentenceField")
     }

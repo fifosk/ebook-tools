@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.43
+
+- Advanced visible Apple app versioning to `v2026.06.23.43`.
+- Apple Narrate EPUB end-sentence entry now uses punctuation-capable input on iPhone and iPad, making Web-aligned `+offset` windows practical from the software keyboard.
+
 ### 2026.06.23.42
 
 - Advanced visible Apple app versioning to `v2026.06.23.42`.

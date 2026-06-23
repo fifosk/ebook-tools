@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.42",
+            version: "2026.06.23.43",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-narrate-offset-keyboard",
+                    title: "Narrate EPUB offsets",
+                    detail: "Apple Narrate EPUB end-sentence entry now uses punctuation-capable input on iPhone and iPad, making Web-aligned +offset windows practical from the software keyboard."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-audio-duration-estimate",
                     title: "Apple duration estimate",
