@@ -8,6 +8,19 @@ import { normalizeLanguageLabel } from '../utils/languages';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
 import { getStatusGlyph } from '../utils/status';
 import EmojiIcon from './EmojiIcon';
+import {
+  buildAuthorGroups,
+  buildGenreGroups,
+  buildLanguageGroups,
+  isBookItem,
+  isSubtitleItem,
+  isVideoItem,
+  resolveAuthor,
+  resolveGenre,
+  resolveTitle,
+  SUBTITLE_AUTHOR,
+  UNTITLED_SUBTITLE
+} from './library-list/libraryListUtils';
 import styles from './LibraryList.module.css';
 
 type Props = {
@@ -30,33 +43,6 @@ type LibraryItemPermissions = {
   canExport: boolean;
 };
 
-type AuthorGroup = {
-  author: string;
-  books: Array<{
-    bookTitle: string;
-    languages: Array<{ language: string; items: LibraryItem[] }>;
-  }>;
-};
-
-type GenreGroup = {
-  genre: string;
-  authors: Array<{
-    author: string;
-    books: Array<{ bookTitle: string; items: LibraryItem[] }>;
-  }>;
-};
-
-type LanguageGroup = {
-  language: string;
-  authors: Array<{
-    author: string;
-    books: Array<{ bookTitle: string; items: LibraryItem[] }>;
-  }>;
-};
-
-const UNKNOWN_AUTHOR = 'Unknown Author';
-const UNKNOWN_CREATOR = 'Unknown Creator';
-
 function renderLanguageLabel(language: string | null | undefined) {
   const label = normalizeLanguageLabel(language) || 'Unknown';
   const flag = resolveLanguageFlag(language ?? label) ?? DEFAULT_LANGUAGE_FLAG;
@@ -67,29 +53,8 @@ function renderLanguageLabel(language: string | null | undefined) {
     </span>
   );
 }
-const UNTITLED_BOOK = 'Untitled Book';
-const UNTITLED_VIDEO = 'Untitled Video';
-const UNTITLED_SUBTITLE = 'Untitled Subtitle';
-const UNKNOWN_GENRE = 'Unknown Genre';
-const SUBTITLE_AUTHOR = 'Subtitles';
 
 type StatusVariant = 'ready' | 'missing';
-
-function normalizeItemType(item: LibraryItem): 'book' | 'video' | 'narrated_subtitle' {
-  return (item.itemType ?? 'book') as 'book' | 'video' | 'narrated_subtitle';
-}
-
-function isBookItem(item: LibraryItem): boolean {
-  return normalizeItemType(item) === 'book';
-}
-
-function isSubtitleItem(item: LibraryItem): boolean {
-  return normalizeItemType(item) === 'narrated_subtitle';
-}
-
-function isVideoItem(item: LibraryItem): boolean {
-  return normalizeItemType(item) === 'video';
-}
 
 function resolveJobType(item: LibraryItem): string {
   return extractJobType(item.metadata) ?? 'pipeline';
@@ -102,51 +67,6 @@ function renderJobTypeGlyph(item: LibraryItem) {
   return (
     <JobTypeGlyphBadge glyph={glyph} className={styles.jobGlyph} />
   );
-}
-
-function resolveTitle(item: LibraryItem): string {
-  const base = (item.bookTitle ?? '').trim();
-  if (base) {
-    return base;
-  }
-  switch (normalizeItemType(item)) {
-    case 'video':
-      return UNTITLED_VIDEO;
-    case 'narrated_subtitle':
-      return UNTITLED_SUBTITLE;
-    default:
-      return UNTITLED_BOOK;
-  }
-}
-
-function resolveAuthor(item: LibraryItem): string {
-  const base = (item.author ?? '').trim();
-  if (base) {
-    return base;
-  }
-  switch (normalizeItemType(item)) {
-    case 'video':
-      return UNKNOWN_CREATOR;
-    case 'narrated_subtitle':
-      return SUBTITLE_AUTHOR;
-    default:
-      return UNKNOWN_AUTHOR;
-  }
-}
-
-function resolveGenre(item: LibraryItem): string {
-  const base = (item.genre ?? '').toString().trim();
-  if (base) {
-    return base;
-  }
-  switch (normalizeItemType(item)) {
-    case 'video':
-      return 'Video';
-    case 'narrated_subtitle':
-      return 'Subtitles';
-    default:
-      return UNKNOWN_GENRE;
-  }
 }
 
 function resolveBookSummary(item: LibraryItem): string | null {
@@ -634,123 +554,6 @@ function formatTimestamp(value: string | null | undefined): string {
     return value;
   }
   return date.toLocaleString();
-}
-
-function buildAuthorGroups(items: LibraryItem[]): AuthorGroup[] {
-  const authorMap = new Map<string, Map<string, Map<string, LibraryItem[]>>>();
-  items.forEach((item) => {
-    const authorKey = resolveAuthor(item);
-    const bookKey = resolveTitle(item);
-    const languageKey = item.language || 'unknown';
-
-    if (!authorMap.has(authorKey)) {
-      authorMap.set(authorKey, new Map());
-    }
-    const booksMap = authorMap.get(authorKey)!;
-    if (!booksMap.has(bookKey)) {
-      booksMap.set(bookKey, new Map());
-    }
-    const languageMap = booksMap.get(bookKey)!;
-    if (!languageMap.has(languageKey)) {
-      languageMap.set(languageKey, []);
-    }
-    languageMap.get(languageKey)!.push(item);
-  });
-
-  return Array.from(authorMap.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([author, booksMap]) => ({
-      author,
-      books: Array.from(booksMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([bookTitle, languageMap]) => ({
-          bookTitle,
-          languages: Array.from(languageMap.entries())
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([language, entries]) => ({
-              language,
-              items: [...entries].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
-            }))
-        }))
-    }));
-}
-
-function buildGenreGroups(items: LibraryItem[]): GenreGroup[] {
-  const genreMap = new Map<string, Map<string, Map<string, LibraryItem[]>>>();
-  items.forEach((item) => {
-    const genreKey = resolveGenre(item);
-    const authorKey = resolveAuthor(item);
-    const bookKey = resolveTitle(item);
-
-    if (!genreMap.has(genreKey)) {
-      genreMap.set(genreKey, new Map());
-    }
-    const authorMap = genreMap.get(genreKey)!;
-    if (!authorMap.has(authorKey)) {
-      authorMap.set(authorKey, new Map());
-    }
-    const bookMap = authorMap.get(authorKey)!;
-    if (!bookMap.has(bookKey)) {
-      bookMap.set(bookKey, []);
-    }
-    bookMap.get(bookKey)!.push(item);
-  });
-
-  return Array.from(genreMap.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([genre, authorMap]) => ({
-      genre,
-      authors: Array.from(authorMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([author, bookMap]) => ({
-          author,
-          books: Array.from(bookMap.entries())
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([bookTitle, entries]) => ({
-              bookTitle,
-              items: [...entries].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
-            }))
-        }))
-    }));
-}
-
-function buildLanguageGroups(items: LibraryItem[]): LanguageGroup[] {
-  const languageMap = new Map<string, Map<string, Map<string, LibraryItem[]>>>();
-  items.forEach((item) => {
-    const languageKey = item.language || 'unknown';
-    const authorKey = resolveAuthor(item);
-    const bookKey = resolveTitle(item);
-
-    if (!languageMap.has(languageKey)) {
-      languageMap.set(languageKey, new Map());
-    }
-    const authorMap = languageMap.get(languageKey)!;
-    if (!authorMap.has(authorKey)) {
-      authorMap.set(authorKey, new Map());
-    }
-    const bookMap = authorMap.get(authorKey)!;
-    if (!bookMap.has(bookKey)) {
-      bookMap.set(bookKey, []);
-    }
-    bookMap.get(bookKey)!.push(item);
-  });
-
-  return Array.from(languageMap.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([language, authorMap]) => ({
-      language,
-      authors: Array.from(authorMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([author, bookMap]) => ({
-          author,
-          books: Array.from(bookMap.entries())
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([bookTitle, entries]) => ({
-              bookTitle,
-              items: [...entries].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
-            }))
-        }))
-    }));
 }
 
 function LibraryList({

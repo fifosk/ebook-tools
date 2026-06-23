@@ -56,7 +56,10 @@ Large Web UI hotspots to split before redesign work:
   stat lookup, batch progress, lookup-cache progress, and progress label
   helpers now live in `web/src/components/job-progress/jobProgressUtils.ts`
   with focused Vitest coverage.
-- `web/src/components/LibraryList.tsx` - 1148 lines.
+- `web/src/components/LibraryList.tsx` - 951 lines. Status: layout type
+  detection, title/author/genre fallback labels, and author/genre/language
+  grouping now live in `web/src/components/library-list/libraryListUtils.ts`
+  with focused Vitest coverage.
 - `web/src/components/PlayerPanel.tsx` - 1085 lines.
 - `web/src/components/Sidebar.tsx` - 963 lines.
 - `web/src/components/book-narration/BookNarrationForm.tsx` - 956 lines.
@@ -212,6 +215,10 @@ Refactor before restyling:
   detection, and chunk-sentence detection from `web/src/hooks/liveMediaState.ts`,
   plus modern and legacy timing normalization from
   `web/src/hooks/liveMediaTiming.ts`.
+- Isolate Library list grouping before visual redesign. Status:
+  `LibraryList.tsx` now imports tested helpers for row layout type detection,
+  title/author/genre fallback labels, and author/genre/language grouping from
+  `web/src/components/library-list/libraryListUtils.ts`.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, and genre defaults from
   `/api/books/options` while preserving prompt edits that happen before defaults
