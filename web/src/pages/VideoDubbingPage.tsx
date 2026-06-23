@@ -26,7 +26,6 @@ import type {
   YoutubeVideoMetadataPreviewResponse
 } from '../api/dtos';
 import type { JobState } from '../components/JobList';
-import { VOICE_OPTIONS } from '../constants/menuOptions';
 import { resolveLanguageName } from '../constants/languageCodes';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import { sampleSentenceFor } from '../utils/sampleSentences';
@@ -55,11 +54,11 @@ import {
 import type { VideoDubbingTab, VideoMetadataSection } from './video-dubbing/videoDubbingTypes';
 import {
   basenameFromPath,
+  buildVoiceOptions,
   coerceRecord,
-  formatMacOSVoiceIdentifier,
-  formatMacOSVoiceLabel,
   formatOffsetLabel,
   parseOffsetSeconds,
+  resolveDefaultStreamLanguages,
   resolveDefaultSubtitle
 } from './video-dubbing/videoDubbingUtils';
 import styles from './VideoDubbingPage.module.css';
@@ -835,20 +834,6 @@ export default function VideoDubbingPage({
     [handleRefresh, selectedSubtitlePath, selectedVideo]
   );
 
-  const resolveDefaultStreamLanguages = useCallback((streams: YoutubeInlineSubtitleStream[]): Set<string> => {
-    const extractable = streams.filter((stream) => stream.can_extract);
-    const next = new Set<string>();
-    const english = extractable.find(
-      (stream) => (stream.language ?? '').toLowerCase().startsWith('en') && stream.language
-    );
-    if (english?.language) {
-      next.add(english.language);
-    } else if (extractable.length === 1 && extractable[0].language) {
-      next.add(extractable[0].language);
-    }
-    return next;
-  }, []);
-
   const performSubtitleExtraction = useCallback(
     async (languages?: string[]) => {
       if (!selectedVideo) {
@@ -1123,73 +1108,10 @@ export default function VideoDubbingPage({
     return null;
   }, [playableSubtitles, selectedVideo]);
 
-  const availableVoiceOptions = useMemo(() => {
-    const base = VOICE_OPTIONS.map((option) => ({
-      value: option.value,
-      label: option.label
-    }));
-    if (!voiceInventory) {
-      return base;
-    }
-    const targetCode = (targetLanguageCode || '').toLowerCase();
-    // Base code stripped of region: "zh-CN" → "zh", "en_US" → "en". Matches
-    // whether the voice source uses dash (gTTS) or underscore (Piper) as the
-    // separator.
-    const targetBase = targetCode.split(/[-_]/)[0];
-    const matchesTarget = (lang: string): boolean => {
-      if (!targetCode) {
-        return true;
-      }
-      const normalized = (lang || '').toLowerCase();
-      if (!normalized) {
-        return false;
-      }
-      if (normalized === targetCode) {
-        return true;
-      }
-      return normalized.split(/[-_]/)[0] === targetBase;
-    };
-
-    // macOS system voices (available when running the backend on macOS)
-    const macVoices = voiceInventory.macos
-      .filter((voice) => matchesTarget(voice.lang))
-      .map((voice) => ({
-        value: formatMacOSVoiceIdentifier(voice),
-        label: formatMacOSVoiceLabel(voice)
-      }));
-
-    // Piper neural voices installed on the host
-    const piperVoices = (voiceInventory.piper ?? [])
-      .filter((voice) => matchesTarget(voice.lang))
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((voice) => ({
-        value: voice.name,
-        label: `Piper: ${voice.name}`
-      }));
-
-    // gTTS languages (one option per language code); use short code as identifier
-    const gttsSeen = new Set<string>();
-    const gttsVoices: { value: string; label: string }[] = [];
-    for (const entry of voiceInventory.gtts) {
-      const entryCode = entry.code.toLowerCase();
-      if (!matchesTarget(entryCode)) {
-        continue;
-      }
-      const shortCode = entryCode.split(/[-_]/)[0];
-      if (!shortCode || gttsSeen.has(shortCode)) {
-        continue;
-      }
-      gttsSeen.add(shortCode);
-      gttsVoices.push({ value: `gTTS-${shortCode}`, label: `gTTS (${entry.name})` });
-    }
-
-    const merged = new Map<string, { value: string; label: string }>();
-    [...base, ...macVoices, ...piperVoices, ...gttsVoices].forEach((entry) =>
-      merged.set(entry.value, entry)
-    );
-    return Array.from(merged.values()).sort((a, b) => a.label.localeCompare(b.label));
-  }, [targetLanguageCode, voiceInventory]);
+  const availableVoiceOptions = useMemo(
+    () => buildVoiceOptions(voiceInventory, targetLanguageCode),
+    [targetLanguageCode, voiceInventory]
+  );
 
   const canGenerate = Boolean(selectedVideo && selectedSubtitle && !isGenerating);
 

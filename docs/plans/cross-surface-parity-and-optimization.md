@@ -38,7 +38,10 @@ Large Web UI hotspots to split before redesign work:
 - `web/src/pages/LibraryPage.tsx` - 1188 lines. Status: TV/YouTube/library
   title, author, genre, thumbnail, and upload-date helpers now live in
   `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
-- `web/src/pages/VideoDubbingPage.tsx` - 1330 lines.
+- `web/src/pages/VideoDubbingPage.tsx` - 1252 lines. Status: inline
+  subtitle defaulting and voice inventory option building now live in
+  `web/src/pages/video-dubbing/videoDubbingUtils.ts` with focused Vitest
+  coverage.
 - `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1276 lines.
 - `web/src/components/JobProgress.tsx` - 1254 lines.
 - `web/src/components/LibraryList.tsx` - 1148 lines.
@@ -177,6 +180,10 @@ Refactor before restyling:
   `LibraryPage.tsx` now imports tested helpers for item type, fallback labels,
   nested TV/YouTube metadata, image URLs, counts, and upload dates from
   `web/src/pages/library/libraryPageMetadata.ts`.
+- Isolate YouTube dubbing helpers before visual redesign. Status:
+  `VideoDubbingPage.tsx` now imports tested helpers for inline subtitle
+  extraction defaults and target-language voice option building from
+  `web/src/pages/video-dubbing/videoDubbingUtils.ts`.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, and genre defaults from
   `/api/books/options` while preserving prompt edits that happen before defaults

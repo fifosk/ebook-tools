@@ -5,9 +5,14 @@ import {
   fetchInlineSubtitleStreams,
   extractInlineSubtitles,
   deleteNasSubtitle,
-  fetchPipelineDefaults
+  fetchPipelineDefaults,
+  lookupSubtitleTvMetadataPreview,
+  lookupYoutubeVideoMetadataPreview,
+  deleteYoutubeVideo,
+  clearTvMetadataCache,
+  clearYoutubeMetadataCache
 } from '../../api/client';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { LanguageProvider } from '../../context/LanguageProvider';
 import VideoDubbingPage from '../VideoDubbingPage';
@@ -22,7 +27,12 @@ vi.mock('../../api/client', () => ({
   fetchInlineSubtitleStreams: vi.fn(),
   extractInlineSubtitles: vi.fn(),
   deleteNasSubtitle: vi.fn(),
-  fetchPipelineDefaults: vi.fn()
+  fetchPipelineDefaults: vi.fn(),
+  lookupSubtitleTvMetadataPreview: vi.fn(),
+  lookupYoutubeVideoMetadataPreview: vi.fn(),
+  deleteYoutubeVideo: vi.fn(),
+  clearTvMetadataCache: vi.fn(),
+  clearYoutubeMetadataCache: vi.fn()
 }));
 
 const mockFetchYoutubeLibrary = vi.mocked(fetchYoutubeLibrary);
@@ -32,6 +42,11 @@ const mockFetchInlineSubtitleStreams = vi.mocked(fetchInlineSubtitleStreams);
 const mockExtractInlineSubtitles = vi.mocked(extractInlineSubtitles);
 const mockDeleteNasSubtitle = vi.mocked(deleteNasSubtitle);
 const mockFetchPipelineDefaults = vi.mocked(fetchPipelineDefaults);
+const mockLookupSubtitleTvMetadataPreview = vi.mocked(lookupSubtitleTvMetadataPreview);
+const mockLookupYoutubeVideoMetadataPreview = vi.mocked(lookupYoutubeVideoMetadataPreview);
+const mockDeleteYoutubeVideo = vi.mocked(deleteYoutubeVideo);
+const mockClearTvMetadataCache = vi.mocked(clearTvMetadataCache);
+const mockClearYoutubeMetadataCache = vi.mocked(clearYoutubeMetadataCache);
 
 describe('VideoDubbingPage', () => {
   beforeEach(() => {
@@ -40,6 +55,19 @@ describe('VideoDubbingPage', () => {
     mockExtractInlineSubtitles.mockResolvedValue({ video_path: '', extracted: [] });
     mockDeleteNasSubtitle.mockResolvedValue({ video_path: '', subtitle_path: '', removed: [], missing: [] });
     mockFetchPipelineDefaults.mockResolvedValue({ config: {} });
+    mockLookupSubtitleTvMetadataPreview.mockResolvedValue({
+      source_name: '',
+      parsed: null,
+      media_metadata: null
+    });
+    mockLookupYoutubeVideoMetadataPreview.mockResolvedValue({
+      source_name: '',
+      parsed: null,
+      youtube_metadata: null
+    });
+    mockDeleteYoutubeVideo.mockResolvedValue({ video_path: '', removed: [], missing: [] });
+    mockClearTvMetadataCache.mockResolvedValue({ cleared: 0 });
+    mockClearYoutubeMetadataCache.mockResolvedValue({ cleared: 0 });
   });
 
   it('renders NAS videos with SUB subtitles listed', async () => {
@@ -82,10 +110,10 @@ describe('VideoDubbingPage', () => {
     await waitFor(() => expect(mockFetchYoutubeLibrary).toHaveBeenCalled());
     expect(await screen.findByText(/generic-video\.mkv/i)).toBeInTheDocument();
     expect(screen.getAllByTitle(/NAS video/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/SUB/i)).toBeInTheDocument();
-    expect(screen.getByText(/English \(en\)/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/SUB/i).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText(/English \(en\)/i)).toBeInTheDocument();
 
-    screen.getByRole('tab', { name: /Options/i }).click();
+    fireEvent.click(screen.getByRole('tab', { name: /Options/i }));
 
     expect(screen.getByLabelText(/Target resolution/i)).toHaveValue('480');
     expect(screen.getByRole('checkbox', { name: /Keep original aspect ratio/i })).toBeChecked();
@@ -138,8 +166,8 @@ describe('VideoDubbingPage', () => {
 
     await waitFor(() => expect(mockFetchYoutubeLibrary).toHaveBeenCalled());
 
-    const deleteButtons = await screen.findAllByRole('button', { name: /delete/i });
-    deleteButtons[0].click();
+    const deleteButton = await screen.findByRole('button', { name: /Delete generic-video\.en\.sub/i });
+    fireEvent.click(deleteButton);
 
     await waitFor(() => expect(mockDeleteNasSubtitle).toHaveBeenCalled());
     expect(mockDeleteNasSubtitle).toHaveBeenCalledWith(
