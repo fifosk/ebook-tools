@@ -113,89 +113,20 @@ struct AppleBookCreateView: View {
     }
 
     private var sourceSection: some View {
-        Section("Source") {
-            Picker("Job type", selection: $creationMode) {
-                ForEach(availableCreateModes) { mode in
-                    Text(mode.label).tag(mode)
-                }
-            }
-            #if os(iOS)
-            .pickerStyle(.segmented)
-            #endif
-            .accessibilityIdentifier("createJobTypePicker")
-
-            if creationMode == .narrateEbook {
-                #if os(iOS)
-                narrateEbookImportControl
-                #endif
-                TextField("Server EPUB path", text: textBinding(for: .sourcePath, value: $sourcePath))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("createNarrateSourcePathField")
-                TextField("Output path", text: textBinding(for: .sourceBaseOutput, value: $sourceBaseOutput))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("createNarrateOutputPathField")
-            } else if creationMode == .subtitleJob {
-                #if os(iOS)
-                subtitleFileImportControl
-                #endif
-                TextField("Server subtitle path", text: textBinding(for: .subtitleSourcePath, value: $subtitleSourcePath))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("createSubtitleSourcePathField")
-            } else if creationMode == .youtubeDub {
-                TextField("Video path", text: textBinding(for: .youtubeVideoPath, value: $youtubeVideoPath))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("createYoutubeVideoPathField")
-                TextField("Subtitle path", text: textBinding(for: .youtubeSubtitlePath, value: $youtubeSubtitlePath))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("createYoutubeSubtitlePathField")
-            }
-        }
+        AppleBookCreateSourceSection(
+            creationMode: $creationMode,
+            availableCreateModes: availableCreateModes,
+            sourcePath: textBinding(for: .sourcePath, value: $sourcePath),
+            sourceBaseOutput: textBinding(for: .sourceBaseOutput, value: $sourceBaseOutput),
+            subtitleSourcePath: textBinding(for: .subtitleSourcePath, value: $subtitleSourcePath),
+            youtubeVideoPath: textBinding(for: .youtubeVideoPath, value: $youtubeVideoPath),
+            youtubeSubtitlePath: textBinding(for: .youtubeSubtitlePath, value: $youtubeSubtitlePath),
+            selectedNarrateFileName: selectedNarrateFileName,
+            selectedSubtitleFileName: selectedSubtitleFileName,
+            onChooseNarrateFile: { isImportingNarrateEbook = true },
+            onChooseSubtitleFile: { isImportingSubtitleFile = true }
+        )
     }
-
-    #if os(iOS)
-    private var narrateEbookImportControl: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                isImportingNarrateEbook = true
-            } label: {
-                Label(selectedNarrateFileName ?? "Choose EPUB", systemImage: "doc.badge.plus")
-            }
-            .accessibilityIdentifier("createNarrateFileImportButton")
-
-            if let selectedNarrateFileName {
-                Label(selectedNarrateFileName, systemImage: "checkmark.circle")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .accessibilityIdentifier("createNarrateSelectedFileLabel")
-            }
-        }
-    }
-
-    private var subtitleFileImportControl: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                isImportingSubtitleFile = true
-            } label: {
-                Label(selectedSubtitleFileName ?? "Choose subtitle file", systemImage: "captions.bubble")
-            }
-            .accessibilityIdentifier("createSubtitleFileImportButton")
-
-            if let selectedSubtitleFileName {
-                Label(selectedSubtitleFileName, systemImage: "checkmark.circle")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .accessibilityIdentifier("createSubtitleSelectedFileLabel")
-            }
-        }
-    }
-    #endif
 
     private var promptSection: some View {
         Section("Book") {
@@ -1098,4 +1029,122 @@ struct AppleBookCreateView: View {
     private func clampSentenceCount(_ value: Int) -> Int {
         AppleBookCreatePresentation.clampSentenceCount(value, bounds: sentenceBounds)
     }
+}
+
+private struct AppleBookCreateSourceSection: View {
+    @Binding var creationMode: AppleCreateMode
+    let availableCreateModes: [AppleCreateMode]
+    @Binding var sourcePath: String
+    @Binding var sourceBaseOutput: String
+    @Binding var subtitleSourcePath: String
+    @Binding var youtubeVideoPath: String
+    @Binding var youtubeSubtitlePath: String
+    let selectedNarrateFileName: String?
+    let selectedSubtitleFileName: String?
+    let onChooseNarrateFile: () -> Void
+    let onChooseSubtitleFile: () -> Void
+
+    var body: some View {
+        Section("Source") {
+            Picker("Job type", selection: $creationMode) {
+                ForEach(availableCreateModes) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            #if os(iOS)
+            .pickerStyle(.segmented)
+            #endif
+            .accessibilityIdentifier("createJobTypePicker")
+
+            switch creationMode {
+            case .generatedBook:
+                EmptyView()
+            case .narrateEbook:
+                narrateEbookSourceControls
+            case .subtitleJob:
+                subtitleSourceControls
+            case .youtubeDub:
+                youtubeSourceControls
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var narrateEbookSourceControls: some View {
+        #if os(iOS)
+        fileImportControl(
+            title: selectedNarrateFileName ?? "Choose EPUB",
+            selectedFileName: selectedNarrateFileName,
+            systemImage: "doc.badge.plus",
+            buttonIdentifier: "createNarrateFileImportButton",
+            labelIdentifier: "createNarrateSelectedFileLabel",
+            action: onChooseNarrateFile
+        )
+        #endif
+        TextField("Server EPUB path", text: $sourcePath)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createNarrateSourcePathField")
+        TextField("Output path", text: $sourceBaseOutput)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createNarrateOutputPathField")
+    }
+
+    @ViewBuilder
+    private var subtitleSourceControls: some View {
+        #if os(iOS)
+        fileImportControl(
+            title: selectedSubtitleFileName ?? "Choose subtitle file",
+            selectedFileName: selectedSubtitleFileName,
+            systemImage: "captions.bubble",
+            buttonIdentifier: "createSubtitleFileImportButton",
+            labelIdentifier: "createSubtitleSelectedFileLabel",
+            action: onChooseSubtitleFile
+        )
+        #endif
+        TextField("Server subtitle path", text: $subtitleSourcePath)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleSourcePathField")
+    }
+
+    private var youtubeSourceControls: some View {
+        Group {
+            TextField("Video path", text: $youtubeVideoPath)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createYoutubeVideoPathField")
+            TextField("Subtitle path", text: $youtubeSubtitlePath)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createYoutubeSubtitlePathField")
+        }
+    }
+
+    #if os(iOS)
+    private func fileImportControl(
+        title: String,
+        selectedFileName: String?,
+        systemImage: String,
+        buttonIdentifier: String,
+        labelIdentifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button(action: action) {
+                Label(title, systemImage: systemImage)
+            }
+            .accessibilityIdentifier(buttonIdentifier)
+
+            if let selectedFileName {
+                Label(selectedFileName, systemImage: "checkmark.circle")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .accessibilityIdentifier(labelIdentifier)
+            }
+        }
+    }
+    #endif
 }
