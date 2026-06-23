@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.37
+
+- Advanced visible Apple app versioning to `v2026.06.23.37`.
+- Web and Apple book creation now submit structured `book_genres` arrays alongside visible `book_genre` text, keeping edited and lookup genres aligned across surfaces.
+
 ### 2026.06.23.36
 
 - Advanced visible Apple app versioning to `v2026.06.23.36`.

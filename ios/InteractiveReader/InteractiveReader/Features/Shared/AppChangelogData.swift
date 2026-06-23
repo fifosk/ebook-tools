@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.36",
+            version: "2026.06.23.37",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-web-book-genres",
+                    title: "Book genre lists",
+                    detail: "Web and Apple book creation now submit structured book_genres arrays alongside visible book_genre text, keeping edited and lookup genres aligned across surfaces."
+                ),
                 AppChangelogEntry(
                     id: "active-book-request-aliases",
                     title: "Active request metadata",

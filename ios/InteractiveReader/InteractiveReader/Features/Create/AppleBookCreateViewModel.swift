@@ -339,6 +339,10 @@ final class AppleBookCreateViewModel: ObservableObject {
         if let genre = genre?.trimmingCharacters(in: .whitespacesAndNewlines), !genre.isEmpty {
             metadata["genre"] = .string(genre)
             metadata["book_genre"] = .string(genre)
+            let genres = AppleBookCreatePresentation.normalizedBookGenres(genre)
+            if !genres.isEmpty {
+                metadata["book_genres"] = .array(genres.map { .string($0) })
+            }
         }
         if let language = language?.trimmingCharacters(in: .whitespacesAndNewlines), !language.isEmpty {
             metadata["language"] = .string(language)
@@ -433,6 +437,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             "book_title",
             "book_author",
             "book_genre",
+            "book_genres",
             "book_language",
             "book_year",
             "book_isbn",

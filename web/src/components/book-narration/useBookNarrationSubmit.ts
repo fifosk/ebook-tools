@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type { FormEvent } from 'react';
 import type { PipelineRequestPayload } from '../../api/dtos';
 import type { FormState } from './bookNarrationFormTypes';
-import { normalizeTextValue, parseJsonField } from './bookNarrationUtils';
+import { normalizeGenreListValue, normalizeTextValue, parseJsonField } from './bookNarrationUtils';
 import {
   normalizeImagePromptPipeline,
   parseEndSentenceInput,
@@ -170,6 +170,11 @@ export function useBookNarrationSubmit({
         const metadataBookTitle = normalizeTextValue(json.book_metadata?.['book_title']);
         const metadataBookAuthor = normalizeTextValue(json.book_metadata?.['book_author']);
         const metadataBookGenre = normalizeTextValue(json.book_metadata?.['book_genre']);
+        const metadataBookGenresFromList = normalizeGenreListValue(json.book_metadata?.['book_genres']);
+        const metadataBookGenres =
+          metadataBookGenresFromList.length > 0
+            ? metadataBookGenresFromList
+            : normalizeGenreListValue(metadataBookGenre);
         const metadataBookLanguage =
           normalizeTextValue(json.book_metadata?.['book_language']) ||
           normalizeTextValue(json.book_metadata?.['language']);
@@ -187,6 +192,9 @@ export function useBookNarrationSubmit({
         }
         if (metadataBookGenre) {
           configOverrides['book_genre'] = metadataBookGenre;
+        }
+        if (metadataBookGenres.length > 0) {
+          configOverrides['book_genres'] = metadataBookGenres;
         }
         if (metadataBookLanguage) {
           configOverrides['book_language'] = metadataBookLanguage;

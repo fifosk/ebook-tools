@@ -14,6 +14,7 @@ import {
   blobToDataUrl,
   coerceRecord,
   formatGenreValue,
+  normalizeGenreListValue,
   normalizeTextValue,
   parseJsonField,
   resolveCoverPreviewUrlFromCoverFile,
@@ -79,6 +80,14 @@ export function useBookNarrationMetadata({
         formatGenreValue(book?.['genres']) ||
         formatGenreValue(lookup?.['genre']) ||
         formatGenreValue(lookup?.['genres']);
+      const bookGenres = [
+        book?.['genre'],
+        book?.['genres'],
+        lookup?.['genre'],
+        lookup?.['genres'],
+      ]
+        .map(normalizeGenreListValue)
+        .find((genres) => genres.length > 0) ?? [];
       const bookLanguage =
         normalizeTextValue(book?.['book_language']) ||
         normalizeTextValue(book?.['language']) ||
@@ -119,6 +128,9 @@ export function useBookNarrationMetadata({
         }
         if (bookGenre) {
           draft['book_genre'] = bookGenre;
+        }
+        if (bookGenres.length > 0) {
+          draft['book_genres'] = bookGenres;
         }
         if (bookLanguage) {
           draft['book_language'] = bookLanguage;

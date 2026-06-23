@@ -215,7 +215,7 @@ describe('BookNarrationForm', () => {
     fireEvent.change(screen.getByLabelText(/^Title$/i), { target: { value: 'Example Book' } });
     fireEvent.change(screen.getByLabelText(/^Author$/i), { target: { value: 'Jane Doe' } });
     fireEvent.change(screen.getByLabelText(/^ISBN$/i), { target: { value: '9780140328721' } });
-    fireEvent.change(screen.getByLabelText(/^Genre$/i), { target: { value: 'Adventure' } });
+    fireEvent.change(screen.getByLabelText(/^Genre$/i), { target: { value: 'Adventure, Fantasy' } });
     fireEvent.change(screen.getByLabelText(/^Language$/i), { target: { value: 'eng' } });
 
     await user.click(screen.getByRole('button', { name: /Submit job/i }));
@@ -225,14 +225,16 @@ describe('BookNarrationForm', () => {
     expect(payload.config).toMatchObject({
       book_title: 'Example Book',
       book_author: 'Jane Doe',
-      book_genre: 'Adventure',
+      book_genre: 'Adventure, Fantasy',
+      book_genres: ['Adventure', 'Fantasy'],
       book_language: 'eng',
       book_isbn: '9780140328721',
     });
     expect(payload.inputs.book_metadata).toMatchObject({
       book_title: 'Example Book',
       book_author: 'Jane Doe',
-      book_genre: 'Adventure',
+      book_genre: 'Adventure, Fantasy',
+      book_genres: ['Adventure', 'Fantasy'],
       book_language: 'eng',
       book_isbn: '9780140328721',
       isbn: '9780140328721',
@@ -287,6 +289,7 @@ describe('BookNarrationForm', () => {
       book_title: 'Lookup Book',
       book_author: 'Jane Doe',
       book_genre: 'Adventure, Fantasy',
+      book_genres: ['Adventure', 'Fantasy'],
       book_language: 'eng',
       book_isbn: '9780140328721',
     });
@@ -294,6 +297,7 @@ describe('BookNarrationForm', () => {
       book_title: 'Lookup Book',
       book_author: 'Jane Doe',
       book_genre: 'Adventure, Fantasy',
+      book_genres: ['Adventure', 'Fantasy'],
       book_language: 'eng',
       book_isbn: '9780140328721',
       isbn: '9780140328721',

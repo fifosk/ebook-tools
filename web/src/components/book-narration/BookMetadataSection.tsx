@@ -4,6 +4,7 @@ import { appendAccessToken, uploadCoverFile } from '../../api/client';
 import {
   coerceRecord,
   formatGenreValue,
+  normalizeGenreListValue,
   normalizeIsbnCandidate,
   normalizeTextValue,
   parseJsonField,
@@ -446,8 +447,15 @@ export default function BookMetadataSection({
                   const trimmed = value.trim();
                   if (trimmed) {
                     draft['book_genre'] = trimmed;
+                    const genres = normalizeGenreListValue(trimmed);
+                    if (genres.length > 0) {
+                      draft['book_genres'] = genres;
+                    } else {
+                      delete draft['book_genres'];
+                    }
                   } else {
                     delete draft['book_genre'];
+                    delete draft['book_genres'];
                   }
                 });
               }}

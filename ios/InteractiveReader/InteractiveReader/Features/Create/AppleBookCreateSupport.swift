@@ -762,6 +762,19 @@ enum AppleBookCreatePresentation {
         return targetLanguages
     }
 
+    static func normalizedBookGenres(_ value: String) -> [String] {
+        var genres = [String]()
+        var seen = Set<String>()
+        for component in value.split(separator: ",") {
+            let genre = trimmed(String(component))
+            guard !genre.isEmpty else { continue }
+            let lookupKey = genre.lowercased()
+            guard seen.insert(lookupKey).inserted else { continue }
+            genres.append(genre)
+        }
+        return genres
+    }
+
     static func submitButtonPresentation(
         for mode: AppleCreateMode,
         isSubmitting: Bool

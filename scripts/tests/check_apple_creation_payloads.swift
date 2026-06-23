@@ -259,6 +259,10 @@ struct AppleCreationPayloadCheck {
             "Transliteration model options should include blank fallback, selected, translation model, and unique inventory"
         )
         require(
+            AppleBookCreatePresentation.normalizedBookGenres(" Adventure, Fantasy, adventure,  ") == ["Adventure", "Fantasy"],
+            "Apple Create should normalize edited genre strings into Web-aligned book_genres arrays"
+        )
+        require(
             AppleBookCreatePresentation.clampAssFontSize(4) == AppleSubtitleAssTypography.fontSizeRange.lowerBound,
             "ASS font size should clamp to lower bound"
         )
@@ -892,7 +896,8 @@ struct AppleCreationPayloadCheck {
             tempo: 1.7,
             bookMetadata: [
                 "book_title": .string("Demo Book"),
-                "book_genre": .string("technical"),
+                "book_genre": .string("technical, reference"),
+                "book_genres": .array([.string("technical"), .string("reference")]),
                 "book_language": .string("English"),
                 "language": .string("English"),
                 "book_year": .string("2026"),
@@ -907,7 +912,8 @@ struct AppleCreationPayloadCheck {
         let pipeline = PipelineRequestPayload(
             config: [
                 "book_title": .string("Demo Book"),
-                "book_genre": .string("technical"),
+                "book_genre": .string("technical, reference"),
+                "book_genres": .array([.string("technical"), .string("reference")]),
                 "book_language": .string("English"),
                 "book_year": .string("2026"),
                 "book_isbn": .string("9780140328721"),
@@ -955,7 +961,11 @@ struct AppleCreationPayloadCheck {
         require(pipelineObject["pipeline_overrides"] != nil, "pipeline should encode pipeline_overrides")
         require(pipelineObject["correlation_id"] as? String == "apple-smoke", "pipeline should encode correlation_id")
         let config = pipelineObject["config"] as? [String: Any]
-        require(config?["book_genre"] as? String == "technical", "pipeline config should encode metadata genre")
+        require(config?["book_genre"] as? String == "technical, reference", "pipeline config should encode metadata genre")
+        require(
+            config?["book_genres"] as? [String] == ["technical", "reference"],
+            "pipeline config should encode metadata genre list"
+        )
         require(config?["book_language"] as? String == "English", "pipeline config should encode metadata language")
         require(config?["book_summary"] as? String == "A portable creation flow.", "pipeline config should encode metadata summary")
         require(config?["book_year"] as? String == "2026", "pipeline config should encode metadata year")
@@ -1088,7 +1098,11 @@ struct AppleCreationPayloadCheck {
         require((encodedInputs?["tempo"] as? NSNumber)?.doubleValue == 1.7, "pipeline inputs should encode tempo")
         let metadata = encodedInputs?["book_metadata"] as? [String: Any]
         require(metadata?["book_title"] as? String == "Demo Book", "pipeline inputs should encode book_metadata")
-        require(metadata?["book_genre"] as? String == "technical", "pipeline inputs should encode metadata genre")
+        require(metadata?["book_genre"] as? String == "technical, reference", "pipeline inputs should encode metadata genre")
+        require(
+            metadata?["book_genres"] as? [String] == ["technical", "reference"],
+            "pipeline inputs should encode metadata genre list"
+        )
         require(metadata?["book_language"] as? String == "English", "pipeline inputs should encode metadata language")
         require(metadata?["language"] as? String == "English", "pipeline inputs should encode language alias")
         require(metadata?["book_year"] as? String == "2026", "pipeline inputs should encode metadata year")

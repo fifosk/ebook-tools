@@ -58,6 +58,30 @@ export function formatGenreValue(value: unknown): string | null {
   return null;
 }
 
+export function normalizeGenreListValue(value: unknown): string[] {
+  const entries = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [];
+  const genres: string[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of entries) {
+    if (typeof entry !== 'string') {
+      continue;
+    }
+    const genre = entry.trim();
+    if (!genre) {
+      continue;
+    }
+    const lookupKey = genre.toLowerCase();
+    if (seen.has(lookupKey)) {
+      continue;
+    }
+    seen.add(lookupKey);
+    genres.push(genre);
+  }
+
+  return genres;
+}
+
 export function parseJsonField(label: string, value: string): Record<string, unknown> {
   if (!value.trim()) {
     return {};
