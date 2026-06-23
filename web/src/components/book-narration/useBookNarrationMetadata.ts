@@ -13,6 +13,7 @@ import {
   basenameFromPath,
   blobToDataUrl,
   coerceRecord,
+  formatGenreValue,
   normalizeTextValue,
   parseJsonField,
   resolveCoverPreviewUrlFromCoverFile,
@@ -73,6 +74,11 @@ export function useBookNarrationMetadata({
       const bookTitle = normalizeTextValue(book?.['title']) || normalizeTextValue(query?.['title']);
       const bookAuthor = normalizeTextValue(book?.['author']) || normalizeTextValue(query?.['author']);
       const bookYear = normalizeTextValue(book?.['year']);
+      const bookGenre =
+        formatGenreValue(book?.['genre']) ||
+        formatGenreValue(book?.['genres']) ||
+        formatGenreValue(lookup?.['genre']) ||
+        formatGenreValue(lookup?.['genres']);
       const isbn =
         normalizeTextValue(book?.['isbn']) ||
         normalizeTextValue(query?.['isbn']) ||
@@ -105,6 +111,9 @@ export function useBookNarrationMetadata({
         }
         if (bookYear) {
           draft['book_year'] = bookYear;
+        }
+        if (bookGenre) {
+          draft['book_genre'] = bookGenre;
         }
         if (isbn) {
           draft['isbn'] = isbn;

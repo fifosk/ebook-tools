@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.31
+
+- Advanced visible Apple app versioning to `v2026.06.23.31`.
+- Web book metadata lookup now persists preview genres into `book_genre`, so submitted config overrides carry the selected lookup genre without manual editing.
+
 ### 2026.06.23.30
 
 - Advanced visible Apple app versioning to `v2026.06.23.30`.

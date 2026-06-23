@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.30",
+            version: "2026.06.23.31",
             entries: [
+                AppChangelogEntry(
+                    id: "web-book-lookup-genre",
+                    title: "Web lookup genre",
+                    detail: "Web book metadata lookup now persists preview genres into book_genre, so submitted config overrides carry the selected lookup genre without manual editing."
+                ),
                 AppChangelogEntry(
                     id: "web-book-genre-isbn-config",
                     title: "Web metadata parity",

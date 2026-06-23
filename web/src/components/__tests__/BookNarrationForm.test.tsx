@@ -236,6 +236,63 @@ describe('BookNarrationForm', () => {
     });
   }, 10000);
 
+  it('promotes lookup genre metadata into config overrides on submit', async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
+    vi.mocked(lookupBookOpenLibraryMetadataPreview).mockResolvedValue({
+      source_name: 'input.epub',
+      query: {
+        title: 'Lookup Book',
+        author: 'Jane Doe',
+        isbn: '9780140328721',
+      },
+      media_metadata_lookup: {
+        book: {
+          title: 'Lookup Book',
+          author: 'Jane Doe',
+          isbn: '9780140328721',
+          genre: ['Adventure', 'Fantasy'],
+          summary: 'Lookup summary',
+        },
+      },
+    });
+
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={handleSubmit} />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.clear(screen.getByLabelText(/Input file path/i));
+    await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.epub');
+    await user.clear(screen.getByLabelText(/Base output file/i));
+    await user.type(screen.getByLabelText(/Base output file/i), 'output');
+
+    await openFormTab(user, /Metadata/i);
+    await waitFor(() => expect(lookupBookOpenLibraryMetadataPreview).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByLabelText(/^Genre$/i)).toHaveValue('Adventure, Fantasy'));
+
+    await user.click(screen.getByRole('button', { name: /Submit job/i }));
+
+    expect(handleSubmit).toHaveBeenCalled();
+    const [payload] = handleSubmit.mock.calls[0];
+    expect(payload.config).toMatchObject({
+      book_title: 'Lookup Book',
+      book_author: 'Jane Doe',
+      book_genre: 'Adventure, Fantasy',
+      book_isbn: '9780140328721',
+    });
+    expect(payload.inputs.book_metadata).toMatchObject({
+      book_title: 'Lookup Book',
+      book_author: 'Jane Doe',
+      book_genre: 'Adventure, Fantasy',
+      book_isbn: '9780140328721',
+      isbn: '9780140328721',
+    });
+  }, 10000);
+
   it('prefills the form with defaults from the API response', async () => {
     await act(async () => {
       renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} />);
