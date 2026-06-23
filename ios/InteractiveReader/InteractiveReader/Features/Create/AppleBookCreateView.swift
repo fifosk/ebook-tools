@@ -198,114 +198,36 @@ struct AppleBookCreateView: View {
     private var outputSection: some View {
         Section("Output") {
             if creationMode == .subtitleJob {
-                Picker("Format", selection: subtitleOutputFormatBinding) {
-                    ForEach(AppleSubtitleOutputFormat.allCases) { option in
-                        Text(option.label).tag(option)
-                    }
-                }
-                .accessibilityIdentifier("createSubtitleOutputFormatPicker")
-
-                #if os(iOS)
-                if subtitleOutputFormat == .ass {
-                    Stepper(value: subtitleAssFontSizeBinding, in: AppleSubtitleAssTypography.fontSizeRange, step: 2) {
-                        LabeledContent("ASS font size", value: "\(clampedAssFontSize)")
-                    }
-                    .accessibilityIdentifier("createSubtitleAssFontSizeStepper")
-
-                    Stepper(value: subtitleAssEmphasisScaleBinding, in: AppleSubtitleAssTypography.emphasisScaleRange, step: 0.05) {
-                        LabeledContent("ASS emphasis", value: formattedAssEmphasisScale)
-                    }
-                    .accessibilityIdentifier("createSubtitleAssEmphasisStepper")
-                }
-                #endif
-
-                TextField("Start time", text: textBinding(for: .subtitleStartTime, value: $subtitleStartTime))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("createSubtitleStartTimeField")
-                TextField("End time", text: textBinding(for: .subtitleEndTime, value: $subtitleEndTime))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("createSubtitleEndTimeField")
-
-                Toggle("Transliteration", isOn: boolBinding(for: .subtitleEnableTransliteration, value: $subtitleEnableTransliteration))
-                    .accessibilityIdentifier("createSubtitleTransliterationToggle")
-                if subtitleEnableTransliteration {
-                    Picker("Transliteration Mode", selection: subtitleTransliterationModeBinding) {
-                        ForEach(AppleSubtitleTransliterationMode.allCases) { option in
-                            Text(option.label).tag(option)
-                        }
-                    }
-                    .accessibilityIdentifier("createSubtitleTransliterationModePicker")
-
-                    Picker(
-                        "Transliteration Model",
-                        selection: textBinding(for: .subtitleTransliterationModel, value: $subtitleTransliterationModel)
-                    ) {
-                        ForEach(availableSubtitleTransliterationModels, id: \.self) { option in
-                            Text(AppleBookCreatePresentation.subtitleTransliterationModelLabel(option)).tag(option)
-                        }
-                    }
-                    .disabled(!subtitleTransliterationMode.allowsModelOverride)
-                    .accessibilityIdentifier("createSubtitleTransliterationModelPicker")
-                }
-                Toggle("Highlight", isOn: boolBinding(for: .subtitleHighlight, value: $subtitleHighlight))
-                    .accessibilityIdentifier("createSubtitleHighlightToggle")
-                Toggle("Show Original", isOn: boolBinding(for: .subtitleShowOriginal, value: $subtitleShowOriginal))
-                    .accessibilityIdentifier("createSubtitleShowOriginalToggle")
-                Toggle("Generate Audiobook", isOn: boolBinding(for: .subtitleGenerateAudioBook, value: $subtitleGenerateAudioBook))
-                    .accessibilityIdentifier("createSubtitleGenerateAudioToggle")
-                #if os(iOS)
-                Toggle("Mirror batches to source", isOn: boolBinding(for: .subtitleMirrorBatchesToSourceDir, value: $subtitleMirrorBatchesToSourceDir))
-                    .accessibilityIdentifier("createSubtitleMirrorBatchesToggle")
-                #endif
-
-                Picker("Provider", selection: subtitleTranslationProviderBinding) {
-                    ForEach(AppleSubtitleTranslationProvider.allCases) { option in
-                        Text(option.label).tag(option)
-                    }
-                }
-                .accessibilityIdentifier("createSubtitleTranslationProviderPicker")
-
-                #if os(iOS)
-                Stepper(
-                    value: subtitleWorkerCountBinding,
-                    in: AppleSubtitleTuning.workerCountRange,
-                    step: 1
-                ) {
-                    LabeledContent("Worker threads", value: "\(clampedSubtitleWorkerCount)")
-                }
-                .accessibilityIdentifier("createSubtitleWorkerCountStepper")
-
-                Stepper(
-                    value: subtitleBatchSizeBinding,
-                    in: AppleSubtitleTuning.batchSizeRange,
-                    step: 5
-                ) {
-                    LabeledContent("Subtitle batch size", value: "\(clampedSubtitleBatchSize)")
-                }
-                .accessibilityIdentifier("createSubtitleBatchSizeStepper")
-                #endif
-
-                if subtitleTranslationProvider == .llm {
-                    Picker("Model", selection: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel)) {
-                        ForEach(availableSubtitleLlmModels, id: \.self) { option in
-                            Text(AppleBookCreatePresentation.subtitleModelLabel(option)).tag(option)
-                        }
-                    }
-                    .accessibilityIdentifier("createSubtitleLlmModelPicker")
-
-                    #if os(iOS)
-                    Stepper(
-                        value: subtitleTranslationBatchSizeBinding,
-                        in: AppleSubtitleTuning.translationBatchSizeRange,
-                        step: 1
-                    ) {
-                        LabeledContent("LLM batch size", value: "\(clampedSubtitleTranslationBatchSize)")
-                    }
-                        .accessibilityIdentifier("createSubtitleTranslationBatchSizeStepper")
-                    #endif
-                }
+                AppleBookCreateSubtitleOutputControls(
+                    outputFormat: subtitleOutputFormatBinding,
+                    selectedOutputFormat: subtitleOutputFormat,
+                    assFontSize: subtitleAssFontSizeBinding,
+                    clampedAssFontSize: clampedAssFontSize,
+                    assEmphasisScale: subtitleAssEmphasisScaleBinding,
+                    formattedAssEmphasisScale: formattedAssEmphasisScale,
+                    startTime: textBinding(for: .subtitleStartTime, value: $subtitleStartTime),
+                    endTime: textBinding(for: .subtitleEndTime, value: $subtitleEndTime),
+                    enableTransliteration: boolBinding(for: .subtitleEnableTransliteration, value: $subtitleEnableTransliteration),
+                    isTransliterationEnabled: subtitleEnableTransliteration,
+                    transliterationMode: subtitleTransliterationModeBinding,
+                    selectedTransliterationMode: subtitleTransliterationMode,
+                    transliterationModel: textBinding(for: .subtitleTransliterationModel, value: $subtitleTransliterationModel),
+                    availableTransliterationModels: availableSubtitleTransliterationModels,
+                    highlight: boolBinding(for: .subtitleHighlight, value: $subtitleHighlight),
+                    showOriginal: boolBinding(for: .subtitleShowOriginal, value: $subtitleShowOriginal),
+                    generateAudioBook: boolBinding(for: .subtitleGenerateAudioBook, value: $subtitleGenerateAudioBook),
+                    mirrorBatchesToSourceDir: boolBinding(for: .subtitleMirrorBatchesToSourceDir, value: $subtitleMirrorBatchesToSourceDir),
+                    translationProvider: subtitleTranslationProviderBinding,
+                    selectedTranslationProvider: subtitleTranslationProvider,
+                    workerCount: subtitleWorkerCountBinding,
+                    clampedWorkerCount: clampedSubtitleWorkerCount,
+                    batchSize: subtitleBatchSizeBinding,
+                    clampedBatchSize: clampedSubtitleBatchSize,
+                    llmModel: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel),
+                    availableLlmModels: availableSubtitleLlmModels,
+                    translationBatchSize: subtitleTranslationBatchSizeBinding,
+                    clampedTranslationBatchSize: clampedSubtitleTranslationBatchSize
+                )
             } else if creationMode == .youtubeDub {
                 AppleBookCreateYoutubeOutputControls(
                     translationProvider: subtitleTranslationProviderBinding,

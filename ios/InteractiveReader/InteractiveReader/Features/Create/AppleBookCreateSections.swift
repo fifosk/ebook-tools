@@ -155,6 +155,145 @@ struct AppleBookCreateNarrationSection: View {
     }
 }
 
+struct AppleBookCreateSubtitleOutputControls: View {
+    @Binding var outputFormat: AppleSubtitleOutputFormat
+    let selectedOutputFormat: AppleSubtitleOutputFormat
+    @Binding var assFontSize: Int
+    let clampedAssFontSize: Int
+    @Binding var assEmphasisScale: Double
+    let formattedAssEmphasisScale: String
+    @Binding var startTime: String
+    @Binding var endTime: String
+    @Binding var enableTransliteration: Bool
+    let isTransliterationEnabled: Bool
+    @Binding var transliterationMode: AppleSubtitleTransliterationMode
+    let selectedTransliterationMode: AppleSubtitleTransliterationMode
+    @Binding var transliterationModel: String
+    let availableTransliterationModels: [String]
+    @Binding var highlight: Bool
+    @Binding var showOriginal: Bool
+    @Binding var generateAudioBook: Bool
+    @Binding var mirrorBatchesToSourceDir: Bool
+    @Binding var translationProvider: AppleSubtitleTranslationProvider
+    let selectedTranslationProvider: AppleSubtitleTranslationProvider
+    @Binding var workerCount: Int
+    let clampedWorkerCount: Int
+    @Binding var batchSize: Int
+    let clampedBatchSize: Int
+    @Binding var llmModel: String
+    let availableLlmModels: [String]
+    @Binding var translationBatchSize: Int
+    let clampedTranslationBatchSize: Int
+
+    var body: some View {
+        Picker("Format", selection: $outputFormat) {
+            ForEach(AppleSubtitleOutputFormat.allCases) { option in
+                Text(option.label).tag(option)
+            }
+        }
+        .accessibilityIdentifier("createSubtitleOutputFormatPicker")
+
+        #if os(iOS)
+        if selectedOutputFormat == .ass {
+            Stepper(value: $assFontSize, in: AppleSubtitleAssTypography.fontSizeRange, step: 2) {
+                LabeledContent("ASS font size", value: "\(clampedAssFontSize)")
+            }
+            .accessibilityIdentifier("createSubtitleAssFontSizeStepper")
+
+            Stepper(value: $assEmphasisScale, in: AppleSubtitleAssTypography.emphasisScaleRange, step: 0.05) {
+                LabeledContent("ASS emphasis", value: formattedAssEmphasisScale)
+            }
+            .accessibilityIdentifier("createSubtitleAssEmphasisStepper")
+        }
+        #endif
+
+        TextField("Start time", text: $startTime)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleStartTimeField")
+        TextField("End time", text: $endTime)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleEndTimeField")
+
+        Toggle("Transliteration", isOn: $enableTransliteration)
+            .accessibilityIdentifier("createSubtitleTransliterationToggle")
+        if isTransliterationEnabled {
+            Picker("Transliteration Mode", selection: $transliterationMode) {
+                ForEach(AppleSubtitleTransliterationMode.allCases) { option in
+                    Text(option.label).tag(option)
+                }
+            }
+            .accessibilityIdentifier("createSubtitleTransliterationModePicker")
+
+            Picker("Transliteration Model", selection: $transliterationModel) {
+                ForEach(availableTransliterationModels, id: \.self) { option in
+                    Text(AppleBookCreatePresentation.subtitleTransliterationModelLabel(option)).tag(option)
+                }
+            }
+            .disabled(!selectedTransliterationMode.allowsModelOverride)
+            .accessibilityIdentifier("createSubtitleTransliterationModelPicker")
+        }
+        Toggle("Highlight", isOn: $highlight)
+            .accessibilityIdentifier("createSubtitleHighlightToggle")
+        Toggle("Show Original", isOn: $showOriginal)
+            .accessibilityIdentifier("createSubtitleShowOriginalToggle")
+        Toggle("Generate Audiobook", isOn: $generateAudioBook)
+            .accessibilityIdentifier("createSubtitleGenerateAudioToggle")
+        #if os(iOS)
+        Toggle("Mirror batches to source", isOn: $mirrorBatchesToSourceDir)
+            .accessibilityIdentifier("createSubtitleMirrorBatchesToggle")
+        #endif
+
+        Picker("Provider", selection: $translationProvider) {
+            ForEach(AppleSubtitleTranslationProvider.allCases) { option in
+                Text(option.label).tag(option)
+            }
+        }
+        .accessibilityIdentifier("createSubtitleTranslationProviderPicker")
+
+        #if os(iOS)
+        Stepper(
+            value: $workerCount,
+            in: AppleSubtitleTuning.workerCountRange,
+            step: 1
+        ) {
+            LabeledContent("Worker threads", value: "\(clampedWorkerCount)")
+        }
+        .accessibilityIdentifier("createSubtitleWorkerCountStepper")
+
+        Stepper(
+            value: $batchSize,
+            in: AppleSubtitleTuning.batchSizeRange,
+            step: 5
+        ) {
+            LabeledContent("Subtitle batch size", value: "\(clampedBatchSize)")
+        }
+        .accessibilityIdentifier("createSubtitleBatchSizeStepper")
+        #endif
+
+        if selectedTranslationProvider == .llm {
+            Picker("Model", selection: $llmModel) {
+                ForEach(availableLlmModels, id: \.self) { option in
+                    Text(AppleBookCreatePresentation.subtitleModelLabel(option)).tag(option)
+                }
+            }
+            .accessibilityIdentifier("createSubtitleLlmModelPicker")
+
+            #if os(iOS)
+            Stepper(
+                value: $translationBatchSize,
+                in: AppleSubtitleTuning.translationBatchSizeRange,
+                step: 1
+            ) {
+                LabeledContent("LLM batch size", value: "\(clampedTranslationBatchSize)")
+            }
+            .accessibilityIdentifier("createSubtitleTranslationBatchSizeStepper")
+            #endif
+        }
+    }
+}
+
 struct AppleBookCreateYoutubeOutputControls: View {
     @Binding var translationProvider: AppleSubtitleTranslationProvider
     let selectedTranslationProvider: AppleSubtitleTranslationProvider
