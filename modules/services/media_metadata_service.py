@@ -1204,6 +1204,7 @@ class MediaMetadataService:
                 if isbn:
                     media_metadata["isbn"] = isbn
                     media_metadata["book_isbn"] = isbn
+                    config_payload["book_isbn"] = isbn
                 if cover_url:
                     media_metadata["cover_url"] = cover_url
                 if cover_file:
@@ -1215,6 +1216,16 @@ class MediaMetadataService:
                 if genre:
                     media_metadata["book_genre"] = genre
                     config_payload["book_genre"] = genre
+                raw_genres = book_section.get("book_genres")
+                if isinstance(raw_genres, Sequence) and not isinstance(raw_genres, (str, bytes, bytearray)):
+                    genres = [
+                        cleaned
+                        for entry in raw_genres
+                        if (cleaned := _normalize_text(entry))
+                    ]
+                    if genres:
+                        media_metadata["book_genres"] = genres
+                        config_payload["book_genres"] = genres
 
                 # OpenLibrary-specific fields
                 openlibrary_work_key = _normalize_text(book_section.get("openlibrary_work_key"))

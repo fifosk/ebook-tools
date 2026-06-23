@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.34",
+            version: "2026.06.23.35",
             entries: [
+                AppChangelogEntry(
+                    id: "persisted-book-lookup-aliases",
+                    title: "Persisted book metadata",
+                    detail: "Persisted book lookup metadata now keeps book_isbn, book_genre, and book_genres in job media metadata and config after lookup enrichment."
+                ),
                 AppChangelogEntry(
                     id: "backend-book-lookup-aliases",
                     title: "Book lookup aliases",

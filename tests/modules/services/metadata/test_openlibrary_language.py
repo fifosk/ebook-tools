@@ -1,5 +1,8 @@
+from datetime import datetime, timezone
+
 from modules.services.media_metadata_service import _normalize_openlibrary_language
 from modules.services.media_metadata_service import BookLookupQuery, MediaMetadataService
+from modules.services.job_manager.job import PipelineJob, PipelineJobStatus
 from modules.services.metadata.clients.openlibrary import OpenLibraryClient
 from modules.services.metadata.types import (
     ConfidenceLevel,
@@ -99,3 +102,55 @@ def test_pipeline_result_payload_exposes_web_aligned_book_aliases() -> None:
     assert book["genre"] == "Adventure, Fantasy"
     assert book["book_genre"] == "Adventure, Fantasy"
     assert book["book_genres"] == ["Adventure", "Fantasy"]
+
+
+def test_persisted_lookup_keeps_book_isbn_and_genre_aliases() -> None:
+    class StubJobManager:
+        def __init__(self) -> None:
+            self.job = PipelineJob(
+                job_id="job-1",
+                status=PipelineJobStatus.COMPLETED,
+                created_at=datetime.now(timezone.utc),
+                request_payload={"inputs": {"media_metadata": {}}, "config": {}},
+                job_type="book",
+            )
+
+        def mutate_job(self, _job_id: str, mutator, **_kwargs):
+            mutator(self.job)
+            return self.job
+
+    manager = StubJobManager()
+    service = object.__new__(MediaMetadataService)
+    service._job_manager = manager
+
+    service._persist_lookup_result(
+        "job-1",
+        {
+            "kind": "book",
+            "provider": "openlibrary",
+            "queried_at": "2026-06-23T12:00:00+00:00",
+            "job_label": "Example Book - Jane Doe",
+            "book": {
+                "title": "Example Book",
+                "author": "Jane Doe",
+                "isbn": "9780140328721",
+                "book_isbn": "9780140328721",
+                "genre": "Adventure, Fantasy",
+                "book_genre": "Adventure, Fantasy",
+                "book_genres": ["Adventure", "Fantasy", ""],
+            },
+        },
+        user_id=None,
+        user_role=None,
+    )
+
+    request_payload = manager.job.request_payload
+    media_metadata = request_payload["inputs"]["media_metadata"]
+    config = request_payload["config"]
+
+    assert media_metadata["book_isbn"] == "9780140328721"
+    assert media_metadata["book_genre"] == "Adventure, Fantasy"
+    assert media_metadata["book_genres"] == ["Adventure", "Fantasy"]
+    assert config["book_isbn"] == "9780140328721"
+    assert config["book_genre"] == "Adventure, Fantasy"
+    assert config["book_genres"] == ["Adventure", "Fantasy"]

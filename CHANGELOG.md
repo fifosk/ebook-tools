@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.35
+
+- Advanced visible Apple app versioning to `v2026.06.23.35`.
+- Persisted book lookup metadata now keeps `book_isbn`, `book_genre`, and `book_genres` in job media metadata and config after lookup enrichment.
+
 ### 2026.06.23.34
 
 - Advanced visible Apple app versioning to `v2026.06.23.34`.
