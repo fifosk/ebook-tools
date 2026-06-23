@@ -8,7 +8,7 @@ SCHEME="${SCHEME:-InteractiveReader}"
 DERIVED_DATA="${MACOS_IPAD_DERIVED_DATA:-${ROOT_DIR}/test-results/DerivedData-macos-ipad-style}"
 CODE_SIGNING_ALLOWED="${CODE_SIGNING_ALLOWED:-NO}"
 DESTINATION="${MACOS_IPAD_DESTINATION:-}"
-QUIET_FLAG=()
+QUIET_OPTION=""
 DRY_RUN=0
 SHOW_DESTINATION=0
 
@@ -49,7 +49,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "${XCODEBUILD_QUIET:-1}" != "0" ]]; then
-  QUIET_FLAG=(-quiet)
+  QUIET_OPTION="-quiet"
 fi
 
 if [[ -z "${DESTINATION}" ]]; then
@@ -107,9 +107,11 @@ BUILD_COMMAND=(
   -destination "${DESTINATION}"
   -derivedDataPath "${DERIVED_DATA}"
   CODE_SIGNING_ALLOWED="${CODE_SIGNING_ALLOWED}"
-  "${QUIET_FLAG[@]}"
-  build
 )
+if [[ -n "${QUIET_OPTION}" ]]; then
+  BUILD_COMMAND+=("${QUIET_OPTION}")
+fi
+BUILD_COMMAND+=(build)
 
 if [[ "${DRY_RUN}" == "1" ]]; then
   printf 'Dry run build command:'

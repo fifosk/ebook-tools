@@ -65,6 +65,7 @@ test-observability:
 
 test-apple-contracts:
 	bash scripts/check_apple_creation_payloads.sh
+	bash scripts/check_apple_macos_ipad_style_helper.sh
 	bash scripts/check_apple_device_update_helper.sh
 
 build-apple-macos-ipad-style:
