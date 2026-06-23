@@ -11,6 +11,7 @@ struct AppleBookCreateView: View {
     let sectionPicker: BrowseSectionPicker?
     let onJobSubmitted: (String) -> Void
     let onOpenJobs: (String) -> Void
+    let recentJobs: [PipelineStatusResponse]
     let usesDarkBackground: Bool
 
     @State private var creationMode = AppleCreateMode.generatedBook
@@ -152,6 +153,10 @@ struct AppleBookCreateView: View {
             await refreshYoutubeLibrary()
             _ = await viewModel.loadVoiceInventory(using: appState, cacheKey: creationOptionsLoadKey)
             await viewModel.loadSubtitleModels(using: appState, cacheKey: creationOptionsLoadKey)
+            applyNarrationHistoryDefaults()
+        }
+        .onChange(of: recentJobs) { _, _ in
+            applyNarrationHistoryDefaults()
         }
         #if os(iOS)
         .fileImporter(
@@ -957,6 +962,45 @@ struct AppleBookCreateView: View {
         }
         if !editedFields.contains(.youtubeSubtitlePath), trimmed(youtubeSubtitlePath).isEmpty {
             youtubeSubtitlePath = selection.subtitle?.path ?? ""
+        }
+    }
+
+    private func applyNarrationHistoryDefaults() {
+        guard let defaults = AppleBookCreatePresentation.narrationHistoryDefaults(
+            from: recentJobs,
+            currentInputFile: sourcePath
+        ) else {
+            return
+        }
+
+        if selectedNarrateFileURL == nil,
+           !editedFields.contains(.sourcePath),
+           let inputFile = defaults.inputFile?.nonEmptyValue {
+            sourcePath = inputFile
+        }
+        if !editedFields.contains(.sourceBaseOutput),
+           let baseOutput = defaults.baseOutput?.nonEmptyValue {
+            sourceBaseOutput = baseOutput
+        }
+        if !editedFields.contains(.sourceStartSentence),
+           let startSentence = defaults.startSentence {
+            sourceStartSentence = "\(startSentence)"
+        }
+        if !editedFields.contains(.inputLanguage),
+           let inputLanguage = defaults.inputLanguage {
+            self.inputLanguage = inputLanguage
+        }
+        if !editedFields.contains(.targetLanguage),
+           let targetLanguage = defaults.targetLanguage {
+            self.targetLanguage = targetLanguage
+        }
+        if !editedFields.contains(.additionalTargetLanguages),
+           let additionalTargetLanguages = defaults.additionalTargetLanguages {
+            self.additionalTargetLanguages = additionalTargetLanguages
+        }
+        if !editedFields.contains(.enableLookupCache),
+           let enableLookupCache = defaults.enableLookupCache {
+            self.enableLookupCache = enableLookupCache
         }
     }
 

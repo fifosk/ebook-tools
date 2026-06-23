@@ -110,6 +110,107 @@ struct AppleCreationPayloadCheck {
             )?.path == "First.epub",
             "Apple Create should fall back to the first backend-listed EPUB"
         )
+        let narrationJobsJSON = """
+        {
+          "jobs": [
+            {
+              "jobId": "subtitle-1",
+              "jobType": "subtitle",
+              "status": "completed",
+              "createdAt": "2026-06-23T10:00:00Z",
+              "startedAt": null,
+              "completedAt": null,
+              "result": null,
+              "error": null,
+              "latestEvent": null,
+              "tuning": null,
+              "userId": "editor",
+              "userRole": "editor",
+              "generatedFiles": null,
+              "parameters": {
+                "input_file": "ignore-me.srt",
+                "end_sentence": 999
+              },
+              "mediaCompleted": true,
+              "retrySummary": null,
+              "jobLabel": null,
+              "imageGeneration": null
+            },
+            {
+              "jobId": "book-old",
+              "jobType": "book",
+              "status": "completed",
+              "createdAt": "2026-06-23T11:00:00Z",
+              "startedAt": null,
+              "completedAt": null,
+              "result": null,
+              "error": null,
+              "latestEvent": null,
+              "tuning": null,
+              "userId": "editor",
+              "userRole": "editor",
+              "generatedFiles": null,
+              "parameters": {
+                "input_file": "old.epub",
+                "base_output_file": "old-output",
+                "target_languages": ["French"],
+                "start_sentence": 20
+              },
+              "mediaCompleted": true,
+              "retrySummary": null,
+              "jobLabel": null,
+              "imageGeneration": null
+            },
+            {
+              "jobId": "book-new",
+              "jobType": "book",
+              "status": "completed",
+              "createdAt": "2026-06-23T12:00:00Z",
+              "startedAt": null,
+              "completedAt": null,
+              "result": null,
+              "error": null,
+              "latestEvent": null,
+              "tuning": null,
+              "userId": "editor",
+              "userRole": "editor",
+              "generatedFiles": null,
+              "parameters": {
+                "inputs": {
+                  "input_file": "latest.epub",
+                  "base_output_file": "latest-output",
+                  "input_language": "English",
+                  "target_languages": ["Arabic", "German", "French"],
+                  "end_sentence": 88,
+                  "enable_lookup_cache": false
+                }
+              },
+              "mediaCompleted": true,
+              "retrySummary": null,
+              "jobLabel": null,
+              "imageGeneration": null
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+        let narrationJobs = try decoder.decode(PipelineJobListResponse.self, from: narrationJobsJSON).jobs
+        let narrationDefaults = AppleBookCreatePresentation.narrationHistoryDefaults(
+            from: narrationJobs,
+            currentInputFile: ""
+        )
+        require(
+            narrationDefaults?.inputFile == "latest.epub"
+                && narrationDefaults?.baseOutput == "latest-output"
+                && narrationDefaults?.startSentence == 83,
+            "Apple Create should use the latest narration job input/base and resume near its prior end sentence"
+        )
+        require(
+            narrationDefaults?.inputLanguage == .english
+                && narrationDefaults?.targetLanguage == .arabic
+                && narrationDefaults?.additionalTargetLanguages == "German, French"
+                && narrationDefaults?.enableLookupCache == false,
+            "Apple Create should reuse latest narration language and lookup-cache defaults"
+        )
         require(
             AppleBookCreatePresentation.webCreateViewID(for: .generatedBook) == "books:create",
             "Generated-book Web handoff should target the Web book creation view"

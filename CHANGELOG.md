@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.88
+
+- Advanced visible Apple app versioning to `v2026.06.23.88`.
+- Apple Create now reuses recent book/narration job history for untouched Narrate EPUB defaults, including input/base paths, resume start sentence, languages, and lookup-cache preference.
+
 ### 2026.06.23.87
 
 - Advanced visible Apple app versioning to `v2026.06.23.87`.

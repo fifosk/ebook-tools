@@ -206,6 +206,7 @@ struct LibraryShellView: View {
                     sectionPicker: sectionPickerForHeader,
                     onJobSubmitted: handleCreatedJob,
                     onOpenJobs: openCreatedJob,
+                    recentJobs: jobsViewModel.jobs,
                     usesDarkBackground: usesDarkBackground
                 )
             case .search:

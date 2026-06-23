@@ -91,7 +91,10 @@ usable SRT/VTT entries from `/api/subtitles/sources`, and YouTube dubbing loads
 NAS videos plus adjacent subtitles from `/api/subtitles/youtube/library`.
 Pipeline EPUB listings are newest-first and include optional file metadata, so
 the untouched Narrate EPUB source defaults to the latest backend-visible NAS
-EPUB after the preferred sample book rule.
+EPUB after the preferred sample book rule. When recent jobs are available,
+untouched Narrate EPUB fields also reuse the latest book/narration input and
+base paths, resume near the prior end sentence, and carry forward language and
+lookup-cache defaults.
 Manual path entry remains available when the backend list is empty or a source
 is outside the default browser roots. tvOS intentionally keeps Create narrowed
 to generated-book jobs.

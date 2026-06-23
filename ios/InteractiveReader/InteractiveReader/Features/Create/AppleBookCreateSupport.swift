@@ -479,6 +479,16 @@ enum AppleBookCreateEditedField: Hashable {
     case jobMaxWorkers
 }
 
+struct AppleNarrationHistoryDefaults: Equatable {
+    let inputFile: String?
+    let baseOutput: String?
+    let startSentence: Int?
+    let inputLanguage: AppleBookCreateLanguage?
+    let targetLanguage: AppleBookCreateLanguage?
+    let additionalTargetLanguages: String?
+    let enableLookupCache: Bool?
+}
+
 struct AppleCreateResolvedDefaults: Equatable {
     let topic: String?
     let bookName: String?
@@ -611,6 +621,78 @@ enum AppleBookCreatePresentation {
         }
         let video = videos.first { !playableYoutubeSubtitles(for: $0).isEmpty } ?? videos[0]
         return AppleYoutubeSourceSelection(video: video, subtitle: preferredYoutubeSubtitle(for: video))
+    }
+
+    static func narrationHistoryDefaults(
+        from jobs: [PipelineStatusResponse],
+        currentInputFile: String
+    ) -> AppleNarrationHistoryDefaults? {
+        guard !jobs.isEmpty else { return nil }
+        let latest = latestNarrationJob(from: jobs)
+        let inputFile = latest.flatMap { narrationString($0, keys: ["input_file", "inputFile"]) }
+        let baseOutput = latest.flatMap { narrationString($0, keys: ["base_output_file", "baseOutputFile"]) }
+        let startInput = trimmed(inputFile ?? currentInputFile)
+        let startSentence = narrationStartSentence(inputFile: startInput, from: jobs)
+
+        let inputLanguage = latest
+            .flatMap { narrationString($0, keys: ["input_language", "inputLanguage", "source_language", "sourceLanguage"]) }
+            .flatMap(AppleBookCreateLanguage.init(backendValue:))
+        let targetLanguages = latest
+            .flatMap { narrationStringArray($0, keys: ["target_languages", "targetLanguages"]) } ?? []
+        let normalizedTargets = normalizedLanguageList(targetLanguages)
+        let targetLanguage = normalizedTargets.first.flatMap(AppleBookCreateLanguage.init(backendValue:))
+        let additionalTargetLanguages = normalizedTargets.dropFirst().joined(separator: ", ")
+        let lookupCache = latest.flatMap { narrationBool($0, keys: ["enable_lookup_cache", "enableLookupCache"]) }
+
+        guard inputFile != nil
+            || baseOutput != nil
+            || startSentence != nil
+            || inputLanguage != nil
+            || targetLanguage != nil
+            || !additionalTargetLanguages.isEmpty
+            || lookupCache != nil
+        else {
+            return nil
+        }
+
+        return AppleNarrationHistoryDefaults(
+            inputFile: inputFile,
+            baseOutput: baseOutput,
+            startSentence: startSentence,
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            additionalTargetLanguages: additionalTargetLanguages.isEmpty ? nil : additionalTargetLanguages,
+            enableLookupCache: lookupCache
+        )
+    }
+
+    static func narrationStartSentence(
+        inputFile: String,
+        from jobs: [PipelineStatusResponse]
+    ) -> Int? {
+        let normalizedInput = normalizedNarrationPath(inputFile)
+        guard let normalizedInput, !jobs.isEmpty else { return nil }
+
+        var latest: (createdAt: Date, anchor: Int)?
+        for job in jobs where isReusableNarrationJob(job) {
+            guard let createdAt = parseJobDate(job.createdAt),
+                  let candidate = normalizedNarrationPath(
+                    narrationString(job, keys: ["input_file", "inputFile", "base_output_file", "baseOutputFile"])
+                  ),
+                  candidate == normalizedInput
+            else {
+                continue
+            }
+            let anchor = narrationInt(job, keys: ["end_sentence", "endSentence"])
+                ?? narrationInt(job, keys: ["start_sentence", "startSentence"])
+            guard let anchor else { continue }
+            if latest == nil || createdAt > latest!.createdAt {
+                latest = (createdAt, anchor)
+            }
+        }
+
+        guard let latest else { return nil }
+        return max(1, latest.anchor - 5)
     }
 
     static func webCreateViewID(for mode: AppleCreateMode) -> String {
@@ -1039,6 +1121,157 @@ enum AppleBookCreatePresentation {
             .first
             .map(String.init) ?? ""
     }
+
+    private static func latestNarrationJob(from jobs: [PipelineStatusResponse]) -> PipelineStatusResponse? {
+        var latest: (job: PipelineStatusResponse, createdAt: Date)?
+        for job in jobs where isReusableNarrationJob(job) {
+            guard let createdAt = parseJobDate(job.createdAt),
+                  job.parameters?.objectValue != nil
+            else {
+                continue
+            }
+            if latest == nil || createdAt > latest!.createdAt {
+                latest = (job, createdAt)
+            }
+        }
+        return latest?.job
+    }
+
+    private static func isReusableNarrationJob(_ job: PipelineStatusResponse) -> Bool {
+        !job.jobType.lowercased().contains("subtitle")
+    }
+
+    private static func narrationString(
+        _ job: PipelineStatusResponse,
+        keys: [String]
+    ) -> String? {
+        guard let parameters = job.parameters?.objectValue else { return nil }
+        return narrationString(in: parameters, keys: keys)
+    }
+
+    private static func narrationString(
+        in parameters: [String: JSONValue],
+        keys: [String]
+    ) -> String? {
+        let sources = narrationParameterSources(parameters)
+        for source in sources {
+            for key in keys {
+                if let value = source[key]?.stringValue?.nonEmptyValue {
+                    return value
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func narrationStringArray(
+        _ job: PipelineStatusResponse,
+        keys: [String]
+    ) -> [String]? {
+        guard let parameters = job.parameters?.objectValue else { return nil }
+        let sources = narrationParameterSources(parameters)
+        for source in sources {
+            for key in keys {
+                guard let value = source[key] else { continue }
+                if let array = value.arrayValue {
+                    let strings = array.compactMap { $0.stringValue?.nonEmptyValue }
+                    if !strings.isEmpty {
+                        return strings
+                    }
+                }
+                if let string = value.stringValue?.nonEmptyValue {
+                    let strings = normalizedLanguageList(string.split(separator: ",").map(String.init))
+                    if !strings.isEmpty {
+                        return strings
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func narrationInt(
+        _ job: PipelineStatusResponse,
+        keys: [String]
+    ) -> Int? {
+        guard let parameters = job.parameters?.objectValue else { return nil }
+        let sources = narrationParameterSources(parameters)
+        for source in sources {
+            for key in keys {
+                if let value = source[key]?.intValue {
+                    return value
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func narrationBool(
+        _ job: PipelineStatusResponse,
+        keys: [String]
+    ) -> Bool? {
+        guard let parameters = job.parameters?.objectValue else { return nil }
+        let sources = narrationParameterSources(parameters)
+        for source in sources {
+            for key in keys {
+                guard let value = source[key] else { continue }
+                if case let .bool(boolValue) = value {
+                    return boolValue
+                }
+                if let string = value.stringValue?.lowercased() {
+                    if ["1", "true", "yes", "on"].contains(string) {
+                        return true
+                    }
+                    if ["0", "false", "no", "off"].contains(string) {
+                        return false
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func narrationParameterSources(
+        _ parameters: [String: JSONValue]
+    ) -> [[String: JSONValue]] {
+        var sources = [parameters]
+        if let inputs = parameters["inputs"]?.objectValue {
+            sources.insert(inputs, at: 0)
+        }
+        if let request = parameters["request"]?.objectValue {
+            sources.append(request)
+            if let requestInputs = request["inputs"]?.objectValue {
+                sources.insert(requestInputs, at: 0)
+            }
+        }
+        return sources
+    }
+
+    private static func normalizedNarrationPath(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmedValue = trimmed(value)
+        guard !trimmedValue.isEmpty else { return nil }
+        return trimmedValue
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/\\"))
+            .lowercased()
+            .nonEmptyValue
+    }
+
+    private static func parseJobDate(_ value: String) -> Date? {
+        jobDateFormatterWithFractional.date(from: value) ?? jobDateFormatter.date(from: value)
+    }
+
+    private static let jobDateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    private static let jobDateFormatterWithFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
 
     static func targetLanguageDefaults(
         from defaults: BookCreationDefaults
