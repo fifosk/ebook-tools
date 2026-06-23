@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.67
+
+- Advanced visible Apple app versioning to `v2026.06.23.67`.
+- Web Subtitle Tool processing options now live in a focused hook with coverage for form defaults and prefill/normalization setters.
+
 ### 2026.06.23.66
 
 - Advanced visible Apple app versioning to `v2026.06.23.66`.

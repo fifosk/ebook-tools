@@ -11,23 +11,15 @@ import SubtitleToolTabs from './subtitle-tool/SubtitleToolTabs';
 import { CreateIntakeStatusCallout } from '../components/create-intake/CreateIntakeStatusCallout';
 import { useCreateIntakeStatus } from '../components/create-intake/useCreateIntakeStatus';
 import {
-  DEFAULT_ASS_EMPHASIS,
-  DEFAULT_ASS_FONT_SIZE,
-  DEFAULT_BATCH_SIZE,
-  DEFAULT_LLM_MODEL,
   DEFAULT_START_TIME,
-  DEFAULT_SUBTITLE_SOURCE_DIRECTORY,
-  DEFAULT_TRANSLATION_BATCH_SIZE,
-  DEFAULT_WORKER_COUNT
+  DEFAULT_SUBTITLE_SOURCE_DIRECTORY
 } from './subtitle-tool/subtitleToolConfig';
-import type {
-  SubtitleOutputFormat,
-  SubtitleToolTab
-} from './subtitle-tool/subtitleToolTypes';
+import type { SubtitleToolTab } from './subtitle-tool/subtitleToolTypes';
 import { useSubtitleJobResults } from './subtitle-tool/useSubtitleJobResults';
 import { useSubtitleLanguageState } from './subtitle-tool/useSubtitleLanguageState';
 import { useSubtitleModels } from './subtitle-tool/useSubtitleModels';
 import { useSubtitlePrefill } from './subtitle-tool/useSubtitlePrefill';
+import { useSubtitleProcessingOptions } from './subtitle-tool/useSubtitleProcessingOptions';
 import { useSubtitleShowOriginalPreference } from './subtitle-tool/useSubtitleShowOriginalPreference';
 import { useSubtitleSourceMode } from './subtitle-tool/useSubtitleSourceMode';
 import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
@@ -116,26 +108,42 @@ export default function SubtitleToolPage({
     updateMediaMetadataDraft,
     updateMediaMetadataSection
   } = useSubtitleTvMetadata(metadataSourceName);
-  const [enableTransliteration, setEnableTransliteration] = useState<boolean>(true);
-  const [enableHighlight, setEnableHighlight] = useState<boolean>(true);
-  const [generateAudioBook, setGenerateAudioBook] = useState<boolean>(true);
-  const [outputFormat, setOutputFormat] = useState<SubtitleOutputFormat>('ass');
-  const [assFontSize, setAssFontSize] = useState<number | ''>(DEFAULT_ASS_FONT_SIZE);
-  const [assEmphasis, setAssEmphasis] = useState<number | ''>(DEFAULT_ASS_EMPHASIS);
   const { showOriginal, setShowOriginal } = useSubtitleShowOriginalPreference();
-  const [mirrorToSourceDir, setMirrorToSourceDir] = useState<boolean>(true);
-  const [workerCount, setWorkerCount] = useState<number | ''>(DEFAULT_WORKER_COUNT);
-  const [batchSize, setBatchSize] = useState<number | ''>(DEFAULT_BATCH_SIZE);
-  const [translationBatchSize, setTranslationBatchSize] = useState<number | ''>(
-    DEFAULT_TRANSLATION_BATCH_SIZE
-  );
-  const [startTime, setStartTime] = useState<string>(DEFAULT_START_TIME);
-  const [endTime, setEndTime] = useState<string>('');
+  const {
+    enableTransliteration,
+    setEnableTransliteration,
+    enableHighlight,
+    setEnableHighlight,
+    generateAudioBook,
+    setGenerateAudioBook,
+    outputFormat,
+    setOutputFormat,
+    assFontSize,
+    setAssFontSize,
+    assEmphasis,
+    setAssEmphasis,
+    mirrorToSourceDir,
+    setMirrorToSourceDir,
+    workerCount,
+    setWorkerCount,
+    batchSize,
+    setBatchSize,
+    translationBatchSize,
+    setTranslationBatchSize,
+    startTime,
+    setStartTime,
+    endTime,
+    setEndTime,
+    selectedModel,
+    setSelectedModel,
+    transliterationModel,
+    setTransliterationModel,
+    translationProvider,
+    setTranslationProvider,
+    transliterationMode,
+    setTransliterationMode
+  } = useSubtitleProcessingOptions();
   const { availableModels, modelsLoading, modelsError } = useSubtitleModels();
-  const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_LLM_MODEL);
-  const [transliterationModel, setTransliterationModel] = useState<string>('');
-  const [translationProvider, setTranslationProvider] = useState<string>('llm');
-  const [transliterationMode, setTransliterationMode] = useState<string>('default');
   const jobResults = useSubtitleJobResults(subtitleJobs);
   const { submittedSummary, recordSubmission } = useSubtitleSubmitFeedback({
     defaultStartTime: DEFAULT_START_TIME
