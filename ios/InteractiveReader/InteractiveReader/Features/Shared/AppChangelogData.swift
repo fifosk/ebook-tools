@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.01",
+            version: "2026.06.23.02",
             entries: [
+                AppChangelogEntry(
+                    id: "web-library-metadata-update-plan",
+                    title: "Web Library metadata saves hardened",
+                    detail: "Library metadata edits now use a tested update plan that preserves source upload ordering, changed-ISBN apply behavior, and explicit ISBN clears."
+                ),
+                AppChangelogEntry(
+                    id: "pipeline-web-library-check-redaction",
+                    title: "Pipeline Web check hygiene",
+                    detail: "The shared pipeline now runs a Library-focused Web check for ebook-tools and collapses Vite environment debug dumps while keeping generated build artifacts cleaned up."
+                ),
                 AppChangelogEntry(
                     id: "apple-job-creation-summary",
                     title: "Creation summaries in Jobs",

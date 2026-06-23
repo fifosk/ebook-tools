@@ -44,6 +44,9 @@ Large Web UI hotspots to split before redesign work:
   title, author, genre, thumbnail, upload-date, ISBN preview merge/cover, and
   tab bucketing and pagination helpers now live in
   `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
+  Metadata edit submission now also delegates its trimmed payload and changed
+  ISBN apply decision to the same tested helper, preserving source upload
+  ordering and explicit ISBN clears.
 - `web/src/pages/VideoDubbingPage.tsx` - 1140 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option
@@ -358,7 +361,10 @@ Every cross-surface change should pass the relevant subset:
 - Web: focused Vitest files plus a production/export build. Use the package
   manager available in the checkout, for example `npm --prefix web test -- --run
   ...` and `npm --prefix web run build`; the Web build script should remain
-  package-manager neutral.
+  package-manager neutral. For ebook-tools, prefer the shared pipeline runner
+  `python3 scripts/run_app_web_checks.py --app ebook-tools`, which runs the
+  registered Create and Library focused checks, production/export build, and
+  generated-artifact cleanup.
 - Apple: release contract, iOS/tvOS simulator builds, and shared pipeline simulator smokes.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LibraryItem } from '../../api/dtos';
 import {
+  buildLibraryMetadataUpdatePlan,
   buildLibraryItemBuckets,
   extractTvMediaMetadata,
   extractYoutubeVideoMetadata,
@@ -210,5 +211,61 @@ describe('libraryPageMetadata', () => {
       'https://example.test/cover.jpg',
     );
     expect(resolveIsbnPreviewCoverCandidate({ book_cover_file: ' ', cover_url: null })).toBeNull();
+  });
+
+  it('builds trimmed metadata update payloads without an ISBN side effect when unchanged', () => {
+    const plan = buildLibraryMetadataUpdatePlan(
+      makeItem({ isbn: '9781234567890' }),
+      {
+        title: '  Updated title  ',
+        author: '  Updated author  ',
+        genre: '   ',
+        language: ' en ',
+        isbn: ' 9781234567890 ',
+      },
+    );
+
+    expect(plan).toEqual({
+      payload: {
+        title: 'Updated title',
+        author: 'Updated author',
+        genre: null,
+        language: 'en',
+        isbn: '9781234567890',
+      },
+      isbnToApply: null,
+    });
+  });
+
+  it('separates changed ISBN apply from the regular metadata update payload', () => {
+    const plan = buildLibraryMetadataUpdatePlan(
+      makeItem({ isbn: '9781234567890' }),
+      {
+        title: 'Title',
+        author: 'Author',
+        genre: 'Fiction',
+        language: 'de',
+        isbn: ' 9780987654321 ',
+      },
+    );
+
+    expect(plan.payload.isbn).toBe('9780987654321');
+    expect(plan.isbnToApply).toBe('9780987654321');
+  });
+
+  it('keeps explicit ISBN clears in the metadata payload', () => {
+    const plan = buildLibraryMetadataUpdatePlan(
+      makeItem({ isbn: '9781234567890' }),
+      {
+        title: 'Title',
+        author: 'Author',
+        genre: 'History',
+        language: 'fr',
+        isbn: '   ',
+      },
+    );
+
+    expect(plan.payload.isbn).toBe('');
+    expect(plan.isbnToApply).toBeNull();
   });
 });

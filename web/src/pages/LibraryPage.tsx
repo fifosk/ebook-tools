@@ -2,8 +2,7 @@ import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } fro
 import type {
   AccessPolicyUpdatePayload,
   LibraryItem,
-  LibraryViewMode,
-  LibraryMetadataUpdatePayload
+  LibraryViewMode
 } from '../api/dtos';
 import {
   applyLibraryIsbn,
@@ -23,6 +22,7 @@ import {
 } from '../api/client';
 import {
   buildLibraryItemBuckets,
+  buildLibraryMetadataUpdatePlan,
   extractTvMediaMetadata,
   extractYoutubeVideoMetadata,
   formatCount,
@@ -518,33 +518,18 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
       setIsSaving(true);
       setEditError(null);
 
-      const trimmedTitle = editValues.title.trim();
-      const trimmedAuthor = editValues.author.trim();
-      const trimmedGenre = editValues.genre.trim();
-      const trimmedLanguage = editValues.language.trim();
-      const trimmedIsbn = editValues.isbn.trim();
-
-      const payload: LibraryMetadataUpdatePayload = {
-        title: trimmedTitle,
-        author: trimmedAuthor,
-        genre: trimmedGenre ? trimmedGenre : null,
-        language: trimmedLanguage,
-        isbn: trimmedIsbn
-      };
+      const updatePlan = buildLibraryMetadataUpdatePlan(selectedItem, editValues);
 
       try {
         if (selectedFile) {
           await uploadLibrarySource(selectedItem.jobId, selectedFile);
         }
 
-        const originalIsbn = selectedItem.isbn ?? '';
-        if (trimmedIsbn && trimmedIsbn !== originalIsbn) {
-          await applyLibraryIsbn(selectedItem.jobId, trimmedIsbn);
-        } else if (!trimmedIsbn && originalIsbn) {
-          payload.isbn = '';
+        if (updatePlan.isbnToApply) {
+          await applyLibraryIsbn(selectedItem.jobId, updatePlan.isbnToApply);
         }
 
-        const updated = await updateLibraryMetadata(selectedItem.jobId, payload);
+        const updated = await updateLibraryMetadata(selectedItem.jobId, updatePlan.payload);
         setItems((previous) =>
           previous.map((entry) => (entry.jobId === updated.jobId ? updated : entry))
         );

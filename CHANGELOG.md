@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.02
+
+- Advanced visible Apple app versioning to `v2026.06.23.02`.
+- Web Library metadata saves now use a tested update plan that preserves source upload ordering, changed-ISBN apply behavior, and explicit ISBN clears.
+- The shared Apple device app pipeline now runs a Library-focused Web smoke check for ebook-tools and collapses Vite environment debug dumps while preserving generated-artifact cleanup.
+
 ### 2026.06.23.01
 
 - Advanced visible Apple app versioning to `v2026.06.23.01`.

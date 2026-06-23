@@ -1,4 +1,4 @@
-import type { LibraryItem } from '../../api/dtos';
+import type { LibraryItem, LibraryMetadataUpdatePayload } from '../../api/dtos';
 import { appendAccessToken } from '../../api/client/base';
 import { resolveLibraryMediaUrl } from '../../api/client/library';
 
@@ -14,6 +14,10 @@ export type LibraryEditValues = {
   genre: string;
   language: string;
   isbn: string;
+};
+export type LibraryMetadataUpdatePlan = {
+  payload: LibraryMetadataUpdatePayload;
+  isbnToApply: string | null;
 };
 
 const UNKNOWN_AUTHOR = 'Unknown Author';
@@ -243,6 +247,29 @@ export function mergeIsbnMetadataIntoEditValues(
 
 export function resolveIsbnPreviewCoverCandidate(metadata: Record<string, unknown>): string | null {
   return trimmedMetadataString(metadata, 'book_cover_file') ?? trimmedMetadataString(metadata, 'cover_url');
+}
+
+export function buildLibraryMetadataUpdatePlan(
+  item: LibraryItem,
+  values: LibraryEditValues,
+): LibraryMetadataUpdatePlan {
+  const trimmedTitle = values.title.trim();
+  const trimmedAuthor = values.author.trim();
+  const trimmedGenre = values.genre.trim();
+  const trimmedLanguage = values.language.trim();
+  const trimmedIsbn = values.isbn.trim();
+  const originalIsbn = item.isbn ?? '';
+
+  return {
+    payload: {
+      title: trimmedTitle,
+      author: trimmedAuthor,
+      genre: trimmedGenre ? trimmedGenre : null,
+      language: trimmedLanguage,
+      isbn: trimmedIsbn,
+    },
+    isbnToApply: trimmedIsbn && trimmedIsbn !== originalIsbn ? trimmedIsbn : null,
+  };
 }
 
 export function resolveTitle(item: LibraryItem | null | undefined): string {
