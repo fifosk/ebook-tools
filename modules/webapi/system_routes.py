@@ -26,14 +26,16 @@ from ..config_manager.groups import get_hot_reload_keys
 from ..user_management import AuthService
 from ..user_management.user_store_base import UserRecord
 from .auth_utils import require_admin_user
-from .dependencies import get_auth_service
+from .dependencies import get_auth_service, get_pipeline_job_manager
 from .schemas.config import (
     HealthCheckResponse,
+    QueuePressureStatus,
     ReloadConfigResponse,
     RestartRequestPayload,
     RestartResponse,
     SystemStatusResponse,
 )
+from ..services.job_manager import PipelineJobManager, PipelineJobStatus
 
 router = APIRouter()
 
@@ -60,13 +62,31 @@ def _get_config_repository():
     return ConfigRepository()
 
 
-def _count_running_jobs() -> int:
+def _queue_pressure_status(job_manager: PipelineJobManager) -> QueuePressureStatus:
+    """Return a token-safe queue/backpressure snapshot for admin status views."""
+
+    state = job_manager.backpressure_state
+    policy = getattr(job_manager, "backpressure_policy", None)
+    if state is None:
+        return QueuePressureStatus(accepting_jobs=True)
+
+    return QueuePressureStatus(
+        accepting_jobs=job_manager.is_accepting_jobs,
+        is_under_pressure=state.is_under_pressure,
+        queue_depth=state.queue_depth,
+        active_count=state.active_count,
+        soft_limit=getattr(policy, "soft_limit", None),
+        hard_limit=getattr(policy, "hard_limit", None),
+        rejection_count=state.rejection_count,
+        delay_count=state.delay_count,
+    )
+
+
+def _count_running_jobs(job_manager: PipelineJobManager) -> int:
     """Count currently running pipeline jobs."""
     try:
-        from ..services.job_manager import get_job_manager
-        manager = get_job_manager()
-        jobs = manager.list_jobs()
-        return sum(1 for j in jobs if j.get("status") in ("running", "processing"))
+        jobs = job_manager.list(user_role="admin")
+        return sum(1 for job in jobs.values() if job.status == PipelineJobStatus.RUNNING)
     except Exception:
         return 0
 
@@ -80,6 +100,7 @@ def _count_running_jobs() -> int:
 def get_system_status(
     authorization: str | None = Header(default=None, alias="Authorization"),
     auth_service: AuthService = Depends(get_auth_service),
+    job_manager: PipelineJobManager = Depends(get_pipeline_job_manager),
 ) -> SystemStatusResponse:
     """Get current system status including configuration state."""
     _require_admin(authorization, auth_service)
@@ -101,6 +122,7 @@ def get_system_status(
         pending_changes=False,  # Could track pending changes
         restart_required=_RESTART_SCHEDULED or len(_PENDING_RESTART_KEYS) > 0,
         restart_keys=list(_PENDING_RESTART_KEYS),
+        queue_pressure=_queue_pressure_status(job_manager),
     )
 
 
@@ -235,6 +257,7 @@ async def request_restart(
     payload: RestartRequestPayload,
     authorization: str | None = Header(default=None, alias="Authorization"),
     auth_service: AuthService = Depends(get_auth_service),
+    job_manager: PipelineJobManager = Depends(get_pipeline_job_manager),
 ) -> RestartResponse:
     """Request graceful API restart.
 
@@ -245,7 +268,7 @@ async def request_restart(
     _token, user = _require_admin(authorization, auth_service)
 
     # Check for running jobs
-    running_jobs = _count_running_jobs()
+    running_jobs = _count_running_jobs(job_manager)
     if running_jobs > 0 and not payload.force:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

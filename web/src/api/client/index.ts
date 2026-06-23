@@ -189,6 +189,7 @@ export {
   type ValidationError,
   type ConfigValidationResponse,
   type SystemStatusResponse,
+  type QueuePressureStatus,
   type ReloadConfigResponse,
   type RestartRequestPayload,
   type RestartResponse,

@@ -1068,6 +1068,13 @@ class PipelineJobManager:
         return self._backpressure.get_state()
 
     @property
+    def backpressure_policy(self) -> Optional[BackpressurePolicy]:
+        """Return the active backpressure policy, or None if disabled."""
+        if self._backpressure is None:
+            return None
+        return self._backpressure.policy
+
+    @property
     def is_accepting_jobs(self) -> bool:
         """Return True if the manager is accepting new job submissions."""
         if self._backpressure is None:

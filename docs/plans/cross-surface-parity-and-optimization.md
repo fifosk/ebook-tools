@@ -352,7 +352,11 @@ Suggested features to evaluate after parity scaffolding:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,
   and maps native creation modes to validated Web `?view=` deep links.
 - Job health timeline: show backend stage durations and slow phases in Web and iPad.
-- Backend queue pressure indicator: expose accepting/backpressure state in Settings before users submit long jobs.
+- Backend queue pressure indicator: expose accepting/backpressure state in Settings before users submit long jobs. Status:
+  Web admin System status now shows job intake state, pending queue depth,
+  active running jobs, and soft-limit warnings from the backend
+  `/api/admin/system/status` response; the shared pipeline backend gate now
+  includes the focused system-route pytest.
 - Smart resume cards: show "continue listening", "newly completed", and "needs attention" across all surfaces.
 - Shared media diagnostics: surface missing timing/audio/image assets without
   opening logs. Status: media manifest responses now include a token-safe

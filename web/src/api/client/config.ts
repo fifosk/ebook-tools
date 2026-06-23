@@ -165,6 +165,18 @@ export interface SystemStatusResponse {
   pendingChanges: boolean;
   restartRequired: boolean;
   restartKeys: string[];
+  queuePressure?: QueuePressureStatus;
+}
+
+export interface QueuePressureStatus {
+  acceptingJobs: boolean;
+  isUnderPressure: boolean;
+  queueDepth: number;
+  activeCount: number;
+  softLimit?: number | null;
+  hardLimit?: number | null;
+  rejectionCount: number;
+  delayCount: number;
 }
 
 export interface ReloadConfigResponse {

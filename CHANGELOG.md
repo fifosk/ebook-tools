@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.50
+
+- Advanced visible Apple app versioning to `v2026.06.23.50`.
+- Web admin System status now shows backend job intake pressure, pending depth, and running jobs before long job submissions.
+
 ### 2026.06.23.49
 
 - Advanced visible Apple app versioning to `v2026.06.23.49`.

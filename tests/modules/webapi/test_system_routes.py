@@ -1,8 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
+from datetime import datetime, timezone
+from typing import Any
+
 from fastapi.testclient import TestClient
 
+from modules.services.job_manager import (
+    BackpressurePolicy,
+    BackpressureState,
+    PipelineJob,
+    PipelineJobStatus,
+)
+from modules.user_management import AuthService, LocalUserStore, SessionManager
 from modules.webapi.application import create_app
+from modules.webapi.dependencies import get_auth_service, get_pipeline_job_manager
 from modules.webapi.runtime_descriptor import (
     assert_runtime_descriptor_is_public,
     build_runtime_descriptor,
@@ -12,6 +24,68 @@ from modules.webapi.runtime_descriptor import (
 import pytest
 
 pytestmark = pytest.mark.webapi
+
+
+class _FakeJobManager:
+    def __init__(
+        self,
+        *,
+        state: BackpressureState | None = None,
+        policy: BackpressurePolicy | None = None,
+        accepting: bool = True,
+        jobs: dict[str, PipelineJob] | None = None,
+    ) -> None:
+        self._state = state
+        self._policy = policy
+        self._accepting = accepting
+        self._jobs = jobs or {}
+
+    @property
+    def backpressure_state(self) -> BackpressureState | None:
+        return self._state
+
+    @property
+    def backpressure_policy(self) -> BackpressurePolicy | None:
+        return self._policy
+
+    @property
+    def is_accepting_jobs(self) -> bool:
+        return self._accepting
+
+    def list(self, **_: Any) -> dict[str, PipelineJob]:
+        return self._jobs
+
+
+@pytest.fixture
+def admin_system_client(tmp_path) -> Iterator[tuple[TestClient, str, _FakeJobManager]]:
+    auth_service = AuthService(
+        LocalUserStore(storage_path=tmp_path / "users.json"),
+        SessionManager(session_file=tmp_path / "sessions.json"),
+    )
+    auth_service.user_store.create_user("admin", "secret", roles=["admin"])
+    admin_token = auth_service.session_manager.create_session("admin")
+
+    manager = _FakeJobManager(
+        state=BackpressureState(
+            queue_depth=2,
+            pending_count=2,
+            active_count=1,
+            rejection_count=3,
+            delay_count=4,
+            is_under_pressure=True,
+        ),
+        policy=BackpressurePolicy(soft_limit=2, hard_limit=5),
+        accepting=True,
+    )
+
+    app = create_app()
+    app.dependency_overrides[get_auth_service] = lambda: auth_service
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: manager
+
+    with TestClient(app) as client:
+        yield client, admin_token, manager
+
+    app.dependency_overrides.clear()
 
 
 def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
@@ -132,3 +206,45 @@ def test_public_runtime_descriptor_returns_non_secret_contract() -> None:
         "cinema",
     ]
     assert_runtime_descriptor_is_public(payload)
+
+
+def test_admin_system_status_returns_queue_pressure_snapshot(admin_system_client) -> None:
+    client, admin_token, _ = admin_system_client
+
+    response = client.get(
+        "/api/admin/system/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["queuePressure"] == {
+        "acceptingJobs": True,
+        "isUnderPressure": True,
+        "queueDepth": 2,
+        "activeCount": 1,
+        "softLimit": 2,
+        "hardLimit": 5,
+        "rejectionCount": 3,
+        "delayCount": 4,
+    }
+
+
+def test_restart_request_rejects_when_pipeline_jobs_are_running(admin_system_client) -> None:
+    client, admin_token, manager = admin_system_client
+    manager._jobs = {
+        "job-1": PipelineJob(
+            job_id="job-1",
+            status=PipelineJobStatus.RUNNING,
+            created_at=datetime.now(timezone.utc),
+        )
+    }
+
+    response = client.post(
+        "/api/admin/system/restart",
+        json={"delaySeconds": 1, "force": False},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+
+    assert response.status_code == 409
+    assert "1 job(s) currently running" in response.json()["detail"]

@@ -251,6 +251,19 @@ class ConfigValidationResponse(CamelModel):
 # -----------------------------------------------------------------------------
 
 
+class QueuePressureStatus(CamelModel):
+    """Token-safe job queue pressure snapshot for admin status views."""
+
+    accepting_jobs: bool = Field(True, description="Whether new jobs are below the hard queue limit")
+    is_under_pressure: bool = Field(False, description="Whether pending jobs have reached the soft limit")
+    queue_depth: int = Field(0, description="Pending queue depth used for backpressure")
+    active_count: int = Field(0, description="Currently running jobs")
+    soft_limit: Optional[int] = Field(None, description="Pending depth where delays begin")
+    hard_limit: Optional[int] = Field(None, description="Pending depth where submissions are rejected")
+    rejection_count: int = Field(0, description="Cumulative backpressure rejections")
+    delay_count: int = Field(0, description="Cumulative backpressure delays")
+
+
 class SystemStatusResponse(CamelModel):
     """Response containing system status information."""
 
@@ -266,6 +279,7 @@ class SystemStatusResponse(CamelModel):
         default_factory=list,
         description="Keys that have changed and require restart"
     )
+    queue_pressure: QueuePressureStatus = Field(default_factory=QueuePressureStatus)
 
 
 class ReloadConfigResponse(CamelModel):

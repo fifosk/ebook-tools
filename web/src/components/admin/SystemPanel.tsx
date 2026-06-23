@@ -35,6 +35,14 @@ function formatTimestamp(value: string | null | undefined): string {
   }
 }
 
+function queuePressureLabel(status: SystemStatusResponse): string {
+  const pressure = status.queuePressure;
+  if (!pressure) return 'Unknown';
+  if (!pressure.acceptingJobs) return 'At capacity';
+  if (pressure.isUnderPressure) return 'Delaying submissions';
+  return 'Accepting jobs';
+}
+
 export default function SystemPanel({ currentUser }: SystemPanelProps) {
   // System status state
   const [status, setStatus] = useState<SystemStatusResponse | null>(null);
@@ -216,7 +224,44 @@ export default function SystemPanel({ currentUser }: SystemPanelProps) {
 
               <dt>Library DB Path</dt>
               <dd className="system-panel__path">{status.libraryDbPath || 'N/A'}</dd>
+
+              <dt>Job Intake</dt>
+              <dd>
+                <span
+                  className={`system-panel__queue-badge ${
+                    status.queuePressure?.acceptingJobs
+                      ? status.queuePressure.isUnderPressure
+                        ? 'system-panel__queue-badge--warning'
+                        : 'system-panel__queue-badge--ok'
+                      : 'system-panel__queue-badge--danger'
+                  }`}
+                >
+                  {queuePressureLabel(status)}
+                </span>
+              </dd>
+
+              <dt>Pending Queue</dt>
+              <dd>
+                {status.queuePressure
+                  ? `${status.queuePressure.queueDepth}${
+                      status.queuePressure.hardLimit ? ` / ${status.queuePressure.hardLimit}` : ''
+                    }`
+                  : 'N/A'}
+              </dd>
+
+              <dt>Running Jobs</dt>
+              <dd>{status.queuePressure ? status.queuePressure.activeCount : 'N/A'}</dd>
             </dl>
+
+            {status.queuePressure?.isUnderPressure && (
+              <div className="system-panel__warning">
+                <strong>Queue Pressure</strong>
+                <p>
+                  Pending jobs have reached the soft limit
+                  {status.queuePressure.softLimit ? ` of ${status.queuePressure.softLimit}` : ''}.
+                </p>
+              </div>
+            )}
 
             {status.restartRequired && (
               <div className="system-panel__warning">
