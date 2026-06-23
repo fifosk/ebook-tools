@@ -3,11 +3,9 @@ import type { JobState } from '../components/JobList';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import {
   fetchPipelineDefaults,
-  fetchSubtitleResult,
   fetchLlmModels,
   submitSubtitleJob
 } from '../api/client';
-import type { SubtitleJobResultPayload } from '../api/dtos';
 import type { JobParameterSnapshot } from '../api/dtos';
 import {
   buildLanguageOptions,
@@ -38,6 +36,7 @@ import type {
   SubtitleSourceMode,
   SubtitleToolTab
 } from './subtitle-tool/subtitleToolTypes';
+import { useSubtitleJobResults } from './subtitle-tool/useSubtitleJobResults';
 import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
 import {
@@ -49,7 +48,6 @@ import {
   resolveSubtitleMetadataSourceName,
   resolveSubtitlePrefillValues,
   resolveSubtitleSubmitValues,
-  selectMissingCompletedSubtitleJobs,
   sortSubtitleJobsNewestFirst
 } from './subtitle-tool/subtitleToolUtils';
 import styles from './SubtitleToolPage.module.css';
@@ -180,7 +178,7 @@ export default function SubtitleToolPage({
   const [lastSubmittedWorkerCount, setLastSubmittedWorkerCount] = useState<number | null>(
     typeof DEFAULT_WORKER_COUNT === 'number' ? DEFAULT_WORKER_COUNT : null
   );
-  const [jobResults, setJobResults] = useState<Record<string, SubtitleJobResultPayload>>({});
+  const jobResults = useSubtitleJobResults(subtitleJobs);
   const [lastSubmittedBatchSize, setLastSubmittedBatchSize] = useState<number | null>(
     typeof DEFAULT_BATCH_SIZE === 'number' ? DEFAULT_BATCH_SIZE : null
   );
@@ -324,45 +322,6 @@ export default function SubtitleToolPage({
       }
     }
   }, [languageOptions, setPrimaryTargetLanguage, targetLanguage]);
-
-  useEffect(() => {
-    const missing = selectMissingCompletedSubtitleJobs(subtitleJobs, jobResults);
-    if (missing.length === 0) {
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      const results = await Promise.all(
-        missing.map(async (job) => {
-          try {
-            const payload = await fetchSubtitleResult(job.jobId);
-            return { jobId: job.jobId, payload };
-          } catch (error) {
-            console.warn('Unable to load subtitle result', job.jobId, error);
-            return null;
-          }
-        })
-      );
-      if (cancelled) {
-        return;
-      }
-      setJobResults((previous) => {
-        const next = { ...previous };
-        for (const entry of results) {
-          if (!entry) {
-            continue;
-          }
-          next[entry.jobId] = entry.payload;
-        }
-        return next;
-      });
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [subtitleJobs, jobResults]);
 
   const handleSourceModeChange = useCallback((mode: SubtitleSourceMode) => {
     setSourceMode(mode);
