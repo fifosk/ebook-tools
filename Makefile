@@ -185,6 +185,7 @@ test-e2e-iphone:
 	exit $$status
 
 test-e2e-iphone-create-readiness:
+	@python3 scripts/check_apple_create_readiness.py
 	@$(MAKE) test-e2e-iphone \
 		JOURNEY_SRC=$(CREATE_READINESS_JOURNEY_SRC) \
 		E2E_PROFILE=iphone-create
@@ -217,6 +218,7 @@ test-e2e-ipad:
 	exit $$status
 
 test-e2e-ipad-create-readiness:
+	@python3 scripts/check_apple_create_readiness.py
 	@$(MAKE) test-e2e-ipad \
 		JOURNEY_SRC=$(CREATE_READINESS_JOURNEY_SRC) \
 		E2E_PROFILE=ipados-create

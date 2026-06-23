@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+"""Preflight native Apple Create readiness before running XCUITest journeys."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import ssl
+import sys
+from typing import Any
+from urllib import error, parse, request
+
+
+DEFAULT_API_BASE_URL = "https://api.langtools.fifosk.synology.me"
+
+
+def load_env_file(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if not path.exists():
+        return values
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            values[key] = value
+    return values
+
+
+def resolve_settings(env_file: Path) -> tuple[str, str, str]:
+    file_values = load_env_file(env_file)
+    username = os.environ.get("E2E_USERNAME") or file_values.get("E2E_USERNAME", "")
+    password = os.environ.get("E2E_PASSWORD") or file_values.get("E2E_PASSWORD", "")
+    api_base_url = (
+        os.environ.get("E2E_API_BASE_URL")
+        or file_values.get("E2E_API_BASE_URL")
+        or DEFAULT_API_BASE_URL
+    )
+    return username.strip(), password, api_base_url.strip().rstrip("/")
+
+
+def json_request(
+    api_base_url: str,
+    path: str,
+    *,
+    method: str = "GET",
+    payload: dict[str, Any] | None = None,
+    token: str | None = None,
+    timeout: float = 15.0,
+) -> Any:
+    url = f"{api_base_url}{path}"
+    headers = {"Accept": "application/json"}
+    body = None
+    if payload is not None:
+        body = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = request.Request(url, data=body, headers=headers, method=method)
+    context = ssl._create_unverified_context()
+    with request.urlopen(req, timeout=timeout, context=context) as response:
+        data = response.read()
+    if not data:
+        return None
+    return json.loads(data.decode("utf-8"))
+
+
+def login(api_base_url: str, username: str, password: str, timeout: float) -> str:
+    payload = json_request(
+        api_base_url,
+        "/api/auth/login",
+        method="POST",
+        payload={"username": username, "password": password},
+        timeout=timeout,
+    )
+    if not isinstance(payload, dict):
+        raise RuntimeError("Login response was not a JSON object")
+    token = payload.get("token") or payload.get("access_token")
+    if not isinstance(token, str) or not token.strip():
+        raise RuntimeError("Login response did not include a token")
+    return token
+
+
+def count_epubs(payload: Any) -> int:
+    if not isinstance(payload, dict):
+        return 0
+    ebooks = payload.get("ebooks")
+    if not isinstance(ebooks, list):
+        return 0
+    return sum(
+        1
+        for entry in ebooks
+        if isinstance(entry, dict)
+        and str(entry.get("type") or "").strip().lower() == "file"
+        and str(entry.get("path") or "").strip()
+    )
+
+
+def count_subtitle_sources(payload: Any) -> int:
+    if not isinstance(payload, dict):
+        return 0
+    sources = payload.get("sources")
+    if not isinstance(sources, list):
+        return 0
+    return sum(
+        1
+        for entry in sources
+        if isinstance(entry, dict)
+        and str(entry.get("path") or "").strip()
+        and str(entry.get("format") or "").strip().lower() in {"srt", "vtt", "ass"}
+    )
+
+
+def count_youtube_pairs(payload: Any) -> tuple[int, int]:
+    if not isinstance(payload, dict):
+        return 0, 0
+    videos = payload.get("videos")
+    if not isinstance(videos, list):
+        return 0, 0
+    video_count = 0
+    subtitle_count = 0
+    for video in videos:
+        if not isinstance(video, dict) or not str(video.get("path") or "").strip():
+            continue
+        subtitles = video.get("subtitles")
+        if not isinstance(subtitles, list):
+            continue
+        playable = [
+            sub for sub in subtitles
+            if isinstance(sub, dict)
+            and str(sub.get("path") or "").strip()
+            and str(sub.get("format") or "").strip().lower() in {"srt", "vtt", "ass"}
+        ]
+        if playable:
+            video_count += 1
+            subtitle_count += len(playable)
+    return video_count, subtitle_count
+
+
+def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, int]:
+    files = json_request(api_base_url, "/api/pipelines/files", token=token, timeout=timeout)
+    subtitles = json_request(api_base_url, "/api/subtitles/sources", token=token, timeout=timeout)
+    youtube = json_request(
+        api_base_url,
+        "/api/subtitles/youtube/library",
+        token=token,
+        timeout=timeout,
+    )
+    youtube_videos, youtube_subtitles = count_youtube_pairs(youtube)
+    return {
+        "epubs": count_epubs(files),
+        "subtitle_sources": count_subtitle_sources(subtitles),
+        "youtube_videos": youtube_videos,
+        "youtube_subtitles": youtube_subtitles,
+    }
+
+
+def validate_summary(summary: dict[str, int]) -> list[str]:
+    missing: list[str] = []
+    if summary.get("epubs", 0) <= 0:
+        missing.append("backend-visible EPUBs")
+    if summary.get("subtitle_sources", 0) <= 0:
+        missing.append("backend-visible subtitle sources")
+    if summary.get("youtube_videos", 0) <= 0 or summary.get("youtube_subtitles", 0) <= 0:
+        missing.append("YouTube/NAS videos with playable subtitles")
+    return missing
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--env-file", default=".env", help="Path to optional .env file")
+    parser.add_argument("--api-base-url", default=None, help="Override E2E_API_BASE_URL")
+    parser.add_argument("--timeout", type=float, default=15.0, help="HTTP timeout in seconds")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    username, password, api_base_url = resolve_settings(Path(args.env_file))
+    if args.api_base_url:
+        api_base_url = args.api_base_url.strip().rstrip("/")
+
+    if not username or not password:
+        print(
+            "Apple Create readiness preflight failed: E2E_USERNAME and E2E_PASSWORD are required.",
+            file=sys.stderr,
+        )
+        return 2
+    if not api_base_url:
+        print("Apple Create readiness preflight failed: API base URL is empty.", file=sys.stderr)
+        return 2
+
+    try:
+        token = login(api_base_url, username, password, args.timeout)
+        summary = fetch_readiness(api_base_url, token, args.timeout)
+    except error.HTTPError as exc:
+        print(
+            f"Apple Create readiness preflight failed: API returned HTTP {exc.code}.",
+            file=sys.stderr,
+        )
+        return 1
+    except Exception as exc:
+        print(f"Apple Create readiness preflight failed: {exc}", file=sys.stderr)
+        return 1
+
+    missing = validate_summary(summary)
+    print(
+        "Apple Create readiness inventory: "
+        f"epubs={summary['epubs']} "
+        f"subtitle_sources={summary['subtitle_sources']} "
+        f"youtube_videos={summary['youtube_videos']} "
+        f"youtube_subtitles={summary['youtube_subtitles']}"
+    )
+    if missing:
+        print(
+            "Apple Create readiness preflight failed: missing "
+            + ", ".join(missing)
+            + ".",
+            file=sys.stderr,
+        )
+        return 1
+    print("Apple Create readiness preflight passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

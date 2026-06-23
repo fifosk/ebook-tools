@@ -694,7 +694,10 @@ make test-e2e-apple-create-readiness
 
 These probes are intentionally stricter than the default playback journey and
 should be run against an API whose EPUB, subtitle, and YouTube/NAS inventories
-are expected to be populated.
+are expected to be populated. They run
+`scripts/check_apple_create_readiness.py` before Xcode starts; the preflight
+requires `E2E_USERNAME` and `E2E_PASSWORD` from the environment or `.env`, uses
+`E2E_API_BASE_URL` when set, and reports only aggregate inventory counts.
 
 **Configuration:** The Makefile writes credentials and journey data to
 temporary files that XCUITest reads at runtime:
