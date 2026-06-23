@@ -123,7 +123,7 @@ describe('bookNarrationFormUtils recent-job helpers', () => {
 });
 
 describe('bookNarrationFormUtils prefill helpers', () => {
-  it('maps rerun parameters into form state using the current single-target language contract', () => {
+  it('maps rerun parameters into form state while preserving additional target languages', () => {
     const previous = {
       ...DEFAULT_FORM_STATE,
       input_file: '/old/input.epub',
@@ -140,7 +140,7 @@ describe('bookNarrationFormUtils prefill helpers', () => {
         input_file: ' /books/new.epub ',
         base_output_file: ' rerun-output ',
         input_language: ' Spanish ',
-        target_languages: [' ', ' German ', 'French'],
+        target_languages: [' ', ' German ', 'French', 'german', 'Italian'],
         start_sentence: 12,
         end_sentence: 34,
         sentences_per_output_file: 8,
@@ -164,7 +164,7 @@ describe('bookNarrationFormUtils prefill helpers', () => {
       base_output_file: 'forced-output',
       input_language: 'Spanish',
       target_languages: ['German'],
-      custom_target_languages: '',
+      custom_target_languages: 'French, Italian',
       start_sentence: 12,
       end_sentence: '34',
       sentences_per_output_file: 8,
@@ -251,7 +251,7 @@ describe('bookNarrationFormUtils form state helpers', () => {
     expect(targetLanguagesFromBookNarrationConfig({ target_languages: 'German' })).toEqual([]);
     expect(
       targetLanguagesFromBookNarrationConfig({
-        target_languages: [' German ', '', 'French', 'German', null, 'Arabic'],
+        target_languages: [' German ', '', 'French', 'german', null, 'Arabic'],
       }),
     ).toEqual(['German', 'French', 'Arabic']);
   });

@@ -118,14 +118,7 @@ export function targetLanguagesFromBookNarrationConfig(config: Record<string, un
   if (!Array.isArray(targetLanguages)) {
     return [];
   }
-  return Array.from(
-    new Set(
-      targetLanguages
-        .filter((language): language is string => typeof language === 'string')
-        .map((language) => language.trim())
-        .filter((language) => language.length > 0),
-    ),
-  );
+  return normalizeTargetLanguages(targetLanguages);
 }
 
 export function coerceNumber(value: unknown): number | undefined {
@@ -941,7 +934,9 @@ export function applyBookNarrationPrefillParameters(
           .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
           .filter((entry) => entry.length > 0)
       : previous.target_languages;
-  const normalizedTargetLanguages = normalizeSingleTargetLanguages(targetLanguages);
+  const normalizedTargetLanguages = normalizeTargetLanguages(targetLanguages);
+  const primaryTargetLanguages = normalizeSingleTargetLanguages(normalizedTargetLanguages);
+  const additionalTargetLanguages = normalizedTargetLanguages.slice(1).join(', ');
   const startSentence =
     typeof prefillParameters.start_sentence === 'number' && Number.isFinite(prefillParameters.start_sentence)
       ? prefillParameters.start_sentence
@@ -1018,8 +1013,10 @@ export function applyBookNarrationPrefillParameters(
     input_file: inputFile,
     base_output_file: forcedBaseOutputFile ?? baseOutputFile,
     input_language: inputLanguage,
-    target_languages: normalizedTargetLanguages.length ? normalizedTargetLanguages : previous.target_languages,
-    custom_target_languages: '',
+    target_languages: primaryTargetLanguages.length ? primaryTargetLanguages : previous.target_languages,
+    custom_target_languages: normalizedTargetLanguages.length > 0
+      ? additionalTargetLanguages
+      : previous.custom_target_languages,
     start_sentence: startSentence,
     end_sentence: endSentence,
     sentences_per_output_file: sentencesPerOutput,

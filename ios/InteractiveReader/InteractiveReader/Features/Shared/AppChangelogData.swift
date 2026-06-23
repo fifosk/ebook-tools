@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.45",
+            version: "2026.06.23.46",
             entries: [
+                AppChangelogEntry(
+                    id: "web-book-prefill-target-languages",
+                    title: "Web multi-target reuse",
+                    detail: "Web book narration rerun and prefill now preserve additional target languages instead of collapsing multi-target history back to a single target."
+                ),
                 AppChangelogEntry(
                     id: "web-book-additional-target-languages",
                     title: "Web multi-target books",

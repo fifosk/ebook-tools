@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.46
+
+- Advanced visible Apple app versioning to `v2026.06.23.46`.
+- Web book narration rerun/prefill now preserves additional target languages instead of collapsing multi-target history back to a single target.
+
 ### 2026.06.23.45
 
 - Advanced visible Apple app versioning to `v2026.06.23.45`.
