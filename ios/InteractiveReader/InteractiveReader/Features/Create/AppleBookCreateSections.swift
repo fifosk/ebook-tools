@@ -4,6 +4,7 @@ import SwiftUI
 struct AppleBookCreateSourceSection: View {
     @Binding var creationMode: AppleCreateMode
     let availableCreateModes: [AppleCreateMode]
+    let showsJobTypePicker: Bool
     @Binding var sourcePath: String
     @Binding var sourceBaseOutput: String
     @Binding var sourceStartSentence: String
@@ -36,26 +37,30 @@ struct AppleBookCreateSourceSection: View {
     let onChooseSubtitleFile: () -> Void
 
     var body: some View {
-        Section("Source") {
-            Picker("Job type", selection: $creationMode) {
-                ForEach(availableCreateModes) { mode in
-                    Text(mode.label).tag(mode)
+        if showsJobTypePicker || creationMode != .generatedBook {
+            Section("Source") {
+                if showsJobTypePicker {
+                    Picker("Job type", selection: $creationMode) {
+                        ForEach(availableCreateModes) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    #if os(iOS)
+                    .pickerStyle(.segmented)
+                    #endif
+                    .accessibilityIdentifier("createJobTypePicker")
                 }
-            }
-            #if os(iOS)
-            .pickerStyle(.segmented)
-            #endif
-            .accessibilityIdentifier("createJobTypePicker")
 
-            switch creationMode {
-            case .generatedBook:
-                EmptyView()
-            case .narrateEbook:
-                narrateEbookSourceControls
-            case .subtitleJob:
-                subtitleSourceControls
-            case .youtubeDub:
-                youtubeSourceControls
+                switch creationMode {
+                case .generatedBook:
+                    EmptyView()
+                case .narrateEbook:
+                    narrateEbookSourceControls
+                case .subtitleJob:
+                    subtitleSourceControls
+                case .youtubeDub:
+                    youtubeSourceControls
+                }
             }
         }
     }

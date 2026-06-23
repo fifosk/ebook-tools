@@ -9,12 +9,13 @@ struct AppleBookCreateView: View {
     @StateObject private var viewModel = AppleBookCreateViewModel()
 
     let sectionPicker: BrowseSectionPicker?
+    @Binding var creationMode: AppleCreateMode
+    let showsInlineJobTypePicker: Bool
     let onJobSubmitted: (String) -> Void
     let onOpenJobs: (String) -> Void
     let recentJobs: [PipelineStatusResponse]
     let usesDarkBackground: Bool
 
-    @State private var creationMode = AppleCreateMode.generatedBook
     @State private var topic = ""
     @State private var bookName = ""
     @State private var genre = ""
@@ -210,6 +211,7 @@ struct AppleBookCreateView: View {
         AppleBookCreateSourceSection(
             creationMode: $creationMode,
             availableCreateModes: availableCreateModes,
+            showsJobTypePicker: showsInlineJobTypePicker,
             sourcePath: narrateSourcePathBinding,
             sourceBaseOutput: textBinding(for: .sourceBaseOutput, value: $sourceBaseOutput),
             sourceStartSentence: textBinding(for: .sourceStartSentence, value: $sourceStartSentence),
