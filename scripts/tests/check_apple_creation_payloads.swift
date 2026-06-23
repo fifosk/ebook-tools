@@ -117,6 +117,28 @@ struct AppleCreationPayloadCheck {
             "Submitting state should override mode-specific submit labels"
         )
         require(
+            AppleBookCreatePresentation.availableInputLanguages(from: options) == [.english, .arabic],
+            "Input language options should follow backend-supported order"
+        )
+        require(
+            AppleBookCreatePresentation.availableTargetLanguages(from: options) == [.english, .arabic],
+            "Target language options should follow backend-supported order"
+        )
+        require(
+            AppleBookCreatePresentation.availableInputLanguages(from: nil) == AppleBookCreateLanguage.allCases,
+            "Missing backend options should fall back to all local languages"
+        )
+        let customVoice = AppleBookCreateVoiceOption("custom-local-voice")!
+        let availableVoices = AppleBookCreatePresentation.availableVoices(from: options, selected: customVoice)
+        require(
+            availableVoices.first == customVoice,
+            "Voice options should preserve the selected voice even when it is absent from backend inventory"
+        )
+        require(
+            availableVoices.map(\.backendValue).contains("macOS-auto-male"),
+            "Voice options should include backend-supported voices"
+        )
+        require(
             AppleBookCreatePresentation.subtitleModelLabel("") == "Backend default",
             "Empty subtitle model should display backend default"
         )

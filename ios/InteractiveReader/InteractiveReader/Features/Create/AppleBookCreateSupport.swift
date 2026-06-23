@@ -280,6 +280,28 @@ enum AppleBookCreatePresentation {
         max(bounds.min, min(bounds.max, value))
     }
 
+    static func availableInputLanguages(
+        from options: BookCreationOptionsResponse?
+    ) -> [AppleBookCreateLanguage] {
+        availableLanguages(options?.supportedInputLanguages ?? [])
+    }
+
+    static func availableTargetLanguages(
+        from options: BookCreationOptionsResponse?
+    ) -> [AppleBookCreateLanguage] {
+        availableLanguages(options?.supportedOutputLanguages ?? [])
+    }
+
+    static func availableVoices(
+        from options: BookCreationOptionsResponse?,
+        selected: AppleBookCreateVoiceOption
+    ) -> [AppleBookCreateVoiceOption] {
+        AppleBookCreateVoiceOption.options(
+            from: options?.supportedVoices ?? [],
+            selected: selected
+        )
+    }
+
     static func submitButtonPresentation(
         for mode: AppleCreateMode,
         isSubmitting: Bool
@@ -615,6 +637,11 @@ enum AppleBookCreatePresentation {
 
     private static func trimmed(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func availableLanguages(_ supported: [String]) -> [AppleBookCreateLanguage] {
+        let mapped = supported.compactMap(AppleBookCreateLanguage.init(backendValue:))
+        return mapped.isEmpty ? AppleBookCreateLanguage.allCases : mapped
     }
 
     private static func clamp<T: Comparable>(_ value: T, to range: ClosedRange<T>) -> T {

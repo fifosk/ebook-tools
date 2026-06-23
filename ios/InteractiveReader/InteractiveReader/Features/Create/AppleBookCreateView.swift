@@ -794,22 +794,15 @@ struct AppleBookCreateView: View {
     }
 
     private var availableInputLanguages: [AppleBookCreateLanguage] {
-        let supported = viewModel.creationOptions?.supportedInputLanguages ?? []
-        let mapped = supported.compactMap(AppleBookCreateLanguage.init(backendValue:))
-        return mapped.isEmpty ? AppleBookCreateLanguage.allCases : mapped
+        AppleBookCreatePresentation.availableInputLanguages(from: viewModel.creationOptions)
     }
 
     private var availableTargetLanguages: [AppleBookCreateLanguage] {
-        let supported = viewModel.creationOptions?.supportedOutputLanguages ?? []
-        let mapped = supported.compactMap(AppleBookCreateLanguage.init(backendValue:))
-        return mapped.isEmpty ? AppleBookCreateLanguage.allCases : mapped
+        AppleBookCreatePresentation.availableTargetLanguages(from: viewModel.creationOptions)
     }
 
     private var availableVoices: [AppleBookCreateVoiceOption] {
-        AppleBookCreateVoiceOption.options(
-            from: viewModel.creationOptions?.supportedVoices ?? [],
-            selected: voice
-        )
+        AppleBookCreatePresentation.availableVoices(from: viewModel.creationOptions, selected: voice)
     }
 
     private var availableSubtitleLlmModels: [String] {

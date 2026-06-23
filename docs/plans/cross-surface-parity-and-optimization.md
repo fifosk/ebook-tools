@@ -143,7 +143,9 @@ Current Apple UI partially exposes:
   that preserve the existing visible error messages. Backend default resolution
   and edited-field preservation now live in support too, so backend-driven
   Apple Create defaults stay pinned outside the SwiftUI state assignment code.
-  The refactor reduces the view from 1371 to 1105 lines and the view model to
+  Backend language and voice inventory option building is also centralized in
+  support, preserving selected voices that are absent from backend inventory.
+  The refactor reduces the view from 1371 to 1098 lines and the view model to
   348 lines while preserving iPhone/iPad/tvOS behavior through focused Swift
   payload checks and shared iPadOS/tvOS simulator smokes.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
