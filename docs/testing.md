@@ -666,6 +666,10 @@ once per session:
 - `InteractiveReaderUITests` - iOS E2E tests (iPhone and iPad)
 - `InteractiveReaderTVUITests` - tvOS E2E tests (Apple TV)
 
+Both schemes are checked in under
+`ios/InteractiveReader/InteractiveReader.xcodeproj/xcshareddata/xcschemes/` so
+repo-owned Make targets do not depend on per-user Xcode scheme state.
+
 **Running:**
 
 | Target | Simulator | Report |

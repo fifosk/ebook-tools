@@ -218,7 +218,12 @@ Optimization candidates:
   manifests now record token-safe duration and aggregate category/file/chunk
   counts for completed and live manifest routes without logging job ids, user
   ids, auth headers, tokens, or file names.
-- Prefer precomputed or cached job summary fields for list rows while keeping full metadata available on detail/media routes.
+- Prefer precomputed or cached job summary fields for list rows while keeping
+  full metadata available on detail/media routes. Status:
+  `/api/pipelines/jobs` now uses compact row result summaries so list rendering
+  preserves titles, book/media metadata, generated files, parameter snapshots,
+  and Apple/Web recent-default fields without materializing heavy full pipeline
+  results; single-job status/detail routes still return rich result payloads.
 - Avoid avoidable library repository reads in shared search paths. Status:
   `/api/pipelines/search` now defers the library item lookup until the pipeline
   job is missing, so normal active-job media searches avoid a library sync

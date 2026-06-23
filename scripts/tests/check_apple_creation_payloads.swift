@@ -1692,6 +1692,7 @@ struct AppleCreationPayloadCheck {
             videoPath: " incoming/demo.mp4 ",
             subtitlePath: " incoming/demo.srt ",
             sourceLanguage: .english,
+            subtitleLanguage: " es ",
             targetLanguage: .slovak,
             voice: .gtts,
             startTimeOffset: "",
@@ -1711,6 +1712,7 @@ struct AppleCreationPayloadCheck {
             enableLookupCache: true
         )
         require(youtubeDraft.videoPath == "incoming/demo.mp4", "YouTube draft should trim video path")
+        require(youtubeDraft.sourceLanguage == "es", "YouTube draft should prefer selected subtitle language")
         require(youtubeDraft.startTimeOffset == nil, "YouTube draft should omit blank start offset")
         require(youtubeDraft.originalMixPercent == 100, "YouTube draft should clamp original mix")
         require(youtubeDraft.flushSentences == 1, "YouTube draft should clamp flush interval")
@@ -1718,6 +1720,34 @@ struct AppleCreationPayloadCheck {
         require(youtubeDraft.translationBatchSize == 1, "YouTube draft should clamp translation batch size")
         require(youtubeDraft.stitchBatches == false, "YouTube draft should not stitch when split batches is disabled")
         require(youtubeDraft.targetHeight == 720, "YouTube draft should map target height")
+
+        let youtubeFallbackDraft = AppleBookCreatePresentation.youtubeDubDraft(
+            videoPath: "incoming/demo.mp4",
+            subtitlePath: "incoming/demo.srt",
+            sourceLanguage: .english,
+            subtitleLanguage: " ",
+            targetLanguage: .slovak,
+            voice: .gtts,
+            startTimeOffset: "",
+            endTimeOffset: "",
+            originalMixPercent: 5,
+            flushSentences: 10,
+            translationProvider: .llm,
+            llmModel: "gpt-4.1-mini",
+            translationBatchSize: 8,
+            transliterationMode: .default,
+            transliterationModel: "",
+            splitBatches: true,
+            stitchBatches: true,
+            includeTransliteration: false,
+            targetHeight: .p480,
+            preserveAspectRatio: true,
+            enableLookupCache: true
+        )
+        require(
+            youtubeFallbackDraft.sourceLanguage == "English",
+            "YouTube draft should fall back to global input language without subtitle language"
+        )
 
         let input = PipelineInputPayload(
             inputFile: "books/demo.epub",
