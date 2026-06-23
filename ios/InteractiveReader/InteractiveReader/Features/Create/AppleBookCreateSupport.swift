@@ -185,6 +185,24 @@ struct AppleYoutubeDubDraft: Equatable {
     let enableLookupCache: Bool
 }
 
+struct AppleCreateChapterOption: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let startSentence: Int
+    let endSentence: Int?
+
+    var sentenceRangeLabel: String {
+        guard let endSentence else {
+            return "from sentence \(startSentence)"
+        }
+        return "sentences \(startSentence)-\(endSentence)"
+    }
+
+    var pickerLabel: String {
+        "\(title) · \(sentenceRangeLabel)"
+    }
+}
+
 enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {
     case english = "English"
     case arabic = "Arabic"
@@ -782,6 +800,47 @@ enum AppleBookCreatePresentation {
             genres.append(genre)
         }
         return genres
+    }
+
+    static func contentIndexChapters(from value: JSONValue?) -> [AppleCreateChapterOption] {
+        guard case let .object(root) = value,
+              case let .array(chapterValues)? = root["chapters"] else {
+            return []
+        }
+        var chapters = [AppleCreateChapterOption]()
+        chapters.reserveCapacity(chapterValues.count)
+        for (index, chapterValue) in chapterValues.enumerated() {
+            guard case let .object(chapter) = chapterValue else { continue }
+            let start = chapter["start_sentence"]?.intValue
+                ?? chapter["startSentence"]?.intValue
+                ?? chapter["start"]?.intValue
+            guard let start, start > 0 else { continue }
+            let sentenceCount = chapter["sentence_count"]?.intValue ?? chapter["sentenceCount"]?.intValue
+            var end = chapter["end_sentence"]?.intValue
+                ?? chapter["endSentence"]?.intValue
+                ?? chapter["end"]?.intValue
+            if end == nil, let sentenceCount {
+                end = start + max(sentenceCount - 1, 0)
+            }
+            if let endValue = end, endValue < start {
+                end = start
+            }
+            let id = chapter["id"]?.stringValue ?? "chapter-\(index + 1)"
+            let title = chapter["title"]?.stringValue
+                ?? chapter["toc_label"]?.stringValue
+                ?? chapter["tocLabel"]?.stringValue
+                ?? chapter["name"]?.stringValue
+                ?? "Chapter \(index + 1)"
+            chapters.append(
+                AppleCreateChapterOption(
+                    id: id,
+                    title: title,
+                    startSentence: start,
+                    endSentence: end
+                )
+            )
+        }
+        return chapters
     }
 
     static func submitButtonPresentation(

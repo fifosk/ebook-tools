@@ -157,6 +157,16 @@ struct PipelineFileEntry: Decodable, Equatable {
     let type: String
 }
 
+struct BookContentIndexResponse: Decodable, Equatable {
+    let inputFile: String
+    let contentIndex: JSONValue?
+
+    enum CodingKeys: String, CodingKey {
+        case inputFile = "input_file"
+        case contentIndex = "content_index"
+    }
+}
+
 struct BookCreationSentenceBounds: Decodable, Equatable {
     let min: Int
     let max: Int

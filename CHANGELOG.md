@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.40
+
+- Advanced visible Apple app versioning to `v2026.06.23.40`.
+- Apple Narrate EPUB creation can now load a server EPUB chapter index and apply a selected chapter range to the submitted sentence window.
+
 ### 2026.06.23.39
 
 - Advanced visible Apple app versioning to `v2026.06.23.39`.

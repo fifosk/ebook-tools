@@ -28,6 +28,7 @@ struct AppleBookCreateView: View {
     @State private var sourceBaseOutput = ""
     @State private var sourceStartSentence = "1"
     @State private var sourceEndSentence = ""
+    @State private var selectedNarrateChapterID = ""
     @State private var subtitleSourcePath = ""
     @State private var youtubeVideoPath = ""
     @State private var youtubeSubtitlePath = ""
@@ -165,7 +166,7 @@ struct AppleBookCreateView: View {
         AppleBookCreateSourceSection(
             creationMode: $creationMode,
             availableCreateModes: availableCreateModes,
-            sourcePath: textBinding(for: .sourcePath, value: $sourcePath),
+            sourcePath: narrateSourcePathBinding,
             sourceBaseOutput: textBinding(for: .sourceBaseOutput, value: $sourceBaseOutput),
             sourceStartSentence: textBinding(for: .sourceStartSentence, value: $sourceStartSentence),
             sourceEndSentence: textBinding(for: .sourceEndSentence, value: $sourceEndSentence),
@@ -174,6 +175,11 @@ struct AppleBookCreateView: View {
             youtubeSubtitlePath: textBinding(for: .youtubeSubtitlePath, value: $youtubeSubtitlePath),
             selectedNarrateFileName: selectedNarrateFileName,
             selectedSubtitleFileName: selectedSubtitleFileName,
+            narrateChapterOptions: viewModel.narrateChapterOptions,
+            selectedNarrateChapterID: $selectedNarrateChapterID,
+            isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
+            narrateChaptersErrorMessage: viewModel.narrateChaptersErrorMessage,
+            onLoadNarrateChapters: loadNarrateChapters,
             onChooseNarrateFile: { isImportingNarrateEbook = true },
             onChooseSubtitleFile: { isImportingSubtitleFile = true }
         )
@@ -747,6 +753,18 @@ struct AppleBookCreateView: View {
         }
     }
 
+    private func loadNarrateChapters() {
+        Task {
+            selectedNarrateChapterID = ""
+            await viewModel.loadNarrateChapters(inputFile: sourcePath, using: appState)
+        }
+    }
+
+    private func clearNarrateChapterSelection() {
+        selectedNarrateChapterID = ""
+        viewModel.clearNarrateChapters()
+    }
+
     private func trimmed(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -758,6 +776,7 @@ struct AppleBookCreateView: View {
             guard let url = urls.first else { return }
             selectedNarrateFileURL = url
             selectedNarrateFileName = url.lastPathComponent
+            clearNarrateChapterSelection()
             markEdited(.sourcePath)
             if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
                 sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(
@@ -1156,6 +1175,22 @@ struct AppleBookCreateView: View {
             set: { newValue in
                 markEdited(field)
                 value.wrappedValue = newValue
+            }
+        )
+    }
+
+    private var narrateSourcePathBinding: Binding<String> {
+        Binding(
+            get: { sourcePath },
+            set: { newValue in
+                markEdited(.sourcePath)
+                if newValue != sourcePath {
+                    clearNarrateChapterSelection()
+                }
+                sourcePath = newValue
+                if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
+                    sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(newValue)
+                }
             }
         )
     }

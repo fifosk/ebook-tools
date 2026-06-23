@@ -11,6 +11,15 @@ extension APIClient {
         return try decode(LLMModelListResponse.self, from: data)
     }
 
+    func fetchBookContentIndex(inputFile: String) async throws -> BookContentIndexResponse {
+        let trimmed = inputFile.trimmingCharacters(in: .whitespacesAndNewlines)
+        var components = URLComponents()
+        components.queryItems = [URLQueryItem(name: "input_file", value: trimmed)]
+        let query = components.percentEncodedQuery ?? ""
+        let data = try await sendRequest(path: "/api/pipelines/files/content-index?\(query)")
+        return try decode(BookContentIndexResponse.self, from: data)
+    }
+
     func submitPipeline(_ payload: PipelineRequestPayload) async throws -> PipelineSubmissionResponse {
         let data = try await sendJSONRequest(path: "/api/pipelines", method: "POST", payload: payload)
         return try decode(PipelineSubmissionResponse.self, from: data)

@@ -270,6 +270,45 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.normalizedBookGenres(" Adventure, Fantasy, adventure,  ") == ["Adventure", "Fantasy"],
             "Apple Create should normalize edited genre strings into Web-aligned book_genres arrays"
         )
+        let contentIndex: JSONValue = .object([
+            "chapters": .array([
+                .object([
+                    "id": .string("intro"),
+                    "title": .string("Intro"),
+                    "start_sentence": .number(1),
+                    "sentence_count": .number(5)
+                ]),
+                .object([
+                    "toc_label": .string("Second"),
+                    "startSentence": .string("6"),
+                    "endSentence": .number(12)
+                ]),
+                .object([
+                    "title": .string("Bad"),
+                    "start_sentence": .number(0)
+                ])
+            ])
+        ])
+        let chapters = AppleBookCreatePresentation.contentIndexChapters(from: contentIndex)
+        require(chapters.count == 2, "Apple Narrate EPUB chapter picker should skip invalid chapter rows")
+        require(
+            chapters[0] == AppleCreateChapterOption(
+                id: "intro",
+                title: "Intro",
+                startSentence: 1,
+                endSentence: 5
+            ),
+            "Apple Narrate EPUB chapter parser should derive end sentence from sentence_count"
+        )
+        require(
+            chapters[1] == AppleCreateChapterOption(
+                id: "chapter-2",
+                title: "Second",
+                startSentence: 6,
+                endSentence: 12
+            ),
+            "Apple Narrate EPUB chapter parser should accept camelCase sentence fields and TOC labels"
+        )
         require(
             AppleBookCreatePresentation.clampAssFontSize(4) == AppleSubtitleAssTypography.fontSizeRange.lowerBound,
             "ASS font size should clamp to lower bound"

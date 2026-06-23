@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.39",
+            version: "2026.06.23.40",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-narrate-ebook-chapters",
+                    title: "Narrate EPUB chapters",
+                    detail: "Apple Narrate EPUB creation can now load a server EPUB chapter index and apply a selected chapter range to the submitted sentence window."
+                ),
                 AppChangelogEntry(
                     id: "apple-base-output-slugs",
                     title: "Apple output slugs",

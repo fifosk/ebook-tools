@@ -6,6 +6,9 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isLoadingOptions = false
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
     @Published private(set) var subtitleLlmModels: [String] = []
+    @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
+    @Published private(set) var isLoadingNarrateChapters = false
+    @Published private(set) var narrateChaptersErrorMessage: String?
     @Published private(set) var optionsErrorMessage: String?
     @Published var errorMessage: String?
     @Published private(set) var submittedJobId: String?
@@ -60,6 +63,42 @@ final class AppleBookCreateViewModel: ObservableObject {
         } catch {
             return
         }
+    }
+
+    func loadNarrateChapters(inputFile: String, using appState: AppState) async {
+        let trimmedInput = inputFile.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedInput.isEmpty else {
+            narrateChapterOptions = []
+            narrateChaptersErrorMessage = "Enter a server EPUB path first."
+            return
+        }
+        guard let configuration = appState.configuration else {
+            narrateChapterOptions = []
+            narrateChaptersErrorMessage = "API configuration is unavailable."
+            return
+        }
+
+        isLoadingNarrateChapters = true
+        narrateChaptersErrorMessage = nil
+        defer { isLoadingNarrateChapters = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.fetchBookContentIndex(inputFile: trimmedInput)
+            let chapters = AppleBookCreatePresentation.contentIndexChapters(from: response.contentIndex)
+            narrateChapterOptions = chapters
+            if chapters.isEmpty {
+                narrateChaptersErrorMessage = "No chapter index was found for this EPUB."
+            }
+        } catch {
+            narrateChapterOptions = []
+            narrateChaptersErrorMessage = error.localizedDescription
+        }
+    }
+
+    func clearNarrateChapters() {
+        narrateChapterOptions = []
+        narrateChaptersErrorMessage = nil
     }
 
     func submitGeneratedBook(_ draft: AppleBookCreateDraft, using appState: AppState) async -> String? {

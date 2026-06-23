@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct AppleBookCreateSourceSection: View {
@@ -12,6 +13,11 @@ struct AppleBookCreateSourceSection: View {
     @Binding var youtubeSubtitlePath: String
     let selectedNarrateFileName: String?
     let selectedSubtitleFileName: String?
+    let narrateChapterOptions: [AppleCreateChapterOption]
+    @Binding var selectedNarrateChapterID: String
+    let isLoadingNarrateChapters: Bool
+    let narrateChaptersErrorMessage: String?
+    let onLoadNarrateChapters: () -> Void
     let onChooseNarrateFile: () -> Void
     let onChooseSubtitleFile: () -> Void
 
@@ -56,6 +62,39 @@ struct AppleBookCreateSourceSection: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createNarrateSourcePathField")
+        Button(action: onLoadNarrateChapters) {
+            Label(
+                isLoadingNarrateChapters ? "Loading Chapters" : "Load Chapters",
+                systemImage: "list.bullet.rectangle"
+            )
+        }
+        .disabled(
+            isLoadingNarrateChapters
+                || sourcePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        )
+        .accessibilityIdentifier("createNarrateLoadChaptersButton")
+        if isLoadingNarrateChapters {
+            ProgressView()
+                .accessibilityIdentifier("createNarrateChaptersProgress")
+        }
+        if let narrateChaptersErrorMessage {
+            Text(narrateChaptersErrorMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateChaptersMessage")
+        }
+        if !narrateChapterOptions.isEmpty {
+            Picker("Chapter range", selection: $selectedNarrateChapterID) {
+                Text("Manual sentence range").tag("")
+                ForEach(narrateChapterOptions) { chapter in
+                    Text(chapter.pickerLabel).tag(chapter.id)
+                }
+            }
+            .accessibilityIdentifier("createNarrateChapterPicker")
+            .onChange(of: selectedNarrateChapterID) { _, newValue in
+                applyNarrateChapterSelection(newValue)
+            }
+        }
         TextField("Output path", text: $sourceBaseOutput)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
@@ -70,6 +109,14 @@ struct AppleBookCreateSourceSection: View {
             .keyboardType(.numberPad)
             #endif
             .accessibilityIdentifier("createNarrateEndSentenceField")
+    }
+
+    private func applyNarrateChapterSelection(_ chapterID: String) {
+        guard let chapter = narrateChapterOptions.first(where: { $0.id == chapterID }) else {
+            return
+        }
+        sourceStartSentence = "\(chapter.startSentence)"
+        sourceEndSentence = chapter.endSentence.map { "\($0)" } ?? ""
     }
 
     @ViewBuilder
