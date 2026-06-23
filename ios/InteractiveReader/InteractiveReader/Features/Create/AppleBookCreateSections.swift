@@ -387,10 +387,16 @@ struct AppleBookCreateGeneratedOutputControls: View {
     let derivedBaseOutput: String
     @Binding var includeTransliteration: Bool
     @Binding var enableLookupCache: Bool
+    @Binding var includeImages: Bool
+    let supportsImages: Bool
 
     var body: some View {
         LabeledContent("Path", value: derivedBaseOutput)
             .accessibilityIdentifier("createBookBaseOutputLabel")
+        if supportsImages {
+            Toggle("Illustrations", isOn: $includeImages)
+                .accessibilityIdentifier("createBookIllustrationsToggle")
+        }
         Toggle("Transliteration", isOn: $includeTransliteration)
             .accessibilityIdentifier("createBookTransliterationToggle")
         Toggle("Lookup Cache", isOn: $enableLookupCache)

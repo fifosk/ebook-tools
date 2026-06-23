@@ -12,6 +12,7 @@ struct AppleBookCreateDraft: Equatable {
     let baseOutput: String
     let includeTransliteration: Bool
     let enableLookupCache: Bool
+    let includeImages: Bool
     let pipelineDefaults: BookCreationPipelineDefaults?
     let generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
 }
@@ -188,6 +189,7 @@ enum AppleBookCreateEditedField: Hashable {
     case voice
     case includeTransliteration
     case enableLookupCache
+    case includeImages
 }
 
 struct AppleCreateResolvedDefaults: Equatable {
@@ -201,6 +203,7 @@ struct AppleCreateResolvedDefaults: Equatable {
     let voice: AppleBookCreateVoiceOption?
     let includeTransliteration: Bool?
     let enableLookupCache: Bool?
+    let includeImages: Bool?
     let subtitleTranslationProvider: AppleSubtitleTranslationProvider?
 }
 
@@ -282,6 +285,9 @@ enum AppleBookCreatePresentation {
             enableLookupCache: editedFields.contains(.enableLookupCache)
                 ? nil
                 : options.pipelineDefaults.enableLookupCache,
+            includeImages: editedFields.contains(.includeImages)
+                ? nil
+                : options.generatedSourceDefaults.addImages,
             subtitleTranslationProvider: editedFields.contains(.subtitleTranslationProvider)
                 ? nil
                 : AppleSubtitleTranslationProvider(backendValue: options.pipelineDefaults.translationProvider)
@@ -518,6 +524,7 @@ enum AppleBookCreatePresentation {
         baseOutput: String,
         includeTransliteration: Bool,
         enableLookupCache: Bool,
+        includeImages: Bool,
         pipelineDefaults: BookCreationPipelineDefaults?,
         generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
     ) -> AppleBookCreateDraft {
@@ -533,6 +540,7 @@ enum AppleBookCreatePresentation {
             baseOutput: baseOutput,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
+            includeImages: includeImages,
             pipelineDefaults: pipelineDefaults,
             generatedSourceDefaults: generatedSourceDefaults
         )

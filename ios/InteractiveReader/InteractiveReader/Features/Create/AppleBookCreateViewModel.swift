@@ -183,7 +183,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             inputLanguage: draft.inputLanguage,
             targetLanguage: draft.targetLanguage,
             selectedVoice: draft.voice,
-            addImages: generatedDefaults?.addImages ?? false,
+            addImages: draft.includeImages,
             includeTransliteration: draft.includeTransliteration,
             enableLookupCache: draft.enableLookupCache,
             pipelineDefaults: draft.pipelineDefaults,

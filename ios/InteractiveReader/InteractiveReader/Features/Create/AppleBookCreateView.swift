@@ -59,6 +59,7 @@ struct AppleBookCreateView: View {
     @State private var voice = AppleBookCreateVoiceOption.gtts
     @State private var includeTransliteration = true
     @State private var enableLookupCache = true
+    @State private var includeImages = false
     @State private var editedFields = Set<AppleBookCreateEditedField>()
 
     var body: some View {
@@ -254,7 +255,9 @@ struct AppleBookCreateView: View {
                 AppleBookCreateGeneratedOutputControls(
                     derivedBaseOutput: derivedBaseOutput,
                     includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
-                    enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache)
+                    enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache),
+                    includeImages: boolBinding(for: .includeImages, value: $includeImages),
+                    supportsImages: creationMode == .generatedBook
                 )
             }
         }
@@ -395,6 +398,7 @@ struct AppleBookCreateView: View {
             baseOutput: derivedBaseOutput,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
+            includeImages: includeImages,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults,
             generatedSourceDefaults: viewModel.creationOptions?.generatedSourceDefaults
         )
@@ -883,6 +887,9 @@ struct AppleBookCreateView: View {
         }
         if let value = defaults.enableLookupCache {
             enableLookupCache = value
+        }
+        if let value = defaults.includeImages {
+            includeImages = value
         }
         if let provider = defaults.subtitleTranslationProvider {
             subtitleTranslationProvider = provider

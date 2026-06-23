@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.05",
+            version: "2026.06.23.06",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-generated-book-illustrations-toggle",
+                    title: "Apple generated-book illustrations",
+                    detail: "Generated-book creation on iPhone and iPad now includes an Illustrations toggle that follows backend defaults and submits add_images with the job payload."
+                ),
                 AppChangelogEntry(
                     id: "backend-search-match-summary",
                     title: "Search backend allocation trimmed",

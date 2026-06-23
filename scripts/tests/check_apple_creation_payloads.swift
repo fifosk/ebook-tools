@@ -319,18 +319,23 @@ struct AppleCreationPayloadCheck {
             "Lookup-cache toggle should use backend pipeline default"
         )
         require(
+            resolvedDefaults.includeImages == false,
+            "Generated-book illustrations toggle should use backend generated-source default"
+        )
+        require(
             resolvedDefaults.subtitleTranslationProvider == .llm,
             "Subtitle provider should map from backend pipeline default"
         )
         let editedDefaults = AppleBookCreatePresentation.resolvedDefaults(
             from: options,
-            editedFields: [.author, .sentenceCount, .targetLanguage, .voice, .enableLookupCache],
+            editedFields: [.author, .sentenceCount, .targetLanguage, .voice, .enableLookupCache, .includeImages],
             currentSentenceCount: 999
         )
         require(editedDefaults.author == nil, "Edited author should not be overwritten by backend defaults")
         require(editedDefaults.targetLanguage == nil, "Edited target language should not be overwritten")
         require(editedDefaults.voice == nil, "Edited voice should not be overwritten")
         require(editedDefaults.enableLookupCache == nil, "Edited lookup-cache toggle should not be overwritten")
+        require(editedDefaults.includeImages == nil, "Edited illustrations toggle should not be overwritten")
         require(editedDefaults.sentenceCount == 500, "Edited sentence count should still clamp to backend max")
         require(
             AppleBookCreatePresentation.clampSentenceCount(0, bounds: options.sentenceBounds) == 1,
@@ -404,6 +409,7 @@ struct AppleCreationPayloadCheck {
             baseOutput: "native-creation",
             includeTransliteration: true,
             enableLookupCache: false,
+            includeImages: true,
             pipelineDefaults: options.pipelineDefaults,
             generatedSourceDefaults: options.generatedSourceDefaults
         )
@@ -411,6 +417,7 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.author == "Me", "Generated draft should default blank author to Me")
         require(generatedDraft.targetLanguage == "Slovak", "Generated draft should map target language")
         require(generatedDraft.voice == "macOS-auto-male", "Generated draft should trim and map voice")
+        require(generatedDraft.includeImages == true, "Generated draft should keep the native illustrations toggle")
         require(generatedDraft.pipelineDefaults == options.pipelineDefaults, "Generated draft should carry pipeline defaults")
         require(
             generatedDraft.generatedSourceDefaults == options.generatedSourceDefaults,
