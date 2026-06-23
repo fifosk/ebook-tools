@@ -20,6 +20,7 @@ struct AppleBookCreateDraft: Equatable {
     let stitchFull: Bool
     let includeTransliteration: Bool
     let translationProvider: String
+    let llmModel: String?
     let translationBatchSize: Int
     let transliterationMode: String
     let transliterationModel: String?
@@ -65,6 +66,7 @@ struct AppleNarrateEbookDraft: Equatable {
     let stitchFull: Bool
     let includeTransliteration: Bool
     let translationProvider: String
+    let llmModel: String?
     let translationBatchSize: Int
     let transliterationMode: String
     let transliterationModel: String?
@@ -93,6 +95,7 @@ struct AppleNarrateEbookDraft: Equatable {
             stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: translationProvider,
+            llmModel: llmModel,
             translationBatchSize: translationBatchSize,
             transliterationMode: transliterationMode,
             transliterationModel: transliterationModel,
@@ -336,6 +339,7 @@ enum AppleBookCreateEditedField: Hashable {
     case stitchFull
     case includeTransliteration
     case bookTranslationProvider
+    case bookLlmModel
     case bookTranslationBatchSize
     case bookTransliterationMode
     case bookTransliterationModel
@@ -877,6 +881,7 @@ enum AppleBookCreatePresentation {
         stitchFull: Bool,
         includeTransliteration: Bool,
         translationProvider: AppleSubtitleTranslationProvider,
+        llmModel: String,
         translationBatchSize: Int,
         transliterationMode: AppleSubtitleTransliterationMode,
         transliterationModel: String,
@@ -923,6 +928,7 @@ enum AppleBookCreatePresentation {
             stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: translationProvider.backendValue,
+            llmModel: translationProvider == .llm ? trimmed(llmModel).nonEmptyValue : nil,
             translationBatchSize: clampSubtitleTranslationBatchSize(translationBatchSize),
             transliterationMode: includeTransliteration ? transliterationMode.backendValue : "default",
             transliterationModel: includeTransliteration && transliterationMode.allowsModelOverride
@@ -971,6 +977,7 @@ enum AppleBookCreatePresentation {
         stitchFull: Bool,
         includeTransliteration: Bool,
         translationProvider: AppleSubtitleTranslationProvider,
+        llmModel: String,
         translationBatchSize: Int,
         transliterationMode: AppleSubtitleTransliterationMode,
         transliterationModel: String,
@@ -999,6 +1006,7 @@ enum AppleBookCreatePresentation {
             stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: translationProvider.backendValue,
+            llmModel: translationProvider == .llm ? trimmed(llmModel).nonEmptyValue : nil,
             translationBatchSize: clampSubtitleTranslationBatchSize(translationBatchSize),
             transliterationMode: includeTransliteration ? transliterationMode.backendValue : "default",
             transliterationModel: includeTransliteration && transliterationMode.allowsModelOverride

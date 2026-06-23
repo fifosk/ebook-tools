@@ -420,6 +420,9 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var stitchFull: Bool
     @Binding var includeTransliteration: Bool
     @Binding var translationProvider: AppleSubtitleTranslationProvider
+    let selectedTranslationProvider: AppleSubtitleTranslationProvider
+    @Binding var llmModel: String
+    let availableLlmModels: [String]
     @Binding var translationBatchSize: Int
     let clampedTranslationBatchSize: Int
     @Binding var transliterationMode: AppleSubtitleTransliterationMode
@@ -622,6 +625,14 @@ struct AppleBookCreateGeneratedOutputControls: View {
             }
         }
         .accessibilityIdentifier("createBookTranslationProviderPicker")
+        if selectedTranslationProvider == .llm {
+            Picker("Translation model", selection: $llmModel) {
+                ForEach(availableLlmModels, id: \.self) { model in
+                    Text(AppleBookCreatePresentation.subtitleModelLabel(model)).tag(model)
+                }
+            }
+            .accessibilityIdentifier("createBookLlmModelPicker")
+        }
         #if os(iOS)
         Stepper(
             value: $translationBatchSize,

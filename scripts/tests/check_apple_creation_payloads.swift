@@ -577,6 +577,7 @@ struct AppleCreationPayloadCheck {
             stitchFull: true,
             includeTransliteration: true,
             translationProvider: .googleTranslate,
+            llmModel: " gpt-4.1-mini ",
             translationBatchSize: 0,
             transliterationMode: .python,
             transliterationModel: " gpt-4.1 ",
@@ -619,6 +620,7 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.sentencesPerOutputFile == 1, "Generated draft should clamp sentences per file")
         require(generatedDraft.stitchFull == true, "Generated draft should keep stitch-full toggle")
         require(generatedDraft.translationProvider == "googletrans", "Generated draft should map selected provider")
+        require(generatedDraft.llmModel == nil, "Generated draft should omit model for non-LLM provider")
         require(generatedDraft.translationBatchSize == 1, "Generated draft should clamp translation batch size")
         require(generatedDraft.transliterationMode == "python", "Generated draft should map transliteration mode")
         require(generatedDraft.transliterationModel == nil, "Generated draft should omit model for Python transliteration")
@@ -683,6 +685,7 @@ struct AppleCreationPayloadCheck {
             stitchFull: false,
             includeTransliteration: false,
             translationProvider: .llm,
+            llmModel: " gpt-4.1-mini ",
             translationBatchSize: 12,
             transliterationMode: .default,
             transliterationModel: " gpt-4.1 ",
@@ -705,6 +708,7 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.voiceOverrides.isEmpty, "Narrate draft should omit target voice overrides by default")
         require(narrateDraft.includeTransliteration == false, "Narrate draft should keep transliteration toggle")
         require(narrateDraft.translationProvider == "llm", "Narrate draft should map selected provider")
+        require(narrateDraft.llmModel == "gpt-4.1-mini", "Narrate draft should include trimmed LLM model override")
         require(narrateDraft.translationBatchSize == 12, "Narrate draft should keep selected translation batch size")
         require(narrateDraft.transliterationMode == "default", "Narrate draft should reset mode when transliteration is off")
         require(narrateDraft.transliterationModel == nil, "Narrate draft should omit model when transliteration is off")
@@ -840,6 +844,7 @@ struct AppleCreationPayloadCheck {
                 "image_blank_detection_enabled": .bool(true),
                 "image_concurrency": .number(4),
                 "image_api_timeout_seconds": .number(300),
+                "ollama_model": .string("gpt-4.1-mini"),
                 "tempo": .number(1.08)
             ],
             inputs: input,
@@ -909,6 +914,10 @@ struct AppleCreationPayloadCheck {
         require(
             pipelineOverrides?["image_api_timeout_seconds"] as? Int == 300,
             "pipeline overrides should encode selected image API timeout"
+        )
+        require(
+            pipelineOverrides?["ollama_model"] as? String == "gpt-4.1-mini",
+            "pipeline overrides should encode selected book LLM model"
         )
 
         let encodedInputs = pipelineObject["inputs"] as? [String: Any]

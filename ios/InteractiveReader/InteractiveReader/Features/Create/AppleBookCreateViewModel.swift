@@ -177,6 +177,26 @@ final class AppleBookCreateViewModel: ObservableObject {
     private static func makeSubmission(from draft: AppleBookCreateDraft) -> BookGenerationJobSubmission {
         let inputFile = "\(draft.baseOutput).epub"
         let generatedDefaults = draft.generatedSourceDefaults
+        var pipelineOverrides = makePipelineOverrides(
+            from: generatedDefaults,
+            imagePromptPipeline: draft.imagePromptPipeline,
+            imageStyleTemplate: draft.imageStyleTemplate,
+            imagePromptBatchingEnabled: draft.imagePromptBatchingEnabled,
+            imagePromptBatchSize: draft.imagePromptBatchSize,
+            imagePromptPlanBatchSize: draft.imagePromptPlanBatchSize,
+            imagePromptContextSentences: draft.imagePromptContextSentences,
+            imageWidth: draft.imageWidth,
+            imageHeight: draft.imageHeight,
+            imageSteps: draft.imageSteps,
+            imageCfgScale: draft.imageCfgScale,
+            imageSamplerName: draft.imageSamplerName,
+            imageSeedWithPreviousImage: draft.imageSeedWithPreviousImage,
+            imageBlankDetectionEnabled: draft.imageBlankDetectionEnabled,
+            imageConcurrency: draft.imageConcurrency,
+            imageApiTimeoutSeconds: draft.imageApiTimeoutSeconds
+        )
+        mergeBookModelOverride(draft.llmModel, into: &pipelineOverrides)
+
         let pipeline = makePipelineSubmission(
             inputFile: inputFile,
             baseOutputFile: draft.baseOutput,
@@ -204,24 +224,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             outputHtml: draft.outputHtml,
             outputPdf: draft.outputPdf,
             pipelineDefaults: draft.pipelineDefaults,
-            pipelineOverrides: makePipelineOverrides(
-                from: generatedDefaults,
-                imagePromptPipeline: draft.imagePromptPipeline,
-                imageStyleTemplate: draft.imageStyleTemplate,
-                imagePromptBatchingEnabled: draft.imagePromptBatchingEnabled,
-                imagePromptBatchSize: draft.imagePromptBatchSize,
-                imagePromptPlanBatchSize: draft.imagePromptPlanBatchSize,
-                imagePromptContextSentences: draft.imagePromptContextSentences,
-                imageWidth: draft.imageWidth,
-                imageHeight: draft.imageHeight,
-                imageSteps: draft.imageSteps,
-                imageCfgScale: draft.imageCfgScale,
-                imageSamplerName: draft.imageSamplerName,
-                imageSeedWithPreviousImage: draft.imageSeedWithPreviousImage,
-                imageBlankDetectionEnabled: draft.imageBlankDetectionEnabled,
-                imageConcurrency: draft.imageConcurrency,
-                imageApiTimeoutSeconds: draft.imageApiTimeoutSeconds
-            ),
+            pipelineOverrides: pipelineOverrides,
             correlationId: "apple-create",
             bookMetadata: [
                 "title": .string(draft.bookName),
@@ -248,7 +251,10 @@ final class AppleBookCreateViewModel: ObservableObject {
     }
 
     private static func makePipelineSubmission(from draft: AppleNarrateEbookDraft) -> PipelineRequestPayload {
-        makePipelineSubmission(
+        var pipelineOverrides = [String: JSONValue]()
+        mergeBookModelOverride(draft.llmModel, into: &pipelineOverrides)
+
+        return makePipelineSubmission(
             inputFile: draft.inputFile,
             baseOutputFile: draft.baseOutput,
             inputLanguage: draft.inputLanguage,
@@ -275,7 +281,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             outputHtml: draft.outputHtml,
             outputPdf: draft.outputPdf,
             pipelineDefaults: draft.pipelineDefaults,
-            pipelineOverrides: [:],
+            pipelineOverrides: pipelineOverrides,
             correlationId: "apple-narrate-ebook",
             bookMetadata: [
                 "title": .string(draft.baseOutput),
@@ -431,6 +437,17 @@ final class AppleBookCreateViewModel: ObservableObject {
             overrides["image_api_timeout_seconds"] = .number(imageApiTimeoutSeconds)
         }
         return overrides
+    }
+
+    private static func mergeBookModelOverride(
+        _ llmModel: String?,
+        into overrides: inout [String: JSONValue]
+    ) {
+        guard let model = llmModel?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !model.isEmpty else {
+            return
+        }
+        overrides["ollama_model"] = .string(model)
     }
 
     private static func makeSubtitlePayload(from draft: AppleSubtitleJobDraft) -> SubtitleJobFormPayload {

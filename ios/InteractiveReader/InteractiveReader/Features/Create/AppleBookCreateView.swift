@@ -69,6 +69,7 @@ struct AppleBookCreateView: View {
     @State private var stitchFull = false
     @State private var includeTransliteration = true
     @State private var bookTranslationProvider = AppleSubtitleTranslationProvider.llm
+    @State private var bookLlmModel = ""
     @State private var bookTranslationBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
     @State private var bookTransliterationMode = AppleSubtitleTransliterationMode.default
     @State private var bookTransliterationModel = ""
@@ -301,6 +302,9 @@ struct AppleBookCreateView: View {
                     stitchFull: boolBinding(for: .stitchFull, value: $stitchFull),
                     includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
                     translationProvider: bookTranslationProviderBinding,
+                    selectedTranslationProvider: bookTranslationProvider,
+                    llmModel: textBinding(for: .bookLlmModel, value: $bookLlmModel),
+                    availableLlmModels: availableSubtitleLlmModels,
                     translationBatchSize: bookTranslationBatchSizeBinding,
                     clampedTranslationBatchSize: clampedBookTranslationBatchSize,
                     transliterationMode: bookTransliterationModeBinding,
@@ -495,6 +499,7 @@ struct AppleBookCreateView: View {
             stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: bookTranslationProvider,
+            llmModel: bookLlmModel,
             translationBatchSize: bookTranslationBatchSize,
             transliterationMode: bookTransliterationMode,
             transliterationModel: bookTransliterationModel,
@@ -643,6 +648,7 @@ struct AppleBookCreateView: View {
             stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: bookTranslationProvider,
+            llmModel: bookLlmModel,
             translationBatchSize: bookTranslationBatchSize,
             transliterationMode: bookTransliterationMode,
             transliterationModel: bookTransliterationModel,
@@ -889,6 +895,9 @@ struct AppleBookCreateView: View {
             set: { newValue in
                 markEdited(.bookTranslationProvider)
                 bookTranslationProvider = newValue
+                if newValue != .llm {
+                    bookLlmModel = ""
+                }
             }
         )
     }

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.20",
+            version: "2026.06.23.21",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-book-llm-model-picker",
+                    title: "Apple book LLM model",
+                    detail: "Generated-book and Narrate EPUB creation now expose the Web-aligned optional LLM model picker and submit ollama_model when selected."
+                ),
                 AppChangelogEntry(
                     id: "apple-target-voice-overrides",
                     title: "Apple target voice overrides",

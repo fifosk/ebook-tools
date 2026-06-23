@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.21
+
+- Advanced visible Apple app versioning to `v2026.06.23.21`.
+- Apple generated-book and Narrate EPUB creation now expose the Web-aligned optional LLM model picker and submit `ollama_model` when selected.
+
 ### 2026.06.23.20
 
 - Advanced visible Apple app versioning to `v2026.06.23.20`.
