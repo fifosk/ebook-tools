@@ -222,7 +222,8 @@ Suggested features to evaluate after parity scaffolding:
   opening logs. Status: media manifest responses now include a token-safe
   aggregate diagnostics object with media, chunk, audio, image, timing,
   metadata, URL, and size counts; Web Job Detail now shows a compact manifest
-  health strip when diagnostics are available. Apple display work remains.
+  health strip when diagnostics are available, and Apple playback now decodes
+  and shows the same aggregate counts in a compact native strip.
 - Offline export from Apple: request `/api/exports` for a completed job/library item and show status in Jobs.
 
 ## Verification Contract

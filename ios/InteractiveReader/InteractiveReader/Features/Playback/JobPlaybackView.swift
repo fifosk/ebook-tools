@@ -192,6 +192,10 @@ struct JobPlaybackView: View {
     @ViewBuilder
     var standardBody: some View {
         let base = VStack(alignment: .leading, spacing: 12) {
+            MediaDiagnosticsStripView(
+                diagnostics: viewModel.mediaResponse?.diagnostics,
+                usesDarkBackground: usesDarkBackground || shouldUseInteractiveBackground
+            )
             switch viewModel.loadState {
             case .idle, .loading:
                 loadingView

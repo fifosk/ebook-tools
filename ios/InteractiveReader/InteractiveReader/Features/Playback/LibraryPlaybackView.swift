@@ -176,6 +176,11 @@ struct LibraryPlaybackView: View {
                 header
             }
 
+            MediaDiagnosticsStripView(
+                diagnostics: viewModel.mediaResponse?.diagnostics,
+                usesDarkBackground: usesDarkBackground || shouldUseInteractiveBackground
+            )
+
             switch viewModel.loadState {
             case .idle, .loading:
                 loadingView

@@ -4,17 +4,25 @@ struct PipelineMediaResponse: Decodable {
     let media: [String: [PipelineMediaFile]]
     let chunks: [PipelineMediaChunk]
     let complete: Bool
+    let diagnostics: PipelineMediaDiagnostics?
 
     enum CodingKeys: String, CodingKey {
         case media
         case chunks
         case complete
+        case diagnostics
     }
 
-    init(media: [String: [PipelineMediaFile]] = [:], chunks: [PipelineMediaChunk] = [], complete: Bool = false) {
+    init(
+        media: [String: [PipelineMediaFile]] = [:],
+        chunks: [PipelineMediaChunk] = [],
+        complete: Bool = false,
+        diagnostics: PipelineMediaDiagnostics? = nil
+    ) {
         self.media = media
         self.chunks = chunks
         self.complete = complete
+        self.diagnostics = diagnostics
     }
 
     init(from decoder: Decoder) throws {
@@ -22,6 +30,30 @@ struct PipelineMediaResponse: Decodable {
         media = (try? container.decode([String: [PipelineMediaFile]].self, forKey: .media)) ?? [:]
         chunks = (try? container.decode([PipelineMediaChunk].self, forKey: .chunks)) ?? []
         complete = (try? container.decode(Bool.self, forKey: .complete)) ?? false
+        diagnostics = try? container.decode(PipelineMediaDiagnostics.self, forKey: .diagnostics)
+    }
+}
+
+struct PipelineMediaDiagnostics: Decodable, Equatable {
+    let mediaFileCount: Int
+    let chunkCount: Int
+    let chunkFileCount: Int
+    let audioFileCount: Int
+    let imageFileCount: Int
+    let chunksWithAudio: Int
+    let chunksWithTiming: Int
+    let chunksWithImages: Int
+    let chunksWithoutFiles: Int
+    let chunksWithoutMetadata: Int
+    let filesWithoutUrl: Int
+    let filesWithoutSize: Int
+
+    var missingCount: Int {
+        chunksWithoutMetadata + filesWithoutUrl + filesWithoutSize
+    }
+
+    var hasGaps: Bool {
+        missingCount > 0 || chunksWithoutFiles > 0
     }
 }
 

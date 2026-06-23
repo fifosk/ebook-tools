@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june22Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-media-diagnostics-strip",
+            title: "Media diagnostics in playback",
+            detail: "Apple playback now decodes the shared media manifest diagnostics and shows compact file, chunk, timing, audio, image, and gap counts when the backend provides them."
+        ),
+        AppChangelogEntry(
             id: "apple-library-isbn-preview",
             title: "Library ISBN preview",
             detail: "On iPhone and iPad, Library rows now preview ISBN metadata through the shared lookup route before applying it to the selected item."

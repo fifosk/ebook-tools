@@ -177,6 +177,9 @@ extension InteractivePlayerViewModel {
         if current.complete != incoming.complete {
             return true
         }
+        if current.diagnostics != incoming.diagnostics {
+            return true
+        }
         if current.chunks.count != incoming.chunks.count {
             return true
         }
@@ -223,7 +226,12 @@ extension InteractivePlayerViewModel {
                 timingTracks: chunk.timingTracks ?? existing.timingTracks
             )
         }
-        return PipelineMediaResponse(media: incoming.media, chunks: mergedChunks, complete: incoming.complete)
+        return PipelineMediaResponse(
+            media: incoming.media,
+            chunks: mergedChunks,
+            complete: incoming.complete,
+            diagnostics: incoming.diagnostics
+        )
     }
 
     func chunkKey(_ chunk: PipelineMediaChunk, fallback: Int) -> String {
@@ -408,7 +416,8 @@ extension InteractivePlayerViewModel {
             let refreshedMedia = PipelineMediaResponse(
                 media: latestMediaResponse.media,
                 chunks: updatedChunks,
-                complete: latestMediaResponse.complete
+                complete: latestMediaResponse.complete,
+                diagnostics: latestMediaResponse.diagnostics
             )
             let context = try await buildContextInBackground(
                 jobId: jobId,
