@@ -62,6 +62,9 @@ struct AppleBookCreateView: View {
     @State private var includeImages = false
     @State private var imagePromptPipeline = AppleGeneratedBookImagePromptPipeline.promptPlan
     @State private var imageStyleTemplate = AppleGeneratedBookImageStyleTemplate.wireframe
+    @State private var imagePromptBatchingEnabled = true
+    @State private var imagePromptBatchSize = 10
+    @State private var imagePromptPlanBatchSize = 50
     @State private var imagePromptContextSentences = 0
     @State private var imageWidth = "256"
     @State private var imageHeight = "256"
@@ -264,6 +267,14 @@ struct AppleBookCreateView: View {
                     includeImages: boolBinding(for: .includeImages, value: $includeImages),
                     imagePromptPipeline: imagePromptPipelineBinding,
                     imageStyleTemplate: imageStyleTemplateBinding,
+                    imagePromptBatchingEnabled: boolBinding(
+                        for: .imagePromptBatchingEnabled,
+                        value: $imagePromptBatchingEnabled
+                    ),
+                    imagePromptBatchSize: imagePromptBatchSizeBinding,
+                    clampedImagePromptBatchSize: clampedImagePromptBatchSize,
+                    imagePromptPlanBatchSize: imagePromptPlanBatchSizeBinding,
+                    clampedImagePromptPlanBatchSize: clampedImagePromptPlanBatchSize,
                     imagePromptContextSentences: imagePromptContextSentencesBinding,
                     clampedImagePromptContextSentences: clampedImagePromptContextSentences,
                     imageWidth: textBinding(for: .imageWidth, value: $imageWidth),
@@ -412,6 +423,9 @@ struct AppleBookCreateView: View {
             includeImages: includeImages,
             imagePromptPipeline: imagePromptPipeline,
             imageStyleTemplate: imageStyleTemplate,
+            imagePromptBatchingEnabled: imagePromptBatchingEnabled,
+            imagePromptBatchSize: imagePromptBatchSize,
+            imagePromptPlanBatchSize: imagePromptPlanBatchSize,
             imagePromptContextSentences: imagePromptContextSentences,
             imageWidth: imageWidth,
             imageHeight: imageHeight,
@@ -677,6 +691,14 @@ struct AppleBookCreateView: View {
         AppleBookCreatePresentation.clampImagePromptContextSentences(imagePromptContextSentences)
     }
 
+    private var clampedImagePromptBatchSize: Int {
+        AppleBookCreatePresentation.clampImagePromptBatchSize(imagePromptBatchSize)
+    }
+
+    private var clampedImagePromptPlanBatchSize: Int {
+        AppleBookCreatePresentation.clampImagePromptBatchSize(imagePromptPlanBatchSize)
+    }
+
     private var sentenceCountBinding: Binding<Int> {
         Binding(
             get: { sentenceCount },
@@ -885,6 +907,26 @@ struct AppleBookCreateView: View {
             set: { newValue in
                 markEdited(.imagePromptContextSentences)
                 imagePromptContextSentences = AppleBookCreatePresentation.clampImagePromptContextSentences(newValue)
+            }
+        )
+    }
+
+    private var imagePromptBatchSizeBinding: Binding<Int> {
+        Binding(
+            get: { clampedImagePromptBatchSize },
+            set: { newValue in
+                markEdited(.imagePromptBatchSize)
+                imagePromptBatchSize = AppleBookCreatePresentation.clampImagePromptBatchSize(newValue)
+            }
+        )
+    }
+
+    private var imagePromptPlanBatchSizeBinding: Binding<Int> {
+        Binding(
+            get: { clampedImagePromptPlanBatchSize },
+            set: { newValue in
+                markEdited(.imagePromptPlanBatchSize)
+                imagePromptPlanBatchSize = AppleBookCreatePresentation.clampImagePromptBatchSize(newValue)
             }
         )
     }

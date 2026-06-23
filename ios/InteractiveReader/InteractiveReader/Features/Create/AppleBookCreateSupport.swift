@@ -15,6 +15,9 @@ struct AppleBookCreateDraft: Equatable {
     let includeImages: Bool
     let imagePromptPipeline: String
     let imageStyleTemplate: String
+    let imagePromptBatchingEnabled: Bool
+    let imagePromptBatchSize: Int
+    let imagePromptPlanBatchSize: Int
     let imagePromptContextSentences: Int
     let imageWidth: String
     let imageHeight: String
@@ -270,6 +273,9 @@ enum AppleBookCreateEditedField: Hashable {
     case includeImages
     case imagePromptPipeline
     case imageStyleTemplate
+    case imagePromptBatchingEnabled
+    case imagePromptBatchSize
+    case imagePromptPlanBatchSize
     case imagePromptContextSentences
     case imageWidth
     case imageHeight
@@ -414,6 +420,10 @@ enum AppleBookCreatePresentation {
 
     static func clampImagePromptContextSentences(_ value: Int) -> Int {
         clamp(value, to: 0...50)
+    }
+
+    static func clampImagePromptBatchSize(_ value: Int) -> Int {
+        clamp(value, to: 1...50)
     }
 
     static func normalizedImageDimension(_ value: String) -> String {
@@ -650,6 +660,9 @@ enum AppleBookCreatePresentation {
         includeImages: Bool,
         imagePromptPipeline: AppleGeneratedBookImagePromptPipeline,
         imageStyleTemplate: AppleGeneratedBookImageStyleTemplate,
+        imagePromptBatchingEnabled: Bool,
+        imagePromptBatchSize: Int,
+        imagePromptPlanBatchSize: Int,
         imagePromptContextSentences: Int,
         imageWidth: String,
         imageHeight: String,
@@ -671,6 +684,9 @@ enum AppleBookCreatePresentation {
             includeImages: includeImages,
             imagePromptPipeline: imagePromptPipeline.backendValue,
             imageStyleTemplate: imageStyleTemplate.backendValue,
+            imagePromptBatchingEnabled: imagePromptBatchingEnabled,
+            imagePromptBatchSize: clampImagePromptBatchSize(imagePromptBatchSize),
+            imagePromptPlanBatchSize: clampImagePromptBatchSize(imagePromptPlanBatchSize),
             imagePromptContextSentences: clampImagePromptContextSentences(imagePromptContextSentences),
             imageWidth: normalizedImageDimension(imageWidth),
             imageHeight: normalizedImageDimension(imageHeight),

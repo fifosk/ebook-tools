@@ -390,6 +390,11 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var includeImages: Bool
     @Binding var imagePromptPipeline: AppleGeneratedBookImagePromptPipeline
     @Binding var imageStyleTemplate: AppleGeneratedBookImageStyleTemplate
+    @Binding var imagePromptBatchingEnabled: Bool
+    @Binding var imagePromptBatchSize: Int
+    let clampedImagePromptBatchSize: Int
+    @Binding var imagePromptPlanBatchSize: Int
+    let clampedImagePromptPlanBatchSize: Int
     @Binding var imagePromptContextSentences: Int
     let clampedImagePromptContextSentences: Int
     @Binding var imageWidth: String
@@ -417,6 +422,26 @@ struct AppleBookCreateGeneratedOutputControls: View {
                     }
                     .accessibilityIdentifier("createBookImageStylePicker")
                     #if os(iOS)
+                    Toggle("Shared images", isOn: $imagePromptBatchingEnabled)
+                        .accessibilityIdentifier("createBookImagePromptBatchingToggle")
+                    if imagePromptBatchingEnabled {
+                        Stepper(
+                            value: $imagePromptBatchSize,
+                            in: 1...50,
+                            step: 1
+                        ) {
+                            LabeledContent("Sentences per image", value: "\(clampedImagePromptBatchSize)")
+                        }
+                        .accessibilityIdentifier("createBookImagePromptBatchSizeStepper")
+                    }
+                    Stepper(
+                        value: $imagePromptPlanBatchSize,
+                        in: 1...50,
+                        step: 1
+                    ) {
+                        LabeledContent("Prompt plan batch", value: "\(clampedImagePromptPlanBatchSize)")
+                    }
+                    .accessibilityIdentifier("createBookImagePromptPlanBatchSizeStepper")
                     Stepper(
                         value: $imagePromptContextSentences,
                         in: 0...50,

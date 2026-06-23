@@ -191,6 +191,9 @@ final class AppleBookCreateViewModel: ObservableObject {
                 from: generatedDefaults,
                 imagePromptPipeline: draft.imagePromptPipeline,
                 imageStyleTemplate: draft.imageStyleTemplate,
+                imagePromptBatchingEnabled: draft.imagePromptBatchingEnabled,
+                imagePromptBatchSize: draft.imagePromptBatchSize,
+                imagePromptPlanBatchSize: draft.imagePromptPlanBatchSize,
                 imagePromptContextSentences: draft.imagePromptContextSentences,
                 imageWidth: draft.imageWidth,
                 imageHeight: draft.imageHeight
@@ -291,6 +294,9 @@ final class AppleBookCreateViewModel: ObservableObject {
         from defaults: BookCreationGeneratedSourceDefaults?,
         imagePromptPipeline: String? = nil,
         imageStyleTemplate: String? = nil,
+        imagePromptBatchingEnabled: Bool? = nil,
+        imagePromptBatchSize: Int? = nil,
+        imagePromptPlanBatchSize: Int? = nil,
         imagePromptContextSentences: Int? = nil,
         imageWidth: String? = nil,
         imageHeight: String? = nil
@@ -312,6 +318,15 @@ final class AppleBookCreateViewModel: ObservableObject {
         if let imageStyleTemplate = imageStyleTemplate?.trimmingCharacters(in: .whitespacesAndNewlines),
            !imageStyleTemplate.isEmpty {
             overrides["image_style_template"] = .string(imageStyleTemplate)
+        }
+        if let imagePromptBatchingEnabled {
+            overrides["image_prompt_batching_enabled"] = .bool(imagePromptBatchingEnabled)
+        }
+        if let imagePromptBatchSize {
+            overrides["image_prompt_batch_size"] = .number(Double(imagePromptBatchSize))
+        }
+        if let imagePromptPlanBatchSize {
+            overrides["image_prompt_plan_batch_size"] = .number(Double(imagePromptPlanBatchSize))
         }
         if let imagePromptContextSentences {
             overrides["image_prompt_context_sentences"] = .number(Double(imagePromptContextSentences))

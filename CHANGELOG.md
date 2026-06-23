@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.11
+
+- Advanced visible Apple app versioning to `v2026.06.23.11`.
+- Apple generated-book creation on iPhone and iPad now lets Prompt plan illustration jobs group sentences into shared images and tune prompt-plan batch size before submit.
+
 ### 2026.06.23.10
 
 - Advanced visible Apple app versioning to `v2026.06.23.10`.

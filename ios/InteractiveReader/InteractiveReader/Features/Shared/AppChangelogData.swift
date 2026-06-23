@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.10",
+            version: "2026.06.23.11",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-generated-book-image-batching",
+                    title: "Apple image batching",
+                    detail: "Generated-book creation on iPhone and iPad now lets Prompt plan illustration jobs group sentences into shared images and tune prompt-plan batch size before submit."
+                ),
                 AppChangelogEntry(
                     id: "apple-generated-book-image-dimensions",
                     title: "Apple image dimensions",

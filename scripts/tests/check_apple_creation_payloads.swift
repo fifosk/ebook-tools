@@ -395,6 +395,14 @@ struct AppleCreationPayloadCheck {
             "Image prompt context should clamp to the Web submission upper bound"
         )
         require(
+            AppleBookCreatePresentation.clampImagePromptBatchSize(0) == 1,
+            "Image prompt batch size should clamp to the Web submission lower bound"
+        )
+        require(
+            AppleBookCreatePresentation.clampImagePromptBatchSize(99) == 50,
+            "Image prompt batch size should clamp to the Web submission upper bound"
+        )
+        require(
             AppleBookCreatePresentation.normalizedImageDimension("63.9") == "64",
             "Image dimensions should clamp below-minimum numeric input"
         )
@@ -477,6 +485,9 @@ struct AppleCreationPayloadCheck {
             includeImages: true,
             imagePromptPipeline: .visualCanon,
             imageStyleTemplate: .childrenBook,
+            imagePromptBatchingEnabled: false,
+            imagePromptBatchSize: 0,
+            imagePromptPlanBatchSize: 99,
             imagePromptContextSentences: 99,
             imageWidth: "63.9",
             imageHeight: "1024.8",
@@ -495,6 +506,18 @@ struct AppleCreationPayloadCheck {
         require(
             generatedDraft.imageStyleTemplate == "children_book",
             "Generated draft should keep the selected image style backend id"
+        )
+        require(
+            generatedDraft.imagePromptBatchingEnabled == false,
+            "Generated draft should keep the selected image prompt batching toggle"
+        )
+        require(
+            generatedDraft.imagePromptBatchSize == 1,
+            "Generated draft should clamp the selected image prompt batch size"
+        )
+        require(
+            generatedDraft.imagePromptPlanBatchSize == 50,
+            "Generated draft should clamp the selected image prompt plan batch size"
         )
         require(
             generatedDraft.imagePromptContextSentences == 50,
@@ -624,6 +647,9 @@ struct AppleCreationPayloadCheck {
             pipelineOverrides: [
                 "image_prompt_context_sentences": .number(4),
                 "image_prompt_pipeline": .string("visual_canon"),
+                "image_prompt_batching_enabled": .bool(false),
+                "image_prompt_batch_size": .number(8),
+                "image_prompt_plan_batch_size": .number(16),
                 "image_style_template": .string("children_book"),
                 "image_width": .string("768"),
                 "image_height": .string("512"),
@@ -648,6 +674,18 @@ struct AppleCreationPayloadCheck {
         require(
             pipelineOverrides?["image_prompt_context_sentences"] as? Int == 4,
             "pipeline overrides should encode selected image prompt context"
+        )
+        require(
+            pipelineOverrides?["image_prompt_batching_enabled"] as? Bool == false,
+            "pipeline overrides should encode selected image prompt batching toggle"
+        )
+        require(
+            pipelineOverrides?["image_prompt_batch_size"] as? Int == 8,
+            "pipeline overrides should encode selected image prompt batch size"
+        )
+        require(
+            pipelineOverrides?["image_prompt_plan_batch_size"] as? Int == 16,
+            "pipeline overrides should encode selected image prompt plan batch size"
         )
         require(
             pipelineOverrides?["image_width"] as? String == "768",
