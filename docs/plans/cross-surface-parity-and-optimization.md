@@ -358,9 +358,9 @@ Suggested features to evaluate after parity scaffolding:
   `/api/admin/system/status` response; `/api/pipelines/intake/status` now
   exposes a narrower authenticated editor/admin-safe queue snapshot for
   creation surfaces; Web and Apple Create display that status before submit,
-  warn under pressure, and block submission when the backend hard queue limit
-  is reached. The shared pipeline backend gate now includes the focused
-  system-route pytest.
+  warn under pressure, block submission when the backend hard queue limit
+  is reached, and refresh the snapshot after successful enqueue. The shared
+  pipeline backend gate now includes the focused system-route pytest.
 - Smart resume cards: show "continue listening", "newly completed", and "needs attention" across all surfaces.
 - Shared media diagnostics: surface missing timing/audio/image assets without
   opening logs. Status: media manifest responses now include a token-safe

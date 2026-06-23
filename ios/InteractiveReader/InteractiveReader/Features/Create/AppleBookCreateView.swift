@@ -146,7 +146,7 @@ struct AppleBookCreateView: View {
         #endif
         .task(id: creationOptionsLoadKey) {
             await refreshCreationOptions()
-            await viewModel.loadIntakeStatus(using: appState, cacheKey: creationOptionsLoadKey)
+            await refreshIntakeStatus()
             await viewModel.loadSubtitleModels(using: appState, cacheKey: creationOptionsLoadKey)
         }
         #if os(iOS)
@@ -669,6 +669,7 @@ struct AppleBookCreateView: View {
 
         Task {
             if let jobId = await viewModel.submitGeneratedBook(draft, using: appState) {
+                await refreshIntakeStatus(force: true)
                 onJobSubmitted(jobId)
             }
         }
@@ -719,6 +720,7 @@ struct AppleBookCreateView: View {
                 localFilename: selectedSubtitleFileName,
                 using: appState
             ) {
+                await refreshIntakeStatus(force: true)
                 onJobSubmitted(jobId)
             }
         }
@@ -764,6 +766,7 @@ struct AppleBookCreateView: View {
 
         Task {
             if let jobId = await viewModel.submitYoutubeDub(draft, using: appState) {
+                await refreshIntakeStatus(force: true)
                 onJobSubmitted(jobId)
             }
         }
@@ -818,6 +821,7 @@ struct AppleBookCreateView: View {
                 localFilename: selectedNarrateFileName,
                 using: appState
             ) {
+                await refreshIntakeStatus(force: true)
                 onJobSubmitted(jobId)
             }
         }
@@ -829,6 +833,14 @@ struct AppleBookCreateView: View {
             selectedNarrateEndChapterID = ""
             await viewModel.loadNarrateChapters(inputFile: sourcePath, using: appState)
         }
+    }
+
+    private func refreshIntakeStatus(force: Bool = false) async {
+        await viewModel.loadIntakeStatus(
+            using: appState,
+            cacheKey: creationOptionsLoadKey,
+            force: force
+        )
     }
 
     private func clearNarrateChapterSelection() {

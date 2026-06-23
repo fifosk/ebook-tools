@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.52
+
+- Advanced visible Apple app versioning to `v2026.06.23.52`.
+- Web and Apple Create now refresh backend job intake status after successful submission, keeping queue pressure counts current after enqueue.
+
 ### 2026.06.23.51
 
 - Advanced visible Apple app versioning to `v2026.06.23.51`.

@@ -200,6 +200,7 @@ describe('BookNarrationForm', () => {
     expect(payload.inputs.generate_audio).toBe(true);
     expect(payload.inputs.voice_overrides).toEqual({ en: 'macOS-auto' });
     expect(payload.pipeline_overrides.voice_overrides).toEqual({ en: 'macOS-auto' });
+    await waitFor(() => expect(fetchPipelineIntakeStatus).toHaveBeenCalledTimes(2));
   }, 10000);
 
   it('shows queue capacity and blocks submit when intake is closed', async () => {

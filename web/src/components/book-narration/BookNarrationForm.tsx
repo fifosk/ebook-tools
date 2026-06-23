@@ -5,6 +5,7 @@ import {
   useRef,
   useState
 } from 'react';
+import type { FormEvent } from 'react';
 import { PipelineIntakeStatusResponse, PipelineStatusResponse } from '../../api/dtos';
 import { fetchPipelineIntakeStatus } from '../../api/client';
 import {
@@ -118,6 +119,12 @@ export function BookNarrationForm({
         : DEFAULT_FORM_STATE.enable_lookup_cache
   }));
   const [intakeStatus, setIntakeStatus] = useState<PipelineIntakeStatusResponse | null>(null);
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   useEffect(() => {
     setFormState((previous) => applyImageDefaults(previous));
   }, [applyImageDefaults]);
@@ -519,23 +526,22 @@ export function BookNarrationForm({
     });
   }, [forcedBaseOutputFile]);
 
-  useEffect(() => {
-    let isMounted = true;
-    void fetchPipelineIntakeStatus()
-      .then((status) => {
-        if (isMounted) {
-          setIntakeStatus(status);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setIntakeStatus(null);
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
+  const refreshIntakeStatus = useCallback(async () => {
+    try {
+      const status = await fetchPipelineIntakeStatus();
+      if (isMountedRef.current) {
+        setIntakeStatus(status);
+      }
+    } catch {
+      if (isMountedRef.current) {
+        setIntakeStatus(null);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshIntakeStatus();
+  }, [refreshIntakeStatus]);
 
   const { handleSubmit } = useBookNarrationSubmit({
     formState,
@@ -551,6 +557,14 @@ export function BookNarrationForm({
     onSubmit,
     setError
   });
+
+  const handleSubmitAndRefreshIntake = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      await handleSubmit(event);
+      await refreshIntakeStatus();
+    },
+    [handleSubmit, refreshIntakeStatus]
+  );
 
   const headerTitle = sectionMeta[activeTab]?.title ?? 'Submit a book job';
   const headerDescription =
@@ -586,7 +600,7 @@ export function BookNarrationForm({
           <p>{headerDescription}</p>
         </>
       ) : null}
-      <form className="pipeline-form" onSubmit={handleSubmit} noValidate>
+      <form className="pipeline-form" onSubmit={handleSubmitAndRefreshIntake} noValidate>
         <div className="pipeline-step-bar">
           <div className="pipeline-step-tabs" role="tablist" aria-label="Pipeline steps">
             {tabSections.map((section) => {
