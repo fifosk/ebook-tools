@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.23",
+            version: "2026.06.23.24",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-book-performance-overrides",
+                    title: "Apple book performance",
+                    detail: "Generated-book and Narrate EPUB creation now expose Web-aligned worker threads, queue size, and max job worker overrides for backend performance tuning."
+                ),
                 AppChangelogEntry(
                     id: "apple-book-cover-file",
                     title: "Apple book cover path",

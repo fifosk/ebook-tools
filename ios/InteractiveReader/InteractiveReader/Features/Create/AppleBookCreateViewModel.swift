@@ -195,6 +195,12 @@ final class AppleBookCreateViewModel: ObservableObject {
             imageConcurrency: draft.imageConcurrency,
             imageApiTimeoutSeconds: draft.imageApiTimeoutSeconds
         )
+        mergeBookPerformanceOverrides(
+            threadCount: draft.threadCount,
+            queueSize: draft.queueSize,
+            jobMaxWorkers: draft.jobMaxWorkers,
+            into: &pipelineOverrides
+        )
         mergeBookModelOverride(draft.llmModel, into: &pipelineOverrides)
         let bookMetadata = makeBookMetadata(
             title: draft.bookName,
@@ -253,6 +259,12 @@ final class AppleBookCreateViewModel: ObservableObject {
 
     private static func makePipelineSubmission(from draft: AppleNarrateEbookDraft) -> PipelineRequestPayload {
         var pipelineOverrides = [String: JSONValue]()
+        mergeBookPerformanceOverrides(
+            threadCount: draft.threadCount,
+            queueSize: draft.queueSize,
+            jobMaxWorkers: draft.jobMaxWorkers,
+            into: &pipelineOverrides
+        )
         mergeBookModelOverride(draft.llmModel, into: &pipelineOverrides)
         let bookMetadata = makeBookMetadata(
             title: draft.baseOutput,
@@ -497,6 +509,23 @@ final class AppleBookCreateViewModel: ObservableObject {
             return
         }
         overrides["ollama_model"] = .string(model)
+    }
+
+    private static func mergeBookPerformanceOverrides(
+        threadCount: Int?,
+        queueSize: Int?,
+        jobMaxWorkers: Int?,
+        into overrides: inout [String: JSONValue]
+    ) {
+        if let threadCount {
+            overrides["thread_count"] = .number(Double(threadCount))
+        }
+        if let queueSize {
+            overrides["queue_size"] = .number(Double(queueSize))
+        }
+        if let jobMaxWorkers {
+            overrides["job_max_workers"] = .number(Double(jobMaxWorkers))
+        }
     }
 
     private static func makeSubtitlePayload(from draft: AppleSubtitleJobDraft) -> SubtitleJobFormPayload {

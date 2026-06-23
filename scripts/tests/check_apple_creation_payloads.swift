@@ -604,6 +604,9 @@ struct AppleCreationPayloadCheck {
             imageBlankDetectionEnabled: true,
             imageConcurrency: "2.9",
             imageApiTimeoutSeconds: "0",
+            threadCount: "3.9",
+            queueSize: "0",
+            jobMaxWorkers: " 5 ",
             pipelineDefaults: options.pipelineDefaults,
             generatedSourceDefaults: options.generatedSourceDefaults
         )
@@ -667,6 +670,9 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.imageBlankDetectionEnabled, "Generated draft should keep blank-detection toggle")
         require(generatedDraft.imageConcurrency == 2, "Generated draft should floor selected image concurrency")
         require(generatedDraft.imageApiTimeoutSeconds == 1, "Generated draft should clamp selected image timeout")
+        require(generatedDraft.threadCount == 3, "Generated draft should floor selected worker threads")
+        require(generatedDraft.queueSize == 1, "Generated draft should clamp selected queue size")
+        require(generatedDraft.jobMaxWorkers == 5, "Generated draft should trim selected max job workers")
         require(generatedDraft.pipelineDefaults == options.pipelineDefaults, "Generated draft should carry pipeline defaults")
         require(
             generatedDraft.generatedSourceDefaults == options.generatedSourceDefaults,
@@ -702,6 +708,9 @@ struct AppleCreationPayloadCheck {
             lookupCacheBatchSize: 2,
             outputHtml: false,
             outputPdf: true,
+            threadCount: " 4 ",
+            queueSize: "",
+            jobMaxWorkers: "2.7",
             pipelineDefaults: options.pipelineDefaults
         )
         require(narrateDraft.inputFile == "imports/demo.epub", "Narrate draft should trim input path")
@@ -726,6 +735,9 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.transliterationModel == nil, "Narrate draft should omit model when transliteration is off")
         require(narrateDraft.lookupCacheBatchSize == 2, "Narrate draft should keep selected lookup cache batch size")
         require(narrateDraft.outputPdf == true, "Narrate draft should keep selected PDF output toggle")
+        require(narrateDraft.threadCount == 4, "Narrate draft should trim selected worker threads")
+        require(narrateDraft.queueSize == nil, "Narrate draft should omit blank queue size")
+        require(narrateDraft.jobMaxWorkers == 2, "Narrate draft should floor selected max job workers")
 
         let subtitleDraft = AppleBookCreatePresentation.subtitleJobDraft(
             sourcePath: " Subtitles/demo.srt ",
@@ -865,6 +877,9 @@ struct AppleCreationPayloadCheck {
                 "image_blank_detection_enabled": .bool(true),
                 "image_concurrency": .number(4),
                 "image_api_timeout_seconds": .number(300),
+                "thread_count": .number(3),
+                "queue_size": .number(5),
+                "job_max_workers": .number(2),
                 "ollama_model": .string("gpt-4.1-mini"),
                 "tempo": .number(1.08)
             ],
@@ -939,6 +954,18 @@ struct AppleCreationPayloadCheck {
         require(
             pipelineOverrides?["image_api_timeout_seconds"] as? Int == 300,
             "pipeline overrides should encode selected image API timeout"
+        )
+        require(
+            pipelineOverrides?["thread_count"] as? Int == 3,
+            "pipeline overrides should encode selected worker threads"
+        )
+        require(
+            pipelineOverrides?["queue_size"] as? Int == 5,
+            "pipeline overrides should encode selected queue size"
+        )
+        require(
+            pipelineOverrides?["job_max_workers"] as? Int == 2,
+            "pipeline overrides should encode selected job worker cap"
         )
         require(
             pipelineOverrides?["ollama_model"] as? String == "gpt-4.1-mini",

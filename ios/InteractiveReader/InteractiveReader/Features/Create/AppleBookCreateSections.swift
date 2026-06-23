@@ -453,6 +453,9 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var imageBlankDetectionEnabled: Bool
     @Binding var imageConcurrency: String
     @Binding var imageApiTimeoutSeconds: String
+    @Binding var threadCount: String
+    @Binding var queueSize: String
+    @Binding var jobMaxWorkers: String
     let supportsImages: Bool
 
     var body: some View {
@@ -737,5 +740,20 @@ struct AppleBookCreateGeneratedOutputControls: View {
             .accessibilityIdentifier("createBookLookupCacheBatchSizeControl")
         }
         #endif
+        TextField("Worker threads", text: $threadCount)
+            #if os(iOS)
+            .keyboardType(.numberPad)
+            #endif
+            .accessibilityIdentifier("createBookThreadCountField")
+        TextField("Queue size", text: $queueSize)
+            #if os(iOS)
+            .keyboardType(.numberPad)
+            #endif
+            .accessibilityIdentifier("createBookQueueSizeField")
+        TextField("Max job workers", text: $jobMaxWorkers)
+            #if os(iOS)
+            .keyboardType(.numberPad)
+            #endif
+            .accessibilityIdentifier("createBookJobMaxWorkersField")
     }
 }

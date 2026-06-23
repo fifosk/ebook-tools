@@ -47,6 +47,9 @@ struct AppleBookCreateDraft: Equatable {
     let imageBlankDetectionEnabled: Bool
     let imageConcurrency: Int?
     let imageApiTimeoutSeconds: Double?
+    let threadCount: Int?
+    let queueSize: Int?
+    let jobMaxWorkers: Int?
     let pipelineDefaults: BookCreationPipelineDefaults?
     let generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
 }
@@ -80,6 +83,9 @@ struct AppleNarrateEbookDraft: Equatable {
     let lookupCacheBatchSize: Int
     let outputHtml: Bool
     let outputPdf: Bool
+    let threadCount: Int?
+    let queueSize: Int?
+    let jobMaxWorkers: Int?
     let pipelineDefaults: BookCreationPipelineDefaults?
 
     func replacingInputFile(_ inputFile: String) -> AppleNarrateEbookDraft {
@@ -112,6 +118,9 @@ struct AppleNarrateEbookDraft: Equatable {
             lookupCacheBatchSize: lookupCacheBatchSize,
             outputHtml: outputHtml,
             outputPdf: outputPdf,
+            threadCount: threadCount,
+            queueSize: queueSize,
+            jobMaxWorkers: jobMaxWorkers,
             pipelineDefaults: pipelineDefaults
         )
     }
@@ -375,6 +384,9 @@ enum AppleBookCreateEditedField: Hashable {
     case imageBlankDetectionEnabled
     case imageConcurrency
     case imageApiTimeoutSeconds
+    case threadCount
+    case queueSize
+    case jobMaxWorkers
 }
 
 struct AppleCreateResolvedDefaults: Equatable {
@@ -920,6 +932,9 @@ enum AppleBookCreatePresentation {
         imageBlankDetectionEnabled: Bool,
         imageConcurrency: String,
         imageApiTimeoutSeconds: String,
+        threadCount: String,
+        queueSize: String,
+        jobMaxWorkers: String,
         pipelineDefaults: BookCreationPipelineDefaults?,
         generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
     ) -> AppleBookCreateDraft {
@@ -972,6 +987,9 @@ enum AppleBookCreatePresentation {
             imageBlankDetectionEnabled: imageBlankDetectionEnabled,
             imageConcurrency: normalizedPositiveInteger(imageConcurrency),
             imageApiTimeoutSeconds: normalizedPositiveNumber(imageApiTimeoutSeconds),
+            threadCount: normalizedPositiveInteger(threadCount),
+            queueSize: normalizedPositiveInteger(queueSize),
+            jobMaxWorkers: normalizedPositiveInteger(jobMaxWorkers),
             pipelineDefaults: pipelineDefaults,
             generatedSourceDefaults: generatedSourceDefaults
         )
@@ -1006,6 +1024,9 @@ enum AppleBookCreatePresentation {
         lookupCacheBatchSize: Int,
         outputHtml: Bool,
         outputPdf: Bool,
+        threadCount: String,
+        queueSize: String,
+        jobMaxWorkers: String,
         pipelineDefaults: BookCreationPipelineDefaults?
     ) -> AppleNarrateEbookDraft {
         let normalizedStart = normalizedPositiveInteger(startSentence) ?? 1
@@ -1040,6 +1061,9 @@ enum AppleBookCreatePresentation {
             lookupCacheBatchSize: clampSubtitleTranslationBatchSize(lookupCacheBatchSize),
             outputHtml: outputHtml,
             outputPdf: outputPdf,
+            threadCount: normalizedPositiveInteger(threadCount),
+            queueSize: normalizedPositiveInteger(queueSize),
+            jobMaxWorkers: normalizedPositiveInteger(jobMaxWorkers),
             pipelineDefaults: pipelineDefaults
         )
     }

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.24
+
+- Advanced visible Apple app versioning to `v2026.06.23.24`.
+- Apple generated-book and Narrate EPUB creation now expose Web-aligned worker threads, queue size, and max job worker overrides for backend performance tuning.
+
 ### 2026.06.23.23
 
 - Advanced visible Apple app versioning to `v2026.06.23.23`.

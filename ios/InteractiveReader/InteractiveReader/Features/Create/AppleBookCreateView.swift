@@ -96,6 +96,9 @@ struct AppleBookCreateView: View {
     @State private var imageBlankDetectionEnabled = false
     @State private var imageConcurrency = ""
     @State private var imageApiTimeoutSeconds = ""
+    @State private var bookThreadCount = ""
+    @State private var bookQueueSize = ""
+    @State private var bookJobMaxWorkers = ""
     @State private var editedFields = Set<AppleBookCreateEditedField>()
 
     var body: some View {
@@ -374,6 +377,9 @@ struct AppleBookCreateView: View {
                         for: .imageApiTimeoutSeconds,
                         value: $imageApiTimeoutSeconds
                     ),
+                    threadCount: textBinding(for: .threadCount, value: $bookThreadCount),
+                    queueSize: textBinding(for: .queueSize, value: $bookQueueSize),
+                    jobMaxWorkers: textBinding(for: .jobMaxWorkers, value: $bookJobMaxWorkers),
                     supportsImages: creationMode == .generatedBook
                 )
             }
@@ -550,6 +556,9 @@ struct AppleBookCreateView: View {
             imageBlankDetectionEnabled: imageBlankDetectionEnabled,
             imageConcurrency: imageConcurrency,
             imageApiTimeoutSeconds: imageApiTimeoutSeconds,
+            threadCount: bookThreadCount,
+            queueSize: bookQueueSize,
+            jobMaxWorkers: bookJobMaxWorkers,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults,
             generatedSourceDefaults: viewModel.creationOptions?.generatedSourceDefaults
         )
@@ -686,6 +695,9 @@ struct AppleBookCreateView: View {
             lookupCacheBatchSize: bookLookupCacheBatchSize,
             outputHtml: outputHtml,
             outputPdf: outputPdf,
+            threadCount: bookThreadCount,
+            queueSize: bookQueueSize,
+            jobMaxWorkers: bookJobMaxWorkers,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults
         )
 
