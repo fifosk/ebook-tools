@@ -28,6 +28,10 @@ EXPECTED_CREATE_PATHS = {
     "subtitleModelsPath": "/api/subtitles/models",
     "subtitleJobsPath": "/api/subtitles/jobs",
     "youtubeLibraryPath": "/api/subtitles/youtube/library",
+    "youtubeSubtitleStreamsPath": "/api/subtitles/youtube/subtitle-streams",
+    "youtubeExtractSubtitlesPath": "/api/subtitles/youtube/extract-subtitles",
+    "subtitleTvMetadataPreviewPath": "/api/subtitles/metadata/tv/lookup",
+    "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
     "youtubeDubPath": "/api/subtitles/youtube/dub",
 }
 MIN_SUPPORTED_BOOK_LANGUAGES = 50
