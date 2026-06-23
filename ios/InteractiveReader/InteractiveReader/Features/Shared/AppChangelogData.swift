@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.1",
+            version: "2026.06.24.2",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-youtube-inline-subtitles",
+                    title: "Create extracts subtitles",
+                    detail: "Apple Create YouTube Dub can now inspect embedded subtitle streams in a selected NAS video, extract text subtitle tracks through the backend, refresh the NAS library, and select the extracted subtitle for the job."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-ipad-two-column-detail",
                     title: "Create uses iPad space",

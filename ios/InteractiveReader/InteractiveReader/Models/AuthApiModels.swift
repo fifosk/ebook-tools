@@ -44,6 +44,8 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let subtitleModelsPath: String?
         let subtitleJobsPath: String?
         let youtubeLibraryPath: String?
+        let youtubeSubtitleStreamsPath: String?
+        let youtubeExtractSubtitlesPath: String?
         let youtubeDubPath: String?
     }
 

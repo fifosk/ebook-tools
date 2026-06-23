@@ -258,6 +258,56 @@ struct YoutubeNasLibraryResponse: Decodable, Equatable {
     let videos: [YoutubeNasVideoEntry]
 }
 
+struct YoutubeInlineSubtitleStream: Decodable, Equatable, Identifiable {
+    let index: Int
+    let position: Int
+    let language: String?
+    let codec: String?
+    let title: String?
+    let canExtract: Bool
+
+    var id: Int { index }
+
+    enum CodingKeys: String, CodingKey {
+        case index
+        case position
+        case language
+        case codec
+        case title
+        case canExtract = "can_extract"
+    }
+}
+
+struct YoutubeInlineSubtitleListResponse: Decodable, Equatable {
+    let videoPath: String
+    let streams: [YoutubeInlineSubtitleStream]
+
+    enum CodingKeys: String, CodingKey {
+        case videoPath = "video_path"
+        case streams
+    }
+}
+
+struct YoutubeSubtitleExtractionRequestPayload: Encodable, Equatable {
+    let videoPath: String
+    let languages: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case videoPath = "video_path"
+        case languages
+    }
+}
+
+struct YoutubeSubtitleExtractionResponse: Decodable, Equatable {
+    let videoPath: String
+    let extracted: [YoutubeNasSubtitleEntry]
+
+    enum CodingKeys: String, CodingKey {
+        case videoPath = "video_path"
+        case extracted
+    }
+}
+
 struct BookCreationSentenceBounds: Decodable, Equatable {
     let min: Int
     let max: Int

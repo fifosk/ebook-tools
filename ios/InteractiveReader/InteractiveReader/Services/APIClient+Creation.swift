@@ -12,6 +12,8 @@ enum AppleCreateRuntimeContract {
     static let subtitleModelsPath = "/api/subtitles/models"
     static let subtitleJobsPath = "/api/subtitles/jobs"
     static let youtubeLibraryPath = "/api/subtitles/youtube/library"
+    static let youtubeSubtitleStreamsPath = "/api/subtitles/youtube/subtitle-streams"
+    static let youtubeExtractSubtitlesPath = "/api/subtitles/youtube/extract-subtitles"
     static let youtubeDubPath = "/api/subtitles/youtube/dub"
 }
 
@@ -69,6 +71,24 @@ extension APIClient {
         }
         let data = try await sendRequest(path: path)
         return try decode(YoutubeNasLibraryResponse.self, from: data)
+    }
+
+    func fetchYoutubeSubtitleStreams(videoPath: String) async throws -> YoutubeInlineSubtitleListResponse {
+        let trimmed = videoPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        var components = URLComponents()
+        components.queryItems = [URLQueryItem(name: "video_path", value: trimmed)]
+        let query = components.percentEncodedQuery ?? ""
+        let data = try await sendRequest(path: "\(AppleCreateRuntimeContract.youtubeSubtitleStreamsPath)?\(query)")
+        return try decode(YoutubeInlineSubtitleListResponse.self, from: data)
+    }
+
+    func extractYoutubeSubtitles(_ payload: YoutubeSubtitleExtractionRequestPayload) async throws -> YoutubeSubtitleExtractionResponse {
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.youtubeExtractSubtitlesPath,
+            method: "POST",
+            payload: payload
+        )
+        return try decode(YoutubeSubtitleExtractionResponse.self, from: data)
     }
 
     func submitPipeline(_ payload: PipelineRequestPayload) async throws -> PipelineSubmissionResponse {

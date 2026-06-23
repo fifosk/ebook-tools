@@ -1,6 +1,6 @@
 # Cross-Surface Parity And Optimization Plan
 
-Last updated: 2026-06-23
+Last updated: 2026-06-24
 
 ## Goal
 
@@ -357,11 +357,14 @@ After Narrate Ebook:
   gap: rich TV/film metadata lookup/editing.
 - Generated book job creation on iPad.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
-  exposes a path-based iPhone/iPad YouTube Dub mode for existing backend/NAS
-  video and subtitle files and submits `/api/subtitles/youtube/dub` with
-  language, voice, clip-window, batching, provider/model, output, and
-  lookup-cache options. Remaining parity gaps: NAS library picker, inline
-  subtitle extraction, voice preview, and rich TV/YouTube metadata lookup/editing.
+  exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
+  files, including NAS library video/subtitle pickers, remembered base
+  directories, embedded subtitle stream inspection/extraction through
+  `/api/subtitles/youtube/subtitle-streams` and
+  `/api/subtitles/youtube/extract-subtitles`, and
+  `/api/subtitles/youtube/dub` submission with language, voice, clip-window,
+  batching, provider/model, output, and lookup-cache options. Remaining parity
+  gaps: voice preview and rich TV/YouTube metadata lookup/editing.
 - Library source reupload on iPhone/iPad. Status: Library row context menus now
   expose Replace Source File, open a document picker for EPUB/PDF sources, post
   the file to `/api/library/items/{job_id}/upload-source`, and replace the

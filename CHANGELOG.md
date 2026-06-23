@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.2
+
+- Advanced visible Apple app versioning to `v2026.06.24.2`.
+- Apple Create YouTube Dub can now inspect embedded subtitle streams in a selected NAS video, extract text subtitle tracks through the backend, refresh the NAS library, and select the extracted subtitle for the job.
+
 ### 2026.06.24.1
 
 - Advanced visible Apple app versioning to `v2026.06.24.1`.

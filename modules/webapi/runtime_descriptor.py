@@ -40,6 +40,8 @@ CREATION_DESCRIPTOR = {
     "subtitleModelsPath": "/api/subtitles/models",
     "subtitleJobsPath": "/api/subtitles/jobs",
     "youtubeLibraryPath": "/api/subtitles/youtube/library",
+    "youtubeSubtitleStreamsPath": "/api/subtitles/youtube/subtitle-streams",
+    "youtubeExtractSubtitlesPath": "/api/subtitles/youtube/extract-subtitles",
     "youtubeDubPath": "/api/subtitles/youtube/dub",
 }
 ALLOWED_PUBLIC_METADATA_KEYS = frozenset(

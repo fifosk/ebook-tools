@@ -166,3 +166,18 @@ def test_ios_create_languages_use_reachable_list_selector() -> None:
     assert '.searchable(text: $searchText, prompt: "Search Languages")' in source
     assert '.sheet(item: $selectedLanguage)' in source
     assert '.accessibilityIdentifier("\\(accessibilityIdentifier).\\(language.id)")' in source
+
+
+def test_youtube_create_exposes_inline_subtitle_extraction_controls() -> None:
+    sections_source = _source(CREATE_SECTIONS)
+    view_source = _source(CREATE_VIEW)
+
+    assert "embeddedYoutubeSubtitleControls" in sections_source
+    assert 'accessibilityIdentifier("createYoutubeInspectEmbeddedSubtitlesButton")' in sections_source
+    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitleLanguagesField")' in sections_source
+    assert 'accessibilityIdentifier("createYoutubeExtractEmbeddedSubtitlesButton")' in sections_source
+    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesMessage")' in sections_source
+    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesError")' in sections_source
+    assert "youtubeInlineSubtitleStreams: viewModel.youtubeInlineSubtitleStreams" in view_source
+    assert "onInspectYoutubeSubtitles: inspectYoutubeSubtitles" in view_source
+    assert "onExtractYoutubeSubtitles: extractYoutubeSubtitles" in view_source

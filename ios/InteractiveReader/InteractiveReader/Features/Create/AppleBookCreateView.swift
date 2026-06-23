@@ -48,6 +48,7 @@ struct AppleBookCreateView: View {
     @State private var youtubePreserveAspectRatio = true
     @State private var youtubeSplitBatches = true
     @State private var youtubeStitchBatches = true
+    @State private var youtubeSubtitleExtractionLanguages = ""
     @State private var subtitleOutputFormat = AppleSubtitleOutputFormat.ass
     @State private var subtitleStartTime = "00:00"
     @State private var subtitleEndTime = ""
@@ -162,6 +163,8 @@ struct AppleBookCreateView: View {
             persistYoutubeBaseDir(newValue)
         }
         .onChange(of: youtubeVideoPath) { _, newValue in
+            youtubeSubtitleExtractionLanguages = ""
+            viewModel.resetYoutubeSubtitleExtractionState()
             persistYoutubeSelectionPath(newValue, field: "video")
         }
         .onChange(of: youtubeSubtitlePath) { _, newValue in
@@ -273,9 +276,11 @@ struct AppleBookCreateView: View {
             youtubeBaseDir: $youtubeBaseDir,
             youtubeVideoPath: textBinding(for: .youtubeVideoPath, value: $youtubeVideoPath),
             youtubeSubtitlePath: textBinding(for: .youtubeSubtitlePath, value: $youtubeSubtitlePath),
+            youtubeSubtitleExtractionLanguages: $youtubeSubtitleExtractionLanguages,
             pipelineFiles: viewModel.pipelineFiles,
             subtitleSources: viewModel.subtitleSources,
             youtubeLibrary: viewModel.youtubeLibrary,
+            youtubeInlineSubtitleStreams: viewModel.youtubeInlineSubtitleStreams,
             selectedNarrateFileName: selectedNarrateFileName,
             selectedSubtitleFileName: selectedSubtitleFileName,
             narrateChapterOptions: viewModel.narrateChapterOptions,
@@ -285,10 +290,14 @@ struct AppleBookCreateView: View {
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
             isLoadingSubtitleSources: viewModel.isLoadingSubtitleSources,
             isLoadingYoutubeLibrary: viewModel.isLoadingYoutubeLibrary,
+            isLoadingYoutubeSubtitleStreams: viewModel.isLoadingYoutubeSubtitleStreams,
+            isExtractingYoutubeSubtitles: viewModel.isExtractingYoutubeSubtitles,
             pipelineFilesErrorMessage: viewModel.pipelineFilesErrorMessage,
             narrateChaptersErrorMessage: viewModel.narrateChaptersErrorMessage,
             subtitleSourcesErrorMessage: viewModel.subtitleSourcesErrorMessage,
             youtubeLibraryErrorMessage: viewModel.youtubeLibraryErrorMessage,
+            youtubeSubtitleExtractionMessage: viewModel.youtubeSubtitleExtractionMessage,
+            youtubeSubtitleExtractionErrorMessage: viewModel.youtubeSubtitleExtractionErrorMessage,
             onRefreshPipelineFiles: {
                 Task { await refreshPipelineFiles(force: true) }
             },
@@ -298,6 +307,8 @@ struct AppleBookCreateView: View {
             onRefreshYoutubeLibrary: {
                 Task { await refreshYoutubeLibrary(force: true) }
             },
+            onInspectYoutubeSubtitles: inspectYoutubeSubtitles,
+            onExtractYoutubeSubtitles: extractYoutubeSubtitles,
             onLoadNarrateChapters: loadNarrateChapters,
             onChooseNarrateFile: { isImportingNarrateEbook = true },
             onChooseSubtitleFile: { isImportingSubtitleFile = true }
@@ -1018,6 +1029,52 @@ struct AppleBookCreateView: View {
             youtubeBaseDir = resolvedBaseDir
         }
         applyPreferredYoutubeSource(from: library)
+    }
+
+    private func inspectYoutubeSubtitles() {
+        Task {
+            guard let response = await viewModel.loadYoutubeSubtitleStreams(
+                videoPath: youtubeVideoPath,
+                using: appState
+            ) else {
+                return
+            }
+            let defaults = AppleBookCreatePresentation.defaultYoutubeInlineSubtitleLanguages(
+                from: response.streams
+            )
+            youtubeSubtitleExtractionLanguages = defaults.joined(separator: ", ")
+        }
+    }
+
+    private func extractYoutubeSubtitles() {
+        Task {
+            let languages = AppleBookCreatePresentation.normalizedYoutubeInlineSubtitleLanguages(
+                youtubeSubtitleExtractionLanguages
+            )
+            guard let response = await viewModel.extractYoutubeSubtitles(
+                videoPath: youtubeVideoPath,
+                languages: languages,
+                using: appState
+            ) else {
+                return
+            }
+            let selectedVideoPath = youtubeVideoPath
+            let extractedSubtitlePath = response.extracted.first?.path
+            let library = await viewModel.loadYoutubeLibrary(
+                using: appState,
+                cacheKey: youtubeLibraryLoadKey,
+                baseDir: youtubeBaseDir,
+                force: true
+            )
+            if !trimmed(selectedVideoPath).isEmpty {
+                youtubeVideoPath = selectedVideoPath
+            }
+            if let extractedSubtitlePath, !trimmed(extractedSubtitlePath).isEmpty {
+                youtubeSubtitlePath = extractedSubtitlePath
+            } else {
+                applyPreferredYoutubeSource(from: library)
+            }
+        }
     }
 
     private func applyPreferredNarrateSource(from files: PipelineFileBrowserResponse?) {

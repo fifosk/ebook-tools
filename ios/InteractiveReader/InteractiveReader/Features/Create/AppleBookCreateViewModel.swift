@@ -11,17 +11,22 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var pipelineFiles: PipelineFileBrowserResponse?
     @Published private(set) var subtitleSources: SubtitleSourceListResponse?
     @Published private(set) var youtubeLibrary: YoutubeNasLibraryResponse?
+    @Published private(set) var youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream] = []
     @Published private(set) var voiceInventory: AppleBookCreateVoiceInventory?
     @Published private(set) var subtitleLlmModels: [String] = []
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
     @Published private(set) var isLoadingNarrateChapters = false
     @Published private(set) var isLoadingSubtitleSources = false
     @Published private(set) var isLoadingYoutubeLibrary = false
+    @Published private(set) var isLoadingYoutubeSubtitleStreams = false
+    @Published private(set) var isExtractingYoutubeSubtitles = false
     @Published private(set) var isLoadingVoiceInventory = false
     @Published private(set) var narrateChaptersErrorMessage: String?
     @Published private(set) var pipelineFilesErrorMessage: String?
     @Published private(set) var subtitleSourcesErrorMessage: String?
     @Published private(set) var youtubeLibraryErrorMessage: String?
+    @Published private(set) var youtubeSubtitleExtractionMessage: String?
+    @Published private(set) var youtubeSubtitleExtractionErrorMessage: String?
     @Published private(set) var voiceInventoryErrorMessage: String?
     @Published private(set) var voicePreviewStates: [String: AppleVoicePreviewState] = [:]
     @Published private(set) var voicePreviewErrorMessages: [String: String] = [:]
@@ -180,6 +185,88 @@ final class AppleBookCreateViewModel: ObservableObject {
         } catch {
             youtubeLibrary = nil
             youtubeLibraryErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func resetYoutubeSubtitleExtractionState() {
+        youtubeInlineSubtitleStreams = []
+        youtubeSubtitleExtractionMessage = nil
+        youtubeSubtitleExtractionErrorMessage = nil
+    }
+
+    func loadYoutubeSubtitleStreams(
+        videoPath: String,
+        using appState: AppState
+    ) async -> YoutubeInlineSubtitleListResponse? {
+        guard let configuration = appState.configuration else {
+            return nil
+        }
+        let trimmedPath = videoPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            youtubeInlineSubtitleStreams = []
+            youtubeSubtitleExtractionErrorMessage = "Select a NAS video before inspecting embedded subtitles."
+            return nil
+        }
+
+        isLoadingYoutubeSubtitleStreams = true
+        youtubeSubtitleExtractionMessage = nil
+        youtubeSubtitleExtractionErrorMessage = nil
+        defer { isLoadingYoutubeSubtitleStreams = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.fetchYoutubeSubtitleStreams(videoPath: trimmedPath)
+            youtubeInlineSubtitleStreams = response.streams
+            if AppleBookCreatePresentation.extractableYoutubeInlineSubtitleStreams(from: response.streams).isEmpty {
+                youtubeSubtitleExtractionErrorMessage = (
+                    "No text-based subtitle streams were found. "
+                    + "Image-based subtitle tracks cannot be extracted automatically."
+                )
+            }
+            return response
+        } catch {
+            youtubeInlineSubtitleStreams = []
+            youtubeSubtitleExtractionErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func extractYoutubeSubtitles(
+        videoPath: String,
+        languages: [String],
+        using appState: AppState
+    ) async -> YoutubeSubtitleExtractionResponse? {
+        guard let configuration = appState.configuration else {
+            return nil
+        }
+        let trimmedPath = videoPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            youtubeSubtitleExtractionErrorMessage = "Select a NAS video before extracting embedded subtitles."
+            return nil
+        }
+
+        isExtractingYoutubeSubtitles = true
+        youtubeSubtitleExtractionMessage = nil
+        youtubeSubtitleExtractionErrorMessage = nil
+        defer { isExtractingYoutubeSubtitles = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.extractYoutubeSubtitles(
+                YoutubeSubtitleExtractionRequestPayload(
+                    videoPath: trimmedPath,
+                    languages: languages.isEmpty ? nil : languages
+                )
+            )
+            youtubeSubtitleExtractionMessage = AppleBookCreatePresentation.youtubeSubtitleExtractionStatus(
+                extractedCount: response.extracted.count,
+                videoFilename: URL(fileURLWithPath: trimmedPath).lastPathComponent
+            )
+            youtubeInlineSubtitleStreams = []
+            return response
+        } catch {
+            youtubeSubtitleExtractionErrorMessage = error.localizedDescription
             return nil
         }
     }

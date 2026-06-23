@@ -221,6 +221,80 @@ struct AppleCreationPayloadCheck {
             ) == "https://api.example.test|editor|editor|youtubeBaseDir=/Volumes/Data/Download/DStation",
             "Apple Create should include the selected NAS base directory in YouTube library cache identity"
         )
+        let inlineSubtitleStreamsJSON = """
+        {
+          "video_path": "/nas/video-b.mp4",
+          "streams": [
+            {
+              "index": 3,
+              "position": 0,
+              "language": "es",
+              "codec": "dvd_subtitle",
+              "title": "Spanish bitmap",
+              "can_extract": false
+            },
+            {
+              "index": 4,
+              "position": 1,
+              "language": "en",
+              "codec": "subrip",
+              "title": "English CC",
+              "can_extract": true
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+        let inlineStreams = try decoder.decode(YoutubeInlineSubtitleListResponse.self, from: inlineSubtitleStreamsJSON)
+        require(
+            inlineStreams.videoPath == "/nas/video-b.mp4"
+                && inlineStreams.streams[0].canExtract == false
+                && inlineStreams.streams[1].canExtract == true,
+            "Apple Create should decode YouTube inline subtitle stream inventory"
+        )
+        require(
+            AppleBookCreatePresentation.defaultYoutubeInlineSubtitleLanguages(from: inlineStreams.streams) == ["en"],
+            "Apple Create should default embedded subtitle extraction to English text streams"
+        )
+        require(
+            AppleBookCreatePresentation.normalizedYoutubeInlineSubtitleLanguages(" en, sk\nEN ") == ["en", "sk"],
+            "Apple Create should normalize and de-duplicate embedded subtitle extraction language filters"
+        )
+        require(
+            AppleBookCreatePresentation.youtubeInlineSubtitleStreamLabel(inlineStreams.streams[1])
+                == "Text subtitle stream 4 · en · subrip · English CC",
+            "Apple Create should label embedded subtitle streams with extractability and metadata"
+        )
+        let extractionJSON = """
+        {
+          "video_path": "/nas/video-b.mp4",
+          "extracted": [
+            {
+              "path": "/nas/video-b.en.srt",
+              "filename": "video-b.en.srt",
+              "language": "en",
+              "format": "srt"
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+        let extraction = try decoder.decode(YoutubeSubtitleExtractionResponse.self, from: extractionJSON)
+        require(
+            extraction.extracted.first?.path == "/nas/video-b.en.srt",
+            "Apple Create should decode extracted YouTube subtitle paths"
+        )
+        let extractionPayload = YoutubeSubtitleExtractionRequestPayload(
+            videoPath: "/nas/video-b.mp4",
+            languages: ["en"]
+        )
+        let extractionPayloadJSON = String(data: try encoder.encode(extractionPayload), encoding: .utf8) ?? ""
+        let extractionPayloadObject = try JSONSerialization.jsonObject(
+            with: Data(extractionPayloadJSON.utf8)
+        ) as? [String: Any]
+        require(
+            extractionPayloadObject?["video_path"] as? String == "/nas/video-b.mp4"
+                && (extractionPayloadObject?["languages"] as? [String]) == ["en"],
+            "Apple Create should encode YouTube subtitle extraction requests using Web route keys"
+        )
         require(
             AppleBookCreatePresentation.subtitleShowOriginalPreferenceKey(
                 baseKey: "https://api.example.test|editor|editor"

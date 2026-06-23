@@ -13,9 +13,11 @@ struct AppleBookCreateSourceSection: View {
     @Binding var youtubeBaseDir: String
     @Binding var youtubeVideoPath: String
     @Binding var youtubeSubtitlePath: String
+    @Binding var youtubeSubtitleExtractionLanguages: String
     let pipelineFiles: PipelineFileBrowserResponse?
     let subtitleSources: SubtitleSourceListResponse?
     let youtubeLibrary: YoutubeNasLibraryResponse?
+    let youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream]
     let selectedNarrateFileName: String?
     let selectedSubtitleFileName: String?
     let narrateChapterOptions: [AppleCreateChapterOption]
@@ -25,13 +27,19 @@ struct AppleBookCreateSourceSection: View {
     let isLoadingNarrateChapters: Bool
     let isLoadingSubtitleSources: Bool
     let isLoadingYoutubeLibrary: Bool
+    let isLoadingYoutubeSubtitleStreams: Bool
+    let isExtractingYoutubeSubtitles: Bool
     let pipelineFilesErrorMessage: String?
     let narrateChaptersErrorMessage: String?
     let subtitleSourcesErrorMessage: String?
     let youtubeLibraryErrorMessage: String?
+    let youtubeSubtitleExtractionMessage: String?
+    let youtubeSubtitleExtractionErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
     let onRefreshSubtitleSources: () -> Void
     let onRefreshYoutubeLibrary: () -> Void
+    let onInspectYoutubeSubtitles: () -> Void
+    let onExtractYoutubeSubtitles: () -> Void
     let onLoadNarrateChapters: () -> Void
     let onChooseNarrateFile: () -> Void
     let onChooseSubtitleFile: () -> Void
@@ -320,6 +328,7 @@ struct AppleBookCreateSourceSection: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("createYoutubeVideoPathField")
+            embeddedYoutubeSubtitleControls
             if !youtubeSubtitleEntries.isEmpty {
                 Picker("Subtitle", selection: $youtubeSubtitlePath) {
                     Text("Manual path").tag("")
@@ -336,6 +345,71 @@ struct AppleBookCreateSourceSection: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("createYoutubeSubtitlePathField")
+        }
+    }
+
+    @ViewBuilder
+    private var embeddedYoutubeSubtitleControls: some View {
+        HStack {
+            Button(action: onInspectYoutubeSubtitles) {
+                Label(
+                    isLoadingYoutubeSubtitleStreams ? "Inspecting Embedded Subtitles" : "Inspect Embedded Subtitles",
+                    systemImage: "magnifyingglass"
+                )
+            }
+            .disabled(!hasYoutubeVideoPath || isLoadingYoutubeSubtitleStreams || isExtractingYoutubeSubtitles)
+            .accessibilityIdentifier("createYoutubeInspectEmbeddedSubtitlesButton")
+
+            if isLoadingYoutubeSubtitleStreams {
+                ProgressView()
+                    .accessibilityIdentifier("createYoutubeEmbeddedSubtitlesProgress")
+            }
+        }
+
+        if !youtubeInlineSubtitleStreams.isEmpty {
+            ForEach(youtubeInlineSubtitleStreams) { stream in
+                Label(
+                    AppleBookCreatePresentation.youtubeInlineSubtitleStreamLabel(stream),
+                    systemImage: stream.canExtract ? "captions.bubble" : "photo"
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createYoutubeEmbeddedSubtitleStream.\(stream.index)")
+            }
+
+            TextField("Languages to extract", text: $youtubeSubtitleExtractionLanguages)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createYoutubeEmbeddedSubtitleLanguagesField")
+        }
+
+        HStack {
+            Button(action: onExtractYoutubeSubtitles) {
+                Label(
+                    isExtractingYoutubeSubtitles ? "Extracting Subtitles" : "Extract Embedded Subtitles",
+                    systemImage: "square.and.arrow.down"
+                )
+            }
+            .disabled(!hasYoutubeVideoPath || isLoadingYoutubeSubtitleStreams || isExtractingYoutubeSubtitles)
+            .accessibilityIdentifier("createYoutubeExtractEmbeddedSubtitlesButton")
+
+            if isExtractingYoutubeSubtitles {
+                ProgressView()
+                    .accessibilityIdentifier("createYoutubeExtractEmbeddedSubtitlesProgress")
+            }
+        }
+
+        if let youtubeSubtitleExtractionMessage {
+            Text(youtubeSubtitleExtractionMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createYoutubeEmbeddedSubtitlesMessage")
+        }
+        if let youtubeSubtitleExtractionErrorMessage {
+            Text(youtubeSubtitleExtractionErrorMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createYoutubeEmbeddedSubtitlesError")
         }
     }
 
@@ -369,6 +443,10 @@ struct AppleBookCreateSourceSection: View {
 
     private var selectedYoutubeVideo: YoutubeNasVideoEntry? {
         youtubeVideos.first { $0.path == youtubeVideoPath }
+    }
+
+    private var hasYoutubeVideoPath: Bool {
+        !youtubeVideoPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var youtubeSubtitleEntries: [YoutubeNasSubtitleEntry] {

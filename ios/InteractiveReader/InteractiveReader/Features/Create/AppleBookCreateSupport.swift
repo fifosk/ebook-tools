@@ -723,6 +723,68 @@ enum AppleBookCreatePresentation {
         } ?? candidates[0]
     }
 
+    static func extractableYoutubeInlineSubtitleStreams(
+        from streams: [YoutubeInlineSubtitleStream]
+    ) -> [YoutubeInlineSubtitleStream] {
+        streams.filter(\.canExtract)
+    }
+
+    static func defaultYoutubeInlineSubtitleLanguages(
+        from streams: [YoutubeInlineSubtitleStream]
+    ) -> [String] {
+        let extractable = extractableYoutubeInlineSubtitleStreams(from: streams)
+        guard !extractable.isEmpty else {
+            return []
+        }
+        if let english = extractable.first(where: { stream in
+            trimmed(stream.language ?? "").lowercased().hasPrefix("en")
+        })?.language?.nonEmptyValue {
+            return [english]
+        }
+        if extractable.count == 1, let language = extractable[0].language?.nonEmptyValue {
+            return [language]
+        }
+        return []
+    }
+
+    static func normalizedYoutubeInlineSubtitleLanguages(_ value: String) -> [String] {
+        value
+            .split { character in
+                character == "," || character == "\n" || character == "\t"
+            }
+            .map { trimmed(String($0)) }
+            .filter { !$0.isEmpty }
+            .reduce(into: [String]()) { result, language in
+                if !result.contains(where: { $0.caseInsensitiveCompare(language) == .orderedSame }) {
+                    result.append(language)
+                }
+            }
+    }
+
+    static func youtubeInlineSubtitleStreamLabel(_ stream: YoutubeInlineSubtitleStream) -> String {
+        let language = trimmed(stream.language ?? "")
+        let codec = trimmed(stream.codec ?? "")
+        let title = trimmed(stream.title ?? "")
+        let details = [language, codec, title]
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
+        let prefix = stream.canExtract ? "Text" : "Image"
+        return details.isEmpty
+            ? "\(prefix) subtitle stream \(stream.index)"
+            : "\(prefix) subtitle stream \(stream.index) · \(details)"
+    }
+
+    static func youtubeSubtitleExtractionStatus(
+        extractedCount: Int,
+        videoFilename: String
+    ) -> String {
+        guard extractedCount > 0 else {
+            return "No subtitle streams found to extract."
+        }
+        let noun = extractedCount == 1 ? "track" : "tracks"
+        return "Extracted \(extractedCount) subtitle \(noun) from \(videoFilename)."
+    }
+
     static func preferredYoutubeSelection(from library: YoutubeNasLibraryResponse?) -> AppleYoutubeSourceSelection? {
         guard let videos = library?.videos, !videos.isEmpty else {
             return nil
