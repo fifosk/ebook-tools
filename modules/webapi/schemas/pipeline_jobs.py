@@ -618,6 +618,112 @@ def _resolve_job_label(job: PipelineJob) -> Optional[str]:
     return None
 
 
+_PIPELINE_RESULT_SUMMARY_KEYS = {
+    "success",
+    "title",
+    "base_dir",
+    "base_output_stem",
+    "stitched_documents",
+    "stitched_audio_path",
+    "media_metadata",
+    "book_metadata",
+}
+
+_SUBTITLE_RESULT_SUMMARY_KEYS = {
+    "metadata",
+    "output_path",
+    "output_file",
+    "source",
+    "source_file",
+    "input_file",
+}
+
+_YOUTUBE_DUB_RESULT_SUMMARY_KEYS = {
+    "media_metadata",
+    "book_metadata",
+    "video_path",
+    "subtitle_path",
+    "output_path",
+    "output_dir",
+    "source_language",
+    "target_language",
+}
+
+
+def _compact_mapping(payload: Mapping[str, Any], keys: set[str]) -> Dict[str, Any]:
+    return {key: copy.deepcopy(payload[key]) for key in keys if key in payload}
+
+
+def _compact_pipeline_response(response: Any) -> Dict[str, Any]:
+    """Return the row-safe subset of a live pipeline response."""
+
+    summary: Dict[str, Any] = {}
+    for key in ("success", "base_dir", "base_output_stem", "stitched_audio_path"):
+        value = getattr(response, key, None)
+        if value is not None:
+            summary[key] = str(value) if key in {"base_dir"} else value
+
+    stitched_documents = getattr(response, "stitched_documents", None)
+    if stitched_documents:
+        summary["stitched_documents"] = dict(stitched_documents)
+
+    media_metadata = getattr(response, "media_metadata", None)
+    if isinstance(media_metadata, Mapping):
+        metadata = dict(media_metadata)
+        summary["media_metadata"] = metadata
+        summary["book_metadata"] = copy.deepcopy(metadata)
+        title = metadata.get("title") or metadata.get("book_title") or metadata.get("job_label")
+        if isinstance(title, str) and title.strip():
+            summary["title"] = title.strip()
+
+    return summary
+
+
+def _compact_result_payload(job: PipelineJob) -> Optional[Dict[str, Any]]:
+    """Build a lightweight result payload for job-list rows."""
+
+    if isinstance(job.result_payload, Mapping):
+        if job.job_type in {"pipeline", "book"}:
+            summary = _compact_mapping(job.result_payload, _PIPELINE_RESULT_SUMMARY_KEYS)
+            metadata = summary.get("media_metadata") or summary.get("book_metadata")
+            if isinstance(metadata, Mapping):
+                if "media_metadata" not in summary:
+                    summary["media_metadata"] = copy.deepcopy(metadata)
+                if "book_metadata" not in summary:
+                    summary["book_metadata"] = copy.deepcopy(metadata)
+                title = metadata.get("title") or metadata.get("book_title") or metadata.get("job_label")
+                if "title" not in summary and isinstance(title, str) and title.strip():
+                    summary["title"] = title.strip()
+            return summary or None
+
+        if job.job_type == "subtitle":
+            summary = _compact_mapping(job.result_payload, {"subtitle", "result", "success"})
+            subtitle_section = summary.get("subtitle")
+            if isinstance(subtitle_section, Mapping):
+                summary["subtitle"] = _compact_mapping(
+                    subtitle_section,
+                    _SUBTITLE_RESULT_SUMMARY_KEYS,
+                )
+            return summary or None
+
+        if job.job_type == "youtube_dub":
+            summary = _compact_mapping(job.result_payload, {"youtube_dub", "result", "success"})
+            dub_section = summary.get("youtube_dub")
+            if isinstance(dub_section, Mapping):
+                summary["youtube_dub"] = _compact_mapping(
+                    dub_section,
+                    _YOUTUBE_DUB_RESULT_SUMMARY_KEYS,
+                )
+            return summary or None
+
+        return _compact_mapping(job.result_payload, {"success", "title", "media_metadata", "book_metadata"}) or None
+
+    if job.job_type in {"pipeline", "book"} and job.result is not None:
+        return _compact_pipeline_response(job.result) or None
+
+    return None
+
+
 class PipelineStatusResponse(BaseModel):
     """Full status payload for a pipeline job."""
 
@@ -647,9 +753,12 @@ class PipelineStatusResponse(BaseModel):
         job: PipelineJob,
         *,
         include_filesystem_image_summary: bool = True,
+        compact_result: bool = False,
     ) -> "PipelineStatusResponse":
         result_payload: Optional[PipelineResponsePayload | Dict[str, Any]] = None
-        if job.job_type in {"pipeline", "book"}:
+        if compact_result:
+            result_payload = _compact_result_payload(job)
+        elif job.job_type in {"pipeline", "book"}:
             if job.result is not None:
                 result_payload = PipelineResponsePayload.from_response(job.result)
             elif job.result_payload is not None:

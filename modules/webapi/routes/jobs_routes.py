@@ -178,7 +178,11 @@ async def list_jobs(
             reverse=True,
         )
         payload = [
-            PipelineStatusResponse.from_job(job, include_filesystem_image_summary=False)
+            PipelineStatusResponse.from_job(
+                job,
+                include_filesystem_image_summary=False,
+                compact_result=True,
+            )
             for job in ordered
         ]
     except Exception:

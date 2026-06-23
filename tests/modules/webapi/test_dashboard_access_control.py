@@ -108,15 +108,31 @@ def test_dashboard_jobs_endpoint_returns_paginated_job_contract(
     app = create_app()
     stub_service = _StubPipelineService()
     filesystem_summary_calls: list[str] = []
+    full_result_conversions: list[str] = []
 
     def _fail_filesystem_summary_load(job_id: str):
         filesystem_summary_calls.append(job_id)
         raise AssertionError("job list should not read image prompt summaries from disk")
 
+    class _FailingPipelineResponsePayload:
+        def __init__(self, **_kwargs):
+            full_result_conversions.append("init")
+            raise AssertionError("job list should not build full result payloads")
+
+        @classmethod
+        def from_response(cls, _response):
+            full_result_conversions.append("from_response")
+            raise AssertionError("job list should not build full result payloads")
+
     monkeypatch.setattr(
         pipeline_job_schemas,
         "_load_image_prompt_plan_summary",
         _fail_filesystem_summary_load,
+    )
+    monkeypatch.setattr(
+        pipeline_job_schemas,
+        "PipelineResponsePayload",
+        _FailingPipelineResponsePayload,
     )
     older = PipelineJob(
         job_id="job-older",
@@ -137,6 +153,7 @@ def test_dashboard_jobs_endpoint_returns_paginated_job_contract(
             "success": True,
             "output_files": ["slow-book.html"],
             "media_metadata": {"title": "Slow Book"},
+            "refined_sentences": ["heavy sentence"] * 200,
         },
     )
     newer = PipelineJob(
@@ -180,6 +197,7 @@ def test_dashboard_jobs_endpoint_returns_paginated_job_contract(
     assert payload["limit"] == 2
     assert [job["job_id"] for job in payload["jobs"]] == ["job-newer", "job-older"]
     assert filesystem_summary_calls == []
+    assert full_result_conversions == []
     assert stub_service.count_calls == [{"user_id": "alice", "user_role": "editor"}]
     assert stub_service.list_calls == [
         {"user_id": "alice", "user_role": "editor", "offset": 5, "limit": 2}
@@ -200,6 +218,14 @@ def test_dashboard_jobs_endpoint_returns_paginated_job_contract(
     assert latest["parameters"]["audio_mode"] == "narration"
     assert latest["parameters"]["add_images"] is True
     assert latest["job_label"] == "fast"
+
+    older_payload = payload["jobs"][1]
+    assert older_payload["result"] == {
+        "success": True,
+        "title": "Slow Book",
+        "media_metadata": {"title": "Slow Book"},
+        "book_metadata": {"title": "Slow Book"},
+    }
 
 
 def test_dashboard_jobs_endpoint_records_safe_timing(
