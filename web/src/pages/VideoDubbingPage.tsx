@@ -63,6 +63,7 @@ import {
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
   resolveDefaultSubtitle,
+  resolveSelectionAfterVideoDelete,
   resolveSubtitleNotice,
   resolveVideoDubbingSelection,
   resolveVideoDubbingMetadataSourceName,
@@ -486,24 +487,25 @@ export default function VideoDubbingPage({
       }
       setDeletingVideoPath(video.path);
       setLoadError(null);
-      let fallbackLanguage: string | null = null;
       try {
         await deleteYoutubeVideo({ video_path: video.path });
         let nextSelectedPath = selectedVideoPath;
         let nextSubtitle = selectedSubtitlePath;
+        let fallbackLanguage: string | null = null;
         setLibrary((prev) => {
           if (!prev) {
             return prev;
           }
-          const remaining = prev.videos.filter((entry) => entry.path !== video.path);
-          if (nextSelectedPath === video.path) {
-            const fallback = remaining[0];
-            nextSelectedPath = fallback ? fallback.path : null;
-            const resolvedFallback = fallback ? resolveDefaultSubtitle(fallback) : null;
-            fallbackLanguage = resolvedFallback?.language ?? null;
-            nextSubtitle = resolvedFallback?.path ?? null;
-          }
-          return { ...prev, videos: remaining };
+          const selection = resolveSelectionAfterVideoDelete({
+            videos: prev.videos,
+            deletedVideoPath: video.path,
+            selectedVideoPath: nextSelectedPath,
+            selectedSubtitlePath: nextSubtitle,
+          });
+          nextSelectedPath = selection.selectedVideoPath;
+          nextSubtitle = selection.selectedSubtitlePath;
+          fallbackLanguage = selection.fallbackLanguage;
+          return { ...prev, videos: selection.videos };
         });
         setSelectedVideoPath(nextSelectedPath);
         setSelectedSubtitlePath(nextSubtitle);

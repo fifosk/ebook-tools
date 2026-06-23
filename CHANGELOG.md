@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.03
+
+- Advanced visible Apple app versioning to `v2026.06.23.03`.
+- Web Video Dubbing now uses a tested selection fallback after deleting a NAS/YouTube video, preserving the current selection when possible and choosing the next default subtitle when needed.
+- The shared Apple device app pipeline now includes the Video Dubbing focused Web check for ebook-tools.
+
 ### 2026.06.23.02
 
 - Advanced visible Apple app versioning to `v2026.06.23.02`.

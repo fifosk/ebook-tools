@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.02",
+            version: "2026.06.23.03",
             entries: [
+                AppChangelogEntry(
+                    id: "web-video-dubbing-delete-selection",
+                    title: "Web Video Dubbing selection hardened",
+                    detail: "Deleting a NAS or YouTube video now uses a tested fallback that keeps the current selection when possible and chooses the next default subtitle when needed."
+                ),
+                AppChangelogEntry(
+                    id: "pipeline-video-dubbing-web-check",
+                    title: "Video Dubbing Web check added",
+                    detail: "The shared pipeline now runs the Video Dubbing focused Web check for ebook-tools alongside Create, Library, and production/export build checks."
+                ),
                 AppChangelogEntry(
                     id: "web-library-metadata-update-plan",
                     title: "Web Library metadata saves hardened",

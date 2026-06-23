@@ -55,7 +55,9 @@ Large Web UI hotspots to split before redesign work:
   preservation helpers, subtitle extraction/availability messages, and
   job-parameter prefill mapping now live in
   `web/src/pages/video-dubbing/videoDubbingUtils.ts` with focused Vitest
-  coverage.
+  coverage. Video deletion selection fallback now lives there too, preserving
+  the current selection when deleting a different video and choosing the next
+  default subtitle/language when deleting the selected video.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style
@@ -363,8 +365,8 @@ Every cross-surface change should pass the relevant subset:
   ...` and `npm --prefix web run build`; the Web build script should remain
   package-manager neutral. For ebook-tools, prefer the shared pipeline runner
   `python3 scripts/run_app_web_checks.py --app ebook-tools`, which runs the
-  registered Create and Library focused checks, production/export build, and
-  generated-artifact cleanup.
+  registered Create, Library, and Video Dubbing focused checks,
+  production/export build, and generated-artifact cleanup.
 - Apple: release contract, iOS/tvOS simulator builds, and shared pipeline simulator smokes.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 

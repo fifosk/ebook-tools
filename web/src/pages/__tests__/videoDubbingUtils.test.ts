@@ -15,6 +15,7 @@ import {
   mergeTvMetadataPreviewWithPreservedYoutubeMetadata,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
+  resolveSelectionAfterVideoDelete,
   resolveSubtitleNotice,
   resolveVideoDubbingSelection,
   resolveVideoDubbingMetadataSourceName,
@@ -258,6 +259,71 @@ describe('videoDubbingUtils', () => {
       subtitle: null,
       videoPath: null,
       subtitlePath: null,
+    });
+  });
+
+  it('keeps the current selection when deleting a different video', () => {
+    const kept = video({
+      path: '/videos/kept.mkv',
+      subtitles: [subtitle({ path: '/subs/kept.es.ass', language: 'es' })],
+    });
+    const deleted = video({ path: '/videos/deleted.mkv' });
+
+    expect(
+      resolveSelectionAfterVideoDelete({
+        videos: [kept, deleted],
+        deletedVideoPath: deleted.path,
+        selectedVideoPath: kept.path,
+        selectedSubtitlePath: '/subs/kept.es.ass',
+      }),
+    ).toEqual({
+      videos: [kept],
+      selectedVideoPath: kept.path,
+      selectedSubtitlePath: '/subs/kept.es.ass',
+      fallbackLanguage: null,
+    });
+  });
+
+  it('falls back to the next video and its default subtitle when deleting the selected video', () => {
+    const deleted = video({ path: '/videos/deleted.mkv' });
+    const fallback = video({
+      path: '/videos/fallback.mkv',
+      subtitles: [
+        subtitle({ path: '/subs/fallback.de.srt', language: 'de', format: 'srt' }),
+        subtitle({ path: '/subs/fallback.en.ass', language: 'en-US', format: 'ass' }),
+      ],
+    });
+
+    expect(
+      resolveSelectionAfterVideoDelete({
+        videos: [deleted, fallback],
+        deletedVideoPath: deleted.path,
+        selectedVideoPath: deleted.path,
+        selectedSubtitlePath: '/subs/deleted.en.ass',
+      }),
+    ).toEqual({
+      videos: [fallback],
+      selectedVideoPath: fallback.path,
+      selectedSubtitlePath: '/subs/fallback.en.ass',
+      fallbackLanguage: 'en-US',
+    });
+  });
+
+  it('clears video and subtitle selection when deleting the last video', () => {
+    const deleted = video({ path: '/videos/deleted.mkv' });
+
+    expect(
+      resolveSelectionAfterVideoDelete({
+        videos: [deleted],
+        deletedVideoPath: deleted.path,
+        selectedVideoPath: deleted.path,
+        selectedSubtitlePath: '/subs/deleted.en.ass',
+      }),
+    ).toEqual({
+      videos: [],
+      selectedVideoPath: null,
+      selectedSubtitlePath: null,
+      fallbackLanguage: null,
     });
   });
 

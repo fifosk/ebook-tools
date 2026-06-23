@@ -192,6 +192,13 @@ export type VideoDubbingSelection = {
   subtitlePath: string | null;
 };
 
+export type VideoDubbingDeleteSelection = {
+  videos: YoutubeNasVideo[];
+  selectedVideoPath: string | null;
+  selectedSubtitlePath: string | null;
+  fallbackLanguage: string | null;
+};
+
 export function resolveVideoDubbingSelection({
   videos,
   preferredVideoPath,
@@ -223,6 +230,37 @@ export function resolveVideoDubbingSelection({
     subtitle,
     videoPath: selectedVideo.path,
     subtitlePath: subtitle?.path ?? null,
+  };
+}
+
+export function resolveSelectionAfterVideoDelete({
+  videos,
+  deletedVideoPath,
+  selectedVideoPath,
+  selectedSubtitlePath,
+}: {
+  videos: YoutubeNasVideo[];
+  deletedVideoPath: string;
+  selectedVideoPath: string | null;
+  selectedSubtitlePath: string | null;
+}): VideoDubbingDeleteSelection {
+  const remaining = videos.filter((entry) => entry.path !== deletedVideoPath);
+  if (selectedVideoPath !== deletedVideoPath) {
+    return {
+      videos: remaining,
+      selectedVideoPath,
+      selectedSubtitlePath,
+      fallbackLanguage: null,
+    };
+  }
+
+  const fallback = remaining[0] ?? null;
+  const fallbackSubtitle = fallback ? resolveDefaultSubtitle(fallback) : null;
+  return {
+    videos: remaining,
+    selectedVideoPath: fallback?.path ?? null,
+    selectedSubtitlePath: fallbackSubtitle?.path ?? null,
+    fallbackLanguage: fallbackSubtitle?.language ?? null,
   };
 }
 
