@@ -56,6 +56,40 @@ class _StubLibrarySync:
         raise AssertionError("serialize_item should not be called for an empty result")
 
 
+class _StubLibraryMetadataSync:
+    def __init__(self) -> None:
+        self.refresh_calls: list[str] = []
+        self.enrich_calls: list[dict[str, Any]] = []
+
+    def get_item(self, job_id: str) -> None:
+        return None
+
+    def refresh_metadata(self, job_id: str) -> str:
+        self.refresh_calls.append(job_id)
+        return "refreshed"
+
+    def enrich_metadata(self, job_id: str, *, force: bool = False) -> str:
+        self.enrich_calls.append({"job_id": job_id, "force": force})
+        return "enriched"
+
+    def serialize_item(self, entry: object) -> dict[str, Any]:
+        title = "Externally Enriched" if entry == "enriched" else "Source Refreshed"
+        return {
+            "job_id": "metadata-job",
+            "author": "Example Author",
+            "book_title": title,
+            "item_type": "book",
+            "genre": "Reference",
+            "language": "English",
+            "status": "finished",
+            "media_completed": True,
+            "created_at": "2026-06-24T00:00:00Z",
+            "updated_at": "2026-06-24T00:00:00Z",
+            "library_path": "/library/metadata-job",
+            "metadata": {},
+        }
+
+
 def test_list_library_items_records_safe_timing(monkeypatch: pytest.MonkeyPatch) -> None:
     app = create_app()
     sync = _StubLibrarySync()
@@ -131,3 +165,48 @@ def test_list_library_items_records_safe_timing(monkeypatch: pytest.MonkeyPatch)
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+def test_refresh_library_metadata_defaults_to_source_refresh_only() -> None:
+    app = create_app()
+    sync = _StubLibraryMetadataSync()
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="test-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/library/items/metadata-job/refresh")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["item"]["bookTitle"] == "Source Refreshed"
+    assert sync.refresh_calls == ["metadata-job"]
+    assert sync.enrich_calls == []
+
+
+def test_refresh_library_metadata_can_chain_external_enrichment() -> None:
+    app = create_app()
+    sync = _StubLibraryMetadataSync()
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="test-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/library/items/metadata-job/refresh",
+                json={"enrichFromExternal": True},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["item"]["bookTitle"] == "Externally Enriched"
+    assert sync.refresh_calls == ["metadata-job"]
+    assert sync.enrich_calls == [{"job_id": "metadata-job", "force": True}]

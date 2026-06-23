@@ -105,7 +105,7 @@ class LibraryMetadataRefreshRequest(BaseModel):
     """Request payload for refreshing library item metadata."""
 
     enrich_from_external: bool = Field(
-        default=True,
+        default=False,
         alias="enrichFromExternal",
         description="Also enrich from external sources (OpenLibrary, TMDB, etc.)",
     )

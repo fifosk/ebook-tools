@@ -9,6 +9,8 @@ import type {
   LibraryMediaRemovalResponse,
   LibraryMetadataEnrichRequest,
   LibraryMetadataEnrichResponse,
+  LibraryMetadataRefreshRequest,
+  LibraryMetadataRefreshResponse,
   LibraryMetadataUpdatePayload,
   LibraryMoveResponse,
   LibraryReindexResponse,
@@ -86,11 +88,17 @@ export async function reindexLibrary(): Promise<LibraryReindexResponse> {
   return handleResponse<LibraryReindexResponse>(response);
 }
 
-export async function refreshLibraryMetadata(jobId: string): Promise<LibraryItem> {
+export async function refreshLibraryMetadata(
+  jobId: string,
+  payload: LibraryMetadataRefreshRequest = {}
+): Promise<LibraryItem> {
   const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}/refresh`, {
-    method: 'POST'
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enrichFromExternal: Boolean(payload.enrichFromExternal) })
   });
-  return handleResponse<LibraryItem>(response);
+  const result = await handleResponse<LibraryMetadataRefreshResponse>(response);
+  return result.item;
 }
 
 export async function enrichLibraryMetadata(

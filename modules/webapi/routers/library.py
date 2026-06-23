@@ -424,6 +424,8 @@ async def refresh_library_metadata(
         _ensure_library_access(item, request_user, permission="edit")
     try:
         refreshed_item = sync.refresh_metadata(job_id)
+        if payload and payload.enrich_from_external:
+            refreshed_item = sync.enrich_metadata(job_id, force=True)
     except LibraryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryError as exc:

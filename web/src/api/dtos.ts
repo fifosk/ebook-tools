@@ -740,6 +740,14 @@ export interface LibraryIsbnLookupResponse {
   metadata: Record<string, unknown>;
 }
 
+export interface LibraryMetadataRefreshRequest {
+  enrichFromExternal?: boolean;
+}
+
+export interface LibraryMetadataRefreshResponse {
+  item: LibraryItem;
+}
+
 export interface JobMetadataEnrichRequest {
   force?: boolean;
 }
