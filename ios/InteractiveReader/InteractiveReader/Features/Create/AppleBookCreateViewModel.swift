@@ -149,6 +149,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     func loadYoutubeLibrary(
         using appState: AppState,
         cacheKey: String,
+        baseDir: String? = nil,
         force: Bool = false
     ) async -> YoutubeNasLibraryResponse? {
         guard let configuration = appState.configuration else {
@@ -164,7 +165,7 @@ final class AppleBookCreateViewModel: ObservableObject {
 
         do {
             let client = APIClient(configuration: configuration)
-            let response = try await client.fetchYoutubeLibrary()
+            let response = try await client.fetchYoutubeLibrary(baseDir: baseDir)
             youtubeLibrary = response
             loadedYoutubeLibraryCacheKey = cacheKey
             return response

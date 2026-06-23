@@ -666,6 +666,14 @@ enum AppleBookCreatePresentation {
         return AppleYoutubeSourceSelection(video: selectedVideo, subtitle: subtitle)
     }
 
+    static func youtubeLibraryCacheKey(baseKey: String, baseDir: String) -> String {
+        let normalizedBaseDir = trimmed(baseDir)
+        guard !normalizedBaseDir.isEmpty else {
+            return baseKey
+        }
+        return "\(baseKey)|youtubeBaseDir=\(normalizedBaseDir)"
+    }
+
     static func narrationHistoryDefaults(
         from jobs: [PipelineStatusResponse],
         currentInputFile: String

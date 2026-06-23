@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.91",
+            version: "2026.06.23.92",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-youtube-base-dir",
+                    title: "Create browses video roots",
+                    detail: "Apple Create YouTube dubbing now exposes and remembers the NAS base directory, matching Web's alternate video-root refresh flow."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-shared-language-defaults",
                     title: "Create remembers languages",

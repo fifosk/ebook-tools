@@ -207,6 +207,20 @@ struct AppleCreationPayloadCheck {
                 && staleYoutubeSelection?.subtitle?.path == "/nas/video-a.en.srt",
             "Apple Create should fall back to the preferred NAS video when the stored YouTube source is stale"
         )
+        require(
+            AppleBookCreatePresentation.youtubeLibraryCacheKey(
+                baseKey: "https://api.example.test|editor|editor",
+                baseDir: "  "
+            ) == "https://api.example.test|editor|editor",
+            "Apple Create should use the default YouTube NAS library cache key when no base directory is selected"
+        )
+        require(
+            AppleBookCreatePresentation.youtubeLibraryCacheKey(
+                baseKey: "https://api.example.test|editor|editor",
+                baseDir: " /Volumes/Data/Download/DStation "
+            ) == "https://api.example.test|editor|editor|youtubeBaseDir=/Volumes/Data/Download/DStation",
+            "Apple Create should include the selected NAS base directory in YouTube library cache identity"
+        )
         let narrationJobsJSON = """
         {
           "jobs": [

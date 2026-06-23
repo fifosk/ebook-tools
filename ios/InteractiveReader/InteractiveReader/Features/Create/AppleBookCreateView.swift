@@ -33,6 +33,7 @@ struct AppleBookCreateView: View {
     @State private var selectedNarrateStartChapterID = ""
     @State private var selectedNarrateEndChapterID = ""
     @State private var subtitleSourcePath = ""
+    @State private var youtubeBaseDir = ""
     @State private var youtubeVideoPath = ""
     @State private var youtubeSubtitlePath = ""
     @State private var youtubeStartOffset = ""
@@ -151,6 +152,7 @@ struct AppleBookCreateView: View {
             await refreshIntakeStatus()
             await refreshPipelineFiles()
             await refreshSubtitleSources()
+            applyStoredYoutubeBaseDir()
             await refreshYoutubeLibrary()
             _ = await viewModel.loadVoiceInventory(using: appState, cacheKey: creationOptionsLoadKey)
             await viewModel.loadSubtitleModels(using: appState, cacheKey: creationOptionsLoadKey)
@@ -158,6 +160,9 @@ struct AppleBookCreateView: View {
         }
         .onChange(of: recentJobs) { _, _ in
             applyNarrationHistoryDefaults()
+        }
+        .onChange(of: youtubeBaseDir) { _, newValue in
+            persistYoutubeBaseDir(newValue)
         }
         .onChange(of: youtubeVideoPath) { _, newValue in
             persistYoutubeSelectionPath(newValue, field: "video")
@@ -203,6 +208,7 @@ struct AppleBookCreateView: View {
             sourceStartSentence: textBinding(for: .sourceStartSentence, value: $sourceStartSentence),
             sourceEndSentence: textBinding(for: .sourceEndSentence, value: $sourceEndSentence),
             subtitleSourcePath: textBinding(for: .subtitleSourcePath, value: $subtitleSourcePath),
+            youtubeBaseDir: $youtubeBaseDir,
             youtubeVideoPath: textBinding(for: .youtubeVideoPath, value: $youtubeVideoPath),
             youtubeSubtitlePath: textBinding(for: .youtubeSubtitlePath, value: $youtubeSubtitlePath),
             pipelineFiles: viewModel.pipelineFiles,
@@ -936,9 +942,14 @@ struct AppleBookCreateView: View {
         guard !Self.isTVPlatform else { return }
         let library = await viewModel.loadYoutubeLibrary(
             using: appState,
-            cacheKey: creationOptionsLoadKey,
+            cacheKey: youtubeLibraryLoadKey,
+            baseDir: youtubeBaseDir,
             force: force
         )
+        if trimmed(youtubeBaseDir).isEmpty,
+           let resolvedBaseDir = library?.baseDir.nonEmptyValue {
+            youtubeBaseDir = resolvedBaseDir
+        }
         applyPreferredYoutubeSource(from: library)
     }
 
@@ -972,8 +983,8 @@ struct AppleBookCreateView: View {
     }
 
     private func applyPreferredYoutubeSource(from library: YoutubeNasLibraryResponse?) {
-        let scopeChanged = youtubeSelectionStorageScope != creationOptionsLoadKey
-        youtubeSelectionStorageScope = creationOptionsLoadKey
+        let scopeChanged = youtubeSelectionStorageScope != youtubeLibraryLoadKey
+        youtubeSelectionStorageScope = youtubeLibraryLoadKey
         guard let selection = AppleBookCreatePresentation.youtubeSelection(
             from: library,
             storedVideoPath: storedYoutubeSelectionPath(field: "video"),
@@ -1043,6 +1054,21 @@ struct AppleBookCreateView: View {
         UserDefaults.standard.string(forKey: youtubeSelectionStorageKey(field: field))?.nonEmptyValue
     }
 
+    private func applyStoredYoutubeBaseDir() {
+        guard let baseDir = UserDefaults.standard.string(forKey: youtubeBaseDirStorageKey)?.nonEmptyValue else {
+            return
+        }
+        youtubeBaseDir = baseDir
+    }
+
+    private func persistYoutubeBaseDir(_ baseDir: String) {
+        if let value = baseDir.nonEmptyValue {
+            UserDefaults.standard.set(value, forKey: youtubeBaseDirStorageKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: youtubeBaseDirStorageKey)
+        }
+    }
+
     private func persistYoutubeSelectionPath(_ path: String, field: String) {
         let key = youtubeSelectionStorageKey(field: field)
         if let value = path.nonEmptyValue {
@@ -1054,6 +1080,17 @@ struct AppleBookCreateView: View {
 
     private func youtubeSelectionStorageKey(field: String) -> String {
         "ebookTools.appleCreate.youtubeDub.\(field).\(creationOptionsLoadKey)"
+    }
+
+    private var youtubeBaseDirStorageKey: String {
+        "ebookTools.appleCreate.youtubeDub.baseDir.\(creationOptionsLoadKey)"
+    }
+
+    private var youtubeLibraryLoadKey: String {
+        AppleBookCreatePresentation.youtubeLibraryCacheKey(
+            baseKey: creationOptionsLoadKey,
+            baseDir: youtubeBaseDir
+        )
     }
 
     #if os(iOS)

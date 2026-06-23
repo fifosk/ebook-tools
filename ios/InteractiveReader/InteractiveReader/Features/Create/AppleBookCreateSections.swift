@@ -9,6 +9,7 @@ struct AppleBookCreateSourceSection: View {
     @Binding var sourceStartSentence: String
     @Binding var sourceEndSentence: String
     @Binding var subtitleSourcePath: String
+    @Binding var youtubeBaseDir: String
     @Binding var youtubeVideoPath: String
     @Binding var youtubeSubtitlePath: String
     let pipelineFiles: PipelineFileBrowserResponse?
@@ -264,6 +265,16 @@ struct AppleBookCreateSourceSection: View {
 
     private var youtubeSourceControls: some View {
         Group {
+            TextField("NAS directory", text: $youtubeBaseDir)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createYoutubeBaseDirField")
+            if let baseDir = youtubeLibrary?.baseDir, !baseDir.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("Base path: \(baseDir)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createYoutubeBaseDirLabel")
+            }
             if !youtubeVideos.isEmpty {
                 Picker("NAS video", selection: $youtubeVideoPath) {
                     Text("Manual path").tag("")

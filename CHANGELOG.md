@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.92
+
+- Advanced visible Apple app versioning to `v2026.06.23.92`.
+- Apple Create YouTube dubbing now exposes and remembers the NAS base directory, matching Web's alternate video-root refresh flow.
+
 ### 2026.06.23.91
 
 - Advanced visible Apple app versioning to `v2026.06.23.91`.
