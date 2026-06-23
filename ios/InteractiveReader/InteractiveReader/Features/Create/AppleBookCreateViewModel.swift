@@ -192,6 +192,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             imageSamplerName: draft.imageSamplerName,
             imageSeedWithPreviousImage: draft.imageSeedWithPreviousImage,
             imageBlankDetectionEnabled: draft.imageBlankDetectionEnabled,
+            imageApiBaseURLs: draft.imageApiBaseURLs,
             imageConcurrency: draft.imageConcurrency,
             imageApiTimeoutSeconds: draft.imageApiTimeoutSeconds
         )
@@ -434,6 +435,7 @@ final class AppleBookCreateViewModel: ObservableObject {
         imageSamplerName: String? = nil,
         imageSeedWithPreviousImage: Bool? = nil,
         imageBlankDetectionEnabled: Bool? = nil,
+        imageApiBaseURLs: [String] = [],
         imageConcurrency: Int? = nil,
         imageApiTimeoutSeconds: Double? = nil
     ) -> [String: JSONValue] {
@@ -490,6 +492,10 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
         if let imageBlankDetectionEnabled {
             overrides["image_blank_detection_enabled"] = .bool(imageBlankDetectionEnabled)
+        }
+        if !imageApiBaseURLs.isEmpty {
+            overrides["image_api_base_urls"] = .array(imageApiBaseURLs.map { .string($0) })
+            overrides["image_api_base_url"] = .string(imageApiBaseURLs[0])
         }
         if let imageConcurrency {
             overrides["image_concurrency"] = .number(Double(imageConcurrency))

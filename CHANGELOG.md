@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.25
+
+- Advanced visible Apple app versioning to `v2026.06.23.25`.
+- Apple generated-book creation now exposes Web-aligned image API URL overrides for selecting home Draw Things/image worker nodes.
+
 ### 2026.06.23.24
 
 - Advanced visible Apple app versioning to `v2026.06.23.24`.

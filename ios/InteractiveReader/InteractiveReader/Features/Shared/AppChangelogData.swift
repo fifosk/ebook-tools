@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.24",
+            version: "2026.06.23.25",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-image-api-url-overrides",
+                    title: "Apple image API URLs",
+                    detail: "Generated-book creation now exposes Web-aligned image API URL overrides for selecting home Draw Things and image worker nodes."
+                ),
                 AppChangelogEntry(
                     id: "apple-book-performance-overrides",
                     title: "Apple book performance",

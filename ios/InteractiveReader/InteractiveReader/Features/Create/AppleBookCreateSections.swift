@@ -451,6 +451,7 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var imageSamplerName: String
     @Binding var imageSeedWithPreviousImage: Bool
     @Binding var imageBlankDetectionEnabled: Bool
+    @Binding var imageApiBaseURLs: String
     @Binding var imageConcurrency: String
     @Binding var imageApiTimeoutSeconds: String
     @Binding var threadCount: String
@@ -560,6 +561,11 @@ struct AppleBookCreateGeneratedOutputControls: View {
                     .accessibilityIdentifier("createBookImageSeedPreviousToggle")
                 Toggle("Blank detection", isOn: $imageBlankDetectionEnabled)
                     .accessibilityIdentifier("createBookImageBlankDetectionToggle")
+                TextField("Image API URLs", text: $imageApiBaseURLs, axis: .vertical)
+                    .lineLimit(1...3)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createBookImageApiBaseURLsField")
                 TextField("Image workers", text: $imageConcurrency)
                     .keyboardType(.numberPad)
                     .accessibilityIdentifier("createBookImageConcurrencyField")

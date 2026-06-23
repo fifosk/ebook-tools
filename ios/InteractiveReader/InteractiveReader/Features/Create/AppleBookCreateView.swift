@@ -94,6 +94,7 @@ struct AppleBookCreateView: View {
     @State private var imageSamplerName = ""
     @State private var imageSeedWithPreviousImage = false
     @State private var imageBlankDetectionEnabled = false
+    @State private var imageApiBaseURLs = ""
     @State private var imageConcurrency = ""
     @State private var imageApiTimeoutSeconds = ""
     @State private var bookThreadCount = ""
@@ -372,6 +373,7 @@ struct AppleBookCreateView: View {
                         for: .imageBlankDetectionEnabled,
                         value: $imageBlankDetectionEnabled
                     ),
+                    imageApiBaseURLs: textBinding(for: .imageApiBaseURLs, value: $imageApiBaseURLs),
                     imageConcurrency: textBinding(for: .imageConcurrency, value: $imageConcurrency),
                     imageApiTimeoutSeconds: textBinding(
                         for: .imageApiTimeoutSeconds,
@@ -554,6 +556,7 @@ struct AppleBookCreateView: View {
             imageSamplerName: imageSamplerName,
             imageSeedWithPreviousImage: imageSeedWithPreviousImage,
             imageBlankDetectionEnabled: imageBlankDetectionEnabled,
+            imageApiBaseURLs: imageApiBaseURLs,
             imageConcurrency: imageConcurrency,
             imageApiTimeoutSeconds: imageApiTimeoutSeconds,
             threadCount: bookThreadCount,

@@ -45,6 +45,7 @@ struct AppleBookCreateDraft: Equatable {
     let imageSamplerName: String?
     let imageSeedWithPreviousImage: Bool
     let imageBlankDetectionEnabled: Bool
+    let imageApiBaseURLs: [String]
     let imageConcurrency: Int?
     let imageApiTimeoutSeconds: Double?
     let threadCount: Int?
@@ -382,6 +383,7 @@ enum AppleBookCreateEditedField: Hashable {
     case imageSamplerName
     case imageSeedWithPreviousImage
     case imageBlankDetectionEnabled
+    case imageApiBaseURLs
     case imageConcurrency
     case imageApiTimeoutSeconds
     case threadCount
@@ -626,6 +628,22 @@ enum AppleBookCreatePresentation {
             return nil
         }
         return max(1, Int(parsed.rounded(.down)))
+    }
+
+    static func normalizedImageApiBaseURLs(_ value: String) -> [String] {
+        var urls = [String]()
+        var seen = Set<String>()
+        let separators = CharacterSet(charactersIn: ",\n")
+        for component in value.components(separatedBy: separators) {
+            let normalized = component.trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: #"/+$"#, with: "", options: .regularExpression)
+            guard !normalized.isEmpty, !seen.contains(normalized) else {
+                continue
+            }
+            seen.insert(normalized)
+            urls.append(normalized)
+        }
+        return urls
     }
 
     static func normalizedEndSentence(_ value: String, startSentence: Int) -> Int? {
@@ -930,6 +948,7 @@ enum AppleBookCreatePresentation {
         imageSamplerName: String,
         imageSeedWithPreviousImage: Bool,
         imageBlankDetectionEnabled: Bool,
+        imageApiBaseURLs: String,
         imageConcurrency: String,
         imageApiTimeoutSeconds: String,
         threadCount: String,
@@ -985,6 +1004,7 @@ enum AppleBookCreatePresentation {
             imageSamplerName: trimmed(imageSamplerName).nonEmptyValue,
             imageSeedWithPreviousImage: imageSeedWithPreviousImage,
             imageBlankDetectionEnabled: imageBlankDetectionEnabled,
+            imageApiBaseURLs: normalizedImageApiBaseURLs(imageApiBaseURLs),
             imageConcurrency: normalizedPositiveInteger(imageConcurrency),
             imageApiTimeoutSeconds: normalizedPositiveNumber(imageApiTimeoutSeconds),
             threadCount: normalizedPositiveInteger(threadCount),
