@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PipelineStatusResponse } from '../../api/dtos';
 import { BOOK_NARRATION_SECTION_META, DEFAULT_FORM_STATE } from '../book-narration/bookNarrationFormDefaults';
 import {
+  applyBookNarrationImageDefaults,
   applyBookNarrationPrefillParameters,
   normalizeBookNarrationPath,
   preserveBookNarrationUserEditedFields,
@@ -221,6 +222,92 @@ describe('bookNarrationFormUtils prefill helpers', () => {
 });
 
 describe('bookNarrationFormUtils form state helpers', () => {
+  it('applies backend image defaults while preserving user-edited image fields', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      add_images: false,
+      image_prompt_pipeline: 'prompt_plan',
+      image_style_template: 'comics',
+      image_prompt_context_sentences: 2,
+      image_width: '',
+      image_height: '',
+    };
+
+    const next = applyBookNarrationImageDefaults({
+      state: previous,
+      imageDefaults: {
+        add_images: true,
+        image_prompt_pipeline: 'visual-canon',
+        image_style_template: 'watercolor',
+        image_prompt_context_sentences: 99,
+        image_width: '1024',
+        image_height: '768',
+      },
+      editedFields: new Set(['image_width']),
+    });
+
+    expect(next).toMatchObject({
+      add_images: true,
+      image_prompt_pipeline: 'visual_canon',
+      image_style_template: 'watercolor',
+      image_prompt_context_sentences: 50,
+      image_width: '',
+      image_height: '768',
+    });
+  });
+
+  it('does not apply add-images defaults when rerun prefill already controls that field', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      add_images: false,
+      image_prompt_pipeline: 'prompt_plan',
+    };
+
+    const next = applyBookNarrationImageDefaults({
+      state: previous,
+      imageDefaults: {
+        add_images: true,
+        image_prompt_pipeline: 'canon',
+        image_style_template: previous.image_style_template,
+        image_prompt_context_sentences: previous.image_prompt_context_sentences,
+        image_width: previous.image_width,
+        image_height: previous.image_height,
+      },
+      editedFields: [],
+      allowAddImagesDefault: false,
+    });
+
+    expect(next.add_images).toBe(false);
+    expect(next.image_prompt_pipeline).toBe('visual_canon');
+  });
+
+  it('returns the original form state object when image defaults do not change values', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      add_images: true,
+      image_prompt_pipeline: 'visual_canon',
+      image_style_template: 'watercolor',
+      image_prompt_context_sentences: 8,
+      image_width: '512',
+      image_height: '768',
+    };
+
+    const next = applyBookNarrationImageDefaults({
+      state: previous,
+      imageDefaults: {
+        add_images: true,
+        image_prompt_pipeline: 'visual_canon',
+        image_style_template: 'watercolor',
+        image_prompt_context_sentences: 8,
+        image_width: '512',
+        image_height: '768',
+      },
+      editedFields: [],
+    });
+
+    expect(next).toBe(previous);
+  });
+
   it('merges section metadata overrides without mutating defaults', () => {
     const result = resolveBookNarrationSectionMeta(BOOK_NARRATION_SECTION_META, {
       source: { title: 'Pick source', description: 'Override source copy.' },

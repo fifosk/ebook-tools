@@ -5,7 +5,12 @@ import {
   getImageNodeFallbacks,
 } from '../../constants/imageNodes';
 import { isRecord } from './bookNarrationUtils';
-import type { BookNarrationFormProps, BookNarrationFormSection, FormState } from './bookNarrationFormTypes';
+import type {
+  BookNarrationFormProps,
+  BookNarrationFormSection,
+  FormState,
+  ImageDefaults,
+} from './bookNarrationFormTypes';
 
 export type BookNarrationSectionMeta = Record<
   BookNarrationFormSection,
@@ -137,6 +142,56 @@ export function normalizeImagePromptPipeline(value: unknown): string | null {
     return 'prompt_plan';
   }
   return 'prompt_plan';
+}
+
+export function applyBookNarrationImageDefaults({
+  state,
+  imageDefaults,
+  editedFields,
+  allowAddImagesDefault = true,
+}: {
+  state: FormState;
+  imageDefaults: ImageDefaults | null;
+  editedFields: Iterable<keyof FormState>;
+  allowAddImagesDefault?: boolean;
+}): FormState {
+  if (!imageDefaults) {
+    return state;
+  }
+
+  const edited = editedFields instanceof Set ? editedFields : new Set(editedFields);
+  let next = state;
+  let changed = false;
+
+  const merge = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    if (edited.has(key) || state[key] === value) {
+      return;
+    }
+    if (!changed) {
+      next = { ...state };
+      changed = true;
+    }
+    next[key] = value;
+  };
+
+  if (allowAddImagesDefault) {
+    merge('add_images', imageDefaults.add_images);
+  }
+
+  const defaultPromptPipeline = normalizeImagePromptPipeline(imageDefaults.image_prompt_pipeline);
+  if (defaultPromptPipeline) {
+    merge('image_prompt_pipeline', defaultPromptPipeline);
+  }
+
+  merge('image_style_template', imageDefaults.image_style_template);
+  merge(
+    'image_prompt_context_sentences',
+    Math.max(0, Math.min(50, Math.trunc(imageDefaults.image_prompt_context_sentences))),
+  );
+  merge('image_width', imageDefaults.image_width);
+  merge('image_height', imageDefaults.image_height);
+
+  return changed ? next : state;
 }
 
 export async function resolveImageBaseUrlsForSubmission(values: string[]): Promise<string[]> {

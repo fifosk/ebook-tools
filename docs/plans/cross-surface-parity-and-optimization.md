@@ -80,7 +80,7 @@ Large Web UI hotspots to split before redesign work:
   Status: recent-job path normalization, resume-window inference, latest
   input/base selection, latest language/lookup-cache defaults, and rerun
   prefill state mapping, section metadata merging, edited-field preservation,
-  and submit-requirement resolution now live in
+  submit-requirement resolution, and backend image-default merging now live in
   `web/src/components/book-narration/bookNarrationFormUtils.ts` with focused
   Vitest coverage.
 

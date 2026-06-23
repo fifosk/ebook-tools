@@ -38,11 +38,11 @@ import {
 } from './bookNarrationFormDefaults';
 import {
   areLanguageArraysEqual,
+  applyBookNarrationImageDefaults,
   applyBookNarrationPrefillParameters,
   deriveBaseOutputName,
   formatList,
   normalizeBookNarrationPath,
-  normalizeImagePromptPipeline,
   normalizeSingleTargetLanguages,
   preserveBookNarrationUserEditedFields,
   resolveLatestBookNarrationJobSelection,
@@ -88,51 +88,12 @@ export function BookNarrationForm({
   const hasPrefillAddImages = typeof prefillParameters?.add_images === 'boolean';
   const applyImageDefaults = useCallback(
     (state: FormState): FormState => {
-      if (!imageDefaults) {
-        return state;
-      }
-      const edited = userEditedImageDefaultsRef.current;
-      let next = state;
-      let changed = false;
-      const merge = (partial: Partial<FormState>) => {
-        if (!changed) {
-          next = { ...state, ...partial };
-          changed = true;
-          return;
-        }
-        next = { ...next, ...partial };
-      };
-      if (!hasPrefillAddImages && !edited.has('add_images') && state.add_images !== imageDefaults.add_images) {
-        merge({ add_images: imageDefaults.add_images });
-      }
-      const defaultPromptPipeline = normalizeImagePromptPipeline(imageDefaults.image_prompt_pipeline);
-      if (
-        defaultPromptPipeline &&
-        !edited.has('image_prompt_pipeline') &&
-        state.image_prompt_pipeline !== defaultPromptPipeline
-      ) {
-        merge({ image_prompt_pipeline: defaultPromptPipeline });
-      }
-      if (!edited.has('image_style_template') && state.image_style_template !== imageDefaults.image_style_template) {
-        merge({ image_style_template: imageDefaults.image_style_template });
-      }
-      const normalizedContext = Math.max(
-        0,
-        Math.min(50, Math.trunc(imageDefaults.image_prompt_context_sentences))
-      );
-      if (
-        !edited.has('image_prompt_context_sentences') &&
-        state.image_prompt_context_sentences !== normalizedContext
-      ) {
-        merge({ image_prompt_context_sentences: normalizedContext });
-      }
-      if (!edited.has('image_width') && state.image_width !== imageDefaults.image_width) {
-        merge({ image_width: imageDefaults.image_width });
-      }
-      if (!edited.has('image_height') && state.image_height !== imageDefaults.image_height) {
-        merge({ image_height: imageDefaults.image_height });
-      }
-      return changed ? next : state;
+      return applyBookNarrationImageDefaults({
+        state,
+        imageDefaults,
+        editedFields: userEditedImageDefaultsRef.current,
+        allowAddImagesDefault: !hasPrefillAddImages
+      });
     },
     [hasPrefillAddImages, imageDefaults]
   );
