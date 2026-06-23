@@ -372,12 +372,11 @@ struct AppleBookCreateView: View {
                 Toggle("Lookup Cache", isOn: boolBinding(for: .enableLookupCache, value: $enableLookupCache))
                     .accessibilityIdentifier("createYoutubeLookupCacheToggle")
             } else {
-                LabeledContent("Path", value: derivedBaseOutput)
-                    .accessibilityIdentifier("createBookBaseOutputLabel")
-                Toggle("Transliteration", isOn: boolBinding(for: .includeTransliteration, value: $includeTransliteration))
-                    .accessibilityIdentifier("createBookTransliterationToggle")
-                Toggle("Lookup Cache", isOn: boolBinding(for: .enableLookupCache, value: $enableLookupCache))
-                    .accessibilityIdentifier("createBookLookupCacheToggle")
+                AppleBookCreateGeneratedOutputControls(
+                    derivedBaseOutput: derivedBaseOutput,
+                    includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
+                    enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache)
+                )
             }
         }
     }
@@ -1168,5 +1167,20 @@ private struct AppleBookCreateNarrationSection: View {
                 .accessibilityIdentifier("createBookVoicePicker")
             }
         }
+    }
+}
+
+private struct AppleBookCreateGeneratedOutputControls: View {
+    let derivedBaseOutput: String
+    @Binding var includeTransliteration: Bool
+    @Binding var enableLookupCache: Bool
+
+    var body: some View {
+        LabeledContent("Path", value: derivedBaseOutput)
+            .accessibilityIdentifier("createBookBaseOutputLabel")
+        Toggle("Transliteration", isOn: $includeTransliteration)
+            .accessibilityIdentifier("createBookTransliterationToggle")
+        Toggle("Lookup Cache", isOn: $enableLookupCache)
+            .accessibilityIdentifier("createBookLookupCacheToggle")
     }
 }
