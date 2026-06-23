@@ -1,6 +1,7 @@
 .PHONY: test test-fast test-audio test-translation test-webapi test-services \
        test-pipeline test-cli test-auth test-library test-render test-media \
        test-config test-metadata test-changed \
+       test-apple-contracts \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-all test-e2e-apple-parallel \
@@ -60,6 +61,9 @@ test-metadata:
 
 test-observability:
 	pytest -m observability -v
+
+test-apple-contracts:
+	bash scripts/check_apple_creation_payloads.sh
 
 # ── LLM model probe (diagnostic — slow, on-demand) ────────────────────
 # Probes every available LLM model for translation (EN→FR/AR/HI/ZH) and
