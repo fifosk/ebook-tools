@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.38",
+            version: "2026.06.23.39",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-base-output-slugs",
+                    title: "Apple output slugs",
+                    detail: "Apple Create now derives Web-aligned output slugs from source filenames, stripping final file extensions from EPUB, subtitle, and video paths before submission."
+                ),
                 AppChangelogEntry(
                     id: "apple-narrate-ebook-metadata",
                     title: "Narrate EPUB metadata",

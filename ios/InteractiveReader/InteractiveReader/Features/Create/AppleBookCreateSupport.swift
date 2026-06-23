@@ -1280,14 +1280,19 @@ enum AppleBookCreatePresentation {
 
     static func deriveBaseOutputName(_ value: String) -> String {
         let trimmedValue = trimmed(value)
-        let scalars = trimmedValue.unicodeScalars.map { scalar -> Character in
+        let withoutExtension = trimmedValue.replacingOccurrences(
+            of: #"\.[^/.]+$"#,
+            with: "",
+            options: .regularExpression
+        )
+        let scalars = withoutExtension.unicodeScalars.map { scalar -> Character in
             CharacterSet.alphanumerics.contains(scalar) ? Character(scalar) : "-"
         }
         let collapsed = String(scalars)
             .split(separator: "-", omittingEmptySubsequences: true)
             .joined(separator: "-")
             .lowercased()
-        return collapsed.nonEmptyValue ?? "generated-book"
+        return collapsed.nonEmptyValue ?? withoutExtension.nonEmptyValue ?? "generated-book"
     }
 
     private static func trimmed(_ value: String) -> String {

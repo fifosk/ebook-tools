@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.39
+
+- Advanced visible Apple app versioning to `v2026.06.23.39`.
+- Apple Create now derives Web-aligned output slugs from source filenames, stripping final file extensions from EPUB, subtitle, and video paths before submission.
+
 ### 2026.06.23.38
 
 - Advanced visible Apple app versioning to `v2026.06.23.38`.

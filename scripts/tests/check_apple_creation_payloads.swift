@@ -82,6 +82,14 @@ struct AppleCreationPayloadCheck {
             "Apple Create base output names should be filesystem-friendly"
         )
         require(
+            AppleBookCreatePresentation.deriveBaseOutputName("imports/Demo.epub") == "imports-demo",
+            "Apple Create base output names should strip final file extensions like Web"
+        )
+        require(
+            AppleBookCreatePresentation.deriveBaseOutputName("incoming/Demo.Video.mp4") == "incoming-demo-video",
+            "Apple Create base output names should keep dotted stems but drop the media extension"
+        )
+        require(
             AppleBookCreatePresentation.deriveBaseOutputName("   ") == "generated-book",
             "Apple Create base output names should keep the generated-book fallback"
         )
