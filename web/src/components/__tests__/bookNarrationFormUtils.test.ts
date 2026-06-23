@@ -11,6 +11,7 @@ import {
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
   resolveStartFromNarrationHistory,
+  restoreBookNarrationEditedImageDefaults,
 } from '../book-narration/bookNarrationFormUtils';
 
 function makeJob(
@@ -306,6 +307,56 @@ describe('bookNarrationFormUtils form state helpers', () => {
     });
 
     expect(next).toBe(previous);
+  });
+
+  it('restores only edited image-default fields after config defaults are applied', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      add_images: false,
+      image_prompt_pipeline: 'prompt_plan',
+      image_style_template: 'comics',
+      image_prompt_context_sentences: 3,
+      image_width: '256',
+      image_height: '512',
+    };
+    const next = {
+      ...previous,
+      add_images: true,
+      image_prompt_pipeline: 'visual_canon',
+      image_style_template: 'watercolor',
+      image_prompt_context_sentences: 9,
+      image_width: '1024',
+      image_height: '768',
+    };
+
+    const restored = restoreBookNarrationEditedImageDefaults(
+      previous,
+      next,
+      new Set(['add_images', 'image_width', 'image_height']),
+    );
+
+    expect(restored).toMatchObject({
+      add_images: false,
+      image_prompt_pipeline: 'visual_canon',
+      image_style_template: 'watercolor',
+      image_prompt_context_sentences: 9,
+      image_width: '256',
+      image_height: '512',
+    });
+  });
+
+  it('returns the current form state object when no edited image fields changed', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      image_width: '512',
+    };
+    const next = {
+      ...previous,
+      input_language: 'Spanish',
+    };
+
+    expect(restoreBookNarrationEditedImageDefaults(previous, next, ['image_width'])).toBe(next);
+    expect(restoreBookNarrationEditedImageDefaults(previous, next, [])).toBe(next);
   });
 
   it('merges section metadata overrides without mutating defaults', () => {

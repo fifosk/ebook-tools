@@ -6,6 +6,7 @@ import {
   applyConfigDefaults,
   areLanguageArraysEqual,
   normalizeSingleTargetLanguages,
+  restoreBookNarrationEditedImageDefaults,
 } from './bookNarrationFormUtils';
 
 type ResolveLatestJobSelection = () => { input?: string | null; base?: string | null } | null;
@@ -124,31 +125,7 @@ export function useBookNarrationDefaults({
           if (userEditedEndRef.current) {
             next = { ...next, end_sentence: previous.end_sentence };
           }
-          const editedImageFields = userEditedImageDefaultsRef.current;
-          if (editedImageFields.size > 0) {
-            const restored: Partial<FormState> = {};
-            if (editedImageFields.has('add_images')) {
-              restored.add_images = previous.add_images;
-            }
-            if (editedImageFields.has('image_prompt_pipeline')) {
-              restored.image_prompt_pipeline = previous.image_prompt_pipeline;
-            }
-            if (editedImageFields.has('image_style_template')) {
-              restored.image_style_template = previous.image_style_template;
-            }
-            if (editedImageFields.has('image_prompt_context_sentences')) {
-              restored.image_prompt_context_sentences = previous.image_prompt_context_sentences;
-            }
-            if (editedImageFields.has('image_width')) {
-              restored.image_width = previous.image_width;
-            }
-            if (editedImageFields.has('image_height')) {
-              restored.image_height = previous.image_height;
-            }
-            if (Object.keys(restored).length > 0) {
-              next = { ...next, ...restored };
-            }
-          }
+          next = restoreBookNarrationEditedImageDefaults(previous, next, userEditedImageDefaultsRef.current);
           next = preserveUserEditedFields(previous, next);
           const suggestedStart = resolveStartFromHistory(next.input_file);
           const baseOutput = forcedBaseOutputFile ?? next.base_output_file;

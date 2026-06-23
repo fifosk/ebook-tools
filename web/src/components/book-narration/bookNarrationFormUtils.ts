@@ -17,6 +17,15 @@ export type BookNarrationSectionMeta = Record<
   { title: string; description: string }
 >;
 
+const BOOK_NARRATION_IMAGE_DEFAULT_FIELDS: Array<keyof FormState> = [
+  'add_images',
+  'image_prompt_pipeline',
+  'image_style_template',
+  'image_prompt_context_sentences',
+  'image_width',
+  'image_height',
+];
+
 export function capitalize(value: string): string {
   if (!value) {
     return value;
@@ -192,6 +201,31 @@ export function applyBookNarrationImageDefaults({
   merge('image_height', imageDefaults.image_height);
 
   return changed ? next : state;
+}
+
+export function restoreBookNarrationEditedImageDefaults(
+  previous: FormState,
+  next: FormState,
+  editedFields: Iterable<keyof FormState>,
+): FormState {
+  const edited = editedFields instanceof Set ? editedFields : new Set(editedFields);
+  if (edited.size === 0) {
+    return next;
+  }
+
+  let result = next;
+  let changed = false;
+  for (const key of BOOK_NARRATION_IMAGE_DEFAULT_FIELDS) {
+    if (!edited.has(key) || next[key] === previous[key]) {
+      continue;
+    }
+    if (!changed) {
+      result = { ...next };
+      changed = true;
+    }
+    result = { ...result, [key]: previous[key] };
+  }
+  return changed ? result : next;
 }
 
 export async function resolveImageBaseUrlsForSubmission(values: string[]): Promise<string[]> {
