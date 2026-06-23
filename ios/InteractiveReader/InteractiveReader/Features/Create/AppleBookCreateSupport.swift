@@ -165,6 +165,7 @@ struct AppleSubtitleJobDraft: Equatable {
 struct AppleYoutubeDubDraft: Equatable {
     let videoPath: String
     let subtitlePath: String
+    let mediaMetadata: [String: JSONValue]
     let sourceLanguage: String?
     let targetLanguage: String?
     let voice: String
@@ -2748,6 +2749,7 @@ enum AppleBookCreatePresentation {
         subtitleLanguage: String?,
         targetLanguage: AppleBookCreateLanguage,
         voice: AppleBookCreateVoiceOption,
+        mediaMetadata: [String: JSONValue],
         startTimeOffset: String,
         endTimeOffset: String,
         originalMixPercent: Double,
@@ -2767,6 +2769,7 @@ enum AppleBookCreatePresentation {
         AppleYoutubeDubDraft(
             videoPath: trimmed(videoPath),
             subtitlePath: trimmed(subtitlePath),
+            mediaMetadata: normalizedYoutubeMediaMetadata(mediaMetadata),
             sourceLanguage: subtitleLanguage?.nonEmptyValue ?? sourceLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
             voice: voice.backendValue,
@@ -2788,6 +2791,12 @@ enum AppleBookCreatePresentation {
             preserveAspectRatio: preserveAspectRatio,
             enableLookupCache: enableLookupCache
         )
+    }
+
+    static func normalizedYoutubeMediaMetadata(_ value: [String: JSONValue]) -> [String: JSONValue] {
+        var metadata = value
+        metadata["source"] = .string("apple")
+        return metadata
     }
 
     static func deriveBaseOutputName(_ value: String) -> String {

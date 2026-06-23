@@ -1039,6 +1039,71 @@ struct AppleBookCreateYoutubeOutputControls: View {
     }
 }
 
+struct AppleBookCreateYoutubeMetadataControls: View {
+    let isLoadingTvMetadata: Bool
+    let isLoadingYoutubeMetadata: Bool
+    let message: String?
+    let errorMessage: String?
+    @Binding var title: String
+    @Binding var channel: String
+    @Binding var showName: String
+    @Binding var episodeName: String
+    let onLoadTvMetadata: () -> Void
+    let onLoadYoutubeMetadata: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: onLoadTvMetadata) {
+                Label(
+                    isLoadingTvMetadata ? "Loading TV" : "Load TV",
+                    systemImage: isLoadingTvMetadata ? "hourglass" : "tv"
+                )
+            }
+            .disabled(isLoadingTvMetadata || isLoadingYoutubeMetadata)
+            .accessibilityIdentifier("createYoutubeLoadTvMetadataButton")
+
+            Button(action: onLoadYoutubeMetadata) {
+                Label(
+                    isLoadingYoutubeMetadata ? "Loading YouTube" : "Load YouTube",
+                    systemImage: isLoadingYoutubeMetadata ? "hourglass" : "play.rectangle"
+                )
+            }
+            .disabled(isLoadingTvMetadata || isLoadingYoutubeMetadata)
+            .accessibilityIdentifier("createYoutubeLoadYoutubeMetadataButton")
+        }
+
+        if let message, !message.isEmpty {
+            Label(message, systemImage: "checkmark.circle")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createYoutubeMetadataStatus")
+        }
+        if let errorMessage, !errorMessage.isEmpty {
+            Label(errorMessage, systemImage: "exclamationmark.triangle")
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .accessibilityIdentifier("createYoutubeMetadataError")
+        }
+
+        TextField("YouTube title", text: $title)
+            .textInputAutocapitalization(.sentences)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createYoutubeMetadataTitleField")
+        TextField("Channel", text: $channel)
+            .textInputAutocapitalization(.words)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createYoutubeMetadataChannelField")
+        TextField("Series", text: $showName)
+            .textInputAutocapitalization(.words)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createYoutubeMetadataSeriesField")
+        TextField("Episode", text: $episodeName)
+            .textInputAutocapitalization(.sentences)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createYoutubeMetadataEpisodeField")
+    }
+}
+
 struct AppleBookCreateGeneratedOutputControls: View {
     let derivedBaseOutput: String
     @Binding var generateAudio: Bool

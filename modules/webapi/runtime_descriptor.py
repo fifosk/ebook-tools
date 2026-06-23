@@ -42,6 +42,8 @@ CREATION_DESCRIPTOR = {
     "youtubeLibraryPath": "/api/subtitles/youtube/library",
     "youtubeSubtitleStreamsPath": "/api/subtitles/youtube/subtitle-streams",
     "youtubeExtractSubtitlesPath": "/api/subtitles/youtube/extract-subtitles",
+    "subtitleTvMetadataPreviewPath": "/api/subtitles/metadata/tv/lookup",
+    "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
     "youtubeDubPath": "/api/subtitles/youtube/dub",
 }
 ALLOWED_PUBLIC_METADATA_KEYS = frozenset(

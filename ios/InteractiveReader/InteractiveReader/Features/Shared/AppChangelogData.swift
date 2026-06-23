@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.2",
+            version: "2026.06.24.3",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-youtube-metadata-preview",
+                    title: "Create loads video metadata",
+                    detail: "Apple Create YouTube Dub can now load TV and YouTube metadata before submission, edit the key title, channel, series, and episode fields on iPad, and send the enriched metadata payload with the job."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-youtube-inline-subtitles",
                     title: "Create extracts subtitles",

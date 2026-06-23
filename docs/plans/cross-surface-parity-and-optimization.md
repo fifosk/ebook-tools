@@ -363,8 +363,11 @@ After Narrate Ebook:
   `/api/subtitles/youtube/subtitle-streams` and
   `/api/subtitles/youtube/extract-subtitles`, and
   `/api/subtitles/youtube/dub` submission with language, voice, clip-window,
-  batching, provider/model, output, and lookup-cache options. Remaining parity
-  gaps: voice preview and rich TV/YouTube metadata lookup/editing.
+  batching, provider/model, output, lookup-cache options, voice preview, and
+  pre-submit TV/YouTube metadata lookup plus key title/channel/series/episode
+  edits that are sent with the job. Remaining parity gap: full Web-level
+  metadata editing and cache-management controls for every nested metadata
+  field.
 - Library source reupload on iPhone/iPad. Status: Library row context menus now
   expose Replace Source File, open a document picker for EPUB/PDF sources, post
   the file to `/api/library/items/{job_id}/upload-source`, and replace the

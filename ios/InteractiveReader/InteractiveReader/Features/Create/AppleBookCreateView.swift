@@ -165,6 +165,7 @@ struct AppleBookCreateView: View {
         .onChange(of: youtubeVideoPath) { _, newValue in
             youtubeSubtitleExtractionLanguages = ""
             viewModel.resetYoutubeSubtitleExtractionState()
+            viewModel.resetYoutubeMetadataState()
             persistYoutubeSelectionPath(newValue, field: "video")
         }
         .onChange(of: youtubeSubtitlePath) { _, newValue in
@@ -242,6 +243,9 @@ struct AppleBookCreateView: View {
     @ViewBuilder
     private var createSettingsSections: some View {
         narrationSection
+        if creationMode == .youtubeDub {
+            youtubeMetadataSection
+        }
         outputSection
         statusSection
         submitSection
@@ -573,6 +577,37 @@ struct AppleBookCreateView: View {
         }
     }
 
+    private var youtubeMetadataSection: some View {
+        Section("Metadata") {
+            AppleBookCreateYoutubeMetadataControls(
+                isLoadingTvMetadata: viewModel.isLoadingYoutubeTvMetadata,
+                isLoadingYoutubeMetadata: viewModel.isLoadingYoutubeVideoMetadata,
+                message: viewModel.youtubeMetadataMessage,
+                errorMessage: viewModel.youtubeMetadataErrorMessage,
+                title: youtubeMetadataTextBinding(section: "youtube", key: "title"),
+                channel: youtubeMetadataTextBinding(section: "youtube", key: "channel"),
+                showName: youtubeMetadataTextBinding(section: "show", key: "name"),
+                episodeName: youtubeMetadataTextBinding(section: "episode", key: "name"),
+                onLoadTvMetadata: {
+                    Task {
+                        await viewModel.lookupYoutubeTvMetadata(
+                            sourceName: youtubeMetadataTvSourceName,
+                            using: appState
+                        )
+                    }
+                },
+                onLoadYoutubeMetadata: {
+                    Task {
+                        await viewModel.lookupYoutubeVideoMetadata(
+                            sourceName: youtubeMetadataVideoSourceName,
+                            using: appState
+                        )
+                    }
+                }
+            )
+        }
+    }
+
     @ViewBuilder
     private var statusSection: some View {
         if viewModel.isLoadingOptions {
@@ -733,6 +768,14 @@ struct AppleBookCreateView: View {
             subtitleSourcePath: subtitleSourcePath,
             youtubeVideoPath: youtubeVideoPath
         )
+    }
+
+    private var youtubeMetadataTvSourceName: String {
+        trimmed(youtubeSubtitlePath).nonEmptyValue ?? trimmed(youtubeVideoPath)
+    }
+
+    private var youtubeMetadataVideoSourceName: String {
+        trimmed(youtubeVideoPath)
     }
 
     private static var isTVPlatform: Bool {
@@ -900,6 +943,7 @@ struct AppleBookCreateView: View {
             ),
             targetLanguage: targetLanguage,
             voice: voice,
+            mediaMetadata: viewModel.youtubeMediaMetadataDraft,
             startTimeOffset: offsetRange.start,
             endTimeOffset: offsetRange.end,
             originalMixPercent: youtubeOriginalMixPercent,
@@ -1995,6 +2039,17 @@ struct AppleBookCreateView: View {
             set: { newValue in
                 markEdited(field)
                 value.wrappedValue = newValue
+            }
+        )
+    }
+
+    private func youtubeMetadataTextBinding(section: String?, key: String) -> Binding<String> {
+        Binding(
+            get: {
+                viewModel.youtubeMediaMetadataText(section: section, key: key)
+            },
+            set: { newValue in
+                viewModel.updateYoutubeMediaMetadata(section: section, key: key, value: newValue)
             }
         )
     }

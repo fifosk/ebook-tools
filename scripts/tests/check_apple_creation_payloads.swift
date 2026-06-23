@@ -1773,6 +1773,10 @@ struct AppleCreationPayloadCheck {
             subtitleLanguage: " es ",
             targetLanguage: .slovak,
             voice: .gtts,
+            mediaMetadata: [
+                "source": .string("fixture"),
+                "youtube": .object(["title": .string("Demo video")])
+            ],
             startTimeOffset: "",
             endTimeOffset: "01:30",
             originalMixPercent: 104.2,
@@ -1798,6 +1802,11 @@ struct AppleCreationPayloadCheck {
         require(youtubeDraft.translationBatchSize == 1, "YouTube draft should clamp translation batch size")
         require(youtubeDraft.stitchBatches == false, "YouTube draft should not stitch when split batches is disabled")
         require(youtubeDraft.targetHeight == 720, "YouTube draft should map target height")
+        require(youtubeDraft.mediaMetadata["source"] == .string("apple"), "YouTube draft should label Apple metadata source")
+        require(
+            youtubeDraft.mediaMetadata["youtube"] == .object(["title": .string("Demo video")]),
+            "YouTube draft should preserve enriched media metadata"
+        )
 
         let youtubeFallbackDraft = AppleBookCreatePresentation.youtubeDubDraft(
             videoPath: "incoming/demo.mp4",
@@ -1806,6 +1815,7 @@ struct AppleCreationPayloadCheck {
             subtitleLanguage: " ",
             targetLanguage: .slovak,
             voice: .gtts,
+            mediaMetadata: [:],
             startTimeOffset: "",
             endTimeOffset: "",
             originalMixPercent: 5,

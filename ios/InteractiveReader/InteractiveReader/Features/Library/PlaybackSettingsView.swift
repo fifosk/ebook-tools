@@ -159,6 +159,8 @@ struct PlaybackSettingsView: View {
             ("youtubeLibraryPath", creation.youtubeLibraryPath, AppleCreateRuntimeContract.youtubeLibraryPath),
             ("youtubeSubtitleStreamsPath", creation.youtubeSubtitleStreamsPath, AppleCreateRuntimeContract.youtubeSubtitleStreamsPath),
             ("youtubeExtractSubtitlesPath", creation.youtubeExtractSubtitlesPath, AppleCreateRuntimeContract.youtubeExtractSubtitlesPath),
+            ("subtitleTvMetadataPreviewPath", creation.subtitleTvMetadataPreviewPath, AppleCreateRuntimeContract.subtitleTvMetadataPreviewPath),
+            ("youtubeMetadataPreviewPath", creation.youtubeMetadataPreviewPath, AppleCreateRuntimeContract.youtubeMetadataPreviewPath),
             ("youtubeDubPath", creation.youtubeDubPath, AppleCreateRuntimeContract.youtubeDubPath),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in

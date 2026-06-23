@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.3
+
+- Advanced visible Apple app versioning to `v2026.06.24.3`.
+- Apple Create YouTube Dub can now load TV and YouTube metadata before submission, edit the key title/channel/series fields on iPad, and send the enriched metadata payload with the job.
+
 ### 2026.06.24.2
 
 - Advanced visible Apple app versioning to `v2026.06.24.2`.

@@ -14,6 +14,8 @@ enum AppleCreateRuntimeContract {
     static let youtubeLibraryPath = "/api/subtitles/youtube/library"
     static let youtubeSubtitleStreamsPath = "/api/subtitles/youtube/subtitle-streams"
     static let youtubeExtractSubtitlesPath = "/api/subtitles/youtube/extract-subtitles"
+    static let subtitleTvMetadataPreviewPath = "/api/subtitles/metadata/tv/lookup"
+    static let youtubeMetadataPreviewPath = "/api/subtitles/metadata/youtube/lookup"
     static let youtubeDubPath = "/api/subtitles/youtube/dub"
 }
 
@@ -89,6 +91,28 @@ extension APIClient {
             payload: payload
         )
         return try decode(YoutubeSubtitleExtractionResponse.self, from: data)
+    }
+
+    func lookupSubtitleTvMetadataPreview(
+        _ payload: SubtitleTvMetadataPreviewLookupRequest
+    ) async throws -> SubtitleTvMetadataPreviewResponse {
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.subtitleTvMetadataPreviewPath,
+            method: "POST",
+            payload: payload
+        )
+        return try decode(SubtitleTvMetadataPreviewResponse.self, from: data)
+    }
+
+    func lookupYoutubeMetadataPreview(
+        _ payload: YoutubeVideoMetadataPreviewLookupRequest
+    ) async throws -> YoutubeVideoMetadataPreviewResponse {
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.youtubeMetadataPreviewPath,
+            method: "POST",
+            payload: payload
+        )
+        return try decode(YoutubeVideoMetadataPreviewResponse.self, from: data)
     }
 
     func submitPipeline(_ payload: PipelineRequestPayload) async throws -> PipelineSubmissionResponse {

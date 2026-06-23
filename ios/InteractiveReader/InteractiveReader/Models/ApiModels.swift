@@ -12,6 +12,22 @@ struct SubtitleTvMetadataResponse: Decodable {
     let mediaMetadata: [String: JSONValue]?
 }
 
+struct SubtitleTvMetadataPreviewLookupRequest: Encodable, Equatable {
+    let sourceName: String
+    let force: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case sourceName = "source_name"
+        case force
+    }
+}
+
+struct SubtitleTvMetadataPreviewResponse: Decodable {
+    let sourceName: String?
+    let parsed: SubtitleTvMetadataParse?
+    let mediaMetadata: [String: JSONValue]?
+}
+
 struct YoutubeVideoMetadataParse: Decodable {
     let videoId: String
     let pattern: String
@@ -19,6 +35,22 @@ struct YoutubeVideoMetadataParse: Decodable {
 
 struct YoutubeVideoMetadataResponse: Decodable {
     let jobId: String
+    let sourceName: String?
+    let parsed: YoutubeVideoMetadataParse?
+    let youtubeMetadata: [String: JSONValue]?
+}
+
+struct YoutubeVideoMetadataPreviewLookupRequest: Encodable, Equatable {
+    let sourceName: String
+    let force: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case sourceName = "source_name"
+        case force
+    }
+}
+
+struct YoutubeVideoMetadataPreviewResponse: Decodable {
     let sourceName: String?
     let parsed: YoutubeVideoMetadataParse?
     let youtubeMetadata: [String: JSONValue]?

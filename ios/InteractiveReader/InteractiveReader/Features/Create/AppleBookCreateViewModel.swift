@@ -12,6 +12,9 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var subtitleSources: SubtitleSourceListResponse?
     @Published private(set) var youtubeLibrary: YoutubeNasLibraryResponse?
     @Published private(set) var youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream] = []
+    @Published private(set) var youtubeTvMetadataPreview: SubtitleTvMetadataPreviewResponse?
+    @Published private(set) var youtubeVideoMetadataPreview: YoutubeVideoMetadataPreviewResponse?
+    @Published private(set) var youtubeMediaMetadataDraft: [String: JSONValue] = ["source": .string("apple")]
     @Published private(set) var voiceInventory: AppleBookCreateVoiceInventory?
     @Published private(set) var subtitleLlmModels: [String] = []
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
@@ -20,6 +23,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isLoadingYoutubeLibrary = false
     @Published private(set) var isLoadingYoutubeSubtitleStreams = false
     @Published private(set) var isExtractingYoutubeSubtitles = false
+    @Published private(set) var isLoadingYoutubeTvMetadata = false
+    @Published private(set) var isLoadingYoutubeVideoMetadata = false
     @Published private(set) var isLoadingVoiceInventory = false
     @Published private(set) var narrateChaptersErrorMessage: String?
     @Published private(set) var pipelineFilesErrorMessage: String?
@@ -27,6 +32,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var youtubeLibraryErrorMessage: String?
     @Published private(set) var youtubeSubtitleExtractionMessage: String?
     @Published private(set) var youtubeSubtitleExtractionErrorMessage: String?
+    @Published private(set) var youtubeMetadataMessage: String?
+    @Published private(set) var youtubeMetadataErrorMessage: String?
     @Published private(set) var voiceInventoryErrorMessage: String?
     @Published private(set) var voicePreviewStates: [String: AppleVoicePreviewState] = [:]
     @Published private(set) var voicePreviewErrorMessages: [String: String] = [:]
@@ -269,6 +276,116 @@ final class AppleBookCreateViewModel: ObservableObject {
             youtubeSubtitleExtractionErrorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    func lookupYoutubeTvMetadata(
+        sourceName: String,
+        force: Bool = false,
+        using appState: AppState
+    ) async {
+        guard let configuration = appState.configuration else {
+            youtubeMetadataErrorMessage = "API configuration is unavailable."
+            return
+        }
+        let trimmedSourceName = sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSourceName.isEmpty else {
+            youtubeMetadataErrorMessage = "Choose a subtitle before loading TV metadata."
+            return
+        }
+
+        isLoadingYoutubeTvMetadata = true
+        youtubeMetadataErrorMessage = nil
+        youtubeMetadataMessage = nil
+        defer { isLoadingYoutubeTvMetadata = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let request = SubtitleTvMetadataPreviewLookupRequest(sourceName: trimmedSourceName, force: force)
+            let response = try await client.lookupSubtitleTvMetadataPreview(request)
+            youtubeTvMetadataPreview = response
+            if let mediaMetadata = response.mediaMetadata {
+                mergeYoutubeTvMetadata(mediaMetadata)
+                youtubeMetadataMessage = "Loaded TV metadata for \(response.sourceName ?? trimmedSourceName)."
+            } else {
+                youtubeMetadataMessage = "No TV metadata match for \(response.sourceName ?? trimmedSourceName)."
+            }
+        } catch {
+            youtubeMetadataErrorMessage = error.localizedDescription
+        }
+    }
+
+    func lookupYoutubeVideoMetadata(
+        sourceName: String,
+        force: Bool = false,
+        using appState: AppState
+    ) async {
+        guard let configuration = appState.configuration else {
+            youtubeMetadataErrorMessage = "API configuration is unavailable."
+            return
+        }
+        let trimmedSourceName = sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSourceName.isEmpty else {
+            youtubeMetadataErrorMessage = "Choose a video before loading YouTube metadata."
+            return
+        }
+
+        isLoadingYoutubeVideoMetadata = true
+        youtubeMetadataErrorMessage = nil
+        youtubeMetadataMessage = nil
+        defer { isLoadingYoutubeVideoMetadata = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let request = YoutubeVideoMetadataPreviewLookupRequest(sourceName: trimmedSourceName, force: force)
+            let response = try await client.lookupYoutubeMetadataPreview(request)
+            youtubeVideoMetadataPreview = response
+            if let youtubeMetadata = response.youtubeMetadata {
+                updateYoutubeMetadataSection("youtube") { section in
+                    for (key, value) in youtubeMetadata {
+                        section[key] = value
+                    }
+                }
+                youtubeMetadataMessage = "Loaded YouTube metadata for \(response.sourceName ?? trimmedSourceName)."
+            } else {
+                youtubeMetadataMessage = "No YouTube metadata match for \(response.sourceName ?? trimmedSourceName)."
+            }
+        } catch {
+            youtubeMetadataErrorMessage = error.localizedDescription
+        }
+    }
+
+    func resetYoutubeMetadataState() {
+        youtubeTvMetadataPreview = nil
+        youtubeVideoMetadataPreview = nil
+        youtubeMetadataMessage = nil
+        youtubeMetadataErrorMessage = nil
+        youtubeMediaMetadataDraft = ["source": .string("apple")]
+    }
+
+    func updateYoutubeMediaMetadata(section: String?, key: String, value: String) {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let section = section?.trimmingCharacters(in: .whitespacesAndNewlines), !section.isEmpty {
+            updateYoutubeMetadataSection(section) { sectionDraft in
+                if trimmedValue.isEmpty {
+                    sectionDraft.removeValue(forKey: key)
+                } else {
+                    sectionDraft[key] = .string(trimmedValue)
+                }
+            }
+        } else if trimmedValue.isEmpty {
+            youtubeMediaMetadataDraft.removeValue(forKey: key)
+        } else {
+            youtubeMediaMetadataDraft[key] = .string(trimmedValue)
+        }
+        youtubeMediaMetadataDraft["source"] = .string("apple")
+    }
+
+    func youtubeMediaMetadataText(section: String?, key: String) -> String {
+        if let section,
+           let sectionDraft = youtubeMediaMetadataDraft[section]?.objectValue {
+            return sectionDraft[key]?.stringValue ?? ""
+        }
+        return youtubeMediaMetadataDraft[key]?.stringValue ?? ""
     }
 
     func loadVoiceInventory(
@@ -952,7 +1069,7 @@ final class AppleBookCreateViewModel: ObservableObject {
         YoutubeDubRequestPayload(
             videoPath: draft.videoPath,
             subtitlePath: draft.subtitlePath,
-            mediaMetadata: ["source": .string("apple")],
+            mediaMetadata: draft.mediaMetadata,
             sourceLanguage: draft.sourceLanguage,
             targetLanguage: draft.targetLanguage,
             voice: draft.voice,
@@ -972,6 +1089,29 @@ final class AppleBookCreateViewModel: ObservableObject {
             preserveAspectRatio: draft.preserveAspectRatio,
             enableLookupCache: draft.enableLookupCache
         )
+    }
+
+    private func mergeYoutubeTvMetadata(_ mediaMetadata: [String: JSONValue]) {
+        let preservedYoutube = youtubeMediaMetadataDraft["youtube"]
+        youtubeMediaMetadataDraft = mediaMetadata
+        if preservedYoutube != nil, youtubeMediaMetadataDraft["youtube"] == nil {
+            youtubeMediaMetadataDraft["youtube"] = preservedYoutube
+        }
+        youtubeMediaMetadataDraft["source"] = .string("apple")
+    }
+
+    private func updateYoutubeMetadataSection(
+        _ section: String,
+        mutate: (inout [String: JSONValue]) -> Void
+    ) {
+        var sectionDraft = youtubeMediaMetadataDraft[section]?.objectValue ?? [:]
+        mutate(&sectionDraft)
+        if sectionDraft.isEmpty {
+            youtubeMediaMetadataDraft.removeValue(forKey: section)
+        } else {
+            youtubeMediaMetadataDraft[section] = .object(sectionDraft)
+        }
+        youtubeMediaMetadataDraft["source"] = .string("apple")
     }
 }
 
