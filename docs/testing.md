@@ -121,6 +121,41 @@ make build-apple-macos-ipad-style
 These commands resolve the local Mac destination and app product path without
 touching physical iPhone/iPad/Apple TV devices.
 
+For repo-owned physical iPhone/iPad update readiness, the guarded helper can
+exercise CoreDevice paths without installing:
+
+```bash
+make apple-devices
+APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --device-preflight-only
+APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --verify-installed
+APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --build-only --allow-provisioning-updates
+```
+
+Use dry-runs to inspect the exact unattended command sequence before a physical
+update:
+
+```bash
+APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --install --dry-run
+APPLE_DEVICE_ID="Fifo Ipad Pro" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  bash scripts/apple_unattended_device_update.sh --install --launch --dry-run
+```
+
+Actual physical installs remain explicit and attended by policy:
+
+```bash
+APPLE_DEVICE_ID="Fifo Ipad Pro" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  bash scripts/apple_unattended_device_update.sh --install
+```
+
+After install, the helper runs `devicectl device info apps --bundle-id` with a
+JSON output file under `test-results/` and fails if installed app metadata for
+`com.example.InteractiveReader` is not found. Add `--launch` only when the
+device is awake and unlocked; locked devices can still install and verify
+metadata, but foreground launch may block until the user unlocks the device.
+When a signed app has already been produced by Xcode or a prior build, use
+`--skip-build --app-path /path/to/InteractiveReader.app` with the same
+confirmation guard to install that bundle without driving Xcode again.
+
 Latest attended iPad M5 deployment from June 22, 2026: `v2026.06.22.12`
 with marketing version `2026.6.22` and bundle version `2026062212`. The
 post-install `devicectl` verification reported:
