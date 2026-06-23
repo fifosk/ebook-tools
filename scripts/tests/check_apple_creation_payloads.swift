@@ -117,6 +117,83 @@ struct AppleCreationPayloadCheck {
             "Submitting state should override mode-specific submit labels"
         )
         require(
+            !AppleBookCreatePresentation.canSubmit(
+                submitState(
+                    hasConfiguration: false,
+                    mode: .generatedBook,
+                    topic: "Portable Apple clients",
+                    bookName: "Native Creation",
+                    genre: "technical"
+                )
+            ),
+            "Apple Create submit should stay disabled without backend configuration"
+        )
+        require(
+            AppleBookCreatePresentation.canSubmit(
+                submitState(
+                    mode: .generatedBook,
+                    topic: " Portable Apple clients ",
+                    bookName: " Native Creation ",
+                    genre: " technical "
+                )
+            ),
+            "Generated book submit should allow complete trimmed topic, title, and genre"
+        )
+        require(
+            !AppleBookCreatePresentation.canSubmit(
+                submitState(mode: .generatedBook, topic: "Portable Apple clients", bookName: "", genre: "technical")
+            ),
+            "Generated book submit should require a title"
+        )
+        require(
+            AppleBookCreatePresentation.canSubmit(
+                submitState(mode: .narrateEbook, hasNarrateLocalFile: true, sourceBaseOutput: " apple/import ")
+            ),
+            "Narrate EPUB submit should allow a local EPUB file plus output path"
+        )
+        require(
+            AppleBookCreatePresentation.canSubmit(
+                submitState(mode: .narrateEbook, sourcePath: " imports/book.epub ", sourceBaseOutput: " apple/import ")
+            ),
+            "Narrate EPUB submit should allow a server EPUB path plus output path"
+        )
+        require(
+            !AppleBookCreatePresentation.canSubmit(
+                submitState(mode: .narrateEbook, hasNarrateLocalFile: true, sourceBaseOutput: " ")
+            ),
+            "Narrate EPUB submit should require an output path"
+        )
+        require(
+            AppleBookCreatePresentation.canSubmit(
+                submitState(mode: .subtitleJob, hasSubtitleLocalFile: true)
+            ),
+            "Subtitle submit should allow a local subtitle file"
+        )
+        require(
+            AppleBookCreatePresentation.canSubmit(
+                submitState(mode: .subtitleJob, subtitleSourcePath: " subtitles/demo.srt ")
+            ),
+            "Subtitle submit should allow a server subtitle path"
+        )
+        require(
+            !AppleBookCreatePresentation.canSubmit(
+                submitState(mode: .subtitleJob, subtitleSourcePath: " ")
+            ),
+            "Subtitle submit should require either a local file or server path"
+        )
+        require(
+            AppleBookCreatePresentation.canSubmit(
+                submitState(mode: .youtubeDub, youtubeVideoPath: " incoming/demo.mp4 ", youtubeSubtitlePath: " incoming/demo.srt ")
+            ),
+            "YouTube Dub submit should require video and subtitle paths"
+        )
+        require(
+            !AppleBookCreatePresentation.canSubmit(
+                submitState(mode: .youtubeDub, youtubeVideoPath: "incoming/demo.mp4", youtubeSubtitlePath: " ")
+            ),
+            "YouTube Dub submit should reject a missing subtitle path"
+        )
+        require(
             AppleBookCreatePresentation.availableInputLanguages(from: options) == [.english, .arabic],
             "Input language options should follow backend-supported order"
         )
@@ -733,6 +810,36 @@ struct AppleCreationPayloadCheck {
             throw CheckFailure("Encoded payload was not a JSON object")
         }
         return object
+    }
+
+    private static func submitState(
+        hasConfiguration: Bool = true,
+        mode: AppleCreateMode,
+        topic: String = "",
+        bookName: String = "",
+        genre: String = "",
+        hasNarrateLocalFile: Bool = false,
+        sourcePath: String = "",
+        sourceBaseOutput: String = "",
+        hasSubtitleLocalFile: Bool = false,
+        subtitleSourcePath: String = "",
+        youtubeVideoPath: String = "",
+        youtubeSubtitlePath: String = ""
+    ) -> AppleCreateSubmitState {
+        AppleCreateSubmitState(
+            hasConfiguration: hasConfiguration,
+            mode: mode,
+            topic: topic,
+            bookName: bookName,
+            genre: genre,
+            hasNarrateLocalFile: hasNarrateLocalFile,
+            sourcePath: sourcePath,
+            sourceBaseOutput: sourceBaseOutput,
+            hasSubtitleLocalFile: hasSubtitleLocalFile,
+            subtitleSourcePath: subtitleSourcePath,
+            youtubeVideoPath: youtubeVideoPath,
+            youtubeSubtitlePath: youtubeSubtitlePath
+        )
     }
 
     private static func require(_ condition: Bool, _ message: String) {

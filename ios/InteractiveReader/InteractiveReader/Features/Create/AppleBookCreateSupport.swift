@@ -231,6 +231,21 @@ struct AppleCreateSubmitPresentation: Equatable {
     let systemImage: String
 }
 
+struct AppleCreateSubmitState: Equatable {
+    let hasConfiguration: Bool
+    let mode: AppleCreateMode
+    let topic: String
+    let bookName: String
+    let genre: String
+    let hasNarrateLocalFile: Bool
+    let sourcePath: String
+    let sourceBaseOutput: String
+    let hasSubtitleLocalFile: Bool
+    let subtitleSourcePath: String
+    let youtubeVideoPath: String
+    let youtubeSubtitlePath: String
+}
+
 enum AppleBookCreatePresentation {
     static func availableCreateModes(isTV: Bool) -> [AppleCreateMode] {
         isTV ? [.generatedBook] : AppleCreateMode.allCases
@@ -318,6 +333,24 @@ enum AppleBookCreatePresentation {
             return AppleCreateSubmitPresentation(title: "Create Subtitles", systemImage: "captions.bubble")
         case .youtubeDub:
             return AppleCreateSubmitPresentation(title: "Create Dub", systemImage: "video")
+        }
+    }
+
+    static func canSubmit(_ state: AppleCreateSubmitState) -> Bool {
+        guard state.hasConfiguration else { return false }
+        switch state.mode {
+        case .generatedBook:
+            return !trimmed(state.topic).isEmpty
+                && !trimmed(state.bookName).isEmpty
+                && !trimmed(state.genre).isEmpty
+        case .narrateEbook:
+            return (state.hasNarrateLocalFile || !trimmed(state.sourcePath).isEmpty)
+                && !trimmed(state.sourceBaseOutput).isEmpty
+        case .subtitleJob:
+            return state.hasSubtitleLocalFile || !trimmed(state.subtitleSourcePath).isEmpty
+        case .youtubeDub:
+            return !trimmed(state.youtubeVideoPath).isEmpty
+                && !trimmed(state.youtubeSubtitlePath).isEmpty
         }
     }
 

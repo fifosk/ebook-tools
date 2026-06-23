@@ -532,21 +532,24 @@ struct AppleBookCreateView: View {
     }
 
     private var canSubmit: Bool {
-        guard appState.configuration != nil else { return false }
-        switch creationMode {
-        case .generatedBook:
-            return !trimmed(topic).isEmpty
-                && !trimmed(bookName).isEmpty
-                && !trimmed(genre).isEmpty
-        case .narrateEbook:
-            return (selectedNarrateFileURL != nil || !trimmed(sourcePath).isEmpty)
-                && !trimmed(sourceBaseOutput).isEmpty
-        case .subtitleJob:
-            return selectedSubtitleFileURL != nil || !trimmed(subtitleSourcePath).isEmpty
-        case .youtubeDub:
-            return !trimmed(youtubeVideoPath).isEmpty
-                && !trimmed(youtubeSubtitlePath).isEmpty
-        }
+        AppleBookCreatePresentation.canSubmit(submitState)
+    }
+
+    private var submitState: AppleCreateSubmitState {
+        AppleCreateSubmitState(
+            hasConfiguration: appState.configuration != nil,
+            mode: creationMode,
+            topic: topic,
+            bookName: bookName,
+            genre: genre,
+            hasNarrateLocalFile: selectedNarrateFileURL != nil,
+            sourcePath: sourcePath,
+            sourceBaseOutput: sourceBaseOutput,
+            hasSubtitleLocalFile: selectedSubtitleFileURL != nil,
+            subtitleSourcePath: subtitleSourcePath,
+            youtubeVideoPath: youtubeVideoPath,
+            youtubeSubtitlePath: youtubeSubtitlePath
+        )
     }
 
     private var availableCreateModes: [AppleCreateMode] {
