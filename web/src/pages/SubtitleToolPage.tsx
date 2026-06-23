@@ -34,6 +34,7 @@ import type {
 import { useSubtitleJobResults } from './subtitle-tool/useSubtitleJobResults';
 import { useSubtitleLanguageDefaults } from './subtitle-tool/useSubtitleLanguageDefaults';
 import { useSubtitleModels } from './subtitle-tool/useSubtitleModels';
+import { useSubtitlePrefill } from './subtitle-tool/useSubtitlePrefill';
 import { useSubtitleShowOriginalPreference } from './subtitle-tool/useSubtitleShowOriginalPreference';
 import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
@@ -43,7 +44,6 @@ import {
   isAssSubtitleSelection,
   normalizeLanguageInput,
   resolveSubtitleMetadataSourceName,
-  resolveSubtitlePrefillValues,
   resolveSubtitleSubmitValues,
   sortSubtitleJobsNewestFirst
 } from './subtitle-tool/subtitleToolUtils';
@@ -178,63 +178,27 @@ export default function SubtitleToolPage({
   );
   const [lastSubmittedAssFontSize, setLastSubmittedAssFontSize] = useState<number | null>(null);
   const [lastSubmittedAssEmphasis, setLastSubmittedAssEmphasis] = useState<number | null>(null);
+  useSubtitlePrefill({
+    prefillParameters,
+    setTargetLanguage,
+    setPrimaryTargetLanguage,
+    setInputLanguage,
+    setEnableTransliteration,
+    setShowOriginal,
+    setWorkerCount,
+    setBatchSize,
+    setTranslationBatchSize,
+    setStartTime,
+    setEndTime,
+    setSelectedModel,
+    setTranslationProvider,
+    setTransliterationMode,
+    setTransliterationModel,
+    setSelectedSource
+  });
   useEffect(() => {
     setTargetLanguage(primaryTargetLanguage ?? targetLanguage);
   }, [primaryTargetLanguage]);
-
-  useEffect(() => {
-    if (!prefillParameters) {
-      return;
-    }
-    const prefill = resolveSubtitlePrefillValues(prefillParameters);
-    if (prefill.targetLanguage) {
-      setTargetLanguage(prefill.targetLanguage);
-      setPrimaryTargetLanguage(prefill.targetLanguage);
-    }
-    if (prefill.inputLanguage) {
-      setInputLanguage(prefill.inputLanguage);
-    }
-    if (prefill.enableTransliteration !== null) {
-      setEnableTransliteration(prefill.enableTransliteration);
-    }
-    if (prefill.showOriginal !== null) {
-      setShowOriginal(prefill.showOriginal);
-    }
-    if (prefill.workerCount !== null) {
-      setWorkerCount(prefill.workerCount);
-    }
-    if (prefill.batchSize !== null) {
-      setBatchSize(prefill.batchSize);
-    }
-    if (prefill.translationBatchSize !== null) {
-      setTranslationBatchSize(prefill.translationBatchSize);
-    }
-    if (prefill.startTime !== null) {
-      setStartTime(prefill.startTime);
-    }
-    if (prefill.endTime !== null) {
-      setEndTime(prefill.endTime);
-    }
-    if (prefill.selectedModel) {
-      setSelectedModel(prefill.selectedModel);
-    }
-    if (prefill.translationProvider) {
-      setTranslationProvider(prefill.translationProvider);
-    }
-    if (prefill.transliterationMode) {
-      setTransliterationMode(prefill.transliterationMode);
-    }
-    if (prefill.transliterationModel) {
-      setTransliterationModel(prefill.transliterationModel);
-    }
-    if (prefill.sourcePath) {
-      setSelectedSource(prefill.sourcePath);
-    }
-  }, [
-    prefillParameters,
-    setInputLanguage,
-    setPrimaryTargetLanguage
-  ]);
 
   useEffect(() => {
     if (!targetLanguage && languageOptions.length > 0) {

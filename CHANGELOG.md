@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.63
+
+- Advanced visible Apple app versioning to `v2026.06.23.63`.
+- Web Subtitle Tool rerun/prefill application now lives in a focused hook with coverage for full, partial, absent, and updated parameter snapshots.
+
 ### 2026.06.23.62
 
 - Advanced visible Apple app versioning to `v2026.06.23.62`.
