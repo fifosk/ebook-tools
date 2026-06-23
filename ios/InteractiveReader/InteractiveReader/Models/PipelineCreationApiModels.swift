@@ -191,6 +191,41 @@ struct BookContentIndexResponse: Decodable, Equatable {
     }
 }
 
+struct SubtitleSourceEntry: Decodable, Equatable {
+    let name: String
+    let path: String
+    let format: String
+    let language: String?
+    let modifiedAt: String?
+}
+
+struct SubtitleSourceListResponse: Decodable, Equatable {
+    let sources: [SubtitleSourceEntry]
+}
+
+struct YoutubeNasSubtitleEntry: Decodable, Equatable {
+    let path: String
+    let filename: String
+    let language: String?
+    let format: String
+}
+
+struct YoutubeNasVideoEntry: Decodable, Equatable {
+    let path: String
+    let filename: String
+    let folder: String
+    let sizeBytes: Int
+    let modifiedAt: String
+    let source: String?
+    let linkedJobIds: [String]
+    let subtitles: [YoutubeNasSubtitleEntry]
+}
+
+struct YoutubeNasLibraryResponse: Decodable, Equatable {
+    let baseDir: String
+    let videos: [YoutubeNasVideoEntry]
+}
+
 struct BookCreationSentenceBounds: Decodable, Equatable {
     let min: Int
     let max: Int

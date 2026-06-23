@@ -148,6 +148,8 @@ struct AppleBookCreateView: View {
             await refreshCreationOptions()
             await refreshIntakeStatus()
             await refreshPipelineFiles()
+            await refreshSubtitleSources()
+            await refreshYoutubeLibrary()
             await viewModel.loadSubtitleModels(using: appState, cacheKey: creationOptionsLoadKey)
         }
         #if os(iOS)
@@ -179,6 +181,8 @@ struct AppleBookCreateView: View {
             youtubeVideoPath: textBinding(for: .youtubeVideoPath, value: $youtubeVideoPath),
             youtubeSubtitlePath: textBinding(for: .youtubeSubtitlePath, value: $youtubeSubtitlePath),
             pipelineFiles: viewModel.pipelineFiles,
+            subtitleSources: viewModel.subtitleSources,
+            youtubeLibrary: viewModel.youtubeLibrary,
             selectedNarrateFileName: selectedNarrateFileName,
             selectedSubtitleFileName: selectedSubtitleFileName,
             narrateChapterOptions: viewModel.narrateChapterOptions,
@@ -186,10 +190,20 @@ struct AppleBookCreateView: View {
             selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
             isLoadingPipelineFiles: viewModel.isLoadingPipelineFiles,
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
+            isLoadingSubtitleSources: viewModel.isLoadingSubtitleSources,
+            isLoadingYoutubeLibrary: viewModel.isLoadingYoutubeLibrary,
             pipelineFilesErrorMessage: viewModel.pipelineFilesErrorMessage,
             narrateChaptersErrorMessage: viewModel.narrateChaptersErrorMessage,
+            subtitleSourcesErrorMessage: viewModel.subtitleSourcesErrorMessage,
+            youtubeLibraryErrorMessage: viewModel.youtubeLibraryErrorMessage,
             onRefreshPipelineFiles: {
                 Task { await refreshPipelineFiles(force: true) }
+            },
+            onRefreshSubtitleSources: {
+                Task { await refreshSubtitleSources(force: true) }
+            },
+            onRefreshYoutubeLibrary: {
+                Task { await refreshYoutubeLibrary(force: true) }
             },
             onLoadNarrateChapters: loadNarrateChapters,
             onChooseNarrateFile: { isImportingNarrateEbook = true },
@@ -861,6 +875,26 @@ struct AppleBookCreateView: View {
         applyPreferredNarrateSource(from: files)
     }
 
+    private func refreshSubtitleSources(force: Bool = false) async {
+        guard !Self.isTVPlatform else { return }
+        let sources = await viewModel.loadSubtitleSources(
+            using: appState,
+            cacheKey: creationOptionsLoadKey,
+            force: force
+        )
+        applyPreferredSubtitleSource(from: sources)
+    }
+
+    private func refreshYoutubeLibrary(force: Bool = false) async {
+        guard !Self.isTVPlatform else { return }
+        let library = await viewModel.loadYoutubeLibrary(
+            using: appState,
+            cacheKey: creationOptionsLoadKey,
+            force: force
+        )
+        applyPreferredYoutubeSource(from: library)
+    }
+
     private func applyPreferredNarrateSource(from files: PipelineFileBrowserResponse?) {
         guard
             selectedNarrateFileURL == nil,
@@ -874,6 +908,32 @@ struct AppleBookCreateView: View {
         sourcePath = entry.path
         if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
             sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(entry.name)
+        }
+    }
+
+    private func applyPreferredSubtitleSource(from sources: SubtitleSourceListResponse?) {
+        guard
+            selectedSubtitleFileURL == nil,
+            !editedFields.contains(.subtitleSourcePath),
+            trimmed(subtitleSourcePath).isEmpty,
+            let entry = AppleBookCreatePresentation.preferredSubtitleSource(from: sources)
+        else {
+            return
+        }
+
+        subtitleSourcePath = entry.path
+    }
+
+    private func applyPreferredYoutubeSource(from library: YoutubeNasLibraryResponse?) {
+        guard let selection = AppleBookCreatePresentation.preferredYoutubeSelection(from: library) else {
+            return
+        }
+
+        if !editedFields.contains(.youtubeVideoPath), trimmed(youtubeVideoPath).isEmpty {
+            youtubeVideoPath = selection.video.path
+        }
+        if !editedFields.contains(.youtubeSubtitlePath), trimmed(youtubeSubtitlePath).isEmpty {
+            youtubeSubtitlePath = selection.subtitle?.path ?? ""
         }
     }
 
@@ -931,7 +991,6 @@ struct AppleBookCreateView: View {
         [
             UTType(filenameExtension: "srt") ?? UTType(importedAs: "com.subrip.srt"),
             UTType(filenameExtension: "vtt") ?? UTType(importedAs: "org.webvtt"),
-            UTType(filenameExtension: "ass") ?? UTType(importedAs: "org.aegisub.ass"),
             UTType.plainText
         ]
     }

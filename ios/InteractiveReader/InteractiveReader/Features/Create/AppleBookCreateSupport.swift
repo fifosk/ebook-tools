@@ -216,6 +216,11 @@ struct AppleCreateChapterRangeSelection: Equatable {
     }
 }
 
+struct AppleYoutubeSourceSelection: Equatable {
+    let video: YoutubeNasVideoEntry
+    let subtitle: YoutubeNasSubtitleEntry?
+}
+
 struct AppleCreateEstimatedAudio {
     static let secondsPerSentence = 6.4
 }
@@ -532,6 +537,8 @@ struct AppleCreateSubmitState: Equatable {
 
 enum AppleBookCreatePresentation {
     private static let preferredSampleEbookName = "test-agatha-poirot-30sentences.epub"
+    private static let subtitleJobSourceFormats: Set<String> = ["srt", "vtt"]
+    private static let youtubePlayableSubtitleFormats: Set<String> = ["ass", "srt", "vtt", "sub"]
 
     static func availableCreateModes(isTV: Bool) -> [AppleCreateMode] {
         isTV ? [.generatedBook] : AppleCreateMode.allCases
@@ -544,6 +551,36 @@ enum AppleBookCreatePresentation {
         return ebooks.first { entry in
             trimmed(entry.name).lowercased() == preferredSampleEbookName
         } ?? ebooks[0]
+    }
+
+    static func subtitleJobSources(from response: SubtitleSourceListResponse?) -> [SubtitleSourceEntry] {
+        response?.sources.filter { subtitleJobSourceFormats.contains(trimmed($0.format).lowercased()) } ?? []
+    }
+
+    static func preferredSubtitleSource(from response: SubtitleSourceListResponse?) -> SubtitleSourceEntry? {
+        subtitleJobSources(from: response).first
+    }
+
+    static func playableYoutubeSubtitles(for video: YoutubeNasVideoEntry?) -> [YoutubeNasSubtitleEntry] {
+        video?.subtitles.filter { youtubePlayableSubtitleFormats.contains(trimmed($0.format).lowercased()) } ?? []
+    }
+
+    static func preferredYoutubeSubtitle(for video: YoutubeNasVideoEntry?) -> YoutubeNasSubtitleEntry? {
+        let candidates = playableYoutubeSubtitles(for: video)
+        guard !candidates.isEmpty else {
+            return nil
+        }
+        return candidates.first { subtitle in
+            trimmed(subtitle.language ?? "").lowercased().hasPrefix("en")
+        } ?? candidates[0]
+    }
+
+    static func preferredYoutubeSelection(from library: YoutubeNasLibraryResponse?) -> AppleYoutubeSourceSelection? {
+        guard let videos = library?.videos, !videos.isEmpty else {
+            return nil
+        }
+        let video = videos.first { !playableYoutubeSubtitles(for: $0).isEmpty } ?? videos[0]
+        return AppleYoutubeSourceSelection(video: video, subtitle: preferredYoutubeSubtitle(for: video))
     }
 
     static func webCreateViewID(for mode: AppleCreateMode) -> String {

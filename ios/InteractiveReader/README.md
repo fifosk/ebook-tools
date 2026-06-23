@@ -80,6 +80,16 @@ Settings shows a non-secret connection readout with the resolved API host, the
 current signed-in session label, and Keychain token storage status. It never
 shows the bearer token.
 
+### Create source loading
+
+The iOS/iPadOS/macOS iPad-style Create surface mirrors the Web creation sources
+for editor users. Narrate EPUB loads `/api/pipelines/files`, subtitle jobs load
+usable SRT/VTT entries from `/api/subtitles/sources`, and YouTube dubbing loads
+NAS videos plus adjacent subtitles from `/api/subtitles/youtube/library`.
+Manual path entry remains available when the backend list is empty or a source
+is outside the default browser roots. tvOS intentionally keeps Create narrowed
+to generated-book jobs.
+
 ### Library media URLs
 
 The client streams library files from `/api/library/media/{job_id}/file/...` and appends the `access_token` query parameter so AVPlayer can fetch protected media without custom headers. Ensure the API host is reachable from your device (LAN IP or Bonjour hostname).

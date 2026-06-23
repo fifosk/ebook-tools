@@ -12,6 +12,8 @@ struct AppleBookCreateSourceSection: View {
     @Binding var youtubeVideoPath: String
     @Binding var youtubeSubtitlePath: String
     let pipelineFiles: PipelineFileBrowserResponse?
+    let subtitleSources: SubtitleSourceListResponse?
+    let youtubeLibrary: YoutubeNasLibraryResponse?
     let selectedNarrateFileName: String?
     let selectedSubtitleFileName: String?
     let narrateChapterOptions: [AppleCreateChapterOption]
@@ -19,9 +21,15 @@ struct AppleBookCreateSourceSection: View {
     @Binding var selectedNarrateEndChapterID: String
     let isLoadingPipelineFiles: Bool
     let isLoadingNarrateChapters: Bool
+    let isLoadingSubtitleSources: Bool
+    let isLoadingYoutubeLibrary: Bool
     let pipelineFilesErrorMessage: String?
     let narrateChaptersErrorMessage: String?
+    let subtitleSourcesErrorMessage: String?
+    let youtubeLibraryErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
+    let onRefreshSubtitleSources: () -> Void
+    let onRefreshYoutubeLibrary: () -> Void
     let onLoadNarrateChapters: () -> Void
     let onChooseNarrateFile: () -> Void
     let onChooseSubtitleFile: () -> Void
@@ -215,6 +223,39 @@ struct AppleBookCreateSourceSection: View {
             action: onChooseSubtitleFile
         )
         #endif
+        if !subtitleSourceEntries.isEmpty {
+            Picker("Server subtitle", selection: $subtitleSourcePath) {
+                Text("Manual path").tag("")
+                if shouldShowCurrentSubtitlePath {
+                    Text(subtitleSourcePath).tag(subtitleSourcePath)
+                }
+                ForEach(subtitleSourceEntries, id: \.path) { entry in
+                    Text(subtitleEntryLabel(entry)).tag(entry.path)
+                }
+            }
+            .accessibilityIdentifier("createSubtitleServerSourcePicker")
+        }
+        HStack {
+            Button(action: onRefreshSubtitleSources) {
+                Label(
+                    isLoadingSubtitleSources ? "Refreshing Subtitles" : "Refresh Subtitles",
+                    systemImage: "arrow.clockwise"
+                )
+            }
+            .disabled(isLoadingSubtitleSources)
+            .accessibilityIdentifier("createSubtitleRefreshServerSourcesButton")
+
+            if isLoadingSubtitleSources {
+                ProgressView()
+                    .accessibilityIdentifier("createSubtitleServerSourcesProgress")
+            }
+        }
+        if let subtitleSourcesErrorMessage {
+            Text(subtitleSourcesErrorMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createSubtitleServerSourcesMessage")
+        }
         TextField("Server subtitle path", text: $subtitleSourcePath)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
@@ -223,15 +264,143 @@ struct AppleBookCreateSourceSection: View {
 
     private var youtubeSourceControls: some View {
         Group {
+            if !youtubeVideos.isEmpty {
+                Picker("NAS video", selection: $youtubeVideoPath) {
+                    Text("Manual path").tag("")
+                    if shouldShowCurrentYoutubeVideoPath {
+                        Text(youtubeVideoPath).tag(youtubeVideoPath)
+                    }
+                    ForEach(youtubeVideos, id: \.path) { video in
+                        Text(youtubeVideoLabel(video)).tag(video.path)
+                    }
+                }
+                .accessibilityIdentifier("createYoutubeNasVideoPicker")
+                .onChange(of: youtubeVideoPath) { _, newValue in
+                    applyYoutubeVideoSelection(newValue)
+                }
+            }
+            HStack {
+                Button(action: onRefreshYoutubeLibrary) {
+                    Label(
+                        isLoadingYoutubeLibrary ? "Refreshing Videos" : "Refresh Videos",
+                        systemImage: "arrow.clockwise"
+                    )
+                }
+                .disabled(isLoadingYoutubeLibrary)
+                .accessibilityIdentifier("createYoutubeRefreshNasVideosButton")
+
+                if isLoadingYoutubeLibrary {
+                    ProgressView()
+                        .accessibilityIdentifier("createYoutubeNasVideosProgress")
+                }
+            }
+            if let youtubeLibraryErrorMessage {
+                Text(youtubeLibraryErrorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createYoutubeNasVideosMessage")
+            }
             TextField("Video path", text: $youtubeVideoPath)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("createYoutubeVideoPathField")
+            if !youtubeSubtitleEntries.isEmpty {
+                Picker("Subtitle", selection: $youtubeSubtitlePath) {
+                    Text("Manual path").tag("")
+                    if shouldShowCurrentYoutubeSubtitlePath {
+                        Text(youtubeSubtitlePath).tag(youtubeSubtitlePath)
+                    }
+                    ForEach(youtubeSubtitleEntries, id: \.path) { subtitle in
+                        Text(youtubeSubtitleLabel(subtitle)).tag(subtitle.path)
+                    }
+                }
+                .accessibilityIdentifier("createYoutubeNasSubtitlePicker")
+            }
             TextField("Subtitle path", text: $youtubeSubtitlePath)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("createYoutubeSubtitlePathField")
         }
+    }
+
+    private var subtitleSourceEntries: [SubtitleSourceEntry] {
+        AppleBookCreatePresentation.subtitleJobSources(from: subtitleSources)
+    }
+
+    private var shouldShowCurrentSubtitlePath: Bool {
+        let trimmedPath = subtitleSourcePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            return false
+        }
+        return !subtitleSourceEntries.contains { $0.path == subtitleSourcePath }
+    }
+
+    private func subtitleEntryLabel(_ entry: SubtitleSourceEntry) -> String {
+        let suffix = [entry.format.uppercased(), entry.language]
+            .compactMap { value -> String? in
+                guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+                    return nil
+                }
+                return value
+            }
+            .joined(separator: " · ")
+        return suffix.isEmpty ? entry.name : "\(entry.name) · \(suffix)"
+    }
+
+    private var youtubeVideos: [YoutubeNasVideoEntry] {
+        youtubeLibrary?.videos ?? []
+    }
+
+    private var selectedYoutubeVideo: YoutubeNasVideoEntry? {
+        youtubeVideos.first { $0.path == youtubeVideoPath }
+    }
+
+    private var youtubeSubtitleEntries: [YoutubeNasSubtitleEntry] {
+        AppleBookCreatePresentation.playableYoutubeSubtitles(for: selectedYoutubeVideo)
+    }
+
+    private var shouldShowCurrentYoutubeVideoPath: Bool {
+        let trimmedPath = youtubeVideoPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            return false
+        }
+        return !youtubeVideos.contains { $0.path == youtubeVideoPath }
+    }
+
+    private var shouldShowCurrentYoutubeSubtitlePath: Bool {
+        let trimmedPath = youtubeSubtitlePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            return false
+        }
+        return !youtubeSubtitleEntries.contains { $0.path == youtubeSubtitlePath }
+    }
+
+    private func youtubeVideoLabel(_ video: YoutubeNasVideoEntry) -> String {
+        let subtitleCount = AppleBookCreatePresentation.playableYoutubeSubtitles(for: video).count
+        let label = subtitleCount == 1 ? "1 subtitle" : "\(subtitleCount) subtitles"
+        return "\(video.filename) · \(label)"
+    }
+
+    private func youtubeSubtitleLabel(_ subtitle: YoutubeNasSubtitleEntry) -> String {
+        let language = subtitle.language?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let suffix = [subtitle.format.uppercased(), language]
+            .compactMap { value -> String? in
+                guard let value, !value.isEmpty else { return nil }
+                return value
+            }
+            .joined(separator: " · ")
+        return suffix.isEmpty ? subtitle.filename : "\(subtitle.filename) · \(suffix)"
+    }
+
+    private func applyYoutubeVideoSelection(_ videoPath: String) {
+        guard let video = youtubeVideos.first(where: { $0.path == videoPath }) else {
+            return
+        }
+        let candidates = AppleBookCreatePresentation.playableYoutubeSubtitles(for: video)
+        if candidates.contains(where: { $0.path == youtubeSubtitlePath }) {
+            return
+        }
+        youtubeSubtitlePath = AppleBookCreatePresentation.preferredYoutubeSubtitle(for: video)?.path ?? ""
     }
 
     #if os(iOS)

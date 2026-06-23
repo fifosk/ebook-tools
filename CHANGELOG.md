@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.85
+
+- Advanced visible Apple app versioning to `v2026.06.23.85`.
+- Apple Create now loads backend subtitle sources and NAS YouTube/video library entries, with source pickers that prefill subtitle jobs and YouTube dubbing jobs without manual path entry.
+
 ### 2026.06.23.84
 
 - Advanced visible Apple app versioning to `v2026.06.23.84`.

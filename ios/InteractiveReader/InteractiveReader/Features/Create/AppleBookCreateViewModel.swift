@@ -9,17 +9,25 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
     @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
     @Published private(set) var pipelineFiles: PipelineFileBrowserResponse?
+    @Published private(set) var subtitleSources: SubtitleSourceListResponse?
+    @Published private(set) var youtubeLibrary: YoutubeNasLibraryResponse?
     @Published private(set) var subtitleLlmModels: [String] = []
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
     @Published private(set) var isLoadingNarrateChapters = false
+    @Published private(set) var isLoadingSubtitleSources = false
+    @Published private(set) var isLoadingYoutubeLibrary = false
     @Published private(set) var narrateChaptersErrorMessage: String?
     @Published private(set) var pipelineFilesErrorMessage: String?
+    @Published private(set) var subtitleSourcesErrorMessage: String?
+    @Published private(set) var youtubeLibraryErrorMessage: String?
     @Published private(set) var optionsErrorMessage: String?
     @Published var errorMessage: String?
     @Published private(set) var submittedJobId: String?
     private var loadedOptionsCacheKey: String?
     private var loadedIntakeStatusCacheKey: String?
     private var loadedPipelineFilesCacheKey: String?
+    private var loadedSubtitleSourcesCacheKey: String?
+    private var loadedYoutubeLibraryCacheKey: String?
     private var loadedSubtitleModelsCacheKey: String?
 
     func loadCreationOptions(
@@ -97,6 +105,64 @@ final class AppleBookCreateViewModel: ObservableObject {
         } catch {
             pipelineFiles = nil
             pipelineFilesErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func loadSubtitleSources(
+        using appState: AppState,
+        cacheKey: String,
+        force: Bool = false
+    ) async -> SubtitleSourceListResponse? {
+        guard let configuration = appState.configuration else {
+            return nil
+        }
+        if !force, loadedSubtitleSourcesCacheKey == cacheKey, let subtitleSources {
+            return subtitleSources
+        }
+
+        isLoadingSubtitleSources = true
+        subtitleSourcesErrorMessage = nil
+        defer { isLoadingSubtitleSources = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.fetchSubtitleSources()
+            subtitleSources = response
+            loadedSubtitleSourcesCacheKey = cacheKey
+            return response
+        } catch {
+            subtitleSources = nil
+            subtitleSourcesErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func loadYoutubeLibrary(
+        using appState: AppState,
+        cacheKey: String,
+        force: Bool = false
+    ) async -> YoutubeNasLibraryResponse? {
+        guard let configuration = appState.configuration else {
+            return nil
+        }
+        if !force, loadedYoutubeLibraryCacheKey == cacheKey, let youtubeLibrary {
+            return youtubeLibrary
+        }
+
+        isLoadingYoutubeLibrary = true
+        youtubeLibraryErrorMessage = nil
+        defer { isLoadingYoutubeLibrary = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.fetchYoutubeLibrary()
+            youtubeLibrary = response
+            loadedYoutubeLibraryCacheKey = cacheKey
+            return response
+        } catch {
+            youtubeLibrary = nil
+            youtubeLibraryErrorMessage = error.localizedDescription
             return nil
         }
     }

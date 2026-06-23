@@ -30,6 +30,32 @@ extension APIClient {
         return try decode(BookContentIndexResponse.self, from: data)
     }
 
+    func fetchSubtitleSources(directory: String? = nil) async throws -> SubtitleSourceListResponse {
+        var path = "/api/subtitles/sources"
+        if let directory = directory?.trimmingCharacters(in: .whitespacesAndNewlines), !directory.isEmpty {
+            var components = URLComponents()
+            components.queryItems = [URLQueryItem(name: "directory", value: directory)]
+            if let query = components.percentEncodedQuery, !query.isEmpty {
+                path += "?\(query)"
+            }
+        }
+        let data = try await sendRequest(path: path)
+        return try decode(SubtitleSourceListResponse.self, from: data)
+    }
+
+    func fetchYoutubeLibrary(baseDir: String? = nil) async throws -> YoutubeNasLibraryResponse {
+        var path = "/api/subtitles/youtube/library"
+        if let baseDir = baseDir?.trimmingCharacters(in: .whitespacesAndNewlines), !baseDir.isEmpty {
+            var components = URLComponents()
+            components.queryItems = [URLQueryItem(name: "base_dir", value: baseDir)]
+            if let query = components.percentEncodedQuery, !query.isEmpty {
+                path += "?\(query)"
+            }
+        }
+        let data = try await sendRequest(path: path)
+        return try decode(YoutubeNasLibraryResponse.self, from: data)
+    }
+
     func submitPipeline(_ payload: PipelineRequestPayload) async throws -> PipelineSubmissionResponse {
         let data = try await sendJSONRequest(path: "/api/pipelines", method: "POST", payload: payload)
         return try decode(PipelineSubmissionResponse.self, from: data)

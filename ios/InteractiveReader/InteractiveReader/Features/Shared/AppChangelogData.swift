@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.84",
+            version: "2026.06.23.85",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-subtitle-video-source-pickers",
+                    title: "Create finds video sources",
+                    detail: "Apple Create now loads backend subtitle sources and NAS YouTube/video library entries, with pickers that prefill subtitle jobs and YouTube dubbing jobs without manual path entry."
+                ),
                 AppChangelogEntry(
                     id: "apple-local-macos-ipad-style",
                     title: "Local Mac build destination",
