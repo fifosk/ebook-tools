@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.45
+
+- Advanced visible Apple app versioning to `v2026.06.23.45`.
+- Web book narration now exposes additional target languages and submits selected plus manual targets as a de-duplicated multi-target list, matching Apple Create behavior.
+
 ### 2026.06.23.44
 
 - Advanced visible Apple app versioning to `v2026.06.23.44`.

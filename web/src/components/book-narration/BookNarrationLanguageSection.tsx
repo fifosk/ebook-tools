@@ -111,6 +111,7 @@ const BookNarrationLanguageSection = ({
   description,
   inputLanguage,
   targetLanguages,
+  customTargetLanguages,
   ollamaModel,
   translationProvider,
   transliterationMode,
@@ -137,6 +138,7 @@ const BookNarrationLanguageSection = ({
   onChapterClear,
   onInputLanguageChange,
   onTargetLanguagesChange,
+  onCustomTargetLanguagesChange,
   onOllamaModelChange,
   onTranslationProviderChange,
   onTransliterationModeChange,
@@ -211,6 +213,18 @@ const BookNarrationLanguageSection = ({
           options={targetLanguageOptions}
           onChange={(value) => onTargetLanguagesChange(value ? [value] : [])}
         />
+        <label htmlFor="custom_target_languages">Additional target languages</label>
+        <input
+          id="custom_target_languages"
+          name="custom_target_languages"
+          type="text"
+          value={customTargetLanguages}
+          onChange={(event) => onCustomTargetLanguagesChange(event.target.value)}
+          placeholder="German, French"
+        />
+        <small className="form-help-text">
+          Add comma-separated languages for multi-target narration, matching Apple Create.
+        </small>
         <label className="checkbox">
           <input
             type="checkbox"

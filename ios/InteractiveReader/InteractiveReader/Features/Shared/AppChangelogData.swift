@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.44",
+            version: "2026.06.23.45",
             entries: [
+                AppChangelogEntry(
+                    id: "web-book-additional-target-languages",
+                    title: "Web multi-target books",
+                    detail: "Web book narration now exposes additional target languages and submits selected plus manual targets as a de-duplicated multi-target list, matching Apple Create behavior."
+                ),
                 AppChangelogEntry(
                     id: "apple-per-language-voice-overrides",
                     title: "Target voice overrides",

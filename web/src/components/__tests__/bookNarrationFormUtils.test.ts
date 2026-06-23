@@ -7,6 +7,7 @@ import {
   compactBookNarrationPipelineDefaults,
   extractBookMetadata,
   normalizeBookNarrationPath,
+  normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
   resolveBookNarrationMissingRequirements,
   resolveBookNarrationSectionMeta,
@@ -253,6 +254,14 @@ describe('bookNarrationFormUtils form state helpers', () => {
         target_languages: [' German ', '', 'French', 'German', null, 'Arabic'],
       }),
     ).toEqual(['German', 'French', 'Arabic']);
+  });
+
+  it('normalizes manually combined target languages while preserving unique order', () => {
+    expect(normalizeTargetLanguages([' German ', 'French', 'german', '', 'Arabic'])).toEqual([
+      'German',
+      'French',
+      'Arabic',
+    ]);
   });
 
   it('extracts Web-aligned genre and ISBN metadata from flat defaults', () => {

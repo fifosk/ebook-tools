@@ -77,6 +77,27 @@ export function normalizeSingleTargetLanguages(languages: string[]): string[] {
   return [];
 }
 
+export function normalizeTargetLanguages(languages: string[]): string[] {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of languages) {
+    if (typeof entry !== 'string') {
+      continue;
+    }
+    const trimmed = entry.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const lookupKey = trimmed.toLowerCase();
+    if (seen.has(lookupKey)) {
+      continue;
+    }
+    seen.add(lookupKey);
+    normalized.push(trimmed);
+  }
+  return normalized;
+}
+
 export function compactBookNarrationPipelineDefaults(
   defaults: BookNarrationPipelineDefaults | null,
 ): Record<string, unknown> | null {

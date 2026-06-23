@@ -173,6 +173,10 @@ describe('BookNarrationForm', () => {
     const targetSelect = getTargetLanguageSelect();
     expect(getSelectedTargetLanguages(targetSelect)).toEqual(['Arabic']);
     await user.selectOptions(targetSelect, 'German');
+    await user.type(
+      screen.getByLabelText(/Additional target languages/i),
+      'French, Italian, german',
+    );
 
     await openFormTab(user, /Output & narration/i);
     const overrideSelect = await screen.findByLabelText(/Voice override for English/i);
@@ -187,7 +191,7 @@ describe('BookNarrationForm', () => {
       throw new Error('Expected the form submission handler to receive a payload');
     }
     const [payload] = firstCall;
-    expect(payload.inputs.target_languages).toEqual(['German']);
+    expect(payload.inputs.target_languages).toEqual(['German', 'French', 'Italian']);
     expect(payload.config).toEqual({});
     expect(payload.inputs.generate_audio).toBe(true);
     expect(payload.inputs.voice_overrides).toEqual({ en: 'macOS-auto' });

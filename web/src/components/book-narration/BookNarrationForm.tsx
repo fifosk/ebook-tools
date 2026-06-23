@@ -44,6 +44,7 @@ import {
   formatList,
   normalizeBookNarrationPath,
   normalizeSingleTargetLanguages,
+  normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
@@ -438,10 +439,10 @@ export function BookNarrationForm({
   const availableVoices = useMemo<MenuOption[]>(() => VOICE_OPTIONS, []);
   const normalizedTargetLanguages = useMemo(() => {
     const manualTargets = formState.custom_target_languages
-      .split(',')
+      .split(/[,\n]/)
       .map((language) => language.trim())
       .filter(Boolean);
-    return normalizeSingleTargetLanguages([...formState.target_languages, ...manualTargets]);
+    return normalizeTargetLanguages([...formState.target_languages, ...manualTargets]);
   }, [formState.custom_target_languages, formState.target_languages]);
 
   const languagesForOverride = useMemo(() => {
