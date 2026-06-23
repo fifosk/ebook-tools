@@ -3,7 +3,6 @@ import type { JobState } from '../components/JobList';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import {
   fetchPipelineDefaults,
-  fetchLlmModels,
   submitSubtitleJob
 } from '../api/client';
 import type { JobParameterSnapshot } from '../api/dtos';
@@ -37,6 +36,7 @@ import type {
   SubtitleToolTab
 } from './subtitle-tool/subtitleToolTypes';
 import { useSubtitleJobResults } from './subtitle-tool/useSubtitleJobResults';
+import { useSubtitleModels } from './subtitle-tool/useSubtitleModels';
 import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
 import {
@@ -165,13 +165,11 @@ export default function SubtitleToolPage({
   );
   const [startTime, setStartTime] = useState<string>(DEFAULT_START_TIME);
   const [endTime, setEndTime] = useState<string>('');
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const { availableModels, modelsLoading, modelsError } = useSubtitleModels();
   const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_LLM_MODEL);
   const [transliterationModel, setTransliterationModel] = useState<string>('');
   const [translationProvider, setTranslationProvider] = useState<string>('llm');
   const [transliterationMode, setTransliterationMode] = useState<string>('default');
-  const [modelsLoading, setModelsLoading] = useState<boolean>(false);
-  const [modelsError, setModelsError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [lastSubmittedJobId, setLastSubmittedJobId] = useState<string | null>(null);
@@ -274,33 +272,6 @@ export default function SubtitleToolPage({
       cancelled = true;
     };
   }, [inputLanguage, setInputLanguage]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setModelsLoading(true);
-    setModelsError(null);
-    fetchLlmModels()
-      .then((models) => {
-        if (!cancelled) {
-          setAvailableModels(models ?? []);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.warn('Unable to load available subtitle models', error);
-          const message = error instanceof Error ? error.message : 'Request failed';
-          setModelsError(message);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setModelsLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {

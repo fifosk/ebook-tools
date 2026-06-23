@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.60
+
+- Advanced visible Apple app versioning to `v2026.06.23.60`.
+- Web Subtitle Tool model-option loading now lives in a focused hook with coverage for success, empty, failed, and late-response flows.
+
 ### 2026.06.23.59
 
 - Advanced visible Apple app versioning to `v2026.06.23.59`.

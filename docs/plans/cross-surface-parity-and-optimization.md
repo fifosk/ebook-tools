@@ -74,6 +74,9 @@ Large Web UI hotspots to split before redesign work:
   Completed subtitle-job result fetching, dedupe, partial-failure tolerance, and
   late-response cancellation now live in
   `web/src/pages/subtitle-tool/useSubtitleJobResults.ts` with focused hook
+  coverage. Model-option loading, empty responses, failed fetches, and
+  late-response cancellation now live in
+  `web/src/pages/subtitle-tool/useSubtitleModels.ts` with focused hook
   coverage.
   Source-list refresh selection also stays pinned in the utility module, clearing
   stale selections after deletes and choosing the latest usable subtitle source
