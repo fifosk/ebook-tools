@@ -46,7 +46,7 @@ Large Web UI hotspots to split before redesign work:
 - `web/src/pages/VideoDubbingPage.tsx` - 1199 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option
-  building, and job-parameter prefill mapping now live in
+  building, NAS refresh video/subtitle selection, and job-parameter prefill mapping now live in
   `web/src/pages/video-dubbing/videoDubbingUtils.ts` with focused Vitest
   coverage.
 - `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1119 lines.

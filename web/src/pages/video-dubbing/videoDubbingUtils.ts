@@ -142,6 +142,47 @@ export function filterPlayableSubtitles(video: YoutubeNasVideo | null): YoutubeN
   return video.subtitles.filter(isPlayableSubtitle);
 }
 
+export type VideoDubbingSelection = {
+  video: YoutubeNasVideo | null;
+  subtitle: YoutubeNasSubtitle | null;
+  videoPath: string | null;
+  subtitlePath: string | null;
+};
+
+export function resolveVideoDubbingSelection({
+  videos,
+  preferredVideoPath,
+  preferredSubtitlePath,
+}: {
+  videos: YoutubeNasVideo[];
+  preferredVideoPath?: string | null;
+  preferredSubtitlePath?: string | null;
+}): VideoDubbingSelection {
+  if (videos.length === 0) {
+    return {
+      video: null,
+      subtitle: null,
+      videoPath: null,
+      subtitlePath: null,
+    };
+  }
+
+  const selectedVideo = videos.find((video) => video.path === preferredVideoPath) ?? videos[0];
+  const subtitleCandidates = filterPlayableSubtitles(selectedVideo);
+  const selectedSubtitle =
+    preferredVideoPath === selectedVideo.path && preferredSubtitlePath
+      ? subtitleCandidates.find((subtitle) => subtitle.path === preferredSubtitlePath) ?? null
+      : null;
+  const subtitle = selectedSubtitle ?? resolveDefaultSubtitle(selectedVideo) ?? subtitleCandidates[0] ?? null;
+
+  return {
+    video: selectedVideo,
+    subtitle,
+    videoPath: selectedVideo.path,
+    subtitlePath: subtitle?.path ?? null,
+  };
+}
+
 export function resolveVideoDubbingMetadataSourceName({
   subtitle,
   video,
@@ -208,7 +249,7 @@ export function resolveDefaultSubtitle(video: YoutubeNasVideo | null): YoutubeNa
   if (!video) {
     return null;
   }
-  const candidates = video.subtitles.filter((sub) => ['ass', 'srt', 'vtt', 'sub'].includes(sub.format.toLowerCase()));
+  const candidates = filterPlayableSubtitles(video);
   if (!candidates.length) {
     return null;
   }

@@ -11,6 +11,7 @@ import {
   filterPlayableSubtitles,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
+  resolveVideoDubbingSelection,
   resolveVideoDubbingMetadataSourceName
 } from '../video-dubbing/videoDubbingUtils';
 
@@ -85,6 +86,54 @@ describe('videoDubbingUtils', () => {
     ).toBe('episode.de.srt');
     expect(resolveVideoDubbingMetadataSourceName({ subtitle: null, video: selectedVideo })).toBe('episode.mkv');
     expect(resolveVideoDubbingMetadataSourceName({ subtitle: null, video: null })).toBe('');
+  });
+
+  it('preserves the selected playable subtitle when the selected video is still present', () => {
+    const selectedVideo = video({
+      path: '/videos/show/episode.mkv',
+      subtitles: [
+        subtitle({ path: '/subs/episode.en.ass', filename: 'episode.en.ass', language: 'en', format: 'ass' }),
+        subtitle({ path: '/subs/episode.es.srt', filename: 'episode.es.srt', language: 'es', format: 'srt' }),
+      ],
+    });
+
+    const selection = resolveVideoDubbingSelection({
+      videos: [selectedVideo],
+      preferredVideoPath: '/videos/show/episode.mkv',
+      preferredSubtitlePath: '/subs/episode.es.srt',
+    });
+
+    expect(selection.videoPath).toBe('/videos/show/episode.mkv');
+    expect(selection.subtitlePath).toBe('/subs/episode.es.srt');
+    expect(selection.subtitle?.language).toBe('es');
+  });
+
+  it('falls back to the first video and its English subtitle when the preferred video is missing', () => {
+    const selection = resolveVideoDubbingSelection({
+      videos: [
+        video({
+          path: '/videos/next.mkv',
+          subtitles: [
+            subtitle({ path: '/subs/next.fr.srt', filename: 'next.fr.srt', language: 'fr', format: 'srt' }),
+            subtitle({ path: '/subs/next.en.ass', filename: 'next.en.ass', language: 'en-US', format: 'ass' }),
+          ],
+        }),
+      ],
+      preferredVideoPath: '/videos/missing.mkv',
+      preferredSubtitlePath: '/subs/missing.es.srt',
+    });
+
+    expect(selection.videoPath).toBe('/videos/next.mkv');
+    expect(selection.subtitlePath).toBe('/subs/next.en.ass');
+  });
+
+  it('returns empty selection values for an empty video library', () => {
+    expect(resolveVideoDubbingSelection({ videos: [] })).toEqual({
+      video: null,
+      subtitle: null,
+      videoPath: null,
+      subtitlePath: null,
+    });
   });
 
   it('detects video containers that can expose embedded subtitle streams', () => {

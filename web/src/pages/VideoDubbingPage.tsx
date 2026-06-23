@@ -61,6 +61,7 @@ import {
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
   resolveDefaultSubtitle,
+  resolveVideoDubbingSelection,
   resolveVideoDubbingMetadataSourceName
 } from './video-dubbing/videoDubbingUtils';
 import styles from './VideoDubbingPage.module.css';
@@ -464,21 +465,14 @@ export default function VideoDubbingPage({
       setBaseDir(response.base_dir || baseDir);
       if (response.videos.length > 0) {
         const prefill = resolveVideoDubPrefill(prefillParameters);
-        const previousSelectedVideoPath = prefill?.videoPath || selectedVideoPathRef.current;
-        const previousSelectedSubtitlePath = prefill?.subtitlePath || selectedSubtitlePathRef.current;
-        const nextVideo =
-          response.videos.find((video) => video.path === previousSelectedVideoPath) ?? response.videos[0];
-        setSelectedVideoPath(nextVideo.path);
-        const subtitleCandidates = filterPlayableSubtitles(nextVideo);
-        const keepExistingSubtitle =
-          previousSelectedVideoPath === nextVideo.path &&
-          !!previousSelectedSubtitlePath &&
-          subtitleCandidates.some((sub) => sub.path === previousSelectedSubtitlePath);
-        const resolvedSubtitle = keepExistingSubtitle
-          ? subtitleCandidates.find((sub) => sub.path === previousSelectedSubtitlePath) ?? null
-          : resolveDefaultSubtitle(nextVideo) ?? subtitleCandidates[0] ?? null;
-        setSelectedSubtitlePath(resolvedSubtitle?.path ?? null);
-        ensureTargetLanguage(resolvedSubtitle?.language);
+        const selection = resolveVideoDubbingSelection({
+          videos: response.videos,
+          preferredVideoPath: prefill?.videoPath || selectedVideoPathRef.current,
+          preferredSubtitlePath: prefill?.subtitlePath || selectedSubtitlePathRef.current,
+        });
+        setSelectedVideoPath(selection.videoPath);
+        setSelectedSubtitlePath(selection.subtitlePath);
+        ensureTargetLanguage(selection.subtitle?.language);
       } else {
         setSelectedVideoPath(null);
         setSelectedSubtitlePath(null);
