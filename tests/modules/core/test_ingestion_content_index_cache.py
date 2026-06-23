@@ -30,6 +30,28 @@ def _book_path(config: DummyPipelineConfig) -> Path:
     return path
 
 
+def test_runtime_cache_paths_include_resolved_input_identity(tmp_path):
+    config = DummyPipelineConfig(tmp_path)
+    first_dir = config.books_dir / "first"
+    second_dir = config.books_dir / "second"
+    first_dir.mkdir()
+    second_dir.mkdir()
+    first_path = first_dir / "sample.epub"
+    second_path = second_dir / "sample.epub"
+    first_path.write_text("first", encoding="utf-8")
+    second_path.write_text("second", encoding="utf-8")
+
+    first_refined = ingestion.refined_list_output_path(str(first_path), config)
+    second_refined = ingestion.refined_list_output_path(str(second_path), config)
+    first_index = ingestion.content_index_output_path(str(first_path), config)
+    second_index = ingestion.content_index_output_path(str(second_path), config)
+
+    assert first_refined != second_refined
+    assert first_index != second_index
+    assert first_refined.name.startswith("sample_")
+    assert first_index.name.startswith("sample_")
+
+
 def _patch_sections(monkeypatch, calls: list[str], *, title: str = "Chapter One") -> None:
     def fake_extract_sections(input_file: str, books_dir: Path | None = None):
         calls.append(input_file)

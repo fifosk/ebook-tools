@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import hashlib
 import json
 import logging
 import re
@@ -47,7 +46,12 @@ def content_index_output_path(
 
 def _safe_artifact_base(input_file: Optional[str], *, fallback: str) -> str:
     base_name = Path(input_file).stem if input_file else fallback
-    return re.sub(r"[^A-Za-z0-9_.-]", "_", base_name) or fallback
+    safe_base = re.sub(r"[^A-Za-z0-9_.-]", "_", base_name) or fallback
+    if not input_file:
+        return safe_base
+    identity = str(Path(input_file).expanduser().resolve(strict=False))
+    digest = hashlib.sha1(identity.encode("utf-8")).hexdigest()[:10]
+    return f"{safe_base}_{digest}"
 
 
 def _input_mtime(input_file: Optional[str], pipeline_config: PipelineConfig) -> Optional[float]:
