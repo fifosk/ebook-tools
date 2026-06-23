@@ -3,7 +3,7 @@ import type { JobState } from '../../components/JobList';
 import { resolveSubtitleDownloadUrl } from '../../api/client';
 import { formatTimestamp } from '../../utils/mediaFormatters';
 import { getStatusGlyph } from '../../utils/status';
-import { extractSubtitleFile, formatSubtitleRetryCounts } from './subtitleToolUtils';
+import { extractSubtitleFile, formatSubtitleRetryCounts } from './subtitleJobUtils';
 import styles from '../SubtitleToolPage.module.css';
 
 type SubtitleJobsPanelProps = {

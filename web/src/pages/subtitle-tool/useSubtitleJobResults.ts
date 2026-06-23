@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchSubtitleResult } from '../../api/client';
 import type { SubtitleJobResultPayload } from '../../api/dtos';
 import type { JobState } from '../../components/JobList';
-import { selectMissingCompletedSubtitleJobs } from './subtitleToolUtils';
+import { selectMissingCompletedSubtitleJobs } from './subtitleJobUtils';
 
 export function useSubtitleJobResults(subtitleJobs: JobState[]) {
   const [jobResults, setJobResults] = useState<Record<string, SubtitleJobResultPayload>>({});

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.77
+
+- Advanced visible Apple app versioning to `v2026.06.23.77`.
+- Web Subtitle Tool Jobs helpers now live in a focused module with direct pipeline coverage for retry summaries, generated subtitle files, missing-result selection, and newest-first ordering.
+
 ### 2026.06.23.76
 
 - Advanced visible Apple app versioning to `v2026.06.23.76`.
