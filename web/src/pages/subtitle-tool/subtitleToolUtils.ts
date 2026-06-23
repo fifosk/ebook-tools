@@ -1,9 +1,10 @@
 import type { JobState } from '../../components/JobList';
 import type { SubtitleSourceEntry } from '../../api/dtos';
-import { normalizeLanguageLabel } from '../../utils/languages';
 import { subtitleFormatFromPath } from '../../utils/subtitles';
 import type { SubtitleOutputFormat, SubtitleSourceMode } from './subtitleToolTypes';
 
+export { resolveSubtitleLanguageDefaults } from './subtitleLanguageDefaultsUtils';
+export type { SubtitleLanguageDefaults } from './subtitleLanguageDefaultsUtils';
 export { resolveSubtitlePrefillValues } from './subtitlePrefillUtils';
 export type { SubtitlePrefillValues } from './subtitlePrefillUtils';
 export {
@@ -127,30 +128,6 @@ export function formatEpisodeCode(season: unknown, episode: unknown): string | n
     return null;
   }
   return `S${seasonInt.toString().padStart(2, '0')}E${episodeInt.toString().padStart(2, '0')}`;
-}
-
-export type SubtitleLanguageDefaults = {
-  fetchedLanguages: string[];
-  inputLanguage: string | null;
-};
-
-export function resolveSubtitleLanguageDefaults(
-  config: Record<string, unknown> | null | undefined,
-  currentInputLanguage: string
-): SubtitleLanguageDefaults {
-  const targetLanguages = Array.isArray(config?.['target_languages'])
-    ? (config['target_languages'] as unknown[])
-    : [];
-  const fetchedLanguages = targetLanguages
-    .map((language) => (typeof language === 'string' ? normalizeLanguageLabel(language) : ''))
-    .filter((language) => language.length > 0);
-  const defaultInput = normalizeLanguageLabel(
-    typeof config?.['input_language'] === 'string' ? config['input_language'] : ''
-  );
-  return {
-    fetchedLanguages,
-    inputLanguage: defaultInput && !currentInputLanguage ? defaultInput : null
-  };
 }
 
 export function resolveSubtitleSourceFormat(entry: SubtitleSourceEntry | null | undefined): string {

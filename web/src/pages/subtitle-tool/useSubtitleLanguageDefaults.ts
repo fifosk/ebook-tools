@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchPipelineDefaults } from '../../api/client';
-import { resolveSubtitleLanguageDefaults } from './subtitleToolUtils';
+import { resolveSubtitleLanguageDefaults } from './subtitleLanguageDefaultsUtils';
 
 type UseSubtitleLanguageDefaultsOptions = {
   inputLanguage: string;

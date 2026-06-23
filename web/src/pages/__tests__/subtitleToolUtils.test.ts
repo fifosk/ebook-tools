@@ -5,7 +5,6 @@ import {
   formatSubmittedSubtitleSummary,
   isAssSubtitleSelection,
   pickLatestSubtitleSource,
-  resolveSubtitleLanguageDefaults,
   resolveSubtitleMetadataSourceName,
   resolveSubtitleSourceFormat,
   resolveSubtitleSourceSelectionAfterRefresh,
@@ -15,6 +14,7 @@ import {
   updateSubtitleMediaMetadataDraft,
   updateSubtitleMediaMetadataSection
 } from '../subtitle-tool/subtitleToolUtils';
+import { resolveSubtitleLanguageDefaults } from '../subtitle-tool/subtitleLanguageDefaultsUtils';
 import { resolveSubtitlePrefillValues } from '../subtitle-tool/subtitlePrefillUtils';
 import {
   buildSubtitleSubmitFormData,

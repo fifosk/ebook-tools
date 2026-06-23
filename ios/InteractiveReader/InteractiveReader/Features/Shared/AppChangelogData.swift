@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.72",
+            version: "2026.06.23.73",
             entries: [
+                AppChangelogEntry(
+                    id: "web-subtitle-language-defaults-utils",
+                    title: "Subtitle language defaults",
+                    detail: "Web Subtitle Tool backend language-default mapping now lives in a focused module so target-language options and default input language stay pinned outside the page shell."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-prefill-utils",
                     title: "Subtitle prefill utilities",
