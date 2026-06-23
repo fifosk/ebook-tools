@@ -674,6 +674,10 @@ enum AppleBookCreatePresentation {
         return "\(baseKey)|youtubeBaseDir=\(normalizedBaseDir)"
     }
 
+    static func subtitleShowOriginalPreferenceKey(baseKey: String) -> String {
+        "ebookTools.appleCreate.subtitles.showOriginal.\(baseKey)"
+    }
+
     static func narrationHistoryDefaults(
         from jobs: [PipelineStatusResponse],
         currentInputFile: String

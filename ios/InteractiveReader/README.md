@@ -88,10 +88,10 @@ shows the bearer token.
 The iOS/iPadOS/macOS iPad-style Create surface mirrors the Web creation sources
 for editor users. Narrate EPUB loads `/api/pipelines/files`, subtitle jobs load
 usable SRT/VTT entries from `/api/subtitles/sources`, defaulting to the latest
-modified source, and YouTube dubbing loads NAS videos plus adjacent subtitles
-from `/api/subtitles/youtube/library`, with an editable remembered NAS base
-directory plus the last valid video/subtitle selection for the current API/user
-scope.
+modified source and remembering the Show Original option, and YouTube dubbing
+loads NAS videos plus adjacent subtitles from `/api/subtitles/youtube/library`,
+with an editable remembered NAS base directory plus the last valid
+video/subtitle selection for the current API/user scope.
 Pipeline EPUB listings are newest-first and include optional file metadata, so
 the untouched Narrate EPUB source defaults to the latest backend-visible NAS
 EPUB after the preferred sample book rule. When recent jobs are available,

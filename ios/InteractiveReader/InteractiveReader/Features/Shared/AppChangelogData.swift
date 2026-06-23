@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.92",
+            version: "2026.06.23.93",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-subtitle-show-original-memory",
+                    title: "Create remembers subtitles",
+                    detail: "Apple Create subtitle jobs now remember the Show Original preference per API/user scope, matching Web's returning-user subtitle default."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-youtube-base-dir",
                     title: "Create browses video roots",

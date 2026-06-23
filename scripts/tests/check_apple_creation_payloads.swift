@@ -221,6 +221,12 @@ struct AppleCreationPayloadCheck {
             ) == "https://api.example.test|editor|editor|youtubeBaseDir=/Volumes/Data/Download/DStation",
             "Apple Create should include the selected NAS base directory in YouTube library cache identity"
         )
+        require(
+            AppleBookCreatePresentation.subtitleShowOriginalPreferenceKey(
+                baseKey: "https://api.example.test|editor|editor"
+            ) == "ebookTools.appleCreate.subtitles.showOriginal.https://api.example.test|editor|editor",
+            "Apple Create should scope the subtitle show-original preference to the current API/user"
+        )
         let narrationJobsJSON = """
         {
           "jobs": [

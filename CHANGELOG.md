@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.93
+
+- Advanced visible Apple app versioning to `v2026.06.23.93`.
+- Apple Create subtitle jobs now remember the Show Original preference per API/user scope, matching Web's returning-user subtitle default.
+
 ### 2026.06.23.92
 
 - Advanced visible Apple app versioning to `v2026.06.23.92`.

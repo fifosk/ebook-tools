@@ -148,6 +148,7 @@ struct AppleBookCreateView: View {
         .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
         #endif
         .task(id: creationOptionsLoadKey) {
+            applyStoredSubtitleShowOriginal()
             await refreshCreationOptions()
             await refreshIntakeStatus()
             await refreshPipelineFiles()
@@ -181,6 +182,9 @@ struct AppleBookCreateView: View {
         }
         .onChange(of: enableLookupCache) { _, _ in
             persistLanguagePreferences()
+        }
+        .onChange(of: subtitleShowOriginal) { _, newValue in
+            persistSubtitleShowOriginal(newValue)
         }
         #if os(iOS)
         .fileImporter(
@@ -1080,6 +1084,21 @@ struct AppleBookCreateView: View {
 
     private func youtubeSelectionStorageKey(field: String) -> String {
         "ebookTools.appleCreate.youtubeDub.\(field).\(creationOptionsLoadKey)"
+    }
+
+    private func applyStoredSubtitleShowOriginal() {
+        guard UserDefaults.standard.object(forKey: subtitleShowOriginalStorageKey) != nil else {
+            return
+        }
+        subtitleShowOriginal = UserDefaults.standard.bool(forKey: subtitleShowOriginalStorageKey)
+    }
+
+    private func persistSubtitleShowOriginal(_ value: Bool) {
+        UserDefaults.standard.set(value, forKey: subtitleShowOriginalStorageKey)
+    }
+
+    private var subtitleShowOriginalStorageKey: String {
+        AppleBookCreatePresentation.subtitleShowOriginalPreferenceKey(baseKey: creationOptionsLoadKey)
     }
 
     private var youtubeBaseDirStorageKey: String {
