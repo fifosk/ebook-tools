@@ -166,8 +166,6 @@ async def search_pipeline_media(
         )
         return MediaSearchResponse(query=query, limit=limit, count=0, results=[])
 
-    library_item = library_sync.get_item(job_id) if library_sync is not None else None
-
     try:
         job = pipeline_service.get_job(
             job_id,
@@ -187,6 +185,10 @@ async def search_pipeline_media(
             duration_ms,
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    library_item = None
+    if job is None and library_sync is not None:
+        library_item = library_sync.get_item(job_id)
 
     if job is None and library_item is None:  # pragma: no cover - defensive guard
         duration_ms = (time.perf_counter() - started_at) * 1000.0

@@ -55,13 +55,19 @@ class _StubPipelineService:
 
 
 class _StubLibrarySync:
+    def __init__(self) -> None:
+        self.get_item_calls: list[str] = []
+        self.search_calls: list[dict[str, object]] = []
+
     def get_item(self, job_id: str):
+        self.get_item_calls.append(job_id)
         return None
 
     def serialize_item(self, entry):
         return {}
 
-    def search(self, **_kwargs):
+    def search(self, **kwargs):
+        self.search_calls.append(dict(kwargs))
         return SimpleNamespace(total=0, page=1, limit=0, view='flat', items=[], groups=None)
 
 
@@ -174,7 +180,8 @@ def test_search_returns_matching_snippet(api_app) -> None:
 
     service = _StubPipelineService([job])
     app.dependency_overrides[get_pipeline_service] = lambda: service
-    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync()
+    library_sync = _StubLibrarySync()
+    app.dependency_overrides[get_library_sync] = lambda: library_sync
     app.dependency_overrides[get_library_service] = lambda: _StubLibraryService()
 
     with TestClient(app, raise_server_exceptions=False) as client:
@@ -189,6 +196,7 @@ def test_search_returns_matching_snippet(api_app) -> None:
     app.dependency_overrides.pop(get_library_service, None)
 
     assert response.status_code == 200, response.text
+    assert library_sync.get_item_calls == []
     payload = response.json()
     assert payload["query"] == "fortune"
     assert payload["count"] == 1
@@ -235,7 +243,8 @@ def test_search_records_safe_timing(api_app, monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.setattr(library_routes, "LOGGER", logger)
     app.dependency_overrides[get_pipeline_service] = lambda: _StubPipelineService([job])
-    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync()
+    library_sync = _StubLibrarySync()
+    app.dependency_overrides[get_library_sync] = lambda: library_sync
     app.dependency_overrides[get_library_service] = lambda: _StubLibraryService()
 
     with TestClient(app, raise_server_exceptions=False) as client:
@@ -252,6 +261,8 @@ def test_search_records_safe_timing(api_app, monkeypatch: pytest.MonkeyPatch) ->
 
     assert response.status_code == 200, response.text
     assert response.json()["count"] == 0
+    assert library_sync.get_item_calls == []
+    assert len(library_sync.search_calls) == 1
 
     rendered_logs = "\n".join(logger.messages)
     assert "Pipeline media search completed" in rendered_logs
@@ -282,7 +293,8 @@ def test_search_returns_404_for_unknown_job(api_app) -> None:
     file_locator  # unused but keeps fixture pattern consistent
     service = _StubPipelineService([])
     app.dependency_overrides[get_pipeline_service] = lambda: service
-    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync()
+    library_sync = _StubLibrarySync()
+    app.dependency_overrides[get_library_sync] = lambda: library_sync
     app.dependency_overrides[get_library_service] = lambda: _StubLibraryService()
 
     with TestClient(app, raise_server_exceptions=False) as client:
@@ -296,6 +308,7 @@ def test_search_returns_404_for_unknown_job(api_app) -> None:
     app.dependency_overrides.pop(get_library_service, None)
     assert response.status_code == 404, response.text
     assert response.json() == {"detail": "Job not found"}
+    assert library_sync.get_item_calls == ["missing-job"]
 
 
 def test_search_uses_library_metadata_when_pipeline_job_missing(api_app, tmp_path) -> None:

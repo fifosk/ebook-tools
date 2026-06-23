@@ -153,6 +153,11 @@ Optimization candidates:
   counts for completed and live manifest routes without logging job ids, user
   ids, auth headers, tokens, or file names.
 - Prefer precomputed or cached job summary fields for list rows while keeping full metadata available on detail/media routes.
+- Avoid avoidable library repository reads in shared search paths. Status:
+  `/api/pipelines/search` now defers the library item lookup until the pipeline
+  job is missing, so normal active-job media searches avoid a library sync
+  lookup while preserving library fallback behavior for archived items and
+  unknown-job 404s.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap
