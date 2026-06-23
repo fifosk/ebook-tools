@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildBatchProgress,
   buildBatchStatEntries,
+  buildParallelismEntries,
   formatProgressValue,
   resolveGeneratedFileRecord,
   resolveLookupCacheBuildingProgress,
@@ -65,6 +66,103 @@ describe('jobProgressUtils progress helpers', () => {
       ['Avg batch time', '3.3 s/batch'],
       ['Avg item time', '0.42 s/item'],
       ['Last batch time', '8.9 s/batch (4 sentences)']
+    ]);
+  });
+
+  it('builds parallelism entries for local LLM batches and TTS workers', () => {
+    expect(
+      buildParallelismEntries({
+        tuning: { thread_count: 4, translation_pool_workers: 2 },
+        pipelineConfig: {
+          ollama_model: 'ollama_local:gemma3:12b',
+          selected_voice: 'Monica',
+          generate_audio: true,
+        },
+        parameters: {
+          translation_batch_size: 5,
+        },
+        metadata: {},
+        translationProvider: 'llm',
+        configuredBatchSize: 5,
+      }),
+    ).toEqual([
+      {
+        label: 'LLM (ollama_local:gemma3:12b (12B)) parallel calls',
+        value: '2',
+        hint:
+          'Controlled by Worker threads. Model: ollama_local:gemma3:12b. Provider: ollama_local. Batch size: 5 sentences/request. Model is local (batch calls capped to 1)',
+      },
+      {
+        label: 'LLM batch cap applies',
+        value: 'Yes',
+        hint: 'Local model; batching is capped to 1 parallel LLM call.',
+      },
+      {
+        label: 'TTS parallel calls',
+        value: '4',
+        hint: 'Controlled by Worker threads. Voice: Monica',
+      },
+    ]);
+  });
+
+  it('builds parallelism entries for cloud-backed translation without local batch cap', () => {
+    expect(
+      buildParallelismEntries({
+        tuning: { thread_count: 3, translation_pool_workers: 6 },
+        pipelineConfig: {
+          selected_voice: 'gTTS',
+          generate_audio: false,
+        },
+        parameters: {
+          llm_model: 'ollama_cloud:gpt-oss:20b',
+        },
+        metadata: {
+          translation_model: 'ollama_cloud:gpt-oss:20b',
+        },
+        translationProvider: 'llm',
+        configuredBatchSize: 8,
+      }),
+    ).toEqual([
+      {
+        label: 'LLM (ollama_cloud:gpt-oss:20b (20B)) parallel calls',
+        value: '6',
+        hint:
+          'Controlled by Worker threads. Model: ollama_cloud:gpt-oss:20b. Provider: ollama_cloud. Batch size: 8 sentences/request. Model is cloud-backed (no local cap)',
+      },
+      {
+        label: 'LLM batch cap applies',
+        value: 'No',
+        hint: 'Cloud-backed model; batching is not capped.',
+      },
+      {
+        label: 'TTS parallel calls',
+        value: '3',
+        hint: 'Controlled by Worker threads. Voice: gTTS. Audio disabled for this job',
+      },
+    ]);
+  });
+
+  it('falls back to pipeline thread count when translation pool is not reported', () => {
+    expect(
+      buildParallelismEntries({
+        tuning: null,
+        pipelineConfig: { thread_count: '2' },
+        parameters: null,
+        metadata: {},
+        translationProvider: 'googletrans',
+        configuredBatchSize: null,
+      }),
+    ).toEqual([
+      {
+        label: 'Google Translate (googletrans) parallel calls',
+        value: '2',
+        hint: 'Controlled by Worker threads',
+      },
+      {
+        label: 'TTS parallel calls',
+        value: '2',
+        hint: 'Controlled by Worker threads',
+      },
     ]);
   });
 

@@ -1,6 +1,8 @@
 import { formatLanguageWithFlag } from '../../utils/languages';
+import { isLocalLlmProvider, splitLlmModelId } from '../../utils/llmProviders';
 import { formatModelLabel } from '../../utils/modelInfo';
 import type {
+  JobParameterSnapshot,
   PipelineJobStatus,
   PipelineStatusResponse,
   ProgressEventPayload,
@@ -388,6 +390,12 @@ export type LookupCacheBuildingProgress = {
   wordsToLookup: number | null;
   cachedEntries: number | null;
   llmCalls: number | null;
+};
+
+export type JobParallelismEntry = {
+  label: string;
+  value: string;
+  hint?: string;
 };
 
 export function resolveGeneratedFileRecord(
@@ -810,6 +818,116 @@ export function buildBatchStatEntries(
       lastItems !== null ? ` (${lastItems} sentence${lastItems === 1 ? '' : 's'})` : '';
     entries.push(['Last batch time', `${formatSeconds(lastBatch, 's/batch')}${suffix}`]);
   }
+  return entries;
+}
+
+export function buildParallelismEntries({
+  tuning,
+  pipelineConfig,
+  parameters,
+  metadata,
+  translationProvider,
+  configuredBatchSize,
+}: {
+  tuning: unknown;
+  pipelineConfig: Record<string, unknown> | null;
+  parameters: JobParameterSnapshot | null | undefined;
+  metadata: Record<string, unknown>;
+  translationProvider: string;
+  configuredBatchSize: number | null;
+}): JobParallelismEntry[] {
+  const entries: JobParallelismEntry[] = [];
+  const tuningRecord = coerceRecord(tuning);
+  const threadCount =
+    coerceNumber(tuningRecord?.thread_count) ?? coerceNumber(pipelineConfig?.thread_count);
+  const translationPool = coerceNumber(tuningRecord?.translation_pool_workers) ?? threadCount;
+  const translationModel = normalizeTextValue(metadata['translation_model']);
+  const llmModel =
+    normalizeTextValue(parameters?.llm_model) ?? normalizeTextValue(pipelineConfig?.ollama_model);
+  const modelName = translationModel ?? llmModel;
+  const modelInfo = splitLlmModelId(modelName);
+  const modelProvider = modelInfo.provider;
+  const modelBase = modelInfo.model ?? modelName;
+  const providerLocalFlag = isLocalLlmProvider(modelProvider);
+  const modelIsCloud =
+    providerLocalFlag === false
+      ? true
+      : providerLocalFlag === true
+        ? false
+        : modelBase
+          ? modelBase.toLowerCase().includes('cloud')
+          : false;
+  const providerLabel =
+    formatTranslationProviderLabel(
+      translationProvider,
+      translationModel,
+      llmModel
+    ) ?? 'Text translation';
+  const batchSize = configuredBatchSize;
+
+  if (translationPool !== null) {
+    const hintParts = ['Controlled by Worker threads'];
+    if (translationProvider === 'llm' && modelName) {
+      hintParts.push(`Model: ${modelName}`);
+      if (modelProvider) {
+        hintParts.push(`Provider: ${modelProvider}`);
+      }
+    }
+    if (batchSize !== null && batchSize > 1) {
+      hintParts.push(`Batch size: ${batchSize} sentences/request`);
+      if (translationProvider === 'llm') {
+        if (modelName) {
+          hintParts.push(
+            modelIsCloud
+              ? "Model is cloud-backed (no local cap)"
+              : "Model is local (batch calls capped to 1)"
+          );
+        } else {
+          hintParts.push('Model not reported (local cap may apply)');
+        }
+      }
+    }
+    entries.push({
+      label: `${providerLabel} parallel calls`,
+      value: formatTuningValue(translationPool),
+      hint: hintParts.join('. ')
+    });
+    if (translationProvider === 'llm' && batchSize !== null && batchSize > 1) {
+      let capValue = 'Unknown';
+      let capHint = 'Model not reported; unable to determine cap.';
+      if (modelName) {
+        capValue = modelIsCloud ? 'No' : 'Yes';
+        capHint = modelIsCloud
+          ? 'Cloud-backed model; batching is not capped.'
+          : 'Local model; batching is capped to 1 parallel LLM call.';
+      }
+      entries.push({
+        label: 'LLM batch cap applies',
+        value: capValue,
+        hint: capHint
+      });
+    }
+  }
+
+  if (threadCount !== null) {
+    const audioHintParts = ['Controlled by Worker threads'];
+    const selectedVoice = normalizeTextValue(
+      parameters?.selected_voice ?? pipelineConfig?.selected_voice
+    );
+    const generateAudio = pipelineConfig?.generate_audio;
+    if (selectedVoice) {
+      audioHintParts.push(`Voice: ${selectedVoice}`);
+    }
+    if (generateAudio === false) {
+      audioHintParts.push('Audio disabled for this job');
+    }
+    entries.push({
+      label: 'TTS parallel calls',
+      value: formatTuningValue(threadCount),
+      hint: audioHintParts.join('. ')
+    });
+  }
+
   return entries;
 }
 
