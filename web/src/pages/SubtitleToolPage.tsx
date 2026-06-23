@@ -1,13 +1,7 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useMemo, useState } from 'react';
 import type { JobState } from '../components/JobList';
-import { useLanguagePreferences } from '../context/LanguageProvider';
 import { submitSubtitleJob } from '../api/client';
 import type { JobParameterSnapshot } from '../api/dtos';
-import {
-  buildLanguageOptions,
-  normalizeLanguageLabel,
-  sortLanguageLabelsByName
-} from '../utils/languages';
 import SubtitleJobsPanel from './subtitle-tool/SubtitleJobsPanel';
 import SubtitleMetadataPanel from './subtitle-tool/SubtitleMetadataPanel';
 import SubtitleOptionsPanel from './subtitle-tool/SubtitleOptionsPanel';
@@ -32,7 +26,7 @@ import type {
   SubtitleToolTab
 } from './subtitle-tool/subtitleToolTypes';
 import { useSubtitleJobResults } from './subtitle-tool/useSubtitleJobResults';
-import { useSubtitleLanguageDefaults } from './subtitle-tool/useSubtitleLanguageDefaults';
+import { useSubtitleLanguageState } from './subtitle-tool/useSubtitleLanguageState';
 import { useSubtitleModels } from './subtitle-tool/useSubtitleModels';
 import { useSubtitlePrefill } from './subtitle-tool/useSubtitlePrefill';
 import { useSubtitleShowOriginalPreference } from './subtitle-tool/useSubtitleShowOriginalPreference';
@@ -42,7 +36,6 @@ import {
   buildSubtitleSubmitFormData,
   formatSubmittedSubtitleSummary,
   isAssSubtitleSelection,
-  normalizeLanguageInput,
   resolveSubtitleMetadataSourceName,
   resolveSubtitleSubmitValues,
   sortSubtitleJobsNewestFirst
@@ -76,25 +69,13 @@ export default function SubtitleToolPage({
   const {
     inputLanguage,
     setInputLanguage,
-    primaryTargetLanguage,
-    setPrimaryTargetLanguage
-  } = useLanguagePreferences();
-  const [targetLanguage, setTargetLanguage] = useState<string>(
-    normalizeLanguageLabel(primaryTargetLanguage ?? 'French')
-  );
-  const { fetchedLanguages } = useSubtitleLanguageDefaults({
-    inputLanguage,
-    setInputLanguage
-  });
-  const languageOptions = useMemo(
-    () =>
-      buildLanguageOptions({
-        fetchedLanguages,
-        preferredLanguages: [inputLanguage, primaryTargetLanguage, targetLanguage]
-      }),
-    [fetchedLanguages, inputLanguage, primaryTargetLanguage, targetLanguage]
-  );
-  const sortedLanguageOptions = useMemo(() => sortLanguageLabelsByName(languageOptions), [languageOptions]);
+    targetLanguage,
+    setTargetLanguage,
+    setPrimaryTargetLanguage,
+    sortedLanguageOptions,
+    handleInputLanguageChange,
+    handleTargetLanguageChange
+  } = useSubtitleLanguageState();
   const [sourceMode, setSourceMode] = useState<SubtitleSourceMode>('existing');
   const sourceDirectory = DEFAULT_SUBTITLE_SOURCE_DIRECTORY;
   const {
@@ -196,20 +177,6 @@ export default function SubtitleToolPage({
     setTransliterationModel,
     setSelectedSource
   });
-  useEffect(() => {
-    setTargetLanguage(primaryTargetLanguage ?? targetLanguage);
-  }, [primaryTargetLanguage]);
-
-  useEffect(() => {
-    if (!targetLanguage && languageOptions.length > 0) {
-      const preferred = languageOptions[0];
-      setTargetLanguage(preferred);
-      if (preferred) {
-        setPrimaryTargetLanguage(preferred);
-      }
-    }
-  }, [languageOptions, setPrimaryTargetLanguage, targetLanguage]);
-
   const handleSourceModeChange = useCallback((mode: SubtitleSourceMode) => {
     setSourceMode(mode);
     setSubmitError(null);
@@ -218,19 +185,6 @@ export default function SubtitleToolPage({
   const handleUploadFileChange = useCallback((file: File | null) => {
     setUploadFile(file);
   }, []);
-
-  const handleTargetLanguageChange = useCallback((next: string) => {
-    const value = normalizeLanguageInput(next);
-    setTargetLanguage(value);
-    if (value) {
-      setPrimaryTargetLanguage(value);
-    }
-  }, [setPrimaryTargetLanguage]);
-
-  const handleInputLanguageChange = useCallback((next: string) => {
-    const value = normalizeLanguageInput(next);
-    setInputLanguage(value || 'English');
-  }, [setInputLanguage]);
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
