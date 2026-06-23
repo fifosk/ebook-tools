@@ -1,16 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { buildSiblingSubtitleTracks, createJobMediaResolver } from '../mediaHelpers';
+import { replaceUrlExtension } from '../utils';
 
 describe('Media Helpers', () => {
   describe('buildSiblingSubtitleTracks', () => {
     const mockReplaceUrlExtension = vi.fn((url: string, suffix: string) => {
-      return url.replace(/\.[^.]+$/, suffix);
+      return replaceUrlExtension(url, suffix);
     });
     const mockResolveSubtitleUrl = vi.fn((url: string) => `resolved:${url}`);
     const mockSubtitleFormatFromPath = vi.fn((path: string) => {
-      if (path.endsWith('.vtt')) return 'vtt';
-      if (path.endsWith('.srt')) return 'srt';
-      if (path.endsWith('.ass')) return 'ass';
+      const pathOnly = path.split(/[?#]/, 1)[0] ?? path;
+      if (pathOnly.endsWith('.vtt')) return 'vtt';
+      if (pathOnly.endsWith('.srt')) return 'srt';
+      if (pathOnly.endsWith('.ass')) return 'ass';
       return null;
     });
 
@@ -85,7 +87,7 @@ describe('Media Helpers', () => {
     it('should filter out null candidates from replaceUrlExtension', () => {
       const mockReplace = vi.fn((url: string, suffix: string) => {
         if (suffix === '.vtt') return null; // Simulate failure for .vtt
-        return url.replace(/\.[^.]+$/, suffix);
+        return replaceUrlExtension(url, suffix);
       });
 
       const result = buildSiblingSubtitleTracks(

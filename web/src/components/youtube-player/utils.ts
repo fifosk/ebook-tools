@@ -38,6 +38,9 @@ export function readNestedValue(source: unknown, path: string[]): unknown {
       return null;
     }
     current = (current as Record<string, unknown>)[key];
+    if (current === undefined) {
+      return null;
+    }
   }
   return current;
 }
