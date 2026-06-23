@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createEmptyState,
+  extractAudioTracks,
   extractGeneratedFiles,
   hasChunkSentences,
   mergeChunkCollections,
@@ -138,5 +139,45 @@ describe('liveMediaState', () => {
     expect(extractGeneratedFiles({})).toBeUndefined();
     expect(hasChunkSentences([chunk({ sentences: [] })])).toBe(false);
     expect(hasChunkSentences([chunk({ sentenceCount: 2 })])).toBe(true);
+  });
+
+  it('extracts keyed audio track objects while trimming blank values', () => {
+    expect(
+      extractAudioTracks({
+        original: {
+          path: ' original.mp3 ',
+          url: ' https://storage.example/original.mp3 ',
+          duration: 12.5,
+          sampleRate: 44100.8
+        },
+        translated: ' translated.mp3 ',
+        empty: { path: ' ', url: ' ' },
+        ignored: 42
+      })
+    ).toEqual({
+      original: {
+        path: 'original.mp3',
+        url: 'https://storage.example/original.mp3',
+        duration: 12.5,
+        sampleRate: 44100
+      },
+      translated: { path: 'translated.mp3' }
+    });
+  });
+
+  it('extracts legacy array audio tracks by key or kind', () => {
+    expect(
+      extractAudioTracks([
+        { key: 'original', url: 'original.mp3' },
+        { kind: 'translated', url: 'translated.mp3' },
+        { key: 'blank', url: ' ' },
+        { url: 'missing-key.mp3' }
+      ])
+    ).toEqual({
+      original: { path: 'original.mp3' },
+      translated: { path: 'translated.mp3' }
+    });
+    expect(extractAudioTracks([{ key: 'blank', url: ' ' }])).toBeNull();
+    expect(extractAudioTracks(null)).toBeNull();
   });
 });

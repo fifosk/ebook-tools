@@ -52,6 +52,83 @@ export function hasAudioTracks(
   return Boolean(tracks && Object.keys(tracks).length > 0);
 }
 
+export function extractAudioTracks(source: unknown): Record<string, AudioTrackMetadata> | null {
+  if (!source || typeof source !== 'object') {
+    return null;
+  }
+  const entries: Record<string, AudioTrackMetadata> = {};
+  const register = (key: string | null, value: unknown) => {
+    if (!key) {
+      return;
+    }
+    const trimmedKey = key.trim();
+    if (!trimmedKey) {
+      return;
+    }
+    if (typeof value === 'string') {
+      const trimmedValue = value.trim();
+      if (!trimmedValue) {
+        return;
+      }
+      entries[trimmedKey] = { path: trimmedValue };
+      return;
+    }
+    if (typeof value !== 'object' || value === null) {
+      return;
+    }
+    const record = value as Record<string, unknown>;
+    const path = typeof record.path === 'string' ? record.path.trim() : null;
+    const url = typeof record.url === 'string' ? record.url.trim() : null;
+    const duration =
+      typeof record.duration === 'number' && Number.isFinite(record.duration)
+        ? record.duration
+        : null;
+    const sampleRate =
+      typeof record.sampleRate === 'number' && Number.isFinite(record.sampleRate)
+        ? Math.trunc(record.sampleRate)
+        : null;
+    const payload: AudioTrackMetadata = {};
+    if (path) {
+      payload.path = path;
+    }
+    if (url) {
+      payload.url = url;
+    }
+    if (duration !== null) {
+      payload.duration = duration;
+    }
+    if (sampleRate !== null) {
+      payload.sampleRate = sampleRate;
+    }
+    if (Object.keys(payload).length === 0) {
+      return;
+    }
+    entries[trimmedKey] = payload;
+  };
+
+  if (Array.isArray(source)) {
+    source.forEach((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return;
+      }
+      const record = entry as Record<string, unknown>;
+      const key =
+        typeof record.key === 'string'
+          ? record.key
+          : typeof record.kind === 'string'
+            ? record.kind
+            : null;
+      register(key, record.url);
+    });
+  } else {
+    Object.entries(source as Record<string, unknown>).forEach(([key, value]) => {
+      register(key, value);
+    });
+  }
+
+  return Object.keys(entries).length > 0 ? entries : null;
+}
+
 export function mergeMediaBuckets(base: LiveMediaState, incoming: LiveMediaState): LiveMediaState {
   const categories: MediaCategory[] = ['text', 'audio', 'video'];
   const merged: LiveMediaState = createEmptyState();
