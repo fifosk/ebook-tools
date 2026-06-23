@@ -414,6 +414,30 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.normalizedImageDimension("bad") == "512",
             "Image dimensions should fall back for invalid input"
         )
+        require(
+            AppleBookCreatePresentation.normalizedImageSteps("") == nil,
+            "Blank image steps should keep the backend default"
+        )
+        require(
+            AppleBookCreatePresentation.normalizedImageSteps("0.9") == 1,
+            "Image steps should clamp below-minimum numeric input"
+        )
+        require(
+            AppleBookCreatePresentation.normalizedImageSteps("24.7") == 24,
+            "Image steps should floor decimal input before submit"
+        )
+        require(
+            AppleBookCreatePresentation.normalizedImageCfgScale("") == nil,
+            "Blank CFG scale should keep the backend default"
+        )
+        require(
+            AppleBookCreatePresentation.normalizedImageCfgScale("-1") == 0,
+            "CFG scale should clamp below-minimum numeric input"
+        )
+        require(
+            AppleBookCreatePresentation.normalizedImageCfgScale("7.25") == 7.25,
+            "CFG scale should preserve decimal input before submit"
+        )
         switch AppleBookCreatePresentation.normalizedSubtitleTimeRange(start: "", end: "+5") {
         case let .success(range):
             require(range == AppleCreateTimeRange(start: "00:00", end: "+05:00"), "Subtitle range should normalize empty start and relative end")
@@ -491,6 +515,9 @@ struct AppleCreationPayloadCheck {
             imagePromptContextSentences: 99,
             imageWidth: "63.9",
             imageHeight: "1024.8",
+            imageSteps: "0",
+            imageCfgScale: "-1",
+            imageSamplerName: " euler_a ",
             pipelineDefaults: options.pipelineDefaults,
             generatedSourceDefaults: options.generatedSourceDefaults
         )
@@ -525,6 +552,9 @@ struct AppleCreationPayloadCheck {
         )
         require(generatedDraft.imageWidth == "64", "Generated draft should normalize selected image width")
         require(generatedDraft.imageHeight == "1024", "Generated draft should normalize selected image height")
+        require(generatedDraft.imageSteps == 1, "Generated draft should normalize selected image steps")
+        require(generatedDraft.imageCfgScale == 0, "Generated draft should normalize selected CFG scale")
+        require(generatedDraft.imageSamplerName == "euler_a", "Generated draft should trim selected sampler name")
         require(generatedDraft.pipelineDefaults == options.pipelineDefaults, "Generated draft should carry pipeline defaults")
         require(
             generatedDraft.generatedSourceDefaults == options.generatedSourceDefaults,
@@ -653,6 +683,9 @@ struct AppleCreationPayloadCheck {
                 "image_style_template": .string("children_book"),
                 "image_width": .string("768"),
                 "image_height": .string("512"),
+                "image_steps": .number(28),
+                "image_cfg_scale": .number(7.5),
+                "image_sampler_name": .string("dpmpp_2m"),
                 "tempo": .number(1.08)
             ],
             inputs: input,
@@ -694,6 +727,18 @@ struct AppleCreationPayloadCheck {
         require(
             pipelineOverrides?["image_height"] as? String == "512",
             "pipeline overrides should encode selected image height"
+        )
+        require(
+            pipelineOverrides?["image_steps"] as? Int == 28,
+            "pipeline overrides should encode selected image steps"
+        )
+        require(
+            (pipelineOverrides?["image_cfg_scale"] as? NSNumber)?.doubleValue == 7.5,
+            "pipeline overrides should encode selected CFG scale"
+        )
+        require(
+            pipelineOverrides?["image_sampler_name"] as? String == "dpmpp_2m",
+            "pipeline overrides should encode selected sampler name"
         )
 
         let encodedInputs = pipelineObject["inputs"] as? [String: Any]

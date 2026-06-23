@@ -399,6 +399,9 @@ struct AppleBookCreateGeneratedOutputControls: View {
     let clampedImagePromptContextSentences: Int
     @Binding var imageWidth: String
     @Binding var imageHeight: String
+    @Binding var imageSteps: String
+    @Binding var imageCfgScale: String
+    @Binding var imageSamplerName: String
     let supportsImages: Bool
 
     var body: some View {
@@ -459,6 +462,16 @@ struct AppleBookCreateGeneratedOutputControls: View {
                 TextField("Height", text: $imageHeight)
                     .keyboardType(.numberPad)
                     .accessibilityIdentifier("createBookImageHeightField")
+                TextField("Steps", text: $imageSteps)
+                    .keyboardType(.numberPad)
+                    .accessibilityIdentifier("createBookImageStepsField")
+                TextField("CFG scale", text: $imageCfgScale)
+                    .keyboardType(.decimalPad)
+                    .accessibilityIdentifier("createBookImageCfgScaleField")
+                TextField("Sampler", text: $imageSamplerName)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createBookImageSamplerField")
                 #endif
             }
         }

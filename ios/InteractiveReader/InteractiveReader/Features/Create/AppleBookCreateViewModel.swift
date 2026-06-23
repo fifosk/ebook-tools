@@ -196,7 +196,10 @@ final class AppleBookCreateViewModel: ObservableObject {
                 imagePromptPlanBatchSize: draft.imagePromptPlanBatchSize,
                 imagePromptContextSentences: draft.imagePromptContextSentences,
                 imageWidth: draft.imageWidth,
-                imageHeight: draft.imageHeight
+                imageHeight: draft.imageHeight,
+                imageSteps: draft.imageSteps,
+                imageCfgScale: draft.imageCfgScale,
+                imageSamplerName: draft.imageSamplerName
             ),
             correlationId: "apple-create",
             bookMetadata: [
@@ -299,7 +302,10 @@ final class AppleBookCreateViewModel: ObservableObject {
         imagePromptPlanBatchSize: Int? = nil,
         imagePromptContextSentences: Int? = nil,
         imageWidth: String? = nil,
-        imageHeight: String? = nil
+        imageHeight: String? = nil,
+        imageSteps: Int? = nil,
+        imageCfgScale: Double? = nil,
+        imageSamplerName: String? = nil
     ) -> [String: JSONValue] {
         var overrides = [String: JSONValue]()
         if let defaults {
@@ -338,6 +344,16 @@ final class AppleBookCreateViewModel: ObservableObject {
         if let imageHeight = imageHeight?.trimmingCharacters(in: .whitespacesAndNewlines),
            !imageHeight.isEmpty {
             overrides["image_height"] = .string(imageHeight)
+        }
+        if let imageSteps {
+            overrides["image_steps"] = .number(Double(imageSteps))
+        }
+        if let imageCfgScale {
+            overrides["image_cfg_scale"] = .number(imageCfgScale)
+        }
+        if let imageSamplerName = imageSamplerName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !imageSamplerName.isEmpty {
+            overrides["image_sampler_name"] = .string(imageSamplerName)
         }
         return overrides
     }

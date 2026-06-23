@@ -68,6 +68,9 @@ struct AppleBookCreateView: View {
     @State private var imagePromptContextSentences = 0
     @State private var imageWidth = "256"
     @State private var imageHeight = "256"
+    @State private var imageSteps = ""
+    @State private var imageCfgScale = ""
+    @State private var imageSamplerName = ""
     @State private var editedFields = Set<AppleBookCreateEditedField>()
 
     var body: some View {
@@ -279,6 +282,9 @@ struct AppleBookCreateView: View {
                     clampedImagePromptContextSentences: clampedImagePromptContextSentences,
                     imageWidth: textBinding(for: .imageWidth, value: $imageWidth),
                     imageHeight: textBinding(for: .imageHeight, value: $imageHeight),
+                    imageSteps: textBinding(for: .imageSteps, value: $imageSteps),
+                    imageCfgScale: textBinding(for: .imageCfgScale, value: $imageCfgScale),
+                    imageSamplerName: textBinding(for: .imageSamplerName, value: $imageSamplerName),
                     supportsImages: creationMode == .generatedBook
                 )
             }
@@ -429,6 +435,9 @@ struct AppleBookCreateView: View {
             imagePromptContextSentences: imagePromptContextSentences,
             imageWidth: imageWidth,
             imageHeight: imageHeight,
+            imageSteps: imageSteps,
+            imageCfgScale: imageCfgScale,
+            imageSamplerName: imageSamplerName,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults,
             generatedSourceDefaults: viewModel.creationOptions?.generatedSourceDefaults
         )

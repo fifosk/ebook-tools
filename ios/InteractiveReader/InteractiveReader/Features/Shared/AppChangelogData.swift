@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.11",
+            version: "2026.06.23.12",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-generated-book-image-tuning",
+                    title: "Apple image tuning",
+                    detail: "Generated-book creation on iPhone and iPad now lets illustration jobs optionally set image steps, CFG scale, and sampler name before submit."
+                ),
                 AppChangelogEntry(
                     id: "apple-generated-book-image-batching",
                     title: "Apple image batching",

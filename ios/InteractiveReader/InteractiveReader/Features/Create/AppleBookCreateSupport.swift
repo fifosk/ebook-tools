@@ -21,6 +21,9 @@ struct AppleBookCreateDraft: Equatable {
     let imagePromptContextSentences: Int
     let imageWidth: String
     let imageHeight: String
+    let imageSteps: Int?
+    let imageCfgScale: Double?
+    let imageSamplerName: String?
     let pipelineDefaults: BookCreationPipelineDefaults?
     let generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
 }
@@ -279,6 +282,9 @@ enum AppleBookCreateEditedField: Hashable {
     case imagePromptContextSentences
     case imageWidth
     case imageHeight
+    case imageSteps
+    case imageCfgScale
+    case imageSamplerName
 }
 
 struct AppleCreateResolvedDefaults: Equatable {
@@ -432,6 +438,26 @@ enum AppleBookCreatePresentation {
             return "512"
         }
         return "\(max(64, Int(parsed.rounded(.down))))"
+    }
+
+    static func normalizedImageSteps(_ value: String) -> Int? {
+        let trimmedValue = trimmed(value)
+        guard !trimmedValue.isEmpty,
+              let parsed = Double(trimmedValue),
+              parsed.isFinite else {
+            return nil
+        }
+        return max(1, Int(parsed.rounded(.down)))
+    }
+
+    static func normalizedImageCfgScale(_ value: String) -> Double? {
+        let trimmedValue = trimmed(value)
+        guard !trimmedValue.isEmpty,
+              let parsed = Double(trimmedValue),
+              parsed.isFinite else {
+            return nil
+        }
+        return max(0, parsed)
     }
 
     static func availableInputLanguages(
@@ -666,6 +692,9 @@ enum AppleBookCreatePresentation {
         imagePromptContextSentences: Int,
         imageWidth: String,
         imageHeight: String,
+        imageSteps: String,
+        imageCfgScale: String,
+        imageSamplerName: String,
         pipelineDefaults: BookCreationPipelineDefaults?,
         generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
     ) -> AppleBookCreateDraft {
@@ -690,6 +719,9 @@ enum AppleBookCreatePresentation {
             imagePromptContextSentences: clampImagePromptContextSentences(imagePromptContextSentences),
             imageWidth: normalizedImageDimension(imageWidth),
             imageHeight: normalizedImageDimension(imageHeight),
+            imageSteps: normalizedImageSteps(imageSteps),
+            imageCfgScale: normalizedImageCfgScale(imageCfgScale),
+            imageSamplerName: trimmed(imageSamplerName).nonEmptyValue,
             pipelineDefaults: pipelineDefaults,
             generatedSourceDefaults: generatedSourceDefaults
         )
