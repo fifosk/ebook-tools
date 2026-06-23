@@ -1,4 +1,7 @@
 import type { JobState } from '../../components/JobList';
+import type { SubtitleSourceEntry } from '../../api/dtos';
+import { subtitleFormatFromPath } from '../../utils/subtitles';
+import type { SubtitleOutputFormat } from './subtitleToolTypes';
 
 export function formatSubtitleRetryCounts(counts?: Record<string, number> | null): string | null {
   if (!counts) {
@@ -207,4 +210,110 @@ export function formatTimecodeFromSeconds(value: number | null | undefined): str
     return [hours, minutes, seconds].map((component) => component.toString().padStart(2, '0')).join(':');
   }
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function subtitleSourceFormat(entry: SubtitleSourceEntry): string {
+  return (entry.format || subtitleFormatFromPath(entry.path) || '').toLowerCase();
+}
+
+function parseModifiedTime(value: string | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+export function sortSubtitleSourcesForSelection(sources: SubtitleSourceEntry[]): SubtitleSourceEntry[] {
+  return [...sources]
+    .map((entry, index) => ({ entry, index }))
+    .sort((left, right) => {
+      const leftWeight = subtitleSourceFormat(left.entry) === 'ass' ? 1 : 0;
+      const rightWeight = subtitleSourceFormat(right.entry) === 'ass' ? 1 : 0;
+      if (leftWeight !== rightWeight) {
+        return leftWeight - rightWeight;
+      }
+      return left.index - right.index;
+    })
+    .map(({ entry }) => entry);
+}
+
+export function pickLatestSubtitleSource(sources: SubtitleSourceEntry[]): string {
+  const preferred = sources.filter((item) => subtitleSourceFormat(item) !== 'ass');
+  const pool = preferred.length > 0 ? preferred : sources;
+  if (pool.length === 0) {
+    return '';
+  }
+  return pool.reduce<string>((latest, candidate) => {
+    if (!latest) {
+      return candidate.path;
+    }
+    const latestEntry = pool.find((item) => item.path === latest) ?? candidate;
+    const latestTs = parseModifiedTime(latestEntry.modified_at);
+    const candidateTs = parseModifiedTime(candidate.modified_at);
+    if (candidateTs > latestTs) {
+      return candidate.path;
+    }
+    if (candidateTs === latestTs && candidate.path.localeCompare(latest) < 0) {
+      return candidate.path;
+    }
+    return latest;
+  }, '');
+}
+
+export type SubmittedSubtitleSummary = {
+  jobId: string;
+  workerCount: number | null;
+  batchSize: number | null;
+  translationBatchSize: number | null;
+  startTime: string;
+  defaultStartTime: string;
+  endTime: string | null;
+  model: string | null;
+  format: SubtitleOutputFormat | null;
+  assFontSize: number | null;
+  assEmphasis: number | null;
+};
+
+export function formatSubmittedSubtitleSummary(summary: SubmittedSubtitleSummary): string {
+  const details: string[] = [];
+  if (summary.workerCount) {
+    details.push(`${summary.workerCount} thread${summary.workerCount === 1 ? '' : 's'}`);
+  }
+  if (summary.batchSize) {
+    details.push(`batch size ${summary.batchSize}`);
+  }
+  if (summary.translationBatchSize) {
+    details.push(`LLM batch ${summary.translationBatchSize}`);
+  }
+  if (summary.startTime && summary.startTime !== summary.defaultStartTime) {
+    details.push(`starting at ${summary.startTime}`);
+  }
+  if (summary.endTime) {
+    const display = summary.endTime.startsWith('+')
+      ? `ending after ${summary.endTime.slice(1)}`
+      : `ending at ${summary.endTime}`;
+    details.push(display);
+  }
+  if (summary.model) {
+    details.push(`LLM ${summary.model}`);
+  }
+  if (summary.format) {
+    const label = summary.format === 'ass' ? 'ASS subtitles' : 'SRT subtitles';
+    details.push(label);
+    if (summary.format === 'ass' && summary.assFontSize) {
+      details.push(`font size ${summary.assFontSize}`);
+    }
+    if (summary.format === 'ass' && summary.assEmphasis) {
+      details.push(`scale ${summary.assEmphasis}\u00d7`);
+    }
+  }
+  if (details.length === 0) {
+    return `Submitted subtitle job ${summary.jobId} using auto-detected concurrency. Live status appears in the Jobs tab.`;
+  }
+  const detailText =
+    details.length === 1
+      ? details[0]
+      : `${details.slice(0, -1).join(', ')} and ${details[details.length - 1]}`;
+  return `Submitted subtitle job ${summary.jobId} using ${detailText}. Live status appears in the Jobs tab.`;
 }

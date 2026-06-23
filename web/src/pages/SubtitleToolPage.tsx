@@ -47,9 +47,12 @@ import type {
 import {
   basenameFromPath,
   coerceRecord,
+  formatSubmittedSubtitleSummary,
   formatTimecodeFromSeconds,
   normalizeLanguageInput,
-  normalizeSubtitleTimecodeInput
+  normalizeSubtitleTimecodeInput,
+  pickLatestSubtitleSource,
+  sortSubtitleSourcesForSelection
 } from './subtitle-tool/subtitleToolUtils';
 import styles from './SubtitleToolPage.module.css';
 
@@ -111,21 +114,7 @@ export default function SubtitleToolPage({
     () => sourceMode === 'existing' && selectedSourceFormat === 'ass',
     [sourceMode, selectedSourceFormat]
   );
-  const sortedSources = useMemo(() => {
-    return [...sources]
-      .map((entry, index) => ({ entry, index }))
-      .sort((left, right) => {
-        const leftFormat = (left.entry.format || subtitleFormatFromPath(left.entry.path) || '').toLowerCase();
-        const rightFormat = (right.entry.format || subtitleFormatFromPath(right.entry.path) || '').toLowerCase();
-        const leftWeight = leftFormat === 'ass' ? 1 : 0;
-        const rightWeight = rightFormat === 'ass' ? 1 : 0;
-        if (leftWeight !== rightWeight) {
-          return leftWeight - rightWeight;
-        }
-        return left.index - right.index;
-      })
-      .map(({ entry }) => entry);
-  }, [sources]);
+  const sortedSources = useMemo(() => sortSubtitleSourcesForSelection(sources), [sources]);
   const sourceDirectory = DEFAULT_SUBTITLE_SOURCE_DIRECTORY;
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const metadataSourceName = useMemo(() => {
@@ -380,39 +369,7 @@ export default function SubtitleToolPage({
         setSources(entries);
         const currentSelection = resetSelection ? '' : selectedSourceRef.current;
         if (!currentSelection) {
-          const pickLatest = (items: SubtitleSourceEntry[]): string => {
-            const parseTimestamp = (value: string | null | undefined): number => {
-              if (!value) {
-                return 0;
-              }
-              const parsed = Date.parse(value);
-              return Number.isNaN(parsed) ? 0 : parsed;
-            };
-            const preferred = items.filter((item) => {
-              const format = (item.format || subtitleFormatFromPath(item.path) || '').toLowerCase();
-              return format !== 'ass';
-            });
-            const pool = preferred.length > 0 ? preferred : items;
-            if (pool.length === 0) {
-              return '';
-            }
-            return pool.reduce<string>((latest, candidate) => {
-              if (!latest) {
-                return candidate.path;
-              }
-              const latestEntry = pool.find((item) => item.path === latest) ?? candidate;
-              const latestTs = parseTimestamp(latestEntry.modified_at);
-              const candidateTs = parseTimestamp(candidate.modified_at);
-              if (candidateTs > latestTs) {
-                return candidate.path;
-              }
-              if (candidateTs === latestTs && candidate.path.localeCompare(latest) < 0) {
-                return candidate.path;
-              }
-              return latest;
-            }, '');
-          };
-          const nextSelection = pickLatest(entries);
+          const nextSelection = pickLatestSubtitleSource(entries);
           if (nextSelection) {
             setSelectedSource(nextSelection);
           }
@@ -795,52 +752,19 @@ export default function SubtitleToolPage({
       {submitError ? <div className="alert" role="alert">{submitError}</div> : null}
       {lastSubmittedJobId ? (
         <div className="notice notice--info" role="status">
-          Submitted subtitle job {lastSubmittedJobId}
-          {(() => {
-            const details: string[] = [];
-            if (lastSubmittedWorkerCount) {
-              details.push(
-                `${lastSubmittedWorkerCount} thread${lastSubmittedWorkerCount === 1 ? '' : 's'}`
-              );
-            }
-            if (lastSubmittedBatchSize) {
-              details.push(`batch size ${lastSubmittedBatchSize}`);
-            }
-            if (lastSubmittedTranslationBatchSize) {
-              details.push(`LLM batch ${lastSubmittedTranslationBatchSize}`);
-            }
-            if (lastSubmittedStartTime && lastSubmittedStartTime !== DEFAULT_START_TIME) {
-              details.push(`starting at ${lastSubmittedStartTime}`);
-            }
-            if (lastSubmittedEndTime) {
-              const display =
-                lastSubmittedEndTime.startsWith('+')
-                  ? `ending after ${lastSubmittedEndTime.slice(1)}`
-                  : `ending at ${lastSubmittedEndTime}`;
-              details.push(display);
-            }
-            if (lastSubmittedModel) {
-              details.push(`LLM ${lastSubmittedModel}`);
-            }
-            if (lastSubmittedFormat) {
-              const label = lastSubmittedFormat === 'ass' ? 'ASS subtitles' : 'SRT subtitles';
-              details.push(label);
-              if (lastSubmittedFormat === 'ass' && lastSubmittedAssFontSize) {
-                details.push(`font size ${lastSubmittedAssFontSize}`);
-              }
-              if (lastSubmittedFormat === 'ass' && lastSubmittedAssEmphasis) {
-                details.push(`scale ${lastSubmittedAssEmphasis}×`);
-              }
-            }
-            if (details.length === 0) {
-              return ' using auto-detected concurrency. Live status appears in the Jobs tab.';
-            }
-            const detailText =
-              details.length === 1
-                ? details[0]
-                : `${details.slice(0, -1).join(', ')} and ${details[details.length - 1]}`;
-            return ` using ${detailText}. Live status appears in the Jobs tab.`;
-          })()}
+          {formatSubmittedSubtitleSummary({
+            jobId: lastSubmittedJobId,
+            workerCount: lastSubmittedWorkerCount,
+            batchSize: lastSubmittedBatchSize,
+            translationBatchSize: lastSubmittedTranslationBatchSize,
+            startTime: lastSubmittedStartTime,
+            defaultStartTime: DEFAULT_START_TIME,
+            endTime: lastSubmittedEndTime,
+            model: lastSubmittedModel,
+            format: lastSubmittedFormat,
+            assFontSize: lastSubmittedAssFontSize,
+            assEmphasis: lastSubmittedAssEmphasis
+          })}
         </div>
       ) : null}
 
