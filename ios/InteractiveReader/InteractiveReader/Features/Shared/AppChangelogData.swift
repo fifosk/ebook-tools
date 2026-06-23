@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.90",
+            version: "2026.06.23.91",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-shared-language-defaults",
+                    title: "Create remembers languages",
+                    detail: "Apple Create now remembers shared input language, target languages, and lookup-cache defaults per API/user scope across generated book, Narrate EPUB, subtitle, and video jobs."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-youtube-source-memory",
                     title: "Create remembers videos",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.91
+
+- Advanced visible Apple app versioning to `v2026.06.23.91`.
+- Apple Create now remembers shared input language, target languages, and lookup-cache defaults per API/user scope across generated book, Narrate EPUB, subtitle, and video jobs.
+
 ### 2026.06.23.90
 
 - Advanced visible Apple app versioning to `v2026.06.23.90`.

@@ -97,6 +97,9 @@ EPUB after the preferred sample book rule. When recent jobs are available,
 untouched Narrate EPUB fields also reuse the latest book/narration input and
 base paths, resume near the prior end sentence, and carry forward language and
 lookup-cache defaults.
+Apple Create also remembers shared input language, target languages, and
+lookup-cache defaults per API/user scope across generated book, Narrate EPUB,
+subtitle, and video jobs.
 Manual path entry remains available when the backend list is empty or a source
 is outside the default browser roots. tvOS intentionally keeps Create narrowed
 to generated-book jobs.

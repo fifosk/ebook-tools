@@ -165,6 +165,18 @@ struct AppleBookCreateView: View {
         .onChange(of: youtubeSubtitlePath) { _, newValue in
             persistYoutubeSelectionPath(newValue, field: "subtitle")
         }
+        .onChange(of: inputLanguage) { _, _ in
+            persistLanguagePreferences()
+        }
+        .onChange(of: targetLanguage) { _, _ in
+            persistLanguagePreferences()
+        }
+        .onChange(of: additionalTargetLanguages) { _, _ in
+            persistLanguagePreferences()
+        }
+        .onChange(of: enableLookupCache) { _, _ in
+            persistLanguagePreferences()
+        }
         #if os(iOS)
         .fileImporter(
             isPresented: $isImportingNarrateEbook,
@@ -1620,6 +1632,51 @@ struct AppleBookCreateView: View {
             return
         }
         applyCreationOptions(options)
+        applyStoredLanguagePreferences()
+    }
+
+    private func applyStoredLanguagePreferences() {
+        guard
+            let data = UserDefaults.standard.data(forKey: languagePreferencesStorageKey),
+            let preferences = try? JSONDecoder().decode(AppleCreateLanguagePreferences.self, from: data),
+            let resolved = AppleBookCreatePresentation.resolvedLanguagePreferences(from: preferences)
+        else {
+            return
+        }
+
+        if !editedFields.contains(.inputLanguage),
+           let inputLanguage = resolved.inputLanguage {
+            self.inputLanguage = inputLanguage
+        }
+        if !editedFields.contains(.targetLanguage),
+           let targetLanguage = resolved.targetLanguage {
+            self.targetLanguage = targetLanguage
+        }
+        if !editedFields.contains(.additionalTargetLanguages),
+           let additionalTargetLanguages = resolved.additionalTargetLanguages {
+            self.additionalTargetLanguages = additionalTargetLanguages
+        }
+        if !editedFields.contains(.enableLookupCache),
+           let enableLookupCache = resolved.enableLookupCache {
+            self.enableLookupCache = enableLookupCache
+        }
+    }
+
+    private func persistLanguagePreferences() {
+        let preferences = AppleBookCreatePresentation.languagePreferences(
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            additionalTargetLanguages: additionalTargetLanguages,
+            enableLookupCache: enableLookupCache
+        )
+        guard let data = try? JSONEncoder().encode(preferences) else {
+            return
+        }
+        UserDefaults.standard.set(data, forKey: languagePreferencesStorageKey)
+    }
+
+    private var languagePreferencesStorageKey: String {
+        "ebookTools.appleCreate.bookJobDefaults.v1.\(creationOptionsLoadKey)"
     }
 
     private func applyCreationOptions(_ options: BookCreationOptionsResponse) {

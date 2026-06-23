@@ -578,6 +578,36 @@ struct AppleCreationPayloadCheck {
             ) == ["", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
             "Transliteration model options should include blank fallback, selected, translation model, and unique inventory"
         )
+        let languagePreferences = AppleBookCreatePresentation.languagePreferences(
+            inputLanguage: .english,
+            targetLanguage: .arabic,
+            additionalTargetLanguages: " German, arabic, French ",
+            enableLookupCache: false
+        )
+        require(
+            languagePreferences == AppleCreateLanguagePreferences(
+                inputLanguage: "English",
+                targetLanguages: ["Arabic", "German", "French"],
+                enableLookupCache: false
+            ),
+            "Apple Create language preferences should persist Web-aligned target language defaults"
+        )
+        let restoredLanguagePreferences = AppleBookCreatePresentation.resolvedLanguagePreferences(
+            from: AppleCreateLanguagePreferences(
+                inputLanguage: " German ",
+                targetLanguages: [" Spanish ", "Slovak", "Spanish"],
+                enableLookupCache: true
+            )
+        )
+        require(
+            restoredLanguagePreferences == AppleCreateResolvedLanguagePreferences(
+                inputLanguage: .german,
+                targetLanguage: .spanish,
+                additionalTargetLanguages: "Slovak",
+                enableLookupCache: true
+            ),
+            "Apple Create should restore shared language and lookup-cache defaults from persisted preferences"
+        )
         require(
             AppleBookCreatePresentation.normalizedBookGenres(" Adventure, Fantasy, adventure,  ") == ["Adventure", "Fantasy"],
             "Apple Create should normalize edited genre strings into Web-aligned book_genres arrays"

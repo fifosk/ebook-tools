@@ -550,6 +550,19 @@ struct AppleCreateTargetLanguageDefaults: Equatable {
     let additionalTargets: String
 }
 
+struct AppleCreateLanguagePreferences: Codable, Equatable {
+    let inputLanguage: String?
+    let targetLanguages: [String]
+    let enableLookupCache: Bool?
+}
+
+struct AppleCreateResolvedLanguagePreferences: Equatable {
+    let inputLanguage: AppleBookCreateLanguage?
+    let targetLanguage: AppleBookCreateLanguage?
+    let additionalTargetLanguages: String?
+    let enableLookupCache: Bool?
+}
+
 struct AppleCreateSubmitPresentation: Equatable {
     let title: String
     let systemImage: String
@@ -1342,6 +1355,48 @@ enum AppleBookCreatePresentation {
         let primary = AppleBookCreateLanguage(backendValue: first)
         let additionalTargets = normalized.dropFirst().joined(separator: ", ")
         return AppleCreateTargetLanguageDefaults(primary: primary, additionalTargets: additionalTargets)
+    }
+
+    static func languagePreferences(
+        inputLanguage: AppleBookCreateLanguage,
+        targetLanguage: AppleBookCreateLanguage,
+        additionalTargetLanguages: String,
+        enableLookupCache: Bool
+    ) -> AppleCreateLanguagePreferences {
+        AppleCreateLanguagePreferences(
+            inputLanguage: inputLanguage.backendValue,
+            targetLanguages: normalizedTargetLanguages(
+                primary: targetLanguage.backendValue,
+                additionalTargets: additionalTargetLanguages
+            ),
+            enableLookupCache: enableLookupCache
+        )
+    }
+
+    static func resolvedLanguagePreferences(
+        from preferences: AppleCreateLanguagePreferences?
+    ) -> AppleCreateResolvedLanguagePreferences? {
+        guard let preferences else { return nil }
+        let normalizedTargets = normalizedLanguageList(preferences.targetLanguages)
+        let targetLanguage = normalizedTargets.first.flatMap(AppleBookCreateLanguage.init(backendValue:))
+        let additionalTargets = normalizedTargets.dropFirst().joined(separator: ", ")
+        let inputLanguage = preferences.inputLanguage
+            .flatMap { AppleBookCreateLanguage(backendValue: $0) }
+        guard
+            inputLanguage != nil
+                || targetLanguage != nil
+                || !additionalTargets.isEmpty
+                || preferences.enableLookupCache != nil
+        else {
+            return nil
+        }
+
+        return AppleCreateResolvedLanguagePreferences(
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            additionalTargetLanguages: additionalTargets.isEmpty ? nil : additionalTargets,
+            enableLookupCache: preferences.enableLookupCache
+        )
     }
 
     static func voiceOverrides(
