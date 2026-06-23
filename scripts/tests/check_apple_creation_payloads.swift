@@ -552,7 +552,12 @@ struct AppleCreationPayloadCheck {
             writtenMode: " 3 ",
             tempo: 2.9,
             includeTransliteration: true,
+            translationProvider: .googleTranslate,
+            translationBatchSize: 0,
+            transliterationMode: .python,
+            transliterationModel: " gpt-4.1 ",
             enableLookupCache: false,
+            lookupCacheBatchSize: 99,
             outputHtml: true,
             outputPdf: false,
             includeImages: true,
@@ -583,6 +588,11 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.audioBitrateKbps == 32, "Generated draft should floor selected audio bitrate")
         require(generatedDraft.writtenMode == "3", "Generated draft should trim selected written mode")
         require(generatedDraft.tempo == 2.0, "Generated draft should clamp selected tempo")
+        require(generatedDraft.translationProvider == "googletrans", "Generated draft should map selected provider")
+        require(generatedDraft.translationBatchSize == 1, "Generated draft should clamp translation batch size")
+        require(generatedDraft.transliterationMode == "python", "Generated draft should map transliteration mode")
+        require(generatedDraft.transliterationModel == nil, "Generated draft should omit model for Python transliteration")
+        require(generatedDraft.lookupCacheBatchSize == 50, "Generated draft should clamp lookup cache batch size")
         require(generatedDraft.outputHtml == true, "Generated draft should keep selected HTML output toggle")
         require(generatedDraft.outputPdf == false, "Generated draft should keep selected PDF output toggle")
         require(generatedDraft.includeImages == true, "Generated draft should keep the native illustrations toggle")
@@ -639,7 +649,12 @@ struct AppleCreationPayloadCheck {
             writtenMode: "",
             tempo: 0.2,
             includeTransliteration: false,
+            translationProvider: .llm,
+            translationBatchSize: 12,
+            transliterationMode: .default,
+            transliterationModel: " gpt-4.1 ",
             enableLookupCache: true,
+            lookupCacheBatchSize: 2,
             outputHtml: false,
             outputPdf: true,
             pipelineDefaults: options.pipelineDefaults
@@ -653,6 +668,11 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.writtenMode == "4", "Narrate draft should use fallback written mode for blank selection")
         require(narrateDraft.tempo == 0.5, "Narrate draft should clamp low tempo")
         require(narrateDraft.includeTransliteration == false, "Narrate draft should keep transliteration toggle")
+        require(narrateDraft.translationProvider == "llm", "Narrate draft should map selected provider")
+        require(narrateDraft.translationBatchSize == 12, "Narrate draft should keep selected translation batch size")
+        require(narrateDraft.transliterationMode == "default", "Narrate draft should reset mode when transliteration is off")
+        require(narrateDraft.transliterationModel == nil, "Narrate draft should omit model when transliteration is off")
+        require(narrateDraft.lookupCacheBatchSize == 2, "Narrate draft should keep selected lookup cache batch size")
         require(narrateDraft.outputPdf == true, "Narrate draft should keep selected PDF output toggle")
 
         let subtitleDraft = AppleBookCreatePresentation.subtitleJobDraft(
@@ -751,6 +771,12 @@ struct AppleCreationPayloadCheck {
             selectedVoice: "macOS-auto-male",
             outputHtml: true,
             outputPdf: true,
+            includeTransliteration: true,
+            translationProvider: "googletrans",
+            translationBatchSize: 6,
+            transliterationMode: "python",
+            enableLookupCache: true,
+            lookupCacheBatchSize: 8,
             tempo: 1.7,
             bookMetadata: [
                 "book_title": .string("Demo Book"),
@@ -858,6 +884,10 @@ struct AppleCreationPayloadCheck {
         require(encodedInputs?["selected_voice"] as? String == "macOS-auto-male", "pipeline inputs should encode selected_voice")
         require(encodedInputs?["output_html"] as? Bool == true, "pipeline inputs should encode output_html")
         require(encodedInputs?["output_pdf"] as? Bool == true, "pipeline inputs should encode output_pdf")
+        require(encodedInputs?["translation_provider"] as? String == "googletrans", "pipeline inputs should encode provider")
+        require(encodedInputs?["translation_batch_size"] as? Int == 6, "pipeline inputs should encode translation batch")
+        require(encodedInputs?["transliteration_mode"] as? String == "python", "pipeline inputs should encode transliteration mode")
+        require(encodedInputs?["lookup_cache_batch_size"] as? Int == 8, "pipeline inputs should encode lookup batch")
         require((encodedInputs?["tempo"] as? NSNumber)?.doubleValue == 1.7, "pipeline inputs should encode tempo")
         let metadata = encodedInputs?["book_metadata"] as? [String: Any]
         require(metadata?["book_title"] as? String == "Demo Book", "pipeline inputs should encode book_metadata")

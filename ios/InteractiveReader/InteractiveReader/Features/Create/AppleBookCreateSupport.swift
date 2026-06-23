@@ -16,7 +16,12 @@ struct AppleBookCreateDraft: Equatable {
     let writtenMode: String
     let tempo: Double
     let includeTransliteration: Bool
+    let translationProvider: String
+    let translationBatchSize: Int
+    let transliterationMode: String
+    let transliterationModel: String?
     let enableLookupCache: Bool
+    let lookupCacheBatchSize: Int
     let outputHtml: Bool
     let outputPdf: Bool
     let includeImages: Bool
@@ -53,7 +58,12 @@ struct AppleNarrateEbookDraft: Equatable {
     let writtenMode: String
     let tempo: Double
     let includeTransliteration: Bool
+    let translationProvider: String
+    let translationBatchSize: Int
+    let transliterationMode: String
+    let transliterationModel: String?
     let enableLookupCache: Bool
+    let lookupCacheBatchSize: Int
     let outputHtml: Bool
     let outputPdf: Bool
     let pipelineDefaults: BookCreationPipelineDefaults?
@@ -73,7 +83,12 @@ struct AppleNarrateEbookDraft: Equatable {
             writtenMode: writtenMode,
             tempo: tempo,
             includeTransliteration: includeTransliteration,
+            translationProvider: translationProvider,
+            translationBatchSize: translationBatchSize,
+            transliterationMode: transliterationMode,
+            transliterationModel: transliterationModel,
             enableLookupCache: enableLookupCache,
+            lookupCacheBatchSize: lookupCacheBatchSize,
             outputHtml: outputHtml,
             outputPdf: outputPdf,
             pipelineDefaults: pipelineDefaults
@@ -308,7 +323,12 @@ enum AppleBookCreateEditedField: Hashable {
     case writtenMode
     case tempo
     case includeTransliteration
+    case bookTranslationProvider
+    case bookTranslationBatchSize
+    case bookTransliterationMode
+    case bookTransliterationModel
     case enableLookupCache
+    case bookLookupCacheBatchSize
     case outputHtml
     case outputPdf
     case includeImages
@@ -344,7 +364,11 @@ struct AppleCreateResolvedDefaults: Equatable {
     let writtenMode: String?
     let tempo: Double?
     let includeTransliteration: Bool?
+    let bookTranslationProvider: AppleSubtitleTranslationProvider?
+    let bookTranslationBatchSize: Int?
+    let bookTransliterationMode: AppleSubtitleTransliterationMode?
     let enableLookupCache: Bool?
+    let bookLookupCacheBatchSize: Int?
     let outputHtml: Bool?
     let outputPdf: Bool?
     let includeImages: Bool?
@@ -446,9 +470,21 @@ enum AppleBookCreatePresentation {
             includeTransliteration: editedFields.contains(.includeTransliteration)
                 ? nil
                 : options.pipelineDefaults.includeTransliteration,
+            bookTranslationProvider: editedFields.contains(.bookTranslationProvider)
+                ? nil
+                : AppleSubtitleTranslationProvider(backendValue: options.pipelineDefaults.translationProvider),
+            bookTranslationBatchSize: editedFields.contains(.bookTranslationBatchSize)
+                ? nil
+                : clampSubtitleTranslationBatchSize(options.pipelineDefaults.translationBatchSize),
+            bookTransliterationMode: editedFields.contains(.bookTransliterationMode)
+                ? nil
+                : AppleSubtitleTransliterationMode(backendValue: options.pipelineDefaults.transliterationMode),
             enableLookupCache: editedFields.contains(.enableLookupCache)
                 ? nil
                 : options.pipelineDefaults.enableLookupCache,
+            bookLookupCacheBatchSize: editedFields.contains(.bookLookupCacheBatchSize)
+                ? nil
+                : clampSubtitleTranslationBatchSize(options.pipelineDefaults.lookupCacheBatchSize),
             outputHtml: editedFields.contains(.outputHtml)
                 ? nil
                 : options.pipelineDefaults.outputHtml,
@@ -803,7 +839,12 @@ enum AppleBookCreatePresentation {
         writtenMode: String,
         tempo: Double,
         includeTransliteration: Bool,
+        translationProvider: AppleSubtitleTranslationProvider,
+        translationBatchSize: Int,
+        transliterationMode: AppleSubtitleTransliterationMode,
+        transliterationModel: String,
         enableLookupCache: Bool,
+        lookupCacheBatchSize: Int,
         outputHtml: Bool,
         outputPdf: Bool,
         includeImages: Bool,
@@ -841,7 +882,14 @@ enum AppleBookCreatePresentation {
             writtenMode: normalizedMode(writtenMode, fallback: "4"),
             tempo: clampTempo(tempo),
             includeTransliteration: includeTransliteration,
+            translationProvider: translationProvider.backendValue,
+            translationBatchSize: clampSubtitleTranslationBatchSize(translationBatchSize),
+            transliterationMode: includeTransliteration ? transliterationMode.backendValue : "default",
+            transliterationModel: includeTransliteration && transliterationMode.allowsModelOverride
+                ? trimmed(transliterationModel).nonEmptyValue
+                : nil,
             enableLookupCache: enableLookupCache,
+            lookupCacheBatchSize: clampSubtitleTranslationBatchSize(lookupCacheBatchSize),
             outputHtml: outputHtml,
             outputPdf: outputPdf,
             includeImages: includeImages,
@@ -879,7 +927,12 @@ enum AppleBookCreatePresentation {
         writtenMode: String,
         tempo: Double,
         includeTransliteration: Bool,
+        translationProvider: AppleSubtitleTranslationProvider,
+        translationBatchSize: Int,
+        transliterationMode: AppleSubtitleTransliterationMode,
+        transliterationModel: String,
         enableLookupCache: Bool,
+        lookupCacheBatchSize: Int,
         outputHtml: Bool,
         outputPdf: Bool,
         pipelineDefaults: BookCreationPipelineDefaults?
@@ -899,7 +952,14 @@ enum AppleBookCreatePresentation {
             writtenMode: normalizedMode(writtenMode, fallback: "4"),
             tempo: clampTempo(tempo),
             includeTransliteration: includeTransliteration,
+            translationProvider: translationProvider.backendValue,
+            translationBatchSize: clampSubtitleTranslationBatchSize(translationBatchSize),
+            transliterationMode: includeTransliteration ? transliterationMode.backendValue : "default",
+            transliterationModel: includeTransliteration && transliterationMode.allowsModelOverride
+                ? trimmed(transliterationModel).nonEmptyValue
+                : nil,
             enableLookupCache: enableLookupCache,
+            lookupCacheBatchSize: clampSubtitleTranslationBatchSize(lookupCacheBatchSize),
             outputHtml: outputHtml,
             outputPdf: outputPdf,
             pipelineDefaults: pipelineDefaults
@@ -1127,6 +1187,18 @@ enum AppleSubtitleTransliterationMode: String, CaseIterable, Identifiable {
 
     var allowsModelOverride: Bool {
         self != .python
+    }
+
+    init?(backendValue: String) {
+        let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch normalized {
+        case "default", "llm":
+            self = .default
+        case "python", "module":
+            self = .python
+        default:
+            return nil
+        }
     }
 }
 

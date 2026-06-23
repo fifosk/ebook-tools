@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.17",
+            version: "2026.06.23.18",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-book-translation-tuning",
+                    title: "Apple translation tuning",
+                    detail: "Generated-book and Narrate EPUB creation now expose Web-aligned translation provider, translation batch, transliteration mode/model, and lookup cache batch controls before submit."
+                ),
                 AppChangelogEntry(
                     id: "apple-narrate-sentence-range",
                     title: "Apple Narrate EPUB ranges",

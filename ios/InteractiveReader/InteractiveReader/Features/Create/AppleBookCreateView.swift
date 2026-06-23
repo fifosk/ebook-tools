@@ -65,7 +65,12 @@ struct AppleBookCreateView: View {
     @State private var writtenMode = "4"
     @State private var tempo = 1.0
     @State private var includeTransliteration = true
+    @State private var bookTranslationProvider = AppleSubtitleTranslationProvider.llm
+    @State private var bookTranslationBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
+    @State private var bookTransliterationMode = AppleSubtitleTransliterationMode.default
+    @State private var bookTransliterationModel = ""
     @State private var enableLookupCache = true
+    @State private var bookLookupCacheBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
     @State private var outputHtml = false
     @State private var outputPdf = false
     @State private var includeImages = false
@@ -287,7 +292,19 @@ struct AppleBookCreateView: View {
                     tempo: tempoBinding,
                     formattedTempo: formattedTempo,
                     includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
+                    translationProvider: bookTranslationProviderBinding,
+                    translationBatchSize: bookTranslationBatchSizeBinding,
+                    clampedTranslationBatchSize: clampedBookTranslationBatchSize,
+                    transliterationMode: bookTransliterationModeBinding,
+                    selectedTransliterationMode: bookTransliterationMode,
+                    transliterationModel: textBinding(
+                        for: .bookTransliterationModel,
+                        value: $bookTransliterationModel
+                    ),
+                    availableTransliterationModels: availableBookTransliterationModels,
                     enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache),
+                    lookupCacheBatchSize: bookLookupCacheBatchSizeBinding,
+                    clampedLookupCacheBatchSize: clampedBookLookupCacheBatchSize,
                     outputHtml: boolBinding(for: .outputHtml, value: $outputHtml),
                     outputPdf: boolBinding(for: .outputPdf, value: $outputPdf),
                     includeImages: boolBinding(for: .includeImages, value: $includeImages),
@@ -466,7 +483,12 @@ struct AppleBookCreateView: View {
             writtenMode: writtenMode,
             tempo: tempo,
             includeTransliteration: includeTransliteration,
+            translationProvider: bookTranslationProvider,
+            translationBatchSize: bookTranslationBatchSize,
+            transliterationMode: bookTransliterationMode,
+            transliterationModel: bookTransliterationModel,
             enableLookupCache: enableLookupCache,
+            lookupCacheBatchSize: bookLookupCacheBatchSize,
             outputHtml: outputHtml,
             outputPdf: outputPdf,
             includeImages: includeImages,
@@ -606,7 +628,12 @@ struct AppleBookCreateView: View {
             writtenMode: writtenMode,
             tempo: tempo,
             includeTransliteration: includeTransliteration,
+            translationProvider: bookTranslationProvider,
+            translationBatchSize: bookTranslationBatchSize,
+            transliterationMode: bookTransliterationMode,
+            transliterationModel: bookTransliterationModel,
             enableLookupCache: enableLookupCache,
+            lookupCacheBatchSize: bookLookupCacheBatchSize,
             outputHtml: outputHtml,
             outputPdf: outputPdf,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults
@@ -716,6 +743,14 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private var availableBookTransliterationModels: [String] {
+        AppleBookCreatePresentation.availableSubtitleTransliterationModels(
+            selected: bookTransliterationModel,
+            translationModel: "",
+            inventory: viewModel.subtitleLlmModels
+        )
+    }
+
     private var formattedAssEmphasisScale: String {
         AppleBookCreatePresentation.formattedAssEmphasisScale(subtitleAssEmphasisScale)
     }
@@ -738,6 +773,14 @@ struct AppleBookCreateView: View {
 
     private var clampedSubtitleTranslationBatchSize: Int {
         AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(subtitleTranslationBatchSize)
+    }
+
+    private var clampedBookTranslationBatchSize: Int {
+        AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(bookTranslationBatchSize)
+    }
+
+    private var clampedBookLookupCacheBatchSize: Int {
+        AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(bookLookupCacheBatchSize)
     }
 
     private var clampedSubtitleWorkerCount: Int {
@@ -808,6 +851,16 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private var bookTranslationProviderBinding: Binding<AppleSubtitleTranslationProvider> {
+        Binding(
+            get: { bookTranslationProvider },
+            set: { newValue in
+                markEdited(.bookTranslationProvider)
+                bookTranslationProvider = newValue
+            }
+        )
+    }
+
     private var subtitleTransliterationModeBinding: Binding<AppleSubtitleTransliterationMode> {
         Binding(
             get: { subtitleTransliterationMode },
@@ -821,12 +874,51 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private var bookTransliterationModeBinding: Binding<AppleSubtitleTransliterationMode> {
+        Binding(
+            get: { bookTransliterationMode },
+            set: { newValue in
+                markEdited(.bookTransliterationMode)
+                bookTransliterationMode = newValue
+                if !newValue.allowsModelOverride {
+                    bookTransliterationModel = ""
+                }
+            }
+        )
+    }
+
     private var subtitleTranslationBatchSizeBinding: Binding<Int> {
         Binding(
             get: { clampedSubtitleTranslationBatchSize },
             set: { newValue in
                 markEdited(.subtitleTranslationBatchSize)
                 subtitleTranslationBatchSize = min(
+                    AppleSubtitleTuning.translationBatchSizeRange.upperBound,
+                    max(AppleSubtitleTuning.translationBatchSizeRange.lowerBound, newValue)
+                )
+            }
+        )
+    }
+
+    private var bookTranslationBatchSizeBinding: Binding<Int> {
+        Binding(
+            get: { clampedBookTranslationBatchSize },
+            set: { newValue in
+                markEdited(.bookTranslationBatchSize)
+                bookTranslationBatchSize = min(
+                    AppleSubtitleTuning.translationBatchSizeRange.upperBound,
+                    max(AppleSubtitleTuning.translationBatchSizeRange.lowerBound, newValue)
+                )
+            }
+        )
+    }
+
+    private var bookLookupCacheBatchSizeBinding: Binding<Int> {
+        Binding(
+            get: { clampedBookLookupCacheBatchSize },
+            set: { newValue in
+                markEdited(.bookLookupCacheBatchSize)
+                bookLookupCacheBatchSize = min(
                     AppleSubtitleTuning.translationBatchSizeRange.upperBound,
                     max(AppleSubtitleTuning.translationBatchSizeRange.lowerBound, newValue)
                 )
@@ -1072,8 +1164,20 @@ struct AppleBookCreateView: View {
         if let value = defaults.includeTransliteration {
             includeTransliteration = value
         }
+        if let provider = defaults.bookTranslationProvider {
+            bookTranslationProvider = provider
+        }
+        if let value = defaults.bookTranslationBatchSize {
+            bookTranslationBatchSize = value
+        }
+        if let mode = defaults.bookTransliterationMode {
+            bookTransliterationMode = mode
+        }
         if let value = defaults.enableLookupCache {
             enableLookupCache = value
+        }
+        if let value = defaults.bookLookupCacheBatchSize {
+            bookLookupCacheBatchSize = value
         }
         if let value = defaults.outputHtml {
             outputHtml = value

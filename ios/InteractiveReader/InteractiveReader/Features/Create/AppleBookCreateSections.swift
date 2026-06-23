@@ -404,7 +404,16 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var tempo: Double
     let formattedTempo: String
     @Binding var includeTransliteration: Bool
+    @Binding var translationProvider: AppleSubtitleTranslationProvider
+    @Binding var translationBatchSize: Int
+    let clampedTranslationBatchSize: Int
+    @Binding var transliterationMode: AppleSubtitleTransliterationMode
+    let selectedTransliterationMode: AppleSubtitleTransliterationMode
+    @Binding var transliterationModel: String
+    let availableTransliterationModels: [String]
     @Binding var enableLookupCache: Bool
+    @Binding var lookupCacheBatchSize: Int
+    let clampedLookupCacheBatchSize: Int
     @Binding var outputHtml: Bool
     @Binding var outputPdf: Bool
     @Binding var includeImages: Bool
@@ -545,7 +554,115 @@ struct AppleBookCreateGeneratedOutputControls: View {
             .accessibilityIdentifier("createBookOutputPdfToggle")
         Toggle("Transliteration", isOn: $includeTransliteration)
             .accessibilityIdentifier("createBookTransliterationToggle")
+        Picker("Translation provider", selection: $translationProvider) {
+            ForEach(AppleSubtitleTranslationProvider.allCases) { provider in
+                Text(provider.label).tag(provider)
+            }
+        }
+        .accessibilityIdentifier("createBookTranslationProviderPicker")
+        #if os(iOS)
+        Stepper(
+            value: $translationBatchSize,
+            in: AppleSubtitleTuning.translationBatchSizeRange,
+            step: 1
+        ) {
+            LabeledContent("Translation batch", value: "\(clampedTranslationBatchSize)")
+        }
+        .accessibilityIdentifier("createBookTranslationBatchSizeStepper")
+        #else
+        LabeledContent("Translation batch") {
+            HStack(spacing: 12) {
+                Button {
+                    translationBatchSize = max(
+                        AppleSubtitleTuning.translationBatchSizeRange.lowerBound,
+                        clampedTranslationBatchSize - 1
+                    )
+                } label: {
+                    Image(systemName: "minus")
+                }
+                .disabled(clampedTranslationBatchSize <= AppleSubtitleTuning.translationBatchSizeRange.lowerBound)
+                .accessibilityLabel("Decrease translation batch")
+
+                Text("\(clampedTranslationBatchSize)")
+                    .monospacedDigit()
+                    .frame(minWidth: 48)
+
+                Button {
+                    translationBatchSize = min(
+                        AppleSubtitleTuning.translationBatchSizeRange.upperBound,
+                        clampedTranslationBatchSize + 1
+                    )
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .disabled(clampedTranslationBatchSize >= AppleSubtitleTuning.translationBatchSizeRange.upperBound)
+                .accessibilityLabel("Increase translation batch")
+            }
+        }
+        .accessibilityIdentifier("createBookTranslationBatchSizeControl")
+        #endif
+        if includeTransliteration {
+            Picker("Transliteration mode", selection: $transliterationMode) {
+                ForEach(AppleSubtitleTransliterationMode.allCases) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .accessibilityIdentifier("createBookTransliterationModePicker")
+            if selectedTransliterationMode.allowsModelOverride {
+                Picker("Transliteration model", selection: $transliterationModel) {
+                    ForEach(availableTransliterationModels, id: \.self) { model in
+                        Text(AppleBookCreatePresentation.subtitleTransliterationModelLabel(model)).tag(model)
+                    }
+                }
+                .accessibilityIdentifier("createBookTransliterationModelPicker")
+            }
+        }
         Toggle("Lookup Cache", isOn: $enableLookupCache)
             .accessibilityIdentifier("createBookLookupCacheToggle")
+        #if os(iOS)
+        if enableLookupCache {
+            Stepper(
+                value: $lookupCacheBatchSize,
+                in: AppleSubtitleTuning.translationBatchSizeRange,
+                step: 1
+            ) {
+                LabeledContent("Lookup batch", value: "\(clampedLookupCacheBatchSize)")
+            }
+            .accessibilityIdentifier("createBookLookupCacheBatchSizeStepper")
+        }
+        #else
+        if enableLookupCache {
+            LabeledContent("Lookup batch") {
+                HStack(spacing: 12) {
+                    Button {
+                        lookupCacheBatchSize = max(
+                            AppleSubtitleTuning.translationBatchSizeRange.lowerBound,
+                            clampedLookupCacheBatchSize - 1
+                        )
+                    } label: {
+                        Image(systemName: "minus")
+                    }
+                    .disabled(clampedLookupCacheBatchSize <= AppleSubtitleTuning.translationBatchSizeRange.lowerBound)
+                    .accessibilityLabel("Decrease lookup batch")
+
+                    Text("\(clampedLookupCacheBatchSize)")
+                        .monospacedDigit()
+                        .frame(minWidth: 48)
+
+                    Button {
+                        lookupCacheBatchSize = min(
+                            AppleSubtitleTuning.translationBatchSizeRange.upperBound,
+                            clampedLookupCacheBatchSize + 1
+                        )
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .disabled(clampedLookupCacheBatchSize >= AppleSubtitleTuning.translationBatchSizeRange.upperBound)
+                    .accessibilityLabel("Increase lookup batch")
+                }
+            }
+            .accessibilityIdentifier("createBookLookupCacheBatchSizeControl")
+        }
+        #endif
     }
 }
