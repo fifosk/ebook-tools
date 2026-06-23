@@ -6971,6 +6971,26 @@ button.link-button:focus {
   gap: var(--space-sm);
 }
 
+.job-creation-summary__list,
+.job-creation-summary__preview,
+.job-creation-summary__warnings {
+  margin-top: var(--space-xs);
+}
+
+.job-creation-summary__list {
+  padding-left: 1.25rem;
+}
+
+.job-creation-summary__list--before-warning,
+.job-creation-summary__preview--before-warning {
+  margin-bottom: var(--space-xs);
+}
+
+.job-creation-summary__warning-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
 .job-card__metadata-empty {
   margin: 0;
   color: var(--color-text-muted);

@@ -12,6 +12,10 @@ import { getStatusGlyph } from '../utils/status';
 import { resolveImageNodeLabel } from '../constants/imageNodes';
 import { isLocalLlmProvider, splitLlmModelId } from '../utils/llmProviders';
 import AccessPolicyEditor from './access/AccessPolicyEditor';
+import {
+  JobProgressCreationSummary,
+  parseJobProgressCreationSummary
+} from './job-progress/JobProgressCreationSummary';
 import { JobProgressMediaMetadata } from './job-progress/JobProgressMediaMetadata';
 import { resolveProgressStage } from '../utils/progressEvents';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
@@ -34,7 +38,6 @@ import {
   formatTuningLabel,
   formatTuningValue,
   formatTranslationProviderLabel,
-  normaliseStringList,
   normalizeIsbnCandidate,
   normalizeMetadataValue,
   normalizeTranslationProvider,
@@ -209,7 +212,6 @@ export function JobProgress({
     }
     return 'Book cover';
   }, [bookAuthor, bookTitle]);
-  const creationSummaryRaw = metadata['creation_summary'];
   // Split metadata into display (interesting) and technical entries
   const allMetadataEntries = Object.entries(metadata).filter(([key, value]) => {
     if (key === 'job_cover_asset' || key === 'media_metadata_lookup' || key === 'book_metadata_lookup' || CREATION_METADATA_KEYS.has(key)) {
@@ -225,25 +227,10 @@ export function JobProgress({
   const metadataEntries = allMetadataEntries.filter(([key]) => BOOK_METADATA_DISPLAY_KEYS.has(key));
   // Technical entries: show in collapsed "Raw payload" section
   const technicalMetadataEntries = allMetadataEntries.filter(([key]) => !BOOK_METADATA_DISPLAY_KEYS.has(key));
-  const creationSummary = useMemo(() => {
-    if (!creationSummaryRaw || typeof creationSummaryRaw !== 'object') {
-      return null;
-    }
-    const summary = creationSummaryRaw as Record<string, unknown>;
-    const messages = normaliseStringList(summary['messages']);
-    const warnings = normaliseStringList(summary['warnings']);
-    const sentencesPreview = normaliseStringList(summary['sentences_preview']);
-    const epubPath = typeof summary['epub_path'] === 'string' ? summary['epub_path'].trim() : null;
-    if (!messages.length && !warnings.length && !sentencesPreview.length && !epubPath) {
-      return null;
-    }
-    return {
-      messages,
-      warnings,
-      sentencesPreview,
-      epubPath: epubPath && epubPath.length > 0 ? epubPath : null
-    };
-  }, [creationSummaryRaw]);
+  const creationSummary = useMemo(
+    () => parseJobProgressCreationSummary(metadata['creation_summary']),
+    [metadata]
+  );
   const tuningEntries = useMemo(() => {
     const tuning = status?.tuning ?? null;
     if (!tuning) {
@@ -1117,35 +1104,7 @@ export function JobProgress({
         <p>No progress events received yet.</p>
       ) : null}
       {showMetadataSections && creationSummary ? (
-        <div className="job-card__section">
-          <h4>Book creation summary</h4>
-          {creationSummary.epubPath ? (
-            <p>
-              <strong>Seed EPUB:</strong> {creationSummary.epubPath}
-            </p>
-          ) : null}
-          {creationSummary.messages.length ? (
-            <ul style={{ marginTop: '0.5rem', marginBottom: creationSummary.warnings.length ? 0.5 : 0, paddingLeft: '1.25rem' }}>
-              {creationSummary.messages.map((message, index) => (
-                <li key={`creation-message-${index}`}>{message}</li>
-              ))}
-            </ul>
-          ) : null}
-          {creationSummary.sentencesPreview.length ? (
-            <p style={{ marginTop: '0.5rem', marginBottom: creationSummary.warnings.length ? 0.5 : 0 }}>
-              <strong>Sample sentences:</strong> {creationSummary.sentencesPreview.join(' ')}
-            </p>
-          ) : null}
-          {creationSummary.warnings.length ? (
-            <div className="notice notice--warning" role="alert" style={{ marginTop: '0.5rem' }}>
-              <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
-                {creationSummary.warnings.map((warning, index) => (
-                  <li key={`creation-warning-${index}`}>{warning}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
+        <JobProgressCreationSummary summary={creationSummary} />
       ) : null}
       {!showMetadataSections || isVideoDubJob ? null : (
         <div className="job-card__section">

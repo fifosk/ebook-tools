@@ -2,6 +2,12 @@
 
 Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
+## 2026-06-23
+
+### Web UI
+
+- Refactored the Job Detail creation-summary section into a reusable Web component while preserving its metadata-tab behavior and adding focused coverage for generated-book summary messages, sample sentences, seed EPUB paths, and warnings.
+
 ## 2026-06-22
 
 ### Backend/API

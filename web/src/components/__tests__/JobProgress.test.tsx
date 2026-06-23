@@ -159,7 +159,59 @@ describe('JobProgress', () => {
     expect(screen.getByText('Author Name')).toBeInTheDocument();
     expect(screen.getByText('runtime/example-cover.jpg')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Cover of Example Title by Author Name' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /reload metadata/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /reload job/i })).toBeEnabled();
+  });
+
+  it('renders book creation summary metadata on the metadata tab', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-creation-summary',
+      job_type: 'pipeline',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Generated Book',
+          creation_summary: {
+            epub_path: 'runtime/generated/source.epub',
+            messages: ['Created outline', 'Wrote chapters'],
+            sentences_preview: ['The first sentence.', 'The second sentence.'],
+            warnings: ['Short source text']
+          }
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-creation-summary"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onRestart={vi.fn()}
+        onReload={vi.fn()}
+        canManage={true}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /metadata/i }));
+
+    expect(screen.getByText('Book creation summary')).toBeInTheDocument();
+    expect(screen.getByText(/runtime\/generated\/source\.epub/)).toBeInTheDocument();
+    expect(screen.getByText('Created outline')).toBeInTheDocument();
+    expect(screen.getByText(/The first sentence\. The second sentence\./)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Short source text');
   });
 
   it('renders tuning metrics when provided', () => {
@@ -196,10 +248,9 @@ describe('JobProgress', () => {
       />
     );
 
-    expect(screen.getByText('Performance tuning')).toBeInTheDocument();
-    expect(screen.getByText('Translation threads')).toBeInTheDocument();
-    expect(screen.getByText('4')).toBeInTheDocument();
-    expect(screen.getByText('Translation queue size')).toBeInTheDocument();
-    expect(screen.getByText('32')).toBeInTheDocument();
+    expect(screen.getByText('Parallelism overview')).toBeInTheDocument();
+    expect(screen.getByText('LLM parallel calls')).toBeInTheDocument();
+    expect(screen.getByText('TTS parallel calls')).toBeInTheDocument();
+    expect(screen.getAllByText('4')).toHaveLength(2);
   });
 });
