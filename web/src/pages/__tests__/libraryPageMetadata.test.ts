@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LibraryItem } from '../../api/dtos';
 import {
+  buildLibraryItemBuckets,
   extractTvMediaMetadata,
   extractYoutubeVideoMetadata,
   formatCount,
@@ -12,6 +13,7 @@ import {
   resolveIsbnPreviewCoverCandidate,
   resolveItemType,
   resolveLibraryAssetUrl,
+  selectActiveLibraryItems,
   resolveTitle,
   resolveTvImage,
   resolveYoutubeThumbnail
@@ -55,6 +57,22 @@ describe('libraryPageMetadata', () => {
     expect(resolveTitle(titled)).toBe('The Book');
     expect(resolveAuthor(titled)).toBe('A. Writer');
     expect(resolveGenre(titled)).toBe('Fantasy');
+  });
+
+  it('buckets library items by active surface type while preserving order', () => {
+    const book = makeItem({ jobId: 'book-1', itemType: 'book' });
+    const video = makeItem({ jobId: 'video-1', itemType: 'video' });
+    const subtitle = makeItem({ jobId: 'subtitle-1', itemType: 'narrated_subtitle' });
+    const unknown = makeItem({ jobId: 'legacy-book', itemType: undefined });
+
+    const buckets = buildLibraryItemBuckets([video, book, subtitle, unknown]);
+
+    expect(buckets.videoItems.map((item) => item.jobId)).toEqual(['video-1']);
+    expect(buckets.bookItems.map((item) => item.jobId)).toEqual(['book-1', 'legacy-book']);
+    expect(buckets.subtitleItems.map((item) => item.jobId)).toEqual(['subtitle-1']);
+    expect(selectActiveLibraryItems(buckets, 'video')).toBe(buckets.videoItems);
+    expect(selectActiveLibraryItems(buckets, 'narrated_subtitle')).toBe(buckets.subtitleItems);
+    expect(selectActiveLibraryItems(buckets, 'book')).toBe(buckets.bookItems);
   });
 
   it('extracts TV and YouTube metadata from nested backend payloads', () => {

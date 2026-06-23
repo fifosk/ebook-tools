@@ -22,6 +22,7 @@ import {
   type LibrarySearchParams
 } from '../api/client';
 import {
+  buildLibraryItemBuckets,
   extractTvMediaMetadata,
   extractYoutubeVideoMetadata,
   formatCount,
@@ -34,6 +35,7 @@ import {
   resolveTitle,
   resolveTvImage,
   resolveYoutubeThumbnail,
+  selectActiveLibraryItems,
   type LibraryEditValues,
   type LibraryItemType
 } from './library/libraryPageMetadata';
@@ -624,22 +626,12 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     [resolveItemPermissions, selectedItem]
   );
 
-  const bookItems = useMemo(() => items.filter((item) => resolveItemType(item) === 'book'), [items]);
-  const videoItems = useMemo(() => items.filter((item) => resolveItemType(item) === 'video'), [items]);
-  const subtitleItems = useMemo(
-    () => items.filter((item) => resolveItemType(item) === 'narrated_subtitle'),
-    [items]
+  const itemBuckets = useMemo(() => buildLibraryItemBuckets(items), [items]);
+  const { bookItems, videoItems, subtitleItems } = itemBuckets;
+  const activeItems = useMemo(
+    () => selectActiveLibraryItems(itemBuckets, activeTab),
+    [activeTab, itemBuckets]
   );
-  const activeItems = useMemo(() => {
-    switch (activeTab) {
-      case 'video':
-        return videoItems;
-      case 'narrated_subtitle':
-        return subtitleItems;
-      default:
-        return bookItems;
-    }
-  }, [activeTab, bookItems, subtitleItems, videoItems]);
 
   const selectedBookMetadata = useMemo(
     () => extractLibraryBookMetadata(selectedItem),

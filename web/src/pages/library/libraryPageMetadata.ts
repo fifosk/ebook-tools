@@ -3,6 +3,11 @@ import { appendAccessToken } from '../../api/client/base';
 import { resolveLibraryMediaUrl } from '../../api/client/library';
 
 export type LibraryItemType = 'book' | 'video' | 'narrated_subtitle';
+export type LibraryItemBuckets = {
+  bookItems: LibraryItem[];
+  videoItems: LibraryItem[];
+  subtitleItems: LibraryItem[];
+};
 export type LibraryEditValues = {
   title: string;
   author: string;
@@ -21,6 +26,41 @@ const SUBTITLE_AUTHOR = 'Subtitles';
 
 export function resolveItemType(item: LibraryItem | null | undefined): LibraryItemType {
   return (item?.itemType ?? 'book') as LibraryItemType;
+}
+
+export function buildLibraryItemBuckets(items: LibraryItem[]): LibraryItemBuckets {
+  const buckets: LibraryItemBuckets = {
+    bookItems: [],
+    videoItems: [],
+    subtitleItems: [],
+  };
+  for (const item of items) {
+    switch (resolveItemType(item)) {
+      case 'video':
+        buckets.videoItems.push(item);
+        break;
+      case 'narrated_subtitle':
+        buckets.subtitleItems.push(item);
+        break;
+      default:
+        buckets.bookItems.push(item);
+    }
+  }
+  return buckets;
+}
+
+export function selectActiveLibraryItems(
+  buckets: LibraryItemBuckets,
+  activeTab: LibraryItemType,
+): LibraryItem[] {
+  switch (activeTab) {
+    case 'video':
+      return buckets.videoItems;
+    case 'narrated_subtitle':
+      return buckets.subtitleItems;
+    default:
+      return buckets.bookItems;
+  }
 }
 
 export function readNestedValue(source: unknown, path: string[]): unknown {

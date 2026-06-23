@@ -40,10 +40,10 @@ Large Web UI hotspots to split before redesign work:
   chunk merging, audio-track detection, and chunk-sentence detection now live
   in `web/src/hooks/liveMediaState.ts`; modern and legacy timing normalization
   now lives in `web/src/hooks/liveMediaTiming.ts` with focused Vitest coverage.
-- `web/src/pages/LibraryPage.tsx` - 1171 lines. Status: TV/YouTube/library
-  title, author, genre, thumbnail, upload-date, and ISBN preview merge/cover
-  helpers now live in `web/src/pages/library/libraryPageMetadata.ts` with
-  focused Vitest coverage.
+- `web/src/pages/LibraryPage.tsx` - 1163 lines. Status: TV/YouTube/library
+  title, author, genre, thumbnail, upload-date, ISBN preview merge/cover, and
+  tab bucketing helpers now live in
+  `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
 - `web/src/pages/VideoDubbingPage.tsx` - 1156 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option
