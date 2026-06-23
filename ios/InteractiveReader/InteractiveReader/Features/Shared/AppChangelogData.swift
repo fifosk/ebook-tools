@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.64",
+            version: "2026.06.23.65",
             entries: [
+                AppChangelogEntry(
+                    id: "web-subtitle-submit-feedback-hook",
+                    title: "Subtitle feedback refactor",
+                    detail: "Web Subtitle Tool submit feedback now lives in a focused hook with coverage for submitted summary formatting and empty optional details."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-language-state-hook",
                     title: "Subtitle language refactor",

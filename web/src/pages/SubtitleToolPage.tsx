@@ -31,10 +31,10 @@ import { useSubtitleModels } from './subtitle-tool/useSubtitleModels';
 import { useSubtitlePrefill } from './subtitle-tool/useSubtitlePrefill';
 import { useSubtitleShowOriginalPreference } from './subtitle-tool/useSubtitleShowOriginalPreference';
 import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
+import { useSubtitleSubmitFeedback } from './subtitle-tool/useSubtitleSubmitFeedback';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
 import {
   buildSubtitleSubmitFormData,
-  formatSubmittedSubtitleSummary,
   isAssSubtitleSelection,
   resolveSubtitleMetadataSourceName,
   resolveSubtitleSubmitValues,
@@ -140,25 +140,10 @@ export default function SubtitleToolPage({
   const [transliterationMode, setTransliterationMode] = useState<string>('default');
   const [isSubmitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [lastSubmittedJobId, setLastSubmittedJobId] = useState<string | null>(null);
-  const [lastSubmittedWorkerCount, setLastSubmittedWorkerCount] = useState<number | null>(
-    typeof DEFAULT_WORKER_COUNT === 'number' ? DEFAULT_WORKER_COUNT : null
-  );
   const jobResults = useSubtitleJobResults(subtitleJobs);
-  const [lastSubmittedBatchSize, setLastSubmittedBatchSize] = useState<number | null>(
-    typeof DEFAULT_BATCH_SIZE === 'number' ? DEFAULT_BATCH_SIZE : null
-  );
-  const [lastSubmittedTranslationBatchSize, setLastSubmittedTranslationBatchSize] = useState<
-    number | null
-  >(typeof DEFAULT_TRANSLATION_BATCH_SIZE === 'number' ? DEFAULT_TRANSLATION_BATCH_SIZE : null);
-  const [lastSubmittedStartTime, setLastSubmittedStartTime] = useState<string>(DEFAULT_START_TIME);
-  const [lastSubmittedEndTime, setLastSubmittedEndTime] = useState<string | null>(null);
-  const [lastSubmittedModel, setLastSubmittedModel] = useState<string | null>(null);
-  const [lastSubmittedFormat, setLastSubmittedFormat] = useState<SubtitleOutputFormat | null>(
-    null
-  );
-  const [lastSubmittedAssFontSize, setLastSubmittedAssFontSize] = useState<number | null>(null);
-  const [lastSubmittedAssEmphasis, setLastSubmittedAssEmphasis] = useState<number | null>(null);
+  const { submittedSummary, recordSubmission } = useSubtitleSubmitFeedback({
+    defaultStartTime: DEFAULT_START_TIME
+  });
   useSubtitlePrefill({
     prefillParameters,
     setTargetLanguage,
@@ -241,18 +226,14 @@ export default function SubtitleToolPage({
       setSubmitting(true);
       try {
         const response = await submitSubtitleJob(formData);
-        setLastSubmittedJobId(response.job_id);
-        setLastSubmittedWorkerCount(typeof workerCount === 'number' ? workerCount : null);
-        setLastSubmittedBatchSize(typeof batchSize === 'number' ? batchSize : null);
-        setLastSubmittedTranslationBatchSize(
-          typeof translationBatchSize === 'number' ? translationBatchSize : null
-        );
-        setLastSubmittedStartTime(normalizedStartTime);
-        setLastSubmittedEndTime(normalizedEndTime || null);
-        setLastSubmittedModel(submitResolution.values.selectedModel);
-        setLastSubmittedFormat(outputFormat);
-        setLastSubmittedAssFontSize(resolvedAssFontSize);
-        setLastSubmittedAssEmphasis(resolvedAssEmphasis);
+        recordSubmission({
+          response,
+          values: submitResolution.values,
+          workerCount,
+          batchSize,
+          translationBatchSize,
+          outputFormat
+        });
         if (normalizedStartTime !== startTime) {
           setStartTime(normalizedStartTime);
         }
@@ -305,7 +286,8 @@ export default function SubtitleToolPage({
       transliterationMode,
       transliterationModel,
       isIntakeAtCapacity,
-      refreshIntakeStatus
+      refreshIntakeStatus,
+      recordSubmission
     ]
   );
 
@@ -325,21 +307,9 @@ export default function SubtitleToolPage({
 
       {submitError ? <div className="alert" role="alert">{submitError}</div> : null}
       <CreateIntakeStatusCallout status={intakeStatus} isLoading={isLoadingIntakeStatus} />
-      {lastSubmittedJobId ? (
+      {submittedSummary ? (
         <div className="notice notice--info" role="status">
-          {formatSubmittedSubtitleSummary({
-            jobId: lastSubmittedJobId,
-            workerCount: lastSubmittedWorkerCount,
-            batchSize: lastSubmittedBatchSize,
-            translationBatchSize: lastSubmittedTranslationBatchSize,
-            startTime: lastSubmittedStartTime,
-            defaultStartTime: DEFAULT_START_TIME,
-            endTime: lastSubmittedEndTime,
-            model: lastSubmittedModel,
-            format: lastSubmittedFormat,
-            assFontSize: lastSubmittedAssFontSize,
-            assEmphasis: lastSubmittedAssEmphasis
-          })}
+          {submittedSummary}
         </div>
       ) : null}
 
