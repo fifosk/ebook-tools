@@ -520,6 +520,8 @@ struct AppleCreationPayloadCheck {
             imageSamplerName: " euler_a ",
             imageSeedWithPreviousImage: true,
             imageBlankDetectionEnabled: true,
+            imageConcurrency: "2.9",
+            imageApiTimeoutSeconds: "0",
             pipelineDefaults: options.pipelineDefaults,
             generatedSourceDefaults: options.generatedSourceDefaults
         )
@@ -559,6 +561,8 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.imageSamplerName == "euler_a", "Generated draft should trim selected sampler name")
         require(generatedDraft.imageSeedWithPreviousImage, "Generated draft should keep previous-image seed toggle")
         require(generatedDraft.imageBlankDetectionEnabled, "Generated draft should keep blank-detection toggle")
+        require(generatedDraft.imageConcurrency == 2, "Generated draft should floor selected image concurrency")
+        require(generatedDraft.imageApiTimeoutSeconds == 1, "Generated draft should clamp selected image timeout")
         require(generatedDraft.pipelineDefaults == options.pipelineDefaults, "Generated draft should carry pipeline defaults")
         require(
             generatedDraft.generatedSourceDefaults == options.generatedSourceDefaults,
@@ -692,6 +696,8 @@ struct AppleCreationPayloadCheck {
                 "image_sampler_name": .string("dpmpp_2m"),
                 "image_seed_with_previous_image": .bool(true),
                 "image_blank_detection_enabled": .bool(true),
+                "image_concurrency": .number(4),
+                "image_api_timeout_seconds": .number(300),
                 "tempo": .number(1.08)
             ],
             inputs: input,
@@ -753,6 +759,14 @@ struct AppleCreationPayloadCheck {
         require(
             pipelineOverrides?["image_blank_detection_enabled"] as? Bool == true,
             "pipeline overrides should encode blank-detection toggle"
+        )
+        require(
+            pipelineOverrides?["image_concurrency"] as? Int == 4,
+            "pipeline overrides should encode selected image concurrency"
+        )
+        require(
+            pipelineOverrides?["image_api_timeout_seconds"] as? Int == 300,
+            "pipeline overrides should encode selected image API timeout"
         )
 
         let encodedInputs = pipelineObject["inputs"] as? [String: Any]

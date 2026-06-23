@@ -26,6 +26,8 @@ struct AppleBookCreateDraft: Equatable {
     let imageSamplerName: String?
     let imageSeedWithPreviousImage: Bool
     let imageBlankDetectionEnabled: Bool
+    let imageConcurrency: Int?
+    let imageApiTimeoutSeconds: Double?
     let pipelineDefaults: BookCreationPipelineDefaults?
     let generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
 }
@@ -289,6 +291,8 @@ enum AppleBookCreateEditedField: Hashable {
     case imageSamplerName
     case imageSeedWithPreviousImage
     case imageBlankDetectionEnabled
+    case imageConcurrency
+    case imageApiTimeoutSeconds
 }
 
 struct AppleCreateResolvedDefaults: Equatable {
@@ -462,6 +466,26 @@ enum AppleBookCreatePresentation {
             return nil
         }
         return max(0, parsed)
+    }
+
+    static func normalizedPositiveInteger(_ value: String) -> Int? {
+        let trimmedValue = trimmed(value)
+        guard !trimmedValue.isEmpty,
+              let parsed = Double(trimmedValue),
+              parsed.isFinite else {
+            return nil
+        }
+        return max(1, Int(parsed.rounded(.down)))
+    }
+
+    static func normalizedPositiveNumber(_ value: String) -> Double? {
+        let trimmedValue = trimmed(value)
+        guard !trimmedValue.isEmpty,
+              let parsed = Double(trimmedValue),
+              parsed.isFinite else {
+            return nil
+        }
+        return max(1, parsed)
     }
 
     static func availableInputLanguages(
@@ -701,6 +725,8 @@ enum AppleBookCreatePresentation {
         imageSamplerName: String,
         imageSeedWithPreviousImage: Bool,
         imageBlankDetectionEnabled: Bool,
+        imageConcurrency: String,
+        imageApiTimeoutSeconds: String,
         pipelineDefaults: BookCreationPipelineDefaults?,
         generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
     ) -> AppleBookCreateDraft {
@@ -730,6 +756,8 @@ enum AppleBookCreatePresentation {
             imageSamplerName: trimmed(imageSamplerName).nonEmptyValue,
             imageSeedWithPreviousImage: imageSeedWithPreviousImage,
             imageBlankDetectionEnabled: imageBlankDetectionEnabled,
+            imageConcurrency: normalizedPositiveInteger(imageConcurrency),
+            imageApiTimeoutSeconds: normalizedPositiveNumber(imageApiTimeoutSeconds),
             pipelineDefaults: pipelineDefaults,
             generatedSourceDefaults: generatedSourceDefaults
         )

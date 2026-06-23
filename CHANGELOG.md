@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.14
+
+- Advanced visible Apple app versioning to `v2026.06.23.14`.
+- Apple generated-book creation on iPhone and iPad now lets illustration jobs optionally set image worker concurrency and image API timeout before submit.
+
 ### 2026.06.23.13
 
 - Advanced visible Apple app versioning to `v2026.06.23.13`.

@@ -404,6 +404,8 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var imageSamplerName: String
     @Binding var imageSeedWithPreviousImage: Bool
     @Binding var imageBlankDetectionEnabled: Bool
+    @Binding var imageConcurrency: String
+    @Binding var imageApiTimeoutSeconds: String
     let supportsImages: Bool
 
     var body: some View {
@@ -478,6 +480,12 @@ struct AppleBookCreateGeneratedOutputControls: View {
                     .accessibilityIdentifier("createBookImageSeedPreviousToggle")
                 Toggle("Blank detection", isOn: $imageBlankDetectionEnabled)
                     .accessibilityIdentifier("createBookImageBlankDetectionToggle")
+                TextField("Image workers", text: $imageConcurrency)
+                    .keyboardType(.numberPad)
+                    .accessibilityIdentifier("createBookImageConcurrencyField")
+                TextField("API timeout seconds", text: $imageApiTimeoutSeconds)
+                    .keyboardType(.decimalPad)
+                    .accessibilityIdentifier("createBookImageTimeoutField")
                 #endif
             }
         }

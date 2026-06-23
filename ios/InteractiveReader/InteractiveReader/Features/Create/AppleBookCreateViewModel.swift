@@ -201,7 +201,9 @@ final class AppleBookCreateViewModel: ObservableObject {
                 imageCfgScale: draft.imageCfgScale,
                 imageSamplerName: draft.imageSamplerName,
                 imageSeedWithPreviousImage: draft.imageSeedWithPreviousImage,
-                imageBlankDetectionEnabled: draft.imageBlankDetectionEnabled
+                imageBlankDetectionEnabled: draft.imageBlankDetectionEnabled,
+                imageConcurrency: draft.imageConcurrency,
+                imageApiTimeoutSeconds: draft.imageApiTimeoutSeconds
             ),
             correlationId: "apple-create",
             bookMetadata: [
@@ -309,7 +311,9 @@ final class AppleBookCreateViewModel: ObservableObject {
         imageCfgScale: Double? = nil,
         imageSamplerName: String? = nil,
         imageSeedWithPreviousImage: Bool? = nil,
-        imageBlankDetectionEnabled: Bool? = nil
+        imageBlankDetectionEnabled: Bool? = nil,
+        imageConcurrency: Int? = nil,
+        imageApiTimeoutSeconds: Double? = nil
     ) -> [String: JSONValue] {
         var overrides = [String: JSONValue]()
         if let defaults {
@@ -364,6 +368,12 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
         if let imageBlankDetectionEnabled {
             overrides["image_blank_detection_enabled"] = .bool(imageBlankDetectionEnabled)
+        }
+        if let imageConcurrency {
+            overrides["image_concurrency"] = .number(Double(imageConcurrency))
+        }
+        if let imageApiTimeoutSeconds {
+            overrides["image_api_timeout_seconds"] = .number(imageApiTimeoutSeconds)
         }
         return overrides
     }

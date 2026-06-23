@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.13",
+            version: "2026.06.23.14",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-generated-book-image-performance",
+                    title: "Apple image performance",
+                    detail: "Generated-book creation on iPhone and iPad now lets illustration jobs optionally set image worker concurrency and image API timeout before submit."
+                ),
                 AppChangelogEntry(
                     id: "apple-generated-book-image-continuity",
                     title: "Apple image continuity",

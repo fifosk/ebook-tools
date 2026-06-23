@@ -73,6 +73,8 @@ struct AppleBookCreateView: View {
     @State private var imageSamplerName = ""
     @State private var imageSeedWithPreviousImage = false
     @State private var imageBlankDetectionEnabled = false
+    @State private var imageConcurrency = ""
+    @State private var imageApiTimeoutSeconds = ""
     @State private var editedFields = Set<AppleBookCreateEditedField>()
 
     var body: some View {
@@ -295,6 +297,11 @@ struct AppleBookCreateView: View {
                         for: .imageBlankDetectionEnabled,
                         value: $imageBlankDetectionEnabled
                     ),
+                    imageConcurrency: textBinding(for: .imageConcurrency, value: $imageConcurrency),
+                    imageApiTimeoutSeconds: textBinding(
+                        for: .imageApiTimeoutSeconds,
+                        value: $imageApiTimeoutSeconds
+                    ),
                     supportsImages: creationMode == .generatedBook
                 )
             }
@@ -450,6 +457,8 @@ struct AppleBookCreateView: View {
             imageSamplerName: imageSamplerName,
             imageSeedWithPreviousImage: imageSeedWithPreviousImage,
             imageBlankDetectionEnabled: imageBlankDetectionEnabled,
+            imageConcurrency: imageConcurrency,
+            imageApiTimeoutSeconds: imageApiTimeoutSeconds,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults,
             generatedSourceDefaults: viewModel.creationOptions?.generatedSourceDefaults
         )
