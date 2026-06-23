@@ -1,6 +1,18 @@
 enum AppChangelogData {
     static let days: [AppChangelogDay] = [
         AppChangelogDay(
+            id: "2026-06-24",
+            dateLabel: "June 24, 2026",
+            version: "2026.06.24.1",
+            entries: [
+                AppChangelogEntry(
+                    id: "apple-create-ipad-two-column-detail",
+                    title: "Create uses iPad space",
+                    detail: "iPad and local Mac Designed for iPad Create now use a two-column detail editor, keeping source/setup fields on the left and narration, output, status, and submit settings on the right."
+                )
+            ]
+        ),
+        AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
             version: "2026.06.23.96",

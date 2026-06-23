@@ -15,13 +15,13 @@
   <key>CFBundlePackageType</key>
   <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
   <key>CFBundleShortVersionString</key>
-  <string>2026.6.23</string>
+  <string>2026.6.24</string>
   <key>CFBundleVersion</key>
-  <string>2026062396</string>
+  <string>202606241</string>
   <key>EBOOK_TOOLS_BRANCH</key>
   <string>$(EBOOK_TOOLS_BRANCH)</string>
   <key>EBOOK_TOOLS_RELEASE_VERSION</key>
-  <string>2026.06.23.96</string>
+  <string>2026.06.24.1</string>
   <key>NSAppTransportSecurity</key>
   <dict>
     <key>NSAllowsArbitraryLoads</key>

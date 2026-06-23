@@ -2,6 +2,13 @@
 
 Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
+## 2026-06-24
+
+### 2026.06.24.1
+
+- Advanced visible Apple app versioning to `v2026.06.24.1`.
+- iPad and local Mac Designed for iPad Create now use a two-column detail editor, keeping source/setup fields on the left and narration, output, status, and submit settings on the right.
+
 ## 2026-06-23
 
 ### 2026.06.23.96

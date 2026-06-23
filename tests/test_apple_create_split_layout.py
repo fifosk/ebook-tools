@@ -58,6 +58,9 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert "@State private var creationMode = AppleCreateMode.generatedBook" not in source
     assert "showsInlineJobTypePicker: Bool" in source
     assert "showsJobTypePicker: showsInlineJobTypePicker" in source
+    assert "@Environment(\\.horizontalSizeClass) private var horizontalSizeClass" in source
+    assert "private var usesRegularWidthCreateLayout: Bool" in source
+    assert "horizontalSizeClass == .regular" in source
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
@@ -90,6 +93,37 @@ def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
     assert "showsInlineJobTypePicker: true" in detail_call
     assert "creationMode: $createMode" in compact_call
     assert "showsInlineJobTypePicker: true" in compact_call
+
+
+def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
+    source = _source(CREATE_VIEW)
+
+    assert "regularWidthCreateLayout" in source
+    assert 'accessibilityIdentifier: "appleBookCreateSetupPane"' in source
+    assert 'accessibilityIdentifier: "appleBookCreateSettingsPane"' in source
+    assert '.frame(minWidth: 320, idealWidth: 380, maxWidth: 440, maxHeight: .infinity)' in source
+    assert "private var createSetupSections: some View" in source
+    assert "private var createSettingsSections: some View" in source
+
+    setup_sections = re.search(
+        r"private var createSetupSections: some View \{(?P<body>.*?)\n    \}",
+        source,
+        re.DOTALL,
+    )
+    settings_sections = re.search(
+        r"private var createSettingsSections: some View \{(?P<body>.*?)\n    \}",
+        source,
+        re.DOTALL,
+    )
+
+    assert setup_sections
+    assert settings_sections
+    assert "sourceSection" in setup_sections.group("body")
+    assert "promptSection" in setup_sections.group("body")
+    assert "metadataSection" in setup_sections.group("body")
+    assert "narrationSection" in settings_sections.group("body")
+    assert "outputSection" in settings_sections.group("body")
+    assert "submitSection" in settings_sections.group("body")
 
 
 def test_ipad_split_view_keeps_settings_in_detail_panel() -> None:

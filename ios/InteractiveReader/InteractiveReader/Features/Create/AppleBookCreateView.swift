@@ -6,6 +6,9 @@ import UniformTypeIdentifiers
 struct AppleBookCreateView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.openURL) private var openURL
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
     @StateObject private var viewModel = AppleBookCreateViewModel()
 
     let sectionPicker: BrowseSectionPicker?
@@ -121,25 +124,14 @@ struct AppleBookCreateView: View {
                 sectionPicker
             }
 
-            List {
-                sourceSection
-                if creationMode == .generatedBook {
-                    promptSection
+            if usesRegularWidthCreateLayout {
+                regularWidthCreateLayout
+            } else {
+                createList(accessibilityIdentifier: "appleBookCreateSingleColumnList") {
+                    createSetupSections
+                    createSettingsSections
                 }
-                if creationMode == .generatedBook || creationMode == .narrateEbook {
-                    metadataSection
-                }
-                narrationSection
-                outputSection
-                statusSection
-                submitSection
             }
-            #if os(tvOS)
-            .listStyle(.plain)
-            #else
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(usesDarkBackground ? .hidden : .automatic)
-            #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(usesDarkBackground ? AppTheme.lightBackground : Color.clear)
@@ -205,6 +197,67 @@ struct AppleBookCreateView: View {
         )
         #endif
         .accessibilityIdentifier("appleBookCreateView")
+    }
+
+    @ViewBuilder
+    private var regularWidthCreateLayout: some View {
+        HStack(alignment: .top, spacing: 0) {
+            createList(accessibilityIdentifier: "appleBookCreateSetupPane") {
+                createSetupSections
+            }
+            .frame(minWidth: 320, idealWidth: 380, maxWidth: 440, maxHeight: .infinity)
+
+            Divider()
+
+            createList(accessibilityIdentifier: "appleBookCreateSettingsPane") {
+                createSettingsSections
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .accessibilityIdentifier("appleBookCreateRegularWidthLayout")
+    }
+
+    private var usesRegularWidthCreateLayout: Bool {
+        #if os(iOS)
+        return horizontalSizeClass == .regular
+        #else
+        return false
+        #endif
+    }
+
+    @ViewBuilder
+    private var createSetupSections: some View {
+        sourceSection
+        if creationMode == .generatedBook {
+            promptSection
+        }
+        if creationMode == .generatedBook || creationMode == .narrateEbook {
+            metadataSection
+        }
+    }
+
+    @ViewBuilder
+    private var createSettingsSections: some View {
+        narrationSection
+        outputSection
+        statusSection
+        submitSection
+    }
+
+    private func createList<Content: View>(
+        accessibilityIdentifier: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        List {
+            content()
+        }
+        #if os(tvOS)
+        .listStyle(.plain)
+        #else
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(usesDarkBackground ? .hidden : .automatic)
+        #endif
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var sourceSection: some View {
