@@ -235,6 +235,33 @@ describe('BookNarrationForm', () => {
     expect(handleSubmit).not.toHaveBeenCalled();
   }, 10000);
 
+  it('does not refresh intake status after a rejected submission', async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi
+      .fn<[PipelineRequestPayload], Promise<void>>()
+      .mockRejectedValue(new Error('Backend refused the job'));
+
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={handleSubmit} />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineIntakeStatus).toHaveBeenCalledTimes(1));
+    await resolveFetches();
+
+    await user.clear(screen.getByLabelText(/Input file path/i));
+    await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
+    await user.clear(screen.getByLabelText(/Base output file/i));
+    await user.type(screen.getByLabelText(/Base output file/i), 'output');
+
+    await user.click(screen.getByRole('button', { name: /Submit job/i }));
+
+    expect(handleSubmit).toHaveBeenCalled();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Backend refused the job');
+    expect(fetchPipelineIntakeStatus).toHaveBeenCalledTimes(1);
+  }, 10000);
+
   it('promotes edited genre and ISBN metadata into config overrides on submit', async () => {
     const user = userEvent.setup();
     const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();

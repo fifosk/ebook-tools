@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.53
+
+- Advanced visible Apple app versioning to `v2026.06.23.53`.
+- Web Create now refreshes backend job intake status only after a successful enqueue, matching the Apple Create behavior and avoiding misleading refreshes after rejected submissions.
+
 ### 2026.06.23.52
 
 - Advanced visible Apple app versioning to `v2026.06.23.52`.

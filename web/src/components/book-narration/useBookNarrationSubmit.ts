@@ -278,12 +278,14 @@ export function useBookNarrationSubmit({
         };
 
         await onSubmit(payload);
+        return true;
       } catch (submissionError) {
         const message =
           submissionError instanceof Error
             ? submissionError.message
             : 'Unable to submit pipeline request';
         setError(message);
+        return false;
       }
     },
     [

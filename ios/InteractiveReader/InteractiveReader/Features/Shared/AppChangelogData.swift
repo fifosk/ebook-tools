@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.52",
+            version: "2026.06.23.53",
             entries: [
+                AppChangelogEntry(
+                    id: "web-create-intake-refresh-success",
+                    title: "Create refresh accuracy",
+                    detail: "Web Create now refreshes backend job intake status only after a successful enqueue, matching the Apple Create behavior and avoiding misleading refreshes after rejected submissions."
+                ),
                 AppChangelogEntry(
                     id: "create-intake-status-refresh",
                     title: "Create queue refresh",

@@ -560,8 +560,10 @@ export function BookNarrationForm({
 
   const handleSubmitAndRefreshIntake = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
-      await handleSubmit(event);
-      await refreshIntakeStatus();
+      const didSubmit = await handleSubmit(event);
+      if (didSubmit) {
+        await refreshIntakeStatus();
+      }
     },
     [handleSubmit, refreshIntakeStatus]
   );
