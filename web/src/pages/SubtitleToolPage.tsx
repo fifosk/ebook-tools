@@ -1,6 +1,4 @@
-import { FormEvent, useCallback } from 'react';
 import type { JobState } from '../components/JobList';
-import { submitSubtitleJob } from '../api/client';
 import type { JobParameterSnapshot } from '../api/dtos';
 import SubtitleJobsPanel from './subtitle-tool/SubtitleJobsPanel';
 import SubtitleMetadataPanel from './subtitle-tool/SubtitleMetadataPanel';
@@ -22,14 +20,11 @@ import { useSubtitleProcessingOptions } from './subtitle-tool/useSubtitleProcess
 import { useSubtitleShowOriginalPreference } from './subtitle-tool/useSubtitleShowOriginalPreference';
 import { useSubtitleSourceMode } from './subtitle-tool/useSubtitleSourceMode';
 import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
+import { useSubtitleSubmit } from './subtitle-tool/useSubtitleSubmit';
 import { useSubtitleSubmitFeedback } from './subtitle-tool/useSubtitleSubmitFeedback';
 import { useSubtitleSubmitStatus } from './subtitle-tool/useSubtitleSubmitStatus';
 import { useSubtitleTabState } from './subtitle-tool/useSubtitleTabState';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
-import {
-  buildSubtitleSubmitFormData,
-  resolveSubtitleSubmitValues
-} from './subtitle-tool/subtitleToolUtils';
 import styles from './SubtitleToolPage.module.css';
 
 type Props = {
@@ -173,130 +168,47 @@ export default function SubtitleToolPage({
     setTransliterationModel,
     setSelectedSource
   });
-  const handleSubmit = useCallback(
-    async (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      setSubmitError(null);
-      if (isIntakeAtCapacity) {
-        rejectAtCapacity();
-        return;
-      }
-
-      const submitResolution = resolveSubtitleSubmitValues({
-        inputLanguage,
-        targetLanguage,
-        isAssSelection,
-        sourceMode,
-        selectedSource,
-        hasUploadFile: Boolean(uploadFile),
-        startTime,
-        endTime,
-        outputFormat,
-        assFontSize,
-        assEmphasis,
-        selectedModel,
-        translationProvider,
-        transliterationMode,
-        transliterationModel,
-        workerCount,
-        batchSize,
-        translationBatchSize
-      });
-      if (!submitResolution.ok) {
-        setSubmitError(submitResolution.error);
-        return;
-      }
-      const {
-        normalizedStartTime,
-        normalizedEndTime,
-        resolvedAssFontSize,
-        resolvedAssEmphasis
-      } = submitResolution.values;
-
-      const formData = buildSubtitleSubmitFormData({
-        values: submitResolution.values,
-        enableTransliteration,
-        enableHighlight,
-        showOriginal,
-        generateAudioBook,
-        outputFormat,
-        mirrorToSourceDir,
-        uploadFile,
-        mediaMetadataDraft
-      });
-
-      beginSubmit();
-      try {
-        const response = await submitSubtitleJob(formData);
-        recordSubmission({
-          response,
-          values: submitResolution.values,
-          workerCount,
-          batchSize,
-          translationBatchSize,
-          outputFormat
-        });
-        if (normalizedStartTime !== startTime) {
-          setStartTime(normalizedStartTime);
-        }
-        if (normalizedEndTime !== endTime) {
-          setEndTime(normalizedEndTime);
-        }
-        if (resolvedAssFontSize !== null && assFontSize !== resolvedAssFontSize) {
-          setAssFontSize(resolvedAssFontSize);
-        }
-        if (resolvedAssEmphasis !== null && assEmphasis !== resolvedAssEmphasis) {
-          setAssEmphasis(resolvedAssEmphasis);
-        }
-        onJobCreated(response.job_id);
-        setActiveTab('jobs');
-        if (sourceMode === 'upload') {
-          clearUploadFile();
-        }
-        await refreshIntakeStatus();
-      } catch (error) {
-        failSubmit(error);
-      } finally {
-        finishSubmit();
-      }
-    },
-    [
-      enableHighlight,
-      enableTransliteration,
-      generateAudioBook,
-      showOriginal,
-      inputLanguage,
-      onJobCreated,
-      selectedSource,
-      sourceMode,
-      targetLanguage,
-      uploadFile,
-      workerCount,
-      batchSize,
-      translationBatchSize,
-      mirrorToSourceDir,
-      startTime,
-      endTime,
-      setActiveTab,
-      selectedModel,
-      outputFormat,
-      assFontSize,
-      assEmphasis,
-      mediaMetadataDraft,
-      translationProvider,
-      transliterationMode,
-      transliterationModel,
-      isIntakeAtCapacity,
-      setSubmitError,
-      beginSubmit,
-      rejectAtCapacity,
-      failSubmit,
-      finishSubmit,
-      refreshIntakeStatus,
-      recordSubmission,
-      clearUploadFile
-    ]
-  );
+  const { handleSubmit } = useSubtitleSubmit({
+    inputLanguage,
+    targetLanguage,
+    isAssSelection,
+    sourceMode,
+    selectedSource,
+    startTime,
+    endTime,
+    outputFormat,
+    assFontSize,
+    assEmphasis,
+    selectedModel,
+    translationProvider,
+    transliterationMode,
+    transliterationModel,
+    workerCount,
+    batchSize,
+    translationBatchSize,
+    enableTransliteration,
+    enableHighlight,
+    showOriginal,
+    generateAudioBook,
+    mirrorToSourceDir,
+    uploadFile,
+    mediaMetadataDraft,
+    isIntakeAtCapacity,
+    setSubmitError,
+    beginSubmit,
+    finishSubmit,
+    rejectAtCapacity,
+    failSubmit,
+    recordSubmission,
+    setStartTime,
+    setEndTime,
+    setAssFontSize,
+    setAssEmphasis,
+    setActiveTab,
+    onJobCreated,
+    clearUploadFile,
+    refreshIntakeStatus
+  });
 
   return (
     <div className={styles.container}>

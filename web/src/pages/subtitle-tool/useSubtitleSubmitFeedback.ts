@@ -10,7 +10,7 @@ type SubtitleSubmitFeedbackInput = {
   defaultStartTime: string;
 };
 
-type RecordSubtitleSubmitInput = {
+export type RecordSubtitleSubmitInput = {
   response: PipelineSubmissionResponse;
   values: ResolvedSubtitleSubmitValues;
   workerCount: number | '';
