@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.68
+
+- Advanced visible Apple app versioning to `v2026.06.23.68`.
+- Web Subtitle Tool tab state and newest-first job sorting now live in a focused hook with coverage for tab changes and Jobs panel ordering.
+
 ### 2026.06.23.67
 
 - Advanced visible Apple app versioning to `v2026.06.23.67`.

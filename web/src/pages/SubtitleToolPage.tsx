@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useState } from 'react';
 import type { JobState } from '../components/JobList';
 import { submitSubtitleJob } from '../api/client';
 import type { JobParameterSnapshot } from '../api/dtos';
@@ -14,7 +14,6 @@ import {
   DEFAULT_START_TIME,
   DEFAULT_SUBTITLE_SOURCE_DIRECTORY
 } from './subtitle-tool/subtitleToolConfig';
-import type { SubtitleToolTab } from './subtitle-tool/subtitleToolTypes';
 import { useSubtitleJobResults } from './subtitle-tool/useSubtitleJobResults';
 import { useSubtitleLanguageState } from './subtitle-tool/useSubtitleLanguageState';
 import { useSubtitleModels } from './subtitle-tool/useSubtitleModels';
@@ -24,11 +23,11 @@ import { useSubtitleShowOriginalPreference } from './subtitle-tool/useSubtitleSh
 import { useSubtitleSourceMode } from './subtitle-tool/useSubtitleSourceMode';
 import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
 import { useSubtitleSubmitFeedback } from './subtitle-tool/useSubtitleSubmitFeedback';
+import { useSubtitleTabState } from './subtitle-tool/useSubtitleTabState';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
 import {
   buildSubtitleSubmitFormData,
-  resolveSubtitleSubmitValues,
-  sortSubtitleJobsNewestFirst
+  resolveSubtitleSubmitValues
 } from './subtitle-tool/subtitleToolUtils';
 import styles from './SubtitleToolPage.module.css';
 
@@ -49,7 +48,7 @@ export default function SubtitleToolPage({
   prefillParameters = null,
   refreshSignal = 0
 }: Props) {
-  const [activeTab, setActiveTab] = useState<SubtitleToolTab>('subtitles');
+  const { activeTab, setActiveTab, sortedSubtitleJobs } = useSubtitleTabState(subtitleJobs);
   const {
     intakeStatus,
     isLoadingIntakeStatus,
@@ -286,8 +285,6 @@ export default function SubtitleToolPage({
       clearUploadFile
     ]
   );
-
-  const sortedSubtitleJobs = useMemo(() => sortSubtitleJobsNewestFirst(subtitleJobs), [subtitleJobs]);
 
   return (
     <div className={styles.container}>
