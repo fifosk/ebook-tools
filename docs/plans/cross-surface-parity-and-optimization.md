@@ -56,9 +56,12 @@ Large Web UI hotspots to split before redesign work:
   stat lookup, batch progress, lookup-cache progress, and progress label
   helpers now live in `web/src/components/job-progress/jobProgressUtils.ts`
   with focused Vitest coverage.
-- `web/src/components/LibraryList.tsx` - 951 lines. Status: layout type
+- `web/src/components/LibraryList.tsx` - 712 lines. Status: layout type
   detection, title/author/genre fallback labels, and author/genre/language
   grouping now live in `web/src/components/library-list/libraryListUtils.ts`
+  with focused Vitest coverage. Book summary, TV/episode metadata, subtitle
+  genre/summary/image, YouTube metadata, source-badge, and media asset URL
+  resolvers now live in `web/src/components/library-list/libraryListMediaUtils.ts`
   with focused Vitest coverage.
 - `web/src/components/PlayerPanel.tsx` - 1085 lines.
 - `web/src/components/Sidebar.tsx` - 963 lines.
@@ -219,6 +222,11 @@ Refactor before restyling:
   `LibraryList.tsx` now imports tested helpers for row layout type detection,
   title/author/genre fallback labels, and author/genre/language grouping from
   `web/src/components/library-list/libraryListUtils.ts`.
+- Isolate Library list media metadata resolvers before visual redesign. Status:
+  `LibraryList.tsx` now imports tested helpers for book summaries, TV/episode
+  metadata, subtitle genre/summary/image values, YouTube metadata, source
+  badges, and media asset URLs from
+  `web/src/components/library-list/libraryListMediaUtils.ts`.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, and genre defaults from
   `/api/books/options` while preserving prompt edits that happen before defaults
