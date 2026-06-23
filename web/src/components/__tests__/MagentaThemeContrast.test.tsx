@@ -8,8 +8,22 @@ import '../../index.css';
 type RGB = [number, number, number];
 type RGBA = [number, number, number, number];
 
+const SYSTEM_COLOR_FALLBACKS: Record<string, RGB> = {
+  buttontext: [0, 0, 0],
+  canvastext: [0, 0, 0],
+  fieldtext: [0, 0, 0],
+  linktext: [0, 0, 0.93],
+  buttonface: [0.94, 0.94, 0.94],
+  canvas: [1, 1, 1],
+  field: [1, 1, 1]
+};
+
 function parseColor(value: string): RGBA {
   const normalised = value.trim();
+  const systemColor = SYSTEM_COLOR_FALLBACKS[normalised.toLowerCase()];
+  if (systemColor) {
+    return [...systemColor, 1];
+  }
   if (normalised.startsWith('rgba')) {
     const [, contents] = normalised.match(/rgba\(([^)]+)\)/i) ?? [];
     if (!contents) {
@@ -36,6 +50,9 @@ function compositeColor(color: RGBA, fallback: RGB): RGB {
 }
 
 function resolveColor(value: string, fallback?: RGB): RGB {
+  if (!value.trim()) {
+    return fallback ?? [0, 0, 0];
+  }
   const [r, g, b, a] = parseColor(value);
   if (a >= 1 || !fallback) {
     return [r, g, b];

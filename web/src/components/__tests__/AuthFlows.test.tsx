@@ -1,9 +1,12 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../App';
 import { ThemeProvider } from '../ThemeProvider';
 import { AuthProvider } from '../AuthProvider';
+import { LanguageProvider } from '../../context/LanguageProvider';
+import { MyLinguistProvider } from '../../context/MyLinguistProvider';
+import { MyPainterProvider } from '../../context/MyPainterProvider';
 
 const AUTH_STORAGE_KEY = 'ebook-tools.auth.token';
 
@@ -33,10 +36,24 @@ function renderWithProviders() {
   return render(
     <ThemeProvider>
       <AuthProvider>
-        <App />
+        <LanguageProvider>
+          <MyLinguistProvider>
+            <MyPainterProvider>
+              <App />
+            </MyPainterProvider>
+          </MyLinguistProvider>
+        </LanguageProvider>
       </AuthProvider>
     </ThemeProvider>
   );
+}
+
+async function expandAccountPanel(user: ReturnType<typeof userEvent.setup>) {
+  const summary = await screen.findByRole('button', { name: /Signed in as/i });
+  if (summary.getAttribute('aria-expanded') !== 'true') {
+    await user.click(summary);
+  }
+  await screen.findByRole('button', { name: /Change password/i });
 }
 
 describe('authentication flows', () => {
@@ -45,6 +62,7 @@ describe('authentication flows', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
     localStorage.clear();
   });
@@ -157,6 +175,7 @@ describe('authentication flows', () => {
     await user.click(screen.getByRole('button', { name: /Sign in/i }));
     await waitFor(() => expect(screen.getByText(/Signed in as/i)).toBeInTheDocument());
 
+    await expandAccountPanel(user);
     await user.click(screen.getByRole('button', { name: /Log out/i }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: /Sign in/i })).toBeInTheDocument());
@@ -205,6 +224,7 @@ describe('authentication flows', () => {
     await user.click(screen.getByRole('button', { name: /Sign in/i }));
     await waitFor(() => expect(screen.getByText(/Signed in as/i)).toBeInTheDocument());
 
+    await expandAccountPanel(user);
     await user.click(screen.getByRole('button', { name: /Change password/i }));
     await user.type(screen.getByLabelText(/Current password/i), 'secret');
     await user.type(screen.getByLabelText(/^New password/i), 'updated');
@@ -256,6 +276,7 @@ describe('authentication flows', () => {
     await user.click(screen.getByRole('button', { name: /Sign in/i }));
     await waitFor(() => expect(screen.getByText(/Signed in as/i)).toBeInTheDocument());
 
+    await expandAccountPanel(user);
     await user.click(screen.getByRole('button', { name: /Change password/i }));
     await user.type(screen.getByLabelText(/Current password/i), 'secret');
     await user.type(screen.getByLabelText(/^New password/i), 'updated');

@@ -103,32 +103,47 @@ describe('LanguageProvider synchronization', () => {
     await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
     await resolveFetches();
 
-    const pipeline = within(screen.getByTestId('pipeline'));
     const create = within(screen.getByTestId('create-book'));
 
-    const pipelineTargetSelect = pipeline.getByLabelText(/^Target languages$/i) as HTMLSelectElement;
+    const pipelineTargetSelect = screen
+      .getByTestId('pipeline')
+      .querySelector<HTMLSelectElement>('#target_languages');
+    if (!pipelineTargetSelect) {
+      throw new Error('Pipeline target language select not found');
+    }
     const getPipelineTargets = () =>
       Array.from(pipelineTargetSelect.selectedOptions).map((option) => option.value);
 
-    const createOutputLanguage = create.getByLabelText(/Output language/i) as HTMLInputElement;
-    expect(createOutputLanguage.value).toBe('Arabic');
+    await user.click(create.getByRole('tab', { name: /Language & translation/i }));
+    const createTargetLanguage = screen
+      .getByTestId('create-book')
+      .querySelector<HTMLSelectElement>('#target_languages');
+    if (!createTargetLanguage) {
+      throw new Error('Create book target language select not found');
+    }
+    expect(createTargetLanguage.value).toBe('Arabic');
     expect(getPipelineTargets()).toEqual(['Arabic']);
 
-    await user.clear(createOutputLanguage);
-    await user.type(createOutputLanguage, 'German');
+    await user.selectOptions(createTargetLanguage, 'German');
 
     await waitFor(() => {
       expect(getPipelineTargets()).toEqual(['German']);
     });
-    expect(createOutputLanguage.value).toBe('German');
+    expect(createTargetLanguage.value).toBe('German');
 
-    const pipelineInputLanguage = pipeline.getByLabelText(/^Input language$/i) as HTMLInputElement;
-    await user.clear(pipelineInputLanguage);
-    await user.type(pipelineInputLanguage, 'Italian');
+    const pipelineInputLanguage = screen
+      .getByTestId('pipeline')
+      .querySelector<HTMLSelectElement>('#input_language');
+    if (!pipelineInputLanguage) {
+      throw new Error('Pipeline input language select not found');
+    }
+    await user.selectOptions(pipelineInputLanguage, 'Italian');
 
     await waitFor(() => {
-      const createInputLanguage = create.getByLabelText(/Input language/i) as HTMLInputElement;
-      expect(createInputLanguage.value).toBe('Italian');
+      const createInputLanguage = screen
+        .getByTestId('create-book')
+        .querySelector<HTMLSelectElement>('#input_language');
+      expect(createInputLanguage?.value).toBe('Italian');
     });
   });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import type { Mock } from 'vitest';
@@ -6,13 +6,13 @@ import VideoPlayer, { VideoFile } from '../VideoPlayer';
 
 describe('VideoPlayer', () => {
   let playSpy: ReturnType<typeof vi.spyOn>;
-  const videoPrototype = HTMLVideoElement.prototype as HTMLVideoElement & {
+  const fullscreenPrototype = HTMLElement.prototype as HTMLElement & {
     requestFullscreen?: () => Promise<void>;
   };
   const documentPrototype = Document.prototype as Document & {
     exitFullscreen?: () => Promise<void>;
   };
-  const originalRequestFullscreen = videoPrototype.requestFullscreen;
+  const originalRequestFullscreen = fullscreenPrototype.requestFullscreen;
   const originalExitFullscreen = documentPrototype.exitFullscreen;
   const originalFullscreenDescriptor = Object.getOwnPropertyDescriptor(document, 'fullscreenElement');
   let requestFullscreenMock: Mock<[], Promise<void>>;
@@ -21,7 +21,7 @@ describe('VideoPlayer', () => {
 
   beforeEach(() => {
     playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
-    requestFullscreenMock = vi.fn<[], Promise<void>>().mockImplementation(function (this: HTMLVideoElement) {
+    requestFullscreenMock = vi.fn<[], Promise<void>>().mockImplementation(function (this: HTMLElement) {
       fullscreenElementSlot = this;
       return Promise.resolve();
     });
@@ -29,7 +29,7 @@ describe('VideoPlayer', () => {
       fullscreenElementSlot = null;
       return Promise.resolve();
     });
-    videoPrototype.requestFullscreen = requestFullscreenMock as typeof videoPrototype.requestFullscreen;
+    fullscreenPrototype.requestFullscreen = requestFullscreenMock as typeof fullscreenPrototype.requestFullscreen;
     documentPrototype.exitFullscreen = exitFullscreenMock as typeof documentPrototype.exitFullscreen;
     Object.defineProperty(document, 'fullscreenElement', {
       configurable: true,
@@ -45,9 +45,9 @@ describe('VideoPlayer', () => {
   afterEach(() => {
     playSpy.mockRestore();
     if (originalRequestFullscreen) {
-      videoPrototype.requestFullscreen = originalRequestFullscreen;
+      fullscreenPrototype.requestFullscreen = originalRequestFullscreen;
     } else {
-      Reflect.deleteProperty(videoPrototype, 'requestFullscreen');
+      Reflect.deleteProperty(fullscreenPrototype, 'requestFullscreen');
     }
     if (originalExitFullscreen) {
       documentPrototype.exitFullscreen = originalExitFullscreen;
@@ -94,7 +94,7 @@ describe('VideoPlayer', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Trailer' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Video' })).toHaveValue('trailer');
     expect(screen.getByTestId('video-player')).toHaveAttribute('src', trailer.url);
 
     rerender(
@@ -107,11 +107,11 @@ describe('VideoPlayer', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Trailer' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Video' })).toHaveValue('trailer');
     expect(screen.getByTestId('video-player')).toHaveAttribute('src', trailer.url);
     expect(playSpy).toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: 'Full Video' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Video' }), 'full');
 
     expect(onSelect).toHaveBeenCalledWith('full');
 
@@ -125,7 +125,7 @@ describe('VideoPlayer', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Full Video' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Video' })).toHaveValue('full');
     expect(screen.getByTestId('video-player')).toHaveAttribute('src', fullVideo.url);
     expect(playSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
 
@@ -160,7 +160,7 @@ describe('VideoPlayer', () => {
     expect(onExit).toHaveBeenCalledTimes(2);
   });
 
-  it('requests fullscreen while immersive mode is active and exits when disabled', () => {
+  it('requests fullscreen while immersive mode is active and exits when disabled', async () => {
     const sample: VideoFile = {
       id: 'sample',
       name: 'Sample',
@@ -176,8 +176,9 @@ describe('VideoPlayer', () => {
       />,
     );
 
-    expect(requestFullscreenMock).toHaveBeenCalled();
-    expect(document.fullscreenElement).toBe(screen.getByTestId('video-player'));
+    await waitFor(() => expect(requestFullscreenMock).toHaveBeenCalled());
+    const fullscreenTarget = screen.getByTestId('video-player').closest('.video-player__stage');
+    expect(document.fullscreenElement).toBe(fullscreenTarget);
 
     rerender(
       <VideoPlayer
@@ -188,7 +189,7 @@ describe('VideoPlayer', () => {
       />,
     );
 
-    expect(exitFullscreenMock).toHaveBeenCalled();
+    await waitFor(() => expect(exitFullscreenMock).toHaveBeenCalled());
   });
 
   it('invokes exit handler if fullscreen is closed externally', () => {

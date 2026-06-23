@@ -64,6 +64,14 @@ describe('TextPlayer', () => {
     render(<TextPlayer sentences={sentences} onSeek={handleSeek} />);
 
     fireEvent.click(screen.getByText('Alpha'));
-    expect(handleSeek).toHaveBeenCalledWith(0.5);
+    expect(handleSeek).toHaveBeenCalledWith(
+      0.5,
+      expect.objectContaining({
+        sentenceIndex: 0,
+        time: 0.5,
+        tokenIndex: 0,
+        variantKind: 'original',
+      }),
+    );
   });
 });

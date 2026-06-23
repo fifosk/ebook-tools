@@ -46,7 +46,7 @@ describe('AudioPlayer', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Introduction' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Audio' })).toHaveValue('intro');
     expect(screen.getByTestId('audio-player')).toHaveAttribute('src', intro.url);
 
     rerender(
@@ -59,11 +59,11 @@ describe('AudioPlayer', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Introduction' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Audio' })).toHaveValue('intro');
     expect(screen.getByTestId('audio-player')).toHaveAttribute('src', intro.url);
     expect(playSpy).toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: 'Chapter 1' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Audio' }), 'chapter-1');
 
     expect(onSelect).toHaveBeenCalledWith('chapter-1');
 
@@ -77,7 +77,7 @@ describe('AudioPlayer', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Chapter 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Audio' })).toHaveValue('chapter-1');
     expect(screen.getByTestId('audio-player')).toHaveAttribute('src', chapter.url);
     expect(playSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
 

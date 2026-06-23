@@ -63,8 +63,18 @@ export function useTextPreview(
       return;
     }
 
-    fetch(targetUrl, { credentials: 'include' })
+    let request: Promise<Response | undefined>;
+    try {
+      request = Promise.resolve(fetch(targetUrl, { credentials: 'include' }) as Promise<Response> | Response);
+    } catch (requestError) {
+      request = Promise.reject(requestError);
+    }
+
+    request
       .then((response) => {
+        if (!response) {
+          throw new Error('Failed to load document.');
+        }
         if (!response.ok) {
           throw new Error(`Failed to load document (status ${response.status})`);
         }
