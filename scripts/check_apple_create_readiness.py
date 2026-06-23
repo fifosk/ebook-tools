@@ -14,6 +14,14 @@ from urllib import error, parse, request
 
 
 DEFAULT_API_BASE_URL = "https://api.langtools.fifosk.synology.me"
+MIN_SUPPORTED_BOOK_LANGUAGES = 50
+REQUIRED_BOOK_LANGUAGE_SENTINELS = (
+    "English",
+    "Arabic",
+    "Hindi",
+    "Chinese (Traditional)",
+    "Persian",
+)
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -142,7 +150,39 @@ def count_youtube_pairs(payload: Any) -> tuple[int, int]:
     return video_count, subtitle_count
 
 
-def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, int]:
+def normalized_language_names(values: Any) -> set[str]:
+    if not isinstance(values, list):
+        return set()
+    names: set[str] = set()
+    for value in values:
+        if not isinstance(value, str):
+            continue
+        cleaned = " ".join(value.strip().split())
+        if cleaned:
+            names.add(cleaned.lower())
+    return names
+
+
+def language_inventory(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        input_languages: Any = []
+        output_languages: Any = []
+    else:
+        input_languages = payload.get("supported_input_languages")
+        output_languages = payload.get("supported_output_languages")
+
+    input_names = normalized_language_names(input_languages)
+    output_names = normalized_language_names(output_languages)
+    required = {language.lower() for language in REQUIRED_BOOK_LANGUAGE_SENTINELS}
+    return {
+        "book_input_languages": len(input_names),
+        "book_output_languages": len(output_names),
+        "missing_book_input_languages": sorted(required - input_names),
+        "missing_book_output_languages": sorted(required - output_names),
+    }
+
+
+def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, Any]:
     files = json_request(api_base_url, "/api/pipelines/files", token=token, timeout=timeout)
     subtitles = json_request(api_base_url, "/api/subtitles/sources", token=token, timeout=timeout)
     youtube = json_request(
@@ -151,16 +191,18 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         token=token,
         timeout=timeout,
     )
+    book_options = json_request(api_base_url, "/api/books/options", token=token, timeout=timeout)
     youtube_videos, youtube_subtitles = count_youtube_pairs(youtube)
     return {
         "epubs": count_epubs(files),
         "subtitle_sources": count_subtitle_sources(subtitles),
         "youtube_videos": youtube_videos,
         "youtube_subtitles": youtube_subtitles,
+        **language_inventory(book_options),
     }
 
 
-def validate_summary(summary: dict[str, int]) -> list[str]:
+def validate_summary(summary: dict[str, Any]) -> list[str]:
     missing: list[str] = []
     if summary.get("epubs", 0) <= 0:
         missing.append("backend-visible EPUBs")
@@ -168,6 +210,16 @@ def validate_summary(summary: dict[str, int]) -> list[str]:
         missing.append("backend-visible subtitle sources")
     if summary.get("youtube_videos", 0) <= 0 or summary.get("youtube_subtitles", 0) <= 0:
         missing.append("YouTube/NAS videos with playable subtitles")
+    if summary.get("book_input_languages", 0) < MIN_SUPPORTED_BOOK_LANGUAGES:
+        missing.append("broad book input language options")
+    if summary.get("book_output_languages", 0) < MIN_SUPPORTED_BOOK_LANGUAGES:
+        missing.append("broad book output language options")
+    missing_input = summary.get("missing_book_input_languages")
+    if isinstance(missing_input, list) and missing_input:
+        missing.append("book input language sentinels: " + ", ".join(missing_input))
+    missing_output = summary.get("missing_book_output_languages")
+    if isinstance(missing_output, list) and missing_output:
+        missing.append("book output language sentinels: " + ", ".join(missing_output))
     return missing
 
 
@@ -214,7 +266,9 @@ def main(argv: list[str] | None = None) -> int:
         f"epubs={summary['epubs']} "
         f"subtitle_sources={summary['subtitle_sources']} "
         f"youtube_videos={summary['youtube_videos']} "
-        f"youtube_subtitles={summary['youtube_subtitles']}"
+        f"youtube_subtitles={summary['youtube_subtitles']} "
+        f"book_input_languages={summary['book_input_languages']} "
+        f"book_output_languages={summary['book_output_languages']}"
     )
     if missing:
         print(

@@ -47,6 +47,44 @@ def test_counts_backend_visible_sources() -> None:
     ) == (1, 1)
 
 
+def test_language_inventory_requires_broad_book_options() -> None:
+    broad_languages = [f"Language {index}" for index in range(60)]
+    for sentinel in module.REQUIRED_BOOK_LANGUAGE_SENTINELS:
+        broad_languages.append(sentinel)
+
+    assert module.language_inventory(
+        {
+            "supported_input_languages": broad_languages,
+            "supported_output_languages": broad_languages,
+        }
+    ) == {
+        "book_input_languages": 65,
+        "book_output_languages": 65,
+        "missing_book_input_languages": [],
+        "missing_book_output_languages": [],
+    }
+
+    limited_inventory = module.language_inventory(
+        {
+            "supported_input_languages": ["English", "Arabic", "Slovak", "Spanish", "French", "German"],
+            "supported_output_languages": ["English", "Arabic", "Slovak", "Spanish", "French", "German"],
+        }
+    )
+
+    assert limited_inventory["book_input_languages"] == 6
+    assert limited_inventory["book_output_languages"] == 6
+    assert limited_inventory["missing_book_input_languages"] == [
+        "chinese (traditional)",
+        "hindi",
+        "persian",
+    ]
+    assert limited_inventory["missing_book_output_languages"] == [
+        "chinese (traditional)",
+        "hindi",
+        "persian",
+    ]
+
+
 def test_validate_summary_reports_missing_create_sources() -> None:
     assert module.validate_summary(
         {
@@ -54,6 +92,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "subtitle_sources": 1,
             "youtube_videos": 1,
             "youtube_subtitles": 1,
+            "book_input_languages": 65,
+            "book_output_languages": 65,
+            "missing_book_input_languages": [],
+            "missing_book_output_languages": [],
         }
     ) == []
     assert module.validate_summary(
@@ -62,11 +104,19 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "subtitle_sources": 0,
             "youtube_videos": 1,
             "youtube_subtitles": 0,
+            "book_input_languages": 6,
+            "book_output_languages": 6,
+            "missing_book_input_languages": ["hindi"],
+            "missing_book_output_languages": ["persian"],
         }
     ) == [
         "backend-visible EPUBs",
         "backend-visible subtitle sources",
         "YouTube/NAS videos with playable subtitles",
+        "broad book input language options",
+        "broad book output language options",
+        "book input language sentinels: hindi",
+        "book output language sentinels: persian",
     ]
 
 

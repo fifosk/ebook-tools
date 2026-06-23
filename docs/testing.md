@@ -98,6 +98,18 @@ The authenticated iPadOS simulator journey is green through the shared pipeline:
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados --use-remote-env
 ```
 
+Run the Apple Create readiness preflight before authenticated Create journeys
+against a shared backend:
+
+```bash
+python3 scripts/check_apple_create_readiness.py --env-file .env
+```
+
+The preflight verifies backend-visible EPUBs, subtitle sources, YouTube/NAS
+video subtitle pairs, and the broad book language inventory from
+`/api/books/options`. It fails if the Create contract regresses to a small
+language list, including the iPad-visible six-language regression.
+
 Latest result on June 21, 2026: `InteractiveReaderUITests/JourneyTests/testJourney`
 passed on the `iPad Pro 13-inch (M5)` simulator with 1 test, 0 failures. The
 journey asserts the visible `appVersionBadge` frame so the pipeline rejects the
