@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.22
+
+- Advanced visible Apple app versioning to `v2026.06.23.22`.
+- Apple generated-book and Narrate EPUB creation now expose Web-aligned metadata summary and year fields, submitting them through `book_metadata` and matching book config keys.
+
 ### 2026.06.23.21
 
 - Advanced visible Apple app versioning to `v2026.06.23.21`.

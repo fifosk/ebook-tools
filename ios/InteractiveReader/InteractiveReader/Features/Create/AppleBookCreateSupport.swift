@@ -5,6 +5,8 @@ struct AppleBookCreateDraft: Equatable {
     let bookName: String
     let genre: String
     let author: String
+    let summary: String?
+    let year: String?
     let sentenceCount: Int
     let inputLanguage: String
     let targetLanguage: String
@@ -51,6 +53,8 @@ struct AppleBookCreateDraft: Equatable {
 struct AppleNarrateEbookDraft: Equatable {
     let inputFile: String
     let baseOutput: String
+    let summary: String?
+    let year: String?
     let startSentence: Int
     let endSentence: Int?
     let inputLanguage: String
@@ -80,6 +84,8 @@ struct AppleNarrateEbookDraft: Equatable {
         AppleNarrateEbookDraft(
             inputFile: inputFile,
             baseOutput: baseOutput,
+            summary: summary,
+            year: year,
             startSentence: startSentence,
             endSentence: endSentence,
             inputLanguage: inputLanguage,
@@ -293,6 +299,8 @@ enum AppleBookCreateEditedField: Hashable {
     case bookName
     case genre
     case author
+    case bookSummary
+    case bookYear
     case sourcePath
     case sourceBaseOutput
     case sourceStartSentence
@@ -866,6 +874,8 @@ enum AppleBookCreatePresentation {
         bookName: String,
         genre: String,
         author: String,
+        summary: String,
+        year: String,
         sentenceCount: Int,
         inputLanguage: AppleBookCreateLanguage,
         targetLanguage: AppleBookCreateLanguage,
@@ -913,6 +923,8 @@ enum AppleBookCreatePresentation {
             bookName: trimmed(bookName),
             genre: trimmed(genre),
             author: trimmed(author).nonEmptyValue ?? "Me",
+            summary: trimmed(summary).nonEmptyValue,
+            year: trimmed(year).nonEmptyValue,
             sentenceCount: sentenceCount,
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
@@ -962,6 +974,8 @@ enum AppleBookCreatePresentation {
     static func narrateEbookDraft(
         inputFile: String,
         baseOutput: String,
+        summary: String,
+        year: String,
         startSentence: String,
         endSentence: String,
         inputLanguage: AppleBookCreateLanguage,
@@ -991,6 +1005,8 @@ enum AppleBookCreatePresentation {
         return AppleNarrateEbookDraft(
             inputFile: trimmed(inputFile),
             baseOutput: trimmed(baseOutput),
+            summary: trimmed(summary).nonEmptyValue,
+            year: trimmed(year).nonEmptyValue,
             startSentence: normalizedStart,
             endSentence: normalizedEndSentence(endSentence, startSentence: normalizedStart),
             inputLanguage: inputLanguage.backendValue,

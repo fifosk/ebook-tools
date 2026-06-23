@@ -196,6 +196,13 @@ final class AppleBookCreateViewModel: ObservableObject {
             imageApiTimeoutSeconds: draft.imageApiTimeoutSeconds
         )
         mergeBookModelOverride(draft.llmModel, into: &pipelineOverrides)
+        let bookMetadata = makeBookMetadata(
+            title: draft.bookName,
+            author: draft.author,
+            genre: draft.genre,
+            summary: draft.summary,
+            year: draft.year
+        )
 
         let pipeline = makePipelineSubmission(
             inputFile: inputFile,
@@ -226,14 +233,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             pipelineDefaults: draft.pipelineDefaults,
             pipelineOverrides: pipelineOverrides,
             correlationId: "apple-create",
-            bookMetadata: [
-                "title": .string(draft.bookName),
-                "book_title": .string(draft.bookName),
-                "author": .string(draft.author),
-                "genre": .string(draft.genre),
-                "job_label": .string(draft.bookName),
-                "source": .string("apple")
-            ]
+            bookMetadata: bookMetadata
         )
         return BookGenerationJobSubmission(
             generator: BookGenerationRequest(
@@ -253,6 +253,13 @@ final class AppleBookCreateViewModel: ObservableObject {
     private static func makePipelineSubmission(from draft: AppleNarrateEbookDraft) -> PipelineRequestPayload {
         var pipelineOverrides = [String: JSONValue]()
         mergeBookModelOverride(draft.llmModel, into: &pipelineOverrides)
+        let bookMetadata = makeBookMetadata(
+            title: draft.baseOutput,
+            author: nil,
+            genre: nil,
+            summary: draft.summary,
+            year: draft.year
+        )
 
         return makePipelineSubmission(
             inputFile: draft.inputFile,
@@ -283,13 +290,38 @@ final class AppleBookCreateViewModel: ObservableObject {
             pipelineDefaults: draft.pipelineDefaults,
             pipelineOverrides: pipelineOverrides,
             correlationId: "apple-narrate-ebook",
-            bookMetadata: [
-                "title": .string(draft.baseOutput),
-                "book_title": .string(draft.baseOutput),
-                "job_label": .string(draft.baseOutput),
-                "source": .string("apple")
-            ]
+            bookMetadata: bookMetadata
         )
+    }
+
+    private static func makeBookMetadata(
+        title: String,
+        author: String?,
+        genre: String?,
+        summary: String?,
+        year: String?
+    ) -> [String: JSONValue] {
+        let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        var metadata: [String: JSONValue] = [
+            "title": .string(normalizedTitle),
+            "book_title": .string(normalizedTitle),
+            "job_label": .string(normalizedTitle),
+            "source": .string("apple")
+        ]
+        if let author = author?.trimmingCharacters(in: .whitespacesAndNewlines), !author.isEmpty {
+            metadata["author"] = .string(author)
+            metadata["book_author"] = .string(author)
+        }
+        if let genre = genre?.trimmingCharacters(in: .whitespacesAndNewlines), !genre.isEmpty {
+            metadata["genre"] = .string(genre)
+        }
+        if let summary = summary?.trimmingCharacters(in: .whitespacesAndNewlines), !summary.isEmpty {
+            metadata["book_summary"] = .string(summary)
+        }
+        if let year = year?.trimmingCharacters(in: .whitespacesAndNewlines), !year.isEmpty {
+            metadata["book_year"] = .string(year)
+        }
+        return metadata
     }
 
     private static func makePipelineSubmission(
@@ -352,10 +384,21 @@ final class AppleBookCreateViewModel: ObservableObject {
             bookMetadata: bookMetadata
         )
         return PipelineRequestPayload(
+            config: makeBookConfig(from: bookMetadata),
             pipelineOverrides: pipelineOverrides,
             inputs: input,
             correlationId: correlationId
         )
+    }
+
+    private static func makeBookConfig(from metadata: [String: JSONValue]) -> [String: JSONValue] {
+        var config = [String: JSONValue]()
+        for key in ["book_title", "book_author", "book_year", "book_summary"] {
+            if let value = metadata[key] {
+                config[key] = value
+            }
+        }
+        return config
     }
 
     private static func makePipelineOverrides(

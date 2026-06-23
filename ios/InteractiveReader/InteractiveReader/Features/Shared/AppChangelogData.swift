@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.21",
+            version: "2026.06.23.22",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-book-metadata-fields",
+                    title: "Apple book metadata",
+                    detail: "Generated-book and Narrate EPUB creation now expose Web-aligned metadata summary and year fields, submitting them through book_metadata and matching book config keys."
+                ),
                 AppChangelogEntry(
                     id: "apple-book-llm-model-picker",
                     title: "Apple book LLM model",

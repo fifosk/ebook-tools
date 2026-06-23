@@ -17,6 +17,8 @@ struct AppleBookCreateView: View {
     @State private var bookName = ""
     @State private var genre = ""
     @State private var author = "Me"
+    @State private var bookSummary = ""
+    @State private var bookYear = ""
     @State private var sourcePath = ""
     @State private var sourceBaseOutput = ""
     @State private var sourceStartSentence = "1"
@@ -106,6 +108,9 @@ struct AppleBookCreateView: View {
                 if creationMode == .generatedBook {
                     promptSection
                 }
+                if creationMode == .generatedBook || creationMode == .narrateEbook {
+                    metadataSection
+                }
                 narrationSection
                 outputSection
                 statusSection
@@ -179,6 +184,20 @@ struct AppleBookCreateView: View {
                 .textInputAutocapitalization(.words)
                 .accessibilityIdentifier("createBookAuthorField")
             sentenceCountControl
+        }
+    }
+
+    private var metadataSection: some View {
+        Section("Metadata") {
+            TextField("Summary", text: textBinding(for: .bookSummary, value: $bookSummary), axis: .vertical)
+                .lineLimit(2...5)
+                .textInputAutocapitalization(.sentences)
+                .accessibilityIdentifier("createBookSummaryField")
+            TextField("Year", text: textBinding(for: .bookYear, value: $bookYear))
+                #if os(iOS)
+                .keyboardType(.numberPad)
+                #endif
+                .accessibilityIdentifier("createBookYearField")
         }
     }
 
@@ -484,6 +503,8 @@ struct AppleBookCreateView: View {
             bookName: trimmed(bookName),
             genre: trimmed(genre),
             author: author,
+            summary: bookSummary,
+            year: bookYear,
             sentenceCount: sentenceCount,
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
@@ -633,6 +654,8 @@ struct AppleBookCreateView: View {
         let draft = AppleBookCreatePresentation.narrateEbookDraft(
             inputFile: sourcePath,
             baseOutput: sourceBaseOutput,
+            summary: bookSummary,
+            year: bookYear,
             startSentence: sourceStartSentence,
             endSentence: sourceEndSentence,
             inputLanguage: inputLanguage,
