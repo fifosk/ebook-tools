@@ -9,6 +9,29 @@
     },
     {
       "action": "navigate_tab",
+      "tab": "Settings",
+      "selector": "browseSectionSettingsButton",
+      "screenshot": "settings_runtime_contract"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "settingsCreateContractRow",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsCreateContractRow",
+      "text": "/api/books/options",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsCreateContractRow",
+      "text": "/api/books/jobs",
+      "timeout": 20
+    },
+    {
+      "action": "navigate_tab",
       "tab": "Create",
       "selector": "browseSectionCreateButton",
       "screenshot": "create_tab"

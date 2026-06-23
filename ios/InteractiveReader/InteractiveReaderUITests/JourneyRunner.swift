@@ -112,6 +112,8 @@ final class JourneyRunner {
             doSelectOption(step)
         case "assert_non_empty_value":
             try doAssertNonEmptyValue(step)
+        case "assert_value_contains":
+            doAssertValueContains(step)
         case "wait":
             doWait(step)
         default:
@@ -412,6 +414,35 @@ final class JourneyRunner {
             throw XCTSkip("\(identifier) did not receive a non-empty value")
         }
         XCTFail("\(identifier) should have a non-empty value; latest value was \(latestValue)")
+    }
+
+    private func doAssertValueContains(_ step: JourneyStep) {
+        guard let identifier = step.selector else {
+            XCTFail("assert_value_contains requires selector")
+            return
+        }
+        guard let expectedText = step.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !expectedText.isEmpty else {
+            XCTFail("assert_value_contains requires text")
+            return
+        }
+
+        let timeout = TimeInterval(step.timeout ?? 10)
+        let deadline = Date().addingTimeInterval(timeout)
+        let element = element(withIdentifier: identifier)
+        var latestValue = ""
+
+        while Date() < deadline {
+            if element.exists {
+                latestValue = normalizedValue(for: element)
+                if latestValue.localizedCaseInsensitiveContains(expectedText) {
+                    return
+                }
+            }
+            usleep(200_000)
+        }
+
+        XCTFail("\(identifier) value should contain \(expectedText); latest value was \(latestValue)")
     }
 
     private func doWait(_ step: JourneyStep) {
