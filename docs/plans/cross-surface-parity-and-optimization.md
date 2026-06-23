@@ -43,10 +43,10 @@ Large Web UI hotspots to split before redesign work:
 - `web/src/pages/LibraryPage.tsx` - 1188 lines. Status: TV/YouTube/library
   title, author, genre, thumbnail, and upload-date helpers now live in
   `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
-- `web/src/pages/VideoDubbingPage.tsx` - 1252 lines. Status: inline
-  subtitle defaulting and voice inventory option building now live in
-  `web/src/pages/video-dubbing/videoDubbingUtils.ts` with focused Vitest
-  coverage.
+- `web/src/pages/VideoDubbingPage.tsx` - 1199 lines. Status: inline
+  subtitle defaulting, voice inventory option building, and job-parameter
+  prefill mapping now live in `web/src/pages/video-dubbing/videoDubbingUtils.ts`
+  with focused Vitest coverage.
 - `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1119 lines.
   Status: subtitle cue lookup, token navigation, selection shadowing, clamp
   math, track variant mapping, and TTS voice option helpers now live in
@@ -194,7 +194,8 @@ Refactor before restyling:
   `web/src/pages/library/libraryPageMetadata.ts`.
 - Isolate YouTube dubbing helpers before visual redesign. Status:
   `VideoDubbingPage.tsx` now imports tested helpers for inline subtitle
-  extraction defaults and target-language voice option building from
+  extraction defaults, target-language voice option building, and rerun-prefill
+  mapping from
   `web/src/pages/video-dubbing/videoDubbingUtils.ts`.
 - Isolate job progress math before visual redesign. Status:
   `JobProgress.tsx` now imports tested helpers for generated-file stat lookup,

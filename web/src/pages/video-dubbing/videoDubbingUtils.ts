@@ -1,4 +1,5 @@
 import type {
+  JobParameterSnapshot,
   MacOSVoice,
   VoiceInventoryResponse,
   YoutubeInlineSubtitleStream,
@@ -340,4 +341,73 @@ export function formatOffsetLabel(value: number | null | undefined): string {
     return [hours, minutes, seconds].map((component) => component.toString().padStart(2, '0')).join(':');
   }
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+export type VideoDubPrefillValues = {
+  videoPath?: string;
+  subtitlePath?: string;
+  targetLanguage?: string;
+  voice?: string;
+  startOffset?: string;
+  endOffset?: string;
+  originalMixPercent: number;
+  flushSentences?: number;
+  translationBatchSize?: number;
+  targetHeight: number;
+  preserveAspectRatio: boolean;
+  splitBatches: boolean;
+  llmModel?: string;
+  translationProvider?: string;
+  transliterationMode?: string;
+  transliterationModel?: string;
+  includeTransliteration: boolean;
+};
+
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function trimmedString(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+export function resolveVideoDubPrefill(
+  parameters: JobParameterSnapshot | null | undefined
+): VideoDubPrefillValues | null {
+  if (!parameters) {
+    return null;
+  }
+  const targetLanguages = Array.isArray(parameters.target_languages)
+    ? parameters.target_languages
+        .map((entry) => trimmedString(entry))
+        .filter((entry): entry is string => Boolean(entry))
+    : [];
+
+  const startSeconds = finiteNumber(parameters.start_time_offset_seconds);
+  const endSeconds = finiteNumber(parameters.end_time_offset_seconds);
+  return {
+    videoPath: trimmedString(parameters.input_file) ?? trimmedString(parameters.video_path),
+    subtitlePath: trimmedString(parameters.subtitle_path),
+    targetLanguage: targetLanguages[0],
+    voice: typeof parameters.selected_voice === 'string' ? parameters.selected_voice.trim() : undefined,
+    startOffset: startSeconds === undefined ? undefined : formatOffsetLabel(startSeconds),
+    endOffset: endSeconds === undefined ? undefined : formatOffsetLabel(endSeconds),
+    originalMixPercent: finiteNumber(parameters.original_mix_percent) ?? 5,
+    flushSentences: finiteNumber(parameters.flush_sentences),
+    translationBatchSize: finiteNumber(parameters.translation_batch_size),
+    targetHeight: finiteNumber(parameters.target_height) ?? 480,
+    preserveAspectRatio:
+      typeof parameters.preserve_aspect_ratio === 'boolean' ? parameters.preserve_aspect_ratio : true,
+    splitBatches: typeof parameters.split_batches === 'boolean' ? parameters.split_batches : true,
+    llmModel: trimmedString(parameters.llm_model),
+    translationProvider: trimmedString(parameters.translation_provider),
+    transliterationMode: trimmedString(parameters.transliteration_mode),
+    transliterationModel: trimmedString(parameters.transliteration_model),
+    includeTransliteration:
+      typeof parameters.include_transliteration === 'boolean' ? parameters.include_transliteration : true
+  };
 }

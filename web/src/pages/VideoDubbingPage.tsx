@@ -56,8 +56,8 @@ import {
   basenameFromPath,
   buildVoiceOptions,
   coerceRecord,
-  formatOffsetLabel,
   parseOffsetSeconds,
+  resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
   resolveDefaultSubtitle
 } from './video-dubbing/videoDubbingUtils';
@@ -477,18 +477,9 @@ export default function VideoDubbingPage({
       setLibrary(response);
       setBaseDir(response.base_dir || baseDir);
       if (response.videos.length > 0) {
-        const prefilledVideoPath =
-          prefillParameters?.input_file && typeof prefillParameters.input_file === 'string'
-            ? prefillParameters.input_file.trim()
-            : prefillParameters?.video_path && typeof prefillParameters.video_path === 'string'
-              ? prefillParameters.video_path.trim()
-              : null;
-        const prefilledSubtitlePath =
-          prefillParameters?.subtitle_path && typeof prefillParameters.subtitle_path === 'string'
-            ? prefillParameters.subtitle_path.trim()
-            : null;
-        const previousSelectedVideoPath = prefilledVideoPath || selectedVideoPathRef.current;
-        const previousSelectedSubtitlePath = prefilledSubtitlePath || selectedSubtitlePathRef.current;
+        const prefill = resolveVideoDubPrefill(prefillParameters);
+        const previousSelectedVideoPath = prefill?.videoPath || selectedVideoPathRef.current;
+        const previousSelectedSubtitlePath = prefill?.subtitlePath || selectedSubtitlePathRef.current;
         const nextVideo =
           response.videos.find((video) => video.path === previousSelectedVideoPath) ?? response.videos[0];
         setSelectedVideoPath(nextVideo.path);
@@ -622,96 +613,52 @@ export default function VideoDubbingPage({
   }, [cleanupPreviewAudio]);
 
   useEffect(() => {
-    if (!prefillParameters) {
+    const prefill = resolveVideoDubPrefill(prefillParameters);
+    if (!prefill) {
       return;
     }
-    if (prefillParameters.input_file && typeof prefillParameters.input_file === 'string') {
-      setSelectedVideoPath(prefillParameters.input_file.trim());
-    } else if (prefillParameters.video_path && typeof prefillParameters.video_path === 'string') {
-      setSelectedVideoPath(prefillParameters.video_path.trim());
+    if (prefill.videoPath) {
+      setSelectedVideoPath(prefill.videoPath);
     }
-    if (prefillParameters.subtitle_path && typeof prefillParameters.subtitle_path === 'string') {
-      setSelectedSubtitlePath(prefillParameters.subtitle_path.trim());
+    if (prefill.subtitlePath) {
+      setSelectedSubtitlePath(prefill.subtitlePath);
     }
-    const targets = Array.isArray(prefillParameters.target_languages)
-      ? prefillParameters.target_languages
-          .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
-          .filter((entry) => entry.length > 0)
-      : [];
-    if (targets.length > 0) {
-      applyTargetLanguage(targets[0]);
+    if (prefill.targetLanguage) {
+      applyTargetLanguage(prefill.targetLanguage);
     }
-    if (prefillParameters.selected_voice && typeof prefillParameters.selected_voice === 'string') {
-      setVoice(prefillParameters.selected_voice.trim());
+    if (prefill.voice !== undefined) {
+      setVoice(prefill.voice);
     }
-    if (
-      typeof prefillParameters.start_time_offset_seconds === 'number' &&
-      Number.isFinite(prefillParameters.start_time_offset_seconds)
-    ) {
-      setStartOffset(formatOffsetLabel(prefillParameters.start_time_offset_seconds));
+    if (prefill.startOffset !== undefined) {
+      setStartOffset(prefill.startOffset);
     }
-    if (
-      typeof prefillParameters.end_time_offset_seconds === 'number' &&
-      Number.isFinite(prefillParameters.end_time_offset_seconds)
-    ) {
-      setEndOffset(formatOffsetLabel(prefillParameters.end_time_offset_seconds));
+    if (prefill.endOffset !== undefined) {
+      setEndOffset(prefill.endOffset);
     }
-    if (
-      typeof prefillParameters.original_mix_percent === 'number' &&
-      Number.isFinite(prefillParameters.original_mix_percent)
-    ) {
-      setOriginalMixPercent(prefillParameters.original_mix_percent);
-    } else {
-      setOriginalMixPercent(5);
+    setOriginalMixPercent(prefill.originalMixPercent);
+    if (prefill.flushSentences !== undefined) {
+      setFlushSentences(prefill.flushSentences);
     }
-    if (
-      typeof prefillParameters.flush_sentences === 'number' &&
-      Number.isFinite(prefillParameters.flush_sentences)
-    ) {
-      setFlushSentences(prefillParameters.flush_sentences);
+    if (prefill.translationBatchSize !== undefined) {
+      setTranslationBatchSize(prefill.translationBatchSize);
     }
-    if (
-      typeof prefillParameters.translation_batch_size === 'number' &&
-      Number.isFinite(prefillParameters.translation_batch_size)
-    ) {
-      setTranslationBatchSize(prefillParameters.translation_batch_size);
+    setTargetHeight(prefill.targetHeight);
+    setPreserveAspectRatio(prefill.preserveAspectRatio);
+    setSplitBatches(prefill.splitBatches);
+    if (prefill.llmModel) {
+      setLlmModel(prefill.llmModel);
     }
-    if (
-      typeof prefillParameters.target_height === 'number' &&
-      Number.isFinite(prefillParameters.target_height)
-    ) {
-      setTargetHeight(prefillParameters.target_height);
-    } else {
-      setTargetHeight(480);
+    if (prefill.translationProvider) {
+      setTranslationProvider(prefill.translationProvider);
     }
-    if (typeof prefillParameters.preserve_aspect_ratio === 'boolean') {
-      setPreserveAspectRatio(prefillParameters.preserve_aspect_ratio);
-    } else {
-      setPreserveAspectRatio(true);
+    if (prefill.transliterationMode) {
+      setTransliterationMode(prefill.transliterationMode);
     }
-    if (typeof prefillParameters.split_batches === 'boolean') {
-      setSplitBatches(prefillParameters.split_batches);
-    } else {
-      setSplitBatches(true);
+    if (prefill.transliterationModel) {
+      setTransliterationModel(prefill.transliterationModel);
     }
-    if (prefillParameters.llm_model && typeof prefillParameters.llm_model === 'string') {
-      setLlmModel(prefillParameters.llm_model.trim());
-    }
-    if (prefillParameters.translation_provider && typeof prefillParameters.translation_provider === 'string') {
-      setTranslationProvider(prefillParameters.translation_provider.trim());
-    }
-    if (prefillParameters.transliteration_mode && typeof prefillParameters.transliteration_mode === 'string') {
-      setTransliterationMode(prefillParameters.transliteration_mode.trim());
-    }
-    if (prefillParameters.transliteration_model && typeof prefillParameters.transliteration_model === 'string') {
-      setTransliterationModel(prefillParameters.transliteration_model.trim());
-    }
-    if (typeof prefillParameters.include_transliteration === 'boolean') {
-      setIncludeTransliteration(prefillParameters.include_transliteration);
-    } else {
-      setIncludeTransliteration(true);
-    }
-  }, [applyTargetLanguage, formatOffsetLabel, prefillParameters]);
+    setIncludeTransliteration(prefill.includeTransliteration);
+  }, [applyTargetLanguage, prefillParameters]);
 
   useEffect(() => {
     if (playableSubtitles.length === 0) {
