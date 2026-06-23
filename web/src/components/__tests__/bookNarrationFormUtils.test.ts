@@ -261,17 +261,21 @@ describe('bookNarrationFormUtils form state helpers', () => {
         book_title: 'Example Book',
         book_author: 'Jane Doe',
         book_genre: 'Adventure',
+        book_language: 'eng',
         book_isbn: '9780140328721',
         isbn: 'legacy-isbn',
         genre: 'legacy-genre',
+        language: 'legacy-language',
       }),
     ).toEqual({
       book_title: 'Example Book',
       book_author: 'Jane Doe',
       book_genre: 'Adventure',
+      book_language: 'eng',
       book_isbn: '9780140328721',
       isbn: 'legacy-isbn',
       genre: 'legacy-genre',
+      language: 'legacy-language',
     });
   });
 

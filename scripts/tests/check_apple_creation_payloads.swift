@@ -893,6 +893,8 @@ struct AppleCreationPayloadCheck {
             bookMetadata: [
                 "book_title": .string("Demo Book"),
                 "book_genre": .string("technical"),
+                "book_language": .string("English"),
+                "language": .string("English"),
                 "book_year": .string("2026"),
                 "isbn": .string("9780140328721"),
                 "book_isbn": .string("9780140328721"),
@@ -906,6 +908,7 @@ struct AppleCreationPayloadCheck {
             config: [
                 "book_title": .string("Demo Book"),
                 "book_genre": .string("technical"),
+                "book_language": .string("English"),
                 "book_year": .string("2026"),
                 "book_isbn": .string("9780140328721"),
                 "book_summary": .string("A portable creation flow."),
@@ -953,6 +956,7 @@ struct AppleCreationPayloadCheck {
         require(pipelineObject["correlation_id"] as? String == "apple-smoke", "pipeline should encode correlation_id")
         let config = pipelineObject["config"] as? [String: Any]
         require(config?["book_genre"] as? String == "technical", "pipeline config should encode metadata genre")
+        require(config?["book_language"] as? String == "English", "pipeline config should encode metadata language")
         require(config?["book_summary"] as? String == "A portable creation flow.", "pipeline config should encode metadata summary")
         require(config?["book_year"] as? String == "2026", "pipeline config should encode metadata year")
         require(config?["book_isbn"] as? String == "9780140328721", "pipeline config should encode metadata ISBN")
@@ -1085,6 +1089,8 @@ struct AppleCreationPayloadCheck {
         let metadata = encodedInputs?["book_metadata"] as? [String: Any]
         require(metadata?["book_title"] as? String == "Demo Book", "pipeline inputs should encode book_metadata")
         require(metadata?["book_genre"] as? String == "technical", "pipeline inputs should encode metadata genre")
+        require(metadata?["book_language"] as? String == "English", "pipeline inputs should encode metadata language")
+        require(metadata?["language"] as? String == "English", "pipeline inputs should encode language alias")
         require(metadata?["book_year"] as? String == "2026", "pipeline inputs should encode metadata year")
         require(metadata?["isbn"] as? String == "9780140328721", "pipeline inputs should encode ISBN")
         require(metadata?["book_isbn"] as? String == "9780140328721", "pipeline inputs should encode metadata ISBN")
@@ -1115,6 +1121,8 @@ struct AppleCreationPayloadCheck {
             bookMetadata: [
                 "job_label": .string("apple/demo-narration"),
                 "source": .string("apple"),
+                "book_language": .string("English"),
+                "language": .string("English"),
                 "book_summary": .string("Imported EPUB summary."),
                 "book_year": .string("2025"),
                 "isbn": .string("9780000000002"),
@@ -1124,6 +1132,7 @@ struct AppleCreationPayloadCheck {
         )
         let narratePipeline = PipelineRequestPayload(
             config: [
+                "book_language": .string("English"),
                 "book_summary": .string("Imported EPUB summary."),
                 "book_year": .string("2025"),
                 "book_isbn": .string("9780000000002"),
@@ -1138,6 +1147,10 @@ struct AppleCreationPayloadCheck {
             "narrate pipeline should encode correlation_id"
         )
         let narrateConfig = narrateObject["config"] as? [String: Any]
+        require(
+            narrateConfig?["book_language"] as? String == "English",
+            "narrate pipeline config should encode metadata language"
+        )
         require(
             narrateConfig?["book_summary"] as? String == "Imported EPUB summary.",
             "narrate pipeline config should encode metadata summary"
@@ -1180,6 +1193,14 @@ struct AppleCreationPayloadCheck {
             "narrate pipeline should keep backend lookup-cache default"
         )
         let narrateMetadata = narrateInputs?["book_metadata"] as? [String: Any]
+        require(
+            narrateMetadata?["book_language"] as? String == "English",
+            "narrate pipeline metadata should encode language"
+        )
+        require(
+            narrateMetadata?["language"] as? String == "English",
+            "narrate pipeline metadata should encode language alias"
+        )
         require(
             narrateMetadata?["book_summary"] as? String == "Imported EPUB summary.",
             "narrate pipeline metadata should encode summary"

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.31",
+            version: "2026.06.23.32",
             entries: [
+                AppChangelogEntry(
+                    id: "book-language-metadata",
+                    title: "Book language metadata",
+                    detail: "Web and Apple book creation now preserve book_language in metadata and config payloads, and OpenLibrary lookup can carry source language hints into Web submissions."
+                ),
                 AppChangelogEntry(
                     id: "web-book-lookup-genre",
                     title: "Web lookup genre",

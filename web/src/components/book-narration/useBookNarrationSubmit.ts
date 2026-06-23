@@ -170,6 +170,9 @@ export function useBookNarrationSubmit({
         const metadataBookTitle = normalizeTextValue(json.book_metadata?.['book_title']);
         const metadataBookAuthor = normalizeTextValue(json.book_metadata?.['book_author']);
         const metadataBookGenre = normalizeTextValue(json.book_metadata?.['book_genre']);
+        const metadataBookLanguage =
+          normalizeTextValue(json.book_metadata?.['book_language']) ||
+          normalizeTextValue(json.book_metadata?.['language']);
         const metadataBookYear = normalizeTextValue(json.book_metadata?.['book_year']);
         const metadataBookIsbn =
           normalizeTextValue(json.book_metadata?.['book_isbn']) ||
@@ -184,6 +187,9 @@ export function useBookNarrationSubmit({
         }
         if (metadataBookGenre) {
           configOverrides['book_genre'] = metadataBookGenre;
+        }
+        if (metadataBookLanguage) {
+          configOverrides['book_language'] = metadataBookLanguage;
         }
         if (metadataBookYear) {
           configOverrides['book_year'] = metadataBookYear;

@@ -83,6 +83,24 @@ def _normalize_isbn(value: Any) -> Optional[str]:
     return None
 
 
+def _normalize_openlibrary_language(value: Any) -> Optional[str]:
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        if cleaned.startswith("/languages/"):
+            cleaned = cleaned.rsplit("/", 1)[-1]
+        return cleaned or None
+    if isinstance(value, Mapping):
+        return _normalize_openlibrary_language(value.get("key") or value.get("name"))
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        for entry in value:
+            normalized = _normalize_openlibrary_language(entry)
+            if normalized:
+                return normalized
+    return None
+
+
 def _normalize_title(value: str) -> Optional[str]:
     cleaned = value.strip()
     if not cleaned:
@@ -679,6 +697,8 @@ class MediaMetadataService:
         book_payload: Dict[str, Any] = {
             "title": result.title,
             "author": result.author,
+            "language": result.language,
+            "book_language": result.language,
             "year": str(result.year) if result.year else None,
             "summary": result.summary,
             "isbn": result.source_ids.isbn or result.source_ids.isbn_13,
@@ -937,6 +957,9 @@ class MediaMetadataService:
             job_label = _build_job_label(title=title, author=author, fallback=source_name)
             book_url = _normalize_text(isbn_payload.get("url"))
             book_key = _normalize_text(isbn_payload.get("key"))
+            language = _normalize_openlibrary_language(
+                isbn_payload.get("languages") or isbn_payload.get("language")
+            )
 
             # Extract subjects/genres from ISBN response
             subjects_raw = isbn_payload.get("subjects")
@@ -966,6 +989,8 @@ class MediaMetadataService:
                 "book": {
                     "title": title,
                     "author": author,
+                    "language": language,
+                    "book_language": language,
                     "year": year,
                     "summary": summary,
                     "isbn": query.isbn,
@@ -1044,11 +1069,19 @@ class MediaMetadataService:
             except Exception:
                 work = None
             if work is not None:
+                language = _normalize_openlibrary_language(work.get("languages") or work.get("language"))
                 description = work.get("description")
                 if isinstance(description, Mapping):
                     description = description.get("value")
                 if isinstance(description, str):
                     summary = _normalize_text(description) or summary
+            else:
+                language = None
+        else:
+            language = None
+        language = language or _normalize_openlibrary_language(
+            best_doc.get("language") or best_doc.get("languages")
+        )
 
         if summary:
             summary = _limit_summary_length(summary)
@@ -1088,6 +1121,8 @@ class MediaMetadataService:
             "book": {
                 "title": title,
                 "author": author,
+                "language": language,
+                "book_language": language,
                 "year": year,
                 "summary": summary,
                 "isbn": isbn,

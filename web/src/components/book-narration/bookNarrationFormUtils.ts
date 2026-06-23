@@ -312,6 +312,8 @@ export function extractBookMetadata(config: Record<string, unknown>): Record<str
     'book_genre',
     'book_genres',
     'genre',
+    'book_language',
+    'language',
     'book_year',
     'book_isbn',
     'isbn',

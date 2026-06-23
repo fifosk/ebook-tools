@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.32
+
+- Advanced visible Apple app versioning to `v2026.06.23.32`.
+- Web and Apple book creation now preserve `book_language` in metadata/config payloads, and OpenLibrary lookup can carry source language hints into Web submissions.
+
 ### 2026.06.23.31
 
 - Advanced visible Apple app versioning to `v2026.06.23.31`.

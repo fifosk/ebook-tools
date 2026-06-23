@@ -66,6 +66,25 @@ def _normalize_isbn(value: Any) -> Optional[str]:
     return None
 
 
+def _normalize_openlibrary_language(value: Any) -> Optional[str]:
+    """Normalize OpenLibrary language payloads to their first usable token."""
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        if cleaned.startswith("/languages/"):
+            cleaned = cleaned.rsplit("/", 1)[-1]
+        return cleaned or None
+    if isinstance(value, Mapping):
+        return _normalize_openlibrary_language(value.get("key") or value.get("name"))
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        for entry in value:
+            normalized = _normalize_openlibrary_language(entry)
+            if normalized:
+                return normalized
+    return None
+
+
 def _normalize_for_matching(value: Any) -> Optional[str]:
     """Normalize text for fuzzy matching."""
     if not isinstance(value, str):
@@ -395,6 +414,7 @@ class OpenLibraryClient(BaseMetadataClient):
         # Extract identifiers
         book_url = _normalize_text(data.get("url"))
         book_key = _normalize_text(data.get("key"))
+        language = _normalize_openlibrary_language(data.get("languages") or data.get("language"))
 
         source_ids = SourceIds(
             isbn=_normalize_isbn(query.isbn),
@@ -415,6 +435,7 @@ class OpenLibraryClient(BaseMetadataClient):
             contributing_sources=[MetadataSource.OPENLIBRARY],
             queried_at=datetime.now(timezone.utc),
             author=author,
+            language=language,
             raw_responses={"openlibrary_isbn": dict(data)} if options.include_raw_responses else {},
         )
 
@@ -465,12 +486,14 @@ class OpenLibraryClient(BaseMetadataClient):
 
         # Try to get full description from work
         work_key = _normalize_text(doc.get("key"))
+        language = _normalize_openlibrary_language(doc.get("language") or doc.get("languages"))
         if work_key:
             work = self._get(
                 f"{self._base_url}{work_key}.json",
                 timeout=options.timeout_seconds,
             )
             if work:
+                language = _normalize_openlibrary_language(work.get("languages") or work.get("language")) or language
                 description = work.get("description")
                 if isinstance(description, Mapping):
                     description = description.get("value")
@@ -519,6 +542,7 @@ class OpenLibraryClient(BaseMetadataClient):
             contributing_sources=[MetadataSource.OPENLIBRARY],
             queried_at=datetime.now(timezone.utc),
             author=author,
+            language=language,
             raw_responses={"openlibrary_search": dict(doc)} if options.include_raw_responses else {},
         )
 

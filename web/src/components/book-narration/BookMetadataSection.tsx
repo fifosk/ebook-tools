@@ -123,6 +123,9 @@ export default function BookMetadataSection({
     formatGenreValue(parsedMetadata?.['book_genre']) ||
     formatGenreValue(parsedMetadata?.['book_genres']) ||
     formatGenreValue(parsedMetadata?.['genre']);
+  const bookLanguage =
+    normalizeTextValue(parsedMetadata?.['book_language']) ||
+    normalizeTextValue(parsedMetadata?.['language']);
   const summary = normalizeTextValue(parsedMetadata?.['book_summary']);
   const coverAssetUrl = normalizeTextValue(parsedMetadata?.['job_cover_asset_url']);
   const coverUrl = normalizeTextValue(parsedMetadata?.['cover_url']);
@@ -445,6 +448,24 @@ export default function BookMetadataSection({
                     draft['book_genre'] = trimmed;
                   } else {
                     delete draft['book_genre'];
+                  }
+                });
+              }}
+            />
+          </label>
+          <label>
+            Language
+            <input
+              type="text"
+              value={bookLanguage ?? ''}
+              onChange={(event) => {
+                const value = event.target.value;
+                updateBookMetadata((draft) => {
+                  const trimmed = value.trim();
+                  if (trimmed) {
+                    draft['book_language'] = trimmed;
+                  } else {
+                    delete draft['book_language'];
                   }
                 });
               }}

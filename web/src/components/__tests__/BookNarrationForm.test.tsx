@@ -216,6 +216,7 @@ describe('BookNarrationForm', () => {
     fireEvent.change(screen.getByLabelText(/^Author$/i), { target: { value: 'Jane Doe' } });
     fireEvent.change(screen.getByLabelText(/^ISBN$/i), { target: { value: '9780140328721' } });
     fireEvent.change(screen.getByLabelText(/^Genre$/i), { target: { value: 'Adventure' } });
+    fireEvent.change(screen.getByLabelText(/^Language$/i), { target: { value: 'eng' } });
 
     await user.click(screen.getByRole('button', { name: /Submit job/i }));
 
@@ -225,12 +226,14 @@ describe('BookNarrationForm', () => {
       book_title: 'Example Book',
       book_author: 'Jane Doe',
       book_genre: 'Adventure',
+      book_language: 'eng',
       book_isbn: '9780140328721',
     });
     expect(payload.inputs.book_metadata).toMatchObject({
       book_title: 'Example Book',
       book_author: 'Jane Doe',
       book_genre: 'Adventure',
+      book_language: 'eng',
       book_isbn: '9780140328721',
       isbn: '9780140328721',
     });
@@ -252,6 +255,7 @@ describe('BookNarrationForm', () => {
           author: 'Jane Doe',
           isbn: '9780140328721',
           genre: ['Adventure', 'Fantasy'],
+          language: 'eng',
           summary: 'Lookup summary',
         },
       },
@@ -273,6 +277,7 @@ describe('BookNarrationForm', () => {
     await openFormTab(user, /Metadata/i);
     await waitFor(() => expect(lookupBookOpenLibraryMetadataPreview).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByLabelText(/^Genre$/i)).toHaveValue('Adventure, Fantasy'));
+    await waitFor(() => expect(screen.getByLabelText(/^Language$/i)).toHaveValue('eng'));
 
     await user.click(screen.getByRole('button', { name: /Submit job/i }));
 
@@ -282,12 +287,14 @@ describe('BookNarrationForm', () => {
       book_title: 'Lookup Book',
       book_author: 'Jane Doe',
       book_genre: 'Adventure, Fantasy',
+      book_language: 'eng',
       book_isbn: '9780140328721',
     });
     expect(payload.inputs.book_metadata).toMatchObject({
       book_title: 'Lookup Book',
       book_author: 'Jane Doe',
       book_genre: 'Adventure, Fantasy',
+      book_language: 'eng',
       book_isbn: '9780140328721',
       isbn: '9780140328721',
     });

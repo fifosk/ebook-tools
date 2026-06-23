@@ -79,6 +79,11 @@ export function useBookNarrationMetadata({
         formatGenreValue(book?.['genres']) ||
         formatGenreValue(lookup?.['genre']) ||
         formatGenreValue(lookup?.['genres']);
+      const bookLanguage =
+        normalizeTextValue(book?.['book_language']) ||
+        normalizeTextValue(book?.['language']) ||
+        normalizeTextValue(lookup?.['book_language']) ||
+        normalizeTextValue(lookup?.['language']);
       const isbn =
         normalizeTextValue(book?.['isbn']) ||
         normalizeTextValue(query?.['isbn']) ||
@@ -114,6 +119,9 @@ export function useBookNarrationMetadata({
         }
         if (bookGenre) {
           draft['book_genre'] = bookGenre;
+        }
+        if (bookLanguage) {
+          draft['book_language'] = bookLanguage;
         }
         if (isbn) {
           draft['isbn'] = isbn;

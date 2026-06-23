@@ -208,6 +208,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             title: draft.bookName,
             author: draft.author,
             genre: draft.genre,
+            language: draft.inputLanguage,
             summary: draft.summary,
             year: draft.year,
             isbn: draft.isbn,
@@ -274,6 +275,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             title: draft.baseOutput,
             author: nil,
             genre: nil,
+            language: draft.inputLanguage,
             summary: draft.summary,
             year: draft.year,
             isbn: draft.isbn,
@@ -317,6 +319,7 @@ final class AppleBookCreateViewModel: ObservableObject {
         title: String,
         author: String?,
         genre: String?,
+        language: String?,
         summary: String?,
         year: String?,
         isbn: String?,
@@ -336,6 +339,10 @@ final class AppleBookCreateViewModel: ObservableObject {
         if let genre = genre?.trimmingCharacters(in: .whitespacesAndNewlines), !genre.isEmpty {
             metadata["genre"] = .string(genre)
             metadata["book_genre"] = .string(genre)
+        }
+        if let language = language?.trimmingCharacters(in: .whitespacesAndNewlines), !language.isEmpty {
+            metadata["language"] = .string(language)
+            metadata["book_language"] = .string(language)
         }
         if let summary = summary?.trimmingCharacters(in: .whitespacesAndNewlines), !summary.isEmpty {
             metadata["book_summary"] = .string(summary)
@@ -426,6 +433,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             "book_title",
             "book_author",
             "book_genre",
+            "book_language",
             "book_year",
             "book_isbn",
             "book_summary",
