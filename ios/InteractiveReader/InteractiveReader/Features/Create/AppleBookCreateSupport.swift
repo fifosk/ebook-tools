@@ -203,6 +203,19 @@ struct AppleCreateChapterOption: Identifiable, Equatable {
     }
 }
 
+struct AppleCreateChapterRangeSelection: Equatable {
+    let startIndex: Int
+    let endIndex: Int
+    let startSentence: Int
+    let endSentence: Int
+    let count: Int
+    let label: String
+
+    var sentenceRangeLabel: String {
+        "sentences \(startSentence)-\(endSentence)"
+    }
+}
+
 enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {
     case english = "English"
     case arabic = "Arabic"
@@ -841,6 +854,29 @@ enum AppleBookCreatePresentation {
             )
         }
         return chapters
+    }
+
+    static func chapterRangeSelection(
+        chapters: [AppleCreateChapterOption],
+        startChapterID: String,
+        endChapterID: String
+    ) -> AppleCreateChapterRangeSelection? {
+        guard let startIndex = chapters.firstIndex(where: { $0.id == startChapterID }) else {
+            return nil
+        }
+        let requestedEndIndex = chapters.firstIndex(where: { $0.id == endChapterID }) ?? startIndex
+        let endIndex = max(startIndex, requestedEndIndex)
+        let startChapter = chapters[startIndex]
+        let endChapter = chapters[endIndex]
+        let endSentence = endChapter.endSentence ?? endChapter.startSentence
+        return AppleCreateChapterRangeSelection(
+            startIndex: startIndex,
+            endIndex: endIndex,
+            startSentence: startChapter.startSentence,
+            endSentence: max(startChapter.startSentence, endSentence),
+            count: endIndex - startIndex + 1,
+            label: startIndex == endIndex ? startChapter.title : "\(startChapter.title) - \(endChapter.title)"
+        )
     }
 
     static func submitButtonPresentation(

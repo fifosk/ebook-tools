@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.41
+
+- Advanced visible Apple app versioning to `v2026.06.23.41`.
+- Apple Narrate EPUB chapter selection now supports a consecutive start-to-end chapter range, matching the Web processing-window behavior.
+
 ### 2026.06.23.40
 
 - Advanced visible Apple app versioning to `v2026.06.23.40`.

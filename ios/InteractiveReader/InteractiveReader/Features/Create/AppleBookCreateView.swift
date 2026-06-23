@@ -28,7 +28,8 @@ struct AppleBookCreateView: View {
     @State private var sourceBaseOutput = ""
     @State private var sourceStartSentence = "1"
     @State private var sourceEndSentence = ""
-    @State private var selectedNarrateChapterID = ""
+    @State private var selectedNarrateStartChapterID = ""
+    @State private var selectedNarrateEndChapterID = ""
     @State private var subtitleSourcePath = ""
     @State private var youtubeVideoPath = ""
     @State private var youtubeSubtitlePath = ""
@@ -176,7 +177,8 @@ struct AppleBookCreateView: View {
             selectedNarrateFileName: selectedNarrateFileName,
             selectedSubtitleFileName: selectedSubtitleFileName,
             narrateChapterOptions: viewModel.narrateChapterOptions,
-            selectedNarrateChapterID: $selectedNarrateChapterID,
+            selectedNarrateStartChapterID: $selectedNarrateStartChapterID,
+            selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
             narrateChaptersErrorMessage: viewModel.narrateChaptersErrorMessage,
             onLoadNarrateChapters: loadNarrateChapters,
@@ -755,13 +757,15 @@ struct AppleBookCreateView: View {
 
     private func loadNarrateChapters() {
         Task {
-            selectedNarrateChapterID = ""
+            selectedNarrateStartChapterID = ""
+            selectedNarrateEndChapterID = ""
             await viewModel.loadNarrateChapters(inputFile: sourcePath, using: appState)
         }
     }
 
     private func clearNarrateChapterSelection() {
-        selectedNarrateChapterID = ""
+        selectedNarrateStartChapterID = ""
+        selectedNarrateEndChapterID = ""
         viewModel.clearNarrateChapters()
     }
 

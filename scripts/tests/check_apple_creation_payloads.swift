@@ -309,6 +309,38 @@ struct AppleCreationPayloadCheck {
             ),
             "Apple Narrate EPUB chapter parser should accept camelCase sentence fields and TOC labels"
         )
+        let chapterRange = AppleBookCreatePresentation.chapterRangeSelection(
+            chapters: chapters,
+            startChapterID: "intro",
+            endChapterID: "chapter-2"
+        )
+        require(
+            chapterRange == AppleCreateChapterRangeSelection(
+                startIndex: 0,
+                endIndex: 1,
+                startSentence: 1,
+                endSentence: 12,
+                count: 2,
+                label: "Intro - Second"
+            ),
+            "Apple Narrate EPUB chapter range picker should resolve consecutive chapter windows"
+        )
+        let clampedChapterRange = AppleBookCreatePresentation.chapterRangeSelection(
+            chapters: chapters,
+            startChapterID: "chapter-2",
+            endChapterID: "intro"
+        )
+        require(
+            clampedChapterRange == AppleCreateChapterRangeSelection(
+                startIndex: 1,
+                endIndex: 1,
+                startSentence: 6,
+                endSentence: 12,
+                count: 1,
+                label: "Second"
+            ),
+            "Apple Narrate EPUB chapter range picker should clamp end chapters before the start"
+        )
         require(
             AppleBookCreatePresentation.clampAssFontSize(4) == AppleSubtitleAssTypography.fontSizeRange.lowerBound,
             "ASS font size should clamp to lower bound"

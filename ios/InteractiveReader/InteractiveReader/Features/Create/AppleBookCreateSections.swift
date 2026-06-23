@@ -14,7 +14,8 @@ struct AppleBookCreateSourceSection: View {
     let selectedNarrateFileName: String?
     let selectedSubtitleFileName: String?
     let narrateChapterOptions: [AppleCreateChapterOption]
-    @Binding var selectedNarrateChapterID: String
+    @Binding var selectedNarrateStartChapterID: String
+    @Binding var selectedNarrateEndChapterID: String
     let isLoadingNarrateChapters: Bool
     let narrateChaptersErrorMessage: String?
     let onLoadNarrateChapters: () -> Void
@@ -84,15 +85,37 @@ struct AppleBookCreateSourceSection: View {
                 .accessibilityIdentifier("createNarrateChaptersMessage")
         }
         if !narrateChapterOptions.isEmpty {
-            Picker("Chapter range", selection: $selectedNarrateChapterID) {
+            Picker("Start chapter", selection: $selectedNarrateStartChapterID) {
                 Text("Manual sentence range").tag("")
                 ForEach(narrateChapterOptions) { chapter in
                     Text(chapter.pickerLabel).tag(chapter.id)
                 }
             }
-            .accessibilityIdentifier("createNarrateChapterPicker")
-            .onChange(of: selectedNarrateChapterID) { _, newValue in
-                applyNarrateChapterSelection(newValue)
+            .accessibilityIdentifier("createNarrateStartChapterPicker")
+            .onChange(of: selectedNarrateStartChapterID) { _, newValue in
+                applyNarrateChapterRangeSelection(startID: newValue, endID: selectedNarrateEndChapterID)
+            }
+
+            if !selectedNarrateStartChapterID.isEmpty {
+                Picker("End chapter", selection: $selectedNarrateEndChapterID) {
+                    ForEach(narrateChapterOptions) { chapter in
+                        Text(chapter.pickerLabel).tag(chapter.id)
+                    }
+                }
+                .accessibilityIdentifier("createNarrateEndChapterPicker")
+                .onChange(of: selectedNarrateEndChapterID) { _, newValue in
+                    applyNarrateChapterRangeSelection(startID: selectedNarrateStartChapterID, endID: newValue)
+                }
+                if let selection = AppleBookCreatePresentation.chapterRangeSelection(
+                    chapters: narrateChapterOptions,
+                    startChapterID: selectedNarrateStartChapterID,
+                    endChapterID: selectedNarrateEndChapterID
+                ) {
+                    Text("\(selection.label) · \(selection.sentenceRangeLabel)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("createNarrateChapterRangeSummary")
+                }
             }
         }
         TextField("Output path", text: $sourceBaseOutput)
@@ -111,12 +134,24 @@ struct AppleBookCreateSourceSection: View {
             .accessibilityIdentifier("createNarrateEndSentenceField")
     }
 
-    private func applyNarrateChapterSelection(_ chapterID: String) {
-        guard let chapter = narrateChapterOptions.first(where: { $0.id == chapterID }) else {
+    private func applyNarrateChapterRangeSelection(startID: String, endID: String) {
+        guard !startID.isEmpty else {
+            selectedNarrateEndChapterID = ""
             return
         }
-        sourceStartSentence = "\(chapter.startSentence)"
-        sourceEndSentence = chapter.endSentence.map { "\($0)" } ?? ""
+        guard let selection = AppleBookCreatePresentation.chapterRangeSelection(
+            chapters: narrateChapterOptions,
+            startChapterID: startID,
+            endChapterID: endID
+        ) else {
+            return
+        }
+        let resolvedEndID = narrateChapterOptions[selection.endIndex].id
+        if selectedNarrateEndChapterID != resolvedEndID {
+            selectedNarrateEndChapterID = resolvedEndID
+        }
+        sourceStartSentence = "\(selection.startSentence)"
+        sourceEndSentence = "\(selection.endSentence)"
     }
 
     @ViewBuilder
