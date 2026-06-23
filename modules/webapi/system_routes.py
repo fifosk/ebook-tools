@@ -62,8 +62,8 @@ def _get_config_repository():
     return ConfigRepository()
 
 
-def _queue_pressure_status(job_manager: PipelineJobManager) -> QueuePressureStatus:
-    """Return a token-safe queue/backpressure snapshot for admin status views."""
+def queue_pressure_status(job_manager: PipelineJobManager) -> QueuePressureStatus:
+    """Return a token-safe queue/backpressure snapshot for status views."""
 
     state = job_manager.backpressure_state
     policy = getattr(job_manager, "backpressure_policy", None)
@@ -122,7 +122,7 @@ def get_system_status(
         pending_changes=False,  # Could track pending changes
         restart_required=_RESTART_SCHEDULED or len(_PENDING_RESTART_KEYS) > 0,
         restart_keys=list(_PENDING_RESTART_KEYS),
-        queue_pressure=_queue_pressure_status(job_manager),
+        queue_pressure=queue_pressure_status(job_manager),
     )
 
 

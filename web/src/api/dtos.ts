@@ -26,6 +26,16 @@ export interface PipelineDefaultsResponse {
   config: Record<string, unknown>;
 }
 
+export interface PipelineIntakeStatusResponse {
+  acceptingJobs: boolean;
+  isUnderPressure: boolean;
+  queueDepth: number;
+  activeCount: number;
+  softLimit?: number | null;
+  hardLimit?: number | null;
+  delayCount: number;
+}
+
 export interface LookupCacheAudioRef {
   chunk_id: string;
   sentence_idx: number;

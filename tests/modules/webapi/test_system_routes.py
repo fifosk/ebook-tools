@@ -230,6 +230,75 @@ def test_admin_system_status_returns_queue_pressure_snapshot(admin_system_client
     }
 
 
+def test_pipeline_intake_status_returns_editor_queue_snapshot(tmp_path) -> None:
+    auth_service = AuthService(
+        LocalUserStore(storage_path=tmp_path / "users.json"),
+        SessionManager(session_file=tmp_path / "sessions.json"),
+    )
+    auth_service.user_store.create_user("editor", "secret", roles=["editor"])
+    editor_token = auth_service.session_manager.create_session("editor")
+
+    manager = _FakeJobManager(
+        state=BackpressureState(
+            queue_depth=4,
+            pending_count=4,
+            active_count=2,
+            rejection_count=9,
+            delay_count=7,
+            is_under_pressure=True,
+        ),
+        policy=BackpressurePolicy(soft_limit=3, hard_limit=6),
+        accepting=True,
+    )
+
+    app = create_app()
+    app.dependency_overrides[get_auth_service] = lambda: auth_service
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: manager
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/pipelines/intake/status",
+            headers={"Authorization": f"Bearer {editor_token}"},
+        )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "acceptingJobs": True,
+        "isUnderPressure": True,
+        "queueDepth": 4,
+        "activeCount": 2,
+        "softLimit": 3,
+        "hardLimit": 6,
+        "delayCount": 7,
+    }
+    assert "rejectionCount" not in response.json()
+
+
+def test_pipeline_intake_status_rejects_viewer(tmp_path) -> None:
+    auth_service = AuthService(
+        LocalUserStore(storage_path=tmp_path / "users.json"),
+        SessionManager(session_file=tmp_path / "sessions.json"),
+    )
+    auth_service.user_store.create_user("viewer", "secret", roles=["viewer"])
+    viewer_token = auth_service.session_manager.create_session("viewer")
+
+    app = create_app()
+    app.dependency_overrides[get_auth_service] = lambda: auth_service
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: _FakeJobManager()
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/pipelines/intake/status",
+            headers={"Authorization": f"Bearer {viewer_token}"},
+        )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+
+
 def test_restart_request_rejects_when_pipeline_jobs_are_running(admin_system_client) -> None:
     client, admin_token, manager = admin_system_client
     manager._jobs = {

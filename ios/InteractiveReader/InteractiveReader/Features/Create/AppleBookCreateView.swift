@@ -146,6 +146,7 @@ struct AppleBookCreateView: View {
         #endif
         .task(id: creationOptionsLoadKey) {
             await refreshCreationOptions()
+            await viewModel.loadIntakeStatus(using: appState, cacheKey: creationOptionsLoadKey)
             await viewModel.loadSubtitleModels(using: appState, cacheKey: creationOptionsLoadKey)
         }
         #if os(iOS)
@@ -459,6 +460,14 @@ struct AppleBookCreateView: View {
             }
         }
 
+        if let intakeStatus = viewModel.intakeStatus {
+            Section {
+                Label(intakeStatusLabel(for: intakeStatus), systemImage: intakeStatusSystemImage(for: intakeStatus))
+                    .foregroundStyle(intakeStatusForegroundStyle(for: intakeStatus))
+                    .accessibilityIdentifier("createBookIntakeStatusLabel")
+            }
+        }
+
         if let submittedJobId = viewModel.submittedJobId {
             Section {
                 Label("Job \(submittedJobId)", systemImage: "checkmark.circle.fill")
@@ -485,7 +494,7 @@ struct AppleBookCreateView: View {
                 )
                 Label(presentation.title, systemImage: presentation.systemImage)
             }
-            .disabled(!canSubmit || viewModel.isSubmitting)
+            .disabled(!canSubmit || viewModel.isSubmitting || isIntakeAtCapacity)
             .accessibilityIdentifier("createBookSubmitButton")
             #if !os(tvOS)
             if let handoffURL = webCreateHandoffURL {
@@ -502,6 +511,10 @@ struct AppleBookCreateView: View {
 
     private var canSubmit: Bool {
         AppleBookCreatePresentation.canSubmit(submitState)
+    }
+
+    private var isIntakeAtCapacity: Bool {
+        viewModel.intakeStatus?.acceptingJobs == false
     }
 
     private var submitState: AppleCreateSubmitState {
@@ -530,6 +543,37 @@ struct AppleBookCreateView: View {
             apiBaseURL: appState.apiBaseURL,
             mode: creationMode
         )
+    }
+
+    private func intakeStatusLabel(for status: PipelineIntakeStatusResponse) -> String {
+        if !status.acceptingJobs {
+            let limit = status.hardLimit.map { " of \($0)" } ?? ""
+            return "Queue at capacity: \(status.queueDepth) pending\(limit). Wait for jobs to clear."
+        }
+        if status.isUnderPressure {
+            return "Queue pressure: \(status.queueDepth) pending, \(status.activeCount) running. New jobs may start more slowly."
+        }
+        return "Job intake available: \(status.queueDepth) pending, \(status.activeCount) running."
+    }
+
+    private func intakeStatusSystemImage(for status: PipelineIntakeStatusResponse) -> String {
+        if !status.acceptingJobs {
+            return "pause.circle.fill"
+        }
+        if status.isUnderPressure {
+            return "clock.badge.exclamationmark"
+        }
+        return "checkmark.circle.fill"
+    }
+
+    private func intakeStatusForegroundStyle(for status: PipelineIntakeStatusResponse) -> Color {
+        if !status.acceptingJobs {
+            return .red
+        }
+        if status.isUnderPressure {
+            return .orange
+        }
+        return .green
     }
 
     private var derivedBaseOutput: String {

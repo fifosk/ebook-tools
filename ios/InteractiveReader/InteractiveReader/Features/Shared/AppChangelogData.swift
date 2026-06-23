@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.50",
+            version: "2026.06.23.51",
             entries: [
+                AppChangelogEntry(
+                    id: "create-intake-status",
+                    title: "Create checks intake",
+                    detail: "Web and Apple Create now show backend job intake status before submission, warning under queue pressure and blocking submit when the backend is at capacity."
+                ),
                 AppChangelogEntry(
                     id: "web-backend-queue-pressure",
                     title: "Queue pressure status",

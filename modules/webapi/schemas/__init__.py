@@ -84,6 +84,7 @@ from .pipeline_requests import (
     PipelineDefaultsResponse,
     PipelineFileDeleteRequest,
     PipelineInputPayload,
+    PipelineIntakeStatusResponse,
     PipelineRequestPayload,
     PipelineSubmissionResponse,
 )
@@ -202,6 +203,7 @@ __all__ = [
     "PipelineFileDeleteRequest",
     "PipelineFileEntry",
     "PipelineInputPayload",
+    "PipelineIntakeStatusResponse",
     "PipelineJobActionResponse",
     "PipelineJobListResponse",
     "PipelineMediaChunk",

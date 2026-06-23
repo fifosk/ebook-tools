@@ -151,6 +151,16 @@ struct PipelineSubmissionResponse: Decodable, Equatable {
     let jobType: String
 }
 
+struct PipelineIntakeStatusResponse: Decodable, Equatable {
+    let acceptingJobs: Bool
+    let isUnderPressure: Bool
+    let queueDepth: Int
+    let activeCount: Int
+    let softLimit: Int?
+    let hardLimit: Int?
+    let delayCount: Int
+}
+
 struct PipelineFileEntry: Decodable, Equatable {
     let name: String
     let path: String

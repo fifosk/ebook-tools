@@ -4,11 +4,13 @@ import userEvent from '@testing-library/user-event';
 import {
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
+  PipelineIntakeStatusResponse,
   PipelineRequestPayload
 } from '../../api/dtos';
 import {
   fetchPipelineDefaults,
   fetchPipelineFiles,
+  fetchPipelineIntakeStatus,
   fetchLlmModels,
   fetchVoiceInventory,
   checkImageNodeAvailability,
@@ -22,6 +24,7 @@ import { BookNarrationForm } from '../book-narration/BookNarrationForm';
 vi.mock('../../api/client', () => ({
   fetchPipelineFiles: vi.fn(),
   fetchPipelineDefaults: vi.fn(),
+  fetchPipelineIntakeStatus: vi.fn(),
   fetchLlmModels: vi.fn(),
   fetchVoiceInventory: vi.fn(),
   checkImageNodeAvailability: vi.fn(),
@@ -100,6 +103,7 @@ beforeEach(() => {
         resolveDefaults = resolve;
       })
   );
+  vi.mocked(fetchPipelineIntakeStatus).mockResolvedValue(null);
   vi.mocked(fetchLlmModels).mockResolvedValue([]);
   vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [], piper: [] });
   vi.mocked(checkImageNodeAvailability).mockResolvedValue({
@@ -196,6 +200,38 @@ describe('BookNarrationForm', () => {
     expect(payload.inputs.generate_audio).toBe(true);
     expect(payload.inputs.voice_overrides).toEqual({ en: 'macOS-auto' });
     expect(payload.pipeline_overrides.voice_overrides).toEqual({ en: 'macOS-auto' });
+  }, 10000);
+
+  it('shows queue capacity and blocks submit when intake is closed', async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
+    const intake: PipelineIntakeStatusResponse = {
+      acceptingJobs: false,
+      isUnderPressure: true,
+      queueDepth: 6,
+      activeCount: 2,
+      softLimit: 3,
+      hardLimit: 6,
+      delayCount: 5
+    };
+    vi.mocked(fetchPipelineIntakeStatus).mockResolvedValue(intake);
+
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={handleSubmit} />);
+    });
+
+    await waitFor(() => expect(fetchPipelineIntakeStatus).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.clear(screen.getByLabelText(/Input file path/i));
+    await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
+    await user.clear(screen.getByLabelText(/Base output file/i));
+    await user.type(screen.getByLabelText(/Base output file/i), 'output');
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Job queue is at capacity');
+    expect(screen.getByRole('button', { name: /Submit job/i })).toBeDisabled();
+    expect(handleSubmit).not.toHaveBeenCalled();
   }, 10000);
 
   it('promotes edited genre and ISBN metadata into config overrides on submit', async () => {

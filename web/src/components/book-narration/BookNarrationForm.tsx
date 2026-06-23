@@ -5,7 +5,8 @@ import {
   useRef,
   useState
 } from 'react';
-import { PipelineStatusResponse } from '../../api/dtos';
+import { PipelineIntakeStatusResponse, PipelineStatusResponse } from '../../api/dtos';
+import { fetchPipelineIntakeStatus } from '../../api/client';
 import {
   AUDIO_MODE_OPTIONS,
   AUDIO_QUALITY_OPTIONS,
@@ -116,6 +117,7 @@ export function BookNarrationForm({
         ? sharedEnableLookupCache
         : DEFAULT_FORM_STATE.enable_lookup_cache
   }));
+  const [intakeStatus, setIntakeStatus] = useState<PipelineIntakeStatusResponse | null>(null);
   useEffect(() => {
     setFormState((previous) => applyImageDefaults(previous));
   }, [applyImageDefaults]);
@@ -517,6 +519,24 @@ export function BookNarrationForm({
     });
   }, [forcedBaseOutputFile]);
 
+  useEffect(() => {
+    let isMounted = true;
+    void fetchPipelineIntakeStatus()
+      .then((status) => {
+        if (isMounted) {
+          setIntakeStatus(status);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIntakeStatus(null);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const { handleSubmit } = useBookNarrationSubmit({
     formState,
     normalizedTargetLanguages,
@@ -543,11 +563,21 @@ export function BookNarrationForm({
     chapterSelectionMode,
     hasChapterSelection: Boolean(chapterSelection)
   });
-  const isSubmitDisabled = isSubmitting || missingRequirements.length > 0;
+  const isIntakeAtCapacity = intakeStatus?.acceptingJobs === false;
+  const isSubmitDisabled = isSubmitting || missingRequirements.length > 0 || isIntakeAtCapacity;
   const submitText = submitLabel ?? 'Submit job';
   const hasMissingRequirements = missingRequirements.length > 0;
   const missingRequirementText = formatList(missingRequirements);
   const canBrowseFiles = Boolean(fileOptions);
+  const intakeStatusMessage = intakeStatus
+    ? intakeStatus.acceptingJobs
+      ? intakeStatus.isUnderPressure
+        ? `Queue pressure: ${intakeStatus.queueDepth} pending and ${intakeStatus.activeCount} running. New jobs may start more slowly.`
+        : `Job intake is available: ${intakeStatus.queueDepth} pending and ${intakeStatus.activeCount} running.`
+      : `Job queue is at capacity: ${intakeStatus.queueDepth} pending${
+          intakeStatus.hardLimit ? ` of ${intakeStatus.hardLimit}` : ''
+        }. New submissions are paused until pending jobs clear.`
+    : null;
   return (
     <div className="pipeline-settings">
       {showInfoHeader ? (
@@ -582,6 +612,18 @@ export function BookNarrationForm({
             </button>
           </div>
         </div>
+        {intakeStatusMessage ? (
+          <div
+            className={`form-callout ${
+              isIntakeAtCapacity || intakeStatus?.isUnderPressure
+                ? 'form-callout--warning'
+                : 'form-callout--success'
+            }`}
+            role={isIntakeAtCapacity ? 'alert' : 'status'}
+          >
+            {intakeStatusMessage}
+          </div>
+        ) : null}
         {hasMissingRequirements ? (
           <div className="form-callout form-callout--warning" role="status">
             Provide {missingRequirementText} before submitting.

@@ -54,6 +54,18 @@ class PipelineDefaultsResponse(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
 
 
+class PipelineIntakeStatusResponse(BaseModel):
+    """Token-safe queue/backpressure snapshot for job creation surfaces."""
+
+    acceptingJobs: bool = Field(True, description="Whether new jobs are below the hard queue limit")
+    isUnderPressure: bool = Field(False, description="Whether pending jobs have reached the soft limit")
+    queueDepth: int = Field(0, description="Pending queue depth used for backpressure")
+    activeCount: int = Field(0, description="Currently running jobs")
+    softLimit: Optional[int] = Field(None, description="Pending depth where delays begin")
+    hardLimit: Optional[int] = Field(None, description="Pending depth where submissions are rejected")
+    delayCount: int = Field(0, description="Cumulative backpressure delays")
+
+
 class BookContentIndexResponse(BaseModel):
     """Response payload describing inferred chapter ranges for an EPUB."""
 

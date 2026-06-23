@@ -11,6 +11,7 @@ from ...services.llm_models import list_available_llm_models
 from ..dependencies import (
     RequestUserContext,
     RuntimeContextProvider,
+    get_pipeline_job_manager,
     get_request_user,
     get_runtime_context_provider,
 )
@@ -20,7 +21,10 @@ from ..schemas import (
     ImageNodeAvailabilityResponse,
     LLMModelListResponse,
     PipelineDefaultsResponse,
+    PipelineIntakeStatusResponse,
 )
+from ..system_routes import queue_pressure_status
+from modules.services.job_manager import PipelineJobManager
 from modules.permissions import normalize_role
 
 router = APIRouter()
@@ -56,6 +60,26 @@ async def get_pipeline_defaults(
         if candidate and not candidate.exists():
             stripped.pop("input_file", None)
     return PipelineDefaultsResponse(config=stripped)
+
+
+@router.get("/intake/status", response_model=PipelineIntakeStatusResponse)
+async def get_pipeline_intake_status(
+    job_manager: PipelineJobManager = Depends(get_pipeline_job_manager),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> PipelineIntakeStatusResponse:
+    """Return token-safe job-intake status for creation surfaces."""
+
+    _ensure_editor(request_user)
+    pressure = queue_pressure_status(job_manager)
+    return PipelineIntakeStatusResponse(
+        acceptingJobs=pressure.accepting_jobs,
+        isUnderPressure=pressure.is_under_pressure,
+        queueDepth=pressure.queue_depth,
+        activeCount=pressure.active_count,
+        softLimit=pressure.soft_limit,
+        hardLimit=pressure.hard_limit,
+        delayCount=pressure.delay_count,
+    )
 
 
 @router.get("/llm-models", response_model=LLMModelListResponse, status_code=status.HTTP_200_OK)

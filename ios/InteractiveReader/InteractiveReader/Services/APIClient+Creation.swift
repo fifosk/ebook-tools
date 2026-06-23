@@ -6,6 +6,11 @@ extension APIClient {
         return try decode(BookCreationOptionsResponse.self, from: data)
     }
 
+    func fetchPipelineIntakeStatus() async throws -> PipelineIntakeStatusResponse {
+        let data = try await sendRequest(path: "/api/pipelines/intake/status")
+        return try decode(PipelineIntakeStatusResponse.self, from: data)
+    }
+
     func fetchSubtitleLlmModels() async throws -> LLMModelListResponse {
         let data = try await sendRequest(path: "/api/subtitles/models")
         return try decode(LLMModelListResponse.self, from: data)

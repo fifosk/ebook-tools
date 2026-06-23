@@ -21,6 +21,7 @@ import type {
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
   PipelineFileEntry,
+  PipelineIntakeStatusResponse,
   PipelineJobActionResponse,
   PipelineJobListResponse,
   PipelineRequestPayload,
@@ -133,6 +134,14 @@ export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse>
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {
   const response = await apiFetch('/api/pipelines/defaults');
   return handleResponse<PipelineDefaultsResponse>(response);
+}
+
+export async function fetchPipelineIntakeStatus(): Promise<PipelineIntakeStatusResponse | null> {
+  const response = await apiFetch('/api/pipelines/intake/status', {}, { suppressUnauthorized: true });
+  if (response.status === 401 || response.status === 403) {
+    return null;
+  }
+  return handleResponse<PipelineIntakeStatusResponse>(response);
 }
 
 export async function fetchBookContentIndex(inputFile: string): Promise<BookContentIndexResponse> {

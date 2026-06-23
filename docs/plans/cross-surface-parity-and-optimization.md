@@ -355,8 +355,12 @@ Suggested features to evaluate after parity scaffolding:
 - Backend queue pressure indicator: expose accepting/backpressure state in Settings before users submit long jobs. Status:
   Web admin System status now shows job intake state, pending queue depth,
   active running jobs, and soft-limit warnings from the backend
-  `/api/admin/system/status` response; the shared pipeline backend gate now
-  includes the focused system-route pytest.
+  `/api/admin/system/status` response; `/api/pipelines/intake/status` now
+  exposes a narrower authenticated editor/admin-safe queue snapshot for
+  creation surfaces; Web and Apple Create display that status before submit,
+  warn under pressure, and block submission when the backend hard queue limit
+  is reached. The shared pipeline backend gate now includes the focused
+  system-route pytest.
 - Smart resume cards: show "continue listening", "newly completed", and "needs attention" across all surfaces.
 - Shared media diagnostics: surface missing timing/audio/image assets without
   opening logs. Status: media manifest responses now include a token-safe

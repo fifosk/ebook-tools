@@ -51,6 +51,7 @@ export {
   fetchJobTiming,
   fetchPipelineFiles,
   fetchPipelineDefaults,
+  fetchPipelineIntakeStatus,
   fetchBookContentIndex,
   checkImageNodeAvailability,
   uploadEpubFile,

@@ -5,6 +5,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isSubmitting = false
     @Published private(set) var isLoadingOptions = false
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
+    @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
     @Published private(set) var subtitleLlmModels: [String] = []
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
     @Published private(set) var isLoadingNarrateChapters = false
@@ -13,6 +14,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var submittedJobId: String?
     private var loadedOptionsCacheKey: String?
+    private var loadedIntakeStatusCacheKey: String?
     private var loadedSubtitleModelsCacheKey: String?
 
     func loadCreationOptions(
@@ -62,6 +64,27 @@ final class AppleBookCreateViewModel: ObservableObject {
             loadedSubtitleModelsCacheKey = cacheKey
         } catch {
             return
+        }
+    }
+
+    func loadIntakeStatus(
+        using appState: AppState,
+        cacheKey: String,
+        force: Bool = false
+    ) async {
+        guard let configuration = appState.configuration else {
+            return
+        }
+        if !force, loadedIntakeStatusCacheKey == cacheKey {
+            return
+        }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            intakeStatus = try await client.fetchPipelineIntakeStatus()
+            loadedIntakeStatusCacheKey = cacheKey
+        } catch {
+            intakeStatus = nil
         }
     }
 

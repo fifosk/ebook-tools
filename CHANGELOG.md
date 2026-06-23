@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.51
+
+- Advanced visible Apple app versioning to `v2026.06.23.51`.
+- Web and Apple Create now show backend job intake status before submission, warning under queue pressure and blocking submit when the backend is at capacity.
+
 ### 2026.06.23.50
 
 - Advanced visible Apple app versioning to `v2026.06.23.50`.
