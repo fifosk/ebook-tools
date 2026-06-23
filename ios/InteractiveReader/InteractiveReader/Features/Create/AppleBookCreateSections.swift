@@ -402,6 +402,8 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var imageSteps: String
     @Binding var imageCfgScale: String
     @Binding var imageSamplerName: String
+    @Binding var imageSeedWithPreviousImage: Bool
+    @Binding var imageBlankDetectionEnabled: Bool
     let supportsImages: Bool
 
     var body: some View {
@@ -472,6 +474,10 @@ struct AppleBookCreateGeneratedOutputControls: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("createBookImageSamplerField")
+                Toggle("Seed from previous image", isOn: $imageSeedWithPreviousImage)
+                    .accessibilityIdentifier("createBookImageSeedPreviousToggle")
+                Toggle("Blank detection", isOn: $imageBlankDetectionEnabled)
+                    .accessibilityIdentifier("createBookImageBlankDetectionToggle")
                 #endif
             }
         }

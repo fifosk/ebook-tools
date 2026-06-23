@@ -24,6 +24,8 @@ struct AppleBookCreateDraft: Equatable {
     let imageSteps: Int?
     let imageCfgScale: Double?
     let imageSamplerName: String?
+    let imageSeedWithPreviousImage: Bool
+    let imageBlankDetectionEnabled: Bool
     let pipelineDefaults: BookCreationPipelineDefaults?
     let generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
 }
@@ -285,6 +287,8 @@ enum AppleBookCreateEditedField: Hashable {
     case imageSteps
     case imageCfgScale
     case imageSamplerName
+    case imageSeedWithPreviousImage
+    case imageBlankDetectionEnabled
 }
 
 struct AppleCreateResolvedDefaults: Equatable {
@@ -695,6 +699,8 @@ enum AppleBookCreatePresentation {
         imageSteps: String,
         imageCfgScale: String,
         imageSamplerName: String,
+        imageSeedWithPreviousImage: Bool,
+        imageBlankDetectionEnabled: Bool,
         pipelineDefaults: BookCreationPipelineDefaults?,
         generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
     ) -> AppleBookCreateDraft {
@@ -722,6 +728,8 @@ enum AppleBookCreatePresentation {
             imageSteps: normalizedImageSteps(imageSteps),
             imageCfgScale: normalizedImageCfgScale(imageCfgScale),
             imageSamplerName: trimmed(imageSamplerName).nonEmptyValue,
+            imageSeedWithPreviousImage: imageSeedWithPreviousImage,
+            imageBlankDetectionEnabled: imageBlankDetectionEnabled,
             pipelineDefaults: pipelineDefaults,
             generatedSourceDefaults: generatedSourceDefaults
         )

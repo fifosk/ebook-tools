@@ -199,7 +199,9 @@ final class AppleBookCreateViewModel: ObservableObject {
                 imageHeight: draft.imageHeight,
                 imageSteps: draft.imageSteps,
                 imageCfgScale: draft.imageCfgScale,
-                imageSamplerName: draft.imageSamplerName
+                imageSamplerName: draft.imageSamplerName,
+                imageSeedWithPreviousImage: draft.imageSeedWithPreviousImage,
+                imageBlankDetectionEnabled: draft.imageBlankDetectionEnabled
             ),
             correlationId: "apple-create",
             bookMetadata: [
@@ -305,7 +307,9 @@ final class AppleBookCreateViewModel: ObservableObject {
         imageHeight: String? = nil,
         imageSteps: Int? = nil,
         imageCfgScale: Double? = nil,
-        imageSamplerName: String? = nil
+        imageSamplerName: String? = nil,
+        imageSeedWithPreviousImage: Bool? = nil,
+        imageBlankDetectionEnabled: Bool? = nil
     ) -> [String: JSONValue] {
         var overrides = [String: JSONValue]()
         if let defaults {
@@ -354,6 +358,12 @@ final class AppleBookCreateViewModel: ObservableObject {
         if let imageSamplerName = imageSamplerName?.trimmingCharacters(in: .whitespacesAndNewlines),
            !imageSamplerName.isEmpty {
             overrides["image_sampler_name"] = .string(imageSamplerName)
+        }
+        if let imageSeedWithPreviousImage {
+            overrides["image_seed_with_previous_image"] = .bool(imageSeedWithPreviousImage)
+        }
+        if let imageBlankDetectionEnabled {
+            overrides["image_blank_detection_enabled"] = .bool(imageBlankDetectionEnabled)
         }
         return overrides
     }

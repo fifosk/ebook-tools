@@ -71,6 +71,8 @@ struct AppleBookCreateView: View {
     @State private var imageSteps = ""
     @State private var imageCfgScale = ""
     @State private var imageSamplerName = ""
+    @State private var imageSeedWithPreviousImage = false
+    @State private var imageBlankDetectionEnabled = false
     @State private var editedFields = Set<AppleBookCreateEditedField>()
 
     var body: some View {
@@ -285,6 +287,14 @@ struct AppleBookCreateView: View {
                     imageSteps: textBinding(for: .imageSteps, value: $imageSteps),
                     imageCfgScale: textBinding(for: .imageCfgScale, value: $imageCfgScale),
                     imageSamplerName: textBinding(for: .imageSamplerName, value: $imageSamplerName),
+                    imageSeedWithPreviousImage: boolBinding(
+                        for: .imageSeedWithPreviousImage,
+                        value: $imageSeedWithPreviousImage
+                    ),
+                    imageBlankDetectionEnabled: boolBinding(
+                        for: .imageBlankDetectionEnabled,
+                        value: $imageBlankDetectionEnabled
+                    ),
                     supportsImages: creationMode == .generatedBook
                 )
             }
@@ -438,6 +448,8 @@ struct AppleBookCreateView: View {
             imageSteps: imageSteps,
             imageCfgScale: imageCfgScale,
             imageSamplerName: imageSamplerName,
+            imageSeedWithPreviousImage: imageSeedWithPreviousImage,
+            imageBlankDetectionEnabled: imageBlankDetectionEnabled,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults,
             generatedSourceDefaults: viewModel.creationOptions?.generatedSourceDefaults
         )

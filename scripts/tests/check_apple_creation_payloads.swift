@@ -518,6 +518,8 @@ struct AppleCreationPayloadCheck {
             imageSteps: "0",
             imageCfgScale: "-1",
             imageSamplerName: " euler_a ",
+            imageSeedWithPreviousImage: true,
+            imageBlankDetectionEnabled: true,
             pipelineDefaults: options.pipelineDefaults,
             generatedSourceDefaults: options.generatedSourceDefaults
         )
@@ -555,6 +557,8 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.imageSteps == 1, "Generated draft should normalize selected image steps")
         require(generatedDraft.imageCfgScale == 0, "Generated draft should normalize selected CFG scale")
         require(generatedDraft.imageSamplerName == "euler_a", "Generated draft should trim selected sampler name")
+        require(generatedDraft.imageSeedWithPreviousImage, "Generated draft should keep previous-image seed toggle")
+        require(generatedDraft.imageBlankDetectionEnabled, "Generated draft should keep blank-detection toggle")
         require(generatedDraft.pipelineDefaults == options.pipelineDefaults, "Generated draft should carry pipeline defaults")
         require(
             generatedDraft.generatedSourceDefaults == options.generatedSourceDefaults,
@@ -686,6 +690,8 @@ struct AppleCreationPayloadCheck {
                 "image_steps": .number(28),
                 "image_cfg_scale": .number(7.5),
                 "image_sampler_name": .string("dpmpp_2m"),
+                "image_seed_with_previous_image": .bool(true),
+                "image_blank_detection_enabled": .bool(true),
                 "tempo": .number(1.08)
             ],
             inputs: input,
@@ -739,6 +745,14 @@ struct AppleCreationPayloadCheck {
         require(
             pipelineOverrides?["image_sampler_name"] as? String == "dpmpp_2m",
             "pipeline overrides should encode selected sampler name"
+        )
+        require(
+            pipelineOverrides?["image_seed_with_previous_image"] as? Bool == true,
+            "pipeline overrides should encode previous-image seed toggle"
+        )
+        require(
+            pipelineOverrides?["image_blank_detection_enabled"] as? Bool == true,
+            "pipeline overrides should encode blank-detection toggle"
         )
 
         let encodedInputs = pipelineObject["inputs"] as? [String: Any]

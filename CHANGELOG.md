@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.13
+
+- Advanced visible Apple app versioning to `v2026.06.23.13`.
+- Apple generated-book creation on iPhone and iPad now lets illustration jobs seed from the previous generated image and enable backend blank-image detection before submit.
+
 ### 2026.06.23.12
 
 - Advanced visible Apple app versioning to `v2026.06.23.12`.
