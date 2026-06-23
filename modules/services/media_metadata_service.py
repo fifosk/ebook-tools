@@ -851,11 +851,14 @@ class MediaMetadataService:
             "book": {
                 "title": result.title,
                 "author": result.author,
+                "language": result.language,
+                "book_language": result.language,
                 "year": str(result.year) if result.year else None,
                 "summary": result.summary,
                 "isbn": isbn,
                 "cover_url": cover_url,
                 "cover_file": cover_file,
+                "genre": ", ".join(result.genres) if result.genres else None,
                 "google_books_id": result.source_ids.google_books_id,
             },
         }

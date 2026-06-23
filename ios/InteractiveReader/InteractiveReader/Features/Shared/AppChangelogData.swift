@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.32",
+            version: "2026.06.23.33",
             entries: [
+                AppChangelogEntry(
+                    id: "google-books-language-genre",
+                    title: "Google Books metadata",
+                    detail: "Google Books fallback metadata now preserves language, book_language, and genre aliases so creation forms receive the same enriched lookup shape when OpenLibrary falls through."
+                ),
                 AppChangelogEntry(
                     id: "book-language-metadata",
                     title: "Book language metadata",

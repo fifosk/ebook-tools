@@ -1,6 +1,15 @@
 from modules.services.media_metadata_service import _normalize_openlibrary_language
+from modules.services.media_metadata_service import BookLookupQuery, MediaMetadataService
 from modules.services.metadata.clients.openlibrary import OpenLibraryClient
-from modules.services.metadata.types import LookupOptions, LookupQuery, MediaType
+from modules.services.metadata.types import (
+    ConfidenceLevel,
+    LookupOptions,
+    LookupQuery,
+    MediaType,
+    MetadataSource,
+    SourceIds,
+    UnifiedMetadataResult,
+)
 
 
 def test_normalizes_openlibrary_language_payloads() -> None:
@@ -28,3 +37,35 @@ def test_openlibrary_isbn_parser_preserves_language() -> None:
 
     assert result.language == "eng"
     assert result.to_dict()["language"] == "eng"
+
+
+def test_google_books_fallback_preserves_language_and_genre_aliases() -> None:
+    class StubGoogleBooks:
+        def lookup(self, _query: LookupQuery, _options: LookupOptions) -> UnifiedMetadataResult:
+            return UnifiedMetadataResult(
+                title="Example Book",
+                type=MediaType.BOOK,
+                year=2025,
+                genres=["Adventure", "Fantasy"],
+                summary="A compact test fixture.",
+                source_ids=SourceIds(isbn_13="9780140328721", google_books_id="gb-1"),
+                confidence=ConfidenceLevel.HIGH,
+                primary_source=MetadataSource.GOOGLE_BOOKS,
+                contributing_sources=[MetadataSource.GOOGLE_BOOKS],
+                author="Jane Doe",
+                language="en",
+            )
+
+    service = object.__new__(MediaMetadataService)
+    service._google_books = StubGoogleBooks()
+
+    payload = service._try_google_books_fallback(
+        BookLookupQuery(title="Example Book", author="Jane Doe", isbn=None, source_name="example.epub"),
+        job_id=None,
+    )
+
+    assert payload is not None
+    assert payload["provider"] == "google_books"
+    assert payload["book"]["language"] == "en"
+    assert payload["book"]["book_language"] == "en"
+    assert payload["book"]["genre"] == "Adventure, Fantasy"

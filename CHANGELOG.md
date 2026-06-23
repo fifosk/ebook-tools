@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.33
+
+- Advanced visible Apple app versioning to `v2026.06.23.33`.
+- Google Books fallback metadata now preserves `language`, `book_language`, and genre aliases so Web and Apple book creation receive the same enriched lookup shape when OpenLibrary falls through.
+
 ### 2026.06.23.32
 
 - Advanced visible Apple app versioning to `v2026.06.23.32`.
