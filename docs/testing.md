@@ -60,6 +60,8 @@ cd /Users/fifo/Projects/home/apple-device-app-pipeline
 python3 scripts/run_app_owned_journey.py --app ebook-tools --list
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados-create --dry-run
+python3 scripts/run_app_owned_journey.py --app ebook-tools --profile macos-ipad-style-dry-run --dry-run
+python3 scripts/run_app_owned_journey.py --app ebook-tools --profile macos-ipad-style --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile tvos --use-remote-env
 ```
 
@@ -139,8 +141,10 @@ make build-apple-macos-ipad-style-dry-run
 make build-apple-macos-ipad-style
 ```
 
-These commands resolve the local Mac destination and app product path without
-touching physical iPhone/iPad/Apple TV devices.
+The shared pipeline exposes the same lane as the `macos-ipad-style-dry-run`
+and `macos-ipad-style` app-owned profiles, mapping to the dry-run and compile
+targets above. These commands resolve the local Mac destination and app product
+path without touching physical iPhone/iPad/Apple TV devices.
 
 For repo-owned physical iPhone/iPad update readiness, the guarded helper can
 exercise CoreDevice paths without installing:

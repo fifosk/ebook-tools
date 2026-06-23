@@ -65,7 +65,7 @@ test-observability:
 	pytest -m observability -v
 
 test-apple-contracts:
-	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py
+	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_macos_ipad_style_contract.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py
 	bash scripts/check_apple_runtime_descriptor_payload.sh
 	bash scripts/check_apple_creation_payloads.sh
 	bash scripts/check_apple_macos_ipad_style_helper.sh
