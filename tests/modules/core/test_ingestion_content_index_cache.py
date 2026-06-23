@@ -52,6 +52,61 @@ def _patch_sections(monkeypatch, calls: list[str], *, title: str = "Chapter One"
     )
 
 
+def test_get_refined_sentences_reuses_valid_runtime_cache(tmp_path, monkeypatch):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+    calls: list[str] = []
+
+    monkeypatch.setattr(ingestion, "extract_sections_from_epub", lambda *_, **__: [])
+
+    def fake_extract_text(input_file: str):
+        calls.append(input_file)
+        return "Alpha. Beta."
+
+    monkeypatch.setattr(ingestion, "extract_text_from_epub", fake_extract_text)
+    monkeypatch.setattr(
+        ingestion,
+        "split_text_into_sentences",
+        lambda text, **_: ["Alpha.", "Beta."] if text == "Alpha. Beta." else [],
+    )
+
+    first, first_updated = ingestion.get_refined_sentences(str(path), config)
+    second, second_updated = ingestion.get_refined_sentences(str(path), config)
+
+    assert first == ["Alpha.", "Beta."]
+    assert second == first
+    assert first_updated is True
+    assert second_updated is False
+    assert calls == [str(path)]
+
+
+def test_get_refined_sentences_invalidates_cache_when_source_mtime_changes(tmp_path, monkeypatch):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+    calls: list[str] = []
+
+    monkeypatch.setattr(ingestion, "extract_sections_from_epub", lambda *_, **__: [])
+
+    def fake_extract_text(input_file: str):
+        calls.append(input_file)
+        return "Alpha. Beta."
+
+    monkeypatch.setattr(ingestion, "extract_text_from_epub", fake_extract_text)
+    monkeypatch.setattr(
+        ingestion,
+        "split_text_into_sentences",
+        lambda text, **_: ["Alpha.", "Beta."] if text == "Alpha. Beta." else [],
+    )
+
+    ingestion.get_refined_sentences(str(path), config)
+    original_mtime = path.stat().st_mtime
+    os.utime(path, (original_mtime + 20, original_mtime + 20))
+    _, refreshed = ingestion.get_refined_sentences(str(path), config)
+
+    assert refreshed is True
+    assert calls == [str(path), str(path)]
+
+
 def test_get_content_index_reuses_valid_runtime_cache(tmp_path, monkeypatch):
     config = DummyPipelineConfig(tmp_path)
     path = _book_path(config)

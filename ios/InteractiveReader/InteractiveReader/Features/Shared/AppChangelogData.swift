@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.80",
+            version: "2026.06.23.81",
             entries: [
+                AppChangelogEntry(
+                    id: "create-refined-cache-invalidation",
+                    title: "Create chapter freshness",
+                    detail: "Web and Apple Create chapter loading now invalidates cached refined sentences when the source EPUB changes, keeping chapter ranges fresh after file edits or replacements."
+                ),
                 AppChangelogEntry(
                     id: "create-content-index-cache",
                     title: "Create chapters load faster",

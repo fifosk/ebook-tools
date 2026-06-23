@@ -126,6 +126,7 @@ def get_refined_sentences(
 
     input_file = str(resolved_input)
     expected_settings = {
+        "input_mtime": _input_mtime(input_file, pipeline_config),
         "max_words": pipeline_config.max_words,
         "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
     }
@@ -133,6 +134,7 @@ def get_refined_sentences(
     cached = None if force_refresh else load_refined_list(input_file, pipeline_config)
     if cached and cached.get("refined_list") is not None:
         cached_settings = {
+            "input_mtime": cached.get("input_mtime"),
             "max_words": cached.get("max_words"),
             "split_on_comma_semicolon": cached.get("split_on_comma_semicolon"),
         }
