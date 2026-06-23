@@ -39,6 +39,7 @@ import {
 } from './bookNarrationFormDefaults';
 import {
   areLanguageArraysEqual,
+  applyBookNarrationPrefillParameters,
   deriveBaseOutputName,
   formatList,
   normalizeBookNarrationPath,
@@ -395,106 +396,7 @@ export function BookNarrationForm({
     prefillParametersRef.current = key;
 
     setFormState((previous) => {
-      const targetLanguages =
-        Array.isArray(prefillParameters.target_languages) && prefillParameters.target_languages.length > 0
-          ? prefillParameters.target_languages
-              .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
-              .filter((entry) => entry.length > 0)
-          : previous.target_languages;
-      const normalizedTargetLanguages = normalizeSingleTargetLanguages(targetLanguages);
-      const startSentence =
-        typeof prefillParameters.start_sentence === 'number' && Number.isFinite(prefillParameters.start_sentence)
-          ? prefillParameters.start_sentence
-          : previous.start_sentence;
-      const endSentence =
-        typeof prefillParameters.end_sentence === 'number' && Number.isFinite(prefillParameters.end_sentence)
-          ? String(prefillParameters.end_sentence)
-          : previous.end_sentence;
-      const inputLanguage =
-        typeof prefillParameters.input_language === 'string' && prefillParameters.input_language.trim()
-          ? prefillParameters.input_language.trim()
-          : previous.input_language;
-      const inputFile =
-        typeof prefillParameters.input_file === 'string' && prefillParameters.input_file.trim()
-          ? prefillParameters.input_file.trim()
-          : previous.input_file;
-      const baseOutputFile =
-        typeof prefillParameters.base_output_file === 'string' && prefillParameters.base_output_file.trim()
-          ? prefillParameters.base_output_file.trim()
-          : previous.base_output_file;
-      const sentencesPerOutput =
-        typeof prefillParameters.sentences_per_output_file === 'number' &&
-        Number.isFinite(prefillParameters.sentences_per_output_file)
-          ? prefillParameters.sentences_per_output_file
-          : previous.sentences_per_output_file;
-      const audioMode =
-        typeof prefillParameters.audio_mode === 'string' && prefillParameters.audio_mode.trim()
-          ? prefillParameters.audio_mode.trim()
-          : previous.audio_mode;
-      const audioBitrate =
-        typeof prefillParameters.audio_bitrate_kbps === 'number' &&
-        Number.isFinite(prefillParameters.audio_bitrate_kbps)
-          ? String(Math.trunc(prefillParameters.audio_bitrate_kbps))
-          : previous.audio_bitrate_kbps;
-      const selectedVoice =
-        typeof prefillParameters.selected_voice === 'string' && prefillParameters.selected_voice.trim()
-          ? prefillParameters.selected_voice.trim()
-          : previous.selected_voice;
-      const tempo =
-        typeof prefillParameters.tempo === 'number' && Number.isFinite(prefillParameters.tempo)
-          ? prefillParameters.tempo
-          : previous.tempo;
-      const includeTransliteration =
-        typeof prefillParameters.enable_transliteration === 'boolean'
-          ? prefillParameters.enable_transliteration
-          : previous.include_transliteration;
-      const translationProvider =
-        typeof prefillParameters.translation_provider === 'string' && prefillParameters.translation_provider.trim()
-          ? prefillParameters.translation_provider.trim()
-          : previous.translation_provider;
-      const translationBatchSize =
-        typeof prefillParameters.translation_batch_size === 'number' &&
-        Number.isFinite(prefillParameters.translation_batch_size)
-          ? Math.max(1, Math.trunc(prefillParameters.translation_batch_size))
-          : previous.translation_batch_size;
-      const transliterationMode =
-        typeof prefillParameters.transliteration_mode === 'string' && prefillParameters.transliteration_mode.trim()
-          ? prefillParameters.transliteration_mode.trim()
-          : previous.transliteration_mode;
-      const transliterationModel =
-        typeof prefillParameters.transliteration_model === 'string' &&
-        prefillParameters.transliteration_model.trim()
-          ? prefillParameters.transliteration_model.trim()
-          : previous.transliteration_model;
-      const addImages =
-        typeof prefillParameters.add_images === 'boolean' ? prefillParameters.add_images : previous.add_images;
-      const voiceOverrides =
-        prefillParameters.voice_overrides && typeof prefillParameters.voice_overrides === 'object'
-          ? { ...prefillParameters.voice_overrides }
-          : previous.voice_overrides;
-
-      const next = {
-        ...previous,
-        input_file: inputFile,
-        base_output_file: forcedBaseOutputFile ?? baseOutputFile,
-        input_language: inputLanguage,
-        target_languages: normalizedTargetLanguages.length ? normalizedTargetLanguages : previous.target_languages,
-        custom_target_languages: '',
-        start_sentence: startSentence,
-        end_sentence: endSentence,
-        sentences_per_output_file: sentencesPerOutput,
-        audio_mode: audioMode,
-        audio_bitrate_kbps: audioBitrate,
-        selected_voice: selectedVoice,
-        tempo,
-        include_transliteration: includeTransliteration,
-        translation_provider: translationProvider,
-        translation_batch_size: translationBatchSize,
-        transliteration_mode: transliterationMode,
-        transliteration_model: transliterationModel,
-        add_images: addImages,
-        voice_overrides: voiceOverrides
-      };
+      const next = applyBookNarrationPrefillParameters(previous, prefillParameters, forcedBaseOutputFile);
       return preserveUserEditedFields(previous, next);
     });
   }, [prefillParameters, forcedBaseOutputFile, preserveUserEditedFields]);

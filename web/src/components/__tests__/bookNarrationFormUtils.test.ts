@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PipelineStatusResponse } from '../../api/dtos';
+import { DEFAULT_FORM_STATE } from '../book-narration/bookNarrationFormDefaults';
 import {
+  applyBookNarrationPrefillParameters,
   normalizeBookNarrationPath,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
@@ -107,6 +109,110 @@ describe('bookNarrationFormUtils recent-job helpers', () => {
       inputLanguage: 'Spanish',
       targetLanguages: ['German', 'French'],
       enableLookupCache: false,
+    });
+  });
+});
+
+describe('bookNarrationFormUtils prefill helpers', () => {
+  it('maps rerun parameters into form state using the current single-target language contract', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      input_file: '/old/input.epub',
+      base_output_file: 'old-output',
+      custom_target_languages: 'Italian',
+      include_transliteration: true,
+      add_images: false,
+      voice_overrides: { ar: 'old-voice' },
+    };
+
+    const next = applyBookNarrationPrefillParameters(
+      previous,
+      {
+        input_file: ' /books/new.epub ',
+        base_output_file: ' rerun-output ',
+        input_language: ' Spanish ',
+        target_languages: [' ', ' German ', 'French'],
+        start_sentence: 12,
+        end_sentence: 34,
+        sentences_per_output_file: 8,
+        audio_mode: ' 2 ',
+        audio_bitrate_kbps: 129.9,
+        selected_voice: ' macOS-auto ',
+        enable_transliteration: false,
+        translation_provider: ' googletrans ',
+        translation_batch_size: 0,
+        transliteration_mode: ' python ',
+        transliteration_model: ' model-a ',
+        tempo: 1.25,
+        add_images: true,
+        voice_overrides: { es: 'voice-es' },
+      },
+      'forced-output',
+    );
+
+    expect(next).toMatchObject({
+      input_file: '/books/new.epub',
+      base_output_file: 'forced-output',
+      input_language: 'Spanish',
+      target_languages: ['German'],
+      custom_target_languages: '',
+      start_sentence: 12,
+      end_sentence: '34',
+      sentences_per_output_file: 8,
+      audio_mode: '2',
+      audio_bitrate_kbps: '129',
+      selected_voice: 'macOS-auto',
+      include_transliteration: false,
+      translation_provider: 'googletrans',
+      translation_batch_size: 1,
+      transliteration_mode: 'python',
+      transliteration_model: 'model-a',
+      tempo: 1.25,
+      add_images: true,
+      voice_overrides: { es: 'voice-es' },
+    });
+  });
+
+  it('keeps previous values when rerun parameters are blank or invalid', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      input_file: '/old/input.epub',
+      base_output_file: 'old-output',
+      input_language: 'English',
+      target_languages: ['Arabic'],
+      start_sentence: 10,
+      end_sentence: '20',
+      audio_bitrate_kbps: '96',
+      voice_overrides: { ar: 'old-voice' },
+    };
+
+    const next = applyBookNarrationPrefillParameters(
+      previous,
+      {
+        input_file: '   ',
+        base_output_file: '',
+        input_language: '',
+        target_languages: [' '],
+        start_sentence: Number.NaN,
+        end_sentence: null,
+        audio_bitrate_kbps: null,
+        selected_voice: '',
+        translation_batch_size: Number.NaN,
+        transliteration_model: ' ',
+      },
+      null,
+    );
+
+    expect(next).toMatchObject({
+      input_file: '/old/input.epub',
+      base_output_file: 'old-output',
+      input_language: 'English',
+      target_languages: ['Arabic'],
+      custom_target_languages: '',
+      start_sentence: 10,
+      end_sentence: '20',
+      audio_bitrate_kbps: '96',
+      voice_overrides: { ar: 'old-voice' },
     });
   });
 });
