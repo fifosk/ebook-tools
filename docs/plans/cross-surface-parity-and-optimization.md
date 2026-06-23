@@ -65,9 +65,12 @@ Large Web UI hotspots to split before redesign work:
   completed-result fetch selection, job sorting, and backend language-default
   normalization, multipart submit `FormData` construction, and metadata draft
   update helpers now live in `web/src/pages/subtitle-tool/subtitleToolUtils.ts`
-  with focused Vitest coverage. Source-list refresh selection now lives there
-  too, clearing stale selections after deletes and choosing the latest usable
-  subtitle source when needed.
+  with focused Vitest coverage. TV metadata lookup state, stale response
+  suppression, draft editing, and clear behavior now live in
+  `web/src/pages/subtitle-tool/useSubtitleTvMetadata.ts` with focused hook
+  coverage. Source-list refresh selection now lives in the utility module too,
+  clearing stale selections after deletes and choosing the latest usable subtitle
+  source when needed.
 - `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1119 lines.
   Status: subtitle cue lookup, token navigation, selection shadowing, clamp
   math, track variant mapping, and TTS voice option helpers now live in

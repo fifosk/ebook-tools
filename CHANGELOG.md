@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.57
+
+- Advanced visible Apple app versioning to `v2026.06.23.57`.
+- Web Subtitle Tool TV metadata lookup state now lives in a focused hook with stale-request and draft-edit coverage, shrinking the page shell while preserving the existing metadata workflow.
+
 ### 2026.06.23.56
 
 - Advanced visible Apple app versioning to `v2026.06.23.56`.

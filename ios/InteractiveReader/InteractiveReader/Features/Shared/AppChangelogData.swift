@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.56",
+            version: "2026.06.23.57",
             entries: [
+                AppChangelogEntry(
+                    id: "web-subtitle-metadata-hook",
+                    title: "Subtitle metadata refactor",
+                    detail: "Web Subtitle Tool TV metadata lookup state now lives in a focused hook with stale-request and draft-edit coverage, preserving the existing metadata workflow."
+                ),
                 AppChangelogEntry(
                     id: "web-create-intake-shared-callout",
                     title: "Web intake parity",
