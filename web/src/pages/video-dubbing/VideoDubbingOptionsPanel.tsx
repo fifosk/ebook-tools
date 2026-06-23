@@ -1,53 +1,14 @@
 import LanguageSelect from '../../components/LanguageSelect';
+import {
+  TRANSLITERATION_MODE_OPTIONS,
+  buildLlmModelOptions,
+  buildTransliterationModelOptions,
+  getTransliterationModeOption,
+  normalizeTranslationProvider,
+  normalizeTransliterationMode
+} from '../../utils/translationControls';
 import { DEFAULT_LLM_MODEL, RESOLUTION_OPTIONS } from './videoDubbingConfig';
 import styles from '../VideoDubbingPage.module.css';
-
-const GOOGLE_TRANSLATION_PROVIDER_ALIASES = new Set([
-  'google',
-  'googletrans',
-  'googletranslate',
-  'google-translate',
-  'gtranslate',
-  'gtrans'
-]);
-
-const TRANSLITERATION_MODE_OPTIONS = [
-  {
-    value: 'default',
-    label: 'Use selected LLM model',
-    description: 'Transliteration uses the selected LLM model when enabled.'
-  },
-  {
-    value: 'python',
-    label: 'Python transliteration module',
-    description: 'Transliteration uses local python modules when available.'
-  }
-];
-
-function normalizeTranslationProvider(value: string): string {
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) {
-    return 'llm';
-  }
-  if (GOOGLE_TRANSLATION_PROVIDER_ALIASES.has(normalized)) {
-    return 'googletrans';
-  }
-  if (normalized === 'llm' || normalized === 'ollama' || normalized === 'default') {
-    return 'llm';
-  }
-  return normalized;
-}
-
-function normalizeTransliterationMode(value: string): string {
-  const normalized = value.trim().toLowerCase().replace('_', '-');
-  if (normalized === 'python' || normalized === 'python-module' || normalized === 'module' || normalized === 'local-module') {
-    return 'python';
-  }
-  if (normalized === 'default' || normalized === 'llm' || normalized === 'ollama') {
-    return 'default';
-  }
-  return 'default';
-}
 
 type VideoDubbingOptionsPanelProps = {
   targetLanguage: string;
@@ -138,17 +99,9 @@ export default function VideoDubbingOptionsPanel({
   const usesGoogleTranslate = resolvedTranslationProvider === 'googletrans';
   const resolvedTransliterationMode = normalizeTransliterationMode(transliterationMode);
   const allowTransliterationModel = resolvedTransliterationMode !== 'python';
-  const baseModelOptions = llmModels.length ? llmModels : [DEFAULT_LLM_MODEL];
-  const modelOptions = Array.from(
-    new Set([...(llmModel.trim() ? [llmModel.trim()] : []), ...baseModelOptions])
-  );
-  const transliterationModelValue = transliterationModel.trim();
-  const transliterationModelOptions = Array.from(
-    new Set([...(transliterationModelValue ? [transliterationModelValue] : []), ...modelOptions])
-  );
-  const selectedTransliterationOption =
-    TRANSLITERATION_MODE_OPTIONS.find((option) => option.value === resolvedTransliterationMode) ??
-    TRANSLITERATION_MODE_OPTIONS[0];
+  const modelOptions = buildLlmModelOptions(llmModel, llmModels, [DEFAULT_LLM_MODEL]);
+  const transliterationModelOptions = buildTransliterationModelOptions(transliterationModel, modelOptions);
+  const selectedTransliterationOption = getTransliterationModeOption(resolvedTransliterationMode);
   return (
     <section className={styles.card}>
       <div className={styles.cardHeader}>

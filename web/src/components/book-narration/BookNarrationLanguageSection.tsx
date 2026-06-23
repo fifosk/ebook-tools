@@ -4,54 +4,15 @@ import {
   bareLlmModelName,
   groupLlmModelsByProvider
 } from '../../utils/llmModelGroups';
+import {
+  TRANSLITERATION_MODE_OPTIONS,
+  buildLlmModelOptions,
+  buildTransliterationModelOptions,
+  getTransliterationModeOption,
+  normalizeTranslationProvider,
+  normalizeTransliterationMode
+} from '../../utils/translationControls';
 import LanguageSelect from '../LanguageSelect';
-
-const GOOGLE_TRANSLATION_PROVIDER_ALIASES = new Set([
-  'google',
-  'googletrans',
-  'googletranslate',
-  'google-translate',
-  'gtranslate',
-  'gtrans'
-]);
-
-const TRANSLITERATION_MODE_OPTIONS = [
-  {
-    value: 'default',
-    label: 'Use selected LLM model',
-    description: 'Transliteration uses the selected LLM model when enabled.'
-  },
-  {
-    value: 'python',
-    label: 'Python transliteration module',
-    description: 'Transliteration uses local python modules when available.'
-  }
-];
-
-function normalizeTranslationProvider(value: string): string {
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) {
-    return 'llm';
-  }
-  if (GOOGLE_TRANSLATION_PROVIDER_ALIASES.has(normalized)) {
-    return 'googletrans';
-  }
-  if (normalized === 'llm' || normalized === 'ollama' || normalized === 'default') {
-    return 'llm';
-  }
-  return normalized;
-}
-
-function normalizeTransliterationMode(value: string): string {
-  const normalized = value.trim().toLowerCase().replace('_', '-');
-  if (normalized === 'python' || normalized === 'python-module' || normalized === 'module' || normalized === 'local-module') {
-    return 'python';
-  }
-  if (normalized === 'default' || normalized === 'llm' || normalized === 'ollama') {
-    return 'default';
-  }
-  return 'default';
-}
 
 type BookNarrationLanguageSectionProps = {
   headingId: string;
@@ -153,8 +114,7 @@ const BookNarrationLanguageSection = ({
   const showChapterPicker = processingMode === 'chapters';
   const chapterSelectDisabled = chaptersDisabled || (!chaptersLoading && chapterOptions.length === 0);
   const currentModel = ollamaModel.trim();
-  const resolvedModels = llmModels.length ? llmModels : currentModel ? [currentModel] : [];
-  const modelOptions = Array.from(new Set([...(currentModel ? [currentModel] : []), ...resolvedModels]));
+  const modelOptions = buildLlmModelOptions(ollamaModel, llmModels);
   const modelGroups = useMemo(() => groupLlmModelsByProvider(modelOptions), [modelOptions]);
   const inputLanguageOptions = useMemo(
     () =>
@@ -181,17 +141,12 @@ const BookNarrationLanguageSection = ({
   const usesGoogleTranslate = resolvedTranslationProvider === 'googletrans';
   const resolvedTransliterationMode = normalizeTransliterationMode(transliterationMode);
   const allowTransliterationModel = resolvedTransliterationMode !== 'python';
-  const transliterationModelValue = transliterationModel.trim();
-  const transliterationModelOptions = Array.from(
-    new Set([...(transliterationModelValue ? [transliterationModelValue] : []), ...modelOptions])
-  );
+  const transliterationModelOptions = buildTransliterationModelOptions(transliterationModel, modelOptions);
   const transliterationModelGroups = useMemo(
     () => groupLlmModelsByProvider(transliterationModelOptions),
     [transliterationModelOptions]
   );
-  const selectedTransliterationOption =
-    TRANSLITERATION_MODE_OPTIONS.find((option) => option.value === resolvedTransliterationMode) ??
-    TRANSLITERATION_MODE_OPTIONS[0];
+  const selectedTransliterationOption = getTransliterationModeOption(resolvedTransliterationMode);
   return (
     <section className="pipeline-card" aria-labelledby={headingId}>
       <header className="pipeline-card__header">
