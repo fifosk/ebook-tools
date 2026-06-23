@@ -189,7 +189,8 @@ final class AppleBookCreateViewModel: ObservableObject {
             pipelineDefaults: draft.pipelineDefaults,
             pipelineOverrides: makePipelineOverrides(
                 from: generatedDefaults,
-                imageStyleTemplate: draft.imageStyleTemplate
+                imageStyleTemplate: draft.imageStyleTemplate,
+                imagePromptContextSentences: draft.imagePromptContextSentences
             ),
             correlationId: "apple-create",
             bookMetadata: [
@@ -285,7 +286,8 @@ final class AppleBookCreateViewModel: ObservableObject {
 
     private static func makePipelineOverrides(
         from defaults: BookCreationGeneratedSourceDefaults?,
-        imageStyleTemplate: String? = nil
+        imageStyleTemplate: String? = nil,
+        imagePromptContextSentences: Int? = nil
     ) -> [String: JSONValue] {
         var overrides = [String: JSONValue]()
         if let defaults {
@@ -300,6 +302,9 @@ final class AppleBookCreateViewModel: ObservableObject {
         if let imageStyleTemplate = imageStyleTemplate?.trimmingCharacters(in: .whitespacesAndNewlines),
            !imageStyleTemplate.isEmpty {
             overrides["image_style_template"] = .string(imageStyleTemplate)
+        }
+        if let imagePromptContextSentences {
+            overrides["image_prompt_context_sentences"] = .number(Double(imagePromptContextSentences))
         }
         return overrides
     }

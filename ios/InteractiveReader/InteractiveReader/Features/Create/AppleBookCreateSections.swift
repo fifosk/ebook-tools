@@ -389,6 +389,8 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var enableLookupCache: Bool
     @Binding var includeImages: Bool
     @Binding var imageStyleTemplate: AppleGeneratedBookImageStyleTemplate
+    @Binding var imagePromptContextSentences: Int
+    let clampedImagePromptContextSentences: Int
     let supportsImages: Bool
 
     var body: some View {
@@ -404,6 +406,16 @@ struct AppleBookCreateGeneratedOutputControls: View {
                     }
                 }
                 .accessibilityIdentifier("createBookImageStylePicker")
+                #if os(iOS)
+                Stepper(
+                    value: $imagePromptContextSentences,
+                    in: 0...50,
+                    step: 1
+                ) {
+                    LabeledContent("Prompt context", value: "\(clampedImagePromptContextSentences)")
+                }
+                .accessibilityIdentifier("createBookImagePromptContextStepper")
+                #endif
             }
         }
         Toggle("Transliteration", isOn: $includeTransliteration)

@@ -14,6 +14,7 @@ struct AppleBookCreateDraft: Equatable {
     let enableLookupCache: Bool
     let includeImages: Bool
     let imageStyleTemplate: String
+    let imagePromptContextSentences: Int
     let pipelineDefaults: BookCreationPipelineDefaults?
     let generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
 }
@@ -236,6 +237,7 @@ enum AppleBookCreateEditedField: Hashable {
     case enableLookupCache
     case includeImages
     case imageStyleTemplate
+    case imagePromptContextSentences
 }
 
 struct AppleCreateResolvedDefaults: Equatable {
@@ -251,6 +253,7 @@ struct AppleCreateResolvedDefaults: Equatable {
     let enableLookupCache: Bool?
     let includeImages: Bool?
     let imageStyleTemplate: AppleGeneratedBookImageStyleTemplate?
+    let imagePromptContextSentences: Int?
     let subtitleTranslationProvider: AppleSubtitleTranslationProvider?
 }
 
@@ -342,6 +345,9 @@ enum AppleBookCreatePresentation {
                         backendValue: options.generatedSourceDefaults.imageStyleTemplate
                     ) ?? .wireframe
                 ),
+            imagePromptContextSentences: editedFields.contains(.imagePromptContextSentences)
+                ? nil
+                : clampImagePromptContextSentences(options.generatedSourceDefaults.imagePromptContextSentences),
             subtitleTranslationProvider: editedFields.contains(.subtitleTranslationProvider)
                 ? nil
                 : AppleSubtitleTranslationProvider(backendValue: options.pipelineDefaults.translationProvider)
@@ -353,6 +359,10 @@ enum AppleBookCreatePresentation {
         bounds: BookCreationSentenceBounds
     ) -> Int {
         max(bounds.min, min(bounds.max, value))
+    }
+
+    static func clampImagePromptContextSentences(_ value: Int) -> Int {
+        clamp(value, to: 0...50)
     }
 
     static func availableInputLanguages(
@@ -580,6 +590,7 @@ enum AppleBookCreatePresentation {
         enableLookupCache: Bool,
         includeImages: Bool,
         imageStyleTemplate: AppleGeneratedBookImageStyleTemplate,
+        imagePromptContextSentences: Int,
         pipelineDefaults: BookCreationPipelineDefaults?,
         generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
     ) -> AppleBookCreateDraft {
@@ -597,6 +608,7 @@ enum AppleBookCreatePresentation {
             enableLookupCache: enableLookupCache,
             includeImages: includeImages,
             imageStyleTemplate: imageStyleTemplate.backendValue,
+            imagePromptContextSentences: clampImagePromptContextSentences(imagePromptContextSentences),
             pipelineDefaults: pipelineDefaults,
             generatedSourceDefaults: generatedSourceDefaults
         )

@@ -335,6 +335,10 @@ struct AppleCreationPayloadCheck {
             "Generated-book image style should map from backend generated-source default"
         )
         require(
+            resolvedDefaults.imagePromptContextSentences == 0,
+            "Generated-book image prompt context should use backend generated-source default"
+        )
+        require(
             resolvedDefaults.subtitleTranslationProvider == .llm,
             "Subtitle provider should map from backend pipeline default"
         )
@@ -347,7 +351,8 @@ struct AppleCreationPayloadCheck {
                 .voice,
                 .enableLookupCache,
                 .includeImages,
-                .imageStyleTemplate
+                .imageStyleTemplate,
+                .imagePromptContextSentences
             ],
             currentSentenceCount: 999
         )
@@ -357,10 +362,15 @@ struct AppleCreationPayloadCheck {
         require(editedDefaults.enableLookupCache == nil, "Edited lookup-cache toggle should not be overwritten")
         require(editedDefaults.includeImages == nil, "Edited illustrations toggle should not be overwritten")
         require(editedDefaults.imageStyleTemplate == nil, "Edited image style should not be overwritten")
+        require(editedDefaults.imagePromptContextSentences == nil, "Edited image prompt context should not be overwritten")
         require(editedDefaults.sentenceCount == 500, "Edited sentence count should still clamp to backend max")
         require(
             AppleBookCreatePresentation.clampSentenceCount(0, bounds: options.sentenceBounds) == 1,
             "Sentence count helper should clamp to backend lower bound"
+        )
+        require(
+            AppleBookCreatePresentation.clampImagePromptContextSentences(99) == 50,
+            "Image prompt context should clamp to the Web submission upper bound"
         )
         switch AppleBookCreatePresentation.normalizedSubtitleTimeRange(start: "", end: "+5") {
         case let .success(range):
@@ -432,6 +442,7 @@ struct AppleCreationPayloadCheck {
             enableLookupCache: false,
             includeImages: true,
             imageStyleTemplate: .childrenBook,
+            imagePromptContextSentences: 99,
             pipelineDefaults: options.pipelineDefaults,
             generatedSourceDefaults: options.generatedSourceDefaults
         )
@@ -443,6 +454,10 @@ struct AppleCreationPayloadCheck {
         require(
             generatedDraft.imageStyleTemplate == "children_book",
             "Generated draft should keep the selected image style backend id"
+        )
+        require(
+            generatedDraft.imagePromptContextSentences == 50,
+            "Generated draft should clamp the selected image prompt context"
         )
         require(generatedDraft.pipelineDefaults == options.pipelineDefaults, "Generated draft should carry pipeline defaults")
         require(
@@ -563,7 +578,11 @@ struct AppleCreationPayloadCheck {
         )
         let pipeline = PipelineRequestPayload(
             environmentOverrides: ["BOOKS_DIR": .string("/runtime/books")],
-            pipelineOverrides: ["image_style_template": .string("children_book"), "tempo": .number(1.08)],
+            pipelineOverrides: [
+                "image_prompt_context_sentences": .number(4),
+                "image_style_template": .string("children_book"),
+                "tempo": .number(1.08)
+            ],
             inputs: input,
             correlationId: "apple-smoke"
         )
@@ -575,6 +594,10 @@ struct AppleCreationPayloadCheck {
         require(
             pipelineOverrides?["image_style_template"] as? String == "children_book",
             "pipeline overrides should encode selected image style"
+        )
+        require(
+            pipelineOverrides?["image_prompt_context_sentences"] as? Int == 4,
+            "pipeline overrides should encode selected image prompt context"
         )
 
         let encodedInputs = pipelineObject["inputs"] as? [String: Any]

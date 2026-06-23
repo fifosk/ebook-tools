@@ -61,6 +61,7 @@ struct AppleBookCreateView: View {
     @State private var enableLookupCache = true
     @State private var includeImages = false
     @State private var imageStyleTemplate = AppleGeneratedBookImageStyleTemplate.wireframe
+    @State private var imagePromptContextSentences = 0
     @State private var editedFields = Set<AppleBookCreateEditedField>()
 
     var body: some View {
@@ -259,6 +260,8 @@ struct AppleBookCreateView: View {
                     enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache),
                     includeImages: boolBinding(for: .includeImages, value: $includeImages),
                     imageStyleTemplate: imageStyleTemplateBinding,
+                    imagePromptContextSentences: imagePromptContextSentencesBinding,
+                    clampedImagePromptContextSentences: clampedImagePromptContextSentences,
                     supportsImages: creationMode == .generatedBook
                 )
             }
@@ -402,6 +405,7 @@ struct AppleBookCreateView: View {
             enableLookupCache: enableLookupCache,
             includeImages: includeImages,
             imageStyleTemplate: imageStyleTemplate,
+            imagePromptContextSentences: imagePromptContextSentences,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults,
             generatedSourceDefaults: viewModel.creationOptions?.generatedSourceDefaults
         )
@@ -660,6 +664,10 @@ struct AppleBookCreateView: View {
         AppleBookCreatePresentation.clampYoutubeFlushSentences(youtubeFlushSentences)
     }
 
+    private var clampedImagePromptContextSentences: Int {
+        AppleBookCreatePresentation.clampImagePromptContextSentences(imagePromptContextSentences)
+    }
+
     private var sentenceCountBinding: Binding<Int> {
         Binding(
             get: { sentenceCount },
@@ -852,6 +860,16 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private var imagePromptContextSentencesBinding: Binding<Int> {
+        Binding(
+            get: { clampedImagePromptContextSentences },
+            set: { newValue in
+                markEdited(.imagePromptContextSentences)
+                imagePromptContextSentences = AppleBookCreatePresentation.clampImagePromptContextSentences(newValue)
+            }
+        )
+    }
+
     private func markEdited(_ field: AppleBookCreateEditedField) {
         editedFields.insert(field)
     }
@@ -906,6 +924,9 @@ struct AppleBookCreateView: View {
         }
         if let value = defaults.imageStyleTemplate {
             imageStyleTemplate = value
+        }
+        if let value = defaults.imagePromptContextSentences {
+            imagePromptContextSentences = value
         }
         if let provider = defaults.subtitleTranslationProvider {
             subtitleTranslationProvider = provider
