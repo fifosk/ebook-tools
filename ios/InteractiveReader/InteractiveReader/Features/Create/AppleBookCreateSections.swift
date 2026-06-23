@@ -387,6 +387,8 @@ struct AppleBookCreateGeneratedOutputControls: View {
     let derivedBaseOutput: String
     @Binding var includeTransliteration: Bool
     @Binding var enableLookupCache: Bool
+    @Binding var outputHtml: Bool
+    @Binding var outputPdf: Bool
     @Binding var includeImages: Bool
     @Binding var imagePromptPipeline: AppleGeneratedBookImagePromptPipeline
     @Binding var imageStyleTemplate: AppleGeneratedBookImageStyleTemplate
@@ -489,6 +491,10 @@ struct AppleBookCreateGeneratedOutputControls: View {
                 #endif
             }
         }
+        Toggle("HTML output", isOn: $outputHtml)
+            .accessibilityIdentifier("createBookOutputHtmlToggle")
+        Toggle("PDF output", isOn: $outputPdf)
+            .accessibilityIdentifier("createBookOutputPdfToggle")
         Toggle("Transliteration", isOn: $includeTransliteration)
             .accessibilityIdentifier("createBookTransliterationToggle")
         Toggle("Lookup Cache", isOn: $enableLookupCache)

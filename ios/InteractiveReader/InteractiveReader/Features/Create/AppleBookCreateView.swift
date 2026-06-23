@@ -59,6 +59,8 @@ struct AppleBookCreateView: View {
     @State private var voice = AppleBookCreateVoiceOption.gtts
     @State private var includeTransliteration = true
     @State private var enableLookupCache = true
+    @State private var outputHtml = false
+    @State private var outputPdf = false
     @State private var includeImages = false
     @State private var imagePromptPipeline = AppleGeneratedBookImagePromptPipeline.promptPlan
     @State private var imageStyleTemplate = AppleGeneratedBookImageStyleTemplate.wireframe
@@ -271,6 +273,8 @@ struct AppleBookCreateView: View {
                     derivedBaseOutput: derivedBaseOutput,
                     includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
                     enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache),
+                    outputHtml: boolBinding(for: .outputHtml, value: $outputHtml),
+                    outputPdf: boolBinding(for: .outputPdf, value: $outputPdf),
                     includeImages: boolBinding(for: .includeImages, value: $includeImages),
                     imagePromptPipeline: imagePromptPipelineBinding,
                     imageStyleTemplate: imageStyleTemplateBinding,
@@ -443,6 +447,8 @@ struct AppleBookCreateView: View {
             baseOutput: derivedBaseOutput,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
+            outputHtml: outputHtml,
+            outputPdf: outputPdf,
             includeImages: includeImages,
             imagePromptPipeline: imagePromptPipeline,
             imageStyleTemplate: imageStyleTemplate,
@@ -574,6 +580,8 @@ struct AppleBookCreateView: View {
             voice: voice,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
+            outputHtml: outputHtml,
+            outputPdf: outputPdf,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults
         )
 
@@ -1009,6 +1017,12 @@ struct AppleBookCreateView: View {
         }
         if let value = defaults.enableLookupCache {
             enableLookupCache = value
+        }
+        if let value = defaults.outputHtml {
+            outputHtml = value
+        }
+        if let value = defaults.outputPdf {
+            outputPdf = value
         }
         if let value = defaults.includeImages {
             includeImages = value

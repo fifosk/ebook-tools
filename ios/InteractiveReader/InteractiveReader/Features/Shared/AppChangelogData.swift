@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.14",
+            version: "2026.06.23.15",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-html-pdf-output",
+                    title: "Apple HTML and PDF outputs",
+                    detail: "Generated-book and Narrate EPUB creation on iPhone and iPad now expose Web-aligned HTML and PDF output toggles before submit."
+                ),
                 AppChangelogEntry(
                     id: "apple-generated-book-image-performance",
                     title: "Apple image performance",

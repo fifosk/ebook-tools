@@ -331,6 +331,14 @@ struct AppleCreationPayloadCheck {
             "Lookup-cache toggle should use backend pipeline default"
         )
         require(
+            resolvedDefaults.outputHtml == false,
+            "HTML output toggle should use backend pipeline default"
+        )
+        require(
+            resolvedDefaults.outputPdf == false,
+            "PDF output toggle should use backend pipeline default"
+        )
+        require(
             resolvedDefaults.includeImages == false,
             "Generated-book illustrations toggle should use backend generated-source default"
         )
@@ -366,6 +374,8 @@ struct AppleCreationPayloadCheck {
                 .targetLanguage,
                 .voice,
                 .enableLookupCache,
+                .outputHtml,
+                .outputPdf,
                 .includeImages,
                 .imagePromptPipeline,
                 .imageStyleTemplate,
@@ -378,6 +388,8 @@ struct AppleCreationPayloadCheck {
         require(editedDefaults.author == nil, "Edited author should not be overwritten by backend defaults")
         require(editedDefaults.targetLanguage == nil, "Edited target language should not be overwritten")
         require(editedDefaults.voice == nil, "Edited voice should not be overwritten")
+        require(editedDefaults.outputHtml == nil, "Edited HTML output should not be overwritten")
+        require(editedDefaults.outputPdf == nil, "Edited PDF output should not be overwritten")
         require(editedDefaults.enableLookupCache == nil, "Edited lookup-cache toggle should not be overwritten")
         require(editedDefaults.includeImages == nil, "Edited illustrations toggle should not be overwritten")
         require(editedDefaults.imagePromptPipeline == nil, "Edited image prompt pipeline should not be overwritten")
@@ -506,6 +518,8 @@ struct AppleCreationPayloadCheck {
             baseOutput: "native-creation",
             includeTransliteration: true,
             enableLookupCache: false,
+            outputHtml: true,
+            outputPdf: false,
             includeImages: true,
             imagePromptPipeline: .visualCanon,
             imageStyleTemplate: .childrenBook,
@@ -529,6 +543,8 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.author == "Me", "Generated draft should default blank author to Me")
         require(generatedDraft.targetLanguage == "Slovak", "Generated draft should map target language")
         require(generatedDraft.voice == "macOS-auto-male", "Generated draft should trim and map voice")
+        require(generatedDraft.outputHtml == true, "Generated draft should keep selected HTML output toggle")
+        require(generatedDraft.outputPdf == false, "Generated draft should keep selected PDF output toggle")
         require(generatedDraft.includeImages == true, "Generated draft should keep the native illustrations toggle")
         require(
             generatedDraft.imagePromptPipeline == "visual_canon",
@@ -577,11 +593,14 @@ struct AppleCreationPayloadCheck {
             voice: .gtts,
             includeTransliteration: false,
             enableLookupCache: true,
+            outputHtml: false,
+            outputPdf: true,
             pipelineDefaults: options.pipelineDefaults
         )
         require(narrateDraft.inputFile == "imports/demo.epub", "Narrate draft should trim input path")
         require(narrateDraft.baseOutput == "apple/demo", "Narrate draft should trim output path")
         require(narrateDraft.includeTransliteration == false, "Narrate draft should keep transliteration toggle")
+        require(narrateDraft.outputPdf == true, "Narrate draft should keep selected PDF output toggle")
 
         let subtitleDraft = AppleBookCreatePresentation.subtitleJobDraft(
             sourcePath: " Subtitles/demo.srt ",
@@ -674,6 +693,8 @@ struct AppleCreationPayloadCheck {
             sentencesPerOutputFile: 12,
             generateAudio: true,
             selectedVoice: "macOS-auto-male",
+            outputHtml: true,
+            outputPdf: true,
             bookMetadata: [
                 "book_title": .string("Demo Book"),
                 "chapter_count": .number(3),
@@ -774,6 +795,8 @@ struct AppleCreationPayloadCheck {
         require(encodedInputs?["target_languages"] as? [String] == ["sk"], "pipeline inputs should encode target_languages")
         require(encodedInputs?["sentences_per_output_file"] as? Int == 12, "pipeline inputs should encode sentence count")
         require(encodedInputs?["selected_voice"] as? String == "macOS-auto-male", "pipeline inputs should encode selected_voice")
+        require(encodedInputs?["output_html"] as? Bool == true, "pipeline inputs should encode output_html")
+        require(encodedInputs?["output_pdf"] as? Bool == true, "pipeline inputs should encode output_pdf")
         let metadata = encodedInputs?["book_metadata"] as? [String: Any]
         require(metadata?["book_title"] as? String == "Demo Book", "pipeline inputs should encode book_metadata")
 

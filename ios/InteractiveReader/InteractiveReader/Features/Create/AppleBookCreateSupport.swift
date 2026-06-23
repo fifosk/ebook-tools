@@ -12,6 +12,8 @@ struct AppleBookCreateDraft: Equatable {
     let baseOutput: String
     let includeTransliteration: Bool
     let enableLookupCache: Bool
+    let outputHtml: Bool
+    let outputPdf: Bool
     let includeImages: Bool
     let imagePromptPipeline: String
     let imageStyleTemplate: String
@@ -40,6 +42,8 @@ struct AppleNarrateEbookDraft: Equatable {
     let voice: String
     let includeTransliteration: Bool
     let enableLookupCache: Bool
+    let outputHtml: Bool
+    let outputPdf: Bool
     let pipelineDefaults: BookCreationPipelineDefaults?
 
     func replacingInputFile(_ inputFile: String) -> AppleNarrateEbookDraft {
@@ -51,6 +55,8 @@ struct AppleNarrateEbookDraft: Equatable {
             voice: voice,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
+            outputHtml: outputHtml,
+            outputPdf: outputPdf,
             pipelineDefaults: pipelineDefaults
         )
     }
@@ -277,6 +283,8 @@ enum AppleBookCreateEditedField: Hashable {
     case voice
     case includeTransliteration
     case enableLookupCache
+    case outputHtml
+    case outputPdf
     case includeImages
     case imagePromptPipeline
     case imageStyleTemplate
@@ -306,6 +314,8 @@ struct AppleCreateResolvedDefaults: Equatable {
     let voice: AppleBookCreateVoiceOption?
     let includeTransliteration: Bool?
     let enableLookupCache: Bool?
+    let outputHtml: Bool?
+    let outputPdf: Bool?
     let includeImages: Bool?
     let imagePromptPipeline: AppleGeneratedBookImagePromptPipeline?
     let imageStyleTemplate: AppleGeneratedBookImageStyleTemplate?
@@ -393,6 +403,12 @@ enum AppleBookCreatePresentation {
             enableLookupCache: editedFields.contains(.enableLookupCache)
                 ? nil
                 : options.pipelineDefaults.enableLookupCache,
+            outputHtml: editedFields.contains(.outputHtml)
+                ? nil
+                : options.pipelineDefaults.outputHtml,
+            outputPdf: editedFields.contains(.outputPdf)
+                ? nil
+                : options.pipelineDefaults.outputPdf,
             includeImages: editedFields.contains(.includeImages)
                 ? nil
                 : options.generatedSourceDefaults.addImages,
@@ -711,6 +727,8 @@ enum AppleBookCreatePresentation {
         baseOutput: String,
         includeTransliteration: Bool,
         enableLookupCache: Bool,
+        outputHtml: Bool,
+        outputPdf: Bool,
         includeImages: Bool,
         imagePromptPipeline: AppleGeneratedBookImagePromptPipeline,
         imageStyleTemplate: AppleGeneratedBookImageStyleTemplate,
@@ -742,6 +760,8 @@ enum AppleBookCreatePresentation {
             baseOutput: baseOutput,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
+            outputHtml: outputHtml,
+            outputPdf: outputPdf,
             includeImages: includeImages,
             imagePromptPipeline: imagePromptPipeline.backendValue,
             imageStyleTemplate: imageStyleTemplate.backendValue,
@@ -771,6 +791,8 @@ enum AppleBookCreatePresentation {
         voice: AppleBookCreateVoiceOption,
         includeTransliteration: Bool,
         enableLookupCache: Bool,
+        outputHtml: Bool,
+        outputPdf: Bool,
         pipelineDefaults: BookCreationPipelineDefaults?
     ) -> AppleNarrateEbookDraft {
         AppleNarrateEbookDraft(
@@ -781,6 +803,8 @@ enum AppleBookCreatePresentation {
             voice: voice.backendValue,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
+            outputHtml: outputHtml,
+            outputPdf: outputPdf,
             pipelineDefaults: pipelineDefaults
         )
     }
