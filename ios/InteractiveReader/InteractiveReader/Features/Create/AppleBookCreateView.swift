@@ -184,30 +184,15 @@ struct AppleBookCreateView: View {
     }
 
     private var narrationSection: some View {
-        Section(creationMode == .subtitleJob ? "Languages" : "Narration") {
-            Picker("Input", selection: languageBinding(for: .inputLanguage, value: $inputLanguage)) {
-                ForEach(availableInputLanguages) { language in
-                    Text(language.label).tag(language)
-                }
-            }
-            .accessibilityIdentifier("createBookInputLanguagePicker")
-
-            Picker("Target", selection: languageBinding(for: .targetLanguage, value: $targetLanguage)) {
-                ForEach(availableTargetLanguages) { language in
-                    Text(language.label).tag(language)
-                }
-            }
-            .accessibilityIdentifier("createBookTargetLanguagePicker")
-
-            if creationMode != .subtitleJob {
-                Picker("Voice", selection: voiceBinding) {
-                    ForEach(availableVoices) { option in
-                        Text(option.label).tag(option)
-                    }
-                }
-                .accessibilityIdentifier("createBookVoicePicker")
-            }
-        }
+        AppleBookCreateNarrationSection(
+            creationMode: creationMode,
+            inputLanguage: languageBinding(for: .inputLanguage, value: $inputLanguage),
+            targetLanguage: languageBinding(for: .targetLanguage, value: $targetLanguage),
+            voice: voiceBinding,
+            availableInputLanguages: availableInputLanguages,
+            availableTargetLanguages: availableTargetLanguages,
+            availableVoices: availableVoices
+        )
     }
 
     private var outputSection: some View {
@@ -1147,4 +1132,41 @@ private struct AppleBookCreateSourceSection: View {
         }
     }
     #endif
+}
+
+private struct AppleBookCreateNarrationSection: View {
+    let creationMode: AppleCreateMode
+    @Binding var inputLanguage: AppleBookCreateLanguage
+    @Binding var targetLanguage: AppleBookCreateLanguage
+    @Binding var voice: AppleBookCreateVoiceOption
+    let availableInputLanguages: [AppleBookCreateLanguage]
+    let availableTargetLanguages: [AppleBookCreateLanguage]
+    let availableVoices: [AppleBookCreateVoiceOption]
+
+    var body: some View {
+        Section(creationMode == .subtitleJob ? "Languages" : "Narration") {
+            Picker("Input", selection: $inputLanguage) {
+                ForEach(availableInputLanguages) { language in
+                    Text(language.label).tag(language)
+                }
+            }
+            .accessibilityIdentifier("createBookInputLanguagePicker")
+
+            Picker("Target", selection: $targetLanguage) {
+                ForEach(availableTargetLanguages) { language in
+                    Text(language.label).tag(language)
+                }
+            }
+            .accessibilityIdentifier("createBookTargetLanguagePicker")
+
+            if creationMode != .subtitleJob {
+                Picker("Voice", selection: $voice) {
+                    ForEach(availableVoices) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+                .accessibilityIdentifier("createBookVoicePicker")
+            }
+        }
+    }
 }
