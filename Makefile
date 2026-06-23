@@ -140,22 +140,11 @@ E2E_SIMCTL_LOCK ?= $(shell python3 -c 'import tempfile; print(tempfile.gettempdi
 
 # Write config + journey to profile-scoped /tmp paths.
 define WRITE_E2E_CONFIG
-python3 -c "import json, os, shutil; from pathlib import Path; \
-	env={}; \
-	env_file = Path('.env'); \
-	text = env_file.read_text() if env_file.exists() else ''; \
-	[env.update(dict([l.strip().split('=',1)])) for l in text.splitlines() if '=' in l and not l.startswith('#')]; \
-	env.update({k: os.environ[k] for k in ('E2E_USERNAME','E2E_PASSWORD','E2E_API_BASE_URL') if os.environ.get(k)}); \
-	config_path = Path(r'$(E2E_CONFIG_PATH)'); \
-	journey_path = Path(r'$(E2E_JOURNEY_PATH)'); \
-	config_path.parent.mkdir(parents=True, exist_ok=True); \
-	journey_path.parent.mkdir(parents=True, exist_ok=True); \
-	config_path.write_text(json.dumps({ \
-		'username': env.get('E2E_USERNAME',''), \
-		'password': env.get('E2E_PASSWORD',''), \
-		'api_base_url': env.get('E2E_API_BASE_URL','https://api.langtools.fifosk.synology.me') \
-	})); \
-	shutil.copyfile(r'$(JOURNEY_SRC)', journey_path)"
+python3 scripts/write_apple_e2e_config.py \
+	--env-file .env \
+	--config-path "$(E2E_CONFIG_PATH)" \
+	--journey-src "$(JOURNEY_SRC)" \
+	--journey-path "$(E2E_JOURNEY_PATH)"
 endef
 
 # ── iPhone E2E ───────────────────────────────────────────────────────

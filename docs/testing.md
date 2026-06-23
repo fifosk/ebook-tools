@@ -723,7 +723,10 @@ temporary files that XCUITest reads at runtime:
 Values from the process environment override `.env`, so commands such as
 `run_app_owned_journey.py --env E2E_API_BASE_URL=...` can inject simulator-safe
 configuration without editing local files. These temporary files are cleaned up
-after each run.
+after each run. The Makefile writes them through
+`scripts/write_apple_e2e_config.py`, which shares the preflight `.env` parsing
+behavior: single- or double-quoted values such as `E2E_USERNAME='editor'` are
+stripped before XCUITest reads the temporary config.
 
 **Platform-specific behaviors:**
 

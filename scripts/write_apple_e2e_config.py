@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""Write temporary Apple XCUITest config and journey files."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import shutil
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_apple_create_readiness import DEFAULT_API_BASE_URL, load_env_file
+
+
+def resolve_config(env_file: Path) -> dict[str, str]:
+    file_values = load_env_file(env_file)
+    return {
+        "username": os.environ.get("E2E_USERNAME") or file_values.get("E2E_USERNAME", ""),
+        "password": os.environ.get("E2E_PASSWORD") or file_values.get("E2E_PASSWORD", ""),
+        "api_base_url": (
+            os.environ.get("E2E_API_BASE_URL")
+            or file_values.get("E2E_API_BASE_URL")
+            or DEFAULT_API_BASE_URL
+        ),
+    }
+
+
+def write_config_and_journey(
+    *,
+    env_file: Path,
+    config_path: Path,
+    journey_src: Path,
+    journey_path: Path,
+) -> dict[str, str]:
+    config = resolve_config(env_file)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    journey_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    shutil.copyfile(journey_src, journey_path)
+    return config
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--env-file", default=".env", help="Path to optional .env file")
+    parser.add_argument("--config-path", required=True, help="Output JSON config path")
+    parser.add_argument("--journey-src", required=True, help="Source journey JSON path")
+    parser.add_argument("--journey-path", required=True, help="Output journey JSON path")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    write_config_and_journey(
+        env_file=Path(args.env_file),
+        config_path=Path(args.config_path),
+        journey_src=Path(args.journey_src),
+        journey_path=Path(args.journey_path),
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
