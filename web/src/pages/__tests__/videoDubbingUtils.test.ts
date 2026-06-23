@@ -6,6 +6,7 @@ import type {
   YoutubeNasVideo
 } from '../../api/dtos';
 import {
+  buildVideoDubbingGeneratePayload,
   buildVoiceOptions,
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
@@ -46,6 +47,36 @@ function video(overrides: Partial<YoutubeNasVideo>): YoutubeNasVideo {
     modified_at: '2026-06-23T00:00:00Z',
     subtitles: [],
     ...overrides
+  };
+}
+
+type GenerateInput = Parameters<typeof buildVideoDubbingGeneratePayload>[0];
+
+function generateInput(overrides: Partial<GenerateInput> = {}): GenerateInput {
+  return {
+    selectedVideo: video({ path: '/videos/show.mkv' }),
+    selectedSubtitle: subtitle({ path: '/subs/show.es.ass' }),
+    mediaMetadataDraft: null,
+    subtitleLanguageLabel: '',
+    subtitleLanguageCode: '',
+    targetLanguageCode: '',
+    voice: '',
+    startOffset: '',
+    endOffset: '',
+    originalMixPercent: 5,
+    flushSentences: 10,
+    translationBatchSize: 2,
+    llmModel: '',
+    translationProvider: '',
+    transliterationMode: '',
+    transliterationModel: '',
+    splitBatches: true,
+    stitchBatches: true,
+    includeTransliteration: true,
+    targetHeight: 480,
+    preserveAspectRatio: true,
+    enableLookupCache: true,
+    ...overrides,
   };
 }
 
@@ -141,6 +172,125 @@ describe('videoDubbingUtils', () => {
     expect(canExtractEmbeddedSubtitles(video({ path: '/videos/movie.MKV' }))).toBe(true);
     expect(canExtractEmbeddedSubtitles(video({ path: '/videos/movie.mp4' }))).toBe(true);
     expect(canExtractEmbeddedSubtitles(video({ path: '/videos/movie.webm' }))).toBe(false);
+  });
+
+  it('builds the YouTube dub request payload with normalized optional values', () => {
+    const result = buildVideoDubbingGeneratePayload(generateInput({
+      mediaMetadataDraft: { tv: { title: 'Show' } },
+      subtitleLanguageLabel: 'Spanish',
+      subtitleLanguageCode: 'es',
+      targetLanguageCode: 'en',
+      voice: '  Monica  ',
+      startOffset: '01:05',
+      endOffset: '01:02:03',
+      originalMixPercent: 11,
+      flushSentences: 8,
+      translationBatchSize: 3,
+      llmModel: 'gpt-4.1-mini',
+      translationProvider: 'llm',
+      transliterationMode: 'always',
+      transliterationModel: 'uroman',
+      splitBatches: false,
+      stitchBatches: true,
+      includeTransliteration: false,
+      targetHeight: 720,
+      preserveAspectRatio: false,
+      enableLookupCache: false,
+    }));
+
+    expect(result).toEqual({
+      error: null,
+      payload: {
+        video_path: '/videos/show.mkv',
+        subtitle_path: '/subs/show.es.ass',
+        media_metadata: { tv: { title: 'Show' } },
+        source_language: 'Spanish',
+        target_language: 'en',
+        voice: 'Monica',
+        start_time_offset: '01:05',
+        end_time_offset: '01:02:03',
+        original_mix_percent: 11,
+        flush_sentences: 8,
+        llm_model: 'gpt-4.1-mini',
+        translation_provider: 'llm',
+        translation_batch_size: 3,
+        transliteration_mode: 'always',
+        transliteration_model: 'uroman',
+        split_batches: false,
+        stitch_batches: true,
+        include_transliteration: false,
+        target_height: 720,
+        preserve_aspect_ratio: false,
+        enable_lookup_cache: false,
+      },
+    });
+  });
+
+  it('uses fallback voice and omits blank optional YouTube dub payload values', () => {
+    const result = buildVideoDubbingGeneratePayload(generateInput({
+      voice: '   ',
+    }));
+
+    expect(result.error).toBeNull();
+    if (!result.payload) {
+      throw new Error('Expected YouTube dub payload');
+    }
+    expect(result.payload).toMatchObject({
+      video_path: '/videos/show.mkv',
+      subtitle_path: '/subs/show.es.ass',
+      voice: 'gTTS',
+      original_mix_percent: 5,
+      flush_sentences: 10,
+      translation_batch_size: 2,
+      split_batches: true,
+      stitch_batches: true,
+      include_transliteration: true,
+      target_height: 480,
+      preserve_aspect_ratio: true,
+      enable_lookup_cache: true,
+    });
+    expect(result.payload.source_language).toBeUndefined();
+    expect(result.payload.target_language).toBeUndefined();
+    expect(result.payload.media_metadata).toBeUndefined();
+    expect(result.payload.start_time_offset).toBeUndefined();
+    expect(result.payload.end_time_offset).toBeUndefined();
+    expect(result.payload.llm_model).toBeUndefined();
+    expect(result.payload.translation_provider).toBeUndefined();
+    expect(result.payload.transliteration_mode).toBeUndefined();
+    expect(result.payload.transliteration_model).toBeUndefined();
+  });
+
+  it('rejects YouTube dub generation without a selected video and subtitle', () => {
+    const result = buildVideoDubbingGeneratePayload(generateInput({
+      selectedVideo: null,
+      selectedSubtitle: null,
+    }));
+
+    expect(result).toEqual({
+      payload: null,
+      error: 'Choose a video and an ASS subtitle before generating audio.',
+    });
+  });
+
+  it('rejects invalid and inverted YouTube dub clip offsets', () => {
+    expect(
+      buildVideoDubbingGeneratePayload(generateInput({
+        startOffset: 'bad',
+        endOffset: '',
+      })),
+    ).toEqual({
+      payload: null,
+      error: 'Offsets must be numbers or timecodes like HH:MM:SS',
+    });
+    expect(
+      buildVideoDubbingGeneratePayload(generateInput({
+        startOffset: '02:00',
+        endOffset: '01:59',
+      })),
+    ).toEqual({
+      payload: null,
+      error: 'End offset must be greater than start offset.',
+    });
   });
 
   it('prefers English extractable subtitle streams for inline extraction defaults', () => {

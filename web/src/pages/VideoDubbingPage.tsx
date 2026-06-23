@@ -53,11 +53,11 @@ import {
 } from './video-dubbing/videoDubbingConfig';
 import type { VideoDubbingTab, VideoMetadataSection } from './video-dubbing/videoDubbingTypes';
 import {
+  buildVideoDubbingGeneratePayload,
   buildVoiceOptions,
   canExtractEmbeddedSubtitles,
   coerceRecord,
   filterPlayableSubtitles,
-  parseOffsetSeconds,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
   resolveDefaultSubtitle,
@@ -900,52 +900,39 @@ export default function VideoDubbingPage({
   }, [metadataLookupSourceName, updateMediaMetadataDraft]);
 
   const handleGenerate = useCallback(async () => {
-    if (!selectedVideo || !selectedSubtitle) {
-      setGenerateError('Choose a video and an ASS subtitle before generating audio.');
-      return;
-    }
-    let parsedStart = 0;
-    let parsedEnd: number | undefined;
-    try {
-      parsedStart = parseOffsetSeconds(startOffset);
-      parsedEnd = endOffset.trim() ? parseOffsetSeconds(endOffset) : undefined;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Offsets must be in seconds or HH:MM:SS format.';
-      setGenerateError(message);
-      return;
-    }
-    if (parsedEnd !== undefined && parsedEnd <= parsedStart) {
-      setGenerateError('End offset must be greater than start offset.');
+    const result = buildVideoDubbingGeneratePayload({
+      selectedVideo,
+      selectedSubtitle,
+      mediaMetadataDraft,
+      subtitleLanguageLabel,
+      subtitleLanguageCode,
+      targetLanguageCode,
+      voice,
+      startOffset,
+      endOffset,
+      originalMixPercent,
+      flushSentences,
+      translationBatchSize,
+      llmModel,
+      translationProvider,
+      transliterationMode,
+      transliterationModel,
+      splitBatches,
+      stitchBatches,
+      includeTransliteration,
+      targetHeight,
+      preserveAspectRatio,
+      enableLookupCache,
+    });
+    if (!result.payload) {
+      setGenerateError(result.error);
       return;
     }
     setIsGenerating(true);
     setGenerateError(null);
     setStatusMessage(null);
     try {
-      const response = await generateYoutubeDub({
-        video_path: selectedVideo.path,
-        subtitle_path: selectedSubtitle.path,
-        media_metadata: mediaMetadataDraft ?? undefined,
-        source_language: subtitleLanguageLabel || subtitleLanguageCode || undefined,
-        target_language: targetLanguageCode || undefined,
-        voice: voice.trim() || 'gTTS',
-        start_time_offset: startOffset.trim() || undefined,
-        end_time_offset: endOffset.trim() || undefined,
-        original_mix_percent: originalMixPercent,
-        flush_sentences: flushSentences,
-        llm_model: llmModel || undefined,
-        translation_provider: translationProvider || undefined,
-        translation_batch_size: translationBatchSize,
-        transliteration_mode: transliterationMode || undefined,
-        transliteration_model: transliterationModel || undefined,
-        split_batches: splitBatches,
-        stitch_batches: stitchBatches,
-        include_transliteration: includeTransliteration,
-        target_height: targetHeight,
-        preserve_aspect_ratio: preserveAspectRatio,
-        enable_lookup_cache: enableLookupCache
-      });
+      const response = await generateYoutubeDub(result.payload);
       setStatusMessage(`Dub job submitted as ${response.job_id}. Track progress below.`);
       onJobCreated(response.job_id);
       setActiveTab('jobs');
@@ -977,9 +964,9 @@ export default function VideoDubbingPage({
     includeTransliteration,
     targetHeight,
     preserveAspectRatio,
+    enableLookupCache,
     mediaMetadataDraft,
-    onJobCreated,
-    parseOffsetSeconds
+    onJobCreated
   ]);
 
   const handlePreviewVoice = useCallback(async () => {

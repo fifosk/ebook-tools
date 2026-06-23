@@ -3,6 +3,7 @@ import type {
   MacOSVoice,
   VoiceInventoryResponse,
   YoutubeInlineSubtitleStream,
+  YoutubeDubRequest,
   YoutubeNasSubtitle,
   YoutubeNasVideo
 } from '../../api/dtos';
@@ -387,7 +388,7 @@ export function parseOffsetSeconds(value: string): number {
   }
   const segments = trimmed.split(':');
   const parseNumber = (token: string) => {
-    if (!/^\\d+(\\.\\d+)?$/.test(token)) {
+    if (!/^\d+(\.\d+)?$/.test(token)) {
       throw new Error('Offsets must be numbers or timecodes like HH:MM:SS');
     }
     return parseFloat(token);
@@ -409,6 +410,112 @@ export function parseOffsetSeconds(value: string): number {
     throw new Error('Minutes and seconds must be between 0 and 59');
   }
   return hours * 3600 + minutes * 60 + seconds;
+}
+
+export type VideoDubbingGeneratePayloadInput = {
+  selectedVideo: YoutubeNasVideo | null;
+  selectedSubtitle: YoutubeNasSubtitle | null;
+  mediaMetadataDraft: Record<string, unknown> | null;
+  subtitleLanguageLabel: string;
+  subtitleLanguageCode: string;
+  targetLanguageCode: string;
+  voice: string;
+  startOffset: string;
+  endOffset: string;
+  originalMixPercent: number;
+  flushSentences: number;
+  translationBatchSize: number;
+  llmModel: string;
+  translationProvider: string;
+  transliterationMode: string;
+  transliterationModel: string;
+  splitBatches: boolean;
+  stitchBatches: boolean;
+  includeTransliteration: boolean;
+  targetHeight: number;
+  preserveAspectRatio: boolean;
+  enableLookupCache: boolean;
+};
+
+export type VideoDubbingGeneratePayloadResult =
+  | { payload: YoutubeDubRequest; error: null }
+  | { payload: null; error: string };
+
+export function buildVideoDubbingGeneratePayload({
+  selectedVideo,
+  selectedSubtitle,
+  mediaMetadataDraft,
+  subtitleLanguageLabel,
+  subtitleLanguageCode,
+  targetLanguageCode,
+  voice,
+  startOffset,
+  endOffset,
+  originalMixPercent,
+  flushSentences,
+  translationBatchSize,
+  llmModel,
+  translationProvider,
+  transliterationMode,
+  transliterationModel,
+  splitBatches,
+  stitchBatches,
+  includeTransliteration,
+  targetHeight,
+  preserveAspectRatio,
+  enableLookupCache,
+}: VideoDubbingGeneratePayloadInput): VideoDubbingGeneratePayloadResult {
+  if (!selectedVideo || !selectedSubtitle) {
+    return {
+      payload: null,
+      error: 'Choose a video and an ASS subtitle before generating audio.',
+    };
+  }
+
+  let parsedStart = 0;
+  let parsedEnd: number | undefined;
+  try {
+    parsedStart = parseOffsetSeconds(startOffset);
+    parsedEnd = endOffset.trim() ? parseOffsetSeconds(endOffset) : undefined;
+  } catch (error) {
+    return {
+      payload: null,
+      error: error instanceof Error ? error.message : 'Offsets must be in seconds or HH:MM:SS format.',
+    };
+  }
+  if (parsedEnd !== undefined && parsedEnd <= parsedStart) {
+    return {
+      payload: null,
+      error: 'End offset must be greater than start offset.',
+    };
+  }
+
+  return {
+    payload: {
+      video_path: selectedVideo.path,
+      subtitle_path: selectedSubtitle.path,
+      media_metadata: mediaMetadataDraft ?? undefined,
+      source_language: subtitleLanguageLabel || subtitleLanguageCode || undefined,
+      target_language: targetLanguageCode || undefined,
+      voice: voice.trim() || 'gTTS',
+      start_time_offset: startOffset.trim() || undefined,
+      end_time_offset: endOffset.trim() || undefined,
+      original_mix_percent: originalMixPercent,
+      flush_sentences: flushSentences,
+      llm_model: llmModel || undefined,
+      translation_provider: translationProvider || undefined,
+      translation_batch_size: translationBatchSize,
+      transliteration_mode: transliterationMode || undefined,
+      transliteration_model: transliterationModel || undefined,
+      split_batches: splitBatches,
+      stitch_batches: stitchBatches,
+      include_transliteration: includeTransliteration,
+      target_height: targetHeight,
+      preserve_aspect_ratio: preserveAspectRatio,
+      enable_lookup_cache: enableLookupCache,
+    },
+    error: null,
+  };
 }
 
 export function formatOffsetLabel(value: number | null | undefined): string {
