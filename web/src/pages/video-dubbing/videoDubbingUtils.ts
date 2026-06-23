@@ -272,6 +272,27 @@ export function resolveDefaultStreamLanguages(streams: YoutubeInlineSubtitleStre
   return next;
 }
 
+export function formatSubtitleExtractionStatus(extractedCount: number, videoFilename: string): string {
+  if (extractedCount <= 0) {
+    return 'No subtitle streams found to extract.';
+  }
+  const noun = extractedCount === 1 ? 'track' : 'tracks';
+  return `Extracted ${extractedCount} subtitle ${noun} from ${videoFilename}.`;
+}
+
+export function resolveSubtitleNotice(
+  selectedVideo: YoutubeNasVideo | null,
+  playableSubtitles: YoutubeNasSubtitle[],
+): string | null {
+  if (!selectedVideo) {
+    return 'Select a video to see subtitles.';
+  }
+  if (playableSubtitles.length === 0) {
+    return 'No subtitles were found next to this video.';
+  }
+  return null;
+}
+
 export function buildVoiceOptions(
   voiceInventory: VoiceInventoryResponse | null,
   targetLanguageCode: string

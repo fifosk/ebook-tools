@@ -10,8 +10,10 @@ import {
   buildVoiceOptions,
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
+  formatSubtitleExtractionStatus,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
+  resolveSubtitleNotice,
   resolveVideoDubbingSelection,
   resolveVideoDubbingMetadataSourceName
 } from '../video-dubbing/videoDubbingUtils';
@@ -172,6 +174,21 @@ describe('videoDubbingUtils', () => {
     expect(canExtractEmbeddedSubtitles(video({ path: '/videos/movie.MKV' }))).toBe(true);
     expect(canExtractEmbeddedSubtitles(video({ path: '/videos/movie.mp4' }))).toBe(true);
     expect(canExtractEmbeddedSubtitles(video({ path: '/videos/movie.webm' }))).toBe(false);
+  });
+
+  it('formats subtitle extraction status messages', () => {
+    expect(formatSubtitleExtractionStatus(0, 'episode.mkv')).toBe('No subtitle streams found to extract.');
+    expect(formatSubtitleExtractionStatus(1, 'episode.mkv')).toBe('Extracted 1 subtitle track from episode.mkv.');
+    expect(formatSubtitleExtractionStatus(3, 'episode.mkv')).toBe('Extracted 3 subtitle tracks from episode.mkv.');
+  });
+
+  it('resolves subtitle availability notices for the source panel', () => {
+    const selectedVideo = video({ subtitles: [] });
+    const playable = [subtitle({ path: '/subs/episode.en.ass', format: 'ass' })];
+
+    expect(resolveSubtitleNotice(null, [])).toBe('Select a video to see subtitles.');
+    expect(resolveSubtitleNotice(selectedVideo, [])).toBe('No subtitles were found next to this video.');
+    expect(resolveSubtitleNotice(selectedVideo, playable)).toBeNull();
   });
 
   it('builds the YouTube dub request payload with normalized optional values', () => {

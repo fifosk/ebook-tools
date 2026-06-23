@@ -58,9 +58,11 @@ import {
   canExtractEmbeddedSubtitles,
   coerceRecord,
   filterPlayableSubtitles,
+  formatSubtitleExtractionStatus,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
   resolveDefaultSubtitle,
+  resolveSubtitleNotice,
   resolveVideoDubbingSelection,
   resolveVideoDubbingMetadataSourceName
 } from './video-dubbing/videoDubbingUtils';
@@ -770,11 +772,7 @@ export default function VideoDubbingPage({
       try {
         const response = await extractInlineSubtitles(selectedVideo.path, languages);
         const count = response.extracted?.length ?? 0;
-        setStatusMessage(
-          count > 0
-            ? `Extracted ${count} subtitle ${count === 1 ? 'track' : 'tracks'} from ${selectedVideo.filename}.`
-            : 'No subtitle streams found to extract.'
-        );
+        setStatusMessage(formatSubtitleExtractionStatus(count, selectedVideo.filename));
         await handleRefresh();
         setSelectedVideoPath(selectedVideo.path);
         setAvailableSubtitleStreams([]);
@@ -1011,13 +1009,7 @@ export default function VideoDubbingPage({
   }, [cleanupPreviewAudio, subtitleLanguageLabel, targetLanguage, targetLanguageCode, voice]);
 
   const subtitleNotice = useMemo(() => {
-    if (!selectedVideo) {
-      return 'Select a video to see subtitles.';
-    }
-    if (playableSubtitles.length === 0) {
-      return 'No subtitles were found next to this video.';
-    }
-    return null;
+    return resolveSubtitleNotice(selectedVideo, playableSubtitles);
   }, [playableSubtitles, selectedVideo]);
 
   const availableVoiceOptions = useMemo(
