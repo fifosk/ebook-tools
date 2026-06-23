@@ -60,11 +60,19 @@ final class AppleBookCreateViewModel: ObservableObject {
             creationOptions = options
             loadedOptionsCacheKey = cacheKey
             return options
+        } catch APIClientError.httpError(let statusCode, _) where statusCode == 404 {
+            optionsErrorMessage = Self.creationOptionsUnavailableMessage
+            return nil
         } catch {
             optionsErrorMessage = error.localizedDescription
             return nil
         }
     }
+
+    static let creationOptionsUnavailableMessage = (
+        "This backend does not advertise Apple Create defaults yet. "
+        + "Using built-in defaults; deploy the latest ebook-tools API before running Create readiness checks."
+    )
 
     func loadSubtitleModels(
         using appState: AppState,
