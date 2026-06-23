@@ -90,6 +90,10 @@ Manual path entry remains available when the backend list is empty or a source
 is outside the default browser roots. tvOS intentionally keeps Create narrowed
 to generated-book jobs.
 
+Create also loads `/api/audio/voices` to add language-matched gTTS, macOS, and
+Piper choices to source/target narration pickers. Preview buttons call
+`/api/audio` with a short sample sentence and play the returned audio in-app.
+
 ### Library media URLs
 
 The client streams library files from `/api/library/media/{job_id}/file/...` and appends the `access_token` query parameter so AVPlayer can fetch protected media without custom headers. Ensure the API host is reachable from your device (LAN IP or Bonjour hostname).

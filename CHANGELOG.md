@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.86
+
+- Advanced visible Apple app versioning to `v2026.06.23.86`.
+- Apple Create now loads the shared TTS voice inventory, adds language-matched voice choices for source/target narration, and previews selected voices through the backend audio synthesis route.
+
 ### 2026.06.23.85
 
 - Advanced visible Apple app versioning to `v2026.06.23.85`.

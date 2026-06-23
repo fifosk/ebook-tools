@@ -150,6 +150,7 @@ struct AppleBookCreateView: View {
             await refreshPipelineFiles()
             await refreshSubtitleSources()
             await refreshYoutubeLibrary()
+            _ = await viewModel.loadVoiceInventory(using: appState, cacheKey: creationOptionsLoadKey)
             await viewModel.loadSubtitleModels(using: appState, cacheKey: creationOptionsLoadKey)
         }
         #if os(iOS)
@@ -315,7 +316,29 @@ struct AppleBookCreateView: View {
             availableTargetLanguages: availableTargetLanguages,
             availableVoices: availableVoices,
             availableTargetVoices: availableTargetVoices,
-            targetLanguagesForVoiceOverrides: targetLanguagesForVoiceOverrides
+            languageVoiceOptions: languageVoiceOptions,
+            targetLanguagesForVoiceOverrides: targetLanguagesForVoiceOverrides,
+            isLoadingVoiceInventory: viewModel.isLoadingVoiceInventory,
+            voiceInventoryErrorMessage: viewModel.voiceInventoryErrorMessage,
+            voicePreviewStates: viewModel.voicePreviewStates,
+            voicePreviewErrorMessages: viewModel.voicePreviewErrorMessages,
+            onRefreshVoiceInventory: {
+                Task {
+                    await viewModel.loadVoiceInventory(
+                        using: appState,
+                        cacheKey: creationOptionsLoadKey,
+                        force: true
+                    )
+                }
+            },
+            onPreviewVoice: { language, label, selectedVoice in
+                viewModel.previewVoice(
+                    language: language,
+                    languageLabel: label,
+                    voice: selectedVoice,
+                    using: appState
+                )
+            }
         )
     }
 
@@ -1018,11 +1041,35 @@ struct AppleBookCreateView: View {
     }
 
     private var availableVoices: [AppleBookCreateVoiceOption] {
-        AppleBookCreatePresentation.availableVoices(from: viewModel.creationOptions, selected: voice)
+        AppleBookCreatePresentation.availableVoices(
+            from: viewModel.creationOptions,
+            inventory: viewModel.voiceInventory,
+            language: inputLanguage.backendValue,
+            selected: voice
+        )
     }
 
     private var availableTargetVoices: [AppleBookCreateVoiceOption] {
-        AppleBookCreatePresentation.availableVoices(from: viewModel.creationOptions, selected: targetVoice ?? voice)
+        AppleBookCreatePresentation.availableVoices(
+            from: viewModel.creationOptions,
+            inventory: viewModel.voiceInventory,
+            language: targetLanguage.backendValue,
+            selected: targetVoice ?? voice
+        )
+    }
+
+    private var languageVoiceOptions: [String: [AppleBookCreateVoiceOption]] {
+        var result = [String: [AppleBookCreateVoiceOption]]()
+        for language in targetLanguagesForVoiceOverrides {
+            let selected = languageVoiceOverrides[language].flatMap(AppleBookCreateVoiceOption.init(backendValue:))
+            result[language] = AppleBookCreatePresentation.availableVoices(
+                from: viewModel.creationOptions,
+                inventory: viewModel.voiceInventory,
+                language: language,
+                selected: selected ?? targetVoice ?? voice
+            )
+        }
+        return result
     }
 
     private var targetLanguagesForVoiceOverrides: [String] {

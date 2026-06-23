@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.85",
+            version: "2026.06.23.86",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-voice-preview",
+                    title: "Create previews voices",
+                    detail: "Apple Create now loads the shared TTS voice inventory, adds language-matched voice choices for source and target narration, and previews selected voices through backend audio synthesis."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-subtitle-video-source-pickers",
                     title: "Create finds video sources",
