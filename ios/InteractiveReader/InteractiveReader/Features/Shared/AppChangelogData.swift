@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.73",
+            version: "2026.06.23.74",
             entries: [
+                AppChangelogEntry(
+                    id: "web-subtitle-submit-feedback-utils",
+                    title: "Subtitle submit feedback",
+                    detail: "Web Subtitle Tool submitted-job feedback formatting now lives in a focused module so user-visible creation summaries stay pinned independently from the page shell."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-language-defaults-utils",
                     title: "Subtitle language defaults",

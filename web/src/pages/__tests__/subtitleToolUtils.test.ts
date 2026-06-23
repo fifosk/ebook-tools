@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { JobParameterSnapshot, SubtitleSourceEntry } from '../../api/dtos';
 import type { JobState } from '../../components/JobList';
 import {
-  formatSubmittedSubtitleSummary,
   isAssSubtitleSelection,
   pickLatestSubtitleSource,
   resolveSubtitleMetadataSourceName,
@@ -16,6 +15,7 @@ import {
 } from '../subtitle-tool/subtitleToolUtils';
 import { resolveSubtitleLanguageDefaults } from '../subtitle-tool/subtitleLanguageDefaultsUtils';
 import { resolveSubtitlePrefillValues } from '../subtitle-tool/subtitlePrefillUtils';
+import { formatSubmittedSubtitleSummary } from '../subtitle-tool/subtitleSubmitFeedbackUtils';
 import {
   buildSubtitleSubmitFormData,
   normalizeSubtitleTimecodeInput,

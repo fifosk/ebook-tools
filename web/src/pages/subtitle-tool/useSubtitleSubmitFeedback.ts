@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { PipelineSubmissionResponse } from '../../api/dtos';
 import type { SubtitleOutputFormat } from './subtitleToolTypes';
 import type { ResolvedSubtitleSubmitValues } from './subtitleSubmitUtils';
-import { formatSubmittedSubtitleSummary } from './subtitleToolUtils';
+import { formatSubmittedSubtitleSummary } from './subtitleSubmitFeedbackUtils';
 
 type SubtitleSubmitFeedbackInput = {
   defaultStartTime: string;
