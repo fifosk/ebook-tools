@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import type { VoiceInventoryResponse, YoutubeInlineSubtitleStream } from '../../api/dtos';
+import type {
+  VoiceInventoryResponse,
+  YoutubeInlineSubtitleStream,
+  YoutubeNasSubtitle,
+  YoutubeNasVideo
+} from '../../api/dtos';
 import {
   buildVoiceOptions,
+  canExtractEmbeddedSubtitles,
+  filterPlayableSubtitles,
   resolveVideoDubPrefill,
-  resolveDefaultStreamLanguages
+  resolveDefaultStreamLanguages,
+  resolveVideoDubbingMetadataSourceName
 } from '../video-dubbing/videoDubbingUtils';
 
 function stream(
@@ -18,7 +26,74 @@ function stream(
   };
 }
 
+function subtitle(overrides: Partial<YoutubeNasSubtitle>): YoutubeNasSubtitle {
+  return {
+    path: '/subs/example.ass',
+    filename: 'example.ass',
+    language: 'en',
+    format: 'ass',
+    ...overrides
+  };
+}
+
+function video(overrides: Partial<YoutubeNasVideo>): YoutubeNasVideo {
+  return {
+    path: '/videos/example.mkv',
+    filename: 'example.mkv',
+    folder: '/videos',
+    size_bytes: 100,
+    modified_at: '2026-06-23T00:00:00Z',
+    subtitles: [],
+    ...overrides
+  };
+}
+
 describe('videoDubbingUtils', () => {
+  it('filters playable subtitle formats for video dubbing selection', () => {
+    const selectedVideo = video({
+      subtitles: [
+        subtitle({ path: '/subs/a.ass', filename: 'a.ass', format: 'ass' }),
+        subtitle({ path: '/subs/b.srt', filename: 'b.srt', format: 'SRT' }),
+        subtitle({ path: '/subs/c.txt', filename: 'c.txt', format: 'txt' }),
+      ]
+    });
+
+    expect(filterPlayableSubtitles(null)).toEqual([]);
+    expect(filterPlayableSubtitles(selectedVideo).map((entry) => entry.path)).toEqual([
+      '/subs/a.ass',
+      '/subs/b.srt',
+    ]);
+  });
+
+  it('resolves metadata lookup source names from subtitle before video fallbacks', () => {
+    const selectedVideo = video({
+      path: '/videos/show/episode.mkv',
+      filename: 'episode.mkv',
+    });
+
+    expect(
+      resolveVideoDubbingMetadataSourceName({
+        subtitle: subtitle({ filename: 'episode.en.ass', path: '/subs/episode.en.ass' }),
+        video: selectedVideo,
+      }),
+    ).toBe('episode.en.ass');
+    expect(
+      resolveVideoDubbingMetadataSourceName({
+        subtitle: subtitle({ filename: '', path: '/subs/episode.de.srt' }),
+        video: selectedVideo,
+      }),
+    ).toBe('episode.de.srt');
+    expect(resolveVideoDubbingMetadataSourceName({ subtitle: null, video: selectedVideo })).toBe('episode.mkv');
+    expect(resolveVideoDubbingMetadataSourceName({ subtitle: null, video: null })).toBe('');
+  });
+
+  it('detects video containers that can expose embedded subtitle streams', () => {
+    expect(canExtractEmbeddedSubtitles(null)).toBe(false);
+    expect(canExtractEmbeddedSubtitles(video({ path: '/videos/movie.MKV' }))).toBe(true);
+    expect(canExtractEmbeddedSubtitles(video({ path: '/videos/movie.mp4' }))).toBe(true);
+    expect(canExtractEmbeddedSubtitles(video({ path: '/videos/movie.webm' }))).toBe(false);
+  });
+
   it('prefers English extractable subtitle streams for inline extraction defaults', () => {
     const defaults = resolveDefaultStreamLanguages([
       stream('de'),

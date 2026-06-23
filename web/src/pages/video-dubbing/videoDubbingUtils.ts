@@ -131,6 +131,47 @@ export function subtitleLabel(sub: YoutubeNasSubtitle): string {
   return `${sub.format.toUpperCase()} ${languageSuffix}`.trim();
 }
 
+export function isPlayableSubtitle(subtitle: YoutubeNasSubtitle): boolean {
+  return ['ass', 'srt', 'vtt', 'sub'].includes(subtitle.format.toLowerCase());
+}
+
+export function filterPlayableSubtitles(video: YoutubeNasVideo | null): YoutubeNasSubtitle[] {
+  if (!video) {
+    return [];
+  }
+  return video.subtitles.filter(isPlayableSubtitle);
+}
+
+export function resolveVideoDubbingMetadataSourceName({
+  subtitle,
+  video,
+}: {
+  subtitle: YoutubeNasSubtitle | null;
+  video: YoutubeNasVideo | null;
+}): string {
+  if (subtitle?.filename) {
+    return subtitle.filename;
+  }
+  if (subtitle?.path) {
+    return basenameFromPath(subtitle.path);
+  }
+  if (video?.filename) {
+    return video.filename;
+  }
+  if (video?.path) {
+    return basenameFromPath(video.path);
+  }
+  return '';
+}
+
+export function canExtractEmbeddedSubtitles(video: YoutubeNasVideo | null): boolean {
+  if (!video) {
+    return false;
+  }
+  const lower = video.path.toLowerCase();
+  return lower.endsWith('.mkv') || lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.m4v');
+}
+
 export function subtitleStreamLabel(stream: YoutubeInlineSubtitleStream): string {
   const normalized = stream.language ? stream.language : '';
   const friendlyName = normalized ? resolveLanguageName(normalized) || normalized : 'Unknown language';

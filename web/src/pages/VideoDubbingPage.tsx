@@ -53,13 +53,15 @@ import {
 } from './video-dubbing/videoDubbingConfig';
 import type { VideoDubbingTab, VideoMetadataSection } from './video-dubbing/videoDubbingTypes';
 import {
-  basenameFromPath,
   buildVoiceOptions,
+  canExtractEmbeddedSubtitles,
   coerceRecord,
+  filterPlayableSubtitles,
   parseOffsetSeconds,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
-  resolveDefaultSubtitle
+  resolveDefaultSubtitle,
+  resolveVideoDubbingMetadataSourceName
 } from './video-dubbing/videoDubbingUtils';
 import styles from './VideoDubbingPage.module.css';
 
@@ -232,10 +234,7 @@ export default function VideoDubbingPage({
     [videos, selectedVideoPath]
   );
   const playableSubtitles = useMemo(() => {
-    if (!selectedVideo) {
-      return [];
-    }
-    return selectedVideo.subtitles.filter((sub) => ['ass', 'srt', 'vtt', 'sub'].includes(sub.format.toLowerCase()));
+    return filterPlayableSubtitles(selectedVideo);
   }, [selectedVideo]);
   const selectedSubtitle = useMemo(
     () => playableSubtitles.find((sub) => sub.path === selectedSubtitlePath) ?? null,
@@ -260,19 +259,10 @@ export default function VideoDubbingPage({
     [selectedSubtitle]
   );
   const metadataSourceName = useMemo(() => {
-    if (selectedSubtitle?.filename) {
-      return selectedSubtitle.filename;
-    }
-    if (selectedSubtitle?.path) {
-      return basenameFromPath(selectedSubtitle.path);
-    }
-    if (selectedVideo?.filename) {
-      return selectedVideo.filename;
-    }
-    if (selectedVideo?.path) {
-      return basenameFromPath(selectedVideo.path);
-    }
-    return '';
+    return resolveVideoDubbingMetadataSourceName({
+      subtitle: selectedSubtitle,
+      video: selectedVideo
+    });
   }, [selectedSubtitle, selectedVideo]);
   const [metadataLookupSourceName, setMetadataLookupSourceName] = useState<string>('');
   const [metadataPreview, setMetadataPreview] = useState<SubtitleTvMetadataPreviewResponse | null>(null);
@@ -452,11 +442,7 @@ export default function VideoDubbingPage({
   );
   const sortedLanguageOptions = useMemo(() => sortLanguageLabelsByName(languageOptions), [languageOptions]);
   const canExtractEmbedded = useMemo(() => {
-    if (!selectedVideo) {
-      return false;
-    }
-    const lower = selectedVideo.path.toLowerCase();
-    return lower.endsWith('.mkv') || lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.m4v');
+    return canExtractEmbeddedSubtitles(selectedVideo);
   }, [selectedVideo]);
   const extractableStreams = useMemo(
     () => availableSubtitleStreams.filter((stream) => stream.can_extract),
@@ -483,9 +469,7 @@ export default function VideoDubbingPage({
         const nextVideo =
           response.videos.find((video) => video.path === previousSelectedVideoPath) ?? response.videos[0];
         setSelectedVideoPath(nextVideo.path);
-        const subtitleCandidates = nextVideo.subtitles.filter((sub) =>
-          ['ass', 'srt', 'vtt', 'sub'].includes(sub.format.toLowerCase())
-        );
+        const subtitleCandidates = filterPlayableSubtitles(nextVideo);
         const keepExistingSubtitle =
           previousSelectedVideoPath === nextVideo.path &&
           !!previousSelectedSubtitlePath &&
