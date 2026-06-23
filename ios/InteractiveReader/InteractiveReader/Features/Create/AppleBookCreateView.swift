@@ -60,6 +60,7 @@ struct AppleBookCreateView: View {
     @State private var includeTransliteration = true
     @State private var enableLookupCache = true
     @State private var includeImages = false
+    @State private var imagePromptPipeline = AppleGeneratedBookImagePromptPipeline.promptPlan
     @State private var imageStyleTemplate = AppleGeneratedBookImageStyleTemplate.wireframe
     @State private var imagePromptContextSentences = 0
     @State private var editedFields = Set<AppleBookCreateEditedField>()
@@ -259,6 +260,7 @@ struct AppleBookCreateView: View {
                     includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
                     enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache),
                     includeImages: boolBinding(for: .includeImages, value: $includeImages),
+                    imagePromptPipeline: imagePromptPipelineBinding,
                     imageStyleTemplate: imageStyleTemplateBinding,
                     imagePromptContextSentences: imagePromptContextSentencesBinding,
                     clampedImagePromptContextSentences: clampedImagePromptContextSentences,
@@ -404,6 +406,7 @@ struct AppleBookCreateView: View {
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
             includeImages: includeImages,
+            imagePromptPipeline: imagePromptPipeline,
             imageStyleTemplate: imageStyleTemplate,
             imagePromptContextSentences: imagePromptContextSentences,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults,
@@ -860,6 +863,16 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private var imagePromptPipelineBinding: Binding<AppleGeneratedBookImagePromptPipeline> {
+        Binding(
+            get: { imagePromptPipeline },
+            set: { newValue in
+                markEdited(.imagePromptPipeline)
+                imagePromptPipeline = newValue
+            }
+        )
+    }
+
     private var imagePromptContextSentencesBinding: Binding<Int> {
         Binding(
             get: { clampedImagePromptContextSentences },
@@ -921,6 +934,9 @@ struct AppleBookCreateView: View {
         }
         if let value = defaults.includeImages {
             includeImages = value
+        }
+        if let value = defaults.imagePromptPipeline {
+            imagePromptPipeline = value
         }
         if let value = defaults.imageStyleTemplate {
             imageStyleTemplate = value

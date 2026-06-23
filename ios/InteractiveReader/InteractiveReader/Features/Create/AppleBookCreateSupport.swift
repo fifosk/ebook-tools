@@ -13,6 +13,7 @@ struct AppleBookCreateDraft: Equatable {
     let includeTransliteration: Bool
     let enableLookupCache: Bool
     let includeImages: Bool
+    let imagePromptPipeline: String
     let imageStyleTemplate: String
     let imagePromptContextSentences: Int
     let pipelineDefaults: BookCreationPipelineDefaults?
@@ -164,6 +165,35 @@ enum AppleGeneratedBookImageStyleTemplate: String, CaseIterable, Identifiable {
     }
 }
 
+enum AppleGeneratedBookImagePromptPipeline: String, CaseIterable, Identifiable {
+    case promptPlan = "prompt_plan"
+    case visualCanon = "visual_canon"
+
+    var id: String { rawValue }
+    var backendValue: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .promptPlan:
+            return "Prompt plan"
+        case .visualCanon:
+            return "Visual canon"
+        }
+    }
+
+    init?(backendValue: String) {
+        let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch normalized {
+        case "visual_canon", "visual-canon", "canon":
+            self = .visualCanon
+        case "prompt_plan", "prompt-plan", "plan":
+            self = .promptPlan
+        default:
+            self = .promptPlan
+        }
+    }
+}
+
 struct AppleCreateTimeRange: Equatable {
     let start: String
     let end: String
@@ -236,6 +266,7 @@ enum AppleBookCreateEditedField: Hashable {
     case includeTransliteration
     case enableLookupCache
     case includeImages
+    case imagePromptPipeline
     case imageStyleTemplate
     case imagePromptContextSentences
 }
@@ -252,6 +283,7 @@ struct AppleCreateResolvedDefaults: Equatable {
     let includeTransliteration: Bool?
     let enableLookupCache: Bool?
     let includeImages: Bool?
+    let imagePromptPipeline: AppleGeneratedBookImagePromptPipeline?
     let imageStyleTemplate: AppleGeneratedBookImageStyleTemplate?
     let imagePromptContextSentences: Int?
     let subtitleTranslationProvider: AppleSubtitleTranslationProvider?
@@ -338,6 +370,13 @@ enum AppleBookCreatePresentation {
             includeImages: editedFields.contains(.includeImages)
                 ? nil
                 : options.generatedSourceDefaults.addImages,
+            imagePromptPipeline: editedFields.contains(.imagePromptPipeline)
+                ? nil
+                : (
+                    AppleGeneratedBookImagePromptPipeline(
+                        backendValue: options.generatedSourceDefaults.imagePromptPipeline
+                    ) ?? .promptPlan
+                ),
             imageStyleTemplate: editedFields.contains(.imageStyleTemplate)
                 ? nil
                 : (
@@ -589,6 +628,7 @@ enum AppleBookCreatePresentation {
         includeTransliteration: Bool,
         enableLookupCache: Bool,
         includeImages: Bool,
+        imagePromptPipeline: AppleGeneratedBookImagePromptPipeline,
         imageStyleTemplate: AppleGeneratedBookImageStyleTemplate,
         imagePromptContextSentences: Int,
         pipelineDefaults: BookCreationPipelineDefaults?,
@@ -607,6 +647,7 @@ enum AppleBookCreatePresentation {
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
             includeImages: includeImages,
+            imagePromptPipeline: imagePromptPipeline.backendValue,
             imageStyleTemplate: imageStyleTemplate.backendValue,
             imagePromptContextSentences: clampImagePromptContextSentences(imagePromptContextSentences),
             pipelineDefaults: pipelineDefaults,

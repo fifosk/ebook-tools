@@ -388,6 +388,7 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var includeTransliteration: Bool
     @Binding var enableLookupCache: Bool
     @Binding var includeImages: Bool
+    @Binding var imagePromptPipeline: AppleGeneratedBookImagePromptPipeline
     @Binding var imageStyleTemplate: AppleGeneratedBookImageStyleTemplate
     @Binding var imagePromptContextSentences: Int
     let clampedImagePromptContextSentences: Int
@@ -400,22 +401,30 @@ struct AppleBookCreateGeneratedOutputControls: View {
             Toggle("Illustrations", isOn: $includeImages)
                 .accessibilityIdentifier("createBookIllustrationsToggle")
             if includeImages {
-                Picker("Style", selection: $imageStyleTemplate) {
-                    ForEach(AppleGeneratedBookImageStyleTemplate.allCases) { style in
-                        Text(style.label).tag(style)
+                Picker("Pipeline", selection: $imagePromptPipeline) {
+                    ForEach(AppleGeneratedBookImagePromptPipeline.allCases) { pipeline in
+                        Text(pipeline.label).tag(pipeline)
                     }
                 }
-                .accessibilityIdentifier("createBookImageStylePicker")
-                #if os(iOS)
-                Stepper(
-                    value: $imagePromptContextSentences,
-                    in: 0...50,
-                    step: 1
-                ) {
-                    LabeledContent("Prompt context", value: "\(clampedImagePromptContextSentences)")
+                .accessibilityIdentifier("createBookImagePromptPipelinePicker")
+                if imagePromptPipeline == .promptPlan {
+                    Picker("Style", selection: $imageStyleTemplate) {
+                        ForEach(AppleGeneratedBookImageStyleTemplate.allCases) { style in
+                            Text(style.label).tag(style)
+                        }
+                    }
+                    .accessibilityIdentifier("createBookImageStylePicker")
+                    #if os(iOS)
+                    Stepper(
+                        value: $imagePromptContextSentences,
+                        in: 0...50,
+                        step: 1
+                    ) {
+                        LabeledContent("Prompt context", value: "\(clampedImagePromptContextSentences)")
+                    }
+                    .accessibilityIdentifier("createBookImagePromptContextStepper")
+                    #endif
                 }
-                .accessibilityIdentifier("createBookImagePromptContextStepper")
-                #endif
             }
         }
         Toggle("Transliteration", isOn: $includeTransliteration)

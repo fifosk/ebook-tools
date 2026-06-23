@@ -93,6 +93,10 @@ struct AppleCreationPayloadCheck {
             "Apple Create image style should accept backend-normalized aliases"
         )
         require(
+            AppleGeneratedBookImagePromptPipeline(backendValue: "visual-canon") == .visualCanon,
+            "Apple Create prompt pipeline should accept backend-normalized aliases"
+        )
+        require(
             AppleBookCreatePresentation.derivedBaseOutput(
                 for: .generatedBook,
                 topic: "Topic fallback",
@@ -331,6 +335,10 @@ struct AppleCreationPayloadCheck {
             "Generated-book illustrations toggle should use backend generated-source default"
         )
         require(
+            resolvedDefaults.imagePromptPipeline == .promptPlan,
+            "Generated-book image prompt pipeline should map from backend generated-source default"
+        )
+        require(
             resolvedDefaults.imageStyleTemplate == .wireframe,
             "Generated-book image style should map from backend generated-source default"
         )
@@ -351,6 +359,7 @@ struct AppleCreationPayloadCheck {
                 .voice,
                 .enableLookupCache,
                 .includeImages,
+                .imagePromptPipeline,
                 .imageStyleTemplate,
                 .imagePromptContextSentences
             ],
@@ -361,6 +370,7 @@ struct AppleCreationPayloadCheck {
         require(editedDefaults.voice == nil, "Edited voice should not be overwritten")
         require(editedDefaults.enableLookupCache == nil, "Edited lookup-cache toggle should not be overwritten")
         require(editedDefaults.includeImages == nil, "Edited illustrations toggle should not be overwritten")
+        require(editedDefaults.imagePromptPipeline == nil, "Edited image prompt pipeline should not be overwritten")
         require(editedDefaults.imageStyleTemplate == nil, "Edited image style should not be overwritten")
         require(editedDefaults.imagePromptContextSentences == nil, "Edited image prompt context should not be overwritten")
         require(editedDefaults.sentenceCount == 500, "Edited sentence count should still clamp to backend max")
@@ -441,6 +451,7 @@ struct AppleCreationPayloadCheck {
             includeTransliteration: true,
             enableLookupCache: false,
             includeImages: true,
+            imagePromptPipeline: .visualCanon,
             imageStyleTemplate: .childrenBook,
             imagePromptContextSentences: 99,
             pipelineDefaults: options.pipelineDefaults,
@@ -451,6 +462,10 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.targetLanguage == "Slovak", "Generated draft should map target language")
         require(generatedDraft.voice == "macOS-auto-male", "Generated draft should trim and map voice")
         require(generatedDraft.includeImages == true, "Generated draft should keep the native illustrations toggle")
+        require(
+            generatedDraft.imagePromptPipeline == "visual_canon",
+            "Generated draft should keep the selected image prompt pipeline backend id"
+        )
         require(
             generatedDraft.imageStyleTemplate == "children_book",
             "Generated draft should keep the selected image style backend id"
@@ -580,6 +595,7 @@ struct AppleCreationPayloadCheck {
             environmentOverrides: ["BOOKS_DIR": .string("/runtime/books")],
             pipelineOverrides: [
                 "image_prompt_context_sentences": .number(4),
+                "image_prompt_pipeline": .string("visual_canon"),
                 "image_style_template": .string("children_book"),
                 "tempo": .number(1.08)
             ],
@@ -594,6 +610,10 @@ struct AppleCreationPayloadCheck {
         require(
             pipelineOverrides?["image_style_template"] as? String == "children_book",
             "pipeline overrides should encode selected image style"
+        )
+        require(
+            pipelineOverrides?["image_prompt_pipeline"] as? String == "visual_canon",
+            "pipeline overrides should encode selected image prompt pipeline"
         )
         require(
             pipelineOverrides?["image_prompt_context_sentences"] as? Int == 4,

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.08",
+            version: "2026.06.23.09",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-generated-book-prompt-pipeline",
+                    title: "Apple image prompt pipeline",
+                    detail: "Generated-book creation on iPhone and iPad now lets Illustrations jobs choose Prompt plan or Visual canon before submit."
+                ),
                 AppChangelogEntry(
                     id: "apple-generated-book-prompt-context",
                     title: "Apple image prompt context",
