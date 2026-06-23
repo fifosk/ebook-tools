@@ -67,6 +67,7 @@ test-apple-contracts:
 	bash scripts/check_apple_creation_payloads.sh
 	bash scripts/check_apple_macos_ipad_style_helper.sh
 	bash scripts/check_apple_device_update_helper.sh
+	bash scripts/check_apple_e2e_config_writer.sh
 
 build-apple-macos-ipad-style:
 	bash scripts/apple_build_macos_ipad_style.sh

@@ -268,9 +268,14 @@ struct AppleBookCreateLanguage: Hashable, Identifiable {
 
     static let english = AppleBookCreateLanguage("English")!
     static let arabic = AppleBookCreateLanguage("Arabic")!
+    static let slovak = AppleBookCreateLanguage("Slovak")!
+    static let spanish = AppleBookCreateLanguage("Spanish")!
+    static let french = AppleBookCreateLanguage("French")!
+    static let german = AppleBookCreateLanguage("German")!
 
     static let fallbackOptions: [AppleBookCreateLanguage] =
         AppleLanguageCatalog.orderedLanguageNames.compactMap { AppleBookCreateLanguage($0) }
+    static let allCases = fallbackOptions
 
     static func options(from supported: [String]) -> [AppleBookCreateLanguage] {
         var seen = Set<String>()

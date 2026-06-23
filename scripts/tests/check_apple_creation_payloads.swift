@@ -794,12 +794,16 @@ struct AppleCreationPayloadCheck {
             "YouTube Dub submit should reject a missing subtitle path"
         )
         require(
-            AppleBookCreatePresentation.availableInputLanguages(from: options) == [.english, .arabic],
-            "Input language options should follow backend-supported order"
+            Array(AppleBookCreatePresentation.availableInputLanguages(from: options).prefix(2)) == [.english, .arabic],
+            "Input language options should keep backend-supported languages first"
         )
         require(
-            AppleBookCreatePresentation.availableTargetLanguages(from: options) == [.english, .arabic],
-            "Target language options should follow backend-supported order"
+            Array(AppleBookCreatePresentation.availableTargetLanguages(from: options).prefix(2)) == [.english, .arabic],
+            "Target language options should keep backend-supported languages first"
+        )
+        require(
+            AppleBookCreatePresentation.availableTargetLanguages(from: options).contains(AppleBookCreateLanguage("Hindi")!),
+            "Target language options should append the broad local language catalog"
         )
         require(
             AppleBookCreatePresentation.availableInputLanguages(from: nil) == AppleBookCreateLanguage.allCases,

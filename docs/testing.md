@@ -146,6 +146,17 @@ APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh -
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --build-only --allow-provisioning-updates
 ```
 
+Run the local Apple contract gate after changing native Create payloads,
+deployment helpers, or simulator journey config wiring:
+
+```bash
+make test-apple-contracts
+```
+
+This compiles the Swift creation payload contract and checks the macOS
+iPad-style build helper, guarded physical-device update helper, and XCUITest
+config writer without installing to iPhone, iPad, or Apple TV hardware.
+
 Use dry-runs to inspect the exact unattended command sequence before a physical
 update:
 
