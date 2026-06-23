@@ -372,20 +372,18 @@ final class JourneyRunner {
 
         let timeout = TimeInterval(step.timeout ?? 10)
         let container = element(withIdentifier: identifier)
+        scrollElementIntoView(container, timeout: min(timeout, 4))
         XCTAssertTrue(
             container.waitForExistence(timeout: timeout),
             "\(identifier) should be visible before selecting \(optionLabel)"
         )
 
-        let predicate = NSPredicate(format: "label == %@", optionLabel)
-        let scopedButton = container.descendants(matching: .button).matching(predicate).firstMatch
-        let option = scopedButton.waitForExistence(timeout: 2)
-            ? scopedButton
-            : app.buttons.matching(predicate).firstMatch
+        let option = waitForOption(label: optionLabel, in: container, timeout: timeout)
         XCTAssertTrue(
-            option.waitForExistence(timeout: timeout),
+            option.waitForExistence(timeout: 1),
             "\(optionLabel) option should exist in \(identifier)"
         )
+        scrollElementIntoView(option, timeout: min(timeout, 4))
         selectElement(option)
         sleep(1)
     }
@@ -464,6 +462,54 @@ final class JourneyRunner {
         return app.buttons.matching(predicate).firstMatch
     }
 
+    private func waitForOption(
+        label optionLabel: String,
+        in container: XCUIElement,
+        timeout: TimeInterval
+    ) -> XCUIElement {
+        let deadline = Date().addingTimeInterval(timeout)
+        var didOpenContainer = false
+        var latestCandidate = optionElement(label: optionLabel, in: container)
+
+        while Date() < deadline {
+            latestCandidate = optionElement(label: optionLabel, in: container)
+            if latestCandidate.exists && latestCandidate.isHittable {
+                return latestCandidate
+            }
+
+            if !didOpenContainer {
+                selectElement(container)
+                didOpenContainer = true
+            } else {
+                scrollForward()
+            }
+            usleep(200_000)
+        }
+
+        return latestCandidate
+    }
+
+    private func optionElement(label optionLabel: String, in container: XCUIElement) -> XCUIElement {
+        let predicate = NSPredicate(format: "label == %@", optionLabel)
+        let scopedButton = container.descendants(matching: .button).matching(predicate).firstMatch
+        if scopedButton.exists {
+            return scopedButton
+        }
+        let globalButton = app.buttons.matching(predicate).firstMatch
+        if globalButton.exists {
+            return globalButton
+        }
+        let scopedStaticText = container.descendants(matching: .staticText).matching(predicate).firstMatch
+        if scopedStaticText.exists {
+            return scopedStaticText
+        }
+        let globalStaticText = app.staticTexts.matching(predicate).firstMatch
+        if globalStaticText.exists {
+            return globalStaticText
+        }
+        return globalButton
+    }
+
     /// Platform-safe element activation: `.tap()` on iOS, remote select on tvOS.
     private func selectElement(_ element: XCUIElement) {
         #if os(tvOS)
@@ -536,6 +582,36 @@ final class JourneyRunner {
         return .right
     }
     #endif
+
+    private func scrollElementIntoView(_ element: XCUIElement, timeout: TimeInterval) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            guard element.exists else {
+                scrollForward()
+                usleep(200_000)
+                continue
+            }
+            #if os(tvOS)
+            if focusElement(element, timeout: 1) {
+                return
+            }
+            #else
+            if element.isHittable {
+                return
+            }
+            #endif
+            scrollForward()
+            usleep(200_000)
+        }
+    }
+
+    private func scrollForward() {
+        #if os(tvOS)
+        XCUIRemote.shared.press(.down)
+        #else
+        app.swipeUp()
+        #endif
+    }
 
     // MARK: - Gestures
 

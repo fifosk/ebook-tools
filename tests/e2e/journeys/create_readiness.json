@@ -43,6 +43,13 @@
     },
     {
       "action": "select_option",
+      "selector": "createBookTargetLanguagePicker",
+      "text": "Hindi",
+      "timeout": 15,
+      "screenshot": "narrate_target_hindi"
+    },
+    {
+      "action": "select_option",
       "selector": "createJobTypePicker",
       "text": "Subtitles",
       "timeout": 10

@@ -108,7 +108,10 @@ python3 scripts/check_apple_create_readiness.py --env-file .env
 The preflight verifies backend-visible EPUBs, subtitle sources, YouTube/NAS
 video subtitle pairs, and the broad book language inventory from
 `/api/books/options`. It fails if the Create contract regresses to a small
-language list, including the iPad-visible six-language regression.
+language list, including the iPad-visible six-language regression. The native
+Create readiness journey also selects `Hindi` in the target-language picker so
+the simulator lane exercises the expanded Apple picker, not only the backend
+contract.
 
 Latest result on June 21, 2026: `InteractiveReaderUITests/JourneyTests/testJourney`
 passed on the `iPad Pro 13-inch (M5)` simulator with 1 test, 0 failures. The
