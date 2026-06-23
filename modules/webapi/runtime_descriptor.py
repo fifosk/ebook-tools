@@ -31,6 +31,16 @@ APPLE_PIPELINE_DESCRIPTOR = {
 CREATION_DESCRIPTOR = {
     "bookOptionsPath": "/api/books/options",
     "bookJobsPath": "/api/books/jobs",
+    "pipelineFilesPath": "/api/pipelines/files",
+    "pipelineContentIndexPath": "/api/pipelines/files/content-index",
+    "pipelineUploadPath": "/api/pipelines/files/upload",
+    "pipelineJobsPath": "/api/pipelines",
+    "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
+    "subtitleSourcesPath": "/api/subtitles/sources",
+    "subtitleModelsPath": "/api/subtitles/models",
+    "subtitleJobsPath": "/api/subtitles/jobs",
+    "youtubeLibraryPath": "/api/subtitles/youtube/library",
+    "youtubeDubPath": "/api/subtitles/youtube/dub",
 }
 ALLOWED_PUBLIC_METADATA_KEYS = frozenset(
     {

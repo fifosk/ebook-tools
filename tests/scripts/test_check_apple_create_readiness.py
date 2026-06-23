@@ -123,12 +123,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
 
 def test_runtime_create_contract_validation() -> None:
     assert module.validate_runtime_create_contract(
-        {
-            "creation": {
-                "bookOptionsPath": "/api/books/options",
-                "bookJobsPath": "/api/books/jobs",
-            }
-        }
+        {"creation": dict(module.EXPECTED_CREATE_PATHS)}
     ) == []
 
     assert module.validate_runtime_create_contract({}) == [
@@ -145,6 +140,16 @@ def test_runtime_create_contract_validation() -> None:
     ) == [
         "bookOptionsPath=/old/books/options expected /api/books/options",
         "bookJobsPath=<missing> expected /api/books/jobs",
+        "pipelineFilesPath=<missing> expected /api/pipelines/files",
+        "pipelineContentIndexPath=<missing> expected /api/pipelines/files/content-index",
+        "pipelineUploadPath=<missing> expected /api/pipelines/files/upload",
+        "pipelineJobsPath=<missing> expected /api/pipelines",
+        "pipelineIntakeStatusPath=<missing> expected /api/pipelines/intake/status",
+        "subtitleSourcesPath=<missing> expected /api/subtitles/sources",
+        "subtitleModelsPath=<missing> expected /api/subtitles/models",
+        "subtitleJobsPath=<missing> expected /api/subtitles/jobs",
+        "youtubeLibraryPath=<missing> expected /api/subtitles/youtube/library",
+        "youtubeDubPath=<missing> expected /api/subtitles/youtube/dub",
     ]
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from modules.webapi.runtime_descriptor import (
+    CREATION_DESCRIPTOR,
     assert_runtime_descriptor_is_public,
     build_runtime_descriptor,
 )
@@ -59,10 +60,7 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
     assert descriptor["clientConfig"]["sessionTokenStorage"] == "device-keychain"
     assert descriptor["clientConfig"]["legacyTokenMigration"] == "userdefaults-authToken"
     assert descriptor["applePipeline"]["manifestId"] == "ebook-tools"
-    assert descriptor["creation"] == {
-        "bookOptionsPath": "/api/books/options",
-        "bookJobsPath": "/api/books/jobs",
-    }
+    assert descriptor["creation"] == CREATION_DESCRIPTOR
     assert_runtime_descriptor_is_public(descriptor)
 
 
@@ -76,6 +74,19 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "struct CreationContract: Decodable, Equatable" in source
     assert "let bookOptionsPath: String" in source
     assert "let bookJobsPath: String" in source
+    for key in [
+        "pipelineFilesPath",
+        "pipelineContentIndexPath",
+        "pipelineUploadPath",
+        "pipelineJobsPath",
+        "pipelineIntakeStatusPath",
+        "subtitleSourcesPath",
+        "subtitleModelsPath",
+        "subtitleJobsPath",
+        "youtubeLibraryPath",
+        "youtubeDubPath",
+    ]:
+        assert f"let {key}: String?" in source
     assert "let applePipeline: ApplePipelineContract?" in source
     assert "let creation: CreationContract?" in source
 
@@ -84,8 +95,8 @@ def test_settings_surfaces_create_contract_runtime_status() -> None:
     source = PLAYBACK_SETTINGS_SECTIONS.read_text(encoding="utf-8")
 
     assert "enum BackendCreateContractState: Equatable" in source
-    assert "case ready(optionsPath: String, jobsPath: String)" in source
-    assert "case mismatch(optionsPath: String, jobsPath: String)" in source
+    assert "case ready(summary: String)" in source
+    assert "case mismatch(summary: String)" in source
     assert "case unavailable" in source
     assert 'title: "Create Contract"' in source
     assert 'accessibilityIdentifier: "settingsCreateContractRow"' in source
@@ -98,8 +109,23 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "enum AppleCreateRuntimeContract" in creation_source
     assert 'static let bookOptionsPath = "/api/books/options"' in creation_source
     assert 'static let bookJobsPath = "/api/books/jobs"' in creation_source
+    expected_constants = {
+        "pipelineFilesPath": "/api/pipelines/files",
+        "pipelineContentIndexPath": "/api/pipelines/files/content-index",
+        "pipelineUploadPath": "/api/pipelines/files/upload",
+        "pipelineJobsPath": "/api/pipelines",
+        "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
+        "subtitleSourcesPath": "/api/subtitles/sources",
+        "subtitleModelsPath": "/api/subtitles/models",
+        "subtitleJobsPath": "/api/subtitles/jobs",
+        "youtubeLibraryPath": "/api/subtitles/youtube/library",
+        "youtubeDubPath": "/api/subtitles/youtube/dub",
+    }
+    for key, path in expected_constants.items():
+        assert f'static let {key} = "{path}"' in creation_source
+        assert f"AppleCreateRuntimeContract.{key}" in settings_source
     assert "sendRequest(path: AppleCreateRuntimeContract.bookOptionsPath)" in creation_source
     assert "path: AppleCreateRuntimeContract.bookJobsPath" in creation_source
-    assert "optionsPath == AppleCreateRuntimeContract.bookOptionsPath" in settings_source
-    assert "jobsPath == AppleCreateRuntimeContract.bookJobsPath" in settings_source
-    assert "return .mismatch(optionsPath: optionsPath, jobsPath: jobsPath)" in settings_source
+    assert '("bookOptionsPath", creation.bookOptionsPath, AppleCreateRuntimeContract.bookOptionsPath)' in settings_source
+    assert '("bookJobsPath", creation.bookJobsPath, AppleCreateRuntimeContract.bookJobsPath)' in settings_source
+    assert "return .mismatch(summary: mismatches.joined(separator: \" · \"))" in settings_source

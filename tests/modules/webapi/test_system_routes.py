@@ -16,6 +16,7 @@ from modules.user_management import AuthService, LocalUserStore, SessionManager
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import get_auth_service, get_pipeline_job_manager
 from modules.webapi.runtime_descriptor import (
+    CREATION_DESCRIPTOR,
     assert_runtime_descriptor_is_public,
     build_runtime_descriptor,
     find_sensitive_descriptor_keys,
@@ -119,10 +120,7 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
         "simulatorProfiles": ["ios", "ipados", "tvos", "tvos-cinema"],
         "deviceProfiles": ["iphone", "ipad", "appletv", "cinema"],
     }
-    assert payload["creation"] == {
-        "bookOptionsPath": "/api/books/options",
-        "bookJobsPath": "/api/books/jobs",
-    }
+    assert payload["creation"] == CREATION_DESCRIPTOR
     assert_runtime_descriptor_is_public(payload)
 
 
@@ -209,8 +207,7 @@ def test_public_runtime_descriptor_returns_non_secret_contract() -> None:
         "appletv",
         "cinema",
     ]
-    assert payload["creation"]["bookOptionsPath"] == "/api/books/options"
-    assert payload["creation"]["bookJobsPath"] == "/api/books/jobs"
+    assert payload["creation"] == CREATION_DESCRIPTOR
     assert_runtime_descriptor_is_public(payload)
 
 

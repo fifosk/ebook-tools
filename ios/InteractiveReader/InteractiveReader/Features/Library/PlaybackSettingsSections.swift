@@ -41,16 +41,16 @@ enum BackendRuntimeState: Equatable {
 }
 
 enum BackendCreateContractState: Equatable {
-    case ready(optionsPath: String, jobsPath: String)
-    case mismatch(optionsPath: String, jobsPath: String)
+    case ready(summary: String)
+    case mismatch(summary: String)
     case unavailable
 
     var label: String {
         switch self {
-        case let .ready(optionsPath, jobsPath):
-            return "\(optionsPath) · \(jobsPath)"
-        case let .mismatch(optionsPath, jobsPath):
-            return "Unexpected paths: \(optionsPath) · \(jobsPath)"
+        case let .ready(summary):
+            return summary
+        case let .mismatch(summary):
+            return "Unexpected paths: \(summary)"
         case .unavailable:
             return "Unavailable on this backend"
         }

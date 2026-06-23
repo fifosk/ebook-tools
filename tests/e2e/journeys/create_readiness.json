@@ -31,6 +31,24 @@
       "timeout": 20
     },
     {
+      "action": "assert_value_contains",
+      "selector": "settingsCreateContractRow",
+      "text": "/api/pipelines/files",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsCreateContractRow",
+      "text": "/api/subtitles/jobs",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsCreateContractRow",
+      "text": "/api/subtitles/youtube/dub",
+      "timeout": 20
+    },
+    {
       "action": "navigate_tab",
       "tab": "Create",
       "selector": "browseSectionCreateButton",

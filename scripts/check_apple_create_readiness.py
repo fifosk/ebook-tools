@@ -16,6 +16,20 @@ from urllib import error, parse, request
 DEFAULT_API_BASE_URL = "https://api.langtools.fifosk.synology.me"
 EXPECTED_BOOK_OPTIONS_PATH = "/api/books/options"
 EXPECTED_BOOK_JOBS_PATH = "/api/books/jobs"
+EXPECTED_CREATE_PATHS = {
+    "bookOptionsPath": EXPECTED_BOOK_OPTIONS_PATH,
+    "bookJobsPath": EXPECTED_BOOK_JOBS_PATH,
+    "pipelineFilesPath": "/api/pipelines/files",
+    "pipelineContentIndexPath": "/api/pipelines/files/content-index",
+    "pipelineUploadPath": "/api/pipelines/files/upload",
+    "pipelineJobsPath": "/api/pipelines",
+    "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
+    "subtitleSourcesPath": "/api/subtitles/sources",
+    "subtitleModelsPath": "/api/subtitles/models",
+    "subtitleJobsPath": "/api/subtitles/jobs",
+    "youtubeLibraryPath": "/api/subtitles/youtube/library",
+    "youtubeDubPath": "/api/subtitles/youtube/dub",
+}
 MIN_SUPPORTED_BOOK_LANGUAGES = 50
 REQUIRED_BOOK_LANGUAGE_SENTINELS = (
     "English",
@@ -198,22 +212,11 @@ def validate_runtime_create_contract(payload: Any) -> list[str]:
     if not isinstance(creation, dict):
         return ["runtime descriptor is missing creation metadata"]
 
-    errors: list[str] = []
-    options_path = str(creation.get("bookOptionsPath") or "").strip()
-    jobs_path = str(creation.get("bookJobsPath") or "").strip()
-    if options_path != EXPECTED_BOOK_OPTIONS_PATH:
-        errors.append(
-            "bookOptionsPath="
-            + (options_path or "<missing>")
-            + f" expected {EXPECTED_BOOK_OPTIONS_PATH}"
-        )
-    if jobs_path != EXPECTED_BOOK_JOBS_PATH:
-        errors.append(
-            "bookJobsPath="
-            + (jobs_path or "<missing>")
-            + f" expected {EXPECTED_BOOK_JOBS_PATH}"
-        )
-    return errors
+    return [
+        f"{key}={(str(creation.get(key) or '').strip() or '<missing>')} expected {expected}"
+        for key, expected in EXPECTED_CREATE_PATHS.items()
+        if str(creation.get(key) or "").strip() != expected
+    ]
 
 
 def require_runtime_create_contract(api_base_url: str, timeout: float) -> None:

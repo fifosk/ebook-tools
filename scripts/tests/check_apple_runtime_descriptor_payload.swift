@@ -35,7 +35,17 @@ struct AppleRuntimeDescriptorPayloadCheck {
           },
           "creation": {
             "book_options_path": "/api/books/options",
-            "book_jobs_path": "/api/books/jobs"
+            "book_jobs_path": "/api/books/jobs",
+            "pipeline_files_path": "/api/pipelines/files",
+            "pipeline_content_index_path": "/api/pipelines/files/content-index",
+            "pipeline_upload_path": "/api/pipelines/files/upload",
+            "pipeline_jobs_path": "/api/pipelines",
+            "pipeline_intake_status_path": "/api/pipelines/intake/status",
+            "subtitle_sources_path": "/api/subtitles/sources",
+            "subtitle_models_path": "/api/subtitles/models",
+            "subtitle_jobs_path": "/api/subtitles/jobs",
+            "youtube_library_path": "/api/subtitles/youtube/library",
+            "youtube_dub_path": "/api/subtitles/youtube/dub"
           }
         }
         """.data(using: .utf8)!
@@ -57,6 +67,18 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.creation?.bookJobsPath == "/api/books/jobs",
             "Apple runtime descriptor should decode Create jobs endpoint"
+        )
+        require(
+            current.creation?.pipelineFilesPath == "/api/pipelines/files",
+            "Apple runtime descriptor should decode pipeline source browser endpoint"
+        )
+        require(
+            current.creation?.subtitleJobsPath == "/api/subtitles/jobs",
+            "Apple runtime descriptor should decode subtitle jobs endpoint"
+        )
+        require(
+            current.creation?.youtubeDubPath == "/api/subtitles/youtube/dub",
+            "Apple runtime descriptor should decode YouTube dubbing endpoint"
         )
 
         let legacyRuntimeJSON = """

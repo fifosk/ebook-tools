@@ -44,6 +44,24 @@ def test_create_readiness_journey_checks_runtime_create_contract() -> None:
         "text": "/api/books/jobs",
         "timeout": 20,
     } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
+        "text": "/api/pipelines/files",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
+        "text": "/api/subtitles/jobs",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
+        "text": "/api/subtitles/youtube/dub",
+        "timeout": 20,
+    } in runtime_steps
 
 
 def test_journey_runner_supports_value_contains_assertion() -> None:

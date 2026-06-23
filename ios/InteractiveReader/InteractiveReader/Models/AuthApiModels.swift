@@ -35,6 +35,16 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     struct CreationContract: Decodable, Equatable {
         let bookOptionsPath: String
         let bookJobsPath: String
+        let pipelineFilesPath: String?
+        let pipelineContentIndexPath: String?
+        let pipelineUploadPath: String?
+        let pipelineJobsPath: String?
+        let pipelineIntakeStatusPath: String?
+        let subtitleSourcesPath: String?
+        let subtitleModelsPath: String?
+        let subtitleJobsPath: String?
+        let youtubeLibraryPath: String?
+        let youtubeDubPath: String?
     }
 
     let status: String

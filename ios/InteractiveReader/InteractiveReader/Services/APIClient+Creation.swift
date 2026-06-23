@@ -3,6 +3,16 @@ import Foundation
 enum AppleCreateRuntimeContract {
     static let bookOptionsPath = "/api/books/options"
     static let bookJobsPath = "/api/books/jobs"
+    static let pipelineFilesPath = "/api/pipelines/files"
+    static let pipelineContentIndexPath = "/api/pipelines/files/content-index"
+    static let pipelineUploadPath = "/api/pipelines/files/upload"
+    static let pipelineJobsPath = "/api/pipelines"
+    static let pipelineIntakeStatusPath = "/api/pipelines/intake/status"
+    static let subtitleSourcesPath = "/api/subtitles/sources"
+    static let subtitleModelsPath = "/api/subtitles/models"
+    static let subtitleJobsPath = "/api/subtitles/jobs"
+    static let youtubeLibraryPath = "/api/subtitles/youtube/library"
+    static let youtubeDubPath = "/api/subtitles/youtube/dub"
 }
 
 extension APIClient {
@@ -12,17 +22,17 @@ extension APIClient {
     }
 
     func fetchPipelineIntakeStatus() async throws -> PipelineIntakeStatusResponse {
-        let data = try await sendRequest(path: "/api/pipelines/intake/status")
+        let data = try await sendRequest(path: AppleCreateRuntimeContract.pipelineIntakeStatusPath)
         return try decode(PipelineIntakeStatusResponse.self, from: data)
     }
 
     func fetchPipelineFiles() async throws -> PipelineFileBrowserResponse {
-        let data = try await sendRequest(path: "/api/pipelines/files")
+        let data = try await sendRequest(path: AppleCreateRuntimeContract.pipelineFilesPath)
         return try decode(PipelineFileBrowserResponse.self, from: data)
     }
 
     func fetchSubtitleLlmModels() async throws -> LLMModelListResponse {
-        let data = try await sendRequest(path: "/api/subtitles/models")
+        let data = try await sendRequest(path: AppleCreateRuntimeContract.subtitleModelsPath)
         return try decode(LLMModelListResponse.self, from: data)
     }
 
@@ -31,12 +41,12 @@ extension APIClient {
         var components = URLComponents()
         components.queryItems = [URLQueryItem(name: "input_file", value: trimmed)]
         let query = components.percentEncodedQuery ?? ""
-        let data = try await sendRequest(path: "/api/pipelines/files/content-index?\(query)")
+        let data = try await sendRequest(path: "\(AppleCreateRuntimeContract.pipelineContentIndexPath)?\(query)")
         return try decode(BookContentIndexResponse.self, from: data)
     }
 
     func fetchSubtitleSources(directory: String? = nil) async throws -> SubtitleSourceListResponse {
-        var path = "/api/subtitles/sources"
+        var path = AppleCreateRuntimeContract.subtitleSourcesPath
         if let directory = directory?.trimmingCharacters(in: .whitespacesAndNewlines), !directory.isEmpty {
             var components = URLComponents()
             components.queryItems = [URLQueryItem(name: "directory", value: directory)]
@@ -49,7 +59,7 @@ extension APIClient {
     }
 
     func fetchYoutubeLibrary(baseDir: String? = nil) async throws -> YoutubeNasLibraryResponse {
-        var path = "/api/subtitles/youtube/library"
+        var path = AppleCreateRuntimeContract.youtubeLibraryPath
         if let baseDir = baseDir?.trimmingCharacters(in: .whitespacesAndNewlines), !baseDir.isEmpty {
             var components = URLComponents()
             components.queryItems = [URLQueryItem(name: "base_dir", value: baseDir)]
@@ -62,7 +72,11 @@ extension APIClient {
     }
 
     func submitPipeline(_ payload: PipelineRequestPayload) async throws -> PipelineSubmissionResponse {
-        let data = try await sendJSONRequest(path: "/api/pipelines", method: "POST", payload: payload)
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.pipelineJobsPath,
+            method: "POST",
+            payload: payload
+        )
         return try decode(PipelineSubmissionResponse.self, from: data)
     }
 
@@ -76,7 +90,11 @@ extension APIClient {
     }
 
     func submitYoutubeDub(_ payload: YoutubeDubRequestPayload) async throws -> PipelineSubmissionResponse {
-        let data = try await sendJSONRequest(path: "/api/subtitles/youtube/dub", method: "POST", payload: payload)
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.youtubeDubPath,
+            method: "POST",
+            payload: payload
+        )
         return try decode(PipelineSubmissionResponse.self, from: data)
     }
 
@@ -95,7 +113,7 @@ extension APIClient {
         )
         let multipart = MultipartFormDataBuilder.makeBody(fields: [:], file: upload)
         let data = try await sendRequest(
-            path: "/api/pipelines/files/upload",
+            path: AppleCreateRuntimeContract.pipelineUploadPath,
             method: "POST",
             body: multipart.body,
             contentType: multipart.contentType
@@ -128,7 +146,7 @@ extension APIClient {
 
         let multipart = MultipartFormDataBuilder.makeBody(fields: payload.multipartFields, file: upload)
         let data = try await sendRequest(
-            path: "/api/subtitles/jobs",
+            path: AppleCreateRuntimeContract.subtitleJobsPath,
             method: "POST",
             body: multipart.body,
             contentType: multipart.contentType

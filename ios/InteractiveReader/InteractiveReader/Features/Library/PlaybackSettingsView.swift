@@ -142,20 +142,36 @@ struct PlaybackSettingsView: View {
     private static func createContractState(
         from creation: BackendRuntimeDescriptorResponse.CreationContract?
     ) -> BackendCreateContractState {
-        guard
-            let creation,
-            let optionsPath = creation.bookOptionsPath.nonEmptyValue,
-            let jobsPath = creation.bookJobsPath.nonEmptyValue
-        else {
+        guard let creation else {
             return .unavailable
         }
-        guard
-            optionsPath == AppleCreateRuntimeContract.bookOptionsPath,
-            jobsPath == AppleCreateRuntimeContract.bookJobsPath
-        else {
-            return .mismatch(optionsPath: optionsPath, jobsPath: jobsPath)
+        let expectedPaths = [
+            ("bookOptionsPath", creation.bookOptionsPath, AppleCreateRuntimeContract.bookOptionsPath),
+            ("bookJobsPath", creation.bookJobsPath, AppleCreateRuntimeContract.bookJobsPath),
+            ("pipelineFilesPath", creation.pipelineFilesPath, AppleCreateRuntimeContract.pipelineFilesPath),
+            ("pipelineContentIndexPath", creation.pipelineContentIndexPath, AppleCreateRuntimeContract.pipelineContentIndexPath),
+            ("pipelineUploadPath", creation.pipelineUploadPath, AppleCreateRuntimeContract.pipelineUploadPath),
+            ("pipelineJobsPath", creation.pipelineJobsPath, AppleCreateRuntimeContract.pipelineJobsPath),
+            ("pipelineIntakeStatusPath", creation.pipelineIntakeStatusPath, AppleCreateRuntimeContract.pipelineIntakeStatusPath),
+            ("subtitleSourcesPath", creation.subtitleSourcesPath, AppleCreateRuntimeContract.subtitleSourcesPath),
+            ("subtitleModelsPath", creation.subtitleModelsPath, AppleCreateRuntimeContract.subtitleModelsPath),
+            ("subtitleJobsPath", creation.subtitleJobsPath, AppleCreateRuntimeContract.subtitleJobsPath),
+            ("youtubeLibraryPath", creation.youtubeLibraryPath, AppleCreateRuntimeContract.youtubeLibraryPath),
+            ("youtubeDubPath", creation.youtubeDubPath, AppleCreateRuntimeContract.youtubeDubPath),
+        ]
+        let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
+            let normalized = actual?.nonEmptyValue
+            guard normalized == expected else {
+                return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
+            }
+            return nil
         }
-        return .ready(optionsPath: optionsPath, jobsPath: jobsPath)
+        if !mismatches.isEmpty {
+            return .mismatch(summary: mismatches.joined(separator: " · "))
+        }
+        return .ready(
+            summary: "\(expectedPaths.count) endpoints · \(AppleCreateRuntimeContract.bookOptionsPath) · \(AppleCreateRuntimeContract.bookJobsPath) · \(AppleCreateRuntimeContract.pipelineFilesPath) · \(AppleCreateRuntimeContract.subtitleJobsPath) · \(AppleCreateRuntimeContract.youtubeDubPath)"
+        )
     }
 
     #if os(iOS)

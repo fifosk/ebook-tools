@@ -105,8 +105,11 @@ Run the Apple Create readiness preflight before authenticated Create journeys
 against a shared backend:
 
 ```bash
-python3 scripts/check_apple_create_readiness.py --env-file .env
+python3 scripts/check_apple_create_readiness.py --env-file .env.local
 ```
+
+The Make targets choose `E2E_ENV_FILE` automatically: `.env` when present,
+otherwise `.env.local`, with an explicit override available for one-off runs.
 
 The reusable manifest also exposes stricter native Create journeys as
 `iphone-create` and `ipados-create`. They run the same preflight before Xcode
@@ -740,7 +743,8 @@ These probes are intentionally stricter than the default playback journey and
 should be run against an API whose EPUB, subtitle, and YouTube/NAS inventories
 are expected to be populated. They run
 `scripts/check_apple_create_readiness.py` before Xcode starts; the preflight
-requires `E2E_USERNAME` and `E2E_PASSWORD` from the environment or `.env`, uses
+requires `E2E_USERNAME` and `E2E_PASSWORD` from the environment or
+`E2E_ENV_FILE` (defaulting to `.env`, then `.env.local`), uses
 `E2E_API_BASE_URL` when set, and reports only aggregate inventory counts.
 HTTP failures name the exact API path, so a message such as
 `/api/books/options` returning 404 means the target backend has not yet been
@@ -752,13 +756,17 @@ temporary files that XCUITest reads at runtime:
 - `/tmp/ios_e2e_config.json` - Contains `username`, `password`, `api_base_url`
 - `/tmp/ios_e2e_journey.json` - Copy of the journey JSON for the test run
 
-Values from the process environment override `.env`, so commands such as
+Values from the process environment override `E2E_ENV_FILE`, so commands such as
 `run_app_owned_journey.py --env E2E_API_BASE_URL=...` can inject simulator-safe
 configuration without editing local files. These temporary files are cleaned up
 after each run. The Makefile writes them through
-`scripts/write_apple_e2e_config.py`, which shares the preflight `.env` parsing
-behavior: single- or double-quoted values such as `E2E_USERNAME='editor'` are
-stripped before XCUITest reads the temporary config.
+`scripts/write_apple_e2e_config.py`, which shares the preflight env-file
+parsing behavior: single- or double-quoted values such as
+`E2E_USERNAME='editor'` are stripped before XCUITest reads the temporary config.
+
+```bash
+E2E_ENV_FILE=.env.local make test-e2e-ipad-create-readiness
+```
 
 **Platform-specific behaviors:**
 
