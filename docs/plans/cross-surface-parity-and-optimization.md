@@ -65,7 +65,9 @@ Large Web UI hotspots to split before redesign work:
   completed-result fetch selection, job sorting, and backend language-default
   normalization, multipart submit `FormData` construction, and metadata draft
   update helpers now live in `web/src/pages/subtitle-tool/subtitleToolUtils.ts`
-  with focused Vitest coverage.
+  with focused Vitest coverage. Source-list refresh selection now lives there
+  too, clearing stale selections after deletes and choosing the latest usable
+  subtitle source when needed.
 - `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1119 lines.
   Status: subtitle cue lookup, token navigation, selection shadowing, clamp
   math, track variant mapping, and TTS voice option helpers now live in
@@ -365,7 +367,7 @@ Every cross-surface change should pass the relevant subset:
   ...` and `npm --prefix web run build`; the Web build script should remain
   package-manager neutral. For ebook-tools, prefer the shared pipeline runner
   `python3 scripts/run_app_web_checks.py --app ebook-tools`, which runs the
-  registered Create, Library, and Video Dubbing focused checks,
+  registered Create, Library, Video Dubbing, and Subtitle Tool focused checks,
   production/export build, and generated-artifact cleanup.
 - Apple: release contract, iOS/tvOS simulator builds, and shared pipeline simulator smokes.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.

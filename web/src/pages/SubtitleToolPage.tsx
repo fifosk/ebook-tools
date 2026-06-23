@@ -44,11 +44,11 @@ import {
   formatSubmittedSubtitleSummary,
   isAssSubtitleSelection,
   normalizeLanguageInput,
-  pickLatestSubtitleSource,
   resolveSubtitleLanguageDefaults,
   resolveSubtitleMetadataSourceName,
   resolveSubtitlePrefillValues,
   resolveSubtitleSubmitValues,
+  resolveSubtitleSourceSelectionAfterRefresh,
   selectMissingCompletedSubtitleJobs,
   sortSubtitleJobsNewestFirst,
   sortSubtitleSourcesForSelection,
@@ -337,14 +337,11 @@ export default function SubtitleToolPage({
         const entries = await fetchSubtitleSources(directory);
         setSources(entries);
         const currentSelection = resetSelection ? '' : selectedSourceRef.current;
-        if (!currentSelection) {
-          const nextSelection = pickLatestSubtitleSource(entries);
-          if (nextSelection) {
-            setSelectedSource(nextSelection);
-          }
-        } else if (resetSelection && entries.length === 0) {
-          setSelectedSource('');
-        }
+        setSelectedSource(resolveSubtitleSourceSelectionAfterRefresh({
+          sources: entries,
+          currentSelection,
+          resetSelection
+        }));
         if (entries.length === 0) {
           setSourceMessage(`No subtitles found in ${directory}`);
         }

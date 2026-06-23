@@ -11,6 +11,7 @@ import {
   resolveSubtitleMetadataSourceName,
   resolveSubtitleSourceFormat,
   resolveSubtitlePrefillValues,
+  resolveSubtitleSourceSelectionAfterRefresh,
   resolveSubtitleSubmitValues,
   selectMissingCompletedSubtitleJobs,
   sortSubtitleJobsNewestFirst,
@@ -240,6 +241,51 @@ describe('pickLatestSubtitleSource', () => {
 
   it('returns an empty path when no sources are available', () => {
     expect(pickLatestSubtitleSource([])).toBe('');
+  });
+});
+
+describe('resolveSubtitleSourceSelectionAfterRefresh', () => {
+  it('keeps the current source when it is still available and selection was not reset', () => {
+    const current = source({ path: '/subtitles/current.srt', modified_at: '2026-06-23T10:00:00Z' });
+    const newer = source({ path: '/subtitles/newer.srt', modified_at: '2026-06-23T11:00:00Z' });
+
+    expect(
+      resolveSubtitleSourceSelectionAfterRefresh({
+        sources: [current, newer],
+        currentSelection: current.path,
+        resetSelection: false,
+      }),
+    ).toBe(current.path);
+  });
+
+  it('chooses the latest source when selection is reset or stale', () => {
+    const older = source({ path: '/subtitles/older.srt', modified_at: '2026-06-23T10:00:00Z' });
+    const newer = source({ path: '/subtitles/newer.srt', modified_at: '2026-06-23T11:00:00Z' });
+
+    expect(
+      resolveSubtitleSourceSelectionAfterRefresh({
+        sources: [older, newer],
+        currentSelection: older.path,
+        resetSelection: true,
+      }),
+    ).toBe(newer.path);
+    expect(
+      resolveSubtitleSourceSelectionAfterRefresh({
+        sources: [older, newer],
+        currentSelection: '/subtitles/deleted.srt',
+        resetSelection: false,
+      }),
+    ).toBe(newer.path);
+  });
+
+  it('clears the selected source when refreshed sources are empty', () => {
+    expect(
+      resolveSubtitleSourceSelectionAfterRefresh({
+        sources: [],
+        currentSelection: '/subtitles/deleted.srt',
+        resetSelection: true,
+      }),
+    ).toBe('');
   });
 });
 

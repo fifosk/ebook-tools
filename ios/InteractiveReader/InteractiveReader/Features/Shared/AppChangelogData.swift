@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.03",
+            version: "2026.06.23.04",
             entries: [
+                AppChangelogEntry(
+                    id: "web-subtitle-source-refresh-selection",
+                    title: "Web Subtitle source selection fixed",
+                    detail: "Subtitle Tool refresh now uses a tested source-selection rule that clears stale selections after deletes and chooses the latest usable subtitle source when needed."
+                ),
+                AppChangelogEntry(
+                    id: "pipeline-subtitle-tool-web-check",
+                    title: "Subtitle Tool Web check added",
+                    detail: "The shared pipeline now runs the Subtitle Tool focused Web check for ebook-tools alongside Create, Library, Video Dubbing, and production/export build checks."
+                ),
                 AppChangelogEntry(
                     id: "web-video-dubbing-delete-selection",
                     title: "Web Video Dubbing selection hardened",

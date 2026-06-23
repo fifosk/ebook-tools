@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.04
+
+- Advanced visible Apple app versioning to `v2026.06.23.04`.
+- Web Subtitle Tool now uses a tested source-selection refresh rule, clearing stale selections after deletes and choosing the latest usable subtitle source when needed.
+- The shared Apple device app pipeline now includes the Subtitle Tool focused Web check for ebook-tools.
+
 ### 2026.06.23.03
 
 - Advanced visible Apple app versioning to `v2026.06.23.03`.

@@ -599,6 +599,21 @@ export function pickLatestSubtitleSource(sources: SubtitleSourceEntry[]): string
   }, '');
 }
 
+export function resolveSubtitleSourceSelectionAfterRefresh({
+  sources,
+  currentSelection,
+  resetSelection,
+}: {
+  sources: SubtitleSourceEntry[];
+  currentSelection: string;
+  resetSelection: boolean;
+}): string {
+  if (!resetSelection && currentSelection && sources.some((entry) => entry.path === currentSelection)) {
+    return currentSelection;
+  }
+  return pickLatestSubtitleSource(sources);
+}
+
 export function selectMissingCompletedSubtitleJobs<T>(
   jobs: JobState[],
   jobResults: Record<string, T>
