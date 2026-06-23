@@ -1,15 +1,13 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import type { JobState } from '../components/JobList';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import {
   fetchPipelineDefaults,
-  fetchSubtitleSources,
   fetchSubtitleResult,
   fetchLlmModels,
-  submitSubtitleJob,
-  deleteSubtitleSource
+  submitSubtitleJob
 } from '../api/client';
-import type { SubtitleJobResultPayload, SubtitleSourceEntry } from '../api/dtos';
+import type { SubtitleJobResultPayload } from '../api/dtos';
 import type { JobParameterSnapshot } from '../api/dtos';
 import {
   buildLanguageOptions,
@@ -40,6 +38,7 @@ import type {
   SubtitleSourceMode,
   SubtitleToolTab
 } from './subtitle-tool/subtitleToolTypes';
+import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
 import {
   buildSubtitleSubmitFormData,
@@ -50,10 +49,8 @@ import {
   resolveSubtitleMetadataSourceName,
   resolveSubtitlePrefillValues,
   resolveSubtitleSubmitValues,
-  resolveSubtitleSourceSelectionAfterRefresh,
   selectMissingCompletedSubtitleJobs,
-  sortSubtitleJobsNewestFirst,
-  sortSubtitleSourcesForSelection
+  sortSubtitleJobsNewestFirst
 } from './subtitle-tool/subtitleToolUtils';
 import styles from './SubtitleToolPage.module.css';
 
@@ -101,22 +98,24 @@ export default function SubtitleToolPage({
   );
   const sortedLanguageOptions = useMemo(() => sortLanguageLabelsByName(languageOptions), [languageOptions]);
   const [sourceMode, setSourceMode] = useState<SubtitleSourceMode>('existing');
-  const [sources, setSources] = useState<SubtitleSourceEntry[]>([]);
-  const [selectedSource, setSelectedSource] = useState<string>('');
-  const selectedSourceRef = useRef<string>('');
-  useEffect(() => {
-    selectedSourceRef.current = selectedSource;
-  }, [selectedSource]);
-  const selectedSourceEntry = useMemo(
-    () => sources.find((entry) => entry.path === selectedSource) ?? null,
-    [selectedSource, sources]
-  );
+  const sourceDirectory = DEFAULT_SUBTITLE_SOURCE_DIRECTORY;
+  const {
+    sources,
+    sortedSources,
+    selectedSource,
+    setSelectedSource,
+    selectedSourceEntry,
+    isLoadingSources,
+    deletingSourcePath,
+    sourceMessage,
+    sourceError,
+    refreshSources,
+    handleDeleteSource
+  } = useSubtitleSources({ sourceDirectory, refreshSignal });
   const isAssSelection = useMemo(
     () => isAssSubtitleSelection(sourceMode, selectedSourceEntry),
     [sourceMode, selectedSourceEntry]
   );
-  const sortedSources = useMemo(() => sortSubtitleSourcesForSelection(sources), [sources]);
-  const sourceDirectory = DEFAULT_SUBTITLE_SOURCE_DIRECTORY;
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const metadataSourceName = useMemo(
     () =>
@@ -175,10 +174,6 @@ export default function SubtitleToolPage({
   const [transliterationMode, setTransliterationMode] = useState<string>('default');
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
-  const [isLoadingSources, setLoadingSources] = useState<boolean>(false);
-  const [deletingSourcePath, setDeletingSourcePath] = useState<string | null>(null);
-  const [sourceMessage, setSourceMessage] = useState<string | null>(null);
-  const [sourceError, setSourceError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [lastSubmittedJobId, setLastSubmittedJobId] = useState<string | null>(null);
@@ -330,39 +325,6 @@ export default function SubtitleToolPage({
     }
   }, [languageOptions, setPrimaryTargetLanguage, targetLanguage]);
 
-  const refreshSources = useCallback(
-    async (resetSelection: boolean = false) => {
-      const directory = sourceDirectory;
-      setLoadingSources(true);
-      setSourceError(null);
-      setSourceMessage(null);
-      try {
-        const entries = await fetchSubtitleSources(directory);
-        setSources(entries);
-        const currentSelection = resetSelection ? '' : selectedSourceRef.current;
-        setSelectedSource(resolveSubtitleSourceSelectionAfterRefresh({
-          sources: entries,
-          currentSelection,
-          resetSelection
-        }));
-        if (entries.length === 0) {
-          setSourceMessage(`No subtitles found in ${directory}`);
-        }
-      } catch (error) {
-        console.warn('Unable to list subtitle sources', error);
-        const message = error instanceof Error ? error.message : 'Unable to list subtitle sources.';
-        setSourceError(message);
-      } finally {
-        setLoadingSources(false);
-      }
-    },
-    [sourceDirectory]
-  );
-
-  useEffect(() => {
-    refreshSources();
-  }, [refreshSignal, refreshSources]);
-
   useEffect(() => {
     const missing = selectMissingCompletedSubtitleJobs(subtitleJobs, jobResults);
     if (missing.length === 0) {
@@ -406,34 +368,6 @@ export default function SubtitleToolPage({
     setSourceMode(mode);
     setSubmitError(null);
   }, []);
-
-  const handleDeleteSource = useCallback(
-    async (entry: SubtitleSourceEntry) => {
-      const confirmed =
-        typeof window === 'undefined' ||
-        window.confirm(
-          `Delete ${entry.name}? This removes the subtitle and any mirrored HTML transcript copies.`,
-        );
-      if (!confirmed) {
-        return;
-      }
-      setSourceError(null);
-      setSourceMessage(null);
-      setDeletingSourcePath(entry.path);
-      try {
-        await deleteSubtitleSource(entry.path);
-        const resetSelection = selectedSource === entry.path;
-        await refreshSources(resetSelection);
-        setSourceMessage(`Deleted ${entry.name}`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unable to delete subtitle.';
-        setSourceError(message);
-      } finally {
-        setDeletingSourcePath(null);
-      }
-    },
-    [refreshSources, selectedSource]
-  );
 
   const handleUploadFileChange = useCallback((file: File | null) => {
     setUploadFile(file);
