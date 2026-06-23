@@ -5,7 +5,12 @@ import {
   getImageNodeFallbacks,
 } from '../../constants/imageNodes';
 import { isRecord } from './bookNarrationUtils';
-import type { FormState } from './bookNarrationFormTypes';
+import type { BookNarrationFormProps, BookNarrationFormSection, FormState } from './bookNarrationFormTypes';
+
+export type BookNarrationSectionMeta = Record<
+  BookNarrationFormSection,
+  { title: string; description: string }
+>;
 
 export function capitalize(value: string): string {
   if (!value) {
@@ -534,6 +539,70 @@ export function formatList(items: string[]): string {
   }
   const initial = items.slice(0, -1).join(', ');
   return `${initial}, and ${items[items.length - 1]}`;
+}
+
+export function resolveBookNarrationSectionMeta(
+  base: BookNarrationSectionMeta,
+  overrides: BookNarrationFormProps['sectionOverrides'],
+): BookNarrationSectionMeta {
+  const next: BookNarrationSectionMeta = { ...base };
+  for (const [key, override] of Object.entries(overrides ?? {})) {
+    if (!override) {
+      continue;
+    }
+    const sectionKey = key as BookNarrationFormSection;
+    next[sectionKey] = { ...base[sectionKey], ...override };
+  }
+  return next;
+}
+
+export function preserveBookNarrationUserEditedFields(
+  previous: FormState,
+  next: FormState,
+  editedFields: Iterable<keyof FormState>,
+): FormState {
+  let result = next;
+  let changed = false;
+  for (const key of editedFields) {
+    if (next[key] === previous[key]) {
+      continue;
+    }
+    if (!changed) {
+      result = { ...next };
+      changed = true;
+    }
+    (result as Record<keyof FormState, FormState[keyof FormState]>)[key] = previous[key];
+  }
+  return result;
+}
+
+export function resolveBookNarrationMissingRequirements({
+  formState,
+  normalizedTargetLanguages,
+  isGeneratedSource,
+  chapterSelectionMode,
+  hasChapterSelection,
+}: {
+  formState: FormState;
+  normalizedTargetLanguages: string[];
+  isGeneratedSource: boolean;
+  chapterSelectionMode: string;
+  hasChapterSelection: boolean;
+}): string[] {
+  const missingRequirements: string[] = [];
+  if (!isGeneratedSource && !formState.input_file.trim()) {
+    missingRequirements.push('an input EPUB');
+  }
+  if (!formState.base_output_file.trim()) {
+    missingRequirements.push('a base output path');
+  }
+  if (normalizedTargetLanguages.length === 0) {
+    missingRequirements.push('at least one target language');
+  }
+  if (!isGeneratedSource && chapterSelectionMode === 'chapters' && !hasChapterSelection) {
+    missingRequirements.push('a chapter selection');
+  }
+  return missingRequirements;
 }
 
 export function deriveBaseOutputName(inputPath: string): string {

@@ -28,7 +28,7 @@ export type BookNarrationFormProps = {
   forcedBaseOutputFile?: string | null;
   customSourceSection?: ReactNode;
   implicitEndOffsetThreshold?: number | null;
-  sectionOverrides?: Partial<Record<BookNarrationFormSection, { title: string; description: string }>>;
+  sectionOverrides?: Partial<Record<BookNarrationFormSection, Partial<{ title: string; description: string }>>>;
   showInfoHeader?: boolean;
   showOutputPathControls?: boolean;
   defaultImageSettings?: ImageDefaults | null;

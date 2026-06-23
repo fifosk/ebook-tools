@@ -76,10 +76,11 @@ Large Web UI hotspots to split before redesign work:
   detection, sidebar language/label/status/stage/glyph/progress resolution,
   and image-wait status now live in
   `web/src/components/sidebar/sidebarUtils.ts` with focused Vitest coverage.
-- `web/src/components/book-narration/BookNarrationForm.tsx` - 755 lines.
+- `web/src/components/book-narration/BookNarrationForm.tsx` - 708 lines.
   Status: recent-job path normalization, resume-window inference, latest
   input/base selection, latest language/lookup-cache defaults, and rerun
-  prefill state mapping now live in
+  prefill state mapping, section metadata merging, edited-field preservation,
+  and submit-requirement resolution now live in
   `web/src/components/book-narration/bookNarrationFormUtils.ts` with focused
   Vitest coverage.
 

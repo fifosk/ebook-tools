@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { PipelineStatusResponse } from '../../api/dtos';
-import { DEFAULT_FORM_STATE } from '../book-narration/bookNarrationFormDefaults';
+import { BOOK_NARRATION_SECTION_META, DEFAULT_FORM_STATE } from '../book-narration/bookNarrationFormDefaults';
 import {
   applyBookNarrationPrefillParameters,
   normalizeBookNarrationPath,
+  preserveBookNarrationUserEditedFields,
+  resolveBookNarrationMissingRequirements,
+  resolveBookNarrationSectionMeta,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
   resolveStartFromNarrationHistory,
@@ -214,5 +217,68 @@ describe('bookNarrationFormUtils prefill helpers', () => {
       audio_bitrate_kbps: '96',
       voice_overrides: { ar: 'old-voice' },
     });
+  });
+});
+
+describe('bookNarrationFormUtils form state helpers', () => {
+  it('merges section metadata overrides without mutating defaults', () => {
+    const result = resolveBookNarrationSectionMeta(BOOK_NARRATION_SECTION_META, {
+      source: { title: 'Pick source', description: 'Override source copy.' },
+      images: { title: 'Image plan' },
+    });
+
+    expect(result.source).toEqual({
+      title: 'Pick source',
+      description: 'Override source copy.',
+    });
+    expect(result.images).toEqual({
+      ...BOOK_NARRATION_SECTION_META.images,
+      title: 'Image plan',
+    });
+    expect(BOOK_NARRATION_SECTION_META.source.title).toBe('Source');
+  });
+
+  it('preserves user-edited fields when defaults or prefill state are applied', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      input_file: '/books/user.epub',
+      base_output_file: 'user-output',
+      input_language: 'English',
+    };
+    const next = {
+      ...previous,
+      input_file: '/books/prefill.epub',
+      base_output_file: 'prefill-output',
+      input_language: 'Spanish',
+    };
+
+    expect(preserveBookNarrationUserEditedFields(previous, next, [])).toBe(next);
+    expect(preserveBookNarrationUserEditedFields(previous, next, new Set(['input_file', 'input_language']))).toMatchObject({
+      input_file: '/books/user.epub',
+      base_output_file: 'prefill-output',
+      input_language: 'English',
+    });
+  });
+
+  it('resolves missing requirements for upload and generated-source jobs', () => {
+    expect(
+      resolveBookNarrationMissingRequirements({
+        formState: { ...DEFAULT_FORM_STATE, input_file: '', base_output_file: '', target_languages: [] },
+        normalizedTargetLanguages: [],
+        isGeneratedSource: false,
+        chapterSelectionMode: 'chapters',
+        hasChapterSelection: false,
+      }),
+    ).toEqual(['an input EPUB', 'a base output path', 'at least one target language', 'a chapter selection']);
+
+    expect(
+      resolveBookNarrationMissingRequirements({
+        formState: { ...DEFAULT_FORM_STATE, input_file: '', base_output_file: 'generated-book' },
+        normalizedTargetLanguages: ['Arabic'],
+        isGeneratedSource: true,
+        chapterSelectionMode: 'chapters',
+        hasChapterSelection: false,
+      }),
+    ).toEqual([]);
   });
 });

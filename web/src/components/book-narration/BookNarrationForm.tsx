@@ -14,7 +14,6 @@ import {
   WRITTEN_MODE_OPTIONS
 } from '../../constants/menuOptions';
 import { resolveLanguageCode } from '../../constants/languageCodes';
-import { formatLanguageWithFlag } from '../../utils/languages';
 import { loadCachedMediaMetadataJson } from '../../utils/mediaMetadataCache';
 import { useLanguagePreferences } from '../../context/LanguageProvider';
 import FileSelectionDialog from '../FileSelectionDialog';
@@ -45,8 +44,11 @@ import {
   normalizeBookNarrationPath,
   normalizeImagePromptPipeline,
   normalizeSingleTargetLanguages,
+  preserveBookNarrationUserEditedFields,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
+  resolveBookNarrationMissingRequirements,
+  resolveBookNarrationSectionMeta,
   resolveStartFromNarrationHistory
 } from './bookNarrationFormUtils';
 
@@ -174,17 +176,7 @@ export function BookNarrationForm({
   const lastAutoEndSentenceRef = useRef<string | null>(null);
 
   const sectionMeta = useMemo(() => {
-    const base: Record<BookNarrationFormSection, { title: string; description: string }> = {
-      ...BOOK_NARRATION_SECTION_META
-    };
-    for (const [key, override] of Object.entries(sectionOverrides)) {
-      if (!override) {
-        continue;
-      }
-      const sectionKey = key as BookNarrationFormSection;
-      base[sectionKey] = { ...BOOK_NARRATION_SECTION_META[sectionKey], ...override };
-    }
-    return base;
+    return resolveBookNarrationSectionMeta(BOOK_NARRATION_SECTION_META, sectionOverrides);
   }, [sectionOverrides]);
 
   useEffect(() => {
@@ -204,23 +196,7 @@ export function BookNarrationForm({
     userEditedFieldsRef.current.add(key);
   }, []);
   const preserveUserEditedFields = useCallback((previous: FormState, next: FormState): FormState => {
-    const edited = userEditedFieldsRef.current;
-    if (edited.size === 0) {
-      return next;
-    }
-    let result = next;
-    let changed = false;
-    for (const key of edited) {
-      if (next[key] === previous[key]) {
-        continue;
-      }
-      if (!changed) {
-        result = { ...next };
-        changed = true;
-      }
-      (result as Record<keyof FormState, FormState[keyof FormState]>)[key] = previous[key];
-    }
-    return result;
+    return preserveBookNarrationUserEditedFields(previous, next, userEditedFieldsRef.current);
   }, []);
 
   const normalizedInputForBookMetadataCache = useMemo(() => {
@@ -578,39 +554,16 @@ export function BookNarrationForm({
   const headerDescription =
     sectionMeta[activeTab]?.description ??
     'Provide the input file, target languages, and any overrides to enqueue a new ebook processing job.';
-  const missingRequirements: string[] = [];
-  if (!isGeneratedSource && !formState.input_file.trim()) {
-    missingRequirements.push('an input EPUB');
-  }
-  if (!formState.base_output_file.trim()) {
-    missingRequirements.push('a base output path');
-  }
-  if (normalizedTargetLanguages.length === 0) {
-    missingRequirements.push('at least one target language');
-  }
-  if (!isGeneratedSource && chapterSelectionMode === 'chapters' && !chapterSelection) {
-    missingRequirements.push('a chapter selection');
-  }
-  const targetLanguageSummary =
-    normalizedTargetLanguages.length > 0
-      ? normalizedTargetLanguages.map((language) => formatLanguageWithFlag(language) || language).join(', ')
-      : 'None selected';
-  const inputSummaryValue =
-    isGeneratedSource && !formState.input_file.trim()
-      ? `${formState.base_output_file.trim() || 'generated-book'}.epub`
-      : formState.input_file;
+  const missingRequirements = resolveBookNarrationMissingRequirements({
+    formState,
+    normalizedTargetLanguages,
+    isGeneratedSource,
+    chapterSelectionMode,
+    hasChapterSelection: Boolean(chapterSelection)
+  });
   const isSubmitDisabled = isSubmitting || missingRequirements.length > 0;
   const submitText = submitLabel ?? 'Submit job';
   const hasMissingRequirements = missingRequirements.length > 0;
-  const outputFormats =
-    [
-      formState.output_html ? 'HTML' : null,
-      formState.output_pdf ? 'PDF' : null,
-      formState.generate_audio ? 'Audio' : null,
-      formState.add_images ? 'Images' : null
-    ]
-      .filter(Boolean)
-      .join(', ') || 'Default';
   const missingRequirementText = formatList(missingRequirements);
   const canBrowseFiles = Boolean(fileOptions);
   return (
