@@ -295,9 +295,10 @@ Refactor before restyling:
   `web/src/components/player-panel/utils.ts`, and player preference storage now
   uses the shared safe browser storage wrapper.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
-  Web Create now applies backend topic, title, and genre defaults from
-  `/api/books/options` while preserving prompt edits that happen before defaults
-  arrive.
+  Web Create now applies backend topic, title, genre, author, sentence,
+  generated-source image, and pipeline defaults from `/api/books/options`
+  through tested helper functions, preserving explicit prompt edits, including
+  cleared fields, that happen before defaults arrive.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 

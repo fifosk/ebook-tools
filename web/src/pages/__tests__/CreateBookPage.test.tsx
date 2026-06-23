@@ -155,4 +155,40 @@ describe('CreateBookPage', () => {
     expect(screen.getByLabelText(/Genre/i)).toHaveValue('My genre');
     expect(screen.getByTestId('forced-base-output')).toHaveTextContent('my-book');
   });
+
+  it('preserves cleared generated-book prompt edits when backend defaults arrive late', async () => {
+    let resolveOptions: ((value: BookCreationOptionsResponse) => void) | null = null;
+    vi.mocked(fetchBookCreationOptions).mockImplementationOnce(
+      () =>
+        new Promise<BookCreationOptionsResponse>((resolve) => {
+          resolveOptions = resolve;
+        }),
+    );
+
+    render(<CreateBookPage />);
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Topic/i), { target: { value: 'Temporary topic' } });
+      fireEvent.change(screen.getByLabelText(/Topic/i), { target: { value: '' } });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      resolveOptions?.({
+        ...creationOptions,
+        defaults: {
+          ...creationOptions.defaults,
+          topic: 'Backend topic',
+          book_name: 'Backend Book',
+          genre: 'Backend genre',
+        },
+      });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(screen.getByLabelText(/Book name/i)).toHaveValue('Backend Book'));
+
+    expect(screen.getByLabelText(/Topic/i)).toHaveValue('');
+    expect(screen.getByLabelText(/Genre/i)).toHaveValue('Backend genre');
+  });
 });
