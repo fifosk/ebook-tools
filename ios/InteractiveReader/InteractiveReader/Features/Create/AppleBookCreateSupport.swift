@@ -249,34 +249,132 @@ struct AppleBookCreateVoiceInventory: Equatable {
     let piper: [PiperVoice]
 }
 
-enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {
-    case english = "English"
-    case arabic = "Arabic"
-    case slovak = "Slovak"
-    case spanish = "Spanish"
-    case french = "French"
-    case german = "German"
+struct AppleBookCreateLanguage: Hashable, Identifiable {
+    let value: String
 
-    var id: String { rawValue }
-    var backendValue: String { rawValue }
+    var id: String { value.lowercased() }
+    var backendValue: String { value }
+    var label: String { Self.displayLabel(for: value) }
 
-    var label: String {
-        switch self {
-        case .english: return "English"
-        case .arabic: return "Arabic"
-        case .slovak: return "Slovak"
-        case .spanish: return "Spanish"
-        case .french: return "French"
-        case .german: return "German"
-        }
+    init?(_ value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        self.value = trimmed
     }
 
     init?(backendValue: String) {
-        let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard let match = Self.allCases.first(where: { $0.rawValue.lowercased() == normalized }) else {
-            return nil
+        self.init(backendValue)
+    }
+
+    static let english = AppleBookCreateLanguage("English")!
+    static let arabic = AppleBookCreateLanguage("Arabic")!
+
+    static let fallbackOptions: [AppleBookCreateLanguage] = [
+        "Afrikaans",
+        "Albanian",
+        "Arabic",
+        "Amharic",
+        "Armenian",
+        "Basque",
+        "Belarusian",
+        "Bengali",
+        "Bulgarian",
+        "Bosnian",
+        "Burmese",
+        "Catalan",
+        "Kazakh",
+        "Kyrgyz",
+        "Mongolian",
+        "Tajik",
+        "Turkmen",
+        "Uzbek",
+        "Chinese (Simplified)",
+        "Chinese (Traditional)",
+        "Czech",
+        "Croatian",
+        "Danish",
+        "Dutch",
+        "English",
+        "Esperanto",
+        "Estonian",
+        "Faroese",
+        "Filipino",
+        "Finnish",
+        "French",
+        "German",
+        "Georgian",
+        "Greek",
+        "Gujarati",
+        "Hausa",
+        "Hebrew",
+        "Hindi",
+        "Hungarian",
+        "Irish",
+        "Icelandic",
+        "Indonesian",
+        "Italian",
+        "Japanese",
+        "Javanese",
+        "Kannada",
+        "Khmer",
+        "Korean",
+        "Latin",
+        "Latvian",
+        "Lithuanian",
+        "Luxembourgish",
+        "Macedonian",
+        "Malay",
+        "Malayalam",
+        "Maltese",
+        "Marathi",
+        "Nepali",
+        "Norwegian",
+        "Pashto",
+        "Polish",
+        "Portuguese",
+        "Punjabi",
+        "Scots",
+        "Scottish Gaelic",
+        "Galician",
+        "Romani",
+        "Spanish",
+        "Romanian",
+        "Russian",
+        "Sinhala",
+        "Slovak",
+        "Slovenian",
+        "Serbian",
+        "Sundanese",
+        "Swahili",
+        "Swedish",
+        "Tamil",
+        "Telugu",
+        "Thai",
+        "Turkish",
+        "Ukrainian",
+        "Urdu",
+        "Vietnamese",
+        "Welsh",
+        "Xhosa",
+        "Yoruba",
+        "Zulu",
+        "Persian"
+    ].compactMap { AppleBookCreateLanguage($0) }
+
+    static func options(from supported: [String]) -> [AppleBookCreateLanguage] {
+        var seen = Set<String>()
+        var options: [AppleBookCreateLanguage] = []
+        for language in supported.compactMap(AppleBookCreateLanguage.init(backendValue:)) + fallbackOptions {
+            let key = language.id
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            options.append(language)
         }
-        self = match
+        return options
+    }
+
+    private static func displayLabel(for value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -2736,8 +2834,7 @@ enum AppleBookCreatePresentation {
     }
 
     private static func availableLanguages(_ supported: [String]) -> [AppleBookCreateLanguage] {
-        let mapped = supported.compactMap(AppleBookCreateLanguage.init(backendValue:))
-        return mapped.isEmpty ? AppleBookCreateLanguage.allCases : mapped
+        AppleBookCreateLanguage.options(from: supported)
     }
 
     private static func clamp<T: Comparable>(_ value: T, to range: ClosedRange<T>) -> T {

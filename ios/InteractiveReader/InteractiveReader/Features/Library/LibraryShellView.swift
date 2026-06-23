@@ -109,10 +109,12 @@ struct LibraryShellView: View {
     private var detailView: some View {
         switch activeSection {
         case .create:
-            placeholderView(
-                title: "Create audiobook",
-                systemImage: "sparkles",
-                subtitle: "Generated jobs appear in the Jobs section."
+            AppleBookCreateView(
+                sectionPicker: nil,
+                onJobSubmitted: handleCreatedJob,
+                onOpenJobs: openCreatedJob,
+                recentJobs: jobsViewModel.jobs,
+                usesDarkBackground: usesDarkBackground
             )
         case .library:
             if let selectedItem {
@@ -202,13 +204,17 @@ struct LibraryShellView: View {
                     usesDarkBackground: usesDarkBackground
                 )
             case .create:
-                AppleBookCreateView(
-                    sectionPicker: sectionPickerForHeader,
-                    onJobSubmitted: handleCreatedJob,
-                    onOpenJobs: openCreatedJob,
-                    recentJobs: jobsViewModel.jobs,
-                    usesDarkBackground: usesDarkBackground
-                )
+                if isSplitLayout {
+                    createSidebarPlaceholder
+                } else {
+                    AppleBookCreateView(
+                        sectionPicker: sectionPickerForHeader,
+                        onJobSubmitted: handleCreatedJob,
+                        onOpenJobs: openCreatedJob,
+                        recentJobs: jobsViewModel.jobs,
+                        usesDarkBackground: usesDarkBackground
+                    )
+                }
             case .search:
                 CombinedSearchView(
                     libraryViewModel: viewModel,
@@ -248,6 +254,17 @@ struct LibraryShellView: View {
         #else
         .navigationTitle("")
         #endif
+    }
+
+    private var createSidebarPlaceholder: some View {
+        VStack(spacing: 12) {
+            sectionPickerForHeader
+            placeholderView(
+                title: "Create",
+                systemImage: "sparkles",
+                subtitle: "Use the detail panel to configure and submit jobs."
+            )
+        }
     }
 
     private var sectionPickerForHeader: BrowseSectionPicker {

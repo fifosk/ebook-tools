@@ -201,6 +201,9 @@ def test_book_creation_options_endpoint_returns_non_secret_defaults(tmp_path: Pa
     assert body["pipeline_defaults"]["selected_voice"] == "DemoVoice"
     assert body["generated_source_defaults"]["image_style_template"] == "wireframe"
     assert "English" in body["supported_input_languages"]
+    assert "Hindi" in body["supported_input_languages"]
+    assert "Chinese (Traditional)" in body["supported_output_languages"]
+    assert "Persian" in body["supported_output_languages"]
     assert "DemoVoice" in body["supported_voices"]
 
 

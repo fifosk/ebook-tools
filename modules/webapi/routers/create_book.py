@@ -26,6 +26,7 @@ from modules.images.prompting import (
     build_sentence_image_prompt,
 )
 from modules.images.style_templates import resolve_image_style_template
+from modules.language_constants import LANGUAGE_CODES
 from modules.llm_client_manager import client_scope
 from modules.user_management import AuthService
 from modules.user_management.user_store_base import UserRecord
@@ -79,7 +80,7 @@ _DEFAULT_INPUT_LANGUAGE = "English"
 _DEFAULT_OUTPUT_LANGUAGE = "Arabic"
 _DEFAULT_AUTHOR = "Me"
 _DEFAULT_VOICE = "gTTS"
-_SUPPORTED_BOOK_LANGUAGES = ["English", "Arabic", "Slovak", "Spanish", "French", "German"]
+_SUPPORTED_BOOK_LANGUAGES = tuple(LANGUAGE_CODES.keys())
 _SUPPORTED_BOOK_VOICES = ["gTTS", "macOS", "edge-tts"]
 
 logger = log_mgr.get_logger()
