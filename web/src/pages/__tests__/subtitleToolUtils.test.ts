@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { JobParameterSnapshot, SubtitleSourceEntry } from '../../api/dtos';
 import type { JobState } from '../../components/JobList';
 import {
+  buildSubtitleSubmitFormData,
   formatSubmittedSubtitleSummary,
   isAssSubtitleSelection,
   normalizeSubtitleTimecodeInput,
@@ -538,6 +539,114 @@ describe('resolveSubtitleSubmitValues', () => {
         resolvedAssEmphasis: 2.5
       }
     });
+  });
+});
+
+describe('buildSubtitleSubmitFormData', () => {
+  it('builds the existing-source subtitle payload with optional tuning and metadata fields', () => {
+    const resolved = resolveSubtitleSubmitValues(baseSubmitInput);
+    if (!resolved.ok) {
+      throw new Error(resolved.error);
+    }
+
+    const formData = buildSubtitleSubmitFormData({
+      values: resolved.values,
+      enableTransliteration: true,
+      enableHighlight: false,
+      showOriginal: true,
+      generateAudioBook: false,
+      outputFormat: 'ass',
+      mirrorToSourceDir: true,
+      mediaMetadataDraft: {
+        tv: { series: 'Example Show' },
+        title: 'Episode title'
+      }
+    });
+
+    expect(Object.fromEntries(formData.entries())).toMatchObject({
+      input_language: 'English',
+      original_language: 'English',
+      target_language: 'French',
+      enable_transliteration: 'true',
+      highlight: 'false',
+      show_original: 'true',
+      generate_audio_book: 'false',
+      output_format: 'ass',
+      mirror_batches_to_source_dir: 'true',
+      start_time: '01:02',
+      end_time: '+03:00',
+      ass_font_size: '120',
+      ass_emphasis_scale: '1.23',
+      llm_model: 'gpt-test',
+      translation_provider: 'llm',
+      transliteration_mode: 'default',
+      transliteration_model: 'romanizer',
+      source_path: '/media/source.srt',
+      worker_count: '4',
+      batch_size: '20',
+      translation_batch_size: '8',
+      media_metadata_json: JSON.stringify({
+        tv: { series: 'Example Show' },
+        title: 'Episode title'
+      })
+    });
+    expect(formData.has('file')).toBe(false);
+  });
+
+  it('builds upload payloads with a file and omits blank optional fields', () => {
+    const resolved = resolveSubtitleSubmitValues({
+      ...baseSubmitInput,
+      sourceMode: 'upload',
+      selectedSource: '',
+      hasUploadFile: true,
+      outputFormat: 'srt',
+      assFontSize: '',
+      assEmphasis: '',
+      selectedModel: '',
+      translationProvider: '',
+      transliterationMode: '',
+      transliterationModel: '',
+      workerCount: '',
+      batchSize: '',
+      translationBatchSize: '',
+      endTime: ''
+    });
+    if (!resolved.ok) {
+      throw new Error(resolved.error);
+    }
+    const upload = new File(['1\n00:00:01,000 --> 00:00:02,000\nHi'], 'upload.srt', {
+      type: 'text/plain'
+    });
+
+    const formData = buildSubtitleSubmitFormData({
+      values: resolved.values,
+      enableTransliteration: false,
+      enableHighlight: true,
+      showOriginal: false,
+      generateAudioBook: true,
+      outputFormat: 'srt',
+      mirrorToSourceDir: false,
+      uploadFile: upload
+    });
+
+    expect(Object.fromEntries(formData.entries())).toMatchObject({
+      input_language: 'English',
+      original_language: 'English',
+      target_language: 'French',
+      enable_transliteration: 'false',
+      highlight: 'true',
+      show_original: 'false',
+      generate_audio_book: 'true',
+      output_format: 'srt',
+      mirror_batches_to_source_dir: 'false',
+      start_time: '01:02'
+    });
+    expect(formData.has('source_path')).toBe(false);
+    expect(formData.has('end_time')).toBe(false);
+    expect(formData.has('llm_model')).toBe(false);
+    expect(formData.has('ass_font_size')).toBe(false);
+    expect(formData.has('worker_count')).toBe(false);
+    expect((formData.get('file') as File | null)?.name).toBe('upload.srt');
   });
 });
 

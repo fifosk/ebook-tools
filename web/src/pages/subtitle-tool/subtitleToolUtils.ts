@@ -353,6 +353,18 @@ export type ResolvedSubtitleSubmitValues = {
   translationBatchSize: number | null;
 };
 
+export type SubtitleSubmitFormDataInput = {
+  values: ResolvedSubtitleSubmitValues;
+  enableTransliteration: boolean;
+  enableHighlight: boolean;
+  showOriginal: boolean;
+  generateAudioBook: boolean;
+  outputFormat: SubtitleOutputFormat;
+  mirrorToSourceDir: boolean;
+  uploadFile?: File | null;
+  mediaMetadataDraft?: Record<string, unknown> | null;
+};
+
 export type SubtitleSubmitResolution =
   | { ok: true; values: ResolvedSubtitleSubmitValues }
   | { ok: false; error: string };
@@ -436,6 +448,60 @@ export function resolveSubtitleSubmitValues(input: SubtitleSubmitInput): Subtitl
           : null
     }
   };
+}
+
+export function buildSubtitleSubmitFormData(input: SubtitleSubmitFormDataInput): FormData {
+  const { values } = input;
+  const formData = new FormData();
+  formData.append('input_language', values.originalLanguage);
+  formData.append('original_language', values.originalLanguage);
+  formData.append('target_language', values.targetLanguage);
+  formData.append('enable_transliteration', String(input.enableTransliteration));
+  formData.append('highlight', String(input.enableHighlight));
+  formData.append('show_original', String(input.showOriginal));
+  formData.append('generate_audio_book', String(input.generateAudioBook));
+  formData.append('output_format', input.outputFormat);
+  formData.append('mirror_batches_to_source_dir', String(input.mirrorToSourceDir));
+  formData.append('start_time', values.normalizedStartTime);
+  if (values.resolvedAssFontSize !== null) {
+    formData.append('ass_font_size', String(values.resolvedAssFontSize));
+  }
+  if (values.resolvedAssEmphasis !== null) {
+    formData.append('ass_emphasis_scale', String(values.resolvedAssEmphasis));
+  }
+  if (values.selectedModel) {
+    formData.append('llm_model', values.selectedModel);
+  }
+  if (values.translationProvider) {
+    formData.append('translation_provider', values.translationProvider);
+  }
+  if (values.transliterationMode) {
+    formData.append('transliteration_mode', values.transliterationMode);
+  }
+  if (values.transliterationModel) {
+    formData.append('transliteration_model', values.transliterationModel);
+  }
+  if (values.normalizedEndTime) {
+    formData.append('end_time', values.normalizedEndTime);
+  }
+  if (values.sourcePath) {
+    formData.append('source_path', values.sourcePath);
+  } else if (input.uploadFile) {
+    formData.append('file', input.uploadFile, input.uploadFile.name);
+  }
+  if (values.workerCount !== null) {
+    formData.append('worker_count', String(values.workerCount));
+  }
+  if (values.batchSize !== null) {
+    formData.append('batch_size', String(values.batchSize));
+  }
+  if (values.translationBatchSize !== null) {
+    formData.append('translation_batch_size', String(values.translationBatchSize));
+  }
+  if (input.mediaMetadataDraft) {
+    formData.append('media_metadata_json', JSON.stringify(input.mediaMetadataDraft));
+  }
+  return formData;
 }
 
 export function resolveSubtitleSourceFormat(entry: SubtitleSourceEntry | null | undefined): string {

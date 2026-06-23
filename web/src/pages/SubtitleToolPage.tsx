@@ -40,6 +40,7 @@ import type {
   SubtitleToolTab
 } from './subtitle-tool/subtitleToolTypes';
 import {
+  buildSubtitleSubmitFormData,
   coerceRecord,
   formatSubmittedSubtitleSummary,
   isAssSubtitleSelection,
@@ -546,63 +547,23 @@ export default function SubtitleToolPage({
         return;
       }
       const {
-        originalLanguage,
-        targetLanguage: resolvedTargetLanguage,
         normalizedStartTime,
         normalizedEndTime,
         resolvedAssFontSize,
         resolvedAssEmphasis
       } = submitResolution.values;
 
-      const formData = new FormData();
-      formData.append('input_language', originalLanguage);
-      formData.append('original_language', originalLanguage);
-      formData.append('target_language', resolvedTargetLanguage);
-      formData.append('enable_transliteration', String(enableTransliteration));
-      formData.append('highlight', String(enableHighlight));
-      formData.append('show_original', String(showOriginal));
-      formData.append('generate_audio_book', String(generateAudioBook));
-      formData.append('output_format', outputFormat);
-      formData.append('mirror_batches_to_source_dir', String(mirrorToSourceDir));
-      formData.append('start_time', normalizedStartTime);
-      if (resolvedAssFontSize !== null) {
-        formData.append('ass_font_size', String(resolvedAssFontSize));
-      }
-      if (resolvedAssEmphasis !== null) {
-        formData.append('ass_emphasis_scale', String(resolvedAssEmphasis));
-      }
-      if (submitResolution.values.selectedModel) {
-        formData.append('llm_model', submitResolution.values.selectedModel);
-      }
-      if (submitResolution.values.translationProvider) {
-        formData.append('translation_provider', submitResolution.values.translationProvider);
-      }
-      if (submitResolution.values.transliterationMode) {
-        formData.append('transliteration_mode', submitResolution.values.transliterationMode);
-      }
-      if (submitResolution.values.transliterationModel) {
-        formData.append('transliteration_model', submitResolution.values.transliterationModel);
-      }
-      if (normalizedEndTime) {
-        formData.append('end_time', normalizedEndTime);
-      }
-      if (submitResolution.values.sourcePath) {
-        formData.append('source_path', submitResolution.values.sourcePath);
-      } else if (uploadFile) {
-        formData.append('file', uploadFile, uploadFile.name);
-      }
-      if (submitResolution.values.workerCount !== null) {
-        formData.append('worker_count', String(submitResolution.values.workerCount));
-      }
-      if (submitResolution.values.batchSize !== null) {
-        formData.append('batch_size', String(submitResolution.values.batchSize));
-      }
-      if (submitResolution.values.translationBatchSize !== null) {
-        formData.append('translation_batch_size', String(submitResolution.values.translationBatchSize));
-      }
-      if (mediaMetadataDraft) {
-        formData.append('media_metadata_json', JSON.stringify(mediaMetadataDraft));
-      }
+      const formData = buildSubtitleSubmitFormData({
+        values: submitResolution.values,
+        enableTransliteration,
+        enableHighlight,
+        showOriginal,
+        generateAudioBook,
+        outputFormat,
+        mirrorToSourceDir,
+        uploadFile,
+        mediaMetadataDraft
+      });
 
       setSubmitting(true);
       try {
