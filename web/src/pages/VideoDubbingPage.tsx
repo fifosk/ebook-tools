@@ -46,6 +46,8 @@ import VideoDubbingOptionsPanel from './video-dubbing/VideoDubbingOptionsPanel';
 import VideoSourcePanel from './video-dubbing/VideoSourcePanel';
 import VideoDubbingTabs from './video-dubbing/VideoDubbingTabs';
 import VideoDubbingTuningPanel from './video-dubbing/VideoDubbingTuningPanel';
+import { CreateIntakeStatusCallout } from '../components/create-intake/CreateIntakeStatusCallout';
+import { useCreateIntakeStatus } from '../components/create-intake/useCreateIntakeStatus';
 import {
   DEFAULT_LLM_MODEL,
   DEFAULT_TRANSLATION_BATCH_SIZE,
@@ -87,6 +89,12 @@ export default function VideoDubbingPage({
   prefillParameters = null
 }: Props) {
   const { primaryTargetLanguage, setPrimaryTargetLanguage } = useLanguagePreferences();
+  const {
+    intakeStatus,
+    isLoadingIntakeStatus,
+    isIntakeAtCapacity,
+    refreshIntakeStatus,
+  } = useCreateIntakeStatus();
   const [baseDir, setBaseDir] = useState('');
   const [library, setLibrary] = useState<YoutubeNasLibraryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -884,6 +892,10 @@ export default function VideoDubbingPage({
   }, [metadataLookupSourceName, updateMediaMetadataDraft]);
 
   const handleGenerate = useCallback(async () => {
+    if (isIntakeAtCapacity) {
+      setGenerateError('Job queue is at capacity. Wait for pending jobs to clear before creating a dubbed video.');
+      return;
+    }
     const result = buildVideoDubbingGeneratePayload({
       selectedVideo,
       selectedSubtitle,
@@ -920,6 +932,7 @@ export default function VideoDubbingPage({
       setStatusMessage(`Dub job submitted as ${response.job_id}. Track progress below.`);
       onJobCreated(response.job_id);
       setActiveTab('jobs');
+      await refreshIntakeStatus();
     } catch (error) {
       const message =
         error instanceof Error ? error.message || 'Unable to generate dubbed video.' : 'Unable to generate dubbed video.';
@@ -950,7 +963,9 @@ export default function VideoDubbingPage({
     preserveAspectRatio,
     enableLookupCache,
     mediaMetadataDraft,
-    onJobCreated
+    onJobCreated,
+    isIntakeAtCapacity,
+    refreshIntakeStatus
   ]);
 
   const handlePreviewVoice = useCallback(async () => {
@@ -1003,7 +1018,7 @@ export default function VideoDubbingPage({
     [targetLanguageCode, voiceInventory]
   );
 
-  const canGenerate = Boolean(selectedVideo && selectedSubtitle && !isGenerating);
+  const canGenerate = Boolean(selectedVideo && selectedSubtitle && !isGenerating && !isIntakeAtCapacity);
 
   return (
     <div className={styles.container}>
@@ -1019,6 +1034,7 @@ export default function VideoDubbingPage({
 
       {statusMessage ? <p className={styles.success}>{statusMessage}</p> : null}
       {generateError ? <p className={styles.error}>{generateError}</p> : null}
+      <CreateIntakeStatusCallout status={intakeStatus} isLoading={isLoadingIntakeStatus} />
 
       {activeTab === 'videos' ? (
         <VideoSourcePanel

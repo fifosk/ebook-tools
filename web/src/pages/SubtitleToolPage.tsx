@@ -23,6 +23,8 @@ import SubtitleOptionsPanel from './subtitle-tool/SubtitleOptionsPanel';
 import SubtitleSourcePanel from './subtitle-tool/SubtitleSourcePanel';
 import SubtitleTuningPanel from './subtitle-tool/SubtitleTuningPanel';
 import SubtitleToolTabs from './subtitle-tool/SubtitleToolTabs';
+import { CreateIntakeStatusCallout } from '../components/create-intake/CreateIntakeStatusCallout';
+import { useCreateIntakeStatus } from '../components/create-intake/useCreateIntakeStatus';
 import {
   DEFAULT_ASS_EMPHASIS,
   DEFAULT_ASS_FONT_SIZE,
@@ -75,6 +77,12 @@ export default function SubtitleToolPage({
   refreshSignal = 0
 }: Props) {
   const [activeTab, setActiveTab] = useState<SubtitleToolTab>('subtitles');
+  const {
+    intakeStatus,
+    isLoadingIntakeStatus,
+    isIntakeAtCapacity,
+    refreshIntakeStatus,
+  } = useCreateIntakeStatus();
   const {
     inputLanguage,
     setInputLanguage,
@@ -510,6 +518,10 @@ export default function SubtitleToolPage({
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       setSubmitError(null);
+      if (isIntakeAtCapacity) {
+        setSubmitError('Job queue is at capacity. Wait for pending jobs to clear before creating a subtitle job.');
+        return;
+      }
 
       const submitResolution = resolveSubtitleSubmitValues({
         inputLanguage,
@@ -586,6 +598,7 @@ export default function SubtitleToolPage({
         if (sourceMode === 'upload') {
           setUploadFile(null);
         }
+        await refreshIntakeStatus();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to submit subtitle job.';
         setSubmitError(message);
@@ -618,7 +631,9 @@ export default function SubtitleToolPage({
       mediaMetadataDraft,
       translationProvider,
       transliterationMode,
-      transliterationModel
+      transliterationModel,
+      isIntakeAtCapacity,
+      refreshIntakeStatus
     ]
   );
 
@@ -632,10 +647,12 @@ export default function SubtitleToolPage({
         jobCount={sortedSubtitleJobs.length}
         isSubmitting={isSubmitting}
         isAssSelection={isAssSelection}
+        isIntakeAtCapacity={isIntakeAtCapacity}
         onTabChange={setActiveTab}
       />
 
       {submitError ? <div className="alert" role="alert">{submitError}</div> : null}
+      <CreateIntakeStatusCallout status={intakeStatus} isLoading={isLoadingIntakeStatus} />
       {lastSubmittedJobId ? (
         <div className="notice notice--info" role="status">
           {formatSubmittedSubtitleSummary({

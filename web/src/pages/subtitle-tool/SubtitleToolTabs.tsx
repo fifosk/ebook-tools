@@ -7,6 +7,7 @@ type SubtitleToolTabsProps = {
   jobCount: number;
   isSubmitting: boolean;
   isAssSelection: boolean;
+  isIntakeAtCapacity: boolean;
   onTabChange: (tab: SubtitleToolTab) => void;
 };
 
@@ -16,6 +17,7 @@ export default function SubtitleToolTabs({
   jobCount,
   isSubmitting,
   isAssSelection,
+  isIntakeAtCapacity,
   onTabChange
 }: SubtitleToolTabsProps) {
   return (
@@ -74,7 +76,7 @@ export default function SubtitleToolTabs({
           type="submit"
           form="subtitle-submit-form"
           className={styles.primaryButton}
-          disabled={isSubmitting || isAssSelection}
+          disabled={isSubmitting || isAssSelection || isIntakeAtCapacity}
         >
           {isSubmitting ? 'Submitting…' : 'Create subtitle job'}
         </button>

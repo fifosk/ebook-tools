@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.55",
+            version: "2026.06.23.56",
             entries: [
+                AppChangelogEntry(
+                    id: "web-create-intake-shared-callout",
+                    title: "Web intake parity",
+                    detail: "Web Subtitle Tool and Video Dubbing now reuse the Create job-intake status callout and disable new submissions when the backend queue is at capacity."
+                ),
                 AppChangelogEntry(
                     id: "create-intake-limit-details",
                     title: "Create queue limits",

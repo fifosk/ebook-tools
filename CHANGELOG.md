@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.56
+
+- Advanced visible Apple app versioning to `v2026.06.23.56`.
+- Web Subtitle Tool and Video Dubbing now reuse the Create job-intake status callout and disable new submissions when the backend queue is at capacity.
+
 ### 2026.06.23.55
 
 - Advanced visible Apple app versioning to `v2026.06.23.55`.

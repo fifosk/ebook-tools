@@ -10,7 +10,8 @@ import {
   lookupYoutubeVideoMetadataPreview,
   deleteYoutubeVideo,
   clearTvMetadataCache,
-  clearYoutubeMetadataCache
+  clearYoutubeMetadataCache,
+  fetchPipelineIntakeStatus
 } from '../../api/client';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -32,7 +33,8 @@ vi.mock('../../api/client', () => ({
   lookupYoutubeVideoMetadataPreview: vi.fn(),
   deleteYoutubeVideo: vi.fn(),
   clearTvMetadataCache: vi.fn(),
-  clearYoutubeMetadataCache: vi.fn()
+  clearYoutubeMetadataCache: vi.fn(),
+  fetchPipelineIntakeStatus: vi.fn()
 }));
 
 const mockFetchYoutubeLibrary = vi.mocked(fetchYoutubeLibrary);
@@ -47,6 +49,7 @@ const mockLookupYoutubeVideoMetadataPreview = vi.mocked(lookupYoutubeVideoMetada
 const mockDeleteYoutubeVideo = vi.mocked(deleteYoutubeVideo);
 const mockClearTvMetadataCache = vi.mocked(clearTvMetadataCache);
 const mockClearYoutubeMetadataCache = vi.mocked(clearYoutubeMetadataCache);
+const mockFetchPipelineIntakeStatus = vi.mocked(fetchPipelineIntakeStatus);
 
 describe('VideoDubbingPage', () => {
   beforeEach(() => {
@@ -68,6 +71,7 @@ describe('VideoDubbingPage', () => {
     mockDeleteYoutubeVideo.mockResolvedValue({ video_path: '', removed: [], missing: [] });
     mockClearTvMetadataCache.mockResolvedValue({ cleared: 0 });
     mockClearYoutubeMetadataCache.mockResolvedValue({ cleared: 0 });
+    mockFetchPipelineIntakeStatus.mockResolvedValue(null);
   });
 
   it('renders NAS videos with SUB subtitles listed', async () => {
@@ -117,6 +121,58 @@ describe('VideoDubbingPage', () => {
 
     expect(screen.getByLabelText(/Target resolution/i)).toHaveValue('480');
     expect(screen.getByRole('checkbox', { name: /Keep original aspect ratio/i })).toBeChecked();
+  });
+
+  it('shows backend intake pressure before generating a dub', async () => {
+    const modifiedAt = new Date('2024-01-02T03:04:05Z').toISOString();
+    mockFetchPipelineIntakeStatus.mockResolvedValue({
+      acceptingJobs: false,
+      isUnderPressure: true,
+      queueDepth: 6,
+      activeCount: 2,
+      softLimit: 3,
+      hardLimit: 6,
+      delayCount: 5
+    });
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: [
+        {
+          path: '/Volumes/Data/Download/DStation/generic-video.mkv',
+          filename: 'generic-video.mkv',
+          folder: '/Volumes/Data/Download/DStation',
+          size_bytes: 2048,
+          modified_at: modifiedAt,
+          source: 'nas_video',
+          subtitles: [
+            {
+              path: '/Volumes/Data/Download/DStation/generic-video.en.srt',
+              filename: 'generic-video.en.srt',
+              language: 'en',
+              format: 'srt'
+            }
+          ]
+        }
+      ]
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+
+    render(
+      <LanguageProvider>
+        <VideoDubbingPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Job queue is at capacity');
+    expect(alert).toHaveTextContent('Delayed jobs: 5');
+    expect(screen.getByRole('button', { name: /Generate dubbed video/i })).toBeDisabled();
   });
 
   it('allows deleting a subtitle and refreshes the library', async () => {

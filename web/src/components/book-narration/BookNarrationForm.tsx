@@ -6,8 +6,7 @@ import {
   useState
 } from 'react';
 import type { FormEvent } from 'react';
-import { PipelineIntakeStatusResponse, PipelineStatusResponse } from '../../api/dtos';
-import { fetchPipelineIntakeStatus } from '../../api/client';
+import { PipelineStatusResponse } from '../../api/dtos';
 import {
   AUDIO_MODE_OPTIONS,
   AUDIO_QUALITY_OPTIONS,
@@ -27,6 +26,8 @@ import { BookNarrationFormSections } from './BookNarrationFormSections';
 import { useBookNarrationChapters } from './useBookNarrationChapters';
 import { useBookNarrationLlmModels } from './useBookNarrationLlmModels';
 import { useBookNarrationDefaults } from './useBookNarrationDefaults';
+import { CreateIntakeStatusCallout } from '../create-intake/CreateIntakeStatusCallout';
+import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import type {
   BookNarrationFormProps,
   BookNarrationFormSection,
@@ -47,7 +48,6 @@ import {
   normalizeBookNarrationPath,
   normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
-  resolvePipelineIntakeStatusPresentation,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
   resolveBookNarrationMissingRequirements,
@@ -119,14 +119,12 @@ export function BookNarrationForm({
         ? sharedEnableLookupCache
         : DEFAULT_FORM_STATE.enable_lookup_cache
   }));
-  const [intakeStatus, setIntakeStatus] = useState<PipelineIntakeStatusResponse | null>(null);
-  const [isLoadingIntakeStatus, setIsLoadingIntakeStatus] = useState<boolean>(false);
-  const isMountedRef = useRef(true);
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
+  const {
+    intakeStatus,
+    isLoadingIntakeStatus,
+    isIntakeAtCapacity,
+    refreshIntakeStatus,
+  } = useCreateIntakeStatus();
   useEffect(() => {
     setFormState((previous) => applyImageDefaults(previous));
   }, [applyImageDefaults]);
@@ -528,30 +526,6 @@ export function BookNarrationForm({
     });
   }, [forcedBaseOutputFile]);
 
-  const refreshIntakeStatus = useCallback(async () => {
-    if (isMountedRef.current) {
-      setIsLoadingIntakeStatus(true);
-    }
-    try {
-      const status = await fetchPipelineIntakeStatus();
-      if (isMountedRef.current) {
-        setIntakeStatus(status);
-      }
-    } catch {
-      if (isMountedRef.current) {
-        setIntakeStatus(null);
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoadingIntakeStatus(false);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    void refreshIntakeStatus();
-  }, [refreshIntakeStatus]);
-
   const { handleSubmit } = useBookNarrationSubmit({
     formState,
     normalizedTargetLanguages,
@@ -588,16 +562,11 @@ export function BookNarrationForm({
     chapterSelectionMode,
     hasChapterSelection: Boolean(chapterSelection)
   });
-  const isIntakeAtCapacity = intakeStatus?.acceptingJobs === false;
   const isSubmitDisabled = isSubmitting || missingRequirements.length > 0 || isIntakeAtCapacity;
   const submitText = submitLabel ?? 'Submit job';
   const hasMissingRequirements = missingRequirements.length > 0;
   const missingRequirementText = formatList(missingRequirements);
   const canBrowseFiles = Boolean(fileOptions);
-  const intakeStatusPresentation = resolvePipelineIntakeStatusPresentation(
-    intakeStatus,
-    isLoadingIntakeStatus,
-  );
   return (
     <div className="pipeline-settings">
       {showInfoHeader ? (
@@ -632,21 +601,7 @@ export function BookNarrationForm({
             </button>
           </div>
         </div>
-        {intakeStatusPresentation ? (
-          <div
-            className={`form-callout form-callout--${intakeStatusPresentation.tone}`}
-            role={intakeStatusPresentation.role}
-          >
-            <div>{intakeStatusPresentation.message}</div>
-            {intakeStatusPresentation.detailLines.length > 0 ? (
-              <ul className="form-callout__details" aria-label="Job intake details">
-                {intakeStatusPresentation.detailLines.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
+        <CreateIntakeStatusCallout status={intakeStatus} isLoading={isLoadingIntakeStatus} />
         {hasMissingRequirements ? (
           <div className="form-callout form-callout--warning" role="status">
             Provide {missingRequirementText} before submitting.
