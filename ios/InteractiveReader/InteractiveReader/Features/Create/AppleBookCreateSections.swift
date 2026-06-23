@@ -134,6 +134,7 @@ struct AppleBookCreateNarrationSection: View {
     let creationMode: AppleCreateMode
     @Binding var inputLanguage: AppleBookCreateLanguage
     @Binding var targetLanguage: AppleBookCreateLanguage
+    @Binding var additionalTargetLanguages: String
     @Binding var voice: AppleBookCreateVoiceOption
     @Binding var targetVoice: AppleBookCreateVoiceOption?
     let availableInputLanguages: [AppleBookCreateLanguage]
@@ -156,6 +157,13 @@ struct AppleBookCreateNarrationSection: View {
                 }
             }
             .accessibilityIdentifier("createBookTargetLanguagePicker")
+
+            if creationMode == .generatedBook || creationMode == .narrateEbook {
+                TextField("Additional targets", text: $additionalTargetLanguages)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("createBookAdditionalTargetLanguagesField")
+            }
 
             if creationMode != .subtitleJob {
                 Picker("Voice", selection: $voice) {

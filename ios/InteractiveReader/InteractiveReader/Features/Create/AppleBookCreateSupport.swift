@@ -11,6 +11,7 @@ struct AppleBookCreateDraft: Equatable {
     let sentenceCount: Int
     let inputLanguage: String
     let targetLanguage: String
+    let targetLanguages: [String]
     let voice: String
     let voiceOverrides: [String: String]
     let baseOutput: String
@@ -65,6 +66,7 @@ struct AppleNarrateEbookDraft: Equatable {
     let endSentence: Int?
     let inputLanguage: String
     let targetLanguage: String
+    let targetLanguages: [String]
     let voice: String
     let voiceOverrides: [String: String]
     let generateAudio: Bool
@@ -100,6 +102,7 @@ struct AppleNarrateEbookDraft: Equatable {
             endSentence: endSentence,
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
+            targetLanguages: targetLanguages,
             voice: voice,
             voiceOverrides: voiceOverrides,
             generateAudio: generateAudio,
@@ -350,6 +353,7 @@ enum AppleBookCreateEditedField: Hashable {
     case sentenceCount
     case inputLanguage
     case targetLanguage
+    case additionalTargetLanguages
     case voice
     case targetVoice
     case generateAudio
@@ -714,6 +718,30 @@ enum AppleBookCreatePresentation {
         return [language: targetVoice.backendValue]
     }
 
+    static func normalizedTargetLanguages(
+        primary: String,
+        additionalTargets: String
+    ) -> [String] {
+        let primaryTarget = trimmed(primary)
+        guard !primaryTarget.isEmpty else { return [] }
+
+        var seen = Set<String>()
+        seen.insert(primaryTarget.lowercased())
+        var targetLanguages = [primaryTarget]
+
+        for candidate in additionalTargets.components(separatedBy: CharacterSet(charactersIn: ",\n")) {
+            let target = trimmed(candidate)
+            guard !target.isEmpty else { continue }
+
+            let lookupKey = target.lowercased()
+            guard !seen.contains(lookupKey) else { continue }
+
+            seen.insert(lookupKey)
+            targetLanguages.append(target)
+        }
+        return targetLanguages
+    }
+
     static func submitButtonPresentation(
         for mode: AppleCreateMode,
         isSubmitting: Bool
@@ -914,6 +942,7 @@ enum AppleBookCreatePresentation {
         sentenceCount: Int,
         inputLanguage: AppleBookCreateLanguage,
         targetLanguage: AppleBookCreateLanguage,
+        additionalTargetLanguages: String,
         voice: AppleBookCreateVoiceOption,
         targetVoice: AppleBookCreateVoiceOption?,
         baseOutput: String,
@@ -968,6 +997,10 @@ enum AppleBookCreatePresentation {
             sentenceCount: sentenceCount,
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
+            targetLanguages: normalizedTargetLanguages(
+                primary: targetLanguage.backendValue,
+                additionalTargets: additionalTargetLanguages
+            ),
             voice: voice.backendValue,
             voiceOverrides: voiceOverrides(targetLanguage: targetLanguage.backendValue, targetVoice: targetVoice),
             baseOutput: baseOutput,
@@ -1025,6 +1058,7 @@ enum AppleBookCreatePresentation {
         endSentence: String,
         inputLanguage: AppleBookCreateLanguage,
         targetLanguage: AppleBookCreateLanguage,
+        additionalTargetLanguages: String,
         voice: AppleBookCreateVoiceOption,
         targetVoice: AppleBookCreateVoiceOption?,
         generateAudio: Bool,
@@ -1060,6 +1094,10 @@ enum AppleBookCreatePresentation {
             endSentence: normalizedEndSentence(endSentence, startSentence: normalizedStart),
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
+            targetLanguages: normalizedTargetLanguages(
+                primary: targetLanguage.backendValue,
+                additionalTargets: additionalTargetLanguages
+            ),
             voice: voice.backendValue,
             voiceOverrides: voiceOverrides(targetLanguage: targetLanguage.backendValue, targetVoice: targetVoice),
             generateAudio: generateAudio,

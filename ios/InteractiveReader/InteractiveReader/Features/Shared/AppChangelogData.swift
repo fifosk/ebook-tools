@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.25",
+            version: "2026.06.23.26",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-multi-target-books",
+                    title: "Apple multi-target books",
+                    detail: "Generated-book and Narrate EPUB creation now expose Web-aligned additional target languages and submit multi-target pipeline arrays."
+                ),
                 AppChangelogEntry(
                     id: "apple-image-api-url-overrides",
                     title: "Apple image API URLs",

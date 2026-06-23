@@ -568,6 +568,7 @@ struct AppleCreationPayloadCheck {
             sentenceCount: 42,
             inputLanguage: .english,
             targetLanguage: .slovak,
+            additionalTargetLanguages: " German, Arabic\nSlovak , German ",
             voice: AppleBookCreateVoiceOption(" macOS-auto-male ")!,
             targetVoice: AppleBookCreateVoiceOption(" piper-auto ")!,
             baseOutput: "native-creation",
@@ -617,6 +618,10 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.year == "2026", "Generated draft should trim metadata year")
         require(generatedDraft.coverFile == "covers/native.jpg", "Generated draft should trim metadata cover path")
         require(generatedDraft.targetLanguage == "Slovak", "Generated draft should map target language")
+        require(
+            generatedDraft.targetLanguages == ["Slovak", "German", "Arabic"],
+            "Generated draft should map primary and deduped additional target languages"
+        )
         require(generatedDraft.voice == "macOS-auto-male", "Generated draft should trim and map voice")
         require(
             generatedDraft.voiceOverrides == ["Slovak": "piper-auto"],
@@ -694,6 +699,7 @@ struct AppleCreationPayloadCheck {
             endSentence: "3",
             inputLanguage: .english,
             targetLanguage: .arabic,
+            additionalTargetLanguages: "German, Arabic\nFrench",
             voice: .gtts,
             targetVoice: nil,
             generateAudio: true,
@@ -723,6 +729,10 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.summary == "Imported EPUB summary.", "Narrate draft should trim metadata summary")
         require(narrateDraft.year == "2025", "Narrate draft should trim metadata year")
         require(narrateDraft.coverFile == "covers/imported.jpg", "Narrate draft should trim metadata cover path")
+        require(
+            narrateDraft.targetLanguages == ["Arabic", "German", "French"],
+            "Narrate draft should map primary and deduped additional target languages"
+        )
         require(narrateDraft.startSentence == 7, "Narrate draft should floor selected start sentence")
         require(narrateDraft.endSentence == 7, "Narrate draft should clamp end sentence to start sentence")
         require(narrateDraft.audioMode == "4", "Narrate draft should use fallback audio mode for blank selection")
@@ -831,7 +841,7 @@ struct AppleCreationPayloadCheck {
             inputFile: "books/demo.epub",
             baseOutputFile: "demo/sk",
             inputLanguage: "en",
-            targetLanguages: ["sk"],
+            targetLanguages: ["sk", "de", "fr"],
             sentencesPerOutputFile: 12,
             stitchFull: true,
             generateAudio: false,
@@ -995,7 +1005,10 @@ struct AppleCreationPayloadCheck {
 
         let encodedInputs = pipelineObject["inputs"] as? [String: Any]
         require(encodedInputs?["input_file"] as? String == "books/demo.epub", "pipeline inputs should encode input_file")
-        require(encodedInputs?["target_languages"] as? [String] == ["sk"], "pipeline inputs should encode target_languages")
+        require(
+            encodedInputs?["target_languages"] as? [String] == ["sk", "de", "fr"],
+            "pipeline inputs should encode multiple target_languages"
+        )
         require(encodedInputs?["sentences_per_output_file"] as? Int == 12, "pipeline inputs should encode sentence count")
         require(encodedInputs?["stitch_full"] as? Bool == true, "pipeline inputs should encode stitch_full")
         require(encodedInputs?["generate_audio"] as? Bool == false, "pipeline inputs should encode generate_audio")

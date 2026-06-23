@@ -61,6 +61,7 @@ struct AppleBookCreateView: View {
     @State private var sentenceCount = 30
     @State private var inputLanguage = AppleBookCreateLanguage.english
     @State private var targetLanguage = AppleBookCreateLanguage.arabic
+    @State private var additionalTargetLanguages = ""
     @State private var voice = AppleBookCreateVoiceOption.gtts
     @State private var targetVoice: AppleBookCreateVoiceOption?
     @State private var generateAudio = true
@@ -252,6 +253,10 @@ struct AppleBookCreateView: View {
             creationMode: creationMode,
             inputLanguage: languageBinding(for: .inputLanguage, value: $inputLanguage),
             targetLanguage: languageBinding(for: .targetLanguage, value: $targetLanguage),
+            additionalTargetLanguages: textBinding(
+                for: .additionalTargetLanguages,
+                value: $additionalTargetLanguages
+            ),
             voice: voiceBinding,
             targetVoice: targetVoiceBinding,
             availableInputLanguages: availableInputLanguages,
@@ -522,6 +527,7 @@ struct AppleBookCreateView: View {
             sentenceCount: sentenceCount,
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
+            additionalTargetLanguages: additionalTargetLanguages,
             voice: voice,
             targetVoice: targetVoice,
             baseOutput: derivedBaseOutput,
@@ -679,6 +685,7 @@ struct AppleBookCreateView: View {
             endSentence: sourceEndSentence,
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
+            additionalTargetLanguages: additionalTargetLanguages,
             voice: voice,
             targetVoice: targetVoice,
             generateAudio: generateAudio,
