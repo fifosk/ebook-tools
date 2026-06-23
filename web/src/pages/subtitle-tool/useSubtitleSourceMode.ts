@@ -4,7 +4,7 @@ import type { SubtitleSourceMode } from './subtitleToolTypes';
 import {
   isAssSubtitleSelection,
   resolveSubtitleMetadataSourceName
-} from './subtitleToolUtils';
+} from './subtitleSourceUtils';
 
 type UseSubtitleSourceModeInput = {
   selectedSource: string;

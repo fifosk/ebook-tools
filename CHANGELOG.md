@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.75
+
+- Advanced visible Apple app versioning to `v2026.06.23.75`.
+- Web Subtitle Tool source selection now lives in a focused module with direct pipeline coverage for ASS avoidance, latest-source picking, and metadata source labels.
+
 ### 2026.06.23.74
 
 - Advanced visible Apple app versioning to `v2026.06.23.74`.

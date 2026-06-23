@@ -4,7 +4,7 @@ import type { SubtitleSourceEntry } from '../../api/dtos';
 import {
   resolveSubtitleSourceSelectionAfterRefresh,
   sortSubtitleSourcesForSelection
-} from './subtitleToolUtils';
+} from './subtitleSourceUtils';
 
 type UseSubtitleSourcesOptions = {
   sourceDirectory: string;

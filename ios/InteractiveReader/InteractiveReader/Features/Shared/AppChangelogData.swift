@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.74",
+            version: "2026.06.23.75",
             entries: [
+                AppChangelogEntry(
+                    id: "web-subtitle-source-utils",
+                    title: "Subtitle source selection",
+                    detail: "Web Subtitle Tool source selection now lives in a focused module with direct pipeline coverage for ASS avoidance, latest-source picking, and metadata source labels."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-submit-feedback-utils",
                     title: "Subtitle submit feedback",
