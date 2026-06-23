@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.29",
+            version: "2026.06.23.30",
             entries: [
+                AppChangelogEntry(
+                    id: "web-book-genre-isbn-config",
+                    title: "Web metadata parity",
+                    detail: "Web book narration now promotes edited genre and ISBN metadata into config overrides, matching the Apple book_genre and book_isbn payload shape."
+                ),
                 AppChangelogEntry(
                     id: "apple-book-isbn-metadata",
                     title: "Apple ISBN metadata",

@@ -169,7 +169,11 @@ export function useBookNarrationSubmit({
         const configOverrides = { ...json.config };
         const metadataBookTitle = normalizeTextValue(json.book_metadata?.['book_title']);
         const metadataBookAuthor = normalizeTextValue(json.book_metadata?.['book_author']);
+        const metadataBookGenre = normalizeTextValue(json.book_metadata?.['book_genre']);
         const metadataBookYear = normalizeTextValue(json.book_metadata?.['book_year']);
+        const metadataBookIsbn =
+          normalizeTextValue(json.book_metadata?.['book_isbn']) ||
+          normalizeTextValue(json.book_metadata?.['isbn']);
         const metadataBookSummary = normalizeTextValue(json.book_metadata?.['book_summary']);
         const metadataCoverFile = normalizeTextValue(json.book_metadata?.['book_cover_file']);
         if (metadataBookTitle) {
@@ -178,8 +182,14 @@ export function useBookNarrationSubmit({
         if (metadataBookAuthor) {
           configOverrides['book_author'] = metadataBookAuthor;
         }
+        if (metadataBookGenre) {
+          configOverrides['book_genre'] = metadataBookGenre;
+        }
         if (metadataBookYear) {
           configOverrides['book_year'] = metadataBookYear;
+        }
+        if (metadataBookIsbn) {
+          configOverrides['book_isbn'] = metadataBookIsbn;
         }
         if (metadataBookSummary) {
           configOverrides['book_summary'] = metadataBookSummary;

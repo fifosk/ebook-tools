@@ -194,6 +194,48 @@ describe('BookNarrationForm', () => {
     expect(payload.pipeline_overrides.voice_overrides).toEqual({ en: 'macOS-auto' });
   }, 10000);
 
+  it('promotes edited genre and ISBN metadata into config overrides on submit', async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
+
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={handleSubmit} />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.clear(screen.getByLabelText(/Input file path/i));
+    await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.epub');
+    await user.clear(screen.getByLabelText(/Base output file/i));
+    await user.type(screen.getByLabelText(/Base output file/i), 'output');
+
+    await openFormTab(user, /Metadata/i);
+    fireEvent.change(screen.getByLabelText(/^Title$/i), { target: { value: 'Example Book' } });
+    fireEvent.change(screen.getByLabelText(/^Author$/i), { target: { value: 'Jane Doe' } });
+    fireEvent.change(screen.getByLabelText(/^ISBN$/i), { target: { value: '9780140328721' } });
+    fireEvent.change(screen.getByLabelText(/^Genre$/i), { target: { value: 'Adventure' } });
+
+    await user.click(screen.getByRole('button', { name: /Submit job/i }));
+
+    expect(handleSubmit).toHaveBeenCalled();
+    const [payload] = handleSubmit.mock.calls[0];
+    expect(payload.config).toMatchObject({
+      book_title: 'Example Book',
+      book_author: 'Jane Doe',
+      book_genre: 'Adventure',
+      book_isbn: '9780140328721',
+    });
+    expect(payload.inputs.book_metadata).toMatchObject({
+      book_title: 'Example Book',
+      book_author: 'Jane Doe',
+      book_genre: 'Adventure',
+      book_isbn: '9780140328721',
+      isbn: '9780140328721',
+    });
+  }, 10000);
+
   it('prefills the form with defaults from the API response', async () => {
     await act(async () => {
       renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} />);

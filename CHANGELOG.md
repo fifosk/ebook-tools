@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.30
+
+- Advanced visible Apple app versioning to `v2026.06.23.30`.
+- Web book narration now promotes edited genre and ISBN metadata into config overrides, matching the Apple `book_genre` and `book_isbn` payload shape.
+
 ### 2026.06.23.29
 
 - Advanced visible Apple app versioning to `v2026.06.23.29`.

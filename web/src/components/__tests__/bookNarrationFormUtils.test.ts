@@ -5,6 +5,7 @@ import {
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillParameters,
   compactBookNarrationPipelineDefaults,
+  extractBookMetadata,
   normalizeBookNarrationPath,
   preserveBookNarrationUserEditedFields,
   resolveBookNarrationMissingRequirements,
@@ -252,6 +253,26 @@ describe('bookNarrationFormUtils form state helpers', () => {
         target_languages: [' German ', '', 'French', 'German', null, 'Arabic'],
       }),
     ).toEqual(['German', 'French', 'Arabic']);
+  });
+
+  it('extracts Web-aligned genre and ISBN metadata from flat defaults', () => {
+    expect(
+      extractBookMetadata({
+        book_title: 'Example Book',
+        book_author: 'Jane Doe',
+        book_genre: 'Adventure',
+        book_isbn: '9780140328721',
+        isbn: 'legacy-isbn',
+        genre: 'legacy-genre',
+      }),
+    ).toEqual({
+      book_title: 'Example Book',
+      book_author: 'Jane Doe',
+      book_genre: 'Adventure',
+      book_isbn: '9780140328721',
+      isbn: 'legacy-isbn',
+      genre: 'legacy-genre',
+    });
   });
 
   it('applies backend image defaults while preserving user-edited image fields', () => {
