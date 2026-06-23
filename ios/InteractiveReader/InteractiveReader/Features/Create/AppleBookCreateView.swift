@@ -586,15 +586,15 @@ struct AppleBookCreateView: View {
     }
 
     private func submitGeneratedBook() {
-        let draft = AppleBookCreateDraft(
+        let draft = AppleBookCreatePresentation.generatedBookDraft(
             topic: trimmed(topic),
             bookName: trimmed(bookName),
             genre: trimmed(genre),
-            author: trimmed(author).nonEmptyValue ?? "Me",
+            author: author,
             sentenceCount: sentenceCount,
-            inputLanguage: inputLanguage.backendValue,
-            targetLanguage: targetLanguage.backendValue,
-            voice: voice.backendValue,
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            voice: voice,
             baseOutput: derivedBaseOutput,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
@@ -627,29 +627,27 @@ struct AppleBookCreateView: View {
         subtitleStartTime = normalizedStartTime
         subtitleEndTime = normalizedEndTime
 
-        let draft = AppleSubtitleJobDraft(
-            sourcePath: trimmed(subtitleSourcePath).nonEmptyValue,
-            inputLanguage: inputLanguage.backendValue,
-            targetLanguage: targetLanguage.backendValue,
-            outputFormat: subtitleOutputFormat.rawValue,
+        let draft = AppleBookCreatePresentation.subtitleJobDraft(
+            sourcePath: subtitleSourcePath,
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            outputFormat: subtitleOutputFormat,
             startTime: normalizedStartTime,
-            endTime: normalizedEndTime.nonEmptyValue,
+            endTime: normalizedEndTime,
             enableTransliteration: subtitleEnableTransliteration,
             highlight: subtitleHighlight,
             showOriginal: subtitleShowOriginal,
             generateAudioBook: subtitleGenerateAudioBook,
             mirrorBatchesToSourceDir: subtitleMirrorBatchesToSourceDir,
-            translationProvider: subtitleTranslationProvider.backendValue,
-            llmModel: subtitleTranslationProvider == .llm ? trimmed(subtitleLlmModel).nonEmptyValue : nil,
-            transliterationMode: subtitleEnableTransliteration ? subtitleTransliterationMode.backendValue : nil,
-            transliterationModel: subtitleEnableTransliteration && subtitleTransliterationMode.allowsModelOverride
-                ? trimmed(subtitleTransliterationModel).nonEmptyValue
-                : nil,
-            workerCount: clampedSubtitleWorkerCount,
-            batchSize: clampedSubtitleBatchSize,
-            translationBatchSize: clampedSubtitleTranslationBatchSize,
-            assFontSize: subtitleOutputFormat == .ass ? clampedAssFontSize : nil,
-            assEmphasisScale: subtitleOutputFormat == .ass ? clampedAssEmphasisScale : nil
+            translationProvider: subtitleTranslationProvider,
+            llmModel: subtitleLlmModel,
+            transliterationMode: subtitleTransliterationMode,
+            transliterationModel: subtitleTransliterationModel,
+            workerCount: subtitleWorkerCount,
+            batchSize: subtitleBatchSize,
+            translationBatchSize: subtitleTranslationBatchSize,
+            assFontSize: subtitleAssFontSize,
+            assEmphasisScale: subtitleAssEmphasisScale
         )
 
         Task {
@@ -676,27 +674,25 @@ struct AppleBookCreateView: View {
         youtubeStartOffset = normalizedStartOffset
         youtubeEndOffset = normalizedEndOffset
 
-        let draft = AppleYoutubeDubDraft(
-            videoPath: trimmed(youtubeVideoPath),
-            subtitlePath: trimmed(youtubeSubtitlePath),
-            sourceLanguage: inputLanguage.backendValue,
-            targetLanguage: targetLanguage.backendValue,
-            voice: voice.backendValue,
-            startTimeOffset: normalizedStartOffset.nonEmptyValue,
-            endTimeOffset: normalizedEndOffset.nonEmptyValue,
-            originalMixPercent: clampedYoutubeOriginalMixPercent,
-            flushSentences: clampedYoutubeFlushSentences,
-            llmModel: subtitleTranslationProvider == .llm ? trimmed(subtitleLlmModel).nonEmptyValue : nil,
-            translationProvider: subtitleTranslationProvider.backendValue,
-            translationBatchSize: clampedSubtitleTranslationBatchSize,
-            transliterationMode: includeTransliteration ? subtitleTransliterationMode.backendValue : nil,
-            transliterationModel: includeTransliteration && subtitleTransliterationMode.allowsModelOverride
-                ? trimmed(subtitleTransliterationModel).nonEmptyValue
-                : nil,
+        let draft = AppleBookCreatePresentation.youtubeDubDraft(
+            videoPath: youtubeVideoPath,
+            subtitlePath: youtubeSubtitlePath,
+            sourceLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            voice: voice,
+            startTimeOffset: normalizedStartOffset,
+            endTimeOffset: normalizedEndOffset,
+            originalMixPercent: youtubeOriginalMixPercent,
+            flushSentences: youtubeFlushSentences,
+            translationProvider: subtitleTranslationProvider,
+            llmModel: subtitleLlmModel,
+            translationBatchSize: subtitleTranslationBatchSize,
+            transliterationMode: subtitleTransliterationMode,
+            transliterationModel: subtitleTransliterationModel,
             splitBatches: youtubeSplitBatches,
-            stitchBatches: youtubeSplitBatches && youtubeStitchBatches,
+            stitchBatches: youtubeStitchBatches,
             includeTransliteration: includeTransliteration,
-            targetHeight: youtubeTargetHeight.backendValue,
+            targetHeight: youtubeTargetHeight,
             preserveAspectRatio: youtubePreserveAspectRatio,
             enableLookupCache: enableLookupCache
         )
@@ -709,12 +705,12 @@ struct AppleBookCreateView: View {
     }
 
     private func submitNarrateEbook() {
-        let draft = AppleNarrateEbookDraft(
-            inputFile: trimmed(sourcePath),
-            baseOutput: trimmed(sourceBaseOutput),
-            inputLanguage: inputLanguage.backendValue,
-            targetLanguage: targetLanguage.backendValue,
-            voice: voice.backendValue,
+        let draft = AppleBookCreatePresentation.narrateEbookDraft(
+            inputFile: sourcePath,
+            baseOutput: sourceBaseOutput,
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            voice: voice,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults

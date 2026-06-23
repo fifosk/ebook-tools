@@ -195,6 +195,127 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.normalizeYoutubeOffset("-1") == nil,
             "YouTube offset should reject negative seconds"
         )
+        let generatedDraft = AppleBookCreatePresentation.generatedBookDraft(
+            topic: "  Portable Apple clients  ",
+            bookName: " Native Creation ",
+            genre: " technical ",
+            author: "   ",
+            sentenceCount: 42,
+            inputLanguage: .english,
+            targetLanguage: .slovak,
+            voice: AppleBookCreateVoiceOption(" macOS-auto-male ")!,
+            baseOutput: "native-creation",
+            includeTransliteration: true,
+            enableLookupCache: false,
+            pipelineDefaults: options.pipelineDefaults,
+            generatedSourceDefaults: options.generatedSourceDefaults
+        )
+        require(generatedDraft.topic == "Portable Apple clients", "Generated draft should trim topic")
+        require(generatedDraft.author == "Me", "Generated draft should default blank author to Me")
+        require(generatedDraft.targetLanguage == "Slovak", "Generated draft should map target language")
+        require(generatedDraft.voice == "macOS-auto-male", "Generated draft should trim and map voice")
+        require(generatedDraft.pipelineDefaults == options.pipelineDefaults, "Generated draft should carry pipeline defaults")
+        require(
+            generatedDraft.generatedSourceDefaults == options.generatedSourceDefaults,
+            "Generated draft should carry generated-source defaults"
+        )
+
+        let narrateDraft = AppleBookCreatePresentation.narrateEbookDraft(
+            inputFile: " imports/demo.epub ",
+            baseOutput: " apple/demo ",
+            inputLanguage: .english,
+            targetLanguage: .arabic,
+            voice: .gtts,
+            includeTransliteration: false,
+            enableLookupCache: true,
+            pipelineDefaults: options.pipelineDefaults
+        )
+        require(narrateDraft.inputFile == "imports/demo.epub", "Narrate draft should trim input path")
+        require(narrateDraft.baseOutput == "apple/demo", "Narrate draft should trim output path")
+        require(narrateDraft.includeTransliteration == false, "Narrate draft should keep transliteration toggle")
+
+        let subtitleDraft = AppleBookCreatePresentation.subtitleJobDraft(
+            sourcePath: " Subtitles/demo.srt ",
+            inputLanguage: .english,
+            targetLanguage: .arabic,
+            outputFormat: .ass,
+            startTime: "00:00",
+            endTime: "",
+            enableTransliteration: true,
+            highlight: true,
+            showOriginal: false,
+            generateAudioBook: true,
+            mirrorBatchesToSourceDir: false,
+            translationProvider: .googleTranslate,
+            llmModel: " gpt-4.1-mini ",
+            transliterationMode: .python,
+            transliterationModel: " gpt-4.1 ",
+            workerCount: 99,
+            batchSize: 0,
+            translationBatchSize: 999,
+            assFontSize: 4,
+            assEmphasisScale: 3.2
+        )
+        require(subtitleDraft.sourcePath == "Subtitles/demo.srt", "Subtitle draft should trim source path")
+        require(subtitleDraft.endTime == nil, "Subtitle draft should omit blank end time")
+        require(subtitleDraft.translationProvider == "googletrans", "Subtitle draft should map Google Translate provider")
+        require(subtitleDraft.llmModel == nil, "Subtitle draft should omit LLM model for non-LLM provider")
+        require(subtitleDraft.transliterationMode == "python", "Subtitle draft should include enabled transliteration mode")
+        require(
+            subtitleDraft.transliterationModel == nil,
+            "Subtitle draft should omit transliteration model when mode disallows override"
+        )
+        require(
+            subtitleDraft.workerCount == AppleSubtitleTuning.workerCountRange.upperBound,
+            "Subtitle draft should clamp worker count"
+        )
+        require(
+            subtitleDraft.batchSize == AppleSubtitleTuning.batchSizeRange.lowerBound,
+            "Subtitle draft should clamp subtitle batch size"
+        )
+        require(
+            subtitleDraft.translationBatchSize == AppleSubtitleTuning.translationBatchSizeRange.upperBound,
+            "Subtitle draft should clamp translation batch size"
+        )
+        require(
+            subtitleDraft.assFontSize == AppleSubtitleAssTypography.fontSizeRange.lowerBound,
+            "Subtitle draft should clamp ASS font size"
+        )
+        require(
+            subtitleDraft.assEmphasisScale == AppleSubtitleAssTypography.emphasisScaleRange.upperBound,
+            "Subtitle draft should clamp ASS emphasis scale"
+        )
+
+        let youtubeDraft = AppleBookCreatePresentation.youtubeDubDraft(
+            videoPath: " incoming/demo.mp4 ",
+            subtitlePath: " incoming/demo.srt ",
+            sourceLanguage: .english,
+            targetLanguage: .slovak,
+            voice: .gtts,
+            startTimeOffset: "",
+            endTimeOffset: "01:30",
+            originalMixPercent: 104.2,
+            flushSentences: 0,
+            translationProvider: .llm,
+            llmModel: " gpt-4.1-mini ",
+            translationBatchSize: 0,
+            transliterationMode: .default,
+            transliterationModel: " gpt-4.1 ",
+            splitBatches: false,
+            stitchBatches: true,
+            includeTransliteration: true,
+            targetHeight: .p720,
+            preserveAspectRatio: true,
+            enableLookupCache: true
+        )
+        require(youtubeDraft.videoPath == "incoming/demo.mp4", "YouTube draft should trim video path")
+        require(youtubeDraft.startTimeOffset == nil, "YouTube draft should omit blank start offset")
+        require(youtubeDraft.originalMixPercent == 100, "YouTube draft should clamp original mix")
+        require(youtubeDraft.flushSentences == 1, "YouTube draft should clamp flush interval")
+        require(youtubeDraft.llmModel == "gpt-4.1-mini", "YouTube draft should include trimmed LLM model")
+        require(youtubeDraft.translationBatchSize == 1, "YouTube draft should clamp translation batch size")
+        require(youtubeDraft.stitchBatches == false, "YouTube draft should not stitch when split batches is disabled")
+        require(youtubeDraft.targetHeight == 720, "YouTube draft should map target height")
 
         let input = PipelineInputPayload(
             inputFile: "books/demo.epub",

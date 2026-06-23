@@ -135,10 +135,13 @@ Current Apple UI partially exposes:
   mode availability, submit-button presentation, base-output derivation,
   subtitle model labels, subtitle model option-list construction, ASS/subtitle/
   YouTube clamp and formatting helpers, YouTube offset normalization, and
-  creation tuning/format/provider enums to `AppleBookCreateSupport.swift`,
-  reducing the view from 1371 to 1155 lines while preserving iPhone/iPad/tvOS
-  behavior through focused Swift payload checks and shared iPadOS/tvOS
-  simulator smokes.
+  creation tuning/format/provider enums to `AppleBookCreateSupport.swift`.
+  Create draft value types and pure generated-book, Narrate EPUB, subtitle-job,
+  and YouTube Dub draft builders also live in support now, keeping
+  `AppleBookCreateViewModel.swift` focused on submission/payload work. The
+  refactor reduces the view from 1371 to 1151 lines and the view model to 348
+  lines while preserving iPhone/iPad/tvOS behavior through focused Swift payload
+  checks and shared iPadOS/tvOS simulator smokes.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's EPUB/PDF source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web.

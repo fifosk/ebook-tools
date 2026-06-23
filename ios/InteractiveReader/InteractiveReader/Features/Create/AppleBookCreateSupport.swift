@@ -1,5 +1,122 @@
 import Foundation
 
+struct AppleBookCreateDraft: Equatable {
+    let topic: String
+    let bookName: String
+    let genre: String
+    let author: String
+    let sentenceCount: Int
+    let inputLanguage: String
+    let targetLanguage: String
+    let voice: String
+    let baseOutput: String
+    let includeTransliteration: Bool
+    let enableLookupCache: Bool
+    let pipelineDefaults: BookCreationPipelineDefaults?
+    let generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
+}
+
+struct AppleNarrateEbookDraft: Equatable {
+    let inputFile: String
+    let baseOutput: String
+    let inputLanguage: String
+    let targetLanguage: String
+    let voice: String
+    let includeTransliteration: Bool
+    let enableLookupCache: Bool
+    let pipelineDefaults: BookCreationPipelineDefaults?
+
+    func replacingInputFile(_ inputFile: String) -> AppleNarrateEbookDraft {
+        AppleNarrateEbookDraft(
+            inputFile: inputFile,
+            baseOutput: baseOutput,
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            voice: voice,
+            includeTransliteration: includeTransliteration,
+            enableLookupCache: enableLookupCache,
+            pipelineDefaults: pipelineDefaults
+        )
+    }
+}
+
+struct AppleSubtitleJobDraft: Equatable {
+    let sourcePath: String?
+    let inputLanguage: String
+    let targetLanguage: String
+    let outputFormat: String
+    let startTime: String
+    let endTime: String?
+    let enableTransliteration: Bool
+    let highlight: Bool
+    let showOriginal: Bool
+    let generateAudioBook: Bool
+    let mirrorBatchesToSourceDir: Bool
+    let translationProvider: String
+    let llmModel: String?
+    let transliterationMode: String?
+    let transliterationModel: String?
+    let workerCount: Int
+    let batchSize: Int
+    let translationBatchSize: Int
+    let assFontSize: Int?
+    let assEmphasisScale: Double?
+}
+
+struct AppleYoutubeDubDraft: Equatable {
+    let videoPath: String
+    let subtitlePath: String
+    let sourceLanguage: String?
+    let targetLanguage: String?
+    let voice: String
+    let startTimeOffset: String?
+    let endTimeOffset: String?
+    let originalMixPercent: Double
+    let flushSentences: Int
+    let llmModel: String?
+    let translationProvider: String
+    let translationBatchSize: Int
+    let transliterationMode: String?
+    let transliterationModel: String?
+    let splitBatches: Bool
+    let stitchBatches: Bool
+    let includeTransliteration: Bool
+    let targetHeight: Int
+    let preserveAspectRatio: Bool
+    let enableLookupCache: Bool
+}
+
+enum AppleBookCreateLanguage: String, CaseIterable, Identifiable {
+    case english = "English"
+    case arabic = "Arabic"
+    case slovak = "Slovak"
+    case spanish = "Spanish"
+    case french = "French"
+    case german = "German"
+
+    var id: String { rawValue }
+    var backendValue: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .english: return "English"
+        case .arabic: return "Arabic"
+        case .slovak: return "Slovak"
+        case .spanish: return "Spanish"
+        case .french: return "French"
+        case .german: return "German"
+        }
+    }
+
+    init?(backendValue: String) {
+        let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard let match = Self.allCases.first(where: { $0.rawValue.lowercased() == normalized }) else {
+            return nil
+        }
+        self = match
+    }
+}
+
 enum AppleCreateMode: String, CaseIterable, Identifiable {
     case generatedBook
     case narrateEbook
@@ -169,6 +286,156 @@ enum AppleBookCreatePresentation {
             return "\(seconds)"
         }
         return SubtitleTimecodeInput.normalize(trimmedValue)
+    }
+
+    static func generatedBookDraft(
+        topic: String,
+        bookName: String,
+        genre: String,
+        author: String,
+        sentenceCount: Int,
+        inputLanguage: AppleBookCreateLanguage,
+        targetLanguage: AppleBookCreateLanguage,
+        voice: AppleBookCreateVoiceOption,
+        baseOutput: String,
+        includeTransliteration: Bool,
+        enableLookupCache: Bool,
+        pipelineDefaults: BookCreationPipelineDefaults?,
+        generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
+    ) -> AppleBookCreateDraft {
+        AppleBookCreateDraft(
+            topic: trimmed(topic),
+            bookName: trimmed(bookName),
+            genre: trimmed(genre),
+            author: trimmed(author).nonEmptyValue ?? "Me",
+            sentenceCount: sentenceCount,
+            inputLanguage: inputLanguage.backendValue,
+            targetLanguage: targetLanguage.backendValue,
+            voice: voice.backendValue,
+            baseOutput: baseOutput,
+            includeTransliteration: includeTransliteration,
+            enableLookupCache: enableLookupCache,
+            pipelineDefaults: pipelineDefaults,
+            generatedSourceDefaults: generatedSourceDefaults
+        )
+    }
+
+    static func narrateEbookDraft(
+        inputFile: String,
+        baseOutput: String,
+        inputLanguage: AppleBookCreateLanguage,
+        targetLanguage: AppleBookCreateLanguage,
+        voice: AppleBookCreateVoiceOption,
+        includeTransliteration: Bool,
+        enableLookupCache: Bool,
+        pipelineDefaults: BookCreationPipelineDefaults?
+    ) -> AppleNarrateEbookDraft {
+        AppleNarrateEbookDraft(
+            inputFile: trimmed(inputFile),
+            baseOutput: trimmed(baseOutput),
+            inputLanguage: inputLanguage.backendValue,
+            targetLanguage: targetLanguage.backendValue,
+            voice: voice.backendValue,
+            includeTransliteration: includeTransliteration,
+            enableLookupCache: enableLookupCache,
+            pipelineDefaults: pipelineDefaults
+        )
+    }
+
+    static func subtitleJobDraft(
+        sourcePath: String,
+        inputLanguage: AppleBookCreateLanguage,
+        targetLanguage: AppleBookCreateLanguage,
+        outputFormat: AppleSubtitleOutputFormat,
+        startTime: String,
+        endTime: String,
+        enableTransliteration: Bool,
+        highlight: Bool,
+        showOriginal: Bool,
+        generateAudioBook: Bool,
+        mirrorBatchesToSourceDir: Bool,
+        translationProvider: AppleSubtitleTranslationProvider,
+        llmModel: String,
+        transliterationMode: AppleSubtitleTransliterationMode,
+        transliterationModel: String,
+        workerCount: Int,
+        batchSize: Int,
+        translationBatchSize: Int,
+        assFontSize: Int,
+        assEmphasisScale: Double
+    ) -> AppleSubtitleJobDraft {
+        AppleSubtitleJobDraft(
+            sourcePath: trimmed(sourcePath).nonEmptyValue,
+            inputLanguage: inputLanguage.backendValue,
+            targetLanguage: targetLanguage.backendValue,
+            outputFormat: outputFormat.rawValue,
+            startTime: startTime,
+            endTime: endTime.nonEmptyValue,
+            enableTransliteration: enableTransliteration,
+            highlight: highlight,
+            showOriginal: showOriginal,
+            generateAudioBook: generateAudioBook,
+            mirrorBatchesToSourceDir: mirrorBatchesToSourceDir,
+            translationProvider: translationProvider.backendValue,
+            llmModel: translationProvider == .llm ? trimmed(llmModel).nonEmptyValue : nil,
+            transliterationMode: enableTransliteration ? transliterationMode.backendValue : nil,
+            transliterationModel: enableTransliteration && transliterationMode.allowsModelOverride
+                ? trimmed(transliterationModel).nonEmptyValue
+                : nil,
+            workerCount: clampSubtitleWorkerCount(workerCount),
+            batchSize: clampSubtitleBatchSize(batchSize),
+            translationBatchSize: clampSubtitleTranslationBatchSize(translationBatchSize),
+            assFontSize: outputFormat == .ass ? clampAssFontSize(assFontSize) : nil,
+            assEmphasisScale: outputFormat == .ass ? clampAssEmphasisScale(assEmphasisScale) : nil
+        )
+    }
+
+    static func youtubeDubDraft(
+        videoPath: String,
+        subtitlePath: String,
+        sourceLanguage: AppleBookCreateLanguage,
+        targetLanguage: AppleBookCreateLanguage,
+        voice: AppleBookCreateVoiceOption,
+        startTimeOffset: String,
+        endTimeOffset: String,
+        originalMixPercent: Double,
+        flushSentences: Int,
+        translationProvider: AppleSubtitleTranslationProvider,
+        llmModel: String,
+        translationBatchSize: Int,
+        transliterationMode: AppleSubtitleTransliterationMode,
+        transliterationModel: String,
+        splitBatches: Bool,
+        stitchBatches: Bool,
+        includeTransliteration: Bool,
+        targetHeight: AppleYoutubeDubTargetHeight,
+        preserveAspectRatio: Bool,
+        enableLookupCache: Bool
+    ) -> AppleYoutubeDubDraft {
+        AppleYoutubeDubDraft(
+            videoPath: trimmed(videoPath),
+            subtitlePath: trimmed(subtitlePath),
+            sourceLanguage: sourceLanguage.backendValue,
+            targetLanguage: targetLanguage.backendValue,
+            voice: voice.backendValue,
+            startTimeOffset: startTimeOffset.nonEmptyValue,
+            endTimeOffset: endTimeOffset.nonEmptyValue,
+            originalMixPercent: clampYoutubeOriginalMixPercent(originalMixPercent),
+            flushSentences: clampYoutubeFlushSentences(flushSentences),
+            llmModel: translationProvider == .llm ? trimmed(llmModel).nonEmptyValue : nil,
+            translationProvider: translationProvider.backendValue,
+            translationBatchSize: clampSubtitleTranslationBatchSize(translationBatchSize),
+            transliterationMode: includeTransliteration ? transliterationMode.backendValue : nil,
+            transliterationModel: includeTransliteration && transliterationMode.allowsModelOverride
+                ? trimmed(transliterationModel).nonEmptyValue
+                : nil,
+            splitBatches: splitBatches,
+            stitchBatches: splitBatches && stitchBatches,
+            includeTransliteration: includeTransliteration,
+            targetHeight: targetHeight.backendValue,
+            preserveAspectRatio: preserveAspectRatio,
+            enableLookupCache: enableLookupCache
+        )
     }
 
     static func deriveBaseOutputName(_ value: String) -> String {
