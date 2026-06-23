@@ -24,8 +24,7 @@ import {
   DEFAULT_START_TIME,
   DEFAULT_SUBTITLE_SOURCE_DIRECTORY,
   DEFAULT_TRANSLATION_BATCH_SIZE,
-  DEFAULT_WORKER_COUNT,
-  SHOW_ORIGINAL_STORAGE_KEY
+  DEFAULT_WORKER_COUNT
 } from './subtitle-tool/subtitleToolConfig';
 import type {
   SubtitleOutputFormat,
@@ -35,6 +34,7 @@ import type {
 import { useSubtitleJobResults } from './subtitle-tool/useSubtitleJobResults';
 import { useSubtitleLanguageDefaults } from './subtitle-tool/useSubtitleLanguageDefaults';
 import { useSubtitleModels } from './subtitle-tool/useSubtitleModels';
+import { useSubtitleShowOriginalPreference } from './subtitle-tool/useSubtitleShowOriginalPreference';
 import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
 import {
@@ -143,20 +143,7 @@ export default function SubtitleToolPage({
   const [outputFormat, setOutputFormat] = useState<SubtitleOutputFormat>('ass');
   const [assFontSize, setAssFontSize] = useState<number | ''>(DEFAULT_ASS_FONT_SIZE);
   const [assEmphasis, setAssEmphasis] = useState<number | ''>(DEFAULT_ASS_EMPHASIS);
-  const [showOriginal, setShowOriginal] = useState<boolean>(() => {
-    if (typeof window === 'undefined') {
-      return true;
-    }
-    try {
-      const persisted = window.localStorage.getItem(SHOW_ORIGINAL_STORAGE_KEY);
-      if (persisted === null) {
-        return true;
-      }
-      return persisted === 'true';
-    } catch {
-      return true;
-    }
-  });
+  const { showOriginal, setShowOriginal } = useSubtitleShowOriginalPreference();
   const [mirrorToSourceDir, setMirrorToSourceDir] = useState<boolean>(true);
   const [workerCount, setWorkerCount] = useState<number | ''>(DEFAULT_WORKER_COUNT);
   const [batchSize, setBatchSize] = useState<number | ''>(DEFAULT_BATCH_SIZE);
@@ -248,17 +235,6 @@ export default function SubtitleToolPage({
     setInputLanguage,
     setPrimaryTargetLanguage
   ]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    try {
-      window.localStorage.setItem(SHOW_ORIGINAL_STORAGE_KEY, showOriginal ? 'true' : 'false');
-    } catch {
-      // Ignore persistence failures; preference resets next session.
-    }
-  }, [showOriginal]);
 
   useEffect(() => {
     if (!targetLanguage && languageOptions.length > 0) {

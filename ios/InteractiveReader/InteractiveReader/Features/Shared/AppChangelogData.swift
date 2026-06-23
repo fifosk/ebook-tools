@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.61",
+            version: "2026.06.23.62",
             entries: [
+                AppChangelogEntry(
+                    id: "web-subtitle-show-original-hook",
+                    title: "Subtitle preference refactor",
+                    detail: "Web Subtitle Tool show-original subtitle preference now lives in a focused hook with coverage for stored values, persistence, and storage failures."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-language-defaults-hook",
                     title: "Subtitle defaults refactor",
