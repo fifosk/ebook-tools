@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.7
+
+- Advanced visible Apple app versioning to `v2026.06.24.7`.
+- Apple Create subtitle and YouTube TV metadata now show and edit TVMaze poster/still artwork URLs, expose the YouTube thumbnail URL, and include TMDB/IMDb ID fields before submission.
+
 ### 2026.06.24.6
 
 - Advanced visible Apple app versioning to `v2026.06.24.6`.

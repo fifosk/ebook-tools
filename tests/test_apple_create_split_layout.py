@@ -32,6 +32,15 @@ LIBRARY_SHELL = (
     / "Library"
     / "LibraryShellView.swift"
 )
+CREATE_VIEW_MODEL = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateViewModel.swift"
+)
 
 
 def _source(path: Path) -> str:
@@ -224,3 +233,50 @@ def test_apple_create_exposes_metadata_cache_clear_controls() -> None:
     assert "query: youtubeMetadataTvSourceName" in view_source
     assert "clearYoutubeVideoMetadataCache(" in view_source
     assert "query: youtubeMetadataVideoSourceName" in view_source
+
+
+def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
+    sections_source = _source(CREATE_SECTIONS)
+    view_source = _source(CREATE_VIEW)
+    view_model_source = _source(CREATE_VIEW_MODEL)
+
+    assert "private struct AppleBookCreateMetadataArtworkPreview: View" in sections_source
+    assert "AsyncImage(url: url)" in sections_source
+    assert 'accessibilityIdentifier("createMetadataArtworkPreview")' in sections_source
+    assert 'accessibilityIdentifier(item.accessibilityIdentifier)' in sections_source
+    assert "createMetadataPosterPreview" in sections_source
+    assert "createMetadataStillPreview" in sections_source
+    assert "createMetadataYoutubeThumbnailPreview" in sections_source
+
+    assert 'DisclosureGroup("Artwork")' in sections_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataArtworkDisclosure")' in sections_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataPosterUrlField")' in sections_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataStillUrlField")' in sections_source
+    assert "showPosterURL: subtitleMetadataNestedTextBinding(section: \"show\", nestedKey: \"image\", key: \"medium\")" in view_source
+    assert "episodeStillURL: subtitleMetadataNestedTextBinding(section: \"episode\", nestedKey: \"image\", key: \"medium\")" in view_source
+    assert 'tmdbId: subtitleMetadataNumberBinding(section: "show", key: "tmdb_id")' in view_source
+    assert 'imdbId: subtitleMetadataTextBinding(section: "show", key: "imdb_id")' in view_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataTmdbIdField")' in sections_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataImdbIdField")' in sections_source
+
+    assert 'accessibilityIdentifier("createYoutubeMetadataArtworkDisclosure")' in sections_source
+    assert 'accessibilityIdentifier("createYoutubeMetadataPosterUrlField")' in sections_source
+    assert 'accessibilityIdentifier("createYoutubeMetadataStillUrlField")' in sections_source
+    assert 'accessibilityIdentifier("createYoutubeMetadataThumbnailUrlField")' in sections_source
+    assert "tvPosterURL: youtubeMetadataNestedTextBinding(section: \"show\", nestedKey: \"image\", key: \"medium\")" in view_source
+    assert "tvEpisodeStillURL: youtubeMetadataNestedTextBinding(section: \"episode\", nestedKey: \"image\", key: \"medium\")" in view_source
+    assert 'youtubeThumbnailURL: youtubeMetadataTextBinding(section: "youtube", key: "thumbnail")' in view_source
+    assert 'tmdbId: youtubeMetadataNumberBinding(section: "show", key: "tmdb_id")' in view_source
+    assert 'imdbId: youtubeMetadataTextBinding(section: "show", key: "imdb_id")' in view_source
+    assert "private func youtubeMetadataNumberBinding(section: String, key: String)" in view_source
+    assert "private func youtubeMetadataNestedTextBinding(section: String, nestedKey: String, key: String)" in view_source
+    assert "private func subtitleMetadataNestedTextBinding(section: String, nestedKey: String, key: String)" in view_source
+    assert "updateYoutubeMediaMetadataNestedText(" in view_source
+    assert "updateSubtitleMediaMetadataNestedText(" in view_source
+    assert "func updateSubtitleMediaMetadataNestedText(" in view_model_source
+    assert "func updateYoutubeMediaMetadataNestedText(" in view_model_source
+    assert "private static func updateNestedText(" in view_model_source
+    assert "nested.removeValue(forKey: key)" in view_model_source
+    assert "sectionDraft.removeValue(forKey: nestedKey)" in view_model_source
+    assert 'accessibilityIdentifier("createYoutubeMetadataTmdbIdField")' in sections_source
+    assert 'accessibilityIdentifier("createYoutubeMetadataImdbIdField")' in sections_source

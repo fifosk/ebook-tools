@@ -286,12 +286,36 @@ final class AppleBookCreateViewModel: ObservableObject {
         normalizeSubtitleMetadataAfterEdit()
     }
 
+    func updateSubtitleMediaMetadataNestedText(
+        section: String,
+        nestedKey: String,
+        key: String,
+        value: String
+    ) {
+        updateSubtitleMetadataSection(section) { sectionDraft in
+            Self.updateNestedText(in: &sectionDraft, nestedKey: nestedKey, key: key, value: value)
+        }
+        normalizeSubtitleMetadataAfterEdit()
+    }
+
     func subtitleMediaMetadataText(section: String?, key: String) -> String {
         if let section,
            let sectionDraft = subtitleMediaMetadataDraft?[section]?.objectValue {
             return sectionDraft[key]?.stringValue ?? ""
         }
         return subtitleMediaMetadataDraft?[key]?.stringValue ?? ""
+    }
+
+    func subtitleMediaMetadataNestedText(section: String, nestedKey: String, keys: [String]) -> String {
+        guard let nested = subtitleMediaMetadataDraft?[section]?.objectValue?[nestedKey]?.objectValue else {
+            return ""
+        }
+        for key in keys {
+            if let value = nested[key]?.stringValue {
+                return value
+            }
+        }
+        return ""
     }
 
     func loadYoutubeLibrary(
@@ -572,12 +596,51 @@ final class AppleBookCreateViewModel: ObservableObject {
         youtubeMediaMetadataDraft["source"] = .string("apple")
     }
 
+    func updateYoutubeMediaMetadataNumber(section: String, key: String, value: String) {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        updateYoutubeMetadataSection(section) { sectionDraft in
+            guard !trimmedValue.isEmpty else {
+                sectionDraft.removeValue(forKey: key)
+                return
+            }
+            guard let parsed = Double(trimmedValue), parsed.isFinite, parsed > 0 else {
+                return
+            }
+            sectionDraft[key] = .number(floor(parsed))
+        }
+        youtubeMediaMetadataDraft["source"] = .string("apple")
+    }
+
+    func updateYoutubeMediaMetadataNestedText(
+        section: String,
+        nestedKey: String,
+        key: String,
+        value: String
+    ) {
+        updateYoutubeMetadataSection(section) { sectionDraft in
+            Self.updateNestedText(in: &sectionDraft, nestedKey: nestedKey, key: key, value: value)
+        }
+        youtubeMediaMetadataDraft["source"] = .string("apple")
+    }
+
     func youtubeMediaMetadataText(section: String?, key: String) -> String {
         if let section,
            let sectionDraft = youtubeMediaMetadataDraft[section]?.objectValue {
             return sectionDraft[key]?.stringValue ?? ""
         }
         return youtubeMediaMetadataDraft[key]?.stringValue ?? ""
+    }
+
+    func youtubeMediaMetadataNestedText(section: String, nestedKey: String, keys: [String]) -> String {
+        guard let nested = youtubeMediaMetadataDraft[section]?.objectValue?[nestedKey]?.objectValue else {
+            return ""
+        }
+        for key in keys {
+            if let value = nested[key]?.stringValue {
+                return value
+            }
+        }
+        return ""
     }
 
     func loadVoiceInventory(
@@ -1296,6 +1359,26 @@ final class AppleBookCreateViewModel: ObservableObject {
     private static func metadataCacheClearMessage(cleared: Int, kind: String, query: String) -> String {
         let entryLabel = cleared == 1 ? "entry" : "entries"
         return "Cleared \(cleared) cached \(kind) metadata \(entryLabel) for \(query)."
+    }
+
+    private static func updateNestedText(
+        in sectionDraft: inout [String: JSONValue],
+        nestedKey: String,
+        key: String,
+        value: String
+    ) {
+        var nested = sectionDraft[nestedKey]?.objectValue ?? [:]
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedValue.isEmpty {
+            nested.removeValue(forKey: key)
+        } else {
+            nested[key] = .string(trimmedValue)
+        }
+        if nested.isEmpty {
+            sectionDraft.removeValue(forKey: nestedKey)
+        } else {
+            sectionDraft[nestedKey] = .object(nested)
+        }
     }
 
     private func ensureSubtitleMediaMetadataDraft() {

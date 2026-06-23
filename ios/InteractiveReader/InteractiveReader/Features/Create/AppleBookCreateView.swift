@@ -595,11 +595,16 @@ struct AppleBookCreateView: View {
                 isClearingYoutubeMetadataCache: viewModel.isClearingYoutubeMetadataCache,
                 canClearTvMetadataCache: !youtubeMetadataTvSourceName.isEmpty,
                 canClearYoutubeMetadataCache: !youtubeMetadataVideoSourceName.isEmpty,
+                tvPosterURL: youtubeMetadataNestedTextBinding(section: "show", nestedKey: "image", key: "medium"),
+                tvEpisodeStillURL: youtubeMetadataNestedTextBinding(section: "episode", nestedKey: "image", key: "medium"),
+                youtubeThumbnailURL: youtubeMetadataTextBinding(section: "youtube", key: "thumbnail"),
                 message: viewModel.youtubeMetadataMessage,
                 errorMessage: viewModel.youtubeMetadataErrorMessage,
                 title: youtubeMetadataTextBinding(section: "youtube", key: "title"),
                 channel: youtubeMetadataTextBinding(section: "youtube", key: "channel"),
                 showName: youtubeMetadataTextBinding(section: "show", key: "name"),
+                tmdbId: youtubeMetadataNumberBinding(section: "show", key: "tmdb_id"),
+                imdbId: youtubeMetadataTextBinding(section: "show", key: "imdb_id"),
                 episodeName: youtubeMetadataTextBinding(section: "episode", key: "name"),
                 onLoadTvMetadata: {
                     Task {
@@ -644,10 +649,14 @@ struct AppleBookCreateView: View {
                 lookupSourceName: $subtitleMetadataLookupSourceName,
                 isLoading: viewModel.isLoadingSubtitleTvMetadata,
                 isClearingCache: viewModel.isClearingSubtitleTvMetadataCache,
+                showPosterURL: subtitleMetadataNestedTextBinding(section: "show", nestedKey: "image", key: "medium"),
+                episodeStillURL: subtitleMetadataNestedTextBinding(section: "episode", nestedKey: "image", key: "medium"),
                 message: viewModel.subtitleMetadataMessage,
                 errorMessage: viewModel.subtitleMetadataErrorMessage,
                 jobLabel: subtitleMetadataTextBinding(section: nil, key: "job_label"),
                 showName: subtitleMetadataTextBinding(section: "show", key: "name"),
+                tmdbId: subtitleMetadataNumberBinding(section: "show", key: "tmdb_id"),
+                imdbId: subtitleMetadataTextBinding(section: "show", key: "imdb_id"),
                 season: subtitleMetadataNumberBinding(section: "episode", key: "season"),
                 episode: subtitleMetadataNumberBinding(section: "episode", key: "number"),
                 episodeName: subtitleMetadataTextBinding(section: "episode", key: "name"),
@@ -2152,6 +2161,37 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private func youtubeMetadataNumberBinding(section: String, key: String) -> Binding<String> {
+        Binding(
+            get: {
+                viewModel.youtubeMediaMetadataText(section: section, key: key)
+            },
+            set: { newValue in
+                viewModel.updateYoutubeMediaMetadataNumber(section: section, key: key, value: newValue)
+            }
+        )
+    }
+
+    private func youtubeMetadataNestedTextBinding(section: String, nestedKey: String, key: String) -> Binding<String> {
+        Binding(
+            get: {
+                viewModel.youtubeMediaMetadataNestedText(
+                    section: section,
+                    nestedKey: nestedKey,
+                    keys: key == "medium" ? [key, "original"] : [key]
+                )
+            },
+            set: { newValue in
+                viewModel.updateYoutubeMediaMetadataNestedText(
+                    section: section,
+                    nestedKey: nestedKey,
+                    key: key,
+                    value: newValue
+                )
+            }
+        )
+    }
+
     private func subtitleMetadataTextBinding(section: String?, key: String) -> Binding<String> {
         Binding(
             get: {
@@ -2170,6 +2210,26 @@ struct AppleBookCreateView: View {
             },
             set: { newValue in
                 viewModel.updateSubtitleMediaMetadataNumber(section: section, key: key, value: newValue)
+            }
+        )
+    }
+
+    private func subtitleMetadataNestedTextBinding(section: String, nestedKey: String, key: String) -> Binding<String> {
+        Binding(
+            get: {
+                viewModel.subtitleMediaMetadataNestedText(
+                    section: section,
+                    nestedKey: nestedKey,
+                    keys: key == "medium" ? [key, "original"] : [key]
+                )
+            },
+            set: { newValue in
+                viewModel.updateSubtitleMediaMetadataNestedText(
+                    section: section,
+                    nestedKey: nestedKey,
+                    key: key,
+                    value: newValue
+                )
             }
         )
     }

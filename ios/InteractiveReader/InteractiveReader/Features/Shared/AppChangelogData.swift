@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.6",
+            version: "2026.06.24.7",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-tv-metadata-artwork",
+                    title: "Create previews TV artwork",
+                    detail: "Apple Create subtitle and YouTube TV metadata now show and edit TVMaze poster and episode-still artwork URLs, expose the YouTube thumbnail URL, and include TMDB and IMDb ID fields before submission."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-metadata-cache-clear",
                     title: "Create clears metadata caches",

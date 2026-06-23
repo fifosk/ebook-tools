@@ -955,10 +955,14 @@ struct AppleBookCreateSubtitleMetadataControls: View {
     @Binding var lookupSourceName: String
     let isLoading: Bool
     let isClearingCache: Bool
+    @Binding var showPosterURL: String
+    @Binding var episodeStillURL: String
     let message: String?
     let errorMessage: String?
     @Binding var jobLabel: String
     @Binding var showName: String
+    @Binding var tmdbId: String
+    @Binding var imdbId: String
     @Binding var season: String
     @Binding var episode: String
     @Binding var episodeName: String
@@ -1014,6 +1018,13 @@ struct AppleBookCreateSubtitleMetadataControls: View {
             }
         }
 
+        AppleBookCreateMetadataArtworkPreview(
+            posterURL: showPosterURL,
+            stillURL: episodeStillURL,
+            posterLabel: showName.isEmpty ? "Show poster" : "\(showName) poster",
+            stillLabel: episodeName.isEmpty ? "Episode still" : "\(episodeName) still"
+        )
+
         if let message, !message.isEmpty {
             Label(message, systemImage: "checkmark.circle")
                 .font(.footnote)
@@ -1035,6 +1046,14 @@ struct AppleBookCreateSubtitleMetadataControls: View {
             .textInputAutocapitalization(.words)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createSubtitleMetadataShowField")
+        TextField("TMDB ID", text: $tmdbId)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleMetadataTmdbIdField")
+        TextField("IMDb ID", text: $imdbId)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleMetadataImdbIdField")
         TextField("Season", text: $season)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
@@ -1051,6 +1070,18 @@ struct AppleBookCreateSubtitleMetadataControls: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createSubtitleMetadataAirdateField")
+
+        DisclosureGroup("Artwork") {
+            TextField("Show poster URL", text: $showPosterURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createSubtitleMetadataPosterUrlField")
+            TextField("Episode still URL", text: $episodeStillURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createSubtitleMetadataStillUrlField")
+        }
+        .accessibilityIdentifier("createSubtitleMetadataArtworkDisclosure")
     }
 }
 
@@ -1150,11 +1181,16 @@ struct AppleBookCreateYoutubeMetadataControls: View {
     let isClearingYoutubeMetadataCache: Bool
     let canClearTvMetadataCache: Bool
     let canClearYoutubeMetadataCache: Bool
+    @Binding var tvPosterURL: String
+    @Binding var tvEpisodeStillURL: String
+    @Binding var youtubeThumbnailURL: String
     let message: String?
     let errorMessage: String?
     @Binding var title: String
     @Binding var channel: String
     @Binding var showName: String
+    @Binding var tmdbId: String
+    @Binding var imdbId: String
     @Binding var episodeName: String
     let onLoadTvMetadata: () -> Void
     let onLoadYoutubeMetadata: () -> Void
@@ -1212,6 +1248,15 @@ struct AppleBookCreateYoutubeMetadataControls: View {
             .accessibilityIdentifier("createYoutubeClearYoutubeMetadataCacheButton")
         }
 
+        AppleBookCreateMetadataArtworkPreview(
+            posterURL: tvPosterURL,
+            stillURL: tvEpisodeStillURL,
+            thumbnailURL: youtubeThumbnailURL,
+            posterLabel: showName.isEmpty ? "Series poster" : "\(showName) poster",
+            stillLabel: episodeName.isEmpty ? "Episode still" : "\(episodeName) still",
+            thumbnailLabel: title.isEmpty ? "YouTube thumbnail" : "\(title) thumbnail"
+        )
+
         if let message, !message.isEmpty {
             Label(message, systemImage: "checkmark.circle")
                 .font(.footnote)
@@ -1237,10 +1282,121 @@ struct AppleBookCreateYoutubeMetadataControls: View {
             .textInputAutocapitalization(.words)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createYoutubeMetadataSeriesField")
+        TextField("TMDB ID", text: $tmdbId)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createYoutubeMetadataTmdbIdField")
+        TextField("IMDb ID", text: $imdbId)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createYoutubeMetadataImdbIdField")
         TextField("Episode", text: $episodeName)
             .textInputAutocapitalization(.sentences)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createYoutubeMetadataEpisodeField")
+
+        DisclosureGroup("Artwork") {
+            TextField("Series poster URL", text: $tvPosterURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createYoutubeMetadataPosterUrlField")
+            TextField("Episode still URL", text: $tvEpisodeStillURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createYoutubeMetadataStillUrlField")
+            TextField("YouTube thumbnail URL", text: $youtubeThumbnailURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createYoutubeMetadataThumbnailUrlField")
+        }
+        .accessibilityIdentifier("createYoutubeMetadataArtworkDisclosure")
+    }
+}
+
+private struct AppleBookCreateMetadataArtworkPreview: View {
+    let posterURL: String
+    let stillURL: String
+    var thumbnailURL: String = ""
+    let posterLabel: String
+    let stillLabel: String
+    var thumbnailLabel: String = "YouTube thumbnail"
+
+    var body: some View {
+        let items = [
+            ArtworkItem(urlString: posterURL, label: posterLabel, accessibilityIdentifier: "createMetadataPosterPreview"),
+            ArtworkItem(urlString: stillURL, label: stillLabel, accessibilityIdentifier: "createMetadataStillPreview"),
+            ArtworkItem(urlString: thumbnailURL, label: thumbnailLabel, accessibilityIdentifier: "createMetadataYoutubeThumbnailPreview")
+        ].filter { !$0.urlString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+        if !items.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(items) { item in
+                        AppleBookCreateMetadataArtworkTile(item: item)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .accessibilityIdentifier("createMetadataArtworkPreview")
+        }
+    }
+}
+
+private struct AppleBookCreateMetadataArtworkTile: View {
+    let item: ArtworkItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.thinMaterial)
+                if let url = URL(string: item.urlString.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        case .failure:
+                            Image(systemName: "photo")
+                                .font(.title2)
+                                .foregroundStyle(.secondary)
+                        case .empty:
+                            ProgressView()
+                        @unknown default:
+                            Image(systemName: "photo")
+                                .font(.title2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else {
+                    Image(systemName: "photo")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 118, height: 78)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            Text(item.label)
+                .font(.caption)
+                .lineLimit(1)
+                .foregroundStyle(.secondary)
+        }
+        .frame(width: 118, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(item.label)
+        .accessibilityIdentifier(item.accessibilityIdentifier)
+    }
+}
+
+private struct ArtworkItem: Identifiable {
+    let urlString: String
+    let label: String
+    let accessibilityIdentifier: String
+
+    var id: String {
+        accessibilityIdentifier
     }
 }
 
