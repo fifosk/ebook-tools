@@ -1,10 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import type { JobState } from '../components/JobList';
 import { useLanguagePreferences } from '../context/LanguageProvider';
-import {
-  fetchPipelineDefaults,
-  submitSubtitleJob
-} from '../api/client';
+import { submitSubtitleJob } from '../api/client';
 import type { JobParameterSnapshot } from '../api/dtos';
 import {
   buildLanguageOptions,
@@ -36,6 +33,7 @@ import type {
   SubtitleToolTab
 } from './subtitle-tool/subtitleToolTypes';
 import { useSubtitleJobResults } from './subtitle-tool/useSubtitleJobResults';
+import { useSubtitleLanguageDefaults } from './subtitle-tool/useSubtitleLanguageDefaults';
 import { useSubtitleModels } from './subtitle-tool/useSubtitleModels';
 import { useSubtitleSources } from './subtitle-tool/useSubtitleSources';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
@@ -44,7 +42,6 @@ import {
   formatSubmittedSubtitleSummary,
   isAssSubtitleSelection,
   normalizeLanguageInput,
-  resolveSubtitleLanguageDefaults,
   resolveSubtitleMetadataSourceName,
   resolveSubtitlePrefillValues,
   resolveSubtitleSubmitValues,
@@ -85,7 +82,10 @@ export default function SubtitleToolPage({
   const [targetLanguage, setTargetLanguage] = useState<string>(
     normalizeLanguageLabel(primaryTargetLanguage ?? 'French')
   );
-  const [fetchedLanguages, setFetchedLanguages] = useState<string[]>([]);
+  const { fetchedLanguages } = useSubtitleLanguageDefaults({
+    inputLanguage,
+    setInputLanguage
+  });
   const languageOptions = useMemo(
     () =>
       buildLanguageOptions({
@@ -248,30 +248,6 @@ export default function SubtitleToolPage({
     setInputLanguage,
     setPrimaryTargetLanguage
   ]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchPipelineDefaults()
-      .then((defaults) => {
-        if (cancelled) {
-          return;
-        }
-        const config = defaults?.config ?? {};
-        const resolved = resolveSubtitleLanguageDefaults(config, inputLanguage);
-        if (resolved.fetchedLanguages.length > 0) {
-          setFetchedLanguages(resolved.fetchedLanguages);
-        }
-        if (resolved.inputLanguage) {
-          setInputLanguage(resolved.inputLanguage);
-        }
-      })
-      .catch((error) => {
-        console.warn('Unable to load pipeline defaults for language list', error);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [inputLanguage, setInputLanguage]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {

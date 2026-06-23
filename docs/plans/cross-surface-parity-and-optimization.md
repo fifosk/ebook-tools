@@ -77,7 +77,10 @@ Large Web UI hotspots to split before redesign work:
   coverage. Model-option loading, empty responses, failed fetches, and
   late-response cancellation now live in
   `web/src/pages/subtitle-tool/useSubtitleModels.ts` with focused hook
-  coverage.
+  coverage. Backend language-default loading, default input-language application,
+  failure logging, and stale-response protection now live in
+  `web/src/pages/subtitle-tool/useSubtitleLanguageDefaults.ts` with focused
+  hook coverage.
   Source-list refresh selection also stays pinned in the utility module, clearing
   stale selections after deletes and choosing the latest usable subtitle source
   when needed.

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.61
+
+- Advanced visible Apple app versioning to `v2026.06.23.61`.
+- Web Subtitle Tool backend language-default loading now lives in a focused hook with coverage for target lists, default input language, failed fetches, and stale responses.
+
 ### 2026.06.23.60
 
 - Advanced visible Apple app versioning to `v2026.06.23.60`.
