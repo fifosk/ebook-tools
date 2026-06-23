@@ -753,6 +753,18 @@ struct AppleCreationPayloadCheck {
             ],
             "Narrate draft should map selected target voice across target languages"
         )
+        let voiceOverrideValue = AppleBookCreatePresentation.voiceOverridePipelineValue([
+            " Arabic ": " piper-auto ",
+            "German": "",
+            "French": " macOS-auto "
+        ])
+        require(
+            voiceOverrideValue == .object([
+                "Arabic": .string("piper-auto"),
+                "French": .string("macOS-auto"),
+            ]),
+            "Apple voice override pipeline value should trim entries and omit blanks"
+        )
         require(narrateDraft.includeTransliteration == false, "Narrate draft should keep transliteration toggle")
         require(narrateDraft.translationProvider == "llm", "Narrate draft should map selected provider")
         require(narrateDraft.llmModel == "gpt-4.1-mini", "Narrate draft should include trimmed LLM model override")
@@ -860,7 +872,11 @@ struct AppleCreationPayloadCheck {
             audioBitrateKbps: 32,
             writtenMode: "3",
             selectedVoice: "macOS-auto-male",
-            voiceOverrides: ["sk": "piper-auto"],
+            voiceOverrides: [
+                "sk": "piper-auto",
+                "de": "piper-auto",
+                "fr": "piper-auto",
+            ],
             outputHtml: true,
             outputPdf: true,
             includeTransliteration: true,
@@ -912,6 +928,11 @@ struct AppleCreationPayloadCheck {
                 "queue_size": .number(5),
                 "job_max_workers": .number(2),
                 "ollama_model": .string("gpt-4.1-mini"),
+                "voice_overrides": .object([
+                    "sk": .string("piper-auto"),
+                    "de": .string("piper-auto"),
+                    "fr": .string("piper-auto"),
+                ]),
                 "tempo": .number(1.08)
             ],
             inputs: input,
@@ -1013,6 +1034,14 @@ struct AppleCreationPayloadCheck {
             pipelineOverrides?["ollama_model"] as? String == "gpt-4.1-mini",
             "pipeline overrides should encode selected book LLM model"
         )
+        require(
+            pipelineOverrides?["voice_overrides"] as? [String: String] == [
+                "sk": "piper-auto",
+                "de": "piper-auto",
+                "fr": "piper-auto",
+            ],
+            "pipeline overrides should encode target-language voice overrides"
+        )
 
         let encodedInputs = pipelineObject["inputs"] as? [String: Any]
         require(encodedInputs?["input_file"] as? String == "books/demo.epub", "pipeline inputs should encode input_file")
@@ -1028,7 +1057,11 @@ struct AppleCreationPayloadCheck {
         require(encodedInputs?["written_mode"] as? String == "3", "pipeline inputs should encode written_mode")
         require(encodedInputs?["selected_voice"] as? String == "macOS-auto-male", "pipeline inputs should encode selected_voice")
         require(
-            encodedInputs?["voice_overrides"] as? [String: String] == ["sk": "piper-auto"],
+            encodedInputs?["voice_overrides"] as? [String: String] == [
+                "sk": "piper-auto",
+                "de": "piper-auto",
+                "fr": "piper-auto",
+            ],
             "pipeline inputs should encode target-language voice overrides"
         )
         require(encodedInputs?["output_html"] as? Bool == true, "pipeline inputs should encode output_html")

@@ -203,6 +203,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             into: &pipelineOverrides
         )
         mergeBookModelOverride(draft.llmModel, into: &pipelineOverrides)
+        mergeBookVoiceOverrides(draft.voiceOverrides, into: &pipelineOverrides)
         let bookMetadata = makeBookMetadata(
             title: draft.bookName,
             author: draft.author,
@@ -267,6 +268,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             into: &pipelineOverrides
         )
         mergeBookModelOverride(draft.llmModel, into: &pipelineOverrides)
+        mergeBookVoiceOverrides(draft.voiceOverrides, into: &pipelineOverrides)
         let bookMetadata = makeBookMetadata(
             title: draft.baseOutput,
             author: nil,
@@ -515,6 +517,16 @@ final class AppleBookCreateViewModel: ObservableObject {
             return
         }
         overrides["ollama_model"] = .string(model)
+    }
+
+    private static func mergeBookVoiceOverrides(
+        _ voiceOverrides: [String: String],
+        into overrides: inout [String: JSONValue]
+    ) {
+        guard let value = AppleBookCreatePresentation.voiceOverridePipelineValue(voiceOverrides) else {
+            return
+        }
+        overrides["voice_overrides"] = value
     }
 
     private static func mergeBookPerformanceOverrides(

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.27",
+            version: "2026.06.23.28",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-web-shape-voice-overrides",
+                    title: "Apple voice payloads",
+                    detail: "Generated-book and Narrate EPUB voice overrides now mirror the Web payload shape in both pipeline inputs and pipeline overrides."
+                ),
                 AppChangelogEntry(
                     id: "apple-multi-target-voice-overrides",
                     title: "Apple target voices",

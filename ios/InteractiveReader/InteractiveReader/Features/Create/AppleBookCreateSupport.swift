@@ -722,6 +722,18 @@ enum AppleBookCreatePresentation {
         return overrides
     }
 
+    static func voiceOverridePipelineValue(_ voiceOverrides: [String: String]) -> JSONValue? {
+        var normalized = [String: JSONValue]()
+        for (key, value) in voiceOverrides {
+            let language = trimmed(key)
+            let voice = trimmed(value)
+            guard !language.isEmpty, !voice.isEmpty else { continue }
+            normalized[language] = .string(voice)
+        }
+        guard !normalized.isEmpty else { return nil }
+        return .object(normalized)
+    }
+
     static func normalizedTargetLanguages(
         primary: String,
         additionalTargets: String
