@@ -3,6 +3,13 @@ import { appendAccessToken } from '../../api/client/base';
 import { resolveLibraryMediaUrl } from '../../api/client/library';
 
 export type LibraryItemType = 'book' | 'video' | 'narrated_subtitle';
+export type LibraryEditValues = {
+  title: string;
+  author: string;
+  genre: string;
+  language: string;
+  isbn: string;
+};
 
 const UNKNOWN_AUTHOR = 'Unknown Author';
 const UNKNOWN_CREATOR = 'Unknown Creator';
@@ -141,6 +148,34 @@ export function formatYoutubeUploadDate(value: unknown): string | null {
     return `${trimmed.slice(0, 4)}-${trimmed.slice(4, 6)}-${trimmed.slice(6, 8)}`;
   }
   return trimmed;
+}
+
+function trimmedMetadataString(metadata: Record<string, unknown>, key: string): string | null {
+  const value = metadata[key];
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function mergeIsbnMetadataIntoEditValues(
+  previous: LibraryEditValues,
+  metadata: Record<string, unknown>,
+  fallbackIsbn: string,
+): LibraryEditValues {
+  return {
+    ...previous,
+    title: trimmedMetadataString(metadata, 'book_title') ?? previous.title,
+    author: trimmedMetadataString(metadata, 'book_author') ?? previous.author,
+    genre: trimmedMetadataString(metadata, 'book_genre') ?? previous.genre,
+    language: trimmedMetadataString(metadata, 'book_language') ?? previous.language,
+    isbn: previous.isbn || fallbackIsbn,
+  };
+}
+
+export function resolveIsbnPreviewCoverCandidate(metadata: Record<string, unknown>): string | null {
+  return trimmedMetadataString(metadata, 'book_cover_file') ?? trimmedMetadataString(metadata, 'cover_url');
 }
 
 export function resolveTitle(item: LibraryItem | null | undefined): string {

@@ -26,12 +26,15 @@ import {
   extractYoutubeVideoMetadata,
   formatCount,
   formatYoutubeUploadDate,
+  mergeIsbnMetadataIntoEditValues,
   resolveAuthor,
   resolveGenre,
+  resolveIsbnPreviewCoverCandidate,
   resolveItemType,
   resolveTitle,
   resolveTvImage,
   resolveYoutubeThumbnail,
+  type LibraryEditValues,
   type LibraryItemType
 } from './library/libraryPageMetadata';
 import LibraryList from '../components/LibraryList';
@@ -74,7 +77,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
   const [refreshKey, setRefreshKey] = useState(0);
   const [isReindexing, setIsReindexing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editValues, setEditValues] = useState<{ title: string; author: string; genre: string; language: string; isbn: string }>(
+  const [editValues, setEditValues] = useState<LibraryEditValues>(
     {
       title: '',
       author: '',
@@ -445,29 +448,9 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
       const metadata = (response?.metadata ?? {}) as Record<string, unknown>;
       setIsbnPreview(metadata);
 
-      setEditValues((previous) => ({
-        ...previous,
-        title: typeof metadata['book_title'] === 'string' && metadata['book_title'].trim() ? (metadata['book_title'] as string) : previous.title,
-        author: typeof metadata['book_author'] === 'string' && metadata['book_author'].trim() ? (metadata['book_author'] as string) : previous.author,
-        genre: typeof metadata['book_genre'] === 'string' && metadata['book_genre'].trim() ? (metadata['book_genre'] as string) : previous.genre,
-        language:
-          typeof metadata['book_language'] === 'string' && metadata['book_language'].trim()
-            ? (metadata['book_language'] as string)
-            : previous.language,
-        isbn: previous.isbn || trimmedIsbn
-      }));
+      setEditValues((previous) => mergeIsbnMetadataIntoEditValues(previous, metadata, trimmedIsbn));
 
-      const coverCandidate = ((): string | null => {
-        const coverFile = metadata['book_cover_file'];
-        if (typeof coverFile === 'string' && coverFile.trim()) {
-          return coverFile.trim();
-        }
-        const coverUrl = metadata['cover_url'];
-        if (typeof coverUrl === 'string' && coverUrl.trim()) {
-          return coverUrl.trim();
-        }
-        return null;
-      })();
+      const coverCandidate = resolveIsbnPreviewCoverCandidate(metadata);
 
       setPreviewCoverUrl(coverCandidate ? appendAccessToken(coverCandidate) : null);
     } catch (error) {

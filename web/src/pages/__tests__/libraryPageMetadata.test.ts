@@ -5,9 +5,11 @@ import {
   extractYoutubeVideoMetadata,
   formatCount,
   formatYoutubeUploadDate,
+  mergeIsbnMetadataIntoEditValues,
   readNestedValue,
   resolveAuthor,
   resolveGenre,
+  resolveIsbnPreviewCoverCandidate,
   resolveItemType,
   resolveLibraryAssetUrl,
   resolveTitle,
@@ -114,5 +116,62 @@ describe('libraryPageMetadata', () => {
     expect(formatCount('123')).toBeNull();
     expect(formatYoutubeUploadDate('20260623')).toBe('2026-06-23');
     expect(formatYoutubeUploadDate('  live soon  ')).toBe('live soon');
+  });
+
+  it('merges ISBN preview metadata into edit fields without erasing existing values', () => {
+    expect(
+      mergeIsbnMetadataIntoEditValues(
+        {
+          title: 'Existing title',
+          author: 'Existing author',
+          genre: 'Existing genre',
+          language: 'en',
+          isbn: '',
+        },
+        {
+          book_title: '  Lookup title  ',
+          book_author: '',
+          book_genre: ' Mystery ',
+          book_language: ' de ',
+        },
+        '9781234567890',
+      ),
+    ).toEqual({
+      title: 'Lookup title',
+      author: 'Existing author',
+      genre: 'Mystery',
+      language: 'de',
+      isbn: '9781234567890',
+    });
+
+    expect(
+      mergeIsbnMetadataIntoEditValues(
+        {
+          title: 'Existing title',
+          author: 'Existing author',
+          genre: 'Existing genre',
+          language: 'en',
+          isbn: 'kept-isbn',
+        },
+        {
+          book_title: null,
+          book_author: 'Lookup author',
+        },
+        'fallback-isbn',
+      ).isbn,
+    ).toBe('kept-isbn');
+  });
+
+  it('resolves ISBN preview cover candidates by preferring local cover files', () => {
+    expect(
+      resolveIsbnPreviewCoverCandidate({
+        book_cover_file: ' covers/book.jpg ',
+        cover_url: 'https://example.test/cover.jpg',
+      }),
+    ).toBe('covers/book.jpg');
+    expect(resolveIsbnPreviewCoverCandidate({ cover_url: ' https://example.test/cover.jpg ' })).toBe(
+      'https://example.test/cover.jpg',
+    );
+    expect(resolveIsbnPreviewCoverCandidate({ book_cover_file: ' ', cover_url: null })).toBeNull();
   });
 });
