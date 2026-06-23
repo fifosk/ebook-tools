@@ -35,6 +35,10 @@ Web-only or Web-primary creation flows:
 
 Large Web UI hotspots to split before redesign work:
 
+- `web/src/hooks/useLiveMedia.ts` - 1139 lines. Status: live media state
+  types, empty-state creation, media bucket merging, generated-file extraction,
+  chunk merging, audio-track detection, and chunk-sentence detection now live
+  in `web/src/hooks/liveMediaState.ts` with focused Vitest coverage.
 - `web/src/pages/LibraryPage.tsx` - 1188 lines. Status: TV/YouTube/library
   title, author, genre, thumbnail, and upload-date helpers now live in
   `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
@@ -200,6 +204,10 @@ Refactor before restyling:
   token navigation, selection shadowing, clamping, variant mapping, and
   subtitle TTS voice options from
   `web/src/components/video-subtitles/subtitleTrackOverlayUtils.ts`.
+- Isolate live media state helpers before visual redesign. Status:
+  `useLiveMedia.ts` now imports tested helpers for live media state shape,
+  generated-file extraction, media bucket merging, chunk merging, audio-track
+  detection, and chunk-sentence detection from `web/src/hooks/liveMediaState.ts`.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, and genre defaults from
   `/api/books/options` while preserving prompt edits that happen before defaults
