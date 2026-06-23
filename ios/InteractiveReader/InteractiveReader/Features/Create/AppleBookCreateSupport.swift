@@ -60,6 +60,9 @@ struct AppleBookCreateDraft: Equatable {
 struct AppleNarrateEbookDraft: Equatable {
     let inputFile: String
     let baseOutput: String
+    let title: String?
+    let author: String?
+    let genre: String?
     let summary: String?
     let year: String?
     let isbn: String?
@@ -97,6 +100,9 @@ struct AppleNarrateEbookDraft: Equatable {
         AppleNarrateEbookDraft(
             inputFile: inputFile,
             baseOutput: baseOutput,
+            title: title,
+            author: author,
+            genre: genre,
             summary: summary,
             year: year,
             isbn: isbn,
@@ -318,6 +324,9 @@ enum AppleBookCreateEditedField: Hashable {
     case bookName
     case genre
     case author
+    case sourceBookTitle
+    case sourceBookAuthor
+    case sourceBookGenre
     case bookSummary
     case bookYear
     case bookIsbn
@@ -1088,6 +1097,9 @@ enum AppleBookCreatePresentation {
     static func narrateEbookDraft(
         inputFile: String,
         baseOutput: String,
+        title: String,
+        author: String,
+        genre: String,
         summary: String,
         year: String,
         isbn: String,
@@ -1130,6 +1142,9 @@ enum AppleBookCreatePresentation {
         return AppleNarrateEbookDraft(
             inputFile: trimmed(inputFile),
             baseOutput: trimmed(baseOutput),
+            title: trimmed(title).nonEmptyValue,
+            author: trimmed(author).nonEmptyValue,
+            genre: trimmed(genre).nonEmptyValue,
             summary: trimmed(summary).nonEmptyValue,
             year: trimmed(year).nonEmptyValue,
             isbn: trimmed(isbn).nonEmptyValue,

@@ -272,9 +272,9 @@ final class AppleBookCreateViewModel: ObservableObject {
         mergeBookModelOverride(draft.llmModel, into: &pipelineOverrides)
         mergeBookVoiceOverrides(draft.voiceOverrides, into: &pipelineOverrides)
         let bookMetadata = makeBookMetadata(
-            title: draft.baseOutput,
-            author: nil,
-            genre: nil,
+            title: draft.title ?? draft.baseOutput,
+            author: draft.author,
+            genre: draft.genre,
             language: draft.inputLanguage,
             summary: draft.summary,
             year: draft.year,

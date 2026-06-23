@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.37",
+            version: "2026.06.23.38",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-narrate-ebook-metadata",
+                    title: "Narrate EPUB metadata",
+                    detail: "Apple Narrate EPUB creation now exposes optional title, author, and genre metadata fields and submits them through Web-aligned book metadata and config aliases."
+                ),
                 AppChangelogEntry(
                     id: "apple-web-book-genres",
                     title: "Book genre lists",

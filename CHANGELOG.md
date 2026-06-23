@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.38
+
+- Advanced visible Apple app versioning to `v2026.06.23.38`.
+- Apple Narrate EPUB creation now exposes optional title, author, and genre metadata fields and submits them through Web-aligned book metadata/config aliases.
+
 ### 2026.06.23.37
 
 - Advanced visible Apple app versioning to `v2026.06.23.37`.

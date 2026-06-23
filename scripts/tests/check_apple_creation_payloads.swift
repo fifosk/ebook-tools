@@ -702,6 +702,9 @@ struct AppleCreationPayloadCheck {
         let narrateDraft = AppleBookCreatePresentation.narrateEbookDraft(
             inputFile: " imports/demo.epub ",
             baseOutput: " apple/demo ",
+            title: " Imported Demo ",
+            author: " Source Author ",
+            genre: " Memoir, Travel, memoir ",
             summary: " Imported EPUB summary. ",
             year: " 2025 ",
             isbn: " 9780000000002 ",
@@ -737,6 +740,13 @@ struct AppleCreationPayloadCheck {
         )
         require(narrateDraft.inputFile == "imports/demo.epub", "Narrate draft should trim input path")
         require(narrateDraft.baseOutput == "apple/demo", "Narrate draft should trim output path")
+        require(narrateDraft.title == "Imported Demo", "Narrate draft should trim optional metadata title")
+        require(narrateDraft.author == "Source Author", "Narrate draft should trim optional metadata author")
+        require(narrateDraft.genre == "Memoir, Travel, memoir", "Narrate draft should trim optional metadata genre")
+        require(
+            AppleBookCreatePresentation.normalizedBookGenres(narrateDraft.genre ?? "") == ["Memoir", "Travel"],
+            "Narrate draft genre should be convertible to Web-aligned unique book_genres"
+        )
         require(narrateDraft.summary == "Imported EPUB summary.", "Narrate draft should trim metadata summary")
         require(narrateDraft.year == "2025", "Narrate draft should trim metadata year")
         require(narrateDraft.isbn == "9780000000002", "Narrate draft should trim metadata ISBN")

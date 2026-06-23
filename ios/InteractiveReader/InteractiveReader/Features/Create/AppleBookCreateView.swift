@@ -17,6 +17,9 @@ struct AppleBookCreateView: View {
     @State private var bookName = ""
     @State private var genre = ""
     @State private var author = "Me"
+    @State private var sourceBookTitle = ""
+    @State private var sourceBookAuthor = ""
+    @State private var sourceBookGenre = ""
     @State private var bookSummary = ""
     @State private var bookYear = ""
     @State private var bookIsbn = ""
@@ -196,6 +199,17 @@ struct AppleBookCreateView: View {
 
     private var metadataSection: some View {
         Section("Metadata") {
+            if creationMode == .narrateEbook {
+                TextField("Title", text: textBinding(for: .sourceBookTitle, value: $sourceBookTitle))
+                    .textInputAutocapitalization(.words)
+                    .accessibilityIdentifier("createNarrateBookTitleField")
+                TextField("Author", text: textBinding(for: .sourceBookAuthor, value: $sourceBookAuthor))
+                    .textInputAutocapitalization(.words)
+                    .accessibilityIdentifier("createNarrateBookAuthorField")
+                TextField("Genre", text: textBinding(for: .sourceBookGenre, value: $sourceBookGenre))
+                    .textInputAutocapitalization(.words)
+                    .accessibilityIdentifier("createNarrateBookGenreField")
+            }
             TextField("Summary", text: textBinding(for: .bookSummary, value: $bookSummary), axis: .vertical)
                 .lineLimit(2...5)
                 .textInputAutocapitalization(.sentences)
@@ -684,6 +698,9 @@ struct AppleBookCreateView: View {
         let draft = AppleBookCreatePresentation.narrateEbookDraft(
             inputFile: sourcePath,
             baseOutput: sourceBaseOutput,
+            title: sourceBookTitle,
+            author: sourceBookAuthor,
+            genre: sourceBookGenre,
             summary: bookSummary,
             year: bookYear,
             isbn: bookIsbn,
