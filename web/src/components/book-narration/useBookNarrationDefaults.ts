@@ -6,8 +6,9 @@ import {
   applyConfigDefaults,
   areLanguageArraysEqual,
   compactBookNarrationPipelineDefaults,
-  normalizeSingleTargetLanguages,
+  normalizeTargetLanguages,
   restoreBookNarrationEditedImageDefaults,
+  targetLanguageFieldsFromLanguages,
   targetLanguagesFromBookNarrationConfig,
 } from './bookNarrationFormUtils';
 
@@ -115,17 +116,10 @@ export function useBookNarrationDefaults({
           setSharedInputLanguage(inputLanguage);
         }
         const targetLanguages = Array.isArray(config['target_languages'])
-          ? Array.from(
-              new Set(
-                config['target_languages']
-                  .filter((language): language is string => typeof language === 'string')
-                  .map((language) => language.trim())
-                  .filter((language) => language.length > 0),
-              ),
-            )
+          ? normalizeTargetLanguages(config['target_languages'])
           : [];
         if (allowTargetDefaults && targetLanguages.length > 0) {
-          setSharedTargetLanguages(normalizeSingleTargetLanguages(targetLanguages));
+          setSharedTargetLanguages(targetLanguages);
         }
         const enableLookupCache = config['enable_lookup_cache'];
         if (
@@ -194,7 +188,7 @@ export function useBookNarrationDefaults({
     }
     const targetLanguages = targetLanguagesFromBookNarrationConfig(config);
     if (allowTargetDefaults && targetLanguages.length > 0) {
-      setSharedTargetLanguages(normalizeSingleTargetLanguages(targetLanguages));
+      setSharedTargetLanguages(targetLanguages);
     }
     const enableLookupCache = config['enable_lookup_cache'];
     if (
@@ -233,12 +227,20 @@ export function useBookNarrationDefaults({
 
   useEffect(() => {
     setFormState((previous) => {
-      if (areLanguageArraysEqual(previous.target_languages, sharedTargetLanguages)) {
+      const fields = targetLanguageFieldsFromLanguages(sharedTargetLanguages);
+      const targetLanguages = fields.target_languages.length > 0
+        ? fields.target_languages
+        : previous.target_languages;
+      if (
+        areLanguageArraysEqual(previous.target_languages, targetLanguages) &&
+        previous.custom_target_languages === fields.custom_target_languages
+      ) {
         return previous;
       }
       return {
         ...previous,
-        target_languages: [...sharedTargetLanguages],
+        target_languages: [...targetLanguages],
+        custom_target_languages: fields.custom_target_languages,
       };
     });
   }, [setFormState, sharedTargetLanguages]);
@@ -305,7 +307,7 @@ export function useBookNarrationDefaults({
       settings.targetLanguages.length > 0 &&
       !userEditedFieldsRef.current.has('target_languages')
     ) {
-      const next = normalizeSingleTargetLanguages(settings.targetLanguages);
+      const next = normalizeTargetLanguages(settings.targetLanguages);
       if (!areLanguageArraysEqual(sharedTargetLanguages, next)) {
         setSharedTargetLanguages(next);
       }

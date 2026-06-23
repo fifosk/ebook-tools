@@ -15,6 +15,7 @@ import {
   resolveLatestBookNarrationJobSettings,
   resolveStartFromNarrationHistory,
   restoreBookNarrationEditedImageDefaults,
+  targetLanguageFieldsFromLanguages,
   targetLanguagesFromBookNarrationConfig,
 } from '../book-narration/bookNarrationFormUtils';
 
@@ -262,6 +263,13 @@ describe('bookNarrationFormUtils form state helpers', () => {
       'French',
       'Arabic',
     ]);
+  });
+
+  it('splits normalized target languages into primary and additional form fields', () => {
+    expect(targetLanguageFieldsFromLanguages([' German ', 'French', 'german', '', 'Italian'])).toEqual({
+      target_languages: ['German'],
+      custom_target_languages: 'French, Italian',
+    });
   });
 
   it('extracts Web-aligned genre and ISBN metadata from flat defaults', () => {

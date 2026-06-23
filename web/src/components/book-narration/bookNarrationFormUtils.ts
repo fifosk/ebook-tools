@@ -98,6 +98,17 @@ export function normalizeTargetLanguages(languages: string[]): string[] {
   return normalized;
 }
 
+export function targetLanguageFieldsFromLanguages(languages: string[]): Pick<
+  FormState,
+  'target_languages' | 'custom_target_languages'
+> {
+  const normalized = normalizeTargetLanguages(languages);
+  return {
+    target_languages: normalizeSingleTargetLanguages(normalized),
+    custom_target_languages: normalized.slice(1).join(', '),
+  };
+}
+
 export function compactBookNarrationPipelineDefaults(
   defaults: BookNarrationPipelineDefaults | null,
 ): Record<string, unknown> | null {
@@ -370,15 +381,9 @@ export function applyConfigDefaults(previous: FormState, config: Record<string, 
 
   const targetLanguages = config['target_languages'];
   if (Array.isArray(targetLanguages)) {
-    const normalized = Array.from(
-      new Set(
-        targetLanguages
-          .filter((language): language is string => typeof language === 'string')
-          .map((language) => language.trim())
-          .filter((language) => language.length > 0),
-      ),
-    );
-    next.target_languages = normalizeSingleTargetLanguages(normalized);
+    const normalized = targetLanguageFieldsFromLanguages(targetLanguages);
+    next.target_languages = normalized.target_languages;
+    next.custom_target_languages = normalized.custom_target_languages;
   }
 
   const sentencesPerOutput = coerceNumber(config['sentences_per_output_file']);
@@ -935,8 +940,7 @@ export function applyBookNarrationPrefillParameters(
           .filter((entry) => entry.length > 0)
       : previous.target_languages;
   const normalizedTargetLanguages = normalizeTargetLanguages(targetLanguages);
-  const primaryTargetLanguages = normalizeSingleTargetLanguages(normalizedTargetLanguages);
-  const additionalTargetLanguages = normalizedTargetLanguages.slice(1).join(', ');
+  const targetLanguageFields = targetLanguageFieldsFromLanguages(normalizedTargetLanguages);
   const startSentence =
     typeof prefillParameters.start_sentence === 'number' && Number.isFinite(prefillParameters.start_sentence)
       ? prefillParameters.start_sentence
@@ -1013,9 +1017,11 @@ export function applyBookNarrationPrefillParameters(
     input_file: inputFile,
     base_output_file: forcedBaseOutputFile ?? baseOutputFile,
     input_language: inputLanguage,
-    target_languages: primaryTargetLanguages.length ? primaryTargetLanguages : previous.target_languages,
+    target_languages: targetLanguageFields.target_languages.length
+      ? targetLanguageFields.target_languages
+      : previous.target_languages,
     custom_target_languages: normalizedTargetLanguages.length > 0
-      ? additionalTargetLanguages
+      ? targetLanguageFields.custom_target_languages
       : previous.custom_target_languages,
     start_sentence: startSentence,
     end_sentence: endSentence,

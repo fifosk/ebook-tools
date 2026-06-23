@@ -43,14 +43,14 @@ import {
   deriveBaseOutputName,
   formatList,
   normalizeBookNarrationPath,
-  normalizeSingleTargetLanguages,
   normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
   resolveBookNarrationMissingRequirements,
   resolveBookNarrationSectionMeta,
-  resolveStartFromNarrationHistory
+  resolveStartFromNarrationHistory,
+  targetLanguageFieldsFromLanguages
 } from './bookNarrationFormUtils';
 
 export type { BookNarrationFormSection } from './bookNarrationFormTypes';
@@ -87,6 +87,11 @@ export function BookNarrationForm({
     setEnableLookupCache: setSharedEnableLookupCache
   } = useLanguagePreferences();
   const hasPrefillAddImages = typeof prefillParameters?.add_images === 'boolean';
+  const initialTargetLanguageFields = targetLanguageFieldsFromLanguages(
+    sharedTargetLanguages.length > 0
+      ? sharedTargetLanguages
+      : DEFAULT_FORM_STATE.target_languages
+  );
   const applyImageDefaults = useCallback(
     (state: FormState): FormState => {
       return applyBookNarrationImageDefaults({
@@ -102,10 +107,10 @@ export function BookNarrationForm({
     ...DEFAULT_FORM_STATE,
     base_output_file: forcedBaseOutputFile ?? DEFAULT_FORM_STATE.base_output_file,
     input_language: sharedInputLanguage ?? DEFAULT_FORM_STATE.input_language,
-    target_languages:
-      sharedTargetLanguages.length > 0
-        ? normalizeSingleTargetLanguages(sharedTargetLanguages)
-        : [...DEFAULT_FORM_STATE.target_languages],
+    target_languages: initialTargetLanguageFields.target_languages.length > 0
+      ? initialTargetLanguageFields.target_languages
+      : [...DEFAULT_FORM_STATE.target_languages],
+    custom_target_languages: initialTargetLanguageFields.custom_target_languages,
     enable_lookup_cache:
       typeof sharedEnableLookupCache === 'boolean'
         ? sharedEnableLookupCache
@@ -378,6 +383,9 @@ export function BookNarrationForm({
       userEditedInputRef.current = true;
     }
     markUserEditedField(key);
+    if (key === 'custom_target_languages') {
+      markUserEditedField('target_languages');
+    }
     if (IMAGE_DEFAULT_FIELDS.has(key)) {
       userEditedImageDefaultsRef.current.add(key);
     }
@@ -394,8 +402,20 @@ export function BookNarrationForm({
     if (key === 'input_language' && typeof value === 'string') {
       setSharedInputLanguage(value);
     } else if (key === 'target_languages' && Array.isArray(value)) {
-      const nextLanguages = value as string[];
-      const normalized = normalizeSingleTargetLanguages(nextLanguages);
+      const manualTargets = formState.custom_target_languages
+        .split(/[,\n]/)
+        .map((language) => language.trim())
+        .filter(Boolean);
+      const normalized = normalizeTargetLanguages([...(value as string[]), ...manualTargets]);
+      if (!areLanguageArraysEqual(sharedTargetLanguages, normalized)) {
+        setSharedTargetLanguages(normalized);
+      }
+    } else if (key === 'custom_target_languages' && typeof value === 'string') {
+      const manualTargets = value
+        .split(/[,\n]/)
+        .map((language) => language.trim())
+        .filter(Boolean);
+      const normalized = normalizeTargetLanguages([...formState.target_languages, ...manualTargets]);
       if (!areLanguageArraysEqual(sharedTargetLanguages, normalized)) {
         setSharedTargetLanguages(normalized);
       }

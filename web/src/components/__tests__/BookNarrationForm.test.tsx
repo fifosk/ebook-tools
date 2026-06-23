@@ -356,6 +356,7 @@ describe('BookNarrationForm', () => {
     expect(getInputLanguageField()).toHaveValue('Spanish');
     const prefilledTargets = getSelectedTargetLanguages();
     expect(prefilledTargets).toEqual(['German']);
+    expect(screen.getByLabelText(/Additional target languages/i)).toHaveValue('French');
     expect(screen.getByLabelText(/Sentences per chunk/i)).toHaveValue(8);
     expect(screen.getByLabelText(/Start sentence/i)).toHaveValue(2);
     expect(screen.getByLabelText(/End sentence/i)).toHaveValue('42');
@@ -383,7 +384,7 @@ describe('BookNarrationForm', () => {
           forcedBaseOutputFile="generated-source"
           defaultPipelineSettings={{
             input_language: 'Spanish',
-            target_languages: ['German'],
+            target_languages: ['German', 'French', 'german', 'Italian'],
             sentences_per_output_file: 14,
             audio_mode: '2',
             audio_bitrate_kbps: 128,
@@ -411,6 +412,7 @@ describe('BookNarrationForm', () => {
     await openFormTab(user, /Language & translation/i);
     await waitFor(() => expect(getInputLanguageField()).toHaveValue('Spanish'));
     expect(getSelectedTargetLanguages()).toEqual(['German']);
+    expect(screen.getByLabelText(/Additional target languages/i)).toHaveValue('French, Italian');
     expect(screen.getByLabelText(/Sentences per chunk/i)).toHaveValue(14);
     expect(screen.getByLabelText(/Use Google Translate/i)).toBeChecked();
     expect(screen.getByLabelText(/^Transliteration mode$/i)).toHaveValue('python');
@@ -437,7 +439,7 @@ describe('BookNarrationForm', () => {
     const [payload] = handleSubmit.mock.calls[0];
     expect(payload.inputs.base_output_file).toBe('generated-source');
     expect(payload.inputs.input_language).toBe('Spanish');
-    expect(payload.inputs.target_languages).toEqual(['German']);
+    expect(payload.inputs.target_languages).toEqual(['German', 'French', 'Italian']);
     expect(payload.inputs.enable_lookup_cache).toBe(false);
     expect(payload.inputs.lookup_cache_batch_size).toBe(4);
   });
