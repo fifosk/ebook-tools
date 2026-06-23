@@ -41,7 +41,6 @@ import type {
 } from './subtitle-tool/subtitleToolTypes';
 import {
   buildSubtitleSubmitFormData,
-  coerceRecord,
   formatSubmittedSubtitleSummary,
   isAssSubtitleSelection,
   normalizeLanguageInput,
@@ -52,7 +51,9 @@ import {
   resolveSubtitleSubmitValues,
   selectMissingCompletedSubtitleJobs,
   sortSubtitleJobsNewestFirst,
-  sortSubtitleSourcesForSelection
+  sortSubtitleSourcesForSelection,
+  updateSubtitleMediaMetadataDraft,
+  updateSubtitleMediaMetadataSection
 } from './subtitle-tool/subtitleToolUtils';
 import styles from './SubtitleToolPage.module.css';
 
@@ -128,22 +129,13 @@ export default function SubtitleToolPage({
   const [metadataError, setMetadataError] = useState<string | null>(null);
   const metadataLookupIdRef = useRef<number>(0);
   const updateMediaMetadataDraft = useCallback((updater: (draft: Record<string, unknown>) => void) => {
-    setMediaMetadataDraft((current) => {
-      const next: Record<string, unknown> = current ? { ...current } : {};
-      updater(next);
-      return next;
-    });
+    setMediaMetadataDraft((current) => updateSubtitleMediaMetadataDraft(current, updater));
   }, []);
   const updateMediaMetadataSection = useCallback(
     (sectionKey: string, updater: (section: Record<string, unknown>) => void) => {
-      updateMediaMetadataDraft((draft) => {
-        const currentSection = coerceRecord(draft[sectionKey]);
-        const nextSection: Record<string, unknown> = currentSection ? { ...currentSection } : {};
-        updater(nextSection);
-        draft[sectionKey] = nextSection;
-      });
+      setMediaMetadataDraft((current) => updateSubtitleMediaMetadataSection(current, sectionKey, updater));
     },
-    [updateMediaMetadataDraft]
+    []
   );
   const [enableTransliteration, setEnableTransliteration] = useState<boolean>(true);
   const [enableHighlight, setEnableHighlight] = useState<boolean>(true);

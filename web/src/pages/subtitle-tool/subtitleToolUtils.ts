@@ -73,6 +73,30 @@ export function coerceRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+export type SubtitleMetadataDraftUpdater = (draft: Record<string, unknown>) => void;
+
+export function updateSubtitleMediaMetadataDraft(
+  current: Record<string, unknown> | null,
+  updater: SubtitleMetadataDraftUpdater
+): Record<string, unknown> {
+  const next: Record<string, unknown> = current ? { ...current } : {};
+  updater(next);
+  return next;
+}
+
+export function updateSubtitleMediaMetadataSection(
+  current: Record<string, unknown> | null,
+  sectionKey: string,
+  updater: SubtitleMetadataDraftUpdater
+): Record<string, unknown> {
+  return updateSubtitleMediaMetadataDraft(current, (draft) => {
+    const currentSection = coerceRecord(draft[sectionKey]);
+    const nextSection: Record<string, unknown> = currentSection ? { ...currentSection } : {};
+    updater(nextSection);
+    draft[sectionKey] = nextSection;
+  });
+}
+
 export function normalizeTextValue(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;
