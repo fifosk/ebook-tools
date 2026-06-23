@@ -740,6 +740,25 @@ enum AppleBookCreatePresentation {
         return AppleYoutubeSourceSelection(video: selectedVideo, subtitle: subtitle)
     }
 
+    static func youtubeSubtitleLanguage(
+        from library: YoutubeNasLibraryResponse?,
+        videoPath: String,
+        subtitlePath: String
+    ) -> String? {
+        let normalizedVideoPath = trimmed(videoPath)
+        let normalizedSubtitlePath = trimmed(subtitlePath)
+        guard !normalizedVideoPath.isEmpty, !normalizedSubtitlePath.isEmpty else {
+            return nil
+        }
+        guard let video = library?.videos.first(where: { $0.path == normalizedVideoPath }) else {
+            return nil
+        }
+        return playableYoutubeSubtitles(for: video)
+            .first { $0.path == normalizedSubtitlePath }?
+            .language?
+            .nonEmptyValue
+    }
+
     static func youtubeLibraryCacheKey(baseKey: String, baseDir: String) -> String {
         let normalizedBaseDir = trimmed(baseDir)
         guard !normalizedBaseDir.isEmpty else {
@@ -2650,6 +2669,7 @@ enum AppleBookCreatePresentation {
         videoPath: String,
         subtitlePath: String,
         sourceLanguage: AppleBookCreateLanguage,
+        subtitleLanguage: String?,
         targetLanguage: AppleBookCreateLanguage,
         voice: AppleBookCreateVoiceOption,
         startTimeOffset: String,
@@ -2671,7 +2691,7 @@ enum AppleBookCreatePresentation {
         AppleYoutubeDubDraft(
             videoPath: trimmed(videoPath),
             subtitlePath: trimmed(subtitlePath),
-            sourceLanguage: sourceLanguage.backendValue,
+            sourceLanguage: subtitleLanguage?.nonEmptyValue ?? sourceLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
             voice: voice.backendValue,
             startTimeOffset: startTimeOffset.nonEmptyValue,

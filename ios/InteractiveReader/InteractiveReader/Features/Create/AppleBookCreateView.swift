@@ -827,6 +827,11 @@ struct AppleBookCreateView: View {
             videoPath: youtubeVideoPath,
             subtitlePath: youtubeSubtitlePath,
             sourceLanguage: inputLanguage,
+            subtitleLanguage: AppleBookCreatePresentation.youtubeSubtitleLanguage(
+                from: viewModel.youtubeLibrary,
+                videoPath: youtubeVideoPath,
+                subtitlePath: youtubeSubtitlePath
+            ),
             targetLanguage: targetLanguage,
             voice: voice,
             startTimeOffset: offsetRange.start,
