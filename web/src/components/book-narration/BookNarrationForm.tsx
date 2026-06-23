@@ -41,8 +41,12 @@ import {
   areLanguageArraysEqual,
   deriveBaseOutputName,
   formatList,
+  normalizeBookNarrationPath,
   normalizeImagePromptPipeline,
-  normalizeSingleTargetLanguages
+  normalizeSingleTargetLanguages,
+  resolveLatestBookNarrationJobSelection,
+  resolveLatestBookNarrationJobSettings,
+  resolveStartFromNarrationHistory
 } from './bookNarrationFormUtils';
 
 export type { BookNarrationFormSection } from './bookNarrationFormTypes';
@@ -185,62 +189,15 @@ export function BookNarrationForm({
   useEffect(() => {
     recentJobsRef.current = recentJobs ?? null;
   }, [recentJobs]);
-  const normalizePath = useCallback((value: string | null | undefined): string | null => {
-    if (!value) {
-      return null;
-    }
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return null;
-    }
-    const withoutTrail = trimmed.replace(/[\\/]+$/, '');
-    return withoutTrail.toLowerCase();
-  }, []);
+  const normalizePath = useCallback(
+    (value: string | null | undefined): string | null => normalizeBookNarrationPath(value),
+    []
+  );
   const resolveStartFromHistory = useCallback(
     (inputPath: string): number | null => {
-      const normalizedInput = normalizePath(inputPath);
-      const jobs = recentJobsRef.current;
-      if (!normalizedInput || !jobs || jobs.length === 0) {
-        return null;
-      }
-
-      let latest: { created: number; anchor: number } | null = null;
-      for (const job of jobs) {
-        if (!job || job.job_type === 'subtitle') {
-          continue;
-        }
-        const params = job.parameters;
-        if (!params) {
-          continue;
-        }
-        const candidate = normalizePath(params.input_file ?? params.base_output_file);
-        if (!candidate || candidate !== normalizedInput) {
-          continue;
-        }
-        const anchor =
-          typeof params.end_sentence === 'number'
-            ? params.end_sentence
-            : typeof params.start_sentence === 'number'
-            ? params.start_sentence
-            : null;
-        if (anchor === null) {
-          continue;
-        }
-        const createdAt = new Date(job.created_at).getTime();
-        if (!Number.isFinite(createdAt)) {
-          continue;
-        }
-        if (!latest || createdAt > latest.created) {
-          latest = { created: createdAt, anchor };
-        }
-      }
-
-      if (!latest) {
-        return null;
-      }
-      return Math.max(1, latest.anchor - 5);
+      return resolveStartFromNarrationHistory(inputPath, recentJobsRef.current);
     },
-    [normalizePath]
+    []
   );
   const markUserEditedField = useCallback((key: keyof FormState) => {
     userEditedFieldsRef.current.add(key);
@@ -295,30 +252,7 @@ export function BookNarrationForm({
     normalizedInputPath: normalizedInputForBookMetadataCache
   });
   const resolveLatestJobSelection = useCallback((): { input?: string | null; base?: string | null } | null => {
-    const jobs = recentJobsRef.current;
-    if (!jobs || jobs.length === 0) {
-      return null;
-    }
-    let latest: { created: number; input?: string | null; base?: string | null } | null = null;
-    for (const job of jobs) {
-      if (!job || job.job_type === 'subtitle') {
-        continue;
-      }
-      const createdAt = new Date(job.created_at).getTime();
-      if (!Number.isFinite(createdAt)) {
-        continue;
-      }
-      const params = job.parameters;
-      const inputFile = params?.input_file ?? null;
-      const baseOutput = params?.base_output_file ?? null;
-      if (!inputFile && !baseOutput) {
-        continue;
-      }
-      if (!latest || createdAt > latest.created) {
-        latest = { created: createdAt, input: inputFile, base: baseOutput };
-      }
-    }
-    return latest;
+    return resolveLatestBookNarrationJobSelection(recentJobsRef.current);
   }, []);
 
   /**
@@ -334,46 +268,7 @@ export function BookNarrationForm({
     targetLanguages: string[] | null;
     enableLookupCache: boolean | null;
   } | null => {
-    const jobs = recentJobsRef.current;
-    if (!jobs || jobs.length === 0) {
-      return null;
-    }
-    let latest: {
-      created: number;
-      inputLanguage: string | null;
-      targetLanguages: string[] | null;
-      enableLookupCache: boolean | null;
-    } | null = null;
-    for (const job of jobs) {
-      if (!job || job.job_type === 'subtitle') {
-        continue;
-      }
-      const createdAt = new Date(job.created_at).getTime();
-      if (!Number.isFinite(createdAt)) {
-        continue;
-      }
-      const params = job.parameters;
-      if (!params) {
-        continue;
-      }
-      const inputLanguage =
-        (typeof params.input_language === 'string' && params.input_language.trim()) ||
-        (typeof params.source_language === 'string' && params.source_language.trim()) ||
-        null;
-      const targetLanguages =
-        Array.isArray(params.target_languages) && params.target_languages.length > 0
-          ? params.target_languages.filter((x): x is string => typeof x === 'string' && x.trim() !== '')
-          : null;
-      const enableLookupCache =
-        typeof params.enable_lookup_cache === 'boolean' ? params.enable_lookup_cache : null;
-      if (!inputLanguage && !targetLanguages && enableLookupCache === null) {
-        continue;
-      }
-      if (!latest || createdAt > latest.created) {
-        latest = { created: createdAt, inputLanguage, targetLanguages, enableLookupCache };
-      }
-    }
-    return latest;
+    return resolveLatestBookNarrationJobSettings(recentJobsRef.current);
   }, []);
 
   const tabSections: BookNarrationFormSection[] = BOOK_NARRATION_TAB_SECTIONS;

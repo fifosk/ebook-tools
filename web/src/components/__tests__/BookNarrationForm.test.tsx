@@ -11,6 +11,7 @@ import {
   fetchPipelineFiles,
   fetchLlmModels,
   fetchVoiceInventory,
+  checkImageNodeAvailability,
   lookupBookOpenLibraryMetadataPreview,
   synthesizeVoicePreview,
   uploadEpubFile
@@ -23,6 +24,7 @@ vi.mock('../../api/client', () => ({
   fetchPipelineDefaults: vi.fn(),
   fetchLlmModels: vi.fn(),
   fetchVoiceInventory: vi.fn(),
+  checkImageNodeAvailability: vi.fn(),
   lookupBookOpenLibraryMetadataPreview: vi.fn(),
   synthesizeVoicePreview: vi.fn(),
   uploadEpubFile: vi.fn()
@@ -42,6 +44,32 @@ const mockFileListing: PipelineFileBrowserResponse = {
 let resolveDefaults: ((value: PipelineDefaultsResponse) => void) | null = null;
 let resolveFiles: ((value: PipelineFileBrowserResponse) => void) | null = null;
 
+function installMemoryLocalStorage() {
+  const values = new Map<string, string>();
+  const storage: Storage = {
+    get length() {
+      return values.size;
+    },
+    clear: () => values.clear(),
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => Array.from(values.keys())[index] ?? null,
+    removeItem: (key) => {
+      values.delete(key);
+    },
+    setItem: (key, value) => {
+      values.set(key, String(value));
+    }
+  };
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: storage
+  });
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: storage
+  });
+}
+
 async function resolveFetches({
   defaults = { config: {} },
   files = mockFileListing
@@ -59,6 +87,7 @@ async function resolveFetches({
 }
 
 beforeEach(() => {
+  installMemoryLocalStorage();
   vi.mocked(fetchPipelineFiles).mockImplementation(
     () =>
       new Promise<PipelineFileBrowserResponse>((resolve) => {
@@ -73,6 +102,11 @@ beforeEach(() => {
   );
   vi.mocked(fetchLlmModels).mockResolvedValue([]);
   vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [], piper: [] });
+  vi.mocked(checkImageNodeAvailability).mockResolvedValue({
+    nodes: [],
+    available: [],
+    unavailable: []
+  });
   vi.mocked(lookupBookOpenLibraryMetadataPreview).mockResolvedValue({
     source_name: null,
     query: null,
@@ -83,12 +117,17 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
   resolveDefaults = null;
   resolveFiles = null;
 });
 
 function renderWithLanguageProvider(ui: Parameters<typeof render>[0]) {
   return render(<LanguageProvider>{ui}</LanguageProvider>);
+}
+
+async function openFormTab(user: ReturnType<typeof userEvent.setup>, name: RegExp | string) {
+  await user.click(screen.getByRole('tab', { name }));
 }
 
 function getTargetLanguageSelect(): HTMLSelectElement {
@@ -128,17 +167,16 @@ describe('BookNarrationForm', () => {
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
     await user.clear(screen.getByLabelText(/Base output file/i));
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
+
+    await openFormTab(user, /Language & translation/i);
     await user.selectOptions(getInputLanguageField(), 'English');
     const targetSelect = getTargetLanguageSelect();
     expect(getSelectedTargetLanguages(targetSelect)).toEqual(['Arabic']);
-    await user.selectOptions(targetSelect, ['Arabic', 'German']);
+    await user.selectOptions(targetSelect, 'German');
 
+    await openFormTab(user, /Output & narration/i);
     const overrideSelect = await screen.findByLabelText(/Voice override for English/i);
     await user.selectOptions(overrideSelect, 'macOS-auto');
-
-    fireEvent.change(screen.getByLabelText(/Config overrides JSON/i), {
-      target: { value: '{"debug":true}' }
-    });
 
     await user.click(screen.getByRole('button', { name: /Submit job/i }));
     expect(handleSubmit).toHaveBeenCalled();
@@ -149,41 +187,12 @@ describe('BookNarrationForm', () => {
       throw new Error('Expected the form submission handler to receive a payload');
     }
     const [payload] = firstCall;
-    expect(payload.inputs.target_languages).toEqual(['Arabic', 'German']);
-    expect(payload.config).toEqual({ debug: true });
+    expect(payload.inputs.target_languages).toEqual(['German']);
+    expect(payload.config).toEqual({});
     expect(payload.inputs.generate_audio).toBe(true);
     expect(payload.inputs.voice_overrides).toEqual({ en: 'macOS-auto' });
     expect(payload.pipeline_overrides.voice_overrides).toEqual({ en: 'macOS-auto' });
   }, 10000);
-
-  it('shows an error when JSON input cannot be parsed', async () => {
-    const user = userEvent.setup();
-    const handleSubmit = vi.fn();
-
-    await act(async () => {
-      renderWithLanguageProvider(<BookNarrationForm onSubmit={handleSubmit} />);
-    });
-
-    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
-    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
-    await resolveFetches();
-
-    await user.clear(screen.getByLabelText(/Input file path/i));
-    await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
-    await user.clear(screen.getByLabelText(/Base output file/i));
-    await user.type(screen.getByLabelText(/Base output file/i), 'output');
-    await user.selectOptions(getInputLanguageField(), 'English');
-    expect(getSelectedTargetLanguages()).toEqual(['Arabic']);
-
-    fireEvent.change(screen.getByLabelText(/Config overrides JSON/i), {
-      target: { value: '{broken' }
-    });
-
-    await user.click(screen.getByRole('button', { name: /Submit job/i }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/invalid json/i);
-    expect(handleSubmit).not.toHaveBeenCalled();
-  });
 
   it('prefills the form with defaults from the API response', async () => {
     await act(async () => {
@@ -209,6 +218,7 @@ describe('BookNarrationForm', () => {
           selected_voice: 'macOS-auto-male',
           output_html: false,
           output_pdf: true,
+          add_images: true,
           include_transliteration: true,
           tempo: 1.25,
           book_title: 'Example Book',
@@ -222,24 +232,30 @@ describe('BookNarrationForm', () => {
     );
 
     expect(screen.getByLabelText(/Base output file/i)).toHaveValue('/output/result');
+
+    const user = userEvent.setup();
+    await openFormTab(user, /Metadata/i);
+    expect(screen.getByLabelText(/^Title$/i)).toHaveValue('Example Book');
+    expect(screen.getByLabelText(/^Author$/i)).toHaveValue('Jane Doe');
+
+    await openFormTab(user, /Language & translation/i);
     expect(getInputLanguageField()).toHaveValue('Spanish');
     const prefilledTargets = getSelectedTargetLanguages();
-    expect(prefilledTargets).toHaveLength(2);
-    expect(prefilledTargets).toEqual(expect.arrayContaining(['German', 'French']));
+    expect(prefilledTargets).toEqual(['German']);
     expect(screen.getByLabelText(/Sentences per chunk/i)).toHaveValue(8);
     expect(screen.getByLabelText(/Start sentence/i)).toHaveValue(2);
     expect(screen.getByLabelText(/End sentence/i)).toHaveValue('42');
     expect(screen.getByLabelText(/Stitch full document once complete/i)).toBeChecked();
+
+    await openFormTab(user, /Output & narration/i);
     expect(screen.getByLabelText(/Generate narration tracks/i)).not.toBeChecked();
     expect(screen.getByLabelText(/Generate HTML output/i)).not.toBeChecked();
     expect(screen.getByLabelText(/Generate PDF output/i)).toBeChecked();
-    expect(screen.getByLabelText(/Generate stitched video assets/i)).toBeChecked();
     expect(screen.getByLabelText(/Include transliteration in written output/i)).toBeChecked();
     expect(screen.getByLabelText(/Tempo/i)).toHaveValue(1.25);
 
-    const metadataField = screen.getByLabelText(/Book metadata JSON/i) as HTMLTextAreaElement;
-    expect(metadataField.value).toContain('"book_title": "Example Book"');
-    expect(metadataField.value).toContain('"book_author": "Jane Doe"');
+    await openFormTab(user, /Images/i);
+    expect(screen.getByLabelText(/Add AI-generated images/i)).toBeChecked();
   });
 
   it('applies create-specific pipeline defaults without waiting for global defaults', async () => {
@@ -278,7 +294,7 @@ describe('BookNarrationForm', () => {
     await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
     await resolveFetches();
 
-    await user.click(screen.getByRole('tab', { name: /Language & translation/i }));
+    await openFormTab(user, /Language & translation/i);
     await waitFor(() => expect(getInputLanguageField()).toHaveValue('Spanish'));
     expect(getSelectedTargetLanguages()).toEqual(['German']);
     expect(screen.getByLabelText(/Sentences per chunk/i)).toHaveValue(14);
@@ -286,7 +302,7 @@ describe('BookNarrationForm', () => {
     expect(screen.getByLabelText(/^Transliteration mode$/i)).toHaveValue('python');
     expect(screen.getByLabelText(/Cache word lookups/i)).not.toBeChecked();
 
-    await user.click(screen.getByRole('tab', { name: /Output & narration/i }));
+    await openFormTab(user, /Output & narration/i);
     expect(screen.getByLabelText(/Generate narration tracks/i)).not.toBeChecked();
     expect(screen.getByLabelText(/Audio quality/i)).toHaveValue('128');
     expect(screen.getByLabelText(/Narration voice/i)).toHaveValue('macOS-auto-male');
@@ -295,10 +311,10 @@ describe('BookNarrationForm', () => {
     expect(screen.getByLabelText(/Include transliteration in written output/i)).not.toBeChecked();
     expect(screen.getByLabelText(/Tempo/i)).toHaveValue(1.2);
 
-    await user.click(screen.getByRole('tab', { name: /Performance tuning/i }));
+    await openFormTab(user, /Performance tuning/i);
     expect(screen.getByLabelText(/LLM batch size/i)).toHaveValue(7);
 
-    await user.click(screen.getByRole('tab', { name: /^Source$/i }));
+    await openFormTab(user, /^Source$/i);
     await user.clear(screen.getByLabelText(/Input file path/i));
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/generated.epub');
     await user.click(screen.getByRole('button', { name: /Submit job/i }));
@@ -384,6 +400,7 @@ describe('BookNarrationForm', () => {
     await user.clear(screen.getByLabelText(/Base output file/i));
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
 
+    await openFormTab(user, /Language & translation/i);
     const startField = screen.getByLabelText(/Start sentence/i);
     await user.clear(startField);
     await user.type(startField, '200');
@@ -419,6 +436,7 @@ describe('BookNarrationForm', () => {
     await user.clear(screen.getByLabelText(/Base output file/i));
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
 
+    await openFormTab(user, /Language & translation/i);
     const startField = screen.getByLabelText(/Start sentence/i);
     await user.clear(startField);
     await user.type(startField, '500');

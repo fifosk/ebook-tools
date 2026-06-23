@@ -1,4 +1,4 @@
-import type { MacOSVoice } from '../../api/dtos';
+import type { MacOSVoice, PipelineStatusResponse } from '../../api/dtos';
 import { checkImageNodeAvailability } from '../../api/client';
 import {
   expandImageNodeCandidates,
@@ -556,4 +556,159 @@ export function deriveBaseOutputName(inputPath: string): string {
     return withoutExtension.trim();
   }
   return 'book-output';
+}
+
+export type LatestBookNarrationJobSelection = {
+  input?: string | null;
+  base?: string | null;
+};
+
+export type LatestBookNarrationJobSettings = {
+  inputLanguage: string | null;
+  targetLanguages: string[] | null;
+  enableLookupCache: boolean | null;
+};
+
+export function normalizeBookNarrationPath(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const withoutTrail = trimmed.replace(/[\\/]+$/, '');
+  return withoutTrail.toLowerCase();
+}
+
+function isReusableBookNarrationJob(job: PipelineStatusResponse | null | undefined): job is PipelineStatusResponse {
+  return Boolean(job && job.job_type !== 'subtitle');
+}
+
+export function resolveStartFromNarrationHistory(
+  inputPath: string,
+  jobs: PipelineStatusResponse[] | null | undefined,
+): number | null {
+  const normalizedInput = normalizeBookNarrationPath(inputPath);
+  if (!normalizedInput || !jobs || jobs.length === 0) {
+    return null;
+  }
+
+  let latest: { created: number; anchor: number } | null = null;
+  for (const job of jobs) {
+    if (!isReusableBookNarrationJob(job)) {
+      continue;
+    }
+    const params = job.parameters;
+    if (!params) {
+      continue;
+    }
+    const candidate = normalizeBookNarrationPath(params.input_file ?? params.base_output_file);
+    if (!candidate || candidate !== normalizedInput) {
+      continue;
+    }
+    const anchor =
+      typeof params.end_sentence === 'number'
+        ? params.end_sentence
+        : typeof params.start_sentence === 'number'
+          ? params.start_sentence
+          : null;
+    if (anchor === null) {
+      continue;
+    }
+    const createdAt = new Date(job.created_at).getTime();
+    if (!Number.isFinite(createdAt)) {
+      continue;
+    }
+    if (!latest || createdAt > latest.created) {
+      latest = { created: createdAt, anchor };
+    }
+  }
+
+  if (!latest) {
+    return null;
+  }
+  return Math.max(1, latest.anchor - 5);
+}
+
+export function resolveLatestBookNarrationJobSelection(
+  jobs: PipelineStatusResponse[] | null | undefined,
+): LatestBookNarrationJobSelection | null {
+  if (!jobs || jobs.length === 0) {
+    return null;
+  }
+  let latest: { created: number; input?: string | null; base?: string | null } | null = null;
+  for (const job of jobs) {
+    if (!isReusableBookNarrationJob(job)) {
+      continue;
+    }
+    const createdAt = new Date(job.created_at).getTime();
+    if (!Number.isFinite(createdAt)) {
+      continue;
+    }
+    const params = job.parameters;
+    const inputFile = params?.input_file ?? null;
+    const baseOutput = params?.base_output_file ?? null;
+    if (!inputFile && !baseOutput) {
+      continue;
+    }
+    if (!latest || createdAt > latest.created) {
+      latest = { created: createdAt, input: inputFile, base: baseOutput };
+    }
+  }
+  if (!latest) {
+    return null;
+  }
+  return { input: latest.input, base: latest.base };
+}
+
+export function resolveLatestBookNarrationJobSettings(
+  jobs: PipelineStatusResponse[] | null | undefined,
+): LatestBookNarrationJobSettings | null {
+  if (!jobs || jobs.length === 0) {
+    return null;
+  }
+  let latest: {
+    created: number;
+    inputLanguage: string | null;
+    targetLanguages: string[] | null;
+    enableLookupCache: boolean | null;
+  } | null = null;
+  for (const job of jobs) {
+    if (!isReusableBookNarrationJob(job)) {
+      continue;
+    }
+    const createdAt = new Date(job.created_at).getTime();
+    if (!Number.isFinite(createdAt)) {
+      continue;
+    }
+    const params = job.parameters;
+    if (!params) {
+      continue;
+    }
+    const inputLanguage =
+      (typeof params.input_language === 'string' && params.input_language.trim()) ||
+      (typeof params.source_language === 'string' && params.source_language.trim()) ||
+      null;
+    const targetLanguages =
+      Array.isArray(params.target_languages) && params.target_languages.length > 0
+        ? params.target_languages.filter((x): x is string => typeof x === 'string' && x.trim() !== '')
+        : null;
+    const enableLookupCache =
+      typeof params.enable_lookup_cache === 'boolean' ? params.enable_lookup_cache : null;
+    if (!inputLanguage && !targetLanguages && enableLookupCache === null) {
+      continue;
+    }
+    if (!latest || createdAt > latest.created) {
+      latest = { created: createdAt, inputLanguage, targetLanguages, enableLookupCache };
+    }
+  }
+  if (!latest) {
+    return null;
+  }
+  return {
+    inputLanguage: latest.inputLanguage,
+    targetLanguages: latest.targetLanguages,
+    enableLookupCache: latest.enableLookupCache,
+  };
 }
