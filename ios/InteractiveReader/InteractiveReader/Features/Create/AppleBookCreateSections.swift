@@ -392,6 +392,8 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var imageStyleTemplate: AppleGeneratedBookImageStyleTemplate
     @Binding var imagePromptContextSentences: Int
     let clampedImagePromptContextSentences: Int
+    @Binding var imageWidth: String
+    @Binding var imageHeight: String
     let supportsImages: Bool
 
     var body: some View {
@@ -425,6 +427,14 @@ struct AppleBookCreateGeneratedOutputControls: View {
                     .accessibilityIdentifier("createBookImagePromptContextStepper")
                     #endif
                 }
+                #if os(iOS)
+                TextField("Width", text: $imageWidth)
+                    .keyboardType(.numberPad)
+                    .accessibilityIdentifier("createBookImageWidthField")
+                TextField("Height", text: $imageHeight)
+                    .keyboardType(.numberPad)
+                    .accessibilityIdentifier("createBookImageHeightField")
+                #endif
             }
         }
         Toggle("Transliteration", isOn: $includeTransliteration)

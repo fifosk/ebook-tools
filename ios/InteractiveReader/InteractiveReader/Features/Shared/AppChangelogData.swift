@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.09",
+            version: "2026.06.23.10",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-generated-book-image-dimensions",
+                    title: "Apple image dimensions",
+                    detail: "Generated-book creation on iPhone and iPad now lets Illustrations jobs set backend image width and height before submit."
+                ),
                 AppChangelogEntry(
                     id: "apple-generated-book-prompt-pipeline",
                     title: "Apple image prompt pipeline",

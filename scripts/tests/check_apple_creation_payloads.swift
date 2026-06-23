@@ -347,6 +347,14 @@ struct AppleCreationPayloadCheck {
             "Generated-book image prompt context should use backend generated-source default"
         )
         require(
+            resolvedDefaults.imageWidth == "256",
+            "Generated-book image width should use backend generated-source default"
+        )
+        require(
+            resolvedDefaults.imageHeight == "256",
+            "Generated-book image height should use backend generated-source default"
+        )
+        require(
             resolvedDefaults.subtitleTranslationProvider == .llm,
             "Subtitle provider should map from backend pipeline default"
         )
@@ -361,7 +369,9 @@ struct AppleCreationPayloadCheck {
                 .includeImages,
                 .imagePromptPipeline,
                 .imageStyleTemplate,
-                .imagePromptContextSentences
+                .imagePromptContextSentences,
+                .imageWidth,
+                .imageHeight
             ],
             currentSentenceCount: 999
         )
@@ -373,6 +383,8 @@ struct AppleCreationPayloadCheck {
         require(editedDefaults.imagePromptPipeline == nil, "Edited image prompt pipeline should not be overwritten")
         require(editedDefaults.imageStyleTemplate == nil, "Edited image style should not be overwritten")
         require(editedDefaults.imagePromptContextSentences == nil, "Edited image prompt context should not be overwritten")
+        require(editedDefaults.imageWidth == nil, "Edited image width should not be overwritten")
+        require(editedDefaults.imageHeight == nil, "Edited image height should not be overwritten")
         require(editedDefaults.sentenceCount == 500, "Edited sentence count should still clamp to backend max")
         require(
             AppleBookCreatePresentation.clampSentenceCount(0, bounds: options.sentenceBounds) == 1,
@@ -381,6 +393,18 @@ struct AppleCreationPayloadCheck {
         require(
             AppleBookCreatePresentation.clampImagePromptContextSentences(99) == 50,
             "Image prompt context should clamp to the Web submission upper bound"
+        )
+        require(
+            AppleBookCreatePresentation.normalizedImageDimension("63.9") == "64",
+            "Image dimensions should clamp below-minimum numeric input"
+        )
+        require(
+            AppleBookCreatePresentation.normalizedImageDimension("1024.8") == "1024",
+            "Image dimensions should floor decimal input before submit"
+        )
+        require(
+            AppleBookCreatePresentation.normalizedImageDimension("bad") == "512",
+            "Image dimensions should fall back for invalid input"
         )
         switch AppleBookCreatePresentation.normalizedSubtitleTimeRange(start: "", end: "+5") {
         case let .success(range):
@@ -454,6 +478,8 @@ struct AppleCreationPayloadCheck {
             imagePromptPipeline: .visualCanon,
             imageStyleTemplate: .childrenBook,
             imagePromptContextSentences: 99,
+            imageWidth: "63.9",
+            imageHeight: "1024.8",
             pipelineDefaults: options.pipelineDefaults,
             generatedSourceDefaults: options.generatedSourceDefaults
         )
@@ -474,6 +500,8 @@ struct AppleCreationPayloadCheck {
             generatedDraft.imagePromptContextSentences == 50,
             "Generated draft should clamp the selected image prompt context"
         )
+        require(generatedDraft.imageWidth == "64", "Generated draft should normalize selected image width")
+        require(generatedDraft.imageHeight == "1024", "Generated draft should normalize selected image height")
         require(generatedDraft.pipelineDefaults == options.pipelineDefaults, "Generated draft should carry pipeline defaults")
         require(
             generatedDraft.generatedSourceDefaults == options.generatedSourceDefaults,
@@ -597,6 +625,8 @@ struct AppleCreationPayloadCheck {
                 "image_prompt_context_sentences": .number(4),
                 "image_prompt_pipeline": .string("visual_canon"),
                 "image_style_template": .string("children_book"),
+                "image_width": .string("768"),
+                "image_height": .string("512"),
                 "tempo": .number(1.08)
             ],
             inputs: input,
@@ -618,6 +648,14 @@ struct AppleCreationPayloadCheck {
         require(
             pipelineOverrides?["image_prompt_context_sentences"] as? Int == 4,
             "pipeline overrides should encode selected image prompt context"
+        )
+        require(
+            pipelineOverrides?["image_width"] as? String == "768",
+            "pipeline overrides should encode selected image width"
+        )
+        require(
+            pipelineOverrides?["image_height"] as? String == "512",
+            "pipeline overrides should encode selected image height"
         )
 
         let encodedInputs = pipelineObject["inputs"] as? [String: Any]

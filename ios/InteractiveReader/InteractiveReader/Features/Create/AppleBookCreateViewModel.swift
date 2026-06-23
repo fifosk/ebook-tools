@@ -191,7 +191,9 @@ final class AppleBookCreateViewModel: ObservableObject {
                 from: generatedDefaults,
                 imagePromptPipeline: draft.imagePromptPipeline,
                 imageStyleTemplate: draft.imageStyleTemplate,
-                imagePromptContextSentences: draft.imagePromptContextSentences
+                imagePromptContextSentences: draft.imagePromptContextSentences,
+                imageWidth: draft.imageWidth,
+                imageHeight: draft.imageHeight
             ),
             correlationId: "apple-create",
             bookMetadata: [
@@ -289,7 +291,9 @@ final class AppleBookCreateViewModel: ObservableObject {
         from defaults: BookCreationGeneratedSourceDefaults?,
         imagePromptPipeline: String? = nil,
         imageStyleTemplate: String? = nil,
-        imagePromptContextSentences: Int? = nil
+        imagePromptContextSentences: Int? = nil,
+        imageWidth: String? = nil,
+        imageHeight: String? = nil
     ) -> [String: JSONValue] {
         var overrides = [String: JSONValue]()
         if let defaults {
@@ -311,6 +315,14 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
         if let imagePromptContextSentences {
             overrides["image_prompt_context_sentences"] = .number(Double(imagePromptContextSentences))
+        }
+        if let imageWidth = imageWidth?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !imageWidth.isEmpty {
+            overrides["image_width"] = .string(imageWidth)
+        }
+        if let imageHeight = imageHeight?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !imageHeight.isEmpty {
+            overrides["image_height"] = .string(imageHeight)
         }
         return overrides
     }

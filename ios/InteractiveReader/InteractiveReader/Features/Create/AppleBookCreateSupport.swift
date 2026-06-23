@@ -16,6 +16,8 @@ struct AppleBookCreateDraft: Equatable {
     let imagePromptPipeline: String
     let imageStyleTemplate: String
     let imagePromptContextSentences: Int
+    let imageWidth: String
+    let imageHeight: String
     let pipelineDefaults: BookCreationPipelineDefaults?
     let generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
 }
@@ -269,6 +271,8 @@ enum AppleBookCreateEditedField: Hashable {
     case imagePromptPipeline
     case imageStyleTemplate
     case imagePromptContextSentences
+    case imageWidth
+    case imageHeight
 }
 
 struct AppleCreateResolvedDefaults: Equatable {
@@ -286,6 +290,8 @@ struct AppleCreateResolvedDefaults: Equatable {
     let imagePromptPipeline: AppleGeneratedBookImagePromptPipeline?
     let imageStyleTemplate: AppleGeneratedBookImageStyleTemplate?
     let imagePromptContextSentences: Int?
+    let imageWidth: String?
+    let imageHeight: String?
     let subtitleTranslationProvider: AppleSubtitleTranslationProvider?
 }
 
@@ -387,6 +393,12 @@ enum AppleBookCreatePresentation {
             imagePromptContextSentences: editedFields.contains(.imagePromptContextSentences)
                 ? nil
                 : clampImagePromptContextSentences(options.generatedSourceDefaults.imagePromptContextSentences),
+            imageWidth: editedFields.contains(.imageWidth)
+                ? nil
+                : normalizedImageDimension(options.generatedSourceDefaults.imageWidth),
+            imageHeight: editedFields.contains(.imageHeight)
+                ? nil
+                : normalizedImageDimension(options.generatedSourceDefaults.imageHeight),
             subtitleTranslationProvider: editedFields.contains(.subtitleTranslationProvider)
                 ? nil
                 : AppleSubtitleTranslationProvider(backendValue: options.pipelineDefaults.translationProvider)
@@ -402,6 +414,14 @@ enum AppleBookCreatePresentation {
 
     static func clampImagePromptContextSentences(_ value: Int) -> Int {
         clamp(value, to: 0...50)
+    }
+
+    static func normalizedImageDimension(_ value: String) -> String {
+        let trimmedValue = trimmed(value)
+        guard let parsed = Double(trimmedValue), parsed.isFinite else {
+            return "512"
+        }
+        return "\(max(64, Int(parsed.rounded(.down))))"
     }
 
     static func availableInputLanguages(
@@ -631,6 +651,8 @@ enum AppleBookCreatePresentation {
         imagePromptPipeline: AppleGeneratedBookImagePromptPipeline,
         imageStyleTemplate: AppleGeneratedBookImageStyleTemplate,
         imagePromptContextSentences: Int,
+        imageWidth: String,
+        imageHeight: String,
         pipelineDefaults: BookCreationPipelineDefaults?,
         generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
     ) -> AppleBookCreateDraft {
@@ -650,6 +672,8 @@ enum AppleBookCreatePresentation {
             imagePromptPipeline: imagePromptPipeline.backendValue,
             imageStyleTemplate: imageStyleTemplate.backendValue,
             imagePromptContextSentences: clampImagePromptContextSentences(imagePromptContextSentences),
+            imageWidth: normalizedImageDimension(imageWidth),
+            imageHeight: normalizedImageDimension(imageHeight),
             pipelineDefaults: pipelineDefaults,
             generatedSourceDefaults: generatedSourceDefaults
         )

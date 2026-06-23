@@ -63,6 +63,8 @@ struct AppleBookCreateView: View {
     @State private var imagePromptPipeline = AppleGeneratedBookImagePromptPipeline.promptPlan
     @State private var imageStyleTemplate = AppleGeneratedBookImageStyleTemplate.wireframe
     @State private var imagePromptContextSentences = 0
+    @State private var imageWidth = "256"
+    @State private var imageHeight = "256"
     @State private var editedFields = Set<AppleBookCreateEditedField>()
 
     var body: some View {
@@ -264,6 +266,8 @@ struct AppleBookCreateView: View {
                     imageStyleTemplate: imageStyleTemplateBinding,
                     imagePromptContextSentences: imagePromptContextSentencesBinding,
                     clampedImagePromptContextSentences: clampedImagePromptContextSentences,
+                    imageWidth: textBinding(for: .imageWidth, value: $imageWidth),
+                    imageHeight: textBinding(for: .imageHeight, value: $imageHeight),
                     supportsImages: creationMode == .generatedBook
                 )
             }
@@ -409,6 +413,8 @@ struct AppleBookCreateView: View {
             imagePromptPipeline: imagePromptPipeline,
             imageStyleTemplate: imageStyleTemplate,
             imagePromptContextSentences: imagePromptContextSentences,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight,
             pipelineDefaults: viewModel.creationOptions?.pipelineDefaults,
             generatedSourceDefaults: viewModel.creationOptions?.generatedSourceDefaults
         )
@@ -943,6 +949,12 @@ struct AppleBookCreateView: View {
         }
         if let value = defaults.imagePromptContextSentences {
             imagePromptContextSentences = value
+        }
+        if let value = defaults.imageWidth {
+            imageWidth = value
+        }
+        if let value = defaults.imageHeight {
+            imageHeight = value
         }
         if let provider = defaults.subtitleTranslationProvider {
             subtitleTranslationProvider = provider
