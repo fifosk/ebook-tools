@@ -82,7 +82,7 @@ const runningWithProgress: JobState = {
 };
 
 describe('Sidebar', () => {
-  it('renders the Narrate Ebook entry as active for pipeline views', () => {
+  it('renders the Book Page entry as active for pipeline views', () => {
     render(
       <Sidebar
         selectedView="pipeline:source"
@@ -106,7 +106,7 @@ describe('Sidebar', () => {
 	      />
 	    );
 
-    const narrateButton = screen.getByRole('button', { name: /Narrate Ebook/i });
+    const narrateButton = screen.getByRole('button', { name: /Book Page/i });
     expect(narrateButton).toBeInTheDocument();
     expect(narrateButton).toHaveClass('is-active');
     expect(screen.getByRole('button', { name: /Subtitles/i })).toBeInTheDocument();
@@ -174,7 +174,7 @@ describe('Sidebar', () => {
 	      />
 	    );
 
-    fireEvent.click(screen.getByRole('button', { name: /Narrate Ebook/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Book Page/i }));
     fireEvent.click(screen.getByRole('button', { name: /^🎙️ Dub Video$/i }));
     fireEvent.click(screen.getByRole('button', { name: /User management/i }));
     expect(handleSelectView.mock.calls).toContainEqual(['pipeline:source']);

@@ -72,7 +72,10 @@ Large Web UI hotspots to split before redesign work:
   Browser storage reads/writes used by PlayerPanel, interactive text, reading
   bed, media memory, and bookmarks now route through
   `web/src/utils/browserStorage.ts` with focused Vitest coverage.
-- `web/src/components/Sidebar.tsx` - 963 lines.
+- `web/src/components/Sidebar.tsx` - 556 lines. Status: pipeline-view
+  detection, sidebar language/label/status/stage/glyph/progress resolution,
+  and image-wait status now live in
+  `web/src/components/sidebar/sidebarUtils.ts` with focused Vitest coverage.
 - `web/src/components/book-narration/BookNarrationForm.tsx` - 956 lines.
 
 ### Apple Apps
