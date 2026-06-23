@@ -1644,10 +1644,11 @@ enum AppleSubtitleTranslationProvider: String, CaseIterable, Identifiable {
 
     init?(backendValue: String) {
         let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        switch normalized {
-        case "llm":
+        let dashed = normalized.replacingOccurrences(of: "_", with: "-")
+        switch dashed {
+        case "llm", "ollama", "default":
             self = .llm
-        case "googletrans", "google", "google_translate", "google-translate":
+        case "googletrans", "google", "googletranslate", "google-translate", "gtranslate", "gtrans":
             self = .googleTranslate
         default:
             return nil
@@ -1684,11 +1685,13 @@ enum AppleSubtitleTransliterationMode: String, CaseIterable, Identifiable {
     }
 
     init?(backendValue: String) {
-        let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "-")
         switch normalized {
-        case "default", "llm":
+        case "default", "llm", "ollama":
             self = .default
-        case "python", "module":
+        case "python", "module", "python-module", "local-module":
             self = .python
         default:
             return nil

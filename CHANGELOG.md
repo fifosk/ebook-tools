@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.79
+
+- Advanced visible Apple app versioning to `v2026.06.23.79`.
+- Apple Create now accepts the same backend default aliases as Web creation surfaces for translation providers and transliteration modes, including `gtrans`, `googletranslate`, `ollama`, and `python-module`.
+
 ### 2026.06.23.78
 
 - Advanced visible Apple app versioning to `v2026.06.23.78`.

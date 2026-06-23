@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.78",
+            version: "2026.06.23.79",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-default-aliases",
+                    title: "Create defaults aligned",
+                    detail: "Apple Create now accepts the same backend default aliases as Web creation surfaces for translation providers and transliteration modes, including gtrans, googletranslate, ollama, and python-module."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-job-presentation",
                     title: "Subtitle Jobs presentation",
