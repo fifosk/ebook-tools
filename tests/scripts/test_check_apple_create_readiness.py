@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+from urllib.error import HTTPError
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "check_apple_create_readiness.py"
@@ -138,3 +139,15 @@ def test_env_file_parsing_does_not_require_dotenv(tmp_path: Path) -> None:
         "E2E_PASSWORD": "secret",
         "E2E_API_BASE_URL": "https://example.test/",
     }
+
+
+def test_http_error_description_includes_endpoint_path() -> None:
+    exc = HTTPError(
+        "https://api.example.test/api/books/options",
+        404,
+        "Not Found",
+        hdrs=None,
+        fp=None,
+    )
+
+    assert module.describe_http_error(exc) == "API request to /api/books/options returned HTTP 404"

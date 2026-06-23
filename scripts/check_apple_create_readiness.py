@@ -78,6 +78,12 @@ def json_request(
     return json.loads(data.decode("utf-8"))
 
 
+def describe_http_error(exc: error.HTTPError) -> str:
+    parsed = parse.urlparse(getattr(exc, "url", "") or "")
+    target = parsed.path or getattr(exc, "url", "") or "request"
+    return f"API request to {target} returned HTTP {exc.code}"
+
+
 def login(api_base_url: str, username: str, password: str, timeout: float) -> str:
     payload = json_request(
         api_base_url,
@@ -251,10 +257,7 @@ def main(argv: list[str] | None = None) -> int:
         token = login(api_base_url, username, password, args.timeout)
         summary = fetch_readiness(api_base_url, token, args.timeout)
     except error.HTTPError as exc:
-        print(
-            f"Apple Create readiness preflight failed: API returned HTTP {exc.code}.",
-            file=sys.stderr,
-        )
+        print(f"Apple Create readiness preflight failed: {describe_http_error(exc)}.", file=sys.stderr)
         return 1
     except Exception as exc:
         print(f"Apple Create readiness preflight failed: {exc}", file=sys.stderr)

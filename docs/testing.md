@@ -726,6 +726,9 @@ are expected to be populated. They run
 `scripts/check_apple_create_readiness.py` before Xcode starts; the preflight
 requires `E2E_USERNAME` and `E2E_PASSWORD` from the environment or `.env`, uses
 `E2E_API_BASE_URL` when set, and reports only aggregate inventory counts.
+HTTP failures name the exact API path, so a message such as
+`/api/books/options` returning 404 means the target backend has not yet been
+updated to the modern book-creation options contract used by Apple Create.
 
 **Configuration:** The Makefile writes credentials and journey data to
 temporary files that XCUITest reads at runtime:
