@@ -6,6 +6,7 @@ import {
 } from '../../constants/imageNodes';
 import { isRecord } from './bookNarrationUtils';
 import type {
+  BookNarrationPipelineDefaults,
   BookNarrationFormProps,
   BookNarrationFormSection,
   FormState,
@@ -74,6 +75,36 @@ export function normalizeSingleTargetLanguages(languages: string[]): string[] {
     }
   }
   return [];
+}
+
+export function compactBookNarrationPipelineDefaults(
+  defaults: BookNarrationPipelineDefaults | null,
+): Record<string, unknown> | null {
+  if (!defaults) {
+    return null;
+  }
+  const config: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(defaults)) {
+    if (value !== undefined && value !== null) {
+      config[key] = value;
+    }
+  }
+  return Object.keys(config).length > 0 ? config : null;
+}
+
+export function targetLanguagesFromBookNarrationConfig(config: Record<string, unknown>): string[] {
+  const targetLanguages = config['target_languages'];
+  if (!Array.isArray(targetLanguages)) {
+    return [];
+  }
+  return Array.from(
+    new Set(
+      targetLanguages
+        .filter((language): language is string => typeof language === 'string')
+        .map((language) => language.trim())
+        .filter((language) => language.length > 0),
+    ),
+  );
 }
 
 export function coerceNumber(value: unknown): number | undefined {

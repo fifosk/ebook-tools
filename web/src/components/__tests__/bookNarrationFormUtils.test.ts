@@ -4,6 +4,7 @@ import { BOOK_NARRATION_SECTION_META, DEFAULT_FORM_STATE } from '../book-narrati
 import {
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillParameters,
+  compactBookNarrationPipelineDefaults,
   normalizeBookNarrationPath,
   preserveBookNarrationUserEditedFields,
   resolveBookNarrationMissingRequirements,
@@ -12,6 +13,7 @@ import {
   resolveLatestBookNarrationJobSettings,
   resolveStartFromNarrationHistory,
   restoreBookNarrationEditedImageDefaults,
+  targetLanguagesFromBookNarrationConfig,
 } from '../book-narration/bookNarrationFormUtils';
 
 function makeJob(
@@ -223,6 +225,35 @@ describe('bookNarrationFormUtils prefill helpers', () => {
 });
 
 describe('bookNarrationFormUtils form state helpers', () => {
+  it('compacts optional pipeline defaults into a config map without nullish values', () => {
+    expect(compactBookNarrationPipelineDefaults(null)).toBeNull();
+    expect(compactBookNarrationPipelineDefaults({})).toBeNull();
+
+    expect(
+      compactBookNarrationPipelineDefaults({
+        input_language: 'Spanish',
+        target_languages: ['German'],
+        audio_bitrate_kbps: null,
+        output_pdf: false,
+        tempo: 0,
+      }),
+    ).toEqual({
+      input_language: 'Spanish',
+      target_languages: ['German'],
+      output_pdf: false,
+      tempo: 0,
+    });
+  });
+
+  it('normalizes target languages from config while preserving first-seen order', () => {
+    expect(targetLanguagesFromBookNarrationConfig({ target_languages: 'German' })).toEqual([]);
+    expect(
+      targetLanguagesFromBookNarrationConfig({
+        target_languages: [' German ', '', 'French', 'German', null, 'Arabic'],
+      }),
+    ).toEqual(['German', 'French', 'Arabic']);
+  });
+
   it('applies backend image defaults while preserving user-edited image fields', () => {
     const previous = {
       ...DEFAULT_FORM_STATE,

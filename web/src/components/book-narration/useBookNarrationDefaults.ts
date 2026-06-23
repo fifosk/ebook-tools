@@ -5,8 +5,10 @@ import type { BookNarrationPipelineDefaults, FormState } from './bookNarrationFo
 import {
   applyConfigDefaults,
   areLanguageArraysEqual,
+  compactBookNarrationPipelineDefaults,
   normalizeSingleTargetLanguages,
   restoreBookNarrationEditedImageDefaults,
+  targetLanguagesFromBookNarrationConfig,
 } from './bookNarrationFormUtils';
 
 type ResolveLatestJobSelection = () => { input?: string | null; base?: string | null } | null;
@@ -42,36 +44,6 @@ type UseBookNarrationDefaultsOptions = {
   setSharedTargetLanguages: (value: string[]) => void;
   setSharedEnableLookupCache: (value: boolean) => void;
 };
-
-function compactPipelineDefaults(
-  defaults: BookNarrationPipelineDefaults | null
-): Record<string, unknown> | null {
-  if (!defaults) {
-    return null;
-  }
-  const config: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(defaults)) {
-    if (value !== undefined && value !== null) {
-      config[key] = value;
-    }
-  }
-  return Object.keys(config).length > 0 ? config : null;
-}
-
-function targetLanguagesFromConfig(config: Record<string, unknown>): string[] {
-  const targetLanguages = config['target_languages'];
-  if (!Array.isArray(targetLanguages)) {
-    return [];
-  }
-  return Array.from(
-    new Set(
-      targetLanguages
-        .filter((language): language is string => typeof language === 'string')
-        .map((language) => language.trim())
-        .filter((language) => language.length > 0),
-    ),
-  );
-}
 
 export function useBookNarrationDefaults({
   formState,
@@ -191,7 +163,7 @@ export function useBookNarrationDefaults({
   ]);
 
   useEffect(() => {
-    const config = compactPipelineDefaults(defaultPipelineSettings);
+    const config = compactBookNarrationPipelineDefaults(defaultPipelineSettings);
     if (!config) {
       return;
     }
@@ -220,7 +192,7 @@ export function useBookNarrationDefaults({
     if (allowInputDefaults && inputLanguage) {
       setSharedInputLanguage(inputLanguage);
     }
-    const targetLanguages = targetLanguagesFromConfig(config);
+    const targetLanguages = targetLanguagesFromBookNarrationConfig(config);
     if (allowTargetDefaults && targetLanguages.length > 0) {
       setSharedTargetLanguages(normalizeSingleTargetLanguages(targetLanguages));
     }

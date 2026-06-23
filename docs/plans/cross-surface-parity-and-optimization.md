@@ -81,7 +81,8 @@ Large Web UI hotspots to split before redesign work:
   input/base selection, latest language/lookup-cache defaults, and rerun
   prefill state mapping, section metadata merging, edited-field preservation,
   submit-requirement resolution, backend image-default merging, and edited
-  image-default restoration now live in
+  image-default restoration, plus default-settings compaction and target-language
+  normalization now live in
   `web/src/components/book-narration/bookNarrationFormUtils.ts` with focused
   Vitest coverage.
 
