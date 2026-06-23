@@ -45,6 +45,7 @@ import {
   isAssSubtitleSelection,
   normalizeLanguageInput,
   pickLatestSubtitleSource,
+  resolveSubtitleLanguageDefaults,
   resolveSubtitleMetadataSourceName,
   resolveSubtitlePrefillValues,
   resolveSubtitleSubmitValues,
@@ -269,20 +270,12 @@ export default function SubtitleToolPage({
           return;
         }
         const config = defaults?.config ?? {};
-        const targetLanguages = Array.isArray(config['target_languages'])
-          ? (config['target_languages'] as unknown[])
-          : [];
-        const normalised = targetLanguages
-          .map((language) => (typeof language === 'string' ? normalizeLanguageLabel(language) : ''))
-          .filter((language) => language.length > 0);
-        if (normalised.length > 0) {
-          setFetchedLanguages(normalised);
+        const resolved = resolveSubtitleLanguageDefaults(config, inputLanguage);
+        if (resolved.fetchedLanguages.length > 0) {
+          setFetchedLanguages(resolved.fetchedLanguages);
         }
-        const defaultInput = normalizeLanguageLabel(
-          typeof config['input_language'] === 'string' ? config['input_language'] : ''
-        );
-        if (defaultInput && !inputLanguage) {
-          setInputLanguage(defaultInput);
+        if (resolved.inputLanguage) {
+          setInputLanguage(resolved.inputLanguage);
         }
       })
       .catch((error) => {

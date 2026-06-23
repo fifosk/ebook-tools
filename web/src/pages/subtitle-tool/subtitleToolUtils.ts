@@ -1,5 +1,6 @@
 import type { JobState } from '../../components/JobList';
 import type { JobParameterSnapshot, SubtitleSourceEntry } from '../../api/dtos';
+import { normalizeLanguageLabel } from '../../utils/languages';
 import { subtitleFormatFromPath } from '../../utils/subtitles';
 import {
   DEFAULT_START_TIME,
@@ -287,6 +288,30 @@ export function resolveSubtitlePrefillValues(
     transliterationMode: normalizeOptionalText(parameters?.transliteration_mode),
     transliterationModel: normalizeOptionalText(parameters?.transliteration_model),
     sourcePath: sourcePath && sourcePath.length > 0 ? sourcePath : null
+  };
+}
+
+export type SubtitleLanguageDefaults = {
+  fetchedLanguages: string[];
+  inputLanguage: string | null;
+};
+
+export function resolveSubtitleLanguageDefaults(
+  config: Record<string, unknown> | null | undefined,
+  currentInputLanguage: string
+): SubtitleLanguageDefaults {
+  const targetLanguages = Array.isArray(config?.['target_languages'])
+    ? (config['target_languages'] as unknown[])
+    : [];
+  const fetchedLanguages = targetLanguages
+    .map((language) => (typeof language === 'string' ? normalizeLanguageLabel(language) : ''))
+    .filter((language) => language.length > 0);
+  const defaultInput = normalizeLanguageLabel(
+    typeof config?.['input_language'] === 'string' ? config['input_language'] : ''
+  );
+  return {
+    fetchedLanguages,
+    inputLanguage: defaultInput && !currentInputLanguage ? defaultInput : null
   };
 }
 

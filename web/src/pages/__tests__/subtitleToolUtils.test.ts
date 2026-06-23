@@ -6,6 +6,7 @@ import {
   isAssSubtitleSelection,
   normalizeSubtitleTimecodeInput,
   pickLatestSubtitleSource,
+  resolveSubtitleLanguageDefaults,
   resolveSubtitleMetadataSourceName,
   resolveSubtitleSourceFormat,
   resolveSubtitlePrefillValues,
@@ -339,6 +340,49 @@ describe('resolveSubtitlePrefillValues', () => {
       transliterationMode: null,
       transliterationModel: null,
       sourcePath: null
+    });
+  });
+});
+
+describe('resolveSubtitleLanguageDefaults', () => {
+  it('normalizes backend target languages and input language defaults', () => {
+    expect(
+      resolveSubtitleLanguageDefaults(
+        {
+          target_languages: [' fr ', 'German', '', 42],
+          input_language: ' en '
+        },
+        ''
+      )
+    ).toEqual({
+      fetchedLanguages: ['French', 'German'],
+      inputLanguage: 'English'
+    });
+  });
+
+  it('does not replace an existing input language preference', () => {
+    expect(
+      resolveSubtitleLanguageDefaults(
+        {
+          target_languages: ['French'],
+          input_language: 'English'
+        },
+        'Spanish'
+      )
+    ).toEqual({
+      fetchedLanguages: ['French'],
+      inputLanguage: null
+    });
+  });
+
+  it('returns empty defaults for missing or malformed config', () => {
+    expect(resolveSubtitleLanguageDefaults({ target_languages: 'French' }, '')).toEqual({
+      fetchedLanguages: [],
+      inputLanguage: null
+    });
+    expect(resolveSubtitleLanguageDefaults(null, '')).toEqual({
+      fetchedLanguages: [],
+      inputLanguage: null
     });
   });
 });

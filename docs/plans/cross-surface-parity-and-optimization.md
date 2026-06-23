@@ -52,13 +52,13 @@ Large Web UI hotspots to split before redesign work:
   messages, and job-parameter prefill mapping now live in
   `web/src/pages/video-dubbing/videoDubbingUtils.ts` with focused Vitest
   coverage.
-- `web/src/pages/SubtitleToolPage.tsx` - 815 lines. Status: source ordering,
+- `web/src/pages/SubtitleToolPage.tsx` - 808 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style
   timecode parsing, metadata source-name resolution, ASS selection detection,
-  completed-result fetch selection, and job sorting now live in
-  `web/src/pages/subtitle-tool/subtitleToolUtils.ts` with focused Vitest
-  coverage.
+  completed-result fetch selection, job sorting, and backend language-default
+  normalization now live in `web/src/pages/subtitle-tool/subtitleToolUtils.ts`
+  with focused Vitest coverage.
 - `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1119 lines.
   Status: subtitle cue lookup, token navigation, selection shadowing, clamp
   math, track variant mapping, and TTS voice option helpers now live in
