@@ -8,6 +8,13 @@ import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/lib
 import { getStatusGlyph } from '../utils/status';
 import EmojiIcon from './EmojiIcon';
 import {
+  buildLibraryItemActionState,
+  resolveLibraryItemPermissions,
+  type LibraryItemActionState,
+  type LibraryItemPermissionResolver,
+  type LibraryItemPermissions
+} from './library-list/libraryListActions';
+import {
   buildAuthorGroups,
   buildGenreGroups,
   buildLanguageGroups,
@@ -44,16 +51,10 @@ type Props = {
   onExport?: (item: LibraryItem) => void;
   onRemove: (item: LibraryItem) => void;
   onEditMetadata: (item: LibraryItem) => void;
-  resolvePermissions?: (item: LibraryItem) => LibraryItemPermissions;
+  resolvePermissions?: LibraryItemPermissionResolver;
   selectedJobId?: string | null;
   mutating?: Record<string, boolean>;
   variant?: 'card' | 'embedded';
-};
-
-type LibraryItemPermissions = {
-  canView: boolean;
-  canEdit: boolean;
-  canExport: boolean;
 };
 
 function renderLanguageLabel(language: string | null | undefined) {
@@ -343,25 +344,13 @@ function LibraryList({
     }
   };
 
-  const resolveItemPermissions = (item: LibraryItem): LibraryItemPermissions => {
-    if (!resolvePermissions) {
-      return { canView: true, canEdit: true, canExport: true };
-    }
-    const resolved = resolvePermissions(item);
-    return {
-      canView: resolved.canView,
-      canEdit: resolved.canEdit,
-      canExport: resolved.canExport
-    };
-  };
+  const resolveItemPermissions = (item: LibraryItem): LibraryItemPermissions =>
+    resolveLibraryItemPermissions(item, resolvePermissions);
 
-  const renderActions = (item: LibraryItem, permissions: LibraryItemPermissions) => {
-    const isExportReady = item.mediaCompleted;
-    const exportTitle = isExportReady ? 'Export offline player' : 'Export available after media completes';
-    const isMutating = Boolean(mutating[item.jobId]);
-    const canView = permissions.canView;
-    const canEdit = permissions.canEdit;
-    const canExport = permissions.canExport && canView;
+  const resolveItemActionState = (item: LibraryItem, permissions: LibraryItemPermissions): LibraryItemActionState =>
+    buildLibraryItemActionState(item, permissions, Boolean(mutating[item.jobId]));
+
+  const renderActions = (item: LibraryItem, actionState: LibraryItemActionState) => {
     return (
       <div className={styles.actions}>
         <button
@@ -369,11 +358,11 @@ function LibraryList({
           className={styles.actionIconButton}
           onClick={(event) => {
             event.stopPropagation();
-            if (canView) {
+            if (actionState.canView) {
               onOpen(item);
             }
           }}
-          disabled={isMutating || !canView}
+          disabled={actionState.mediaOpenDisabled}
           aria-label="Play"
           title="Play"
         >
@@ -385,11 +374,11 @@ function LibraryList({
           className={styles.actionIconButton}
           onClick={(event) => {
             event.stopPropagation();
-            if (canEdit) {
+            if (actionState.canEdit) {
               onEditMetadata(item);
             }
           }}
-          disabled={isMutating || !canEdit}
+          disabled={actionState.editDisabled}
           aria-label="Edit"
           title="Edit"
         >
@@ -402,13 +391,13 @@ function LibraryList({
             className={styles.actionIconButton}
             onClick={(event) => {
               event.stopPropagation();
-              if (isExportReady && canExport) {
+              if (actionState.isExportReady && actionState.canExport) {
                 onExport(item);
               }
             }}
-            disabled={isMutating || !isExportReady || !canExport}
+            disabled={actionState.exportDisabled}
             aria-label="Export offline player"
-            title={exportTitle}
+            title={actionState.exportTitle}
           >
             <span aria-hidden="true">📦</span>
             <span className="visually-hidden">Export offline player</span>
@@ -419,11 +408,11 @@ function LibraryList({
           className={styles.actionIconButton}
           onClick={(event) => {
             event.stopPropagation();
-            if (canEdit) {
+            if (actionState.canEdit) {
               onRemove(item);
             }
           }}
-          disabled={isMutating || !canEdit}
+          disabled={actionState.removeDisabled}
           aria-label="Delete"
           title="Delete"
           data-variant="danger"
@@ -497,8 +486,7 @@ function LibraryList({
             <tbody>
               {items.map((item) => {
                 const permissions = resolveItemPermissions(item);
-                const isBusy = Boolean(mutating[item.jobId]);
-                const isDisabled = isBusy || !permissions.canView;
+                const actionState = resolveItemActionState(item, permissions);
                 return (
                   <tr
                     key={item.jobId}
@@ -514,39 +502,39 @@ function LibraryList({
                         <td className={styles.cellBook}>
                           {renderBookCell(item, {
                             onOpen: () => onOpen(item),
-                            disabled: isDisabled,
+                            disabled: actionState.mediaOpenDisabled,
                           })}
                         </td>
                         <td>{renderLanguageLabel(item.language)}</td>
                         <td>{renderStatusBadge(item)}</td>
                         <td>{formatTimestamp(item.updatedAt)}</td>
-                        <td>{renderActions(item, permissions)}</td>
+                        <td>{renderActions(item, actionState)}</td>
                       </>
                     ) : isSubtitleLayout ? (
                       <>
                         <td className={styles.cellSubtitle}>
                           {renderSubtitleCell(item, {
                             onOpen: () => onOpen(item),
-                            disabled: isDisabled,
+                            disabled: actionState.mediaOpenDisabled,
                           })}
                         </td>
                         <td>{renderLanguageLabel(item.language)}</td>
                         <td>{renderStatusBadge(item)}</td>
                         <td>{formatTimestamp(item.updatedAt)}</td>
-                        <td>{renderActions(item, permissions)}</td>
+                        <td>{renderActions(item, actionState)}</td>
                       </>
                     ) : isVideoLayout ? (
                       <>
                         <td className={styles.cellVideo}>
                           {renderVideoCell(item, {
                             onOpen: () => onOpen(item),
-                            disabled: isDisabled,
+                            disabled: actionState.mediaOpenDisabled,
                           })}
                         </td>
                         <td>{renderLanguageLabel(item.language)}</td>
                         <td>{renderStatusBadge(item)}</td>
                         <td>{formatTimestamp(item.updatedAt)}</td>
-                        <td>{renderActions(item, permissions)}</td>
+                        <td>{renderActions(item, actionState)}</td>
                       </>
                     ) : (
                       <>
@@ -556,7 +544,7 @@ function LibraryList({
                         <td>{renderLanguageLabel(item.language)}</td>
                         <td>{renderStatusBadge(item)}</td>
                         <td>{formatTimestamp(item.updatedAt)}</td>
-                        <td>{renderActions(item, permissions)}</td>
+                        <td>{renderActions(item, actionState)}</td>
                       </>
                     )}
                   </tr>
@@ -584,6 +572,7 @@ function LibraryList({
                     <ul className={styles.itemList}>
                       {entry.items.map((item) => {
                         const permissions = resolveItemPermissions(item);
+                        const actionState = resolveItemActionState(item, permissions);
                         return (
                           <li
                             key={item.jobId}
@@ -601,7 +590,7 @@ function LibraryList({
                             <div className={styles.itemMeta}>
                               Updated {formatTimestamp(item.updatedAt)} · Job {renderJobTypeGlyph(item)} · Library path {item.libraryPath}
                             </div>
-                            {renderActions(item, permissions)}
+                            {renderActions(item, actionState)}
                           </li>
                         );
                       })}
@@ -631,6 +620,7 @@ function LibraryList({
                     <ul className={styles.itemList}>
                       {book.items.map((item) => {
                         const permissions = resolveItemPermissions(item);
+                        const actionState = resolveItemActionState(item, permissions);
                         return (
                           <li
                             key={item.jobId}
@@ -648,7 +638,7 @@ function LibraryList({
                             <div className={styles.itemMeta}>
                               Language {renderLanguageLabel(item.language)} · Job {renderJobTypeGlyph(item)} · Updated {formatTimestamp(item.updatedAt)}
                             </div>
-                            {renderActions(item, permissions)}
+                            {renderActions(item, actionState)}
                           </li>
                         );
                       })}
@@ -677,6 +667,7 @@ function LibraryList({
                   <ul className={styles.itemList}>
                     {book.items.map((item) => {
                       const permissions = resolveItemPermissions(item);
+                      const actionState = resolveItemActionState(item, permissions);
                       return (
                         <li
                           key={item.jobId}
@@ -694,7 +685,7 @@ function LibraryList({
                           <div className={styles.itemMeta}>
                             Updated {formatTimestamp(item.updatedAt)} · Job {renderJobTypeGlyph(item)} · Library path {item.libraryPath}
                           </div>
-                          {renderActions(item, permissions)}
+                          {renderActions(item, actionState)}
                         </li>
                       );
                     })}
