@@ -11,11 +11,15 @@ import {
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
   formatSubtitleExtractionStatus,
+  hasYoutubeMetadataTitle,
+  mergeTvMetadataPreviewWithPreservedYoutubeMetadata,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
   resolveSubtitleNotice,
   resolveVideoDubbingSelection,
-  resolveVideoDubbingMetadataSourceName
+  resolveVideoDubbingMetadataSourceName,
+  updateVideoDubbingMediaMetadataDraft,
+  updateVideoDubbingMediaMetadataSection
 } from '../video-dubbing/videoDubbingUtils';
 
 function stream(
@@ -119,6 +123,94 @@ describe('videoDubbingUtils', () => {
     ).toBe('episode.de.srt');
     expect(resolveVideoDubbingMetadataSourceName({ subtitle: null, video: selectedVideo })).toBe('episode.mkv');
     expect(resolveVideoDubbingMetadataSourceName({ subtitle: null, video: null })).toBe('');
+  });
+
+  it('copies metadata drafts before applying top-level edits', () => {
+    const current = {
+      job_label: 'Original label',
+      youtube: { title: 'Video title' }
+    };
+
+    const next = updateVideoDubbingMediaMetadataDraft(current, (draft) => {
+      draft['job_label'] = 'Updated label';
+    });
+
+    expect(next).toEqual({
+      job_label: 'Updated label',
+      youtube: { title: 'Video title' }
+    });
+    expect(current).toEqual({
+      job_label: 'Original label',
+      youtube: { title: 'Video title' }
+    });
+    expect(next).not.toBe(current);
+  });
+
+  it('copies nested metadata sections before applying edits', () => {
+    const episode = { season: 1, number: 2, name: 'Old title' };
+    const current = {
+      episode,
+      show: { name: 'Example Show' }
+    };
+
+    const next = updateVideoDubbingMediaMetadataSection(current, 'episode', (section) => {
+      section['number'] = 3;
+      section['name'] = 'New title';
+    });
+
+    expect(next).toEqual({
+      episode: { season: 1, number: 3, name: 'New title' },
+      show: { name: 'Example Show' }
+    });
+    expect(current.episode).toBe(episode);
+    expect(current.episode).toEqual({ season: 1, number: 2, name: 'Old title' });
+    expect(next.episode).not.toBe(episode);
+  });
+
+  it('preserves existing YouTube metadata when TV metadata refresh has no YouTube section', () => {
+    const current = {
+      youtube: { title: 'Existing video', channel: 'Channel' },
+      show: { name: 'Old show' }
+    };
+
+    const next = mergeTvMetadataPreviewWithPreservedYoutubeMetadata(current, {
+      show: { name: 'New show' },
+      episode: { season: 2, number: 4 }
+    });
+
+    expect(next).toEqual({
+      show: { name: 'New show' },
+      episode: { season: 2, number: 4 },
+      youtube: { title: 'Existing video', channel: 'Channel' }
+    });
+    expect(next?.youtube).not.toBe(current.youtube);
+  });
+
+  it('lets refreshed TV metadata override YouTube metadata when the backend provides it', () => {
+    expect(
+      mergeTvMetadataPreviewWithPreservedYoutubeMetadata(
+        { youtube: { title: 'Old video' } },
+        { youtube: { title: 'Backend video' } }
+      )
+    ).toEqual({
+      youtube: { title: 'Backend video' }
+    });
+  });
+
+  it('does not create an empty TV metadata draft just to preserve YouTube metadata', () => {
+    expect(
+      mergeTvMetadataPreviewWithPreservedYoutubeMetadata(
+        { youtube: { title: 'Existing video' } },
+        null
+      )
+    ).toBeNull();
+  });
+
+  it('detects usable YouTube metadata titles before auto lookup', () => {
+    expect(hasYoutubeMetadataTitle({ youtube: { title: ' Existing title ' } })).toBe(true);
+    expect(hasYoutubeMetadataTitle({ youtube: { title: '   ' } })).toBe(false);
+    expect(hasYoutubeMetadataTitle({ youtube: { title: 42 } })).toBe(false);
+    expect(hasYoutubeMetadataTitle(null)).toBe(false);
   });
 
   it('preserves the selected playable subtitle when the selected video is still present', () => {

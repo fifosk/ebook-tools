@@ -44,12 +44,13 @@ Large Web UI hotspots to split before redesign work:
   title, author, genre, thumbnail, upload-date, ISBN preview merge/cover, and
   tab bucketing and pagination helpers now live in
   `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
-- `web/src/pages/VideoDubbingPage.tsx` - 1156 lines. Status: inline
+- `web/src/pages/VideoDubbingPage.tsx` - 1140 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option
   building, NAS refresh video/subtitle selection, YouTube Dub request payload
-  building and clip-offset validation, subtitle extraction/availability
-  messages, and job-parameter prefill mapping now live in
+  building and clip-offset validation, TV/YouTube metadata draft update and
+  preservation helpers, subtitle extraction/availability messages, and
+  job-parameter prefill mapping now live in
   `web/src/pages/video-dubbing/videoDubbingUtils.ts` with focused Vitest
   coverage.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,

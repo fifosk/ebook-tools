@@ -56,15 +56,18 @@ import {
   buildVideoDubbingGeneratePayload,
   buildVoiceOptions,
   canExtractEmbeddedSubtitles,
-  coerceRecord,
   filterPlayableSubtitles,
   formatSubtitleExtractionStatus,
+  hasYoutubeMetadataTitle,
+  mergeTvMetadataPreviewWithPreservedYoutubeMetadata,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
   resolveDefaultSubtitle,
   resolveSubtitleNotice,
   resolveVideoDubbingSelection,
-  resolveVideoDubbingMetadataSourceName
+  resolveVideoDubbingMetadataSourceName,
+  updateVideoDubbingMediaMetadataDraft,
+  updateVideoDubbingMediaMetadataSection
 } from './video-dubbing/videoDubbingUtils';
 import styles from './VideoDubbingPage.module.css';
 
@@ -280,22 +283,13 @@ export default function VideoDubbingPage({
   const [youtubeMetadataError, setYoutubeMetadataError] = useState<string | null>(null);
   const youtubeLookupIdRef = useRef<number>(0);
   const updateMediaMetadataDraft = useCallback((updater: (draft: Record<string, unknown>) => void) => {
-    setMediaMetadataDraft((current) => {
-      const next: Record<string, unknown> = current ? { ...current } : {};
-      updater(next);
-      return next;
-    });
+    setMediaMetadataDraft((current) => updateVideoDubbingMediaMetadataDraft(current, updater));
   }, []);
   const updateMediaMetadataSection = useCallback(
     (sectionKey: string, updater: (section: Record<string, unknown>) => void) => {
-      updateMediaMetadataDraft((draft) => {
-        const currentSection = coerceRecord(draft[sectionKey]);
-        const nextSection: Record<string, unknown> = currentSection ? { ...currentSection } : {};
-        updater(nextSection);
-        draft[sectionKey] = nextSection;
-      });
+      setMediaMetadataDraft((current) => updateVideoDubbingMediaMetadataSection(current, sectionKey, updater));
     },
-    [updateMediaMetadataDraft]
+    []
   );
   const performMetadataLookup = useCallback(async (sourceName: string, force: boolean) => {
     const normalized = sourceName.trim();
@@ -316,17 +310,9 @@ export default function VideoDubbingPage({
         return;
       }
       setMetadataPreview(payload);
-      setMediaMetadataDraft((current) => {
-        const preservedYoutube =
-          current && typeof current === 'object' && !Array.isArray(current)
-            ? coerceRecord((current as Record<string, unknown>)['youtube'])
-            : null;
-        const next = payload.media_metadata ? { ...payload.media_metadata } : null;
-        if (next && preservedYoutube && !('youtube' in next)) {
-          next['youtube'] = { ...preservedYoutube };
-        }
-        return next;
-      });
+      setMediaMetadataDraft((current) =>
+        mergeTvMetadataPreviewWithPreservedYoutubeMetadata(current, payload.media_metadata)
+      );
     } catch (error) {
       if (metadataLookupIdRef.current !== requestId) {
         return;
@@ -418,9 +404,7 @@ export default function VideoDubbingPage({
     if (!normalized) {
       return;
     }
-    const youtube = mediaMetadataDraft ? coerceRecord(mediaMetadataDraft['youtube']) : null;
-    const hasTitle = youtube && typeof youtube['title'] === 'string' && (youtube['title'] as string).trim();
-    if (hasTitle) {
+    if (hasYoutubeMetadataTitle(mediaMetadataDraft)) {
       return;
     }
     if (youtubeMetadataLoading) {

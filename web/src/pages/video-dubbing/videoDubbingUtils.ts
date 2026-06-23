@@ -29,6 +29,48 @@ export function coerceRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+export type VideoDubbingMetadataDraftUpdater = (draft: Record<string, unknown>) => void;
+
+export function updateVideoDubbingMediaMetadataDraft(
+  current: Record<string, unknown> | null,
+  updater: VideoDubbingMetadataDraftUpdater
+): Record<string, unknown> {
+  const next: Record<string, unknown> = current ? { ...current } : {};
+  updater(next);
+  return next;
+}
+
+export function updateVideoDubbingMediaMetadataSection(
+  current: Record<string, unknown> | null,
+  sectionKey: string,
+  updater: VideoDubbingMetadataDraftUpdater
+): Record<string, unknown> {
+  return updateVideoDubbingMediaMetadataDraft(current, (draft) => {
+    const currentSection = coerceRecord(draft[sectionKey]);
+    const nextSection: Record<string, unknown> = currentSection ? { ...currentSection } : {};
+    updater(nextSection);
+    draft[sectionKey] = nextSection;
+  });
+}
+
+export function mergeTvMetadataPreviewWithPreservedYoutubeMetadata(
+  current: Record<string, unknown> | null,
+  mediaMetadata: Record<string, unknown> | null | undefined
+): Record<string, unknown> | null {
+  const preservedYoutube = current ? coerceRecord(current['youtube']) : null;
+  const next = mediaMetadata ? { ...mediaMetadata } : null;
+  if (next && preservedYoutube && !('youtube' in next)) {
+    next['youtube'] = { ...preservedYoutube };
+  }
+  return next;
+}
+
+export function hasYoutubeMetadataTitle(mediaMetadata: Record<string, unknown> | null): boolean {
+  const youtube = mediaMetadata ? coerceRecord(mediaMetadata['youtube']) : null;
+  const title = typeof youtube?.['title'] === 'string' ? youtube['title'].trim() : '';
+  return title.length > 0;
+}
+
 export function normalizeTextValue(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;
