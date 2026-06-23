@@ -327,7 +327,7 @@ struct AppleBookCreateView: View {
                         selection: textBinding(for: .subtitleTransliterationModel, value: $subtitleTransliterationModel)
                     ) {
                         ForEach(availableSubtitleTransliterationModels, id: \.self) { option in
-                            Text(subtitleTransliterationModelLabel(option)).tag(option)
+                            Text(AppleBookCreatePresentation.subtitleTransliterationModelLabel(option)).tag(option)
                         }
                     }
                     .disabled(!subtitleTransliterationMode.allowsModelOverride)
@@ -374,7 +374,7 @@ struct AppleBookCreateView: View {
                 if subtitleTranslationProvider == .llm {
                     Picker("Model", selection: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel)) {
                         ForEach(availableSubtitleLlmModels, id: \.self) { option in
-                            Text(subtitleModelLabel(option)).tag(option)
+                            Text(AppleBookCreatePresentation.subtitleModelLabel(option)).tag(option)
                         }
                     }
                     .accessibilityIdentifier("createSubtitleLlmModelPicker")
@@ -401,7 +401,7 @@ struct AppleBookCreateView: View {
                 if subtitleTranslationProvider == .llm {
                     Picker("Model", selection: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel)) {
                         ForEach(availableSubtitleLlmModels, id: \.self) { option in
-                            Text(subtitleModelLabel(option)).tag(option)
+                            Text(AppleBookCreatePresentation.subtitleModelLabel(option)).tag(option)
                         }
                     }
                     .accessibilityIdentifier("createYoutubeLlmModelPicker")
@@ -520,17 +520,11 @@ struct AppleBookCreateView: View {
             Button {
                 submit()
             } label: {
-                if viewModel.isSubmitting {
-                    Label("Submitting", systemImage: "hourglass")
-                } else if creationMode == .narrateEbook {
-                    Label("Narrate EPUB", systemImage: "book")
-                } else if creationMode == .subtitleJob {
-                    Label("Create Subtitles", systemImage: "captions.bubble")
-                } else if creationMode == .youtubeDub {
-                    Label("Create Dub", systemImage: "video")
-                } else {
-                    Label("Generate Audiobook", systemImage: "sparkles")
-                }
+                let presentation = AppleBookCreatePresentation.submitButtonPresentation(
+                    for: creationMode,
+                    isSubmitting: viewModel.isSubmitting
+                )
+                Label(presentation.title, systemImage: presentation.systemImage)
             }
             .disabled(!canSubmit || viewModel.isSubmitting)
             .accessibilityIdentifier("createBookSubmitButton")
@@ -556,24 +550,26 @@ struct AppleBookCreateView: View {
     }
 
     private var availableCreateModes: [AppleCreateMode] {
-        #if os(tvOS)
-        return [.generatedBook]
-        #else
-        return AppleCreateMode.allCases
-        #endif
+        AppleBookCreatePresentation.availableCreateModes(isTV: Self.isTVPlatform)
     }
 
     private var derivedBaseOutput: String {
-        switch creationMode {
-        case .generatedBook:
-            return Self.deriveBaseOutputName(bookName.isEmpty ? topic : bookName)
-        case .narrateEbook:
-            return trimmed(sourceBaseOutput)
-        case .subtitleJob:
-            return Self.deriveBaseOutputName(subtitleSourcePath)
-        case .youtubeDub:
-            return Self.deriveBaseOutputName(youtubeVideoPath)
-        }
+        AppleBookCreatePresentation.derivedBaseOutput(
+            for: creationMode,
+            topic: topic,
+            bookName: bookName,
+            sourceBaseOutput: sourceBaseOutput,
+            subtitleSourcePath: subtitleSourcePath,
+            youtubeVideoPath: youtubeVideoPath
+        )
+    }
+
+    private static var isTVPlatform: Bool {
+        #if os(tvOS)
+        return true
+        #else
+        return false
+        #endif
     }
 
     private func submit() {
@@ -760,7 +756,9 @@ struct AppleBookCreateView: View {
             selectedNarrateFileName = url.lastPathComponent
             markEdited(.sourcePath)
             if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
-                sourceBaseOutput = Self.deriveBaseOutputName(url.deletingPathExtension().lastPathComponent)
+                sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(
+                    url.deletingPathExtension().lastPathComponent
+                )
             }
         case let .failure(error):
             selectedNarrateFileURL = nil
@@ -1160,30 +1158,8 @@ struct AppleBookCreateView: View {
         }
     }
 
-    private func subtitleModelLabel(_ model: String) -> String {
-        let trimmedModel = trimmed(model)
-        return trimmedModel.isEmpty ? "Backend default" : trimmedModel
-    }
-
-    private func subtitleTransliterationModelLabel(_ model: String) -> String {
-        let trimmedModel = trimmed(model)
-        return trimmedModel.isEmpty ? "Use translation model" : trimmedModel
-    }
-
     private func clampSentenceCount(_ value: Int) -> Int {
         max(sentenceBounds.min, min(sentenceBounds.max, value))
-    }
-
-    private static func deriveBaseOutputName(_ value: String) -> String {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let scalars = trimmed.unicodeScalars.map { scalar -> Character in
-            CharacterSet.alphanumerics.contains(scalar) ? Character(scalar) : "-"
-        }
-        let collapsed = String(scalars)
-            .split(separator: "-", omittingEmptySubsequences: true)
-            .joined(separator: "-")
-            .lowercased()
-        return collapsed.nonEmptyValue ?? "generated-book"
     }
 }
 
@@ -1228,144 +1204,4 @@ private enum AppleBookCreateEditedField: Hashable {
     case voice
     case includeTransliteration
     case enableLookupCache
-}
-
-private enum AppleCreateMode: String, CaseIterable, Identifiable {
-    case generatedBook
-    case narrateEbook
-    case subtitleJob
-    case youtubeDub
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .generatedBook:
-            return "Generate"
-        case .narrateEbook:
-            return "Narrate EPUB"
-        case .subtitleJob:
-            return "Subtitles"
-        case .youtubeDub:
-            return "YouTube Dub"
-        }
-    }
-}
-
-private enum AppleYoutubeDubTargetHeight: Int, CaseIterable, Identifiable {
-    case p320 = 320
-    case p480 = 480
-    case p720 = 720
-
-    var id: Int { rawValue }
-    var backendValue: Int { rawValue }
-
-    var label: String {
-        switch self {
-        case .p320:
-            return "320p"
-        case .p480:
-            return "480p"
-        case .p720:
-            return "720p"
-        }
-    }
-}
-
-private enum AppleSubtitleOutputFormat: String, CaseIterable, Identifiable {
-    case ass
-    case srt
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .ass:
-            return "ASS"
-        case .srt:
-            return "SRT"
-        }
-    }
-}
-
-private enum AppleSubtitleTranslationProvider: String, CaseIterable, Identifiable {
-    case llm
-    case googleTranslate
-
-    var id: String { rawValue }
-
-    var backendValue: String {
-        switch self {
-        case .llm:
-            return "llm"
-        case .googleTranslate:
-            return "googletrans"
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .llm:
-            return "LLM"
-        case .googleTranslate:
-            return "Google Translate"
-        }
-    }
-
-    init?(backendValue: String) {
-        let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        switch normalized {
-        case "llm":
-            self = .llm
-        case "googletrans", "google", "google_translate", "google-translate":
-            self = .googleTranslate
-        default:
-            return nil
-        }
-    }
-}
-
-private enum AppleSubtitleTransliterationMode: String, CaseIterable, Identifiable {
-    case `default`
-    case python
-
-    var id: String { rawValue }
-
-    var backendValue: String {
-        switch self {
-        case .default:
-            return "default"
-        case .python:
-            return "python"
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .default:
-            return "Use selected LLM model"
-        case .python:
-            return "Python transliteration module"
-        }
-    }
-
-    var allowsModelOverride: Bool {
-        self != .python
-    }
-}
-
-private enum AppleSubtitleAssTypography {
-    static let defaultFontSize = 56
-    static let fontSizeRange = 12...120
-    static let defaultEmphasisScale = 1.3
-    static let emphasisScaleRange = 1.0...2.5
-}
-
-private enum AppleSubtitleTuning {
-    static let defaultWorkerCount = 10
-    static let workerCountRange = 1...32
-    static let defaultBatchSize = 20
-    static let batchSizeRange = 1...500
-    static let defaultTranslationBatchSize = 10
-    static let translationBatchSizeRange = 1...50
 }

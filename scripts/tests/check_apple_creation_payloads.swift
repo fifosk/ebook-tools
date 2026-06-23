@@ -68,6 +68,62 @@ struct AppleCreationPayloadCheck {
             AppleBookCreateVoiceOption("Samantha - en_US - (Premium) female")?.label == "Samantha",
             "Apple Create voice labels should shorten macOS inventory identifiers"
         )
+        require(
+            AppleBookCreatePresentation.availableCreateModes(isTV: true) == [.generatedBook],
+            "Apple TV Create mode list should remain playback-safe"
+        )
+        require(
+            AppleBookCreatePresentation.availableCreateModes(isTV: false) == AppleCreateMode.allCases,
+            "iPhone/iPad Create mode list should expose all native creation modes"
+        )
+        require(
+            AppleBookCreatePresentation.deriveBaseOutputName("  My Book: Arabic/Slovak!  ") == "my-book-arabic-slovak",
+            "Apple Create base output names should be filesystem-friendly"
+        )
+        require(
+            AppleBookCreatePresentation.deriveBaseOutputName("   ") == "generated-book",
+            "Apple Create base output names should keep the generated-book fallback"
+        )
+        require(
+            AppleBookCreatePresentation.derivedBaseOutput(
+                for: .generatedBook,
+                topic: "Topic fallback",
+                bookName: "",
+                sourceBaseOutput: "ignored",
+                subtitleSourcePath: "ignored",
+                youtubeVideoPath: "ignored"
+            ) == "topic-fallback",
+            "Generated book output should derive from topic when title is blank"
+        )
+        require(
+            AppleBookCreatePresentation.derivedBaseOutput(
+                for: .narrateEbook,
+                topic: "ignored",
+                bookName: "ignored",
+                sourceBaseOutput: "  apple/imported-book  ",
+                subtitleSourcePath: "ignored",
+                youtubeVideoPath: "ignored"
+            ) == "apple/imported-book",
+            "Narrate EPUB output should preserve the trimmed explicit output path"
+        )
+        require(
+            AppleBookCreatePresentation.submitButtonPresentation(for: .youtubeDub, isSubmitting: false)
+                == AppleCreateSubmitPresentation(title: "Create Dub", systemImage: "video"),
+            "YouTube Dub submit button should keep its visible label and icon"
+        )
+        require(
+            AppleBookCreatePresentation.submitButtonPresentation(for: .generatedBook, isSubmitting: true)
+                == AppleCreateSubmitPresentation(title: "Submitting", systemImage: "hourglass"),
+            "Submitting state should override mode-specific submit labels"
+        )
+        require(
+            AppleBookCreatePresentation.subtitleModelLabel("") == "Backend default",
+            "Empty subtitle model should display backend default"
+        )
+        require(
+            AppleBookCreatePresentation.subtitleTransliterationModelLabel("") == "Use translation model",
+            "Empty transliteration model should display translation-model fallback"
+        )
 
         let input = PipelineInputPayload(
             inputFile: "books/demo.epub",

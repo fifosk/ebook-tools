@@ -131,6 +131,12 @@ Current Apple API client supports:
 
 Current Apple UI partially exposes:
 
+- Native Create flow. Status: `AppleBookCreateView.swift` now delegates create
+  mode availability, submit-button presentation, base-output derivation,
+  subtitle model labels, and creation tuning/format/provider enums to
+  `AppleBookCreateSupport.swift`, reducing the view from 1371 to 1207 lines
+  while preserving iPhone/iPad/tvOS behavior through focused Swift payload
+  checks and shared iPadOS/tvOS simulator smokes.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's EPUB/PDF source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web.
