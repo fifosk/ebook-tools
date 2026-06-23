@@ -129,13 +129,27 @@ struct PlaybackSettingsView: View {
             }
             backendRuntimeState = .verified(
                 service: descriptor.service,
-                version: descriptor.version
+                version: descriptor.version,
+                createContract: Self.createContractState(from: descriptor.creation)
             )
         } catch is CancellationError {
             return
         } catch {
             backendRuntimeState = .unavailable("Descriptor unavailable")
         }
+    }
+
+    private static func createContractState(
+        from creation: BackendRuntimeDescriptorResponse.CreationContract?
+    ) -> BackendCreateContractState {
+        guard
+            let creation,
+            let optionsPath = creation.bookOptionsPath.nonEmptyValue,
+            let jobsPath = creation.bookJobsPath.nonEmptyValue
+        else {
+            return .unavailable
+        }
+        return .ready(optionsPath: optionsPath, jobsPath: jobsPath)
     }
 
     #if os(iOS)

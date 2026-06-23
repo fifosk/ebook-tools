@@ -3,14 +3,14 @@ import SwiftUI
 enum BackendRuntimeState: Equatable {
     case idle
     case checking
-    case verified(service: String, version: String)
+    case verified(service: String, version: String, createContract: BackendCreateContractState)
     case unavailable(String)
 
     var label: String {
         switch self {
         case .idle, .checking:
             return "Checking"
-        case let .verified(service, version):
+        case let .verified(service, version, _):
             let serviceLabel = service.nonEmptyValue ?? "Backend"
             let versionLabel = version.nonEmptyValue ?? "unknown"
             return "\(serviceLabel) · \(versionLabel)"
@@ -25,6 +25,38 @@ enum BackendRuntimeState: Equatable {
             return "arrow.triangle.2.circlepath"
         case .verified:
             return "checkmark.seal"
+        case .unavailable:
+            return "exclamationmark.triangle"
+        }
+    }
+
+    var createContractState: BackendCreateContractState? {
+        switch self {
+        case let .verified(_, _, createContract):
+            return createContract
+        case .idle, .checking, .unavailable:
+            return nil
+        }
+    }
+}
+
+enum BackendCreateContractState: Equatable {
+    case ready(optionsPath: String, jobsPath: String)
+    case unavailable
+
+    var label: String {
+        switch self {
+        case let .ready(optionsPath, jobsPath):
+            return "\(optionsPath) · \(jobsPath)"
+        case .unavailable:
+            return "Unavailable on this backend"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .ready:
+            return "checkmark.circle"
         case .unavailable:
             return "exclamationmark.triangle"
         }
@@ -62,6 +94,15 @@ struct SettingsConnectionSection: View {
                 systemImage: backendRuntimeState.systemImage,
                 accessibilityIdentifier: "settingsBackendRuntimeRow"
             )
+
+            if let createContractState = backendRuntimeState.createContractState {
+                SettingsInfoRow(
+                    title: "Create Contract",
+                    value: createContractState.label,
+                    systemImage: createContractState.systemImage,
+                    accessibilityIdentifier: "settingsCreateContractRow"
+                )
+            }
 
             SettingsInfoRow(
                 title: "Session",

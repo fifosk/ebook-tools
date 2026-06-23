@@ -21,7 +21,20 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
 
     struct ClientConfig: Decodable, Equatable {
         let apiBaseUrlEnvironment: [String]
+        let credentialEnvironment: [String]?
         let sessionTokenStorage: String
+        let legacyTokenMigration: String?
+    }
+
+    struct ApplePipelineContract: Decodable, Equatable {
+        let manifestId: String
+        let simulatorProfiles: [String]
+        let deviceProfiles: [String]
+    }
+
+    struct CreationContract: Decodable, Equatable {
+        let bookOptionsPath: String
+        let bookJobsPath: String
     }
 
     let status: String
@@ -31,6 +44,8 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     let healthPath: String
     let auth: AuthContract
     let clientConfig: ClientConfig
+    let applePipeline: ApplePipelineContract?
+    let creation: CreationContract?
 }
 
 struct LoginRequestPayload: Encodable {
