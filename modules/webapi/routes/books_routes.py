@@ -80,10 +80,15 @@ async def get_book_content_index(
                 "max_words": pipeline_config.max_words,
             },
         )
-        content_index = ingestion.build_content_index(
+        content_index = ingestion.get_content_index(
             str(resolved_input),
             pipeline_config,
             refined_sentences,
+            force_refresh=False,
+            metadata={
+                "mode": "api",
+                "max_words": pipeline_config.max_words,
+            },
         )
 
     return BookContentIndexResponse(input_file=trimmed, content_index=content_index)

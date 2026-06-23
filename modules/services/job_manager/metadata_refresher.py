@@ -258,10 +258,12 @@ class PipelineJobMetadataRefresher:
             return None
 
         pipeline_config = build_pipeline_config(context, config_payload, overrides=overrides)
-        return ingestion.build_content_index(
+        return ingestion.get_content_index(
             input_file,
             pipeline_config,
             refined_sentences,
+            force_refresh=False,
+            metadata={"mode": "metadata-refresh"},
         )
 
     def _load_content_index(self, job_id: str) -> Optional[Dict[str, Any]]:

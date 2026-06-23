@@ -83,10 +83,16 @@ def run_ingestion(
             "max_words": config_result.pipeline_config.max_words,
         },
     )
-    content_index = ingestion.build_content_index(
+    content_index = ingestion.get_content_index(
         request.inputs.input_file,
         config_result.pipeline_config,
         refined_list,
+        force_refresh=True,
+        metadata={
+            "mode": "cli",
+            "target_languages": request.inputs.target_languages,
+            "max_words": config_result.pipeline_config.max_words,
+        },
     )
     if content_index and not metadata.get("content_index"):
         metadata.update({"content_index": content_index})

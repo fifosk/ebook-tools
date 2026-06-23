@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.79",
+            version: "2026.06.23.80",
             entries: [
+                AppChangelogEntry(
+                    id: "create-content-index-cache",
+                    title: "Create chapters load faster",
+                    detail: "Web and Apple Create chapter loading now reuses a validated backend content-index cache, avoiding repeated EPUB section parsing when users reopen the chapter picker."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-default-aliases",
                     title: "Create defaults aligned",

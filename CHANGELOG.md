@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.80
+
+- Advanced visible Apple app versioning to `v2026.06.23.80`.
+- Web and Apple Create chapter loading now reuses a validated backend content-index cache, avoiding repeated EPUB section parsing when users reopen the chapter picker.
+
 ### 2026.06.23.79
 
 - Advanced visible Apple app versioning to `v2026.06.23.79`.

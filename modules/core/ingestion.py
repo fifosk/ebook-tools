@@ -28,12 +28,38 @@ def refined_list_output_path(
 ) -> Path:
     """Return the path for storing the refined sentence cache."""
 
-    base_name = Path(input_file).stem if input_file else "refined"
-    safe_base = re.sub(r"[^A-Za-z0-9_.-]", "_", base_name)
+    safe_base = _safe_artifact_base(input_file, fallback="refined")
     runtime_dir = get_runtime_output_dir(pipeline_config)
     return runtime_dir / pipeline_config.derived_refined_filename_template.format(
         base_name=safe_base
     )
+
+
+def content_index_output_path(
+    input_file: Optional[str], pipeline_config: PipelineConfig
+) -> Path:
+    """Return the path for storing the content-index cache."""
+
+    safe_base = _safe_artifact_base(input_file, fallback="content_index")
+    runtime_dir = get_runtime_output_dir(pipeline_config)
+    return runtime_dir / f"{safe_base}_content_index.json"
+
+
+def _safe_artifact_base(input_file: Optional[str], *, fallback: str) -> str:
+    base_name = Path(input_file).stem if input_file else fallback
+    return re.sub(r"[^A-Za-z0-9_.-]", "_", base_name) or fallback
+
+
+def _input_mtime(input_file: Optional[str], pipeline_config: PipelineConfig) -> Optional[float]:
+    if not input_file:
+        return None
+    resolved_input = resolve_file_path(input_file, pipeline_config.resolved_books_dir())
+    if not resolved_input or not resolved_input.exists():
+        return None
+    try:
+        return resolved_input.stat().st_mtime
+    except OSError:
+        return None
 
 
 def save_refined_list(
@@ -48,6 +74,7 @@ def save_refined_list(
     payload = {
         "generated_at": time.time(),
         "input_file": input_file,
+        "input_mtime": _input_mtime(input_file, pipeline_config),
         "max_words": pipeline_config.max_words,
         "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
         "metadata": metadata or {},
@@ -142,6 +169,84 @@ def get_refined_sentences(
         )
     save_refined_list(refined, input_file, pipeline_config, metadata=metadata)
     return refined, True
+
+
+def save_content_index(
+    content_index: Optional[dict],
+    input_file: Optional[str],
+    pipeline_config: PipelineConfig,
+    metadata: Optional[dict] = None,
+) -> Optional[Path]:
+    """Persist the generated content index to the runtime output directory."""
+
+    if content_index is None:
+        return None
+    output_path = content_index_output_path(input_file, pipeline_config)
+    payload = {
+        "generated_at": time.time(),
+        "input_file": input_file,
+        "input_mtime": _input_mtime(input_file, pipeline_config),
+        "max_words": pipeline_config.max_words,
+        "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
+        "metadata": metadata or {},
+        "content_index": content_index,
+    }
+    with open(output_path, "w", encoding="utf-8") as file_obj:
+        json.dump(payload, file_obj, ensure_ascii=False, indent=2)
+    return output_path
+
+
+def load_content_index(
+    input_file: Optional[str], pipeline_config: PipelineConfig
+) -> Optional[dict]:
+    """Load a valid content-index cache entry from the runtime directory."""
+
+    output_path = content_index_output_path(input_file, pipeline_config)
+    if not output_path.exists():
+        return None
+    try:
+        with open(output_path, "r", encoding="utf-8") as file_obj:
+            payload = json.load(file_obj)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    content_index = payload.get("content_index")
+    if not isinstance(content_index, dict):
+        return None
+
+    expected_settings = {
+        "input_mtime": _input_mtime(input_file, pipeline_config),
+        "max_words": pipeline_config.max_words,
+        "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
+    }
+    cached_settings = {
+        "input_mtime": payload.get("input_mtime"),
+        "max_words": payload.get("max_words"),
+        "split_on_comma_semicolon": payload.get("split_on_comma_semicolon"),
+    }
+    if cached_settings != expected_settings:
+        return None
+    return content_index
+
+
+def get_content_index(
+    input_file: Optional[str],
+    pipeline_config: PipelineConfig,
+    refined_sentences: Sequence[str],
+    *,
+    force_refresh: bool = False,
+    metadata: Optional[dict] = None,
+) -> Optional[dict]:
+    """Return chapter-aware content metadata, reusing cached output when valid."""
+
+    if not force_refresh:
+        cached = load_content_index(input_file, pipeline_config)
+        if cached is not None:
+            return cached
+
+    content_index = build_content_index(input_file, pipeline_config, refined_sentences)
+    save_content_index(content_index, input_file, pipeline_config, metadata=metadata)
+    return content_index
 
 
 def build_content_index(
@@ -254,9 +359,13 @@ def build_content_index(
 
 __all__ = [
     "build_content_index",
+    "content_index_output_path",
     "extract_text_from_epub",
+    "get_content_index",
     "get_refined_sentences",
+    "load_content_index",
     "load_refined_list",
     "refined_list_output_path",
+    "save_content_index",
     "save_refined_list",
 ]

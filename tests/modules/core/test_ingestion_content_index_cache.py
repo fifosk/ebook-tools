@@ -1,0 +1,106 @@
+import os
+from pathlib import Path
+
+from modules.core import ingestion
+
+
+class DummyPipelineConfig:
+    def __init__(self, tmp_path: Path, *, max_words: int = 10, split_on_comma_semicolon: bool = False):
+        self.working_dir = tmp_path / "work"
+        self.books_dir = tmp_path / "books"
+        self.max_words = max_words
+        self.split_on_comma_semicolon = split_on_comma_semicolon
+        self.derived_runtime_dirname = "runtime"
+        self.derived_refined_filename_template = "{base_name}_refined.json"
+        self.working_dir.mkdir(parents=True, exist_ok=True)
+        self.books_dir.mkdir(parents=True, exist_ok=True)
+
+    def ensure_runtime_dir(self) -> Path:
+        runtime_dir = self.working_dir / self.derived_runtime_dirname
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        return runtime_dir
+
+    def resolved_books_dir(self) -> Path:
+        return self.books_dir
+
+
+def _book_path(config: DummyPipelineConfig) -> Path:
+    path = config.books_dir / "sample.epub"
+    path.write_text("placeholder", encoding="utf-8")
+    return path
+
+
+def _patch_sections(monkeypatch, calls: list[str], *, title: str = "Chapter One") -> None:
+    def fake_extract_sections(input_file: str, books_dir: Path | None = None):
+        calls.append(input_file)
+        return [
+            {
+                "id": "chapter-1",
+                "title": title,
+                "text": "Alpha. Beta.",
+                "href": "chapter.xhtml",
+                "toc_label": title,
+                "spine_index": 0,
+            }
+        ]
+
+    monkeypatch.setattr(ingestion, "extract_sections_from_epub", fake_extract_sections)
+    monkeypatch.setattr(
+        ingestion,
+        "split_text_into_sentences",
+        lambda text, **_: ["Alpha.", "Beta."] if text == "Alpha. Beta." else [],
+    )
+
+
+def test_get_content_index_reuses_valid_runtime_cache(tmp_path, monkeypatch):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+    calls: list[str] = []
+    _patch_sections(monkeypatch, calls)
+
+    first = ingestion.get_content_index(str(path), config, ["Alpha.", "Beta."])
+    second = ingestion.get_content_index(str(path), config, ["Alpha.", "Beta."])
+
+    assert first == second
+    assert first["chapters"][0]["title"] == "Chapter One"
+    assert calls == [str(path)]
+    assert ingestion.content_index_output_path(str(path), config).exists()
+
+
+def test_get_content_index_invalidates_cache_when_source_mtime_changes(tmp_path, monkeypatch):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+    calls: list[str] = []
+    _patch_sections(monkeypatch, calls)
+
+    ingestion.get_content_index(str(path), config, ["Alpha.", "Beta."])
+    original_mtime = path.stat().st_mtime
+    os.utime(path, (original_mtime + 20, original_mtime + 20))
+    ingestion.get_content_index(str(path), config, ["Alpha.", "Beta."])
+
+    assert calls == [str(path), str(path)]
+
+
+def test_get_content_index_invalidates_cache_when_split_settings_change(tmp_path, monkeypatch):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+    calls: list[str] = []
+    _patch_sections(monkeypatch, calls)
+
+    ingestion.get_content_index(str(path), config, ["Alpha.", "Beta."])
+    config.max_words = 4
+    ingestion.get_content_index(str(path), config, ["Alpha.", "Beta."])
+
+    assert calls == [str(path), str(path)]
+
+
+def test_get_content_index_force_refresh_bypasses_cache(tmp_path, monkeypatch):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+    calls: list[str] = []
+    _patch_sections(monkeypatch, calls)
+
+    ingestion.get_content_index(str(path), config, ["Alpha.", "Beta."])
+    ingestion.get_content_index(str(path), config, ["Alpha.", "Beta."], force_refresh=True)
+
+    assert calls == [str(path), str(path)]
