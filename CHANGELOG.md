@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.4
+
+- Advanced visible Apple app versioning to `v2026.06.24.4`.
+- Apple Create subtitle jobs can now load TV metadata before submission, edit job label/show/episode fields on iPad, and send the enriched metadata JSON with the job.
+
 ### 2026.06.24.3
 
 - Advanced visible Apple app versioning to `v2026.06.24.3`.

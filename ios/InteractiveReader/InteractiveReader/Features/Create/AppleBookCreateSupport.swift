@@ -141,6 +141,7 @@ struct AppleNarrateEbookDraft: Equatable {
 
 struct AppleSubtitleJobDraft: Equatable {
     let sourcePath: String?
+    let mediaMetadata: [String: JSONValue]?
     let inputLanguage: String
     let targetLanguage: String
     let outputFormat: String
@@ -2696,6 +2697,7 @@ enum AppleBookCreatePresentation {
 
     static func subtitleJobDraft(
         sourcePath: String,
+        mediaMetadata: [String: JSONValue]?,
         inputLanguage: AppleBookCreateLanguage,
         targetLanguage: AppleBookCreateLanguage,
         outputFormat: AppleSubtitleOutputFormat,
@@ -2718,6 +2720,7 @@ enum AppleBookCreatePresentation {
     ) -> AppleSubtitleJobDraft {
         AppleSubtitleJobDraft(
             sourcePath: trimmed(sourcePath).nonEmptyValue,
+            mediaMetadata: normalizedSubtitleMediaMetadata(mediaMetadata),
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
             outputFormat: outputFormat.rawValue,
@@ -2740,6 +2743,14 @@ enum AppleBookCreatePresentation {
             assFontSize: outputFormat == .ass ? clampAssFontSize(assFontSize) : nil,
             assEmphasisScale: outputFormat == .ass ? clampAssEmphasisScale(assEmphasisScale) : nil
         )
+    }
+
+    static func normalizedSubtitleMediaMetadata(_ value: [String: JSONValue]?) -> [String: JSONValue]? {
+        guard var metadata = value, !metadata.isEmpty else {
+            return nil
+        }
+        metadata["source"] = .string("apple")
+        return metadata
     }
 
     static func youtubeDubDraft(

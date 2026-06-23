@@ -10,6 +10,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
     @Published private(set) var pipelineFiles: PipelineFileBrowserResponse?
     @Published private(set) var subtitleSources: SubtitleSourceListResponse?
+    @Published private(set) var subtitleTvMetadataPreview: SubtitleTvMetadataPreviewResponse?
+    @Published private(set) var subtitleMediaMetadataDraft: [String: JSONValue]?
     @Published private(set) var youtubeLibrary: YoutubeNasLibraryResponse?
     @Published private(set) var youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream] = []
     @Published private(set) var youtubeTvMetadataPreview: SubtitleTvMetadataPreviewResponse?
@@ -20,6 +22,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
     @Published private(set) var isLoadingNarrateChapters = false
     @Published private(set) var isLoadingSubtitleSources = false
+    @Published private(set) var isLoadingSubtitleTvMetadata = false
     @Published private(set) var isLoadingYoutubeLibrary = false
     @Published private(set) var isLoadingYoutubeSubtitleStreams = false
     @Published private(set) var isExtractingYoutubeSubtitles = false
@@ -29,6 +32,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var narrateChaptersErrorMessage: String?
     @Published private(set) var pipelineFilesErrorMessage: String?
     @Published private(set) var subtitleSourcesErrorMessage: String?
+    @Published private(set) var subtitleMetadataMessage: String?
+    @Published private(set) var subtitleMetadataErrorMessage: String?
     @Published private(set) var youtubeLibraryErrorMessage: String?
     @Published private(set) var youtubeSubtitleExtractionMessage: String?
     @Published private(set) var youtubeSubtitleExtractionErrorMessage: String?
@@ -164,6 +169,94 @@ final class AppleBookCreateViewModel: ObservableObject {
             subtitleSourcesErrorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    func lookupSubtitleTvMetadata(
+        sourceName: String,
+        force: Bool = false,
+        using appState: AppState
+    ) async {
+        guard let configuration = appState.configuration else {
+            subtitleMetadataErrorMessage = "API configuration is unavailable."
+            return
+        }
+        let trimmedSourceName = sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSourceName.isEmpty else {
+            subtitleMetadataErrorMessage = "Choose a subtitle before loading TV metadata."
+            return
+        }
+
+        isLoadingSubtitleTvMetadata = true
+        subtitleMetadataErrorMessage = nil
+        subtitleMetadataMessage = nil
+        defer { isLoadingSubtitleTvMetadata = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let request = SubtitleTvMetadataPreviewLookupRequest(sourceName: trimmedSourceName, force: force)
+            let response = try await client.lookupSubtitleTvMetadataPreview(request)
+            subtitleTvMetadataPreview = response
+            if let mediaMetadata = response.mediaMetadata {
+                subtitleMediaMetadataDraft = AppleBookCreatePresentation.normalizedSubtitleMediaMetadata(mediaMetadata)
+                subtitleMetadataMessage = "Loaded TV metadata for \(response.sourceName ?? trimmedSourceName)."
+            } else {
+                subtitleMediaMetadataDraft = nil
+                subtitleMetadataMessage = "No TV metadata match for \(response.sourceName ?? trimmedSourceName)."
+            }
+        } catch {
+            subtitleTvMetadataPreview = nil
+            subtitleMediaMetadataDraft = nil
+            subtitleMetadataErrorMessage = error.localizedDescription
+        }
+    }
+
+    func clearSubtitleMetadata() {
+        subtitleTvMetadataPreview = nil
+        subtitleMediaMetadataDraft = nil
+        subtitleMetadataMessage = nil
+        subtitleMetadataErrorMessage = nil
+    }
+
+    func updateSubtitleMediaMetadata(section: String?, key: String, value: String) {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let section = section?.trimmingCharacters(in: .whitespacesAndNewlines), !section.isEmpty {
+            updateSubtitleMetadataSection(section) { sectionDraft in
+                if trimmedValue.isEmpty {
+                    sectionDraft.removeValue(forKey: key)
+                } else {
+                    sectionDraft[key] = .string(trimmedValue)
+                }
+            }
+        } else if trimmedValue.isEmpty {
+            subtitleMediaMetadataDraft?.removeValue(forKey: key)
+        } else {
+            ensureSubtitleMediaMetadataDraft()
+            subtitleMediaMetadataDraft?[key] = .string(trimmedValue)
+        }
+        normalizeSubtitleMetadataAfterEdit()
+    }
+
+    func updateSubtitleMediaMetadataNumber(section: String, key: String, value: String) {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        updateSubtitleMetadataSection(section) { sectionDraft in
+            guard !trimmedValue.isEmpty else {
+                sectionDraft.removeValue(forKey: key)
+                return
+            }
+            guard let parsed = Double(trimmedValue), parsed.isFinite, parsed > 0 else {
+                return
+            }
+            sectionDraft[key] = .number(floor(parsed))
+        }
+        normalizeSubtitleMetadataAfterEdit()
+    }
+
+    func subtitleMediaMetadataText(section: String?, key: String) -> String {
+        if let section,
+           let sectionDraft = subtitleMediaMetadataDraft?[section]?.objectValue {
+            return sectionDraft[key]?.stringValue ?? ""
+        }
+        return subtitleMediaMetadataDraft?[key]?.stringValue ?? ""
     }
 
     func loadYoutubeLibrary(
@@ -1059,7 +1152,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             endTime: draft.endTime,
             assFontSize: draft.assFontSize,
             assEmphasisScale: draft.assEmphasisScale,
-            mediaMetadataJSON: #"{"source":"apple"}"#,
+            mediaMetadataJSON: Self.mediaMetadataJSONString(from: draft.mediaMetadata),
             mirrorBatchesToSourceDir: draft.mirrorBatchesToSourceDir,
             outputFormat: draft.outputFormat
         )
@@ -1089,6 +1182,43 @@ final class AppleBookCreateViewModel: ObservableObject {
             preserveAspectRatio: draft.preserveAspectRatio,
             enableLookupCache: draft.enableLookupCache
         )
+    }
+
+    private static func mediaMetadataJSONString(from metadata: [String: JSONValue]?) -> String? {
+        guard let metadata, !metadata.isEmpty else {
+            return nil
+        }
+        guard let data = try? JSONEncoder().encode(metadata) else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)
+    }
+
+    private func ensureSubtitleMediaMetadataDraft() {
+        if subtitleMediaMetadataDraft == nil {
+            subtitleMediaMetadataDraft = [:]
+        }
+    }
+
+    private func normalizeSubtitleMetadataAfterEdit() {
+        guard let draft = subtitleMediaMetadataDraft else {
+            return
+        }
+        subtitleMediaMetadataDraft = AppleBookCreatePresentation.normalizedSubtitleMediaMetadata(draft)
+    }
+
+    private func updateSubtitleMetadataSection(
+        _ section: String,
+        mutate: (inout [String: JSONValue]) -> Void
+    ) {
+        ensureSubtitleMediaMetadataDraft()
+        var sectionDraft = subtitleMediaMetadataDraft?[section]?.objectValue ?? [:]
+        mutate(&sectionDraft)
+        if sectionDraft.isEmpty {
+            subtitleMediaMetadataDraft?.removeValue(forKey: section)
+        } else {
+            subtitleMediaMetadataDraft?[section] = .object(sectionDraft)
+        }
     }
 
     private func mergeYoutubeTvMetadata(_ mediaMetadata: [String: JSONValue]) {

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.3",
+            version: "2026.06.24.4",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-subtitle-metadata-preview",
+                    title: "Create loads subtitle metadata",
+                    detail: "Apple Create subtitle jobs can now load TV metadata before submission, edit job label, show, season, episode, title, and airdate fields on iPad, and send the enriched metadata JSON with the job."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-youtube-metadata-preview",
                     title: "Create loads video metadata",

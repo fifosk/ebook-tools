@@ -162,6 +162,9 @@ struct AppleBookCreateView: View {
         .onChange(of: youtubeBaseDir) { _, newValue in
             persistYoutubeBaseDir(newValue)
         }
+        .onChange(of: subtitleSourcePath) { _, _ in
+            viewModel.clearSubtitleMetadata()
+        }
         .onChange(of: youtubeVideoPath) { _, newValue in
             youtubeSubtitleExtractionLanguages = ""
             viewModel.resetYoutubeSubtitleExtractionState()
@@ -243,6 +246,9 @@ struct AppleBookCreateView: View {
     @ViewBuilder
     private var createSettingsSections: some View {
         narrationSection
+        if creationMode == .subtitleJob {
+            subtitleMetadataSection
+        }
         if creationMode == .youtubeDub {
             youtubeMetadataSection
         }
@@ -608,6 +614,43 @@ struct AppleBookCreateView: View {
         }
     }
 
+    private var subtitleMetadataSection: some View {
+        Section("Metadata") {
+            AppleBookCreateSubtitleMetadataControls(
+                sourceName: subtitleMetadataSourceName,
+                isLoading: viewModel.isLoadingSubtitleTvMetadata,
+                message: viewModel.subtitleMetadataMessage,
+                errorMessage: viewModel.subtitleMetadataErrorMessage,
+                jobLabel: subtitleMetadataTextBinding(section: nil, key: "job_label"),
+                showName: subtitleMetadataTextBinding(section: "show", key: "name"),
+                season: subtitleMetadataNumberBinding(section: "episode", key: "season"),
+                episode: subtitleMetadataNumberBinding(section: "episode", key: "number"),
+                episodeName: subtitleMetadataTextBinding(section: "episode", key: "name"),
+                airdate: subtitleMetadataTextBinding(section: "episode", key: "airdate"),
+                onLookup: {
+                    Task {
+                        await viewModel.lookupSubtitleTvMetadata(
+                            sourceName: subtitleMetadataSourceName,
+                            using: appState
+                        )
+                    }
+                },
+                onRefresh: {
+                    Task {
+                        await viewModel.lookupSubtitleTvMetadata(
+                            sourceName: subtitleMetadataSourceName,
+                            force: true,
+                            using: appState
+                        )
+                    }
+                },
+                onClear: {
+                    viewModel.clearSubtitleMetadata()
+                }
+            )
+        }
+    }
+
     @ViewBuilder
     private var statusSection: some View {
         if viewModel.isLoadingOptions {
@@ -778,6 +821,20 @@ struct AppleBookCreateView: View {
         trimmed(youtubeVideoPath)
     }
 
+    private var subtitleMetadataSourceName: String {
+        if let fileName = selectedSubtitleFileName?.nonEmptyValue {
+            return fileName
+        }
+        let selectedPath = trimmed(subtitleSourcePath)
+        if let entryName = viewModel.subtitleSources?.sources.first(where: { $0.path == selectedPath })?.name.nonEmptyValue {
+            return entryName
+        }
+        guard !selectedPath.isEmpty else {
+            return ""
+        }
+        return URL(fileURLWithPath: selectedPath).lastPathComponent
+    }
+
     private static var isTVPlatform: Bool {
         #if os(tvOS)
         return true
@@ -883,6 +940,7 @@ struct AppleBookCreateView: View {
 
         let draft = AppleBookCreatePresentation.subtitleJobDraft(
             sourcePath: subtitleSourcePath,
+            mediaMetadata: viewModel.subtitleMediaMetadataDraft,
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
             outputFormat: subtitleOutputFormat,
@@ -1599,6 +1657,7 @@ struct AppleBookCreateView: View {
             guard let url = urls.first else { return }
             selectedSubtitleFileURL = url
             selectedSubtitleFileName = url.lastPathComponent
+            viewModel.clearSubtitleMetadata()
             markEdited(.subtitleSourcePath)
         case let .failure(error):
             selectedSubtitleFileURL = nil
@@ -2050,6 +2109,28 @@ struct AppleBookCreateView: View {
             },
             set: { newValue in
                 viewModel.updateYoutubeMediaMetadata(section: section, key: key, value: newValue)
+            }
+        )
+    }
+
+    private func subtitleMetadataTextBinding(section: String?, key: String) -> Binding<String> {
+        Binding(
+            get: {
+                viewModel.subtitleMediaMetadataText(section: section, key: key)
+            },
+            set: { newValue in
+                viewModel.updateSubtitleMediaMetadata(section: section, key: key, value: newValue)
+            }
+        )
+    }
+
+    private func subtitleMetadataNumberBinding(section: String, key: String) -> Binding<String> {
+        Binding(
+            get: {
+                viewModel.subtitleMediaMetadataText(section: section, key: key)
+            },
+            set: { newValue in
+                viewModel.updateSubtitleMediaMetadataNumber(section: section, key: key, value: newValue)
             }
         )
     }

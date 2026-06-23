@@ -950,6 +950,92 @@ struct AppleBookCreateSubtitleOutputControls: View {
     }
 }
 
+struct AppleBookCreateSubtitleMetadataControls: View {
+    let sourceName: String
+    let isLoading: Bool
+    let message: String?
+    let errorMessage: String?
+    @Binding var jobLabel: String
+    @Binding var showName: String
+    @Binding var season: String
+    @Binding var episode: String
+    @Binding var episodeName: String
+    @Binding var airdate: String
+    let onLookup: () -> Void
+    let onRefresh: () -> Void
+    let onClear: () -> Void
+
+    var body: some View {
+        if sourceName.isEmpty {
+            Label("Choose a subtitle to load TV metadata.", systemImage: "captions.bubble")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createSubtitleMetadataEmpty")
+        } else {
+            LabeledContent("Lookup filename", value: sourceName)
+                .accessibilityIdentifier("createSubtitleMetadataSourceLabel")
+
+            HStack(spacing: 12) {
+                Button(action: onLookup) {
+                    Label(isLoading ? "Looking up" : "Lookup", systemImage: isLoading ? "hourglass" : "tv")
+                }
+                .disabled(isLoading)
+                .accessibilityIdentifier("createSubtitleMetadataLookupButton")
+
+                Button(action: onRefresh) {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .disabled(isLoading)
+                .accessibilityIdentifier("createSubtitleMetadataRefreshButton")
+
+                Button(action: onClear) {
+                    Label("Clear", systemImage: "xmark.circle")
+                }
+                .disabled(isLoading)
+                .accessibilityIdentifier("createSubtitleMetadataClearButton")
+            }
+        }
+
+        if let message, !message.isEmpty {
+            Label(message, systemImage: "checkmark.circle")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createSubtitleMetadataStatus")
+        }
+        if let errorMessage, !errorMessage.isEmpty {
+            Label(errorMessage, systemImage: "exclamationmark.triangle")
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .accessibilityIdentifier("createSubtitleMetadataError")
+        }
+
+        TextField("Job label", text: $jobLabel)
+            .textInputAutocapitalization(.words)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleMetadataJobLabelField")
+        TextField("Show title", text: $showName)
+            .textInputAutocapitalization(.words)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleMetadataShowField")
+        TextField("Season", text: $season)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleMetadataSeasonField")
+        TextField("Episode", text: $episode)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleMetadataEpisodeNumberField")
+        TextField("Episode title", text: $episodeName)
+            .textInputAutocapitalization(.sentences)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleMetadataEpisodeTitleField")
+        TextField("Airdate", text: $airdate)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleMetadataAirdateField")
+    }
+}
+
 struct AppleBookCreateYoutubeOutputControls: View {
     @Binding var translationProvider: AppleSubtitleTranslationProvider
     let selectedTranslationProvider: AppleSubtitleTranslationProvider

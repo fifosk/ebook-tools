@@ -1716,6 +1716,10 @@ struct AppleCreationPayloadCheck {
 
         let subtitleDraft = AppleBookCreatePresentation.subtitleJobDraft(
             sourcePath: " Subtitles/demo.srt ",
+            mediaMetadata: [
+                "job_label": .string("Pilot"),
+                "episode": .object(["season": .number(1), "number": .number(2)])
+            ],
             inputLanguage: .english,
             targetLanguage: .arabic,
             outputFormat: .ass,
@@ -1737,6 +1741,15 @@ struct AppleCreationPayloadCheck {
             assEmphasisScale: 3.2
         )
         require(subtitleDraft.sourcePath == "Subtitles/demo.srt", "Subtitle draft should trim source path")
+        require(subtitleDraft.mediaMetadata?["source"] == .string("apple"), "Subtitle draft should label Apple metadata source")
+        require(
+            subtitleDraft.mediaMetadata?["job_label"] == .string("Pilot"),
+            "Subtitle draft should preserve job label metadata"
+        )
+        require(
+            subtitleDraft.mediaMetadata?["episode"] == .object(["season": .number(1), "number": .number(2)]),
+            "Subtitle draft should preserve episode metadata"
+        )
         require(subtitleDraft.endTime == nil, "Subtitle draft should omit blank end time")
         require(subtitleDraft.translationProvider == "googletrans", "Subtitle draft should map Google Translate provider")
         require(subtitleDraft.llmModel == nil, "Subtitle draft should omit LLM model for non-LLM provider")
