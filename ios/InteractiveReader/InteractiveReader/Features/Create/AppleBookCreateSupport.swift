@@ -489,6 +489,45 @@ struct AppleNarrationHistoryDefaults: Equatable {
     let enableLookupCache: Bool?
 }
 
+struct AppleSubtitleHistoryDefaults: Equatable {
+    let sourcePath: String?
+    let inputLanguage: AppleBookCreateLanguage?
+    let targetLanguage: AppleBookCreateLanguage?
+    let startTime: String?
+    let endTime: String?
+    let enableTransliteration: Bool?
+    let showOriginal: Bool?
+    let translationProvider: AppleSubtitleTranslationProvider?
+    let llmModel: String?
+    let transliterationMode: AppleSubtitleTransliterationMode?
+    let transliterationModel: String?
+    let workerCount: Int?
+    let batchSize: Int?
+    let translationBatchSize: Int?
+}
+
+struct AppleYoutubeHistoryDefaults: Equatable {
+    let videoPath: String?
+    let subtitlePath: String?
+    let targetLanguage: AppleBookCreateLanguage?
+    let voice: AppleBookCreateVoiceOption?
+    let startOffset: String?
+    let endOffset: String?
+    let originalMixPercent: Double?
+    let flushSentences: Int?
+    let translationProvider: AppleSubtitleTranslationProvider?
+    let llmModel: String?
+    let translationBatchSize: Int?
+    let transliterationMode: AppleSubtitleTransliterationMode?
+    let transliterationModel: String?
+    let splitBatches: Bool?
+    let stitchBatches: Bool?
+    let includeTransliteration: Bool?
+    let targetHeight: AppleYoutubeDubTargetHeight?
+    let preserveAspectRatio: Bool?
+    let enableLookupCache: Bool?
+}
+
 struct AppleCreateResolvedDefaults: Equatable {
     let topic: String?
     let bookName: String?
@@ -719,6 +758,151 @@ enum AppleBookCreatePresentation {
             additionalTargetLanguages: additionalTargetLanguages.isEmpty ? nil : additionalTargetLanguages,
             enableLookupCache: lookupCache
         )
+    }
+
+    static func subtitleHistoryDefaults(from jobs: [PipelineStatusResponse]) -> AppleSubtitleHistoryDefaults? {
+        guard let latest = latestSubtitleJob(from: jobs) else { return nil }
+
+        let sourcePath = narrationString(latest, keys: ["subtitle_path", "subtitlePath", "input_file", "inputFile"])
+        let inputLanguage = narrationString(latest, keys: ["input_language", "inputLanguage", "source_language", "sourceLanguage"])
+            .flatMap(AppleBookCreateLanguage.init(backendValue:))
+        let targetLanguage = (narrationStringArray(latest, keys: ["target_languages", "targetLanguages"])?.first
+            ?? narrationString(latest, keys: ["target_language", "targetLanguage"]))
+            .flatMap(AppleBookCreateLanguage.init(backendValue:))
+        let startTime = historyOffset(
+            latest,
+            stringKeys: ["start_time", "startTime", "start_time_offset", "startTimeOffset"],
+            secondsKeys: ["start_time_offset_seconds", "startTimeOffsetSeconds"],
+            allowRelative: false
+        )
+        let endTime = historyOffset(
+            latest,
+            stringKeys: ["end_time", "endTime", "end_time_offset", "endTimeOffset"],
+            secondsKeys: ["end_time_offset_seconds", "endTimeOffsetSeconds"],
+            allowRelative: true
+        )
+        let enableTransliteration = narrationBool(latest, keys: ["enable_transliteration", "enableTransliteration"])
+        let showOriginal = narrationBool(latest, keys: ["show_original", "showOriginal"])
+        let translationProvider = narrationString(latest, keys: ["translation_provider", "translationProvider"])
+            .flatMap(AppleSubtitleTranslationProvider.init(backendValue:))
+        let llmModel = narrationString(latest, keys: ["llm_model", "llmModel", "selected_model", "selectedModel"])
+        let transliterationMode = narrationString(latest, keys: ["transliteration_mode", "transliterationMode"])
+            .flatMap(AppleSubtitleTransliterationMode.init(backendValue:))
+        let transliterationModel = narrationString(latest, keys: ["transliteration_model", "transliterationModel"])
+        let workerCount = narrationInt(latest, keys: ["worker_count", "workerCount"])
+            .map(clampSubtitleWorkerCount)
+        let batchSize = narrationInt(latest, keys: ["batch_size", "batchSize"])
+            .map(clampSubtitleBatchSize)
+        let translationBatchSize = narrationInt(latest, keys: ["translation_batch_size", "translationBatchSize"])
+            .map(clampSubtitleTranslationBatchSize)
+
+        guard sourcePath != nil
+            || inputLanguage != nil
+            || targetLanguage != nil
+            || startTime != nil
+            || endTime != nil
+            || enableTransliteration != nil
+            || showOriginal != nil
+            || translationProvider != nil
+            || llmModel != nil
+            || transliterationMode != nil
+            || transliterationModel != nil
+            || workerCount != nil
+            || batchSize != nil
+            || translationBatchSize != nil
+        else {
+            return nil
+        }
+
+        return AppleSubtitleHistoryDefaults(
+            sourcePath: sourcePath,
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            startTime: startTime,
+            endTime: endTime,
+            enableTransliteration: enableTransliteration,
+            showOriginal: showOriginal,
+            translationProvider: translationProvider,
+            llmModel: llmModel,
+            transliterationMode: transliterationMode,
+            transliterationModel: transliterationModel,
+            workerCount: workerCount,
+            batchSize: batchSize,
+            translationBatchSize: translationBatchSize
+        )
+    }
+
+    static func youtubeHistoryDefaults(from jobs: [PipelineStatusResponse]) -> AppleYoutubeHistoryDefaults? {
+        guard let latest = latestYoutubeJob(from: jobs) else { return nil }
+
+        let targetLanguage = (narrationStringArray(latest, keys: ["target_languages", "targetLanguages"])?.first
+            ?? narrationString(latest, keys: ["target_language", "targetLanguage"]))
+            .flatMap(AppleBookCreateLanguage.init(backendValue:))
+        let targetHeight = narrationInt(latest, keys: ["target_height", "targetHeight"])
+            .flatMap(AppleYoutubeDubTargetHeight.init(rawValue:))
+
+        let defaults = AppleYoutubeHistoryDefaults(
+            videoPath: narrationString(latest, keys: ["input_file", "inputFile", "video_path", "videoPath"]),
+            subtitlePath: narrationString(latest, keys: ["subtitle_path", "subtitlePath"]),
+            targetLanguage: targetLanguage,
+            voice: narrationString(latest, keys: ["selected_voice", "selectedVoice", "voice"])
+                .flatMap(AppleBookCreateVoiceOption.init(backendValue:)),
+            startOffset: historyOffset(
+                latest,
+                stringKeys: ["start_time_offset", "startTimeOffset", "start_offset", "startOffset"],
+                secondsKeys: ["start_time_offset_seconds", "startTimeOffsetSeconds"],
+                allowRelative: false
+            ),
+            endOffset: historyOffset(
+                latest,
+                stringKeys: ["end_time_offset", "endTimeOffset", "end_offset", "endOffset"],
+                secondsKeys: ["end_time_offset_seconds", "endTimeOffsetSeconds"],
+                allowRelative: false
+            ),
+            originalMixPercent: historyDouble(latest, keys: ["original_mix_percent", "originalMixPercent"])
+                .map(clampYoutubeOriginalMixPercent),
+            flushSentences: narrationInt(latest, keys: ["flush_sentences", "flushSentences"])
+                .map(clampYoutubeFlushSentences),
+            translationProvider: narrationString(latest, keys: ["translation_provider", "translationProvider"])
+                .flatMap(AppleSubtitleTranslationProvider.init(backendValue:)),
+            llmModel: narrationString(latest, keys: ["llm_model", "llmModel"]),
+            translationBatchSize: narrationInt(latest, keys: ["translation_batch_size", "translationBatchSize"])
+                .map(clampSubtitleTranslationBatchSize),
+            transliterationMode: narrationString(latest, keys: ["transliteration_mode", "transliterationMode"])
+                .flatMap(AppleSubtitleTransliterationMode.init(backendValue:)),
+            transliterationModel: narrationString(latest, keys: ["transliteration_model", "transliterationModel"]),
+            splitBatches: narrationBool(latest, keys: ["split_batches", "splitBatches"]),
+            stitchBatches: narrationBool(latest, keys: ["stitch_batches", "stitchBatches"]),
+            includeTransliteration: narrationBool(latest, keys: ["include_transliteration", "includeTransliteration"]),
+            targetHeight: targetHeight,
+            preserveAspectRatio: narrationBool(latest, keys: ["preserve_aspect_ratio", "preserveAspectRatio"]),
+            enableLookupCache: narrationBool(latest, keys: ["enable_lookup_cache", "enableLookupCache"])
+        )
+
+        guard defaults.videoPath != nil
+            || defaults.subtitlePath != nil
+            || defaults.targetLanguage != nil
+            || defaults.voice != nil
+            || defaults.startOffset != nil
+            || defaults.endOffset != nil
+            || defaults.originalMixPercent != nil
+            || defaults.flushSentences != nil
+            || defaults.translationProvider != nil
+            || defaults.llmModel != nil
+            || defaults.translationBatchSize != nil
+            || defaults.transliterationMode != nil
+            || defaults.transliterationModel != nil
+            || defaults.splitBatches != nil
+            || defaults.stitchBatches != nil
+            || defaults.includeTransliteration != nil
+            || defaults.targetHeight != nil
+            || defaults.preserveAspectRatio != nil
+            || defaults.enableLookupCache != nil
+        else {
+            return nil
+        }
+
+        return defaults
     }
 
     static func narrationStartSentence(
@@ -1192,8 +1376,39 @@ enum AppleBookCreatePresentation {
         return latest?.job
     }
 
+    private static func latestSubtitleJob(from jobs: [PipelineStatusResponse]) -> PipelineStatusResponse? {
+        latestJob(from: jobs) { job in
+            job.jobType.lowercased() == "subtitle"
+        }
+    }
+
+    private static func latestYoutubeJob(from jobs: [PipelineStatusResponse]) -> PipelineStatusResponse? {
+        latestJob(from: jobs) { job in
+            job.jobType.lowercased() == "youtube_dub"
+        }
+    }
+
+    private static func latestJob(
+        from jobs: [PipelineStatusResponse],
+        matching predicate: (PipelineStatusResponse) -> Bool
+    ) -> PipelineStatusResponse? {
+        var latest: (job: PipelineStatusResponse, createdAt: Date)?
+        for job in jobs where predicate(job) {
+            guard let createdAt = parseJobDate(job.createdAt),
+                  job.parameters?.objectValue != nil
+            else {
+                continue
+            }
+            if latest == nil || createdAt > latest!.createdAt {
+                latest = (job, createdAt)
+            }
+        }
+        return latest?.job
+    }
+
     private static func isReusableNarrationJob(_ job: PipelineStatusResponse) -> Bool {
-        !job.jobType.lowercased().contains("subtitle")
+        let jobType = job.jobType.lowercased()
+        return !jobType.contains("subtitle") && jobType != "youtube_dub"
     }
 
     private static func narrationString(
@@ -1261,6 +1476,23 @@ enum AppleBookCreatePresentation {
         return nil
     }
 
+    private static func historyDouble(
+        _ job: PipelineStatusResponse,
+        keys: [String]
+    ) -> Double? {
+        guard let parameters = job.parameters?.objectValue else { return nil }
+        let sources = narrationParameterSources(parameters)
+        for source in sources {
+            for key in keys {
+                guard let value = source[key] else { continue }
+                if let doubleValue = historyDouble(from: value) {
+                    return doubleValue
+                }
+            }
+        }
+        return nil
+    }
+
     private static func narrationBool(
         _ job: PipelineStatusResponse,
         keys: [String]
@@ -1284,6 +1516,66 @@ enum AppleBookCreatePresentation {
             }
         }
         return nil
+    }
+
+    private static func historyOffset(
+        _ job: PipelineStatusResponse,
+        stringKeys: [String],
+        secondsKeys: [String],
+        allowRelative: Bool
+    ) -> String? {
+        if let seconds = historyDouble(job, keys: secondsKeys) {
+            return formatHistorySeconds(seconds)
+        }
+
+        guard let rawValue = narrationString(job, keys: stringKeys) else {
+            return nil
+        }
+        if allowRelative {
+            return SubtitleTimecodeInput.normalize(rawValue, allowRelative: true)
+        }
+        return normalizeYoutubeOffset(rawValue)
+    }
+
+    private static func historyDouble(from value: JSONValue) -> Double? {
+        switch value {
+        case let .number(number):
+            guard number.isFinite else { return nil }
+            return number
+        case let .string(string):
+            let trimmedValue = trimmed(string)
+            guard let parsed = Double(trimmedValue), parsed.isFinite else {
+                return nil
+            }
+            return parsed
+        case let .bool(bool):
+            return bool ? 1 : 0
+        case let .array(values):
+            for value in values {
+                if let doubleValue = historyDouble(from: value) {
+                    return doubleValue
+                }
+            }
+            return nil
+        default:
+            return nil
+        }
+    }
+
+    private static func formatHistorySeconds(_ value: Double) -> String? {
+        guard value.isFinite, value >= 0 else { return nil }
+        let totalSeconds = Int(value.rounded(.down))
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        if hours > 0 {
+            return [hours, minutes, seconds].map(formatTimecodeComponent).joined(separator: ":")
+        }
+        return "\(formatTimecodeComponent(minutes)):\(formatTimecodeComponent(seconds))"
+    }
+
+    private static func formatTimecodeComponent(_ value: Int) -> String {
+        String(format: "%02d", value)
     }
 
     private static func narrationParameterSources(

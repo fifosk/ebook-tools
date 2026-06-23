@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.94
+
+- Advanced visible Apple app versioning to `v2026.06.23.94`.
+- Apple Create now mirrors Web rerun behavior for untouched subtitle and YouTube dubbing jobs by reusing recent sources, time offsets, translation settings, and video tuning defaults.
+
 ### 2026.06.23.93
 
 - Advanced visible Apple app versioning to `v2026.06.23.93`.

@@ -157,10 +157,13 @@ struct AppleBookCreateView: View {
             await refreshYoutubeLibrary()
             _ = await viewModel.loadVoiceInventory(using: appState, cacheKey: creationOptionsLoadKey)
             await viewModel.loadSubtitleModels(using: appState, cacheKey: creationOptionsLoadKey)
-            applyNarrationHistoryDefaults()
+            applyHistoryDefaultsForCurrentMode()
         }
         .onChange(of: recentJobs) { _, _ in
-            applyNarrationHistoryDefaults()
+            applyHistoryDefaultsForCurrentMode()
+        }
+        .onChange(of: creationMode) { _, _ in
+            applyHistoryDefaultsForCurrentMode()
         }
         .onChange(of: youtubeBaseDir) { _, newValue in
             persistYoutubeBaseDir(newValue)
@@ -1005,6 +1008,17 @@ struct AppleBookCreateView: View {
         }
     }
 
+    private func applyHistoryDefaultsForCurrentMode() {
+        switch creationMode {
+        case .generatedBook, .narrateEbook:
+            applyNarrationHistoryDefaults()
+        case .subtitleJob:
+            applySubtitleHistoryDefaults()
+        case .youtubeDub:
+            applyYoutubeHistoryDefaults()
+        }
+    }
+
     private func applyNarrationHistoryDefaults() {
         guard let defaults = AppleBookCreatePresentation.narrationHistoryDefaults(
             from: recentJobs,
@@ -1037,6 +1051,153 @@ struct AppleBookCreateView: View {
         if !editedFields.contains(.additionalTargetLanguages),
            let additionalTargetLanguages = defaults.additionalTargetLanguages {
             self.additionalTargetLanguages = additionalTargetLanguages
+        }
+        if !editedFields.contains(.enableLookupCache),
+           let enableLookupCache = defaults.enableLookupCache {
+            self.enableLookupCache = enableLookupCache
+        }
+    }
+
+    private func applySubtitleHistoryDefaults() {
+        guard let defaults = AppleBookCreatePresentation.subtitleHistoryDefaults(from: recentJobs) else {
+            return
+        }
+
+        if selectedSubtitleFileURL == nil,
+           !editedFields.contains(.subtitleSourcePath),
+           let sourcePath = defaults.sourcePath?.nonEmptyValue {
+            subtitleSourcePath = sourcePath
+        }
+        if !editedFields.contains(.inputLanguage),
+           let inputLanguage = defaults.inputLanguage {
+            self.inputLanguage = inputLanguage
+        }
+        if !editedFields.contains(.targetLanguage),
+           let targetLanguage = defaults.targetLanguage {
+            self.targetLanguage = targetLanguage
+        }
+        if !editedFields.contains(.subtitleStartTime),
+           let startTime = defaults.startTime {
+            subtitleStartTime = startTime
+        }
+        if !editedFields.contains(.subtitleEndTime),
+           let endTime = defaults.endTime {
+            subtitleEndTime = endTime
+        }
+        if !editedFields.contains(.subtitleEnableTransliteration),
+           let enableTransliteration = defaults.enableTransliteration {
+            subtitleEnableTransliteration = enableTransliteration
+        }
+        if !editedFields.contains(.subtitleShowOriginal),
+           let showOriginal = defaults.showOriginal {
+            subtitleShowOriginal = showOriginal
+        }
+        if !editedFields.contains(.subtitleTranslationProvider),
+           let translationProvider = defaults.translationProvider {
+            subtitleTranslationProvider = translationProvider
+        }
+        if !editedFields.contains(.subtitleLlmModel),
+           let llmModel = defaults.llmModel?.nonEmptyValue {
+            subtitleLlmModel = llmModel
+        }
+        if !editedFields.contains(.subtitleTransliterationMode),
+           let transliterationMode = defaults.transliterationMode {
+            subtitleTransliterationMode = transliterationMode
+        }
+        if !editedFields.contains(.subtitleTransliterationModel),
+           let transliterationModel = defaults.transliterationModel?.nonEmptyValue {
+            subtitleTransliterationModel = transliterationModel
+        }
+        if !editedFields.contains(.subtitleWorkerCount),
+           let workerCount = defaults.workerCount {
+            subtitleWorkerCount = workerCount
+        }
+        if !editedFields.contains(.subtitleBatchSize),
+           let batchSize = defaults.batchSize {
+            subtitleBatchSize = batchSize
+        }
+        if !editedFields.contains(.subtitleTranslationBatchSize),
+           let translationBatchSize = defaults.translationBatchSize {
+            subtitleTranslationBatchSize = translationBatchSize
+        }
+    }
+
+    private func applyYoutubeHistoryDefaults() {
+        guard let defaults = AppleBookCreatePresentation.youtubeHistoryDefaults(from: recentJobs) else {
+            return
+        }
+
+        if !editedFields.contains(.youtubeVideoPath),
+           let videoPath = defaults.videoPath?.nonEmptyValue {
+            youtubeVideoPath = videoPath
+        }
+        if !editedFields.contains(.youtubeSubtitlePath),
+           let subtitlePath = defaults.subtitlePath?.nonEmptyValue {
+            youtubeSubtitlePath = subtitlePath
+        }
+        if !editedFields.contains(.targetLanguage),
+           let targetLanguage = defaults.targetLanguage {
+            self.targetLanguage = targetLanguage
+        }
+        if !editedFields.contains(.voice),
+           let voice = defaults.voice {
+            self.voice = voice
+        }
+        if !editedFields.contains(.youtubeStartOffset),
+           let startOffset = defaults.startOffset {
+            youtubeStartOffset = startOffset
+        }
+        if !editedFields.contains(.youtubeEndOffset),
+           let endOffset = defaults.endOffset {
+            youtubeEndOffset = endOffset
+        }
+        if !editedFields.contains(.youtubeOriginalMixPercent),
+           let originalMixPercent = defaults.originalMixPercent {
+            youtubeOriginalMixPercent = originalMixPercent
+        }
+        if !editedFields.contains(.youtubeFlushSentences),
+           let flushSentences = defaults.flushSentences {
+            youtubeFlushSentences = flushSentences
+        }
+        if !editedFields.contains(.subtitleTranslationProvider),
+           let translationProvider = defaults.translationProvider {
+            subtitleTranslationProvider = translationProvider
+        }
+        if !editedFields.contains(.subtitleLlmModel),
+           let llmModel = defaults.llmModel?.nonEmptyValue {
+            subtitleLlmModel = llmModel
+        }
+        if !editedFields.contains(.subtitleTranslationBatchSize),
+           let translationBatchSize = defaults.translationBatchSize {
+            subtitleTranslationBatchSize = translationBatchSize
+        }
+        if !editedFields.contains(.subtitleTransliterationMode),
+           let transliterationMode = defaults.transliterationMode {
+            subtitleTransliterationMode = transliterationMode
+        }
+        if !editedFields.contains(.subtitleTransliterationModel),
+           let transliterationModel = defaults.transliterationModel?.nonEmptyValue {
+            subtitleTransliterationModel = transliterationModel
+        }
+        if !editedFields.contains(.youtubeSplitBatches),
+           let splitBatches = defaults.splitBatches {
+            youtubeSplitBatches = splitBatches
+        }
+        if !editedFields.contains(.youtubeStitchBatches),
+           let stitchBatches = defaults.stitchBatches {
+            youtubeStitchBatches = stitchBatches
+        }
+        if !editedFields.contains(.includeTransliteration),
+           let includeTransliteration = defaults.includeTransliteration {
+            self.includeTransliteration = includeTransliteration
+        }
+        if !editedFields.contains(.youtubeTargetHeight),
+           let targetHeight = defaults.targetHeight {
+            youtubeTargetHeight = targetHeight
+        }
+        if !editedFields.contains(.youtubePreserveAspectRatio),
+           let preserveAspectRatio = defaults.preserveAspectRatio {
+            youtubePreserveAspectRatio = preserveAspectRatio
         }
         if !editedFields.contains(.enableLookupCache),
            let enableLookupCache = defaults.enableLookupCache {

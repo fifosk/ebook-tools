@@ -328,6 +328,145 @@ struct AppleCreationPayloadCheck {
                 && narrationDefaults?.enableLookupCache == false,
             "Apple Create should reuse latest narration language and lookup-cache defaults"
         )
+        let createHistoryJSON = """
+        {
+          "jobs": [
+            {
+              "jobId": "subtitle-latest",
+              "jobType": "subtitle",
+              "status": "completed",
+              "createdAt": "2026-06-23T13:00:00Z",
+              "startedAt": null,
+              "completedAt": null,
+              "result": null,
+              "error": null,
+              "latestEvent": null,
+              "tuning": null,
+              "userId": "editor",
+              "userRole": "editor",
+              "generatedFiles": null,
+              "parameters": {
+                "subtitle_path": "/subtitles/latest.ass",
+                "input_language": "English",
+                "target_languages": ["German"],
+                "start_time_offset_seconds": 75,
+                "end_time_offset_seconds": 3723,
+                "enable_transliteration": false,
+                "show_original": false,
+                "translation_provider": "googletrans",
+                "llm_model": " qwen2.5:7b ",
+                "transliteration_mode": "python",
+                "transliteration_model": "ignored",
+                "worker_count": 99,
+                "batch_size": 0,
+                "translation_batch_size": 80
+              },
+              "mediaCompleted": true,
+              "retrySummary": null,
+              "jobLabel": null,
+              "imageGeneration": null
+            },
+            {
+              "jobId": "youtube-latest",
+              "jobType": "youtube_dub",
+              "status": "completed",
+              "createdAt": "2026-06-23T14:00:00Z",
+              "startedAt": null,
+              "completedAt": null,
+              "result": null,
+              "error": null,
+              "latestEvent": null,
+              "tuning": null,
+              "userId": "editor",
+              "userRole": "editor",
+              "generatedFiles": null,
+              "parameters": {
+                "request": {
+                  "inputs": {
+                    "input_file": "/nas/videos/demo.mp4",
+                    "subtitle_path": "/nas/videos/demo.en.ass",
+                    "target_languages": ["Slovak"],
+                    "selected_voice": "piper-auto",
+                    "start_time_offset_seconds": 45,
+                    "end_time_offset_seconds": 90,
+                    "original_mix_percent": 104,
+                    "flush_sentences": 0,
+                    "translation_provider": "llm",
+                    "llm_model": "gpt-4.1-mini",
+                    "translation_batch_size": 80,
+                    "transliteration_mode": "default",
+                    "transliteration_model": "gpt-4.1",
+                    "split_batches": false,
+                    "stitch_batches": true,
+                    "include_transliteration": false,
+                    "target_height": 720,
+                    "preserve_aspect_ratio": false,
+                    "enable_lookup_cache": false
+                  }
+                }
+              },
+              "mediaCompleted": true,
+              "retrySummary": null,
+              "jobLabel": null,
+              "imageGeneration": null
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+        let createHistoryJobs = try decoder.decode(PipelineJobListResponse.self, from: createHistoryJSON).jobs
+        let subtitleHistoryDefaults = AppleBookCreatePresentation.subtitleHistoryDefaults(from: createHistoryJobs)
+        require(
+            subtitleHistoryDefaults?.sourcePath == "/subtitles/latest.ass"
+                && subtitleHistoryDefaults?.inputLanguage == .english
+                && subtitleHistoryDefaults?.targetLanguage == .german
+                && subtitleHistoryDefaults?.startTime == "01:15"
+                && subtitleHistoryDefaults?.endTime == "01:02:03",
+            "Apple Create should reuse latest subtitle source, languages, and formatted time offsets"
+        )
+        require(
+            subtitleHistoryDefaults?.enableTransliteration == false
+                && subtitleHistoryDefaults?.showOriginal == false
+                && subtitleHistoryDefaults?.translationProvider == .googleTranslate
+                && subtitleHistoryDefaults?.llmModel == "qwen2.5:7b"
+                && subtitleHistoryDefaults?.transliterationMode == .python
+                && subtitleHistoryDefaults?.workerCount == AppleSubtitleTuning.workerCountRange.upperBound
+                && subtitleHistoryDefaults?.batchSize == AppleSubtitleTuning.batchSizeRange.lowerBound
+                && subtitleHistoryDefaults?.translationBatchSize == AppleSubtitleTuning.translationBatchSizeRange.upperBound,
+            "Apple Create should reuse and clamp latest subtitle tuning defaults"
+        )
+        let youtubeHistoryDefaults = AppleBookCreatePresentation.youtubeHistoryDefaults(from: createHistoryJobs)
+        require(
+            youtubeHistoryDefaults?.videoPath == "/nas/videos/demo.mp4"
+                && youtubeHistoryDefaults?.subtitlePath == "/nas/videos/demo.en.ass"
+                && youtubeHistoryDefaults?.targetLanguage == .slovak
+                && youtubeHistoryDefaults?.voice?.backendValue == "piper-auto"
+                && youtubeHistoryDefaults?.startOffset == "00:45"
+                && youtubeHistoryDefaults?.endOffset == "01:30",
+            "Apple Create should reuse latest YouTube dubbing source, voice, target language, and offsets"
+        )
+        require(
+            youtubeHistoryDefaults?.originalMixPercent == 100
+                && youtubeHistoryDefaults?.flushSentences == 1
+                && youtubeHistoryDefaults?.translationProvider == .llm
+                && youtubeHistoryDefaults?.llmModel == "gpt-4.1-mini"
+                && youtubeHistoryDefaults?.translationBatchSize == AppleSubtitleTuning.translationBatchSizeRange.upperBound
+                && youtubeHistoryDefaults?.transliterationMode == .default
+                && youtubeHistoryDefaults?.transliterationModel == "gpt-4.1"
+                && youtubeHistoryDefaults?.splitBatches == false
+                && youtubeHistoryDefaults?.stitchBatches == true
+                && youtubeHistoryDefaults?.includeTransliteration == false
+                && youtubeHistoryDefaults?.targetHeight == .p720
+                && youtubeHistoryDefaults?.preserveAspectRatio == false
+                && youtubeHistoryDefaults?.enableLookupCache == false,
+            "Apple Create should reuse and clamp latest YouTube dubbing tuning defaults"
+        )
+        require(
+            AppleBookCreatePresentation.narrationHistoryDefaults(
+                from: createHistoryJobs,
+                currentInputFile: ""
+            ) == nil,
+            "Apple Create narration history should ignore subtitle and YouTube dubbing jobs"
+        )
         require(
             AppleBookCreatePresentation.webCreateViewID(for: .generatedBook) == "books:create",
             "Generated-book Web handoff should target the Web book creation view"

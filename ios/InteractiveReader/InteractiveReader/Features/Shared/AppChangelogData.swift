@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.93",
+            version: "2026.06.23.94",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-subtitle-video-history-defaults",
+                    title: "Create reuses job defaults",
+                    detail: "Apple Create now mirrors Web rerun behavior for untouched subtitle and YouTube dubbing jobs by reusing recent sources, time offsets, translation settings, and video tuning defaults."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-subtitle-show-original-memory",
                     title: "Create remembers subtitles",
