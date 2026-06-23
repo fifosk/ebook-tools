@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.6
+
+- Advanced visible Apple app versioning to `v2026.06.24.6`.
+- Apple Create on iPad gives the right-hand job settings pane priority over the setup pane and adds subtitle/YouTube metadata cache clearing controls backed by the shared runtime contract.
+
 ### 2026.06.24.5
 
 - Advanced visible Apple app versioning to `v2026.06.24.5`.

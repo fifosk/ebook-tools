@@ -28,6 +28,9 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isExtractingYoutubeSubtitles = false
     @Published private(set) var isLoadingYoutubeTvMetadata = false
     @Published private(set) var isLoadingYoutubeVideoMetadata = false
+    @Published private(set) var isClearingSubtitleTvMetadataCache = false
+    @Published private(set) var isClearingYoutubeTvMetadataCache = false
+    @Published private(set) var isClearingYoutubeMetadataCache = false
     @Published private(set) var isLoadingVoiceInventory = false
     @Published private(set) var narrateChaptersErrorMessage: String?
     @Published private(set) var pipelineFilesErrorMessage: String?
@@ -215,6 +218,38 @@ final class AppleBookCreateViewModel: ObservableObject {
         subtitleMediaMetadataDraft = nil
         subtitleMetadataMessage = nil
         subtitleMetadataErrorMessage = nil
+    }
+
+    func clearSubtitleTvMetadataCache(
+        query: String,
+        using appState: AppState
+    ) async {
+        guard let configuration = appState.configuration else {
+            subtitleMetadataErrorMessage = "API configuration is unavailable."
+            return
+        }
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            subtitleMetadataErrorMessage = "Enter a lookup filename before clearing the cache."
+            return
+        }
+
+        isClearingSubtitleTvMetadataCache = true
+        subtitleMetadataErrorMessage = nil
+        subtitleMetadataMessage = nil
+        defer { isClearingSubtitleTvMetadataCache = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.clearSubtitleTvMetadataCache(query: trimmedQuery)
+            subtitleMetadataMessage = Self.metadataCacheClearMessage(
+                cleared: response.cleared,
+                kind: "TV",
+                query: trimmedQuery
+            )
+        } catch {
+            subtitleMetadataErrorMessage = error.localizedDescription
+        }
     }
 
     func updateSubtitleMediaMetadata(section: String?, key: String, value: String) {
@@ -453,6 +488,70 @@ final class AppleBookCreateViewModel: ObservableObject {
         youtubeMetadataMessage = nil
         youtubeMetadataErrorMessage = nil
         youtubeMediaMetadataDraft = ["source": .string("apple")]
+    }
+
+    func clearYoutubeTvMetadataCache(
+        query: String,
+        using appState: AppState
+    ) async {
+        guard let configuration = appState.configuration else {
+            youtubeMetadataErrorMessage = "API configuration is unavailable."
+            return
+        }
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            youtubeMetadataErrorMessage = "Choose a video before clearing TV metadata cache."
+            return
+        }
+
+        isClearingYoutubeTvMetadataCache = true
+        youtubeMetadataErrorMessage = nil
+        youtubeMetadataMessage = nil
+        defer { isClearingYoutubeTvMetadataCache = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.clearSubtitleTvMetadataCache(query: trimmedQuery)
+            youtubeMetadataMessage = Self.metadataCacheClearMessage(
+                cleared: response.cleared,
+                kind: "TV",
+                query: trimmedQuery
+            )
+        } catch {
+            youtubeMetadataErrorMessage = error.localizedDescription
+        }
+    }
+
+    func clearYoutubeVideoMetadataCache(
+        query: String,
+        using appState: AppState
+    ) async {
+        guard let configuration = appState.configuration else {
+            youtubeMetadataErrorMessage = "API configuration is unavailable."
+            return
+        }
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            youtubeMetadataErrorMessage = "Choose a video before clearing YouTube metadata cache."
+            return
+        }
+
+        isClearingYoutubeMetadataCache = true
+        youtubeMetadataErrorMessage = nil
+        youtubeMetadataMessage = nil
+        defer { isClearingYoutubeMetadataCache = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.clearYoutubeMetadataCache(query: trimmedQuery)
+            youtubeMetadataMessage = Self.metadataCacheClearMessage(
+                cleared: response.cleared,
+                kind: "YouTube",
+                query: trimmedQuery
+            )
+        } catch {
+            youtubeMetadataErrorMessage = error.localizedDescription
+        }
     }
 
     func updateYoutubeMediaMetadata(section: String?, key: String, value: String) {
@@ -1192,6 +1291,11 @@ final class AppleBookCreateViewModel: ObservableObject {
             return nil
         }
         return String(data: data, encoding: .utf8)
+    }
+
+    private static func metadataCacheClearMessage(cleared: Int, kind: String, query: String) -> String {
+        let entryLabel = cleared == 1 ? "entry" : "entries"
+        return "Cleared \(cleared) cached \(kind) metadata \(entryLabel) for \(query)."
     }
 
     private func ensureSubtitleMediaMetadataDraft() {

@@ -954,6 +954,7 @@ struct AppleBookCreateSubtitleMetadataControls: View {
     let sourceName: String
     @Binding var lookupSourceName: String
     let isLoading: Bool
+    let isClearingCache: Bool
     let message: String?
     let errorMessage: String?
     @Binding var jobLabel: String
@@ -965,6 +966,7 @@ struct AppleBookCreateSubtitleMetadataControls: View {
     let onLookup: () -> Void
     let onRefresh: () -> Void
     let onClear: () -> Void
+    let onClearCache: () -> Void
 
     var body: some View {
         if sourceName.isEmpty {
@@ -991,10 +993,23 @@ struct AppleBookCreateSubtitleMetadataControls: View {
                 .disabled(isLoading || lookupSourceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .accessibilityIdentifier("createSubtitleMetadataRefreshButton")
 
+                Button(action: onClearCache) {
+                    Label(
+                        isClearingCache ? "Clearing Cache" : "Clear Cache",
+                        systemImage: isClearingCache ? "hourglass" : "trash"
+                    )
+                }
+                .disabled(
+                    isLoading ||
+                    isClearingCache ||
+                    lookupSourceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
+                .accessibilityIdentifier("createSubtitleMetadataClearCacheButton")
+
                 Button(action: onClear) {
                     Label("Clear", systemImage: "xmark.circle")
                 }
-                .disabled(isLoading)
+                .disabled(isLoading || isClearingCache)
                 .accessibilityIdentifier("createSubtitleMetadataClearButton")
             }
         }
@@ -1131,6 +1146,10 @@ struct AppleBookCreateYoutubeOutputControls: View {
 struct AppleBookCreateYoutubeMetadataControls: View {
     let isLoadingTvMetadata: Bool
     let isLoadingYoutubeMetadata: Bool
+    let isClearingTvMetadataCache: Bool
+    let isClearingYoutubeMetadataCache: Bool
+    let canClearTvMetadataCache: Bool
+    let canClearYoutubeMetadataCache: Bool
     let message: String?
     let errorMessage: String?
     @Binding var title: String
@@ -1139,6 +1158,8 @@ struct AppleBookCreateYoutubeMetadataControls: View {
     @Binding var episodeName: String
     let onLoadTvMetadata: () -> Void
     let onLoadYoutubeMetadata: () -> Void
+    let onClearTvMetadataCache: () -> Void
+    let onClearYoutubeMetadataCache: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1159,6 +1180,36 @@ struct AppleBookCreateYoutubeMetadataControls: View {
             }
             .disabled(isLoadingTvMetadata || isLoadingYoutubeMetadata)
             .accessibilityIdentifier("createYoutubeLoadYoutubeMetadataButton")
+        }
+
+        HStack(spacing: 12) {
+            Button(action: onClearTvMetadataCache) {
+                Label(
+                    isClearingTvMetadataCache ? "Clearing TV" : "Clear TV Cache",
+                    systemImage: isClearingTvMetadataCache ? "hourglass" : "trash"
+                )
+            }
+            .disabled(
+                !canClearTvMetadataCache ||
+                isLoadingTvMetadata ||
+                isLoadingYoutubeMetadata ||
+                isClearingTvMetadataCache
+            )
+            .accessibilityIdentifier("createYoutubeClearTvMetadataCacheButton")
+
+            Button(action: onClearYoutubeMetadataCache) {
+                Label(
+                    isClearingYoutubeMetadataCache ? "Clearing YouTube" : "Clear YouTube Cache",
+                    systemImage: isClearingYoutubeMetadataCache ? "hourglass" : "trash"
+                )
+            }
+            .disabled(
+                !canClearYoutubeMetadataCache ||
+                isLoadingTvMetadata ||
+                isLoadingYoutubeMetadata ||
+                isClearingYoutubeMetadataCache
+            )
+            .accessibilityIdentifier("createYoutubeClearYoutubeMetadataCacheButton")
         }
 
         if let message, !message.isEmpty {

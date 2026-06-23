@@ -354,10 +354,10 @@ After Narrate Ebook:
   worker/render batch-size tuning, mirror-to-source control, and pre-submit TV
   metadata lookup plus job label/show/season/episode/title/airdate edits
   through `/api/subtitles/jobs`; the native metadata section now also exposes
-  an editable lookup filename before lookup/refresh. Native time fields
-  validate and normalize Web-style `MM:SS`, `HH:MM:SS`, and `+offset` values
-  before submit. Remaining parity gap: full Web-level metadata image preview
-  and cache-management controls.
+  an editable lookup filename before lookup/refresh plus TV metadata cache
+  clearing. Native time fields validate and normalize Web-style `MM:SS`,
+  `HH:MM:SS`, and `+offset` values before submit. Remaining parity gap: full
+  Web-level metadata image preview.
 - Generated book job creation on iPad.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
@@ -367,10 +367,10 @@ After Narrate Ebook:
   `/api/subtitles/youtube/extract-subtitles`, and
   `/api/subtitles/youtube/dub` submission with language, voice, clip-window,
   batching, provider/model, output, lookup-cache options, voice preview, and
-  pre-submit TV/YouTube metadata lookup plus key title/channel/series/episode
-  edits that are sent with the job. Remaining parity gap: full Web-level
-  metadata editing and cache-management controls for every nested metadata
-  field.
+  pre-submit TV/YouTube metadata lookup, TV/YouTube metadata cache clearing,
+  plus key title/channel/series/episode edits that are sent with the job.
+  Remaining parity gap: full Web-level metadata editing for every nested
+  metadata field.
 - Library source reupload on iPhone/iPad. Status: Library row context menus now
   expose Replace Source File, open a document picker for EPUB/PDF sources, post
   the file to `/api/library/items/{job_id}/upload-source`, and replace the

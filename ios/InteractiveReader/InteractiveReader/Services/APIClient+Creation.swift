@@ -15,7 +15,9 @@ enum AppleCreateRuntimeContract {
     static let youtubeSubtitleStreamsPath = "/api/subtitles/youtube/subtitle-streams"
     static let youtubeExtractSubtitlesPath = "/api/subtitles/youtube/extract-subtitles"
     static let subtitleTvMetadataPreviewPath = "/api/subtitles/metadata/tv/lookup"
+    static let subtitleTvMetadataCacheClearPath = "/api/subtitles/metadata/tv/cache/clear"
     static let youtubeMetadataPreviewPath = "/api/subtitles/metadata/youtube/lookup"
+    static let youtubeMetadataCacheClearPath = "/api/subtitles/metadata/youtube/cache/clear"
     static let youtubeDubPath = "/api/subtitles/youtube/dub"
 }
 
@@ -113,6 +115,24 @@ extension APIClient {
             payload: payload
         )
         return try decode(YoutubeVideoMetadataPreviewResponse.self, from: data)
+    }
+
+    func clearSubtitleTvMetadataCache(query: String) async throws -> MetadataCacheClearResponse {
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.subtitleTvMetadataCacheClearPath,
+            method: "POST",
+            payload: MetadataCacheClearRequest(query: query)
+        )
+        return try decode(MetadataCacheClearResponse.self, from: data)
+    }
+
+    func clearYoutubeMetadataCache(query: String) async throws -> MetadataCacheClearResponse {
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.youtubeMetadataCacheClearPath,
+            method: "POST",
+            payload: MetadataCacheClearRequest(query: query)
+        )
+        return try decode(MetadataCacheClearResponse.self, from: data)
     }
 
     func submitPipeline(_ payload: PipelineRequestPayload) async throws -> PipelineSubmissionResponse {

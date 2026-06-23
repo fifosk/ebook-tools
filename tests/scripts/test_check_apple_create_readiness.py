@@ -152,7 +152,9 @@ def test_runtime_create_contract_validation() -> None:
         "youtubeSubtitleStreamsPath=<missing> expected /api/subtitles/youtube/subtitle-streams",
         "youtubeExtractSubtitlesPath=<missing> expected /api/subtitles/youtube/extract-subtitles",
         "subtitleTvMetadataPreviewPath=<missing> expected /api/subtitles/metadata/tv/lookup",
+        "subtitleTvMetadataCacheClearPath=<missing> expected /api/subtitles/metadata/tv/cache/clear",
         "youtubeMetadataPreviewPath=<missing> expected /api/subtitles/metadata/youtube/lookup",
+        "youtubeMetadataCacheClearPath=<missing> expected /api/subtitles/metadata/youtube/cache/clear",
         "youtubeDubPath=<missing> expected /api/subtitles/youtube/dub",
     ]
 

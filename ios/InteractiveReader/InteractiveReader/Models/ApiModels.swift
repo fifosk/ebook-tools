@@ -56,6 +56,14 @@ struct YoutubeVideoMetadataPreviewResponse: Decodable {
     let youtubeMetadata: [String: JSONValue]?
 }
 
+struct MetadataCacheClearRequest: Encodable, Equatable {
+    let query: String
+}
+
+struct MetadataCacheClearResponse: Decodable, Equatable {
+    let cleared: Int
+}
+
 enum JSONValue: Codable, Hashable {
     case string(String)
     case number(Double)

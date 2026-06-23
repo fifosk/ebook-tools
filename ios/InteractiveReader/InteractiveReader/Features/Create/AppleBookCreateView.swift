@@ -214,7 +214,7 @@ struct AppleBookCreateView: View {
             createList(accessibilityIdentifier: "appleBookCreateSetupPane") {
                 createSetupSections
             }
-            .frame(minWidth: 320, idealWidth: 380, maxWidth: 440, maxHeight: .infinity)
+            .frame(minWidth: 300, idealWidth: 340, maxWidth: 380, maxHeight: .infinity)
 
             Divider()
 
@@ -222,6 +222,7 @@ struct AppleBookCreateView: View {
                 createSettingsSections
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .layoutPriority(1)
         }
         .accessibilityIdentifier("appleBookCreateRegularWidthLayout")
     }
@@ -590,6 +591,10 @@ struct AppleBookCreateView: View {
             AppleBookCreateYoutubeMetadataControls(
                 isLoadingTvMetadata: viewModel.isLoadingYoutubeTvMetadata,
                 isLoadingYoutubeMetadata: viewModel.isLoadingYoutubeVideoMetadata,
+                isClearingTvMetadataCache: viewModel.isClearingYoutubeTvMetadataCache,
+                isClearingYoutubeMetadataCache: viewModel.isClearingYoutubeMetadataCache,
+                canClearTvMetadataCache: !youtubeMetadataTvSourceName.isEmpty,
+                canClearYoutubeMetadataCache: !youtubeMetadataVideoSourceName.isEmpty,
                 message: viewModel.youtubeMetadataMessage,
                 errorMessage: viewModel.youtubeMetadataErrorMessage,
                 title: youtubeMetadataTextBinding(section: "youtube", key: "title"),
@@ -611,6 +616,22 @@ struct AppleBookCreateView: View {
                             using: appState
                         )
                     }
+                },
+                onClearTvMetadataCache: {
+                    Task {
+                        await viewModel.clearYoutubeTvMetadataCache(
+                            query: youtubeMetadataTvSourceName,
+                            using: appState
+                        )
+                    }
+                },
+                onClearYoutubeMetadataCache: {
+                    Task {
+                        await viewModel.clearYoutubeVideoMetadataCache(
+                            query: youtubeMetadataVideoSourceName,
+                            using: appState
+                        )
+                    }
                 }
             )
         }
@@ -622,6 +643,7 @@ struct AppleBookCreateView: View {
                 sourceName: subtitleMetadataSourceName,
                 lookupSourceName: $subtitleMetadataLookupSourceName,
                 isLoading: viewModel.isLoadingSubtitleTvMetadata,
+                isClearingCache: viewModel.isClearingSubtitleTvMetadataCache,
                 message: viewModel.subtitleMetadataMessage,
                 errorMessage: viewModel.subtitleMetadataErrorMessage,
                 jobLabel: subtitleMetadataTextBinding(section: nil, key: "job_label"),
@@ -649,6 +671,14 @@ struct AppleBookCreateView: View {
                 },
                 onClear: {
                     viewModel.clearSubtitleMetadata()
+                },
+                onClearCache: {
+                    Task {
+                        await viewModel.clearSubtitleTvMetadataCache(
+                            query: subtitleMetadataLookupSourceName,
+                            using: appState
+                        )
+                    }
                 }
             )
         }

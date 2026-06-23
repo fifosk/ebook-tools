@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.5",
+            version: "2026.06.24.6",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-metadata-cache-clear",
+                    title: "Create clears metadata caches",
+                    detail: "Apple Create now gives iPad job settings more of the right-hand detail area and adds subtitle, TV, and YouTube metadata cache clearing controls that use the shared backend runtime contract."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-subtitle-metadata-lookup-name",
                     title: "Create edits metadata lookup",

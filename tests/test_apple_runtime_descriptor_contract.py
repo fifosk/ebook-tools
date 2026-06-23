@@ -87,7 +87,9 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "youtubeSubtitleStreamsPath",
         "youtubeExtractSubtitlesPath",
         "subtitleTvMetadataPreviewPath",
+        "subtitleTvMetadataCacheClearPath",
         "youtubeMetadataPreviewPath",
+        "youtubeMetadataCacheClearPath",
         "youtubeDubPath",
     ]:
         assert f"let {key}: String?" in source
@@ -126,7 +128,9 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "youtubeSubtitleStreamsPath": "/api/subtitles/youtube/subtitle-streams",
         "youtubeExtractSubtitlesPath": "/api/subtitles/youtube/extract-subtitles",
         "subtitleTvMetadataPreviewPath": "/api/subtitles/metadata/tv/lookup",
+        "subtitleTvMetadataCacheClearPath": "/api/subtitles/metadata/tv/cache/clear",
         "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
+        "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
         "youtubeDubPath": "/api/subtitles/youtube/dub",
     }
     for key, path in expected_constants.items():

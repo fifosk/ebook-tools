@@ -101,7 +101,9 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "regularWidthCreateLayout" in source
     assert 'accessibilityIdentifier: "appleBookCreateSetupPane"' in source
     assert 'accessibilityIdentifier: "appleBookCreateSettingsPane"' in source
-    assert '.frame(minWidth: 320, idealWidth: 380, maxWidth: 440, maxHeight: .infinity)' in source
+    assert '.frame(minWidth: 300, idealWidth: 340, maxWidth: 380, maxHeight: .infinity)' in source
+    assert 'createList(accessibilityIdentifier: "appleBookCreateSettingsPane")' in source
+    assert ".layoutPriority(1)" in source
     assert "private var createSetupSections: some View" in source
     assert "private var createSettingsSections: some View" in source
 
@@ -193,3 +195,32 @@ def test_subtitle_create_exposes_editable_metadata_lookup_name() -> None:
     assert 'accessibilityIdentifier("createSubtitleMetadataLookupField")' in sections_source
     assert "subtitleMetadataLookupSourceName" in view_source
     assert "sourceName: subtitleMetadataLookupSourceName" in view_source
+
+
+def test_apple_create_exposes_metadata_cache_clear_controls() -> None:
+    sections_source = _source(CREATE_SECTIONS)
+    view_source = _source(CREATE_VIEW)
+
+    assert "let isClearingCache: Bool" in sections_source
+    assert "let onClearCache: () -> Void" in sections_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataClearCacheButton")' in sections_source
+    assert "viewModel.isClearingSubtitleTvMetadataCache" in view_source
+    assert "clearSubtitleTvMetadataCache(" in view_source
+    assert "query: subtitleMetadataLookupSourceName" in view_source
+
+    assert "let isClearingTvMetadataCache: Bool" in sections_source
+    assert "let isClearingYoutubeMetadataCache: Bool" in sections_source
+    assert "let canClearTvMetadataCache: Bool" in sections_source
+    assert "let canClearYoutubeMetadataCache: Bool" in sections_source
+    assert "let onClearTvMetadataCache: () -> Void" in sections_source
+    assert "let onClearYoutubeMetadataCache: () -> Void" in sections_source
+    assert 'accessibilityIdentifier("createYoutubeClearTvMetadataCacheButton")' in sections_source
+    assert 'accessibilityIdentifier("createYoutubeClearYoutubeMetadataCacheButton")' in sections_source
+    assert "viewModel.isClearingYoutubeTvMetadataCache" in view_source
+    assert "viewModel.isClearingYoutubeMetadataCache" in view_source
+    assert "canClearTvMetadataCache: !youtubeMetadataTvSourceName.isEmpty" in view_source
+    assert "canClearYoutubeMetadataCache: !youtubeMetadataVideoSourceName.isEmpty" in view_source
+    assert "clearYoutubeTvMetadataCache(" in view_source
+    assert "query: youtubeMetadataTvSourceName" in view_source
+    assert "clearYoutubeVideoMetadataCache(" in view_source
+    assert "query: youtubeMetadataVideoSourceName" in view_source
