@@ -49,6 +49,9 @@ import {
   resolveImageClusterSummary,
   resolveLookupCacheBuildingProgress,
   resolveLookupCacheProgress,
+  resolveMediaStageProgress,
+  resolvePlayableStageProgress,
+  resolveTranslationStageProgress,
   sortTuningEntries,
 } from './job-progress/jobProgressUtils';
 
@@ -338,46 +341,14 @@ export function JobProgress({
     return resolveLookupCacheProgress(lookupCacheStats);
   }, [lookupCacheStats]);
   const translationProgress = useMemo(() => {
-    if (useBatchProgress || !translationEvent) {
-      return null;
-    }
-    const meta = translationEvent.metadata;
-    const metaRecord = meta && typeof meta === 'object' ? (meta as Record<string, unknown>) : null;
-    const completed =
-      coerceNumber(metaRecord?.translation_completed) ?? translationEvent.snapshot.completed;
-    const total = coerceNumber(metaRecord?.translation_total) ?? translationEvent.snapshot.total;
-    return { completed, total };
+    return resolveTranslationStageProgress(translationEvent, useBatchProgress);
   }, [translationEvent, useBatchProgress]);
   const mediaProgress = useMemo(() => {
-    if (useBatchProgress || !mediaEvent) {
-      return null;
-    }
-    const { completed, total } = mediaEvent.snapshot;
-    return { completed, total };
+    return resolveMediaStageProgress(mediaEvent, useBatchProgress);
   }, [mediaEvent, useBatchProgress]);
   // Playable progress tracks fully exported sentences (ready for interactive player)
   const playableProgress = useMemo(() => {
-    // First priority: use latestPlayableEvent snapshot
-    if (latestPlayableEvent?.snapshot) {
-      const { completed, total } = latestPlayableEvent.snapshot;
-      if (
-        typeof completed === 'number' &&
-        typeof total === 'number' &&
-        Number.isFinite(completed) &&
-        Number.isFinite(total)
-      ) {
-        return { completed, total };
-      }
-    }
-    // Fallback: use media_batch_stats.items_completed from generated_files
-    if (mediaBatchStats) {
-      const itemsCompleted = coerceNumber(mediaBatchStats['items_completed']);
-      const itemsTotal = coerceNumber(mediaBatchStats['items_total']);
-      if (itemsCompleted !== null && itemsTotal !== null) {
-        return { completed: itemsCompleted, total: itemsTotal };
-      }
-    }
-    return null;
+    return resolvePlayableStageProgress({ latestPlayableEvent, mediaBatchStats });
   }, [latestPlayableEvent, mediaBatchStats]);
   const canPause =
     isBookJob && canManage && !isTerminal && statusValue !== 'paused' && statusValue !== 'pausing';

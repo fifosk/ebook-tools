@@ -418,6 +418,59 @@ export function buildBatchProgress(stats: Record<string, unknown> | null): Progr
   return { completed, total };
 }
 
+export function resolveTranslationStageProgress(
+  event: ProgressEventPayload | undefined,
+  useBatchProgress: boolean,
+): ProgressCount | null {
+  if (useBatchProgress || !event) {
+    return null;
+  }
+  const metaRecord = coerceRecord(event.metadata);
+  const completed =
+    coerceNumber(metaRecord?.translation_completed) ?? event.snapshot.completed;
+  const total = coerceNumber(metaRecord?.translation_total) ?? event.snapshot.total;
+  return { completed, total };
+}
+
+export function resolveMediaStageProgress(
+  event: ProgressEventPayload | undefined,
+  useBatchProgress: boolean,
+): ProgressCount | null {
+  if (useBatchProgress || !event) {
+    return null;
+  }
+  const { completed, total } = event.snapshot;
+  return { completed, total };
+}
+
+export function resolvePlayableStageProgress({
+  latestPlayableEvent,
+  mediaBatchStats,
+}: {
+  latestPlayableEvent?: ProgressEventPayload;
+  mediaBatchStats: Record<string, unknown> | null;
+}): ProgressCount | null {
+  if (latestPlayableEvent?.snapshot) {
+    const { completed, total } = latestPlayableEvent.snapshot;
+    if (
+      typeof completed === 'number' &&
+      typeof total === 'number' &&
+      Number.isFinite(completed) &&
+      Number.isFinite(total)
+    ) {
+      return { completed, total };
+    }
+  }
+  if (mediaBatchStats) {
+    const itemsCompleted = coerceNumber(mediaBatchStats['items_completed']);
+    const itemsTotal = coerceNumber(mediaBatchStats['items_total']);
+    if (itemsCompleted !== null && itemsTotal !== null) {
+      return { completed: itemsCompleted, total: itemsTotal };
+    }
+  }
+  return null;
+}
+
 export function resolveLookupCacheProgress(
   stats: Record<string, unknown> | null,
 ): LookupCacheProgress | null {

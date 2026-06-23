@@ -56,8 +56,9 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/video-subtitles/subtitleTrackOverlayUtils.ts` with
   focused Vitest coverage.
 - `web/src/components/JobProgress.tsx` - 1107 lines. Status: generated-file
-  stat lookup, batch progress, lookup-cache progress, parallelism overview
-  entries, and progress label helpers now live in
+  stat lookup, batch progress, sentence/playable stage progress,
+  lookup-cache progress, parallelism overview entries, and progress label
+  helpers now live in
   `web/src/components/job-progress/jobProgressUtils.ts` with focused Vitest
   coverage.
 - `web/src/components/LibraryList.tsx` - 703 lines. Status: layout type

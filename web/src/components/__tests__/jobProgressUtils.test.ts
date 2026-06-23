@@ -6,8 +6,32 @@ import {
   formatProgressValue,
   resolveGeneratedFileRecord,
   resolveLookupCacheBuildingProgress,
-  resolveLookupCacheProgress
+  resolveLookupCacheProgress,
+  resolveMediaStageProgress,
+  resolvePlayableStageProgress,
+  resolveTranslationStageProgress
 } from '../job-progress/jobProgressUtils';
+
+function progressEvent(overrides: Partial<{
+  event_type: string;
+  metadata: Record<string, unknown>;
+  completed: number;
+  total: number | null;
+}> = {}) {
+  return {
+    event_type: overrides.event_type ?? 'progress',
+    timestamp: 0,
+    metadata: overrides.metadata ?? {},
+    snapshot: {
+      completed: overrides.completed ?? 0,
+      total: overrides.total ?? null,
+      elapsed: 0,
+      speed: 0,
+      eta: null,
+    },
+    error: null,
+  };
+}
 
 describe('jobProgressUtils progress helpers', () => {
   it('resolves generated-file stat records by key', () => {
@@ -33,6 +57,66 @@ describe('jobProgressUtils progress helpers', () => {
       total: 9
     });
     expect(buildBatchProgress({ batches_total: 9 })).toBeNull();
+  });
+
+  it('resolves sentence-stage translation progress from metadata before snapshot counts', () => {
+    expect(
+      resolveTranslationStageProgress(
+        progressEvent({
+          completed: 1,
+          total: 10,
+          metadata: {
+            translation_completed: '4',
+            translation_total: 9,
+          },
+        }),
+        false,
+      ),
+    ).toEqual({ completed: 4, total: 9 });
+  });
+
+  it('suppresses sentence-stage translation and media progress when batch progress is active', () => {
+    const event = progressEvent({ completed: 3, total: 8 });
+
+    expect(resolveTranslationStageProgress(event, true)).toBeNull();
+    expect(resolveMediaStageProgress(event, true)).toBeNull();
+  });
+
+  it('resolves sentence-stage media progress from the event snapshot', () => {
+    expect(resolveMediaStageProgress(progressEvent({ completed: 7, total: 12 }), false)).toEqual({
+      completed: 7,
+      total: 12,
+    });
+  });
+
+  it('resolves playable progress from playable event before media batch fallback', () => {
+    expect(
+      resolvePlayableStageProgress({
+        latestPlayableEvent: progressEvent({ completed: 5, total: 8 }),
+        mediaBatchStats: {
+          items_completed: 2,
+          items_total: 9,
+        },
+      }),
+    ).toEqual({ completed: 5, total: 8 });
+  });
+
+  it('falls back to media batch item counts for playable progress', () => {
+    expect(
+      resolvePlayableStageProgress({
+        latestPlayableEvent: undefined,
+        mediaBatchStats: {
+          items_completed: '6',
+          items_total: 10,
+        },
+      }),
+    ).toEqual({ completed: 6, total: 10 });
+    expect(
+      resolvePlayableStageProgress({
+        latestPlayableEvent: progressEvent({ completed: 6, total: null }),
+        mediaBatchStats: null,
+      }),
+    ).toBeNull();
   });
 
   it('formats progress counts defensively', () => {
