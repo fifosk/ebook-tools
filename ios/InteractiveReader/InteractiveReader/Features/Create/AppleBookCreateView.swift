@@ -1061,91 +1061,45 @@ struct AppleBookCreateView: View {
     }
 
     private func applyCreationOptions(_ options: BookCreationOptionsResponse) {
-        if !editedFields.contains(.topic), let value = options.defaults.topic.nonEmptyValue {
+        let defaults = AppleBookCreatePresentation.resolvedDefaults(
+            from: options,
+            editedFields: editedFields,
+            currentSentenceCount: sentenceCount
+        )
+        if let value = defaults.topic {
             topic = value
         }
-        if !editedFields.contains(.bookName), let value = options.defaults.bookName.nonEmptyValue {
+        if let value = defaults.bookName {
             bookName = value
         }
-        if !editedFields.contains(.genre), let value = options.defaults.genre.nonEmptyValue {
+        if let value = defaults.genre {
             genre = value
         }
-        if !editedFields.contains(.author) {
-            author = options.defaults.author.nonEmptyValue ?? "Me"
+        if let value = defaults.author {
+            author = value
         }
-        if !editedFields.contains(.sentenceCount) {
-            sentenceCount = clampSentenceCount(options.sentenceBounds.default)
-        } else {
-            sentenceCount = clampSentenceCount(sentenceCount)
-        }
-        if !editedFields.contains(.inputLanguage),
-           let language = AppleBookCreateLanguage(backendValue: options.defaults.inputLanguage) {
+        sentenceCount = defaults.sentenceCount
+        if let language = defaults.inputLanguage {
             inputLanguage = language
         }
-        if !editedFields.contains(.targetLanguage),
-           let language = AppleBookCreateLanguage(backendValue: options.defaults.outputLanguage) {
+        if let language = defaults.targetLanguage {
             targetLanguage = language
         }
-        if !editedFields.contains(.voice),
-           let option = AppleBookCreateVoiceOption(backendValue: options.defaults.voice) {
+        if let option = defaults.voice {
             voice = option
         }
-        if !editedFields.contains(.includeTransliteration) {
-            includeTransliteration = options.pipelineDefaults.includeTransliteration
+        if let value = defaults.includeTransliteration {
+            includeTransliteration = value
         }
-        if !editedFields.contains(.enableLookupCache) {
-            enableLookupCache = options.pipelineDefaults.enableLookupCache
+        if let value = defaults.enableLookupCache {
+            enableLookupCache = value
         }
-        if !editedFields.contains(.subtitleTranslationProvider),
-           let provider = AppleSubtitleTranslationProvider(backendValue: options.pipelineDefaults.translationProvider) {
+        if let provider = defaults.subtitleTranslationProvider {
             subtitleTranslationProvider = provider
         }
     }
 
     private func clampSentenceCount(_ value: Int) -> Int {
-        max(sentenceBounds.min, min(sentenceBounds.max, value))
+        AppleBookCreatePresentation.clampSentenceCount(value, bounds: sentenceBounds)
     }
-}
-
-private enum AppleBookCreateEditedField: Hashable {
-    case topic
-    case bookName
-    case genre
-    case author
-    case sourcePath
-    case sourceBaseOutput
-    case subtitleSourcePath
-    case youtubeVideoPath
-    case youtubeSubtitlePath
-    case youtubeStartOffset
-    case youtubeEndOffset
-    case youtubeOriginalMixPercent
-    case youtubeFlushSentences
-    case youtubeTargetHeight
-    case youtubePreserveAspectRatio
-    case youtubeSplitBatches
-    case youtubeStitchBatches
-    case subtitleOutputFormat
-    case subtitleStartTime
-    case subtitleEndTime
-    case subtitleEnableTransliteration
-    case subtitleHighlight
-    case subtitleShowOriginal
-    case subtitleGenerateAudioBook
-    case subtitleMirrorBatchesToSourceDir
-    case subtitleTranslationProvider
-    case subtitleLlmModel
-    case subtitleTransliterationMode
-    case subtitleTransliterationModel
-    case subtitleWorkerCount
-    case subtitleBatchSize
-    case subtitleTranslationBatchSize
-    case subtitleAssFontSize
-    case subtitleAssEmphasisScale
-    case sentenceCount
-    case inputLanguage
-    case targetLanguage
-    case voice
-    case includeTransliteration
-    case enableLookupCache
 }

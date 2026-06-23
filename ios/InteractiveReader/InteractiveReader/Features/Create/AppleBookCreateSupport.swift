@@ -147,6 +147,63 @@ enum AppleCreateValidationError: Error, Equatable {
     }
 }
 
+enum AppleBookCreateEditedField: Hashable {
+    case topic
+    case bookName
+    case genre
+    case author
+    case sourcePath
+    case sourceBaseOutput
+    case subtitleSourcePath
+    case youtubeVideoPath
+    case youtubeSubtitlePath
+    case youtubeStartOffset
+    case youtubeEndOffset
+    case youtubeOriginalMixPercent
+    case youtubeFlushSentences
+    case youtubeTargetHeight
+    case youtubePreserveAspectRatio
+    case youtubeSplitBatches
+    case youtubeStitchBatches
+    case subtitleOutputFormat
+    case subtitleStartTime
+    case subtitleEndTime
+    case subtitleEnableTransliteration
+    case subtitleHighlight
+    case subtitleShowOriginal
+    case subtitleGenerateAudioBook
+    case subtitleMirrorBatchesToSourceDir
+    case subtitleTranslationProvider
+    case subtitleLlmModel
+    case subtitleTransliterationMode
+    case subtitleTransliterationModel
+    case subtitleWorkerCount
+    case subtitleBatchSize
+    case subtitleTranslationBatchSize
+    case subtitleAssFontSize
+    case subtitleAssEmphasisScale
+    case sentenceCount
+    case inputLanguage
+    case targetLanguage
+    case voice
+    case includeTransliteration
+    case enableLookupCache
+}
+
+struct AppleCreateResolvedDefaults: Equatable {
+    let topic: String?
+    let bookName: String?
+    let genre: String?
+    let author: String?
+    let sentenceCount: Int
+    let inputLanguage: AppleBookCreateLanguage?
+    let targetLanguage: AppleBookCreateLanguage?
+    let voice: AppleBookCreateVoiceOption?
+    let includeTransliteration: Bool?
+    let enableLookupCache: Bool?
+    let subtitleTranslationProvider: AppleSubtitleTranslationProvider?
+}
+
 enum AppleCreateMode: String, CaseIterable, Identifiable {
     case generatedBook
     case narrateEbook
@@ -177,6 +234,50 @@ struct AppleCreateSubmitPresentation: Equatable {
 enum AppleBookCreatePresentation {
     static func availableCreateModes(isTV: Bool) -> [AppleCreateMode] {
         isTV ? [.generatedBook] : AppleCreateMode.allCases
+    }
+
+    static func resolvedDefaults(
+        from options: BookCreationOptionsResponse,
+        editedFields: Set<AppleBookCreateEditedField>,
+        currentSentenceCount: Int
+    ) -> AppleCreateResolvedDefaults {
+        AppleCreateResolvedDefaults(
+            topic: editedFields.contains(.topic) ? nil : trimmed(options.defaults.topic).nonEmptyValue,
+            bookName: editedFields.contains(.bookName) ? nil : trimmed(options.defaults.bookName).nonEmptyValue,
+            genre: editedFields.contains(.genre) ? nil : trimmed(options.defaults.genre).nonEmptyValue,
+            author: editedFields.contains(.author)
+                ? nil
+                : (trimmed(options.defaults.author).nonEmptyValue ?? "Me"),
+            sentenceCount: clampSentenceCount(
+                editedFields.contains(.sentenceCount) ? currentSentenceCount : options.sentenceBounds.default,
+                bounds: options.sentenceBounds
+            ),
+            inputLanguage: editedFields.contains(.inputLanguage)
+                ? nil
+                : AppleBookCreateLanguage(backendValue: options.defaults.inputLanguage),
+            targetLanguage: editedFields.contains(.targetLanguage)
+                ? nil
+                : AppleBookCreateLanguage(backendValue: options.defaults.outputLanguage),
+            voice: editedFields.contains(.voice)
+                ? nil
+                : AppleBookCreateVoiceOption(backendValue: options.defaults.voice),
+            includeTransliteration: editedFields.contains(.includeTransliteration)
+                ? nil
+                : options.pipelineDefaults.includeTransliteration,
+            enableLookupCache: editedFields.contains(.enableLookupCache)
+                ? nil
+                : options.pipelineDefaults.enableLookupCache,
+            subtitleTranslationProvider: editedFields.contains(.subtitleTranslationProvider)
+                ? nil
+                : AppleSubtitleTranslationProvider(backendValue: options.pipelineDefaults.translationProvider)
+        )
+    }
+
+    static func clampSentenceCount(
+        _ value: Int,
+        bounds: BookCreationSentenceBounds
+    ) -> Int {
+        max(bounds.min, min(bounds.max, value))
     }
 
     static func submitButtonPresentation(

@@ -140,10 +140,12 @@ Current Apple UI partially exposes:
   and YouTube Dub draft builders also live in support now, keeping
   `AppleBookCreateViewModel.swift` focused on submission/payload work. Subtitle
   time-range and YouTube offset-range validation now use pure support helpers
-  that preserve the existing visible error messages. The refactor reduces the
-  view from 1371 to 1151 lines and the view model to 348 lines while preserving
-  iPhone/iPad/tvOS behavior through focused Swift payload checks and shared
-  iPadOS/tvOS simulator smokes.
+  that preserve the existing visible error messages. Backend default resolution
+  and edited-field preservation now live in support too, so backend-driven
+  Apple Create defaults stay pinned outside the SwiftUI state assignment code.
+  The refactor reduces the view from 1371 to 1105 lines and the view model to
+  348 lines while preserving iPhone/iPad/tvOS behavior through focused Swift
+  payload checks and shared iPadOS/tvOS simulator smokes.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's EPUB/PDF source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web.

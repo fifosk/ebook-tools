@@ -195,6 +195,48 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.normalizeYoutubeOffset("-1") == nil,
             "YouTube offset should reject negative seconds"
         )
+        let resolvedDefaults = AppleBookCreatePresentation.resolvedDefaults(
+            from: options,
+            editedFields: [],
+            currentSentenceCount: 999
+        )
+        require(resolvedDefaults.topic == nil, "Blank backend topic should not overwrite topic")
+        require(resolvedDefaults.bookName == nil, "Blank backend title should not overwrite title")
+        require(resolvedDefaults.genre == nil, "Blank backend genre should not overwrite genre")
+        require(resolvedDefaults.author == "Me", "Blank or backend author should resolve to visible author default")
+        require(resolvedDefaults.sentenceCount == 30, "Unedited sentence count should use backend default")
+        require(resolvedDefaults.inputLanguage == .english, "Input language default should map from backend options")
+        require(resolvedDefaults.targetLanguage == .arabic, "Target language default should map from backend options")
+        require(
+            resolvedDefaults.voice?.backendValue == "macOS-auto-male",
+            "Voice default should map from backend options"
+        )
+        require(
+            resolvedDefaults.includeTransliteration == true,
+            "Transliteration toggle should use backend pipeline default"
+        )
+        require(
+            resolvedDefaults.enableLookupCache == true,
+            "Lookup-cache toggle should use backend pipeline default"
+        )
+        require(
+            resolvedDefaults.subtitleTranslationProvider == .llm,
+            "Subtitle provider should map from backend pipeline default"
+        )
+        let editedDefaults = AppleBookCreatePresentation.resolvedDefaults(
+            from: options,
+            editedFields: [.author, .sentenceCount, .targetLanguage, .voice, .enableLookupCache],
+            currentSentenceCount: 999
+        )
+        require(editedDefaults.author == nil, "Edited author should not be overwritten by backend defaults")
+        require(editedDefaults.targetLanguage == nil, "Edited target language should not be overwritten")
+        require(editedDefaults.voice == nil, "Edited voice should not be overwritten")
+        require(editedDefaults.enableLookupCache == nil, "Edited lookup-cache toggle should not be overwritten")
+        require(editedDefaults.sentenceCount == 500, "Edited sentence count should still clamp to backend max")
+        require(
+            AppleBookCreatePresentation.clampSentenceCount(0, bounds: options.sentenceBounds) == 1,
+            "Sentence count helper should clamp to backend lower bound"
+        )
         switch AppleBookCreatePresentation.normalizedSubtitleTimeRange(start: "", end: "+5") {
         case let .success(range):
             require(range == AppleCreateTimeRange(start: "00:00", end: "+05:00"), "Subtitle range should normalize empty start and relative end")
