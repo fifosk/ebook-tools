@@ -35,7 +35,9 @@ Web-only or Web-primary creation flows:
 
 Large Web UI hotspots to split before redesign work:
 
-- `web/src/pages/LibraryPage.tsx` - 1361 lines.
+- `web/src/pages/LibraryPage.tsx` - 1188 lines. Status: TV/YouTube/library
+  title, author, genre, thumbnail, and upload-date helpers now live in
+  `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
 - `web/src/pages/VideoDubbingPage.tsx` - 1330 lines.
 - `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1276 lines.
 - `web/src/components/JobProgress.tsx` - 1254 lines.
@@ -171,6 +173,10 @@ Refactor before restyling:
 
 - Split large route files into page shell, toolbar, filters, list/detail, and action modules.
 - Move repeated status/glyph/metadata row logic into shared components.
+- Isolate Library metadata helpers before visual redesign. Status:
+  `LibraryPage.tsx` now imports tested helpers for item type, fallback labels,
+  nested TV/YouTube metadata, image URLs, counts, and upload dates from
+  `web/src/pages/library/libraryPageMetadata.ts`.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, and genre defaults from
   `/api/books/options` while preserving prompt edits that happen before defaults
