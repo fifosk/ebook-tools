@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.54",
+            version: "2026.06.23.55",
             entries: [
+                AppChangelogEntry(
+                    id: "create-intake-limit-details",
+                    title: "Create queue limits",
+                    detail: "Web and Apple Create now show delayed job count plus soft and hard queue limits in the job intake status."
+                ),
                 AppChangelogEntry(
                     id: "create-intake-loading-state",
                     title: "Create intake loading",

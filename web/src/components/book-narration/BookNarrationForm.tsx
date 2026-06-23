@@ -47,6 +47,7 @@ import {
   normalizeBookNarrationPath,
   normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
+  resolvePipelineIntakeStatusPresentation,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
   resolveBookNarrationMissingRequirements,
@@ -593,17 +594,10 @@ export function BookNarrationForm({
   const hasMissingRequirements = missingRequirements.length > 0;
   const missingRequirementText = formatList(missingRequirements);
   const canBrowseFiles = Boolean(fileOptions);
-  const intakeStatusMessage = intakeStatus
-    ? intakeStatus.acceptingJobs
-      ? intakeStatus.isUnderPressure
-        ? `Queue pressure: ${intakeStatus.queueDepth} pending and ${intakeStatus.activeCount} running. New jobs may start more slowly.`
-        : `Job intake is available: ${intakeStatus.queueDepth} pending and ${intakeStatus.activeCount} running.`
-      : `Job queue is at capacity: ${intakeStatus.queueDepth} pending${
-          intakeStatus.hardLimit ? ` of ${intakeStatus.hardLimit}` : ''
-        }. New submissions are paused until pending jobs clear.`
-    : isLoadingIntakeStatus
-    ? 'Checking job intake...'
-    : null;
+  const intakeStatusPresentation = resolvePipelineIntakeStatusPresentation(
+    intakeStatus,
+    isLoadingIntakeStatus,
+  );
   return (
     <div className="pipeline-settings">
       {showInfoHeader ? (
@@ -638,18 +632,19 @@ export function BookNarrationForm({
             </button>
           </div>
         </div>
-        {intakeStatusMessage ? (
+        {intakeStatusPresentation ? (
           <div
-            className={`form-callout ${
-              isIntakeAtCapacity || intakeStatus?.isUnderPressure
-                ? 'form-callout--warning'
-                : intakeStatus
-                ? 'form-callout--success'
-                : 'form-callout--info'
-            }`}
-            role={isIntakeAtCapacity ? 'alert' : 'status'}
+            className={`form-callout form-callout--${intakeStatusPresentation.tone}`}
+            role={intakeStatusPresentation.role}
           >
-            {intakeStatusMessage}
+            <div>{intakeStatusPresentation.message}</div>
+            {intakeStatusPresentation.detailLines.length > 0 ? (
+              <ul className="form-callout__details" aria-label="Job intake details">
+                {intakeStatusPresentation.detailLines.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         ) : null}
         {hasMissingRequirements ? (

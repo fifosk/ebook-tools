@@ -462,9 +462,15 @@ struct AppleBookCreateView: View {
 
         if let intakeStatus = viewModel.intakeStatus {
             Section {
-                Label(intakeStatusLabel(for: intakeStatus), systemImage: intakeStatusSystemImage(for: intakeStatus))
+                let presentation = AppleBookCreatePresentation.intakeStatusPresentation(for: intakeStatus)
+                Label(presentation.label, systemImage: intakeStatusSystemImage(for: intakeStatus))
                     .foregroundStyle(intakeStatusForegroundStyle(for: intakeStatus))
                     .accessibilityIdentifier("createBookIntakeStatusLabel")
+                ForEach(presentation.detailLines, id: \.self) { detailLine in
+                    Text(detailLine)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
         } else if viewModel.isLoadingIntakeStatus {
             Section {
@@ -549,17 +555,6 @@ struct AppleBookCreateView: View {
             apiBaseURL: appState.apiBaseURL,
             mode: creationMode
         )
-    }
-
-    private func intakeStatusLabel(for status: PipelineIntakeStatusResponse) -> String {
-        if !status.acceptingJobs {
-            let limit = status.hardLimit.map { " of \($0)" } ?? ""
-            return "Queue at capacity: \(status.queueDepth) pending\(limit). Wait for jobs to clear."
-        }
-        if status.isUnderPressure {
-            return "Queue pressure: \(status.queueDepth) pending, \(status.activeCount) running. New jobs may start more slowly."
-        }
-        return "Job intake available: \(status.queueDepth) pending, \(status.activeCount) running."
     }
 
     private func intakeStatusSystemImage(for status: PipelineIntakeStatusResponse) -> String {

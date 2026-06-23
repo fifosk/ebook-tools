@@ -231,6 +231,9 @@ describe('BookNarrationForm', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Job queue is at capacity');
+    expect(alert).toHaveTextContent('Delayed jobs: 5');
+    expect(alert).toHaveTextContent('Slowdown starts at 3 pending');
+    expect(alert).toHaveTextContent('Capacity limit is 6 pending');
     expect(screen.getByRole('button', { name: /Submit job/i })).toBeDisabled();
     expect(handleSubmit).not.toHaveBeenCalled();
   }, 10000);

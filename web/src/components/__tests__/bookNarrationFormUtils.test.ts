@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PipelineStatusResponse } from '../../api/dtos';
+import type { PipelineIntakeStatusResponse, PipelineStatusResponse } from '../../api/dtos';
 import { BOOK_NARRATION_SECTION_META, DEFAULT_FORM_STATE } from '../book-narration/bookNarrationFormDefaults';
 import {
   applyBookNarrationImageDefaults,
@@ -13,6 +13,7 @@ import {
   resolveBookNarrationSectionMeta,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
+  resolvePipelineIntakeStatusPresentation,
   resolveStartFromNarrationHistory,
   restoreBookNarrationEditedImageDefaults,
   targetLanguageFieldsFromLanguages,
@@ -39,6 +40,21 @@ function makeJob(
     latest_event: null,
     tuning: null,
     user_id: 'user',
+  };
+}
+
+function makeIntakeStatus(
+  overrides: Partial<PipelineIntakeStatusResponse> = {},
+): PipelineIntakeStatusResponse {
+  return {
+    acceptingJobs: true,
+    isUnderPressure: false,
+    queueDepth: 1,
+    activeCount: 2,
+    softLimit: 3,
+    hardLimit: 6,
+    delayCount: 0,
+    ...overrides,
   };
 }
 
@@ -228,6 +244,40 @@ describe('bookNarrationFormUtils prefill helpers', () => {
 });
 
 describe('bookNarrationFormUtils form state helpers', () => {
+  it('formats intake loading, limit, and delay details', () => {
+    expect(resolvePipelineIntakeStatusPresentation(null, true)).toEqual({
+      message: 'Checking job intake...',
+      detailLines: [],
+      tone: 'info',
+      role: 'status',
+    });
+
+    expect(
+      resolvePipelineIntakeStatusPresentation(makeIntakeStatus({ delayCount: 4 }), false),
+    ).toEqual({
+      message: 'Job intake is available: 1 pending and 2 running.',
+      detailLines: ['Delayed jobs: 4', 'Slowdown starts at 3 pending', 'Capacity limit is 6 pending'],
+      tone: 'success',
+      role: 'status',
+    });
+
+    expect(
+      resolvePipelineIntakeStatusPresentation(
+        makeIntakeStatus({
+          acceptingJobs: false,
+          queueDepth: 6,
+          delayCount: 2,
+        }),
+        false,
+      ),
+    ).toMatchObject({
+      message: 'Job queue is at capacity: 6 pending of 6. New submissions are paused until pending jobs clear.',
+      detailLines: ['Delayed jobs: 2', 'Slowdown starts at 3 pending', 'Capacity limit is 6 pending'],
+      tone: 'warning',
+      role: 'alert',
+    });
+  });
+
   it('compacts optional pipeline defaults into a config map without nullish values', () => {
     expect(compactBookNarrationPipelineDefaults(null)).toBeNull();
     expect(compactBookNarrationPipelineDefaults({})).toBeNull();

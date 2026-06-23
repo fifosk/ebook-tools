@@ -2714,6 +2714,17 @@ button.link-button:focus {
   font-size: 0.95rem;
 }
 
+.form-callout__details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  opacity: 0.82;
+}
+
 .form-callout--warning {
   border-color: var(--color-status-warning-text);
   background: var(--color-status-warning-bg);

@@ -510,6 +510,11 @@ struct AppleCreateSubmitPresentation: Equatable {
     let systemImage: String
 }
 
+struct AppleCreateIntakePresentation: Equatable {
+    let label: String
+    let detailLines: [String]
+}
+
 struct AppleCreateSubmitState: Equatable {
     let hasConfiguration: Bool
     let mode: AppleCreateMode
@@ -1005,6 +1010,34 @@ enum AppleBookCreatePresentation {
         case .youtubeDub:
             return AppleCreateSubmitPresentation(title: "Create Dub", systemImage: "video")
         }
+    }
+
+    static func intakeStatusPresentation(for status: PipelineIntakeStatusResponse) -> AppleCreateIntakePresentation {
+        let detailLines = [
+            "Delayed jobs: \(status.delayCount)",
+            status.softLimit.map { "Slowdown starts at \($0) pending" },
+            status.hardLimit.map { "Capacity limit is \($0) pending" },
+        ].compactMap { $0 }
+
+        if !status.acceptingJobs {
+            let limit = status.hardLimit.map { " of \($0)" } ?? ""
+            return AppleCreateIntakePresentation(
+                label: "Queue at capacity: \(status.queueDepth) pending\(limit). Wait for jobs to clear.",
+                detailLines: detailLines
+            )
+        }
+
+        if status.isUnderPressure {
+            return AppleCreateIntakePresentation(
+                label: "Queue pressure: \(status.queueDepth) pending, \(status.activeCount) running. New jobs may start more slowly.",
+                detailLines: detailLines
+            )
+        }
+
+        return AppleCreateIntakePresentation(
+            label: "Job intake available: \(status.queueDepth) pending, \(status.activeCount) running.",
+            detailLines: detailLines
+        )
     }
 
     static func canSubmit(_ state: AppleCreateSubmitState) -> Bool {

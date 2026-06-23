@@ -181,6 +181,43 @@ struct AppleCreationPayloadCheck {
                 == AppleCreateSubmitPresentation(title: "Submitting", systemImage: "hourglass"),
             "Submitting state should override mode-specific submit labels"
         )
+        let intakePresentation = AppleBookCreatePresentation.intakeStatusPresentation(
+            for: PipelineIntakeStatusResponse(
+                acceptingJobs: true,
+                isUnderPressure: false,
+                queueDepth: 1,
+                activeCount: 2,
+                softLimit: 3,
+                hardLimit: 6,
+                delayCount: 4
+            )
+        )
+        require(
+            intakePresentation == AppleCreateIntakePresentation(
+                label: "Job intake available: 1 pending, 2 running.",
+                detailLines: [
+                    "Delayed jobs: 4",
+                    "Slowdown starts at 3 pending",
+                    "Capacity limit is 6 pending",
+                ]
+            ),
+            "Apple Create intake presentation should include queue limits and delayed jobs"
+        )
+        let capacityPresentation = AppleBookCreatePresentation.intakeStatusPresentation(
+            for: PipelineIntakeStatusResponse(
+                acceptingJobs: false,
+                isUnderPressure: true,
+                queueDepth: 6,
+                activeCount: 2,
+                softLimit: 3,
+                hardLimit: 6,
+                delayCount: 2
+            )
+        )
+        require(
+            capacityPresentation.label == "Queue at capacity: 6 pending of 6. Wait for jobs to clear.",
+            "Apple Create intake presentation should keep capacity wording stable"
+        )
         require(
             !AppleBookCreatePresentation.canSubmit(
                 submitState(
