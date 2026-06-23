@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { JobParameterSnapshot } from '../../api/dtos';
-import { resolveSubtitlePrefillValues } from './subtitleToolUtils';
+import { resolveSubtitlePrefillValues } from './subtitlePrefillUtils';
 
 type Setter<T> = (value: T) => void;
 

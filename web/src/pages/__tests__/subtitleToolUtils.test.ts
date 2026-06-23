@@ -8,7 +8,6 @@ import {
   resolveSubtitleLanguageDefaults,
   resolveSubtitleMetadataSourceName,
   resolveSubtitleSourceFormat,
-  resolveSubtitlePrefillValues,
   resolveSubtitleSourceSelectionAfterRefresh,
   selectMissingCompletedSubtitleJobs,
   sortSubtitleJobsNewestFirst,
@@ -16,6 +15,7 @@ import {
   updateSubtitleMediaMetadataDraft,
   updateSubtitleMediaMetadataSection
 } from '../subtitle-tool/subtitleToolUtils';
+import { resolveSubtitlePrefillValues } from '../subtitle-tool/subtitlePrefillUtils';
 import {
   buildSubtitleSubmitFormData,
   normalizeSubtitleTimecodeInput,

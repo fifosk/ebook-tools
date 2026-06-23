@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.71",
+            version: "2026.06.23.72",
             entries: [
+                AppChangelogEntry(
+                    id: "web-subtitle-prefill-utils",
+                    title: "Subtitle prefill utilities",
+                    detail: "Web Subtitle Tool rerun and prefill mapping now lives in a focused module so existing-job recreation stays pinned independently from the page shell."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-submit-utils",
                     title: "Subtitle submit utilities",
