@@ -1281,6 +1281,12 @@ class MediaMetadataService:
                         job.request.config["book_year"] = year
                     if summary:
                         job.request.config["book_summary"] = summary
+                    if isbn:
+                        job.request.config["book_isbn"] = isbn
+                    if genre:
+                        job.request.config["book_genre"] = genre
+                    if "book_genres" in media_metadata:
+                        job.request.config["book_genres"] = media_metadata["book_genres"]
                     if cover_file:
                         job.request.config["book_cover_file"] = cover_file
                 except Exception:

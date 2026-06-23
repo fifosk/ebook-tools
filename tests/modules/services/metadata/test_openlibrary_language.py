@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from modules.services.media_metadata_service import _normalize_openlibrary_language
 from modules.services.media_metadata_service import BookLookupQuery, MediaMetadataService
 from modules.services.job_manager.job import PipelineJob, PipelineJobStatus
+from modules.services.pipeline_service import PipelineInput, PipelineRequest
+from modules.services.pipeline_types import PipelineMetadata
 from modules.services.metadata.clients.openlibrary import OpenLibraryClient
 from modules.services.metadata.types import (
     ConfidenceLevel,
@@ -105,12 +107,40 @@ def test_pipeline_result_payload_exposes_web_aligned_book_aliases() -> None:
 
 
 def test_persisted_lookup_keeps_book_isbn_and_genre_aliases() -> None:
+    request = PipelineRequest(
+        config={},
+        context=None,
+        environment_overrides={},
+        pipeline_overrides={},
+        inputs=PipelineInput(
+            input_file="input.epub",
+            base_output_file="output",
+            input_language="en",
+            target_languages=["en"],
+            sentences_per_output_file=10,
+            start_sentence=0,
+            end_sentence=None,
+            stitch_full=False,
+            generate_audio=True,
+            audio_mode="tts",
+            written_mode="text",
+            selected_voice="voice",
+            output_html=False,
+            output_pdf=False,
+            add_images=False,
+            include_transliteration=False,
+            tempo=1.0,
+            media_metadata=PipelineMetadata(),
+        ),
+    )
+
     class StubJobManager:
         def __init__(self) -> None:
             self.job = PipelineJob(
                 job_id="job-1",
                 status=PipelineJobStatus.COMPLETED,
                 created_at=datetime.now(timezone.utc),
+                request=request,
                 request_payload={"inputs": {"media_metadata": {}}, "config": {}},
                 job_type="book",
             )
@@ -154,3 +184,8 @@ def test_persisted_lookup_keeps_book_isbn_and_genre_aliases() -> None:
     assert config["book_isbn"] == "9780140328721"
     assert config["book_genre"] == "Adventure, Fantasy"
     assert config["book_genres"] == ["Adventure", "Fantasy"]
+    assert manager.job.request is not None
+    assert manager.job.request.config["book_isbn"] == "9780140328721"
+    assert manager.job.request.config["book_genre"] == "Adventure, Fantasy"
+    assert manager.job.request.config["book_genres"] == ["Adventure", "Fantasy"]
+    assert manager.job.request.inputs.media_metadata.as_dict()["book_genres"] == ["Adventure", "Fantasy"]

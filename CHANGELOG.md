@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.36
+
+- Advanced visible Apple app versioning to `v2026.06.23.36`.
+- In-memory book lookup enrichment now keeps `book_isbn`, `book_genre`, and `book_genres` aligned in active pipeline request config after metadata persistence.
+
 ### 2026.06.23.35
 
 - Advanced visible Apple app versioning to `v2026.06.23.35`.

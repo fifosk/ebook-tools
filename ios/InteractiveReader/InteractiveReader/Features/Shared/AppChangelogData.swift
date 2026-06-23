@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.35",
+            version: "2026.06.23.36",
             entries: [
+                AppChangelogEntry(
+                    id: "active-book-request-aliases",
+                    title: "Active request metadata",
+                    detail: "In-memory book lookup enrichment now keeps book_isbn, book_genre, and book_genres aligned in active pipeline request config after metadata persistence."
+                ),
                 AppChangelogEntry(
                     id: "persisted-book-lookup-aliases",
                     title: "Persisted book metadata",
