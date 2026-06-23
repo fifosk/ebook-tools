@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.95
+
+- Advanced visible Apple app versioning to `v2026.06.23.95`.
+- Apple Create generated-book mode now reuses recent generated-book prompt, language, voice, narration, output, lookup, and image defaults without borrowing Narrate EPUB history.
+
 ### 2026.06.23.94
 
 - Advanced visible Apple app versioning to `v2026.06.23.94`.

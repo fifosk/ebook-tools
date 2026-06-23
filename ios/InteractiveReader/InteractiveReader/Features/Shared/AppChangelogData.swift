@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.94",
+            version: "2026.06.23.95",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-generated-book-history-defaults",
+                    title: "Create remembers generated books",
+                    detail: "Apple Create generated-book mode now reuses recent generated-book prompt, language, voice, narration, output, lookup, and image defaults without borrowing Narrate EPUB history."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-subtitle-video-history-defaults",
                     title: "Create reuses job defaults",

@@ -1010,12 +1010,149 @@ struct AppleBookCreateView: View {
 
     private func applyHistoryDefaultsForCurrentMode() {
         switch creationMode {
-        case .generatedBook, .narrateEbook:
+        case .generatedBook:
+            applyGeneratedBookHistoryDefaults()
+        case .narrateEbook:
             applyNarrationHistoryDefaults()
         case .subtitleJob:
             applySubtitleHistoryDefaults()
         case .youtubeDub:
             applyYoutubeHistoryDefaults()
+        }
+    }
+
+    private func applyGeneratedBookHistoryDefaults() {
+        guard let defaults = AppleBookCreatePresentation.generatedBookHistoryDefaults(from: recentJobs) else {
+            return
+        }
+
+        if !editedFields.contains(.topic),
+           let value = defaults.topic?.nonEmptyValue {
+            topic = value
+        }
+        if !editedFields.contains(.bookName),
+           let value = defaults.bookName?.nonEmptyValue {
+            bookName = value
+        }
+        if !editedFields.contains(.genre),
+           let value = defaults.genre?.nonEmptyValue {
+            genre = value
+        }
+        if !editedFields.contains(.author),
+           let value = defaults.author?.nonEmptyValue {
+            author = value
+        }
+        if !editedFields.contains(.sentenceCount),
+           let value = defaults.sentenceCount {
+            sentenceCount = clampSentenceCount(value)
+        }
+        if !editedFields.contains(.inputLanguage),
+           let inputLanguage = defaults.inputLanguage {
+            self.inputLanguage = inputLanguage
+        }
+        if !editedFields.contains(.targetLanguage),
+           let targetLanguage = defaults.targetLanguage {
+            self.targetLanguage = targetLanguage
+        }
+        if !editedFields.contains(.additionalTargetLanguages),
+           let additionalTargetLanguages = defaults.additionalTargetLanguages {
+            self.additionalTargetLanguages = additionalTargetLanguages
+        }
+        if !editedFields.contains(.voice),
+           let voice = defaults.voice {
+            self.voice = voice
+        }
+        if !editedFields.contains(.generateAudio),
+           let generateAudio = defaults.generateAudio {
+            self.generateAudio = generateAudio
+        }
+        if !editedFields.contains(.audioMode),
+           let audioMode = defaults.audioMode?.nonEmptyValue {
+            self.audioMode = audioMode
+        }
+        if !editedFields.contains(.audioBitrateKbps),
+           let audioBitrateKbps = defaults.audioBitrateKbps?.nonEmptyValue {
+            self.audioBitrateKbps = audioBitrateKbps
+        }
+        if !editedFields.contains(.writtenMode),
+           let writtenMode = defaults.writtenMode?.nonEmptyValue {
+            self.writtenMode = writtenMode
+        }
+        if !editedFields.contains(.tempo),
+           let tempo = defaults.tempo {
+            self.tempo = tempo
+        }
+        if !editedFields.contains(.bookSentencesPerOutputFile),
+           let bookSentencesPerOutputFile = defaults.bookSentencesPerOutputFile {
+            self.bookSentencesPerOutputFile = bookSentencesPerOutputFile
+        }
+        if !editedFields.contains(.stitchFull),
+           let stitchFull = defaults.stitchFull {
+            self.stitchFull = stitchFull
+        }
+        if !editedFields.contains(.includeTransliteration),
+           let includeTransliteration = defaults.includeTransliteration {
+            self.includeTransliteration = includeTransliteration
+        }
+        if !editedFields.contains(.bookTranslationProvider),
+           let bookTranslationProvider = defaults.bookTranslationProvider {
+            self.bookTranslationProvider = bookTranslationProvider
+        }
+        if !editedFields.contains(.bookLlmModel),
+           let bookLlmModel = defaults.bookLlmModel?.nonEmptyValue {
+            self.bookLlmModel = bookLlmModel
+        }
+        if !editedFields.contains(.bookTranslationBatchSize),
+           let bookTranslationBatchSize = defaults.bookTranslationBatchSize {
+            self.bookTranslationBatchSize = bookTranslationBatchSize
+        }
+        if !editedFields.contains(.bookTransliterationMode),
+           let bookTransliterationMode = defaults.bookTransliterationMode {
+            self.bookTransliterationMode = bookTransliterationMode
+        }
+        if !editedFields.contains(.bookTransliterationModel),
+           let bookTransliterationModel = defaults.bookTransliterationModel?.nonEmptyValue {
+            self.bookTransliterationModel = bookTransliterationModel
+        }
+        if !editedFields.contains(.enableLookupCache),
+           let enableLookupCache = defaults.enableLookupCache {
+            self.enableLookupCache = enableLookupCache
+        }
+        if !editedFields.contains(.bookLookupCacheBatchSize),
+           let bookLookupCacheBatchSize = defaults.bookLookupCacheBatchSize {
+            self.bookLookupCacheBatchSize = bookLookupCacheBatchSize
+        }
+        if !editedFields.contains(.outputHtml),
+           let outputHtml = defaults.outputHtml {
+            self.outputHtml = outputHtml
+        }
+        if !editedFields.contains(.outputPdf),
+           let outputPdf = defaults.outputPdf {
+            self.outputPdf = outputPdf
+        }
+        if !editedFields.contains(.includeImages),
+           let includeImages = defaults.includeImages {
+            self.includeImages = includeImages
+        }
+        if !editedFields.contains(.imagePromptPipeline),
+           let imagePromptPipeline = defaults.imagePromptPipeline {
+            self.imagePromptPipeline = imagePromptPipeline
+        }
+        if !editedFields.contains(.imageStyleTemplate),
+           let imageStyleTemplate = defaults.imageStyleTemplate {
+            self.imageStyleTemplate = imageStyleTemplate
+        }
+        if !editedFields.contains(.imagePromptContextSentences),
+           let imagePromptContextSentences = defaults.imagePromptContextSentences {
+            self.imagePromptContextSentences = imagePromptContextSentences
+        }
+        if !editedFields.contains(.imageWidth),
+           let imageWidth = defaults.imageWidth?.nonEmptyValue {
+            self.imageWidth = imageWidth
+        }
+        if !editedFields.contains(.imageHeight),
+           let imageHeight = defaults.imageHeight?.nonEmptyValue {
+            self.imageHeight = imageHeight
         }
     }
 

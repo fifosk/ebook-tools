@@ -332,6 +332,67 @@ struct AppleCreationPayloadCheck {
         {
           "jobs": [
             {
+              "jobId": "generated-book-latest",
+              "jobType": "book",
+              "status": "completed",
+              "createdAt": "2026-06-23T15:00:00Z",
+              "startedAt": null,
+              "completedAt": null,
+              "result": null,
+              "error": null,
+              "latestEvent": null,
+              "tuning": null,
+              "userId": "editor",
+              "userRole": "editor",
+              "generatedFiles": null,
+              "parameters": {
+                "book_generation": {
+                  "topic": "Portable Apple clients",
+                  "book_name": "Native Creation",
+                  "genre": "technical",
+                  "author": "Codex",
+                  "num_sentences": 42,
+                  "input_language": "English",
+                  "output_language": "Slovak",
+                  "voice": "macOS-auto-male"
+                },
+                "inputs": {
+                  "input_language": "English",
+                  "target_languages": ["Slovak", "German", "Arabic"],
+                  "selected_voice": "macOS-auto-male",
+                  "generate_audio": false,
+                  "audio_mode": "2",
+                  "audio_bitrate_kbps": 31,
+                  "written_mode": "3",
+                  "tempo": 2.9,
+                  "sentences_per_output_file": 0,
+                  "stitch_full": true,
+                  "include_transliteration": true,
+                  "translation_provider": "googletrans",
+                  "translation_batch_size": 0,
+                  "transliteration_mode": "python",
+                  "transliteration_model": "gpt-4.1",
+                  "enable_lookup_cache": false,
+                  "lookup_cache_batch_size": 99,
+                  "output_html": true,
+                  "output_pdf": true,
+                  "add_images": true
+                },
+                "pipeline_overrides": {
+                  "llm_model": "gpt-4.1-mini",
+                  "image_prompt_pipeline": "visual_canon",
+                  "image_style_template": "children_book",
+                  "image_prompt_context_sentences": 99,
+                  "image_width": "63.9",
+                  "image_height": "1024.8"
+                }
+              },
+              "mediaCompleted": true,
+              "retrySummary": null,
+              "jobLabel": null,
+              "imageGeneration": null
+            },
+            {
               "jobId": "subtitle-latest",
               "jobType": "subtitle",
               "status": "completed",
@@ -414,6 +475,53 @@ struct AppleCreationPayloadCheck {
         }
         """.data(using: .utf8)!
         let createHistoryJobs = try decoder.decode(PipelineJobListResponse.self, from: createHistoryJSON).jobs
+        let generatedBookHistoryDefaults = AppleBookCreatePresentation.generatedBookHistoryDefaults(
+            from: createHistoryJobs
+        )
+        require(
+            generatedBookHistoryDefaults?.topic == "Portable Apple clients"
+                && generatedBookHistoryDefaults?.bookName == "Native Creation"
+                && generatedBookHistoryDefaults?.genre == "technical"
+                && generatedBookHistoryDefaults?.author == "Codex"
+                && generatedBookHistoryDefaults?.sentenceCount == 42,
+            "Apple Create should reuse latest generated-book prompt defaults"
+        )
+        require(
+            generatedBookHistoryDefaults?.inputLanguage == .english
+                && generatedBookHistoryDefaults?.targetLanguage == .slovak
+                && generatedBookHistoryDefaults?.additionalTargetLanguages == "German, Arabic"
+                && generatedBookHistoryDefaults?.voice?.backendValue == "macOS-auto-male",
+            "Apple Create should reuse latest generated-book language and voice defaults"
+        )
+        require(
+            generatedBookHistoryDefaults?.generateAudio == false
+                && generatedBookHistoryDefaults?.audioMode == "2"
+                && generatedBookHistoryDefaults?.audioBitrateKbps == "32"
+                && generatedBookHistoryDefaults?.writtenMode == "3"
+                && generatedBookHistoryDefaults?.tempo == 2.0
+                && generatedBookHistoryDefaults?.bookSentencesPerOutputFile == 1
+                && generatedBookHistoryDefaults?.stitchFull == true
+                && generatedBookHistoryDefaults?.includeTransliteration == true
+                && generatedBookHistoryDefaults?.bookTranslationProvider == .googleTranslate
+                && generatedBookHistoryDefaults?.bookLlmModel == "gpt-4.1-mini"
+                && generatedBookHistoryDefaults?.bookTranslationBatchSize == AppleSubtitleTuning.translationBatchSizeRange.lowerBound
+                && generatedBookHistoryDefaults?.bookTransliterationMode == .python
+                && generatedBookHistoryDefaults?.bookTransliterationModel == "gpt-4.1"
+                && generatedBookHistoryDefaults?.enableLookupCache == false
+                && generatedBookHistoryDefaults?.bookLookupCacheBatchSize == AppleSubtitleTuning.translationBatchSizeRange.upperBound
+                && generatedBookHistoryDefaults?.outputHtml == true
+                && generatedBookHistoryDefaults?.outputPdf == true,
+            "Apple Create should reuse and clamp latest generated-book pipeline defaults"
+        )
+        require(
+            generatedBookHistoryDefaults?.includeImages == true
+                && generatedBookHistoryDefaults?.imagePromptPipeline == .visualCanon
+                && generatedBookHistoryDefaults?.imageStyleTemplate == .childrenBook
+                && generatedBookHistoryDefaults?.imagePromptContextSentences == 50
+                && generatedBookHistoryDefaults?.imageWidth == "64"
+                && generatedBookHistoryDefaults?.imageHeight == "1024",
+            "Apple Create should reuse and clamp latest generated-book image defaults"
+        )
         let subtitleHistoryDefaults = AppleBookCreatePresentation.subtitleHistoryDefaults(from: createHistoryJobs)
         require(
             subtitleHistoryDefaults?.sourcePath == "/subtitles/latest.ass"

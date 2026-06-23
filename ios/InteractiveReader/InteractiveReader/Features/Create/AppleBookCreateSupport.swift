@@ -528,6 +528,41 @@ struct AppleYoutubeHistoryDefaults: Equatable {
     let enableLookupCache: Bool?
 }
 
+struct AppleGeneratedBookHistoryDefaults: Equatable {
+    let topic: String?
+    let bookName: String?
+    let genre: String?
+    let author: String?
+    let sentenceCount: Int?
+    let inputLanguage: AppleBookCreateLanguage?
+    let targetLanguage: AppleBookCreateLanguage?
+    let additionalTargetLanguages: String?
+    let voice: AppleBookCreateVoiceOption?
+    let generateAudio: Bool?
+    let audioMode: String?
+    let audioBitrateKbps: String?
+    let writtenMode: String?
+    let tempo: Double?
+    let bookSentencesPerOutputFile: Int?
+    let stitchFull: Bool?
+    let includeTransliteration: Bool?
+    let bookTranslationProvider: AppleSubtitleTranslationProvider?
+    let bookLlmModel: String?
+    let bookTranslationBatchSize: Int?
+    let bookTransliterationMode: AppleSubtitleTransliterationMode?
+    let bookTransliterationModel: String?
+    let enableLookupCache: Bool?
+    let bookLookupCacheBatchSize: Int?
+    let outputHtml: Bool?
+    let outputPdf: Bool?
+    let includeImages: Bool?
+    let imagePromptPipeline: AppleGeneratedBookImagePromptPipeline?
+    let imageStyleTemplate: AppleGeneratedBookImageStyleTemplate?
+    let imagePromptContextSentences: Int?
+    let imageWidth: String?
+    let imageHeight: String?
+}
+
 struct AppleCreateResolvedDefaults: Equatable {
     let topic: String?
     let bookName: String?
@@ -758,6 +793,110 @@ enum AppleBookCreatePresentation {
             additionalTargetLanguages: additionalTargetLanguages.isEmpty ? nil : additionalTargetLanguages,
             enableLookupCache: lookupCache
         )
+    }
+
+    static func generatedBookHistoryDefaults(from jobs: [PipelineStatusResponse]) -> AppleGeneratedBookHistoryDefaults? {
+        guard let latest = latestGeneratedBookJob(from: jobs),
+              let parameters = latest.parameters?.objectValue
+        else {
+            return nil
+        }
+        let sources = generatedBookParameterSources(parameters)
+        let targetLanguages = historyStringArray(in: sources, keys: ["target_languages", "targetLanguages"]) ?? []
+        let normalizedTargets = normalizedLanguageList(targetLanguages)
+        let targetLanguage = (normalizedTargets.first
+            ?? historyString(in: sources, keys: ["output_language", "outputLanguage", "target_language", "targetLanguage"]))
+            .flatMap(AppleBookCreateLanguage.init(backendValue:))
+        let additionalTargetLanguages = normalizedTargets.dropFirst().joined(separator: ", ")
+        let sentenceCount = historyInt(in: sources, keys: ["num_sentences", "numSentences", "sentence_count", "sentenceCount"])
+            .map { max(1, $0) }
+
+        let defaults = AppleGeneratedBookHistoryDefaults(
+            topic: historyString(in: sources, keys: ["topic", "book_topic", "bookTopic"]),
+            bookName: historyString(in: sources, keys: ["book_name", "bookName", "book_title", "bookTitle"]),
+            genre: historyString(in: sources, keys: ["genre", "book_genre", "bookGenre"]),
+            author: historyString(in: sources, keys: ["author", "book_author", "bookAuthor"]),
+            sentenceCount: sentenceCount,
+            inputLanguage: historyString(in: sources, keys: ["input_language", "inputLanguage", "source_language", "sourceLanguage"])
+                .flatMap(AppleBookCreateLanguage.init(backendValue:)),
+            targetLanguage: targetLanguage,
+            additionalTargetLanguages: additionalTargetLanguages.isEmpty ? nil : additionalTargetLanguages,
+            voice: historyString(in: sources, keys: ["voice", "selected_voice", "selectedVoice"])
+                .flatMap(AppleBookCreateVoiceOption.init(backendValue:)),
+            generateAudio: historyBool(in: sources, keys: ["generate_audio", "generateAudio"]),
+            audioMode: historyString(in: sources, keys: ["audio_mode", "audioMode"]),
+            audioBitrateKbps: historyInt(in: sources, keys: ["audio_bitrate_kbps", "audioBitrateKbps"])
+                .map { "\(max(32, $0))" },
+            writtenMode: historyString(in: sources, keys: ["written_mode", "writtenMode"]),
+            tempo: historyDouble(in: sources, keys: ["tempo"])
+                .map(clampTempo),
+            bookSentencesPerOutputFile: historyInt(in: sources, keys: ["sentences_per_output_file", "sentencesPerOutputFile"])
+                .map(clampBookSentencesPerOutputFile),
+            stitchFull: historyBool(in: sources, keys: ["stitch_full", "stitchFull"]),
+            includeTransliteration: historyBool(in: sources, keys: ["include_transliteration", "includeTransliteration"]),
+            bookTranslationProvider: historyString(in: sources, keys: ["translation_provider", "translationProvider"])
+                .flatMap(AppleSubtitleTranslationProvider.init(backendValue:)),
+            bookLlmModel: historyString(in: sources, keys: ["llm_model", "llmModel"]),
+            bookTranslationBatchSize: historyInt(in: sources, keys: ["translation_batch_size", "translationBatchSize"])
+                .map(clampSubtitleTranslationBatchSize),
+            bookTransliterationMode: historyString(in: sources, keys: ["transliteration_mode", "transliterationMode"])
+                .flatMap(AppleSubtitleTransliterationMode.init(backendValue:)),
+            bookTransliterationModel: historyString(in: sources, keys: ["transliteration_model", "transliterationModel"]),
+            enableLookupCache: historyBool(in: sources, keys: ["enable_lookup_cache", "enableLookupCache"]),
+            bookLookupCacheBatchSize: historyInt(in: sources, keys: ["lookup_cache_batch_size", "lookupCacheBatchSize"])
+                .map(clampSubtitleTranslationBatchSize),
+            outputHtml: historyBool(in: sources, keys: ["output_html", "outputHtml"]),
+            outputPdf: historyBool(in: sources, keys: ["output_pdf", "outputPdf"]),
+            includeImages: historyBool(in: sources, keys: ["add_images", "addImages"]),
+            imagePromptPipeline: historyString(in: sources, keys: ["image_prompt_pipeline", "imagePromptPipeline"])
+                .flatMap(AppleGeneratedBookImagePromptPipeline.init(backendValue:)),
+            imageStyleTemplate: historyString(in: sources, keys: ["image_style_template", "imageStyleTemplate"])
+                .flatMap(AppleGeneratedBookImageStyleTemplate.init(backendValue:)),
+            imagePromptContextSentences: historyInt(in: sources, keys: ["image_prompt_context_sentences", "imagePromptContextSentences"])
+                .map(clampImagePromptContextSentences),
+            imageWidth: historyString(in: sources, keys: ["image_width", "imageWidth"])
+                .map(normalizedImageDimension),
+            imageHeight: historyString(in: sources, keys: ["image_height", "imageHeight"])
+                .map(normalizedImageDimension)
+        )
+
+        guard defaults.topic != nil
+            || defaults.bookName != nil
+            || defaults.genre != nil
+            || defaults.author != nil
+            || defaults.sentenceCount != nil
+            || defaults.inputLanguage != nil
+            || defaults.targetLanguage != nil
+            || defaults.additionalTargetLanguages != nil
+            || defaults.voice != nil
+            || defaults.generateAudio != nil
+            || defaults.audioMode != nil
+            || defaults.audioBitrateKbps != nil
+            || defaults.writtenMode != nil
+            || defaults.tempo != nil
+            || defaults.bookSentencesPerOutputFile != nil
+            || defaults.stitchFull != nil
+            || defaults.includeTransliteration != nil
+            || defaults.bookTranslationProvider != nil
+            || defaults.bookLlmModel != nil
+            || defaults.bookTranslationBatchSize != nil
+            || defaults.bookTransliterationMode != nil
+            || defaults.bookTransliterationModel != nil
+            || defaults.enableLookupCache != nil
+            || defaults.bookLookupCacheBatchSize != nil
+            || defaults.outputHtml != nil
+            || defaults.outputPdf != nil
+            || defaults.includeImages != nil
+            || defaults.imagePromptPipeline != nil
+            || defaults.imageStyleTemplate != nil
+            || defaults.imagePromptContextSentences != nil
+            || defaults.imageWidth != nil
+            || defaults.imageHeight != nil
+        else {
+            return nil
+        }
+
+        return defaults
     }
 
     static func subtitleHistoryDefaults(from jobs: [PipelineStatusResponse]) -> AppleSubtitleHistoryDefaults? {
@@ -1376,6 +1515,12 @@ enum AppleBookCreatePresentation {
         return latest?.job
     }
 
+    private static func latestGeneratedBookJob(from jobs: [PipelineStatusResponse]) -> PipelineStatusResponse? {
+        latestJob(from: jobs) { job in
+            jobHasBookGeneration(job)
+        }
+    }
+
     private static func latestSubtitleJob(from jobs: [PipelineStatusResponse]) -> PipelineStatusResponse? {
         latestJob(from: jobs) { job in
             job.jobType.lowercased() == "subtitle"
@@ -1408,7 +1553,19 @@ enum AppleBookCreatePresentation {
 
     private static func isReusableNarrationJob(_ job: PipelineStatusResponse) -> Bool {
         let jobType = job.jobType.lowercased()
-        return !jobType.contains("subtitle") && jobType != "youtube_dub"
+        return !jobType.contains("subtitle") && jobType != "youtube_dub" && !jobHasBookGeneration(job)
+    }
+
+    private static func jobHasBookGeneration(_ job: PipelineStatusResponse) -> Bool {
+        guard let parameters = job.parameters?.objectValue else { return false }
+        if parameters["book_generation"]?.objectValue != nil {
+            return true
+        }
+        if let request = parameters["request"]?.objectValue,
+           request["book_generation"]?.objectValue != nil {
+            return true
+        }
+        return false
     }
 
     private static func narrationString(
@@ -1424,6 +1581,20 @@ enum AppleBookCreatePresentation {
         keys: [String]
     ) -> String? {
         let sources = narrationParameterSources(parameters)
+        for source in sources {
+            for key in keys {
+                if let value = source[key]?.stringValue?.nonEmptyValue {
+                    return value
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func historyString(
+        in sources: [[String: JSONValue]],
+        keys: [String]
+    ) -> String? {
         for source in sources {
             for key in keys {
                 if let value = source[key]?.stringValue?.nonEmptyValue {
@@ -1460,12 +1631,50 @@ enum AppleBookCreatePresentation {
         return nil
     }
 
+    private static func historyStringArray(
+        in sources: [[String: JSONValue]],
+        keys: [String]
+    ) -> [String]? {
+        for source in sources {
+            for key in keys {
+                guard let value = source[key] else { continue }
+                if let array = value.arrayValue {
+                    let strings = array.compactMap { $0.stringValue?.nonEmptyValue }
+                    if !strings.isEmpty {
+                        return strings
+                    }
+                }
+                if let string = value.stringValue?.nonEmptyValue {
+                    let strings = normalizedLanguageList(string.split(separator: ",").map(String.init))
+                    if !strings.isEmpty {
+                        return strings
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
     private static func narrationInt(
         _ job: PipelineStatusResponse,
         keys: [String]
     ) -> Int? {
         guard let parameters = job.parameters?.objectValue else { return nil }
         let sources = narrationParameterSources(parameters)
+        for source in sources {
+            for key in keys {
+                if let value = source[key]?.intValue {
+                    return value
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func historyInt(
+        in sources: [[String: JSONValue]],
+        keys: [String]
+    ) -> Int? {
         for source in sources {
             for key in keys {
                 if let value = source[key]?.intValue {
@@ -1493,12 +1702,50 @@ enum AppleBookCreatePresentation {
         return nil
     }
 
+    private static func historyDouble(
+        in sources: [[String: JSONValue]],
+        keys: [String]
+    ) -> Double? {
+        for source in sources {
+            for key in keys {
+                guard let value = source[key] else { continue }
+                if let doubleValue = historyDouble(from: value) {
+                    return doubleValue
+                }
+            }
+        }
+        return nil
+    }
+
     private static func narrationBool(
         _ job: PipelineStatusResponse,
         keys: [String]
     ) -> Bool? {
         guard let parameters = job.parameters?.objectValue else { return nil }
         let sources = narrationParameterSources(parameters)
+        for source in sources {
+            for key in keys {
+                guard let value = source[key] else { continue }
+                if case let .bool(boolValue) = value {
+                    return boolValue
+                }
+                if let string = value.stringValue?.lowercased() {
+                    if ["1", "true", "yes", "on"].contains(string) {
+                        return true
+                    }
+                    if ["0", "false", "no", "off"].contains(string) {
+                        return false
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func historyBool(
+        in sources: [[String: JSONValue]],
+        keys: [String]
+    ) -> Bool? {
         for source in sources {
             for key in keys {
                 guard let value = source[key] else { continue }
@@ -1576,6 +1823,39 @@ enum AppleBookCreatePresentation {
 
     private static func formatTimecodeComponent(_ value: Int) -> String {
         String(format: "%02d", value)
+    }
+
+    private static func generatedBookParameterSources(
+        _ parameters: [String: JSONValue]
+    ) -> [[String: JSONValue]] {
+        var sources = [[String: JSONValue]]()
+        appendGeneratedBookSources(from: parameters, to: &sources)
+        if let request = parameters["request"]?.objectValue {
+            appendGeneratedBookSources(from: request, to: &sources)
+        }
+        sources.append(parameters)
+        return sources
+    }
+
+    private static func appendGeneratedBookSources(
+        from parameters: [String: JSONValue],
+        to sources: inout [[String: JSONValue]]
+    ) {
+        if let bookGeneration = parameters["book_generation"]?.objectValue {
+            sources.append(bookGeneration)
+        }
+        if let inputs = parameters["inputs"]?.objectValue {
+            sources.append(inputs)
+            if let bookMetadata = inputs["book_metadata"]?.objectValue {
+                sources.append(bookMetadata)
+            }
+        }
+        if let pipelineOverrides = parameters["pipeline_overrides"]?.objectValue {
+            sources.append(pipelineOverrides)
+        }
+        if let config = parameters["config"]?.objectValue {
+            sources.append(config)
+        }
     }
 
     private static func narrationParameterSources(
