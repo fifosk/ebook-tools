@@ -307,70 +307,27 @@ struct AppleBookCreateView: View {
                     #endif
                 }
             } else if creationMode == .youtubeDub {
-                Picker("Provider", selection: subtitleTranslationProviderBinding) {
-                    ForEach(AppleSubtitleTranslationProvider.allCases) { option in
-                        Text(option.label).tag(option)
-                    }
-                }
-                .accessibilityIdentifier("createYoutubeTranslationProviderPicker")
-
-                if subtitleTranslationProvider == .llm {
-                    Picker("Model", selection: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel)) {
-                        ForEach(availableSubtitleLlmModels, id: \.self) { option in
-                            Text(AppleBookCreatePresentation.subtitleModelLabel(option)).tag(option)
-                        }
-                    }
-                    .accessibilityIdentifier("createYoutubeLlmModelPicker")
-                }
-
-                Picker("Target resolution", selection: youtubeTargetHeightBinding) {
-                    ForEach(AppleYoutubeDubTargetHeight.allCases) { option in
-                        Text(option.label).tag(option)
-                    }
-                }
-                .accessibilityIdentifier("createYoutubeTargetHeightPicker")
-
-                TextField("Start offset", text: textBinding(for: .youtubeStartOffset, value: $youtubeStartOffset))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("createYoutubeStartOffsetField")
-                TextField("End offset", text: textBinding(for: .youtubeEndOffset, value: $youtubeEndOffset))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("createYoutubeEndOffsetField")
-
-                #if os(iOS)
-                Stepper(value: youtubeOriginalMixPercentBinding, in: 0...100, step: 5) {
-                    LabeledContent("Original audio mix", value: formattedYoutubeOriginalMixPercent)
-                }
-                .accessibilityIdentifier("createYoutubeOriginalMixStepper")
-
-                Stepper(value: youtubeFlushSentencesBinding, in: 1...200, step: 1) {
-                    LabeledContent("Flush interval", value: "\(clampedYoutubeFlushSentences)")
-                }
-                .accessibilityIdentifier("createYoutubeFlushSentencesStepper")
-
-                Stepper(
-                    value: subtitleTranslationBatchSizeBinding,
-                    in: AppleSubtitleTuning.translationBatchSizeRange,
-                    step: 1
-                ) {
-                    LabeledContent("LLM batch size", value: "\(clampedSubtitleTranslationBatchSize)")
-                }
-                .accessibilityIdentifier("createYoutubeTranslationBatchSizeStepper")
-                #endif
-
-                Toggle("Split batches", isOn: boolBinding(for: .youtubeSplitBatches, value: $youtubeSplitBatches))
-                    .accessibilityIdentifier("createYoutubeSplitBatchesToggle")
-                Toggle("Stitch batches", isOn: boolBinding(for: .youtubeStitchBatches, value: $youtubeStitchBatches))
-                    .disabled(!youtubeSplitBatches)
-                    .accessibilityIdentifier("createYoutubeStitchBatchesToggle")
-                Toggle("Keep aspect ratio", isOn: boolBinding(for: .youtubePreserveAspectRatio, value: $youtubePreserveAspectRatio))
-                    .accessibilityIdentifier("createYoutubePreserveAspectRatioToggle")
-                Toggle("Transliteration track", isOn: boolBinding(for: .includeTransliteration, value: $includeTransliteration))
-                    .accessibilityIdentifier("createYoutubeTransliterationToggle")
-                Toggle("Lookup Cache", isOn: boolBinding(for: .enableLookupCache, value: $enableLookupCache))
-                    .accessibilityIdentifier("createYoutubeLookupCacheToggle")
+                AppleBookCreateYoutubeOutputControls(
+                    translationProvider: subtitleTranslationProviderBinding,
+                    selectedTranslationProvider: subtitleTranslationProvider,
+                    llmModel: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel),
+                    availableSubtitleLlmModels: availableSubtitleLlmModels,
+                    targetHeight: youtubeTargetHeightBinding,
+                    startOffset: textBinding(for: .youtubeStartOffset, value: $youtubeStartOffset),
+                    endOffset: textBinding(for: .youtubeEndOffset, value: $youtubeEndOffset),
+                    originalMixPercent: youtubeOriginalMixPercentBinding,
+                    formattedOriginalMixPercent: formattedYoutubeOriginalMixPercent,
+                    flushSentences: youtubeFlushSentencesBinding,
+                    clampedFlushSentences: clampedYoutubeFlushSentences,
+                    translationBatchSize: subtitleTranslationBatchSizeBinding,
+                    clampedTranslationBatchSize: clampedSubtitleTranslationBatchSize,
+                    splitBatches: boolBinding(for: .youtubeSplitBatches, value: $youtubeSplitBatches),
+                    isSplitBatchesEnabled: youtubeSplitBatches,
+                    stitchBatches: boolBinding(for: .youtubeStitchBatches, value: $youtubeStitchBatches),
+                    preserveAspectRatio: boolBinding(for: .youtubePreserveAspectRatio, value: $youtubePreserveAspectRatio),
+                    includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
+                    enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache)
+                )
             } else {
                 AppleBookCreateGeneratedOutputControls(
                     derivedBaseOutput: derivedBaseOutput,
@@ -1167,6 +1124,95 @@ private struct AppleBookCreateNarrationSection: View {
                 .accessibilityIdentifier("createBookVoicePicker")
             }
         }
+    }
+}
+
+private struct AppleBookCreateYoutubeOutputControls: View {
+    @Binding var translationProvider: AppleSubtitleTranslationProvider
+    let selectedTranslationProvider: AppleSubtitleTranslationProvider
+    @Binding var llmModel: String
+    let availableSubtitleLlmModels: [String]
+    @Binding var targetHeight: AppleYoutubeDubTargetHeight
+    @Binding var startOffset: String
+    @Binding var endOffset: String
+    @Binding var originalMixPercent: Double
+    let formattedOriginalMixPercent: String
+    @Binding var flushSentences: Int
+    let clampedFlushSentences: Int
+    @Binding var translationBatchSize: Int
+    let clampedTranslationBatchSize: Int
+    @Binding var splitBatches: Bool
+    let isSplitBatchesEnabled: Bool
+    @Binding var stitchBatches: Bool
+    @Binding var preserveAspectRatio: Bool
+    @Binding var includeTransliteration: Bool
+    @Binding var enableLookupCache: Bool
+
+    var body: some View {
+        Picker("Provider", selection: $translationProvider) {
+            ForEach(AppleSubtitleTranslationProvider.allCases) { option in
+                Text(option.label).tag(option)
+            }
+        }
+        .accessibilityIdentifier("createYoutubeTranslationProviderPicker")
+
+        if selectedTranslationProvider == .llm {
+            Picker("Model", selection: $llmModel) {
+                ForEach(availableSubtitleLlmModels, id: \.self) { option in
+                    Text(AppleBookCreatePresentation.subtitleModelLabel(option)).tag(option)
+                }
+            }
+            .accessibilityIdentifier("createYoutubeLlmModelPicker")
+        }
+
+        Picker("Target resolution", selection: $targetHeight) {
+            ForEach(AppleYoutubeDubTargetHeight.allCases) { option in
+                Text(option.label).tag(option)
+            }
+        }
+        .accessibilityIdentifier("createYoutubeTargetHeightPicker")
+
+        TextField("Start offset", text: $startOffset)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createYoutubeStartOffsetField")
+        TextField("End offset", text: $endOffset)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createYoutubeEndOffsetField")
+
+        #if os(iOS)
+        Stepper(value: $originalMixPercent, in: 0...100, step: 5) {
+            LabeledContent("Original audio mix", value: formattedOriginalMixPercent)
+        }
+        .accessibilityIdentifier("createYoutubeOriginalMixStepper")
+
+        Stepper(value: $flushSentences, in: 1...200, step: 1) {
+            LabeledContent("Flush interval", value: "\(clampedFlushSentences)")
+        }
+        .accessibilityIdentifier("createYoutubeFlushSentencesStepper")
+
+        Stepper(
+            value: $translationBatchSize,
+            in: AppleSubtitleTuning.translationBatchSizeRange,
+            step: 1
+        ) {
+            LabeledContent("LLM batch size", value: "\(clampedTranslationBatchSize)")
+        }
+        .accessibilityIdentifier("createYoutubeTranslationBatchSizeStepper")
+        #endif
+
+        Toggle("Split batches", isOn: $splitBatches)
+            .accessibilityIdentifier("createYoutubeSplitBatchesToggle")
+        Toggle("Stitch batches", isOn: $stitchBatches)
+            .disabled(!isSplitBatchesEnabled)
+            .accessibilityIdentifier("createYoutubeStitchBatchesToggle")
+        Toggle("Keep aspect ratio", isOn: $preserveAspectRatio)
+            .accessibilityIdentifier("createYoutubePreserveAspectRatioToggle")
+        Toggle("Transliteration track", isOn: $includeTransliteration)
+            .accessibilityIdentifier("createYoutubeTransliterationToggle")
+        Toggle("Lookup Cache", isOn: $enableLookupCache)
+            .accessibilityIdentifier("createYoutubeLookupCacheToggle")
     }
 }
 
