@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.27
+
+- Advanced visible Apple app versioning to `v2026.06.23.27`.
+- Apple generated-book and Narrate EPUB target voice overrides now apply across every submitted target language.
+
 ### 2026.06.23.26
 
 - Advanced visible Apple app versioning to `v2026.06.23.26`.

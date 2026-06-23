@@ -624,8 +624,12 @@ struct AppleCreationPayloadCheck {
         )
         require(generatedDraft.voice == "macOS-auto-male", "Generated draft should trim and map voice")
         require(
-            generatedDraft.voiceOverrides == ["Slovak": "piper-auto"],
-            "Generated draft should map a target-language voice override"
+            generatedDraft.voiceOverrides == [
+                "Slovak": "piper-auto",
+                "German": "piper-auto",
+                "Arabic": "piper-auto",
+            ],
+            "Generated draft should map selected target voice across target languages"
         )
         require(generatedDraft.generateAudio == false, "Generated draft should keep selected audio toggle")
         require(generatedDraft.audioMode == "2", "Generated draft should trim selected audio mode")
@@ -701,7 +705,7 @@ struct AppleCreationPayloadCheck {
             targetLanguage: .arabic,
             additionalTargetLanguages: "German, Arabic\nFrench",
             voice: .gtts,
-            targetVoice: nil,
+            targetVoice: AppleBookCreateVoiceOption(" piper-auto ")!,
             generateAudio: true,
             audioMode: "",
             audioBitrateKbps: "",
@@ -741,7 +745,14 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.tempo == 0.5, "Narrate draft should clamp low tempo")
         require(narrateDraft.sentencesPerOutputFile == 100, "Narrate draft should clamp sentences per file")
         require(narrateDraft.stitchFull == false, "Narrate draft should keep stitch-full toggle")
-        require(narrateDraft.voiceOverrides.isEmpty, "Narrate draft should omit target voice overrides by default")
+        require(
+            narrateDraft.voiceOverrides == [
+                "Arabic": "piper-auto",
+                "German": "piper-auto",
+                "French": "piper-auto",
+            ],
+            "Narrate draft should map selected target voice across target languages"
+        )
         require(narrateDraft.includeTransliteration == false, "Narrate draft should keep transliteration toggle")
         require(narrateDraft.translationProvider == "llm", "Narrate draft should map selected provider")
         require(narrateDraft.llmModel == "gpt-4.1-mini", "Narrate draft should include trimmed LLM model override")

@@ -709,13 +709,17 @@ enum AppleBookCreatePresentation {
     }
 
     static func voiceOverrides(
-        targetLanguage: String,
+        targetLanguages: [String],
         targetVoice: AppleBookCreateVoiceOption?
     ) -> [String: String] {
         guard let targetVoice else { return [:] }
-        let language = trimmed(targetLanguage)
-        guard !language.isEmpty else { return [:] }
-        return [language: targetVoice.backendValue]
+        var overrides = [String: String]()
+        for targetLanguage in targetLanguages {
+            let language = trimmed(targetLanguage)
+            guard !language.isEmpty else { continue }
+            overrides[language] = targetVoice.backendValue
+        }
+        return overrides
     }
 
     static func normalizedTargetLanguages(
@@ -986,7 +990,12 @@ enum AppleBookCreatePresentation {
         pipelineDefaults: BookCreationPipelineDefaults?,
         generatedSourceDefaults: BookCreationGeneratedSourceDefaults?
     ) -> AppleBookCreateDraft {
-        AppleBookCreateDraft(
+        let targetLanguageValue = targetLanguage.backendValue
+        let targetLanguages = normalizedTargetLanguages(
+            primary: targetLanguageValue,
+            additionalTargets: additionalTargetLanguages
+        )
+        return AppleBookCreateDraft(
             topic: trimmed(topic),
             bookName: trimmed(bookName),
             genre: trimmed(genre),
@@ -996,13 +1005,10 @@ enum AppleBookCreatePresentation {
             coverFile: trimmed(coverFile).nonEmptyValue,
             sentenceCount: sentenceCount,
             inputLanguage: inputLanguage.backendValue,
-            targetLanguage: targetLanguage.backendValue,
-            targetLanguages: normalizedTargetLanguages(
-                primary: targetLanguage.backendValue,
-                additionalTargets: additionalTargetLanguages
-            ),
+            targetLanguage: targetLanguageValue,
+            targetLanguages: targetLanguages,
             voice: voice.backendValue,
-            voiceOverrides: voiceOverrides(targetLanguage: targetLanguage.backendValue, targetVoice: targetVoice),
+            voiceOverrides: voiceOverrides(targetLanguages: targetLanguages, targetVoice: targetVoice),
             baseOutput: baseOutput,
             generateAudio: generateAudio,
             audioMode: normalizedMode(audioMode, fallback: "4"),
@@ -1084,6 +1090,11 @@ enum AppleBookCreatePresentation {
         pipelineDefaults: BookCreationPipelineDefaults?
     ) -> AppleNarrateEbookDraft {
         let normalizedStart = normalizedPositiveInteger(startSentence) ?? 1
+        let targetLanguageValue = targetLanguage.backendValue
+        let targetLanguages = normalizedTargetLanguages(
+            primary: targetLanguageValue,
+            additionalTargets: additionalTargetLanguages
+        )
         return AppleNarrateEbookDraft(
             inputFile: trimmed(inputFile),
             baseOutput: trimmed(baseOutput),
@@ -1093,13 +1104,10 @@ enum AppleBookCreatePresentation {
             startSentence: normalizedStart,
             endSentence: normalizedEndSentence(endSentence, startSentence: normalizedStart),
             inputLanguage: inputLanguage.backendValue,
-            targetLanguage: targetLanguage.backendValue,
-            targetLanguages: normalizedTargetLanguages(
-                primary: targetLanguage.backendValue,
-                additionalTargets: additionalTargetLanguages
-            ),
+            targetLanguage: targetLanguageValue,
+            targetLanguages: targetLanguages,
             voice: voice.backendValue,
-            voiceOverrides: voiceOverrides(targetLanguage: targetLanguage.backendValue, targetVoice: targetVoice),
+            voiceOverrides: voiceOverrides(targetLanguages: targetLanguages, targetVoice: targetVoice),
             generateAudio: generateAudio,
             audioMode: normalizedMode(audioMode, fallback: "4"),
             audioBitrateKbps: normalizedAudioBitrate(audioBitrateKbps),

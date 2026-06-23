@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.26",
+            version: "2026.06.23.27",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-multi-target-voice-overrides",
+                    title: "Apple target voices",
+                    detail: "Generated-book and Narrate EPUB target voice overrides now apply across every submitted target language."
+                ),
                 AppChangelogEntry(
                     id: "apple-multi-target-books",
                     title: "Apple multi-target books",
