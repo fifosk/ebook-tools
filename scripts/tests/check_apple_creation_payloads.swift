@@ -124,6 +124,77 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.subtitleTransliterationModelLabel("") == "Use translation model",
             "Empty transliteration model should display translation-model fallback"
         )
+        require(
+            AppleBookCreatePresentation.availableSubtitleLlmModels(
+                selected: " gpt-4.1-mini ",
+                inventory: ["", "GPT-4.1-MINI", "gpt-4.1"]
+            ) == ["gpt-4.1-mini", "gpt-4.1"],
+            "Subtitle LLM options should keep selected first and de-duplicate inventory case-insensitively"
+        )
+        require(
+            AppleBookCreatePresentation.availableSubtitleLlmModels(
+                selected: " ",
+                inventory: ["", "  "]
+            ) == [""],
+            "Subtitle LLM options should keep backend-default fallback when no model is known"
+        )
+        require(
+            AppleBookCreatePresentation.availableSubtitleTransliterationModels(
+                selected: " gpt-4.1 ",
+                translationModel: "gpt-4.1-mini",
+                inventory: ["GPT-4.1", "gpt-4.1-nano"]
+            ) == ["", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
+            "Transliteration model options should include blank fallback, selected, translation model, and unique inventory"
+        )
+        require(
+            AppleBookCreatePresentation.clampAssFontSize(4) == AppleSubtitleAssTypography.fontSizeRange.lowerBound,
+            "ASS font size should clamp to lower bound"
+        )
+        require(
+            AppleBookCreatePresentation.clampAssEmphasisScale(3.2) == AppleSubtitleAssTypography.emphasisScaleRange.upperBound,
+            "ASS emphasis scale should clamp to upper bound"
+        )
+        require(
+            AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(0) == AppleSubtitleTuning.translationBatchSizeRange.lowerBound,
+            "Subtitle translation batch size should clamp to lower bound"
+        )
+        require(
+            AppleBookCreatePresentation.clampSubtitleWorkerCount(99) == AppleSubtitleTuning.workerCountRange.upperBound,
+            "Subtitle worker count should clamp to upper bound"
+        )
+        require(
+            AppleBookCreatePresentation.clampSubtitleBatchSize(999) == AppleSubtitleTuning.batchSizeRange.upperBound,
+            "Subtitle render batch size should clamp to upper bound"
+        )
+        require(
+            AppleBookCreatePresentation.formattedAssEmphasisScale(1.346)
+                .replacingOccurrences(of: ",", with: ".") == "1.35",
+            "ASS emphasis scale display should use two decimals"
+        )
+        require(
+            AppleBookCreatePresentation.formattedYoutubeOriginalMixPercent(104.2) == "100%",
+            "YouTube original mix display should clamp and format as percent"
+        )
+        require(
+            AppleBookCreatePresentation.clampYoutubeFlushSentences(0) == 1,
+            "YouTube flush interval should clamp to lower bound"
+        )
+        require(
+            AppleBookCreatePresentation.normalizeYoutubeOffset("") == "",
+            "Empty YouTube offset should stay empty"
+        )
+        require(
+            AppleBookCreatePresentation.normalizeYoutubeOffset("45") == "45",
+            "Bare numeric YouTube offset should remain seconds"
+        )
+        require(
+            AppleBookCreatePresentation.normalizeYoutubeOffset("1:02") == "01:02",
+            "YouTube offset should normalize MM:SS"
+        )
+        require(
+            AppleBookCreatePresentation.normalizeYoutubeOffset("-1") == nil,
+            "YouTube offset should reject negative seconds"
+        )
 
         let input = PipelineInputPayload(
             inputFile: "books/demo.epub",

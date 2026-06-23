@@ -81,6 +81,96 @@ enum AppleBookCreatePresentation {
         return trimmedModel.isEmpty ? "Use translation model" : trimmedModel
     }
 
+    static func availableSubtitleLlmModels(
+        selected: String,
+        inventory: [String]
+    ) -> [String] {
+        let selectedModel = trimmed(selected)
+        var seen = Set<String>()
+        var options: [String] = []
+
+        if !selectedModel.isEmpty {
+            seen.insert(selectedModel.lowercased())
+            options.append(selectedModel)
+        }
+
+        for model in inventory {
+            let trimmedModel = trimmed(model)
+            guard !trimmedModel.isEmpty else { continue }
+            if seen.insert(trimmedModel.lowercased()).inserted {
+                options.append(trimmedModel)
+            }
+        }
+
+        return options.isEmpty ? [""] : options
+    }
+
+    static func availableSubtitleTransliterationModels(
+        selected: String,
+        translationModel: String,
+        inventory: [String]
+    ) -> [String] {
+        var seen = Set<String>()
+        var options = [""]
+        seen.insert("")
+
+        for model in [selected, translationModel] + inventory {
+            let trimmedModel = trimmed(model)
+            guard !trimmedModel.isEmpty else { continue }
+            if seen.insert(trimmedModel.lowercased()).inserted {
+                options.append(trimmedModel)
+            }
+        }
+        return options
+    }
+
+    static func formattedAssEmphasisScale(_ value: Double) -> String {
+        clampAssEmphasisScale(value).formatted(.number.precision(.fractionLength(2)))
+    }
+
+    static func formattedYoutubeOriginalMixPercent(_ value: Double) -> String {
+        "\(Int(clampYoutubeOriginalMixPercent(value).rounded()))%"
+    }
+
+    static func clampAssFontSize(_ value: Int) -> Int {
+        clamp(value, to: AppleSubtitleAssTypography.fontSizeRange)
+    }
+
+    static func clampAssEmphasisScale(_ value: Double) -> Double {
+        clamp(value, to: AppleSubtitleAssTypography.emphasisScaleRange)
+    }
+
+    static func clampSubtitleTranslationBatchSize(_ value: Int) -> Int {
+        clamp(value, to: AppleSubtitleTuning.translationBatchSizeRange)
+    }
+
+    static func clampSubtitleWorkerCount(_ value: Int) -> Int {
+        clamp(value, to: AppleSubtitleTuning.workerCountRange)
+    }
+
+    static func clampSubtitleBatchSize(_ value: Int) -> Int {
+        clamp(value, to: AppleSubtitleTuning.batchSizeRange)
+    }
+
+    static func clampYoutubeOriginalMixPercent(_ value: Double) -> Double {
+        min(100, max(0, value))
+    }
+
+    static func clampYoutubeFlushSentences(_ value: Int) -> Int {
+        min(200, max(1, value))
+    }
+
+    static func normalizeYoutubeOffset(_ value: String) -> String? {
+        let trimmedValue = trimmed(value)
+        if trimmedValue.isEmpty {
+            return ""
+        }
+        if let seconds = Int(trimmedValue), seconds >= 0 {
+            return "\(seconds)"
+        }
+        return SubtitleTimecodeInput.normalize(trimmedValue)
+    }
+
     static func deriveBaseOutputName(_ value: String) -> String {
         let trimmedValue = trimmed(value)
         let scalars = trimmedValue.unicodeScalars.map { scalar -> Character in
@@ -95,6 +185,10 @@ enum AppleBookCreatePresentation {
 
     private static func trimmed(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func clamp<T: Comparable>(_ value: T, to range: ClosedRange<T>) -> T {
+        min(range.upperBound, max(range.lowerBound, value))
     }
 }
 

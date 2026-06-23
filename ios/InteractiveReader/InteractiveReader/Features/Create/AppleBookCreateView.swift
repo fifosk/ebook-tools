@@ -665,11 +665,11 @@ struct AppleBookCreateView: View {
     }
 
     private func submitYoutubeDub() {
-        guard let normalizedStartOffset = normalizeYoutubeOffset(youtubeStartOffset) else {
+        guard let normalizedStartOffset = AppleBookCreatePresentation.normalizeYoutubeOffset(youtubeStartOffset) else {
             viewModel.errorMessage = "Enter a valid start offset in seconds, MM:SS, or HH:MM:SS format."
             return
         }
-        guard let normalizedEndOffset = normalizeYoutubeOffset(youtubeEndOffset) else {
+        guard let normalizedEndOffset = AppleBookCreatePresentation.normalizeYoutubeOffset(youtubeEndOffset) else {
             viewModel.errorMessage = "Enter a valid end offset in seconds, MM:SS, or HH:MM:SS format."
             return
         }
@@ -734,17 +734,6 @@ struct AppleBookCreateView: View {
 
     private func trimmed(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private func normalizeYoutubeOffset(_ value: String) -> String? {
-        let trimmedValue = trimmed(value)
-        if trimmedValue.isEmpty {
-            return ""
-        }
-        if let seconds = Int(trimmedValue), seconds >= 0 {
-            return "\(seconds)"
-        }
-        return SubtitleTimecodeInput.normalize(trimmedValue)
     }
 
     #if os(iOS)
@@ -828,95 +817,54 @@ struct AppleBookCreateView: View {
     }
 
     private var availableSubtitleLlmModels: [String] {
-        let selected = trimmed(subtitleLlmModel)
-        var seen = Set<String>()
-        var options: [String] = []
-
-        if !selected.isEmpty {
-            seen.insert(selected.lowercased())
-            options.append(selected)
-        }
-
-        for model in viewModel.subtitleLlmModels {
-            let trimmedModel = trimmed(model)
-            guard !trimmedModel.isEmpty else { continue }
-            if seen.insert(trimmedModel.lowercased()).inserted {
-                options.append(trimmedModel)
-            }
-        }
-
-        if options.isEmpty {
-            options.append("")
-        }
-        return options
+        AppleBookCreatePresentation.availableSubtitleLlmModels(
+            selected: subtitleLlmModel,
+            inventory: viewModel.subtitleLlmModels
+        )
     }
 
     private var availableSubtitleTransliterationModels: [String] {
-        let selected = trimmed(subtitleTransliterationModel)
-        let translationModel = trimmed(subtitleLlmModel)
-        var seen = Set<String>()
-        var options = [""]
-        seen.insert("")
-
-        for model in [selected, translationModel] + viewModel.subtitleLlmModels {
-            let trimmedModel = trimmed(model)
-            guard !trimmedModel.isEmpty else { continue }
-            if seen.insert(trimmedModel.lowercased()).inserted {
-                options.append(trimmedModel)
-            }
-        }
-        return options
+        AppleBookCreatePresentation.availableSubtitleTransliterationModels(
+            selected: subtitleTransliterationModel,
+            translationModel: subtitleLlmModel,
+            inventory: viewModel.subtitleLlmModels
+        )
     }
 
     private var formattedAssEmphasisScale: String {
-        clampedAssEmphasisScale.formatted(.number.precision(.fractionLength(2)))
+        AppleBookCreatePresentation.formattedAssEmphasisScale(subtitleAssEmphasisScale)
     }
 
     private var formattedYoutubeOriginalMixPercent: String {
-        "\(Int(clampedYoutubeOriginalMixPercent.rounded()))%"
+        AppleBookCreatePresentation.formattedYoutubeOriginalMixPercent(youtubeOriginalMixPercent)
     }
 
     private var clampedAssFontSize: Int {
-        min(
-            AppleSubtitleAssTypography.fontSizeRange.upperBound,
-            max(AppleSubtitleAssTypography.fontSizeRange.lowerBound, subtitleAssFontSize)
-        )
+        AppleBookCreatePresentation.clampAssFontSize(subtitleAssFontSize)
     }
 
     private var clampedAssEmphasisScale: Double {
-        min(
-            AppleSubtitleAssTypography.emphasisScaleRange.upperBound,
-            max(AppleSubtitleAssTypography.emphasisScaleRange.lowerBound, subtitleAssEmphasisScale)
-        )
+        AppleBookCreatePresentation.clampAssEmphasisScale(subtitleAssEmphasisScale)
     }
 
     private var clampedSubtitleTranslationBatchSize: Int {
-        min(
-            AppleSubtitleTuning.translationBatchSizeRange.upperBound,
-            max(AppleSubtitleTuning.translationBatchSizeRange.lowerBound, subtitleTranslationBatchSize)
-        )
+        AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(subtitleTranslationBatchSize)
     }
 
     private var clampedSubtitleWorkerCount: Int {
-        min(
-            AppleSubtitleTuning.workerCountRange.upperBound,
-            max(AppleSubtitleTuning.workerCountRange.lowerBound, subtitleWorkerCount)
-        )
+        AppleBookCreatePresentation.clampSubtitleWorkerCount(subtitleWorkerCount)
     }
 
     private var clampedSubtitleBatchSize: Int {
-        min(
-            AppleSubtitleTuning.batchSizeRange.upperBound,
-            max(AppleSubtitleTuning.batchSizeRange.lowerBound, subtitleBatchSize)
-        )
+        AppleBookCreatePresentation.clampSubtitleBatchSize(subtitleBatchSize)
     }
 
     private var clampedYoutubeOriginalMixPercent: Double {
-        min(100, max(0, youtubeOriginalMixPercent))
+        AppleBookCreatePresentation.clampYoutubeOriginalMixPercent(youtubeOriginalMixPercent)
     }
 
     private var clampedYoutubeFlushSentences: Int {
-        min(200, max(1, youtubeFlushSentences))
+        AppleBookCreatePresentation.clampYoutubeFlushSentences(youtubeFlushSentences)
     }
 
     private var sentenceCountBinding: Binding<Int> {
