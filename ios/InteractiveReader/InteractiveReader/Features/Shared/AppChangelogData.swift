@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.9",
+            version: "2026.06.24.10",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-library-metadata-enrichment",
+                    title: "Library enriches metadata",
+                    detail: "Apple Library rows can now call the shared backend external metadata enrichment endpoint and refresh the row with the returned title, cover, genre, ISBN, and source details."
+                ),
                 AppChangelogEntry(
                     id: "apple-library-job-offline-export",
                     title: "Apple exports players",

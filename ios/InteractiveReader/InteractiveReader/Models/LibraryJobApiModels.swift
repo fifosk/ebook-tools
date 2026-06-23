@@ -18,6 +18,13 @@ struct LibraryIsbnLookupResponse: Decodable, Equatable {
     let metadata: [String: JSONValue]
 }
 
+struct LibraryMetadataEnrichResponse: Decodable, Equatable {
+    let item: LibraryItem
+    let enriched: Bool
+    let confidence: String?
+    let source: String?
+}
+
 struct OfflineExportResponse: Decodable, Equatable {
     let exportId: String
     let downloadUrl: String

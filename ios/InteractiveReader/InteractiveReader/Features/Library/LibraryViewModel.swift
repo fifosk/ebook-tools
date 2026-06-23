@@ -26,6 +26,7 @@ final class LibraryViewModel: ObservableObject {
     @Published var isUploadingSource = false
     @Published var isLookingUpIsbn = false
     @Published var isApplyingIsbn = false
+    @Published var isEnrichingMetadata = false
     @Published var isCreatingExport = false
     @Published var errorMessage: String?
     @Published var query: String = ""
@@ -87,11 +88,7 @@ final class LibraryViewModel: ObservableObject {
                 fileURL: fileURL,
                 filename: filename
             )
-            if let index = items.firstIndex(where: { $0.jobId == updated.jobId }) {
-                items[index] = updated
-            } else {
-                items.insert(updated, at: 0)
-            }
+            upsert(updated)
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -121,11 +118,7 @@ final class LibraryViewModel: ObservableObject {
         do {
             let client = APIClient(configuration: configuration)
             let updated = try await client.applyLibraryIsbn(jobId: item.jobId, isbn: trimmed)
-            if let index = items.firstIndex(where: { $0.jobId == updated.jobId }) {
-                items[index] = updated
-            } else {
-                items.insert(updated, at: 0)
-            }
+            upsert(updated)
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -161,6 +154,30 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
+    func enrichMetadata(
+        for item: LibraryItem,
+        using appState: AppState
+    ) async -> Bool {
+        guard let configuration = appState.configuration else {
+            errorMessage = "Configure a valid API base URL before continuing."
+            return false
+        }
+
+        isEnrichingMetadata = true
+        errorMessage = nil
+        defer { isEnrichingMetadata = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.enrichLibraryMetadata(jobId: item.jobId, force: true)
+            upsert(response.item)
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     func createOfflineExport(
         for item: LibraryItem,
         using appState: AppState
@@ -190,6 +207,14 @@ final class LibraryViewModel: ObservableObject {
 
     var filteredItems: [LibraryItem] {
         items.filter { $0.itemType == activeFilter.itemType }
+    }
+
+    private func upsert(_ item: LibraryItem) {
+        if let index = items.firstIndex(where: { $0.jobId == item.jobId }) {
+            items[index] = item
+        } else {
+            items.insert(item, at: 0)
+        }
     }
 
     private static func resolveExportDownloadURL(

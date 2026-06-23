@@ -112,6 +112,7 @@ struct LibraryView: View {
             .contextMenu {
                 playbackContextMenu(for: item)
                 offlineContextMenu(for: item)
+                enrichMetadataAction(for: item)
                 offlineExportAction(for: item)
                 deleteItemAction(for: item)
             }
@@ -130,6 +131,7 @@ struct LibraryView: View {
             }
             .contextMenu {
                 playbackContextMenu(for: item)
+                enrichMetadataAction(for: item)
                 offlineExportAction(for: item)
                 sourceUploadAction(for: item)
                 isbnMetadataAction(for: item)
@@ -309,6 +311,31 @@ struct LibraryView: View {
         .disabled(!item.mediaCompleted || viewModel.isCreatingExport || appState.configuration == nil)
     }
 
+    private func handleEnrichMetadataRequest(_ item: LibraryItem) {
+        Task {
+            let enriched = await viewModel.enrichMetadata(for: item, using: appState)
+            await MainActor.run {
+                if enriched {
+                    refreshResumeStatus()
+                }
+            }
+        }
+    }
+
+    private func enrichMetadataAction(for item: LibraryItem) -> some View {
+        Button(action: { handleEnrichMetadataRequest(item) }) {
+            Label("Enrich Metadata", systemImage: "sparkles")
+        }
+        .disabled(isMetadataMutationInProgress || appState.configuration == nil)
+    }
+
+    private var isMetadataMutationInProgress: Bool {
+        viewModel.isUploadingSource
+            || viewModel.isLookingUpIsbn
+            || viewModel.isApplyingIsbn
+            || viewModel.isEnrichingMetadata
+    }
+
     #if os(iOS)
     private func handleSourceUploadRequest(_ item: LibraryItem) {
         sourceUploadItem = item
@@ -319,7 +346,7 @@ struct LibraryView: View {
         Button(action: { handleSourceUploadRequest(item) }) {
             Label("Replace Source File", systemImage: "square.and.arrow.up")
         }
-        .disabled(viewModel.isUploadingSource || viewModel.isLookingUpIsbn || viewModel.isApplyingIsbn)
+        .disabled(isMetadataMutationInProgress)
     }
 
     private func handleIsbnMetadataRequest(_ item: LibraryItem) {
@@ -330,7 +357,7 @@ struct LibraryView: View {
         Button(action: { handleIsbnMetadataRequest(item) }) {
             Label("Preview ISBN Metadata", systemImage: "barcode.viewfinder")
         }
-        .disabled(viewModel.isUploadingSource || viewModel.isLookingUpIsbn || viewModel.isApplyingIsbn)
+        .disabled(isMetadataMutationInProgress)
     }
 
     private func handleLibrarySourceImport(_ result: Result<[URL], Error>) {

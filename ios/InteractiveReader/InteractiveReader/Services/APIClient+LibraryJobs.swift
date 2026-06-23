@@ -92,6 +92,19 @@ extension APIClient {
         return try decode(LibraryIsbnLookupResponse.self, from: data)
     }
 
+    func enrichLibraryMetadata(jobId: String, force: Bool = false) async throws -> LibraryMetadataEnrichResponse {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        struct LibraryMetadataEnrichRequest: Encodable {
+            let force: Bool
+        }
+        let data = try await sendJSONRequest(
+            path: "/api/library/items/\(encoded)/enrich",
+            method: "POST",
+            payload: LibraryMetadataEnrichRequest(force: force)
+        )
+        return try decode(LibraryMetadataEnrichResponse.self, from: data)
+    }
+
     func createOfflineExport(sourceKind: String, sourceId: String) async throws -> OfflineExportResponse {
         struct ExportRequest: Encodable {
             let sourceKind: String

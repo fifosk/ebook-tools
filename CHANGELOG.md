@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.10
+
+- Advanced visible Apple app versioning to `v2026.06.24.10`.
+- Apple Library rows can now call the shared backend external metadata enrichment endpoint and refresh the row with the returned title, cover, genre, ISBN, and source details.
+
 ### 2026.06.24.9
 
 - Advanced visible Apple app versioning to `v2026.06.24.9`.
