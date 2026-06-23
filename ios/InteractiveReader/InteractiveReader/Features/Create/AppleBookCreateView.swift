@@ -4,6 +4,12 @@ import UniformTypeIdentifiers
 #endif
 
 struct AppleBookCreateView: View {
+    private static let setupPaneMinWidth: CGFloat = 260
+    private static let setupPaneIdealWidth: CGFloat = 300
+    private static let setupPaneMaxWidth: CGFloat = 320
+    private static let settingsPaneMinWidth: CGFloat = 440
+    private static let settingsPaneIdealWidth: CGFloat = 620
+
     @EnvironmentObject private var appState: AppState
     @Environment(\.openURL) private var openURL
     #if os(iOS)
@@ -214,15 +220,25 @@ struct AppleBookCreateView: View {
             createList(accessibilityIdentifier: "appleBookCreateSetupPane") {
                 createSetupSections
             }
-            .frame(minWidth: 300, idealWidth: 340, maxWidth: 380, maxHeight: .infinity)
+            .frame(
+                minWidth: Self.setupPaneMinWidth,
+                idealWidth: Self.setupPaneIdealWidth,
+                maxWidth: Self.setupPaneMaxWidth,
+                maxHeight: .infinity
+            )
 
             Divider()
 
             createList(accessibilityIdentifier: "appleBookCreateSettingsPane") {
                 createSettingsSections
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .layoutPriority(1)
+            .frame(
+                minWidth: Self.settingsPaneMinWidth,
+                idealWidth: Self.settingsPaneIdealWidth,
+                maxWidth: .infinity,
+                maxHeight: .infinity
+            )
+            .layoutPriority(2)
         }
         .accessibilityIdentifier("appleBookCreateRegularWidthLayout")
     }

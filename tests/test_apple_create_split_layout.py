@@ -110,9 +110,18 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "regularWidthCreateLayout" in source
     assert 'accessibilityIdentifier: "appleBookCreateSetupPane"' in source
     assert 'accessibilityIdentifier: "appleBookCreateSettingsPane"' in source
-    assert '.frame(minWidth: 300, idealWidth: 340, maxWidth: 380, maxHeight: .infinity)' in source
+    assert "private static let setupPaneMinWidth: CGFloat = 260" in source
+    assert "private static let setupPaneIdealWidth: CGFloat = 300" in source
+    assert "private static let setupPaneMaxWidth: CGFloat = 320" in source
+    assert "private static let settingsPaneMinWidth: CGFloat = 440" in source
+    assert "private static let settingsPaneIdealWidth: CGFloat = 620" in source
+    assert "minWidth: Self.setupPaneMinWidth" in source
+    assert "idealWidth: Self.setupPaneIdealWidth" in source
+    assert "maxWidth: Self.setupPaneMaxWidth" in source
     assert 'createList(accessibilityIdentifier: "appleBookCreateSettingsPane")' in source
-    assert ".layoutPriority(1)" in source
+    assert "minWidth: Self.settingsPaneMinWidth" in source
+    assert "idealWidth: Self.settingsPaneIdealWidth" in source
+    assert ".layoutPriority(2)" in source
     assert "private var createSetupSections: some View" in source
     assert "private var createSettingsSections: some View" in source
 
@@ -140,6 +149,17 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
 def test_ipad_split_view_keeps_settings_in_detail_panel() -> None:
     source = _source(LIBRARY_SHELL)
 
+    assert "private static let sidebarColumnMinWidth: CGFloat = 240" in source
+    assert "private static let sidebarColumnIdealWidth: CGFloat = 280" in source
+    assert "private static let sidebarColumnMaxWidth: CGFloat = 320" in source
+    assert "private static let createDetailColumnMinWidth: CGFloat = 760" in source
+    assert "private static let createDetailColumnIdealWidth: CGFloat = 940" in source
+    assert ".navigationSplitViewColumnWidth(" in source
+    assert "min: Self.sidebarColumnMinWidth" in source
+    assert "ideal: Self.sidebarColumnIdealWidth" in source
+    assert "max: Self.sidebarColumnMaxWidth" in source
+    assert "min: Self.createDetailColumnMinWidth" in source
+    assert "ideal: Self.createDetailColumnIdealWidth" in source
     assert "private var detailView: some View" in source
     assert "private func browseList() -> some View" in source
 

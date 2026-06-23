@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.7",
+            version: "2026.06.24.8",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-ipad-wide-settings-pane",
+                    title: "Create widens settings",
+                    detail: "On iPad and local Mac Designed for iPad, Apple Create now keeps the navigation rail compact and reserves the wide right-hand detail area for language, narration, output, status, and submit settings."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-tv-metadata-artwork",
                     title: "Create previews TV artwork",

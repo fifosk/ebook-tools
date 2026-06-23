@@ -2,6 +2,12 @@ import SwiftUI
 import OSLog
 
 struct LibraryShellView: View {
+    private static let sidebarColumnMinWidth: CGFloat = 240
+    private static let sidebarColumnIdealWidth: CGFloat = 280
+    private static let sidebarColumnMaxWidth: CGFloat = 320
+    private static let createDetailColumnMinWidth: CGFloat = 760
+    private static let createDetailColumnIdealWidth: CGFloat = 940
+
     @EnvironmentObject var appState: AppState
     @StateObject private var viewModel = LibraryViewModel()
     @StateObject private var jobsViewModel = JobsViewModel()
@@ -73,6 +79,11 @@ struct LibraryShellView: View {
                 if isSplitLayout {
                     NavigationSplitView(columnVisibility: $columnVisibility) {
                         browseList()
+                            .navigationSplitViewColumnWidth(
+                                min: Self.sidebarColumnMinWidth,
+                                ideal: Self.sidebarColumnIdealWidth,
+                                max: Self.sidebarColumnMaxWidth
+                            )
                             .background(usesDarkBackground ? AppTheme.lightBackground : Color.clear)
                             .toolbarBackground(usesDarkBackground ? AppTheme.lightBackground : Color.clear, for: .navigationBar)
                             .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
@@ -118,6 +129,10 @@ struct LibraryShellView: View {
                 onOpenJobs: openCreatedJob,
                 recentJobs: jobsViewModel.jobs,
                 usesDarkBackground: usesDarkBackground
+            )
+            .navigationSplitViewColumnWidth(
+                min: Self.createDetailColumnMinWidth,
+                ideal: Self.createDetailColumnIdealWidth
             )
         case .library:
             if let selectedItem {

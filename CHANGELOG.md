@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.8
+
+- Advanced visible Apple app versioning to `v2026.06.24.8`.
+- On iPad and local Mac Designed for iPad, Apple Create now keeps the navigation rail compact and reserves the wide right-hand detail area for language, narration, output, status, and submit settings.
+
 ### 2026.06.24.7
 
 - Advanced visible Apple app versioning to `v2026.06.24.7`.

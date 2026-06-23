@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from modules.shared import assets
 from modules.language_constants import LANGUAGE_CODES
 
 
@@ -56,6 +57,7 @@ def test_language_catalogs_match_across_backend_web_and_apple() -> None:
     backend_entries = list(LANGUAGE_CODES.items())
     web_entries = _web_language_codes()
     apple_entries = _apple_language_catalog()
+    web_menu_languages = assets.get_top_languages()
 
     assert len(backend_entries) >= 80
     assert ("Hindi", "hi") in backend_entries
@@ -64,3 +66,6 @@ def test_language_catalogs_match_across_backend_web_and_apple() -> None:
 
     assert web_entries == backend_entries
     assert apple_entries == backend_entries
+    assert len(web_menu_languages) == len(backend_entries)
+    assert set(web_menu_languages) == set(LANGUAGE_CODES)
+    assert set(web_menu_languages) == {name for name, _ in apple_entries}
