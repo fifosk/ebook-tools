@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.77",
+            version: "2026.06.23.78",
             entries: [
+                AppChangelogEntry(
+                    id: "web-subtitle-job-presentation",
+                    title: "Subtitle Jobs presentation",
+                    detail: "Web Subtitle Tool Jobs presentation now lives in a focused module with direct pipeline coverage for download-link resolution, metadata labels, retry summaries, and narrated-library move eligibility."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-job-utils",
                     title: "Subtitle Jobs helpers",
