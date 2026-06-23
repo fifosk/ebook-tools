@@ -119,6 +119,10 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
         "simulatorProfiles": ["ios", "ipados", "tvos", "tvos-cinema"],
         "deviceProfiles": ["iphone", "ipad", "appletv", "cinema"],
     }
+    assert payload["creation"] == {
+        "bookOptionsPath": "/api/books/options",
+        "bookJobsPath": "/api/books/jobs",
+    }
     assert_runtime_descriptor_is_public(payload)
 
 
@@ -205,6 +209,8 @@ def test_public_runtime_descriptor_returns_non_secret_contract() -> None:
         "appletv",
         "cinema",
     ]
+    assert payload["creation"]["bookOptionsPath"] == "/api/books/options"
+    assert payload["creation"]["bookJobsPath"] == "/api/books/jobs"
     assert_runtime_descriptor_is_public(payload)
 
 

@@ -28,6 +28,10 @@ APPLE_PIPELINE_DESCRIPTOR = {
     "simulatorProfiles": APPLE_PIPELINE_SIMULATOR_PROFILES,
     "deviceProfiles": APPLE_PIPELINE_DEVICE_PROFILES,
 }
+CREATION_DESCRIPTOR = {
+    "bookOptionsPath": "/api/books/options",
+    "bookJobsPath": "/api/books/jobs",
+}
 ALLOWED_PUBLIC_METADATA_KEYS = frozenset(
     {
         "legacytokenmigration",
@@ -50,6 +54,7 @@ def build_runtime_descriptor(version: str) -> dict[str, object]:
         "auth": _copy_public_descriptor_section(AUTH_DESCRIPTOR),
         "clientConfig": _copy_public_descriptor_section(CLIENT_CONFIG_DESCRIPTOR),
         "applePipeline": _copy_public_descriptor_section(APPLE_PIPELINE_DESCRIPTOR),
+        "creation": _copy_public_descriptor_section(CREATION_DESCRIPTOR),
     }
     assert_runtime_descriptor_is_public(payload)
     return payload
