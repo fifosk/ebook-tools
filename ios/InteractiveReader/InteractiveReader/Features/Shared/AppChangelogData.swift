@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.16",
+            version: "2026.06.23.17",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-narrate-sentence-range",
+                    title: "Apple Narrate EPUB ranges",
+                    detail: "Narrate EPUB creation on iPhone and iPad now exposes Web-aligned start and end sentence range controls before submit."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-narration-controls",
                     title: "Apple narration controls",

@@ -5,6 +5,8 @@ struct AppleBookCreateSourceSection: View {
     let availableCreateModes: [AppleCreateMode]
     @Binding var sourcePath: String
     @Binding var sourceBaseOutput: String
+    @Binding var sourceStartSentence: String
+    @Binding var sourceEndSentence: String
     @Binding var subtitleSourcePath: String
     @Binding var youtubeVideoPath: String
     @Binding var youtubeSubtitlePath: String
@@ -58,6 +60,16 @@ struct AppleBookCreateSourceSection: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createNarrateOutputPathField")
+        TextField("Start sentence", text: $sourceStartSentence)
+            #if os(iOS)
+            .keyboardType(.numberPad)
+            #endif
+            .accessibilityIdentifier("createNarrateStartSentenceField")
+        TextField("End sentence", text: $sourceEndSentence)
+            #if os(iOS)
+            .keyboardType(.numberPad)
+            #endif
+            .accessibilityIdentifier("createNarrateEndSentenceField")
     }
 
     @ViewBuilder

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.17
+
+- Advanced visible Apple app versioning to `v2026.06.23.17`.
+- Apple Narrate EPUB creation on iPhone and iPad now exposes Web-aligned start and end sentence range controls before submit.
+
 ### 2026.06.23.16
 
 - Advanced visible Apple app versioning to `v2026.06.23.16`.

@@ -628,6 +628,8 @@ struct AppleCreationPayloadCheck {
         let narrateDraft = AppleBookCreatePresentation.narrateEbookDraft(
             inputFile: " imports/demo.epub ",
             baseOutput: " apple/demo ",
+            startSentence: "7.9",
+            endSentence: "3",
             inputLanguage: .english,
             targetLanguage: .arabic,
             voice: .gtts,
@@ -644,6 +646,8 @@ struct AppleCreationPayloadCheck {
         )
         require(narrateDraft.inputFile == "imports/demo.epub", "Narrate draft should trim input path")
         require(narrateDraft.baseOutput == "apple/demo", "Narrate draft should trim output path")
+        require(narrateDraft.startSentence == 7, "Narrate draft should floor selected start sentence")
+        require(narrateDraft.endSentence == 7, "Narrate draft should clamp end sentence to start sentence")
         require(narrateDraft.audioMode == "4", "Narrate draft should use fallback audio mode for blank selection")
         require(narrateDraft.audioBitrateKbps == nil, "Narrate draft should preserve backend-default audio bitrate")
         require(narrateDraft.writtenMode == "4", "Narrate draft should use fallback written mode for blank selection")
@@ -864,6 +868,8 @@ struct AppleCreationPayloadCheck {
             inputLanguage: "English",
             targetLanguages: ["Arabic"],
             sentencesPerOutputFile: options.pipelineDefaults.sentencesPerOutputFile,
+            startSentence: narrateDraft.startSentence,
+            endSentence: narrateDraft.endSentence,
             generateAudio: options.pipelineDefaults.generateAudio,
             audioMode: options.pipelineDefaults.audioMode,
             audioBitrateKbps: options.pipelineDefaults.audioBitrateKbps,
@@ -900,6 +906,14 @@ struct AppleCreationPayloadCheck {
         require(
             narrateInputs?["base_output_file"] as? String == "apple/demo-narration",
             "narrate pipeline should encode base output"
+        )
+        require(
+            narrateInputs?["start_sentence"] as? Int == 7,
+            "narrate pipeline should encode selected start sentence"
+        )
+        require(
+            narrateInputs?["end_sentence"] as? Int == 7,
+            "narrate pipeline should encode selected end sentence"
         )
         require(
             narrateInputs?["selected_voice"] as? String == "macOS-auto-male",

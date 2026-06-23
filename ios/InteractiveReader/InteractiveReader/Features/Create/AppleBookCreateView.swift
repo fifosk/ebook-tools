@@ -19,6 +19,8 @@ struct AppleBookCreateView: View {
     @State private var author = "Me"
     @State private var sourcePath = ""
     @State private var sourceBaseOutput = ""
+    @State private var sourceStartSentence = "1"
+    @State private var sourceEndSentence = ""
     @State private var subtitleSourcePath = ""
     @State private var youtubeVideoPath = ""
     @State private var youtubeSubtitlePath = ""
@@ -141,6 +143,8 @@ struct AppleBookCreateView: View {
             availableCreateModes: availableCreateModes,
             sourcePath: textBinding(for: .sourcePath, value: $sourcePath),
             sourceBaseOutput: textBinding(for: .sourceBaseOutput, value: $sourceBaseOutput),
+            sourceStartSentence: textBinding(for: .sourceStartSentence, value: $sourceStartSentence),
+            sourceEndSentence: textBinding(for: .sourceEndSentence, value: $sourceEndSentence),
             subtitleSourcePath: textBinding(for: .subtitleSourcePath, value: $subtitleSourcePath),
             youtubeVideoPath: textBinding(for: .youtubeVideoPath, value: $youtubeVideoPath),
             youtubeSubtitlePath: textBinding(for: .youtubeSubtitlePath, value: $youtubeSubtitlePath),
@@ -591,6 +595,8 @@ struct AppleBookCreateView: View {
         let draft = AppleBookCreatePresentation.narrateEbookDraft(
             inputFile: sourcePath,
             baseOutput: sourceBaseOutput,
+            startSentence: sourceStartSentence,
+            endSentence: sourceEndSentence,
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
             voice: voice,

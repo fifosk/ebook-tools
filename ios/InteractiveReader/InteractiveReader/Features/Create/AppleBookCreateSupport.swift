@@ -42,6 +42,8 @@ struct AppleBookCreateDraft: Equatable {
 struct AppleNarrateEbookDraft: Equatable {
     let inputFile: String
     let baseOutput: String
+    let startSentence: Int
+    let endSentence: Int?
     let inputLanguage: String
     let targetLanguage: String
     let voice: String
@@ -60,6 +62,8 @@ struct AppleNarrateEbookDraft: Equatable {
         AppleNarrateEbookDraft(
             inputFile: inputFile,
             baseOutput: baseOutput,
+            startSentence: startSentence,
+            endSentence: endSentence,
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
             voice: voice,
@@ -264,6 +268,8 @@ enum AppleBookCreateEditedField: Hashable {
     case author
     case sourcePath
     case sourceBaseOutput
+    case sourceStartSentence
+    case sourceEndSentence
     case subtitleSourcePath
     case youtubeVideoPath
     case youtubeSubtitlePath
@@ -532,6 +538,11 @@ enum AppleBookCreatePresentation {
             return nil
         }
         return max(1, Int(parsed.rounded(.down)))
+    }
+
+    static func normalizedEndSentence(_ value: String, startSentence: Int) -> Int? {
+        guard let parsed = normalizedPositiveInteger(value) else { return nil }
+        return max(startSentence, parsed)
     }
 
     static func normalizedPositiveNumber(_ value: String) -> Double? {
@@ -857,6 +868,8 @@ enum AppleBookCreatePresentation {
     static func narrateEbookDraft(
         inputFile: String,
         baseOutput: String,
+        startSentence: String,
+        endSentence: String,
         inputLanguage: AppleBookCreateLanguage,
         targetLanguage: AppleBookCreateLanguage,
         voice: AppleBookCreateVoiceOption,
@@ -871,9 +884,12 @@ enum AppleBookCreatePresentation {
         outputPdf: Bool,
         pipelineDefaults: BookCreationPipelineDefaults?
     ) -> AppleNarrateEbookDraft {
-        AppleNarrateEbookDraft(
+        let normalizedStart = normalizedPositiveInteger(startSentence) ?? 1
+        return AppleNarrateEbookDraft(
             inputFile: trimmed(inputFile),
             baseOutput: trimmed(baseOutput),
+            startSentence: normalizedStart,
+            endSentence: normalizedEndSentence(endSentence, startSentence: normalizedStart),
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
             voice: voice.backendValue,
