@@ -10,6 +10,11 @@ struct AppleBookCreateDraft: Equatable {
     let targetLanguage: String
     let voice: String
     let baseOutput: String
+    let generateAudio: Bool
+    let audioMode: String
+    let audioBitrateKbps: Int?
+    let writtenMode: String
+    let tempo: Double
     let includeTransliteration: Bool
     let enableLookupCache: Bool
     let outputHtml: Bool
@@ -40,6 +45,11 @@ struct AppleNarrateEbookDraft: Equatable {
     let inputLanguage: String
     let targetLanguage: String
     let voice: String
+    let generateAudio: Bool
+    let audioMode: String
+    let audioBitrateKbps: Int?
+    let writtenMode: String
+    let tempo: Double
     let includeTransliteration: Bool
     let enableLookupCache: Bool
     let outputHtml: Bool
@@ -53,6 +63,11 @@ struct AppleNarrateEbookDraft: Equatable {
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
             voice: voice,
+            generateAudio: generateAudio,
+            audioMode: audioMode,
+            audioBitrateKbps: audioBitrateKbps,
+            writtenMode: writtenMode,
+            tempo: tempo,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
             outputHtml: outputHtml,
@@ -281,6 +296,11 @@ enum AppleBookCreateEditedField: Hashable {
     case inputLanguage
     case targetLanguage
     case voice
+    case generateAudio
+    case audioMode
+    case audioBitrateKbps
+    case writtenMode
+    case tempo
     case includeTransliteration
     case enableLookupCache
     case outputHtml
@@ -312,6 +332,11 @@ struct AppleCreateResolvedDefaults: Equatable {
     let inputLanguage: AppleBookCreateLanguage?
     let targetLanguage: AppleBookCreateLanguage?
     let voice: AppleBookCreateVoiceOption?
+    let generateAudio: Bool?
+    let audioMode: String?
+    let audioBitrateKbps: String?
+    let writtenMode: String?
+    let tempo: Double?
     let includeTransliteration: Bool?
     let enableLookupCache: Bool?
     let outputHtml: Bool?
@@ -397,6 +422,21 @@ enum AppleBookCreatePresentation {
             voice: editedFields.contains(.voice)
                 ? nil
                 : AppleBookCreateVoiceOption(backendValue: options.defaults.voice),
+            generateAudio: editedFields.contains(.generateAudio)
+                ? nil
+                : options.pipelineDefaults.generateAudio,
+            audioMode: editedFields.contains(.audioMode)
+                ? nil
+                : normalizedMode(options.pipelineDefaults.audioMode, fallback: "4"),
+            audioBitrateKbps: editedFields.contains(.audioBitrateKbps)
+                ? nil
+                : options.pipelineDefaults.audioBitrateKbps.map { "\($0)" } ?? "",
+            writtenMode: editedFields.contains(.writtenMode)
+                ? nil
+                : normalizedMode(options.pipelineDefaults.writtenMode, fallback: "4"),
+            tempo: editedFields.contains(.tempo)
+                ? nil
+                : clampTempo(options.pipelineDefaults.tempo),
             includeTransliteration: editedFields.contains(.includeTransliteration)
                 ? nil
                 : options.pipelineDefaults.includeTransliteration,
@@ -502,6 +542,27 @@ enum AppleBookCreatePresentation {
             return nil
         }
         return max(1, parsed)
+    }
+
+    static func normalizedMode(_ value: String, fallback: String) -> String {
+        let trimmedValue = trimmed(value)
+        guard !trimmedValue.isEmpty else { return fallback }
+        return trimmedValue
+    }
+
+    static func normalizedAudioBitrate(_ value: String) -> Int? {
+        let trimmedValue = trimmed(value)
+        guard !trimmedValue.isEmpty,
+              let parsed = Double(trimmedValue),
+              parsed.isFinite else {
+            return nil
+        }
+        return max(32, Int(parsed.rounded(.down)))
+    }
+
+    static func clampTempo(_ value: Double) -> Double {
+        guard value.isFinite else { return 1.0 }
+        return min(2.0, max(0.5, value))
     }
 
     static func availableInputLanguages(
@@ -725,6 +786,11 @@ enum AppleBookCreatePresentation {
         targetLanguage: AppleBookCreateLanguage,
         voice: AppleBookCreateVoiceOption,
         baseOutput: String,
+        generateAudio: Bool,
+        audioMode: String,
+        audioBitrateKbps: String,
+        writtenMode: String,
+        tempo: Double,
         includeTransliteration: Bool,
         enableLookupCache: Bool,
         outputHtml: Bool,
@@ -758,6 +824,11 @@ enum AppleBookCreatePresentation {
             targetLanguage: targetLanguage.backendValue,
             voice: voice.backendValue,
             baseOutput: baseOutput,
+            generateAudio: generateAudio,
+            audioMode: normalizedMode(audioMode, fallback: "4"),
+            audioBitrateKbps: normalizedAudioBitrate(audioBitrateKbps),
+            writtenMode: normalizedMode(writtenMode, fallback: "4"),
+            tempo: clampTempo(tempo),
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
             outputHtml: outputHtml,
@@ -789,6 +860,11 @@ enum AppleBookCreatePresentation {
         inputLanguage: AppleBookCreateLanguage,
         targetLanguage: AppleBookCreateLanguage,
         voice: AppleBookCreateVoiceOption,
+        generateAudio: Bool,
+        audioMode: String,
+        audioBitrateKbps: String,
+        writtenMode: String,
+        tempo: Double,
         includeTransliteration: Bool,
         enableLookupCache: Bool,
         outputHtml: Bool,
@@ -801,6 +877,11 @@ enum AppleBookCreatePresentation {
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguage.backendValue,
             voice: voice.backendValue,
+            generateAudio: generateAudio,
+            audioMode: normalizedMode(audioMode, fallback: "4"),
+            audioBitrateKbps: normalizedAudioBitrate(audioBitrateKbps),
+            writtenMode: normalizedMode(writtenMode, fallback: "4"),
+            tempo: clampTempo(tempo),
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
             outputHtml: outputHtml,

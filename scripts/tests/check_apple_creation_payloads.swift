@@ -323,6 +323,26 @@ struct AppleCreationPayloadCheck {
             "Voice default should map from backend options"
         )
         require(
+            resolvedDefaults.generateAudio == true,
+            "Generate-audio toggle should use backend pipeline default"
+        )
+        require(
+            resolvedDefaults.audioMode == "4",
+            "Audio mode should use backend pipeline default"
+        )
+        require(
+            resolvedDefaults.audioBitrateKbps == "96",
+            "Audio bitrate should use backend pipeline default"
+        )
+        require(
+            resolvedDefaults.writtenMode == "4",
+            "Written mode should use backend pipeline default"
+        )
+        require(
+            resolvedDefaults.tempo == 1.0,
+            "Tempo should use backend pipeline default"
+        )
+        require(
             resolvedDefaults.includeTransliteration == true,
             "Transliteration toggle should use backend pipeline default"
         )
@@ -373,6 +393,11 @@ struct AppleCreationPayloadCheck {
                 .sentenceCount,
                 .targetLanguage,
                 .voice,
+                .generateAudio,
+                .audioMode,
+                .audioBitrateKbps,
+                .writtenMode,
+                .tempo,
                 .enableLookupCache,
                 .outputHtml,
                 .outputPdf,
@@ -388,6 +413,11 @@ struct AppleCreationPayloadCheck {
         require(editedDefaults.author == nil, "Edited author should not be overwritten by backend defaults")
         require(editedDefaults.targetLanguage == nil, "Edited target language should not be overwritten")
         require(editedDefaults.voice == nil, "Edited voice should not be overwritten")
+        require(editedDefaults.generateAudio == nil, "Edited generate-audio toggle should not be overwritten")
+        require(editedDefaults.audioMode == nil, "Edited audio mode should not be overwritten")
+        require(editedDefaults.audioBitrateKbps == nil, "Edited audio bitrate should not be overwritten")
+        require(editedDefaults.writtenMode == nil, "Edited written mode should not be overwritten")
+        require(editedDefaults.tempo == nil, "Edited tempo should not be overwritten")
         require(editedDefaults.outputHtml == nil, "Edited HTML output should not be overwritten")
         require(editedDefaults.outputPdf == nil, "Edited PDF output should not be overwritten")
         require(editedDefaults.enableLookupCache == nil, "Edited lookup-cache toggle should not be overwritten")
@@ -516,6 +546,11 @@ struct AppleCreationPayloadCheck {
             targetLanguage: .slovak,
             voice: AppleBookCreateVoiceOption(" macOS-auto-male ")!,
             baseOutput: "native-creation",
+            generateAudio: false,
+            audioMode: " 2 ",
+            audioBitrateKbps: "31",
+            writtenMode: " 3 ",
+            tempo: 2.9,
             includeTransliteration: true,
             enableLookupCache: false,
             outputHtml: true,
@@ -543,6 +578,11 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.author == "Me", "Generated draft should default blank author to Me")
         require(generatedDraft.targetLanguage == "Slovak", "Generated draft should map target language")
         require(generatedDraft.voice == "macOS-auto-male", "Generated draft should trim and map voice")
+        require(generatedDraft.generateAudio == false, "Generated draft should keep selected audio toggle")
+        require(generatedDraft.audioMode == "2", "Generated draft should trim selected audio mode")
+        require(generatedDraft.audioBitrateKbps == 32, "Generated draft should floor selected audio bitrate")
+        require(generatedDraft.writtenMode == "3", "Generated draft should trim selected written mode")
+        require(generatedDraft.tempo == 2.0, "Generated draft should clamp selected tempo")
         require(generatedDraft.outputHtml == true, "Generated draft should keep selected HTML output toggle")
         require(generatedDraft.outputPdf == false, "Generated draft should keep selected PDF output toggle")
         require(generatedDraft.includeImages == true, "Generated draft should keep the native illustrations toggle")
@@ -591,6 +631,11 @@ struct AppleCreationPayloadCheck {
             inputLanguage: .english,
             targetLanguage: .arabic,
             voice: .gtts,
+            generateAudio: true,
+            audioMode: "",
+            audioBitrateKbps: "",
+            writtenMode: "",
+            tempo: 0.2,
             includeTransliteration: false,
             enableLookupCache: true,
             outputHtml: false,
@@ -599,6 +644,10 @@ struct AppleCreationPayloadCheck {
         )
         require(narrateDraft.inputFile == "imports/demo.epub", "Narrate draft should trim input path")
         require(narrateDraft.baseOutput == "apple/demo", "Narrate draft should trim output path")
+        require(narrateDraft.audioMode == "4", "Narrate draft should use fallback audio mode for blank selection")
+        require(narrateDraft.audioBitrateKbps == nil, "Narrate draft should preserve backend-default audio bitrate")
+        require(narrateDraft.writtenMode == "4", "Narrate draft should use fallback written mode for blank selection")
+        require(narrateDraft.tempo == 0.5, "Narrate draft should clamp low tempo")
         require(narrateDraft.includeTransliteration == false, "Narrate draft should keep transliteration toggle")
         require(narrateDraft.outputPdf == true, "Narrate draft should keep selected PDF output toggle")
 
@@ -691,10 +740,14 @@ struct AppleCreationPayloadCheck {
             inputLanguage: "en",
             targetLanguages: ["sk"],
             sentencesPerOutputFile: 12,
-            generateAudio: true,
+            generateAudio: false,
+            audioMode: "2",
+            audioBitrateKbps: 32,
+            writtenMode: "3",
             selectedVoice: "macOS-auto-male",
             outputHtml: true,
             outputPdf: true,
+            tempo: 1.7,
             bookMetadata: [
                 "book_title": .string("Demo Book"),
                 "chapter_count": .number(3),
@@ -794,9 +847,14 @@ struct AppleCreationPayloadCheck {
         require(encodedInputs?["input_file"] as? String == "books/demo.epub", "pipeline inputs should encode input_file")
         require(encodedInputs?["target_languages"] as? [String] == ["sk"], "pipeline inputs should encode target_languages")
         require(encodedInputs?["sentences_per_output_file"] as? Int == 12, "pipeline inputs should encode sentence count")
+        require(encodedInputs?["generate_audio"] as? Bool == false, "pipeline inputs should encode generate_audio")
+        require(encodedInputs?["audio_mode"] as? String == "2", "pipeline inputs should encode audio_mode")
+        require(encodedInputs?["audio_bitrate_kbps"] as? Int == 32, "pipeline inputs should encode audio_bitrate_kbps")
+        require(encodedInputs?["written_mode"] as? String == "3", "pipeline inputs should encode written_mode")
         require(encodedInputs?["selected_voice"] as? String == "macOS-auto-male", "pipeline inputs should encode selected_voice")
         require(encodedInputs?["output_html"] as? Bool == true, "pipeline inputs should encode output_html")
         require(encodedInputs?["output_pdf"] as? Bool == true, "pipeline inputs should encode output_pdf")
+        require((encodedInputs?["tempo"] as? NSNumber)?.doubleValue == 1.7, "pipeline inputs should encode tempo")
         let metadata = encodedInputs?["book_metadata"] as? [String: Any]
         require(metadata?["book_title"] as? String == "Demo Book", "pipeline inputs should encode book_metadata")
 

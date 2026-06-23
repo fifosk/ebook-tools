@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.16
+
+- Advanced visible Apple app versioning to `v2026.06.23.16`.
+- Apple generated-book and Narrate EPUB creation on iPhone and iPad now expose Web-aligned narration controls for audio generation, audio mode, audio quality, written mode, and tempo before submit.
+
 ### 2026.06.23.15
 
 - Advanced visible Apple app versioning to `v2026.06.23.15`.

@@ -57,6 +57,11 @@ struct AppleBookCreateView: View {
     @State private var inputLanguage = AppleBookCreateLanguage.english
     @State private var targetLanguage = AppleBookCreateLanguage.arabic
     @State private var voice = AppleBookCreateVoiceOption.gtts
+    @State private var generateAudio = true
+    @State private var audioMode = "4"
+    @State private var audioBitrateKbps = "96"
+    @State private var writtenMode = "4"
+    @State private var tempo = 1.0
     @State private var includeTransliteration = true
     @State private var enableLookupCache = true
     @State private var outputHtml = false
@@ -271,6 +276,12 @@ struct AppleBookCreateView: View {
             } else {
                 AppleBookCreateGeneratedOutputControls(
                     derivedBaseOutput: derivedBaseOutput,
+                    generateAudio: boolBinding(for: .generateAudio, value: $generateAudio),
+                    audioMode: textBinding(for: .audioMode, value: $audioMode),
+                    audioBitrateKbps: textBinding(for: .audioBitrateKbps, value: $audioBitrateKbps),
+                    writtenMode: textBinding(for: .writtenMode, value: $writtenMode),
+                    tempo: tempoBinding,
+                    formattedTempo: formattedTempo,
                     includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
                     enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache),
                     outputHtml: boolBinding(for: .outputHtml, value: $outputHtml),
@@ -445,6 +456,11 @@ struct AppleBookCreateView: View {
             targetLanguage: targetLanguage,
             voice: voice,
             baseOutput: derivedBaseOutput,
+            generateAudio: generateAudio,
+            audioMode: audioMode,
+            audioBitrateKbps: audioBitrateKbps,
+            writtenMode: writtenMode,
+            tempo: tempo,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
             outputHtml: outputHtml,
@@ -578,6 +594,11 @@ struct AppleBookCreateView: View {
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
             voice: voice,
+            generateAudio: generateAudio,
+            audioMode: audioMode,
+            audioBitrateKbps: audioBitrateKbps,
+            writtenMode: writtenMode,
+            tempo: tempo,
             includeTransliteration: includeTransliteration,
             enableLookupCache: enableLookupCache,
             outputHtml: outputHtml,
@@ -695,6 +716,10 @@ struct AppleBookCreateView: View {
 
     private var formattedYoutubeOriginalMixPercent: String {
         AppleBookCreatePresentation.formattedYoutubeOriginalMixPercent(youtubeOriginalMixPercent)
+    }
+
+    private var formattedTempo: String {
+        AppleBookCreatePresentation.clampTempo(tempo).formatted(.number.precision(.fractionLength(1)))
     }
 
     private var clampedAssFontSize: Int {
@@ -856,6 +881,17 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private var tempoBinding: Binding<Double> {
+        Binding(
+            get: { AppleBookCreatePresentation.clampTempo(tempo) },
+            set: { newValue in
+                markEdited(.tempo)
+                let rounded = (newValue * 10).rounded() / 10
+                tempo = AppleBookCreatePresentation.clampTempo(rounded)
+            }
+        )
+    }
+
     private var youtubeTargetHeightBinding: Binding<AppleYoutubeDubTargetHeight> {
         Binding(
             get: { youtubeTargetHeight },
@@ -1011,6 +1047,21 @@ struct AppleBookCreateView: View {
         }
         if let option = defaults.voice {
             voice = option
+        }
+        if let value = defaults.generateAudio {
+            generateAudio = value
+        }
+        if let value = defaults.audioMode {
+            audioMode = value
+        }
+        if let value = defaults.audioBitrateKbps {
+            audioBitrateKbps = value
+        }
+        if let value = defaults.writtenMode {
+            writtenMode = value
+        }
+        if let value = defaults.tempo {
+            tempo = value
         }
         if let value = defaults.includeTransliteration {
             includeTransliteration = value

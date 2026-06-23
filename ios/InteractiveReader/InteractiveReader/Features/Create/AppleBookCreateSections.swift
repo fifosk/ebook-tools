@@ -385,6 +385,12 @@ struct AppleBookCreateYoutubeOutputControls: View {
 
 struct AppleBookCreateGeneratedOutputControls: View {
     let derivedBaseOutput: String
+    @Binding var generateAudio: Bool
+    @Binding var audioMode: String
+    @Binding var audioBitrateKbps: String
+    @Binding var writtenMode: String
+    @Binding var tempo: Double
+    let formattedTempo: String
     @Binding var includeTransliteration: Bool
     @Binding var enableLookupCache: Bool
     @Binding var outputHtml: Bool
@@ -413,6 +419,36 @@ struct AppleBookCreateGeneratedOutputControls: View {
     var body: some View {
         LabeledContent("Path", value: derivedBaseOutput)
             .accessibilityIdentifier("createBookBaseOutputLabel")
+        Toggle("Narration tracks", isOn: $generateAudio)
+            .accessibilityIdentifier("createBookGenerateAudioToggle")
+        Picker("Audio mode", selection: $audioMode) {
+            ForEach(["1", "2", "3", "4"], id: \.self) { option in
+                Text("Mode \(option)").tag(option)
+            }
+        }
+        .accessibilityIdentifier("createBookAudioModePicker")
+        Picker("Audio quality", selection: $audioBitrateKbps) {
+            Text("Backend default").tag("")
+            Text("Ultra (320 kbps)").tag("320")
+            Text("High (192 kbps)").tag("192")
+            Text("High (160 kbps)").tag("160")
+            Text("Standard (128 kbps)").tag("128")
+            Text("Compact (96 kbps)").tag("96")
+            Text("Tiny (64 kbps)").tag("64")
+        }
+        .accessibilityIdentifier("createBookAudioBitratePicker")
+        Picker("Written mode", selection: $writtenMode) {
+            ForEach(["1", "2", "3", "4"], id: \.self) { option in
+                Text("Mode \(option)").tag(option)
+            }
+        }
+        .accessibilityIdentifier("createBookWrittenModePicker")
+        #if os(iOS)
+        Stepper(value: $tempo, in: 0.5...2.0, step: 0.1) {
+            LabeledContent("Tempo", value: formattedTempo)
+        }
+        .accessibilityIdentifier("createBookTempoStepper")
+        #endif
         if supportsImages {
             Toggle("Illustrations", isOn: $includeImages)
                 .accessibilityIdentifier("createBookIllustrationsToggle")
