@@ -108,12 +108,32 @@ class PipelineMediaChunk(BaseModel):
     )
 
 
+class PipelineMediaDiagnostics(BaseModel):
+    """Aggregate media manifest health counts safe for Web and Apple surfaces."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    media_file_count: int = Field(default=0, serialization_alias="mediaFileCount")
+    chunk_count: int = Field(default=0, serialization_alias="chunkCount")
+    chunk_file_count: int = Field(default=0, serialization_alias="chunkFileCount")
+    audio_file_count: int = Field(default=0, serialization_alias="audioFileCount")
+    image_file_count: int = Field(default=0, serialization_alias="imageFileCount")
+    chunks_with_audio: int = Field(default=0, serialization_alias="chunksWithAudio")
+    chunks_with_timing: int = Field(default=0, serialization_alias="chunksWithTiming")
+    chunks_with_images: int = Field(default=0, serialization_alias="chunksWithImages")
+    chunks_without_files: int = Field(default=0, serialization_alias="chunksWithoutFiles")
+    chunks_without_metadata: int = Field(default=0, serialization_alias="chunksWithoutMetadata")
+    files_without_url: int = Field(default=0, serialization_alias="filesWithoutUrl")
+    files_without_size: int = Field(default=0, serialization_alias="filesWithoutSize")
+
+
 class PipelineMediaResponse(BaseModel):
     """Response payload grouping generated media by type."""
 
     media: Dict[str, List[PipelineMediaFile]] = Field(default_factory=dict)
     chunks: List[PipelineMediaChunk] = Field(default_factory=list)
     complete: bool = False
+    diagnostics: PipelineMediaDiagnostics = Field(default_factory=PipelineMediaDiagnostics)
 
 
 class MediaSearchHit(BaseModel):

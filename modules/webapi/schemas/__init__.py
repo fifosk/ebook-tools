@@ -72,6 +72,7 @@ from .pipeline_media import (
     MediaSearchHit,
     MediaSearchResponse,
     PipelineMediaChunk,
+    PipelineMediaDiagnostics,
     PipelineMediaFile,
     PipelineMediaResponse,
 )
@@ -204,6 +205,7 @@ __all__ = [
     "PipelineJobActionResponse",
     "PipelineJobListResponse",
     "PipelineMediaChunk",
+    "PipelineMediaDiagnostics",
     "PipelineMediaFile",
     "PipelineMediaResponse",
     "PipelineRequestPayload",

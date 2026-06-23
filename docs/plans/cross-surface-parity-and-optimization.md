@@ -218,7 +218,10 @@ Suggested features to evaluate after parity scaffolding:
 - Job health timeline: show backend stage durations and slow phases in Web and iPad.
 - Backend queue pressure indicator: expose accepting/backpressure state in Settings before users submit long jobs.
 - Smart resume cards: show "continue listening", "newly completed", and "needs attention" across all surfaces.
-- Shared media diagnostics: surface missing timing/audio/image assets without opening logs.
+- Shared media diagnostics: surface missing timing/audio/image assets without
+  opening logs. Status: media manifest responses now include a token-safe
+  aggregate diagnostics object with media, chunk, audio, image, timing,
+  metadata, URL, and size counts; Web and Apple display work remains.
 - Offline export from Apple: request `/api/exports` for a completed job/library item and show status in Jobs.
 
 ## Verification Contract

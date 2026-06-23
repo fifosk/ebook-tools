@@ -20,7 +20,12 @@ from ...dependencies import (
     get_pipeline_service,
     get_request_user,
 )
-from ...schemas import PipelineMediaChunk, PipelineMediaFile, PipelineMediaResponse
+from ...schemas import (
+    PipelineMediaChunk,
+    PipelineMediaDiagnostics,
+    PipelineMediaFile,
+    PipelineMediaResponse,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -62,6 +67,61 @@ def _log_media_manifest(
         chunk_count,
         complete,
         duration_ms,
+    )
+
+
+def _file_type_matches(file: PipelineMediaFile, candidates: set[str]) -> bool:
+    value = (file.type or file.name or "").lower()
+    return any(candidate in value for candidate in candidates)
+
+
+def _chunk_has_timing(chunk: PipelineMediaChunk) -> bool:
+    if chunk.timing_tracks:
+        return any(entries for entries in chunk.timing_tracks.values())
+    return any(sentence.timeline for sentence in chunk.sentences)
+
+
+def _chunk_has_image(chunk: PipelineMediaChunk) -> bool:
+    if any(_file_type_matches(file, {"image", "png", "jpg", "jpeg", "webp"}) for file in chunk.files):
+        return True
+    return any(sentence.image is not None or sentence.image_path for sentence in chunk.sentences)
+
+
+def _build_media_diagnostics(
+    media_entries: Mapping[str, Sequence[PipelineMediaFile]],
+    chunk_entries: Sequence[PipelineMediaChunk],
+) -> PipelineMediaDiagnostics:
+    media_files = [file for entries in media_entries.values() for file in entries]
+    chunk_files = [file for chunk in chunk_entries for file in chunk.files]
+
+    return PipelineMediaDiagnostics(
+        media_file_count=len(media_files),
+        chunk_count=len(chunk_entries),
+        chunk_file_count=len(chunk_files),
+        audio_file_count=sum(
+            1 for file in media_files if _file_type_matches(file, {"audio", "mp3", "wav", "m4a"})
+        ),
+        image_file_count=sum(
+            1
+            for file in media_files
+            if _file_type_matches(file, {"image", "png", "jpg", "jpeg", "webp"})
+        ),
+        chunks_with_audio=sum(
+            1
+            for chunk in chunk_entries
+            if chunk.audio_tracks
+            or any(_file_type_matches(file, {"audio", "mp3", "wav", "m4a"}) for file in chunk.files)
+        ),
+        chunks_with_timing=sum(1 for chunk in chunk_entries if _chunk_has_timing(chunk)),
+        chunks_with_images=sum(1 for chunk in chunk_entries if _chunk_has_image(chunk)),
+        chunks_without_files=sum(1 for chunk in chunk_entries if not chunk.files),
+        chunks_without_metadata=sum(
+            1
+            for chunk in chunk_entries
+            if not chunk.metadata_path and not chunk.metadata_url and not chunk.sentences
+        ),
+        files_without_url=sum(1 for file in media_files if not file.url),
+        files_without_size=sum(1 for file in media_files if file.size is None),
     )
 
 
@@ -654,7 +714,12 @@ async def get_job_media(
         chunk_count=len(chunk_entries),
         complete=complete,
     )
-    return PipelineMediaResponse(media=media_entries, chunks=chunk_entries, complete=complete)
+    return PipelineMediaResponse(
+        media=media_entries,
+        chunks=chunk_entries,
+        complete=complete,
+        diagnostics=_build_media_diagnostics(media_entries, chunk_entries),
+    )
 
 
 @router.get(
@@ -773,4 +838,9 @@ async def get_job_media_live(
         chunk_count=len(chunk_entries),
         complete=complete,
     )
-    return PipelineMediaResponse(media=media_entries, chunks=chunk_entries, complete=complete)
+    return PipelineMediaResponse(
+        media=media_entries,
+        chunks=chunk_entries,
+        complete=complete,
+        diagnostics=_build_media_diagnostics(media_entries, chunk_entries),
+    )

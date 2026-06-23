@@ -981,10 +981,26 @@ export interface PipelineMediaChunk {
   timingVersion?: string;
 }
 
+export interface PipelineMediaDiagnostics {
+  mediaFileCount: number;
+  chunkCount: number;
+  chunkFileCount: number;
+  audioFileCount: number;
+  imageFileCount: number;
+  chunksWithAudio: number;
+  chunksWithTiming: number;
+  chunksWithImages: number;
+  chunksWithoutFiles: number;
+  chunksWithoutMetadata: number;
+  filesWithoutUrl: number;
+  filesWithoutSize: number;
+}
+
 export interface PipelineMediaResponse {
   media: Record<string, PipelineMediaFile[] | undefined>;
   chunks: PipelineMediaChunk[];
   complete: boolean;
+  diagnostics?: PipelineMediaDiagnostics;
 }
 
 export interface MediaSearchResult {

@@ -104,6 +104,20 @@ def test_get_job_media_returns_completed_entries(api_app) -> None:
     assert "chunks" in payload
     assert isinstance(payload["chunks"], list)
     assert "complete" in payload
+    assert payload["diagnostics"] == {
+        "mediaFileCount": 1,
+        "chunkCount": 0,
+        "chunkFileCount": 0,
+        "audioFileCount": 1,
+        "imageFileCount": 0,
+        "chunksWithAudio": 0,
+        "chunksWithTiming": 0,
+        "chunksWithImages": 0,
+        "chunksWithoutFiles": 0,
+        "chunksWithoutMetadata": 0,
+        "filesWithoutUrl": 0,
+        "filesWithoutSize": 0,
+    }
     entry = payload["media"]["audio"][0]
     assert entry["name"] == "sample.mp3"
     assert entry["size"] == file_path.stat().st_size
@@ -239,6 +253,20 @@ def test_get_job_media_populates_sentence_count_from_range(api_app) -> None:
     assert chunk["sentenceCount"] == 10
     assert chunk["startSentence"] == 1
     assert chunk["endSentence"] == 11
+    assert payload["diagnostics"] == {
+        "mediaFileCount": 1,
+        "chunkCount": 1,
+        "chunkFileCount": 1,
+        "audioFileCount": 1,
+        "imageFileCount": 0,
+        "chunksWithAudio": 1,
+        "chunksWithTiming": 0,
+        "chunksWithImages": 0,
+        "chunksWithoutFiles": 0,
+        "chunksWithoutMetadata": 0,
+        "filesWithoutUrl": 0,
+        "filesWithoutSize": 0,
+    }
 
 
 def test_get_job_media_live_prefers_tracker_snapshot(api_app) -> None:
@@ -289,6 +317,9 @@ def test_get_job_media_live_prefers_tracker_snapshot(api_app) -> None:
     assert "chunks" in payload
     assert isinstance(payload["chunks"], list)
     assert "complete" in payload
+    assert payload["diagnostics"]["mediaFileCount"] == 1
+    assert payload["diagnostics"]["chunkCount"] == 0
+    assert payload["diagnostics"]["filesWithoutUrl"] == 0
     entry = payload["media"]["html"][0]
     assert entry["name"] == "live.html"
     assert entry["source"] == "live"
