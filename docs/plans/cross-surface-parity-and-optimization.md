@@ -66,10 +66,11 @@ Large Web UI hotspots to split before redesign work:
   math, track variant mapping, and TTS voice option helpers now live in
   `web/src/components/video-subtitles/subtitleTrackOverlayUtils.ts` with
   focused Vitest coverage.
-- `web/src/components/JobProgress.tsx` - 962 lines. Status: generated-file
+- `web/src/components/JobProgress.tsx` - 931 lines. Status: generated-file
   stat lookup, batch progress, sentence/playable stage progress,
   lookup-cache progress, parallelism overview entries, fallback display rows,
-  unavailable-translation detection, and progress label helpers now live in
+  unavailable-translation detection, metadata entry splitting, narrated
+  subtitle detection, and progress label helpers now live in
   `web/src/components/job-progress/jobProgressUtils.ts` with focused Vitest
   coverage.
 - `web/src/components/LibraryList.tsx` - 703 lines. Status: layout type

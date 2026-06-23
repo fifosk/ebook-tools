@@ -20,9 +20,6 @@ import { resolveProgressStage } from '../utils/progressEvents';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
 import { MetadataLookupRow } from './metadata/MetadataLookupRow';
 import {
-  BOOK_METADATA_DISPLAY_KEYS,
-  CREATION_METADATA_KEYS,
-  TECHNICAL_METADATA_KEYS,
   TERMINAL_STATES,
   areTranslationsUnavailable,
   buildBatchProgress,
@@ -40,15 +37,15 @@ import {
   formatTuningDescription,
   formatTuningLabel,
   formatTuningValue,
-  formatTranslationProviderLabel,
+  isNarratedSubtitleJobStatus,
   normalizeIsbnCandidate,
-  normalizeMetadataValue,
   normalizeTranslationProvider,
   normalizeTextValue,
   resolveGeneratedFileRecord,
   resolveImageClusterSummary,
   resolveLookupCacheBuildingProgress,
   resolveLookupCacheProgress,
+  resolveJobMetadataEntries,
   resolveMediaStageProgress,
   resolvePlayableStageProgress,
   resolveTranslationStageProgress,
@@ -108,24 +105,7 @@ export function JobProgress({
   const isVideoDubJob = jobType === 'youtube_dub';
   const supportsTvMetadata = isSubtitleJob || isVideoDubJob;
   const supportsYoutubeMetadata = isVideoDubJob;
-  const isNarratedSubtitleJob = useMemo(() => {
-    if (jobType !== 'subtitle') {
-      return false;
-    }
-    const result = status?.result;
-    if (!result || typeof result !== 'object') {
-      return false;
-    }
-    const subtitleSection = (result as Record<string, unknown>)['subtitle'];
-    if (!subtitleSection || typeof subtitleSection !== 'object') {
-      return false;
-    }
-    const subtitleMetadata = (subtitleSection as Record<string, unknown>)['metadata'];
-    if (!subtitleMetadata || typeof subtitleMetadata !== 'object') {
-      return false;
-    }
-    return (subtitleMetadata as Record<string, unknown>)['generate_audio_book'] === true;
-  }, [jobType, status?.result]);
+  const isNarratedSubtitleJob = useMemo(() => isNarratedSubtitleJobStatus(status), [status]);
   const isLibraryMovableJob = isPipelineLikeJob || isVideoDubJob || isNarratedSubtitleJob;
   const isTerminal = useMemo(() => {
     if (!status) {
@@ -221,21 +201,10 @@ export function JobProgress({
     }
     return 'Book cover';
   }, [bookAuthor, bookTitle]);
-  // Split metadata into display (interesting) and technical entries
-  const allMetadataEntries = Object.entries(metadata).filter(([key, value]) => {
-    if (key === 'job_cover_asset' || key === 'media_metadata_lookup' || key === 'book_metadata_lookup' || CREATION_METADATA_KEYS.has(key)) {
-      return false;
-    }
-    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-      return false;
-    }
-    const normalized = normalizeMetadataValue(value);
-    return normalized.length > 0;
-  });
-  // Display entries: show prominently (book metadata fields)
-  const metadataEntries = allMetadataEntries.filter(([key]) => BOOK_METADATA_DISPLAY_KEYS.has(key));
-  // Technical entries: show in collapsed "Raw payload" section
-  const technicalMetadataEntries = allMetadataEntries.filter(([key]) => !BOOK_METADATA_DISPLAY_KEYS.has(key));
+  const { displayEntries: metadataEntries, technicalEntries: technicalMetadataEntries } = useMemo(
+    () => resolveJobMetadataEntries(metadata),
+    [metadata]
+  );
   const creationSummary = useMemo(
     () => parseJobProgressCreationSummary(metadata['creation_summary']),
     [metadata]

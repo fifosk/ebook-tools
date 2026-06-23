@@ -6,13 +6,16 @@ import {
   buildFallbackEntries,
   buildParallelismEntries,
   formatProgressValue,
+  isNarratedSubtitleJobStatus,
   resolveGeneratedFileRecord,
+  resolveJobMetadataEntries,
   resolveLookupCacheBuildingProgress,
   resolveLookupCacheProgress,
   resolveMediaStageProgress,
   resolvePlayableStageProgress,
   resolveTranslationStageProgress
 } from '../job-progress/jobProgressUtils';
+import type { PipelineStatusResponse } from '../../api/dtos';
 
 function progressEvent(overrides: Partial<{
   event_type: string;
@@ -36,6 +39,88 @@ function progressEvent(overrides: Partial<{
 }
 
 describe('jobProgressUtils progress helpers', () => {
+  it('splits job metadata into prominent display rows and technical rows', () => {
+    expect(
+      resolveJobMetadataEntries({
+        book_title: '  Example title ',
+        book_author: 'Author Name',
+        book_pages: 320,
+        translation_provider: 'llm',
+        target_languages: [' French ', 'Spanish'],
+        empty_string: '   ',
+        job_cover_asset: 'cover-asset',
+        media_metadata_lookup: { provider: 'openlibrary' },
+        creation_summary: { messages: ['Created'] },
+        nested_payload: { ignored: true },
+        array_payload: [' one ', 'two']
+      })
+    ).toEqual({
+      displayEntries: [
+        ['book_title', '  Example title '],
+        ['book_author', 'Author Name'],
+        ['book_pages', 320]
+      ],
+      technicalEntries: [
+        ['translation_provider', 'llm'],
+        ['target_languages', [' French ', 'Spanish']],
+        ['array_payload', [' one ', 'two']]
+      ]
+    });
+  });
+
+  it('detects narrated subtitle jobs from subtitle result metadata only', () => {
+    const base: PipelineStatusResponse = {
+      job_id: 'subtitle-job',
+      job_type: 'subtitle',
+      status: 'completed',
+      created_at: '2026-06-23T00:00:00Z',
+      started_at: null,
+      completed_at: null,
+      result: null,
+      error: null,
+      latest_event: null,
+      tuning: null
+    };
+
+    expect(
+      isNarratedSubtitleJobStatus({
+        ...base,
+        result: {
+          subtitle: {
+            metadata: {
+              generate_audio_book: true
+            }
+          }
+        }
+      })
+    ).toBe(true);
+    expect(
+      isNarratedSubtitleJobStatus({
+        ...base,
+        result: {
+          subtitle: {
+            metadata: {
+              generate_audio_book: false
+            }
+          }
+        }
+      })
+    ).toBe(false);
+    expect(
+      isNarratedSubtitleJobStatus({
+        ...base,
+        job_type: 'youtube_dub',
+        result: {
+          subtitle: {
+            metadata: {
+              generate_audio_book: true
+            }
+          }
+        }
+      })
+    ).toBe(false);
+  });
+
   it('builds fallback display rows from generated-file fallback records', () => {
     expect(
       buildFallbackEntries({

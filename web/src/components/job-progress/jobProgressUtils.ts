@@ -349,6 +349,33 @@ export function formatMetadataValue(key: string, value: unknown): string {
   return normalized;
 }
 
+export type JobMetadataEntries = {
+  displayEntries: Array<[string, unknown]>;
+  technicalEntries: Array<[string, unknown]>;
+};
+
+export function resolveJobMetadataEntries(metadata: Record<string, unknown>): JobMetadataEntries {
+  const eligibleEntries = Object.entries(metadata).filter(([key, value]) => {
+    if (
+      key === 'job_cover_asset' ||
+      key === 'media_metadata_lookup' ||
+      key === 'book_metadata_lookup' ||
+      CREATION_METADATA_KEYS.has(key)
+    ) {
+      return false;
+    }
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      return false;
+    }
+    return normalizeMetadataValue(value).length > 0;
+  });
+
+  return {
+    displayEntries: eligibleEntries.filter(([key]) => BOOK_METADATA_DISPLAY_KEYS.has(key)),
+    technicalEntries: eligibleEntries.filter(([key]) => !BOOK_METADATA_DISPLAY_KEYS.has(key)),
+  };
+}
+
 export function coerceRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
 }
@@ -1162,6 +1189,13 @@ export function resolveSubtitleMetadata(
   }
   const metadata = (subtitleSection as Record<string, unknown>)['metadata'];
   return metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>) : null;
+}
+
+export function isNarratedSubtitleJobStatus(status: PipelineStatusResponse | undefined): boolean {
+  if (!status || status.job_type !== 'subtitle') {
+    return false;
+  }
+  return resolveSubtitleMetadata(status)?.['generate_audio_book'] === true;
 }
 
 export function sortTuningEntries(entries: [string, unknown][]): [string, unknown][] {
