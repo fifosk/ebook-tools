@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-23
 
+### 2026.06.23.83
+
+- Advanced visible Apple app versioning to `v2026.06.23.83`.
+- Apple Create Narrate EPUB now loads backend-visible EPUBs from `/api/pipelines/files`, offers a server EPUB picker, and auto-fills the preferred or first NAS EPUB when the source is still empty.
+
 ### 2026.06.23.82
 
 - Advanced visible Apple app versioning to `v2026.06.23.82`.

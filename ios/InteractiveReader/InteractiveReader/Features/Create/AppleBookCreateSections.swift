@@ -11,13 +11,17 @@ struct AppleBookCreateSourceSection: View {
     @Binding var subtitleSourcePath: String
     @Binding var youtubeVideoPath: String
     @Binding var youtubeSubtitlePath: String
+    let pipelineFiles: PipelineFileBrowserResponse?
     let selectedNarrateFileName: String?
     let selectedSubtitleFileName: String?
     let narrateChapterOptions: [AppleCreateChapterOption]
     @Binding var selectedNarrateStartChapterID: String
     @Binding var selectedNarrateEndChapterID: String
+    let isLoadingPipelineFiles: Bool
     let isLoadingNarrateChapters: Bool
+    let pipelineFilesErrorMessage: String?
     let narrateChaptersErrorMessage: String?
+    let onRefreshPipelineFiles: () -> Void
     let onLoadNarrateChapters: () -> Void
     let onChooseNarrateFile: () -> Void
     let onChooseSubtitleFile: () -> Void
@@ -59,6 +63,39 @@ struct AppleBookCreateSourceSection: View {
             action: onChooseNarrateFile
         )
         #endif
+        if !narrateServerEbooks.isEmpty {
+            Picker("Server EPUB", selection: $sourcePath) {
+                Text("Manual path").tag("")
+                if shouldShowCurrentServerPath {
+                    Text(sourcePath).tag(sourcePath)
+                }
+                ForEach(narrateServerEbooks, id: \.path) { entry in
+                    Text(entry.name).tag(entry.path)
+                }
+            }
+            .accessibilityIdentifier("createNarrateServerEbookPicker")
+        }
+        HStack {
+            Button(action: onRefreshPipelineFiles) {
+                Label(
+                    isLoadingPipelineFiles ? "Refreshing EPUBs" : "Refresh EPUBs",
+                    systemImage: "arrow.clockwise"
+                )
+            }
+            .disabled(isLoadingPipelineFiles)
+            .accessibilityIdentifier("createNarrateRefreshServerEbooksButton")
+
+            if isLoadingPipelineFiles {
+                ProgressView()
+                    .accessibilityIdentifier("createNarrateServerEbooksProgress")
+            }
+        }
+        if let pipelineFilesErrorMessage {
+            Text(pipelineFilesErrorMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateServerEbooksMessage")
+        }
         TextField("Server EPUB path", text: $sourcePath)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
@@ -132,6 +169,18 @@ struct AppleBookCreateSourceSection: View {
             .keyboardType(.numbersAndPunctuation)
             #endif
             .accessibilityIdentifier("createNarrateEndSentenceField")
+    }
+
+    private var narrateServerEbooks: [PipelineFileEntry] {
+        pipelineFiles?.ebooks.filter { $0.type == "file" } ?? []
+    }
+
+    private var shouldShowCurrentServerPath: Bool {
+        let trimmedPath = sourcePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            return false
+        }
+        return !narrateServerEbooks.contains { $0.path == sourcePath }
     }
 
     private func applyNarrateChapterRangeSelection(startID: String, endID: String) {

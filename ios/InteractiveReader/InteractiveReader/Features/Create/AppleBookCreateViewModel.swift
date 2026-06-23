@@ -5,17 +5,21 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isSubmitting = false
     @Published private(set) var isLoadingOptions = false
     @Published private(set) var isLoadingIntakeStatus = false
+    @Published private(set) var isLoadingPipelineFiles = false
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
     @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
+    @Published private(set) var pipelineFiles: PipelineFileBrowserResponse?
     @Published private(set) var subtitleLlmModels: [String] = []
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
     @Published private(set) var isLoadingNarrateChapters = false
     @Published private(set) var narrateChaptersErrorMessage: String?
+    @Published private(set) var pipelineFilesErrorMessage: String?
     @Published private(set) var optionsErrorMessage: String?
     @Published var errorMessage: String?
     @Published private(set) var submittedJobId: String?
     private var loadedOptionsCacheKey: String?
     private var loadedIntakeStatusCacheKey: String?
+    private var loadedPipelineFilesCacheKey: String?
     private var loadedSubtitleModelsCacheKey: String?
 
     func loadCreationOptions(
@@ -65,6 +69,35 @@ final class AppleBookCreateViewModel: ObservableObject {
             loadedSubtitleModelsCacheKey = cacheKey
         } catch {
             return
+        }
+    }
+
+    func loadPipelineFiles(
+        using appState: AppState,
+        cacheKey: String,
+        force: Bool = false
+    ) async -> PipelineFileBrowserResponse? {
+        guard let configuration = appState.configuration else {
+            return nil
+        }
+        if !force, loadedPipelineFilesCacheKey == cacheKey, let pipelineFiles {
+            return pipelineFiles
+        }
+
+        isLoadingPipelineFiles = true
+        pipelineFilesErrorMessage = nil
+        defer { isLoadingPipelineFiles = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.fetchPipelineFiles()
+            pipelineFiles = response
+            loadedPipelineFilesCacheKey = cacheKey
+            return response
+        } catch {
+            pipelineFiles = nil
+            pipelineFilesErrorMessage = error.localizedDescription
+            return nil
         }
     }
 

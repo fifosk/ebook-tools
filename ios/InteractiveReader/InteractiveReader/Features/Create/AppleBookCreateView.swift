@@ -147,6 +147,7 @@ struct AppleBookCreateView: View {
         .task(id: creationOptionsLoadKey) {
             await refreshCreationOptions()
             await refreshIntakeStatus()
+            await refreshPipelineFiles()
             await viewModel.loadSubtitleModels(using: appState, cacheKey: creationOptionsLoadKey)
         }
         #if os(iOS)
@@ -177,13 +178,19 @@ struct AppleBookCreateView: View {
             subtitleSourcePath: textBinding(for: .subtitleSourcePath, value: $subtitleSourcePath),
             youtubeVideoPath: textBinding(for: .youtubeVideoPath, value: $youtubeVideoPath),
             youtubeSubtitlePath: textBinding(for: .youtubeSubtitlePath, value: $youtubeSubtitlePath),
+            pipelineFiles: viewModel.pipelineFiles,
             selectedNarrateFileName: selectedNarrateFileName,
             selectedSubtitleFileName: selectedSubtitleFileName,
             narrateChapterOptions: viewModel.narrateChapterOptions,
             selectedNarrateStartChapterID: $selectedNarrateStartChapterID,
             selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
+            isLoadingPipelineFiles: viewModel.isLoadingPipelineFiles,
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
+            pipelineFilesErrorMessage: viewModel.pipelineFilesErrorMessage,
             narrateChaptersErrorMessage: viewModel.narrateChaptersErrorMessage,
+            onRefreshPipelineFiles: {
+                Task { await refreshPipelineFiles(force: true) }
+            },
             onLoadNarrateChapters: loadNarrateChapters,
             onChooseNarrateFile: { isImportingNarrateEbook = true },
             onChooseSubtitleFile: { isImportingSubtitleFile = true }
@@ -844,6 +851,32 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private func refreshPipelineFiles(force: Bool = false) async {
+        guard !Self.isTVPlatform else { return }
+        let files = await viewModel.loadPipelineFiles(
+            using: appState,
+            cacheKey: creationOptionsLoadKey,
+            force: force
+        )
+        applyPreferredNarrateSource(from: files)
+    }
+
+    private func applyPreferredNarrateSource(from files: PipelineFileBrowserResponse?) {
+        guard
+            selectedNarrateFileURL == nil,
+            !editedFields.contains(.sourcePath),
+            trimmed(sourcePath).isEmpty,
+            let entry = AppleBookCreatePresentation.preferredPipelineEbook(from: files)
+        else {
+            return
+        }
+
+        sourcePath = entry.path
+        if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
+            sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(entry.name)
+        }
+    }
+
     private func clearNarrateChapterSelection() {
         selectedNarrateStartChapterID = ""
         selectedNarrateEndChapterID = ""
@@ -861,6 +894,7 @@ struct AppleBookCreateView: View {
             guard let url = urls.first else { return }
             selectedNarrateFileURL = url
             selectedNarrateFileName = url.lastPathComponent
+            sourcePath = ""
             clearNarrateChapterSelection()
             markEdited(.sourcePath)
             if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
@@ -1308,6 +1342,8 @@ struct AppleBookCreateView: View {
             set: { newValue in
                 markEdited(.sourcePath)
                 if newValue != sourcePath {
+                    selectedNarrateFileURL = nil
+                    selectedNarrateFileName = nil
                     clearNarrateChapterSelection()
                 }
                 sourcePath = newValue

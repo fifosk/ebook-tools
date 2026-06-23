@@ -167,6 +167,20 @@ struct PipelineFileEntry: Decodable, Equatable {
     let type: String
 }
 
+struct PipelineFileBrowserResponse: Decodable, Equatable {
+    let ebooks: [PipelineFileEntry]
+    let outputs: [PipelineFileEntry]
+    let booksRoot: String
+    let outputRoot: String
+
+    enum CodingKeys: String, CodingKey {
+        case ebooks
+        case outputs
+        case booksRoot = "books_root"
+        case outputRoot = "output_root"
+    }
+}
+
 struct BookContentIndexResponse: Decodable, Equatable {
     let inputFile: String
     let contentIndex: JSONValue?

@@ -531,8 +531,19 @@ struct AppleCreateSubmitState: Equatable {
 }
 
 enum AppleBookCreatePresentation {
+    private static let preferredSampleEbookName = "test-agatha-poirot-30sentences.epub"
+
     static func availableCreateModes(isTV: Bool) -> [AppleCreateMode] {
         isTV ? [.generatedBook] : AppleCreateMode.allCases
+    }
+
+    static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry? {
+        guard let ebooks = files?.ebooks.filter({ $0.type == "file" }), !ebooks.isEmpty else {
+            return nil
+        }
+        return ebooks.first { entry in
+            trimmed(entry.name).lowercased() == preferredSampleEbookName
+        } ?? ebooks[0]
     }
 
     static func webCreateViewID(for mode: AppleCreateMode) -> String {

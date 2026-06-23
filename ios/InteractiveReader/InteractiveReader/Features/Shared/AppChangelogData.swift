@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-23",
             dateLabel: "June 23, 2026",
-            version: "2026.06.23.82",
+            version: "2026.06.23.83",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-server-ebook-picker",
+                    title: "Create finds server EPUBs",
+                    detail: "Apple Create Narrate EPUB now loads backend-visible EPUBs, offers a server EPUB picker, and auto-fills the preferred or first NAS EPUB when the source is still empty."
+                ),
                 AppChangelogEntry(
                     id: "create-cache-source-identity",
                     title: "Create cache isolation",

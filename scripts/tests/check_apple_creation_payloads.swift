@@ -77,6 +77,39 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.availableCreateModes(isTV: false) == AppleCreateMode.allCases,
             "iPhone/iPad Create mode list should expose all native creation modes"
         )
+        let pipelineFilesJSON = """
+        {
+          "ebooks": [
+            {"name": "Other.epub", "path": "Other.epub", "type": "file"},
+            {"name": "test-agatha-poirot-30sentences.epub", "path": "samples/poirot.epub", "type": "file"}
+          ],
+          "outputs": [
+            {"name": "generated", "path": "generated", "type": "directory"}
+          ],
+          "books_root": "/Volumes/Data/Books",
+          "output_root": "/Volumes/Data/Output"
+        }
+        """.data(using: .utf8)!
+        let pipelineFiles = try decoder.decode(PipelineFileBrowserResponse.self, from: pipelineFilesJSON)
+        require(
+            pipelineFiles.booksRoot == "/Volumes/Data/Books",
+            "Apple Create should decode pipeline file browser roots"
+        )
+        require(
+            AppleBookCreatePresentation.preferredPipelineEbook(from: pipelineFiles)?.path == "samples/poirot.epub",
+            "Apple Create should prefer the same sample EPUB as Web when auto-filling Narrate EPUB"
+        )
+        require(
+            AppleBookCreatePresentation.preferredPipelineEbook(
+                from: PipelineFileBrowserResponse(
+                    ebooks: [PipelineFileEntry(name: "First.epub", path: "First.epub", type: "file")],
+                    outputs: [],
+                    booksRoot: "/books",
+                    outputRoot: "/output"
+                )
+            )?.path == "First.epub",
+            "Apple Create should fall back to the first backend-listed EPUB"
+        )
         require(
             AppleBookCreatePresentation.webCreateViewID(for: .generatedBook) == "books:create",
             "Generated-book Web handoff should target the Web book creation view"
