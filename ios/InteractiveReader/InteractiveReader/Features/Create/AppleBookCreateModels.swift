@@ -281,7 +281,7 @@ struct AppleBookCreateLanguage: Hashable, Identifiable {
     init?(_ value: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        self.value = trimmed
+        self.value = AppleLanguageCatalog.canonicalLanguageName(for: trimmed) ?? trimmed
     }
 
     init?(backendValue: String) {

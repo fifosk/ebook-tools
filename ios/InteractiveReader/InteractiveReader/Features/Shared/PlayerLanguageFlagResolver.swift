@@ -121,6 +121,25 @@ enum AppleLanguageCatalog {
         return map
     }()
 
+    static func canonicalLanguageName(for value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if let match = entries.first(where: { $0.name.localizedCaseInsensitiveCompare(trimmed) == .orderedSame }) {
+            return match.name
+        }
+
+        let normalized = trimmed.lowercased().replacingOccurrences(of: "_", with: "-")
+        if let name = languageNameMap[normalized] {
+            return name
+        }
+        if let base = normalized.split(separator: "-").first,
+           let name = languageNameMap[String(base)] {
+            return name
+        }
+        return nil
+    }
+
     static func availableLanguageLabels() -> [String] {
         let unique = Set(languageNameMap.values)
         return unique.sorted { left, right in
