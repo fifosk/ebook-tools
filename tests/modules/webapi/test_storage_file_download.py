@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from prometheus_client.parser import text_string_to_metric_families
 
 from modules import config_manager as cfg
 from modules.services.file_locator import FileLocator
@@ -14,6 +15,7 @@ from modules.webapi.dependencies import (
     get_pipeline_service,
     get_request_user,
 )
+from modules.webapi.routes.media import storage as storage_routes
 
 pytestmark = pytest.mark.webapi
 
@@ -24,6 +26,36 @@ class _StubPipelineService:
     def get_job(self, job_id, *, user_id=None, user_role=None):
         from types import SimpleNamespace
         return SimpleNamespace(job_id=job_id)
+
+
+class _RecordingLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def debug(self, message: str, *args: object, **kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
+
+    def info(self, message: str, *args: object, **kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
+
+
+def _metric_samples(metrics_text: str, family_name: str):
+    families = {
+        family.name: family
+        for family in text_string_to_metric_families(metrics_text)
+    }
+    return families[family_name].samples
+
+
+def _has_stream_count(metrics_text: str, *, result: str, media_kind: str) -> bool:
+    return any(
+        sample.name.endswith("_count")
+        and sample.labels.get("operation") == "file_stream"
+        and sample.labels.get("result") == result
+        and sample.labels.get("media_kind") == media_kind
+        and sample.value >= 1
+        for sample in _metric_samples(metrics_text, "ebook_tools_media_stream_duration_seconds")
+    )
 
 
 @pytest.fixture
@@ -74,23 +106,34 @@ def test_download_full_file_without_files_prefix(storage_app) -> None:
     assert 'filename="output.txt"' in response.headers["Content-Disposition"]
 
 
-def test_download_partial_range(storage_app) -> None:
+def test_download_partial_range_records_stream_metric_and_safe_log(storage_app, monkeypatch) -> None:
     app, locator = storage_app
+    logger = _RecordingLogger()
     job_id = "download-range"
-    file_path = locator.resolve_path(job_id, "media/chunk.bin")
+    filename = "media/chunk.bin"
+    file_path = locator.resolve_path(job_id, filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_bytes(b"abcdefghij")
+    monkeypatch.setattr(storage_routes, "logger", logger)
 
     with TestClient(app) as client:
         response = client.get(
-            f"/storage/jobs/{job_id}/files/media/chunk.bin",
+            f"/storage/jobs/{job_id}/files/{filename}",
             headers={"Range": "bytes=2-5"},
         )
+        metrics_response = client.get("/metrics")
 
     assert response.status_code == 206
     assert response.content == b"cdef"
     assert response.headers["Content-Range"] == "bytes 2-5/10"
     assert response.headers["Content-Length"] == "4"
+    assert _has_stream_count(metrics_response.text, result="partial", media_kind="other")
+
+    rendered_logs = "\n".join(logger.messages)
+    assert "Media file stream result=partial media_kind=other status=206 bytes=4" in rendered_logs
+    assert job_id not in rendered_logs
+    assert filename not in rendered_logs
+    assert "bytes=2-5" not in rendered_logs
 
 
 def test_download_invalid_range_returns_416(storage_app) -> None:
@@ -108,6 +151,24 @@ def test_download_invalid_range_returns_416(storage_app) -> None:
 
     assert response.status_code == 416
     assert response.headers["Content-Range"] == "bytes */5"
+
+
+def test_download_invalid_range_records_stream_metric(storage_app) -> None:
+    app, locator = storage_app
+    job_id = "download-invalid-range-metric"
+    file_path = locator.resolve_path(job_id, "media/data.mp4")
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(b"12345")
+
+    with TestClient(app) as client:
+        response = client.get(
+            f"/storage/jobs/{job_id}/files/media/data.mp4",
+            headers={"Range": "bytes=10-20"},
+        )
+        metrics_response = client.get("/metrics")
+
+    assert response.status_code == 416
+    assert _has_stream_count(metrics_response.text, result="range_unsatisfiable", media_kind="video")
 
 
 def test_download_multi_range_honors_first_range(storage_app) -> None:

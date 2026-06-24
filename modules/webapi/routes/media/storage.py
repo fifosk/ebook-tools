@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import mimetypes
 import re
+import time
 import urllib.parse
 from pathlib import Path
 from typing import Iterator, Optional, Tuple
@@ -12,6 +13,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from .... import config_manager as cfg
+from .... import logging_manager as log_mgr
 from ....services.file_locator import FileLocator
 from ....services.pipeline_service import PipelineService
 from ...dependencies import (
@@ -22,6 +24,7 @@ from ...dependencies import (
 )
 
 storage_router = APIRouter()
+logger = log_mgr.get_logger()
 
 
 class _RangeParseError(Exception):
@@ -100,10 +103,74 @@ def _iter_file_chunks(path: Path, start: int, end: int) -> Iterator[bytes]:
             yield chunk
 
 
+def _media_kind_for(path: Path, media_type: str | None = None) -> str:
+    if media_type:
+        if media_type.startswith("audio/"):
+            return "audio"
+        if media_type.startswith("video/"):
+            return "video"
+        if media_type.startswith("image/"):
+            return "image"
+        if media_type.startswith("text/"):
+            return "text"
+
+    suffix = path.suffix.lower()
+    if suffix in {".mp3", ".m4a", ".aac", ".wav", ".flac", ".ogg"}:
+        return "audio"
+    if suffix in {".mp4", ".m4v", ".mov", ".mkv", ".webm"}:
+        return "video"
+    if suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif"}:
+        return "image"
+    if suffix in {".txt", ".html", ".htm", ".json", ".vtt", ".srt", ".ass"}:
+        return "text"
+    return "other"
+
+
+def _record_media_stream_duration(result: str, media_kind: str, started_at: float) -> None:
+    try:
+        from ...metrics import MEDIA_STREAM_DURATION
+    except Exception:
+        return
+    MEDIA_STREAM_DURATION.labels(
+        operation="file_stream",
+        result=result,
+        media_kind=media_kind,
+    ).observe(time.perf_counter() - started_at)
+
+
+def _log_media_stream(
+    result: str,
+    media_kind: str,
+    started_at: float,
+    *,
+    status_code: int,
+    content_length: int | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_media_stream_duration(result, media_kind, started_at)
+    log_method = logger.info if result in {"not_found", "range_unsatisfiable"} else logger.debug
+    log_method(
+        "Media file stream result=%s media_kind=%s status=%s bytes=%s duration_ms=%.1f",
+        result,
+        media_kind,
+        status_code,
+        content_length if content_length is not None else 0,
+        duration_ms,
+    )
+
+
 def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> StreamingResponse:
+    started_at = time.perf_counter()
+    media_kind = _media_kind_for(resolved_path)
     try:
         stat_result = resolved_path.stat()
     except OSError as exc:
+        _log_media_stream(
+            "not_found",
+            media_kind,
+            started_at,
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
 
     file_size = int(stat_result.st_size)
@@ -118,6 +185,7 @@ def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> 
             media_type = "text/plain"
         elif suffix in {".m4v", ".mp4"}:
             media_type = "video/mp4"
+    media_kind = _media_kind_for(resolved_path, media_type)
 
     def _should_inline(content_type: str | None) -> bool:
         if not content_type:
@@ -137,6 +205,12 @@ def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> 
         try:
             start, end = _parse_byte_range(range_header, file_size)
         except _RangeParseError as exc:
+            _log_media_stream(
+                "range_unsatisfiable",
+                media_kind,
+                started_at,
+                status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE,
+            )
             raise HTTPException(
                 status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE,
                 detail="Requested range not satisfiable",
@@ -166,6 +240,15 @@ def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> 
     )
     if media_type and media_type.startswith(("video/", "audio/")):
         headers["X-Accel-Buffering"] = "no"
+
+    result = "partial" if status_code == status.HTTP_206_PARTIAL_CONTENT else "full"
+    _log_media_stream(
+        result,
+        media_kind,
+        started_at,
+        status_code=status_code,
+        content_length=content_length,
+    )
 
     body_iterator = _iter_file_chunks(resolved_path, start, end)
     return StreamingResponse(
