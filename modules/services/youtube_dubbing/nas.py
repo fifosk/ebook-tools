@@ -66,6 +66,8 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
 
     for root, _dirs, files in os.walk(resolved):
         folder = Path(root)
+        video_candidates: List[Path] = []
+        subtitle_candidates: List[tuple[Path, str]] = []
         for filename in files:
             path = folder / filename
             if path.suffix.lower() == ".part":
@@ -76,18 +78,18 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
                 ext = path.suffix.lower().lstrip(".")
             else:
                 ext = path.suffix.lower().lstrip(".")
+            if ext not in _VIDEO_EXTENSIONS:
+                if ext in _SUBTITLE_EXTENSIONS:
+                    subtitle_candidates.append((path, ext))
+                continue
             if ".dub" in path.stem.lower():
                 continue
-            if ext not in _VIDEO_EXTENSIONS:
-                continue
+
+            video_candidates.append(path)
+
+        for path in video_candidates:
             subtitles: List[YoutubeNasSubtitle] = []
-            base_stem = path.stem
-            for candidate in folder.iterdir():
-                if candidate.is_dir():
-                    continue
-                sub_ext = candidate.suffix.lower().lstrip(".")
-                if sub_ext not in _SUBTITLE_EXTENSIONS:
-                    continue
+            for candidate, sub_ext in subtitle_candidates:
                 if not _subtitle_matches_video(path, candidate):
                     continue
                 language = _find_language_token(candidate)

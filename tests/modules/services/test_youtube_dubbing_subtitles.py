@@ -87,6 +87,37 @@ def test_list_downloaded_videos_includes_generic_mkv_and_subtitles(tmp_path: Pat
     assert any(sub.path == subtitle_path.resolve() for sub in entry.subtitles)
 
 
+def test_list_downloaded_videos_reuses_walked_folder_files_for_subtitle_matching(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    first_video = tmp_path / "episode-one.mkv"
+    second_video = tmp_path / "episode-two.mp4"
+    first_video.write_bytes(b"\x00" * 10)
+    second_video.write_bytes(b"\x00" * 10)
+    first_subtitle = tmp_path / "episode-one.en.srt"
+    second_subtitle = tmp_path / "episode-two.fr.vtt"
+    first_subtitle.write_text("1\n00:00:00,000 --> 00:00:02,000\nHello\n", encoding="utf-8")
+    second_subtitle.write_text("WEBVTT\n\n00:00.000 --> 00:02.000\nBonjour\n", encoding="utf-8")
+    (tmp_path / "unrelated.en.srt").write_text("orphan", encoding="utf-8")
+
+    def fail_iterdir(_path: Path):
+        raise AssertionError("list_downloaded_videos should reuse os.walk file entries")
+
+    monkeypatch.setattr(Path, "iterdir", fail_iterdir)
+
+    videos = list_downloaded_videos(tmp_path)
+
+    subtitles_by_name = {
+        video.path.name: [subtitle.path.name for subtitle in video.subtitles]
+        for video in videos
+    }
+    assert subtitles_by_name == {
+        "episode-two.mp4": ["episode-two.fr.vtt"],
+        "episode-one.mkv": ["episode-one.en.srt"],
+    }
+
+
 def test_has_video_stream_handles_out_of_order_ffprobe_fields(monkeypatch, tmp_path: Path) -> None:
     # ffprobe may emit width/height before pix_fmt; we parse JSON to avoid order issues.
     payload = b'{"streams": [{"pix_fmt": "yuv420p", "width": 612, "height": 480}]}'

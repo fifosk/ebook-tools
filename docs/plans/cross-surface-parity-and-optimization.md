@@ -265,7 +265,10 @@ Optimization candidates:
   avoiding reconstruction of every visible stored job before Apple/Web Create
   default video pickers render. The route also records token-safe duration
   telemetry and aggregate video/subtitle/linked-job counts without logging NAS
-  paths, filenames, job ids, user ids, auth headers, or tokens.
+  paths, filenames, job ids, user ids, auth headers, or tokens. The NAS scanner
+  also reuses each `os.walk` folder file list for subtitle matching instead of
+  re-reading the same directory once per video, keeping large default video
+  pickers lighter on NAS-backed folders.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap
