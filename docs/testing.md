@@ -186,6 +186,9 @@ make apple-pipeline-backend
 make apple-pipeline-backend-tests
 make apple-pipeline-source-sync
 make apple-pipeline-web-checks
+make apple-pipeline-simulator-smoke-dry-run
+make apple-pipeline-owned-journeys
+make apple-pipeline-owned-journey-dry-run
 make verify-apple-shared-pipeline
 ```
 
@@ -196,7 +199,12 @@ fast-forwarded, because that check compares the local and remote Git state.
 `apple-pipeline-backend-tests` runs the manifest registered backend pytest
 commands and cleans generated caches. `apple-pipeline-web-checks` runs the
 manifest registered Web focused checks and production/export build through the
-shared pipeline runner, then restores generated Web artifacts.
+shared pipeline runner, then restores generated Web artifacts. Use
+`APPLE_PIPELINE_SMOKE_PROFILE=ios|ipados|tvos` with
+`apple-pipeline-simulator-smoke-dry-run` before launching a shared simulator
+smoke, and `APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create` (or another listed
+journey) with `apple-pipeline-owned-journey-dry-run` before running an
+app-owned XCUITest journey.
 
 For a quick Apple TV compile check without launching the full tvOS journey, run
 the repo-owned simulator build lane:

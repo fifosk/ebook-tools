@@ -8,7 +8,10 @@
        build-apple-ios-simulators build-apple-tvos-simulator \
        build-apple-local-surfaces verify-apple-local-surfaces \
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
-       apple-pipeline-source-sync apple-pipeline-web-checks verify-apple-shared-pipeline \
+       apple-pipeline-source-sync apple-pipeline-web-checks \
+       apple-pipeline-simulator-smoke apple-pipeline-simulator-smoke-dry-run \
+       apple-pipeline-owned-journeys apple-pipeline-owned-journey apple-pipeline-owned-journey-dry-run \
+       verify-apple-shared-pipeline \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-all test-e2e-apple-parallel \
@@ -24,6 +27,8 @@ PYTHON ?= $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else e
 APPLE_PIPELINE_ROOT ?= /Users/fifo/Projects/home/apple-device-app-pipeline
 APPLE_PIPELINE_APP ?= ebook-tools
 APPLE_PIPELINE_PYTHON ?= python3
+APPLE_PIPELINE_SMOKE_PROFILE ?= ipados
+APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados
 APPLE_DEVICE_PROFILE ?= ipad
 
 # ── Full suite ───────────────────────────────────────────────────────────
@@ -104,6 +109,21 @@ apple-pipeline-source-sync:
 
 apple-pipeline-web-checks:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_web_checks.py --app "$(APPLE_PIPELINE_APP)"
+
+apple-pipeline-simulator-smoke:
+	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_simulator_smoke.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_SMOKE_PROFILE)"
+
+apple-pipeline-simulator-smoke-dry-run:
+	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_simulator_smoke.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_SMOKE_PROFILE)" --dry-run
+
+apple-pipeline-owned-journeys:
+	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --list
+
+apple-pipeline-owned-journey:
+	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_JOURNEY_PROFILE)" --use-remote-env
+
+apple-pipeline-owned-journey-dry-run:
+	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_JOURNEY_PROFILE)" --dry-run
 
 verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks
 

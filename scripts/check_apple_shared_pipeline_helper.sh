@@ -32,6 +32,11 @@ backend_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/ch
 backend_tests_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_backend_tests.py --app "$(APPLE_PIPELINE_APP)"'
 source_sync_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_source_sync.py --app "$(APPLE_PIPELINE_APP)"'
 web_checks_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_web_checks.py --app "$(APPLE_PIPELINE_APP)"'
+simulator_smoke_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_simulator_smoke.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_SMOKE_PROFILE)"'
+simulator_smoke_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_simulator_smoke.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_SMOKE_PROFILE)" --dry-run'
+owned_journeys_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --list'
+owned_journey_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_JOURNEY_PROFILE)" --use-remote-env'
+owned_journey_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_JOURNEY_PROFILE)" --dry-run'
 verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks"
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
@@ -39,6 +44,8 @@ preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPL
 
 assert_contains "${makefile}" "APPLE_PIPELINE_ROOT ?= /Users/fifo/Projects/home/apple-device-app-pipeline" "Makefile should declare the shared Apple pipeline root"
 assert_contains "${makefile}" "APPLE_PIPELINE_APP ?= ebook-tools" "Makefile should declare the ebook-tools pipeline app id"
+assert_contains "${makefile}" "APPLE_PIPELINE_SMOKE_PROFILE ?= ipados" "Makefile should declare a default shared simulator smoke profile"
+assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" "Makefile should declare a default app-owned journey profile"
 assert_contains "${makefile}" "APPLE_DEVICE_PROFILE ?= ipad" "Makefile should declare the default attended device profile"
 assert_contains "${makefile}" "apple-pipeline-contracts:" "Makefile should expose the shared pipeline contract runner"
 assert_contains "${makefile}" "${contract_line}" "shared pipeline contracts should call run_app_contract_checks"
@@ -50,6 +57,16 @@ assert_contains "${makefile}" "apple-pipeline-source-sync:" "Makefile should exp
 assert_contains "${makefile}" "${source_sync_line}" "shared pipeline source sync should call check_app_source_sync"
 assert_contains "${makefile}" "apple-pipeline-web-checks:" "Makefile should expose the shared pipeline Web check runner"
 assert_contains "${makefile}" "${web_checks_line}" "shared pipeline Web checks should call run_app_web_checks"
+assert_contains "${makefile}" "apple-pipeline-simulator-smoke:" "Makefile should expose shared simulator smokes"
+assert_contains "${makefile}" "${simulator_smoke_line}" "simulator smoke wrapper should call run_app_simulator_smoke"
+assert_contains "${makefile}" "apple-pipeline-simulator-smoke-dry-run:" "Makefile should expose shared simulator smoke dry-runs"
+assert_contains "${makefile}" "${simulator_smoke_dry_run_line}" "simulator smoke dry-run wrapper should call run_app_simulator_smoke --dry-run"
+assert_contains "${makefile}" "apple-pipeline-owned-journeys:" "Makefile should expose registered app-owned journey listing"
+assert_contains "${makefile}" "${owned_journeys_line}" "app-owned journey list wrapper should call run_app_owned_journey --list"
+assert_contains "${makefile}" "apple-pipeline-owned-journey:" "Makefile should expose shared app-owned journey execution"
+assert_contains "${makefile}" "${owned_journey_line}" "app-owned journey wrapper should call run_app_owned_journey with remote env"
+assert_contains "${makefile}" "apple-pipeline-owned-journey-dry-run:" "Makefile should expose app-owned journey dry-runs"
+assert_contains "${makefile}" "${owned_journey_dry_run_line}" "app-owned journey dry-run wrapper should call run_app_owned_journey --dry-run"
 assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts, backend checks, backend tests, and Web checks"
 assert_contains "${makefile}" "apple-device-preflight:" "Makefile should expose a non-installing device preflight helper"
 assert_contains "${makefile}" "${preflight_line}" "device preflight should route through the repo-owned CoreDevice helper"

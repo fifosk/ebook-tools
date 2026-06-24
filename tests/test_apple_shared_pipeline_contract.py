@@ -14,6 +14,8 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
 
     assert "APPLE_PIPELINE_ROOT ?= /Users/fifo/Projects/home/apple-device-app-pipeline" in makefile
     assert "APPLE_PIPELINE_APP ?= ebook-tools" in makefile
+    assert "APPLE_PIPELINE_SMOKE_PROFILE ?= ipados" in makefile
+    assert "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" in makefile
     assert "apple-pipeline-contracts:" in makefile
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "apple-pipeline-backend:" in makefile
@@ -24,6 +26,16 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert 'scripts/check_app_source_sync.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "apple-pipeline-web-checks:" in makefile
     assert 'scripts/run_app_web_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
+    assert "apple-pipeline-simulator-smoke:" in makefile
+    assert 'scripts/run_app_simulator_smoke.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_SMOKE_PROFILE)"' in makefile
+    assert "apple-pipeline-simulator-smoke-dry-run:" in makefile
+    assert "--profile \"$(APPLE_PIPELINE_SMOKE_PROFILE)\" --dry-run" in makefile
+    assert "apple-pipeline-owned-journeys:" in makefile
+    assert 'scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --list' in makefile
+    assert "apple-pipeline-owned-journey:" in makefile
+    assert "--profile \"$(APPLE_PIPELINE_JOURNEY_PROFILE)\" --use-remote-env" in makefile
+    assert "apple-pipeline-owned-journey-dry-run:" in makefile
+    assert "--profile \"$(APPLE_PIPELINE_JOURNEY_PROFILE)\" --dry-run" in makefile
 
 
 def test_shared_pipeline_verification_stays_non_physical() -> None:
@@ -53,6 +65,8 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "run_app_backend_tests.py" in contract_check
     assert "check_app_source_sync.py" in contract_check
     assert "run_app_web_checks.py" in contract_check
+    assert "run_app_simulator_smoke.py" in contract_check
+    assert "run_app_owned_journey.py" in contract_check
     assert "verify-apple-shared-pipeline" in contract_check
     assert "physical-device deployment" in contract_check
 
@@ -68,6 +82,9 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-pipeline-backend-tests",
         "make apple-pipeline-source-sync",
         "make apple-pipeline-web-checks",
+        "make apple-pipeline-simulator-smoke-dry-run",
+        "make apple-pipeline-owned-journeys",
+        "make apple-pipeline-owned-journey-dry-run",
         "make verify-apple-shared-pipeline",
     ]:
         assert command in docs
