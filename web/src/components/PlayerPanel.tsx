@@ -18,6 +18,7 @@ import {
 } from './player-panel/constants';
 import MediaSearchPanel from './MediaSearchPanel';
 import type { LibraryItem } from '../api/dtos';
+import { PlayerPanelBoundaryState } from './player-panel/PlayerPanelBoundaryState';
 import { PlayerPanelContent } from './player-panel/PlayerPanelContent';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
 import {
@@ -837,31 +838,22 @@ export default function PlayerPanel({
     },
   });
 
-  if (error) {
+  const isInitialLoading = isLoading && !hasAnyMedia;
+  if (error || isInitialLoading || !hasJobId) {
     return (
-      <div className="player-panel" role="region" aria-label={sectionLabel}>
-        <p role="alert">Unable to load generated media: {error.message}</p>
-      </div>
-    );
-  }
-
-  if (isLoading && media.text.length === 0 && media.audio.length === 0 && media.video.length === 0) {
-    return (
-      <div className="player-panel" role="region" aria-label={sectionLabel}>
-        <p role="status">{loadingMessage}</p>
-      </div>
-    );
-  }
-
-  if (!hasJobId) {
-    return (
-      <div className="player-panel" role="region" aria-label={sectionLabel}>
-        {sentenceJumpDatalist}
-        {shortcutHelpOverlay}
-        <div className="player-panel__empty" role="status">
-          <p>No job selected.</p>
-        </div>
-      </div>
+      <PlayerPanelBoundaryState
+        sectionLabel={sectionLabel}
+        error={error}
+        isInitialLoading={isInitialLoading}
+        loadingMessage={loadingMessage}
+        hasJobId={hasJobId}
+        noJobPrelude={
+          <>
+            {sentenceJumpDatalist}
+            {shortcutHelpOverlay}
+          </>
+        }
+      />
     );
   }
 
