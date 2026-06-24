@@ -213,6 +213,23 @@ class _StubGTTS:
         Path(filename).write_bytes(_build_gtts_bytes(self.lang, self.text))
 
 
+class _ListLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def debug(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def info(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def warning(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def error(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+
 @pytest.fixture()
 def audio_client(monkeypatch) -> Iterable[TestClient]:
     monkeypatch.setattr(
@@ -296,6 +313,45 @@ def test_list_voices_returns_cached_inventory(audio_client: TestClient, monkeypa
     assert payload["gtts"] == list(gtts_languages)
 
 
+def test_list_voices_records_token_safe_telemetry(
+    audio_client: TestClient,
+    monkeypatch,
+) -> None:
+    logger = _ListLogger()
+    macos_voices = [
+        {"name": "SecretVoice", "lang": "en_US", "quality": "Enhanced", "gender": "Male"},
+    ]
+    gtts_languages = (
+        {"code": "en", "name": "English"},
+        {"code": "ja", "name": "Japanese"},
+    )
+    piper_voices = [
+        {"name": "private-piper-model", "lang": "en_US", "quality": "medium"},
+    ]
+
+    monkeypatch.setattr(audio_router, "logger", logger)
+    monkeypatch.setattr(audio_router, "get_say_voices", lambda: macos_voices)
+    monkeypatch.setattr(audio_router, "_GTTS_LANGUAGES", gtts_languages)
+    monkeypatch.setattr(audio_router, "_load_piper_voices", lambda: piper_voices)
+
+    response = audio_client.get("/api/audio/voices")
+    metrics_response = audio_client.get("/metrics")
+
+    assert response.status_code == 200
+    rendered_logs = "\n".join(logger.messages)
+    assert "Audio route operation=voices result=success" in rendered_logs
+    assert "macos=1" in rendered_logs
+    assert "gtts=2" in rendered_logs
+    assert "piper=1" in rendered_logs
+    assert "SecretVoice" not in rendered_logs
+    assert "private-piper-model" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_audio_route_duration_seconds_count{operation="voices",result="success"}'
+        in metrics_response.text
+    )
+
+
 def test_match_requires_language(audio_client: TestClient) -> None:
     response = audio_client.get("/api/audio/match", params={"preference": "any"})
 
@@ -331,3 +387,30 @@ def test_match_returns_gtts_voice(audio_client: TestClient) -> None:
         "macos_voice": None,
         "piper_voice": None,
     }
+
+
+def test_match_records_token_safe_telemetry(
+    audio_client: TestClient,
+    monkeypatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(audio_router, "logger", logger)
+
+    response = audio_client.get(
+        "/api/audio/match",
+        params={"language": "en", "preference": "male"},
+    )
+    metrics_response = audio_client.get("/metrics")
+
+    assert response.status_code == 200
+    rendered_logs = "\n".join(logger.messages)
+    assert "Audio route operation=match result=success" in rendered_logs
+    assert "engine=macos" in rendered_logs
+    assert "Alex" not in rendered_logs
+    assert "language=" not in rendered_logs
+    assert "preference=" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_audio_route_duration_seconds_count{operation="match",result="success"}'
+        in metrics_response.text
+    )

@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
@@ -31,6 +32,42 @@ from modules.webapi.schemas import (
 
 router = APIRouter(prefix="/api/audio", tags=["audio"])
 logger = log_mgr.logger
+
+
+def _record_audio_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe audio route timing if metrics are available."""
+
+    try:
+        from modules.webapi.metrics import AUDIO_ROUTE_DURATION
+    except Exception:
+        return
+    AUDIO_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
+def _log_audio_route_result(
+    *,
+    operation: str,
+    result: str,
+    started_at: float,
+    macos_count: int | None = None,
+    gtts_count: int | None = None,
+    piper_count: int | None = None,
+    engine: str | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000
+    details = f"Audio route operation={operation} result={result} duration_ms={duration_ms:.1f}"
+    if macos_count is not None:
+        details += f" macos={macos_count}"
+    if gtts_count is not None:
+        details += f" gtts={gtts_count}"
+    if piper_count is not None:
+        details += f" piper={piper_count}"
+    if engine is not None:
+        details += f" engine={engine}"
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(details)
 
 
 def _cleanup_file(path: Path) -> None:
@@ -345,9 +382,28 @@ def _load_piper_voices() -> list[Dict[str, str]]:
 def list_available_voices() -> VoiceInventoryResponse:  # noqa: D401 - FastAPI signature
     """Return cached macOS ``say`` voices, gTTS language entries, and Piper voices."""
 
-    macos_voices = [MacOSVoice.model_validate(voice) for voice in get_say_voices()]
-    gtts_languages = [GTTSLanguage.model_validate(entry) for entry in _GTTS_LANGUAGES]
-    piper_voices = [PiperVoice.model_validate(voice) for voice in _load_piper_voices()]
+    started_at = time.perf_counter()
+    try:
+        macos_voices = [MacOSVoice.model_validate(voice) for voice in get_say_voices()]
+        gtts_languages = [GTTSLanguage.model_validate(entry) for entry in _GTTS_LANGUAGES]
+        piper_voices = [PiperVoice.model_validate(voice) for voice in _load_piper_voices()]
+    except Exception:
+        _record_audio_route_duration("voices", "error", started_at)
+        _log_audio_route_result(
+            operation="voices",
+            result="error",
+            started_at=started_at,
+        )
+        raise
+    _record_audio_route_duration("voices", "success", started_at)
+    _log_audio_route_result(
+        operation="voices",
+        result="success",
+        started_at=started_at,
+        macos_count=len(macos_voices),
+        gtts_count=len(gtts_languages),
+        piper_count=len(piper_voices),
+    )
     return VoiceInventoryResponse(macos=macos_voices, gtts=gtts_languages, piper=piper_voices)
 
 
@@ -362,9 +418,26 @@ def match_voice(
 ) -> VoiceMatchResponse:
     """Return the identifier produced by :func:`modules.audio.tts.select_voice`."""
 
-    voice = select_voice(language, preference)
-    engine = "gtts" if voice.lower().startswith("gtts") else "macos"
-    metadata = _lookup_macos_voice_details(voice) if engine == "macos" else None
+    started_at = time.perf_counter()
+    try:
+        voice = select_voice(language, preference)
+        engine = "gtts" if voice.lower().startswith("gtts") else "macos"
+        metadata = _lookup_macos_voice_details(voice) if engine == "macos" else None
+    except Exception:
+        _record_audio_route_duration("match", "error", started_at)
+        _log_audio_route_result(
+            operation="match",
+            result="error",
+            started_at=started_at,
+        )
+        raise
+    _record_audio_route_duration("match", "success", started_at)
+    _log_audio_route_result(
+        operation="match",
+        result="success",
+        started_at=started_at,
+        engine=engine,
+    )
     return VoiceMatchResponse(voice=voice, engine=engine, macos_voice=metadata)
 
 

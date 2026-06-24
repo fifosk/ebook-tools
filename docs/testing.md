@@ -742,7 +742,7 @@ available and `python3` otherwise.
 | `make test-backend-create-book` | `$(PYTHON) -m pytest ...` | Shared-pipeline generated-book backend slice |
 | `make test-backend-creation-templates` | `$(PYTHON) -m pytest ...` | Shared-pipeline saved creation-template backend slice |
 | `make test-backend-pipeline-sources` | `$(PYTHON) -m pytest ...` | Shared-pipeline EPUB source picker, content-index, cleanup, and upload backend slice |
-| `make test-backend-audio-routes` | `$(PYTHON) -m pytest ...` | Shared-pipeline audio synthesis, voice inventory, and voice-match backend slice |
+| `make test-backend-audio-routes` | `$(PYTHON) -m pytest ...` | Shared-pipeline audio synthesis, voice inventory, voice-match, and token-safe audio telemetry backend slice |
 | `make test-backend-reading-beds` | `$(PYTHON) -m pytest ...` | Shared-pipeline reading-bed catalog, upload, default, streaming, and cleanup backend slice |
 | `make test-backend-notifications` | `$(PYTHON) -m pytest ...` | Shared-pipeline Apple notification route, service, APNs, and token-safe logging slice |
 | `make test-backend-subtitle-router` | `$(PYTHON) -m pytest ...` | Shared-pipeline subtitle router backend slice |
