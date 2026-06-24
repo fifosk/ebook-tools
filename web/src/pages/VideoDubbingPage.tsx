@@ -8,7 +8,6 @@ import {
   fetchInlineSubtitleStreams,
   extractInlineSubtitles,
   deleteNasSubtitle,
-  fetchPipelineDefaults,
   deleteYoutubeVideo
 } from '../api/client';
 import { fetchBookCreationOptions } from '../api/createBook';
@@ -25,11 +24,8 @@ import { resolveLanguageName } from '../constants/languageCodes';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import { sampleSentenceFor } from '../utils/sampleSentences';
 import {
-  buildLanguageOptions,
-  normalizeLanguageLabel,
   preferLanguageLabel,
-  resolveLanguageCode,
-  sortLanguageLabelsByName
+  resolveLanguageCode
 } from '../utils/languages';
 import {
   resolveSubtitleLanguageCandidate,
@@ -56,6 +52,7 @@ import {
 import type { VideoDubbingTab } from './video-dubbing/videoDubbingTypes';
 import { useVideoDubbingSelectionState } from './video-dubbing/useVideoDubbingSelectionState';
 import { useVideoDubbingMetadata } from './video-dubbing/useVideoDubbingMetadata';
+import { useVideoDubbingLanguageState } from './video-dubbing/useVideoDubbingLanguageState';
 import {
   buildVideoDubbingGeneratePayload,
   buildVoiceOptions,
@@ -109,10 +106,6 @@ export default function VideoDubbingPage({
   const [activeTab, setActiveTab] = useState<VideoDubbingTab>('videos');
 
   const [voice, setVoice] = useState('gTTS');
-  const [targetLanguage, setTargetLanguage] = useState<string>(
-    normalizeLanguageLabel(primaryTargetLanguage ?? '')
-  );
-  const [fetchedLanguages, setFetchedLanguages] = useState<string[]>([]);
   const [startOffset, setStartOffset] = useState('');
   const [endOffset, setEndOffset] = useState('');
   const [originalMixPercent, setOriginalMixPercent] = useState(DEFAULT_ORIGINAL_MIX_PERCENT);
@@ -199,31 +192,6 @@ export default function VideoDubbingPage({
     };
   }, [applyYoutubeDubDefaults, prefillParameters]);
 
-  const applyTargetLanguage = useCallback(
-    (language: string) => {
-      const normalized = normalizeLanguageLabel(language);
-      setTargetLanguage(normalized);
-      if (normalized) {
-        setPrimaryTargetLanguage(normalized);
-      }
-    },
-    [setPrimaryTargetLanguage]
-  );
-
-  const ensureTargetLanguage = useCallback(
-    (language?: string | null) => {
-      if (targetLanguage) {
-        return;
-      }
-      const normalized = normalizeLanguageLabel(language);
-      if (normalized) {
-        setTargetLanguage(normalized);
-        setPrimaryTargetLanguage(normalized);
-      }
-    },
-    [setPrimaryTargetLanguage, targetLanguage]
-  );
-
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -266,6 +234,18 @@ export default function VideoDubbingPage({
       ),
     [selectedSubtitle]
   );
+  const {
+    targetLanguage,
+    applyTargetLanguage,
+    ensureTargetLanguage,
+    sortedLanguageOptions,
+    targetLanguageCode
+  } = useVideoDubbingLanguageState({
+    primaryTargetLanguage,
+    setPrimaryTargetLanguage,
+    subtitleLanguageCode,
+    subtitleLanguageLabel
+  });
   const metadataSourceName = useMemo(() => {
     return resolveVideoDubbingMetadataSourceName({
       subtitle: selectedSubtitle,
@@ -293,15 +273,6 @@ export default function VideoDubbingPage({
     updateMediaMetadataDraft,
     updateMediaMetadataSection
   } = useVideoDubbingMetadata({ activeTab, metadataSourceName });
-  const languageOptions = useMemo(
-    () =>
-      buildLanguageOptions({
-        fetchedLanguages,
-        preferredLanguages: [targetLanguage, subtitleLanguageLabel, primaryTargetLanguage]
-      }),
-    [fetchedLanguages, primaryTargetLanguage, subtitleLanguageLabel, targetLanguage]
-  );
-  const sortedLanguageOptions = useMemo(() => sortLanguageLabelsByName(languageOptions), [languageOptions]);
   const canExtractEmbedded = useMemo(() => {
     return canExtractEmbeddedSubtitles(selectedVideo);
   }, [selectedVideo]);
@@ -309,11 +280,6 @@ export default function VideoDubbingPage({
     () => availableSubtitleStreams.filter((stream) => stream.can_extract),
     [availableSubtitleStreams]
   );
-  const targetLanguageCode = useMemo(() => {
-    const preferredLabel = preferLanguageLabel([targetLanguage, subtitleLanguageLabel, primaryTargetLanguage]);
-    const fallback = subtitleLanguageCode || '';
-    return resolveLanguageCode(preferredLabel || fallback);
-  }, [primaryTargetLanguage, subtitleLanguageCode, subtitleLanguageLabel, targetLanguage]);
 
   const handleRefresh = useCallback(async () => {
     setIsLoading(true);
@@ -397,48 +363,6 @@ export default function VideoDubbingPage({
   useEffect(() => {
     void handleRefresh();
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadDefaults = async () => {
-      try {
-        const defaults = await fetchPipelineDefaults();
-        if (cancelled) {
-          return;
-        }
-        const config = defaults?.config ?? {};
-        const targetLanguages = Array.isArray(config['target_languages'])
-          ? (config['target_languages'] as unknown[])
-          : [];
-        const normalised = targetLanguages
-          .map((language) => (typeof language === 'string' ? normalizeLanguageLabel(language) : ''))
-          .filter((language) => language.length > 0);
-        if (normalised.length > 0) {
-          setFetchedLanguages(normalised);
-          if (!primaryTargetLanguage) {
-            setPrimaryTargetLanguage(normalised[0]);
-          }
-        }
-      } catch (error) {
-        console.warn('Unable to load pipeline defaults for dubbing languages', error);
-      }
-    };
-
-    void loadDefaults();
-    return () => {
-      cancelled = true;
-    };
-  }, [primaryTargetLanguage, setPrimaryTargetLanguage]);
-
-  useEffect(() => {
-    if (targetLanguage) {
-      return;
-    }
-    const fallback = preferLanguageLabel([subtitleLanguageLabel, primaryTargetLanguage, languageOptions[0]]);
-    if (fallback) {
-      applyTargetLanguage(fallback);
-    }
-  }, [applyTargetLanguage, languageOptions, primaryTargetLanguage, subtitleLanguageLabel, targetLanguage]);
 
   useEffect(() => {
     setAvailableSubtitleStreams([]);
