@@ -1118,7 +1118,7 @@ async def submit_book_job(
 
     generator_payload = payload.generator
     request_payload = payload.pipeline.model_dump()
-    request_payload["book_generation"] = generator_payload.model_dump()
+    request_payload["book_generation"] = generator_payload.model_dump(exclude_none=True)
 
     def _worker(job):
         _execute_book_job(

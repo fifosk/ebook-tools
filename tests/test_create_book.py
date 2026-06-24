@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -9,11 +10,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from modules import config_manager as cfg
+from modules.services.job_manager.job import PipelineJob, PipelineJobStatus
 from modules.services.pipeline_service import PipelineRequest
 from modules.user_management.user_store_base import UserRecord
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
     get_auth_service,
+    get_pipeline_job_manager,
     get_pipeline_service,
     get_runtime_context_provider,
 )
@@ -86,6 +89,23 @@ class _StubRuntimeContextProvider:
         overrides: dict[str, object] | None = None,
     ):
         return cfg.build_runtime_context(dict(config), overrides or {})
+
+
+class _RecordingJobManager:
+    def __init__(self) -> None:
+        self.submissions: list[dict[str, object]] = []
+
+    def submit_background_job(self, **kwargs):
+        self.submissions.append(kwargs)
+        return PipelineJob(
+            job_id="book-job-1",
+            status=PipelineJobStatus.PENDING,
+            created_at=datetime(2026, 6, 24, tzinfo=timezone.utc),
+            request_payload=dict(kwargs.get("request_payload") or {}),
+            user_id=kwargs.get("user_id"),
+            user_role=kwargs.get("user_role"),
+            job_type=str(kwargs.get("job_type") or "pipeline"),
+        )
 
 
 def test_pipeline_ebook_listing_is_newest_first_with_metadata(tmp_path: Path) -> None:
@@ -261,6 +281,67 @@ def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     input_file = Path(body["input_file"])
     assert input_file.exists()
     assert input_file.suffix == ".epub"
+
+
+def test_submit_book_job_preserves_source_context_at_enqueue_boundary(tmp_path: Path) -> None:
+    app = create_app()
+
+    user = UserRecord(username="editor", password_hash="", roles=["editor"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    stub_pipeline = _StubPipelineService()
+    job_manager = _RecordingJobManager()
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    app.dependency_overrides[get_pipeline_service] = lambda: stub_pipeline
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: job_manager
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/books/jobs",
+        json={
+            "generator": {
+                "input_language": "English",
+                "output_language": "French",
+                "voice": "DemoVoice",
+                "num_sentences": 2,
+                "topic": "A new symbol trail",
+                "book_name": "The Marble Cipher",
+                "genre": "Mystery thriller",
+                "author": "Me",
+                "source_book_title": " Inferno ",
+                "source_book_author": " Dan Brown ",
+                "source_book_genre": " Conspiracy thriller ",
+                "source_book_summary": " ",
+            },
+            "pipeline": {
+                "inputs": {
+                    "input_file": "generated.epub",
+                    "base_output_file": "generated",
+                    "input_language": "English",
+                    "target_languages": ["French"],
+                }
+            },
+        },
+        headers={"X-User-Id": "editor", "X-User-Role": "editor"},
+    )
+
+    assert response.status_code == 202
+    assert response.json()["job_type"] == "book"
+    assert len(job_manager.submissions) == 1
+    submission = job_manager.submissions[0]
+    assert submission["job_type"] == "book"
+    assert submission["user_id"] == "editor"
+    assert submission["user_role"] == "editor"
+    request_payload = submission["request_payload"]
+    assert isinstance(request_payload, dict)
+    book_generation = request_payload["book_generation"]
+    assert book_generation["source_book_title"] == "Inferno"
+    assert book_generation["source_book_author"] == "Dan Brown"
+    assert book_generation["source_book_genre"] == "Conspiracy thriller"
+    assert "source_book_summary" not in book_generation
 
 
 def test_book_creation_options_endpoint_returns_non_secret_defaults(tmp_path: Path) -> None:

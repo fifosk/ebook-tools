@@ -490,7 +490,8 @@ After Narrate Ebook:
   continuation-style jobs can start with explicit source metadata. The Create
   Book backend now normalizes that source context once per request and reuses it
   for sentence prompts, metadata, config, and pipeline snapshots so Web previews
-  and Apple job submissions stay aligned.
+  and Apple job submissions stay aligned; `/api/books/jobs` enqueue tests now
+  pin the trimmed source-context snapshot before the background worker starts.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
   files, including NAS library video/subtitle pickers, remembered base
