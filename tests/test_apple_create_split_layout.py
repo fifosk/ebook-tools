@@ -194,6 +194,15 @@ CREATE_METADATA_SOURCES = (
     / "Create"
     / "AppleBookCreateMetadataSources.swift"
 )
+CREATE_METADATA_JSON = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateMetadataJSON.swift"
+)
 CREATE_HISTORY_DEFAULTS = (
     ROOT
     / "ios"
@@ -1205,6 +1214,7 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     metadata_source = _source(CREATE_METADATA_VIEWS)
     view_source = _source(CREATE_VIEW)
     view_model_source = _source(CREATE_VIEW_MODEL)
+    project = _source(XCODE_PROJECT)
 
     assert "struct AppleBookCreateMetadataArtworkPreview: View" in metadata_source
     assert "AsyncImage(url: url)" in metadata_source
@@ -1244,9 +1254,16 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert "updateSubtitleMediaMetadataNestedText(" in view_source
     assert "func updateSubtitleMediaMetadataNestedText(" in view_model_source
     assert "func updateYoutubeMediaMetadataNestedText(" in view_model_source
-    assert "private static func updateNestedText(" in view_model_source
-    assert "nested.removeValue(forKey: key)" in view_model_source
-    assert "sectionDraft.removeValue(forKey: nestedKey)" in view_model_source
+    metadata_json_source = _source(CREATE_METADATA_JSON)
+    assert "enum AppleBookCreateMetadataJSON" in metadata_json_source
+    assert "static func prettyString(from metadata: [String: JSONValue]?)" in metadata_json_source
+    assert "static func parseObject(_ value: String)" in metadata_json_source
+    assert "static func cacheClearMessage(cleared: Int, kind: String, query: String)" in metadata_json_source
+    assert "static func updateNestedText(" in metadata_json_source
+    assert "nested.removeValue(forKey: key)" in metadata_json_source
+    assert "sectionDraft.removeValue(forKey: nestedKey)" in metadata_json_source
+    assert "AppleBookCreateMetadataJSON.updateNestedText(" in view_model_source
+    assert "private static func updateNestedText(" not in view_model_source
     assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" in metadata_source
     assert 'DisclosureGroup("Advanced Metadata JSON")' in metadata_source
     assert "@Binding var advancedMetadataJSON: String" in metadata_controls_source
@@ -1268,7 +1285,10 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert "viewModel.syncYoutubeMediaMetadataJSONText()" in view_source
     assert "func applySubtitleMediaMetadataJSONText()" in view_model_source
     assert "func applyYoutubeMediaMetadataJSONText()" in view_model_source
-    assert "private static func parseMetadataJSONObject" in view_model_source
-    assert "JSONDecoder().decode([String: JSONValue].self" in view_model_source
+    assert "AppleBookCreateMetadataJSON.parseObject(" in view_model_source
+    assert "private static func parseMetadataJSONObject" not in view_model_source
+    assert "JSONDecoder().decode([String: JSONValue].self" in metadata_json_source
+    assert "AppleBookCreateMetadataJSON.swift in Sources" in project
+    assert project.count("AppleBookCreateMetadataJSON.swift in Sources") == 4
     assert 'accessibilityIdentifier("createYoutubeMetadataTmdbIdField")' in metadata_controls_source
     assert 'accessibilityIdentifier("createYoutubeMetadataImdbIdField")' in metadata_controls_source

@@ -254,7 +254,7 @@ final class AppleBookCreateViewModel: ObservableObject {
         do {
             let client = APIClient(configuration: configuration)
             let response = try await client.clearSubtitleTvMetadataCache(query: trimmedQuery)
-            subtitleMetadataMessage = Self.metadataCacheClearMessage(
+            subtitleMetadataMessage = AppleBookCreateMetadataJSON.cacheClearMessage(
                 cleared: response.cleared,
                 kind: "TV",
                 query: trimmedQuery
@@ -307,19 +307,24 @@ final class AppleBookCreateViewModel: ObservableObject {
         value: String
     ) {
         updateSubtitleMetadataSection(section) { sectionDraft in
-            Self.updateNestedText(in: &sectionDraft, nestedKey: nestedKey, key: key, value: value)
+            AppleBookCreateMetadataJSON.updateNestedText(
+                in: &sectionDraft,
+                nestedKey: nestedKey,
+                key: key,
+                value: value
+            )
         }
         normalizeSubtitleMetadataAfterEdit()
         syncSubtitleMediaMetadataJSONText()
     }
 
     func syncSubtitleMediaMetadataJSONText() {
-        subtitleMediaMetadataJSONText = Self.prettyMetadataJSONString(from: subtitleMediaMetadataDraft)
+        subtitleMediaMetadataJSONText = AppleBookCreateMetadataJSON.prettyString(from: subtitleMediaMetadataDraft)
         subtitleMediaMetadataJSONErrorMessage = nil
     }
 
     func applySubtitleMediaMetadataJSONText() {
-        let parsed = Self.parseMetadataJSONObject(subtitleMediaMetadataJSONText)
+        let parsed = AppleBookCreateMetadataJSON.parseObject(subtitleMediaMetadataJSONText)
         if let error = parsed.error {
             subtitleMediaMetadataJSONErrorMessage = error
             return
@@ -571,7 +576,7 @@ final class AppleBookCreateViewModel: ObservableObject {
         do {
             let client = APIClient(configuration: configuration)
             let response = try await client.clearSubtitleTvMetadataCache(query: trimmedQuery)
-            youtubeMetadataMessage = Self.metadataCacheClearMessage(
+            youtubeMetadataMessage = AppleBookCreateMetadataJSON.cacheClearMessage(
                 cleared: response.cleared,
                 kind: "TV",
                 query: trimmedQuery
@@ -603,7 +608,7 @@ final class AppleBookCreateViewModel: ObservableObject {
         do {
             let client = APIClient(configuration: configuration)
             let response = try await client.clearYoutubeMetadataCache(query: trimmedQuery)
-            youtubeMetadataMessage = Self.metadataCacheClearMessage(
+            youtubeMetadataMessage = AppleBookCreateMetadataJSON.cacheClearMessage(
                 cleared: response.cleared,
                 kind: "YouTube",
                 query: trimmedQuery
@@ -655,19 +660,24 @@ final class AppleBookCreateViewModel: ObservableObject {
         value: String
     ) {
         updateYoutubeMetadataSection(section) { sectionDraft in
-            Self.updateNestedText(in: &sectionDraft, nestedKey: nestedKey, key: key, value: value)
+            AppleBookCreateMetadataJSON.updateNestedText(
+                in: &sectionDraft,
+                nestedKey: nestedKey,
+                key: key,
+                value: value
+            )
         }
         youtubeMediaMetadataDraft["source"] = .string("apple")
         syncYoutubeMediaMetadataJSONText()
     }
 
     func syncYoutubeMediaMetadataJSONText() {
-        youtubeMediaMetadataJSONText = Self.prettyMetadataJSONString(from: youtubeMediaMetadataDraft)
+        youtubeMediaMetadataJSONText = AppleBookCreateMetadataJSON.prettyString(from: youtubeMediaMetadataDraft)
         youtubeMediaMetadataJSONErrorMessage = nil
     }
 
     func applyYoutubeMediaMetadataJSONText() {
-        let parsed = Self.parseMetadataJSONObject(youtubeMediaMetadataJSONText)
+        let parsed = AppleBookCreateMetadataJSON.parseObject(youtubeMediaMetadataJSONText)
         if let error = parsed.error {
             youtubeMediaMetadataJSONErrorMessage = error
             return
@@ -833,58 +843,6 @@ final class AppleBookCreateViewModel: ObservableObject {
     func clearNarrateChapters() {
         narrateChapterOptions = []
         narrateChaptersErrorMessage = nil
-    }
-
-    private static func prettyMetadataJSONString(from metadata: [String: JSONValue]?) -> String {
-        guard let metadata, !metadata.isEmpty else {
-            return ""
-        }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        guard let data = try? encoder.encode(metadata) else {
-            return ""
-        }
-        return String(data: data, encoding: .utf8) ?? ""
-    }
-
-    private static func parseMetadataJSONObject(_ value: String) -> (metadata: [String: JSONValue]?, error: String?) {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return (nil, nil)
-        }
-        guard let data = trimmed.data(using: .utf8) else {
-            return (nil, "Metadata JSON must be valid UTF-8 text.")
-        }
-        do {
-            return (try JSONDecoder().decode([String: JSONValue].self, from: data), nil)
-        } catch {
-            return (nil, "Enter a valid JSON object.")
-        }
-    }
-
-    private static func metadataCacheClearMessage(cleared: Int, kind: String, query: String) -> String {
-        let entryLabel = cleared == 1 ? "entry" : "entries"
-        return "Cleared \(cleared) cached \(kind) metadata \(entryLabel) for \(query)."
-    }
-
-    private static func updateNestedText(
-        in sectionDraft: inout [String: JSONValue],
-        nestedKey: String,
-        key: String,
-        value: String
-    ) {
-        var nested = sectionDraft[nestedKey]?.objectValue ?? [:]
-        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedValue.isEmpty {
-            nested.removeValue(forKey: key)
-        } else {
-            nested[key] = .string(trimmedValue)
-        }
-        if nested.isEmpty {
-            sectionDraft.removeValue(forKey: nestedKey)
-        } else {
-            sectionDraft[nestedKey] = .object(nested)
-        }
     }
 
     private func ensureSubtitleMediaMetadataDraft() {
