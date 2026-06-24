@@ -568,9 +568,13 @@ ssh mac-studio.local 'cd /Users/fifo/Projects/home/ebook-tools && git pull --ff-
 python3 scripts/check_app_source_sync.py --app ebook-tools
 ```
 
-Current checkpoint: local MacBook and Mac Studio clones are clean on `main` at
-`b28b584`, and the Mac Studio clone passes `python3
-scripts/check_release_version_contract.py`.
+Current checkpoint on June 24, 2026: local MacBook and Mac Studio clones are
+clean on `main` at `13a5b5ab`; the Mac Studio backend image was rebuilt with
+`docker compose up -d --build backend`, and `make apple-pipeline-source-sync`
+plus `make apple-pipeline-backend` pass against
+`https://api.langtools.fifosk.synology.me`. The shared backend checker must read
+the full `/api/system/runtime` response, because the Apple Create, template,
+Library, offline export, and playback-state descriptor now exceeds 2 KB.
 
 ### Quick Start
 
