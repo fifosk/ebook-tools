@@ -467,6 +467,11 @@ Optimization candidates:
   allowed base directory. EPUB and subtitle source picker routes now share
   token-safe duration telemetry with aggregate source/output counts and no NAS
   path, filename, job id, user id, auth header, or token logging. The
+  manifest-registered `test-backend-pipeline-sources` target now covers EPUB
+  source listing, vanished-source deletion, outside-root rejection, and local
+  EPUB upload persistence through `/api/pipelines/files/upload`, so the shared
+  backend pipeline protects the picker/import paths used by Web and Apple
+  Create. The
   NAS YouTube/video scanner also skips video and subtitle sidecar candidates
   that vanish after `os.walk()` and prunes hidden folders/files, keeping Web
   Video Dubbing and Apple Create source pickers usable during concurrent

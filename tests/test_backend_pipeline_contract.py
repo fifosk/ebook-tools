@@ -30,6 +30,12 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
         "test-backend-creation-templates": (
             "tests/modules/webapi/test_creation_template_routes.py",
         ),
+        "test-backend-pipeline-sources": (
+            "tests/test_create_book.py::test_pipeline_file_picker_records_safe_timing",
+            "tests/test_create_book.py::test_delete_pipeline_ebook_is_idempotent_for_missing_in_scope_file",
+            "tests/test_create_book.py::test_delete_pipeline_ebook_rejects_missing_file_outside_books_root",
+            "tests/test_create_book.py::test_upload_pipeline_ebook_persists_file_in_books_root",
+        ),
         "test-backend-audio-routes": ("tests/modules/webapi/test_audio_routes.py",),
         "test-backend-subtitle-router": ("tests/webapi/test_subtitles_router.py",),
         "test-backend-playback-state": (
@@ -63,6 +69,7 @@ def test_docs_publish_backend_pipeline_targets() -> None:
         "make test-backend-admin-system-status",
         "make test-backend-create-book",
         "make test-backend-creation-templates",
+        "make test-backend-pipeline-sources",
         "make test-backend-audio-routes",
         "make test-backend-subtitle-router",
         "make test-backend-playback-state",

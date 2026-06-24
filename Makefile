@@ -3,6 +3,7 @@
        test-config test-metadata test-changed \
        test-backend-library-search-source-isbn test-backend-admin-system-status \
        test-backend-create-book test-backend-creation-templates \
+       test-backend-pipeline-sources \
        test-backend-audio-routes \
        test-backend-subtitle-router \
        test-backend-playback-state \
@@ -88,6 +89,13 @@ test-backend-create-book:
 
 test-backend-creation-templates:
 	$(PYTHON) -m pytest tests/modules/webapi/test_creation_template_routes.py
+
+test-backend-pipeline-sources:
+	$(PYTHON) -m pytest \
+		tests/test_create_book.py::test_pipeline_file_picker_records_safe_timing \
+		tests/test_create_book.py::test_delete_pipeline_ebook_is_idempotent_for_missing_in_scope_file \
+		tests/test_create_book.py::test_delete_pipeline_ebook_rejects_missing_file_outside_books_root \
+		tests/test_create_book.py::test_upload_pipeline_ebook_persists_file_in_books_root
 
 test-backend-audio-routes:
 	$(PYTHON) -m pytest tests/modules/webapi/test_audio_routes.py

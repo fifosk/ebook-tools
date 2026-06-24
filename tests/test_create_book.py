@@ -378,6 +378,45 @@ def test_delete_pipeline_ebook_rejects_missing_file_outside_books_root(tmp_path:
     assert response.json()["detail"] == "Invalid ebook path"
 
 
+def test_upload_pipeline_ebook_persists_file_in_books_root(tmp_path: Path) -> None:
+    app = create_app()
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    books_dir = tmp_path / "books"
+    books_dir.mkdir()
+    (books_dir / "latest.epub").write_bytes(b"existing")
+
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    app.dependency_overrides[get_request_user] = lambda: SimpleNamespace(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/pipelines/files/upload",
+                files={
+                    "file": (
+                        "../latest.epub",
+                        b"uploaded epub bytes",
+                        "application/epub+zip",
+                    )
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == "latest-1.epub"
+    assert body["path"] == "latest-1.epub"
+    assert body["type"] == "file"
+    assert body["size_bytes"] == len(b"uploaded epub bytes")
+    assert (books_dir / "latest.epub").read_bytes() == b"existing"
+    assert (books_dir / "latest-1.epub").read_bytes() == b"uploaded epub bytes"
+    assert not (tmp_path / "latest.epub").exists()
+
+
 def test_book_generation_job_schema_accepts_source_context() -> None:
     payload = BookGenerationJobSubmission.model_validate(
         {
