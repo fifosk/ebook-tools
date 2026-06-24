@@ -218,7 +218,9 @@ Current Apple UI partially exposes:
   routing. Advanced metadata JSON editing and artwork preview subviews now live
   in `AppleBookCreateMetadataViews.swift`, trimming repeated metadata UI out of
   `AppleBookCreateSections.swift` while preserving the tvOS-safe JSON editor
-  fallback. Subtitle time-range and YouTube
+  fallback. The iOS/iPad searchable full-language selector now lives in
+  `AppleBookCreateLanguageSelector.swift`, keeping the shared narration section
+  focused on language/voice routing. Subtitle time-range and YouTube
   offset-range validation now use pure support helpers that preserve the
   existing visible error messages. Backend default resolution and edited-field
   preservation now live in support too, so backend-driven Apple Create defaults

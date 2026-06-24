@@ -140,6 +140,15 @@ CREATE_LANGUAGE_OPTIONS = (
     / "Create"
     / "AppleBookCreateLanguageOptions.swift"
 )
+CREATE_LANGUAGE_SELECTOR = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateLanguageSelector.swift"
+)
 CREATE_METADATA_VIEWS = (
     ROOT
     / "ios"
@@ -621,6 +630,7 @@ def test_create_history_defaults_are_split_from_support_and_target_wired() -> No
 
 def test_create_language_options_are_split_from_support_and_target_wired() -> None:
     language_source = _source(CREATE_LANGUAGE_OPTIONS)
+    selector_source = _source(CREATE_LANGUAGE_SELECTOR)
     support_source = _source(CREATE_SUPPORT)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
@@ -639,6 +649,9 @@ def test_create_language_options_are_split_from_support_and_target_wired() -> No
     assert "static func voiceInventoryOptions(" not in support_source
     assert "AppleBookCreateLanguageOptions.swift in Sources" in project
     assert project.count("AppleBookCreateLanguageOptions.swift in Sources") == 4
+    assert "struct AppleBookCreateLanguageSelector: View" in selector_source
+    assert "AppleBookCreateLanguageSelector.swift in Sources" in project
+    assert project.count("AppleBookCreateLanguageSelector.swift in Sources") == 4
     assert "AppleBookCreateLanguageOptions.swift" in payload_script
 
 
@@ -905,21 +918,22 @@ def test_create_submission_routes_to_created_job_with_matching_jobs_filter() -> 
 
 def test_ios_create_languages_use_reachable_list_selector() -> None:
     source = _source(CREATE_SECTIONS)
+    selector_source = _source(CREATE_LANGUAGE_SELECTOR)
 
     assert "#if os(tvOS)" in source
     assert 'Picker("Input", selection: $inputLanguage)' in source
     assert "AppleBookCreateLanguageSelector(" in source
     assert 'accessibilityIdentifier: "createBookInputLanguagePicker"' in source
     assert 'accessibilityIdentifier: "createBookTargetLanguagePicker"' in source
-    assert "#if !os(tvOS)" in source
-    assert "private struct AppleBookCreateLanguageSelector: View" in source
-    assert "@State private var searchText = \"\"" in source
-    assert "private var filteredOptions: [AppleBookCreateLanguage]" in source
-    assert '.searchable(text: $searchText, prompt: "Search Languages")' in source
-    assert '.sheet(item: $selectedLanguage)' in source
-    assert '.accessibilityIdentifier("\\(accessibilityIdentifier).\\(language.id)")' in source
-    assert 'Text("\\(options.count) available")' in source
-    assert '.accessibilityValue("\\(selection.label), \\(options.count) available")' in source
+    assert "#if !os(tvOS)" in selector_source
+    assert "struct AppleBookCreateLanguageSelector: View" in selector_source
+    assert "@State private var searchText = \"\"" in selector_source
+    assert "private var filteredOptions: [AppleBookCreateLanguage]" in selector_source
+    assert '.searchable(text: $searchText, prompt: "Search Languages")' in selector_source
+    assert '.sheet(item: $selectedLanguage)' in selector_source
+    assert '.accessibilityIdentifier("\\(accessibilityIdentifier).\\(language.id)")' in selector_source
+    assert 'Text("\\(options.count) available")' in selector_source
+    assert '.accessibilityValue("\\(selection.label), \\(options.count) available")' in selector_source
 
 
 def test_tvos_create_metadata_json_editor_avoids_text_editor() -> None:

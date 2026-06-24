@@ -55,6 +55,15 @@ APPLE_CREATE_SECTIONS = (
     / "Create"
     / "AppleBookCreateSections.swift"
 )
+APPLE_CREATE_LANGUAGE_SELECTOR = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateLanguageSelector.swift"
+)
 
 
 def _web_language_codes() -> list[tuple[str, str]]:
@@ -141,6 +150,7 @@ def test_book_creation_options_advertise_full_language_catalog() -> None:
 
 def test_apple_create_language_controls_share_available_lists_across_surfaces() -> None:
     source = APPLE_CREATE_SECTIONS.read_text(encoding="utf-8")
+    selector_source = APPLE_CREATE_LANGUAGE_SELECTOR.read_text(encoding="utf-8")
 
     tvos_block = re.search(
         r"#if os\(tvOS\)(?P<body>.*?)#else",
@@ -162,5 +172,5 @@ def test_apple_create_language_controls_share_available_lists_across_surfaces() 
     assert "AppleBookCreateLanguageSelector(" in non_tvos_block.group("body")
     assert "options: availableInputLanguages" in non_tvos_block.group("body")
     assert "options: availableTargetLanguages" in non_tvos_block.group("body")
-    assert 'Text("\\(options.count) available")' in source
-    assert '.accessibilityValue("\\(selection.label), \\(options.count) available")' in source
+    assert 'Text("\\(options.count) available")' in selector_source
+    assert '.accessibilityValue("\\(selection.label), \\(options.count) available")' in selector_source
