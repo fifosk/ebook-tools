@@ -289,20 +289,24 @@ def preferred_youtube_selection(payload: Any) -> tuple[dict[str, Any] | None, di
     videos = payload.get("videos")
     if not isinstance(videos, list) or not videos:
         return None, None
+    candidates = [
+        candidate
+        for candidate in videos
+        if isinstance(candidate, dict) and str(candidate.get("path") or "").strip()
+    ]
+    candidates = sorted(
+        candidates,
+        key=lambda entry: (
+            -parse_modified_timestamp(entry.get("modified_at"), float("-inf")),
+            str(entry.get("path") or "").casefold(),
+        ),
+    )
     video = next(
         (
-            candidate for candidate in videos
-            if isinstance(candidate, dict)
-            and str(candidate.get("path") or "").strip()
-            and playable_youtube_subtitles(candidate)
+            candidate for candidate in candidates
+            if playable_youtube_subtitles(candidate)
         ),
-        next(
-            (
-                candidate for candidate in videos
-                if isinstance(candidate, dict) and str(candidate.get("path") or "").strip()
-            ),
-            None,
-        ),
+        candidates[0] if candidates else None,
     )
     return video, preferred_youtube_subtitle(video)
 

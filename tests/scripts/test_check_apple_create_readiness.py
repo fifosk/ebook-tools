@@ -94,6 +94,37 @@ def test_default_subtitle_source_uses_ass_only_as_fallback() -> None:
     )["path"] == "/subs/only.ass"
 
 
+def test_default_youtube_selection_uses_newest_playable_video() -> None:
+    selected_video, selected_subtitle = module.preferred_youtube_selection(
+        {
+            "videos": [
+                {
+                    "path": "/nas/older-playable.mp4",
+                    "modified_at": "2026-01-01T00:00:00Z",
+                    "subtitles": [
+                        {"format": "srt", "path": "/nas/older-playable.en.srt", "language": "en"},
+                    ],
+                },
+                {
+                    "path": "/nas/newest-no-subtitles.mp4",
+                    "modified_at": "2026-06-25T00:00:00Z",
+                    "subtitles": [],
+                },
+                {
+                    "path": "/nas/newer-playable.mp4",
+                    "modified_at": "2026-06-24T00:00:00Z",
+                    "subtitles": [
+                        {"format": "vtt", "path": "/nas/newer-playable.fr.vtt", "language": "fr"},
+                    ],
+                },
+            ]
+        }
+    )
+
+    assert selected_video["path"] == "/nas/newer-playable.mp4"
+    assert selected_subtitle["path"] == "/nas/newer-playable.fr.vtt"
+
+
 def test_language_inventory_requires_broad_book_options() -> None:
     broad_languages = [f"Language {index}" for index in range(60)]
     for sentinel in module.REQUIRED_BOOK_LANGUAGE_SENTINELS:

@@ -213,6 +213,11 @@ enum AppChangelogData {
                     detail: "Apple Create now remembers the last YouTube dubbing NAS video and subtitle selection per API/user scope and restores it when those files are still available."
                 ),
                 AppChangelogEntry(
+                    id: "apple-create-youtube-newest-playable",
+                    title: "Create picks latest videos",
+                    detail: "Apple Create YouTube dubbing now defaults to the newest NAS video with a playable subtitle track, matching Web's server-backed video ordering."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-latest-subtitle-source",
                     title: "Create picks latest subtitles",
                     detail: "Apple Create subtitle jobs now decode source modification timestamps and default to the latest usable SRT/VTT source, matching Web source-selection behavior."

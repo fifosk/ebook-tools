@@ -139,7 +139,7 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
                 )
             )
 
-    videos.sort(key=lambda entry: (entry.modified_at, entry.path.as_posix()), reverse=True)
+    videos.sort(key=lambda entry: (-entry.modified_at.timestamp(), entry.path.as_posix().casefold()))
     return videos
 
 

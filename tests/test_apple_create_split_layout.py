@@ -1135,6 +1135,8 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
     assert "static func narrateSourceDefaults(" in source_selection
     assert "static func subtitleSourceDefaults(" in source_selection
     assert "static func preferredYoutubeSelection(from library: YoutubeNasLibraryResponse?)" in source_selection
+    assert "sortedYoutubeVideosForDefaultSelection(library?.videos ?? [])" in source_selection
+    assert "private static func sortedYoutubeVideosForDefaultSelection(" in source_selection
     assert "static func youtubeSelection(" in source_selection
     assert "static func youtubeSourceDefaults(" in source_selection
     assert "static func youtubeLibraryCacheKey(baseKey: String, baseDir: String)" in source_selection

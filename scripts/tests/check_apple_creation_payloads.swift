@@ -206,7 +206,17 @@ struct AppleCreationPayloadCheck {
                 )
             ]
         )
-        let youtubeLibrary = YoutubeNasLibraryResponse(baseDir: "/nas", videos: [youtubeVideoA, youtubeVideoB])
+        let youtubeVideoC = YoutubeNasVideoEntry(
+            path: "/nas/video-c.mp4",
+            filename: "video-c.mp4",
+            folder: "/nas",
+            sizeBytes: 160,
+            modifiedAt: "2026-06-23T12:00:00Z",
+            source: nil,
+            linkedJobIds: [],
+            subtitles: []
+        )
+        let youtubeLibrary = YoutubeNasLibraryResponse(baseDir: "/nas", videos: [youtubeVideoA, youtubeVideoC, youtubeVideoB])
         let restoredYoutubeSelection = AppleBookCreatePresentation.youtubeSelection(
             from: youtubeLibrary,
             storedVideoPath: " /nas/video-b.mp4 ",
@@ -223,9 +233,9 @@ struct AppleCreationPayloadCheck {
             storedSubtitlePath: "/nas/video-b.sk.vtt"
         )
         require(
-            staleYoutubeSelection?.video.path == "/nas/video-a.mp4"
-                && staleYoutubeSelection?.subtitle?.path == "/nas/video-a.en.srt",
-            "Apple Create should fall back to the preferred NAS video when the stored YouTube source is stale"
+            staleYoutubeSelection?.video.path == "/nas/video-b.mp4"
+                && staleYoutubeSelection?.subtitle?.path == "/nas/video-b.en.ass",
+            "Apple Create should fall back to the newest playable NAS video when the stored YouTube source is stale"
         )
         require(
             AppleBookCreatePresentation.youtubeLibraryCacheKey(

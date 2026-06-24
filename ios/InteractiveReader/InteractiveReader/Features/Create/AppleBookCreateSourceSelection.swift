@@ -188,7 +188,8 @@ extension AppleBookCreatePresentation {
     }
 
     static func preferredYoutubeSelection(from library: YoutubeNasLibraryResponse?) -> AppleYoutubeSourceSelection? {
-        guard let videos = library?.videos, !videos.isEmpty else {
+        let videos = sortedYoutubeVideosForDefaultSelection(library?.videos ?? [])
+        guard !videos.isEmpty else {
             return nil
         }
         let video = videos.first { !playableYoutubeSubtitles(for: $0).isEmpty } ?? videos[0]
@@ -280,6 +281,19 @@ extension AppleBookCreatePresentation {
 
     static func subtitleShowOriginalPreferenceKey(baseKey: String) -> String {
         "ebookTools.appleCreate.subtitles.showOriginal.\(baseKey)"
+    }
+
+    private static func sortedYoutubeVideosForDefaultSelection(
+        _ videos: [YoutubeNasVideoEntry]
+    ) -> [YoutubeNasVideoEntry] {
+        videos.sorted { left, right in
+            let leftDate = parseSourceModifiedDate(left.modifiedAt)
+            let rightDate = parseSourceModifiedDate(right.modifiedAt)
+            if leftDate != rightDate {
+                return leftDate > rightDate
+            }
+            return left.path.localizedStandardCompare(right.path) == .orderedAscending
+        }
     }
 
     private static func pickerMetadataParts(sizeBytes: Int?, modifiedAt: String?) -> [String] {

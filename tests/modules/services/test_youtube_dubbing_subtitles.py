@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -100,6 +101,11 @@ def test_list_downloaded_videos_reuses_walked_folder_files_for_subtitle_matching
     first_subtitle.write_text("1\n00:00:00,000 --> 00:00:02,000\nHello\n", encoding="utf-8")
     second_subtitle.write_text("WEBVTT\n\n00:00.000 --> 00:02.000\nBonjour\n", encoding="utf-8")
     (tmp_path / "unrelated.en.srt").write_text("orphan", encoding="utf-8")
+    older_mtime = 1_700_000_000
+    newer_mtime = 1_700_000_200
+    os.utime(first_video, (older_mtime, older_mtime))
+    os.utime(second_video, (newer_mtime, newer_mtime))
+    os.utime(tmp_path, (older_mtime, older_mtime))
 
     def fail_iterdir(_path: Path):
         raise AssertionError("list_downloaded_videos should reuse os.walk file entries")
@@ -116,6 +122,29 @@ def test_list_downloaded_videos_reuses_walked_folder_files_for_subtitle_matching
         "episode-two.mp4": ["episode-two.fr.vtt"],
         "episode-one.mkv": ["episode-one.en.srt"],
     }
+
+
+def test_list_downloaded_videos_orders_newest_first_with_stable_path_ties(tmp_path: Path) -> None:
+    older = tmp_path / "older.mp4"
+    alpha = tmp_path / "alpha.mp4"
+    beta = tmp_path / "beta.mp4"
+    for path in (older, alpha, beta):
+        path.write_bytes(b"\x00" * 10)
+        (path.with_suffix(".en.srt")).write_text(
+            "1\n00:00:00,000 --> 00:00:02,000\nHello\n",
+            encoding="utf-8",
+        )
+
+    older_mtime = 1_700_000_000
+    newer_mtime = 1_700_000_500
+    os.utime(older, (older_mtime, older_mtime))
+    os.utime(tmp_path, (older_mtime, older_mtime))
+    for path in (alpha, beta):
+        os.utime(path, (newer_mtime, newer_mtime))
+
+    videos = list_downloaded_videos(tmp_path)
+
+    assert [video.path.name for video in videos] == ["alpha.mp4", "beta.mp4", "older.mp4"]
 
 
 def test_list_downloaded_videos_skips_hidden_nas_folders_and_files(tmp_path: Path) -> None:
