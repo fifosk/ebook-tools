@@ -667,6 +667,7 @@ def test_create_history_defaults_are_split_from_support_and_target_wired() -> No
 def test_create_language_options_are_split_from_support_and_target_wired() -> None:
     language_source = _source(CREATE_LANGUAGE_OPTIONS)
     selector_source = _source(CREATE_LANGUAGE_SELECTOR)
+    view_source = _source(CREATE_VIEW)
     support_source = _source(CREATE_SUPPORT)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
@@ -675,6 +676,8 @@ def test_create_language_options_are_split_from_support_and_target_wired() -> No
     assert "static func availableInputLanguages(" in language_source
     assert "static func availableTargetLanguages(" in language_source
     assert "static func availableVoices(" in language_source
+    assert "static func languageVoiceOptions(" in language_source
+    assert "static func targetLanguagesForVoiceOverrides(" in language_source
     assert "static func voiceInventoryOptions(" in language_source
     assert "static func sampleSentence(language: String, fallbackLabel: String)" in language_source
     assert "static func voicePreviewKey(language: String)" in language_source
@@ -682,7 +685,12 @@ def test_create_language_options_are_split_from_support_and_target_wired() -> No
     assert "static func availableInputLanguages(" not in support_source
     assert "static func availableTargetLanguages(" not in support_source
     assert "static func availableVoices(" not in support_source
+    assert "static func languageVoiceOptions(" not in support_source
+    assert "static func targetLanguagesForVoiceOverrides(" not in support_source
     assert "static func voiceInventoryOptions(" not in support_source
+    assert "AppleBookCreatePresentation.languageVoiceOptions(" in view_source
+    assert "AppleBookCreatePresentation.targetLanguagesForVoiceOverrides(" in view_source
+    assert "var result = [String: [AppleBookCreateVoiceOption]]()" not in view_source
     assert "AppleBookCreateLanguageOptions.swift in Sources" in project
     assert project.count("AppleBookCreateLanguageOptions.swift in Sources") == 4
     assert "struct AppleBookCreateLanguageSelector: View" in selector_source

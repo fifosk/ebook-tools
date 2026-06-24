@@ -1777,29 +1777,21 @@ struct AppleBookCreateView: View {
     }
 
     private var languageVoiceOptions: [String: [AppleBookCreateVoiceOption]] {
-        var result = [String: [AppleBookCreateVoiceOption]]()
-        for language in targetLanguagesForVoiceOverrides {
-            let selected = languageVoiceOverrides[language].flatMap(AppleBookCreateVoiceOption.init(backendValue:))
-            result[language] = AppleBookCreatePresentation.availableVoices(
-                from: viewModel.creationOptions,
-                inventory: viewModel.voiceInventory,
-                language: language,
-                selected: selected ?? targetVoice ?? voice
-            )
-        }
-        return result
+        AppleBookCreatePresentation.languageVoiceOptions(
+            from: viewModel.creationOptions,
+            inventory: viewModel.voiceInventory,
+            languages: targetLanguagesForVoiceOverrides,
+            selectedOverrides: languageVoiceOverrides,
+            fallbackVoice: targetVoice ?? voice
+        )
     }
 
     private var targetLanguagesForVoiceOverrides: [String] {
-        switch creationMode {
-        case .generatedBook, .narrateEbook:
-            return AppleBookCreatePresentation.normalizedTargetLanguages(
-                primary: targetLanguage.backendValue,
-                additionalTargets: additionalTargetLanguages
-            )
-        case .subtitleJob, .youtubeDub:
-            return []
-        }
+        AppleBookCreatePresentation.targetLanguagesForVoiceOverrides(
+            mode: creationMode,
+            primary: targetLanguage.backendValue,
+            additionalTargets: additionalTargetLanguages
+        )
     }
 
     private var availableSubtitleLlmModels: [String] {

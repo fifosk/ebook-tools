@@ -233,12 +233,12 @@ Current Apple UI partially exposes:
   existing visible error messages. Backend default resolution and edited-field
   preservation now live in support too, so backend-driven Apple Create defaults
   stay pinned outside the SwiftUI state assignment code. Backend language and
-  voice inventory option building is also centralized in support, preserving
-  selected voices that are absent from backend inventory. The Apple journey
-  runner can now select Create picker options and assert non-empty field values,
-  with opt-in iPhone/iPad Create-readiness Make targets that verify Narrate
-  EPUB, subtitle, and YouTube/NAS default source loading against a populated
-  API.
+  voice inventory option building is also centralized in support, including
+  per-target-language voice override option maps, preserving selected voices
+  that are absent from backend inventory. The Apple journey runner can now
+  select Create picker options and assert non-empty field values, with opt-in
+  iPhone/iPad Create-readiness Make targets that verify Narrate EPUB, subtitle,
+  and YouTube/NAS default source loading against a populated API.
   Apple Create language controls are now contract-pinned to the shared
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults

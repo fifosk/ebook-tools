@@ -39,6 +39,39 @@ extension AppleBookCreatePresentation {
         return mergedVoiceOptions(baseOptions + inventoryOptions, selected: selected)
     }
 
+    static func languageVoiceOptions(
+        from options: BookCreationOptionsResponse?,
+        inventory: AppleBookCreateVoiceInventory?,
+        languages: [String],
+        selectedOverrides: [String: String],
+        fallbackVoice: AppleBookCreateVoiceOption
+    ) -> [String: [AppleBookCreateVoiceOption]] {
+        var result = [String: [AppleBookCreateVoiceOption]]()
+        for language in languages {
+            let selected = selectedOverrides[language].flatMap(AppleBookCreateVoiceOption.init(backendValue:))
+            result[language] = availableVoices(
+                from: options,
+                inventory: inventory,
+                language: language,
+                selected: selected ?? fallbackVoice
+            )
+        }
+        return result
+    }
+
+    static func targetLanguagesForVoiceOverrides(
+        mode: AppleCreateMode,
+        primary: String,
+        additionalTargets: String
+    ) -> [String] {
+        switch mode {
+        case .generatedBook, .narrateEbook:
+            return normalizedTargetLanguages(primary: primary, additionalTargets: additionalTargets)
+        case .subtitleJob, .youtubeDub:
+            return []
+        }
+    }
+
     static func voiceInventoryOptions(
         from inventory: AppleBookCreateVoiceInventory?,
         language: String
