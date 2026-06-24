@@ -305,6 +305,9 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert "private func handleYoutubeVideoPathChange(_ path: String)" in source
     assert "handleLanguagePreferenceChange()" in source
     assert "private func handleLanguagePreferenceChange()" in source
+    assert "private func completeSubmission(_ jobId: String?) async" in source
+    assert source.count("await completeSubmission(jobId)") == 4
+    assert source.count("onJobSubmitted(jobId)") == 1
 
 
 def test_create_models_are_split_from_presentation_and_target_wired() -> None:

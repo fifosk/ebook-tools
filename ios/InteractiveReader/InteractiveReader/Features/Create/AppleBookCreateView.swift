@@ -869,10 +869,8 @@ struct AppleBookCreateView: View {
         )
 
         Task {
-            if let jobId = await viewModel.submitGeneratedBook(draft, using: appState) {
-                await refreshIntakeStatus(force: true)
-                onJobSubmitted(jobId)
-            }
+            let jobId = await viewModel.submitGeneratedBook(draft, using: appState)
+            await completeSubmission(jobId)
         }
     }
 
@@ -916,15 +914,13 @@ struct AppleBookCreateView: View {
         )
 
         Task {
-            if let jobId = await viewModel.submitSubtitleJob(
+            let jobId = await viewModel.submitSubtitleJob(
                 draft,
                 localFileURL: selectedSubtitleFileURL,
                 localFilename: selectedSubtitleFileName,
                 using: appState
-            ) {
-                await refreshIntakeStatus(force: true)
-                onJobSubmitted(jobId)
-            }
+            )
+            await completeSubmission(jobId)
         }
     }
 
@@ -973,10 +969,8 @@ struct AppleBookCreateView: View {
         )
 
         Task {
-            if let jobId = await viewModel.submitYoutubeDub(draft, using: appState) {
-                await refreshIntakeStatus(force: true)
-                onJobSubmitted(jobId)
-            }
+            let jobId = await viewModel.submitYoutubeDub(draft, using: appState)
+            await completeSubmission(jobId)
         }
     }
 
@@ -1023,16 +1017,22 @@ struct AppleBookCreateView: View {
         )
 
         Task {
-            if let jobId = await viewModel.submitNarrateEbook(
+            let jobId = await viewModel.submitNarrateEbook(
                 draft,
                 localFileURL: selectedNarrateFileURL,
                 localFilename: selectedNarrateFileName,
                 using: appState
-            ) {
-                await refreshIntakeStatus(force: true)
-                onJobSubmitted(jobId)
-            }
+            )
+            await completeSubmission(jobId)
         }
+    }
+
+    private func completeSubmission(_ jobId: String?) async {
+        guard let jobId else {
+            return
+        }
+        await refreshIntakeStatus(force: true)
+        onJobSubmitted(jobId)
     }
 
     private func loadCreateDependencies() async {

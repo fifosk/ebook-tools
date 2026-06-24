@@ -224,7 +224,8 @@ Current Apple UI partially exposes:
   `AppleBookCreateStorageKeys.swift`, keeping API/user-scoped local file, lookup, and
   UserDefaults formats contract-pinned outside the main view. Create lifecycle
   loading and field-change side effects are now named handlers in the view
-  instead of inline modifier bodies. Narration language/voice routing now lives in
+  instead of inline modifier bodies, and successful job submission completion
+  shares one intake-refresh/notify handler. Narration language/voice routing now lives in
   `AppleBookCreateNarrationSection.swift`, and the
   iOS/iPad searchable full-language selector lives in
   `AppleBookCreateLanguageSelector.swift`. Source UI for newest-first server
