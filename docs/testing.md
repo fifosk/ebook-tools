@@ -250,6 +250,16 @@ device without requiring the app to already be installed. `--verify-installed`
 is the separate installed-app metadata check, and confirmed installs run the
 device preflight before build/install unless `--no-preflight` is passed.
 
+The reusable Apple device pipeline also calls the repo-owned
+`src/check_poc_readiness.py` hook before signed build/install when readiness is
+not skipped. Despite the legacy filename, the ebook-tools hook is intentionally
+token-safe: it checks `/_health` and `/api/system/runtime`, then verifies that
+the public runtime descriptor advertises the Apple Create paths used by iPhone,
+iPad, macOS iPad-style, and tvOS surfaces. It accepts the shared helper's
+legacy flags (`--use-remote-env-tokens`, read/write token requirements, and
+`--skip-apple-build`) so iPad/TV update runs can reuse the same unattended
+command shape while the unavailable iPhone profile is left out of the run.
+
 Run the local Apple contract gate after changing native Create payloads,
 deployment helpers, or simulator journey config wiring:
 
@@ -261,7 +271,8 @@ This checks backend/Web/Apple language catalogue parity, iPad Create split-view
 layout wiring, the public runtime descriptor contract, preflight/config parsing,
 the Swift creation payload contract, the macOS iPad-style build helper, the
 iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the
-local Apple surface build gate, the local Apple verification gate, the guarded
+local Apple surface build gate, the local Apple verification gate, the
+repo-owned Apple deploy readiness hook, the guarded
 physical-device update helper, the shared Apple pipeline preflight targets, and
 the XCUITest config writer without installing to iPhone, iPad, or Apple TV
 hardware.
