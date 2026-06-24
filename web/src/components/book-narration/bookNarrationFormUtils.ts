@@ -29,6 +29,16 @@ export type BookNarrationVoiceOverrideLanguage = {
   code: string | null;
 };
 
+export type BookNarrationSubmitPresentation = {
+  headerTitle: string;
+  headerDescription: string;
+  missingRequirements: string[];
+  hasMissingRequirements: boolean;
+  missingRequirementText: string;
+  isSubmitDisabled: boolean;
+  submitText: string;
+};
+
 const BOOK_NARRATION_IMAGE_DEFAULT_FIELDS: Array<keyof FormState> = [
   'add_images',
   'image_prompt_pipeline',
@@ -786,6 +796,50 @@ export function resolveBookNarrationMissingRequirements({
     missingRequirements.push('a chapter selection');
   }
   return missingRequirements;
+}
+
+export function resolveBookNarrationSubmitPresentation({
+  activeSection,
+  sectionMeta,
+  formState,
+  normalizedTargetLanguages,
+  isGeneratedSource,
+  chapterSelectionMode,
+  hasChapterSelection,
+  isSubmitting,
+  isIntakeAtCapacity,
+  submitLabel,
+}: {
+  activeSection: BookNarrationFormSection;
+  sectionMeta: BookNarrationSectionMeta;
+  formState: FormState;
+  normalizedTargetLanguages: string[];
+  isGeneratedSource: boolean;
+  chapterSelectionMode: string;
+  hasChapterSelection: boolean;
+  isSubmitting: boolean;
+  isIntakeAtCapacity: boolean;
+  submitLabel?: string | null;
+}): BookNarrationSubmitPresentation {
+  const missingRequirements = resolveBookNarrationMissingRequirements({
+    formState,
+    normalizedTargetLanguages,
+    isGeneratedSource,
+    chapterSelectionMode,
+    hasChapterSelection,
+  });
+  const section = sectionMeta[activeSection];
+  return {
+    headerTitle: section?.title ?? 'Submit a book job',
+    headerDescription:
+      section?.description ??
+      'Provide the input file, target languages, and any overrides to enqueue a new ebook processing job.',
+    missingRequirements,
+    hasMissingRequirements: missingRequirements.length > 0,
+    missingRequirementText: formatList(missingRequirements),
+    isSubmitDisabled: isSubmitting || missingRequirements.length > 0 || isIntakeAtCapacity,
+    submitText: submitLabel ?? 'Submit job',
+  };
 }
 
 export function deriveBaseOutputName(inputPath: string): string {

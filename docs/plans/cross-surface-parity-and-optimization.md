@@ -231,8 +231,10 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/book-narration/bookNarrationFormUtils.ts` with focused
   Vitest coverage. Narration voice override language derivation now also lives
   in that utility module, keeping source/target language trimming, catalog-code
-  dedupe, and uncataloged-label preservation pinned outside the form
-  coordinator. Pipeline step tabs and submit action rendering now live in
+  dedupe, and uncataloged-label preservation pinned outside the form coordinator.
+  Submit/header presentation state, including missing requirements, capacity
+  disabled state, and fallback labels, now resolves through the same tested
+  helper instead of inline form render code. Pipeline step tabs and submit action rendering now live in
   `web/src/components/book-narration/BookNarrationStepBar.tsx` with focused
   rendered coverage. Intake, missing-requirement, and submit-error messaging now
   live in `web/src/components/book-narration/BookNarrationSubmitStatus.tsx`

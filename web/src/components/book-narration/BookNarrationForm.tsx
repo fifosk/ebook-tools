@@ -46,13 +46,12 @@ import {
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillParameters,
   deriveBaseOutputName,
-  formatList,
   normalizeBookNarrationPath,
   normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
-  resolveBookNarrationMissingRequirements,
+  resolveBookNarrationSubmitPresentation,
   resolveBookNarrationVoiceOverrideLanguages,
   resolveBookNarrationSectionMeta,
   resolveStartFromNarrationHistory,
@@ -567,28 +566,25 @@ export function BookNarrationForm({
     [handleSubmit, refreshIntakeStatus]
   );
 
-  const headerTitle = sectionMeta[activeTab]?.title ?? 'Submit a book job';
-  const headerDescription =
-    sectionMeta[activeTab]?.description ??
-    'Provide the input file, target languages, and any overrides to enqueue a new ebook processing job.';
-  const missingRequirements = resolveBookNarrationMissingRequirements({
+  const submitPresentation = resolveBookNarrationSubmitPresentation({
+    activeSection: activeTab,
+    sectionMeta,
     formState,
     normalizedTargetLanguages,
     isGeneratedSource,
     chapterSelectionMode,
-    hasChapterSelection: Boolean(chapterSelection)
+    hasChapterSelection: Boolean(chapterSelection),
+    isSubmitting,
+    isIntakeAtCapacity,
+    submitLabel
   });
-  const isSubmitDisabled = isSubmitting || missingRequirements.length > 0 || isIntakeAtCapacity;
-  const submitText = submitLabel ?? 'Submit job';
-  const hasMissingRequirements = missingRequirements.length > 0;
-  const missingRequirementText = formatList(missingRequirements);
   const canBrowseFiles = Boolean(fileOptions);
   return (
     <div className="pipeline-settings">
       {showInfoHeader ? (
         <>
-          <h2>{headerTitle}</h2>
-          <p>{headerDescription}</p>
+          <h2>{submitPresentation.headerTitle}</h2>
+          <p>{submitPresentation.headerDescription}</p>
         </>
       ) : null}
       <form className="pipeline-form" onSubmit={handleSubmitAndRefreshIntake} noValidate>
@@ -597,17 +593,17 @@ export function BookNarrationForm({
           sectionMeta={sectionMeta}
           activeTab={activeTab}
           onSectionChange={handleSectionChange}
-          isSubmitDisabled={isSubmitDisabled}
+          isSubmitDisabled={submitPresentation.isSubmitDisabled}
           isSubmitting={isSubmitting}
-          submitText={submitText}
+          submitText={submitPresentation.submitText}
           isSavingTemplate={isSavingTemplate}
           onSaveTemplate={handleSaveTemplate}
         />
         <BookNarrationSubmitStatus
           intakeStatus={intakeStatus}
           isLoadingIntakeStatus={isLoadingIntakeStatus}
-          hasMissingRequirements={hasMissingRequirements}
-          missingRequirementText={missingRequirementText}
+          hasMissingRequirements={submitPresentation.hasMissingRequirements}
+          missingRequirementText={submitPresentation.missingRequirementText}
           error={error}
           externalError={externalError}
           templateStatus={templateStatus}

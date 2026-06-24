@@ -11,6 +11,7 @@ import {
   preserveBookNarrationUserEditedFields,
   resolveBookNarrationMissingRequirements,
   resolveBookNarrationVoiceOverrideLanguages,
+  resolveBookNarrationSubmitPresentation,
   resolveBookNarrationSectionMeta,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
@@ -573,5 +574,73 @@ describe('bookNarrationFormUtils form state helpers', () => {
         hasChapterSelection: false,
       }),
     ).toEqual([]);
+  });
+
+  it('builds submit presentation state from section copy, requirements, and intake state', () => {
+    expect(
+      resolveBookNarrationSubmitPresentation({
+        activeSection: 'language',
+        sectionMeta: BOOK_NARRATION_SECTION_META,
+        formState: {
+          ...DEFAULT_FORM_STATE,
+          input_file: '',
+          base_output_file: '',
+          target_languages: [],
+        },
+        normalizedTargetLanguages: [],
+        isGeneratedSource: false,
+        chapterSelectionMode: 'chapters',
+        hasChapterSelection: false,
+        isSubmitting: false,
+        isIntakeAtCapacity: false,
+        submitLabel: 'Start narration',
+      }),
+    ).toMatchObject({
+      headerTitle: BOOK_NARRATION_SECTION_META.language.title,
+      headerDescription: BOOK_NARRATION_SECTION_META.language.description,
+      missingRequirements: [
+        'an input EPUB',
+        'a base output path',
+        'at least one target language',
+        'a chapter selection',
+      ],
+      hasMissingRequirements: true,
+      missingRequirementText:
+        'an input EPUB, a base output path, at least one target language, and a chapter selection',
+      isSubmitDisabled: true,
+      submitText: 'Start narration',
+    });
+  });
+
+  it('uses the default submit label and disables for capacity when requirements are satisfied', () => {
+    expect(
+      resolveBookNarrationSubmitPresentation({
+        activeSection: 'submit',
+        sectionMeta: {
+          ...BOOK_NARRATION_SECTION_META,
+          submit: { title: '', description: '' },
+        },
+        formState: {
+          ...DEFAULT_FORM_STATE,
+          input_file: '/books/source.epub',
+          base_output_file: 'book-output',
+        },
+        normalizedTargetLanguages: ['Arabic'],
+        isGeneratedSource: false,
+        chapterSelectionMode: 'range',
+        hasChapterSelection: false,
+        isSubmitting: false,
+        isIntakeAtCapacity: true,
+        submitLabel: null,
+      }),
+    ).toMatchObject({
+      headerTitle: '',
+      headerDescription: '',
+      missingRequirements: [],
+      hasMissingRequirements: false,
+      missingRequirementText: '',
+      isSubmitDisabled: true,
+      submitText: 'Submit job',
+    });
   });
 });
