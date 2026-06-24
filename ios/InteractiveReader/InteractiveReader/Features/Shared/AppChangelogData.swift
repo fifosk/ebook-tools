@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.18",
+            version: "2026.06.24.19",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-shared-pipeline-make-wrappers",
+                    title: "Shared pipeline gets local commands",
+                    detail: "The repo now exposes Make wrappers for the shared Apple device app pipeline contract, backend, source-sync, and non-physical shared preflight commands so ebook-tools can dogfood the reusable pipeline from its own checkout."
+                ),
                 AppChangelogEntry(
                     id: "apple-local-surface-verification-gate",
                     title: "Local Apple checks get one command",

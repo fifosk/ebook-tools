@@ -6,6 +6,8 @@
        build-apple-iphone-simulator build-apple-ipad-simulator \
        build-apple-ios-simulators build-apple-tvos-simulator \
        build-apple-local-surfaces verify-apple-local-surfaces \
+       apple-pipeline-contracts apple-pipeline-backend apple-pipeline-source-sync \
+       verify-apple-shared-pipeline \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-all test-e2e-apple-parallel \
@@ -18,6 +20,9 @@
 
 SHELL := /bin/bash
 PYTHON ?= $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
+APPLE_PIPELINE_ROOT ?= /Users/fifo/Projects/home/apple-device-app-pipeline
+APPLE_PIPELINE_APP ?= ebook-tools
+APPLE_PIPELINE_PYTHON ?= python3
 
 # ── Full suite ───────────────────────────────────────────────────────────
 test:
@@ -68,7 +73,7 @@ test-observability:
 	pytest -m observability -v
 
 test-apple-contracts:
-	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_ios_profile_capability_check.py
+	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_ios_profile_capability_check.py
 	bash scripts/check_apple_runtime_descriptor_payload.sh
 	bash scripts/check_apple_creation_payloads.sh
 	bash scripts/check_apple_macos_ipad_style_helper.sh
@@ -76,11 +81,23 @@ test-apple-contracts:
 	bash scripts/check_apple_e2e_config_writer.sh
 	bash scripts/check_apple_ios_build_helper.sh
 	bash scripts/check_apple_local_surface_build_helper.sh
+	bash scripts/check_apple_shared_pipeline_helper.sh
 	bash scripts/check_apple_tvos_build_helper.sh
 
 build-apple-local-surfaces: build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style
 
 verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces
+
+apple-pipeline-contracts:
+	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"
+
+apple-pipeline-backend:
+	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_backend.py --app "$(APPLE_PIPELINE_APP)"
+
+apple-pipeline-source-sync:
+	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_source_sync.py --app "$(APPLE_PIPELINE_APP)"
+
+verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend
 
 build-apple-macos-ipad-style:
 	bash scripts/apple_build_macos_ipad_style.sh

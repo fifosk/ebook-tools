@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.19
+
+- Advanced visible Apple app versioning to `v2026.06.24.19`.
+- Added repo-owned Make wrappers for the shared Apple device app pipeline contract, backend, source-sync, and non-physical shared preflight commands so ebook-tools can dogfood the reusable pipeline from its own checkout.
+
 ### 2026.06.24.18
 
 - Advanced visible Apple app versioning to `v2026.06.24.18`.

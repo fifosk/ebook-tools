@@ -188,6 +188,12 @@ make build-apple-ios-simulators
 make build-apple-iphone-simulator
 make build-apple-ipad-simulator
 
+# Repo-owned wrappers around the shared Apple pipeline
+make apple-pipeline-contracts
+make apple-pipeline-backend
+make apple-pipeline-source-sync
+make verify-apple-shared-pipeline
+
 # Local Mac Designed for iPad/iPhone compile checks
 make apple-macos-ipad-destination
 make build-apple-macos-ipad-style-dry-run

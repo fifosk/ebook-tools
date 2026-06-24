@@ -170,6 +170,21 @@ make verify-apple-local-surfaces
 This is the preferred repo-owned Apple preflight before requesting an attended
 iPhone, iPad, Apple TV, or local Mac Designed for iPad/iPhone update.
 
+The reusable Apple device app pipeline can also be driven from this checkout
+through repo-owned wrapper targets:
+
+```bash
+make apple-pipeline-contracts
+make apple-pipeline-backend
+make apple-pipeline-source-sync
+make verify-apple-shared-pipeline
+```
+
+`verify-apple-shared-pipeline` runs the shared pipeline contract and backend
+checks without physical deployment. Run `apple-pipeline-source-sync` after the
+Mac Studio/runtime checkout has been fast-forwarded, because that check compares
+the local and remote Git state.
+
 For a quick Apple TV compile check without launching the full tvOS journey, run
 the repo-owned simulator build lane:
 
@@ -216,8 +231,9 @@ layout wiring, the public runtime descriptor contract, preflight/config parsing,
 the Swift creation payload contract, the macOS iPad-style build helper, the
 iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the
 local Apple surface build gate, the local Apple verification gate, the guarded
-physical-device update helper, and the XCUITest config writer without
-installing to iPhone, iPad, or Apple TV hardware.
+physical-device update helper, the shared Apple pipeline preflight targets, and
+the XCUITest config writer without installing to iPhone, iPad, or Apple TV
+hardware.
 
 The public runtime descriptor at `/api/system/runtime` also advertises the
 Create endpoints used by Apple surfaces (`creation.bookOptionsPath` and
