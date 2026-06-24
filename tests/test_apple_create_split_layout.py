@@ -41,6 +41,15 @@ CREATE_VIEW_MODEL = (
     / "Create"
     / "AppleBookCreateViewModel.swift"
 )
+CREATE_VIEW_MODEL_SUBMISSION = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateViewModel+Submission.swift"
+)
 CREATE_SUPPORT = (
     ROOT
     / "ios"
@@ -312,15 +321,26 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
 
 def test_create_view_model_uses_shared_submission_wrapper() -> None:
     source = _source(CREATE_VIEW_MODEL)
+    submission_source = _source(CREATE_VIEW_MODEL_SUBMISSION)
+    project = _source(XCODE_PROJECT)
 
-    assert "private func submitJob(" in source
-    assert "operation: (APIClient) async throws -> String" in source
-    assert "let jobId = try await operation(client)" in source
-    assert "submittedJobId = jobId" in source
-    assert source.count("await submitJob(using: appState)") == 4
-    assert source.count("isSubmitting = true") == 1
-    assert source.count("defer { isSubmitting = false }") == 1
-    assert source.count('errorMessage = "API configuration is unavailable."') == 1
+    assert "extension AppleBookCreateViewModel" in submission_source
+    assert "func submitGeneratedBook(_ draft: AppleBookCreateDraft, using appState: AppState)" in submission_source
+    assert "func submitNarrateEbook(" in submission_source
+    assert "func submitSubtitleJob(" in submission_source
+    assert "func submitYoutubeDub(" in submission_source
+    assert "private func submitJob(" in submission_source
+    assert "operation: (APIClient) async throws -> String" in submission_source
+    assert "let jobId = try await operation(client)" in submission_source
+    assert "submittedJobId = jobId" in submission_source
+    assert submission_source.count("await submitJob(using: appState)") == 4
+    assert submission_source.count("isSubmitting = true") == 1
+    assert submission_source.count("defer { isSubmitting = false }") == 1
+    assert submission_source.count('errorMessage = "API configuration is unavailable."') == 1
+    assert "func submitGeneratedBook(_ draft: AppleBookCreateDraft, using appState: AppState)" not in source
+    assert "private func submitJob(" not in source
+    assert "AppleBookCreateViewModel+Submission.swift in Sources" in project
+    assert project.count("AppleBookCreateViewModel+Submission.swift in Sources") == 4
 
 
 def test_create_models_are_split_from_presentation_and_target_wired() -> None:
@@ -604,6 +624,7 @@ def test_create_payload_factory_is_split_from_view_model_and_target_wired() -> N
     factory_source = _source(CREATE_PAYLOAD_FACTORY)
     media_payloads_source = _source(CREATE_MEDIA_PAYLOADS)
     view_model_source = _source(CREATE_VIEW_MODEL)
+    submission_source = _source(CREATE_VIEW_MODEL_SUBMISSION)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
 
@@ -615,10 +636,11 @@ def test_create_payload_factory_is_split_from_view_model_and_target_wired() -> N
     assert "extension AppleBookCreatePayloadFactory" in media_payloads_source
     assert "static func makeSubtitlePayload(from draft: AppleSubtitleJobDraft)" in media_payloads_source
     assert "static func makeYoutubeDubPayload(from draft: AppleYoutubeDubDraft)" in media_payloads_source
-    assert "AppleBookCreatePayloadFactory.makeSubmission(from: draft)" in view_model_source
-    assert "AppleBookCreatePayloadFactory.makePipelineSubmission(from: effectiveDraft)" in view_model_source
-    assert "AppleBookCreatePayloadFactory.makeSubtitlePayload(from: draft)" in view_model_source
-    assert "AppleBookCreatePayloadFactory.makeYoutubeDubPayload(from: draft)" in view_model_source
+    assert "AppleBookCreatePayloadFactory.makeSubmission(from: draft)" in submission_source
+    assert "AppleBookCreatePayloadFactory.makePipelineSubmission(from: effectiveDraft)" in submission_source
+    assert "AppleBookCreatePayloadFactory.makeSubtitlePayload(from: draft)" in submission_source
+    assert "AppleBookCreatePayloadFactory.makeYoutubeDubPayload(from: draft)" in submission_source
+    assert "AppleBookCreatePayloadFactory.makeSubmission(from: draft)" not in view_model_source
     assert "private static func makeSubmission" not in view_model_source
     assert "private static func makePipelineSubmission(from draft: AppleNarrateEbookDraft)" not in view_model_source
     assert "private static func makeSubtitlePayload" not in view_model_source

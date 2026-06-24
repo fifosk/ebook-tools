@@ -40,6 +40,8 @@
 		LIBCHROME001A0002 /* LibraryBrowseChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = LIBCHROME002A0001 /* LibraryBrowseChrome.swift */; };
 		CREATEVIEW001A0001 /* AppleBookCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVIEW002A0001 /* AppleBookCreateView.swift */; };
 		CREATEVIEW001A0002 /* AppleBookCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVIEW002A0001 /* AppleBookCreateView.swift */; };
+		CREATEVMSUB001A0001 /* AppleBookCreateViewModel+Submission.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVMSUB002A0001 /* AppleBookCreateViewModel+Submission.swift */; };
+		CREATEVMSUB001A0002 /* AppleBookCreateViewModel+Submission.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVMSUB002A0001 /* AppleBookCreateViewModel+Submission.swift */; };
 		CREATESECT001A0001 /* AppleBookCreateNarrationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESECT002A0001 /* AppleBookCreateNarrationSection.swift */; };
 		CREATESECT001A0002 /* AppleBookCreateNarrationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESECT002A0001 /* AppleBookCreateNarrationSection.swift */; };
 		CREATEMOD001A0001 /* AppleBookCreateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMOD002A0001 /* AppleBookCreateModels.swift */; };
@@ -683,6 +685,7 @@
 		EA3A539D59C840118551CB0B /* InteractivePlayerView+Bookmarks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+Bookmarks.swift"; sourceTree = "<group>"; };
 		LIBCHROME002A0001 /* LibraryBrowseChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryBrowseChrome.swift; sourceTree = "<group>"; };
 		CREATEVIEW002A0001 /* AppleBookCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateView.swift; sourceTree = "<group>"; };
+		CREATEVMSUB002A0001 /* AppleBookCreateViewModel+Submission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleBookCreateViewModel+Submission.swift"; sourceTree = "<group>"; };
 		CREATESECT002A0001 /* AppleBookCreateNarrationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateNarrationSection.swift; sourceTree = "<group>"; };
 		CREATEMOD002A0001 /* AppleBookCreateModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateModels.swift; sourceTree = "<group>"; };
 		CREATEDEF002A0001 /* AppleBookCreateDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateDefaults.swift; sourceTree = "<group>"; };
@@ -915,6 +918,7 @@
 				CREATESTORE002A0001 /* AppleBookCreateStorageKeys.swift */,
 				CREATESTAT002A0001 /* AppleBookCreateStatusViews.swift */,
 				11EF28BF0B1E7A3F6ECC3EEB /* AppleBookCreateViewModel.swift */,
+				CREATEVMSUB002A0001 /* AppleBookCreateViewModel+Submission.swift */,
 				762ABB57C1BCB734E6D5A0ED /* AppleBookCreateSupport.swift */,
 			);
 			path = Create;
@@ -1790,6 +1794,7 @@
 				CREATESTORE001A0001 /* AppleBookCreateStorageKeys.swift in Sources */,
 				CREATESTAT001A0001 /* AppleBookCreateStatusViews.swift in Sources */,
 				40E3FF23022147B1F3B38F6E /* AppleBookCreateViewModel.swift in Sources */,
+				CREATEVMSUB001A0001 /* AppleBookCreateViewModel+Submission.swift in Sources */,
 				4225F50EC9D8CDDD12B4101C /* SubtitleTimecodeInput.swift in Sources */,
 				576FB3F2A05280220A5228DB /* MediaDiagnosticsStripView.swift in Sources */,
 				77312A0F25F8901207F2DDFC /* AppleBookCreateSupport.swift in Sources */,
@@ -2050,6 +2055,7 @@
 				CREATESTORE001A0002 /* AppleBookCreateStorageKeys.swift in Sources */,
 				CREATESTAT001A0002 /* AppleBookCreateStatusViews.swift in Sources */,
 				5776FC02D763AA4801FA841B /* AppleBookCreateViewModel.swift in Sources */,
+				CREATEVMSUB001A0002 /* AppleBookCreateViewModel+Submission.swift in Sources */,
 				C516F1F1817E9F730D1867BE /* SubtitleTimecodeInput.swift in Sources */,
 				8607DE27B11B1FE5B10C6FD6 /* MediaDiagnosticsStripView.swift in Sources */,
 				AC8B31C8FAC03EAEBE0D69D4 /* AppleBookCreateSupport.swift in Sources */,
