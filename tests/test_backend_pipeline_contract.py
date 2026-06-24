@@ -50,6 +50,11 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
             "tests/modules/webapi/test_bookmark_routes.py",
             "tests/modules/test_resume_service.py",
         ),
+        "test-backend-playback-media": (
+            "tests/modules/webapi/test_job_media_routes.py",
+            "tests/modules/webapi/test_library_media_route.py",
+            "tests/modules/webapi/test_library_media_file_download.py",
+        ),
         "test-backend-offline-export": (
             "tests/modules/webapi/test_export_routes.py",
         ),
@@ -83,6 +88,7 @@ def test_docs_publish_backend_pipeline_targets() -> None:
         "make test-backend-notifications",
         "make test-backend-subtitle-router",
         "make test-backend-playback-state",
+        "make test-backend-playback-media",
         "make test-backend-offline-export",
         "make test-backend-youtube-dubbing-service",
     ]:

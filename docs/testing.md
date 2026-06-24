@@ -316,8 +316,8 @@ legacy flags (`--use-remote-env-tokens`, read/write token requirements, and
 command shape while the unavailable iPhone profile is left out of the run. The
 backend test manifest separately covers auth/session restore, reading-bed
 catalog and uploaded file route used by Web playback controls plus Apple
-playback/offline sync, and the notification device/preference/test routes used
-by Apple Settings.
+playback/offline sync, playback media manifests/file streaming, and the
+notification device/preference/test routes used by Apple Settings.
 
 Run the local Apple contract gate after changing native Create payloads,
 deployment helpers, or simulator journey config wiring:
@@ -717,6 +717,7 @@ available and `python3` otherwise.
 | `make test-backend-notifications` | `$(PYTHON) -m pytest ...` | Shared-pipeline Apple notification device, preference, and test-send route slice |
 | `make test-backend-subtitle-router` | `$(PYTHON) -m pytest ...` | Shared-pipeline subtitle router backend slice |
 | `make test-backend-playback-state` | `$(PYTHON) -m pytest ...` | Shared-pipeline resume and bookmark playback-state backend slice |
+| `make test-backend-playback-media` | `$(PYTHON) -m pytest ...` | Shared-pipeline job/Library media manifest, diagnostics, timing metrics, and ranged stream backend slice |
 | `make test-backend-offline-export` | `$(PYTHON) -m pytest ...` | Shared-pipeline offline export route, metrics, and token-safe logging slice |
 | `make test-backend-youtube-dubbing-service` | `$(PYTHON) -m pytest ...` | Shared-pipeline YouTube dubbing/download route and service slice |
 | `make test-web-create-book-focused` | `npm --prefix web test -- --run ...` | Focused generated-book Create page Vitest slice |

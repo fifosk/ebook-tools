@@ -817,6 +817,11 @@ Suggested features to evaluate after parity scaffolding:
   `test-backend-playback-state` target now covers resume routes, bookmark
   routes, and the optimized filtered resume service path, and the shared Apple
   backend pipeline manifest runs it as a playback-state regression gate. The
+  repo-owned `test-backend-playback-media` target now covers job media
+  manifests, Library media manifests with sentence metadata, token-safe media
+  route timing, diagnostics counts, and ranged Library file streaming used by
+  Web playback plus Apple Job/Library playback, and the shared Apple backend
+  manifest runs it as a playback-media regression gate. The
   repo-owned `test-backend-reading-beds` target now also covers the
   reading-bed catalog, admin upload/default update, uploaded file streaming,
   and cleanup fallback used by Web playback controls plus Apple playback and

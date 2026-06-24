@@ -10,6 +10,7 @@
        test-backend-notifications \
        test-backend-subtitle-router \
        test-backend-playback-state \
+       test-backend-playback-media \
        test-backend-offline-export \
        test-backend-youtube-dubbing-service \
        test-web-create-book-focused test-web-create-intake-focused \
@@ -120,6 +121,12 @@ test-backend-playback-state:
 		tests/modules/webapi/test_resume_routes.py \
 		tests/modules/webapi/test_bookmark_routes.py \
 		tests/modules/test_resume_service.py
+
+test-backend-playback-media:
+	$(PYTHON) -m pytest \
+		tests/modules/webapi/test_job_media_routes.py \
+		tests/modules/webapi/test_library_media_route.py \
+		tests/modules/webapi/test_library_media_file_download.py
 
 test-backend-offline-export:
 	$(PYTHON) -m pytest tests/modules/webapi/test_export_routes.py
