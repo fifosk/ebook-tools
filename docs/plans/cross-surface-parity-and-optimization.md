@@ -440,8 +440,10 @@ Optimization candidates:
   already-vanished, in-scope EPUB sources as an idempotent cleanup success
   while still rejecting paths outside the books root. `/api/subtitles/sources`
   now applies the same transient directory-scan tolerance and stale-entry skip
-  when building Web/Apple subtitle source pickers, so NAS remounts or vanished
-  subtitle paths do not become broken default selections.
+  when building Web/Apple subtitle source pickers, and recursively discovers
+  visible nested subtitle files while preserving SRT/VTT-first newest-default
+  ordering, so NAS remounts, vanished subtitle paths, or series-organized
+  subtitle folders do not become broken default selections.
   `/api/subtitles/delete-source` now treats already-vanished, in-scope subtitle
   sources as idempotent cleanup results while still rejecting paths outside the
   allowed base directory. The

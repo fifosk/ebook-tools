@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -139,16 +140,78 @@ def test_subtitle_service_list_sources_tolerates_scan_failure(
         default_source_dir=tmp_path,
     )
     resolved = tmp_path.resolve()
-    original_iterdir = Path.iterdir
+    original_walk = os.walk
 
-    def fake_iterdir(path: Path):
-        if path == resolved:
-            raise OSError("transient NAS remount")
-        return original_iterdir(path)
+    def fake_walk(path: Path, *args, **kwargs):
+        if Path(path) == resolved:
+            onerror = kwargs.get("onerror")
+            if onerror is not None:
+                onerror(OSError("transient NAS remount"))
+            if False:
+                yield None
+            return
+        yield from original_walk(path, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "iterdir", fake_iterdir)
+    monkeypatch.setattr("modules.services.subtitle_service.os.walk", fake_walk)
 
     assert service.list_sources() == []
+
+
+def test_subtitle_service_list_sources_recurses_visible_nas_folders(tmp_path: Path) -> None:
+    nested = tmp_path / "Shows" / "Current"
+    hidden = tmp_path / ".scratch"
+    nested.mkdir(parents=True)
+    hidden.mkdir()
+    root_source = tmp_path / "older.en.srt"
+    nested_source = nested / "latest.EN.VTT"
+    hidden_source = hidden / "hidden.en.srt"
+    ignored = nested / "notes.txt"
+    root_source.write_text("1\n00:00:00,000 --> 00:00:01,000\nOlder\n", encoding="utf-8")
+    nested_source.write_text("WEBVTT\n\n00:00.000 --> 00:01.000\nLatest\n", encoding="utf-8")
+    hidden_source.write_text("1\n00:00:00,000 --> 00:00:01,000\nHidden\n", encoding="utf-8")
+    ignored.write_text("not subtitles", encoding="utf-8")
+    service = SubtitleService(
+        job_manager=object(),
+        locator=object(),
+        default_source_dir=tmp_path,
+    )
+
+    assert set(service.list_sources()) == {root_source.resolve(), nested_source.resolve()}
+
+
+def test_list_subtitle_sources_returns_nested_sources_with_preferred_sort(tmp_path: Path) -> None:
+    nested = tmp_path / "Series"
+    nested.mkdir()
+    newer_ass = nested / "newer.ass"
+    older_srt = tmp_path / "older.srt"
+    newer_vtt = nested / "newer.vtt"
+    newer_ass.write_text("[Script Info]\n", encoding="utf-8")
+    older_srt.write_text("1\n00:00:00,000 --> 00:00:01,000\nOlder\n", encoding="utf-8")
+    newer_vtt.write_text("WEBVTT\n\n00:00.000 --> 00:01.000\nNewer\n", encoding="utf-8")
+    newer_time = 1_700_000_500
+    older_time = 1_700_000_000
+    newer_ass.touch()
+    older_srt.touch()
+    newer_vtt.touch()
+    os.utime(newer_ass, (newer_time, newer_time))
+    os.utime(newer_vtt, (newer_time, newer_time))
+    os.utime(older_srt, (older_time, older_time))
+    service = SubtitleService(
+        job_manager=object(),
+        locator=object(),
+        default_source_dir=tmp_path,
+    )
+
+    response = list_subtitle_sources(
+        service=service,
+        request_user=RequestUserContext(user_id="editor", user_role="editor"),
+    )
+
+    assert [entry.path for entry in response.sources] == [
+        newer_vtt.resolve().as_posix(),
+        older_srt.resolve().as_posix(),
+        newer_ass.resolve().as_posix(),
+    ]
 
 
 def test_subtitle_service_delete_source_reports_missing_in_scope_file(tmp_path: Path) -> None:
