@@ -2372,8 +2372,7 @@ struct AppleBookCreateView: View {
 
     private func applyStoredLanguagePreferences() {
         guard
-            let data = UserDefaults.standard.data(forKey: languagePreferencesStorageKey),
-            let preferences = try? JSONDecoder().decode(AppleCreateLanguagePreferences.self, from: data),
+            let preferences = AppleBookCreatePreferences.storedLanguagePreferences(baseKey: creationOptionsLoadKey),
             let resolved = AppleBookCreatePresentation.resolvedLanguagePreferences(from: preferences)
         else {
             return
@@ -2404,14 +2403,7 @@ struct AppleBookCreateView: View {
             additionalTargetLanguages: additionalTargetLanguages,
             enableLookupCache: enableLookupCache
         )
-        guard let data = try? JSONEncoder().encode(preferences) else {
-            return
-        }
-        UserDefaults.standard.set(data, forKey: languagePreferencesStorageKey)
-    }
-
-    private var languagePreferencesStorageKey: String {
-        AppleBookCreateStorageKeys.languagePreferences(baseKey: creationOptionsLoadKey)
+        AppleBookCreatePreferences.persistLanguagePreferences(preferences, baseKey: creationOptionsLoadKey)
     }
 
     private func applyCreationOptions(_ options: BookCreationOptionsResponse) {

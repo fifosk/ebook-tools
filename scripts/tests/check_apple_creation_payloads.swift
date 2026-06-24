@@ -306,6 +306,23 @@ struct AppleCreationPayloadCheck {
             ) == nil,
             "Apple Create should remove scoped YouTube selections when the selected path is blank"
         )
+        let persistedLanguagePreferences = AppleCreateLanguagePreferences(
+            inputLanguage: "English",
+            targetLanguages: ["Slovak", "French", "Arabic"],
+            enableLookupCache: false
+        )
+        AppleBookCreatePreferences.persistLanguagePreferences(
+            persistedLanguagePreferences,
+            baseKey: preferenceBaseKey,
+            defaults: preferenceDefaults
+        )
+        require(
+            AppleBookCreatePreferences.storedLanguagePreferences(
+                baseKey: preferenceBaseKey,
+                defaults: preferenceDefaults
+            ) == persistedLanguagePreferences,
+            "Apple Create should persist shared language and lookup-cache preferences per API/user scope"
+        )
         let inlineSubtitleStreamsJSON = """
         {
           "video_path": "/nas/video-b.mp4",

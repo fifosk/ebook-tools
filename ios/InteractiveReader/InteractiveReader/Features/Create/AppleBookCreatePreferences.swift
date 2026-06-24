@@ -72,6 +72,29 @@ enum AppleBookCreatePreferences {
         defaults.set(value, forKey: AppleBookCreateStorageKeys.subtitleShowOriginal(baseKey: baseKey))
     }
 
+    static func storedLanguagePreferences(
+        baseKey: String,
+        defaults: UserDefaults = .standard,
+        decoder: JSONDecoder = JSONDecoder()
+    ) -> AppleCreateLanguagePreferences? {
+        guard let data = defaults.data(forKey: AppleBookCreateStorageKeys.languagePreferences(baseKey: baseKey)) else {
+            return nil
+        }
+        return try? decoder.decode(AppleCreateLanguagePreferences.self, from: data)
+    }
+
+    static func persistLanguagePreferences(
+        _ preferences: AppleCreateLanguagePreferences,
+        baseKey: String,
+        defaults: UserDefaults = .standard,
+        encoder: JSONEncoder = JSONEncoder()
+    ) {
+        guard let data = try? encoder.encode(preferences) else {
+            return
+        }
+        defaults.set(data, forKey: AppleBookCreateStorageKeys.languagePreferences(baseKey: baseKey))
+    }
+
     private static func setOrRemove(_ value: String, forKey key: String, defaults: UserDefaults) {
         if let value = value.nonEmptyValue {
             defaults.set(value, forKey: key)
