@@ -487,7 +487,11 @@ journey tries to use stale NAS cleanup controls. The shared-pipeline
 office-iPad Create-readiness lane now has repo-owned
 `apple-pipeline-ipad-create-readiness` and dry-run shortcuts that delegate to
 the registered `ipados-create` app-owned journey without depending on an
-available iPhone.
+available iPhone. Apple TV now has matching repo-owned
+`test-e2e-tvos-create-readiness` and shared-pipeline
+`apple-pipeline-tvos-create-readiness`/dry-run shortcuts through the registered
+`tvos-create` journey, keeping native tvOS Create checks simulator-only unless
+a physical Apple TV deploy is explicitly requested.
 
 ### Milestone 2: iPad/iPhone Native New Job
 
@@ -516,7 +520,10 @@ Keep Apple TV creation constrained to remote-friendly server/NAS workflows.
 Status: the tvOS browse picker exposes Create, the native routing helper uses
 the shared Create mode list, and local document import remains iOS/iPadOS-only
 so Apple TV can submit generated-book, Narrate EPUB, subtitle, and YouTube jobs
-from backend-visible sources without becoming the richest editing surface.
+from backend-visible sources without becoming the richest editing surface. The
+strict Create-readiness journey can now run on tvOS via
+`make test-e2e-tvos-create-readiness` and through the reusable pipeline
+`tvos-create` profile.
 
 ### Milestone 3: Web UI Redesign
 

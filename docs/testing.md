@@ -65,6 +65,7 @@ cd /Users/fifo/Projects/home/apple-device-app-pipeline
 python3 scripts/run_app_owned_journey.py --app ebook-tools --list
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados-create --dry-run
+python3 scripts/run_app_owned_journey.py --app ebook-tools --profile tvos-create --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ios-uitests-build --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile macos-ipad-style-dry-run --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile macos-ipad-style --dry-run
@@ -195,6 +196,8 @@ make apple-pipeline-owned-journey-dry-run
 make apple-pipeline-owned-journeys-dry-run
 make apple-pipeline-ipad-create-readiness
 make apple-pipeline-ipad-create-readiness-dry-run
+make apple-pipeline-tvos-create-readiness
+make apple-pipeline-tvos-create-readiness-dry-run
 make apple-pipeline-orchestration-dry-runs
 make verify-apple-shared-pipeline
 ```
@@ -217,9 +220,12 @@ before restoring generated Web artifacts. Use
 smoke. Use `apple-pipeline-ipad-create-readiness-dry-run`, then
 `apple-pipeline-ipad-create-readiness`, for the office-iPad-only Create
 readiness lane; it delegates to the registered `ipados-create` app-owned
-journey. Use `APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create` (or another listed
-journey) with `apple-pipeline-owned-journey-dry-run` when you need an explicit
-profile override. `apple-pipeline-orchestration-dry-runs` expands the
+journey. Use `apple-pipeline-tvos-create-readiness-dry-run`, then
+`apple-pipeline-tvos-create-readiness`, when Apple TV Create needs the same
+strict backend-source readiness check through the registered `tvos-create`
+journey. Use `APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create` or
+`tvos-create` with `apple-pipeline-owned-journey-dry-run` when you need an
+explicit profile override. `apple-pipeline-orchestration-dry-runs` expands the
 registered iPhone/iPad/tvOS simulator smoke profiles and app-owned journeys
 without booting simulators or loading remote secrets.
 
@@ -941,6 +947,7 @@ from backend-visible sources:
 ```bash
 make test-e2e-iphone-create-readiness
 make test-e2e-ipad-create-readiness
+make test-e2e-tvos-create-readiness
 make test-e2e-apple-create-readiness
 ```
 

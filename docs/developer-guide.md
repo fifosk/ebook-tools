@@ -207,6 +207,8 @@ make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ios-uit
 make apple-pipeline-owned-journeys-dry-run
 make apple-pipeline-ipad-create-readiness-dry-run
 make apple-pipeline-ipad-create-readiness
+make apple-pipeline-tvos-create-readiness-dry-run
+make apple-pipeline-tvos-create-readiness
 make apple-pipeline-orchestration-dry-runs
 make verify-apple-shared-pipeline
 make apple-device-preflight APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID=<id>

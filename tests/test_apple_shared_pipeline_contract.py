@@ -19,7 +19,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" in makefile
     assert (
         "APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create "
-        "ipados-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style"
+        "ipados-create tvos-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style"
     ) in makefile
     assert "apple-pipeline-contracts:" in makefile
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
@@ -49,6 +49,10 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create" in makefile
     assert "apple-pipeline-ipad-create-readiness-dry-run:" in makefile
     assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create" in makefile
+    assert "apple-pipeline-tvos-create-readiness:" in makefile
+    assert "$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create" in makefile
+    assert "apple-pipeline-tvos-create-readiness-dry-run:" in makefile
+    assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create" in makefile
     assert (
         "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run "
         "apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run"
@@ -108,6 +112,8 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-pipeline-owned-journeys-dry-run",
         "make apple-pipeline-ipad-create-readiness",
         "make apple-pipeline-ipad-create-readiness-dry-run",
+        "make apple-pipeline-tvos-create-readiness",
+        "make apple-pipeline-tvos-create-readiness-dry-run",
         "make apple-pipeline-orchestration-dry-runs",
         "make verify-apple-shared-pipeline",
     ]:

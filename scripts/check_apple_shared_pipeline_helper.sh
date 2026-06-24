@@ -41,6 +41,8 @@ owned_journey_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTH
 owned_journeys_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE="$$profile"'
 ipad_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create'
 ipad_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create'
+tvos_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create'
+tvos_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create'
 verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs"
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
@@ -51,7 +53,7 @@ assert_contains "${makefile}" "APPLE_PIPELINE_APP ?= ebook-tools" "Makefile shou
 assert_contains "${makefile}" "APPLE_PIPELINE_SMOKE_PROFILE ?= ipados" "Makefile should declare a default shared simulator smoke profile"
 assert_contains "${makefile}" "APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos" "Makefile should declare shared simulator smoke dry-run profiles"
 assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" "Makefile should declare a default app-owned journey profile"
-assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style" "Makefile should declare app-owned journey dry-run profiles"
+assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create tvos-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style" "Makefile should declare app-owned journey dry-run profiles"
 assert_contains "${makefile}" "APPLE_DEVICE_PROFILE ?= ipad" "Makefile should declare the default attended device profile"
 assert_contains "${makefile}" "apple-pipeline-contracts:" "Makefile should expose the shared pipeline contract runner"
 assert_contains "${makefile}" "${contract_line}" "shared pipeline contracts should call run_app_contract_checks"
@@ -81,6 +83,10 @@ assert_contains "${makefile}" "apple-pipeline-ipad-create-readiness:" "Makefile 
 assert_contains "${makefile}" "${ipad_create_readiness_line}" "iPad Create-readiness shortcut should run the ipados-create app-owned journey"
 assert_contains "${makefile}" "apple-pipeline-ipad-create-readiness-dry-run:" "Makefile should expose the iPad Create-readiness dry-run shortcut"
 assert_contains "${makefile}" "${ipad_create_readiness_dry_run_line}" "iPad Create-readiness dry-run shortcut should dry-run the ipados-create app-owned journey"
+assert_contains "${makefile}" "apple-pipeline-tvos-create-readiness:" "Makefile should expose the tvOS Create-readiness shared pipeline shortcut"
+assert_contains "${makefile}" "${tvos_create_readiness_line}" "tvOS Create-readiness shortcut should run the tvos-create app-owned journey"
+assert_contains "${makefile}" "apple-pipeline-tvos-create-readiness-dry-run:" "Makefile should expose the tvOS Create-readiness dry-run shortcut"
+assert_contains "${makefile}" "${tvos_create_readiness_dry_run_line}" "tvOS Create-readiness dry-run shortcut should dry-run the tvos-create app-owned journey"
 assert_contains "${makefile}" "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run" "orchestration dry-runs should compose simulator and app-owned journey dry-runs"
 assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts, backend checks, backend tests, Web checks, and orchestration dry-runs"
 assert_contains "${makefile}" "apple-device-preflight:" "Makefile should expose a non-installing device preflight helper"

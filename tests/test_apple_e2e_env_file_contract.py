@@ -16,7 +16,10 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert '--fallback-config-path "$(E2E_PLATFORM_CONFIG_PATH)"' in makefile
     assert '--fallback-journey-path "$(E2E_PLATFORM_JOURNEY_PATH)"' in makefile
     assert "test-e2e-ipad: E2E_PLATFORM_PROFILE = ipados" in makefile
+    assert "test-e2e-tvos: E2E_PLATFORM_PROFILE = tvos" in makefile
     assert '$(PYTHON) scripts/check_apple_create_readiness.py --env-file "$(E2E_ENV_FILE)"' in makefile
+    assert "test-e2e-tvos-create-readiness:" in makefile
+    assert "E2E_PROFILE=tvos-create" in makefile
     assert '$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \\' in makefile
     assert "--env-file .env \\" not in makefile
     assert "scripts/check_apple_create_readiness.py\n" not in makefile
@@ -28,3 +31,4 @@ def test_testing_docs_describe_e2e_env_file_override() -> None:
     assert "E2E_ENV_FILE" in docs
     assert ".env.local" in docs
     assert "make test-e2e-ipad-create-readiness" in docs
+    assert "make test-e2e-tvos-create-readiness" in docs

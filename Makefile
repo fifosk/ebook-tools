@@ -20,10 +20,13 @@
        apple-pipeline-simulator-smoke apple-pipeline-simulator-smoke-dry-run apple-pipeline-simulator-smokes-dry-run \
        apple-pipeline-owned-journeys apple-pipeline-owned-journey apple-pipeline-owned-journey-dry-run \
        apple-pipeline-owned-journeys-dry-run apple-pipeline-ipad-create-readiness \
-       apple-pipeline-ipad-create-readiness-dry-run apple-pipeline-orchestration-dry-runs \
+       apple-pipeline-ipad-create-readiness-dry-run apple-pipeline-tvos-create-readiness \
+       apple-pipeline-tvos-create-readiness-dry-run apple-pipeline-orchestration-dry-runs \
        verify-apple-shared-pipeline \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
+       test-e2e-iphone-create-readiness test-e2e-ipad-create-readiness \
+       test-e2e-tvos-create-readiness test-e2e-apple-create-readiness \
        test-e2e-all test-e2e-apple-parallel \
        docker-build-backend docker-build-frontend docker-build \
        docker-up docker-down docker-logs docker-status \
@@ -40,7 +43,7 @@ APPLE_PIPELINE_PYTHON ?= python3
 APPLE_PIPELINE_SMOKE_PROFILE ?= ipados
 APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos
 APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados
-APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style
+APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create tvos-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style
 APPLE_DEVICE_PROFILE ?= ipad
 
 # ── Full suite ───────────────────────────────────────────────────────────
@@ -239,6 +242,12 @@ apple-pipeline-ipad-create-readiness:
 
 apple-pipeline-ipad-create-readiness-dry-run:
 	$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create
+
+apple-pipeline-tvos-create-readiness:
+	$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create
+
+apple-pipeline-tvos-create-readiness-dry-run:
+	$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create
 
 apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run
 
@@ -476,6 +485,12 @@ test-e2e-tvos:
 	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)" "$(E2E_PLATFORM_CONFIG_PATH)" "$(E2E_PLATFORM_JOURNEY_PATH)"; \
 	exit $$status
 
+test-e2e-tvos-create-readiness:
+	@$(PYTHON) scripts/check_apple_create_readiness.py --env-file "$(E2E_ENV_FILE)"
+	@$(MAKE) test-e2e-tvos \
+		JOURNEY_SRC=$(CREATE_READINESS_JOURNEY_SRC) \
+		E2E_PROFILE=tvos-create
+
 # ── Legacy alias ─────────────────────────────────────────────────────
 test-e2e-ios: test-e2e-iphone
 
@@ -496,6 +511,7 @@ test-e2e-apple-parallel:
 test-e2e-apple-create-readiness:
 	@$(MAKE) test-e2e-iphone-create-readiness
 	@$(MAKE) test-e2e-ipad-create-readiness
+	@$(MAKE) test-e2e-tvos-create-readiness
 
 # ── Docker ──────────────────────────────────────────────────────────
 DOCKER_TAG ?= latest
