@@ -377,17 +377,38 @@ def _build_generated_source_defaults(config: dict[str, Any]) -> BookCreationGene
     )
 
 
+def _normalize_creation_target_languages(config: dict[str, Any]) -> list[str]:
+    values = config.get("target_languages")
+    candidates: list[object]
+    if isinstance(values, list):
+        candidates = list(values)
+    elif isinstance(values, str):
+        candidates = values.split(",")
+    else:
+        candidates = [config.get("output_language")]
+
+    result: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if not isinstance(candidate, str):
+            continue
+        value = candidate.strip()
+        if not value:
+            continue
+        key = value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(value)
+
+    return result or [_DEFAULT_OUTPUT_LANGUAGE]
+
+
 def _build_creation_options(config: dict[str, Any]) -> BookCreationOptionsResponse:
     selected_voice = _coerce_text(config.get("selected_voice"), _DEFAULT_VOICE)
     input_language = _coerce_text(config.get("input_language"), _DEFAULT_INPUT_LANGUAGE)
-    target_languages = config.get("target_languages")
-    if isinstance(target_languages, list):
-        output_language = next(
-            (entry.strip() for entry in target_languages if isinstance(entry, str) and entry.strip()),
-            _DEFAULT_OUTPUT_LANGUAGE,
-        )
-    else:
-        output_language = _coerce_text(config.get("output_language"), _DEFAULT_OUTPUT_LANGUAGE)
+    target_languages = _normalize_creation_target_languages(config)
+    output_language = target_languages[0]
 
     return BookCreationOptionsResponse(
         sentence_bounds=BookCreationSentenceBounds(
@@ -399,6 +420,8 @@ def _build_creation_options(config: dict[str, Any]) -> BookCreationOptionsRespon
             author=_DEFAULT_AUTHOR,
             input_language=input_language,
             output_language=output_language,
+            target_languages=target_languages,
+            output_languages=target_languages,
             voice=selected_voice,
         ),
         pipeline_defaults=BookCreationPipelineDefaults(

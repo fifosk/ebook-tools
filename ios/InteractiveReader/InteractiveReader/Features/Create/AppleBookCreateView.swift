@@ -1460,6 +1460,7 @@ struct AppleBookCreateView: View {
 
         if selectedSubtitleFileURL == nil,
            !editedFields.contains(.subtitleSourcePath),
+           trimmed(subtitleSourcePath).isEmpty,
            let sourcePath = defaults.sourcePath?.nonEmptyValue {
             subtitleSourcePath = sourcePath
         }
@@ -1523,10 +1524,12 @@ struct AppleBookCreateView: View {
         }
 
         if !editedFields.contains(.youtubeVideoPath),
+           trimmed(youtubeVideoPath).isEmpty,
            let videoPath = defaults.videoPath?.nonEmptyValue {
             youtubeVideoPath = videoPath
         }
         if !editedFields.contains(.youtubeSubtitlePath),
+           trimmed(youtubeSubtitlePath).isEmpty,
            let subtitlePath = defaults.subtitlePath?.nonEmptyValue {
             youtubeSubtitlePath = subtitlePath
         }

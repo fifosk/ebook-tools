@@ -390,7 +390,7 @@ Target Apple UX:
 - Add EPUB file import/upload next using document picker on iPad/iPhone.
   Status: implemented in Apple Create Narrate EPUB by picking a local `.epub`,
   uploading it to `/api/pipelines/files/upload`, and submitting the returned
-  server path to `/api/pipelines`. Narrate EPUB history defaults now reuse prior audio, output, translation, transliteration, lookup-cache, and chunking settings while preserving any fields edited in the current form.
+  server path to `/api/pipelines`. Narrate EPUB history defaults now reuse prior audio, output, translation, transliteration, lookup-cache, and chunking settings while preserving any fields edited in the current form, and Create history no longer replaces newer backend-selected NAS EPUB/subtitle/video sources.
 - Route success to the new job in Jobs and start auto-refresh. Status: Apple
   Create now switches to Jobs after successful submission, selects the created
   job, aligns the Jobs filter with the created job's category, and starts the

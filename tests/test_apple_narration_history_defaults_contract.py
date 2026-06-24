@@ -171,6 +171,35 @@ def test_narrate_epub_history_defaults_preserve_user_edited_fields() -> None:
         assert token in block
 
 
+def test_create_history_defaults_do_not_replace_loaded_nas_sources() -> None:
+    history_source = _source(CREATE_HISTORY_DEFAULTS)
+    view_source = _source(CREATE_VIEW)
+    function_block = _named_block(
+        history_source,
+        r"static func narrationHistoryDefaults\(",
+        "static func generatedBookHistoryDefaults",
+    )
+    subtitle_block = _named_block(
+        view_source,
+        r"private func applySubtitleHistoryDefaults\(\) \{",
+        "private func applyYoutubeHistoryDefaults",
+    )
+    youtube_block = _named_block(
+        view_source,
+        r"private func applyYoutubeHistoryDefaults\(\) \{",
+        "private func clearNarrateChapterSelection",
+    )
+
+    assert "let currentInput = currentInputFile.trimmingCharacters(in: .whitespacesAndNewlines)" in function_block
+    assert 'let latestInputFile = latest.flatMap { narrationString($0, keys: ["input_file", "inputFile"]) }' in function_block
+    assert "let inputFile = currentInput.isEmpty ? latestInputFile : nil" in function_block
+    assert "let baseOutput = currentInput.isEmpty" in function_block
+    assert 'let startInput = currentInput.nonEmptyValue ?? latestInputFile ?? ""' in function_block
+    assert "trimmed(subtitleSourcePath).isEmpty" in subtitle_block
+    assert "trimmed(youtubeVideoPath).isEmpty" in youtube_block
+    assert "trimmed(youtubeSubtitlePath).isEmpty" in youtube_block
+
+
 def test_parity_plan_mentions_narrate_epub_history_defaults() -> None:
     plan = _source(PLAN_DOC)
 

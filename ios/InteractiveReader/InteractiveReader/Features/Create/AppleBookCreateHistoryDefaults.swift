@@ -5,9 +5,13 @@ extension AppleBookCreatePresentation {
     ) -> AppleNarrationHistoryDefaults? {
         guard !jobs.isEmpty else { return nil }
         let latest = latestNarrationJob(from: jobs)
-        let inputFile = latest.flatMap { narrationString($0, keys: ["input_file", "inputFile"]) }
-        let baseOutput = latest.flatMap { narrationString($0, keys: ["base_output_file", "baseOutputFile"]) }
-        let startInput = (inputFile ?? currentInputFile).trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentInput = currentInputFile.trimmingCharacters(in: .whitespacesAndNewlines)
+        let latestInputFile = latest.flatMap { narrationString($0, keys: ["input_file", "inputFile"]) }
+        let inputFile = currentInput.isEmpty ? latestInputFile : nil
+        let baseOutput = currentInput.isEmpty
+            ? latest.flatMap { narrationString($0, keys: ["base_output_file", "baseOutputFile"]) }
+            : nil
+        let startInput = currentInput.nonEmptyValue ?? latestInputFile ?? ""
         let startSentence = narrationStartSentence(inputFile: startInput, from: jobs)
 
         let inputLanguage = latest

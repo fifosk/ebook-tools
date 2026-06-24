@@ -81,6 +81,8 @@ class BookCreationDefaults(BaseModel):
     author: str = "Me"
     input_language: str = "English"
     output_language: str = "Arabic"
+    target_languages: List[str] | None = None
+    output_languages: List[str] | None = None
     voice: str = "gTTS"
 
 

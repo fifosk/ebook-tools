@@ -434,6 +434,7 @@ def test_book_creation_options_exposes_cross_surface_job_default_overrides(tmp_p
             "image_prompt_context_sentences": "99",
             "image_width": "32",
             "image_height": "768",
+            "target_languages": ["French", "Spanish", "french", "", 42],
         }
     )
 
@@ -449,6 +450,9 @@ def test_book_creation_options_exposes_cross_surface_job_default_overrides(tmp_p
 
     assert response.status_code == 200
     body = response.json()
+    assert body["defaults"]["output_language"] == "French"
+    assert body["defaults"]["target_languages"] == ["French", "Spanish"]
+    assert body["defaults"]["output_languages"] == ["French", "Spanish"]
     assert body["subtitle_defaults"] == {
         "worker_count": 12,
         "batch_size": 22,
