@@ -680,6 +680,10 @@ Refactor before restyling:
   language catalog used by the pickers, instead of a narrow local name map, and
   native voice previews now carry localized sample sentences across the same
   backend/Web language catalog instead of only the original six languages. The
+  shared `/api/pipelines/defaults` route now records token-safe duration
+  telemetry and aggregate logs for success, forbidden, and error outcomes
+  without logging user ids, auth headers, tokens, job ids, or configured input
+  paths. The
   manifest-registered `test-backend-audio-routes` target now exercises
   `/api/audio`, `/api/audio/voices`, and `/api/audio/match` with stubbed
   synthesis, so the shared pipeline catches voice inventory and preview drift

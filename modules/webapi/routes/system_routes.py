@@ -48,6 +48,39 @@ def _record_pipeline_intake_route_duration(operation: str, result: str, started_
     )
 
 
+def _record_pipeline_defaults_route_duration(
+    operation: str,
+    result: str,
+    started_at: float,
+) -> None:
+    """Record token-safe defaults route timing if metrics are available."""
+
+    try:
+        from ..metrics import PIPELINE_DEFAULTS_ROUTE_DURATION
+    except Exception:
+        return
+    PIPELINE_DEFAULTS_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
+def _log_pipeline_defaults_result(
+    *,
+    result: str,
+    started_at: float,
+    config_keys: int | None = None,
+    has_input_file: bool | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000
+    details = f"Pipeline defaults result={result} duration_ms={duration_ms:.1f}"
+    if config_keys is not None:
+        details += f" config_keys={config_keys}"
+    if has_input_file is not None:
+        details += f" has_input_file={has_input_file}"
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(details)
+
+
 def _log_pipeline_intake_status(
     *,
     result: str,
@@ -91,15 +124,34 @@ async def get_pipeline_defaults(
 ):
     """Return the resolved baseline configuration for client defaults."""
 
-    _ensure_editor(request_user)
-    resolved = context_provider.resolve_config()
-    stripped = cfg.strip_derived_config(resolved)
-    input_file = stripped.get("input_file")
-    books_dir = resolved.get("books_dir")
-    if isinstance(input_file, str) and input_file.strip():
-        candidate = cfg.resolve_file_path(input_file.strip(), books_dir)
-        if candidate and not candidate.exists():
-            stripped.pop("input_file", None)
+    started_at = time.perf_counter()
+    role = normalize_role(request_user.user_role) or ""
+    if role not in _ALLOWED_ROLES:
+        _record_pipeline_defaults_route_duration("defaults", "forbidden", started_at)
+        _log_pipeline_defaults_result(result="forbidden", started_at=started_at)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+
+    try:
+        resolved = context_provider.resolve_config()
+        stripped = cfg.strip_derived_config(resolved)
+        input_file = stripped.get("input_file")
+        books_dir = resolved.get("books_dir")
+        if isinstance(input_file, str) and input_file.strip():
+            candidate = cfg.resolve_file_path(input_file.strip(), books_dir)
+            if candidate and not candidate.exists():
+                stripped.pop("input_file", None)
+    except Exception:
+        _record_pipeline_defaults_route_duration("defaults", "error", started_at)
+        _log_pipeline_defaults_result(result="error", started_at=started_at)
+        raise
+
+    _record_pipeline_defaults_route_duration("defaults", "success", started_at)
+    _log_pipeline_defaults_result(
+        result="success",
+        started_at=started_at,
+        config_keys=len(stripped),
+        has_input_file=bool(stripped.get("input_file")),
+    )
     return PipelineDefaultsResponse(config=stripped)
 
 

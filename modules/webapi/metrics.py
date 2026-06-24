@@ -161,6 +161,13 @@ SOURCE_PICKER_ROUTE_DURATION = Histogram(
     buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
 )
 
+PIPELINE_DEFAULTS_ROUTE_DURATION = Histogram(
+    "ebook_tools_pipeline_defaults_route_duration_seconds",
+    "Pipeline defaults route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
+)
+
 PIPELINE_INTAKE_ROUTE_DURATION = Histogram(
     "ebook_tools_pipeline_intake_route_duration_seconds",
     "Pipeline intake status route duration in seconds",

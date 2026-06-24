@@ -14,7 +14,11 @@ from modules.services.job_manager import (
 )
 from modules.user_management import AuthService, LocalUserStore, SessionManager
 from modules.webapi.application import create_app
-from modules.webapi.dependencies import get_auth_service, get_pipeline_job_manager
+from modules.webapi.dependencies import (
+    get_auth_service,
+    get_pipeline_job_manager,
+    get_runtime_context_provider,
+)
 from modules.webapi import runtime_descriptor as runtime_descriptor_module
 from modules.webapi.routes import system_routes as pipeline_system_routes
 from modules.webapi.runtime_descriptor import (
@@ -71,6 +75,14 @@ class _FakeJobManager:
 
     def list(self, **_: Any) -> dict[str, PipelineJob]:
         return self._jobs
+
+
+class _StubRuntimeContextProvider:
+    def __init__(self, config: dict[str, Any]) -> None:
+        self._config = config
+
+    def resolve_config(self) -> dict[str, Any]:
+        return dict(self._config)
 
 
 @pytest.fixture
@@ -207,19 +219,72 @@ def test_runtime_descriptor_guard_flags_secret_like_keys() -> None:
         assert_runtime_descriptor_is_public(payload)
 
 
-def test_pipeline_defaults_endpoint_returns_config() -> None:
+def test_pipeline_defaults_endpoint_returns_config(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
+    secret_input = tmp_path / "Secret Book.epub"
+    secret_input.write_text("epub", encoding="utf-8")
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "input_file": str(secret_input),
+            "books_dir": str(tmp_path),
+            "target_language": "Arabic",
+        }
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/pipelines/defaults",
+                headers={"X-User-Id": "tester", "X-User-Role": "editor"},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["config"]["input_file"] == str(secret_input)
+    rendered_logs = "\n".join(logger.messages)
+    assert "Pipeline defaults result=success" in rendered_logs
+    assert "config_keys=3" in rendered_logs
+    assert "has_input_file=True" in rendered_logs
+    assert "tester" not in rendered_logs
+    assert str(secret_input) not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_pipeline_defaults_route_duration_seconds_count{operation="defaults",result="success"}'
+        in metrics_response.text
+    )
+
+
+def test_pipeline_defaults_endpoint_rejects_viewer_with_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
     app = create_app()
 
     with TestClient(app) as client:
         response = client.get(
             "/api/pipelines/defaults",
-            headers={"X-User-Id": "tester", "X-User-Role": "editor"},
+            headers={"X-User-Id": "viewer-user", "X-User-Role": "viewer"},
         )
+        metrics_response = client.get("/metrics")
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert isinstance(payload, dict)
-    assert "config" in payload
+    assert response.status_code == 403
+    rendered_logs = "\n".join(logger.messages)
+    assert "Pipeline defaults result=forbidden" in rendered_logs
+    assert "viewer-user" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_pipeline_defaults_route_duration_seconds_count{operation="defaults",result="forbidden"}'
+        in metrics_response.text
+    )
 
 
 def test_public_runtime_descriptor_returns_non_secret_contract() -> None:
