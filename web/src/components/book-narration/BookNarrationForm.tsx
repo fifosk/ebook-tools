@@ -28,6 +28,7 @@ import { useBookNarrationLlmModels } from './useBookNarrationLlmModels';
 import { useBookNarrationDefaults } from './useBookNarrationDefaults';
 import { CreateIntakeStatusCallout } from '../create-intake/CreateIntakeStatusCallout';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
+import { BookNarrationStepBar } from './BookNarrationStepBar';
 import type {
   BookNarrationFormProps,
   BookNarrationFormSection,
@@ -576,31 +577,15 @@ export function BookNarrationForm({
         </>
       ) : null}
       <form className="pipeline-form" onSubmit={handleSubmitAndRefreshIntake} noValidate>
-        <div className="pipeline-step-bar">
-          <div className="pipeline-step-tabs" role="tablist" aria-label="Pipeline steps">
-            {tabSections.map((section) => {
-              const meta = sectionMeta[section];
-              const isActive = activeTab === section;
-              return (
-                <button
-                  type="button"
-                  key={section}
-                  className={`pipeline-step-tab ${isActive ? 'is-active' : ''}`}
-                  onClick={() => handleSectionChange(section)}
-                  aria-selected={isActive}
-                  role="tab"
-                >
-                  <span className="pipeline-step-tab__label">{meta.title}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="pipeline-step-actions">
-            <button type="submit" disabled={isSubmitDisabled}>
-              {isSubmitting ? 'Submitting…' : submitText}
-            </button>
-          </div>
-        </div>
+        <BookNarrationStepBar
+          tabSections={tabSections}
+          sectionMeta={sectionMeta}
+          activeTab={activeTab}
+          onSectionChange={handleSectionChange}
+          isSubmitDisabled={isSubmitDisabled}
+          isSubmitting={isSubmitting}
+          submitText={submitText}
+        />
         <CreateIntakeStatusCallout status={intakeStatus} isLoading={isLoadingIntakeStatus} />
         {hasMissingRequirements ? (
           <div className="form-callout form-callout--warning" role="status">

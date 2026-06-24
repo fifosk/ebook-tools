@@ -204,7 +204,7 @@ Large Web UI hotspots to split before redesign work:
   coverage. Job overview bucketing and section rendering now live in
   `web/src/components/sidebar/SidebarJobOverview.tsx` with focused rendered
   coverage.
-- `web/src/components/book-narration/BookNarrationForm.tsx` - 708 lines.
+- `web/src/components/book-narration/BookNarrationForm.tsx` - 695 lines.
   Status: recent-job path normalization, resume-window inference, latest
   input/base selection, latest language/lookup-cache defaults, and rerun
   prefill state mapping, section metadata merging, edited-field preservation,
@@ -212,7 +212,9 @@ Large Web UI hotspots to split before redesign work:
   image-default restoration, plus default-settings compaction and target-language
   normalization now live in
   `web/src/components/book-narration/bookNarrationFormUtils.ts` with focused
-  Vitest coverage.
+  Vitest coverage. Pipeline step tabs and submit action rendering now live in
+  `web/src/components/book-narration/BookNarrationStepBar.tsx` with focused
+  rendered coverage.
 
 ### Apple Apps
 
