@@ -20,6 +20,8 @@ type BookNarrationLanguageSectionProps = {
   description: string;
   inputLanguage: string;
   targetLanguages: string[];
+  supportedInputLanguages?: string[] | null;
+  supportedTargetLanguages?: string[] | null;
   customTargetLanguages: string;
   ollamaModel: string;
   translationProvider: string;
@@ -72,6 +74,8 @@ const BookNarrationLanguageSection = ({
   description,
   inputLanguage,
   targetLanguages,
+  supportedInputLanguages = null,
+  supportedTargetLanguages = null,
   customTargetLanguages,
   ollamaModel,
   translationProvider,
@@ -120,22 +124,24 @@ const BookNarrationLanguageSection = ({
     () =>
       sortLanguageLabelsByName(
         buildLanguageOptions({
+          fetchedLanguages: supportedInputLanguages ?? [],
           preferredLanguages: [inputLanguage],
           fallback: 'English'
         })
       ),
-    [inputLanguage]
+    [inputLanguage, supportedInputLanguages]
   );
   const targetLanguage = targetLanguages[0] ?? '';
   const targetLanguageOptions = useMemo(
     () =>
       sortLanguageLabelsByName(
         buildLanguageOptions({
+          fetchedLanguages: supportedTargetLanguages ?? [],
           preferredLanguages: [targetLanguage, inputLanguage],
           fallback: targetLanguage || 'Arabic'
         })
       ),
-    [inputLanguage, targetLanguage]
+    [inputLanguage, supportedTargetLanguages, targetLanguage]
   );
   const resolvedTranslationProvider = normalizeTranslationProvider(translationProvider);
   const usesGoogleTranslate = resolvedTranslationProvider === 'googletrans';

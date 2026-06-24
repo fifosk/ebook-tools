@@ -71,6 +71,8 @@ type BookNarrationFormSectionsProps = {
   showOutputPathControls: boolean;
   isGeneratedSource: boolean;
   forcedBaseOutputFile: string | null;
+  supportedInputLanguages?: string[] | null;
+  supportedTargetLanguages?: string[] | null;
 };
 
 export function BookNarrationFormSections({
@@ -132,6 +134,8 @@ export function BookNarrationFormSections({
   showOutputPathControls,
   isGeneratedSource,
   forcedBaseOutputFile,
+  supportedInputLanguages = null,
+  supportedTargetLanguages = null,
 }: BookNarrationFormSectionsProps) {
   switch (section) {
     case 'source':
@@ -201,6 +205,8 @@ export function BookNarrationFormSections({
           description={sectionMeta.language.description}
           inputLanguage={formState.input_language}
           targetLanguages={formState.target_languages}
+          supportedInputLanguages={supportedInputLanguages}
+          supportedTargetLanguages={supportedTargetLanguages}
           customTargetLanguages={formState.custom_target_languages}
           ollamaModel={formState.ollama_model}
           translationProvider={formState.translation_provider}

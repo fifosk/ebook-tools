@@ -203,6 +203,29 @@ describe('BookNarrationForm', () => {
     await waitFor(() => expect(fetchPipelineIntakeStatus).toHaveBeenCalledTimes(2));
   }, 10000);
 
+  it('includes backend-supported language lists in the narration pickers', async () => {
+    await act(async () => {
+      renderWithLanguageProvider(
+        <BookNarrationForm
+          onSubmit={vi.fn()}
+          activeSection="language"
+          supportedInputLanguages={['Backend Input Language', 'English']}
+          supportedTargetLanguages={['Backend Target Language', 'Arabic']}
+        />
+      );
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    const inputOptions = Array.from(getInputLanguageField().options).map((option) => option.value);
+    const targetOptions = Array.from(getTargetLanguageSelect().options).map((option) => option.value);
+
+    expect(inputOptions).toContain('Backend Input Language');
+    expect(targetOptions).toContain('Backend Target Language');
+  });
+
   it('shows queue capacity and blocks submit when intake is closed', async () => {
     const user = userEvent.setup();
     const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();

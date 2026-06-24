@@ -33,6 +33,8 @@ export type BookNarrationFormProps = {
   showOutputPathControls?: boolean;
   defaultImageSettings?: ImageDefaults | null;
   defaultPipelineSettings?: BookNarrationPipelineDefaults | null;
+  supportedInputLanguages?: string[] | null;
+  supportedTargetLanguages?: string[] | null;
 };
 
 export type JsonFields =

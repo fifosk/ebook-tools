@@ -6,6 +6,7 @@ import {
   submitBookJob,
   type BookCreationOptionsResponse,
 } from '../../api/createBook';
+import BookNarrationForm from '../../components/book-narration/BookNarrationForm';
 
 vi.mock('../../api/createBook', () => ({
   fetchBookCreationOptions: vi.fn(),
@@ -94,6 +95,8 @@ describe('CreateBookPage', () => {
         book_name: 'Backend Book',
         genre: 'Backend genre',
       },
+      supported_input_languages: ['English', 'Backend Input Language'],
+      supported_output_languages: ['Arabic', 'Backend Target Language'],
     });
 
     render(<CreateBookPage />);
@@ -116,6 +119,10 @@ describe('CreateBookPage', () => {
     expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"audio_bitrate_kbps":128');
     expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"translation_provider":"googletrans"');
     expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"enable_lookup_cache":false');
+
+    const formProps = vi.mocked(BookNarrationForm).mock.calls.at(-1)?.[0];
+    expect(formProps?.supportedInputLanguages).toEqual(['English', 'Backend Input Language']);
+    expect(formProps?.supportedTargetLanguages).toEqual(['Arabic', 'Backend Target Language']);
   });
 
   it('preserves generated-book prompt edits when backend defaults arrive late', async () => {

@@ -77,7 +77,9 @@ export function BookNarrationForm({
   showInfoHeader = true,
   showOutputPathControls = true,
   defaultImageSettings = null,
-  defaultPipelineSettings = null
+  defaultPipelineSettings = null,
+  supportedInputLanguages = null,
+  supportedTargetLanguages = null
 }: BookNarrationFormProps) {
   const isGeneratedSource = sourceMode === 'generated';
   const imageDefaults = defaultImageSettings ?? null;
@@ -654,6 +656,8 @@ export function BookNarrationForm({
             showOutputPathControls={showOutputPathControls}
             isGeneratedSource={isGeneratedSource}
             forcedBaseOutputFile={forcedBaseOutputFile}
+            supportedInputLanguages={supportedInputLanguages}
+            supportedTargetLanguages={supportedTargetLanguages}
           />
         </div>
       </form>

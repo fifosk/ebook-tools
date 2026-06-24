@@ -580,9 +580,13 @@ Refactor before restyling:
   cleared fields, that happen before defaults arrive. Apple Create now also
   accepts multi-target backend defaults, using the first target for the native
   picker and preserving remaining de-duplicated targets in the visible
-  Additional target languages field. `/api/books/options` now reads and
-  normalizes generated-source image defaults from backend config so Web and
-  Apple start from the same image pipeline/style/context/size values.
+  Additional target languages field. Web Create now also passes
+  `/api/books/options` supported input/output language lists into the reusable
+  Narrate Ebook form, and focused component/page tests prove backend-advertised
+  languages appear in the pickers even when they are not selected defaults.
+  `/api/books/options` now reads and normalizes generated-source image defaults
+  from backend config so Web and Apple start from the same image
+  pipeline/style/context/size values.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 
