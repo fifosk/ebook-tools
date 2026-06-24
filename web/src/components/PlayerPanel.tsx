@@ -60,6 +60,10 @@ import { usePlayerPanelScrollMemory } from './player-panel/usePlayerPanelScrollM
 import { usePlayerPanelMediaNavigation } from './player-panel/usePlayerPanelMediaNavigation';
 import { useAudioTrackVisibility } from './player-panel/useAudioTrackVisibility';
 import { usePlayerPanelActiveText } from './player-panel/usePlayerPanelActiveText';
+import {
+  buildPlayerPanelDocumentState,
+  resolveInteractiveViewerRenderability,
+} from './player-panel/playerPanelDocumentState';
 
 type ReadingBedOverride = {
   id: string;
@@ -409,10 +413,11 @@ export default function PlayerPanel({
     () => fallbackTextFromSentences(resolvedActiveTextChunk),
     [resolvedActiveTextChunk],
   );
-  const interactiveViewerContent = (textPreview?.content ?? fallbackTextContent) || '';
-  const interactiveViewerRaw = textPreview?.raw ?? fallbackTextContent;
-  const canRenderInteractiveViewer =
-    Boolean(resolvedActiveTextChunk) || interactiveViewerContent.trim().length > 0;
+  const canRenderInteractiveViewer = resolveInteractiveViewerRenderability({
+    previewContent: textPreview?.content,
+    fallbackTextContent,
+    resolvedActiveTextChunk,
+  });
   const {
     isInteractiveFullscreen,
     handleInteractiveFullscreenToggle,
@@ -422,14 +427,24 @@ export default function PlayerPanel({
     canRenderInteractiveViewer,
     hasInteractiveChunks,
   });
-  const shouldForceInteractiveViewer = isInteractiveFullscreen;
   const hasTextItems = media.text.length > 0;
-  const shouldShowInteractiveViewer = canRenderInteractiveViewer || shouldForceInteractiveViewer;
-  const shouldShowEmptySelectionPlaceholder =
-    hasTextItems && !selectedItem && !shouldForceInteractiveViewer;
-  const shouldShowLoadingPlaceholder =
-    Boolean(textLoading && selectedItem && !shouldForceInteractiveViewer);
-  const shouldShowStandaloneError = Boolean(textError) && !shouldForceInteractiveViewer;
+  const {
+    interactiveViewerContent,
+    interactiveViewerRaw,
+    shouldShowInteractiveViewer,
+    shouldShowEmptySelectionPlaceholder,
+    shouldShowLoadingPlaceholder,
+    shouldShowStandaloneError,
+  } = buildPlayerPanelDocumentState({
+    textPreview,
+    fallbackTextContent,
+    resolvedActiveTextChunk,
+    isInteractiveFullscreen,
+    hasTextItems,
+    hasSelectedItem: Boolean(selectedItem),
+    textLoading,
+    textError,
+  });
   const playbackControlsAvailable = hasInlineAudioControls;
   const isActiveMediaPlaying = isInlineAudioPlaying;
   const shouldHoldWakeLock = isInlineAudioPlaying;

@@ -599,7 +599,10 @@ Refactor before restyling:
   defaults can evolve alongside Apple playback settings without growing the
   panel coordinator. Active text selection, selected chunk lookup, interactive
   audio cataloging, and audio-driven active chunk fallback now live in a
-  focused tested hook rather than inline in the panel coordinator.
+  focused tested hook rather than inline in the panel coordinator. Interactive
+  document preview/fallback content and placeholder visibility now resolve
+  through a tested pure helper so the panel coordinator no longer owns those
+  display-state branches inline.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, genre, author, sentence,
   generated-source image, and pipeline defaults from `/api/books/options`
