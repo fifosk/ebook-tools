@@ -16,11 +16,11 @@ import {
   TRANSLATION_SPEED_MIN,
   TRANSLATION_SPEED_STEP,
 } from './player-panel/constants';
-import MediaSearchPanel from './MediaSearchPanel';
 import type { LibraryItem } from '../api/dtos';
 import { PlayerPanelBoundaryState } from './player-panel/PlayerPanelBoundaryState';
 import { PlayerPanelContent } from './player-panel/PlayerPanelContent';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
+import { buildPlayerPanelSearchSlots } from './player-panel/PlayerPanelSearchSlot';
 import { PlayerPanelSentenceJumpDatalist } from './player-panel/PlayerPanelSentenceJumpDatalist';
 import {
   buildInteractiveAudioCatalog,
@@ -679,14 +679,12 @@ export default function PlayerPanel({
   );
 
   const shouldShowBackToLibrary = origin === 'library' && showBackToLibrary;
-  const panelSearchPanel =
-    searchEnabled && !isInteractiveFullscreen ? (
-      <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} variant="compact" />
-    ) : null;
-  const fullscreenSearchPanel =
-    searchEnabled && isInteractiveFullscreen ? (
-      <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} variant="compact" />
-    ) : null;
+  const { panelSearchPanel, fullscreenSearchPanel } = buildPlayerPanelSearchSlots({
+    currentJobId: jobId,
+    enabled: searchEnabled,
+    isFullscreen: isInteractiveFullscreen,
+    onResultAction: handleSearchSelection,
+  });
   const chapterScopeStart = jobScopeStartSentence ?? jobStartSentence;
   const chapterScopeEnd = jobScopeEndSentence ?? jobEndSentence;
 
