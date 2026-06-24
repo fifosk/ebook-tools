@@ -122,30 +122,15 @@ struct AppleBookCreateView: View {
     @State private var youtubeSelectionStorageScope = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let sectionPicker {
-                sectionPicker
-            }
-
-            if usesRegularWidthCreateLayout {
-                regularWidthCreateLayout
-            } else {
-                AppleBookCreateList(
-                    usesDarkBackground: usesDarkBackground,
-                    accessibilityIdentifier: "appleBookCreateSingleColumnList"
-                ) {
-                    createSetupSections
-                    createSettingsSections
-                }
-            }
+        AppleBookCreateContainer(
+            sectionPicker: sectionPicker,
+            usesRegularWidthLayout: usesRegularWidthCreateLayout,
+            usesDarkBackground: usesDarkBackground
+        ) {
+            createSetupSections
+        } settingsContent: {
+            createSettingsSections
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(usesDarkBackground ? AppTheme.lightBackground : Color.clear)
-        #if os(iOS)
-        .toolbarBackground(usesDarkBackground ? AppTheme.lightBackground : Color.clear, for: .navigationBar)
-        .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
-        .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
-        #endif
         .modifier(
             AppleBookCreateLifecycleModifier(
                 creationOptionsLoadKey: creationOptionsLoadKey,
@@ -183,15 +168,6 @@ struct AppleBookCreateView: View {
             )
         )
         .accessibilityIdentifier("appleBookCreateView")
-    }
-
-    @ViewBuilder
-    private var regularWidthCreateLayout: some View {
-        AppleBookCreateRegularWidthLayout(usesDarkBackground: usesDarkBackground) {
-            createSetupSections
-        } settingsContent: {
-            createSettingsSections
-        }
     }
 
     private var usesRegularWidthCreateLayout: Bool {

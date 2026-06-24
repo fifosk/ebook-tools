@@ -1341,15 +1341,20 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     basic_source = _source(CREATE_BASIC_SECTIONS)
     project = _source(XCODE_PROJECT)
 
-    assert "regularWidthCreateLayout" in source
-    assert "AppleBookCreateRegularWidthLayout(" in source
-    assert "AppleBookCreateList(" in source
-    assert 'accessibilityIdentifier: "appleBookCreateSingleColumnList"' in source
+    assert "usesRegularWidthCreateLayout" in source
+    assert "AppleBookCreateContainer(" in source
+    assert "AppleBookCreateRegularWidthLayout(" not in source
+    assert "AppleBookCreateList(" not in source
+    assert 'accessibilityIdentifier: "appleBookCreateSingleColumnList"' not in source
     assert "private static let setupPaneMinWidth: CGFloat = 220" not in source
     assert "private func createSettingsForm<Content: View>" not in source
+    assert "struct AppleBookCreateContainer" in layout_source
     assert "struct AppleBookCreateRegularWidthLayout" in layout_source
     assert "struct AppleBookCreateList" in layout_source
     assert "struct AppleBookCreateSettingsForm" in layout_source
+    assert "AppleBookCreateRegularWidthLayout(" in layout_source
+    assert "AppleBookCreateList(" in layout_source
+    assert 'accessibilityIdentifier: "appleBookCreateSingleColumnList"' in layout_source
     assert "private enum AppleBookCreateLayoutMetrics" in layout_source
     assert 'accessibilityIdentifier: "appleBookCreateSetupPane"' in layout_source
     assert 'accessibilityIdentifier: "appleBookCreateSettingsPane"' in layout_source

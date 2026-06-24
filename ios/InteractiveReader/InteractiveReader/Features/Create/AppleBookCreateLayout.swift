@@ -37,6 +37,59 @@ struct AppleBookCreateList<Content: View>: View {
     }
 }
 
+struct AppleBookCreateContainer<SetupContent: View, SettingsContent: View>: View {
+    let sectionPicker: BrowseSectionPicker?
+    let usesRegularWidthLayout: Bool
+    let usesDarkBackground: Bool
+    private let setupContent: () -> SetupContent
+    private let settingsContent: () -> SettingsContent
+
+    init(
+        sectionPicker: BrowseSectionPicker?,
+        usesRegularWidthLayout: Bool,
+        usesDarkBackground: Bool,
+        @ViewBuilder setupContent: @escaping () -> SetupContent,
+        @ViewBuilder settingsContent: @escaping () -> SettingsContent
+    ) {
+        self.sectionPicker = sectionPicker
+        self.usesRegularWidthLayout = usesRegularWidthLayout
+        self.usesDarkBackground = usesDarkBackground
+        self.setupContent = setupContent
+        self.settingsContent = settingsContent
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let sectionPicker {
+                sectionPicker
+            }
+
+            if usesRegularWidthLayout {
+                AppleBookCreateRegularWidthLayout(
+                    usesDarkBackground: usesDarkBackground,
+                    setupContent: setupContent,
+                    settingsContent: settingsContent
+                )
+            } else {
+                AppleBookCreateList(
+                    usesDarkBackground: usesDarkBackground,
+                    accessibilityIdentifier: "appleBookCreateSingleColumnList"
+                ) {
+                    setupContent()
+                    settingsContent()
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(usesDarkBackground ? AppTheme.lightBackground : Color.clear)
+        #if os(iOS)
+        .toolbarBackground(usesDarkBackground ? AppTheme.lightBackground : Color.clear, for: .navigationBar)
+        .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
+        .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
+        #endif
+    }
+}
+
 struct AppleBookCreateSettingsForm<Content: View>: View {
     let usesDarkBackground: Bool
     let accessibilityIdentifier: String
