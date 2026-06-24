@@ -42,6 +42,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "pipeline_jobs_path": "/api/pipelines",
             "pipeline_intake_status_path": "/api/pipelines/intake/status",
             "subtitle_sources_path": "/api/subtitles/sources",
+            "subtitle_delete_source_path": "/api/subtitles/delete-source",
             "subtitle_models_path": "/api/subtitles/models",
             "subtitle_jobs_path": "/api/subtitles/jobs",
             "youtube_library_path": "/api/subtitles/youtube/library",
@@ -75,6 +76,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.creation?.subtitleJobsPath == "/api/subtitles/jobs",
             "Apple runtime descriptor should decode subtitle jobs endpoint"
+        )
+        require(
+            current.creation?.subtitleDeleteSourcePath == "/api/subtitles/delete-source",
+            "Apple runtime descriptor should decode subtitle cleanup endpoint"
         )
         require(
             current.creation?.youtubeDubPath == "/api/subtitles/youtube/dub",

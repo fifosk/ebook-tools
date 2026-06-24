@@ -323,6 +323,7 @@ def test_runtime_create_contract_validation() -> None:
         "pipelineJobsPath=<missing> expected /api/pipelines",
         "pipelineIntakeStatusPath=<missing> expected /api/pipelines/intake/status",
         "subtitleSourcesPath=<missing> expected /api/subtitles/sources",
+        "subtitleDeleteSourcePath=<missing> expected /api/subtitles/delete-source",
         "subtitleModelsPath=<missing> expected /api/subtitles/models",
         "subtitleJobsPath=<missing> expected /api/subtitles/jobs",
         "youtubeLibraryPath=<missing> expected /api/subtitles/youtube/library",

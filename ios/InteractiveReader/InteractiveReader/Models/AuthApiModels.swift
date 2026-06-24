@@ -41,6 +41,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let pipelineJobsPath: String?
         let pipelineIntakeStatusPath: String?
         let subtitleSourcesPath: String?
+        let subtitleDeleteSourcePath: String?
         let subtitleModelsPath: String?
         let subtitleJobsPath: String?
         let youtubeLibraryPath: String?

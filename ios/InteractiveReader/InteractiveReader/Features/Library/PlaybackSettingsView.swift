@@ -154,6 +154,7 @@ struct PlaybackSettingsView: View {
             ("pipelineJobsPath", creation.pipelineJobsPath, AppleCreateRuntimeContract.pipelineJobsPath),
             ("pipelineIntakeStatusPath", creation.pipelineIntakeStatusPath, AppleCreateRuntimeContract.pipelineIntakeStatusPath),
             ("subtitleSourcesPath", creation.subtitleSourcesPath, AppleCreateRuntimeContract.subtitleSourcesPath),
+            ("subtitleDeleteSourcePath", creation.subtitleDeleteSourcePath, AppleCreateRuntimeContract.subtitleDeleteSourcePath),
             ("subtitleModelsPath", creation.subtitleModelsPath, AppleCreateRuntimeContract.subtitleModelsPath),
             ("subtitleJobsPath", creation.subtitleJobsPath, AppleCreateRuntimeContract.subtitleJobsPath),
             ("youtubeLibraryPath", creation.youtubeLibraryPath, AppleCreateRuntimeContract.youtubeLibraryPath),
