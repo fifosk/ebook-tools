@@ -189,6 +189,11 @@ struct LibraryView: View {
                     .padding()
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
                     .accessibilityIdentifier("libraryIsbnLoadingView")
+            } else if viewModel.isCreatingExport {
+                ProgressView("Creating offline export…")
+                    .padding()
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityIdentifier("libraryOfflineExportLoadingView")
             } else if viewModel.filteredItems.isEmpty {
                 ContentUnavailableView {
                     Label("No library items found", systemImage: "books.vertical")

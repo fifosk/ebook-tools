@@ -131,6 +131,11 @@ struct JobsView: View {
                     .padding()
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
                     .accessibilityIdentifier("jobsLoadingView")
+            } else if viewModel.isCreatingExport {
+                ProgressView("Creating offline export…")
+                    .padding()
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityIdentifier("jobsOfflineExportLoadingView")
             } else if viewModel.filteredJobs.isEmpty {
                 ContentUnavailableView {
                     Label("No jobs found", systemImage: "tray")

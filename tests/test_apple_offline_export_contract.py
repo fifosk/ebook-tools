@@ -128,6 +128,8 @@ def test_apple_library_rows_surface_offline_export_action() -> None:
     assert 'Label("Export Offline Player", systemImage: "square.and.arrow.down")' in view_source
     assert "viewModel.isEnrichingMetadata" in view_source
     assert "!item.mediaCompleted || viewModel.isCreatingExport" in view_source
+    assert 'ProgressView("Creating offline export…")' in view_source
+    assert 'accessibilityIdentifier("libraryOfflineExportLoadingView")' in view_source
     assert "openURL(url)" in view_source
 
 
@@ -143,4 +145,6 @@ def test_apple_job_rows_surface_offline_export_action() -> None:
     assert "offlineExportAction(for: job)" in view_source
     assert 'Label("Export Offline Player", systemImage: "square.and.arrow.down")' in view_source
     assert "job.isFinishedForDisplay && job.mediaCompleted == true" in view_source
+    assert 'ProgressView("Creating offline export…")' in view_source
+    assert 'accessibilityIdentifier("jobsOfflineExportLoadingView")' in view_source
     assert "openURL(url)" in view_source

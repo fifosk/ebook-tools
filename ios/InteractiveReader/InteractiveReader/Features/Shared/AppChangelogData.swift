@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.22",
+            version: "2026.06.24.23",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-offline-export-progress",
+                    title: "Exports show progress",
+                    detail: "Apple Jobs and Library now show a visible offline-export progress overlay while the backend prepares an offline player archive."
+                ),
                 AppChangelogEntry(
                     id: "apple-job-health-row",
                     title: "Jobs show running health",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.23
+
+- Advanced visible Apple app versioning to `v2026.06.24.23`.
+- Apple Jobs and Library now show a visible offline-export progress overlay while the backend prepares an offline player archive.
+
 ### 2026.06.24.22
 
 - Advanced visible Apple app versioning to `v2026.06.24.22`.

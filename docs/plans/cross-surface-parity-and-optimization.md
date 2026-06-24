@@ -428,7 +428,11 @@ Suggested features to evaluate after parity scaffolding:
   metadata, URL, and size counts; Web Job Detail now shows a compact manifest
   health strip when diagnostics are available, and Apple playback now decodes
   and shows the same aggregate counts in a compact native strip.
-- Offline export from Apple: request `/api/exports` for a completed job/library item and show status in Jobs.
+- Offline export from Apple: request `/api/exports` for a completed job/library
+  item and show status in Jobs. Status: Apple Jobs and Library rows can request
+  offline player exports for completed media, disable duplicate export requests,
+  open the returned download URL, and now show a visible Creating offline
+  export progress overlay while the backend archive is being prepared.
 
 ## Verification Contract
 
