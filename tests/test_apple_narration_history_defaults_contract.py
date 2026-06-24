@@ -14,6 +14,15 @@ CREATE_SUPPORT = (
     / "Create"
     / "AppleBookCreateSupport.swift"
 )
+CREATE_MODELS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateModels.swift"
+)
 CREATE_VIEW = (
     ROOT
     / "ios"
@@ -40,14 +49,15 @@ def _named_block(source: str, start_pattern: str, end_pattern: str) -> str:
 
 
 def test_narrate_epub_history_defaults_include_web_style_output_settings() -> None:
-    source = _source(CREATE_SUPPORT)
+    model_source = _source(CREATE_MODELS)
+    support_source = _source(CREATE_SUPPORT)
     struct_block = _named_block(
-        source,
+        model_source,
         r"struct AppleNarrationHistoryDefaults: Equatable \{",
         "struct AppleSubtitleHistoryDefaults",
     )
     function_block = _named_block(
-        source,
+        support_source,
         r"static func narrationHistoryDefaults\(",
         "static func generatedBookHistoryDefaults",
     )

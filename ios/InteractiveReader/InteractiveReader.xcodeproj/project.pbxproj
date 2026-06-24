@@ -42,6 +42,8 @@
 		CREATEVIEW001A0002 /* AppleBookCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVIEW002A0001 /* AppleBookCreateView.swift */; };
 		CREATESECT001A0001 /* AppleBookCreateSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESECT002A0001 /* AppleBookCreateSections.swift */; };
 		CREATESECT001A0002 /* AppleBookCreateSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESECT002A0001 /* AppleBookCreateSections.swift */; };
+		CREATEMOD001A0001 /* AppleBookCreateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMOD002A0001 /* AppleBookCreateModels.swift */; };
+		CREATEMOD001A0002 /* AppleBookCreateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMOD002A0001 /* AppleBookCreateModels.swift */; };
 		1798B15A2EF9F1A00092A8AF /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0090F34EFAD42D0BD98A51D /* LibraryView.swift */; };
 		1798B15B2EF9F1A00092A8AF /* LibraryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73A95624331046EE991E094F /* LibraryViewModel.swift */; };
 		1798B15C2EF9F1A00092A8AF /* LibraryRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11376CDF07724238B0949959 /* LibraryRowView.swift */; };
@@ -636,6 +638,7 @@
 		LIBCHROME002A0001 /* LibraryBrowseChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryBrowseChrome.swift; sourceTree = "<group>"; };
 		CREATEVIEW002A0001 /* AppleBookCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateView.swift; sourceTree = "<group>"; };
 		CREATESECT002A0001 /* AppleBookCreateSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateSections.swift; sourceTree = "<group>"; };
+		CREATEMOD002A0001 /* AppleBookCreateModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateModels.swift; sourceTree = "<group>"; };
 		EACAFCD435FB4D46926CB3F5 /* LibraryShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryShellView.swift; sourceTree = "<group>"; };
 		F0090F34EFAD42D0BD98A51D /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		F16D9D0575194EDBA9F26148 /* InteractivePlayerShortcutSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePlayerShortcutSupport.swift; sourceTree = "<group>"; };
@@ -818,6 +821,7 @@
 			children = (
 				CREATEVIEW002A0001 /* AppleBookCreateView.swift */,
 				CREATESECT002A0001 /* AppleBookCreateSections.swift */,
+				CREATEMOD002A0001 /* AppleBookCreateModels.swift */,
 				11EF28BF0B1E7A3F6ECC3EEB /* AppleBookCreateViewModel.swift */,
 				762ABB57C1BCB734E6D5A0ED /* AppleBookCreateSupport.swift */,
 			);
@@ -1669,6 +1673,7 @@
 				1647FA778C70191871E3B389 /* APIClient+Notifications.swift in Sources */,
 				A50101B50CE36898F7F3F01C /* APIClient+PipelineMedia.swift in Sources */,
 				E53DA567CE4F673D23ADE631 /* APIClient+PlaybackState.swift in Sources */,
+				CREATEMOD001A0001 /* AppleBookCreateModels.swift in Sources */,
 				40E3FF23022147B1F3B38F6E /* AppleBookCreateViewModel.swift in Sources */,
 				4225F50EC9D8CDDD12B4101C /* SubtitleTimecodeInput.swift in Sources */,
 				576FB3F2A05280220A5228DB /* MediaDiagnosticsStripView.swift in Sources */,
@@ -1905,6 +1910,7 @@
 				B0C462000E7BCAB30042B436 /* APIClient+Notifications.swift in Sources */,
 				F79918BE8A20538FACD0205D /* APIClient+PipelineMedia.swift in Sources */,
 				E5A71FE34ECF7DB87414A059 /* APIClient+PlaybackState.swift in Sources */,
+				CREATEMOD001A0002 /* AppleBookCreateModels.swift in Sources */,
 				5776FC02D763AA4801FA841B /* AppleBookCreateViewModel.swift in Sources */,
 				C516F1F1817E9F730D1867BE /* SubtitleTimecodeInput.swift in Sources */,
 				8607DE27B11B1FE5B10C6FD6 /* MediaDiagnosticsStripView.swift in Sources */,

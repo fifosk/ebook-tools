@@ -27,6 +27,15 @@ APPLE_CREATE_SUPPORT = (
     / "Create"
     / "AppleBookCreateSupport.swift"
 )
+APPLE_CREATE_MODELS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateModels.swift"
+)
 APPLE_CREATE_SECTIONS = (
     ROOT
     / "ios"
@@ -90,20 +99,21 @@ def test_language_catalogs_match_across_backend_web_and_apple() -> None:
 
 
 def test_apple_create_language_options_include_full_web_catalog_fallback() -> None:
-    source = APPLE_CREATE_SUPPORT.read_text(encoding="utf-8")
+    models_source = APPLE_CREATE_MODELS.read_text(encoding="utf-8")
+    support_source = APPLE_CREATE_SUPPORT.read_text(encoding="utf-8")
 
-    assert "static let fallbackOptions: [AppleBookCreateLanguage] =" in source
-    assert "AppleLanguageCatalog.orderedLanguageNames.compactMap { AppleBookCreateLanguage($0) }" in source
-    assert "static let allCases = fallbackOptions" in source
+    assert "static let fallbackOptions: [AppleBookCreateLanguage] =" in models_source
+    assert "AppleLanguageCatalog.orderedLanguageNames.compactMap { AppleBookCreateLanguage($0) }" in models_source
+    assert "static let allCases = fallbackOptions" in models_source
     assert (
         "for language in supported.compactMap(AppleBookCreateLanguage.init(backendValue:)) + fallbackOptions"
-        in source
+        in models_source
     )
-    assert "static func availableInputLanguages(" in source
-    assert "availableLanguages(options?.supportedInputLanguages ?? [])" in source
-    assert "static func availableTargetLanguages(" in source
-    assert "availableLanguages(options?.supportedOutputLanguages ?? [])" in source
-    assert "AppleBookCreateLanguage.options(from: supported)" in source
+    assert "static func availableInputLanguages(" in support_source
+    assert "availableLanguages(options?.supportedInputLanguages ?? [])" in support_source
+    assert "static func availableTargetLanguages(" in support_source
+    assert "availableLanguages(options?.supportedOutputLanguages ?? [])" in support_source
+    assert "AppleBookCreateLanguage.options(from: supported)" in support_source
 
 
 def test_apple_create_language_controls_share_available_lists_across_surfaces() -> None:

@@ -41,6 +41,16 @@ CREATE_VIEW_MODEL = (
     / "Create"
     / "AppleBookCreateViewModel.swift"
 )
+CREATE_MODELS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateModels.swift"
+)
+XCODE_PROJECT = ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj"
 
 
 def _source(path: Path) -> str:
@@ -70,6 +80,28 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert "@Environment(\\.horizontalSizeClass) private var horizontalSizeClass" in source
     assert "private var usesRegularWidthCreateLayout: Bool" in source
     assert "horizontalSizeClass == .regular" in source
+
+
+def test_create_models_are_split_from_presentation_and_target_wired() -> None:
+    models_source = _source(CREATE_MODELS)
+    support_source = _source(
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Create"
+        / "AppleBookCreateSupport.swift"
+    )
+    project = _source(XCODE_PROJECT)
+
+    assert "struct AppleBookCreateDraft: Equatable" in models_source
+    assert "struct AppleNarrationHistoryDefaults: Equatable" in models_source
+    assert "enum AppleCreateMode: String" in models_source
+    assert "enum AppleBookCreatePresentation" not in models_source
+    assert "enum AppleBookCreatePresentation" in support_source
+    assert "AppleBookCreateModels.swift in Sources" in project
+    assert project.count("AppleBookCreateModels.swift in Sources") == 4
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
@@ -203,15 +235,7 @@ def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
 def test_generated_book_create_exposes_source_context_fields() -> None:
     source = _source(CREATE_VIEW)
     support_source = _source(CREATE_VIEW_MODEL)
-    draft_source = _source(
-        ROOT
-        / "ios"
-        / "InteractiveReader"
-        / "InteractiveReader"
-        / "Features"
-        / "Create"
-        / "AppleBookCreateSupport.swift"
-    )
+    draft_source = _source(CREATE_MODELS)
 
     assert "creationMode == .generatedBook || creationMode == .narrateEbook" in source
     assert 'Section(creationMode == .generatedBook ? "Source Book" : "Metadata")' in source
@@ -332,6 +356,21 @@ def test_ios_create_languages_use_reachable_list_selector() -> None:
     assert '.accessibilityIdentifier("\\(accessibilityIdentifier).\\(language.id)")' in source
     assert 'Text("\\(options.count) available")' in source
     assert '.accessibilityValue("\\(selection.label), \\(options.count) available")' in source
+
+
+def test_tvos_create_metadata_json_editor_avoids_text_editor() -> None:
+    source = _source(CREATE_SECTIONS)
+    control = re.search(
+        r"private var jsonEditorControl: some View \{(?P<body>.*?)\n    \}",
+        source,
+        re.DOTALL,
+    )
+
+    assert control
+    assert "#if os(tvOS)" in control.group("body")
+    assert 'TextField("Advanced Metadata JSON", text: $text, axis: .vertical)' in control.group("body")
+    assert "#else" in control.group("body")
+    assert "TextEditor(text: $text)" in control.group("body")
 
 
 def test_youtube_create_exposes_inline_subtitle_extraction_controls() -> None:

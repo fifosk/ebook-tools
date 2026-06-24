@@ -165,22 +165,21 @@ Current Apple UI partially exposes:
   mode availability, submit-button presentation, base-output derivation,
   subtitle model labels, subtitle model option-list construction, ASS/subtitle/
   YouTube clamp and formatting helpers, YouTube offset normalization, and
-  creation tuning/format/provider enums to `AppleBookCreateSupport.swift`.
-  Create draft value types and pure generated-book, Narrate EPUB, subtitle-job,
-  and YouTube Dub draft builders also live in support now, keeping
-  `AppleBookCreateViewModel.swift` focused on submission/payload work. Subtitle
-  time-range and YouTube offset-range validation now use pure support helpers
-  that preserve the existing visible error messages. Backend default resolution
-  and edited-field preservation now live in support too, so backend-driven
-  Apple Create defaults stay pinned outside the SwiftUI state assignment code.
-  Backend language and voice inventory option building is also centralized in
-  support, preserving selected voices that are absent from backend inventory.
-  The refactor reduces the view from 1371 to 1098 lines and the view model to
-  348 lines while preserving iPhone/iPad/tvOS behavior through focused Swift
-  payload checks and shared iPadOS/tvOS simulator smokes. The Apple journey
-  runner can now select Create picker options and assert non-empty field values,
-  with opt-in iPhone/iPad Create-readiness Make targets that verify Narrate
-  EPUB, subtitle, and YouTube/NAS default source loading against a populated API.
+  YouTube clamp and formatting helpers, and YouTube offset normalization to
+  `AppleBookCreateSupport.swift`. Create draft value types, shared language and
+  mode models, history/default structs, and creation tuning/format/provider
+  enums now live in `AppleBookCreateModels.swift`, keeping the support file
+  focused on pure presentation/default/payload helpers and the view model
+  focused on submission work. Subtitle time-range and YouTube offset-range
+  validation now use pure support helpers that preserve the existing visible
+  error messages. Backend default resolution and edited-field preservation now
+  live in support too, so backend-driven Apple Create defaults stay pinned
+  outside the SwiftUI state assignment code. Backend language and voice
+  inventory option building is also centralized in support, preserving selected
+  voices that are absent from backend inventory. The Apple journey runner can
+  now select Create picker options and assert non-empty field values, with
+  opt-in iPhone/iPad Create-readiness Make targets that verify Narrate EPUB,
+  subtitle, and YouTube/NAS default source loading against a populated API.
   Apple Create language controls are now contract-pinned to the shared
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults

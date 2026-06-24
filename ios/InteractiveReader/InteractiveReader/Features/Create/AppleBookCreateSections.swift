@@ -1402,12 +1402,7 @@ private struct AppleBookCreateAdvancedMetadataJSONEditor: View {
 
     private var editorBody: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TextEditor(text: $text)
-                .font(.system(.footnote, design: .monospaced))
-                .frame(minHeight: 140)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .accessibilityIdentifier(textEditorIdentifier)
+            jsonEditorControl
 
             HStack(spacing: 12) {
                 Button(action: onApply) {
@@ -1428,6 +1423,24 @@ private struct AppleBookCreateAdvancedMetadataJSONEditor: View {
                     .accessibilityIdentifier(errorIdentifier)
             }
         }
+    }
+
+    @ViewBuilder
+    private var jsonEditorControl: some View {
+        #if os(tvOS)
+        TextField("Advanced Metadata JSON", text: $text, axis: .vertical)
+            .font(.system(.footnote, design: .monospaced))
+            .lineLimit(6...10)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier(textEditorIdentifier)
+        #else
+        TextEditor(text: $text)
+            .font(.system(.footnote, design: .monospaced))
+            .frame(minHeight: 140)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier(textEditorIdentifier)
+        #endif
     }
 }
 
