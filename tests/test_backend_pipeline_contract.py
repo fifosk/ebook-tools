@@ -29,6 +29,7 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
         "test-backend-create-book": ("tests/test_create_book.py",),
         "test-backend-subtitle-router": ("tests/webapi/test_subtitles_router.py",),
         "test-backend-youtube-dubbing-service": (
+            "tests/modules/webapi/test_youtube_library_route.py",
             "tests/modules/services/test_youtube_dubbing_subtitles.py",
             "tests/modules/services/test_youtube_subtitles.py",
         ),

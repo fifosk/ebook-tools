@@ -78,6 +78,7 @@ test-backend-subtitle-router:
 
 test-backend-youtube-dubbing-service:
 	$(PYTHON) -m pytest \
+		tests/modules/webapi/test_youtube_library_route.py \
 		tests/modules/services/test_youtube_dubbing_subtitles.py \
 		tests/modules/services/test_youtube_subtitles.py
 

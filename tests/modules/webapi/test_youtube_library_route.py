@@ -134,3 +134,57 @@ def test_youtube_library_links_jobs_from_metadata_without_full_job_hydration(
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+def test_delete_youtube_subtitle_reports_missing_stale_sidecar(tmp_path: Path) -> None:
+    app = create_app()
+    video_path = tmp_path / "episode_yt.mp4"
+    subtitle_path = tmp_path / "episode_yt.en.srt"
+    video_path.write_bytes(b"\x00")
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/subtitles/youtube/delete-subtitle",
+                json={
+                    "video_path": video_path.as_posix(),
+                    "subtitle_path": subtitle_path.as_posix(),
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["removed"] == []
+    assert payload["missing"] == [subtitle_path.resolve().as_posix()]
+
+
+def test_delete_youtube_subtitle_rejects_stale_non_subtitle_sidecar(tmp_path: Path) -> None:
+    app = create_app()
+    video_path = tmp_path / "episode_yt.mp4"
+    subtitle_path = tmp_path / "episode_yt.txt"
+    video_path.write_bytes(b"\x00")
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/subtitles/youtube/delete-subtitle",
+                json={
+                    "video_path": video_path.as_posix(),
+                    "subtitle_path": subtitle_path.as_posix(),
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert "subtitle file" in response.json()["detail"]
