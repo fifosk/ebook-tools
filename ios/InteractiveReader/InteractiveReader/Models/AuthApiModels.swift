@@ -70,6 +70,14 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let metadataEnrichPathTemplate: String
     }
 
+    struct PlaybackStateContract: Decodable, Equatable {
+        let bookmarksPathTemplate: String
+        let bookmarkDeletePathTemplate: String
+        let resumeListPath: String
+        let resumePathTemplate: String
+        let resumeFilterQuery: String
+    }
+
     let status: String
     let app: String
     let service: String
@@ -81,6 +89,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     let creation: CreationContract?
     let offlineExports: OfflineExportContract?
     let libraryActions: LibraryActionsContract?
+    let playbackState: PlaybackStateContract?
 }
 
 struct LoginRequestPayload: Encodable {

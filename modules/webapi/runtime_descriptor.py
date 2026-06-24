@@ -63,6 +63,13 @@ LIBRARY_ACTIONS_DESCRIPTOR = {
     "isbnApplyPathTemplate": "/api/library/items/{job_id}/isbn",
     "metadataEnrichPathTemplate": "/api/library/items/{job_id}/enrich",
 }
+PLAYBACK_STATE_DESCRIPTOR = {
+    "bookmarksPathTemplate": "/api/bookmarks/{job_id}",
+    "bookmarkDeletePathTemplate": "/api/bookmarks/{job_id}/{bookmark_id}",
+    "resumeListPath": "/api/resume",
+    "resumePathTemplate": "/api/resume/{job_id}",
+    "resumeFilterQuery": "job_id",
+}
 ALLOWED_PUBLIC_METADATA_KEYS = frozenset(
     {
         "legacytokenmigration",
@@ -88,6 +95,7 @@ def build_runtime_descriptor(version: str) -> dict[str, object]:
         "creation": _copy_public_descriptor_section(CREATION_DESCRIPTOR),
         "offlineExports": _copy_public_descriptor_section(OFFLINE_EXPORTS_DESCRIPTOR),
         "libraryActions": _copy_public_descriptor_section(LIBRARY_ACTIONS_DESCRIPTOR),
+        "playbackState": _copy_public_descriptor_section(PLAYBACK_STATE_DESCRIPTOR),
     }
     assert_runtime_descriptor_is_public(payload)
     return payload

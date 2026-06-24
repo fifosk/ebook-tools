@@ -713,7 +713,9 @@ Suggested features to evaluate after parity scaffolding:
   resume decision. Web Library rows now also read the existing per-job
   `media-memory:<job_id>` session resume cache and display a compact Continue
   badge next to the status badge without adding an extra list-time API
-  waterfall.
+  waterfall. The public runtime descriptor now advertises bookmark and resume
+  playback-state paths, including the batch resume list endpoint, so Apple and
+  shared-pipeline preflights can catch playback-state contract drift.
 - Shared media diagnostics: surface missing timing/audio/image assets without
   opening logs. Status: media manifest responses now include a token-safe
   aggregate diagnostics object with media, chunk, audio, image, timing,

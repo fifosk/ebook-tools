@@ -6,6 +6,7 @@ from modules.webapi.runtime_descriptor import (
     CREATION_DESCRIPTOR,
     LIBRARY_ACTIONS_DESCRIPTOR,
     OFFLINE_EXPORTS_DESCRIPTOR,
+    PLAYBACK_STATE_DESCRIPTOR,
     assert_runtime_descriptor_is_public,
     build_runtime_descriptor,
 )
@@ -82,6 +83,7 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
         "playerTypes": ["interactive-text"],
     }
     assert descriptor["libraryActions"] == LIBRARY_ACTIONS_DESCRIPTOR
+    assert descriptor["playbackState"] == PLAYBACK_STATE_DESCRIPTOR
     assert_runtime_descriptor_is_public(descriptor)
 
 
@@ -131,6 +133,13 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "let isbnApplyPathTemplate: String" in source
     assert "let metadataEnrichPathTemplate: String" in source
     assert "let libraryActions: LibraryActionsContract?" in source
+    assert "struct PlaybackStateContract: Decodable, Equatable" in source
+    assert "let bookmarksPathTemplate: String" in source
+    assert "let bookmarkDeletePathTemplate: String" in source
+    assert "let resumeListPath: String" in source
+    assert "let resumePathTemplate: String" in source
+    assert "let resumeFilterQuery: String" in source
+    assert "let playbackState: PlaybackStateContract?" in source
 
 
 def test_settings_surfaces_create_contract_runtime_status() -> None:

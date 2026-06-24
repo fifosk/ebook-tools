@@ -61,6 +61,13 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "isbn_lookup_path": "/api/library/isbn/lookup",
             "isbn_apply_path_template": "/api/library/items/{job_id}/isbn",
             "metadata_enrich_path_template": "/api/library/items/{job_id}/enrich"
+          },
+          "playback_state": {
+            "bookmarks_path_template": "/api/bookmarks/{job_id}",
+            "bookmark_delete_path_template": "/api/bookmarks/{job_id}/{bookmark_id}",
+            "resume_list_path": "/api/resume",
+            "resume_path_template": "/api/resume/{job_id}",
+            "resume_filter_query": "job_id"
           }
         }
         """.data(using: .utf8)!
@@ -139,6 +146,26 @@ struct AppleRuntimeDescriptorPayloadCheck {
             current.libraryActions?.metadataEnrichPathTemplate == "/api/library/items/{job_id}/enrich",
             "Apple runtime descriptor should decode library metadata enrichment endpoint template"
         )
+        require(
+            current.playbackState?.bookmarksPathTemplate == "/api/bookmarks/{job_id}",
+            "Apple runtime descriptor should decode bookmarks endpoint template"
+        )
+        require(
+            current.playbackState?.bookmarkDeletePathTemplate == "/api/bookmarks/{job_id}/{bookmark_id}",
+            "Apple runtime descriptor should decode bookmark delete endpoint template"
+        )
+        require(
+            current.playbackState?.resumeListPath == "/api/resume",
+            "Apple runtime descriptor should decode batch resume endpoint"
+        )
+        require(
+            current.playbackState?.resumePathTemplate == "/api/resume/{job_id}",
+            "Apple runtime descriptor should decode resume endpoint template"
+        )
+        require(
+            current.playbackState?.resumeFilterQuery == "job_id",
+            "Apple runtime descriptor should decode resume filter query"
+        )
 
         let legacyRuntimeJSON = """
         {
@@ -164,6 +191,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(legacy.creation == nil, "Apple runtime descriptor should tolerate legacy payloads without Create metadata")
         require(legacy.offlineExports == nil, "Apple runtime descriptor should tolerate legacy payloads without offline export metadata")
         require(legacy.libraryActions == nil, "Apple runtime descriptor should tolerate legacy payloads without library action metadata")
+        require(legacy.playbackState == nil, "Apple runtime descriptor should tolerate legacy payloads without playback state metadata")
 
         print("apple runtime descriptor payload checks passed")
     }
