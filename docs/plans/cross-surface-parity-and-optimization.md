@@ -556,7 +556,11 @@ gate for simulator/local Mac surface wiring without compiling apps. Apple TV now
 `test-e2e-tvos-create-readiness` and shared-pipeline
 `apple-pipeline-tvos-create-readiness`/dry-run shortcuts through the registered
 `tvos-create` journey, keeping native tvOS Create checks simulator-only unless
-a physical Apple TV deploy is explicitly requested.
+a physical Apple TV deploy is explicitly requested. Create submission routes
+now also record token-safe duration telemetry for subtitle jobs and YouTube Dub
+jobs across success, validation, forbidden, not-found, and error outcomes
+without logging source paths, file names, job ids, user ids, language or voice
+values, metadata payloads, auth headers, or tokens.
 
 ### Milestone 2: iPad/iPhone Native New Job
 
@@ -764,7 +768,11 @@ After Narrate Ebook:
   from book job settings so defaults do not leak across modes. Apple Create now
   also exposes advanced metadata JSON editors for
   subtitle and YouTube jobs, so iPad/iPhone can review and apply full nested
-  metadata payloads beyond the high-value native fields before submission.
+  metadata payloads beyond the high-value native fields before submission. The
+  subtitle and YouTube Dub enqueue endpoints now emit aggregate submission
+  timing metrics for Apple/Web Create diagnostics without leaking NAS paths,
+  language/voice choices, metadata content, user ids, tokens, or created job
+  ids.
 - Library source reupload on iPhone/iPad. Status: Library row context menus now
   expose Replace Source File, open a document picker for common book/video
   source files, review the selected file before upload, post it to

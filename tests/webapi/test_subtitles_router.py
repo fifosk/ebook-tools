@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -299,6 +300,77 @@ def test_subtitle_source_picker_records_safe_timing(
         metrics_response.text,
         "ebook_tools_source_picker_route_duration_seconds",
         operation="subtitle_sources",
+        result="success",
+    )
+
+
+def test_subtitle_job_submission_records_safe_timing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    secret_dir = tmp_path / "Secret Show"
+    secret_dir.mkdir()
+    source = secret_dir / "episode.en.srt"
+    source.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    logger = _RecordingLogger()
+
+    class _Service:
+        default_source_dir = tmp_path
+
+        def __init__(self) -> None:
+            self.submissions = []
+
+        def enqueue(self, submission, *, user_id=None, user_role=None):
+            self.submissions.append((submission, user_id, user_role))
+            return SimpleNamespace(
+                job_id="subtitle-job-1",
+                status="pending",
+                created_at=datetime(2026, 6, 24, 12, 0, 0),
+                job_type="subtitle",
+            )
+
+    service = _Service()
+    app.dependency_overrides[get_subtitle_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(subtitles_router_module, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/subtitles/jobs",
+                data={
+                    "input_language": "English",
+                    "target_language": "Spanish",
+                    "source_path": source.as_posix(),
+                    "output_format": "srt",
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 202
+    assert response.json()["job_id"] == "subtitle-job-1"
+    assert service.submissions[0][1:] == ("office-ipad-user", "editor")
+
+    rendered_logs = "\n".join(logger.messages)
+    assert "Create submission operation=subtitle_job result=success" in rendered_logs
+    assert "upload=false source_path_present=true" in rendered_logs
+    assert "Secret Show" not in rendered_logs
+    assert "episode.en.srt" not in rendered_logs
+    assert "office-ipad-user" not in rendered_logs
+    assert "English" not in rendered_logs
+    assert "Spanish" not in rendered_logs
+    assert "subtitle-job-1" not in rendered_logs
+
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_create_submission_route_duration_seconds",
+        operation="subtitle_job",
         result="success",
     )
 

@@ -106,6 +106,41 @@ def _log_youtube_library_route(
     )
 
 
+def _record_create_submission_route_duration(operation: str, result: str, elapsed_seconds: float) -> None:
+    """Record token-safe Create submission route timing if metrics are available."""
+
+    try:
+        from ...metrics import CREATE_SUBMISSION_ROUTE_DURATION
+    except Exception:
+        return
+    CREATE_SUBMISSION_ROUTE_DURATION.labels(operation=operation, result=result).observe(elapsed_seconds)
+
+
+def _log_create_submission_route(
+    operation: str,
+    result: str,
+    started_at: float,
+    *,
+    output_dir_present: bool | None = None,
+    metadata_present: bool | None = None,
+) -> None:
+    """Log aggregate Create submission timing without identifiers, paths, or payload values."""
+
+    elapsed_seconds = time.perf_counter() - started_at
+    duration_ms = elapsed_seconds * 1000.0
+    _record_create_submission_route_duration(operation, result, elapsed_seconds)
+    details = (
+        f"Create submission operation={operation} result={result} "
+        f"duration_ms={duration_ms:.1f}"
+    )
+    if output_dir_present is not None:
+        details += f" output_dir_present={str(output_dir_present).lower()}"
+    if metadata_present is not None:
+        details += f" metadata_present={str(metadata_present).lower()}"
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(details)
+
+
 def _serialize_youtube_tracks(listing) -> YoutubeSubtitleListResponse:
     tracks = [
         YoutubeSubtitleTrackPayload(
@@ -580,19 +615,48 @@ def generate_youtube_dub(
 ) -> YoutubeDubResponse:
     """Generate a dubbed audio track from an ASS subtitle and mux it into the video."""
 
-    _ensure_editor(request_user)
+    started_at = time.perf_counter()
+    try:
+        _ensure_editor(request_user)
+    except HTTPException:
+        _log_create_submission_route("youtube_dub", "forbidden", started_at)
+        raise
     video_path = Path(payload.video_path).expanduser()
     subtitle_path = Path(payload.subtitle_path).expanduser()
 
-    tempo = parse_tempo_value(payload.tempo)
+    try:
+        tempo = parse_tempo_value(payload.tempo)
+    except HTTPException:
+        _log_create_submission_route(
+            "youtube_dub",
+            "bad_request",
+            started_at,
+            output_dir_present=bool(payload.output_dir),
+            metadata_present=bool(payload.media_metadata),
+        )
+        raise
     macos_speed = payload.macos_reading_speed if payload.macos_reading_speed is not None else 100
     if macos_speed <= 0:
+        _log_create_submission_route(
+            "youtube_dub",
+            "bad_request",
+            started_at,
+            output_dir_present=bool(payload.output_dir),
+            metadata_present=bool(payload.media_metadata),
+        )
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail="macos_reading_speed must be greater than zero",
         )
     mix_percent = payload.original_mix_percent
     if mix_percent is not None and (mix_percent < 0 or mix_percent > 100):
+        _log_create_submission_route(
+            "youtube_dub",
+            "bad_request",
+            started_at,
+            output_dir_present=bool(payload.output_dir),
+            metadata_present=bool(payload.media_metadata),
+        )
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail="original_mix_percent must be between 0 and 100",
@@ -600,6 +664,13 @@ def generate_youtube_dub(
     target_height = int(payload.target_height) if payload.target_height is not None else 480
     allowed_heights = {320, 480, 720}
     if target_height not in allowed_heights:
+        _log_create_submission_route(
+            "youtube_dub",
+            "bad_request",
+            started_at,
+            output_dir_present=bool(payload.output_dir),
+            metadata_present=bool(payload.media_metadata),
+        )
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail="target_height must be one of 320, 480, or 720",
@@ -607,6 +678,13 @@ def generate_youtube_dub(
     preserve_aspect_ratio = True if payload.preserve_aspect_ratio is None else bool(payload.preserve_aspect_ratio)
     flush_sentences = payload.flush_sentences
     if flush_sentences is not None and flush_sentences <= 0:
+        _log_create_submission_route(
+            "youtube_dub",
+            "bad_request",
+            started_at,
+            output_dir_present=bool(payload.output_dir),
+            metadata_present=bool(payload.media_metadata),
+        )
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail="flush_sentences must be greater than zero",
@@ -616,8 +694,18 @@ def generate_youtube_dub(
     enable_lookup_cache = True if payload.enable_lookup_cache is None else bool(payload.enable_lookup_cache)
     split_batches = bool(payload.split_batches) if payload.split_batches is not None else False
     stitch_batches = True if payload.stitch_batches is None else bool(payload.stitch_batches)
-    start_offset = parse_time_offset(payload.start_time_offset)
-    end_offset = parse_end_time(payload.end_time_offset, start_offset)
+    try:
+        start_offset = parse_time_offset(payload.start_time_offset)
+        end_offset = parse_end_time(payload.end_time_offset, start_offset)
+    except HTTPException:
+        _log_create_submission_route(
+            "youtube_dub",
+            "bad_request",
+            started_at,
+            output_dir_present=bool(payload.output_dir),
+            metadata_present=bool(payload.media_metadata),
+        )
+        raise
     voice = (payload.voice or "gTTS").strip() or "gTTS"
     target_language = (payload.target_language or "").strip() or None
     output_dir = Path(payload.output_dir).expanduser() if payload.output_dir else None
@@ -652,10 +740,31 @@ def generate_youtube_dub(
             enable_lookup_cache=enable_lookup_cache,
         )
     except FileNotFoundError as exc:
+        _log_create_submission_route(
+            "youtube_dub",
+            "not_found",
+            started_at,
+            output_dir_present=bool(payload.output_dir),
+            metadata_present=bool(payload.media_metadata),
+        )
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
+        _log_create_submission_route(
+            "youtube_dub",
+            "bad_request",
+            started_at,
+            output_dir_present=bool(payload.output_dir),
+            metadata_present=bool(payload.media_metadata),
+        )
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
+        _log_create_submission_route(
+            "youtube_dub",
+            "error",
+            started_at,
+            output_dir_present=bool(payload.output_dir),
+            metadata_present=bool(payload.media_metadata),
+        )
         logger.warning(
             "Unable to generate dubbed YouTube video",
             exc_info=True,
@@ -665,6 +774,13 @@ def generate_youtube_dub(
             detail=f"Unable to generate dubbed video: {exc}",
         ) from exc
 
+    _log_create_submission_route(
+        "youtube_dub",
+        "success",
+        started_at,
+        output_dir_present=bool(payload.output_dir),
+        metadata_present=bool(payload.media_metadata),
+    )
     return YoutubeDubResponse(
         job_id=job.job_id,
         status=job.status,

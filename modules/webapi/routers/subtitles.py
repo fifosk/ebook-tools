@@ -103,6 +103,41 @@ def _log_subtitle_source_picker(
     )
 
 
+def _record_create_submission_route_duration(operation: str, result: str, elapsed_seconds: float) -> None:
+    """Record token-safe Create submission route timing if metrics are available."""
+
+    try:
+        from ..metrics import CREATE_SUBMISSION_ROUTE_DURATION
+    except Exception:
+        return
+    CREATE_SUBMISSION_ROUTE_DURATION.labels(operation=operation, result=result).observe(elapsed_seconds)
+
+
+def _log_create_submission_route(
+    operation: str,
+    result: str,
+    started_at: float,
+    *,
+    upload: bool | None = None,
+    source_path_present: bool | None = None,
+) -> None:
+    """Log aggregate Create submission timing without identifiers, paths, or payload values."""
+
+    elapsed_seconds = time.perf_counter() - started_at
+    duration_ms = elapsed_seconds * 1000.0
+    _record_create_submission_route_duration(operation, result, elapsed_seconds)
+    details = (
+        f"Create submission operation={operation} result={result} "
+        f"duration_ms={duration_ms:.1f}"
+    )
+    if upload is not None:
+        details += f" upload={str(upload).lower()}"
+    if source_path_present is not None:
+        details += f" source_path_present={str(source_path_present).lower()}"
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(details)
+
+
 def _subtitle_source_sort_key(entry: SubtitleSourceEntry) -> tuple[int, float, str]:
     normalized_format = entry.format.strip().lower()
     format_weight = 0 if normalized_format in _PREFERRED_SUBTITLE_SOURCE_FORMATS else 1
@@ -269,13 +304,32 @@ async def submit_subtitle_job(
 ):
     """Submit a subtitle processing job."""
 
-    _ensure_editor(request_user)
+    started_at = time.perf_counter()
+    try:
+        _ensure_editor(request_user)
+    except HTTPException:
+        _log_create_submission_route("subtitle_job", "forbidden", started_at)
+        raise
     if file is None and not source_path:
+        _log_create_submission_route(
+            "subtitle_job",
+            "bad_request",
+            started_at,
+            upload=False,
+            source_path_present=False,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Either an upload or source_path must be provided.",
         )
     if file is not None and source_path:
+        _log_create_submission_route(
+            "subtitle_job",
+            "bad_request",
+            started_at,
+            upload=True,
+            source_path_present=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only one of upload or source_path may be provided.",
@@ -333,6 +387,13 @@ async def submit_subtitle_job(
             ass_emphasis_scale=parse_ass_emphasis_scale(ass_emphasis_scale),
         )
     except ValueError as exc:
+        _log_create_submission_route(
+            "subtitle_job",
+            "bad_request",
+            started_at,
+            upload=file is not None,
+            source_path_present=bool(source_path),
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
@@ -345,11 +406,25 @@ async def submit_subtitle_job(
         try:
             candidate = json.loads(str(media_metadata_json))
         except json.JSONDecodeError as exc:
+            _log_create_submission_route(
+                "subtitle_job",
+                "bad_request",
+                started_at,
+                upload=file is not None,
+                source_path_present=bool(source_path),
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="media_metadata_json must be valid JSON",
             ) from exc
         if not isinstance(candidate, dict):
+            _log_create_submission_route(
+                "subtitle_job",
+                "bad_request",
+                started_at,
+                upload=file is not None,
+                source_path_present=bool(source_path),
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="media_metadata_json must be a JSON object",
@@ -361,6 +436,13 @@ async def submit_subtitle_job(
             filename = file.filename or "subtitle.srt"
             suffix = Path(filename).suffix or ".srt"
             if suffix.lower() not in SUPPORTED_EXTENSIONS:
+                _log_create_submission_route(
+                    "subtitle_job",
+                    "bad_request",
+                    started_at,
+                    upload=True,
+                    source_path_present=False,
+                )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Unsupported subtitle extension '{suffix}'.",
@@ -368,6 +450,13 @@ async def submit_subtitle_job(
             with tempfile.NamedTemporaryFile("wb", suffix=suffix, delete=False) as handle:
                 contents = await file.read()
                 if not contents:
+                    _log_create_submission_route(
+                        "subtitle_job",
+                        "bad_request",
+                        started_at,
+                        upload=True,
+                        source_path_present=False,
+                    )
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Uploaded subtitle file is empty.",
@@ -381,11 +470,25 @@ async def submit_subtitle_job(
             assert source_path is not None  # for mypy
             source_path_resolved = Path(source_path).expanduser()
             if not source_path_resolved.exists():
+                _log_create_submission_route(
+                    "subtitle_job",
+                    "not_found",
+                    started_at,
+                    upload=False,
+                    source_path_present=True,
+                )
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Subtitle source '{source_path_resolved}' does not exist.",
                 )
             if source_path_resolved.suffix.lower() not in SUPPORTED_EXTENSIONS:
+                _log_create_submission_route(
+                    "subtitle_job",
+                    "bad_request",
+                    started_at,
+                    upload=False,
+                    source_path_present=True,
+                )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Unsupported subtitle extension '{source_path_resolved.suffix}'.",
@@ -398,6 +501,13 @@ async def submit_subtitle_job(
     except OSError as exc:
         if temp_file is not None:
             temp_file.unlink(missing_ok=True)
+        _log_create_submission_route(
+            "subtitle_job",
+            "error",
+            started_at,
+            upload=file is not None,
+            source_path_present=bool(source_path),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to prepare subtitle upload.",
@@ -430,8 +540,22 @@ async def submit_subtitle_job(
     except Exception:
         if temp_file is not None:
             temp_file.unlink(missing_ok=True)
+        _log_create_submission_route(
+            "subtitle_job",
+            "error",
+            started_at,
+            upload=file is not None,
+            source_path_present=bool(source_path),
+        )
         raise
 
+    _log_create_submission_route(
+        "subtitle_job",
+        "success",
+        started_at,
+        upload=file is not None,
+        source_path_present=bool(source_path),
+    )
     return PipelineSubmissionResponse(
         job_id=job.job_id,
         status=job.status,

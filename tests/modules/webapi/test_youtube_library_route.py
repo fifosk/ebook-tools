@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,6 +16,7 @@ from modules.webapi.dependencies import (
     RequestUserContext,
     get_pipeline_job_manager,
     get_request_user,
+    get_youtube_dubbing_service,
 )
 from modules.webapi.routers.subtitle_utils import youtube_routes
 
@@ -140,6 +142,90 @@ def test_youtube_library_links_jobs_from_metadata_without_full_job_hydration(
     metric = families["ebook_tools_youtube_library_route_duration_seconds"]
     assert any(
         sample.labels.get("operation") == "list"
+        and sample.labels.get("result") == "success"
+        and sample.name.endswith("_count")
+        and sample.value >= 1
+        for sample in metric.samples
+    )
+
+
+def test_youtube_dub_submission_records_safe_timing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    secret_dir = tmp_path / "Secret Show"
+    secret_dir.mkdir()
+    video_path = secret_dir / "episode.mp4"
+    subtitle_path = secret_dir / "episode.ass"
+    output_dir = secret_dir / "dubbed"
+    video_path.write_bytes(b"\x00")
+    subtitle_path.write_text("[Script Info]\n", encoding="utf-8")
+
+    class _Service:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, object]] = []
+
+        def enqueue(self, **kwargs):
+            self.calls.append(kwargs)
+            return SimpleNamespace(
+                job_id="youtube-dub-1",
+                status="pending",
+                created_at=datetime(2026, 6, 24, 12, 0, tzinfo=timezone.utc),
+                job_type="youtube_dub",
+                output_path=None,
+            )
+
+    service = _Service()
+    app.dependency_overrides[get_youtube_dubbing_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(youtube_routes, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/subtitles/youtube/dub",
+                json={
+                    "video_path": video_path.as_posix(),
+                    "subtitle_path": subtitle_path.as_posix(),
+                    "target_language": "Spanish",
+                    "voice": "Diego",
+                    "media_metadata": {"title": "Private Title"},
+                    "output_dir": output_dir.as_posix(),
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 202
+    assert response.json()["job_id"] == "youtube-dub-1"
+    assert service.calls[0]["video_path"] == video_path
+    assert service.calls[0]["subtitle_path"] == subtitle_path
+
+    rendered_logs = "\n".join(logger.messages)
+    assert "Create submission operation=youtube_dub result=success" in rendered_logs
+    assert "output_dir_present=true metadata_present=true" in rendered_logs
+    assert "Secret Show" not in rendered_logs
+    assert "episode.mp4" not in rendered_logs
+    assert "episode.ass" not in rendered_logs
+    assert "office-ipad-user" not in rendered_logs
+    assert "Spanish" not in rendered_logs
+    assert "Diego" not in rendered_logs
+    assert "Private Title" not in rendered_logs
+    assert "youtube-dub-1" not in rendered_logs
+
+    families = {
+        family.name: family
+        for family in text_string_to_metric_families(metrics_response.text)
+    }
+    metric = families["ebook_tools_create_submission_route_duration_seconds"]
+    assert any(
+        sample.labels.get("operation") == "youtube_dub"
         and sample.labels.get("result") == "success"
         and sample.name.endswith("_count")
         and sample.value >= 1
