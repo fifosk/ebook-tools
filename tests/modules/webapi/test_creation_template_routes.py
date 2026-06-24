@@ -39,6 +39,18 @@ def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -
                             "api_key": "do-not-store",
                             "language": "Slovak",
                         },
+                        "profiles": [
+                            {
+                                "voice": "alloy",
+                                "credential": "do-not-store",
+                                "privateKey": "do-not-store",
+                            },
+                            {
+                                "target_language": "fr",
+                                "cookies": "do-not-store",
+                                "csrfHeader": "do-not-store",
+                            },
+                        ],
                     },
                 },
             )
@@ -67,6 +79,10 @@ def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -
         "topic": "Dan Brown continuation",
         "book_title": "The next chapter",
         "nested": {"language": "Slovak"},
+        "profiles": [
+            {"voice": "alloy"},
+            {"target_language": "fr"},
+        ],
     }
     assert "do-not-store" not in first.text
 

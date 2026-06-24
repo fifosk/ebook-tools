@@ -52,6 +52,14 @@ _SENSITIVE_KEY_MARKERS = (
     "authheader",
     "apikey",
     "api_key",
+    "bearer",
+    "cookie",
+    "credential",
+    "csrf",
+    "jwt",
+    "privatekey",
+    "private_key",
+    "sessioncookie",
 )
 
 
