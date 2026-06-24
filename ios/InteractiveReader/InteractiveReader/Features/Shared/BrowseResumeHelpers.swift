@@ -16,11 +16,18 @@ enum BrowseResumeStatusFormatter {
         guard let availability = availabilityByJobID[jobId] else {
             return .none()
         }
+        let localEntry = availability.hasLocal ? availability.localEntry : nil
         let cloudEntry = availability.hasCloud ? availability.cloudEntry : nil
-        guard let cloudEntry else {
+        switch (localEntry, cloudEntry) {
+        case let (local?, cloud?):
+            return .both(label: resumeLabel(prefix: "B", entry: freshestEntry(local, cloud)))
+        case let (local?, nil):
+            return .local(label: resumeLabel(prefix: "L", entry: local))
+        case let (nil, cloud?):
+            return .cloud(label: resumeLabel(prefix: "C", entry: cloud))
+        case (nil, nil):
             return .none()
         }
-        return .cloud(label: resumeLabel(prefix: "C", entry: cloudEntry))
     }
 
     static func menuLabel(
@@ -58,6 +65,13 @@ enum BrowseResumeStatusFormatter {
             }
         }
         return "\(prefix)"
+    }
+
+    private static func freshestEntry(
+        _ first: PlaybackResumeEntry,
+        _ second: PlaybackResumeEntry
+    ) -> PlaybackResumeEntry {
+        first.updatedAt >= second.updatedAt ? first : second
     }
 
     private static func formatPlaybackTime(_ time: Double) -> String {

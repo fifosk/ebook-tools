@@ -705,7 +705,12 @@ Suggested features to evaluate after parity scaffolding:
   reuse the same intake callout and capacity gate before enqueueing their own
   long-running jobs. The shared pipeline backend gate now includes the focused
   system-route pytest.
-- Smart resume cards: show "continue listening", "newly completed", and "needs attention" across all surfaces.
+- Smart resume cards: show "continue listening", "newly completed", and "needs attention" across all surfaces. Status:
+  Apple browse rows now surface local-only, iCloud-only, and synced resume
+  evidence in the shared Library/Jobs/search row badge instead of hiding valid
+  local fallback resume points; synced badges display the freshest stored
+  resume point so iPhone, iPad, and tvOS list surfaces agree with the playback
+  resume decision.
 - Shared media diagnostics: surface missing timing/audio/image assets without
   opening logs. Status: media manifest responses now include a token-safe
   aggregate diagnostics object with media, chunk, audio, image, timing,
