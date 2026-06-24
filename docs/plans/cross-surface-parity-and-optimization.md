@@ -229,7 +229,8 @@ Current Apple UI partially exposes:
   `AppleBookCreateLanguageSelector.swift`. Source UI for newest-first server
   EPUBs, subtitle jobs, and NAS YouTube dubbing lives in
   `AppleBookCreateSourceSection.swift`, while reusable default source selection
-  decisions live in `AppleBookCreateSourceSelection.swift`. Subtitle time-range and YouTube
+  decisions, including NAS YouTube scope refreshes, live in
+  `AppleBookCreateSourceSelection.swift`. Subtitle time-range and YouTube
   offset-range validation now use pure support helpers that preserve the
   existing visible error messages. Backend default resolution and edited-field
   preservation now live in support too, so backend-driven Apple Create defaults

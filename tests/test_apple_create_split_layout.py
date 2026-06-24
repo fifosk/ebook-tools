@@ -316,6 +316,7 @@ def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     assert "struct AppleNarrationHistoryDefaults: Equatable" in models_source
     assert "struct AppleNarrateSourceDefaults: Equatable" in models_source
     assert "struct AppleSubtitleSourceDefaults: Equatable" in models_source
+    assert "struct AppleYoutubeSourceDefaults: Equatable" in models_source
     assert "enum AppleCreateMode: String" in models_source
     assert "enum AppleBookCreatePresentation" not in models_source
     assert "enum AppleBookCreatePresentation" in support_source
@@ -714,6 +715,7 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
     assert "static func subtitleSourceDefaults(" in source_selection
     assert "static func preferredYoutubeSelection(from library: YoutubeNasLibraryResponse?)" in source_selection
     assert "static func youtubeSelection(" in source_selection
+    assert "static func youtubeSourceDefaults(" in source_selection
     assert "static func youtubeLibraryCacheKey(baseKey: String, baseDir: String)" in source_selection
     assert "static func subtitleShowOriginalPreferenceKey(baseKey: String)" in source_selection
     assert "private static let subtitleJobSourceFormats" not in support_source
@@ -725,6 +727,8 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
     view_source = _source(CREATE_VIEW)
     assert "AppleBookCreatePresentation.narrateSourceDefaults(" in view_source
     assert "AppleBookCreatePresentation.subtitleSourceDefaults(" in view_source
+    assert "AppleBookCreatePresentation.youtubeSourceDefaults(" in view_source
+    assert "let scopeChanged = youtubeSelectionStorageScope != youtubeLibraryLoadKey" not in view_source
 
 
 def test_create_storage_keys_are_split_from_view_and_target_wired() -> None:

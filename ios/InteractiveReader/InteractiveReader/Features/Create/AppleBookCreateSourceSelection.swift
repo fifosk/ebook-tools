@@ -210,6 +210,39 @@ extension AppleBookCreatePresentation {
         return AppleYoutubeSourceSelection(video: selectedVideo, subtitle: subtitle)
     }
 
+    static func youtubeSourceDefaults(
+        library: YoutubeNasLibraryResponse?,
+        currentStorageScope: String,
+        nextStorageScope: String,
+        didEditVideoPath: Bool,
+        currentVideoPath: String,
+        didEditSubtitlePath: Bool,
+        currentSubtitlePath: String,
+        storedVideoPath: String?,
+        storedSubtitlePath: String?
+    ) -> AppleYoutubeSourceDefaults? {
+        guard let selection = youtubeSelection(
+            from: library,
+            storedVideoPath: storedVideoPath,
+            storedSubtitlePath: storedSubtitlePath
+        ) else {
+            return nil
+        }
+
+        let scopeChanged = currentStorageScope != nextStorageScope
+        let videoPath = !didEditVideoPath && (normalizedSourceText(currentVideoPath).isEmpty || scopeChanged)
+            ? selection.video.path
+            : nil
+        let subtitlePath = !didEditSubtitlePath && (normalizedSourceText(currentSubtitlePath).isEmpty || scopeChanged)
+            ? selection.subtitle?.path ?? ""
+            : nil
+        return AppleYoutubeSourceDefaults(
+            nextStorageScope: nextStorageScope,
+            videoPath: videoPath,
+            subtitlePath: subtitlePath
+        )
+    }
+
     static func youtubeSubtitleLanguage(
         from library: YoutubeNasLibraryResponse?,
         videoPath: String,

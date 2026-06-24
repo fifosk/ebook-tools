@@ -1198,21 +1198,26 @@ struct AppleBookCreateView: View {
     }
 
     private func applyPreferredYoutubeSource(from library: YoutubeNasLibraryResponse?) {
-        let scopeChanged = youtubeSelectionStorageScope != youtubeLibraryLoadKey
-        youtubeSelectionStorageScope = youtubeLibraryLoadKey
-        guard let selection = AppleBookCreatePresentation.youtubeSelection(
-            from: library,
+        guard let defaults = AppleBookCreatePresentation.youtubeSourceDefaults(
+            library: library,
+            currentStorageScope: youtubeSelectionStorageScope,
+            nextStorageScope: youtubeLibraryLoadKey,
+            didEditVideoPath: editedFields.contains(.youtubeVideoPath),
+            currentVideoPath: youtubeVideoPath,
+            didEditSubtitlePath: editedFields.contains(.youtubeSubtitlePath),
+            currentSubtitlePath: youtubeSubtitlePath,
             storedVideoPath: storedYoutubeSelectionPath(field: "video"),
             storedSubtitlePath: storedYoutubeSelectionPath(field: "subtitle")
         ) else {
             return
         }
 
-        if !editedFields.contains(.youtubeVideoPath), trimmed(youtubeVideoPath).isEmpty || scopeChanged {
-            youtubeVideoPath = selection.video.path
+        youtubeSelectionStorageScope = defaults.nextStorageScope
+        if let videoPath = defaults.videoPath {
+            youtubeVideoPath = videoPath
         }
-        if !editedFields.contains(.youtubeSubtitlePath), trimmed(youtubeSubtitlePath).isEmpty || scopeChanged {
-            youtubeSubtitlePath = selection.subtitle?.path ?? ""
+        if let subtitlePath = defaults.subtitlePath {
+            youtubeSubtitlePath = subtitlePath
         }
     }
 

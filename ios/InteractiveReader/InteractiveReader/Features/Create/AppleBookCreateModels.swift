@@ -237,6 +237,12 @@ struct AppleSubtitleSourceDefaults: Equatable {
     let metadataLookupSourceName: String
 }
 
+struct AppleYoutubeSourceDefaults: Equatable {
+    let nextStorageScope: String
+    let videoPath: String?
+    let subtitlePath: String?
+}
+
 struct AppleCreateEstimatedAudio {
     static let secondsPerSentence = 6.4
 }
