@@ -86,6 +86,15 @@ CREATE_MODELS = (
     / "Create"
     / "AppleBookCreateModels.swift"
 )
+CREATE_DEFAULTS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateDefaults.swift"
+)
 CREATE_LANGUAGE_OPTIONS = (
     ROOT
     / "ios"
@@ -202,6 +211,37 @@ def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     assert "enum AppleBookCreatePresentation" in support_source
     assert "AppleBookCreateModels.swift in Sources" in project
     assert project.count("AppleBookCreateModels.swift in Sources") == 4
+
+
+def test_create_defaults_are_split_from_support_and_target_wired() -> None:
+    defaults_source = _source(CREATE_DEFAULTS)
+    support_source = _source(CREATE_SUPPORT)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+
+    assert "extension AppleBookCreatePresentation" in defaults_source
+    assert "static func resolvedDefaults(" in defaults_source
+    assert "static func targetLanguageDefaults(" in defaults_source
+    assert "static func languagePreferences(" in defaults_source
+    assert "static func resolvedLanguagePreferences(" in defaults_source
+    assert "static func voiceOverrides(" in defaults_source
+    assert "static func voiceOverridePipelineValue(" in defaults_source
+    assert "static func normalizedTargetLanguages(" in defaults_source
+    assert "static func normalizedLanguageList(" in defaults_source
+    assert "static func normalizedBookGenres(" in defaults_source
+    assert "private static func normalizedDefaultText(" in defaults_source
+    assert "static func resolvedDefaults(" not in support_source
+    assert "static func targetLanguageDefaults(" not in support_source
+    assert "static func languagePreferences(" not in support_source
+    assert "static func resolvedLanguagePreferences(" not in support_source
+    assert "static func voiceOverrides(" not in support_source
+    assert "static func voiceOverridePipelineValue(" not in support_source
+    assert "static func normalizedTargetLanguages(" not in support_source
+    assert "static func normalizedLanguageList(" not in support_source
+    assert "static func normalizedBookGenres(" not in support_source
+    assert "AppleBookCreateDefaults.swift in Sources" in project
+    assert project.count("AppleBookCreateDefaults.swift in Sources") == 4
+    assert "AppleBookCreateDefaults.swift" in payload_script
 
 
 def test_create_metadata_views_are_split_from_sections_and_target_wired() -> None:
