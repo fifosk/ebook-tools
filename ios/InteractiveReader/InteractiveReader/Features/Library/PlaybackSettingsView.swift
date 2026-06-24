@@ -132,7 +132,8 @@ struct PlaybackSettingsView: View {
                 version: descriptor.version,
                 createContract: Self.createContractState(from: descriptor.creation),
                 libraryActionsContract: Self.libraryActionsContractState(from: descriptor.libraryActions),
-                offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports)
+                offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports),
+                playbackStateContract: Self.playbackStateContractState(from: descriptor.playbackState)
             )
         } catch is CancellationError {
             return
@@ -244,6 +245,42 @@ struct PlaybackSettingsView: View {
         }
         return .ready(
             summary: "\(expectedPaths.count) endpoints · \(AppleOfflineExportRuntimeContract.createPath) · \(AppleOfflineExportRuntimeContract.downloadPathTemplate) · \(AppleOfflineExportRuntimeContract.playerType)"
+        )
+    }
+
+    private static func playbackStateContractState(
+        from playbackState: BackendRuntimeDescriptorResponse.PlaybackStateContract?
+    ) -> BackendRuntimeContractState {
+        guard let playbackState else {
+            return .unavailable
+        }
+        let expectedPaths = [
+            (
+                "bookmarksPathTemplate",
+                playbackState.bookmarksPathTemplate,
+                ApplePlaybackStateRuntimeContract.bookmarksPathTemplate
+            ),
+            (
+                "bookmarkDeletePathTemplate",
+                playbackState.bookmarkDeletePathTemplate,
+                ApplePlaybackStateRuntimeContract.bookmarkDeletePathTemplate
+            ),
+            ("resumeListPath", playbackState.resumeListPath, ApplePlaybackStateRuntimeContract.resumeListPath),
+            ("resumePathTemplate", playbackState.resumePathTemplate, ApplePlaybackStateRuntimeContract.resumePathTemplate),
+            ("resumeFilterQuery", playbackState.resumeFilterQuery, ApplePlaybackStateRuntimeContract.resumeFilterQuery),
+        ]
+        let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
+            let normalized = actual.nonEmptyValue
+            guard normalized == expected else {
+                return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
+            }
+            return nil
+        }
+        if !mismatches.isEmpty {
+            return .mismatch(summary: mismatches.joined(separator: " · "))
+        }
+        return .ready(
+            summary: "\(expectedPaths.count) endpoints · \(ApplePlaybackStateRuntimeContract.bookmarksPathTemplate) · \(ApplePlaybackStateRuntimeContract.resumeListPath) · \(ApplePlaybackStateRuntimeContract.resumeFilterQuery)"
         )
     }
 

@@ -715,7 +715,10 @@ Suggested features to evaluate after parity scaffolding:
   badge next to the status badge without adding an extra list-time API
   waterfall. The public runtime descriptor now advertises bookmark and resume
   playback-state paths, including the batch resume list endpoint, so Apple and
-  shared-pipeline preflights can catch playback-state contract drift.
+  shared-pipeline preflights can catch playback-state contract drift; Apple
+  Settings also surfaces this playback-state contract in the Create readiness
+  journey so simulator checks validate the routes the app uses for bookmark and
+  resume sync.
 - Shared media diagnostics: surface missing timing/audio/image assets without
   opening logs. Status: media manifest responses now include a token-safe
   aggregate diagnostics object with media, chunk, audio, image, timing,

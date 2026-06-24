@@ -8,7 +8,8 @@ enum BackendRuntimeState: Equatable {
         version: String,
         createContract: BackendRuntimeContractState,
         libraryActionsContract: BackendRuntimeContractState,
-        offlineExportsContract: BackendRuntimeContractState
+        offlineExportsContract: BackendRuntimeContractState,
+        playbackStateContract: BackendRuntimeContractState
     )
     case unavailable(String)
 
@@ -16,7 +17,7 @@ enum BackendRuntimeState: Equatable {
         switch self {
         case .idle, .checking:
             return "Checking"
-        case let .verified(service, version, _, _, _):
+        case let .verified(service, version, _, _, _, _):
             let serviceLabel = service.nonEmptyValue ?? "Backend"
             let versionLabel = version.nonEmptyValue ?? "unknown"
             return "\(serviceLabel) · \(versionLabel)"
@@ -38,7 +39,7 @@ enum BackendRuntimeState: Equatable {
 
     var createContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, createContract, _, _):
+        case let .verified(_, _, createContract, _, _, _):
             return createContract
         case .idle, .checking, .unavailable:
             return nil
@@ -47,7 +48,7 @@ enum BackendRuntimeState: Equatable {
 
     var libraryActionsContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, _, libraryActionsContract, _):
+        case let .verified(_, _, _, libraryActionsContract, _, _):
             return libraryActionsContract
         case .idle, .checking, .unavailable:
             return nil
@@ -56,8 +57,17 @@ enum BackendRuntimeState: Equatable {
 
     var offlineExportsContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, _, _, offlineExportsContract):
+        case let .verified(_, _, _, _, offlineExportsContract, _):
             return offlineExportsContract
+        case .idle, .checking, .unavailable:
+            return nil
+        }
+    }
+
+    var playbackStateContractState: BackendRuntimeContractState? {
+        switch self {
+        case let .verified(_, _, _, _, _, playbackStateContract):
+            return playbackStateContract
         case .idle, .checking, .unavailable:
             return nil
         }
@@ -148,6 +158,15 @@ struct SettingsConnectionSection: View {
                     value: offlineExportsContractState.label,
                     systemImage: offlineExportsContractState.systemImage,
                     accessibilityIdentifier: "settingsOfflineExportsContractRow"
+                )
+            }
+
+            if let playbackStateContractState = backendRuntimeState.playbackStateContractState {
+                SettingsInfoRow(
+                    title: "Playback State Contract",
+                    value: playbackStateContractState.label,
+                    systemImage: playbackStateContractState.systemImage,
+                    accessibilityIdentifier: "settingsPlaybackStateContractRow"
                 )
             }
 

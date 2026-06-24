@@ -54,6 +54,14 @@ API_CLIENT_LIBRARY_JOBS = (
     / "Services"
     / "APIClient+LibraryJobs.swift"
 )
+API_CLIENT_PLAYBACK_STATE = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Services"
+    / "APIClient+PlaybackState.swift"
+)
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -157,6 +165,9 @@ def test_settings_surfaces_create_contract_runtime_status() -> None:
     assert "var offlineExportsContractState: BackendRuntimeContractState?" in source
     assert 'title: "Offline Export Contract"' in source
     assert 'accessibilityIdentifier: "settingsOfflineExportsContractRow"' in source
+    assert "var playbackStateContractState: BackendRuntimeContractState?" in source
+    assert 'title: "Playback State Contract"' in source
+    assert 'accessibilityIdentifier: "settingsPlaybackStateContractRow"' in source
 
 
 def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None:
@@ -231,13 +242,32 @@ def test_apple_offline_export_client_uses_runtime_contract_constants() -> None:
     assert "playerType: AppleOfflineExportRuntimeContract.playerType" in source
 
 
-def test_settings_compares_library_and_offline_export_runtime_contracts() -> None:
+def test_apple_playback_state_client_uses_runtime_contract_constants() -> None:
+    source = API_CLIENT_PLAYBACK_STATE.read_text(encoding="utf-8")
+
+    assert "enum ApplePlaybackStateRuntimeContract" in source
+    assert 'static let bookmarksPathTemplate = "/api/bookmarks/{job_id}"' in source
+    assert 'static let bookmarkDeletePathTemplate = "/api/bookmarks/{job_id}/{bookmark_id}"' in source
+    assert 'static let resumeListPath = "/api/resume"' in source
+    assert 'static let resumePathTemplate = "/api/resume/{job_id}"' in source
+    assert 'static let resumeFilterQuery = "job_id"' in source
+    assert "static func bookmarksPath(_ encodedJobId: String) -> String" in source
+    assert "static func bookmarkDeletePath(" in source
+    assert "static func resumePath(_ encodedJobId: String) -> String" in source
+    assert "ApplePlaybackStateRuntimeContract.bookmarksPath(encoded)" in source
+    assert "ApplePlaybackStateRuntimeContract.bookmarkDeletePath(" in source
+    assert "ApplePlaybackStateRuntimeContract.resumePath(encoded)" in source
+
+
+def test_settings_compares_runtime_contracts() -> None:
     source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
 
     assert "libraryActionsContract: Self.libraryActionsContractState(from: descriptor.libraryActions)" in source
     assert "offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports)" in source
+    assert "playbackStateContract: Self.playbackStateContractState(from: descriptor.playbackState)" in source
     assert "private static func libraryActionsContractState(" in source
     assert "private static func offlineExportsContractState(" in source
+    assert "private static func playbackStateContractState(" in source
     for key in [
         "itemPathTemplate",
         "sourceUploadPathTemplate",
@@ -248,3 +278,11 @@ def test_settings_compares_library_and_offline_export_runtime_contracts() -> Non
     assert "AppleOfflineExportRuntimeContract.downloadPathTemplate" in source
     assert "AppleOfflineExportRuntimeContract.supportedSourceKinds" in source
     assert "[AppleOfflineExportRuntimeContract.playerType]" in source
+    for key in [
+        "bookmarksPathTemplate",
+        "bookmarkDeletePathTemplate",
+        "resumeListPath",
+        "resumePathTemplate",
+        "resumeFilterQuery",
+    ]:
+        assert f"ApplePlaybackStateRuntimeContract.{key}" in source

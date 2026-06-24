@@ -101,6 +101,29 @@
       "timeout": 20
     },
     {
+      "action": "assert_visible",
+      "selector": "settingsPlaybackStateContractRow",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsPlaybackStateContractRow",
+      "text": "/api/bookmarks/{job_id}",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsPlaybackStateContractRow",
+      "text": "/api/resume",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsPlaybackStateContractRow",
+      "text": "job_id",
+      "timeout": 20
+    },
+    {
       "action": "navigate_tab",
       "tab": "Create",
       "selector": "browseSectionCreateButton",
