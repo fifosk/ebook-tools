@@ -27,6 +27,9 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
     expected = {
         "test-backend-admin-system-status": ("tests/modules/webapi/test_system_routes.py",),
         "test-backend-create-book": ("tests/test_create_book.py",),
+        "test-backend-creation-templates": (
+            "tests/modules/webapi/test_creation_template_routes.py",
+        ),
         "test-backend-subtitle-router": ("tests/webapi/test_subtitles_router.py",),
         "test-backend-youtube-dubbing-service": (
             "tests/modules/webapi/test_youtube_library_route.py",
@@ -50,6 +53,7 @@ def test_docs_publish_backend_pipeline_targets() -> None:
         "make test-backend-library-search-source-isbn",
         "make test-backend-admin-system-status",
         "make test-backend-create-book",
+        "make test-backend-creation-templates",
         "make test-backend-subtitle-router",
         "make test-backend-youtube-dubbing-service",
     ]:

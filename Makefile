@@ -2,7 +2,8 @@
        test-pipeline test-cli test-auth test-library test-render test-media \
        test-config test-metadata test-changed \
        test-backend-library-search-source-isbn test-backend-admin-system-status \
-       test-backend-create-book test-backend-subtitle-router \
+       test-backend-create-book test-backend-creation-templates \
+       test-backend-subtitle-router \
        test-backend-youtube-dubbing-service \
        test-web-create-book-focused test-web-create-intake-focused \
        test-web-creation-templates-focused \
@@ -79,6 +80,9 @@ test-backend-admin-system-status:
 
 test-backend-create-book:
 	$(PYTHON) -m pytest tests/test_create_book.py
+
+test-backend-creation-templates:
+	$(PYTHON) -m pytest tests/modules/webapi/test_creation_template_routes.py
 
 test-backend-subtitle-router:
 	$(PYTHON) -m pytest tests/webapi/test_subtitles_router.py

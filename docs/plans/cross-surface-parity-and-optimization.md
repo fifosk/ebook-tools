@@ -808,7 +808,9 @@ Suggested features to evaluate after parity scaffolding:
 
 Every cross-surface change should pass the relevant subset:
 
-- Backend: targeted `pytest` for touched routers/services.
+- Backend: targeted `pytest` for touched routers/services, including the
+  manifest-registered saved creation-template route slice when template
+  behavior changes.
 - Web: focused Vitest files plus a production/export build. Use the package
   manager available in the checkout, for example `npm --prefix web test -- --run
   ...` and `npm --prefix web run build`; the Web build script should remain
