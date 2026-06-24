@@ -224,7 +224,10 @@ Optimization candidates:
   for success/error outcomes without logging user ids or job ids. Pipeline media
   manifests now record token-safe duration and aggregate category/file/chunk
   counts for completed and live manifest routes without logging job ids, user
-  ids, auth headers, tokens, or file names.
+  ids, auth headers, tokens, or file names. Offline export create/download
+  routes now record token-safe duration telemetry and aggregate logs without
+  logging source ids, export ids, user ids, file paths, filenames, auth headers,
+  or tokens.
 - Prefer precomputed or cached job summary fields for list rows while keeping
   full metadata available on detail/media routes. Status:
   `/api/pipelines/jobs` now uses compact row result summaries so list rendering
