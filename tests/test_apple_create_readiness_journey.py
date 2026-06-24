@@ -64,6 +64,44 @@ def test_create_readiness_journey_checks_runtime_create_contract() -> None:
     } in runtime_steps
 
 
+def test_create_readiness_journey_checks_generated_book_defaults_before_media_modes() -> None:
+    journey = json.loads(CREATE_READINESS_JOURNEY.read_text(encoding="utf-8"))
+    steps = journey["steps"]
+
+    generated_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("selector") == "createJobTypePicker"
+        and step.get("text") == "Generate"
+    )
+    narrate_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("selector") == "createJobTypePicker"
+        and step.get("text") == "Narrate EPUB"
+    )
+    generated_steps = steps[generated_index:narrate_index]
+
+    assert generated_index < narrate_index
+    assert {
+        "action": "assert_visible",
+        "selector": "createBookTopicField",
+        "timeout": 15,
+    } in generated_steps
+    assert {
+        "action": "assert_visible",
+        "selector": "createBookTitleField",
+        "timeout": 15,
+    } in generated_steps
+    assert {
+        "action": "assert_non_empty_value",
+        "selector": "createBookAuthorField",
+        "placeholder": "Author",
+        "timeout": 15,
+    } in generated_steps
+    assert any(step.get("selector") == "createBookSentenceStepper" for step in generated_steps)
+
+
 def test_journey_runner_supports_value_contains_assertion() -> None:
     source = JOURNEY_RUNNER.read_text(encoding="utf-8")
 

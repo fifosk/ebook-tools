@@ -135,6 +135,19 @@ def test_language_inventory_requires_broad_book_options() -> None:
 def test_media_job_defaults_inventory_requires_cross_surface_defaults() -> None:
     assert module.media_job_defaults_inventory(
         {
+            "sentence_bounds": {"min": 1, "max": 500, "default": 30},
+            "defaults": {
+                "author": "Me",
+                "input_language": "English",
+                "output_language": "Arabic",
+                "voice": "DemoVoice",
+            },
+            "pipeline_defaults": {
+                "audio_mode": "4",
+                "written_mode": "4",
+                "selected_voice": "DemoVoice",
+                "stitch_full": False,
+            },
             "subtitle_defaults": {
                 "worker_count": 12,
                 "batch_size": 22,
@@ -153,14 +166,29 @@ def test_media_job_defaults_inventory_requires_cross_surface_defaults() -> None:
             },
         }
     ) == {
+        "generated_book_defaults_ready": True,
         "subtitle_job_defaults_ready": True,
         "youtube_dub_defaults_ready": True,
+        "generated_book_defaults_errors": [],
         "subtitle_job_defaults_errors": [],
         "youtube_dub_defaults_errors": [],
     }
 
     assert module.media_job_defaults_inventory(
         {
+            "sentence_bounds": {"min": 10, "max": 5, "default": 30},
+            "defaults": {
+                "author": "",
+                "input_language": "English",
+                "output_language": "",
+                "voice": "",
+            },
+            "pipeline_defaults": {
+                "audio_mode": "",
+                "written_mode": "4",
+                "selected_voice": "",
+                "stitch_full": "no",
+            },
             "subtitle_defaults": {
                 "worker_count": 0,
                 "batch_size": "many",
@@ -179,8 +207,18 @@ def test_media_job_defaults_inventory_requires_cross_surface_defaults() -> None:
             },
         }
     ) == {
+        "generated_book_defaults_ready": False,
         "subtitle_job_defaults_ready": False,
         "youtube_dub_defaults_ready": False,
+        "generated_book_defaults_errors": [
+            "sentence_bounds.default_range",
+            "defaults.author",
+            "defaults.output_language",
+            "defaults.voice",
+            "pipeline_defaults.audio_mode",
+            "pipeline_defaults.selected_voice",
+            "pipeline_defaults.stitch_full",
+        ],
         "subtitle_job_defaults_errors": [
             "worker_count",
             "batch_size",
@@ -214,8 +252,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "book_output_languages": 65,
             "missing_book_input_languages": [],
             "missing_book_output_languages": [],
+            "generated_book_defaults_ready": True,
             "subtitle_job_defaults_ready": True,
             "youtube_dub_defaults_ready": True,
+            "generated_book_defaults_errors": [],
             "subtitle_job_defaults_errors": [],
             "youtube_dub_defaults_errors": [],
         }
@@ -234,8 +274,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "book_output_languages": 6,
             "missing_book_input_languages": ["hindi"],
             "missing_book_output_languages": ["persian"],
+            "generated_book_defaults_ready": False,
             "subtitle_job_defaults_ready": False,
             "youtube_dub_defaults_ready": False,
+            "generated_book_defaults_errors": ["defaults.voice"],
             "subtitle_job_defaults_errors": ["batch_size"],
             "youtube_dub_defaults_errors": ["target_height"],
         }
@@ -250,6 +292,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "broad book output language options",
         "book input language sentinels: hindi",
         "book output language sentinels: persian",
+        "generated book defaults: defaults.voice",
         "subtitle job processing defaults: batch_size",
         "YouTube dubbing processing defaults: target_height",
     ]
@@ -339,6 +382,19 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
             broad_languages = [f"Language {index}" for index in range(60)]
             broad_languages.extend(module.REQUIRED_BOOK_LANGUAGE_SENTINELS)
             return {
+                "sentence_bounds": {"min": 1, "max": 500, "default": 30},
+                "defaults": {
+                    "author": "Me",
+                    "input_language": "English",
+                    "output_language": "Arabic",
+                    "voice": "DemoVoice",
+                },
+                "pipeline_defaults": {
+                    "audio_mode": "4",
+                    "written_mode": "4",
+                    "selected_voice": "DemoVoice",
+                    "stitch_full": False,
+                },
                 "supported_input_languages": broad_languages,
                 "supported_output_languages": broad_languages,
                 "subtitle_defaults": {
@@ -371,6 +427,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/subtitles/youtube/library",
         "/api/books/options",
     ]
+    assert summary["generated_book_defaults_ready"] is True
     assert summary["subtitle_job_defaults_ready"] is True
     assert summary["youtube_dub_defaults_ready"] is True
 

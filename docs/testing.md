@@ -118,18 +118,19 @@ otherwise `.env.local`, with an explicit override available for one-off runs.
 
 The reusable manifest also exposes stricter native Create journeys as
 `iphone-create` and `ipados-create`. They run the same preflight before Xcode
-and then execute the `create_readiness.json` journey, which verifies Narrate
-EPUB, subtitle, and YouTube dubbing defaults from backend-visible sources.
+and then execute the `create_readiness.json` journey, which verifies generated
+book controls plus Narrate EPUB, subtitle, and YouTube dubbing defaults from
+backend-visible sources.
 
 The preflight verifies backend-visible EPUBs, subtitle sources, YouTube/NAS
-video subtitle pairs, the broad book language inventory, and the shared
-subtitle/YouTube dubbing processing defaults from `/api/books/options`. It
-fails if the Create contract regresses to a small language list, including the
-iPad-visible six-language regression, or if the backend stops advertising the
-media-job defaults used by Web and Apple creation forms. The native Create
-readiness journey also selects `Hindi` in the target-language picker so the
-simulator lane exercises the expanded Apple picker, not only the backend
-contract.
+video subtitle pairs, generated-book sentence/language/voice defaults, the broad
+book language inventory, and the shared subtitle/YouTube dubbing processing
+defaults from `/api/books/options`. It fails if the Create contract regresses to
+a small language list, including the iPad-visible six-language regression, or if
+the backend stops advertising the generated-book or media-job defaults used by
+Web and Apple creation forms. The native Create readiness journey also selects
+`Hindi` in the target-language picker so the full Web-backed language catalog is
+exercised in the simulator UI, not only the backend contract.
 
 Latest result on June 21, 2026: `InteractiveReaderUITests/JourneyTests/testJourney`
 passed on the `iPad Pro 13-inch (M5)` simulator with 1 test, 0 failures. The
@@ -902,8 +903,9 @@ Override `IPHONE_DESTINATION`, `IPAD_DESTINATION`, or `TVOS_DESTINATION` when a
 different installed simulator model is needed.
 
 Create-readiness probes use `tests/e2e/journeys/create_readiness.json` to open
-native Apple Create and verify that Narrate EPUB, subtitle, and YouTube dubbing
-source fields auto-populate from backend-visible sources:
+native Apple Create and verify that generated-book defaults render and that
+Narrate EPUB, subtitle, and YouTube dubbing source fields auto-populate from
+backend-visible sources:
 
 ```bash
 make test-e2e-iphone-create-readiness

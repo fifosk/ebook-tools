@@ -67,6 +67,34 @@
     {
       "action": "select_option",
       "selector": "createJobTypePicker",
+      "text": "Generate",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookTopicField",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookTitleField",
+      "timeout": 15
+    },
+    {
+      "action": "assert_non_empty_value",
+      "selector": "createBookAuthorField",
+      "placeholder": "Author",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookSentenceStepper",
+      "timeout": 15,
+      "screenshot": "generated_book_defaults"
+    },
+    {
+      "action": "select_option",
+      "selector": "createJobTypePicker",
       "text": "Narrate EPUB",
       "timeout": 10
     },

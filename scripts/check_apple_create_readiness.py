@@ -397,16 +397,63 @@ def validate_youtube_dub_defaults(payload: Any) -> list[str]:
     return errors
 
 
+def validate_generated_book_defaults(payload: Any) -> list[str]:
+    if not isinstance(payload, dict):
+        return ["book options missing"]
+    errors: list[str] = []
+
+    sentence_bounds = payload.get("sentence_bounds")
+    if not isinstance(sentence_bounds, dict):
+        errors.append("sentence_bounds")
+    else:
+        for key in ("min", "max", "default"):
+            if not _number_in_range(sentence_bounds, key, minimum=1):
+                errors.append(f"sentence_bounds.{key}")
+        try:
+            minimum = int(sentence_bounds.get("min"))
+            maximum = int(sentence_bounds.get("max"))
+            default = int(sentence_bounds.get("default"))
+        except (TypeError, ValueError):
+            pass
+        else:
+            if not minimum <= default <= maximum:
+                errors.append("sentence_bounds.default_range")
+
+    defaults = payload.get("defaults")
+    if not isinstance(defaults, dict):
+        errors.append("defaults")
+    else:
+        for key in ("author", "input_language", "output_language", "voice"):
+            if not str(defaults.get(key) or "").strip():
+                errors.append(f"defaults.{key}")
+
+    pipeline_defaults = payload.get("pipeline_defaults")
+    if not isinstance(pipeline_defaults, dict):
+        errors.append("pipeline_defaults")
+    else:
+        for key in ("audio_mode", "written_mode", "selected_voice"):
+            if not str(pipeline_defaults.get(key) or "").strip():
+                errors.append(f"pipeline_defaults.{key}")
+        if not isinstance(pipeline_defaults.get("stitch_full"), bool):
+            errors.append("pipeline_defaults.stitch_full")
+
+    return errors
+
+
 def media_job_defaults_inventory(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
+        generated_errors = ["book options missing"]
         subtitle_errors = ["subtitle_defaults missing"]
         youtube_errors = ["youtube_dub_defaults missing"]
     else:
+        generated_errors = validate_generated_book_defaults(payload)
         subtitle_errors = validate_subtitle_defaults(payload.get("subtitle_defaults"))
         youtube_errors = validate_youtube_dub_defaults(payload.get("youtube_dub_defaults"))
     return {
+        "generated_book_defaults_ready": not generated_errors,
         "subtitle_job_defaults_ready": not subtitle_errors,
         "youtube_dub_defaults_ready": not youtube_errors,
+        "generated_book_defaults_errors": generated_errors,
         "subtitle_job_defaults_errors": subtitle_errors,
         "youtube_dub_defaults_errors": youtube_errors,
     }
@@ -487,6 +534,10 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
     missing_output = summary.get("missing_book_output_languages")
     if isinstance(missing_output, list) and missing_output:
         missing.append("book output language sentinels: " + ", ".join(missing_output))
+    if not summary.get("generated_book_defaults_ready"):
+        errors = summary.get("generated_book_defaults_errors")
+        suffix = ": " + ", ".join(errors) if isinstance(errors, list) and errors else ""
+        missing.append("generated book defaults" + suffix)
     if not summary.get("subtitle_job_defaults_ready"):
         errors = summary.get("subtitle_job_defaults_errors")
         suffix = ": " + ", ".join(errors) if isinstance(errors, list) and errors else ""
@@ -544,6 +595,7 @@ def main(argv: list[str] | None = None) -> int:
         f"default_youtube_pair_ready={summary['default_youtube_video_ready'] and summary['default_youtube_subtitle_ready']} "
         f"book_input_languages={summary['book_input_languages']} "
         f"book_output_languages={summary['book_output_languages']} "
+        f"generated_book_defaults_ready={summary['generated_book_defaults_ready']} "
         f"subtitle_job_defaults_ready={summary['subtitle_job_defaults_ready']} "
         f"youtube_dub_defaults_ready={summary['youtube_dub_defaults_ready']}"
     )
