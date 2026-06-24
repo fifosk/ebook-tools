@@ -95,8 +95,8 @@ Large Web UI hotspots to split before redesign work:
   selection now live in
   `web/src/pages/video-dubbing/useVideoDubbingLibraryState.ts` with focused hook
   coverage. The repo-owned `test-web-video-dubbing-focused` target now runs the
-  full Video Dubbing utility/hook slice so the reusable Apple pipeline Web gate
-  can keep this split work covered with one stable app command.
+  full Video Dubbing utility/hook/page slice so the reusable Apple pipeline Web
+  gate can keep this split work covered with one stable app command.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style

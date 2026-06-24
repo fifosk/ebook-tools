@@ -56,6 +56,7 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/useVideoDubbingOutputState.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingSubtitleExtraction.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingLibraryState.test.tsx" in block
+    assert "src/pages/__tests__/VideoDubbingPage.test.tsx" in block
 
 
 def test_docs_publish_video_dubbing_focused_web_target() -> None:
