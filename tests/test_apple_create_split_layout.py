@@ -14,6 +14,15 @@ CREATE_VIEW = (
     / "Create"
     / "AppleBookCreateView.swift"
 )
+CREATE_LIFECYCLE = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateLifecycle.swift"
+)
 CREATE_LAYOUT = (
     ROOT
     / "ios"
@@ -404,6 +413,7 @@ def _call_arguments(source: str, start: int) -> str:
 
 def test_create_view_uses_shell_owned_mode_binding() -> None:
     source = _source(CREATE_VIEW)
+    lifecycle_source = _source(CREATE_LIFECYCLE)
 
     assert "@Binding var creationMode: AppleCreateMode" in source
     assert "@State private var creationMode = AppleCreateMode.generatedBook" not in source
@@ -412,17 +422,46 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert "@Environment(\\.horizontalSizeClass) private var horizontalSizeClass" in source
     assert "private var usesRegularWidthCreateLayout: Bool" in source
     assert "horizontalSizeClass == .regular" in source
-    assert "await loadCreateDependencies()" in source
+    assert "onLoadCreateDependencies: loadCreateDependencies" in source
+    assert "await onLoadCreateDependencies()" in lifecycle_source
     assert "private func loadCreateDependencies() async" in source
     assert "handleSubtitleSourcePathChange()" in source
     assert "private func handleSubtitleSourcePathChange()" in source
-    assert "handleYoutubeVideoPathChange(newValue)" in source
+    assert "onYoutubeVideoPathChange(newValue)" in lifecycle_source
     assert "private func handleYoutubeVideoPathChange(_ path: String)" in source
     assert "handleLanguagePreferenceChange()" in source
     assert "private func handleLanguagePreferenceChange()" in source
     assert "private func completeSubmission(_ jobId: String?) async" in source
     assert source.count("await completeSubmission(jobId)") == 4
     assert source.count("onJobSubmitted(jobId)") == 1
+
+
+def test_create_lifecycle_modifier_owns_view_side_effect_wiring() -> None:
+    source = _source(CREATE_VIEW)
+    lifecycle_source = _source(CREATE_LIFECYCLE)
+    project = _source(XCODE_PROJECT)
+
+    assert "AppleBookCreateLifecycleModifier(" in source
+    assert "onLoadCreateDependencies: loadCreateDependencies" in source
+    assert "onRefreshHistoryDefaults: refreshHistoryDefaults" in source
+    assert "onDeleteEbook: deletePipelineEbook" in source
+    assert "onDeleteSubtitleSource: deleteSubtitleSource" in source
+    assert "AppleBookCreateEbookDeleteConfirmationModifier" not in source
+    assert "AppleBookCreateSubtitleDeleteConfirmationModifier" not in source
+    assert ".task(id: creationOptionsLoadKey)" not in source
+    assert ".onChange(of: recentJobs)" not in source
+    assert ".onChange(of: youtubeBaseDir)" not in source
+
+    assert "struct AppleBookCreateLifecycleModifier: ViewModifier" in lifecycle_source
+    assert ".task(id: creationOptionsLoadKey)" in lifecycle_source
+    assert ".onChange(of: recentJobs)" in lifecycle_source
+    assert ".onChange(of: youtubeBaseDir)" in lifecycle_source
+    assert "AppleBookCreateEbookDeleteConfirmationModifier" in lifecycle_source
+    assert "AppleBookCreateSubtitleDeleteConfirmationModifier" in lifecycle_source
+    assert "confirmDeletePipelineEbookButton" in lifecycle_source
+    assert "confirmDeleteSubtitleSourceButton" in lifecycle_source
+    assert "AppleBookCreateLifecycle.swift in Sources" in project
+    assert project.count("AppleBookCreateLifecycle.swift in Sources") == 4
 
 
 def test_create_view_model_uses_shared_submission_wrapper() -> None:
@@ -1114,6 +1153,7 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
 
 def test_subtitle_source_delete_is_wired_through_apple_create() -> None:
     view_source = _source(CREATE_VIEW)
+    lifecycle_source = _source(CREATE_LIFECYCLE)
     source = _source(CREATE_SOURCE_SECTION)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
@@ -1139,13 +1179,14 @@ def test_subtitle_source_delete_is_wired_through_apple_create() -> None:
     assert 'accessibilityIdentifier("createSubtitleDeleteServerSourceProgress")' in controls_source
     assert "private var selectedSubtitleSourceEntry: SubtitleSourceEntry?" in controls_source
     assert "subtitleSourcePendingDelete" in view_source
-    assert "confirmationDialog(" in view_source
-    assert 'accessibilityIdentifier("confirmDeleteSubtitleSourceButton")' in view_source
+    assert "confirmationDialog(" in lifecycle_source
+    assert 'accessibilityIdentifier("confirmDeleteSubtitleSourceButton")' in lifecycle_source
     assert "onDeleteSubtitleSource: requestDeleteSubtitleSource" in view_source
 
 
 def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
     view_source = _source(CREATE_VIEW)
+    lifecycle_source = _source(CREATE_LIFECYCLE)
     source = _source(CREATE_SOURCE_SECTION)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
@@ -1170,8 +1211,8 @@ def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
     assert 'accessibilityIdentifier("createNarrateDeleteServerEbookProgress")' in controls_source
     assert "private var selectedNarrateServerEbook: PipelineFileEntry?" in controls_source
     assert "pipelineEbookPendingDelete" in view_source
-    assert "AppleBookCreateEbookDeleteConfirmationModifier" in view_source
-    assert 'accessibilityIdentifier("confirmDeletePipelineEbookButton")' in view_source
+    assert "AppleBookCreateEbookDeleteConfirmationModifier" in lifecycle_source
+    assert 'accessibilityIdentifier("confirmDeletePipelineEbookButton")' in lifecycle_source
     assert "onDeletePipelineEbook: requestDeletePipelineEbook" in view_source
 
 

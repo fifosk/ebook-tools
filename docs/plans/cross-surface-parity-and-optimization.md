@@ -258,6 +258,9 @@ Current Apple UI partially exposes:
   select Create picker options and assert non-empty field values, with opt-in
   iPhone/iPad Create-readiness Make targets that verify Narrate EPUB, subtitle,
   and YouTube/NAS default source loading against a populated API.
+  Create lifecycle side-effect wiring now lives in
+  `AppleBookCreateLifecycle.swift`, keeping task/on-change handlers and EPUB/
+  subtitle delete confirmations target-wired outside the main Create view.
   Apple Create language controls are now contract-pinned to the shared
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults

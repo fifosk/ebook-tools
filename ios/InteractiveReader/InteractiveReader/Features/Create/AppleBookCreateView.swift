@@ -147,56 +147,32 @@ struct AppleBookCreateView: View {
         .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
         .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
         #endif
-        .task(id: creationOptionsLoadKey) {
-            await loadCreateDependencies()
-        }
-        .onChange(of: recentJobs) { _, _ in
-            refreshHistoryDefaults()
-        }
-        .onChange(of: creationMode) { _, _ in
-            refreshHistoryDefaults()
-        }
-        .onChange(of: youtubeBaseDir) { _, newValue in
-            handleYoutubeBaseDirChange(newValue)
-        }
-        .onChange(of: subtitleSourcePath) { _, _ in
-            handleSubtitleSourcePathChange()
-        }
-        .onChange(of: youtubeVideoPath) { _, newValue in
-            handleYoutubeVideoPathChange(newValue)
-        }
-        .onChange(of: youtubeSubtitlePath) { _, newValue in
-            handleYoutubeSubtitlePathChange(newValue)
-        }
-        .onChange(of: inputLanguage) { _, _ in
-            handleLanguagePreferenceChange()
-        }
-        .onChange(of: targetLanguage) { _, _ in
-            handleLanguagePreferenceChange()
-        }
-        .onChange(of: additionalTargetLanguages) { _, _ in
-            handleLanguagePreferenceChange()
-        }
-        .onChange(of: enableLookupCache) { _, _ in
-            handleLanguagePreferenceChange()
-        }
-        .onChange(of: subtitleShowOriginal) { _, newValue in
-            handleSubtitleShowOriginalChange(newValue)
-        }
         .modifier(
-            AppleBookCreateEbookDeleteConfirmationModifier(
-                pendingDelete: $pipelineEbookPendingDelete,
-                onDelete: { entry in
-                    Task { await deletePipelineEbook(entry) }
-                }
-            )
-        )
-        .modifier(
-            AppleBookCreateSubtitleDeleteConfirmationModifier(
-                pendingDelete: $subtitleSourcePendingDelete,
-                onDelete: { entry in
-                    Task { await deleteSubtitleSource(entry) }
-                }
+            AppleBookCreateLifecycleModifier(
+                creationOptionsLoadKey: creationOptionsLoadKey,
+                recentJobs: recentJobs,
+                creationMode: creationMode,
+                youtubeBaseDir: youtubeBaseDir,
+                subtitleSourcePath: subtitleSourcePath,
+                youtubeVideoPath: youtubeVideoPath,
+                youtubeSubtitlePath: youtubeSubtitlePath,
+                inputLanguage: inputLanguage,
+                targetLanguage: targetLanguage,
+                additionalTargetLanguages: additionalTargetLanguages,
+                enableLookupCache: enableLookupCache,
+                subtitleShowOriginal: subtitleShowOriginal,
+                pendingEbookDelete: $pipelineEbookPendingDelete,
+                pendingSubtitleDelete: $subtitleSourcePendingDelete,
+                onLoadCreateDependencies: loadCreateDependencies,
+                onRefreshHistoryDefaults: refreshHistoryDefaults,
+                onYoutubeBaseDirChange: handleYoutubeBaseDirChange,
+                onSubtitleSourcePathChange: handleSubtitleSourcePathChange,
+                onYoutubeVideoPathChange: handleYoutubeVideoPathChange,
+                onYoutubeSubtitlePathChange: handleYoutubeSubtitlePathChange,
+                onLanguagePreferenceChange: handleLanguagePreferenceChange,
+                onSubtitleShowOriginalChange: handleSubtitleShowOriginalChange,
+                onDeleteEbook: deletePipelineEbook,
+                onDeleteSubtitleSource: deleteSubtitleSource
             )
         )
         #if os(iOS)
@@ -2586,81 +2562,5 @@ struct AppleBookCreateView: View {
 
     private func clampSentenceCount(_ value: Int) -> Int {
         AppleBookCreatePresentation.clampSentenceCount(value, bounds: sentenceBounds)
-    }
-}
-
-private struct AppleBookCreateEbookDeleteConfirmationModifier: ViewModifier {
-    @Binding var pendingDelete: PipelineFileEntry?
-    let onDelete: (PipelineFileEntry) -> Void
-
-    func body(content: Content) -> some View {
-        content.confirmationDialog(
-            "Delete EPUB Source?",
-            isPresented: isPresented,
-            titleVisibility: .visible
-        ) {
-            if let pendingDelete {
-                Button("Delete \(pendingDelete.name)", role: .destructive) {
-                    onDelete(pendingDelete)
-                }
-                .accessibilityIdentifier("confirmDeletePipelineEbookButton")
-            }
-            Button("Cancel", role: .cancel) {
-                pendingDelete = nil
-            }
-        } message: {
-            if let pendingDelete {
-                Text("This removes \(pendingDelete.name) from the backend books directory.")
-            }
-        }
-    }
-
-    private var isPresented: Binding<Bool> {
-        Binding(
-            get: { pendingDelete != nil },
-            set: { isPresented in
-                if !isPresented {
-                    pendingDelete = nil
-                }
-            }
-        )
-    }
-}
-
-private struct AppleBookCreateSubtitleDeleteConfirmationModifier: ViewModifier {
-    @Binding var pendingDelete: SubtitleSourceEntry?
-    let onDelete: (SubtitleSourceEntry) -> Void
-
-    func body(content: Content) -> some View {
-        content.confirmationDialog(
-            "Delete Subtitle Source?",
-            isPresented: isPresented,
-            titleVisibility: .visible
-        ) {
-            if let pendingDelete {
-                Button("Delete \(pendingDelete.name)", role: .destructive) {
-                    onDelete(pendingDelete)
-                }
-                .accessibilityIdentifier("confirmDeleteSubtitleSourceButton")
-            }
-            Button("Cancel", role: .cancel) {
-                pendingDelete = nil
-            }
-        } message: {
-            if let pendingDelete {
-                Text("This removes \(pendingDelete.name) and any mirrored HTML transcript copies.")
-            }
-        }
-    }
-
-    private var isPresented: Binding<Bool> {
-        Binding(
-            get: { pendingDelete != nil },
-            set: { isPresented in
-                if !isPresented {
-                    pendingDelete = nil
-                }
-            }
-        )
     }
 }
