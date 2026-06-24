@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from modules.library import LibraryError, LibraryNotFoundError, LibraryRepository, LibrarySync
+from modules.library.sync import file_ops
 from modules.services.file_locator import FileLocator
 
 pytestmark = pytest.mark.library
@@ -243,6 +244,80 @@ def test_generated_file_paths_retargeted_on_move(tmp_path):
     assert audio_entry['url'] == chunk_files['url']
     assert audio_entry['path'] == chunk_files['path']
     assert chunk_records and chunk_records[0]['files'][0]['url'] == chunk_files['url']
+
+
+def test_serialize_media_entries_loads_chunk_file_once_for_full_payload(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_root = tmp_path / "job"
+    (job_root / "metadata").mkdir(parents=True)
+    (job_root / "metadata" / "job.json").write_text("{}", encoding="utf-8")
+    (job_root / "media").mkdir()
+    (job_root / "media" / "audio.mp3").write_bytes(b"audio")
+
+    class CountingMetadataLoader:
+        instances: list["CountingMetadataLoader"] = []
+
+        def __init__(self, _job_root: Path) -> None:
+            self.load_chunk_calls = 0
+            self.load_chunk_sentences_calls = 0
+            self.include_sentences_values: list[bool] = []
+            self.instances.append(self)
+
+        def load_chunk(self, chunk: dict, *, include_sentences: bool = True) -> dict:
+            self.load_chunk_calls += 1
+            self.include_sentences_values.append(include_sentences)
+            payload = {
+                key: value
+                for key, value in chunk.items()
+                if key != "sentences"
+            }
+            payload["sentence_count"] = 1
+            if include_sentences:
+                payload["sentences"] = [{"sentence_number": 1, "text": "Loaded once"}]
+            return payload
+
+        def load_chunk_sentences(self, _chunk: dict) -> list[dict]:
+            self.load_chunk_sentences_calls += 1
+            return [{"sentence_number": 1, "text": "Loaded twice"}]
+
+    monkeypatch.setattr(file_ops, "MetadataLoader", CountingMetadataLoader)
+    generated_files = {
+        "complete": True,
+        "chunks": [
+            {
+                "chunk_id": "chunk-001",
+                "range_fragment": "1-1",
+                "metadata_path": "metadata/chunk_0001.json",
+                "files": [
+                    {
+                        "name": "audio.mp3",
+                        "relative_path": "media/audio.mp3",
+                        "type": "audio",
+                    }
+                ],
+            }
+        ],
+    }
+
+    media_map, chunk_records, complete = file_ops.serialize_media_entries(
+        "job-1",
+        generated_files,
+        job_root,
+        include_stats=False,
+        include_chunk_sentences=True,
+        include_chunk_metadata=True,
+    )
+
+    loader = CountingMetadataLoader.instances[0]
+    assert complete is True
+    assert media_map["audio"][0]["url"] == "/api/library/media/job-1/file/media/audio.mp3"
+    assert chunk_records[0]["sentences"] == [{"sentence_number": 1, "text": "Loaded once"}]
+    assert chunk_records[0]["sentence_count"] == 1
+    assert loader.load_chunk_calls == 1
+    assert loader.include_sentences_values == [True]
+    assert loader.load_chunk_sentences_calls == 0
 
 
 def test_reindex_from_filesystem(tmp_path):

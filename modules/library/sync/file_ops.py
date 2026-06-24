@@ -904,7 +904,10 @@ def serialize_media_entries(
             active_loader = resolve_loader()
             if active_loader is not None:
                 try:
-                    summary = active_loader.load_chunk(chunk, include_sentences=False)
+                    summary = active_loader.load_chunk(
+                        chunk,
+                        include_sentences=include_chunk_sentences,
+                    )
                 except Exception:  # pragma: no cover - defensive logging
                     summary = chunk
 
@@ -916,7 +919,9 @@ def serialize_media_entries(
             should_include_sentences = include_chunk_sentences or not has_metadata_path
             if should_include_sentences:
                 if include_chunk_sentences and active_loader is not None:
-                    sentences_payload = active_loader.load_chunk_sentences(chunk)
+                    inline_sentences = summary.get("sentences")
+                    if isinstance(inline_sentences, list):
+                        sentences_payload = copy.deepcopy(inline_sentences)
                 else:
                     inline_sentences = summary.get("sentences") or chunk.get("sentences")
                     if isinstance(inline_sentences, list):
