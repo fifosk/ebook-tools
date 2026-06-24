@@ -57,7 +57,11 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/video-dubbing/videoDubbingUtils.ts` with focused Vitest
   coverage. Video deletion selection fallback now lives there too, preserving
   the current selection when deleting a different video and choosing the next
-  default subtitle/language when deleting the selected video.
+  default subtitle/language when deleting the selected video. NAS base-dir,
+  selected-video, and selected-subtitle persistence now lives in
+  `web/src/pages/video-dubbing/useVideoDubbingSelectionState.ts`, restoring
+  the last Web NAS source on page load and trimming/clearing local-storage
+  values through the shared browser-storage helper.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style

@@ -57,10 +57,10 @@ import {
   DEFAULT_SPLIT_BATCHES,
   DEFAULT_STITCH_BATCHES,
   DEFAULT_TARGET_HEIGHT,
-  DEFAULT_TRANSLATION_BATCH_SIZE,
-  VIDEO_DUB_STORAGE_KEYS
+  DEFAULT_TRANSLATION_BATCH_SIZE
 } from './video-dubbing/videoDubbingConfig';
 import type { VideoDubbingTab, VideoMetadataSection } from './video-dubbing/videoDubbingTypes';
+import { useVideoDubbingSelectionState } from './video-dubbing/useVideoDubbingSelectionState';
 import {
   buildVideoDubbingGeneratePayload,
   buildVoiceOptions,
@@ -102,36 +102,20 @@ export default function VideoDubbingPage({
     isIntakeAtCapacity,
     refreshIntakeStatus,
   } = useCreateIntakeStatus();
-  const [baseDir, setBaseDir] = useState('');
+  const {
+    baseDir,
+    setBaseDir,
+    selectedVideoPath,
+    setSelectedVideoPath,
+    selectedVideoPathRef,
+    selectedSubtitlePath,
+    setSelectedSubtitlePath,
+    selectedSubtitlePathRef
+  } = useVideoDubbingSelectionState();
   const [library, setLibrary] = useState<YoutubeNasLibraryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<VideoDubbingTab>('videos');
-
-  const [selectedVideoPath, setSelectedVideoPath] = useState<string | null>(() => {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-    try {
-      const stored = window.localStorage.getItem(VIDEO_DUB_STORAGE_KEYS.selectedVideoPath);
-      return stored && stored.trim() ? stored.trim() : null;
-    } catch {
-      return null;
-    }
-  });
-  const [selectedSubtitlePath, setSelectedSubtitlePath] = useState<string | null>(() => {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-    try {
-      const stored = window.localStorage.getItem(VIDEO_DUB_STORAGE_KEYS.selectedSubtitlePath);
-      return stored && stored.trim() ? stored.trim() : null;
-    } catch {
-      return null;
-    }
-  });
-  const selectedVideoPathRef = useRef<string | null>(selectedVideoPath);
-  const selectedSubtitlePathRef = useRef<string | null>(selectedSubtitlePath);
 
   const [voice, setVoice] = useState('gTTS');
   const [targetLanguage, setTargetLanguage] = useState<string>(
@@ -223,48 +207,6 @@ export default function VideoDubbingPage({
       cancelled = true;
     };
   }, [applyYoutubeDubDefaults, prefillParameters]);
-
-  useEffect(() => {
-    selectedVideoPathRef.current = selectedVideoPath;
-    if (typeof window !== 'undefined') {
-      try {
-        if (selectedVideoPath) {
-          window.localStorage.setItem(VIDEO_DUB_STORAGE_KEYS.selectedVideoPath, selectedVideoPath);
-        } else {
-          window.localStorage.removeItem(VIDEO_DUB_STORAGE_KEYS.selectedVideoPath);
-        }
-      } catch {
-        // ignore storage errors
-      }
-    }
-  }, [selectedVideoPath]);
-
-  useEffect(() => {
-    selectedSubtitlePathRef.current = selectedSubtitlePath;
-    if (typeof window !== 'undefined') {
-      try {
-        if (selectedSubtitlePath) {
-          window.localStorage.setItem(VIDEO_DUB_STORAGE_KEYS.selectedSubtitlePath, selectedSubtitlePath);
-        } else {
-          window.localStorage.removeItem(VIDEO_DUB_STORAGE_KEYS.selectedSubtitlePath);
-        }
-      } catch {
-        // ignore storage errors
-      }
-    }
-  }, [selectedSubtitlePath]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    try {
-      window.localStorage.setItem(VIDEO_DUB_STORAGE_KEYS.baseDir, baseDir);
-    } catch {
-      // ignore storage errors
-    }
-  }, [baseDir]);
-
 
   const applyTargetLanguage = useCallback(
     (language: string) => {
