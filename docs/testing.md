@@ -203,8 +203,9 @@ make verify-apple-shared-pipeline
 health/runtime, backend pytest, and Web checks without physical deployment. Run
 `apple-pipeline-source-sync` after the Mac Studio/runtime checkout has been
 fast-forwarded, because that check compares the local and remote Git state.
-`apple-pipeline-backend-tests` runs the manifest registered backend pytest
-commands and cleans generated caches. `apple-pipeline-web-checks` runs the
+`apple-pipeline-backend-tests` runs the manifest registered repo-owned
+`make test-backend-*` pytest targets and cleans generated caches.
+`apple-pipeline-web-checks` runs the
 manifest registered Web focused checks and production/export build through the
 shared pipeline runner. The focused Create, Library, Video Dubbing, Subtitle
 Tool, app-view deeplink, full Vitest, and production/export build checks are
@@ -551,6 +552,11 @@ available and `python3` otherwise.
 | `make test-audio` | `$(PYTHON) -m pytest -m audio` | TTS backends and audio tests |
 | `make test-translation` | `$(PYTHON) -m pytest -m translation` | Translation engine tests |
 | `make test-webapi` | `$(PYTHON) -m pytest -m webapi` | FastAPI route tests |
+| `make test-backend-library-search-source-isbn` | `$(PYTHON) -m pytest ...` | Shared-pipeline Library, Search, source upload, and ISBN backend slice |
+| `make test-backend-admin-system-status` | `$(PYTHON) -m pytest ...` | Shared-pipeline admin system status backend slice |
+| `make test-backend-create-book` | `$(PYTHON) -m pytest ...` | Shared-pipeline generated-book backend slice |
+| `make test-backend-subtitle-router` | `$(PYTHON) -m pytest ...` | Shared-pipeline subtitle router backend slice |
+| `make test-backend-youtube-dubbing-service` | `$(PYTHON) -m pytest ...` | Shared-pipeline YouTube dubbing service backend slice |
 | `make test-web-create-book-focused` | `npm --prefix web test -- --run ...` | Focused generated-book Create page Vitest slice |
 | `make test-web-create-intake-focused` | `npm --prefix web test -- --run ...` | Focused Create intake and narration form Vitest slice |
 | `make test-web-library-focused` | `npm --prefix web test -- --run ...` | Focused Library metadata Vitest slice |

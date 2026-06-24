@@ -1,6 +1,9 @@
 .PHONY: test test-fast test-audio test-translation test-webapi test-services \
        test-pipeline test-cli test-auth test-library test-render test-media \
        test-config test-metadata test-changed \
+       test-backend-library-search-source-isbn test-backend-admin-system-status \
+       test-backend-create-book test-backend-subtitle-router \
+       test-backend-youtube-dubbing-service \
        test-web-create-book-focused test-web-create-intake-focused \
        test-web-library-focused test-web-video-dubbing-focused \
        test-web-subtitle-tool-focused test-web-app-view-deeplink-focused \
@@ -57,6 +60,24 @@ test-translation:
 
 test-webapi:
 	$(PYTHON) -m pytest -m webapi
+
+test-backend-library-search-source-isbn:
+	$(PYTHON) -m pytest \
+		tests/modules/webapi/test_library_items_route.py \
+		tests/modules/webapi/test_search_routes.py \
+		tests/test_library_source_and_isbn_metadata.py
+
+test-backend-admin-system-status:
+	$(PYTHON) -m pytest tests/modules/webapi/test_system_routes.py
+
+test-backend-create-book:
+	$(PYTHON) -m pytest tests/test_create_book.py
+
+test-backend-subtitle-router:
+	$(PYTHON) -m pytest tests/webapi/test_subtitles_router.py
+
+test-backend-youtube-dubbing-service:
+	$(PYTHON) -m pytest tests/modules/services/test_youtube_dubbing_subtitles.py
 
 test-web-create-book-focused:
 	npm --prefix web test -- --run \
@@ -154,7 +175,7 @@ check-language-catalogs:
 	$(PYTHON) scripts/generate_language_catalogs.py --check
 
 test-apple-contracts:
-	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_job_health_timeline_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_narration_history_defaults_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_generate_language_catalogs.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_check_poc_readiness.py tests/scripts/test_ios_profile_capability_check.py
+	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_job_health_timeline_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_narration_history_defaults_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_backend_pipeline_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_generate_language_catalogs.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_check_poc_readiness.py tests/scripts/test_ios_profile_capability_check.py
 	$(PYTHON) scripts/generate_language_catalogs.py --check
 	bash scripts/check_apple_runtime_descriptor_payload.sh
 	bash scripts/check_apple_creation_payloads.sh
