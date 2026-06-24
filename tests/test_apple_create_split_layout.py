@@ -14,14 +14,14 @@ CREATE_VIEW = (
     / "Create"
     / "AppleBookCreateView.swift"
 )
-CREATE_SECTIONS = (
+CREATE_NARRATION_SECTION = (
     ROOT
     / "ios"
     / "InteractiveReader"
     / "InteractiveReader"
     / "Features"
     / "Create"
-    / "AppleBookCreateSections.swift"
+    / "AppleBookCreateNarrationSection.swift"
 )
 LIBRARY_SHELL = (
     ROOT
@@ -440,13 +440,13 @@ def test_create_draft_helpers_are_split_from_support_and_target_wired() -> None:
 def test_create_metadata_views_are_split_from_sections_and_target_wired() -> None:
     metadata_source = _source(CREATE_METADATA_VIEWS)
     metadata_controls_source = _source(CREATE_MEDIA_METADATA_CONTROLS)
-    sections_source = _source(CREATE_SECTIONS)
+    narration_source = _source(CREATE_NARRATION_SECTION)
     project = _source(XCODE_PROJECT)
 
     assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" in metadata_source
     assert "struct AppleBookCreateMetadataArtworkPreview: View" in metadata_source
-    assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" not in sections_source
-    assert "struct AppleBookCreateMetadataArtworkPreview: View" not in sections_source
+    assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" not in narration_source
+    assert "struct AppleBookCreateMetadataArtworkPreview: View" not in narration_source
     assert "AppleBookCreateAdvancedMetadataJSONEditor(" in metadata_controls_source
     assert "AppleBookCreateMetadataArtworkPreview(" in metadata_controls_source
     assert "AppleBookCreateMetadataViews.swift in Sources" in project
@@ -491,7 +491,7 @@ def test_create_basic_sections_are_split_from_create_view_and_target_wired() -> 
 def test_create_output_section_is_split_from_create_view_and_target_wired() -> None:
     output_source = _source(CREATE_OUTPUT_SECTION)
     output_controls_source = _source(CREATE_OUTPUT_CONTROLS)
-    sections_source = _source(CREATE_SECTIONS)
+    narration_source = _source(CREATE_NARRATION_SECTION)
     view_source = _source(CREATE_VIEW)
     project = _source(XCODE_PROJECT)
 
@@ -506,9 +506,9 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "struct AppleBookCreateSubtitleOutputControls: View" not in output_source
     assert "struct AppleBookCreateYoutubeOutputControls: View" not in output_source
     assert "struct AppleBookCreateGeneratedOutputControls: View" not in output_source
-    assert "struct AppleBookCreateSubtitleOutputControls: View" not in sections_source
-    assert "struct AppleBookCreateYoutubeOutputControls: View" not in sections_source
-    assert "struct AppleBookCreateGeneratedOutputControls: View" not in sections_source
+    assert "struct AppleBookCreateSubtitleOutputControls: View" not in narration_source
+    assert "struct AppleBookCreateYoutubeOutputControls: View" not in narration_source
+    assert "struct AppleBookCreateGeneratedOutputControls: View" not in narration_source
     assert "AppleBookCreateOutputSection(" in view_source
     assert "AppleBookCreateSubtitleOutputControls(" not in view_source
     assert "AppleBookCreateYoutubeOutputControls(" not in view_source
@@ -522,7 +522,7 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
 def test_create_media_metadata_sections_are_split_from_create_view_and_target_wired() -> None:
     metadata_sections_source = _source(CREATE_MEDIA_METADATA_SECTIONS)
     metadata_controls_source = _source(CREATE_MEDIA_METADATA_CONTROLS)
-    sections_source = _source(CREATE_SECTIONS)
+    narration_source = _source(CREATE_NARRATION_SECTION)
     view_source = _source(CREATE_VIEW)
     project = _source(XCODE_PROJECT)
 
@@ -534,8 +534,8 @@ def test_create_media_metadata_sections_are_split_from_create_view_and_target_wi
     assert "struct AppleBookCreateSubtitleMetadataControls: View" in metadata_controls_source
     assert "struct AppleBookCreateYoutubeMetadataControls: View" not in metadata_sections_source
     assert "struct AppleBookCreateSubtitleMetadataControls: View" not in metadata_sections_source
-    assert "struct AppleBookCreateYoutubeMetadataControls: View" not in sections_source
-    assert "struct AppleBookCreateSubtitleMetadataControls: View" not in sections_source
+    assert "struct AppleBookCreateYoutubeMetadataControls: View" not in narration_source
+    assert "struct AppleBookCreateSubtitleMetadataControls: View" not in narration_source
     assert "AppleBookCreateYoutubeMetadataSection(" in view_source
     assert "AppleBookCreateSubtitleMetadataSection(" in view_source
     assert "AppleBookCreateYoutubeMetadataControls(" not in view_source
@@ -687,7 +687,7 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     source = _source(CREATE_SOURCE_SECTION)
-    sections_source = _source(CREATE_SECTIONS)
+    narration_source = _source(CREATE_NARRATION_SECTION)
     project = _source(XCODE_PROJECT)
 
     assert "struct AppleBookCreateSourceSection: View" in source
@@ -697,9 +697,12 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert 'Picker("Job type", selection: $creationMode)' in source
     assert '.accessibilityIdentifier("createJobTypePicker")' in source
     assert "if showsNarrateRangeControls" in source
-    assert "struct AppleBookCreateSourceSection: View" not in sections_source
+    assert "struct AppleBookCreateSourceSection: View" not in narration_source
     assert "AppleBookCreateSourceSection.swift in Sources" in project
     assert project.count("AppleBookCreateSourceSection.swift in Sources") == 4
+    assert "AppleBookCreateNarrationSection.swift in Sources" in project
+    assert project.count("AppleBookCreateNarrationSection.swift in Sources") == 4
+    assert "AppleBookCreateSections.swift" not in project
 
 
 def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
@@ -932,9 +935,10 @@ def test_create_submission_routes_to_created_job_with_matching_jobs_filter() -> 
 
 
 def test_ios_create_languages_use_reachable_list_selector() -> None:
-    source = _source(CREATE_SECTIONS)
+    source = _source(CREATE_NARRATION_SECTION)
     selector_source = _source(CREATE_LANGUAGE_SELECTOR)
 
+    assert "struct AppleBookCreateNarrationSection: View" in source
     assert "#if os(tvOS)" in source
     assert 'Picker("Input", selection: $inputLanguage)' in source
     assert "AppleBookCreateLanguageSelector(" in source

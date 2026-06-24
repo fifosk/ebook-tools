@@ -216,11 +216,11 @@ Current Apple UI partially exposes:
   Media metadata controls live in `AppleBookCreateMediaMetadataControls.swift`
   while `AppleBookCreateMediaMetadataSections.swift` owns the metadata section
   routing. Advanced metadata JSON editing and artwork preview subviews now live
-  in `AppleBookCreateMetadataViews.swift`, trimming repeated metadata UI out of
-  `AppleBookCreateSections.swift` while preserving the tvOS-safe JSON editor
-  fallback. The iOS/iPad searchable full-language selector now lives in
-  `AppleBookCreateLanguageSelector.swift`, keeping the shared narration section
-  focused on language/voice routing. Source selection for newest-first server
+  in `AppleBookCreateMetadataViews.swift`, trimming repeated metadata UI while
+  preserving the tvOS-safe JSON editor fallback. Narration language/voice
+  routing now lives in `AppleBookCreateNarrationSection.swift`, and the
+  iOS/iPad searchable full-language selector lives in
+  `AppleBookCreateLanguageSelector.swift`. Source selection for newest-first server
   EPUBs, subtitle jobs, and NAS YouTube dubbing lives in
   `AppleBookCreateSourceSection.swift`. Subtitle time-range and YouTube
   offset-range validation now use pure support helpers that preserve the

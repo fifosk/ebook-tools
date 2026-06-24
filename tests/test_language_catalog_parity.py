@@ -46,14 +46,14 @@ APPLE_CREATE_MODELS = (
     / "Create"
     / "AppleBookCreateModels.swift"
 )
-APPLE_CREATE_SECTIONS = (
+APPLE_CREATE_NARRATION_SECTION = (
     ROOT
     / "ios"
     / "InteractiveReader"
     / "InteractiveReader"
     / "Features"
     / "Create"
-    / "AppleBookCreateSections.swift"
+    / "AppleBookCreateNarrationSection.swift"
 )
 APPLE_CREATE_LANGUAGE_SELECTOR = (
     ROOT
@@ -149,7 +149,7 @@ def test_book_creation_options_advertise_full_language_catalog() -> None:
 
 
 def test_apple_create_language_controls_share_available_lists_across_surfaces() -> None:
-    source = APPLE_CREATE_SECTIONS.read_text(encoding="utf-8")
+    source = APPLE_CREATE_NARRATION_SECTION.read_text(encoding="utf-8")
     selector_source = APPLE_CREATE_LANGUAGE_SELECTOR.read_text(encoding="utf-8")
 
     tvos_block = re.search(

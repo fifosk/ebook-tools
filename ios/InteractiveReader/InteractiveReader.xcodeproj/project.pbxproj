@@ -40,8 +40,8 @@
 		LIBCHROME001A0002 /* LibraryBrowseChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = LIBCHROME002A0001 /* LibraryBrowseChrome.swift */; };
 		CREATEVIEW001A0001 /* AppleBookCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVIEW002A0001 /* AppleBookCreateView.swift */; };
 		CREATEVIEW001A0002 /* AppleBookCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVIEW002A0001 /* AppleBookCreateView.swift */; };
-		CREATESECT001A0001 /* AppleBookCreateSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESECT002A0001 /* AppleBookCreateSections.swift */; };
-		CREATESECT001A0002 /* AppleBookCreateSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESECT002A0001 /* AppleBookCreateSections.swift */; };
+		CREATESECT001A0001 /* AppleBookCreateNarrationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESECT002A0001 /* AppleBookCreateNarrationSection.swift */; };
+		CREATESECT001A0002 /* AppleBookCreateNarrationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESECT002A0001 /* AppleBookCreateNarrationSection.swift */; };
 		CREATEMOD001A0001 /* AppleBookCreateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMOD002A0001 /* AppleBookCreateModels.swift */; };
 		CREATEMOD001A0002 /* AppleBookCreateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMOD002A0001 /* AppleBookCreateModels.swift */; };
 		CREATEDEF001A0001 /* AppleBookCreateDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEDEF002A0001 /* AppleBookCreateDefaults.swift */; };
@@ -677,7 +677,7 @@
 		EA3A539D59C840118551CB0B /* InteractivePlayerView+Bookmarks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+Bookmarks.swift"; sourceTree = "<group>"; };
 		LIBCHROME002A0001 /* LibraryBrowseChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryBrowseChrome.swift; sourceTree = "<group>"; };
 		CREATEVIEW002A0001 /* AppleBookCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateView.swift; sourceTree = "<group>"; };
-		CREATESECT002A0001 /* AppleBookCreateSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateSections.swift; sourceTree = "<group>"; };
+		CREATESECT002A0001 /* AppleBookCreateNarrationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateNarrationSection.swift; sourceTree = "<group>"; };
 		CREATEMOD002A0001 /* AppleBookCreateModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateModels.swift; sourceTree = "<group>"; };
 		CREATEDEF002A0001 /* AppleBookCreateDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateDefaults.swift; sourceTree = "<group>"; };
 		CREATEPRES002A0001 /* AppleBookCreatePresentationHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreatePresentationHelpers.swift; sourceTree = "<group>"; };
@@ -880,7 +880,7 @@
 			isa = PBXGroup;
 			children = (
 				CREATEVIEW002A0001 /* AppleBookCreateView.swift */,
-				CREATESECT002A0001 /* AppleBookCreateSections.swift */,
+				CREATESECT002A0001 /* AppleBookCreateNarrationSection.swift */,
 				CREATEMOD002A0001 /* AppleBookCreateModels.swift */,
 				CREATEDEF002A0001 /* AppleBookCreateDefaults.swift */,
 				CREATEPRES002A0001 /* AppleBookCreatePresentationHelpers.swift */,
@@ -1559,7 +1559,7 @@
 				A860F02F70BE44A5B779EE50 /* LibraryShellView.swift in Sources */,
 				LIBCHROME001A0002 /* LibraryBrowseChrome.swift in Sources */,
 				CREATEVIEW001A0002 /* AppleBookCreateView.swift in Sources */,
-				CREATESECT001A0002 /* AppleBookCreateSections.swift in Sources */,
+				CREATESECT001A0002 /* AppleBookCreateNarrationSection.swift in Sources */,
 				ED1E894786624B1EAF5ADB8F /* LibraryView.swift in Sources */,
 				274889EEFEFC4A7EAB66B3D9 /* LibraryViewModel.swift in Sources */,
 				533B070A4B9041978D07C7A1 /* LibraryRowView.swift in Sources */,
@@ -1815,7 +1815,7 @@
 				1798B1592EF9F1A00092A8AF /* LibraryShellView.swift in Sources */,
 				LIBCHROME001A0001 /* LibraryBrowseChrome.swift in Sources */,
 				CREATEVIEW001A0001 /* AppleBookCreateView.swift in Sources */,
-				CREATESECT001A0001 /* AppleBookCreateSections.swift in Sources */,
+				CREATESECT001A0001 /* AppleBookCreateNarrationSection.swift in Sources */,
 				1798B15A2EF9F1A00092A8AF /* LibraryView.swift in Sources */,
 				1798B15B2EF9F1A00092A8AF /* LibraryViewModel.swift in Sources */,
 				1798B15C2EF9F1A00092A8AF /* LibraryRowView.swift in Sources */,
