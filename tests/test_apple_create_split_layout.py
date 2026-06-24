@@ -789,6 +789,26 @@ def test_create_view_section_callbacks_route_through_named_actions() -> None:
     assert "onRetryDefaults: {\n                Task" not in view_source
 
 
+def test_tvos_create_loads_server_backed_source_defaults() -> None:
+    view_source = _source(CREATE_VIEW)
+
+    for function_name, loader in [
+        ("refreshPipelineFiles", "viewModel.loadPipelineFiles"),
+        ("refreshSubtitleSources", "viewModel.loadSubtitleSources"),
+        ("refreshYoutubeLibrary", "viewModel.loadYoutubeLibrary"),
+    ]:
+        match = re.search(
+            rf"private func {function_name}\(force: Bool = false\) async \{{(?P<body>.*?)\n    \}}",
+            view_source,
+            re.DOTALL,
+        )
+        assert match, f"Missing {function_name}"
+        body = match.group("body")
+        assert loader in body
+        assert "Self.isTVPlatform else { return }" not in body
+        assert "guard !Self.isTVPlatform" not in body
+
+
 def test_create_basic_sections_are_split_from_create_view_and_target_wired() -> None:
     basic_source = _source(CREATE_BASIC_SECTIONS)
     value_controls_source = _source(CREATE_VALUE_CONTROLS)

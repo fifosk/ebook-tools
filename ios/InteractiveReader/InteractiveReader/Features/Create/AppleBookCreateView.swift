@@ -1095,7 +1095,6 @@ struct AppleBookCreateView: View {
     }
 
     private func refreshPipelineFiles(force: Bool = false) async {
-        guard !Self.isTVPlatform else { return }
         let files = await viewModel.loadPipelineFiles(
             using: appState,
             cacheKey: creationOptionsLoadKey,
@@ -1122,7 +1121,6 @@ struct AppleBookCreateView: View {
     }
 
     private func refreshSubtitleSources(force: Bool = false) async {
-        guard !Self.isTVPlatform else { return }
         let sources = await viewModel.loadSubtitleSources(
             using: appState,
             cacheKey: creationOptionsLoadKey,
@@ -1132,7 +1130,6 @@ struct AppleBookCreateView: View {
     }
 
     private func refreshYoutubeLibrary(force: Bool = false) async {
-        guard !Self.isTVPlatform else { return }
         let library = await viewModel.loadYoutubeLibrary(
             using: appState,
             cacheKey: youtubeLibraryLoadKey,

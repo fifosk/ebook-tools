@@ -531,7 +531,9 @@ so Apple TV can submit generated-book, Narrate EPUB, subtitle, and YouTube jobs
 from backend-visible sources without becoming the richest editing surface. The
 strict Create-readiness journey can now run on tvOS via
 `make test-e2e-tvos-create-readiness` and through the reusable pipeline
-`tvos-create` profile.
+`tvos-create` profile. The tvOS Create view now runs the same server-backed
+EPUB, subtitle, and YouTube NAS source refreshes as iPhone/iPad while keeping
+local file import behind the iOS/iPadOS-only document picker.
 
 ### Milestone 3: Web UI Redesign
 
