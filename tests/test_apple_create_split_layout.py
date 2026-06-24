@@ -536,7 +536,12 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "await refreshCreationTemplates()" in view_source
     assert "private func applySelectedCreationTemplate()" in view_source
     assert "private func applyCreationTemplate(_ template: CreationTemplateEntry)" in view_source
+    assert 'template.normalizedMode == "subtitle_job"' in view_source
+    assert 'template.normalizedMode == "youtube_dub"' in view_source
+    assert "private func applySubtitleCreationTemplate(" in view_source
+    assert "private func applyYoutubeDubCreationTemplate(" in view_source
     assert "private func templateFormState(from template: CreationTemplateEntry)" in view_source
+    assert "private func templateSettings(from template: CreationTemplateEntry)" in view_source
     for web_template_key in [
         '"input_file"',
         '"base_output_file"',
@@ -548,6 +553,19 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
         '"add_images"',
         '"image_api_base_urls"',
         '"book_metadata"',
+        '"source_path"',
+        '"output_format"',
+        '"generate_audio_book"',
+        '"mirror_batches_to_source_dir"',
+        '"ass_font_size"',
+        '"ass_emphasis_scale"',
+        '"video_path"',
+        '"subtitle_path"',
+        '"source_language"',
+        '"original_mix_percent"',
+        '"flush_sentences"',
+        '"target_height"',
+        '"media_metadata"',
     ]:
         assert web_template_key in view_source
 

@@ -187,9 +187,7 @@ struct AppleBookCreateView: View {
     @ViewBuilder
     private var createSettingsSections: some View {
         jobTypeSection
-        if creationMode == .generatedBook || creationMode == .narrateEbook {
-            templateSection
-        }
+        templateSection
         if creationMode == .generatedBook {
             promptSection
         }
@@ -607,8 +605,10 @@ struct AppleBookCreateView: View {
                 return template.normalizedMode == "generated_book"
             case .narrateEbook:
                 return template.normalizedMode == "narrate_ebook"
-            case .subtitleJob, .youtubeDub:
-                return false
+            case .subtitleJob:
+                return template.normalizedMode == "subtitle_job"
+            case .youtubeDub:
+                return template.normalizedMode == "youtube_dub"
             }
         }
     }
@@ -1168,12 +1168,26 @@ struct AppleBookCreateView: View {
     }
 
     private func applyCreationTemplate(_ template: CreationTemplateEntry) {
-        guard let formState = templateFormState(from: template) else {
+        guard let settings = templateSettings(from: template) else {
             viewModel.creationTemplateMessage = nil
-            viewModel.errorMessage = "Template \(template.displayName) does not contain Web book settings."
+            viewModel.errorMessage = "Template \(template.displayName) does not contain creation settings."
             return
         }
 
+        switch template.normalizedMode {
+        case "generated_book", "narrate_ebook":
+            applyBookCreationTemplate(template, settings: settings)
+        case "subtitle_job":
+            applySubtitleCreationTemplate(template, settings: settings)
+        case "youtube_dub":
+            applyYoutubeDubCreationTemplate(template, settings: settings)
+        default:
+            viewModel.creationTemplateMessage = nil
+            viewModel.errorMessage = "Template \(template.displayName) is not supported by Apple Create yet."
+        }
+    }
+
+    private func applyBookCreationTemplate(_ template: CreationTemplateEntry, settings formState: [String: JSONValue]) {
         var appliedFields = Set<AppleBookCreateEditedField>()
         func markApplied(_ field: AppleBookCreateEditedField) {
             appliedFields.insert(field)
@@ -1215,6 +1229,204 @@ struct AppleBookCreateView: View {
         applyTemplateImageSettings(formState, appliedFields: &appliedFields)
         applyTemplateWorkerSettings(formState, appliedFields: &appliedFields)
         applyTemplateMetadata(formState, appliedFields: &appliedFields)
+
+        editedFields.formUnion(appliedFields)
+        viewModel.errorMessage = nil
+        viewModel.creationTemplateMessage = "Applied template \(template.displayName)."
+    }
+
+    private func applySubtitleCreationTemplate(_ template: CreationTemplateEntry, settings formState: [String: JSONValue]) {
+        var appliedFields = Set<AppleBookCreateEditedField>()
+        creationMode = .subtitleJob
+
+        if let value = templateString(formState, "source_path") ?? templateString(formState, "subtitle_path") {
+            subtitleSourcePath = value
+            selectedSubtitleFileURL = nil
+            selectedSubtitleFileName = nil
+            subtitleMetadataLookupSourceName = URL(fileURLWithPath: value).lastPathComponent
+            appliedFields.insert(.subtitleSourcePath)
+        }
+        if let value = templateString(formState, "input_language"),
+           let language = AppleBookCreateLanguage(backendValue: value) {
+            inputLanguage = language
+            appliedFields.insert(.inputLanguage)
+        }
+        if let value = templateString(formState, "target_language"),
+           let language = AppleBookCreateLanguage(backendValue: value) {
+            targetLanguage = language
+            appliedFields.insert(.targetLanguage)
+        }
+        if let value = templateString(formState, "output_format"),
+           let format = AppleSubtitleOutputFormat(rawValue: value.lowercased()) {
+            subtitleOutputFormat = format
+            appliedFields.insert(.subtitleOutputFormat)
+        }
+        if let value = templateString(formState, "start_time") {
+            subtitleStartTime = value
+            appliedFields.insert(.subtitleStartTime)
+        }
+        if let value = templateString(formState, "end_time") {
+            subtitleEndTime = value
+            appliedFields.insert(.subtitleEndTime)
+        }
+        if let value = templateBool(formState, "enable_transliteration") {
+            subtitleEnableTransliteration = value
+            appliedFields.insert(.subtitleEnableTransliteration)
+        }
+        if let value = templateBool(formState, "highlight") {
+            subtitleHighlight = value
+            appliedFields.insert(.subtitleHighlight)
+        }
+        if let value = templateBool(formState, "show_original") {
+            subtitleShowOriginal = value
+            appliedFields.insert(.subtitleShowOriginal)
+        }
+        if let value = templateBool(formState, "generate_audio_book") {
+            subtitleGenerateAudioBook = value
+            appliedFields.insert(.subtitleGenerateAudioBook)
+        }
+        if let value = templateBool(formState, "mirror_batches_to_source_dir") {
+            subtitleMirrorBatchesToSourceDir = value
+            appliedFields.insert(.subtitleMirrorBatchesToSourceDir)
+        }
+        if let value = templateString(formState, "translation_provider"),
+           let provider = AppleSubtitleTranslationProvider(backendValue: value) {
+            subtitleTranslationProvider = provider
+            appliedFields.insert(.subtitleTranslationProvider)
+        }
+        if let value = templateString(formState, "llm_model") {
+            subtitleLlmModel = value
+            appliedFields.insert(.subtitleLlmModel)
+        }
+        if let value = templateString(formState, "transliteration_mode"),
+           let mode = AppleSubtitleTransliterationMode(backendValue: value) {
+            subtitleTransliterationMode = mode
+            appliedFields.insert(.subtitleTransliterationMode)
+        }
+        if let value = templateString(formState, "transliteration_model") {
+            subtitleTransliterationModel = value
+            appliedFields.insert(.subtitleTransliterationModel)
+        }
+        if let value = templateInt(formState, "worker_count") {
+            subtitleWorkerCount = AppleBookCreatePresentation.clampSubtitleWorkerCount(value)
+            appliedFields.insert(.subtitleWorkerCount)
+        }
+        if let value = templateInt(formState, "batch_size") {
+            subtitleBatchSize = AppleBookCreatePresentation.clampSubtitleBatchSize(value)
+            appliedFields.insert(.subtitleBatchSize)
+        }
+        if let value = templateInt(formState, "translation_batch_size") {
+            subtitleTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
+            appliedFields.insert(.subtitleTranslationBatchSize)
+        }
+        if let value = templateInt(formState, "ass_font_size") {
+            subtitleAssFontSize = AppleBookCreatePresentation.clampAssFontSize(value)
+            appliedFields.insert(.subtitleAssFontSize)
+        }
+        if let value = templateDouble(formState, "ass_emphasis_scale") {
+            subtitleAssEmphasisScale = AppleBookCreatePresentation.clampAssEmphasisScale(value)
+            appliedFields.insert(.subtitleAssEmphasisScale)
+        }
+        applyTemplateSubtitleMetadata(formState)
+
+        editedFields.formUnion(appliedFields)
+        viewModel.errorMessage = nil
+        viewModel.creationTemplateMessage = "Applied template \(template.displayName)."
+    }
+
+    private func applyYoutubeDubCreationTemplate(_ template: CreationTemplateEntry, settings formState: [String: JSONValue]) {
+        var appliedFields = Set<AppleBookCreateEditedField>()
+        creationMode = .youtubeDub
+
+        if let value = templateString(formState, "video_path") {
+            youtubeVideoPath = value
+            youtubeSubtitleExtractionLanguages = ""
+            viewModel.resetYoutubeSubtitleExtractionState()
+            appliedFields.insert(.youtubeVideoPath)
+        }
+        if let value = templateString(formState, "subtitle_path") {
+            youtubeSubtitlePath = value
+            appliedFields.insert(.youtubeSubtitlePath)
+        }
+        if let value = templateString(formState, "source_language"),
+           let language = AppleBookCreateLanguage(backendValue: value) {
+            inputLanguage = language
+            appliedFields.insert(.inputLanguage)
+        }
+        if let value = templateString(formState, "target_language"),
+           let language = AppleBookCreateLanguage(backendValue: value) {
+            targetLanguage = language
+            appliedFields.insert(.targetLanguage)
+        }
+        if let value = templateString(formState, "voice"),
+           let option = AppleBookCreateVoiceOption(backendValue: value) {
+            voice = option
+            appliedFields.insert(.voice)
+        }
+        if let value = templateString(formState, "start_time_offset") {
+            youtubeStartOffset = value
+            appliedFields.insert(.youtubeStartOffset)
+        }
+        if let value = templateString(formState, "end_time_offset") {
+            youtubeEndOffset = value
+            appliedFields.insert(.youtubeEndOffset)
+        }
+        if let value = templateDouble(formState, "original_mix_percent") {
+            youtubeOriginalMixPercent = AppleBookCreatePresentation.clampYoutubeOriginalMixPercent(value)
+            appliedFields.insert(.youtubeOriginalMixPercent)
+        }
+        if let value = templateInt(formState, "flush_sentences") {
+            youtubeFlushSentences = AppleBookCreatePresentation.clampYoutubeFlushSentences(value)
+            appliedFields.insert(.youtubeFlushSentences)
+        }
+        if let value = templateString(formState, "translation_provider"),
+           let provider = AppleSubtitleTranslationProvider(backendValue: value) {
+            subtitleTranslationProvider = provider
+            appliedFields.insert(.subtitleTranslationProvider)
+        }
+        if let value = templateString(formState, "llm_model") {
+            subtitleLlmModel = value
+            appliedFields.insert(.subtitleLlmModel)
+        }
+        if let value = templateInt(formState, "translation_batch_size") {
+            subtitleTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
+            appliedFields.insert(.subtitleTranslationBatchSize)
+        }
+        if let value = templateString(formState, "transliteration_mode"),
+           let mode = AppleSubtitleTransliterationMode(backendValue: value) {
+            subtitleTransliterationMode = mode
+            appliedFields.insert(.subtitleTransliterationMode)
+        }
+        if let value = templateString(formState, "transliteration_model") {
+            subtitleTransliterationModel = value
+            appliedFields.insert(.subtitleTransliterationModel)
+        }
+        if let value = templateBool(formState, "split_batches") {
+            youtubeSplitBatches = value
+            appliedFields.insert(.youtubeSplitBatches)
+        }
+        if let value = templateBool(formState, "stitch_batches") {
+            youtubeStitchBatches = value
+            appliedFields.insert(.youtubeStitchBatches)
+        }
+        if let value = templateBool(formState, "include_transliteration") {
+            youtubeIncludeTransliteration = value
+            appliedFields.insert(.youtubeIncludeTransliteration)
+        }
+        if let value = templateInt(formState, "target_height"),
+           let height = AppleYoutubeDubTargetHeight(rawValue: value) {
+            youtubeTargetHeight = height
+            appliedFields.insert(.youtubeTargetHeight)
+        }
+        if let value = templateBool(formState, "preserve_aspect_ratio") {
+            youtubePreserveAspectRatio = value
+            appliedFields.insert(.youtubePreserveAspectRatio)
+        }
+        if let value = templateBool(formState, "enable_lookup_cache") {
+            youtubeEnableLookupCache = value
+            appliedFields.insert(.youtubeEnableLookupCache)
+        }
+        applyTemplateYoutubeMetadata(formState)
 
         editedFields.formUnion(appliedFields)
         viewModel.errorMessage = nil
@@ -1480,10 +1692,40 @@ struct AppleBookCreateView: View {
         }
     }
 
+    private func applyTemplateSubtitleMetadata(_ formState: [String: JSONValue]) {
+        guard let metadata = templateMetadataObject(from: formState) else {
+            return
+        }
+        viewModel.subtitleMediaMetadataDraft = AppleBookCreatePresentation.normalizedSubtitleMediaMetadata(metadata)
+        viewModel.syncSubtitleMediaMetadataJSONText()
+        viewModel.subtitleMetadataMessage = "Applied template metadata."
+        viewModel.subtitleMetadataErrorMessage = nil
+    }
+
+    private func applyTemplateYoutubeMetadata(_ formState: [String: JSONValue]) {
+        guard let metadata = templateMetadataObject(from: formState) else {
+            return
+        }
+        viewModel.youtubeMediaMetadataDraft = AppleBookCreatePresentation.normalizedYoutubeMediaMetadata(metadata)
+        viewModel.syncYoutubeMediaMetadataJSONText()
+        viewModel.youtubeMetadataMessage = "Applied template metadata."
+        viewModel.youtubeMetadataErrorMessage = nil
+    }
+
+    private func templateMetadataObject(from formState: [String: JSONValue]) -> [String: JSONValue]? {
+        templateObject(from: formState["media_metadata"])
+            ?? templateObject(from: formState["media_metadata_json"])
+            ?? templateObject(from: formState["youtube_metadata"])
+    }
+
     private func templateFormState(from template: CreationTemplateEntry) -> [String: JSONValue]? {
         template.payload["form_state"]?.objectValue
             ?? template.payload["formState"]?.objectValue
             ?? template.payload["payload"]?.objectValue?["form_state"]?.objectValue
+    }
+
+    private func templateSettings(from template: CreationTemplateEntry) -> [String: JSONValue]? {
+        templateFormState(from: template) ?? template.payload
     }
 
     private func templateObject(from value: JSONValue?) -> [String: JSONValue]? {
