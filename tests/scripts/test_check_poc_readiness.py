@@ -66,6 +66,17 @@ def test_deploy_readiness_validates_library_offline_and_playback_sections() -> N
     ]
 
 
+def test_deploy_readiness_validates_offline_export_list_values() -> None:
+    payload = build_runtime_descriptor()
+    payload["offlineExports"]["sourceKinds"] = ["job"]
+    payload["offlineExports"]["playerTypes"] = ["interactive-video"]
+
+    assert module.validate_runtime_descriptor(payload) == [
+        "runtime.offlineExports.sourceKinds=['job'] expected ['job', 'library']",
+        "runtime.offlineExports.playerTypes=['interactive-video'] expected ['interactive-text']",
+    ]
+
+
 def test_deploy_readiness_reports_missing_runtime_sections() -> None:
     payload = build_runtime_descriptor()
     del payload["offlineExports"]

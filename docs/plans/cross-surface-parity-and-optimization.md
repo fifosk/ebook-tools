@@ -819,7 +819,10 @@ Suggested features to evaluate after parity scaffolding:
   shared pipeline preflights can detect export contract drift. Apple Settings
   and the Create readiness journey surface the Library action and offline
   export descriptor sections alongside Create so simulator checks catch drift
-  before device deployment.
+  before device deployment. The shared pipeline backend manifest now pins the
+  offline export `sourceKinds` and `playerTypes` list values as well as the
+  export URLs, so reusable backend preflight fails if the Web/Apple offline
+  player payload contract changes.
 
 ## Verification Contract
 
