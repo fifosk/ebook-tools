@@ -39,6 +39,12 @@
     {
       "action": "assert_value_contains",
       "selector": "settingsCreateContractRow",
+      "text": "/api/subtitles/delete-source",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsCreateContractRow",
       "text": "/api/subtitles/jobs",
       "timeout": 20
     },

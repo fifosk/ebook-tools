@@ -142,4 +142,6 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "path: AppleCreateRuntimeContract.bookJobsPath" in creation_source
     assert '("bookOptionsPath", creation.bookOptionsPath, AppleCreateRuntimeContract.bookOptionsPath)' in settings_source
     assert '("bookJobsPath", creation.bookJobsPath, AppleCreateRuntimeContract.bookJobsPath)' in settings_source
+    assert "AppleCreateRuntimeContract.subtitleDeleteSourcePath" in settings_source
     assert "return .mismatch(summary: mismatches.joined(separator: \" · \"))" in settings_source
+    assert "\\(expectedPaths.count) endpoints" in settings_source
