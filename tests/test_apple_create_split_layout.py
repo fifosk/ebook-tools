@@ -647,6 +647,8 @@ def test_create_metadata_views_are_split_from_sections_and_target_wired() -> Non
     assert "struct AppleBookCreateMetadataArtworkPreview: View" in metadata_source
     assert "struct AppleBookCreateMetadataStatusMessages: View" in metadata_source
     assert "struct AppleBookCreateMetadataActionButton: View" in metadata_source
+    assert "struct AppleBookCreateBusyActionButton: View" in metadata_source
+    assert "AppleBookCreateBusyActionButton(" in metadata_source
     assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" not in narration_source
     assert "struct AppleBookCreateMetadataArtworkPreview: View" not in narration_source
     assert "AppleBookCreateAdvancedMetadataJSONEditor(" in metadata_controls_source
@@ -1028,6 +1030,7 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert "struct AppleBookCreateYoutubeSourceControls: View" in youtube_source
     assert "struct AppleBookCreateFileImportControl: View" in controls_source
     assert "struct AppleBookCreateSourceActionRow: View" in controls_source
+    assert "AppleBookCreateBusyActionButton(" in controls_source
     assert "let showsJobTypePicker: Bool" in source
     assert "let showsNarrateRangeControls: Bool" in source
     assert "if showsJobTypePicker || creationMode != .generatedBook" in source

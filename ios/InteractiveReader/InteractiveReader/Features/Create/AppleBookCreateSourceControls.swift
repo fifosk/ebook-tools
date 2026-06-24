@@ -276,11 +276,15 @@ struct AppleBookCreateSourceActionRow: View {
 
     var body: some View {
         HStack {
-            Button(action: action) {
-                Label(isBusy ? busyTitle : title, systemImage: systemImage)
-            }
-            .disabled(isDisabled)
-            .accessibilityIdentifier(buttonIdentifier)
+            AppleBookCreateBusyActionButton(
+                title: title,
+                busyTitle: busyTitle,
+                systemImage: systemImage,
+                isBusy: isBusy,
+                isDisabled: isDisabled,
+                accessibilityIdentifier: buttonIdentifier,
+                action: action
+            )
 
             if isBusy {
                 ProgressView()

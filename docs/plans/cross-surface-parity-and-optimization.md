@@ -218,7 +218,8 @@ Current Apple UI partially exposes:
   Reusable Create value controls live in `AppleBookCreateValueControls.swift`,
   letting `AppleBookCreateOutputSection.swift` own only section-level routing,
   while shared source action rows in `AppleBookCreateSourceControls.swift`
-  keep EPUB, subtitle, and NAS video refresh/extract controls consistent.
+  keep EPUB, subtitle, and NAS video refresh/extract controls consistent through
+  the shared busy action button in `AppleBookCreateMetadataViews.swift`.
   Media metadata controls live in `AppleBookCreateMediaMetadataControls.swift`
   while `AppleBookCreateMediaMetadataSections.swift` owns the metadata section
   routing. Advanced metadata JSON editing, artwork preview, status, and action
