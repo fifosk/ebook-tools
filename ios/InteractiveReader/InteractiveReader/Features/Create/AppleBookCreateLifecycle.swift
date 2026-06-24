@@ -15,6 +15,7 @@ struct AppleBookCreateLifecycleModifier: ViewModifier {
     let subtitleShowOriginal: Bool
     @Binding var pendingEbookDelete: PipelineFileEntry?
     @Binding var pendingSubtitleDelete: SubtitleSourceEntry?
+    @Binding var pendingTemplateDelete: CreationTemplateEntry?
     let onLoadCreateDependencies: () async -> Void
     let onRefreshHistoryDefaults: () -> Void
     let onYoutubeBaseDirChange: (String) -> Void
@@ -25,6 +26,7 @@ struct AppleBookCreateLifecycleModifier: ViewModifier {
     let onSubtitleShowOriginalChange: (Bool) -> Void
     let onDeleteEbook: (PipelineFileEntry) async -> Void
     let onDeleteSubtitleSource: (SubtitleSourceEntry) async -> Void
+    let onDeleteCreationTemplate: (CreationTemplateEntry) async -> Void
 
     func body(content: Content) -> some View {
         content
@@ -77,6 +79,14 @@ struct AppleBookCreateLifecycleModifier: ViewModifier {
                     pendingDelete: $pendingSubtitleDelete,
                     onDelete: { entry in
                         Task { await onDeleteSubtitleSource(entry) }
+                    }
+                )
+            )
+            .modifier(
+                AppleBookCreateTemplateDeleteConfirmationModifier(
+                    pendingDelete: $pendingTemplateDelete,
+                    onDelete: { template in
+                        Task { await onDeleteCreationTemplate(template) }
                     }
                 )
             )
@@ -143,6 +153,44 @@ private struct AppleBookCreateSubtitleDeleteConfirmationModifier: ViewModifier {
         } message: {
             if let pendingDelete {
                 Text("This removes \(pendingDelete.name) and any mirrored HTML transcript copies.")
+            }
+        }
+    }
+
+    private var isPresented: Binding<Bool> {
+        Binding(
+            get: { pendingDelete != nil },
+            set: { isPresented in
+                if !isPresented {
+                    pendingDelete = nil
+                }
+            }
+        )
+    }
+}
+
+private struct AppleBookCreateTemplateDeleteConfirmationModifier: ViewModifier {
+    @Binding var pendingDelete: CreationTemplateEntry?
+    let onDelete: (CreationTemplateEntry) -> Void
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            "Delete Saved Template?",
+            isPresented: isPresented,
+            titleVisibility: .visible
+        ) {
+            if let pendingDelete {
+                Button("Delete \(pendingDelete.displayName)", role: .destructive) {
+                    onDelete(pendingDelete)
+                }
+                .accessibilityIdentifier("confirmDeleteCreationTemplateButton")
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDelete = nil
+            }
+        } message: {
+            if let pendingDelete {
+                Text("This removes \(pendingDelete.displayName) from saved creation templates.")
             }
         }
     }

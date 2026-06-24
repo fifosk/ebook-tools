@@ -8,7 +8,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-create-delete-saved-templates",
                     title: "Create manages templates",
-                    detail: "Apple Create can now delete the selected saved creation template after applying or reviewing it, keeping Web-authored book, subtitle, and YouTube dubbing presets tidy from iPad, iPhone, and Apple TV."
+                    detail: "Apple Create can now delete the selected saved creation template after confirmation, keeping Web-authored book, subtitle, and YouTube dubbing presets tidy from iPad, iPhone, and Apple TV."
                 ),
                 AppChangelogEntry(
                     id: "apple-create-nas-ebook-metadata",

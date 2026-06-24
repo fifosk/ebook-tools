@@ -544,8 +544,9 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "AppleBookCreateTemplateSection(" in view_source
     assert "await refreshCreationTemplates()" in view_source
     assert "private func applySelectedCreationTemplate()" in view_source
-    assert "private func deleteSelectedCreationTemplate()" in view_source
-    assert "private func deleteSelectedCreationTemplateFromSection()" in view_source
+    assert "private func requestDeleteSelectedCreationTemplate()" in view_source
+    assert "private func deleteCreationTemplate(_ template: CreationTemplateEntry) async" in view_source
+    assert "creationTemplatePendingDelete = template" in view_source
     assert "await viewModel.deleteCreationTemplate(" in view_source
     assert "private func applyCreationTemplate(_ template: CreationTemplateEntry)" in view_source
     assert 'template.normalizedMode == "subtitle_job"' in view_source
@@ -592,8 +593,10 @@ def test_create_lifecycle_modifier_owns_view_side_effect_wiring() -> None:
     assert "onRefreshHistoryDefaults: refreshHistoryDefaults" in source
     assert "onDeleteEbook: deletePipelineEbook" in source
     assert "onDeleteSubtitleSource: deleteSubtitleSource" in source
+    assert "onDeleteCreationTemplate: deleteCreationTemplate" in source
     assert "AppleBookCreateEbookDeleteConfirmationModifier" not in source
     assert "AppleBookCreateSubtitleDeleteConfirmationModifier" not in source
+    assert "AppleBookCreateTemplateDeleteConfirmationModifier" not in source
     assert ".task(id: creationOptionsLoadKey)" not in source
     assert ".onChange(of: recentJobs)" not in source
     assert ".onChange(of: youtubeBaseDir)" not in source
@@ -604,8 +607,10 @@ def test_create_lifecycle_modifier_owns_view_side_effect_wiring() -> None:
     assert ".onChange(of: youtubeBaseDir)" in lifecycle_source
     assert "AppleBookCreateEbookDeleteConfirmationModifier" in lifecycle_source
     assert "AppleBookCreateSubtitleDeleteConfirmationModifier" in lifecycle_source
+    assert "AppleBookCreateTemplateDeleteConfirmationModifier" in lifecycle_source
     assert "confirmDeletePipelineEbookButton" in lifecycle_source
     assert "confirmDeleteSubtitleSourceButton" in lifecycle_source
+    assert "confirmDeleteCreationTemplateButton" in lifecycle_source
     assert "AppleBookCreateLifecycle.swift in Sources" in project
     assert project.count("AppleBookCreateLifecycle.swift in Sources") == 4
 

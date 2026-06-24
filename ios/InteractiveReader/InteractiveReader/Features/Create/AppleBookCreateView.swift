@@ -70,6 +70,7 @@ struct AppleBookCreateView: View {
     @State private var selectedNarrateFileName: String?
     @State private var isImportingNarrateEbook = false
     @State private var pipelineEbookPendingDelete: PipelineFileEntry?
+    @State private var creationTemplatePendingDelete: CreationTemplateEntry?
     @State private var selectedSubtitleFileURL: URL?
     @State private var selectedSubtitleFileName: String?
     @State private var isImportingSubtitleFile = false
@@ -148,6 +149,7 @@ struct AppleBookCreateView: View {
                 subtitleShowOriginal: subtitleShowOriginal,
                 pendingEbookDelete: $pipelineEbookPendingDelete,
                 pendingSubtitleDelete: $subtitleSourcePendingDelete,
+                pendingTemplateDelete: $creationTemplatePendingDelete,
                 onLoadCreateDependencies: loadCreateDependencies,
                 onRefreshHistoryDefaults: refreshHistoryDefaults,
                 onYoutubeBaseDirChange: handleYoutubeBaseDirChange,
@@ -157,7 +159,8 @@ struct AppleBookCreateView: View {
                 onLanguagePreferenceChange: handleLanguagePreferenceChange,
                 onSubtitleShowOriginalChange: handleSubtitleShowOriginalChange,
                 onDeleteEbook: deletePipelineEbook,
-                onDeleteSubtitleSource: deleteSubtitleSource
+                onDeleteSubtitleSource: deleteSubtitleSource,
+                onDeleteCreationTemplate: deleteCreationTemplate
             )
         )
         .modifier(
@@ -325,7 +328,7 @@ struct AppleBookCreateView: View {
             message: viewModel.creationTemplateMessage,
             onRefresh: refreshCreationTemplatesFromSection,
             onApply: applySelectedCreationTemplate,
-            onDelete: deleteSelectedCreationTemplateFromSection
+            onDelete: requestDeleteSelectedCreationTemplate
         )
     }
 
@@ -980,10 +983,6 @@ struct AppleBookCreateView: View {
         Task { await refreshCreationTemplates(force: true) }
     }
 
-    private func deleteSelectedCreationTemplateFromSection() {
-        Task { await deleteSelectedCreationTemplate() }
-    }
-
     private func refreshSubtitleSourcesFromSourceSection() {
         Task { await refreshSubtitleSources(force: true) }
     }
@@ -1173,18 +1172,25 @@ struct AppleBookCreateView: View {
         applyCreationTemplate(template)
     }
 
-    private func deleteSelectedCreationTemplate() async {
-        guard compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID }) else {
+    private func requestDeleteSelectedCreationTemplate() {
+        guard let template = compatibleCreationTemplates.first(where: { $0.id == selectedTemplateID }) else {
             viewModel.creationTemplateMessage = nil
             viewModel.errorMessage = "Choose a saved template before deleting it."
             return
         }
+        creationTemplatePendingDelete = template
+    }
+
+    private func deleteCreationTemplate(_ template: CreationTemplateEntry) async {
+        creationTemplatePendingDelete = nil
         let didDelete = await viewModel.deleteCreationTemplate(
-            templateID: selectedTemplateID,
+            templateID: template.id,
             using: appState
         )
         guard didDelete else { return }
-        selectedTemplateID = compatibleCreationTemplates.first?.id ?? ""
+        if selectedTemplateID == template.id || !compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID }) {
+            selectedTemplateID = compatibleCreationTemplates.first?.id ?? ""
+        }
     }
 
     private func applyCreationTemplate(_ template: CreationTemplateEntry) {
