@@ -118,6 +118,45 @@ def test_list_downloaded_videos_reuses_walked_folder_files_for_subtitle_matching
     }
 
 
+def test_list_downloaded_videos_skips_hidden_nas_folders_and_files(tmp_path: Path) -> None:
+    visible_video = tmp_path / "episode.mp4"
+    visible_subtitle = tmp_path / "episode.en.srt"
+    hidden_file_video = tmp_path / ".hidden.mp4"
+    hidden_dir = tmp_path / ".partial"
+    hidden_dir.mkdir()
+    hidden_dir_video = hidden_dir / "hidden-folder.mp4"
+    visible_video.write_bytes(b"\x00" * 10)
+    visible_subtitle.write_text("1\n00:00:00,000 --> 00:00:02,000\nHello\n", encoding="utf-8")
+    hidden_file_video.write_bytes(b"\x00" * 10)
+    hidden_dir_video.write_bytes(b"\x00" * 10)
+
+    videos = list_downloaded_videos(tmp_path)
+
+    assert [video.path.name for video in videos] == ["episode.mp4"]
+    assert [subtitle.path.name for subtitle in videos[0].subtitles] == ["episode.en.srt"]
+
+
+def test_list_downloaded_videos_tolerates_transient_walk_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    original_walk = _nas_mod.os.walk
+
+    def fake_walk(path: Path, *args, **kwargs):
+        if Path(path) == tmp_path:
+            onerror = kwargs.get("onerror")
+            if onerror is not None:
+                onerror(OSError("transient NAS scan failure"))
+            if False:
+                yield None
+            return
+        yield from original_walk(path, *args, **kwargs)
+
+    monkeypatch.setattr(_nas_mod.os, "walk", fake_walk)
+
+    assert list_downloaded_videos(tmp_path) == []
+
+
 def test_list_downloaded_videos_skips_stale_walked_video(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

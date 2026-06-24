@@ -448,8 +448,9 @@ Optimization candidates:
   sources as idempotent cleanup results while still rejecting paths outside the
   allowed base directory. The
   NAS YouTube/video scanner also skips video and subtitle sidecar candidates
-  that vanish after `os.walk()`, keeping Web Video Dubbing and Apple Create
-  source pickers usable during concurrent downloads or cleanup. YouTube
+  that vanish after `os.walk()` and prunes hidden folders/files, keeping Web
+  Video Dubbing and Apple Create source pickers usable during concurrent
+  downloads, cleanup, or temporary NAS staging folders. YouTube
   download finalization now applies the same stale-entry tolerance when sorting
   downloaded subtitle files, partial recovery files, and muxed output files, so
   a transient NAS directory race can still fall back to a usable downloaded

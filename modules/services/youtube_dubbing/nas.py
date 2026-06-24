@@ -64,11 +64,21 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
             logger.debug("Unable to rename partial download %s", path, exc_info=True)
             return None
 
-    for root, _dirs, files in os.walk(resolved):
+    for root, dirnames, files in os.walk(
+        resolved,
+        onerror=lambda exc: logger.debug(
+            "Unable to scan YouTube NAS directory %s",
+            getattr(exc, "filename", resolved),
+            exc_info=True,
+        ),
+    ):
+        dirnames[:] = sorted(name for name in dirnames if not name.startswith("."))
         folder = Path(root)
         video_candidates: List[Path] = []
         subtitle_candidates: List[tuple[Path, str]] = []
-        for filename in files:
+        for filename in sorted(files):
+            if filename.startswith("."):
+                continue
             path = folder / filename
             if path.suffix.lower() == ".part":
                 recovered = _finalize_partial_video(path)
