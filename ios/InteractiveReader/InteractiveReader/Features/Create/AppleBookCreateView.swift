@@ -583,126 +583,122 @@ struct AppleBookCreateView: View {
     }
 
     private var youtubeMetadataSection: some View {
-        Section("Metadata") {
-            AppleBookCreateYoutubeMetadataControls(
-                isLoadingTvMetadata: viewModel.isLoadingYoutubeTvMetadata,
-                isLoadingYoutubeMetadata: viewModel.isLoadingYoutubeVideoMetadata,
-                isClearingTvMetadataCache: viewModel.isClearingYoutubeTvMetadataCache,
-                isClearingYoutubeMetadataCache: viewModel.isClearingYoutubeMetadataCache,
-                canClearTvMetadataCache: !youtubeMetadataTvSourceName.isEmpty,
-                canClearYoutubeMetadataCache: !youtubeMetadataVideoSourceName.isEmpty,
-                tvPosterURL: youtubeMetadataNestedTextBinding(section: "show", nestedKey: "image", key: "medium"),
-                tvEpisodeStillURL: youtubeMetadataNestedTextBinding(section: "episode", nestedKey: "image", key: "medium"),
-                youtubeThumbnailURL: youtubeMetadataTextBinding(section: "youtube", key: "thumbnail"),
-                message: viewModel.youtubeMetadataMessage,
-                errorMessage: viewModel.youtubeMetadataErrorMessage,
-                title: youtubeMetadataTextBinding(section: "youtube", key: "title"),
-                channel: youtubeMetadataTextBinding(section: "youtube", key: "channel"),
-                showName: youtubeMetadataTextBinding(section: "show", key: "name"),
-                tmdbId: youtubeMetadataNumberBinding(section: "show", key: "tmdb_id"),
-                imdbId: youtubeMetadataTextBinding(section: "show", key: "imdb_id"),
-                episodeName: youtubeMetadataTextBinding(section: "episode", key: "name"),
-                advancedMetadataJSON: $viewModel.youtubeMediaMetadataJSONText,
-                advancedMetadataErrorMessage: viewModel.youtubeMediaMetadataJSONErrorMessage,
-                onLoadTvMetadata: {
-                    Task {
-                        await viewModel.lookupYoutubeTvMetadata(
-                            sourceName: youtubeMetadataTvSourceName,
-                            using: appState
-                        )
-                    }
-                },
-                onLoadYoutubeMetadata: {
-                    Task {
-                        await viewModel.lookupYoutubeVideoMetadata(
-                            sourceName: youtubeMetadataVideoSourceName,
-                            using: appState
-                        )
-                    }
-                },
-                onClearTvMetadataCache: {
-                    Task {
-                        await viewModel.clearYoutubeTvMetadataCache(
-                            query: youtubeMetadataTvSourceName,
-                            using: appState
-                        )
-                    }
-                },
-                onClearYoutubeMetadataCache: {
-                    Task {
-                        await viewModel.clearYoutubeVideoMetadataCache(
-                            query: youtubeMetadataVideoSourceName,
-                            using: appState
-                        )
-                    }
-                },
-                onApplyAdvancedMetadataJSON: {
-                    viewModel.applyYoutubeMediaMetadataJSONText()
-                },
-                onSyncAdvancedMetadataJSON: {
-                    viewModel.syncYoutubeMediaMetadataJSONText()
+        AppleBookCreateYoutubeMetadataSection(
+            isLoadingTvMetadata: viewModel.isLoadingYoutubeTvMetadata,
+            isLoadingYoutubeMetadata: viewModel.isLoadingYoutubeVideoMetadata,
+            isClearingTvMetadataCache: viewModel.isClearingYoutubeTvMetadataCache,
+            isClearingYoutubeMetadataCache: viewModel.isClearingYoutubeMetadataCache,
+            canClearTvMetadataCache: !youtubeMetadataTvSourceName.isEmpty,
+            canClearYoutubeMetadataCache: !youtubeMetadataVideoSourceName.isEmpty,
+            tvPosterURL: youtubeMetadataNestedTextBinding(section: "show", nestedKey: "image", key: "medium"),
+            tvEpisodeStillURL: youtubeMetadataNestedTextBinding(section: "episode", nestedKey: "image", key: "medium"),
+            youtubeThumbnailURL: youtubeMetadataTextBinding(section: "youtube", key: "thumbnail"),
+            message: viewModel.youtubeMetadataMessage,
+            errorMessage: viewModel.youtubeMetadataErrorMessage,
+            title: youtubeMetadataTextBinding(section: "youtube", key: "title"),
+            channel: youtubeMetadataTextBinding(section: "youtube", key: "channel"),
+            showName: youtubeMetadataTextBinding(section: "show", key: "name"),
+            tmdbId: youtubeMetadataNumberBinding(section: "show", key: "tmdb_id"),
+            imdbId: youtubeMetadataTextBinding(section: "show", key: "imdb_id"),
+            episodeName: youtubeMetadataTextBinding(section: "episode", key: "name"),
+            advancedMetadataJSON: $viewModel.youtubeMediaMetadataJSONText,
+            advancedMetadataErrorMessage: viewModel.youtubeMediaMetadataJSONErrorMessage,
+            onLoadTvMetadata: {
+                Task {
+                    await viewModel.lookupYoutubeTvMetadata(
+                        sourceName: youtubeMetadataTvSourceName,
+                        using: appState
+                    )
                 }
-            )
-        }
+            },
+            onLoadYoutubeMetadata: {
+                Task {
+                    await viewModel.lookupYoutubeVideoMetadata(
+                        sourceName: youtubeMetadataVideoSourceName,
+                        using: appState
+                    )
+                }
+            },
+            onClearTvMetadataCache: {
+                Task {
+                    await viewModel.clearYoutubeTvMetadataCache(
+                        query: youtubeMetadataTvSourceName,
+                        using: appState
+                    )
+                }
+            },
+            onClearYoutubeMetadataCache: {
+                Task {
+                    await viewModel.clearYoutubeVideoMetadataCache(
+                        query: youtubeMetadataVideoSourceName,
+                        using: appState
+                    )
+                }
+            },
+            onApplyAdvancedMetadataJSON: {
+                viewModel.applyYoutubeMediaMetadataJSONText()
+            },
+            onSyncAdvancedMetadataJSON: {
+                viewModel.syncYoutubeMediaMetadataJSONText()
+            }
+        )
     }
 
     private var subtitleMetadataSection: some View {
-        Section("Metadata") {
-            AppleBookCreateSubtitleMetadataControls(
-                sourceName: subtitleMetadataSourceName,
-                lookupSourceName: $subtitleMetadataLookupSourceName,
-                isLoading: viewModel.isLoadingSubtitleTvMetadata,
-                isClearingCache: viewModel.isClearingSubtitleTvMetadataCache,
-                showPosterURL: subtitleMetadataNestedTextBinding(section: "show", nestedKey: "image", key: "medium"),
-                episodeStillURL: subtitleMetadataNestedTextBinding(section: "episode", nestedKey: "image", key: "medium"),
-                message: viewModel.subtitleMetadataMessage,
-                errorMessage: viewModel.subtitleMetadataErrorMessage,
-                jobLabel: subtitleMetadataTextBinding(section: nil, key: "job_label"),
-                showName: subtitleMetadataTextBinding(section: "show", key: "name"),
-                tmdbId: subtitleMetadataNumberBinding(section: "show", key: "tmdb_id"),
-                imdbId: subtitleMetadataTextBinding(section: "show", key: "imdb_id"),
-                season: subtitleMetadataNumberBinding(section: "episode", key: "season"),
-                episode: subtitleMetadataNumberBinding(section: "episode", key: "number"),
-                episodeName: subtitleMetadataTextBinding(section: "episode", key: "name"),
-                airdate: subtitleMetadataTextBinding(section: "episode", key: "airdate"),
-                advancedMetadataJSON: $viewModel.subtitleMediaMetadataJSONText,
-                advancedMetadataErrorMessage: viewModel.subtitleMediaMetadataJSONErrorMessage,
-                onLookup: {
-                    Task {
-                        await viewModel.lookupSubtitleTvMetadata(
-                            sourceName: subtitleMetadataLookupSourceName,
-                            using: appState
-                        )
-                    }
-                },
-                onRefresh: {
-                    Task {
-                        await viewModel.lookupSubtitleTvMetadata(
-                            sourceName: subtitleMetadataLookupSourceName,
-                            force: true,
-                            using: appState
-                        )
-                    }
-                },
-                onClear: {
-                    viewModel.clearSubtitleMetadata()
-                },
-                onClearCache: {
-                    Task {
-                        await viewModel.clearSubtitleTvMetadataCache(
-                            query: subtitleMetadataLookupSourceName,
-                            using: appState
-                        )
-                    }
-                },
-                onApplyAdvancedMetadataJSON: {
-                    viewModel.applySubtitleMediaMetadataJSONText()
-                },
-                onSyncAdvancedMetadataJSON: {
-                    viewModel.syncSubtitleMediaMetadataJSONText()
+        AppleBookCreateSubtitleMetadataSection(
+            sourceName: subtitleMetadataSourceName,
+            lookupSourceName: $subtitleMetadataLookupSourceName,
+            isLoading: viewModel.isLoadingSubtitleTvMetadata,
+            isClearingCache: viewModel.isClearingSubtitleTvMetadataCache,
+            showPosterURL: subtitleMetadataNestedTextBinding(section: "show", nestedKey: "image", key: "medium"),
+            episodeStillURL: subtitleMetadataNestedTextBinding(section: "episode", nestedKey: "image", key: "medium"),
+            message: viewModel.subtitleMetadataMessage,
+            errorMessage: viewModel.subtitleMetadataErrorMessage,
+            jobLabel: subtitleMetadataTextBinding(section: nil, key: "job_label"),
+            showName: subtitleMetadataTextBinding(section: "show", key: "name"),
+            tmdbId: subtitleMetadataNumberBinding(section: "show", key: "tmdb_id"),
+            imdbId: subtitleMetadataTextBinding(section: "show", key: "imdb_id"),
+            season: subtitleMetadataNumberBinding(section: "episode", key: "season"),
+            episode: subtitleMetadataNumberBinding(section: "episode", key: "number"),
+            episodeName: subtitleMetadataTextBinding(section: "episode", key: "name"),
+            airdate: subtitleMetadataTextBinding(section: "episode", key: "airdate"),
+            advancedMetadataJSON: $viewModel.subtitleMediaMetadataJSONText,
+            advancedMetadataErrorMessage: viewModel.subtitleMediaMetadataJSONErrorMessage,
+            onLookup: {
+                Task {
+                    await viewModel.lookupSubtitleTvMetadata(
+                        sourceName: subtitleMetadataLookupSourceName,
+                        using: appState
+                    )
                 }
-            )
-        }
+            },
+            onRefresh: {
+                Task {
+                    await viewModel.lookupSubtitleTvMetadata(
+                        sourceName: subtitleMetadataLookupSourceName,
+                        force: true,
+                        using: appState
+                    )
+                }
+            },
+            onClear: {
+                viewModel.clearSubtitleMetadata()
+            },
+            onClearCache: {
+                Task {
+                    await viewModel.clearSubtitleTvMetadataCache(
+                        query: subtitleMetadataLookupSourceName,
+                        using: appState
+                    )
+                }
+            },
+            onApplyAdvancedMetadataJSON: {
+                viewModel.applySubtitleMediaMetadataJSONText()
+            },
+            onSyncAdvancedMetadataJSON: {
+                viewModel.syncSubtitleMediaMetadataJSONText()
+            }
+        )
     }
 
     @ViewBuilder

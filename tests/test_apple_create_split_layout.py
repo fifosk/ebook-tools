@@ -77,6 +77,15 @@ CREATE_OUTPUT_SECTION = (
     / "Create"
     / "AppleBookCreateOutputSection.swift"
 )
+CREATE_MEDIA_METADATA_SECTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateMediaMetadataSections.swift"
+)
 CREATE_STATUS_VIEWS = (
     ROOT
     / "ios"
@@ -206,6 +215,23 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "AppleBookCreateGeneratedOutputControls(" not in view_source
     assert "AppleBookCreateOutputSection.swift in Sources" in project
     assert project.count("AppleBookCreateOutputSection.swift in Sources") == 4
+
+
+def test_create_media_metadata_sections_are_split_from_create_view_and_target_wired() -> None:
+    metadata_sections_source = _source(CREATE_MEDIA_METADATA_SECTIONS)
+    view_source = _source(CREATE_VIEW)
+    project = _source(XCODE_PROJECT)
+
+    assert "struct AppleBookCreateYoutubeMetadataSection: View" in metadata_sections_source
+    assert "struct AppleBookCreateSubtitleMetadataSection: View" in metadata_sections_source
+    assert "AppleBookCreateYoutubeMetadataControls(" in metadata_sections_source
+    assert "AppleBookCreateSubtitleMetadataControls(" in metadata_sections_source
+    assert "AppleBookCreateYoutubeMetadataSection(" in view_source
+    assert "AppleBookCreateSubtitleMetadataSection(" in view_source
+    assert "AppleBookCreateYoutubeMetadataControls(" not in view_source
+    assert "AppleBookCreateSubtitleMetadataControls(" not in view_source
+    assert "AppleBookCreateMediaMetadataSections.swift in Sources" in project
+    assert project.count("AppleBookCreateMediaMetadataSections.swift in Sources") == 4
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
