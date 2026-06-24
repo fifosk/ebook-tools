@@ -10,12 +10,13 @@ import {
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 import { getStatusGlyph } from '../utils/status';
 import { resolveImageNodeLabel } from '../constants/imageNodes';
-import AccessPolicyEditor from './access/AccessPolicyEditor';
 import {
   JobProgressCreationSummary,
   parseJobProgressCreationSummary
 } from './job-progress/JobProgressCreationSummary';
 import { JobProgressMediaMetadata } from './job-progress/JobProgressMediaMetadata';
+import { JobProgressPermissionsSection } from './job-progress/JobProgressPermissionsSection';
+import { JobProgressTabs, type JobProgressTab } from './job-progress/JobProgressTabs';
 import { resolveProgressStage } from '../utils/progressEvents';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
 import { MetadataLookupRow } from './metadata/MetadataLookupRow';
@@ -75,7 +76,6 @@ type Props = {
   canManage: boolean;
 };
 
-type JobTab = 'overview' | 'metadata' | 'permissions';
 export function JobProgress({
   jobId,
   status,
@@ -353,7 +353,7 @@ export function JobProgress({
     () => buildImageClusterNodes(imageClusterSummary, pipelineConfig, imageGenerationEnabled),
     [imageClusterSummary, pipelineConfig, imageGenerationEnabled]
   );
-  const [jobTab, setJobTab] = useState<JobTab>('overview');
+  const [jobTab, setJobTab] = useState<JobProgressTab>('overview');
   const showMetadataSections = jobTab === 'metadata';
   const showMediaMetadata = supportsTvMetadata && showMetadataSections;
   const showOverviewSections = jobTab === 'overview';
@@ -439,35 +439,7 @@ export function JobProgress({
           </>
         ) : null}
       </p>
-      <div className="job-card__tabs" role="tablist" aria-label="Job tabs">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={jobTab === 'overview'}
-          className={`job-card__tab ${jobTab === 'overview' ? 'is-active' : ''}`}
-          onClick={() => setJobTab('overview')}
-        >
-          Overview
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={jobTab === 'metadata'}
-          className={`job-card__tab ${jobTab === 'metadata' ? 'is-active' : ''}`}
-          onClick={() => setJobTab('metadata')}
-        >
-          Metadata
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={jobTab === 'permissions'}
-          className={`job-card__tab ${jobTab === 'permissions' ? 'is-active' : ''}`}
-          onClick={() => setJobTab('permissions')}
-        >
-          Permissions
-        </button>
-      </div>
+      <JobProgressTabs activeTab={jobTab} onChange={setJobTab} />
       {showMetadataSections ? (
         <JobProgressMediaMetadata
           jobId={jobId}
@@ -492,15 +464,13 @@ export function JobProgress({
         </div>
       ) : null}
       {showPermissionsSections ? (
-        <div className="job-card__section">
-          <AccessPolicyEditor
-            policy={accessPolicy}
-            ownerId={ownerId}
-            defaultVisibility={accessDefaultVisibility}
-            canEdit={canManage}
-            onSave={onUpdateAccess}
-          />
-        </div>
+        <JobProgressPermissionsSection
+          policy={accessPolicy}
+          ownerId={ownerId}
+          defaultVisibility={accessDefaultVisibility}
+          canEdit={canManage}
+          onSave={onUpdateAccess}
+        />
       ) : null}
       {showOverviewSections && isBookJob && imageClusterNodes.length > 0 ? (
         <div className="job-card__section">
