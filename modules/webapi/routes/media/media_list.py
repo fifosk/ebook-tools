@@ -20,6 +20,7 @@ from ...dependencies import (
     get_pipeline_service,
     get_request_user,
 )
+from ...route_telemetry import record_started_route_duration
 from ...schemas import (
     PipelineMediaChunk,
     PipelineMediaDiagnostics,
@@ -34,12 +35,11 @@ logger = logging.getLogger(__name__)
 def _record_media_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe media route timing if metrics are available."""
 
-    try:
-        from ...metrics import MEDIA_ROUTE_DURATION
-    except Exception:
-        return
-    MEDIA_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "MEDIA_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 

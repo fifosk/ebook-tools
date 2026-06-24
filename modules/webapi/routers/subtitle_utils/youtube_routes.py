@@ -36,7 +36,7 @@ from ...dependencies import (
     get_subtitle_service,
     get_youtube_dubbing_service,
 )
-from ...route_telemetry import log_create_submission_route
+from ...route_telemetry import log_create_submission_route, record_started_route_duration
 from ...schemas import (
     YoutubeSubtitleDownloadRequest,
     YoutubeSubtitleDownloadResponse,
@@ -75,12 +75,11 @@ def _ensure_editor(request_user: RequestUserContext) -> None:
 def _record_youtube_library_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe YouTube library route timing if metrics are available."""
 
-    try:
-        from ...metrics import YOUTUBE_LIBRARY_ROUTE_DURATION
-    except Exception:
-        return
-    YOUTUBE_LIBRARY_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "YOUTUBE_LIBRARY_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 

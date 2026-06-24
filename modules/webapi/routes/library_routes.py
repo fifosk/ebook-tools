@@ -21,6 +21,7 @@ from ..dependencies import (
     get_pipeline_service,
     get_request_user,
 )
+from ..route_telemetry import record_started_route_duration
 from modules.services.job_manager import PipelineJob
 from ..schemas import MediaSearchHit, MediaSearchResponse, PipelineMediaFile
 from ...search import search_generated_media
@@ -32,12 +33,11 @@ LOGGER = logging_manager.get_logger().getChild("webapi.search")
 def _record_search_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe search route timing if metrics are available."""
 
-    try:
-        from ..metrics import SEARCH_ROUTE_DURATION
-    except Exception:
-        return
-    SEARCH_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "SEARCH_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 

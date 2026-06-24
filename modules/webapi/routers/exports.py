@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 
 from ..dependencies import RequestUserContext, get_export_service, get_request_user
+from ..route_telemetry import record_started_route_duration
 from ..schemas.exports import ExportRequestPayload, ExportResponse
 from modules.services.export_service import ExportService, ExportServiceError
 
@@ -20,12 +21,11 @@ LOGGER = logging.getLogger(__name__)
 def _record_export_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe export route timing if metrics are available."""
 
-    try:
-        from ..metrics import EXPORT_ROUTE_DURATION
-    except Exception:
-        return
-    EXPORT_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "EXPORT_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 

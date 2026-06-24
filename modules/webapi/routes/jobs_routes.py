@@ -22,6 +22,7 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
+from ..route_telemetry import record_started_route_duration
 from modules.services.job_manager import PipelineJob, PipelineJobTransitionError
 from ..schemas import (
     PipelineJobActionResponse,
@@ -51,12 +52,11 @@ logger = logging.getLogger(__name__)
 def _record_job_list_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe job-list route timing if metrics are available."""
 
-    try:
-        from ..metrics import JOB_LIST_ROUTE_DURATION
-    except Exception:
-        return
-    JOB_LIST_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "JOB_LIST_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 

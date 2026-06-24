@@ -37,6 +37,7 @@ from ...dependencies import (
     get_pipeline_job_manager,
     get_request_user,
 )
+from ...route_telemetry import record_started_route_duration
 
 from ...schemas.images import (
     SentenceImageInfoResponse,
@@ -53,12 +54,11 @@ LOGGER = logging_manager.get_logger().getChild("webapi.media")
 def _record_sentence_image_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe sentence-image route timing if metrics are available."""
 
-    try:
-        from ...metrics import MEDIA_ROUTE_DURATION
-    except Exception:
-        return
-    MEDIA_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "MEDIA_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 

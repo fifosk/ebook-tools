@@ -18,6 +18,7 @@ from ..dependencies import (
     get_request_user,
     RequestUserContext,
 )
+from ..route_telemetry import record_started_route_duration
 from ..routes.media_routes import _stream_local_file
 from ..schemas import (
     LibraryItemPayload,
@@ -64,12 +65,11 @@ mimetypes.add_type("text/plain", ".ass")
 def _record_library_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe library route timing if metrics are available."""
 
-    try:
-        from ..metrics import LIBRARY_ROUTE_DURATION
-    except Exception:
-        return
-    LIBRARY_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "LIBRARY_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 

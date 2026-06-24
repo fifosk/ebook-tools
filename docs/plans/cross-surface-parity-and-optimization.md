@@ -410,11 +410,14 @@ Optimization candidates:
   auth headers, tokens, NAS paths, or filenames. Offline export create/download
   routes now record token-safe duration telemetry and aggregate logs without
   logging source ids, export ids, user ids, file paths, filenames, auth headers,
-  or tokens. Local media file streaming now records token-safe setup duration
-  telemetry and aggregate logs for full, partial, unsatisfiable-range, and
-  not-found results across storage and library media file downloads without
-  logging paths, filenames, job ids, user ids, auth headers, tokens, or raw
-  range values.
+  or tokens. Library, search, job-list, media-manifest, sentence-image,
+  offline-export, and YouTube NAS library route metrics now delegate duration
+  observation through the shared route telemetry helper while keeping their
+  token-safe aggregate logs local to each route. Local media file streaming now
+  records token-safe setup duration telemetry and aggregate logs for full,
+  partial, unsatisfiable-range, and not-found results across storage and
+  library media file downloads without logging paths, filenames, job ids, user
+  ids, auth headers, tokens, or raw range values.
 - Prefer precomputed or cached job summary fields for list rows while keeping
   full metadata available on detail/media routes. Status:
   `/api/pipelines/jobs` now uses compact row result summaries so list rendering
