@@ -312,6 +312,50 @@ def test_search_skips_chunk_metadata_read_when_generated_chunk_is_complete(
     assert load_chunk_calls == []
 
 
+def test_search_uses_generated_chunks_when_metadata_manifest_is_missing(tmp_path: Path) -> None:
+    file_locator = FileLocator(storage_dir=tmp_path, base_url="https://example.invalid/jobs")
+    job_id = "missing-manifest-job"
+    job_root = file_locator.resolve_path(job_id)
+    text_dir = job_root / "media" / "chunk-001"
+    text_dir.mkdir(parents=True, exist_ok=True)
+    html_path = text_dir / "sample.html"
+    html_path.write_text("<p>Searchable fortune text.</p>", encoding="utf-8")
+
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    job.generated_files = {
+        "chunks": [
+            {
+                "chunk_id": "chunk-001",
+                "range_fragment": "0001-0001",
+                "start_sentence": 1,
+                "end_sentence": 1,
+                "files": [
+                    {
+                        "type": "html",
+                        "relative_path": "media/chunk-001/sample.html",
+                        "path": str(html_path),
+                    }
+                ],
+            }
+        ]
+    }
+
+    results = search_service.search_generated_media(
+        query="fortune",
+        jobs=[job],
+        locator=file_locator,
+    )
+
+    assert len(results) == 1
+    assert results[0].job_id == job_id
+    assert results[0].chunk_id == "chunk-001"
+    assert "fortune" in results[0].snippet.lower()
+
+
 def test_search_resolves_job_label_once_per_job(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

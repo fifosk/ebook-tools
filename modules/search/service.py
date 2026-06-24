@@ -814,11 +814,14 @@ def search_generated_media(
             except Exception:
                 metadata_loader = None
             else:
-                loader_chunks = list(metadata_loader.iter_chunks())
-                if not loader_chunks:
-                    loader_chunks = _chunk_entries_from_manifest(
-                        metadata_loader.build_chunk_manifest()
-                    )
+                try:
+                    loader_chunks = list(metadata_loader.iter_chunks())
+                    if not loader_chunks:
+                        loader_chunks = _chunk_entries_from_manifest(
+                            metadata_loader.build_chunk_manifest()
+                        )
+                except Exception:
+                    loader_chunks = []
                 if loader_chunks and len(loader_chunks) > len(chunk_entries):
                     chunk_entries = _merge_chunk_entries(loader_chunks, chunk_entries)
 
