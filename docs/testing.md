@@ -213,6 +213,7 @@ through repo-owned wrapper targets:
 make apple-pipeline-contracts
 make test-apple-language-catalogs
 make test-apple-create-readiness-contract
+make test-apple-local-surface-contract
 make apple-pipeline-backend
 make apple-pipeline-backend-tests
 make apple-pipeline-source-sync
@@ -351,6 +352,16 @@ make test-apple-create-readiness-contract
 This runs the native Create readiness checker tests plus the simulator-journey
 and env-file contracts that prove the preflight is wired before iPhone, iPad,
 and tvOS Create journeys.
+
+For focused non-physical Apple build surface wiring, use:
+
+```bash
+make test-apple-local-surface-contract
+```
+
+This checks the iPhone/iPad simulator build lanes, tvOS simulator build lane,
+Mac Designed for iPad helper, and aggregate local/office-iPad surface gates
+without compiling or installing apps.
 
 The public runtime descriptor at `/api/system/runtime` also advertises the
 Create, saved-template, Library action, offline export, and playback-state

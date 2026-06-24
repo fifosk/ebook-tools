@@ -201,6 +201,7 @@ make build-apple-ipad-simulator
 make apple-pipeline-contracts
 make test-apple-language-catalogs
 make test-apple-create-readiness-contract
+make test-apple-local-surface-contract
 make apple-pipeline-backend
 make apple-pipeline-backend-tests
 make apple-pipeline-source-sync

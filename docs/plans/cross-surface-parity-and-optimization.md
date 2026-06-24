@@ -518,7 +518,9 @@ office-iPad local build gate and office-iPad local verification gate targets:
 `build-apple-office-ipad-surfaces` and `verify-apple-office-ipad-surfaces`
 compile the iPad simulator and local Mac Designed for iPad/iPhone
 surfaces, plus the iPad-destination UITest build in the verification lane,
-without invoking iPhone simulator or physical-device deployment helpers. Apple TV now has matching repo-owned
+without invoking iPhone simulator or physical-device deployment helpers. The
+shared pipeline also has a focused `make test-apple-local-surface-contract`
+gate for simulator/local Mac surface wiring without compiling apps. Apple TV now has matching repo-owned
 `test-e2e-tvos-create-readiness` and shared-pipeline
 `apple-pipeline-tvos-create-readiness`/dry-run shortcuts through the registered
 `tvos-create` journey, keeping native tvOS Create checks simulator-only unless
