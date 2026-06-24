@@ -253,6 +253,31 @@ describe('videoDubbingUtils', () => {
     expect(selection.subtitlePath).toBe('/subs/next.en.ass');
   });
 
+  it('falls back to the first video with a playable subtitle when the preferred video is missing', () => {
+    const selection = resolveVideoDubbingSelection({
+      videos: [
+        video({
+          path: '/videos/no-playable.mkv',
+          subtitles: [
+            subtitle({ path: '/subs/no-playable.sup', filename: 'no-playable.sup', language: 'en', format: 'sup' }),
+          ],
+        }),
+        video({
+          path: '/videos/usable.mkv',
+          subtitles: [
+            subtitle({ path: '/subs/usable.fr.vtt', filename: 'usable.fr.vtt', language: 'fr', format: 'vtt' }),
+            subtitle({ path: '/subs/usable.en.srt', filename: 'usable.en.srt', language: 'en-US', format: 'srt' }),
+          ],
+        }),
+      ],
+      preferredVideoPath: '/videos/missing.mkv',
+      preferredSubtitlePath: '/subs/missing.es.srt',
+    });
+
+    expect(selection.videoPath).toBe('/videos/usable.mkv');
+    expect(selection.subtitlePath).toBe('/subs/usable.en.srt');
+  });
+
   it('returns empty selection values for an empty video library', () => {
     expect(resolveVideoDubbingSelection({ videos: [] })).toEqual({
       video: null,

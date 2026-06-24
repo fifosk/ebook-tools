@@ -185,6 +185,10 @@ export function filterPlayableSubtitles(video: YoutubeNasVideo | null): YoutubeN
   return video.subtitles.filter(isPlayableSubtitle);
 }
 
+export function resolveDefaultVideo(videos: YoutubeNasVideo[]): YoutubeNasVideo | null {
+  return videos.find((video) => filterPlayableSubtitles(video).length > 0) ?? videos[0] ?? null;
+}
+
 export type VideoDubbingSelection = {
   video: YoutubeNasVideo | null;
   subtitle: YoutubeNasSubtitle | null;
@@ -217,7 +221,15 @@ export function resolveVideoDubbingSelection({
     };
   }
 
-  const selectedVideo = videos.find((video) => video.path === preferredVideoPath) ?? videos[0];
+  const selectedVideo = videos.find((video) => video.path === preferredVideoPath) ?? resolveDefaultVideo(videos);
+  if (!selectedVideo) {
+    return {
+      video: null,
+      subtitle: null,
+      videoPath: null,
+      subtitlePath: null,
+    };
+  }
   const subtitleCandidates = filterPlayableSubtitles(selectedVideo);
   const selectedSubtitle =
     preferredVideoPath === selectedVideo.path && preferredSubtitlePath
