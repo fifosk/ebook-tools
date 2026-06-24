@@ -186,7 +186,25 @@ def test_apple_create_voice_language_normalization_uses_full_catalog() -> None:
     source = APPLE_CREATE_LANGUAGE_OPTIONS.read_text(encoding="utf-8")
 
     assert "AppleLanguageCatalog.languageCode(for: trimmed)" in source
+    assert "voicePreviewSampleSentences[code]" in source
+    assert "voicePreviewSampleSentences[base]" in source
+    assert "AppleLanguageCatalog.canonicalLanguageName(for: language)" in source
     assert 'replacingOccurrences(of: "_", with: "-")' in source
     assert 'let languageMap = [' not in source
     for language in ("english", "arabic", "spanish", "french", "german", "slovak"):
         assert f'"{language}"' not in source
+
+
+def test_apple_create_voice_preview_samples_cover_web_catalog() -> None:
+    source = APPLE_CREATE_LANGUAGE_OPTIONS.read_text(encoding="utf-8")
+    match = re.search(
+        r"private static let voicePreviewSampleSentences: \[String: String\] = \[(?P<body>.*?)\n\s*\]",
+        source,
+        flags=re.S,
+    )
+    assert match is not None
+    apple_sample_codes = set(re.findall(r'"([^"]+)":\s*"', match.group("body")))
+    expected_codes = {code.lower() for code in LANGUAGE_CODES.values()}
+
+    assert expected_codes <= apple_sample_codes
+    assert {"zh-cn", "zh-tw", "pt-br"} <= apple_sample_codes

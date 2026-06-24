@@ -621,7 +621,9 @@ Refactor before restyling:
   from backend config so Web and Apple start from the same image
   pipeline/style/context/size values. Apple Create voice inventory matching and
   preview keys now normalize language selections through the same full Apple
-  language catalog used by the pickers, instead of a narrow local name map.
+  language catalog used by the pickers, instead of a narrow local name map, and
+  native voice previews now carry localized sample sentences across the same
+  backend/Web language catalog instead of only the original six languages.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 
