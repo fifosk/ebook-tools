@@ -108,6 +108,52 @@ def test_create_readiness_journey_checks_runtime_create_contract() -> None:
     } in runtime_steps
 
 
+def test_create_readiness_journey_checks_ipad_split_pane_geometry() -> None:
+    journey = json.loads(CREATE_READINESS_JOURNEY.read_text(encoding="utf-8"))
+    steps = journey["steps"]
+
+    create_tab_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("selector") == "browseSectionCreateButton"
+    )
+    generate_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("selector") == "createJobTypePicker"
+        and step.get("text") == "Generate"
+    )
+    initial_create_steps = steps[create_tab_index:generate_index]
+
+    assert {
+        "action": "assert_frame",
+        "selector": "appleBookCreateSetupPane",
+        "platforms": ["iPad"],
+        "timeout": 15,
+        "min_width": 180,
+        "max_width": 340,
+        "min_height": 360,
+    } in initial_create_steps
+    assert {
+        "action": "assert_frame",
+        "selector": "appleBookCreateSettingsPane",
+        "platforms": ["iPad"],
+        "timeout": 15,
+        "min_width": 420,
+        "min_height": 360,
+        "screenshot": "ipad_create_split_panes",
+    } in initial_create_steps
+
+
+def test_journey_runner_supports_platform_scoped_steps() -> None:
+    source = JOURNEY_RUNNER.read_text(encoding="utf-8")
+
+    assert "var platforms: [String]?" in source
+    assert "guard shouldRun(step) else" in source
+    assert "private func shouldRun(_ step: JourneyStep) -> Bool" in source
+    assert "platform.rawValue.lowercased()" in source
+
+
 def test_create_readiness_journey_checks_generated_book_defaults_before_media_modes() -> None:
     journey = json.loads(CREATE_READINESS_JOURNEY.read_text(encoding="utf-8"))
     steps = journey["steps"]

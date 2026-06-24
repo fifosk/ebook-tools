@@ -83,6 +83,63 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/
 # Expected: 200
 ```
 
+## Apple Device Deployment Recipe
+
+Use simulator and local-surface builds first, then physical devices only after
+an explicit deploy request. The unattended helper keeps the device flow
+repeatable across iPhone, iPad, and Apple TV:
+
+```bash
+# Inspect available CoreDevice targets.
+bash scripts/apple_unattended_device_update.sh --list
+
+# Non-mutating health check for the selected device.
+APPLE_DEVICE_ID="<device-id-or-name>" \
+  bash scripts/apple_unattended_device_update.sh --profile ipad --device-preflight-only
+
+# Build without installing.
+APPLE_DEVICE_ID="<device-id-or-name>" \
+  bash scripts/apple_unattended_device_update.sh --profile ipad --build-only
+
+# Preview the exact build/install/verify/launch commands.
+APPLE_DEVICE_ID="<device-id-or-name>" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  bash scripts/apple_unattended_device_update.sh --profile ipad --install --launch --dry-run
+```
+
+When the user has explicitly requested a physical deploy, remove `--dry-run`.
+The golden install path is: CoreDevice preflight, build or `--skip-build`,
+`devicectl device install app`, installed-bundle metadata verification, then an
+optional launch. Add `--launch-console-timeout 10` when validating that the app
+does not immediately crash after launch; a console timeout is treated as
+success after the app survives the launch window.
+
+For Apple TV, use `--profile appletv`. That selects the `InteractiveReaderTV`
+scheme, `com.example.InteractiveReader.tvos` bundle id, and
+`Debug-appletvos/InteractiveReaderTV.app` output path. For iPhone/iPad, use
+`--profile iphone` or `--profile ipad`, both targeting the
+`InteractiveReader` iOS app.
+
+If Xcode CLI signing cannot use the signed-in account but Xcode-managed local
+profiles already contain the full iCloud, Sign in with Apple, and Push
+capability set, preserve entitlements by building the app with
+`CODE_SIGNING_ALLOWED=NO`, embedding the full-capability provisioning profiles,
+codesigning nested bundles first and the app last, then installing with:
+
+```bash
+APPLE_DEVICE_ID="<device-id-or-name>" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  bash scripts/apple_unattended_device_update.sh \
+    --profile ipad \
+    --skip-build \
+    --app-path "<signed-app-path>" \
+    --install \
+    --launch \
+    --launch-console-timeout 10
+```
+
+Do not use the entitlement-stripping fallback when testing iCloud features. It
+exists only as an explicit local-signing escape hatch and requires
+`APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES`.
+
 ### Makefile Shortcuts
 
 The Makefile provides convenience targets for common Docker operations:

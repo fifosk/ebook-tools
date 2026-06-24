@@ -112,6 +112,24 @@
       "timeout": 15
     },
     {
+      "action": "assert_frame",
+      "selector": "appleBookCreateSetupPane",
+      "platforms": ["iPad"],
+      "timeout": 15,
+      "min_width": 180,
+      "max_width": 340,
+      "min_height": 360
+    },
+    {
+      "action": "assert_frame",
+      "selector": "appleBookCreateSettingsPane",
+      "platforms": ["iPad"],
+      "timeout": 15,
+      "min_width": 420,
+      "min_height": 360,
+      "screenshot": "ipad_create_split_panes"
+    },
+    {
       "action": "assert_visible",
       "selector": "createJobTypePicker",
       "timeout": 15

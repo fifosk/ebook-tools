@@ -19,6 +19,7 @@ struct JourneyStep: Decodable {
     var max_height: Double?
     var min_aspect_ratio: Double?
     var max_aspect_ratio: Double?
+    var platforms: [String]?
 }
 
 struct Journey: Decodable {
@@ -89,6 +90,10 @@ final class JourneyRunner {
     }
 
     private func execute(_ step: JourneyStep) throws {
+        guard shouldRun(step) else {
+            return
+        }
+
         switch step.action {
         case "login":
             doLogin(step)
@@ -122,6 +127,16 @@ final class JourneyRunner {
 
         if let name = step.screenshot {
             test.takeScreenshot(named: name)
+        }
+    }
+
+    private func shouldRun(_ step: JourneyStep) -> Bool {
+        guard let platforms = step.platforms, !platforms.isEmpty else {
+            return true
+        }
+        let current = platform.rawValue.lowercased()
+        return platforms.contains { candidate in
+            candidate.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == current
         }
     }
 
