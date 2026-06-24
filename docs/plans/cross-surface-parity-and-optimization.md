@@ -61,7 +61,11 @@ Large Web UI hotspots to split before redesign work:
   selected-video, and selected-subtitle persistence now lives in
   `web/src/pages/video-dubbing/useVideoDubbingSelectionState.ts`, restoring
   the last Web NAS source on page load and trimming/clearing local-storage
-  values through the shared browser-storage helper.
+  values through the shared browser-storage helper. TVMaze/YouTube metadata
+  lookup state, stale-response suppression, source-change resets, cache clear
+  handlers, and editable metadata draft preservation now live in
+  `web/src/pages/video-dubbing/useVideoDubbingMetadata.ts` with focused hook
+  coverage.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style

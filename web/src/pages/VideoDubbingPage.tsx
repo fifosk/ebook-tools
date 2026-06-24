@@ -3,17 +3,13 @@ import {
   fetchYoutubeLibrary,
   fetchVoiceInventory,
   generateYoutubeDub,
-  lookupSubtitleTvMetadataPreview,
-  lookupYoutubeVideoMetadataPreview,
   synthesizeVoicePreview,
   fetchSubtitleModels,
   fetchInlineSubtitleStreams,
   extractInlineSubtitles,
   deleteNasSubtitle,
   fetchPipelineDefaults,
-  deleteYoutubeVideo,
-  clearTvMetadataCache,
-  clearYoutubeMetadataCache
+  deleteYoutubeVideo
 } from '../api/client';
 import { fetchBookCreationOptions } from '../api/createBook';
 import type {
@@ -22,9 +18,7 @@ import type {
   YoutubeNasSubtitle,
   YoutubeInlineSubtitleStream,
   VoiceInventoryResponse,
-  JobParameterSnapshot,
-  SubtitleTvMetadataPreviewResponse,
-  YoutubeVideoMetadataPreviewResponse
+  JobParameterSnapshot
 } from '../api/dtos';
 import type { JobState } from '../components/JobList';
 import { resolveLanguageName } from '../constants/languageCodes';
@@ -59,25 +53,22 @@ import {
   DEFAULT_TARGET_HEIGHT,
   DEFAULT_TRANSLATION_BATCH_SIZE
 } from './video-dubbing/videoDubbingConfig';
-import type { VideoDubbingTab, VideoMetadataSection } from './video-dubbing/videoDubbingTypes';
+import type { VideoDubbingTab } from './video-dubbing/videoDubbingTypes';
 import { useVideoDubbingSelectionState } from './video-dubbing/useVideoDubbingSelectionState';
+import { useVideoDubbingMetadata } from './video-dubbing/useVideoDubbingMetadata';
 import {
   buildVideoDubbingGeneratePayload,
   buildVoiceOptions,
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
   formatSubtitleExtractionStatus,
-  hasYoutubeMetadataTitle,
-  mergeTvMetadataPreviewWithPreservedYoutubeMetadata,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
   resolveDefaultSubtitle,
   resolveSelectionAfterVideoDelete,
   resolveSubtitleNotice,
   resolveVideoDubbingSelection,
-  resolveVideoDubbingMetadataSourceName,
-  updateVideoDubbingMediaMetadataDraft,
-  updateVideoDubbingMediaMetadataSection
+  resolveVideoDubbingMetadataSourceName
 } from './video-dubbing/videoDubbingUtils';
 import styles from './VideoDubbingPage.module.css';
 
@@ -281,155 +272,27 @@ export default function VideoDubbingPage({
       video: selectedVideo
     });
   }, [selectedSubtitle, selectedVideo]);
-  const [metadataLookupSourceName, setMetadataLookupSourceName] = useState<string>('');
-  const [metadataPreview, setMetadataPreview] = useState<SubtitleTvMetadataPreviewResponse | null>(null);
-  const [mediaMetadataDraft, setMediaMetadataDraft] = useState<Record<string, unknown> | null>(null);
-  const [metadataLoading, setMetadataLoading] = useState<boolean>(false);
-  const [metadataError, setMetadataError] = useState<string | null>(null);
-  const metadataLookupIdRef = useRef<number>(0);
-  const [metadataSection, setMetadataSection] = useState<VideoMetadataSection>('tv');
-  const [youtubeLookupSourceName, setYoutubeLookupSourceName] = useState<string>('');
-  const [youtubeMetadataPreview, setYoutubeMetadataPreview] = useState<YoutubeVideoMetadataPreviewResponse | null>(null);
-  const [youtubeMetadataLoading, setYoutubeMetadataLoading] = useState<boolean>(false);
-  const [youtubeMetadataError, setYoutubeMetadataError] = useState<string | null>(null);
-  const youtubeLookupIdRef = useRef<number>(0);
-  const updateMediaMetadataDraft = useCallback((updater: (draft: Record<string, unknown>) => void) => {
-    setMediaMetadataDraft((current) => updateVideoDubbingMediaMetadataDraft(current, updater));
-  }, []);
-  const updateMediaMetadataSection = useCallback(
-    (sectionKey: string, updater: (section: Record<string, unknown>) => void) => {
-      setMediaMetadataDraft((current) => updateVideoDubbingMediaMetadataSection(current, sectionKey, updater));
-    },
-    []
-  );
-  const performMetadataLookup = useCallback(async (sourceName: string, force: boolean) => {
-    const normalized = sourceName.trim();
-    if (!normalized) {
-      setMetadataPreview(null);
-      setMediaMetadataDraft(null);
-      setMetadataError(null);
-      setMetadataLoading(false);
-      return;
-    }
-    const requestId = metadataLookupIdRef.current + 1;
-    metadataLookupIdRef.current = requestId;
-    setMetadataLoading(true);
-    setMetadataError(null);
-    try {
-      const payload = await lookupSubtitleTvMetadataPreview({ source_name: normalized, force });
-      if (metadataLookupIdRef.current !== requestId) {
-        return;
-      }
-      setMetadataPreview(payload);
-      setMediaMetadataDraft((current) =>
-        mergeTvMetadataPreviewWithPreservedYoutubeMetadata(current, payload.media_metadata)
-      );
-    } catch (error) {
-      if (metadataLookupIdRef.current !== requestId) {
-        return;
-      }
-      const message = error instanceof Error ? error.message : 'Unable to lookup TV metadata.';
-      setMetadataError(message);
-      setMetadataPreview(null);
-      setMediaMetadataDraft(null);
-    } finally {
-      if (metadataLookupIdRef.current === requestId) {
-        setMetadataLoading(false);
-      }
-    }
-  }, []);
-
-  const performYoutubeMetadataLookup = useCallback(
-    async (sourceName: string, force: boolean) => {
-      const normalized = sourceName.trim();
-      if (!normalized) {
-        setYoutubeMetadataPreview(null);
-        setYoutubeMetadataError(null);
-        setYoutubeMetadataLoading(false);
-        updateMediaMetadataDraft((draft) => {
-          delete draft['youtube'];
-        });
-        return;
-      }
-
-      const requestId = youtubeLookupIdRef.current + 1;
-      youtubeLookupIdRef.current = requestId;
-      setYoutubeMetadataLoading(true);
-      setYoutubeMetadataError(null);
-      try {
-        const payload = await lookupYoutubeVideoMetadataPreview({ source_name: normalized, force });
-        if (youtubeLookupIdRef.current !== requestId) {
-          return;
-        }
-        setYoutubeMetadataPreview(payload);
-        if (payload.youtube_metadata) {
-          updateMediaMetadataDraft((draft) => {
-            draft['youtube'] = { ...payload.youtube_metadata };
-          });
-        } else {
-          updateMediaMetadataDraft((draft) => {
-            delete draft['youtube'];
-          });
-        }
-      } catch (error) {
-        if (youtubeLookupIdRef.current !== requestId) {
-          return;
-        }
-        const message = error instanceof Error ? error.message : 'Unable to lookup YouTube metadata.';
-        setYoutubeMetadataError(message);
-        setYoutubeMetadataPreview(null);
-        updateMediaMetadataDraft((draft) => {
-          delete draft['youtube'];
-        });
-      } finally {
-        if (youtubeLookupIdRef.current === requestId) {
-          setYoutubeMetadataLoading(false);
-        }
-      }
-    },
-    [updateMediaMetadataDraft]
-  );
-
-  useEffect(() => {
-    const normalized = metadataSourceName.trim();
-    setMetadataLookupSourceName(normalized);
-    setYoutubeLookupSourceName(normalized);
-    if (!normalized) {
-      setMetadataPreview(null);
-      setMediaMetadataDraft(null);
-      setMetadataError(null);
-      setMetadataLoading(false);
-      setYoutubeMetadataPreview(null);
-      setYoutubeMetadataError(null);
-      setYoutubeMetadataLoading(false);
-      return;
-    }
-    void performMetadataLookup(normalized, false);
-  }, [metadataSourceName, performMetadataLookup]);
-
-  useEffect(() => {
-    if (activeTab !== 'metadata' || metadataSection !== 'youtube') {
-      return;
-    }
-    const normalized = youtubeLookupSourceName.trim();
-    if (!normalized) {
-      return;
-    }
-    if (hasYoutubeMetadataTitle(mediaMetadataDraft)) {
-      return;
-    }
-    if (youtubeMetadataLoading) {
-      return;
-    }
-    void performYoutubeMetadataLookup(normalized, false);
-  }, [
-    activeTab,
-    mediaMetadataDraft,
+  const {
     metadataSection,
-    performYoutubeMetadataLookup,
+    setMetadataSection,
+    metadataLookupSourceName,
+    setMetadataLookupSourceName,
+    metadataPreview,
+    metadataLoading,
+    metadataError,
     youtubeLookupSourceName,
-    youtubeMetadataLoading
-  ]);
+    setYoutubeLookupSourceName,
+    youtubeMetadataPreview,
+    youtubeMetadataLoading,
+    youtubeMetadataError,
+    mediaMetadataDraft,
+    performMetadataLookup,
+    performYoutubeMetadataLookup,
+    handleClearTvMetadata,
+    handleClearYoutubeMetadata,
+    updateMediaMetadataDraft,
+    updateMediaMetadataSection
+  } = useVideoDubbingMetadata({ activeTab, metadataSourceName });
   const languageOptions = useMemo(
     () =>
       buildLanguageOptions({
@@ -856,42 +719,6 @@ export default function VideoDubbingPage({
   const handleExtractAllStreams = useCallback(() => {
     void performSubtitleExtraction(undefined);
   }, [performSubtitleExtraction]);
-
-  const handleClearTvMetadata = useCallback(async () => {
-    // Clear frontend state first
-    setMetadataPreview(null);
-    setMediaMetadataDraft(null);
-    setMetadataError(null);
-
-    // Clear backend cache for a fresh lookup
-    const query = metadataLookupSourceName.trim();
-    if (query) {
-      try {
-        await clearTvMetadataCache(query);
-      } catch {
-        // Ignore cache clear failures - frontend state is already cleared
-      }
-    }
-  }, [metadataLookupSourceName]);
-
-  const handleClearYoutubeMetadata = useCallback(async () => {
-    // Clear frontend state first
-    setYoutubeMetadataPreview(null);
-    setYoutubeMetadataError(null);
-    updateMediaMetadataDraft((draft) => {
-      delete draft['youtube'];
-    });
-
-    // Clear backend cache for a fresh lookup
-    const query = metadataLookupSourceName.trim();
-    if (query) {
-      try {
-        await clearYoutubeMetadataCache(query);
-      } catch {
-        // Ignore cache clear failures - frontend state is already cleared
-      }
-    }
-  }, [metadataLookupSourceName, updateMediaMetadataDraft]);
 
   const handleGenerate = useCallback(async () => {
     if (isIntakeAtCapacity) {
