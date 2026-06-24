@@ -581,10 +581,10 @@ Every cross-surface change should pass the relevant subset:
 - Web: focused Vitest files plus a production/export build. Use the package
   manager available in the checkout, for example `npm --prefix web test -- --run
   ...` and `npm --prefix web run build`; the Web build script should remain
-  package-manager neutral. For ebook-tools, prefer the shared pipeline runner
-  `python3 scripts/run_app_web_checks.py --app ebook-tools`, which runs the
-  registered Create, Library, Video Dubbing, and Subtitle Tool focused checks,
-  production/export build, and generated-artifact cleanup.
+  package-manager neutral. For ebook-tools, prefer
+  `make apple-pipeline-web-checks`, which calls the shared pipeline runner for
+  the registered Create, Library, Video Dubbing, and Subtitle Tool focused
+  checks, production/export build, and generated-artifact cleanup.
 - Apple: release contract, iOS/tvOS simulator builds, the iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the local Apple surface build gate, the local Apple verification gate, `make apple-device-preflight`, `make apple-device-signed-build-only`, `make apple-device-deploy-dry-run`, guarded CoreDevice preflight before confirmed physical-device updates, shared Apple pipeline preflight targets, and shared pipeline simulator smokes.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 

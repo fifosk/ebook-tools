@@ -192,6 +192,7 @@ make build-apple-ipad-simulator
 make apple-pipeline-contracts
 make apple-pipeline-backend
 make apple-pipeline-source-sync
+make apple-pipeline-web-checks
 make verify-apple-shared-pipeline
 make apple-device-preflight APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID=<id>
 make apple-device-signed-build-only APPLE_DEVICE_PROFILE=ipad

@@ -184,13 +184,16 @@ through repo-owned wrapper targets:
 make apple-pipeline-contracts
 make apple-pipeline-backend
 make apple-pipeline-source-sync
+make apple-pipeline-web-checks
 make verify-apple-shared-pipeline
 ```
 
 `verify-apple-shared-pipeline` runs the shared pipeline contract and backend
 checks without physical deployment. Run `apple-pipeline-source-sync` after the
 Mac Studio/runtime checkout has been fast-forwarded, because that check compares
-the local and remote Git state.
+the local and remote Git state. `apple-pipeline-web-checks` runs the manifest
+registered Web focused checks and production/export build through the shared
+pipeline runner, then restores generated Web artifacts.
 
 For a quick Apple TV compile check without launching the full tvOS journey, run
 the repo-owned simulator build lane:
