@@ -25,6 +25,7 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
     expected = {
+        "test-backend-auth-session": ("tests/modules/webapi/test_auth_routes.py",),
         "test-backend-admin-system-status": ("tests/modules/webapi/test_system_routes.py",),
         "test-backend-create-book": ("tests/test_create_book.py",),
         "test-backend-creation-templates": (
@@ -71,6 +72,7 @@ def test_docs_publish_backend_pipeline_targets() -> None:
     docs = TESTING_DOC.read_text(encoding="utf-8")
 
     for command in [
+        "make test-backend-auth-session",
         "make test-backend-library-search-source-isbn",
         "make test-backend-admin-system-status",
         "make test-backend-create-book",

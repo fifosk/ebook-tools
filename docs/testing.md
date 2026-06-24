@@ -314,9 +314,10 @@ iPad-style, and tvOS surfaces. It accepts the shared helper's
 legacy flags (`--use-remote-env-tokens`, read/write token requirements, and
 `--skip-apple-build`) so iPad/TV update runs can reuse the same unattended
 command shape while the unavailable iPhone profile is left out of the run. The
-backend test manifest separately covers the reading-bed catalog and uploaded
-file route used by Web playback controls plus Apple playback/offline sync, and
-the notification device/preference/test routes used by Apple Settings.
+backend test manifest separately covers auth/session restore, reading-bed
+catalog and uploaded file route used by Web playback controls plus Apple
+playback/offline sync, and the notification device/preference/test routes used
+by Apple Settings.
 
 Run the local Apple contract gate after changing native Create payloads,
 deployment helpers, or simulator journey config wiring:
@@ -705,6 +706,7 @@ available and `python3` otherwise.
 | `make test-audio` | `$(PYTHON) -m pytest -m audio` | TTS backends and audio tests |
 | `make test-translation` | `$(PYTHON) -m pytest -m translation` | Translation engine tests |
 | `make test-webapi` | `$(PYTHON) -m pytest -m webapi` | FastAPI route tests |
+| `make test-backend-auth-session` | `$(PYTHON) -m pytest ...` | Shared-pipeline login, session restore, logout, auth metric, and token rejection backend slice |
 | `make test-backend-library-search-source-isbn` | `$(PYTHON) -m pytest ...` | Shared-pipeline Library, Search, source upload, and ISBN backend slice |
 | `make test-backend-admin-system-status` | `$(PYTHON) -m pytest ...` | Shared-pipeline admin system status backend slice |
 | `make test-backend-create-book` | `$(PYTHON) -m pytest ...` | Shared-pipeline generated-book backend slice |

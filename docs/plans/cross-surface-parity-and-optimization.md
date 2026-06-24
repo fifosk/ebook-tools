@@ -485,6 +485,11 @@ Optimization candidates:
   sidecar selections with valid suffixes now return structured `missing`
   results instead of picker-breaking 404s.
 - Keep all auth/session headers and token handling out of logs and docs.
+  Status: the repo-owned `test-backend-auth-session` target now covers the
+  password login, compact session restore payload, logout invalidation, missing
+  or invalid token rejection, and auth route duration metric used by Web and
+  Apple clients, and the shared Apple backend manifest runs it as an
+  auth/session regression gate.
 
 ## Parity Roadmap
 

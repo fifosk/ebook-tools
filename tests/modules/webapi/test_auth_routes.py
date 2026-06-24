@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -37,6 +38,49 @@ def auth_client(tmp_path) -> Iterator[tuple[TestClient, AuthService, str]]:
     with TestClient(app) as client:
         yield client, service, token
     app.dependency_overrides.clear()
+
+
+def test_login_session_logout_cycle_matches_device_contract(auth_client) -> None:
+    client, _, _ = auth_client
+
+    login_response = client.post(
+        "/api/auth/login",
+        json={"username": "reader", "password": "secret"},
+    )
+
+    assert login_response.status_code == 200
+    login_payload = login_response.json()
+    issued_token = login_payload["token"]
+    assert isinstance(issued_token, str)
+    assert issued_token
+    assert login_payload["user"]["username"] == "reader"
+    assert login_payload["user"]["role"] == "viewer"
+    assert login_payload["user"]["email"] == "reader@example.test"
+    assert login_payload["user"]["first_name"] == "Test"
+    assert login_payload["user"]["last_name"] == "Reader"
+    assert login_payload["user"]["last_login"] != "2026-06-21T12:00:00+00:00"
+    datetime.fromisoformat(login_payload["user"]["last_login"])
+    assert "secret" not in login_response.text
+
+    session_response = client.get(
+        "/api/auth/session",
+        headers={"Authorization": f"Bearer {issued_token}"},
+    )
+
+    assert session_response.status_code == 200
+    assert session_response.json() == login_payload
+
+    logout_response = client.post(
+        "/api/auth/logout",
+        headers={"Authorization": f"Bearer {issued_token}"},
+    )
+    assert logout_response.status_code == 204
+
+    restored_response = client.get(
+        "/api/auth/session",
+        headers={"Authorization": f"Bearer {issued_token}"},
+    )
+    assert restored_response.status_code == 401
 
 
 def test_session_status_returns_compact_user_payload(auth_client) -> None:

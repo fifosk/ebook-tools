@@ -1,6 +1,7 @@
 .PHONY: test test-fast test-audio test-translation test-webapi test-services \
        test-pipeline test-cli test-auth test-library test-render test-media \
        test-config test-metadata test-changed \
+       test-backend-auth-session \
        test-backend-library-search-source-isbn test-backend-admin-system-status \
        test-backend-create-book test-backend-creation-templates \
        test-backend-pipeline-sources \
@@ -76,6 +77,9 @@ test-translation:
 
 test-webapi:
 	$(PYTHON) -m pytest -m webapi
+
+test-backend-auth-session:
+	$(PYTHON) -m pytest tests/modules/webapi/test_auth_routes.py
 
 test-backend-library-search-source-isbn:
 	$(PYTHON) -m pytest \
