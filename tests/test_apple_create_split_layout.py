@@ -310,6 +310,19 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert source.count("onJobSubmitted(jobId)") == 1
 
 
+def test_create_view_model_uses_shared_submission_wrapper() -> None:
+    source = _source(CREATE_VIEW_MODEL)
+
+    assert "private func submitJob(" in source
+    assert "operation: (APIClient) async throws -> String" in source
+    assert "let jobId = try await operation(client)" in source
+    assert "submittedJobId = jobId" in source
+    assert source.count("await submitJob(using: appState)") == 4
+    assert source.count("isSubmitting = true") == 1
+    assert source.count("defer { isSubmitting = false }") == 1
+    assert source.count('errorMessage = "API configuration is unavailable."') == 1
+
+
 def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     models_source = _source(CREATE_MODELS)
     support_source = _source(

@@ -225,7 +225,8 @@ Current Apple UI partially exposes:
   UserDefaults formats contract-pinned outside the main view. Create lifecycle
   loading and field-change side effects are now named handlers in the view
   instead of inline modifier bodies, and successful job submission completion
-  shares one intake-refresh/notify handler. Narration language/voice routing now lives in
+  shares one intake-refresh/notify handler while the view model shares one
+  submit-state/error wrapper. Narration language/voice routing now lives in
   `AppleBookCreateNarrationSection.swift`, and the
   iOS/iPad searchable full-language selector lives in
   `AppleBookCreateLanguageSelector.swift`. Source UI for newest-first server
