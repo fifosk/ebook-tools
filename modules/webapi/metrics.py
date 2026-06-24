@@ -203,6 +203,13 @@ BOOK_OPTIONS_ROUTE_DURATION = Histogram(
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
 )
 
+CREATION_TEMPLATE_ROUTE_DURATION = Histogram(
+    "ebook_tools_creation_template_route_duration_seconds",
+    "Creation template route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
+)
+
 # ---------------------------------------------------------------------------
 # Users & sessions
 # ---------------------------------------------------------------------------

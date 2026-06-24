@@ -740,7 +740,7 @@ available and `python3` otherwise.
 | `make test-backend-admin-system-status` | `$(PYTHON) -m pytest ...` | Shared-pipeline admin system status, defaults/intake status, model/image-node helpers, and token-safe Create telemetry slice |
 | `make test-backend-runtime-descriptor` | `$(PYTHON) -m pytest ...` | Shared-pipeline public runtime descriptor and Apple contract backend slice |
 | `make test-backend-create-book` | `$(PYTHON) -m pytest ...` | Shared-pipeline generated-book backend slice, book options defaults, and token-safe options telemetry |
-| `make test-backend-creation-templates` | `$(PYTHON) -m pytest ...` | Shared-pipeline saved creation-template backend slice |
+| `make test-backend-creation-templates` | `$(PYTHON) -m pytest ...` | Shared-pipeline saved creation-template backend slice and token-safe template route telemetry |
 | `make test-backend-pipeline-sources` | `$(PYTHON) -m pytest ...` | Shared-pipeline EPUB source picker, content-index, cleanup, and upload backend slice |
 | `make test-backend-audio-routes` | `$(PYTHON) -m pytest ...` | Shared-pipeline audio synthesis, voice inventory, voice-match, and token-safe audio telemetry backend slice |
 | `make test-backend-reading-beds` | `$(PYTHON) -m pytest ...` | Shared-pipeline reading-bed catalog, upload, default, streaming, and cleanup backend slice |

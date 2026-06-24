@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from modules import logging_manager as log_mgr
 
 from ..dependencies import (
     RequestUserContext,
@@ -19,6 +23,40 @@ from ...services.creation_template_service import CreationTemplateService
 
 
 router = APIRouter(prefix="/api/creation/templates", tags=["creation-templates"])
+logger = log_mgr.get_logger()
+
+
+def _record_template_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe creation-template route timing if metrics are available."""
+
+    try:
+        from modules.webapi.metrics import CREATION_TEMPLATE_ROUTE_DURATION
+    except Exception:
+        return
+    CREATION_TEMPLATE_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
+def _log_template_route_result(
+    *,
+    operation: str,
+    result: str,
+    started_at: float,
+    template_count: int | None = None,
+    deleted: bool | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000
+    details = (
+        f"Creation template route operation={operation} "
+        f"result={result} duration_ms={duration_ms:.1f}"
+    )
+    if template_count is not None:
+        details += f" templates={template_count}"
+    if deleted is not None:
+        details += f" deleted={str(deleted).lower()}"
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(details)
 
 
 def _require_user(request_user: RequestUserContext) -> str:
@@ -36,8 +74,31 @@ def list_creation_templates(
     request_user: RequestUserContext = Depends(get_request_user),
     template_service: CreationTemplateService = Depends(get_creation_template_service),
 ) -> CreationTemplateListResponse:
-    user_id = _require_user(request_user)
-    entries = template_service.list_templates(user_id, mode=mode)
+    started_at = time.perf_counter()
+    try:
+        user_id = _require_user(request_user)
+    except HTTPException:
+        _record_template_route_duration("list", "unauthorized", started_at)
+        _log_template_route_result(
+            operation="list",
+            result="unauthorized",
+            started_at=started_at,
+        )
+        raise
+
+    try:
+        entries = template_service.list_templates(user_id, mode=mode)
+    except Exception:
+        _record_template_route_duration("list", "error", started_at)
+        _log_template_route_result(operation="list", result="error", started_at=started_at)
+        raise
+    _record_template_route_duration("list", "success", started_at)
+    _log_template_route_result(
+        operation="list",
+        result="success",
+        started_at=started_at,
+        template_count=len(entries),
+    )
     return CreationTemplateListResponse(
         templates=[CreationTemplateEntryPayload(**entry.__dict__) for entry in entries]
     )
@@ -49,8 +110,26 @@ def save_creation_template(
     request_user: RequestUserContext = Depends(get_request_user),
     template_service: CreationTemplateService = Depends(get_creation_template_service),
 ) -> CreationTemplateEntryPayload:
-    user_id = _require_user(request_user)
-    entry = template_service.save_template(user_id, payload.model_dump())
+    started_at = time.perf_counter()
+    try:
+        user_id = _require_user(request_user)
+    except HTTPException:
+        _record_template_route_duration("save", "unauthorized", started_at)
+        _log_template_route_result(
+            operation="save",
+            result="unauthorized",
+            started_at=started_at,
+        )
+        raise
+
+    try:
+        entry = template_service.save_template(user_id, payload.model_dump())
+    except Exception:
+        _record_template_route_duration("save", "error", started_at)
+        _log_template_route_result(operation="save", result="error", started_at=started_at)
+        raise
+    _record_template_route_duration("save", "success", started_at)
+    _log_template_route_result(operation="save", result="success", started_at=started_at)
     return CreationTemplateEntryPayload(**entry.__dict__)
 
 
@@ -60,6 +139,29 @@ def delete_creation_template(
     request_user: RequestUserContext = Depends(get_request_user),
     template_service: CreationTemplateService = Depends(get_creation_template_service),
 ) -> CreationTemplateDeleteResponse:
-    user_id = _require_user(request_user)
-    deleted = template_service.delete_template(user_id, template_id)
+    started_at = time.perf_counter()
+    try:
+        user_id = _require_user(request_user)
+    except HTTPException:
+        _record_template_route_duration("delete", "unauthorized", started_at)
+        _log_template_route_result(
+            operation="delete",
+            result="unauthorized",
+            started_at=started_at,
+        )
+        raise
+
+    try:
+        deleted = template_service.delete_template(user_id, template_id)
+    except Exception:
+        _record_template_route_duration("delete", "error", started_at)
+        _log_template_route_result(operation="delete", result="error", started_at=started_at)
+        raise
+    _record_template_route_duration("delete", "success", started_at)
+    _log_template_route_result(
+        operation="delete",
+        result="success",
+        started_at=started_at,
+        deleted=deleted,
+    )
     return CreationTemplateDeleteResponse(deleted=deleted, template_id=template_id)

@@ -790,7 +790,11 @@ Suggested features to evaluate after parity scaffolding:
 - Cross-surface job templates: save a Web configuration and reuse it from Apple. Status:
   backend now exposes authenticated `/api/creation/templates` list/save/delete
   storage with recursive secret-key stripping, and the public runtime descriptor
-  advertises the template endpoints for Web/Apple clients. Web Narrate Ebook and
+  advertises the template endpoints for Web/Apple clients. The shared template
+  routes now record token-safe duration telemetry for list/save/delete success,
+  unauthorized, and error paths with aggregate counts/delete outcomes only,
+  without logging template ids, names, payload content, mode filters, user ids,
+  auth headers, or tokens. Web Narrate Ebook and
   generated-book forms can now save sanitized creation templates from their
   current settings. Native Apple Create on iPhone/iPad can list those saved
   generated-book and Narrate EPUB templates, apply the Web form state into its
