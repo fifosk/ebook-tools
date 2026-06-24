@@ -23,13 +23,9 @@ import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelIntera
 import { buildPlayerPanelSearchSlots } from './player-panel/PlayerPanelSearchSlot';
 import { PlayerPanelSentenceJumpDatalist } from './player-panel/PlayerPanelSentenceJumpDatalist';
 import {
-  buildInteractiveAudioCatalog,
   fallbackTextFromSentences,
   resolveActiveChapterId,
-  resolveActiveTextChunk,
   resolveChapterStartSentence,
-  resolveChunkForSelectedItem,
-  resolveSelectedTextItem,
 } from './player-panel/utils';
 import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, MediaSelectionRequest, PlayerFeatureFlags, PlayerMode } from '../types/player';
@@ -63,6 +59,7 @@ import { useInteractiveFullscreenPreference } from './player-panel/useInteractiv
 import { usePlayerPanelScrollMemory } from './player-panel/usePlayerPanelScrollMemory';
 import { usePlayerPanelMediaNavigation } from './player-panel/usePlayerPanelMediaNavigation';
 import { useAudioTrackVisibility } from './player-panel/useAudioTrackVisibility';
+import { usePlayerPanelActiveText } from './player-panel/usePlayerPanelActiveText';
 
 type ReadingBedOverride = {
   id: string;
@@ -316,39 +313,27 @@ export default function PlayerPanel({
   }, [isInlineAudioPlaying, onPlaybackStateChange]);
   const selectedItemId = selectedItemIds.text;
   const textPlaybackPosition = getPosition(selectedItemIds.text);
-  const selectedItem = useMemo(
-    () => resolveSelectedTextItem(media.text, selectedItemId),
-    [media.text, selectedItemId],
-  );
   const allowTextPreview =
     playerMode !== 'export' || (typeof window !== 'undefined' && window.location.protocol !== 'file:');
+  const {
+    selectedItem,
+    selectedChunk,
+    interactiveAudioPlaylist,
+    interactiveAudioNameMap,
+    audioChunkIndexMap,
+    activeTextChunk,
+    activeTextChunkIndex,
+  } = usePlayerPanelActiveText({
+    textItems: media.text,
+    audioItems: media.audio,
+    chunks,
+    selectedTextId: selectedItemId,
+    selectedAudioId: selectedItemIds.audio,
+    inlineAudioSelection,
+  });
   const { textPreview, textLoading, textError } = useTextPreview(selectedItem?.url, {
     enabled: allowTextPreview,
   });
-  const selectedChunk = useMemo(
-    () => resolveChunkForSelectedItem(chunks, selectedItem),
-    [chunks, selectedItem],
-  );
-  const {
-    playlist: interactiveAudioPlaylist,
-    nameMap: interactiveAudioNameMap,
-    chunkIndexMap: audioChunkIndexMap,
-  } = useMemo(() => buildInteractiveAudioCatalog(chunks, media.audio), [chunks, media.audio]);
-  const activeTextChunk = useMemo(
-    () =>
-      resolveActiveTextChunk({
-        chunks,
-        selectedChunk,
-        inlineAudioSelection,
-        audioChunkIndexMap,
-        selectedAudioId: selectedItemIds.audio,
-      }),
-    [audioChunkIndexMap, chunks, inlineAudioSelection, selectedChunk, selectedItemIds.audio],
-  );
-  const activeTextChunkIndex = useMemo(
-    () => (activeTextChunk ? chunks.findIndex((chunk) => chunk === activeTextChunk) : -1),
-    [activeTextChunk, chunks],
-  );
   const { hasInteractiveChunks, resolvedActiveTextChunk } = useChunkMetadata({
     jobId,
     origin,

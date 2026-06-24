@@ -597,7 +597,9 @@ Refactor before restyling:
   uses the shared safe browser storage wrapper. Original/translation audio
   visibility persistence now lives in a focused tested hook so Web playback
   defaults can evolve alongside Apple playback settings without growing the
-  panel coordinator.
+  panel coordinator. Active text selection, selected chunk lookup, interactive
+  audio cataloging, and audio-driven active chunk fallback now live in a
+  focused tested hook rather than inline in the panel coordinator.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, genre, author, sentence,
   generated-source image, and pipeline defaults from `/api/books/options`
