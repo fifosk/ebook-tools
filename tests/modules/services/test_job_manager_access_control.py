@@ -174,6 +174,98 @@ def test_admin_list_jobs_uses_store_pagination_without_active_jobs(tmp_path: Pat
         manager._executor.shutdown()
 
 
+def test_non_admin_count_jobs_does_not_hydrate_stored_jobs(tmp_path: Path) -> None:
+    store = _RecordingInMemoryJobStore()
+    for index in range(3):
+        store.save(
+            PipelineJobMetadata(
+                job_id=f"alice-stored-{index}",
+                job_type="pipeline",
+                status=PipelineJobStatus.COMPLETED,
+                created_at=datetime(2026, 6, 22, 10, index, tzinfo=timezone.utc),
+                user_id="alice",
+                user_role="editor",
+            )
+        )
+    manager = PipelineJobManager(
+        max_workers=1,
+        store=store,
+        worker_pool_factory=lambda _: DummyWorkerPool(),
+    )
+    service = PipelineService(manager)
+    build_calls: list[PipelineJobMetadata] = []
+    original_build_job = manager._persistence.build_job
+
+    def recording_build_job(metadata: PipelineJobMetadata):
+        build_calls.append(metadata)
+        return original_build_job(metadata)
+
+    manager._persistence.build_job = recording_build_job
+    store.list_calls.clear()
+
+    try:
+        assert service.count_jobs(user_id="alice", user_role="editor") == 3
+    finally:
+        manager._executor.shutdown()
+
+    assert store.list_calls == [{"offset": None, "limit": None}]
+    assert build_calls == []
+
+
+def test_non_admin_list_jobs_hydrates_only_requested_visible_page(tmp_path: Path) -> None:
+    store = _RecordingInMemoryJobStore()
+    for index in range(3):
+        store.save(
+            PipelineJobMetadata(
+                job_id=f"alice-stored-{index}",
+                job_type="pipeline",
+                status=PipelineJobStatus.COMPLETED,
+                created_at=datetime(2026, 6, 22, 10, index, tzinfo=timezone.utc),
+                user_id="alice",
+                user_role="editor",
+            )
+        )
+    store.save(
+        PipelineJobMetadata(
+            job_id="bob-hidden",
+            job_type="pipeline",
+            status=PipelineJobStatus.COMPLETED,
+            created_at=datetime(2026, 6, 22, 11, 0, tzinfo=timezone.utc),
+            user_id="bob",
+            user_role="editor",
+        )
+    )
+    manager = PipelineJobManager(
+        max_workers=1,
+        store=store,
+        worker_pool_factory=lambda _: DummyWorkerPool(),
+    )
+    service = PipelineService(manager)
+    build_calls: list[PipelineJobMetadata] = []
+    original_build_job = manager._persistence.build_job
+
+    def recording_build_job(metadata: PipelineJobMetadata):
+        build_calls.append(metadata)
+        return original_build_job(metadata)
+
+    manager._persistence.build_job = recording_build_job
+    store.list_calls.clear()
+
+    try:
+        paged_jobs = service.list_jobs(
+            user_id="alice",
+            user_role="editor",
+            offset=1,
+            limit=1,
+        )
+    finally:
+        manager._executor.shutdown()
+
+    assert store.list_calls == [{"offset": None, "limit": None}]
+    assert list(paged_jobs.keys()) == ["alice-stored-1"]
+    assert [metadata.job_id for metadata in build_calls] == ["alice-stored-1"]
+
+
 def test_list_metadata_filters_job_type_without_hydrating_stored_jobs(tmp_path: Path) -> None:
     store = _RecordingInMemoryJobStore()
     youtube_metadata = PipelineJobMetadata(

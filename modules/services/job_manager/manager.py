@@ -860,7 +860,7 @@ class PipelineJobManager:
 
         if self._is_admin(user_role):
             return self._store.count()
-        return len(self.list(user_id=user_id, user_role=user_role))
+        return len(self.list_metadata(user_id=user_id, user_role=user_role))
 
     @staticmethod
     def _metadata_from_active_job(job: PipelineJob) -> PipelineJobMetadata:
@@ -942,6 +942,16 @@ class PipelineJobManager:
             end = start + limit if limit is not None else None
             return dict(items[start:end])
 
+        def _apply_metadata_pagination(
+            jobs: Dict[str, PipelineJobMetadata]
+        ) -> Dict[str, PipelineJobMetadata]:
+            if offset is None and limit is None:
+                return jobs
+            items = list(jobs.items())
+            start = offset or 0
+            end = start + limit if limit is not None else None
+            return dict(items[start:end])
+
         with self._lock:
             active_jobs = dict(self._jobs)
 
@@ -972,28 +982,37 @@ class PipelineJobManager:
                 active_jobs.pop(job_id, None)
                 self._last_event_sig.pop(job_id, None)
                 self._job_locks.remove_job_lock(job_id)
-        for job_id, metadata in stored.items():
-            active_jobs.setdefault(job_id, self._persistence.build_job(metadata))
-
         if self._is_admin(user_role):
+            for job_id, metadata in stored.items():
+                active_jobs.setdefault(job_id, self._persistence.build_job(metadata))
             if pagination_applied_by_store:
                 return active_jobs
             return _apply_pagination(active_jobs)
 
-        filtered: Dict[str, PipelineJob] = {}
+        visible_metadata: Dict[str, PipelineJobMetadata] = {}
+        metadata_by_id: Dict[str, PipelineJobMetadata] = dict(stored)
         for job_id, job in active_jobs.items():
-            default_visibility = "private" if job.user_id else "public"
-            policy = resolve_access_policy(job.access, default_visibility=default_visibility)
+            metadata_by_id[job_id] = self._metadata_from_active_job(job)
+
+        for job_id, metadata in metadata_by_id.items():
+            default_visibility = "private" if metadata.user_id else "public"
+            policy = resolve_access_policy(metadata.access, default_visibility=default_visibility)
             if can_access(
                 policy,
-                owner_id=job.user_id,
+                owner_id=metadata.user_id,
                 user_id=user_id,
                 user_role=user_role,
                 permission="view",
             ):
-                filtered[job_id] = job
+                visible_metadata[job_id] = metadata
 
-        return _apply_pagination(filtered)
+        paged_metadata = _apply_metadata_pagination(visible_metadata)
+        filtered: Dict[str, PipelineJob] = {}
+        for job_id, metadata in paged_metadata.items():
+            active_job = active_jobs.get(job_id)
+            filtered[job_id] = active_job if active_job is not None else self._persistence.build_job(metadata)
+
+        return filtered
 
     def refresh_metadata(
         self,

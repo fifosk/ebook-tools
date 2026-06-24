@@ -236,8 +236,9 @@ Optimization candidates:
 - Guard paginated `/api/pipelines/jobs` response shape before changing list internals. Status:
   backend tests now pin `total`, `offset`, `limit`, newest-first route ordering,
   access payload normalization, generated files, job labels, and parameter
-  snapshots; service tests pin active admin pagination and persisted-only
-  store pagination.
+  snapshots; service tests pin active admin pagination, persisted-only
+  store pagination, and metadata-only non-admin counts/lists that hydrate only
+  the requested visible page.
 - Audit repeated filesystem metadata reads during job list/library list rendering.
   Status: `/api/pipelines/jobs` now skips filesystem image prompt summary reads
   while preserving those rich summaries for single-job status responses.
