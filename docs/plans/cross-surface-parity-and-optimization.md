@@ -584,8 +584,9 @@ After Narrate Ebook:
   snapshot before the background worker starts. Apple Create readiness preflight
   now also requires sane generated-book sentence bounds, language, voice, and
   pipeline defaults from `/api/books/options`, and the native Create readiness
-  journey opens Generate before the media modes so unattended iPhone/iPad
-  simulator checks prove the generated-book controls are drivable.
+  journey opens Generate before the media modes, scrolls as needed, and types a
+  source-book continuation context so unattended iPhone/iPad simulator checks
+  prove the generated-book controls are drivable.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
   files, including NAS library video/subtitle pickers, remembered base

@@ -87,6 +87,49 @@
       "timeout": 15
     },
     {
+      "action": "enter_text",
+      "selector": "createGeneratedSourceBookTitleField",
+      "text": "Inferno",
+      "timeout": 15
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "createGeneratedSourceBookTitleField",
+      "text": "Inferno",
+      "timeout": 15
+    },
+    {
+      "action": "enter_text",
+      "selector": "createGeneratedSourceBookAuthorField",
+      "text": "Dan Brown",
+      "timeout": 15
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "createGeneratedSourceBookAuthorField",
+      "text": "Dan Brown",
+      "timeout": 15
+    },
+    {
+      "action": "enter_text",
+      "selector": "createGeneratedSourceBookGenreField",
+      "text": "Conspiracy thriller",
+      "timeout": 15
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "createGeneratedSourceBookGenreField",
+      "text": "Conspiracy thriller",
+      "timeout": 15
+    },
+    {
+      "action": "enter_text",
+      "selector": "createBookSummaryField",
+      "text": "A symbologist follows clues across Europe.",
+      "timeout": 15,
+      "screenshot": "generated_book_continuation_context"
+    },
+    {
       "action": "assert_visible",
       "selector": "createBookSentenceStepper",
       "timeout": 15,

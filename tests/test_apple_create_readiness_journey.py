@@ -99,6 +99,25 @@ def test_create_readiness_journey_checks_generated_book_defaults_before_media_mo
         "placeholder": "Author",
         "timeout": 15,
     } in generated_steps
+    assert {
+        "action": "enter_text",
+        "selector": "createGeneratedSourceBookTitleField",
+        "text": "Inferno",
+        "timeout": 15,
+    } in generated_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "createGeneratedSourceBookAuthorField",
+        "text": "Dan Brown",
+        "timeout": 15,
+    } in generated_steps
+    assert {
+        "action": "enter_text",
+        "selector": "createGeneratedSourceBookGenreField",
+        "text": "Conspiracy thriller",
+        "timeout": 15,
+    } in generated_steps
+    assert any(step.get("selector") == "createBookSummaryField" for step in generated_steps)
     assert any(step.get("selector") == "createBookSentenceStepper" for step in generated_steps)
 
 
@@ -108,3 +127,12 @@ def test_journey_runner_supports_value_contains_assertion() -> None:
     assert 'case "assert_value_contains":' in source
     assert "private func doAssertValueContains(_ step: JourneyStep)" in source
     assert "localizedCaseInsensitiveContains(expectedText)" in source
+
+
+def test_journey_runner_scrolls_before_visibility_and_text_steps() -> None:
+    source = JOURNEY_RUNNER.read_text(encoding="utf-8")
+
+    assert "private func doAssertVisible(_ step: JourneyStep)" in source
+    assert "private func doEnterText(_ step: JourneyStep)" in source
+    assert "scrollElementIntoView(element, timeout: min(timeout, 4))" in source
+    assert "scrollElementIntoView(element, timeout: 1)" in source

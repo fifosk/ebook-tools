@@ -262,6 +262,7 @@ final class JourneyRunner {
         guard let identifier = step.selector else { return }
         let timeout = TimeInterval(step.timeout ?? 10)
         let element = element(withIdentifier: identifier)
+        scrollElementIntoView(element, timeout: min(timeout, 4))
         XCTAssertTrue(
             element.waitForExistence(timeout: timeout),
             "\(identifier) should be visible"
@@ -338,6 +339,7 @@ final class JourneyRunner {
         let text = step.text ?? ""
         let timeout = TimeInterval(step.timeout ?? 10)
         let element = element(withIdentifier: identifier)
+        scrollElementIntoView(element, timeout: min(timeout, 4))
         XCTAssertTrue(
             element.waitForExistence(timeout: timeout),
             "\(identifier) should be visible before entering text"
@@ -433,6 +435,7 @@ final class JourneyRunner {
         var latestValue = ""
 
         while Date() < deadline {
+            scrollElementIntoView(element, timeout: 1)
             if element.exists {
                 latestValue = normalizedValue(for: element)
                 if latestValue.localizedCaseInsensitiveContains(expectedText) {

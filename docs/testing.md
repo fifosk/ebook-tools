@@ -119,8 +119,8 @@ otherwise `.env.local`, with an explicit override available for one-off runs.
 The reusable manifest also exposes stricter native Create journeys as
 `iphone-create` and `ipados-create`. They run the same preflight before Xcode
 and then execute the `create_readiness.json` journey, which verifies generated
-book controls plus Narrate EPUB, subtitle, and YouTube dubbing defaults from
-backend-visible sources.
+book controls and source-book continuation fields plus Narrate EPUB, subtitle,
+and YouTube dubbing defaults from backend-visible sources.
 
 The preflight verifies backend-visible EPUBs, subtitle sources, YouTube/NAS
 video subtitle pairs, generated-book sentence/language/voice defaults, the broad
@@ -903,9 +903,9 @@ Override `IPHONE_DESTINATION`, `IPAD_DESTINATION`, or `TVOS_DESTINATION` when a
 different installed simulator model is needed.
 
 Create-readiness probes use `tests/e2e/journeys/create_readiness.json` to open
-native Apple Create and verify that generated-book defaults render and that
-Narrate EPUB, subtitle, and YouTube dubbing source fields auto-populate from
-backend-visible sources:
+native Apple Create, type a generated-book continuation context, and verify
+that Narrate EPUB, subtitle, and YouTube dubbing source fields auto-populate
+from backend-visible sources:
 
 ```bash
 make test-e2e-iphone-create-readiness
