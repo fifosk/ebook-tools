@@ -76,12 +76,11 @@ class NotificationService:
             try:
                 self._user_store.update_user(user_id, metadata=metadata)
                 logger.info(
-                    "Removed %d invalid device tokens for user %s",
+                    "Notification token cleanup result=success removed=%d",
                     len(tokens) - len(updated_tokens),
-                    user_id,
                 )
             except Exception as e:
-                logger.error("Failed to cleanup invalid tokens: %s", e)
+                logger.error("Notification token cleanup result=error: %s", e)
 
     async def notify_job_completed(
         self,
@@ -116,12 +115,12 @@ class NotificationService:
 
         user = self._user_store.get_user(user_id)
         if not user:
-            logger.debug("User %s not found for notification", user_id)
+            logger.debug("Notification send skipped result=user_not_found")
             return NotificationResult(sent=0, failed=0, reason="user_not_found")
 
         tokens = user.metadata.get("apns_device_tokens", [])
         if not tokens:
-            logger.debug("No device tokens registered for user %s", user_id)
+            logger.debug("Notification send skipped result=no_devices")
             return NotificationResult(sent=0, failed=0, reason="no_devices")
 
         prefs = user.metadata.get(
@@ -131,11 +130,11 @@ class NotificationService:
 
         # Check preferences
         if status == "completed" and not prefs.get("job_completed", True):
-            logger.debug("Job completed notifications disabled for user %s", user_id)
+            logger.debug("Notification send skipped result=job_completed_disabled")
             return NotificationResult(sent=0, failed=0, reason="disabled_by_preference")
 
         if status == "failed" and not prefs.get("job_failed", True):
-            logger.debug("Job failed notifications disabled for user %s", user_id)
+            logger.debug("Notification send skipped result=job_failed_disabled")
             return NotificationResult(sent=0, failed=0, reason="disabled_by_preference")
 
         # Build notification content
@@ -214,11 +213,13 @@ class NotificationService:
             self._cleanup_invalid_tokens(user_id, invalid_tokens)
 
         logger.info(
-            "Sent %d/%d notifications for job %s to user %s",
+            "Notification send result=success sent=%d total=%d failed=%d invalid_tokens=%d rich=%s status=%s",
             sent,
             len(requests),
-            job_id[:8],
-            user_id,
+            failed,
+            len(invalid_tokens),
+            has_rich_content,
+            status,
         )
 
         return NotificationResult(
@@ -373,7 +374,7 @@ class NotificationService:
         """Register a device token for push notifications."""
         user = self._user_store.get_user(user_id)
         if not user:
-            logger.warning("Cannot register device token: user %s not found", user_id)
+            logger.warning("Notification device registration result=user_not_found")
             return False
 
         tokens: List[Dict[str, Any]] = list(user.metadata.get("apns_device_tokens", []))
@@ -404,10 +405,16 @@ class NotificationService:
 
         try:
             self._user_store.update_user(user_id, metadata=metadata)
-            logger.info("Registered device token for user %s: %s", user_id, device_name)
+            action = "updated" if existing else "created"
+            logger.info(
+                "Notification device registration result=success action=%s devices=%d environment=%s",
+                action,
+                len(tokens),
+                environment,
+            )
             return True
         except Exception as e:
-            logger.error("Failed to register device token: %s", e)
+            logger.error("Notification device registration result=error: %s", e)
             return False
 
     def unregister_device_token(self, user_id: str, token: str) -> bool:
@@ -428,10 +435,13 @@ class NotificationService:
 
         try:
             self._user_store.update_user(user_id, metadata=metadata)
-            logger.info("Unregistered device token for user %s", user_id)
+            logger.info(
+                "Notification device unregister result=success remaining_devices=%d",
+                len(updated_tokens),
+            )
             return True
         except Exception as e:
-            logger.error("Failed to unregister device token: %s", e)
+            logger.error("Notification device unregister result=error: %s", e)
             return False
 
     def get_preferences(self, user_id: str) -> Dict[str, Any]:
@@ -493,8 +503,12 @@ class NotificationService:
 
         try:
             self._user_store.update_user(user_id, metadata=metadata)
-            logger.info("Updated notification preferences for user %s", user_id)
+            logger.info(
+                "Notification preferences update result=success job_completed=%s job_failed=%s",
+                prefs.get("job_completed", True),
+                prefs.get("job_failed", True),
+            )
             return True
         except Exception as e:
-            logger.error("Failed to update notification preferences: %s", e)
+            logger.error("Notification preferences update result=error: %s", e)
             return False

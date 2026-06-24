@@ -126,7 +126,7 @@ test-backend-reading-beds:
 	$(PYTHON) -m pytest tests/modules/webapi/test_reading_bed_routes.py
 
 test-backend-notifications:
-	$(PYTHON) -m pytest tests/modules/webapi/test_notification_routes.py
+	$(PYTHON) -m pytest tests/modules/webapi/test_notification_routes.py tests/modules/test_notification_service.py
 
 test-backend-subtitle-router:
 	$(PYTHON) -m pytest tests/webapi/test_subtitles_router.py

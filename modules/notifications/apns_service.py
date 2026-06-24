@@ -226,8 +226,8 @@ class APNsService:
 
                 if response.status_code == 200:
                     logger.debug(
-                        "APNs notification sent successfully to %s",
-                        request.device_token[:16] + "...",
+                        "APNs notification send result=success status=%d",
+                        response.status_code,
                     )
                     return APNsResponse(
                         success=True,
@@ -244,8 +244,7 @@ class APNsService:
                     reason = f"http_{response.status_code}"
 
                 logger.warning(
-                    "APNs notification failed for %s: %s (status %d)",
-                    request.device_token[:16] + "...",
+                    "APNs notification send result=error reason=%s status=%d",
                     reason,
                     response.status_code,
                 )

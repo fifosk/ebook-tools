@@ -844,8 +844,10 @@ Suggested features to evaluate after parity scaffolding:
   reading-bed regression gate. The repo-owned `test-backend-notifications`
   target now covers Apple Settings notification device registration,
   preferences, test sends, rich test sends, disabled-server messaging, and
-  authentication guards without APNs credentials, and the shared Apple backend
-  manifest runs it as a notification regression gate.
+  authentication guards without APNs credentials, plus token-safe
+  NotificationService/APNs logging that omits user IDs, job IDs, device names,
+  and APNs token prefixes; the shared Apple backend manifest runs it as a
+  notification regression gate.
 - Shared media diagnostics: surface missing timing/audio/image assets without
   opening logs. Status: media manifest responses now include a token-safe
   aggregate diagnostics object with media, chunk, audio, image, timing,

@@ -52,6 +52,7 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
         ),
         "test-backend-notifications": (
             "tests/modules/webapi/test_notification_routes.py",
+            "tests/modules/test_notification_service.py",
         ),
         "test-backend-subtitle-router": ("tests/webapi/test_subtitles_router.py",),
         "test-backend-playback-state": (
