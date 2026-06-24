@@ -136,6 +136,27 @@
       "screenshot": "generated_book_defaults"
     },
     {
+      "action": "assert_visible",
+      "selector": "createBookAudioModePicker",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookWrittenModePicker",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookSentencesPerFileStepper",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookTranslationBatchSizeStepper",
+      "timeout": 15,
+      "screenshot": "generated_book_job_settings"
+    },
+    {
       "action": "select_option",
       "selector": "createJobTypePicker",
       "text": "Narrate EPUB",
@@ -179,6 +200,27 @@
       "screenshot": "subtitle_defaults"
     },
     {
+      "action": "assert_visible",
+      "selector": "createSubtitleOutputFormatPicker",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createSubtitleWorkerCountStepper",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createSubtitleBatchSizeStepper",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createSubtitleTranslationProviderPicker",
+      "timeout": 15,
+      "screenshot": "subtitle_job_settings"
+    },
+    {
       "action": "select_option",
       "selector": "createJobTypePicker",
       "text": "YouTube Dub",
@@ -201,6 +243,37 @@
       "placeholder": "Subtitle path",
       "timeout": 25,
       "screenshot": "youtube_dub_defaults"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createYoutubeTargetHeightPicker",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createYoutubeOriginalMixStepper",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createYoutubeFlushSentencesStepper",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createYoutubeTranslationBatchSizeStepper",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createYoutubeSplitBatchesToggle",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createYoutubePreserveAspectRatioToggle",
+      "timeout": 15,
+      "screenshot": "youtube_dub_job_settings"
     }
   ]
 }

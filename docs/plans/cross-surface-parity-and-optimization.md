@@ -321,7 +321,11 @@ Current Apple UI partially exposes:
   that are absent from backend inventory. The Apple journey runner can now
   select Create picker options and assert non-empty field values, with opt-in
   iPhone/iPad Create-readiness Make targets that verify Narrate EPUB, subtitle,
-  and YouTube/NAS default source loading against a populated API.
+  and YouTube/NAS default source loading against a populated API. The shared
+  Create-readiness journey now also scrolls through generated-book output,
+  subtitle processing, and YouTube dubbing settings controls after those
+  defaults load, so unattended simulator checks prove the practical default
+  settings are reachable across the native Create modes.
   Create lifecycle side-effect wiring now lives in
   `AppleBookCreateLifecycle.swift`, keeping task/on-change handlers and EPUB/
   subtitle delete confirmations target-wired outside the main Create view.

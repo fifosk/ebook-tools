@@ -119,6 +119,99 @@ def test_create_readiness_journey_checks_generated_book_defaults_before_media_mo
     } in generated_steps
     assert any(step.get("selector") == "createBookSummaryField" for step in generated_steps)
     assert any(step.get("selector") == "createBookSentenceStepper" for step in generated_steps)
+    for selector in [
+        "createBookAudioModePicker",
+        "createBookWrittenModePicker",
+        "createBookSentencesPerFileStepper",
+        "createBookTranslationBatchSizeStepper",
+    ]:
+        assert any(
+            step.get("action") == "assert_visible"
+            and step.get("selector") == selector
+            and step.get("timeout") == 15
+            for step in generated_steps
+        )
+
+
+def test_create_readiness_journey_checks_subtitle_job_settings_before_youtube() -> None:
+    journey = json.loads(CREATE_READINESS_JOURNEY.read_text(encoding="utf-8"))
+    steps = journey["steps"]
+
+    subtitle_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("selector") == "createJobTypePicker"
+        and step.get("text") == "Subtitles"
+    )
+    youtube_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("selector") == "createJobTypePicker"
+        and step.get("text") == "YouTube Dub"
+    )
+    subtitle_steps = steps[subtitle_index:youtube_index]
+
+    assert subtitle_index < youtube_index
+    assert {
+        "action": "assert_non_empty_value",
+        "selector": "createSubtitleSourcePathField",
+        "placeholder": "Server subtitle path",
+        "timeout": 25,
+        "screenshot": "subtitle_defaults",
+    } in subtitle_steps
+    for selector in [
+        "createSubtitleOutputFormatPicker",
+        "createSubtitleWorkerCountStepper",
+        "createSubtitleBatchSizeStepper",
+        "createSubtitleTranslationProviderPicker",
+    ]:
+        assert any(
+            step.get("action") == "assert_visible"
+            and step.get("selector") == selector
+            and step.get("timeout") == 15
+            for step in subtitle_steps
+        )
+
+
+def test_create_readiness_journey_checks_youtube_job_settings() -> None:
+    journey = json.loads(CREATE_READINESS_JOURNEY.read_text(encoding="utf-8"))
+    steps = journey["steps"]
+
+    youtube_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("selector") == "createJobTypePicker"
+        and step.get("text") == "YouTube Dub"
+    )
+    youtube_steps = steps[youtube_index:]
+
+    assert {
+        "action": "assert_non_empty_value",
+        "selector": "createYoutubeVideoPathField",
+        "placeholder": "Video path",
+        "timeout": 25,
+    } in youtube_steps
+    assert {
+        "action": "assert_non_empty_value",
+        "selector": "createYoutubeSubtitlePathField",
+        "placeholder": "Subtitle path",
+        "timeout": 25,
+        "screenshot": "youtube_dub_defaults",
+    } in youtube_steps
+    for selector in [
+        "createYoutubeTargetHeightPicker",
+        "createYoutubeOriginalMixStepper",
+        "createYoutubeFlushSentencesStepper",
+        "createYoutubeTranslationBatchSizeStepper",
+        "createYoutubeSplitBatchesToggle",
+        "createYoutubePreserveAspectRatioToggle",
+    ]:
+        assert any(
+            step.get("action") == "assert_visible"
+            and step.get("selector") == selector
+            and step.get("timeout") == 15
+            for step in youtube_steps
+        )
 
 
 def test_journey_runner_supports_value_contains_assertion() -> None:
