@@ -14,6 +14,7 @@ import {
   type LibraryItemPermissionResolver,
   type LibraryItemPermissions
 } from './library-list/libraryListActions';
+import { LibraryItemActions } from './library-list/LibraryItemActions';
 import {
   buildAuthorGroups,
   buildGenreGroups,
@@ -350,79 +351,16 @@ function LibraryList({
   const resolveItemActionState = (item: LibraryItem, permissions: LibraryItemPermissions): LibraryItemActionState =>
     buildLibraryItemActionState(item, permissions, Boolean(mutating[item.jobId]));
 
-  const renderActions = (item: LibraryItem, actionState: LibraryItemActionState) => {
-    return (
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.actionIconButton}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (actionState.canView) {
-              onOpen(item);
-            }
-          }}
-          disabled={actionState.mediaOpenDisabled}
-          aria-label="Play"
-          title="Play"
-        >
-          <span aria-hidden="true">▶</span>
-          <span className="visually-hidden">Play</span>
-        </button>
-        <button
-          type="button"
-          className={styles.actionIconButton}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (actionState.canEdit) {
-              onEditMetadata(item);
-            }
-          }}
-          disabled={actionState.editDisabled}
-          aria-label="Edit"
-          title="Edit"
-        >
-          <span aria-hidden="true">✎</span>
-          <span className="visually-hidden">Edit</span>
-        </button>
-        {onExport ? (
-          <button
-            type="button"
-            className={styles.actionIconButton}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (actionState.isExportReady && actionState.canExport) {
-                onExport(item);
-              }
-            }}
-            disabled={actionState.exportDisabled}
-            aria-label="Export offline player"
-            title={actionState.exportTitle}
-          >
-            <span aria-hidden="true">📦</span>
-            <span className="visually-hidden">Export offline player</span>
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className={styles.actionIconButton}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (actionState.canEdit) {
-              onRemove(item);
-            }
-          }}
-          disabled={actionState.removeDisabled}
-          aria-label="Delete"
-          title="Delete"
-          data-variant="danger"
-        >
-          <span aria-hidden="true">🗑</span>
-          <span className="visually-hidden">Delete</span>
-        </button>
-      </div>
-    );
-  };
+  const renderActions = (item: LibraryItem, actionState: LibraryItemActionState) => (
+    <LibraryItemActions
+      item={item}
+      actionState={actionState}
+      onOpen={onOpen}
+      onEditMetadata={onEditMetadata}
+      onExport={onExport}
+      onRemove={onRemove}
+    />
+  );
 
   if (items.length === 0) {
     return (
