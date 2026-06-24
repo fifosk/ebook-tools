@@ -1692,16 +1692,18 @@ struct AppleBookCreateView: View {
     private func handleNarrateEbookImport(_ result: Result<[URL], Error>) {
         switch result {
         case let .success(urls):
-            guard let url = urls.first else { return }
-            selectedNarrateFileURL = url
-            selectedNarrateFileName = url.lastPathComponent
+            guard let file = AppleBookCreateFileImport.importedFile(from: urls) else { return }
+            selectedNarrateFileURL = file.url
+            selectedNarrateFileName = file.fileName
             sourcePath = ""
             clearNarrateChapterSelection()
             markEdited(.sourcePath)
-            if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
-                sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(
-                    url.deletingPathExtension().lastPathComponent
-                )
+            if let baseOutput = AppleBookCreateFileImport.derivedNarrateBaseOutput(
+                file: file,
+                currentBaseOutput: sourceBaseOutput,
+                didEditBaseOutput: editedFields.contains(.sourceBaseOutput)
+            ) {
+                sourceBaseOutput = baseOutput
             }
         case let .failure(error):
             selectedNarrateFileURL = nil
@@ -1713,10 +1715,10 @@ struct AppleBookCreateView: View {
     private func handleSubtitleFileImport(_ result: Result<[URL], Error>) {
         switch result {
         case let .success(urls):
-            guard let url = urls.first else { return }
-            selectedSubtitleFileURL = url
-            selectedSubtitleFileName = url.lastPathComponent
-            subtitleMetadataLookupSourceName = url.lastPathComponent
+            guard let file = AppleBookCreateFileImport.importedFile(from: urls) else { return }
+            selectedSubtitleFileURL = file.url
+            selectedSubtitleFileName = file.fileName
+            subtitleMetadataLookupSourceName = file.fileName
             viewModel.clearSubtitleMetadata()
             markEdited(.subtitleSourcePath)
         case let .failure(error):
@@ -1727,15 +1729,11 @@ struct AppleBookCreateView: View {
     }
 
     private static var epubContentType: UTType {
-        UTType(filenameExtension: "epub") ?? UTType(importedAs: "org.idpf.epub-container")
+        AppleBookCreateFileImport.epubContentType
     }
 
     private static var subtitleContentTypes: [UTType] {
-        [
-            UTType(filenameExtension: "srt") ?? UTType(importedAs: "com.subrip.srt"),
-            UTType(filenameExtension: "vtt") ?? UTType(importedAs: "org.webvtt"),
-            UTType.plainText
-        ]
+        AppleBookCreateFileImport.subtitleContentTypes
     }
     #endif
 

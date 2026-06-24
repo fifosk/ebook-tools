@@ -158,6 +158,15 @@ CREATE_LANGUAGE_SELECTOR = (
     / "Create"
     / "AppleBookCreateLanguageSelector.swift"
 )
+CREATE_FILE_IMPORT = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateFileImport.swift"
+)
 CREATE_METADATA_VIEWS = (
     ROOT
     / "ios"
@@ -753,6 +762,32 @@ def test_create_metadata_sources_are_split_from_view_and_target_wired() -> None:
     assert "AppleBookCreateMetadataSources.swift in Sources" in project
     assert project.count("AppleBookCreateMetadataSources.swift in Sources") == 4
     assert "AppleBookCreateMetadataSources.swift" in payload_script
+
+
+def test_create_file_import_is_split_from_view_and_target_wired() -> None:
+    import_source = _source(CREATE_FILE_IMPORT)
+    view_source = _source(CREATE_VIEW)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+
+    assert "struct AppleBookCreateImportedFile: Equatable" in import_source
+    assert "enum AppleBookCreateFileImport" in import_source
+    assert "static var epubContentType: UTType" in import_source
+    assert "static var subtitleContentTypes: [UTType]" in import_source
+    assert "static func importedFile(from urls: [URL])" in import_source
+    assert "static func derivedNarrateBaseOutput(" in import_source
+    assert "UTType(filenameExtension: \"epub\")" in import_source
+    assert "UTType(filenameExtension: \"srt\")" in import_source
+    assert "UTType(filenameExtension: \"vtt\")" in import_source
+    assert "AppleBookCreateFileImport.importedFile(from: urls)" in view_source
+    assert "AppleBookCreateFileImport.derivedNarrateBaseOutput(" in view_source
+    assert "AppleBookCreateFileImport.epubContentType" in view_source
+    assert "AppleBookCreateFileImport.subtitleContentTypes" in view_source
+    assert "url.lastPathComponent" not in view_source
+    assert "url.deletingPathExtension().lastPathComponent" not in view_source
+    assert "AppleBookCreateFileImport.swift in Sources" in project
+    assert project.count("AppleBookCreateFileImport.swift in Sources") == 4
+    assert "AppleBookCreateFileImport.swift" in payload_script
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
