@@ -140,6 +140,15 @@ CREATE_STORAGE_KEYS = (
     / "Create"
     / "AppleBookCreateStorageKeys.swift"
 )
+CREATE_PREFERENCES = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreatePreferences.swift"
+)
 CREATE_MODELS = (
     ROOT
     / "ios"
@@ -1043,9 +1052,6 @@ def test_create_storage_keys_are_split_from_view_and_target_wired() -> None:
     assert "ebookTools.appleCreate.youtubeDub.\\(field)" not in view_source
     assert "ebookTools.appleCreate.youtubeDub.baseDir" not in view_source
     assert "ebookTools.appleCreate.bookJobDefaults.v1" not in view_source
-    assert "AppleBookCreateStorageKeys.youtubeSelection(" in view_source
-    assert "AppleBookCreateStorageKeys.subtitleShowOriginal(" in view_source
-    assert "AppleBookCreateStorageKeys.youtubeBaseDir(" in view_source
     assert "AppleBookCreateStorageKeys.youtubeLibraryLoad(" in view_source
     assert "AppleBookCreateStorageKeys.languagePreferences(" in view_source
     assert "AppleBookCreateStorageKeys.loadScope(" in view_source
@@ -1053,6 +1059,37 @@ def test_create_storage_keys_are_split_from_view_and_target_wired() -> None:
     assert "AppleBookCreateStorageKeys.swift in Sources" in project
     assert project.count("AppleBookCreateStorageKeys.swift in Sources") == 4
     assert "AppleBookCreateStorageKeys.swift" in payload_script
+
+
+def test_create_preferences_are_split_from_view_and_target_wired() -> None:
+    preferences_source = _source(CREATE_PREFERENCES)
+    view_source = _source(CREATE_VIEW)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+
+    assert "enum AppleBookCreatePreferences" in preferences_source
+    assert "static func storedYoutubeSelectionPath(" in preferences_source
+    assert "static func persistYoutubeSelectionPath(" in preferences_source
+    assert "static func storedYoutubeBaseDir(" in preferences_source
+    assert "static func persistYoutubeBaseDir(" in preferences_source
+    assert "static func storedSubtitleShowOriginal(" in preferences_source
+    assert "static func persistSubtitleShowOriginal(" in preferences_source
+    assert "defaults: UserDefaults = .standard" in preferences_source
+    assert "AppleBookCreateStorageKeys.youtubeSelection(" in preferences_source
+    assert "AppleBookCreateStorageKeys.youtubeBaseDir(" in preferences_source
+    assert "AppleBookCreateStorageKeys.subtitleShowOriginal(" in preferences_source
+    assert "private static func setOrRemove(" in preferences_source
+    assert "AppleBookCreatePreferences.storedYoutubeSelectionPath(" in view_source
+    assert "AppleBookCreatePreferences.persistYoutubeSelectionPath(" in view_source
+    assert "AppleBookCreatePreferences.storedYoutubeBaseDir(" in view_source
+    assert "AppleBookCreatePreferences.persistYoutubeBaseDir(" in view_source
+    assert "AppleBookCreatePreferences.storedSubtitleShowOriginal(" in view_source
+    assert "AppleBookCreatePreferences.persistSubtitleShowOriginal(" in view_source
+    assert "UserDefaults.standard.string(forKey: youtubeBaseDirStorageKey)" not in view_source
+    assert "UserDefaults.standard.object(forKey: subtitleShowOriginalStorageKey)" not in view_source
+    assert "AppleBookCreatePreferences.swift in Sources" in project
+    assert project.count("AppleBookCreatePreferences.swift in Sources") == 4
+    assert "AppleBookCreatePreferences.swift" in payload_script
 
 
 def test_create_metadata_sources_are_split_from_view_and_target_wired() -> None:

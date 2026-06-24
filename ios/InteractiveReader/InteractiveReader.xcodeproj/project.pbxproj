@@ -110,6 +110,8 @@
 		CREATESRCSEL001A0002 /* AppleBookCreateSourceSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESRCSEL002A0001 /* AppleBookCreateSourceSelection.swift */; };
 		CREATESTORE001A0001 /* AppleBookCreateStorageKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESTORE002A0001 /* AppleBookCreateStorageKeys.swift */; };
 		CREATESTORE001A0002 /* AppleBookCreateStorageKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESTORE002A0001 /* AppleBookCreateStorageKeys.swift */; };
+		CREATEPREF001A0001 /* AppleBookCreatePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEPREF002A0001 /* AppleBookCreatePreferences.swift */; };
+		CREATEPREF001A0002 /* AppleBookCreatePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEPREF002A0001 /* AppleBookCreatePreferences.swift */; };
 		CREATESTAT001A0001 /* AppleBookCreateStatusViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESTAT002A0001 /* AppleBookCreateStatusViews.swift */; };
 		CREATESTAT001A0002 /* AppleBookCreateStatusViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESTAT002A0001 /* AppleBookCreateStatusViews.swift */; };
 		1798B15A2EF9F1A00092A8AF /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0090F34EFAD42D0BD98A51D /* LibraryView.swift */; };
@@ -740,6 +742,7 @@
 		CREATEROUTE002A0001 /* AppleBookCreateRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateRouting.swift; sourceTree = "<group>"; };
 		CREATESRCSEL002A0001 /* AppleBookCreateSourceSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateSourceSelection.swift; sourceTree = "<group>"; };
 		CREATESTORE002A0001 /* AppleBookCreateStorageKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateStorageKeys.swift; sourceTree = "<group>"; };
+		CREATEPREF002A0001 /* AppleBookCreatePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreatePreferences.swift; sourceTree = "<group>"; };
 		CREATESTAT002A0001 /* AppleBookCreateStatusViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateStatusViews.swift; sourceTree = "<group>"; };
 		EACAFCD435FB4D46926CB3F5 /* LibraryShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryShellView.swift; sourceTree = "<group>"; };
 		F0090F34EFAD42D0BD98A51D /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
@@ -955,6 +958,7 @@
 				CREATEROUTE002A0001 /* AppleBookCreateRouting.swift */,
 				CREATESRCSEL002A0001 /* AppleBookCreateSourceSelection.swift */,
 				CREATESTORE002A0001 /* AppleBookCreateStorageKeys.swift */,
+				CREATEPREF002A0001 /* AppleBookCreatePreferences.swift */,
 				CREATESTAT002A0001 /* AppleBookCreateStatusViews.swift */,
 				11EF28BF0B1E7A3F6ECC3EEB /* AppleBookCreateViewModel.swift */,
 				CREATEVMSUB002A0001 /* AppleBookCreateViewModel+Submission.swift */,
@@ -1841,6 +1845,7 @@
 				CREATEROUTE001A0001 /* AppleBookCreateRouting.swift in Sources */,
 				CREATESRCSEL001A0001 /* AppleBookCreateSourceSelection.swift in Sources */,
 				CREATESTORE001A0001 /* AppleBookCreateStorageKeys.swift in Sources */,
+				CREATEPREF001A0001 /* AppleBookCreatePreferences.swift in Sources */,
 				CREATESTAT001A0001 /* AppleBookCreateStatusViews.swift in Sources */,
 				CREATELAYOUT001A0001 /* AppleBookCreateLayout.swift in Sources */,
 				40E3FF23022147B1F3B38F6E /* AppleBookCreateViewModel.swift in Sources */,
@@ -2112,6 +2117,7 @@
 				CREATEROUTE001A0002 /* AppleBookCreateRouting.swift in Sources */,
 				CREATESRCSEL001A0002 /* AppleBookCreateSourceSelection.swift in Sources */,
 				CREATESTORE001A0002 /* AppleBookCreateStorageKeys.swift in Sources */,
+				CREATEPREF001A0002 /* AppleBookCreatePreferences.swift in Sources */,
 				CREATESTAT001A0002 /* AppleBookCreateStatusViews.swift in Sources */,
 				CREATELAYOUT001A0002 /* AppleBookCreateLayout.swift in Sources */,
 				5776FC02D763AA4801FA841B /* AppleBookCreateViewModel.swift in Sources */,

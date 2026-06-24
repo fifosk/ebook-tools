@@ -235,6 +235,77 @@ struct AppleCreationPayloadCheck {
             ) == "https://api.example.test|editor|editor|youtubeBaseDir=/Volumes/Data/Download/DStation",
             "Apple Create should include the selected NAS base directory in YouTube library cache identity"
         )
+        let preferenceSuiteName = "ebook-tools.apple-create-prefs.\(UUID().uuidString)"
+        guard let preferenceDefaults = UserDefaults(suiteName: preferenceSuiteName) else {
+            throw CheckFailure("Apple Create preference tests should create an isolated UserDefaults suite")
+        }
+        defer {
+            preferenceDefaults.removePersistentDomain(forName: preferenceSuiteName)
+        }
+        let preferenceBaseKey = "https://api.example.test|editor|editor"
+        require(
+            AppleBookCreatePreferences.storedSubtitleShowOriginal(
+                baseKey: preferenceBaseKey,
+                defaults: preferenceDefaults
+            ) == nil,
+            "Apple Create should leave subtitle show-original unset when no scoped preference exists"
+        )
+        AppleBookCreatePreferences.persistSubtitleShowOriginal(
+            false,
+            baseKey: preferenceBaseKey,
+            defaults: preferenceDefaults
+        )
+        require(
+            AppleBookCreatePreferences.storedSubtitleShowOriginal(
+                baseKey: preferenceBaseKey,
+                defaults: preferenceDefaults
+            ) == false,
+            "Apple Create should persist subtitle show-original per API/user scope"
+        )
+        AppleBookCreatePreferences.persistYoutubeBaseDir(
+            " /Volumes/Data/Download/DStation ",
+            baseKey: preferenceBaseKey,
+            defaults: preferenceDefaults
+        )
+        require(
+            AppleBookCreatePreferences.storedYoutubeBaseDir(
+                baseKey: preferenceBaseKey,
+                defaults: preferenceDefaults
+            ) == "/Volumes/Data/Download/DStation",
+            "Apple Create should trim and restore a scoped YouTube NAS base directory preference"
+        )
+        AppleBookCreatePreferences.persistYoutubeSelectionPath(
+            " /nas/video-b.mp4 ",
+            baseKey: preferenceBaseKey,
+            baseDir: "/Volumes/Data/Download/DStation",
+            field: "video",
+            defaults: preferenceDefaults
+        )
+        require(
+            AppleBookCreatePreferences.storedYoutubeSelectionPath(
+                baseKey: preferenceBaseKey,
+                baseDir: "/Volumes/Data/Download/DStation",
+                field: "video",
+                defaults: preferenceDefaults
+            ) == "/nas/video-b.mp4",
+            "Apple Create should trim and restore scoped YouTube NAS video selections"
+        )
+        AppleBookCreatePreferences.persistYoutubeSelectionPath(
+            "  ",
+            baseKey: preferenceBaseKey,
+            baseDir: "/Volumes/Data/Download/DStation",
+            field: "video",
+            defaults: preferenceDefaults
+        )
+        require(
+            AppleBookCreatePreferences.storedYoutubeSelectionPath(
+                baseKey: preferenceBaseKey,
+                baseDir: "/Volumes/Data/Download/DStation",
+                field: "video",
+                defaults: preferenceDefaults
+            ) == nil,
+            "Apple Create should remove scoped YouTube selections when the selected path is blank"
+        )
         let inlineSubtitleStreamsJSON = """
         {
           "video_path": "/nas/video-b.mp4",

@@ -28,6 +28,7 @@ swiftc \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateMetadataSources.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateSourceSelection.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateStorageKeys.swift" \
+  "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreatePreferences.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreatePayloadFactory.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateMediaPayloads.swift" \
   "${ROOT_DIR}/scripts/tests/check_apple_creation_payloads.swift" \

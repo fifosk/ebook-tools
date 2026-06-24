@@ -1669,35 +1669,27 @@ struct AppleBookCreateView: View {
     }
 
     private func storedYoutubeSelectionPath(field: String) -> String? {
-        UserDefaults.standard.string(forKey: youtubeSelectionStorageKey(field: field))?.nonEmptyValue
+        AppleBookCreatePreferences.storedYoutubeSelectionPath(
+            baseKey: creationOptionsLoadKey,
+            baseDir: youtubeBaseDir,
+            field: field
+        )
     }
 
     private func applyStoredYoutubeBaseDir() {
-        guard let baseDir = UserDefaults.standard.string(forKey: youtubeBaseDirStorageKey)?.nonEmptyValue else {
+        guard let baseDir = AppleBookCreatePreferences.storedYoutubeBaseDir(baseKey: creationOptionsLoadKey) else {
             return
         }
         youtubeBaseDir = baseDir
     }
 
     private func persistYoutubeBaseDir(_ baseDir: String) {
-        if let value = baseDir.nonEmptyValue {
-            UserDefaults.standard.set(value, forKey: youtubeBaseDirStorageKey)
-        } else {
-            UserDefaults.standard.removeObject(forKey: youtubeBaseDirStorageKey)
-        }
+        AppleBookCreatePreferences.persistYoutubeBaseDir(baseDir, baseKey: creationOptionsLoadKey)
     }
 
     private func persistYoutubeSelectionPath(_ path: String, field: String) {
-        let key = youtubeSelectionStorageKey(field: field)
-        if let value = path.nonEmptyValue {
-            UserDefaults.standard.set(value, forKey: key)
-        } else {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-    }
-
-    private func youtubeSelectionStorageKey(field: String) -> String {
-        AppleBookCreateStorageKeys.youtubeSelection(
+        AppleBookCreatePreferences.persistYoutubeSelectionPath(
+            path,
             baseKey: creationOptionsLoadKey,
             baseDir: youtubeBaseDir,
             field: field
@@ -1705,22 +1697,16 @@ struct AppleBookCreateView: View {
     }
 
     private func applyStoredSubtitleShowOriginal() {
-        guard UserDefaults.standard.object(forKey: subtitleShowOriginalStorageKey) != nil else {
+        guard let showOriginal = AppleBookCreatePreferences.storedSubtitleShowOriginal(
+            baseKey: creationOptionsLoadKey
+        ) else {
             return
         }
-        subtitleShowOriginal = UserDefaults.standard.bool(forKey: subtitleShowOriginalStorageKey)
+        subtitleShowOriginal = showOriginal
     }
 
     private func persistSubtitleShowOriginal(_ value: Bool) {
-        UserDefaults.standard.set(value, forKey: subtitleShowOriginalStorageKey)
-    }
-
-    private var subtitleShowOriginalStorageKey: String {
-        AppleBookCreateStorageKeys.subtitleShowOriginal(baseKey: creationOptionsLoadKey)
-    }
-
-    private var youtubeBaseDirStorageKey: String {
-        AppleBookCreateStorageKeys.youtubeBaseDir(baseKey: creationOptionsLoadKey)
+        AppleBookCreatePreferences.persistSubtitleShowOriginal(value, baseKey: creationOptionsLoadKey)
     }
 
     private var youtubeLibraryLoadKey: String {

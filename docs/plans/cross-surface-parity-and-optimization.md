@@ -234,7 +234,10 @@ Current Apple UI partially exposes:
   source-name derivation now lives in `AppleBookCreateMetadataSources.swift`,
   and Create persistence key construction now lives in
   `AppleBookCreateStorageKeys.swift`, keeping API/user-scoped local file, lookup, and
-  UserDefaults formats contract-pinned outside the main view. Create lifecycle
+  UserDefaults formats contract-pinned outside the main view. YouTube NAS
+  base-dir/selection and subtitle show-original preference reads/writes now
+  live in `AppleBookCreatePreferences.swift`, keeping scoped trimming and
+  removal behavior contract-pinned outside the main view. Create lifecycle
   loading and field-change side effects are now named handlers in the view
   instead of inline modifier bodies, and successful job submission completion
   shares one intake-refresh/notify handler while the view model shares one
