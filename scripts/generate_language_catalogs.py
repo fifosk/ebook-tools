@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB_LANGUAGE_CODES = ROOT / "web" / "src" / "constants" / "languageCodes.ts"
+ASSETS_DATA = ROOT / "modules" / "shared" / "assets_data.json"
 APPLE_LANGUAGE_CATALOG = (
     ROOT
     / "ios"
@@ -57,6 +59,28 @@ def build_apple_language_entries_source(entries: list[tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
+def expected_top_languages(
+    entries: list[tuple[str, str]],
+    current_languages: list[str],
+) -> list[str]:
+    backend_names = [name for name, _ in entries]
+    backend_set = set(backend_names)
+    seen: set[str] = set()
+    expected: list[str] = []
+
+    for language in current_languages:
+        if language in backend_set and language not in seen:
+            expected.append(language)
+            seen.add(language)
+
+    for language in backend_names:
+        if language not in seen:
+            expected.append(language)
+            seen.add(language)
+
+    return expected
+
+
 def replace_web_language_codes(source: str, entries: list[tuple[str, str]]) -> str:
     pattern = re.compile(
         r"export const LANGUAGE_CODES: Record<string, string> = \{.*?\n\};",
@@ -79,6 +103,18 @@ def replace_apple_language_entries(source: str, entries: list[tuple[str, str]]) 
     return updated
 
 
+def replace_assets_top_languages(source: str, entries: list[tuple[str, str]]) -> str:
+    payload = json.loads(source)
+    current_languages = payload.get("top_languages", [])
+    if not isinstance(current_languages, list):
+        current_languages = []
+    payload["top_languages"] = expected_top_languages(entries, [str(item) for item in current_languages])
+
+    if payload == json.loads(source):
+        return source
+    return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+
+
 def generate(root: Path, *, check: bool) -> list[Path]:
     entries = load_language_codes(root)
     updates: list[tuple[Path, str]] = []
@@ -87,6 +123,11 @@ def generate(root: Path, *, check: bool) -> list[Path]:
     web_source = web_path.read_text(encoding="utf-8")
     web_updated = replace_web_language_codes(web_source, entries)
     updates.append((web_path, web_updated))
+
+    assets_path = root / ASSETS_DATA.relative_to(ROOT)
+    assets_source = assets_path.read_text(encoding="utf-8")
+    assets_updated = replace_assets_top_languages(assets_source, entries)
+    updates.append((assets_path, assets_updated))
 
     apple_path = root / APPLE_LANGUAGE_CATALOG.relative_to(ROOT)
     apple_source = apple_path.read_text(encoding="utf-8")

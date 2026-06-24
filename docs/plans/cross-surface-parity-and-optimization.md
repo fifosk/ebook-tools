@@ -301,7 +301,7 @@ Current Apple UI partially exposes:
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults
   or older option responses are sparse. `scripts/generate_language_catalogs.py`
-  now regenerates the Web and Apple catalog blocks from
+  now regenerates the shared assets language list plus the Web and Apple catalog blocks from
   `modules/language_constants.py`, and the Apple contract gate runs the
   generator in `--check` mode so future language additions fail fast if a
   surface drifts. The iPad regular-width Create layout now

@@ -75,3 +75,23 @@ def test_replace_language_catalog_blocks_updates_only_generated_sections() -> No
 
     assert "const LANGUAGE_CODE_ALIASES" in module.replace_web_language_codes(web_source, entries)
     assert '("Slovak", "sk")' in module.replace_apple_language_entries(apple_source, entries)
+
+
+def test_expected_top_languages_preserves_existing_order_and_appends_new_backend_languages() -> None:
+    entries = [("English", "en"), ("Arabic", "ar"), ("Slovak", "sk")]
+
+    assert module.expected_top_languages(entries, ["Slovak", "Stale", "English"]) == [
+        "Slovak",
+        "English",
+        "Arabic",
+    ]
+
+
+def test_replace_assets_top_languages_updates_only_when_membership_drifts() -> None:
+    source = '{"top_languages":["Slovak","English"],"defaults":{"target_languages":["Arabic"]}}\n'
+
+    updated = module.replace_assets_top_languages(source, [("English", "en"), ("Arabic", "ar"), ("Slovak", "sk")])
+
+    assert '"top_languages": [' in updated
+    assert updated.index('"Slovak"') < updated.index('"English"') < updated.index('"Arabic"')
+    assert '"defaults": {' in updated
