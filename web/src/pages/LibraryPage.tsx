@@ -40,9 +40,10 @@ import {
 } from './library/libraryPageMetadata';
 import LibraryList from '../components/LibraryList';
 import LibraryToolbar from '../components/LibraryToolbar';
+import LibraryDetailTabs, { type LibraryDetailTab } from './library/LibraryDetailTabs';
 import LibraryMetadataTab from './library/LibraryMetadataTab';
 import LibraryOverviewTab from './library/LibraryOverviewTab';
-import AccessPolicyEditor from '../components/access/AccessPolicyEditor';
+import LibraryPermissionsTab from './library/LibraryPermissionsTab';
 import styles from './LibraryPage.module.css';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
 import { downloadWithSaveAs } from '../utils/downloads';
@@ -104,7 +105,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     source?: string | null;
     confidence?: string | null;
   } | null>(null);
-  const [detailTab, setDetailTab] = useState<'overview' | 'metadata' | 'permissions'>('overview');
+  const [detailTab, setDetailTab] = useState<LibraryDetailTab>('overview');
 
   const resolveItemPermissions = useCallback(
     (item: LibraryItem) => {
@@ -743,35 +744,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
                 <JobTypeGlyphBadge glyph={selectedJobGlyph} className={styles.detailsJobGlyph} />
                 {selectedTitle}
               </h2>
-              <div className={styles.detailTabs} role="tablist" aria-label="Detail tabs">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={detailTab === 'overview'}
-                  className={`${styles.detailTab} ${detailTab === 'overview' ? styles.detailTabActive : ''}`}
-                  onClick={() => setDetailTab('overview')}
-                >
-                  Overview
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={detailTab === 'metadata'}
-                  className={`${styles.detailTab} ${detailTab === 'metadata' ? styles.detailTabActive : ''}`}
-                  onClick={() => setDetailTab('metadata')}
-                >
-                  Metadata
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={detailTab === 'permissions'}
-                  className={`${styles.detailTab} ${detailTab === 'permissions' ? styles.detailTabActive : ''}`}
-                  onClick={() => setDetailTab('permissions')}
-                >
-                  Permissions
-                </button>
-              </div>
+              <LibraryDetailTabs activeTab={detailTab} onChange={setDetailTab} />
 
               {/* Overview Tab */}
               {detailTab === 'overview' ? (
@@ -822,16 +795,12 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
 
               {/* Permissions Tab */}
               {detailTab === 'permissions' ? (
-                <div className={styles.tabContent}>
-                  <AccessPolicyEditor
-                    policy={selectedItem.access ?? null}
-                    ownerId={selectedItem.ownerId ?? null}
-                    defaultVisibility="public"
-                    canEdit={Boolean(selectedPermissions?.canEdit)}
-                    onSave={handleUpdateAccess}
-                    title="Sharing"
-                  />
-                </div>
+                <LibraryPermissionsTab
+                  policy={selectedItem.access ?? null}
+                  ownerId={selectedItem.ownerId ?? null}
+                  canEdit={Boolean(selectedPermissions?.canEdit)}
+                  onSave={handleUpdateAccess}
+                />
               ) : null}
             </>
           ) : (
