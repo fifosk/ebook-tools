@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.17",
+            version: "2026.06.24.18",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-local-surface-verification-gate",
+                    title: "Local Apple checks get one command",
+                    detail: "The repo now has a single non-physical verification gate that runs Apple contracts and then compiles all local Apple surfaces before any attended physical-device update."
+                ),
                 AppChangelogEntry(
                     id: "apple-local-surface-build-gate",
                     title: "Local Apple builds get one gate",

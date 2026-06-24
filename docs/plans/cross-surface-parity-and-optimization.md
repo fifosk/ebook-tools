@@ -435,7 +435,7 @@ Every cross-surface change should pass the relevant subset:
   `python3 scripts/run_app_web_checks.py --app ebook-tools`, which runs the
   registered Create, Library, Video Dubbing, and Subtitle Tool focused checks,
   production/export build, and generated-artifact cleanup.
-- Apple: release contract, iOS/tvOS simulator builds, the iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the local Apple surface build gate, and shared pipeline simulator smokes.
+- Apple: release contract, iOS/tvOS simulator builds, the iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the local Apple surface build gate, the local Apple verification gate, and shared pipeline simulator smokes.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

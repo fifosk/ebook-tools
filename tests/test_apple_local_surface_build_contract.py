@@ -28,10 +28,24 @@ def test_local_surface_build_gate_chains_non_physical_apple_targets() -> None:
     assert "--install" not in target
 
 
+def test_local_surface_verification_gate_chains_contracts_and_builds_only() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    target_line = "verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces"
+    assert target_line in makefile
+
+    target = makefile.split("verify-apple-local-surfaces:", 1)[1].split("\n\n", 1)[0]
+    assert "apple-device-update" not in target
+    assert "apple_unattended_device_update.sh" not in target
+    assert "devicectl" not in target
+    assert "--install" not in target
+
+
 def test_local_surface_contract_check_covers_aggregate_gate() -> None:
     contract_check = CONTRACT_CHECK.read_text(encoding="utf-8")
 
     assert "build-apple-local-surfaces" in contract_check
+    assert "verify-apple-local-surfaces" in contract_check
     assert "build-apple-ios-simulators" in contract_check
     assert "build-apple-tvos-simulator" in contract_check
     assert "build-apple-macos-ipad-style" in contract_check
@@ -44,5 +58,8 @@ def test_docs_publish_local_surface_build_gate() -> None:
     plan = PLAN_DOC.read_text(encoding="utf-8")
 
     assert "make build-apple-local-surfaces" in docs
+    assert "make verify-apple-local-surfaces" in docs
     assert "make build-apple-local-surfaces" in developer_doc
+    assert "make verify-apple-local-surfaces" in developer_doc
     assert "local Apple surface build gate" in plan
+    assert "local Apple verification gate" in plan

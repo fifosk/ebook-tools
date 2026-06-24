@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.18
+
+- Advanced visible Apple app versioning to `v2026.06.24.18`.
+- Added `make verify-apple-local-surfaces`, a single non-physical verification gate that runs Apple contracts and then compiles all local Apple surfaces before any attended physical-device update.
+
 ### 2026.06.24.17
 
 - Advanced visible Apple app versioning to `v2026.06.24.17`.

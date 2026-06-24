@@ -181,7 +181,8 @@ python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ios
 # tvOS smoke for InteractiveReaderTV
 python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos
 
-# Repo-owned iPhone/iPad compile checks
+# Repo-owned Apple verification/build checks
+make verify-apple-local-surfaces
 make build-apple-local-surfaces
 make build-apple-ios-simulators
 make build-apple-iphone-simulator

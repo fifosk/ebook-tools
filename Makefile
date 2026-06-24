@@ -5,7 +5,7 @@
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
        build-apple-iphone-simulator build-apple-ipad-simulator \
        build-apple-ios-simulators build-apple-tvos-simulator \
-       build-apple-local-surfaces \
+       build-apple-local-surfaces verify-apple-local-surfaces \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-all test-e2e-apple-parallel \
@@ -79,6 +79,8 @@ test-apple-contracts:
 	bash scripts/check_apple_tvos_build_helper.sh
 
 build-apple-local-surfaces: build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style
+
+verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces
 
 build-apple-macos-ipad-style:
 	bash scripts/apple_build_macos_ipad_style.sh
