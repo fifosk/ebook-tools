@@ -303,45 +303,69 @@ debugger. Keep the iPad awake and unlocked for launch verification; for future
 attended installs, prefer USB-C, tap Trust when prompted, then re-enable network
 deployment from Xcode Devices and Simulators if needed.
 
-June 24, 2026 iPad M5 deploy attempt: the shared wrapper passed device preflight
-for `Fifo Ipad Pro`, passed the registered iPad simulator smoke, and then failed
-at the signed device build before install. Xcode CLI and Xcode GUI both reported
-`No Accounts: Add a new account in Accounts settings` plus missing Push
-Notifications, Sign in with Apple, and iCloud capabilities for
-`iOS Team Provisioning Profile: com.example.InteractiveReader`. The local
-profile cache still contains an Xcode-managed `com.example.InteractiveReader`
-profile with those entitlement keys, and an iOS wildcard profile for the
-notification extension. Current device metadata after the failed attempt still
-shows the previously installed app:
-
-```text
-InteractiveReader   com.example.InteractiveReader   2026.6.23   2026062395
-```
-
-Generic iOS device signing currently fails before compilation:
+June 24, 2026 iPad/iPhone full-entitlement deploy recipe: when Xcode CLI
+automatic signing reported `No Accounts: Add a new account in Accounts
+settings` plus missing Push Notifications, Sign in with Apple, and iCloud
+capabilities, the successful unattended fallback was to keep entitlements and
+sign the built bundle locally. First confirm the cached profiles are capable:
 
 ```bash
-xcodebuild build \
-  -project ios/InteractiveReader/InteractiveReader.xcodeproj \
-  -scheme InteractiveReader \
-  -destination 'generic/platform=iOS' \
-  -configuration Debug
+python3 scripts/ios_profile_capability_check.py \
+  --bundle-id com.example.InteractiveReader \
+  --entitlements ios/InteractiveReader/InteractiveReader/Supporting/InteractiveReader.entitlements \
+  --embedded-bundle-id com.example.InteractiveReader.NotificationServiceExtension
 ```
 
-The active `com.example.InteractiveReader` team provisioning profile does not
-include Push Notifications, Sign in with Apple, or iCloud/CloudKit. Those
-capabilities are declared by `InteractiveReader.entitlements` and are part of
-the iOS/iPadOS app contract, so fix the App ID/profile rather than removing the
-entitlements.
+Then build unsigned for device, embed profiles, sign nested content first, and
+install the already-signed bundle:
 
-`-allowProvisioningUpdates` currently also reports `No Accounts: Add a new
-account in Accounts settings`, so command-line signing still needs Xcode account
-state or profile refresh before it can match the attended GUI deploy path. A
-cached Xcode UserData profile named `iOS Team Provisioning Profile:
-com.example.InteractiveReader` contains the required entitlement keys, and the
-local `iOS Team Provisioning Profile: *` wildcard can cover the notification
-service extension. Treat CLI failures here as an Xcode account/profile refresh
-gate, not as a reason to remove app entitlements.
+```bash
+DERIVED="test-results/DerivedData-device-manual-codesign"
+APP="$DERIVED/Build/Products/Debug-iphoneos/InteractiveReader.app"
+APPEX="$APP/PlugIns/NotificationServiceExtension.appex"
+
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -project ios/InteractiveReader/InteractiveReader.xcodeproj \
+  -scheme InteractiveReader \
+  -configuration Debug \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath "$DERIVED" \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+
+cp "$FULL_CAPABILITY_IOS_PROFILE" "$APP/embedded.mobileprovision"
+cp "$WILDCARD_IOS_EXTENSION_PROFILE" "$APPEX/embedded.mobileprovision"
+
+find "$APPEX" -maxdepth 1 -type f -name '*.dylib' -print0 \
+  | xargs -0 -I{} /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none "{}"
+/usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none \
+  --entitlements "$EXTENSION_ENTITLEMENTS_PLIST" "$APPEX"
+find "$APP" -maxdepth 1 -type f -name '*.dylib' -print0 \
+  | xargs -0 -I{} /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none "{}"
+/usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none \
+  --entitlements "$APP_ENTITLEMENTS_PLIST" "$APP"
+/usr/bin/codesign --verify --deep --strict --verbose=4 "$APP"
+
+APPLE_DEVICE_ID="<device-id-or-name>" \
+APPLE_DEVICE_APP_PATH="$APP" \
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  bash scripts/apple_unattended_device_update.sh \
+  --skip-build --install --launch --launch-console-timeout 10
+```
+
+On the successful June 24 run, `devicectl` verified the same stable build on
+iPad Pro and iPhone, and the launch console showed remote notification
+registration:
+
+```text
+InteractiveReader   com.example.InteractiveReader   2026.6.24   2026062427
+```
+
+Those capabilities are declared by `InteractiveReader.entitlements` and are part
+of the iOS/iPadOS app contract. Treat CLI signing failures as an Xcode
+account/profile refresh gate or use the full-entitlement manual codesign
+fallback above; do not remove or strip the iCloud/Sign in with Apple/Push
+entitlements when validating device features.
 
 To inspect local cached profile capability shape without printing secrets, run:
 

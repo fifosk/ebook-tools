@@ -229,6 +229,17 @@ Xcode account and provisioning profiles whose App ID includes the app's enabled
 capabilities: iCloud, Sign in with Apple, and Push Notifications. Use
 `--signed-build-only` to validate that device/signing gate without installing.
 
+If command-line Xcode signing cannot access the account but
+`scripts/ios_profile_capability_check.py` shows cached local profiles with the
+required iCloud, Sign in with Apple, and Push capabilities, use the golden
+fallback before opening Xcode: build `InteractiveReader` unsigned for
+`generic/platform=iOS` with `CODE_SIGNING_ALLOWED=NO`, embed the full-capability
+app profile plus a wildcard notification-extension profile, codesign nested
+dylibs/extensions first and `InteractiveReader.app` last, then install with
+`scripts/apple_unattended_device_update.sh --skip-build --app-path <app> --install --launch --launch-console-timeout 10`.
+This preserves iCloud behavior and avoids the older entitlement-stripping local
+signing fallback when device feature validation matters.
+
 ### Schemes
 
 | Scheme | Platform | Purpose |

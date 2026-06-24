@@ -72,6 +72,28 @@ Add `--launch` when calling `scripts/apple_unattended_device_update.sh` directly
 to launch the installed app after the update. The helper uses `xcodebuild` for
 the device build and `xcrun devicectl device install app` for installation.
 
+When Xcode CLI automatic signing reports missing accounts or mismatched
+capabilities even though `scripts/ios_profile_capability_check.py` finds a
+local full-capability `com.example.InteractiveReader` profile, use the
+full-entitlement unattended fallback instead of stripping entitlements:
+
+1. Build the app unsigned for `generic/platform=iOS` with
+   `CODE_SIGNING_ALLOWED=NO`.
+2. Copy the full-capability app profile to
+   `InteractiveReader.app/embedded.mobileprovision`, and copy a wildcard iOS
+   development profile to
+   `InteractiveReader.app/PlugIns/NotificationServiceExtension.appex/embedded.mobileprovision`.
+3. Codesign nested dylibs and `NotificationServiceExtension.appex` first, then
+   app dylibs and `InteractiveReader.app` last, using the local Apple
+   Development identity. Keep the app entitlements aligned with
+   `InteractiveReader.entitlements`, including CloudKit, CloudDocuments,
+   iCloud KVS, Sign in with Apple, and development push.
+4. Install the signed bundle with
+   `scripts/apple_unattended_device_update.sh --skip-build --app-path <app> --install --launch --launch-console-timeout 10`.
+
+The launch-console timeout is expected for a healthy foreground app; immediate
+termination before the timeout should be treated as a crash to investigate.
+
 ### Runtime configuration
 
 The app defaults to `https://api.langtools.fifosk.synology.me`. Simulator and

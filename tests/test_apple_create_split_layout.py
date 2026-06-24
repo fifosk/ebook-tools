@@ -113,6 +113,15 @@ CREATE_NORMALIZATION = (
     / "Create"
     / "AppleBookCreateNormalization.swift"
 )
+CREATE_DRAFTS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateDrafts.swift"
+)
 CREATE_LANGUAGE_OPTIONS = (
     ROOT
     / "ios"
@@ -347,6 +356,31 @@ def test_create_normalization_helpers_are_split_from_support_and_target_wired() 
     assert "AppleBookCreateNormalization.swift in Sources" in project
     assert project.count("AppleBookCreateNormalization.swift in Sources") == 4
     assert "AppleBookCreateNormalization.swift" in payload_script
+
+
+def test_create_draft_helpers_are_split_from_support_and_target_wired() -> None:
+    draft_source = _source(CREATE_DRAFTS)
+    support_source = _source(CREATE_SUPPORT)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+
+    assert "extension AppleBookCreatePresentation" in draft_source
+    for helper in [
+        "generatedBookDraft",
+        "narrateEbookDraft",
+        "subtitleJobDraft",
+        "normalizedSubtitleMediaMetadata",
+        "youtubeDubDraft",
+        "normalizedYoutubeMediaMetadata",
+        "deriveBaseOutputName",
+    ]:
+        assert f"static func {helper}(" in draft_source
+        assert f"static func {helper}(" not in support_source
+
+    assert "private static func normalizedDraftText(" in draft_source
+    assert "AppleBookCreateDrafts.swift in Sources" in project
+    assert project.count("AppleBookCreateDrafts.swift in Sources") == 4
+    assert "AppleBookCreateDrafts.swift" in payload_script
 
 
 def test_create_metadata_views_are_split_from_sections_and_target_wired() -> None:
