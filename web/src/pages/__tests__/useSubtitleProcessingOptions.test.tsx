@@ -78,12 +78,30 @@ describe('useSubtitleProcessingOptions', () => {
 
     act(() => {
       result.current.setWorkerCount(4);
+      result.current.setTranslationProvider('deepl');
       result.current.applySubtitleDefaults({
         worker_count: 12,
         batch_size: 22,
         translation_batch_size: 8,
         ass_font_size: 64,
         ass_emphasis_scale: 1.6,
+      }, {
+        sentences_per_output_file: 10,
+        stitch_full: false,
+        audio_mode: '4',
+        audio_bitrate_kbps: null,
+        written_mode: '4',
+        selected_voice: 'gTTS',
+        generate_audio: true,
+        output_html: true,
+        output_pdf: false,
+        include_transliteration: true,
+        translation_provider: 'googletrans',
+        translation_batch_size: 8,
+        transliteration_mode: 'python',
+        enable_lookup_cache: true,
+        lookup_cache_batch_size: 8,
+        tempo: 1,
       });
     });
 
@@ -92,5 +110,35 @@ describe('useSubtitleProcessingOptions', () => {
     expect(result.current.translationBatchSize).toBe(8);
     expect(result.current.assFontSize).toBe(64);
     expect(result.current.assEmphasis).toBe(1.6);
+    expect(result.current.translationProvider).toBe('deepl');
+    expect(result.current.transliterationMode).toBe('python');
+  });
+
+  it('applies backend pipeline provider defaults to untouched values', () => {
+    const { result } = renderHook(() => useSubtitleProcessingOptions());
+
+    act(() => {
+      result.current.applySubtitleDefaults(undefined, {
+        sentences_per_output_file: 10,
+        stitch_full: false,
+        audio_mode: '4',
+        audio_bitrate_kbps: null,
+        written_mode: '4',
+        selected_voice: 'gTTS',
+        generate_audio: true,
+        output_html: true,
+        output_pdf: false,
+        include_transliteration: true,
+        translation_provider: 'googletrans',
+        translation_batch_size: 8,
+        transliteration_mode: 'python',
+        enable_lookup_cache: true,
+        lookup_cache_batch_size: 8,
+        tempo: 1,
+      });
+    });
+
+    expect(result.current.translationProvider).toBe('googletrans');
+    expect(result.current.transliterationMode).toBe('python');
   });
 });

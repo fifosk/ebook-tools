@@ -30,19 +30,29 @@ export function useSubtitleProcessingOptions() {
   const [transliterationModel, setTransliterationModel] = useState<string>('');
   const [translationProvider, setTranslationProvider] = useState<string>('llm');
   const [transliterationMode, setTransliterationMode] = useState<string>('default');
-  const applySubtitleDefaults = useCallback((defaults: BookCreationOptionsResponse['subtitle_defaults']) => {
-    if (!defaults) {
-      return;
+  const applySubtitleDefaults = useCallback((
+    defaults: BookCreationOptionsResponse['subtitle_defaults'],
+    pipelineDefaults?: BookCreationOptionsResponse['pipeline_defaults']
+  ) => {
+    if (defaults) {
+      setWorkerCount((current) => (current === DEFAULT_WORKER_COUNT ? defaults.worker_count : current));
+      setBatchSize((current) => (current === DEFAULT_BATCH_SIZE ? defaults.batch_size : current));
+      setTranslationBatchSize((current) =>
+        current === DEFAULT_TRANSLATION_BATCH_SIZE ? defaults.translation_batch_size : current
+      );
+      setAssFontSize((current) => (current === DEFAULT_ASS_FONT_SIZE ? defaults.ass_font_size : current));
+      setAssEmphasis((current) =>
+        current === DEFAULT_ASS_EMPHASIS ? defaults.ass_emphasis_scale : current
+      );
     }
-    setWorkerCount((current) => (current === DEFAULT_WORKER_COUNT ? defaults.worker_count : current));
-    setBatchSize((current) => (current === DEFAULT_BATCH_SIZE ? defaults.batch_size : current));
-    setTranslationBatchSize((current) =>
-      current === DEFAULT_TRANSLATION_BATCH_SIZE ? defaults.translation_batch_size : current
-    );
-    setAssFontSize((current) => (current === DEFAULT_ASS_FONT_SIZE ? defaults.ass_font_size : current));
-    setAssEmphasis((current) =>
-      current === DEFAULT_ASS_EMPHASIS ? defaults.ass_emphasis_scale : current
-    );
+    const provider = pipelineDefaults?.translation_provider.trim();
+    if (provider) {
+      setTranslationProvider((current) => (current === 'llm' ? provider : current));
+    }
+    const nextTransliterationMode = pipelineDefaults?.transliteration_mode.trim();
+    if (nextTransliterationMode) {
+      setTransliterationMode((current) => (current === 'default' ? nextTransliterationMode : current));
+    }
   }, []);
 
   return {

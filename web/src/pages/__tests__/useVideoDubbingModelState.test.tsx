@@ -66,4 +66,60 @@ describe('useVideoDubbingModelState', () => {
     expect(result.current.translationProvider).toBe('googletrans');
     expect(result.current.transliterationMode).toBe('python');
   });
+
+  it('applies backend pipeline defaults only to untouched provider values', async () => {
+    const { result } = renderHook(() => useVideoDubbingModelState());
+
+    await waitFor(() => expect(result.current.isLoadingModels).toBe(false));
+
+    act(() => {
+      result.current.applyPipelineDefaults({
+        sentences_per_output_file: 10,
+        stitch_full: false,
+        audio_mode: '4',
+        audio_bitrate_kbps: null,
+        written_mode: '4',
+        selected_voice: 'gTTS',
+        generate_audio: true,
+        output_html: true,
+        output_pdf: false,
+        include_transliteration: true,
+        translation_provider: 'googletrans',
+        translation_batch_size: 8,
+        transliteration_mode: 'python',
+        enable_lookup_cache: true,
+        lookup_cache_batch_size: 8,
+        tempo: 1,
+      });
+    });
+
+    expect(result.current.translationProvider).toBe('googletrans');
+    expect(result.current.transliterationMode).toBe('python');
+
+    act(() => {
+      result.current.setTranslationProvider('deepl');
+      result.current.setTransliterationMode('strict');
+      result.current.applyPipelineDefaults({
+        sentences_per_output_file: 10,
+        stitch_full: false,
+        audio_mode: '4',
+        audio_bitrate_kbps: null,
+        written_mode: '4',
+        selected_voice: 'gTTS',
+        generate_audio: true,
+        output_html: true,
+        output_pdf: false,
+        include_transliteration: true,
+        translation_provider: 'llm',
+        translation_batch_size: 8,
+        transliteration_mode: 'default',
+        enable_lookup_cache: true,
+        lookup_cache_batch_size: 8,
+        tempo: 1,
+      });
+    });
+
+    expect(result.current.translationProvider).toBe('deepl');
+    expect(result.current.transliterationMode).toBe('strict');
+  });
 });

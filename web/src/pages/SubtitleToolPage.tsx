@@ -157,7 +157,7 @@ export default function SubtitleToolPage({
       try {
         const options = await fetchBookCreationOptions();
         if (!cancelled) {
-          applySubtitleDefaults(options.subtitle_defaults);
+          applySubtitleDefaults(options.subtitle_defaults, options.pipeline_defaults);
         }
       } catch (error) {
         if (!cancelled) {

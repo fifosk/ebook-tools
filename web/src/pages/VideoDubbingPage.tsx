@@ -93,7 +93,8 @@ export default function VideoDubbingPage({
     includeTransliteration,
     setIncludeTransliteration,
     enableLookupCache,
-    setEnableLookupCache
+    setEnableLookupCache,
+    pipelineDefaults
   } = useVideoDubbingOutputState({ prefillParameters });
   const {
     llmModel,
@@ -104,6 +105,7 @@ export default function VideoDubbingPage({
     setTranslationProvider,
     transliterationMode,
     setTransliterationMode,
+    applyPipelineDefaults,
     llmModels,
     isLoadingModels,
     modelError
@@ -267,6 +269,13 @@ export default function VideoDubbingPage({
       setTransliterationModel(prefill.transliterationModel);
     }
   }, [applyTargetLanguage, prefillParameters]);
+
+  useEffect(() => {
+    if (prefillParameters) {
+      return;
+    }
+    applyPipelineDefaults(pipelineDefaults);
+  }, [applyPipelineDefaults, pipelineDefaults, prefillParameters]);
 
   useEffect(() => {
     if (playableSubtitles.length === 0) {

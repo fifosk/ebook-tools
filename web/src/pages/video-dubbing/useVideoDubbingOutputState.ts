@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchBookCreationOptions } from '../../api/createBook';
+import type { BookCreationOptionsResponse } from '../../api/createBook';
 import type { JobParameterSnapshot } from '../../api/dtos';
 import {
   DEFAULT_FLUSH_SENTENCES,
@@ -30,6 +31,7 @@ export function useVideoDubbingOutputState({
   const [stitchBatches, setStitchBatches] = useState(DEFAULT_STITCH_BATCHES);
   const [includeTransliteration, setIncludeTransliteration] = useState(true);
   const [enableLookupCache, setEnableLookupCache] = useState(true);
+  const [pipelineDefaults, setPipelineDefaults] = useState<BookCreationOptionsResponse['pipeline_defaults'] | null>(null);
 
   const applyYoutubeDubDefaults = useCallback(
     (defaults: Awaited<ReturnType<typeof fetchBookCreationOptions>>['youtube_dub_defaults']) => {
@@ -70,6 +72,7 @@ export function useVideoDubbingOutputState({
       try {
         const options = await fetchBookCreationOptions();
         if (!cancelled) {
+          setPipelineDefaults(options.pipeline_defaults);
           applyYoutubeDubDefaults(options.youtube_dub_defaults);
         }
       } catch (error) {
@@ -136,6 +139,7 @@ export function useVideoDubbingOutputState({
     includeTransliteration,
     setIncludeTransliteration,
     enableLookupCache,
-    setEnableLookupCache
+    setEnableLookupCache,
+    pipelineDefaults
   };
 }

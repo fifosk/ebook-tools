@@ -16,6 +16,24 @@ const mockFetchBookCreationOptions = vi.mocked(fetchBookCreationOptions);
 
 function creationOptions(overrides: Record<string, unknown> = {}) {
   return {
+    pipeline_defaults: {
+      sentences_per_output_file: 10,
+      stitch_full: false,
+      audio_mode: '4',
+      audio_bitrate_kbps: null,
+      written_mode: '4',
+      selected_voice: 'gTTS',
+      generate_audio: true,
+      output_html: true,
+      output_pdf: false,
+      include_transliteration: true,
+      translation_provider: 'googletrans',
+      translation_batch_size: 8,
+      transliteration_mode: 'python',
+      enable_lookup_cache: true,
+      lookup_cache_batch_size: 8,
+      tempo: 1,
+    },
     youtube_dub_defaults: {
       original_mix_percent: 8,
       flush_sentences: 6,
@@ -47,6 +65,8 @@ describe('useVideoDubbingOutputState', () => {
     expect(result.current.preserveAspectRatio).toBe(false);
     expect(result.current.splitBatches).toBe(false);
     expect(result.current.stitchBatches).toBe(false);
+    expect(result.current.pipelineDefaults?.translation_provider).toBe('googletrans');
+    expect(result.current.pipelineDefaults?.transliteration_mode).toBe('python');
   });
 
   it('preserves user edits that happen before backend defaults resolve', async () => {
