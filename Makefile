@@ -3,6 +3,7 @@
        test-config test-metadata test-changed \
        test-backend-auth-session \
        test-backend-library-search-source-isbn test-backend-admin-system-status \
+       test-backend-runtime-descriptor \
        test-backend-create-book test-backend-creation-templates \
        test-backend-pipeline-sources \
        test-backend-audio-routes \
@@ -94,6 +95,14 @@ test-backend-library-search-source-isbn:
 
 test-backend-admin-system-status:
 	$(PYTHON) -m pytest tests/modules/webapi/test_system_routes.py
+
+test-backend-runtime-descriptor:
+	$(PYTHON) -m pytest \
+		tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_helper_returns_pipeline_contract \
+		tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_returns_fresh_public_lists \
+		tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_guard_flags_secret_like_keys \
+		tests/modules/webapi/test_system_routes.py::test_public_runtime_descriptor_returns_non_secret_contract \
+		tests/test_apple_runtime_descriptor_contract.py::test_runtime_descriptor_advertises_apple_pipeline_contract
 
 test-backend-create-book:
 	$(PYTHON) -m pytest tests/test_create_book.py

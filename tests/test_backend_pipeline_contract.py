@@ -27,6 +27,13 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
     expected = {
         "test-backend-auth-session": ("tests/modules/webapi/test_auth_routes.py",),
         "test-backend-admin-system-status": ("tests/modules/webapi/test_system_routes.py",),
+        "test-backend-runtime-descriptor": (
+            "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_helper_returns_pipeline_contract",
+            "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_returns_fresh_public_lists",
+            "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_guard_flags_secret_like_keys",
+            "tests/modules/webapi/test_system_routes.py::test_public_runtime_descriptor_returns_non_secret_contract",
+            "tests/test_apple_runtime_descriptor_contract.py::test_runtime_descriptor_advertises_apple_pipeline_contract",
+        ),
         "test-backend-create-book": ("tests/test_create_book.py",),
         "test-backend-creation-templates": (
             "tests/modules/webapi/test_creation_template_routes.py",
@@ -80,6 +87,7 @@ def test_docs_publish_backend_pipeline_targets() -> None:
         "make test-backend-auth-session",
         "make test-backend-library-search-source-isbn",
         "make test-backend-admin-system-status",
+        "make test-backend-runtime-descriptor",
         "make test-backend-create-book",
         "make test-backend-creation-templates",
         "make test-backend-pipeline-sources",
