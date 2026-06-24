@@ -42,6 +42,8 @@
 		CREATEVIEW001A0002 /* AppleBookCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVIEW002A0001 /* AppleBookCreateView.swift */; };
 		CREATEVMSUB001A0001 /* AppleBookCreateViewModel+Submission.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVMSUB002A0001 /* AppleBookCreateViewModel+Submission.swift */; };
 		CREATEVMSUB001A0002 /* AppleBookCreateViewModel+Submission.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVMSUB002A0001 /* AppleBookCreateViewModel+Submission.swift */; };
+		CREATEVMMETA001A0001 /* AppleBookCreateViewModel+Metadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVMMETA002A0001 /* AppleBookCreateViewModel+Metadata.swift */; };
+		CREATEVMMETA001A0002 /* AppleBookCreateViewModel+Metadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVMMETA002A0001 /* AppleBookCreateViewModel+Metadata.swift */; };
 		CREATESECT001A0001 /* AppleBookCreateNarrationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESECT002A0001 /* AppleBookCreateNarrationSection.swift */; };
 		CREATESECT001A0002 /* AppleBookCreateNarrationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESECT002A0001 /* AppleBookCreateNarrationSection.swift */; };
 		CREATEMOD001A0001 /* AppleBookCreateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMOD002A0001 /* AppleBookCreateModels.swift */; };
@@ -688,6 +690,7 @@
 		LIBCHROME002A0001 /* LibraryBrowseChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryBrowseChrome.swift; sourceTree = "<group>"; };
 		CREATEVIEW002A0001 /* AppleBookCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateView.swift; sourceTree = "<group>"; };
 		CREATEVMSUB002A0001 /* AppleBookCreateViewModel+Submission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleBookCreateViewModel+Submission.swift"; sourceTree = "<group>"; };
+		CREATEVMMETA002A0001 /* AppleBookCreateViewModel+Metadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleBookCreateViewModel+Metadata.swift"; sourceTree = "<group>"; };
 		CREATESECT002A0001 /* AppleBookCreateNarrationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateNarrationSection.swift; sourceTree = "<group>"; };
 		CREATEMOD002A0001 /* AppleBookCreateModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateModels.swift; sourceTree = "<group>"; };
 		CREATEDEF002A0001 /* AppleBookCreateDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateDefaults.swift; sourceTree = "<group>"; };
@@ -923,6 +926,7 @@
 				CREATESTAT002A0001 /* AppleBookCreateStatusViews.swift */,
 				11EF28BF0B1E7A3F6ECC3EEB /* AppleBookCreateViewModel.swift */,
 				CREATEVMSUB002A0001 /* AppleBookCreateViewModel+Submission.swift */,
+				CREATEVMMETA002A0001 /* AppleBookCreateViewModel+Metadata.swift */,
 				762ABB57C1BCB734E6D5A0ED /* AppleBookCreateSupport.swift */,
 			);
 			path = Create;
@@ -1782,6 +1786,7 @@
 				CREATELANGSEL001A0001 /* AppleBookCreateLanguageSelector.swift in Sources */,
 				CREATEIMPORT001A0001 /* AppleBookCreateFileImport.swift in Sources */,
 				CREATEMETAJSON001A0001 /* AppleBookCreateMetadataJSON.swift in Sources */,
+				CREATEVMMETA001A0001 /* AppleBookCreateViewModel+Metadata.swift in Sources */,
 				CREATEMETA001A0001 /* AppleBookCreateMetadataViews.swift in Sources */,
 				CREATEHIST001A0001 /* AppleBookCreateHistoryDefaults.swift in Sources */,
 				CREATEHISTPARSE001A0001 /* AppleBookCreateHistoryParsing.swift in Sources */,
@@ -2044,6 +2049,7 @@
 				CREATELANGSEL001A0002 /* AppleBookCreateLanguageSelector.swift in Sources */,
 				CREATEIMPORT001A0002 /* AppleBookCreateFileImport.swift in Sources */,
 				CREATEMETAJSON001A0002 /* AppleBookCreateMetadataJSON.swift in Sources */,
+				CREATEVMMETA001A0002 /* AppleBookCreateViewModel+Metadata.swift in Sources */,
 				CREATEMETA001A0002 /* AppleBookCreateMetadataViews.swift in Sources */,
 				CREATEHIST001A0002 /* AppleBookCreateHistoryDefaults.swift in Sources */,
 				CREATEHISTPARSE001A0002 /* AppleBookCreateHistoryParsing.swift in Sources */,

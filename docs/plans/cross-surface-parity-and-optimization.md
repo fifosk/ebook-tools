@@ -218,7 +218,9 @@ Current Apple UI partially exposes:
   routing. Advanced metadata JSON editing and artwork preview subviews now live
   in `AppleBookCreateMetadataViews.swift`, trimming repeated metadata UI while
   preserving the tvOS-safe JSON editor fallback. Metadata JSON parsing/formatting
-  helpers now live in `AppleBookCreateMetadataJSON.swift`. EPUB/subtitle file
+  helpers now live in `AppleBookCreateMetadataJSON.swift`, and subtitle/YouTube
+  metadata lookup, cache clearing, and draft-editing actions now live in
+  `AppleBookCreateViewModel+Metadata.swift`. EPUB/subtitle file
   import normalization now lives in `AppleBookCreateFileImport.swift`, metadata lookup
   source-name derivation now lives in `AppleBookCreateMetadataSources.swift`,
   and Create persistence key construction now lives in

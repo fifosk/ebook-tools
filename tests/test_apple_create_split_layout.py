@@ -50,6 +50,15 @@ CREATE_VIEW_MODEL_SUBMISSION = (
     / "Create"
     / "AppleBookCreateViewModel+Submission.swift"
 )
+CREATE_VIEW_MODEL_METADATA = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateViewModel+Metadata.swift"
+)
 CREATE_SUPPORT = (
     ROOT
     / "ios"
@@ -350,6 +359,36 @@ def test_create_view_model_uses_shared_submission_wrapper() -> None:
     assert "private func submitJob(" not in source
     assert "AppleBookCreateViewModel+Submission.swift in Sources" in project
     assert project.count("AppleBookCreateViewModel+Submission.swift in Sources") == 4
+
+
+def test_create_view_model_metadata_actions_are_split_and_target_wired() -> None:
+    source = _source(CREATE_VIEW_MODEL)
+    metadata_source = _source(CREATE_VIEW_MODEL_METADATA)
+    project = _source(XCODE_PROJECT)
+
+    assert "extension AppleBookCreateViewModel" in metadata_source
+    for helper in [
+        "lookupSubtitleTvMetadata",
+        "clearSubtitleTvMetadataCache",
+        "updateSubtitleMediaMetadata",
+        "applySubtitleMediaMetadataJSONText",
+        "lookupYoutubeTvMetadata",
+        "lookupYoutubeVideoMetadata",
+        "clearYoutubeVideoMetadataCache",
+        "updateYoutubeMediaMetadata",
+        "applyYoutubeMediaMetadataJSONText",
+        "resetYoutubeMetadataState",
+    ]:
+        assert f"func {helper}(" in metadata_source
+        assert f"func {helper}(" not in source
+
+    assert "private func updateSubtitleMetadataSection(" in metadata_source
+    assert "private func updateYoutubeMetadataSection(" in metadata_source
+    assert "private func mergeYoutubeTvMetadata(" in metadata_source
+    assert "AppleBookCreateMetadataJSON.parseObject(" in metadata_source
+    assert "AppleBookCreateMetadataJSON.updateNestedText(" in metadata_source
+    assert "AppleBookCreateViewModel+Metadata.swift in Sources" in project
+    assert project.count("AppleBookCreateViewModel+Metadata.swift in Sources") == 4
 
 
 def test_create_models_are_split_from_presentation_and_target_wired() -> None:
@@ -1214,6 +1253,7 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     metadata_source = _source(CREATE_METADATA_VIEWS)
     view_source = _source(CREATE_VIEW)
     view_model_source = _source(CREATE_VIEW_MODEL)
+    view_model_metadata_source = _source(CREATE_VIEW_MODEL_METADATA)
     project = _source(XCODE_PROJECT)
 
     assert "struct AppleBookCreateMetadataArtworkPreview: View" in metadata_source
@@ -1252,8 +1292,8 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert "private func subtitleMetadataNestedTextBinding(section: String, nestedKey: String, key: String)" in view_source
     assert "updateYoutubeMediaMetadataNestedText(" in view_source
     assert "updateSubtitleMediaMetadataNestedText(" in view_source
-    assert "func updateSubtitleMediaMetadataNestedText(" in view_model_source
-    assert "func updateYoutubeMediaMetadataNestedText(" in view_model_source
+    assert "func updateSubtitleMediaMetadataNestedText(" in view_model_metadata_source
+    assert "func updateYoutubeMediaMetadataNestedText(" in view_model_metadata_source
     metadata_json_source = _source(CREATE_METADATA_JSON)
     assert "enum AppleBookCreateMetadataJSON" in metadata_json_source
     assert "static func prettyString(from metadata: [String: JSONValue]?)" in metadata_json_source
@@ -1262,7 +1302,7 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert "static func updateNestedText(" in metadata_json_source
     assert "nested.removeValue(forKey: key)" in metadata_json_source
     assert "sectionDraft.removeValue(forKey: nestedKey)" in metadata_json_source
-    assert "AppleBookCreateMetadataJSON.updateNestedText(" in view_model_source
+    assert "AppleBookCreateMetadataJSON.updateNestedText(" in view_model_metadata_source
     assert "private static func updateNestedText(" not in view_model_source
     assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" in metadata_source
     assert 'DisclosureGroup("Advanced Metadata JSON")' in metadata_source
@@ -1283,9 +1323,9 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert "viewModel.applyYoutubeMediaMetadataJSONText()" in view_source
     assert "viewModel.syncSubtitleMediaMetadataJSONText()" in view_source
     assert "viewModel.syncYoutubeMediaMetadataJSONText()" in view_source
-    assert "func applySubtitleMediaMetadataJSONText()" in view_model_source
-    assert "func applyYoutubeMediaMetadataJSONText()" in view_model_source
-    assert "AppleBookCreateMetadataJSON.parseObject(" in view_model_source
+    assert "func applySubtitleMediaMetadataJSONText()" in view_model_metadata_source
+    assert "func applyYoutubeMediaMetadataJSONText()" in view_model_metadata_source
+    assert "AppleBookCreateMetadataJSON.parseObject(" in view_model_metadata_source
     assert "private static func parseMetadataJSONObject" not in view_model_source
     assert "JSONDecoder().decode([String: JSONValue].self" in metadata_json_source
     assert "AppleBookCreateMetadataJSON.swift in Sources" in project
