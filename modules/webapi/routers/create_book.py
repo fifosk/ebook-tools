@@ -49,6 +49,7 @@ from ..dependencies import (
     get_runtime_context_provider,
 )
 from ..auth_utils import extract_session_token
+from ..route_telemetry import record_started_route_duration
 from ..schemas import PipelineSubmissionResponse
 from ..schemas.create_book import (
     BookCreationDefaults,
@@ -103,12 +104,11 @@ logger = log_mgr.get_logger()
 def _record_book_options_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe book options route timing if metrics are available."""
 
-    try:
-        from modules.webapi.metrics import BOOK_OPTIONS_ROUTE_DURATION
-    except Exception:
-        return
-    BOOK_OPTIONS_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "BOOK_OPTIONS_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 

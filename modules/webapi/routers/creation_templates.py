@@ -13,6 +13,7 @@ from ..dependencies import (
     get_creation_template_service,
     get_request_user,
 )
+from ..route_telemetry import record_started_route_duration
 from ..schemas.creation_templates import (
     CreationTemplateDeleteResponse,
     CreationTemplateEntryPayload,
@@ -29,12 +30,11 @@ logger = log_mgr.get_logger()
 def _record_template_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe creation-template route timing if metrics are available."""
 
-    try:
-        from modules.webapi.metrics import CREATION_TEMPLATE_ROUTE_DURATION
-    except Exception:
-        return
-    CREATION_TEMPLATE_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "CREATION_TEMPLATE_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 

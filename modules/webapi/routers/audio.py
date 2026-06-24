@@ -20,6 +20,7 @@ from modules import logging_manager as log_mgr
 from modules.audio.tts import macos_voice_inventory, normalize_gtts_language_code, select_voice
 from modules.webapi.audio_utils import resolve_language, resolve_speed, resolve_voice
 from modules.webapi.audio import get_say_voices
+from modules.webapi.route_telemetry import record_started_route_duration
 from modules.webapi.schemas import (
     AudioSynthesisRequest,
     GTTSLanguage,
@@ -37,12 +38,11 @@ logger = log_mgr.logger
 def _record_audio_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe audio route timing if metrics are available."""
 
-    try:
-        from modules.webapi.metrics import AUDIO_ROUTE_DURATION
-    except Exception:
-        return
-    AUDIO_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "AUDIO_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 
