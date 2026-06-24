@@ -118,7 +118,9 @@ def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
     if not root.exists():
         return entries
-    for path in root.glob("*.epub"):
+    for path in root.iterdir():
+        if path.name.startswith(".") or path.suffix.lower() != ".epub":
+            continue
         stat = _safe_stat(path)
         if stat is None or not stat_module.S_ISREG(stat.st_mode):
             continue

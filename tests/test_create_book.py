@@ -129,6 +129,29 @@ def test_pipeline_ebook_listing_is_newest_first_with_metadata(tmp_path: Path) ->
     assert entries[0].modified_at is not None
 
 
+def test_pipeline_ebook_listing_accepts_uppercase_epub_suffix(tmp_path: Path) -> None:
+    books_dir = tmp_path / "books"
+    books_dir.mkdir()
+    uppercase = books_dir / "NAS-LATEST.EPUB"
+    lowercase = books_dir / "older.epub"
+    hidden = books_dir / ".hidden.EPUB"
+    not_epub = books_dir / "notes.txt"
+    uppercase.write_bytes(b"uppercase ebook")
+    lowercase.write_bytes(b"lowercase ebook")
+    hidden.write_bytes(b"hidden ebook")
+    not_epub.write_text("not an ebook", encoding="utf-8")
+    older_mtime = 1_700_000_000
+    newer_mtime = 1_700_000_300
+    os.utime(lowercase, (older_mtime, older_mtime))
+    os.utime(uppercase, (newer_mtime, newer_mtime))
+
+    entries = _list_ebook_files(books_dir)
+
+    assert [entry.name for entry in entries] == ["NAS-LATEST.EPUB", "older.epub"]
+    assert entries[0].size_bytes == len(b"uppercase ebook")
+    assert entries[0].modified_at is not None
+
+
 def test_pipeline_file_listing_skips_entries_that_disappear(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     books_dir = tmp_path / "books"
     output_dir = tmp_path / "output"
