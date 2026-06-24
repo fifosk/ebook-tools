@@ -389,8 +389,9 @@ After Narrate Ebook:
   pre-submit TV/YouTube metadata lookup, TV/YouTube metadata cache clearing,
   editable TVMaze poster/episode-still and YouTube thumbnail URL previews,
   plus key title/channel/series/episode/TMDB/IMDb edits that are sent with the
-  job. Remaining parity gap: full Web-level metadata editing for every nested
-  metadata field beyond the high-value TV, artwork, and YouTube summary fields.
+  job. Apple Create now also exposes advanced metadata JSON editors for
+  subtitle and YouTube jobs, so iPad/iPhone can review and apply full nested
+  metadata payloads beyond the high-value native fields before submission.
 - Library source reupload on iPhone/iPad. Status: Library row context menus now
   expose Replace Source File, open a document picker for common book/video
   source files, review the selected file before upload, post it to

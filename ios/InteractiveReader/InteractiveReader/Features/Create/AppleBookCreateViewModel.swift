@@ -12,11 +12,15 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var subtitleSources: SubtitleSourceListResponse?
     @Published private(set) var subtitleTvMetadataPreview: SubtitleTvMetadataPreviewResponse?
     @Published private(set) var subtitleMediaMetadataDraft: [String: JSONValue]?
+    @Published var subtitleMediaMetadataJSONText = ""
+    @Published private(set) var subtitleMediaMetadataJSONErrorMessage: String?
     @Published private(set) var youtubeLibrary: YoutubeNasLibraryResponse?
     @Published private(set) var youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream] = []
     @Published private(set) var youtubeTvMetadataPreview: SubtitleTvMetadataPreviewResponse?
     @Published private(set) var youtubeVideoMetadataPreview: YoutubeVideoMetadataPreviewResponse?
     @Published private(set) var youtubeMediaMetadataDraft: [String: JSONValue] = ["source": .string("apple")]
+    @Published var youtubeMediaMetadataJSONText = ""
+    @Published private(set) var youtubeMediaMetadataJSONErrorMessage: String?
     @Published private(set) var voiceInventory: AppleBookCreateVoiceInventory?
     @Published private(set) var subtitleLlmModels: [String] = []
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
@@ -57,6 +61,10 @@ final class AppleBookCreateViewModel: ObservableObject {
     private var loadedSubtitleModelsCacheKey: String?
     private let voicePreviewSpeaker = PronunciationSpeaker()
     private var voicePreviewTask: Task<Void, Never>?
+
+    init() {
+        syncYoutubeMediaMetadataJSONText()
+    }
 
     func loadCreationOptions(
         using appState: AppState,
@@ -201,14 +209,17 @@ final class AppleBookCreateViewModel: ObservableObject {
             subtitleTvMetadataPreview = response
             if let mediaMetadata = response.mediaMetadata {
                 subtitleMediaMetadataDraft = AppleBookCreatePresentation.normalizedSubtitleMediaMetadata(mediaMetadata)
+                syncSubtitleMediaMetadataJSONText()
                 subtitleMetadataMessage = "Loaded TV metadata for \(response.sourceName ?? trimmedSourceName)."
             } else {
                 subtitleMediaMetadataDraft = nil
+                syncSubtitleMediaMetadataJSONText()
                 subtitleMetadataMessage = "No TV metadata match for \(response.sourceName ?? trimmedSourceName)."
             }
         } catch {
             subtitleTvMetadataPreview = nil
             subtitleMediaMetadataDraft = nil
+            syncSubtitleMediaMetadataJSONText()
             subtitleMetadataErrorMessage = error.localizedDescription
         }
     }
@@ -216,6 +227,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     func clearSubtitleMetadata() {
         subtitleTvMetadataPreview = nil
         subtitleMediaMetadataDraft = nil
+        syncSubtitleMediaMetadataJSONText()
         subtitleMetadataMessage = nil
         subtitleMetadataErrorMessage = nil
     }
@@ -269,6 +281,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             subtitleMediaMetadataDraft?[key] = .string(trimmedValue)
         }
         normalizeSubtitleMetadataAfterEdit()
+        syncSubtitleMediaMetadataJSONText()
     }
 
     func updateSubtitleMediaMetadataNumber(section: String, key: String, value: String) {
@@ -284,6 +297,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             sectionDraft[key] = .number(floor(parsed))
         }
         normalizeSubtitleMetadataAfterEdit()
+        syncSubtitleMediaMetadataJSONText()
     }
 
     func updateSubtitleMediaMetadataNestedText(
@@ -296,6 +310,24 @@ final class AppleBookCreateViewModel: ObservableObject {
             Self.updateNestedText(in: &sectionDraft, nestedKey: nestedKey, key: key, value: value)
         }
         normalizeSubtitleMetadataAfterEdit()
+        syncSubtitleMediaMetadataJSONText()
+    }
+
+    func syncSubtitleMediaMetadataJSONText() {
+        subtitleMediaMetadataJSONText = Self.prettyMetadataJSONString(from: subtitleMediaMetadataDraft)
+        subtitleMediaMetadataJSONErrorMessage = nil
+    }
+
+    func applySubtitleMediaMetadataJSONText() {
+        let parsed = Self.parseMetadataJSONObject(subtitleMediaMetadataJSONText)
+        if let error = parsed.error {
+            subtitleMediaMetadataJSONErrorMessage = error
+            return
+        }
+        subtitleMediaMetadataDraft = AppleBookCreatePresentation.normalizedSubtitleMediaMetadata(parsed.metadata)
+        syncSubtitleMediaMetadataJSONText()
+        subtitleMetadataMessage = "Applied advanced metadata JSON."
+        subtitleMetadataErrorMessage = nil
     }
 
     func subtitleMediaMetadataText(section: String?, key: String) -> String {
@@ -457,6 +489,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             youtubeTvMetadataPreview = response
             if let mediaMetadata = response.mediaMetadata {
                 mergeYoutubeTvMetadata(mediaMetadata)
+                syncYoutubeMediaMetadataJSONText()
                 youtubeMetadataMessage = "Loaded TV metadata for \(response.sourceName ?? trimmedSourceName)."
             } else {
                 youtubeMetadataMessage = "No TV metadata match for \(response.sourceName ?? trimmedSourceName)."
@@ -497,6 +530,7 @@ final class AppleBookCreateViewModel: ObservableObject {
                         section[key] = value
                     }
                 }
+                syncYoutubeMediaMetadataJSONText()
                 youtubeMetadataMessage = "Loaded YouTube metadata for \(response.sourceName ?? trimmedSourceName)."
             } else {
                 youtubeMetadataMessage = "No YouTube metadata match for \(response.sourceName ?? trimmedSourceName)."
@@ -512,6 +546,7 @@ final class AppleBookCreateViewModel: ObservableObject {
         youtubeMetadataMessage = nil
         youtubeMetadataErrorMessage = nil
         youtubeMediaMetadataDraft = ["source": .string("apple")]
+        syncYoutubeMediaMetadataJSONText()
     }
 
     func clearYoutubeTvMetadataCache(
@@ -594,6 +629,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             youtubeMediaMetadataDraft[key] = .string(trimmedValue)
         }
         youtubeMediaMetadataDraft["source"] = .string("apple")
+        syncYoutubeMediaMetadataJSONText()
     }
 
     func updateYoutubeMediaMetadataNumber(section: String, key: String, value: String) {
@@ -609,6 +645,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             sectionDraft[key] = .number(floor(parsed))
         }
         youtubeMediaMetadataDraft["source"] = .string("apple")
+        syncYoutubeMediaMetadataJSONText()
     }
 
     func updateYoutubeMediaMetadataNestedText(
@@ -621,6 +658,24 @@ final class AppleBookCreateViewModel: ObservableObject {
             Self.updateNestedText(in: &sectionDraft, nestedKey: nestedKey, key: key, value: value)
         }
         youtubeMediaMetadataDraft["source"] = .string("apple")
+        syncYoutubeMediaMetadataJSONText()
+    }
+
+    func syncYoutubeMediaMetadataJSONText() {
+        youtubeMediaMetadataJSONText = Self.prettyMetadataJSONString(from: youtubeMediaMetadataDraft)
+        youtubeMediaMetadataJSONErrorMessage = nil
+    }
+
+    func applyYoutubeMediaMetadataJSONText() {
+        let parsed = Self.parseMetadataJSONObject(youtubeMediaMetadataJSONText)
+        if let error = parsed.error {
+            youtubeMediaMetadataJSONErrorMessage = error
+            return
+        }
+        youtubeMediaMetadataDraft = AppleBookCreatePresentation.normalizedYoutubeMediaMetadata(parsed.metadata ?? [:])
+        syncYoutubeMediaMetadataJSONText()
+        youtubeMetadataMessage = "Applied advanced metadata JSON."
+        youtubeMetadataErrorMessage = nil
     }
 
     func youtubeMediaMetadataText(section: String?, key: String) -> String {
@@ -1358,6 +1413,33 @@ final class AppleBookCreateViewModel: ObservableObject {
             return nil
         }
         return String(data: data, encoding: .utf8)
+    }
+
+    private static func prettyMetadataJSONString(from metadata: [String: JSONValue]?) -> String {
+        guard let metadata, !metadata.isEmpty else {
+            return ""
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        guard let data = try? encoder.encode(metadata) else {
+            return ""
+        }
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+
+    private static func parseMetadataJSONObject(_ value: String) -> (metadata: [String: JSONValue]?, error: String?) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return (nil, nil)
+        }
+        guard let data = trimmed.data(using: .utf8) else {
+            return (nil, "Metadata JSON must be valid UTF-8 text.")
+        }
+        do {
+            return (try JSONDecoder().decode([String: JSONValue].self, from: data), nil)
+        } catch {
+            return (nil, "Enter a valid JSON object.")
+        }
     }
 
     private static func metadataCacheClearMessage(cleared: Int, kind: String, query: String) -> String {

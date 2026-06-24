@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.27
+
+- Advanced visible Apple app versioning to `v2026.06.24.27`.
+- Apple Create now exposes advanced metadata JSON editors for subtitle and YouTube jobs so iPad/iPhone can review and apply full nested metadata payloads beyond the high-value native fields.
+
 ### 2026.06.24.26
 
 - Advanced visible Apple app versioning to `v2026.06.24.26`.

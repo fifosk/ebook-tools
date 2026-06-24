@@ -673,6 +673,8 @@ struct AppleBookCreateView: View {
                 tmdbId: youtubeMetadataNumberBinding(section: "show", key: "tmdb_id"),
                 imdbId: youtubeMetadataTextBinding(section: "show", key: "imdb_id"),
                 episodeName: youtubeMetadataTextBinding(section: "episode", key: "name"),
+                advancedMetadataJSON: $viewModel.youtubeMediaMetadataJSONText,
+                advancedMetadataErrorMessage: viewModel.youtubeMediaMetadataJSONErrorMessage,
                 onLoadTvMetadata: {
                     Task {
                         await viewModel.lookupYoutubeTvMetadata(
@@ -704,6 +706,12 @@ struct AppleBookCreateView: View {
                             using: appState
                         )
                     }
+                },
+                onApplyAdvancedMetadataJSON: {
+                    viewModel.applyYoutubeMediaMetadataJSONText()
+                },
+                onSyncAdvancedMetadataJSON: {
+                    viewModel.syncYoutubeMediaMetadataJSONText()
                 }
             )
         }
@@ -728,6 +736,8 @@ struct AppleBookCreateView: View {
                 episode: subtitleMetadataNumberBinding(section: "episode", key: "number"),
                 episodeName: subtitleMetadataTextBinding(section: "episode", key: "name"),
                 airdate: subtitleMetadataTextBinding(section: "episode", key: "airdate"),
+                advancedMetadataJSON: $viewModel.subtitleMediaMetadataJSONText,
+                advancedMetadataErrorMessage: viewModel.subtitleMediaMetadataJSONErrorMessage,
                 onLookup: {
                     Task {
                         await viewModel.lookupSubtitleTvMetadata(
@@ -755,6 +765,12 @@ struct AppleBookCreateView: View {
                             using: appState
                         )
                     }
+                },
+                onApplyAdvancedMetadataJSON: {
+                    viewModel.applySubtitleMediaMetadataJSONText()
+                },
+                onSyncAdvancedMetadataJSON: {
+                    viewModel.syncSubtitleMediaMetadataJSONText()
                 }
             )
         }

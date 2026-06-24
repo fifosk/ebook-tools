@@ -952,10 +952,14 @@ struct AppleBookCreateSubtitleMetadataControls: View {
     @Binding var episode: String
     @Binding var episodeName: String
     @Binding var airdate: String
+    @Binding var advancedMetadataJSON: String
+    let advancedMetadataErrorMessage: String?
     let onLookup: () -> Void
     let onRefresh: () -> Void
     let onClear: () -> Void
     let onClearCache: () -> Void
+    let onApplyAdvancedMetadataJSON: () -> Void
+    let onSyncAdvancedMetadataJSON: () -> Void
 
     var body: some View {
         if sourceName.isEmpty {
@@ -1069,6 +1073,18 @@ struct AppleBookCreateSubtitleMetadataControls: View {
         }
         .accessibilityIdentifier("createSubtitleMetadataArtworkDisclosure")
         #endif
+
+        AppleBookCreateAdvancedMetadataJSONEditor(
+            text: $advancedMetadataJSON,
+            errorMessage: advancedMetadataErrorMessage,
+            disclosureIdentifier: "createSubtitleAdvancedMetadataDisclosure",
+            textEditorIdentifier: "createSubtitleAdvancedMetadataJSONEditor",
+            applyIdentifier: "createSubtitleAdvancedMetadataApplyButton",
+            syncIdentifier: "createSubtitleAdvancedMetadataSyncButton",
+            errorIdentifier: "createSubtitleAdvancedMetadataJSONError",
+            onApply: onApplyAdvancedMetadataJSON,
+            onSync: onSyncAdvancedMetadataJSON
+        )
     }
 
     private var subtitleArtworkFields: some View {
@@ -1192,10 +1208,14 @@ struct AppleBookCreateYoutubeMetadataControls: View {
     @Binding var tmdbId: String
     @Binding var imdbId: String
     @Binding var episodeName: String
+    @Binding var advancedMetadataJSON: String
+    let advancedMetadataErrorMessage: String?
     let onLoadTvMetadata: () -> Void
     let onLoadYoutubeMetadata: () -> Void
     let onClearTvMetadataCache: () -> Void
     let onClearYoutubeMetadataCache: () -> Void
+    let onApplyAdvancedMetadataJSON: () -> Void
+    let onSyncAdvancedMetadataJSON: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1308,6 +1328,18 @@ struct AppleBookCreateYoutubeMetadataControls: View {
         }
         .accessibilityIdentifier("createYoutubeMetadataArtworkDisclosure")
         #endif
+
+        AppleBookCreateAdvancedMetadataJSONEditor(
+            text: $advancedMetadataJSON,
+            errorMessage: advancedMetadataErrorMessage,
+            disclosureIdentifier: "createYoutubeAdvancedMetadataDisclosure",
+            textEditorIdentifier: "createYoutubeAdvancedMetadataJSONEditor",
+            applyIdentifier: "createYoutubeAdvancedMetadataApplyButton",
+            syncIdentifier: "createYoutubeAdvancedMetadataSyncButton",
+            errorIdentifier: "createYoutubeAdvancedMetadataJSONError",
+            onApply: onApplyAdvancedMetadataJSON,
+            onSync: onSyncAdvancedMetadataJSON
+        )
     }
 
     private var youtubeArtworkFields: some View {
@@ -1324,6 +1356,64 @@ struct AppleBookCreateYoutubeMetadataControls: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("createYoutubeMetadataThumbnailUrlField")
+        }
+    }
+}
+
+private struct AppleBookCreateAdvancedMetadataJSONEditor: View {
+    @Binding var text: String
+    let errorMessage: String?
+    let disclosureIdentifier: String
+    let textEditorIdentifier: String
+    let applyIdentifier: String
+    let syncIdentifier: String
+    let errorIdentifier: String
+    let onApply: () -> Void
+    let onSync: () -> Void
+
+    var body: some View {
+        #if os(tvOS)
+        Group {
+            Text("Advanced Metadata JSON")
+                .font(.headline)
+            editorBody
+        }
+        .accessibilityIdentifier(disclosureIdentifier)
+        #else
+        DisclosureGroup("Advanced Metadata JSON") {
+            editorBody
+        }
+        .accessibilityIdentifier(disclosureIdentifier)
+        #endif
+    }
+
+    private var editorBody: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextEditor(text: $text)
+                .font(.system(.footnote, design: .monospaced))
+                .frame(minHeight: 140)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier(textEditorIdentifier)
+
+            HStack(spacing: 12) {
+                Button(action: onApply) {
+                    Label("Apply JSON", systemImage: "checkmark.circle")
+                }
+                .accessibilityIdentifier(applyIdentifier)
+
+                Button(action: onSync) {
+                    Label("Sync From Fields", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .accessibilityIdentifier(syncIdentifier)
+            }
+
+            if let errorMessage, !errorMessage.isEmpty {
+                Label(errorMessage, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier(errorIdentifier)
+            }
         }
     }
 }

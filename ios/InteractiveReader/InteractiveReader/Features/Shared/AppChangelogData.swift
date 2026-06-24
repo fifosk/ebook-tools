@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.26",
+            version: "2026.06.24.27",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-advanced-metadata-json",
+                    title: "Create edits full metadata",
+                    detail: "Apple Create now gives subtitle and YouTube jobs an advanced metadata JSON editor, so iPad and iPhone can review and apply full nested metadata payloads in addition to the high-value native fields."
+                ),
                 AppChangelogEntry(
                     id: "apple-generated-book-source-labels",
                     title: "Generated books clarify sources",

@@ -403,5 +403,28 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert "private static func updateNestedText(" in view_model_source
     assert "nested.removeValue(forKey: key)" in view_model_source
     assert "sectionDraft.removeValue(forKey: nestedKey)" in view_model_source
+    assert "private struct AppleBookCreateAdvancedMetadataJSONEditor: View" in sections_source
+    assert 'DisclosureGroup("Advanced Metadata JSON")' in sections_source
+    assert "@Binding var advancedMetadataJSON: String" in sections_source
+    assert "let advancedMetadataErrorMessage: String?" in sections_source
+    assert "TextEditor(text: $text)" in sections_source
+    assert 'disclosureIdentifier: "createSubtitleAdvancedMetadataDisclosure"' in sections_source
+    assert 'textEditorIdentifier: "createSubtitleAdvancedMetadataJSONEditor"' in sections_source
+    assert 'applyIdentifier: "createSubtitleAdvancedMetadataApplyButton"' in sections_source
+    assert 'syncIdentifier: "createSubtitleAdvancedMetadataSyncButton"' in sections_source
+    assert 'disclosureIdentifier: "createYoutubeAdvancedMetadataDisclosure"' in sections_source
+    assert 'textEditorIdentifier: "createYoutubeAdvancedMetadataJSONEditor"' in sections_source
+    assert 'applyIdentifier: "createYoutubeAdvancedMetadataApplyButton"' in sections_source
+    assert 'syncIdentifier: "createYoutubeAdvancedMetadataSyncButton"' in sections_source
+    assert "advancedMetadataJSON: $viewModel.subtitleMediaMetadataJSONText" in view_source
+    assert "advancedMetadataJSON: $viewModel.youtubeMediaMetadataJSONText" in view_source
+    assert "viewModel.applySubtitleMediaMetadataJSONText()" in view_source
+    assert "viewModel.applyYoutubeMediaMetadataJSONText()" in view_source
+    assert "viewModel.syncSubtitleMediaMetadataJSONText()" in view_source
+    assert "viewModel.syncYoutubeMediaMetadataJSONText()" in view_source
+    assert "func applySubtitleMediaMetadataJSONText()" in view_model_source
+    assert "func applyYoutubeMediaMetadataJSONText()" in view_model_source
+    assert "private static func parseMetadataJSONObject" in view_model_source
+    assert "JSONDecoder().decode([String: JSONValue].self" in view_model_source
     assert 'accessibilityIdentifier("createYoutubeMetadataTmdbIdField")' in sections_source
     assert 'accessibilityIdentifier("createYoutubeMetadataImdbIdField")' in sections_source
