@@ -816,7 +816,11 @@ Suggested features to evaluate after parity scaffolding:
   reading-bed catalog, admin upload/default update, uploaded file streaming,
   and cleanup fallback used by Web playback controls plus Apple playback and
   offline sync, and the shared Apple backend manifest runs it as a
-  reading-bed regression gate.
+  reading-bed regression gate. The repo-owned `test-backend-notifications`
+  target now covers Apple Settings notification device registration,
+  preferences, test sends, rich test sends, disabled-server messaging, and
+  authentication guards without APNs credentials, and the shared Apple backend
+  manifest runs it as a notification regression gate.
 - Shared media diagnostics: surface missing timing/audio/image assets without
   opening logs. Status: media manifest responses now include a token-safe
   aggregate diagnostics object with media, chunk, audio, image, timing,

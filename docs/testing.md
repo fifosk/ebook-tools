@@ -315,7 +315,8 @@ legacy flags (`--use-remote-env-tokens`, read/write token requirements, and
 `--skip-apple-build`) so iPad/TV update runs can reuse the same unattended
 command shape while the unavailable iPhone profile is left out of the run. The
 backend test manifest separately covers the reading-bed catalog and uploaded
-file route used by Web playback controls plus Apple playback/offline sync.
+file route used by Web playback controls plus Apple playback/offline sync, and
+the notification device/preference/test routes used by Apple Settings.
 
 Run the local Apple contract gate after changing native Create payloads,
 deployment helpers, or simulator journey config wiring:
@@ -711,6 +712,7 @@ available and `python3` otherwise.
 | `make test-backend-pipeline-sources` | `$(PYTHON) -m pytest ...` | Shared-pipeline EPUB source picker, cleanup, and upload backend slice |
 | `make test-backend-audio-routes` | `$(PYTHON) -m pytest ...` | Shared-pipeline audio synthesis, voice inventory, and voice-match backend slice |
 | `make test-backend-reading-beds` | `$(PYTHON) -m pytest ...` | Shared-pipeline reading-bed catalog, upload, default, streaming, and cleanup backend slice |
+| `make test-backend-notifications` | `$(PYTHON) -m pytest ...` | Shared-pipeline Apple notification device, preference, and test-send route slice |
 | `make test-backend-subtitle-router` | `$(PYTHON) -m pytest ...` | Shared-pipeline subtitle router backend slice |
 | `make test-backend-playback-state` | `$(PYTHON) -m pytest ...` | Shared-pipeline resume and bookmark playback-state backend slice |
 | `make test-backend-offline-export` | `$(PYTHON) -m pytest ...` | Shared-pipeline offline export route, metrics, and token-safe logging slice |

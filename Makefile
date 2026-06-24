@@ -6,6 +6,7 @@
        test-backend-pipeline-sources \
        test-backend-audio-routes \
        test-backend-reading-beds \
+       test-backend-notifications \
        test-backend-subtitle-router \
        test-backend-playback-state \
        test-backend-offline-export \
@@ -103,6 +104,9 @@ test-backend-audio-routes:
 
 test-backend-reading-beds:
 	$(PYTHON) -m pytest tests/modules/webapi/test_reading_bed_routes.py
+
+test-backend-notifications:
+	$(PYTHON) -m pytest tests/modules/webapi/test_notification_routes.py
 
 test-backend-subtitle-router:
 	$(PYTHON) -m pytest tests/webapi/test_subtitles_router.py
