@@ -14,6 +14,7 @@ import {
   JobProgressCreationSummary,
   parseJobProgressCreationSummary
 } from './job-progress/JobProgressCreationSummary';
+import { JobProgressHeader } from './job-progress/JobProgressHeader';
 import { JobProgressMediaMetadata } from './job-progress/JobProgressMediaMetadata';
 import { JobProgressPermissionsSection } from './job-progress/JobProgressPermissionsSection';
 import { JobProgressTabs, type JobProgressTab } from './job-progress/JobProgressTabs';
@@ -372,60 +373,30 @@ export function JobProgress({
 
   return (
     <div className="job-card" aria-live="polite">
-      <div className="job-card__header">
-        <div className="job-card__header-title">
-          <h3>{jobLabel ? `Job ${jobId} — ${jobLabel}` : `Job ${jobId}`}</h3>
-          <span className="job-card__badge">{jobType}</span>
-        </div>
-        <div className="job-card__header-actions">
-          <span className="job-status" data-state={statusValue} title={statusGlyph.label} aria-label={statusGlyph.label}>
-            {statusGlyph.icon}
-          </span>
-          <div className="job-actions" aria-label={`Actions for job ${jobId}`} aria-busy={isMutating}>
-            {canPause ? (
-              <button type="button" className="link-button" onClick={onPause} disabled={isMutating}>
-                Pause
-              </button>
-            ) : null}
-            {canResume ? (
-              <button type="button" className="link-button" onClick={onResume} disabled={isMutating}>
-                Resume
-              </button>
-            ) : null}
-            {canCancel ? (
-              <button type="button" className="link-button" onClick={onCancel} disabled={isMutating}>
-                Cancel
-              </button>
-            ) : null}
-            {canRestart ? (
-              <button type="button" className="link-button" onClick={onRestart} disabled={isMutating}>
-                Restart
-              </button>
-            ) : null}
-            {canCopy ? (
-              <button type="button" className="link-button" onClick={onCopy} disabled={isMutating}>
-                Copy
-              </button>
-            ) : null}
-            {shouldRenderLibraryButton ? (
-              <button
-                type="button"
-                className="link-button"
-                onClick={() => onMoveToLibrary?.()}
-                disabled={isMutating || !canMoveToLibrary}
-                title={libraryButtonTitle}
-              >
-                Move to library
-              </button>
-            ) : null}
-            {canDelete ? (
-              <button type="button" className="link-button" onClick={onDelete} disabled={isMutating}>
-                Delete
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </div>
+      <JobProgressHeader
+        jobId={jobId}
+        jobLabel={jobLabel}
+        jobType={jobType}
+        statusValue={statusValue}
+        statusGlyph={statusGlyph}
+        canPause={canPause}
+        canResume={canResume}
+        canCancel={canCancel}
+        canRestart={canRestart}
+        canCopy={canCopy}
+        shouldRenderLibraryButton={shouldRenderLibraryButton}
+        canMoveToLibrary={canMoveToLibrary}
+        canDelete={canDelete}
+        isMutating={isMutating}
+        libraryButtonTitle={libraryButtonTitle}
+        onPause={onPause}
+        onResume={onResume}
+        onCancel={onCancel}
+        onRestart={onRestart}
+        onDelete={onDelete}
+        onCopy={onCopy}
+        onMoveToLibrary={onMoveToLibrary}
+      />
       <p>
         <strong>Created:</strong> {formatDate(status?.created_at ?? null)}
         <br />
