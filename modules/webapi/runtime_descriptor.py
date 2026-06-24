@@ -55,6 +55,14 @@ OFFLINE_EXPORTS_DESCRIPTOR = {
     "sourceKinds": ("job", "library"),
     "playerTypes": ("interactive-text",),
 }
+LIBRARY_ACTIONS_DESCRIPTOR = {
+    "itemsPath": "/api/library/items",
+    "itemMetadataPathTemplate": "/api/library/items/{job_id}",
+    "sourceUploadPathTemplate": "/api/library/items/{job_id}/upload-source",
+    "isbnLookupPath": "/api/library/isbn/lookup",
+    "isbnApplyPathTemplate": "/api/library/items/{job_id}/isbn",
+    "metadataEnrichPathTemplate": "/api/library/items/{job_id}/enrich",
+}
 ALLOWED_PUBLIC_METADATA_KEYS = frozenset(
     {
         "legacytokenmigration",
@@ -79,6 +87,7 @@ def build_runtime_descriptor(version: str) -> dict[str, object]:
         "applePipeline": _copy_public_descriptor_section(APPLE_PIPELINE_DESCRIPTOR),
         "creation": _copy_public_descriptor_section(CREATION_DESCRIPTOR),
         "offlineExports": _copy_public_descriptor_section(OFFLINE_EXPORTS_DESCRIPTOR),
+        "libraryActions": _copy_public_descriptor_section(LIBRARY_ACTIONS_DESCRIPTOR),
     }
     assert_runtime_descriptor_is_public(payload)
     return payload

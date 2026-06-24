@@ -49,7 +49,7 @@ def test_backend_library_metadata_patch_contract_matches_apple_client() -> None:
         assert f"{field}: Optional[str]" in schema_source
         assert f"{field}: String?" in client_source
     assert "func updateLibraryMetadata(" in client_source
-    assert 'path: "/api/library/items/\\(encoded)"' in client_source
+    assert "path: AppleLibraryRuntimeContract.itemPath(encoded)" in client_source
     assert 'method: "PATCH"' in client_source
     assert "LibraryMetadataUpdateRequest(" in client_source
     assert "return try decode(LibraryItem.self, from: data)" in client_source

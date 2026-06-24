@@ -45,7 +45,7 @@ def test_library_source_upload_route_and_web_extensions_stay_pinned() -> None:
 
     assert '@router.post("/items/{job_id}/upload-source", response_model=LibraryItemPayload)' in router_source
     assert "file: UploadFile = File(...)" in router_source
-    assert 'path: "/api/library/items/\\(encoded)/upload-source"' in client_source
+    assert "path: AppleLibraryRuntimeContract.sourceUploadPath(encoded)" in client_source
     assert 'method: "POST"' in client_source
     assert "startAccessingSecurityScopedResource()" in client_source
 

@@ -5,6 +5,27 @@ enum AppleOfflineExportRuntimeContract {
     static let playerType = "interactive-text"
 }
 
+enum AppleLibraryRuntimeContract {
+    static let itemsPath = "/api/library/items"
+    static let isbnLookupPath = "/api/library/isbn/lookup"
+
+    static func itemPath(_ encodedJobId: String) -> String {
+        "\(itemsPath)/\(encodedJobId)"
+    }
+
+    static func sourceUploadPath(_ encodedJobId: String) -> String {
+        "\(itemPath(encodedJobId))/upload-source"
+    }
+
+    static func isbnApplyPath(_ encodedJobId: String) -> String {
+        "\(itemPath(encodedJobId))/isbn"
+    }
+
+    static func metadataEnrichPath(_ encodedJobId: String) -> String {
+        "\(itemPath(encodedJobId))/enrich"
+    }
+}
+
 extension APIClient {
     func fetchLibraryItems(query: String? = nil, page: Int = 1, limit: Int = 100) async throws -> LibrarySearchResponse {
         var components = URLComponents()
@@ -17,7 +38,7 @@ extension APIClient {
         }
         components.queryItems = items
         let suffix = components.percentEncodedQuery.map { "?\($0)" } ?? ""
-        let data = try await sendRequest(path: "/api/library/items\(suffix)")
+        let data = try await sendRequest(path: "\(AppleLibraryRuntimeContract.itemsPath)\(suffix)")
         return try decode(LibrarySearchResponse.self, from: data)
     }
 
@@ -63,7 +84,7 @@ extension APIClient {
             let isbn: String?
         }
         let data = try await sendJSONRequest(
-            path: "/api/library/items/\(encoded)",
+            path: AppleLibraryRuntimeContract.itemPath(encoded),
             method: "PATCH",
             payload: LibraryMetadataUpdateRequest(
                 title: title,
@@ -96,7 +117,7 @@ extension APIClient {
         )
         let multipart = MultipartFormDataBuilder.makeBody(fields: [:], file: upload)
         let data = try await sendRequest(
-            path: "/api/library/items/\(encoded)/upload-source",
+            path: AppleLibraryRuntimeContract.sourceUploadPath(encoded),
             method: "POST",
             body: multipart.body,
             contentType: multipart.contentType
@@ -110,7 +131,7 @@ extension APIClient {
             let isbn: String
         }
         let data = try await sendJSONRequest(
-            path: "/api/library/items/\(encoded)/isbn",
+            path: AppleLibraryRuntimeContract.isbnApplyPath(encoded),
             method: "POST",
             payload: LibraryIsbnUpdateRequest(isbn: isbn)
         )
@@ -123,7 +144,7 @@ extension APIClient {
             URLQueryItem(name: "isbn", value: isbn)
         ]
         let suffix = components.percentEncodedQuery.map { "?\($0)" } ?? ""
-        let data = try await sendRequest(path: "/api/library/isbn/lookup\(suffix)")
+        let data = try await sendRequest(path: "\(AppleLibraryRuntimeContract.isbnLookupPath)\(suffix)")
         return try decode(LibraryIsbnLookupResponse.self, from: data)
     }
 
@@ -133,7 +154,7 @@ extension APIClient {
             let force: Bool
         }
         let data = try await sendJSONRequest(
-            path: "/api/library/items/\(encoded)/enrich",
+            path: AppleLibraryRuntimeContract.metadataEnrichPath(encoded),
             method: "POST",
             payload: LibraryMetadataEnrichRequest(force: force)
         )

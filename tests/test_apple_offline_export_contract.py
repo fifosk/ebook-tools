@@ -108,7 +108,7 @@ def test_apple_client_supports_library_metadata_enrichment_contract() -> None:
     assert "let confidence: String?" in model_source
     assert "let source: String?" in model_source
     assert "func enrichLibraryMetadata(jobId: String, force: Bool = false)" in client_source
-    assert 'path: "/api/library/items/\\(encoded)/enrich"' in client_source
+    assert "path: AppleLibraryRuntimeContract.metadataEnrichPath(encoded)" in client_source
     assert "LibraryMetadataEnrichRequest(force: force)" in client_source
 
 

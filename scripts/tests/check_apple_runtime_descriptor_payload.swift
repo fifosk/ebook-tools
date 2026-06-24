@@ -53,6 +53,14 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "download_path_template": "/api/exports/{export_id}/download",
             "source_kinds": ["job", "library"],
             "player_types": ["interactive-text"]
+          },
+          "library_actions": {
+            "items_path": "/api/library/items",
+            "item_metadata_path_template": "/api/library/items/{job_id}",
+            "source_upload_path_template": "/api/library/items/{job_id}/upload-source",
+            "isbn_lookup_path": "/api/library/isbn/lookup",
+            "isbn_apply_path_template": "/api/library/items/{job_id}/isbn",
+            "metadata_enrich_path_template": "/api/library/items/{job_id}/enrich"
           }
         }
         """.data(using: .utf8)!
@@ -107,6 +115,30 @@ struct AppleRuntimeDescriptorPayloadCheck {
             current.offlineExports?.playerTypes == ["interactive-text"],
             "Apple runtime descriptor should decode offline export player types"
         )
+        require(
+            current.libraryActions?.itemsPath == "/api/library/items",
+            "Apple runtime descriptor should decode library item listing endpoint"
+        )
+        require(
+            current.libraryActions?.itemMetadataPathTemplate == "/api/library/items/{job_id}",
+            "Apple runtime descriptor should decode library metadata endpoint template"
+        )
+        require(
+            current.libraryActions?.sourceUploadPathTemplate == "/api/library/items/{job_id}/upload-source",
+            "Apple runtime descriptor should decode library source upload endpoint template"
+        )
+        require(
+            current.libraryActions?.isbnLookupPath == "/api/library/isbn/lookup",
+            "Apple runtime descriptor should decode library ISBN lookup endpoint"
+        )
+        require(
+            current.libraryActions?.isbnApplyPathTemplate == "/api/library/items/{job_id}/isbn",
+            "Apple runtime descriptor should decode library ISBN apply endpoint template"
+        )
+        require(
+            current.libraryActions?.metadataEnrichPathTemplate == "/api/library/items/{job_id}/enrich",
+            "Apple runtime descriptor should decode library metadata enrichment endpoint template"
+        )
 
         let legacyRuntimeJSON = """
         {
@@ -131,6 +163,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(legacy.applePipeline == nil, "Apple runtime descriptor should tolerate legacy payloads without pipeline metadata")
         require(legacy.creation == nil, "Apple runtime descriptor should tolerate legacy payloads without Create metadata")
         require(legacy.offlineExports == nil, "Apple runtime descriptor should tolerate legacy payloads without offline export metadata")
+        require(legacy.libraryActions == nil, "Apple runtime descriptor should tolerate legacy payloads without library action metadata")
 
         print("apple runtime descriptor payload checks passed")
     }

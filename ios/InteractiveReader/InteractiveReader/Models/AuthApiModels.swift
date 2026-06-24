@@ -61,6 +61,15 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let playerTypes: [String]
     }
 
+    struct LibraryActionsContract: Decodable, Equatable {
+        let itemsPath: String
+        let itemMetadataPathTemplate: String
+        let sourceUploadPathTemplate: String
+        let isbnLookupPath: String
+        let isbnApplyPathTemplate: String
+        let metadataEnrichPathTemplate: String
+    }
+
     let status: String
     let app: String
     let service: String
@@ -71,6 +80,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     let applePipeline: ApplePipelineContract?
     let creation: CreationContract?
     let offlineExports: OfflineExportContract?
+    let libraryActions: LibraryActionsContract?
 }
 
 struct LoginRequestPayload: Encodable {

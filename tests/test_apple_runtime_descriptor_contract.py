@@ -4,6 +4,7 @@ from pathlib import Path
 
 from modules.webapi.runtime_descriptor import (
     CREATION_DESCRIPTOR,
+    LIBRARY_ACTIONS_DESCRIPTOR,
     OFFLINE_EXPORTS_DESCRIPTOR,
     assert_runtime_descriptor_is_public,
     build_runtime_descriptor,
@@ -44,6 +45,14 @@ API_CLIENT_CREATION = (
     / "Services"
     / "APIClient+Creation.swift"
 )
+API_CLIENT_LIBRARY_JOBS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Services"
+    / "APIClient+LibraryJobs.swift"
+)
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -72,6 +81,7 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
         "sourceKinds": ["job", "library"],
         "playerTypes": ["interactive-text"],
     }
+    assert descriptor["libraryActions"] == LIBRARY_ACTIONS_DESCRIPTOR
     assert_runtime_descriptor_is_public(descriptor)
 
 
@@ -113,6 +123,14 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "let sourceKinds: [String]" in source
     assert "let playerTypes: [String]" in source
     assert "let offlineExports: OfflineExportContract?" in source
+    assert "struct LibraryActionsContract: Decodable, Equatable" in source
+    assert "let itemsPath: String" in source
+    assert "let itemMetadataPathTemplate: String" in source
+    assert "let sourceUploadPathTemplate: String" in source
+    assert "let isbnLookupPath: String" in source
+    assert "let isbnApplyPathTemplate: String" in source
+    assert "let metadataEnrichPathTemplate: String" in source
+    assert "let libraryActions: LibraryActionsContract?" in source
 
 
 def test_settings_surfaces_create_contract_runtime_status() -> None:
@@ -162,3 +180,21 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "AppleCreateRuntimeContract.subtitleDeleteSourcePath" in settings_source
     assert "return .mismatch(summary: mismatches.joined(separator: \" · \"))" in settings_source
     assert "\\(expectedPaths.count) endpoints" in settings_source
+
+
+def test_apple_library_client_uses_runtime_contract_constants() -> None:
+    source = API_CLIENT_LIBRARY_JOBS.read_text(encoding="utf-8")
+
+    assert "enum AppleLibraryRuntimeContract" in source
+    assert 'static let itemsPath = "/api/library/items"' in source
+    assert 'static let isbnLookupPath = "/api/library/isbn/lookup"' in source
+    assert "static func itemPath(_ encodedJobId: String) -> String" in source
+    assert "static func sourceUploadPath(_ encodedJobId: String) -> String" in source
+    assert "static func isbnApplyPath(_ encodedJobId: String) -> String" in source
+    assert "static func metadataEnrichPath(_ encodedJobId: String) -> String" in source
+    assert "AppleLibraryRuntimeContract.itemsPath" in source
+    assert "AppleLibraryRuntimeContract.itemPath(encoded)" in source
+    assert "AppleLibraryRuntimeContract.sourceUploadPath(encoded)" in source
+    assert "AppleLibraryRuntimeContract.isbnLookupPath" in source
+    assert "AppleLibraryRuntimeContract.isbnApplyPath(encoded)" in source
+    assert "AppleLibraryRuntimeContract.metadataEnrichPath(encoded)" in source

@@ -642,7 +642,10 @@ After Narrate Ebook:
   expose Replace Source File, open a document picker for common book/video
   source files, review the selected file before upload, post it to
   `/api/library/items/{job_id}/upload-source`, and replace the refreshed row
-  returned by the backend. Apple TV remains playback-first.
+  returned by the backend. Apple TV remains playback-first. The public runtime
+  descriptor now advertises the shared Library action paths for listing,
+  metadata edits, source upload, ISBN lookup/apply, and metadata enrichment, and
+  the Apple client builds these paths through matching local constants.
 - Library source diagnostics on Apple TV. Status: Library row context menus now
   expose read-only Source Details on Apple TV as well as iPhone/iPad, keeping
   remote navigation simple and avoiding mutation controls.
