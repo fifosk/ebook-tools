@@ -8,7 +8,8 @@ import UIKit
 /// Launches the app with E2E credentials read from a JSON config file
 /// written by the Makefile before test execution.
 ///
-/// Config file location: ``E2E_CONFIG_PATH`` or ``/tmp/ios_e2e_config.json``.
+/// Config file location: ``E2E_CONFIG_PATH`` or
+/// ``/tmp/apple-device-app-pipeline/ebook-tools/<profile>/ios_e2e_config.json``.
 /// Expected format: ``{"username":"...","password":"...","api_base_url":"..."}``
 class InteractiveReaderUITests: XCTestCase {
     var app: XCUIApplication!

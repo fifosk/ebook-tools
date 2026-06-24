@@ -1000,8 +1000,8 @@ updated to the modern book-creation options contract used by Apple Create.
 **Configuration:** The Makefile writes credentials and journey data to
 temporary files that XCUITest reads at runtime:
 
-- `/tmp/ios_e2e_config.json` - Contains `username`, `password`, `api_base_url`
-- `/tmp/ios_e2e_journey.json` - Copy of the journey JSON for the test run
+- `/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json` - Contains `username`, `password`, `api_base_url`
+- `/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_journey.json` - Copy of the journey JSON for the test run
 
 Values from the process environment override `E2E_ENV_FILE`, so commands such as
 `run_app_owned_journey.py --env E2E_API_BASE_URL=...` can inject simulator-safe
@@ -1174,7 +1174,8 @@ playwright install
 
 ### XCUITest config not found
 
-The Makefile writes config to `/tmp/ios_e2e_config.json`. If tests fail with
-config errors, verify `.env` contains valid credentials or pass
+The Makefile writes config to
+`/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json`.
+If tests fail with config errors, verify `.env` contains valid credentials or pass
 `E2E_USERNAME`, `E2E_PASSWORD`, and `E2E_API_BASE_URL` in the process
 environment, then try running the make target again.
