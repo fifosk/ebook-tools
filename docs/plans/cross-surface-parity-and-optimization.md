@@ -555,7 +555,11 @@ After Narrate Ebook:
   pre-submit TV/YouTube metadata lookup, TV/YouTube metadata cache clearing,
   editable TVMaze poster/episode-still and YouTube thumbnail URL previews,
   plus key title/channel/series/episode/TMDB/IMDb edits that are sent with the
-  job. Apple Create now also exposes advanced metadata JSON editors for
+  job. Apple YouTube dubbing now resolves target languages through the shared
+  Apple catalog code map before submission, matching Web's `target_language`
+  code payloads, and keeps video transliteration/lookup-cache toggles separate
+  from book job settings so defaults do not leak across modes. Apple Create now
+  also exposes advanced metadata JSON editors for
   subtitle and YouTube jobs, so iPad/iPhone can review and apply full nested
   metadata payloads beyond the high-value native fields before submission.
 - Library source reupload on iPhone/iPad. Status: Library row context menus now

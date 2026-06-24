@@ -276,6 +276,7 @@ struct AppleBookCreateLanguage: Hashable, Identifiable {
 
     var id: String { value.lowercased() }
     var backendValue: String { value }
+    var backendLanguageCode: String { AppleLanguageCatalog.languageCode(for: value) ?? backendValue }
     var label: String { Self.displayLabel(for: value) }
 
     init?(_ value: String) {
@@ -452,6 +453,8 @@ enum AppleBookCreateEditedField: Hashable {
     case youtubePreserveAspectRatio
     case youtubeSplitBatches
     case youtubeStitchBatches
+    case youtubeIncludeTransliteration
+    case youtubeEnableLookupCache
     case subtitleOutputFormat
     case subtitleStartTime
     case subtitleEndTime

@@ -127,7 +127,9 @@ def test_apple_create_language_options_include_full_web_catalog_fallback() -> No
     assert "AppleLanguageCatalog.orderedLanguageNames.compactMap { AppleBookCreateLanguage($0) }" in models_source
     assert "static let allCases = fallbackOptions" in models_source
     assert "AppleLanguageCatalog.canonicalLanguageName(for: trimmed) ?? trimmed" in models_source
+    assert "var backendLanguageCode: String { AppleLanguageCatalog.languageCode(for: value) ?? backendValue }" in models_source
     assert "static func canonicalLanguageName(for value: String) -> String?" in apple_catalog_source
+    assert "static func languageCode(for value: String) -> String?" in apple_catalog_source
     assert 'replacingOccurrences(of: "_", with: "-")' in apple_catalog_source
     assert (
         "for language in supported.compactMap(AppleBookCreateLanguage.init(backendValue:)) + fallbackOptions"

@@ -140,6 +140,21 @@ enum AppleLanguageCatalog {
         return nil
     }
 
+    static func languageCode(for value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if let direct = languageCodes[trimmed] {
+            return direct
+        }
+
+        if let canonical = canonicalLanguageName(for: trimmed) {
+            return languageCodes[canonical]
+        }
+
+        return nil
+    }
+
     static func availableLanguageLabels() -> [String] {
         let unique = Set(languageNameMap.values)
         return unique.sorted { left, right in

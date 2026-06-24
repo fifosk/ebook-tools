@@ -49,6 +49,8 @@ struct AppleBookCreateView: View {
     @State private var youtubePreserveAspectRatio = true
     @State private var youtubeSplitBatches = true
     @State private var youtubeStitchBatches = true
+    @State private var youtubeIncludeTransliteration = true
+    @State private var youtubeEnableLookupCache = true
     @State private var youtubeSubtitleExtractionLanguages = ""
     @State private var subtitleOutputFormat = AppleSubtitleOutputFormat.ass
     @State private var subtitleStartTime = "00:00"
@@ -423,6 +425,14 @@ struct AppleBookCreateView: View {
             youtubePreserveAspectRatio: boolBinding(
                 for: .youtubePreserveAspectRatio,
                 value: $youtubePreserveAspectRatio
+            ),
+            youtubeIncludeTransliteration: boolBinding(
+                for: .youtubeIncludeTransliteration,
+                value: $youtubeIncludeTransliteration
+            ),
+            youtubeEnableLookupCache: boolBinding(
+                for: .youtubeEnableLookupCache,
+                value: $youtubeEnableLookupCache
             ),
             generateAudio: boolBinding(for: .generateAudio, value: $generateAudio),
             audioMode: textBinding(for: .audioMode, value: $audioMode),
@@ -822,10 +832,10 @@ struct AppleBookCreateView: View {
             transliterationModel: subtitleTransliterationModel,
             splitBatches: youtubeSplitBatches,
             stitchBatches: youtubeStitchBatches,
-            includeTransliteration: includeTransliteration,
+            includeTransliteration: youtubeIncludeTransliteration,
             targetHeight: youtubeTargetHeight,
             preserveAspectRatio: youtubePreserveAspectRatio,
-            enableLookupCache: enableLookupCache
+            enableLookupCache: youtubeEnableLookupCache
         )
 
         Task {
@@ -1684,9 +1694,9 @@ struct AppleBookCreateView: View {
            let stitchBatches = defaults.stitchBatches {
             youtubeStitchBatches = stitchBatches
         }
-        if !editedFields.contains(.includeTransliteration),
+        if !editedFields.contains(.youtubeIncludeTransliteration),
            let includeTransliteration = defaults.includeTransliteration {
-            self.includeTransliteration = includeTransliteration
+            youtubeIncludeTransliteration = includeTransliteration
         }
         if !editedFields.contains(.youtubeTargetHeight),
            let targetHeight = defaults.targetHeight {
@@ -1696,9 +1706,9 @@ struct AppleBookCreateView: View {
            let preserveAspectRatio = defaults.preserveAspectRatio {
             youtubePreserveAspectRatio = preserveAspectRatio
         }
-        if !editedFields.contains(.enableLookupCache),
+        if !editedFields.contains(.youtubeEnableLookupCache),
            let enableLookupCache = defaults.enableLookupCache {
-            self.enableLookupCache = enableLookupCache
+            youtubeEnableLookupCache = enableLookupCache
         }
     }
 
@@ -2508,6 +2518,9 @@ struct AppleBookCreateView: View {
         }
         if let value = defaults.includeTransliteration {
             includeTransliteration = value
+            if !editedFields.contains(.youtubeIncludeTransliteration) {
+                youtubeIncludeTransliteration = value
+            }
         }
         if let provider = defaults.bookTranslationProvider {
             bookTranslationProvider = provider
@@ -2520,6 +2533,9 @@ struct AppleBookCreateView: View {
         }
         if let value = defaults.enableLookupCache {
             enableLookupCache = value
+            if !editedFields.contains(.youtubeEnableLookupCache) {
+                youtubeEnableLookupCache = value
+            }
         }
         if let value = defaults.bookLookupCacheBatchSize {
             bookLookupCacheBatchSize = value

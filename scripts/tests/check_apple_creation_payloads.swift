@@ -1979,6 +1979,7 @@ struct AppleCreationPayloadCheck {
         )
         require(youtubeDraft.videoPath == "incoming/demo.mp4", "YouTube draft should trim video path")
         require(youtubeDraft.sourceLanguage == "es", "YouTube draft should prefer selected subtitle language")
+        require(youtubeDraft.targetLanguage == "sk", "YouTube draft should send Web-aligned target language codes")
         require(youtubeDraft.startTimeOffset == nil, "YouTube draft should omit blank start offset")
         require(youtubeDraft.originalMixPercent == 100, "YouTube draft should clamp original mix")
         require(youtubeDraft.flushSentences == 1, "YouTube draft should clamp flush interval")
@@ -2019,6 +2020,10 @@ struct AppleCreationPayloadCheck {
         require(
             youtubeFallbackDraft.sourceLanguage == "English",
             "YouTube draft should fall back to global input language without subtitle language"
+        )
+        require(
+            youtubeFallbackDraft.targetLanguage == "sk",
+            "YouTube draft should preserve target language code resolution without subtitle language"
         )
 
         let input = PipelineInputPayload(

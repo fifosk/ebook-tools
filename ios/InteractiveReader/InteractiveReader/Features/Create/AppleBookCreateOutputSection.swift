@@ -42,6 +42,8 @@ struct AppleBookCreateOutputSection: View {
     let isYoutubeSplitBatchesEnabled: Bool
     @Binding var youtubeStitchBatches: Bool
     @Binding var youtubePreserveAspectRatio: Bool
+    @Binding var youtubeIncludeTransliteration: Bool
+    @Binding var youtubeEnableLookupCache: Bool
     @Binding var generateAudio: Bool
     @Binding var audioMode: String
     @Binding var audioBitrateKbps: String
@@ -156,8 +158,8 @@ struct AppleBookCreateOutputSection: View {
             isSplitBatchesEnabled: isYoutubeSplitBatchesEnabled,
             stitchBatches: $youtubeStitchBatches,
             preserveAspectRatio: $youtubePreserveAspectRatio,
-            includeTransliteration: $includeTransliteration,
-            enableLookupCache: $enableLookupCache
+            includeTransliteration: $youtubeIncludeTransliteration,
+            enableLookupCache: $youtubeEnableLookupCache
         )
     }
 

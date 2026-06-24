@@ -315,7 +315,7 @@ extension AppleBookCreatePresentation {
             subtitlePath: normalizedDraftText(subtitlePath),
             mediaMetadata: normalizedYoutubeMediaMetadata(mediaMetadata),
             sourceLanguage: subtitleLanguage?.nonEmptyValue ?? sourceLanguage.backendValue,
-            targetLanguage: targetLanguage.backendValue,
+            targetLanguage: targetLanguage.backendLanguageCode,
             voice: voice.backendValue,
             startTimeOffset: startTimeOffset.nonEmptyValue,
             endTimeOffset: endTimeOffset.nonEmptyValue,
