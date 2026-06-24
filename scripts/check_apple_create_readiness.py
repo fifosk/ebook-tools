@@ -178,7 +178,7 @@ def count_youtube_pairs(payload: Any) -> tuple[int, int]:
             sub for sub in subtitles
             if isinstance(sub, dict)
             and str(sub.get("path") or "").strip()
-            and str(sub.get("format") or "").strip().lower() in {"srt", "vtt", "ass"}
+            and normalized_format(sub.get("format")) in YOUTUBE_PLAYABLE_SUBTITLE_FORMATS
         ]
         if playable:
             video_count += 1

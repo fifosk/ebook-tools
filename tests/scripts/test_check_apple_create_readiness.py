@@ -48,6 +48,26 @@ def test_counts_backend_visible_sources() -> None:
     ) == (1, 1)
 
 
+def test_youtube_sub_sidecars_count_as_playable_defaults() -> None:
+    youtube = {
+        "videos": [
+            {
+                "path": "/nas/movie.mp4",
+                "modified_at": "2026-06-24T00:00:00Z",
+                "subtitles": [
+                    {"format": "sub", "path": "/nas/movie.en.sub", "language": "en"},
+                    {"format": "pgs", "path": "/nas/movie.sup", "language": "en"},
+                ],
+            }
+        ]
+    }
+
+    assert module.count_youtube_pairs(youtube) == (1, 1)
+    selected_video, selected_subtitle = module.preferred_youtube_selection(youtube)
+    assert selected_video["path"] == "/nas/movie.mp4"
+    assert selected_subtitle["path"] == "/nas/movie.en.sub"
+
+
 def test_resolves_default_create_sources_without_paths_in_summary() -> None:
     files = {
         "ebooks": [
