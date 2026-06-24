@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchYoutubeLibrary,
-  fetchVoiceInventory,
   generateYoutubeDub,
-  synthesizeVoicePreview,
   fetchSubtitleModels,
   fetchInlineSubtitleStreams,
   extractInlineSubtitles,
@@ -16,17 +14,10 @@ import type {
   YoutubeNasVideo,
   YoutubeNasSubtitle,
   YoutubeInlineSubtitleStream,
-  VoiceInventoryResponse,
   JobParameterSnapshot
 } from '../api/dtos';
 import type { JobState } from '../components/JobList';
-import { resolveLanguageName } from '../constants/languageCodes';
 import { useLanguagePreferences } from '../context/LanguageProvider';
-import { sampleSentenceFor } from '../utils/sampleSentences';
-import {
-  preferLanguageLabel,
-  resolveLanguageCode
-} from '../utils/languages';
 import {
   resolveSubtitleLanguageCandidate,
   resolveSubtitleLanguageLabel
@@ -53,9 +44,9 @@ import type { VideoDubbingTab } from './video-dubbing/videoDubbingTypes';
 import { useVideoDubbingSelectionState } from './video-dubbing/useVideoDubbingSelectionState';
 import { useVideoDubbingMetadata } from './video-dubbing/useVideoDubbingMetadata';
 import { useVideoDubbingLanguageState } from './video-dubbing/useVideoDubbingLanguageState';
+import { useVideoDubbingVoiceState } from './video-dubbing/useVideoDubbingVoiceState';
 import {
   buildVideoDubbingGeneratePayload,
-  buildVoiceOptions,
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
   formatSubtitleExtractionStatus,
@@ -105,7 +96,6 @@ export default function VideoDubbingPage({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<VideoDubbingTab>('videos');
 
-  const [voice, setVoice] = useState('gTTS');
   const [startOffset, setStartOffset] = useState('');
   const [endOffset, setEndOffset] = useState('');
   const [originalMixPercent, setOriginalMixPercent] = useState(DEFAULT_ORIGINAL_MIX_PERCENT);
@@ -121,23 +111,9 @@ export default function VideoDubbingPage({
   const [stitchBatches, setStitchBatches] = useState(DEFAULT_STITCH_BATCHES);
   const [includeTransliteration, setIncludeTransliteration] = useState(true);
   const [enableLookupCache, setEnableLookupCache] = useState(true);
-  const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
-  const [voiceInventoryError, setVoiceInventoryError] = useState<string | null>(null);
-  const [isLoadingVoices, setIsLoadingVoices] = useState(false);
   const [llmModels, setLlmModels] = useState<string[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
-  const [isPreviewing, setIsPreviewing] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const previewAudioRef = useRef<{ audio: HTMLAudioElement; url: string } | null>(null);
-
-  const cleanupPreviewAudio = useCallback(() => {
-    if (previewAudioRef.current) {
-      previewAudioRef.current.audio.pause();
-      URL.revokeObjectURL(previewAudioRef.current.url);
-      previewAudioRef.current = null;
-    }
-  }, []);
 
   const applyYoutubeDubDefaults = useCallback(
     (defaults: Awaited<ReturnType<typeof fetchBookCreationOptions>>['youtube_dub_defaults']) => {
@@ -245,6 +221,20 @@ export default function VideoDubbingPage({
     setPrimaryTargetLanguage,
     subtitleLanguageCode,
     subtitleLanguageLabel
+  });
+  const {
+    voice,
+    setVoice,
+    availableVoiceOptions,
+    isLoadingVoices,
+    voiceInventoryError,
+    isPreviewing,
+    previewError,
+    previewVoice
+  } = useVideoDubbingVoiceState({
+    subtitleLanguageLabel,
+    targetLanguage,
+    targetLanguageCode
   });
   const metadataSourceName = useMemo(() => {
     return resolveVideoDubbingMetadataSourceName({
@@ -372,10 +362,6 @@ export default function VideoDubbingPage({
   }, [selectedVideoPath]);
 
   useEffect(() => {
-    return () => cleanupPreviewAudio();
-  }, [cleanupPreviewAudio]);
-
-  useEffect(() => {
     const prefill = resolveVideoDubPrefill(prefillParameters);
     if (!prefill) {
       return;
@@ -461,36 +447,6 @@ export default function VideoDubbingPage({
       }
     };
     void loadModels();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadVoices = async () => {
-      setIsLoadingVoices(true);
-      setVoiceInventoryError(null);
-      try {
-        const inventory = await fetchVoiceInventory();
-        if (cancelled) {
-          return;
-        }
-        setVoiceInventory(inventory);
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-        const message =
-          error instanceof Error ? error.message || 'Unable to load voices.' : 'Unable to load voices.';
-        setVoiceInventoryError(message);
-      } finally {
-        if (!cancelled) {
-          setIsLoadingVoices(false);
-        }
-      }
-    };
-    void loadVoices();
     return () => {
       cancelled = true;
     };
@@ -721,55 +677,9 @@ export default function VideoDubbingPage({
     refreshIntakeStatus
   ]);
 
-  const handlePreviewVoice = useCallback(async () => {
-    const languageCode = targetLanguageCode || resolveLanguageCode(subtitleLanguageLabel) || '';
-    if (!languageCode) {
-      setPreviewError('Choose a translation language before previewing.');
-      return;
-    }
-    const languageLabel = preferLanguageLabel([
-      targetLanguage,
-      subtitleLanguageLabel,
-      resolveLanguageName(languageCode),
-      languageCode
-    ]);
-    setPreviewError(null);
-    setIsPreviewing(true);
-    cleanupPreviewAudio();
-    try {
-      const blob = await synthesizeVoicePreview({
-        text: sampleSentenceFor(languageCode, languageLabel || languageCode),
-        language: languageCode,
-        voice: voice.trim() || undefined
-      });
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      previewAudioRef.current = { audio, url };
-      audio.onended = () => {
-        setIsPreviewing(false);
-        cleanupPreviewAudio();
-      };
-      audio.onerror = () => {
-        setIsPreviewing(false);
-        setPreviewError('Audio playback failed.');
-        cleanupPreviewAudio();
-      };
-      await audio.play();
-    } catch (error) {
-      setIsPreviewing(false);
-      setPreviewError(error instanceof Error ? error.message : 'Unable to preview voice.');
-      cleanupPreviewAudio();
-    }
-  }, [cleanupPreviewAudio, subtitleLanguageLabel, targetLanguage, targetLanguageCode, voice]);
-
   const subtitleNotice = useMemo(() => {
     return resolveSubtitleNotice(selectedVideo, playableSubtitles);
   }, [playableSubtitles, selectedVideo]);
-
-  const availableVoiceOptions = useMemo(
-    () => buildVoiceOptions(voiceInventory, targetLanguageCode),
-    [targetLanguageCode, voiceInventory]
-  );
 
   const canGenerate = Boolean(selectedVideo && selectedSubtitle && !isGenerating && !isIntakeAtCapacity);
 
@@ -877,7 +787,7 @@ export default function VideoDubbingPage({
           endOffset={endOffset}
           onTargetLanguageChange={applyTargetLanguage}
           onVoiceChange={setVoice}
-          onPreviewVoice={() => void handlePreviewVoice()}
+          onPreviewVoice={() => void previewVoice()}
           onModelChange={setLlmModel}
           onTranslationProviderChange={setTranslationProvider}
           onTransliterationModeChange={setTransliterationMode}

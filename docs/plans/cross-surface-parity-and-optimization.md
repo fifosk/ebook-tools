@@ -70,7 +70,11 @@ Large Web UI hotspots to split before redesign work:
   language-code resolution now live in
   `web/src/pages/video-dubbing/useVideoDubbingLanguageState.ts` with focused
   hook coverage, including a guard against treating a raw subtitle language
-  code as an arbitrary catalog label.
+  code as an arbitrary catalog label. Voice inventory loading, target-language
+  voice option construction, sample synthesis, browser audio cleanup, and
+  preview error handling now live in
+  `web/src/pages/video-dubbing/useVideoDubbingVoiceState.ts` with focused hook
+  coverage.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style
