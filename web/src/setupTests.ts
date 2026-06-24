@@ -1,16 +1,5 @@
 import '@testing-library/jest-dom/vitest';
 
-function isUsableStorage(storage: unknown): storage is Storage {
-  return (
-    typeof storage === 'object' &&
-    storage !== null &&
-    typeof (storage as Storage).getItem === 'function' &&
-    typeof (storage as Storage).setItem === 'function' &&
-    typeof (storage as Storage).removeItem === 'function' &&
-    typeof (storage as Storage).clear === 'function'
-  );
-}
-
 function createMemoryStorage(): Storage {
   const values = new Map<string, string>();
   return {
@@ -29,16 +18,7 @@ function createMemoryStorage(): Storage {
   };
 }
 
-function installStorageIfNeeded(name: 'localStorage' | 'sessionStorage') {
-  const existing = typeof window !== 'undefined' ? window[name] : undefined;
-  if (isUsableStorage(existing)) {
-    Object.defineProperty(globalThis, name, {
-      configurable: true,
-      value: existing
-    });
-    return;
-  }
-
+function installTestStorage(name: 'localStorage' | 'sessionStorage') {
   const storage = createMemoryStorage();
   Object.defineProperty(globalThis, name, {
     configurable: true,
@@ -53,8 +33,8 @@ function installStorageIfNeeded(name: 'localStorage' | 'sessionStorage') {
   }
 }
 
-installStorageIfNeeded('localStorage');
-installStorageIfNeeded('sessionStorage');
+installTestStorage('localStorage');
+installTestStorage('sessionStorage');
 
 if (typeof window !== 'undefined' && !window.matchMedia) {
   Object.defineProperty(window, 'matchMedia', {
