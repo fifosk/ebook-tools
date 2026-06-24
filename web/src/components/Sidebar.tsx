@@ -2,8 +2,8 @@ import type { SelectedView } from '../App';
 import type { JobState } from './JobList';
 import { SidebarAdminLinks } from './sidebar/SidebarAdminLinks';
 import { SidebarCreationLinks } from './sidebar/SidebarCreationLinks';
+import { SidebarJobOverview } from './sidebar/SidebarJobOverview';
 import { SidebarPlayerButton } from './sidebar/SidebarPlayerButton';
-import { SidebarJobRow } from './sidebar/SidebarJobRow';
 
 interface SidebarProps {
   selectedView: SelectedView;
@@ -49,12 +49,6 @@ export function Sidebar({
   const activeJob = activeJobId
     ? sidebarJobs.find((job) => job.jobId === activeJobId) ?? null
     : null;
-  const bookJobs = sidebarJobs.filter((job) =>
-    job.status.job_type === 'pipeline' || job.status.job_type === 'book'
-  );
-  const subtitleJobs = sidebarJobs.filter((job) => job.status.job_type === 'subtitle');
-  const youtubeDubJobs = sidebarJobs.filter((job) => job.status.job_type === 'youtube_dub');
-  const hasJobOverview = bookJobs.length > 0 || subtitleJobs.length > 0 || youtubeDubJobs.length > 0;
 
   return (
     <nav className="sidebar__nav" aria-label="Dashboard menu">
@@ -83,60 +77,12 @@ export function Sidebar({
           youtubeDubView={youtubeDubView}
         />
       ) : null}
-      <details className="sidebar__section" open>
-        <summary>📊 Job Overview</summary>
-        <div>
-          {!hasJobOverview ? <p className="sidebar__empty">No jobs yet.</p> : null}
-          {bookJobs.length > 0 ? (
-            <details className="sidebar__section" open>
-              <summary>🎧 Audiobooks</summary>
-              <ul className="sidebar__list">
-                {bookJobs.map((job) => (
-                  <SidebarJobRow
-                    key={job.jobId}
-                    job={job}
-                    activeJobId={activeJobId}
-                    onSelectJob={onSelectJob}
-                    onOpenPlayer={onOpenPlayer}
-                  />
-                ))}
-              </ul>
-            </details>
-          ) : null}
-          {subtitleJobs.length > 0 ? (
-            <details className="sidebar__section" open>
-              <summary>🎞️ Subtitles</summary>
-              <ul className="sidebar__list">
-                {subtitleJobs.map((job) => (
-                  <SidebarJobRow
-                    key={job.jobId}
-                    job={job}
-                    activeJobId={activeJobId}
-                    onSelectJob={onSelectJob}
-                    onOpenPlayer={onOpenPlayer}
-                  />
-                ))}
-              </ul>
-            </details>
-          ) : null}
-          {youtubeDubJobs.length > 0 ? (
-            <details className="sidebar__section" open>
-              <summary>📺 Videos</summary>
-              <ul className="sidebar__list">
-                {youtubeDubJobs.map((job) => (
-                  <SidebarJobRow
-                    key={job.jobId}
-                    job={job}
-                    activeJobId={activeJobId}
-                    onSelectJob={onSelectJob}
-                    onOpenPlayer={onOpenPlayer}
-                  />
-                ))}
-              </ul>
-            </details>
-          ) : null}
-        </div>
-      </details>
+      <SidebarJobOverview
+        sidebarJobs={sidebarJobs}
+        activeJobId={activeJobId}
+        onSelectJob={onSelectJob}
+        onOpenPlayer={onOpenPlayer}
+      />
       {isAdmin ? (
         <SidebarAdminLinks
           selectedView={selectedView}

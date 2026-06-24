@@ -188,7 +188,7 @@ Large Web UI hotspots to split before redesign work:
   rendered coverage for panel and fullscreen placement. Chapter active-id and
   jump-target resolution now live in `web/src/components/player-panel/utils.ts`
   with focused utility coverage.
-- `web/src/components/Sidebar.tsx` - 154 lines. Status: pipeline-view
+- `web/src/components/Sidebar.tsx` - 100 lines. Status: pipeline-view
   detection, sidebar language/label/status/stage/glyph/progress resolution,
   and image-wait status now live in
   `web/src/components/sidebar/sidebarUtils.ts` with focused Vitest coverage.
@@ -201,6 +201,8 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/sidebar/SidebarCreationLinks.tsx` with focused rendered
   coverage. Admin navigation and observability links now live in
   `web/src/components/sidebar/SidebarAdminLinks.tsx` with focused rendered
+  coverage. Job overview bucketing and section rendering now live in
+  `web/src/components/sidebar/SidebarJobOverview.tsx` with focused rendered
   coverage.
 - `web/src/components/book-narration/BookNarrationForm.tsx` - 708 lines.
   Status: recent-job path normalization, resume-window inference, latest
