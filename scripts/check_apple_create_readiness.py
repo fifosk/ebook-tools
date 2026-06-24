@@ -11,6 +11,7 @@ import ssl
 import sys
 from typing import Any
 from urllib import error, parse, request
+from datetime import datetime
 
 
 DEFAULT_API_BASE_URL = "https://api.langtools.fifosk.synology.me"
@@ -44,6 +45,9 @@ REQUIRED_BOOK_LANGUAGE_SENTINELS = (
     "Chinese (Traditional)",
     "Persian",
 )
+SUBTITLE_SOURCE_FORMATS = {"ass", "srt", "vtt"}
+PREFERRED_SUBTITLE_DEFAULT_FORMATS = {"srt", "vtt"}
+YOUTUBE_PLAYABLE_SUBTITLE_FORMATS = {"ass", "srt", "vtt", "sub"}
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -178,6 +182,129 @@ def count_youtube_pairs(payload: Any) -> tuple[int, int]:
     return video_count, subtitle_count
 
 
+def parse_modified_timestamp(value: Any, fallback: float) -> float:
+    if not isinstance(value, str) or not value.strip():
+        return fallback
+    try:
+        return datetime.fromisoformat(value.strip().replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return fallback
+
+
+def normalized_format(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def preferred_epub(payload: Any) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        return None
+    ebooks = payload.get("ebooks")
+    if not isinstance(ebooks, list):
+        return None
+    candidates = [
+        entry
+        for entry in ebooks
+        if isinstance(entry, dict)
+        and str(entry.get("type") or "").strip().lower() == "file"
+        and str(entry.get("path") or "").strip()
+    ]
+    if not candidates:
+        return None
+    return sorted(
+        candidates,
+        key=lambda entry: (
+            -parse_modified_timestamp(entry.get("modified_at"), float("-inf")),
+            str(entry.get("path") or "").casefold(),
+        ),
+    )[0]
+
+
+def subtitle_source_candidates(payload: Any) -> list[dict[str, Any]]:
+    if not isinstance(payload, dict):
+        return []
+    sources = payload.get("sources")
+    if not isinstance(sources, list):
+        return []
+    return [
+        entry
+        for entry in sources
+        if isinstance(entry, dict)
+        and str(entry.get("path") or "").strip()
+        and normalized_format(entry.get("format")) in SUBTITLE_SOURCE_FORMATS
+    ]
+
+
+def preferred_subtitle_source(payload: Any) -> dict[str, Any] | None:
+    candidates = subtitle_source_candidates(payload)
+    preferred = [
+        entry
+        for entry in candidates
+        if normalized_format(entry.get("format")) in PREFERRED_SUBTITLE_DEFAULT_FORMATS
+    ]
+    pool = preferred or candidates
+    if not pool:
+        return None
+    return sorted(
+        pool,
+        key=lambda entry: (
+            -parse_modified_timestamp(entry.get("modified_at"), 0.0),
+            str(entry.get("path") or "").casefold(),
+        ),
+    )[0]
+
+
+def playable_youtube_subtitles(video: Any) -> list[dict[str, Any]]:
+    if not isinstance(video, dict):
+        return []
+    subtitles = video.get("subtitles")
+    if not isinstance(subtitles, list):
+        return []
+    return [
+        sub
+        for sub in subtitles
+        if isinstance(sub, dict)
+        and str(sub.get("path") or "").strip()
+        and normalized_format(sub.get("format")) in YOUTUBE_PLAYABLE_SUBTITLE_FORMATS
+    ]
+
+
+def preferred_youtube_subtitle(video: Any) -> dict[str, Any] | None:
+    candidates = playable_youtube_subtitles(video)
+    if not candidates:
+        return None
+    return next(
+        (
+            sub for sub in candidates
+            if str(sub.get("language") or "").strip().lower().startswith("en")
+        ),
+        candidates[0],
+    )
+
+
+def preferred_youtube_selection(payload: Any) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    if not isinstance(payload, dict):
+        return None, None
+    videos = payload.get("videos")
+    if not isinstance(videos, list) or not videos:
+        return None, None
+    video = next(
+        (
+            candidate for candidate in videos
+            if isinstance(candidate, dict)
+            and str(candidate.get("path") or "").strip()
+            and playable_youtube_subtitles(candidate)
+        ),
+        next(
+            (
+                candidate for candidate in videos
+                if isinstance(candidate, dict) and str(candidate.get("path") or "").strip()
+            ),
+            None,
+        ),
+    )
+    return video, preferred_youtube_subtitle(video)
+
+
 def normalized_language_names(values: Any) -> set[str]:
     if not isinstance(values, list):
         return set()
@@ -246,11 +373,16 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
     )
     book_options = json_request(api_base_url, EXPECTED_BOOK_OPTIONS_PATH, token=token, timeout=timeout)
     youtube_videos, youtube_subtitles = count_youtube_pairs(youtube)
+    default_youtube_video, default_youtube_subtitle = preferred_youtube_selection(youtube)
     return {
         "epubs": count_epubs(files),
         "subtitle_sources": count_subtitle_sources(subtitles),
         "youtube_videos": youtube_videos,
         "youtube_subtitles": youtube_subtitles,
+        "default_epub_ready": preferred_epub(files) is not None,
+        "default_subtitle_source_ready": preferred_subtitle_source(subtitles) is not None,
+        "default_youtube_video_ready": default_youtube_video is not None,
+        "default_youtube_subtitle_ready": default_youtube_subtitle is not None,
         **language_inventory(book_options),
     }
 
@@ -263,6 +395,12 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         missing.append("backend-visible subtitle sources")
     if summary.get("youtube_videos", 0) <= 0 or summary.get("youtube_subtitles", 0) <= 0:
         missing.append("YouTube/NAS videos with playable subtitles")
+    if not summary.get("default_epub_ready"):
+        missing.append("default Narrate EPUB source")
+    if not summary.get("default_subtitle_source_ready"):
+        missing.append("default subtitle source")
+    if not summary.get("default_youtube_video_ready") or not summary.get("default_youtube_subtitle_ready"):
+        missing.append("default YouTube/NAS video+subtitle selection")
     if summary.get("book_input_languages", 0) < MIN_SUPPORTED_BOOK_LANGUAGES:
         missing.append("broad book input language options")
     if summary.get("book_output_languages", 0) < MIN_SUPPORTED_BOOK_LANGUAGES:
@@ -317,6 +455,9 @@ def main(argv: list[str] | None = None) -> int:
         f"subtitle_sources={summary['subtitle_sources']} "
         f"youtube_videos={summary['youtube_videos']} "
         f"youtube_subtitles={summary['youtube_subtitles']} "
+        f"default_epub_ready={summary['default_epub_ready']} "
+        f"default_subtitle_source_ready={summary['default_subtitle_source_ready']} "
+        f"default_youtube_pair_ready={summary['default_youtube_video_ready'] and summary['default_youtube_subtitle_ready']} "
         f"book_input_languages={summary['book_input_languages']} "
         f"book_output_languages={summary['book_output_languages']}"
     )

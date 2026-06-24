@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.24.27",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-ass-server-sources",
+                    title: "Create lists ASS subtitles",
+                    detail: "Apple Create now keeps backend-visible ASS subtitle files selectable for subtitle jobs while still preferring SRT and VTT as default server sources when they are available."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-right-pane-job-type",
                     title: "Create moves job type right",
                     detail: "On iPad and local Mac Designed for iPad, Apple Create now keeps the job type picker with the right-hand job settings pane so the left setup pane can stay focused on source and metadata."

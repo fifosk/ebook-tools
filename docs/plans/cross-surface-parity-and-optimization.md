@@ -390,7 +390,9 @@ After Narrate Ebook:
   through `/api/subtitles/jobs`; the native metadata section now also exposes
   an editable lookup filename before lookup/refresh plus TV metadata cache
   clearing, editable TVMaze poster/episode-still artwork URL previews, and
-  TMDB/IMDb ID edits. Native time fields validate and normalize Web-style
+  TMDB/IMDb ID edits. Server-side ASS sources now stay visible in Apple Create
+  too, while SRT/VTT remain preferred defaults when available to match Web
+  source selection. Native time fields validate and normalize Web-style
   `MM:SS`, `HH:MM:SS`, and `+offset` values before submit.
 - Generated book job creation on iPad. Status: Apple Create submits
   generated-book jobs through `/api/books/jobs`; generated-book mode now also

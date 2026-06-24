@@ -1,7 +1,8 @@
 import Foundation
 
 enum AppleBookCreatePresentation {
-    private static let subtitleJobSourceFormats: Set<String> = ["srt", "vtt"]
+    private static let subtitleJobSourceFormats: Set<String> = ["ass", "srt", "vtt"]
+    private static let subtitleJobPreferredDefaultFormats: Set<String> = ["srt", "vtt"]
     private static let youtubePlayableSubtitleFormats: Set<String> = ["ass", "srt", "vtt", "sub"]
 
     static func availableCreateModes(isTV: Bool) -> [AppleCreateMode] {
@@ -27,7 +28,12 @@ enum AppleBookCreatePresentation {
     }
 
     static func preferredSubtitleSource(from response: SubtitleSourceListResponse?) -> SubtitleSourceEntry? {
-        subtitleJobSources(from: response).sorted { left, right in
+        let candidates = subtitleJobSources(from: response)
+        let preferred = candidates.filter {
+            subtitleJobPreferredDefaultFormats.contains(trimmed($0.format).lowercased())
+        }
+        let pool = preferred.isEmpty ? candidates : preferred
+        return pool.sorted { left, right in
             let leftDate = parseSubtitleSourceDate(left.modifiedAt)
             let rightDate = parseSubtitleSourceDate(right.modifiedAt)
             if leftDate != rightDate {

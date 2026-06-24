@@ -262,6 +262,26 @@ def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     assert "test-agatha-poirot-30sentences.epub" not in source
 
 
+def test_apple_create_subtitle_server_sources_match_web_ass_behavior() -> None:
+    source = _source(
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Create"
+        / "AppleBookCreateSupport.swift"
+    )
+
+    assert 'private static let subtitleJobSourceFormats: Set<String> = ["ass", "srt", "vtt"]' in source
+    assert 'private static let subtitleJobPreferredDefaultFormats: Set<String> = ["srt", "vtt"]' in source
+    assert "subtitleJobSources(from: response)" in source
+    assert "let preferred = candidates.filter" in source
+    assert "subtitleJobPreferredDefaultFormats.contains(trimmed($0.format).lowercased())" in source
+    assert "let pool = preferred.isEmpty ? candidates : preferred" in source
+    assert "return pool.sorted" in source
+
+
 def test_generated_book_create_exposes_source_context_fields() -> None:
     source = _source(CREATE_VIEW)
     support_source = _source(CREATE_VIEW_MODEL)

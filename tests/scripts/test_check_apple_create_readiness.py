@@ -48,6 +48,52 @@ def test_counts_backend_visible_sources() -> None:
     ) == (1, 1)
 
 
+def test_resolves_default_create_sources_without_paths_in_summary() -> None:
+    files = {
+        "ebooks": [
+            {"type": "file", "path": "/books/z-old.epub", "modified_at": "2026-01-01T00:00:00Z"},
+            {"type": "file", "path": "/books/a-new.epub", "modified_at": "2026-06-24T00:00:00Z"},
+            {"type": "directory", "path": "/books/folder"},
+        ]
+    }
+    subtitles = {
+        "sources": [
+            {"format": "ass", "path": "/subs/newer.ass", "modified_at": "2026-06-24T00:00:00Z"},
+            {"format": "srt", "path": "/subs/older.srt", "modified_at": "2026-01-01T00:00:00Z"},
+            {"format": "pgs", "path": "/subs/newer.sup", "modified_at": "2026-06-25T00:00:00Z"},
+        ]
+    }
+    youtube = {
+        "videos": [
+            {"path": "/nas/no-playable.mp4", "subtitles": []},
+            {
+                "path": "/nas/has-playable.mp4",
+                "subtitles": [
+                    {"format": "vtt", "path": "/nas/has-playable.fr.vtt", "language": "fr"},
+                    {"format": "srt", "path": "/nas/has-playable.en.srt", "language": "en-US"},
+                ],
+            },
+        ]
+    }
+
+    assert module.preferred_epub(files)["path"] == "/books/a-new.epub"
+    assert module.preferred_subtitle_source(subtitles)["path"] == "/subs/older.srt"
+    selected_video, selected_subtitle = module.preferred_youtube_selection(youtube)
+    assert selected_video["path"] == "/nas/has-playable.mp4"
+    assert selected_subtitle["path"] == "/nas/has-playable.en.srt"
+
+
+def test_default_subtitle_source_uses_ass_only_as_fallback() -> None:
+    assert module.preferred_subtitle_source(
+        {
+            "sources": [
+                {"format": "ass", "path": "/subs/only.ass", "modified_at": "2026-06-24T00:00:00Z"},
+                {"format": "pgs", "path": "/subs/ignored.sup", "modified_at": "2026-06-25T00:00:00Z"},
+            ]
+        }
+    )["path"] == "/subs/only.ass"
+
+
 def test_language_inventory_requires_broad_book_options() -> None:
     broad_languages = [f"Language {index}" for index in range(60)]
     for sentinel in module.REQUIRED_BOOK_LANGUAGE_SENTINELS:
@@ -93,6 +139,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "subtitle_sources": 1,
             "youtube_videos": 1,
             "youtube_subtitles": 1,
+            "default_epub_ready": True,
+            "default_subtitle_source_ready": True,
+            "default_youtube_video_ready": True,
+            "default_youtube_subtitle_ready": True,
             "book_input_languages": 65,
             "book_output_languages": 65,
             "missing_book_input_languages": [],
@@ -105,6 +155,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "subtitle_sources": 0,
             "youtube_videos": 1,
             "youtube_subtitles": 0,
+            "default_epub_ready": False,
+            "default_subtitle_source_ready": False,
+            "default_youtube_video_ready": True,
+            "default_youtube_subtitle_ready": False,
             "book_input_languages": 6,
             "book_output_languages": 6,
             "missing_book_input_languages": ["hindi"],
@@ -114,6 +168,9 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "backend-visible EPUBs",
         "backend-visible subtitle sources",
         "YouTube/NAS videos with playable subtitles",
+        "default Narrate EPUB source",
+        "default subtitle source",
+        "default YouTube/NAS video+subtitle selection",
         "broad book input language options",
         "broad book output language options",
         "book input language sentinels: hindi",
