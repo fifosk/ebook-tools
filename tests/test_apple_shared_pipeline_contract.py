@@ -19,7 +19,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" in makefile
     assert (
         "APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create "
-        "ipados-create macos-ipad-style-dry-run macos-ipad-style"
+        "ipados-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style"
     ) in makefile
     assert "apple-pipeline-contracts:" in makefile
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile

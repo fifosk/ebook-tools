@@ -65,6 +65,7 @@ cd /Users/fifo/Projects/home/apple-device-app-pipeline
 python3 scripts/run_app_owned_journey.py --app ebook-tools --list
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados-create --dry-run
+python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ios-uitests-build --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile macos-ipad-style-dry-run --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile macos-ipad-style --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile tvos --use-remote-env
@@ -230,11 +231,14 @@ run the matching repo-owned simulator build lanes:
 make build-apple-iphone-simulator
 make build-apple-ipad-simulator
 make build-apple-ios-simulators
+make build-apple-ios-uitests
 ```
 
 These compile the shared `InteractiveReader` scheme for the default iPhone and
-iPad simulator destinations and write DerivedData under `test-results/`,
-without installing to iPhone or iPad hardware.
+iPad simulator destinations, and `build-apple-ios-uitests` compiles the
+`InteractiveReaderUITests` scheme with `build-for-testing` so journey-runner
+changes can be checked without launching the full XCUITest journey. All write
+DerivedData under `test-results/` without installing to iPhone or iPad hardware.
 
 For repo-owned physical iPhone/iPad update readiness, the guarded helper can
 exercise CoreDevice paths without installing:

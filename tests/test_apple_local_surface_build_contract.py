@@ -31,7 +31,10 @@ def test_local_surface_build_gate_chains_non_physical_apple_targets() -> None:
 def test_local_surface_verification_gate_chains_contracts_and_builds_only() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
-    target_line = "verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces"
+    target_line = (
+        "verify-apple-local-surfaces: test-apple-contracts "
+        "build-apple-local-surfaces build-apple-ios-uitests"
+    )
     assert target_line in makefile
 
     target = makefile.split("verify-apple-local-surfaces:", 1)[1].split("\n\n", 1)[0]
@@ -47,6 +50,7 @@ def test_local_surface_contract_check_covers_aggregate_gate() -> None:
     assert "build-apple-local-surfaces" in contract_check
     assert "verify-apple-local-surfaces" in contract_check
     assert "build-apple-ios-simulators" in contract_check
+    assert "build-apple-ios-uitests" in contract_check
     assert "build-apple-tvos-simulator" in contract_check
     assert "build-apple-macos-ipad-style" in contract_check
     assert "physical-device deployment" in contract_check

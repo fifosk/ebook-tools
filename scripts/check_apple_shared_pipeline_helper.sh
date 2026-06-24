@@ -49,7 +49,7 @@ assert_contains "${makefile}" "APPLE_PIPELINE_APP ?= ebook-tools" "Makefile shou
 assert_contains "${makefile}" "APPLE_PIPELINE_SMOKE_PROFILE ?= ipados" "Makefile should declare a default shared simulator smoke profile"
 assert_contains "${makefile}" "APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos" "Makefile should declare shared simulator smoke dry-run profiles"
 assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" "Makefile should declare a default app-owned journey profile"
-assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create macos-ipad-style-dry-run macos-ipad-style" "Makefile should declare app-owned journey dry-run profiles"
+assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style" "Makefile should declare app-owned journey dry-run profiles"
 assert_contains "${makefile}" "APPLE_DEVICE_PROFILE ?= ipad" "Makefile should declare the default attended device profile"
 assert_contains "${makefile}" "apple-pipeline-contracts:" "Makefile should expose the shared pipeline contract runner"
 assert_contains "${makefile}" "${contract_line}" "shared pipeline contracts should call run_app_contract_checks"

@@ -188,6 +188,7 @@ python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos
 make verify-apple-local-surfaces
 make build-apple-local-surfaces
 make build-apple-ios-simulators
+make build-apple-ios-uitests
 make build-apple-iphone-simulator
 make build-apple-ipad-simulator
 
@@ -201,6 +202,7 @@ make apple-pipeline-simulator-smoke-dry-run APPLE_PIPELINE_SMOKE_PROFILE=ipados
 make apple-pipeline-simulator-smokes-dry-run
 make apple-pipeline-owned-journeys
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create
+make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ios-uitests-build
 make apple-pipeline-owned-journeys-dry-run
 make apple-pipeline-orchestration-dry-runs
 make verify-apple-shared-pipeline

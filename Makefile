@@ -6,7 +6,7 @@
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
        apple-device-preflight apple-device-signed-build-only apple-device-deploy-dry-run \
        build-apple-iphone-simulator build-apple-ipad-simulator \
-       build-apple-ios-simulators build-apple-tvos-simulator \
+       build-apple-ios-simulators build-apple-ios-uitests build-apple-tvos-simulator \
        build-apple-local-surfaces verify-apple-local-surfaces \
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
        apple-pipeline-source-sync apple-pipeline-web-checks \
@@ -32,7 +32,7 @@ APPLE_PIPELINE_PYTHON ?= python3
 APPLE_PIPELINE_SMOKE_PROFILE ?= ipados
 APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos
 APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados
-APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create macos-ipad-style-dry-run macos-ipad-style
+APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style
 APPLE_DEVICE_PROFILE ?= ipad
 
 # ── Full suite ───────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ test-apple-contracts:
 
 build-apple-local-surfaces: build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style
 
-verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces
+verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces build-apple-ios-uitests
 
 apple-pipeline-contracts:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"
@@ -293,8 +293,18 @@ IPAD_DESTINATION ?= 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)'
 IPAD_E2E_RESULT = $(CURDIR)/test-results/ipad-e2e.xcresult
 IPAD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-ipad
 IPAD_BUILD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-ipad-build
+IOS_UITEST_BUILD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-ios-uitests-build
 
 build-apple-ios-simulators: build-apple-iphone-simulator build-apple-ipad-simulator
+
+build-apple-ios-uitests:
+	@mkdir -p test-results
+	$(XCBUILD) -quiet build-for-testing \
+		-project $(XCPROJ) \
+		-scheme InteractiveReaderUITests \
+		-configuration Debug \
+		-destination $(IPAD_DESTINATION) \
+		-derivedDataPath $(IOS_UITEST_BUILD_DERIVED_DATA)
 
 build-apple-ipad-simulator:
 	@mkdir -p test-results
