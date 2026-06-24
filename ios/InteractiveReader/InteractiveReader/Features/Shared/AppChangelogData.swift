@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.24.27",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-media-default-readiness",
+                    title: "Create checks media defaults",
+                    detail: "Apple Create readiness now verifies that the backend advertises shared subtitle and YouTube dubbing processing defaults before simulator journeys run."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-ass-server-sources",
                     title: "Create lists ASS subtitles",
                     detail: "Apple Create now keeps backend-visible ASS subtitle files selectable for subtitle jobs while still preferring SRT and VTT as default server sources when they are available."

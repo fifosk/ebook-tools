@@ -132,6 +132,73 @@ def test_language_inventory_requires_broad_book_options() -> None:
     ]
 
 
+def test_media_job_defaults_inventory_requires_cross_surface_defaults() -> None:
+    assert module.media_job_defaults_inventory(
+        {
+            "subtitle_defaults": {
+                "worker_count": 12,
+                "batch_size": 22,
+                "translation_batch_size": 8,
+                "ass_font_size": 64,
+                "ass_emphasis_scale": 1.6,
+            },
+            "youtube_dub_defaults": {
+                "original_mix_percent": 20,
+                "flush_sentences": 18,
+                "translation_batch_size": 6,
+                "split_batches": True,
+                "stitch_batches": False,
+                "target_height": 720,
+                "preserve_aspect_ratio": True,
+            },
+        }
+    ) == {
+        "subtitle_job_defaults_ready": True,
+        "youtube_dub_defaults_ready": True,
+        "subtitle_job_defaults_errors": [],
+        "youtube_dub_defaults_errors": [],
+    }
+
+    assert module.media_job_defaults_inventory(
+        {
+            "subtitle_defaults": {
+                "worker_count": 0,
+                "batch_size": "many",
+                "translation_batch_size": 51,
+                "ass_font_size": 8,
+                "ass_emphasis_scale": 3.1,
+            },
+            "youtube_dub_defaults": {
+                "original_mix_percent": -1,
+                "flush_sentences": 0,
+                "translation_batch_size": 0,
+                "split_batches": "yes",
+                "stitch_batches": True,
+                "target_height": 1080,
+                "preserve_aspect_ratio": None,
+            },
+        }
+    ) == {
+        "subtitle_job_defaults_ready": False,
+        "youtube_dub_defaults_ready": False,
+        "subtitle_job_defaults_errors": [
+            "worker_count",
+            "batch_size",
+            "translation_batch_size",
+            "ass_font_size",
+            "ass_emphasis_scale",
+        ],
+        "youtube_dub_defaults_errors": [
+            "original_mix_percent",
+            "flush_sentences",
+            "translation_batch_size",
+            "split_batches",
+            "preserve_aspect_ratio",
+            "target_height",
+        ],
+    }
+
+
 def test_validate_summary_reports_missing_create_sources() -> None:
     assert module.validate_summary(
         {
@@ -147,6 +214,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "book_output_languages": 65,
             "missing_book_input_languages": [],
             "missing_book_output_languages": [],
+            "subtitle_job_defaults_ready": True,
+            "youtube_dub_defaults_ready": True,
+            "subtitle_job_defaults_errors": [],
+            "youtube_dub_defaults_errors": [],
         }
     ) == []
     assert module.validate_summary(
@@ -163,6 +234,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "book_output_languages": 6,
             "missing_book_input_languages": ["hindi"],
             "missing_book_output_languages": ["persian"],
+            "subtitle_job_defaults_ready": False,
+            "youtube_dub_defaults_ready": False,
+            "subtitle_job_defaults_errors": ["batch_size"],
+            "youtube_dub_defaults_errors": ["target_height"],
         }
     ) == [
         "backend-visible EPUBs",
@@ -175,6 +250,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "broad book output language options",
         "book input language sentinels: hindi",
         "book output language sentinels: persian",
+        "subtitle job processing defaults: batch_size",
+        "YouTube dubbing processing defaults: target_height",
     ]
 
 
@@ -236,6 +313,66 @@ def test_fetch_readiness_checks_runtime_before_inventory(monkeypatch) -> None:
         raise AssertionError("fetch_readiness should fail on missing runtime Create contract")
 
     assert paths == ["/api/system/runtime"]
+
+
+def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) -> None:
+    paths: list[str] = []
+
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        paths.append(path)
+        if path == "/api/system/runtime":
+            return {"creation": dict(module.EXPECTED_CREATE_PATHS)}
+        if path == "/api/pipelines/files":
+            return {"ebooks": [{"type": "file", "path": "/books/current.epub"}]}
+        if path == "/api/subtitles/sources":
+            return {"sources": [{"format": "srt", "path": "/subs/current.srt"}]}
+        if path == "/api/subtitles/youtube/library":
+            return {
+                "videos": [
+                    {
+                        "path": "/nas/video.mp4",
+                        "subtitles": [{"format": "srt", "path": "/nas/video.en.srt"}],
+                    }
+                ]
+            }
+        if path == module.EXPECTED_BOOK_OPTIONS_PATH:
+            broad_languages = [f"Language {index}" for index in range(60)]
+            broad_languages.extend(module.REQUIRED_BOOK_LANGUAGE_SENTINELS)
+            return {
+                "supported_input_languages": broad_languages,
+                "supported_output_languages": broad_languages,
+                "subtitle_defaults": {
+                    "worker_count": 10,
+                    "batch_size": 20,
+                    "translation_batch_size": 10,
+                    "ass_font_size": 56,
+                    "ass_emphasis_scale": 1.3,
+                },
+                "youtube_dub_defaults": {
+                    "original_mix_percent": 5,
+                    "flush_sentences": 10,
+                    "translation_batch_size": 10,
+                    "split_batches": True,
+                    "stitch_batches": True,
+                    "target_height": 480,
+                    "preserve_aspect_ratio": True,
+                },
+            }
+        raise AssertionError(f"unexpected path {path}")
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    summary = module.fetch_readiness("https://api.example.test", "token", 1.0)
+
+    assert paths == [
+        "/api/system/runtime",
+        "/api/pipelines/files",
+        "/api/subtitles/sources",
+        "/api/subtitles/youtube/library",
+        "/api/books/options",
+    ]
+    assert summary["subtitle_job_defaults_ready"] is True
+    assert summary["youtube_dub_defaults_ready"] is True
 
 
 def test_env_file_parsing_does_not_require_dotenv(tmp_path: Path) -> None:

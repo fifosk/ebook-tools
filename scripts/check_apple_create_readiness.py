@@ -48,6 +48,7 @@ REQUIRED_BOOK_LANGUAGE_SENTINELS = (
 SUBTITLE_SOURCE_FORMATS = {"ass", "srt", "vtt"}
 PREFERRED_SUBTITLE_DEFAULT_FORMATS = {"srt", "vtt"}
 YOUTUBE_PLAYABLE_SUBTITLE_FORMATS = {"ass", "srt", "vtt", "sub"}
+YOUTUBE_TARGET_HEIGHTS = {320, 480, 720}
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -337,6 +338,80 @@ def language_inventory(payload: Any) -> dict[str, Any]:
     }
 
 
+def _number_in_range(
+    payload: dict[str, Any],
+    key: str,
+    *,
+    minimum: float,
+    maximum: float | None = None,
+) -> bool:
+    value = payload.get(key)
+    if isinstance(value, bool):
+        return False
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return False
+    if numeric < minimum:
+        return False
+    if maximum is not None and numeric > maximum:
+        return False
+    return True
+
+
+def validate_subtitle_defaults(payload: Any) -> list[str]:
+    if not isinstance(payload, dict):
+        return ["subtitle_defaults missing"]
+    errors: list[str] = []
+    checks = {
+        "worker_count": (1, 32),
+        "batch_size": (1, 500),
+        "translation_batch_size": (1, 50),
+        "ass_font_size": (12, 120),
+        "ass_emphasis_scale": (1.0, 2.5),
+    }
+    for key, (minimum, maximum) in checks.items():
+        if not _number_in_range(payload, key, minimum=minimum, maximum=maximum):
+            errors.append(key)
+    return errors
+
+
+def validate_youtube_dub_defaults(payload: Any) -> list[str]:
+    if not isinstance(payload, dict):
+        return ["youtube_dub_defaults missing"]
+    errors: list[str] = []
+    numeric_checks = {
+        "original_mix_percent": (0, 100),
+        "flush_sentences": (1, 200),
+        "translation_batch_size": (1, 50),
+    }
+    for key, (minimum, maximum) in numeric_checks.items():
+        if not _number_in_range(payload, key, minimum=minimum, maximum=maximum):
+            errors.append(key)
+    for key in ("split_batches", "stitch_batches", "preserve_aspect_ratio"):
+        if not isinstance(payload.get(key), bool):
+            errors.append(key)
+    target_height = payload.get("target_height")
+    if isinstance(target_height, bool) or target_height not in YOUTUBE_TARGET_HEIGHTS:
+        errors.append("target_height")
+    return errors
+
+
+def media_job_defaults_inventory(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        subtitle_errors = ["subtitle_defaults missing"]
+        youtube_errors = ["youtube_dub_defaults missing"]
+    else:
+        subtitle_errors = validate_subtitle_defaults(payload.get("subtitle_defaults"))
+        youtube_errors = validate_youtube_dub_defaults(payload.get("youtube_dub_defaults"))
+    return {
+        "subtitle_job_defaults_ready": not subtitle_errors,
+        "youtube_dub_defaults_ready": not youtube_errors,
+        "subtitle_job_defaults_errors": subtitle_errors,
+        "youtube_dub_defaults_errors": youtube_errors,
+    }
+
+
 def validate_runtime_create_contract(payload: Any) -> list[str]:
     if not isinstance(payload, dict):
         return ["runtime descriptor was not a JSON object"]
@@ -384,6 +459,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         "default_youtube_video_ready": default_youtube_video is not None,
         "default_youtube_subtitle_ready": default_youtube_subtitle is not None,
         **language_inventory(book_options),
+        **media_job_defaults_inventory(book_options),
     }
 
 
@@ -411,6 +487,14 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
     missing_output = summary.get("missing_book_output_languages")
     if isinstance(missing_output, list) and missing_output:
         missing.append("book output language sentinels: " + ", ".join(missing_output))
+    if not summary.get("subtitle_job_defaults_ready"):
+        errors = summary.get("subtitle_job_defaults_errors")
+        suffix = ": " + ", ".join(errors) if isinstance(errors, list) and errors else ""
+        missing.append("subtitle job processing defaults" + suffix)
+    if not summary.get("youtube_dub_defaults_ready"):
+        errors = summary.get("youtube_dub_defaults_errors")
+        suffix = ": " + ", ".join(errors) if isinstance(errors, list) and errors else ""
+        missing.append("YouTube dubbing processing defaults" + suffix)
     return missing
 
 
@@ -459,7 +543,9 @@ def main(argv: list[str] | None = None) -> int:
         f"default_subtitle_source_ready={summary['default_subtitle_source_ready']} "
         f"default_youtube_pair_ready={summary['default_youtube_video_ready'] and summary['default_youtube_subtitle_ready']} "
         f"book_input_languages={summary['book_input_languages']} "
-        f"book_output_languages={summary['book_output_languages']}"
+        f"book_output_languages={summary['book_output_languages']} "
+        f"subtitle_job_defaults_ready={summary['subtitle_job_defaults_ready']} "
+        f"youtube_dub_defaults_ready={summary['youtube_dub_defaults_ready']}"
     )
     if missing:
         print(

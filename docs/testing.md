@@ -117,11 +117,13 @@ and then execute the `create_readiness.json` journey, which verifies Narrate
 EPUB, subtitle, and YouTube dubbing defaults from backend-visible sources.
 
 The preflight verifies backend-visible EPUBs, subtitle sources, YouTube/NAS
-video subtitle pairs, and the broad book language inventory from
-`/api/books/options`. It fails if the Create contract regresses to a small
-language list, including the iPad-visible six-language regression. The native
-Create readiness journey also selects `Hindi` in the target-language picker so
-the simulator lane exercises the expanded Apple picker, not only the backend
+video subtitle pairs, the broad book language inventory, and the shared
+subtitle/YouTube dubbing processing defaults from `/api/books/options`. It
+fails if the Create contract regresses to a small language list, including the
+iPad-visible six-language regression, or if the backend stops advertising the
+media-job defaults used by Web and Apple creation forms. The native Create
+readiness journey also selects `Hindi` in the target-language picker so the
+simulator lane exercises the expanded Apple picker, not only the backend
 contract.
 
 Latest result on June 21, 2026: `InteractiveReaderUITests/JourneyTests/testJourney`
