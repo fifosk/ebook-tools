@@ -77,7 +77,10 @@ Large Web UI hotspots to split before redesign work:
   coverage. Translation model inventory loading, model-load error handling, and
   selected translation/transliteration provider/model state now live in
   `web/src/pages/video-dubbing/useVideoDubbingModelState.ts` with focused hook
-  coverage.
+  coverage. Clip-window, mix, resolution, batch/flush, split/stitch,
+  transliteration, lookup-cache, backend-default, and output-prefill state now
+  live in `web/src/pages/video-dubbing/useVideoDubbingOutputState.ts` with
+  focused hook coverage.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style
