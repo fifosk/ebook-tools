@@ -375,7 +375,7 @@ async def delete_pipeline_ebook(
     _ensure_editor(request_user)
     with context_provider.activation({}, {}) as context:
         books_dir = context.books_dir
-        target = (books_dir / payload.path).resolve()
+        target = (books_dir / payload.path).resolve(strict=False)
 
         try:
             target.relative_to(books_dir)
@@ -386,10 +386,7 @@ async def delete_pipeline_ebook(
             ) from exc
 
         if not target.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Ebook not found",
-            )
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
 
         if not target.is_file():
             raise HTTPException(
@@ -399,6 +396,8 @@ async def delete_pipeline_ebook(
 
         try:
             target.unlink()
+        except FileNotFoundError:
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
         except OSError as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

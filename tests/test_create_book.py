@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -89,6 +90,14 @@ class _StubRuntimeContextProvider:
         overrides: dict[str, object] | None = None,
     ):
         return cfg.build_runtime_context(dict(config), overrides or {})
+
+    @contextmanager
+    def activation(
+        self,
+        updates: dict[str, object] | None = None,
+        overrides: dict[str, object] | None = None,
+    ):
+        yield self.build_context(self.resolve_config(updates), overrides)
 
 
 class _RecordingJobManager:
@@ -201,6 +210,56 @@ def test_pipeline_file_listing_tolerates_root_scan_failure(
 
     assert _list_ebook_files(books_dir) == []
     assert _list_output_entries(output_dir) == []
+
+
+def test_delete_pipeline_ebook_is_idempotent_for_missing_in_scope_file(tmp_path: Path) -> None:
+    app = create_app()
+    user = UserRecord(username="editor", password_hash="", roles=["editor"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    books_dir = tmp_path / "books"
+    books_dir.mkdir()
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+
+    try:
+        with TestClient(app) as client:
+            response = client.request(
+                "DELETE",
+                "/api/pipelines/files",
+                json={"path": "vanished.epub"},
+                headers={"Authorization": "Bearer valid-token"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 204
+
+
+def test_delete_pipeline_ebook_rejects_missing_file_outside_books_root(tmp_path: Path) -> None:
+    app = create_app()
+    user = UserRecord(username="editor", password_hash="", roles=["editor"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    (tmp_path / "books").mkdir()
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+
+    try:
+        with TestClient(app) as client:
+            response = client.request(
+                "DELETE",
+                "/api/pipelines/files",
+                json={"path": "../outside.epub"},
+                headers={"Authorization": "Bearer valid-token"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid ebook path"
 
 
 def test_book_generation_job_schema_accepts_source_context() -> None:
