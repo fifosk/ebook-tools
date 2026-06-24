@@ -361,3 +361,32 @@ def test_make_full_entitlement_execute_targets_pass_required_inputs() -> None:
     assert '--app-profile "/tmp/app.mobileprovision"' in output
     assert '--extension-profile "/tmp/extension.mobileprovision"' in output
     assert '--signing-identity "Apple Development: Test User (TEAMID)"' in output
+
+
+def test_make_full_entitlement_fallback_install_target_passes_guarded_inputs() -> None:
+    result = subprocess.run(
+        [
+            "make",
+            "--no-print-directory",
+            "-n",
+            "apple-device-full-entitlement-fallback-install",
+            "APPLE_DEVICE_PROFILE=ipad",
+            "APPLE_DEVICE_ID=TEST-IPAD",
+            "APPLE_DEVICE_SIGNED_ARTIFACT_PATH=/tmp/InteractiveReader.app",
+            "APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=12",
+        ],
+        cwd=ROOT,
+        check=True,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+
+    output = result.stdout
+    assert "bash scripts/apple_unattended_device_update.sh" in output
+    assert '--profile "ipad"' in output
+    assert '--device "TEST-IPAD"' in output
+    assert "--install" in output
+    assert "--launch" in output
+    assert '--launch-console-timeout "12"' in output
+    assert "--fallback-to-signed-artifact" in output
+    assert '--signed-artifact-path "/tmp/InteractiveReader.app"' in output

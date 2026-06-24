@@ -44,6 +44,10 @@ assert_contains "${makefile}" "--device \"\$(APPLE_DEVICE_ID)\"" "Makefile plann
 assert_contains "${makefile}" "--app-profile \"\$(FULL_CAPABILITY_IOS_PROFILE)\"" "Makefile planner target should pass the app provisioning profile"
 assert_contains "${makefile}" "--extension-profile \"\$(WILDCARD_IOS_EXTENSION_PROFILE)\"" "Makefile planner target should pass the extension provisioning profile"
 assert_contains "${makefile}" "--signing-identity \"\$(APPLE_DEVELOPMENT_IDENTITY)\"" "Makefile planner target should pass the signing identity"
+assert_contains "${makefile}" "apple-device-full-entitlement-fallback-install:" "Makefile should expose the full-entitlement signed-artifact fallback installer"
+assert_contains "${makefile}" "--fallback-to-signed-artifact" "Makefile fallback installer should enable the signed-artifact fallback"
+assert_contains "${makefile}" "--signed-artifact-path \"\$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)\"" "Makefile fallback installer should pass the configured signed artifact path"
+assert_contains "${makefile}" "--launch-console-timeout \"\$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)\"" "Makefile fallback installer should pass the launch crash-watch timeout"
 
 build_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --build-only)"
 assert_contains "${build_output}" "Build command:" "build-only dry run should print the build command"

@@ -178,15 +178,18 @@ use the signed-in account, install an already signed full-entitlement bundle
 without switching to the entitlement-stripping path:
 
 ```bash
-APPLE_DEVICE_ID="<device-id-or-name>" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
-  bash scripts/apple_unattended_device_update.sh \
-  --profile ipad --install --launch --launch-console-timeout 10 \
-  --fallback-to-signed-artifact \
-  --signed-artifact-path test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  make apple-device-full-entitlement-fallback-install \
+    APPLE_DEVICE_PROFILE=ipad \
+    APPLE_DEVICE_ID="<device-id-or-name>" \
+    APPLE_DEVICE_SIGNED_ARTIFACT_PATH=test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app
 ```
 
-The helper verifies the fallback app's code signature plus current bundle id,
-marketing version, and build number before calling `devicectl install`.
+The shortcut delegates to the unattended helper with
+`--fallback-to-signed-artifact`; the helper verifies the fallback app's code
+signature plus current bundle id, marketing version, and build number before
+calling `devicectl install`. Override `APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT`
+when the post-launch crash-watch should run longer than the default 10 seconds.
 
 ### Makefile Shortcuts
 

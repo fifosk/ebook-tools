@@ -27,7 +27,7 @@
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
        apple-device-preflight apple-device-signed-build-only apple-device-deploy-dry-run \
        apple-device-full-entitlement-plan apple-device-full-entitlement-build \
-       apple-device-full-entitlement-install \
+       apple-device-full-entitlement-install apple-device-full-entitlement-fallback-install \
        build-apple-iphone-simulator build-apple-ipad-simulator \
        build-apple-ios-simulators build-apple-ios-uitests build-apple-tvos-simulator \
        build-apple-office-ipad-surfaces verify-apple-office-ipad-surfaces \
@@ -62,6 +62,8 @@ APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos
 APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados
 APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create tvos-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style
 APPLE_DEVICE_PROFILE ?= ipad
+APPLE_DEVICE_SIGNED_ARTIFACT_PATH ?= test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app
+APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT ?= 10
 
 # ── Full suite ───────────────────────────────────────────────────────────
 test:
@@ -395,6 +397,16 @@ apple-device-full-entitlement-install:
 		--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)" \
 		--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)" \
 		--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"
+
+apple-device-full-entitlement-fallback-install:
+	bash scripts/apple_unattended_device_update.sh \
+		--profile "$(APPLE_DEVICE_PROFILE)" \
+		--device "$(APPLE_DEVICE_ID)" \
+		--install \
+		--launch \
+		--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)" \
+		--fallback-to-signed-artifact \
+		--signed-artifact-path "$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)"
 
 build-apple-macos-ipad-style:
 	bash scripts/apple_build_macos_ipad_style.sh

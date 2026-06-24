@@ -49,6 +49,10 @@ make apple-device-full-entitlement-plan APPLE_DEVICE_ID=<id> \
   FULL_CAPABILITY_IOS_PROFILE=<app.mobileprovision> \
   WILDCARD_IOS_EXTENSION_PROFILE=<extension.mobileprovision> \
   APPLE_DEVELOPMENT_IDENTITY="<identity>"
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  make apple-device-full-entitlement-fallback-install \
+    APPLE_DEVICE_ID=<id> \
+    APPLE_DEVICE_SIGNED_ARTIFACT_PATH=<InteractiveReader.app>
 ```
 
 The shared pipeline validates the MacBook simulator lane from the local
@@ -405,6 +409,21 @@ verifies the fallback bundle signature plus current bundle id/version/build
 before swapping the install path, so stale or partially signed artifacts fail
 before `devicectl install`.
 
+The Makefile shortcut for that remembered fallback recipe is:
+
+```bash
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  make apple-device-full-entitlement-fallback-install \
+    APPLE_DEVICE_PROFILE=ipad \
+    APPLE_DEVICE_ID="Fifo Ipad Pro" \
+    APPLE_DEVICE_SIGNED_ARTIFACT_PATH=test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app
+```
+
+It still requires an explicit physical-device deploy request and the
+`CONFIRM_PHYSICAL_DEVICE_UPDATE=YES` guard. Override
+`APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT` when a longer crash-watch window is
+needed after install.
+
 Latest attended iPad Pro deployment from June 24, 2026: `v2026.06.24.27`
 with marketing version `2026.6.24` and bundle version `2026062427`. The
 post-install `devicectl` verification reported:
@@ -487,6 +506,16 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   FULL_CAPABILITY_IOS_PROFILE="$FULL_CAPABILITY_IOS_PROFILE" \
   WILDCARD_IOS_EXTENSION_PROFILE="$WILDCARD_IOS_EXTENSION_PROFILE" \
   APPLE_DEVELOPMENT_IDENTITY="$APPLE_DEVELOPMENT_IDENTITY"
+```
+
+If the app has already been signed with the full-capability profiles and the
+next deploy only needs to reuse that verified artifact, use:
+
+```bash
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  make apple-device-full-entitlement-fallback-install \
+  APPLE_DEVICE_ID="<device-id-or-name>" \
+  APPLE_DEVICE_SIGNED_ARTIFACT_PATH=test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app
 ```
 
 The generated plan follows this sequence:

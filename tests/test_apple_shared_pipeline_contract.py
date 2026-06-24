@@ -69,6 +69,18 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)"' in makefile
     assert '--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)"' in makefile
     assert '--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"' in makefile
+    assert "APPLE_DEVICE_SIGNED_ARTIFACT_PATH ?= test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app" in makefile
+    assert "APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT ?= 10" in makefile
+    assert "apple-device-full-entitlement-fallback-install:" in makefile
+    fallback_target = makefile.split("apple-device-full-entitlement-fallback-install:", 1)[1].split("\n\n", 1)[0]
+    assert "bash scripts/apple_unattended_device_update.sh" in fallback_target
+    assert '--profile "$(APPLE_DEVICE_PROFILE)"' in fallback_target
+    assert '--device "$(APPLE_DEVICE_ID)"' in fallback_target
+    assert "--install" in fallback_target
+    assert "--launch" in fallback_target
+    assert '--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)"' in fallback_target
+    assert "--fallback-to-signed-artifact" in fallback_target
+    assert '--signed-artifact-path "$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)"' in fallback_target
 
 
 def test_shared_pipeline_verification_stays_non_physical() -> None:
@@ -149,8 +161,10 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make verify-apple-shared-pipeline",
         "make verify-apple-golden-pipeline",
         "make apple-device-full-entitlement-plan",
+        "make apple-device-full-entitlement-fallback-install",
     ]:
         assert command in docs
         assert command in developer_doc
     assert "shared Apple pipeline preflight targets" in plan
     assert "make apple-device-full-entitlement-plan" in plan
+    assert "make apple-device-full-entitlement-fallback-install" in plan
