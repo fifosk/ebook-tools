@@ -124,8 +124,8 @@ Apple Create also remembers shared input language, target languages, and
 lookup-cache defaults per API/user scope across generated book, Narrate EPUB,
 subtitle, and video jobs.
 Manual path entry remains available when the backend list is empty or a source
-is outside the default browser roots. tvOS intentionally keeps Create narrowed
-to generated-book jobs.
+is outside the default browser roots. tvOS exposes the same native Create modes
+through server/NAS-backed sources; local file import remains iOS/iPadOS-only.
 
 Create also loads `/api/audio/voices` to add language-matched gTTS, macOS, and
 Piper choices to source/target narration pickers. Preview buttons call

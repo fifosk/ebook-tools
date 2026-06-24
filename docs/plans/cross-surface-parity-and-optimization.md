@@ -8,7 +8,7 @@ Bring ebook-tools toward one coherent experience across Web, iPhone, iPad, and A
 
 - Web remains the richest creation and administration surface.
 - iPad and iPhone gain attended, native creation flows for practical job types.
-- Apple TV stays playback-first, with creation limited to safe browse/review controls.
+- Apple TV stays playback-first, with native creation limited to server/NAS-backed job setup.
 - Backend APIs stay reusable, observable, and friendly to simulator/device pipelines.
 
 ## Current Surface Inventory
@@ -512,10 +512,11 @@ Target Apple UX:
   Jobs auto-refresh loop so fresh generated-book, Narrate EPUB, subtitle, and
   YouTube jobs are immediately visible.
 
-Do not add creation to Apple TV in this milestone. Status: the tvOS browse
-picker excludes Create, and the native Create routing helper advertises no tvOS
-creation modes, keeping Apple TV playback-first even as iPhone/iPad creation
-expands.
+Keep Apple TV creation constrained to remote-friendly server/NAS workflows.
+Status: the tvOS browse picker exposes Create, the native routing helper uses
+the shared Create mode list, and local document import remains iOS/iPadOS-only
+so Apple TV can submit generated-book, Narrate EPUB, subtitle, and YouTube jobs
+from backend-visible sources without becoming the richest editing surface.
 
 ### Milestone 3: Web UI Redesign
 
