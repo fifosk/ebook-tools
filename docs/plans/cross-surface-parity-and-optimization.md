@@ -594,7 +594,10 @@ Refactor before restyling:
   `PlayerPanel.tsx` now imports tested helpers for selected text item,
   selected chunk, and active text chunk resolution from
   `web/src/components/player-panel/utils.ts`, and player preference storage now
-  uses the shared safe browser storage wrapper.
+  uses the shared safe browser storage wrapper. Original/translation audio
+  visibility persistence now lives in a focused tested hook so Web playback
+  defaults can evolve alongside Apple playback settings without growing the
+  panel coordinator.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, genre, author, sentence,
   generated-source image, and pipeline defaults from `/api/books/options`

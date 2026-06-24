@@ -62,7 +62,7 @@ import { buildPlayerPanelNavigationGroups } from './player-panel/PlayerPanelNavi
 import { useInteractiveFullscreenPreference } from './player-panel/useInteractiveFullscreenPreference';
 import { usePlayerPanelScrollMemory } from './player-panel/usePlayerPanelScrollMemory';
 import { usePlayerPanelMediaNavigation } from './player-panel/usePlayerPanelMediaNavigation';
-import { getLocalStorageItem, setLocalStorageItem } from '../utils/browserStorage';
+import { useAudioTrackVisibility } from './player-panel/useAudioTrackVisibility';
 
 type ReadingBedOverride = {
   id: string;
@@ -146,20 +146,12 @@ export default function PlayerPanel({
     memoryState,
     rememberSelection,
   });
-  const [showOriginalAudio, setShowOriginalAudio] = useState<boolean>(() => {
-    const stored = getLocalStorageItem('player.showOriginalAudio');
-    if (stored === null) {
-      return true;
-    }
-    return stored === 'true';
-  });
-  const [showTranslationAudio, setShowTranslationAudio] = useState<boolean>(() => {
-    const stored = getLocalStorageItem('player.showTranslationAudio');
-    if (stored === null) {
-      return true;
-    }
-    return stored === 'true';
-  });
+  const {
+    showOriginalAudio,
+    setShowOriginalAudio,
+    showTranslationAudio,
+    setShowTranslationAudio,
+  } = useAudioTrackVisibility();
   const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(null);
   const [panelAdvancedControlsOpen, setPanelAdvancedControlsOpen] = useState(false);
   const textScrollRef = useRef<HTMLDivElement | null>(null);
@@ -627,13 +619,6 @@ export default function PlayerPanel({
   useEffect(() => {
     onFullscreenChange?.(isInteractiveFullscreen);
   }, [isInteractiveFullscreen, onFullscreenChange]);
-
-  useEffect(() => {
-    setLocalStorageItem('player.showOriginalAudio', showOriginalAudio ? 'true' : 'false');
-  }, [showOriginalAudio]);
-  useEffect(() => {
-    setLocalStorageItem('player.showTranslationAudio', showTranslationAudio ? 'true' : 'false');
-  }, [showTranslationAudio]);
 
   const handleResetInteractiveLayout = useCallback(() => {
     setBaseFontScalePercent(DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT);
