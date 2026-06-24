@@ -50,6 +50,15 @@ CREATE_MODELS = (
     / "Create"
     / "AppleBookCreateModels.swift"
 )
+CREATE_METADATA_VIEWS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateMetadataViews.swift"
+)
 XCODE_PROJECT = ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj"
 
 
@@ -102,6 +111,21 @@ def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     assert "enum AppleBookCreatePresentation" in support_source
     assert "AppleBookCreateModels.swift in Sources" in project
     assert project.count("AppleBookCreateModels.swift in Sources") == 4
+
+
+def test_create_metadata_views_are_split_from_sections_and_target_wired() -> None:
+    metadata_source = _source(CREATE_METADATA_VIEWS)
+    sections_source = _source(CREATE_SECTIONS)
+    project = _source(XCODE_PROJECT)
+
+    assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" in metadata_source
+    assert "struct AppleBookCreateMetadataArtworkPreview: View" in metadata_source
+    assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" not in sections_source
+    assert "struct AppleBookCreateMetadataArtworkPreview: View" not in sections_source
+    assert "AppleBookCreateAdvancedMetadataJSONEditor(" in sections_source
+    assert "AppleBookCreateMetadataArtworkPreview(" in sections_source
+    assert "AppleBookCreateMetadataViews.swift in Sources" in project
+    assert project.count("AppleBookCreateMetadataViews.swift in Sources") == 4
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
@@ -359,7 +383,7 @@ def test_ios_create_languages_use_reachable_list_selector() -> None:
 
 
 def test_tvos_create_metadata_json_editor_avoids_text_editor() -> None:
-    source = _source(CREATE_SECTIONS)
+    source = _source(CREATE_METADATA_VIEWS)
     control = re.search(
         r"private var jsonEditorControl: some View \{(?P<body>.*?)\n    \}",
         source,
@@ -431,16 +455,17 @@ def test_apple_create_exposes_metadata_cache_clear_controls() -> None:
 
 def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     sections_source = _source(CREATE_SECTIONS)
+    metadata_source = _source(CREATE_METADATA_VIEWS)
     view_source = _source(CREATE_VIEW)
     view_model_source = _source(CREATE_VIEW_MODEL)
 
-    assert "private struct AppleBookCreateMetadataArtworkPreview: View" in sections_source
-    assert "AsyncImage(url: url)" in sections_source
-    assert 'accessibilityIdentifier("createMetadataArtworkPreview")' in sections_source
-    assert 'accessibilityIdentifier(item.accessibilityIdentifier)' in sections_source
-    assert "createMetadataPosterPreview" in sections_source
-    assert "createMetadataStillPreview" in sections_source
-    assert "createMetadataYoutubeThumbnailPreview" in sections_source
+    assert "struct AppleBookCreateMetadataArtworkPreview: View" in metadata_source
+    assert "AsyncImage(url: url)" in metadata_source
+    assert 'accessibilityIdentifier("createMetadataArtworkPreview")' in metadata_source
+    assert 'accessibilityIdentifier(item.accessibilityIdentifier)' in metadata_source
+    assert "createMetadataPosterPreview" in metadata_source
+    assert "createMetadataStillPreview" in metadata_source
+    assert "createMetadataYoutubeThumbnailPreview" in metadata_source
 
     assert 'DisclosureGroup("Artwork")' in sections_source
     assert "#if os(tvOS)" in sections_source
@@ -475,11 +500,11 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert "private static func updateNestedText(" in view_model_source
     assert "nested.removeValue(forKey: key)" in view_model_source
     assert "sectionDraft.removeValue(forKey: nestedKey)" in view_model_source
-    assert "private struct AppleBookCreateAdvancedMetadataJSONEditor: View" in sections_source
-    assert 'DisclosureGroup("Advanced Metadata JSON")' in sections_source
+    assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" in metadata_source
+    assert 'DisclosureGroup("Advanced Metadata JSON")' in metadata_source
     assert "@Binding var advancedMetadataJSON: String" in sections_source
     assert "let advancedMetadataErrorMessage: String?" in sections_source
-    assert "TextEditor(text: $text)" in sections_source
+    assert "TextEditor(text: $text)" in metadata_source
     assert 'disclosureIdentifier: "createSubtitleAdvancedMetadataDisclosure"' in sections_source
     assert 'textEditorIdentifier: "createSubtitleAdvancedMetadataJSONEditor"' in sections_source
     assert 'applyIdentifier: "createSubtitleAdvancedMetadataApplyButton"' in sections_source
