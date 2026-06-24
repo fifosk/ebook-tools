@@ -85,21 +85,8 @@ SENSITIVE_KEY_MARKERS = ("password", "secret", "token")
 def build_runtime_descriptor(version: str) -> dict[str, object]:
     """Return non-secret runtime facts safe for simulator/device preflights."""
 
-    payload: dict[str, object] = {
-        "status": "ok",
-        "app": "ebook-tools",
-        "service": "ebook-tools-api",
-        "version": version,
-        "healthPath": "/_health",
-        "auth": _copy_public_descriptor_section(AUTH_DESCRIPTOR),
-        "clientConfig": _copy_public_descriptor_section(CLIENT_CONFIG_DESCRIPTOR),
-        "applePipeline": _copy_public_descriptor_section(APPLE_PIPELINE_DESCRIPTOR),
-        "creation": _copy_public_descriptor_section(CREATION_DESCRIPTOR),
-        "offlineExports": _copy_public_descriptor_section(OFFLINE_EXPORTS_DESCRIPTOR),
-        "libraryActions": _copy_public_descriptor_section(LIBRARY_ACTIONS_DESCRIPTOR),
-        "playbackState": _copy_public_descriptor_section(PLAYBACK_STATE_DESCRIPTOR),
-    }
-    assert_runtime_descriptor_is_public(payload)
+    payload = _copy_runtime_descriptor_template()
+    payload["version"] = version
     return payload
 
 
@@ -146,3 +133,31 @@ def _copy_public_descriptor_section(section: Mapping[str, object]) -> dict[str, 
         key: list(value) if isinstance(value, tuple) else value
         for key, value in section.items()
     }
+
+
+def _copy_runtime_descriptor_template() -> dict[str, object]:
+    return {
+        key: (
+            _copy_public_descriptor_section(value)
+            if isinstance(value, Mapping)
+            else value
+        )
+        for key, value in _PUBLIC_RUNTIME_DESCRIPTOR_TEMPLATE.items()
+    }
+
+
+_PUBLIC_RUNTIME_DESCRIPTOR_TEMPLATE: dict[str, object] = {
+    "status": "ok",
+    "app": "ebook-tools",
+    "service": "ebook-tools-api",
+    "version": "",
+    "healthPath": "/_health",
+    "auth": AUTH_DESCRIPTOR,
+    "clientConfig": CLIENT_CONFIG_DESCRIPTOR,
+    "applePipeline": APPLE_PIPELINE_DESCRIPTOR,
+    "creation": CREATION_DESCRIPTOR,
+    "offlineExports": OFFLINE_EXPORTS_DESCRIPTOR,
+    "libraryActions": LIBRARY_ACTIONS_DESCRIPTOR,
+    "playbackState": PLAYBACK_STATE_DESCRIPTOR,
+}
+assert_runtime_descriptor_is_public(_PUBLIC_RUNTIME_DESCRIPTOR_TEMPLATE)

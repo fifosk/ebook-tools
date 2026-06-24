@@ -426,6 +426,10 @@ Optimization candidates:
   job is missing, so normal active-job media searches avoid a library sync
   lookup while preserving library fallback behavior for archived items and
   unknown-job 404s.
+- Avoid avoidable public runtime descriptor work in Apple preflight paths.
+  Status: `/api/system/runtime` now serves from a static prevalidated descriptor
+  template, only copying caller-mutable section dictionaries/lists and filling
+  the current app version per request.
 - Avoid avoidable chunk metadata reads in shared search paths. Status:
   generated media search now skips per-chunk metadata JSON reads when the
   generated chunk already carries id/range/sentence fields and a searchable

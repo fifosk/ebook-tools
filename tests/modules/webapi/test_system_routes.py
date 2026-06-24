@@ -15,6 +15,7 @@ from modules.services.job_manager import (
 from modules.user_management import AuthService, LocalUserStore, SessionManager
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import get_auth_service, get_pipeline_job_manager
+from modules.webapi import runtime_descriptor as runtime_descriptor_module
 from modules.webapi.runtime_descriptor import (
     CREATION_DESCRIPTOR,
     LIBRARY_ACTIONS_DESCRIPTOR,
@@ -145,6 +146,7 @@ def test_runtime_descriptor_returns_fresh_public_lists() -> None:
 
     first["clientConfig"]["apiBaseUrlEnvironment"].append("MUTATED")
     first["applePipeline"]["simulatorProfiles"].append("mutated")
+    first["creation"]["bookOptionsPath"] = "MUTATED"
 
     assert second["clientConfig"]["apiBaseUrlEnvironment"] == [
         "INTERACTIVE_READER_API_BASE_URL",
@@ -157,6 +159,26 @@ def test_runtime_descriptor_returns_fresh_public_lists() -> None:
         "tvos",
         "tvos-cinema",
     ]
+    assert second["creation"]["bookOptionsPath"] == "/api/books/options"
+
+
+def test_runtime_descriptor_uses_prevalidated_static_template(monkeypatch) -> None:
+    calls = []
+
+    def fail_if_called(payload: object) -> None:
+        calls.append(payload)
+        raise AssertionError("runtime descriptor guard should not run per request")
+
+    monkeypatch.setattr(
+        runtime_descriptor_module,
+        "assert_runtime_descriptor_is_public",
+        fail_if_called,
+    )
+
+    payload = build_runtime_descriptor("fast-path")
+
+    assert payload["version"] == "fast-path"
+    assert calls == []
 
 
 def test_runtime_descriptor_guard_flags_secret_like_keys() -> None:
