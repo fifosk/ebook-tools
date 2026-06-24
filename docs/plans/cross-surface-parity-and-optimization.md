@@ -207,9 +207,10 @@ Current Apple UI partially exposes:
   presentation/helper files. Create draft value types, shared language and mode
   models, history/default structs, and creation tuning/format/provider enums
   now live in `AppleBookCreateModels.swift`, while job-history payload parsing
-  lives in `AppleBookCreateHistoryParsing.swift`, keeping the support file as a
-  thin namespace and the view model focused on submission work. Advanced
-  metadata JSON editing and artwork
+  lives in `AppleBookCreateHistoryParsing.swift`; subtitle and YouTube request
+  body builders live in `AppleBookCreateMediaPayloads.swift`, keeping the
+  support file as a thin namespace and the view model focused on submission
+  work. Advanced metadata JSON editing and artwork
   preview subviews now live in `AppleBookCreateMetadataViews.swift`, trimming
   repeated metadata UI out of `AppleBookCreateSections.swift` while preserving
   the tvOS-safe JSON editor fallback. Subtitle time-range and YouTube

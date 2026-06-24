@@ -66,6 +66,8 @@
 		CREATEOUT001A0002 /* AppleBookCreateOutputSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEOUT002A0001 /* AppleBookCreateOutputSection.swift */; };
 		CREATEMEDIA001A0001 /* AppleBookCreateMediaMetadataSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMEDIA002A0001 /* AppleBookCreateMediaMetadataSections.swift */; };
 		CREATEMEDIA001A0002 /* AppleBookCreateMediaMetadataSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMEDIA002A0001 /* AppleBookCreateMediaMetadataSections.swift */; };
+		CREATEMEDIAPAY001A0001 /* AppleBookCreateMediaPayloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMEDIAPAY002A0001 /* AppleBookCreateMediaPayloads.swift */; };
+		CREATEMEDIAPAY001A0002 /* AppleBookCreateMediaPayloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMEDIAPAY002A0001 /* AppleBookCreateMediaPayloads.swift */; };
 		CREATEPAY001A0001 /* AppleBookCreatePayloadFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEPAY002A0001 /* AppleBookCreatePayloadFactory.swift */; };
 		CREATEPAY001A0002 /* AppleBookCreatePayloadFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEPAY002A0001 /* AppleBookCreatePayloadFactory.swift */; };
 		CREATEROUTE001A0001 /* AppleBookCreateRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEROUTE002A0001 /* AppleBookCreateRouting.swift */; };
@@ -680,6 +682,7 @@
 		CREATEBASIC002A0001 /* AppleBookCreateBasicSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateBasicSections.swift; sourceTree = "<group>"; };
 		CREATEOUT002A0001 /* AppleBookCreateOutputSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateOutputSection.swift; sourceTree = "<group>"; };
 		CREATEMEDIA002A0001 /* AppleBookCreateMediaMetadataSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateMediaMetadataSections.swift; sourceTree = "<group>"; };
+		CREATEMEDIAPAY002A0001 /* AppleBookCreateMediaPayloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateMediaPayloads.swift; sourceTree = "<group>"; };
 		CREATEPAY002A0001 /* AppleBookCreatePayloadFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreatePayloadFactory.swift; sourceTree = "<group>"; };
 		CREATEROUTE002A0001 /* AppleBookCreateRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateRouting.swift; sourceTree = "<group>"; };
 		CREATESRCSEL002A0001 /* AppleBookCreateSourceSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateSourceSelection.swift; sourceTree = "<group>"; };
@@ -878,6 +881,7 @@
 				CREATEBASIC002A0001 /* AppleBookCreateBasicSections.swift */,
 				CREATEOUT002A0001 /* AppleBookCreateOutputSection.swift */,
 				CREATEMEDIA002A0001 /* AppleBookCreateMediaMetadataSections.swift */,
+				CREATEMEDIAPAY002A0001 /* AppleBookCreateMediaPayloads.swift */,
 				CREATEPAY002A0001 /* AppleBookCreatePayloadFactory.swift */,
 				CREATEROUTE002A0001 /* AppleBookCreateRouting.swift */,
 				CREATESRCSEL002A0001 /* AppleBookCreateSourceSelection.swift */,
@@ -1745,6 +1749,7 @@
 				CREATEBASIC001A0001 /* AppleBookCreateBasicSections.swift in Sources */,
 				CREATEOUT001A0001 /* AppleBookCreateOutputSection.swift in Sources */,
 				CREATEMEDIA001A0001 /* AppleBookCreateMediaMetadataSections.swift in Sources */,
+				CREATEMEDIAPAY001A0001 /* AppleBookCreateMediaPayloads.swift in Sources */,
 				CREATEPAY001A0001 /* AppleBookCreatePayloadFactory.swift in Sources */,
 				CREATEROUTE001A0001 /* AppleBookCreateRouting.swift in Sources */,
 				CREATESRCSEL001A0001 /* AppleBookCreateSourceSelection.swift in Sources */,
@@ -1997,6 +2002,7 @@
 				CREATEBASIC001A0002 /* AppleBookCreateBasicSections.swift in Sources */,
 				CREATEOUT001A0002 /* AppleBookCreateOutputSection.swift in Sources */,
 				CREATEMEDIA001A0002 /* AppleBookCreateMediaMetadataSections.swift in Sources */,
+				CREATEMEDIAPAY001A0002 /* AppleBookCreateMediaPayloads.swift in Sources */,
 				CREATEPAY001A0002 /* AppleBookCreatePayloadFactory.swift in Sources */,
 				CREATEROUTE001A0002 /* AppleBookCreateRouting.swift in Sources */,
 				CREATESRCSEL001A0002 /* AppleBookCreateSourceSelection.swift in Sources */,

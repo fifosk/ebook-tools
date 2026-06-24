@@ -59,6 +59,15 @@ CREATE_PAYLOAD_FACTORY = (
     / "Create"
     / "AppleBookCreatePayloadFactory.swift"
 )
+CREATE_MEDIA_PAYLOADS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateMediaPayloads.swift"
+)
 CREATE_ROUTING = (
     ROOT
     / "ios"
@@ -479,14 +488,19 @@ def test_create_media_metadata_sections_are_split_from_create_view_and_target_wi
 
 def test_create_payload_factory_is_split_from_view_model_and_target_wired() -> None:
     factory_source = _source(CREATE_PAYLOAD_FACTORY)
+    media_payloads_source = _source(CREATE_MEDIA_PAYLOADS)
     view_model_source = _source(CREATE_VIEW_MODEL)
     project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
 
     assert "enum AppleBookCreatePayloadFactory" in factory_source
     assert "static func makeSubmission(from draft: AppleBookCreateDraft)" in factory_source
     assert "static func makePipelineSubmission(from draft: AppleNarrateEbookDraft)" in factory_source
-    assert "static func makeSubtitlePayload(from draft: AppleSubtitleJobDraft)" in factory_source
-    assert "static func makeYoutubeDubPayload(from draft: AppleYoutubeDubDraft)" in factory_source
+    assert "static func makeSubtitlePayload(from draft: AppleSubtitleJobDraft)" not in factory_source
+    assert "static func makeYoutubeDubPayload(from draft: AppleYoutubeDubDraft)" not in factory_source
+    assert "extension AppleBookCreatePayloadFactory" in media_payloads_source
+    assert "static func makeSubtitlePayload(from draft: AppleSubtitleJobDraft)" in media_payloads_source
+    assert "static func makeYoutubeDubPayload(from draft: AppleYoutubeDubDraft)" in media_payloads_source
     assert "AppleBookCreatePayloadFactory.makeSubmission(from: draft)" in view_model_source
     assert "AppleBookCreatePayloadFactory.makePipelineSubmission(from: effectiveDraft)" in view_model_source
     assert "AppleBookCreatePayloadFactory.makeSubtitlePayload(from: draft)" in view_model_source
@@ -497,6 +511,10 @@ def test_create_payload_factory_is_split_from_view_model_and_target_wired() -> N
     assert "private static func makeYoutubeDubPayload" not in view_model_source
     assert "AppleBookCreatePayloadFactory.swift in Sources" in project
     assert project.count("AppleBookCreatePayloadFactory.swift in Sources") == 4
+    assert "AppleBookCreateMediaPayloads.swift in Sources" in project
+    assert project.count("AppleBookCreateMediaPayloads.swift in Sources") == 4
+    assert "AppleBookCreatePayloadFactory.swift" in payload_script
+    assert "AppleBookCreateMediaPayloads.swift" in payload_script
 
 
 def test_create_routing_is_split_from_support_and_target_wired() -> None:
