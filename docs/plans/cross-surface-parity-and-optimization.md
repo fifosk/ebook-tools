@@ -806,8 +806,10 @@ Suggested features to evaluate after parity scaffolding:
   submission when the backend hard queue limit is reached, and refresh the
   snapshot after successful enqueue. Web Subtitle Tool and Video Dubbing now
   reuse the same intake callout and capacity gate before enqueueing their own
-  long-running jobs. The shared pipeline backend gate now includes the focused
-  system-route pytest.
+  long-running jobs. The intake status route now records token-safe duration
+  telemetry and aggregate logs for success, forbidden, and error outcomes
+  without logging user ids, auth headers, tokens, or job ids. The shared
+  pipeline backend gate now includes the focused system-route pytest.
 - Smart resume cards: show "continue listening", "newly completed", and "needs attention" across all surfaces. Status:
   Apple browse rows now surface local-only, iCloud-only, and synced resume
   evidence in the shared Library/Jobs/search row badge instead of hiding valid

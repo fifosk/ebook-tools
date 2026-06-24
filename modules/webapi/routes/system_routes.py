@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import logging
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 
@@ -28,8 +31,46 @@ from modules.services.job_manager import PipelineJobManager
 from modules.permissions import normalize_role
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 _ALLOWED_ROLES = {"admin", "editor"}
 _ALLOWED_LLM_MODEL_ROLES = {"admin", "editor", "viewer"}
+
+
+def _record_pipeline_intake_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe intake route timing if metrics are available."""
+
+    try:
+        from ..metrics import PIPELINE_INTAKE_ROUTE_DURATION
+    except Exception:
+        return
+    PIPELINE_INTAKE_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
+def _log_pipeline_intake_status(
+    *,
+    result: str,
+    started_at: float,
+    queue_depth: int | None = None,
+    active_count: int | None = None,
+    accepting_jobs: bool | None = None,
+    under_pressure: bool | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000
+    details = (
+        f"Pipeline intake status result={result} duration_ms={duration_ms:.1f}"
+    )
+    if queue_depth is not None:
+        details += f" queue_depth={queue_depth}"
+    if active_count is not None:
+        details += f" active={active_count}"
+    if accepting_jobs is not None:
+        details += f" accepting={accepting_jobs}"
+    if under_pressure is not None:
+        details += f" under_pressure={under_pressure}"
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(details)
 
 
 def _ensure_editor(request_user: RequestUserContext) -> None:
@@ -69,8 +110,29 @@ async def get_pipeline_intake_status(
 ) -> PipelineIntakeStatusResponse:
     """Return token-safe job-intake status for creation surfaces."""
 
-    _ensure_editor(request_user)
-    pressure = queue_pressure_status(job_manager)
+    started_at = time.perf_counter()
+    role = normalize_role(request_user.user_role) or ""
+    if role not in _ALLOWED_ROLES:
+        _record_pipeline_intake_route_duration("status", "forbidden", started_at)
+        _log_pipeline_intake_status(result="forbidden", started_at=started_at)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+
+    try:
+        pressure = queue_pressure_status(job_manager)
+    except Exception:
+        _record_pipeline_intake_route_duration("status", "error", started_at)
+        _log_pipeline_intake_status(result="error", started_at=started_at)
+        raise
+
+    _record_pipeline_intake_route_duration("status", "success", started_at)
+    _log_pipeline_intake_status(
+        result="success",
+        started_at=started_at,
+        queue_depth=pressure.queue_depth,
+        active_count=pressure.active_count,
+        accepting_jobs=pressure.accepting_jobs,
+        under_pressure=pressure.is_under_pressure,
+    )
     return PipelineIntakeStatusResponse(
         acceptingJobs=pressure.accepting_jobs,
         isUnderPressure=pressure.is_under_pressure,

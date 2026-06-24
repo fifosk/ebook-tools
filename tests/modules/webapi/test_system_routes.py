@@ -16,6 +16,7 @@ from modules.user_management import AuthService, LocalUserStore, SessionManager
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import get_auth_service, get_pipeline_job_manager
 from modules.webapi import runtime_descriptor as runtime_descriptor_module
+from modules.webapi.routes import system_routes as pipeline_system_routes
 from modules.webapi.runtime_descriptor import (
     CREATION_DESCRIPTOR,
     LIBRARY_ACTIONS_DESCRIPTOR,
@@ -29,6 +30,17 @@ from modules.webapi.runtime_descriptor import (
 import pytest
 
 pytestmark = pytest.mark.webapi
+
+
+class _ListLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def debug(self, message: str, *args: object, **_: object) -> None:
+        self.messages.append(message % args if args else message)
+
+    def info(self, message: str, *args: object, **_: object) -> None:
+        self.messages.append(message % args if args else message)
 
 
 class _FakeJobManager:
@@ -270,7 +282,12 @@ def test_admin_system_status_returns_queue_pressure_snapshot(admin_system_client
     }
 
 
-def test_pipeline_intake_status_returns_editor_queue_snapshot(tmp_path) -> None:
+def test_pipeline_intake_status_returns_editor_queue_snapshot(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
     auth_service = AuthService(
         LocalUserStore(storage_path=tmp_path / "users.json"),
         SessionManager(session_file=tmp_path / "sessions.json"),
@@ -300,6 +317,7 @@ def test_pipeline_intake_status_returns_editor_queue_snapshot(tmp_path) -> None:
             "/api/pipelines/intake/status",
             headers={"Authorization": f"Bearer {editor_token}"},
         )
+        metrics_response = client.get("/metrics")
 
     app.dependency_overrides.clear()
 
@@ -314,9 +332,29 @@ def test_pipeline_intake_status_returns_editor_queue_snapshot(tmp_path) -> None:
         "delayCount": 7,
     }
     assert "rejectionCount" not in response.json()
+    rendered_logs = "\n".join(logger.messages)
+    assert (
+        "Pipeline intake status result=success" in rendered_logs
+        and "queue_depth=4" in rendered_logs
+        and "active=2" in rendered_logs
+        and "accepting=True" in rendered_logs
+        and "under_pressure=True" in rendered_logs
+    )
+    assert "editor" not in rendered_logs
+    assert editor_token not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_pipeline_intake_route_duration_seconds_count{operation="status",result="success"}'
+        in metrics_response.text
+    )
 
 
-def test_pipeline_intake_status_rejects_viewer(tmp_path) -> None:
+def test_pipeline_intake_status_rejects_viewer(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
     auth_service = AuthService(
         LocalUserStore(storage_path=tmp_path / "users.json"),
         SessionManager(session_file=tmp_path / "sessions.json"),
@@ -333,10 +371,20 @@ def test_pipeline_intake_status_rejects_viewer(tmp_path) -> None:
             "/api/pipelines/intake/status",
             headers={"Authorization": f"Bearer {viewer_token}"},
         )
+        metrics_response = client.get("/metrics")
 
     app.dependency_overrides.clear()
 
     assert response.status_code == 403
+    rendered_logs = "\n".join(logger.messages)
+    assert "Pipeline intake status result=forbidden" in rendered_logs
+    assert "viewer" not in rendered_logs
+    assert viewer_token not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_pipeline_intake_route_duration_seconds_count{operation="status",result="forbidden"}'
+        in metrics_response.text
+    )
 
 
 def test_restart_request_rejects_when_pipeline_jobs_are_running(admin_system_client) -> None:
