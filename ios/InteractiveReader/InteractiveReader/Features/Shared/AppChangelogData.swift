@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.16",
+            version: "2026.06.24.17",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-local-surface-build-gate",
+                    title: "Local Apple builds get one gate",
+                    detail: "The repo now has a single non-physical build gate that chains iPhone simulator, iPad simulator, Apple TV simulator, and local Mac Designed for iPad/iPhone compile checks before attended device deploys."
+                ),
                 AppChangelogEntry(
                     id: "apple-ios-simulator-build-lanes",
                     title: "Phone and iPad builds get gates",

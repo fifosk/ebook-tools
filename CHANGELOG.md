@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.17
+
+- Advanced visible Apple app versioning to `v2026.06.24.17`.
+- Added `make build-apple-local-surfaces`, a single non-physical build gate that chains iPhone simulator, iPad simulator, Apple TV simulator, and local Mac Designed for iPad/iPhone compile checks before attended device deploys.
+
 ### 2026.06.24.16
 
 - Advanced visible Apple app versioning to `v2026.06.24.16`.

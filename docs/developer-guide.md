@@ -182,6 +182,7 @@ python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ios
 python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos
 
 # Repo-owned iPhone/iPad compile checks
+make build-apple-local-surfaces
 make build-apple-ios-simulators
 make build-apple-iphone-simulator
 make build-apple-ipad-simulator

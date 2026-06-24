@@ -149,6 +149,17 @@ and `macos-ipad-style` app-owned profiles, mapping to the dry-run and compile
 targets above. These commands resolve the local Mac destination and app product
 path without touching physical iPhone/iPad/Apple TV devices.
 
+To compile every repo-owned Apple surface that does not touch physical
+hardware, use the aggregate local build gate:
+
+```bash
+make build-apple-local-surfaces
+```
+
+This chains the iPhone simulator, iPad simulator, tvOS simulator, and local Mac
+Designed for iPad/iPhone compile checks. It is the preferred local gate before
+requesting an attended physical-device deploy.
+
 For a quick Apple TV compile check without launching the full tvOS journey, run
 the repo-owned simulator build lane:
 
@@ -194,8 +205,9 @@ This checks backend/Web/Apple language catalogue parity, iPad Create split-view
 layout wiring, the public runtime descriptor contract, preflight/config parsing,
 the Swift creation payload contract, the macOS iPad-style build helper, the
 iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the
-guarded physical-device update helper, and the XCUITest config writer without
-installing to iPhone, iPad, or Apple TV hardware.
+local Apple surface build gate, the guarded physical-device update helper, and
+the XCUITest config writer without installing to iPhone, iPad, or Apple TV
+hardware.
 
 The public runtime descriptor at `/api/system/runtime` also advertises the
 Create endpoints used by Apple surfaces (`creation.bookOptionsPath` and
