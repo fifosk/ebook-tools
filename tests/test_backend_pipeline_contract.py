@@ -37,6 +37,9 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
             "tests/test_create_book.py::test_upload_pipeline_ebook_persists_file_in_books_root",
         ),
         "test-backend-audio-routes": ("tests/modules/webapi/test_audio_routes.py",),
+        "test-backend-reading-beds": (
+            "tests/modules/webapi/test_reading_bed_routes.py",
+        ),
         "test-backend-subtitle-router": ("tests/webapi/test_subtitles_router.py",),
         "test-backend-playback-state": (
             "tests/modules/webapi/test_resume_routes.py",
@@ -71,6 +74,7 @@ def test_docs_publish_backend_pipeline_targets() -> None:
         "make test-backend-creation-templates",
         "make test-backend-pipeline-sources",
         "make test-backend-audio-routes",
+        "make test-backend-reading-beds",
         "make test-backend-subtitle-router",
         "make test-backend-playback-state",
         "make test-backend-offline-export",
