@@ -226,6 +226,7 @@ make apple-pipeline-tvos-create-readiness
 make apple-pipeline-tvos-create-readiness-dry-run
 make apple-pipeline-orchestration-dry-runs
 make verify-apple-shared-pipeline
+make verify-apple-golden-pipeline
 ```
 
 `verify-apple-shared-pipeline` runs the shared pipeline contract, backend
@@ -233,6 +234,9 @@ health/runtime, backend pytest, Web checks, and simulator/journey orchestration
 dry-runs without physical deployment. Run
 `apple-pipeline-source-sync` after the Mac Studio/runtime checkout has been
 fast-forwarded, because that check compares the local and remote Git state.
+When that source-sync check is expected to pass, `verify-apple-golden-pipeline`
+adds it in front of `verify-apple-shared-pipeline` while still avoiding
+physical-device deployment.
 `apple-pipeline-backend-tests` runs the manifest registered repo-owned
 `make test-backend-*` pytest targets and cleans generated caches.
 `apple-pipeline-web-checks` runs the

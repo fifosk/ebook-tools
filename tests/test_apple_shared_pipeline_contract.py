@@ -86,6 +86,21 @@ def test_shared_pipeline_verification_stays_non_physical() -> None:
     assert "devicectl" not in target
 
 
+def test_golden_pipeline_verification_includes_source_sync_without_physical_deploy() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    target_line = "verify-apple-golden-pipeline: apple-pipeline-source-sync verify-apple-shared-pipeline"
+    assert target_line in makefile
+
+    target = makefile.split("verify-apple-golden-pipeline:", 1)[1].split("\n\n", 1)[0]
+    assert "apple-pipeline-source-sync" in target
+    assert "verify-apple-shared-pipeline" in target
+    assert "apple-device-update" not in target
+    assert "run_app_device_deploy.py" not in target
+    assert "apple_unattended_device_update.sh" not in target
+    assert "devicectl" not in target
+
+
 def test_shared_pipeline_contract_check_covers_targets() -> None:
     contract_check = CONTRACT_CHECK.read_text(encoding="utf-8")
 
@@ -97,6 +112,7 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "run_app_simulator_smoke.py" in contract_check
     assert "run_app_owned_journey.py" in contract_check
     assert "verify-apple-shared-pipeline" in contract_check
+    assert "verify-apple-golden-pipeline" in contract_check
     assert "physical-device deployment" in contract_check
 
 
@@ -122,6 +138,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-pipeline-tvos-create-readiness-dry-run",
         "make apple-pipeline-orchestration-dry-runs",
         "make verify-apple-shared-pipeline",
+        "make verify-apple-golden-pipeline",
         "make apple-device-full-entitlement-plan",
     ]:
         assert command in docs

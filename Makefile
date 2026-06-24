@@ -25,7 +25,7 @@
        apple-pipeline-owned-journeys-dry-run apple-pipeline-ipad-create-readiness \
        apple-pipeline-ipad-create-readiness-dry-run apple-pipeline-tvos-create-readiness \
        apple-pipeline-tvos-create-readiness-dry-run apple-pipeline-orchestration-dry-runs \
-       verify-apple-shared-pipeline \
+       verify-apple-shared-pipeline verify-apple-golden-pipeline \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-iphone-create-readiness test-e2e-ipad-create-readiness \
@@ -261,6 +261,8 @@ apple-pipeline-tvos-create-readiness-dry-run:
 apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run
 
 verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs
+
+verify-apple-golden-pipeline: apple-pipeline-source-sync verify-apple-shared-pipeline
 
 apple-device-preflight:
 	bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only

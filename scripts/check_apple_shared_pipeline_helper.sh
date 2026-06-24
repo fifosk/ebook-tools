@@ -44,6 +44,7 @@ ipad_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run
 tvos_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create'
 tvos_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create'
 verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs"
+golden_verify_line="verify-apple-golden-pipeline: apple-pipeline-source-sync verify-apple-shared-pipeline"
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
 preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only'
@@ -90,6 +91,7 @@ assert_contains "${makefile}" "apple-pipeline-tvos-create-readiness-dry-run:" "M
 assert_contains "${makefile}" "${tvos_create_readiness_dry_run_line}" "tvOS Create-readiness dry-run shortcut should dry-run the tvos-create app-owned journey"
 assert_contains "${makefile}" "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run" "orchestration dry-runs should compose simulator and app-owned journey dry-runs"
 assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts, backend checks, backend tests, Web checks, and orchestration dry-runs"
+assert_contains "${makefile}" "${golden_verify_line}" "golden pipeline verification should add source-sync before the non-physical shared pipeline gate"
 assert_contains "${makefile}" "apple-device-preflight:" "Makefile should expose a non-installing device preflight helper"
 assert_contains "${makefile}" "${preflight_line}" "device preflight should route through the repo-owned CoreDevice helper"
 assert_contains "${makefile}" "apple-device-signed-build-only:" "Makefile should expose the shared signed-build gate"
@@ -103,5 +105,7 @@ assert_contains "${makefile}" '--extension-profile "$(WILDCARD_IOS_EXTENSION_PRO
 assert_contains "${makefile}" '--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"' "full-entitlement planner should pass the signing identity"
 assert_not_contains "${verify_line}" "apple-device-update" "shared pipeline verification should not depend on physical-device update targets"
 assert_not_contains "${verify_line}" "run_app_device_deploy.py" "shared pipeline verification should not route through physical-device deployment"
+assert_not_contains "${golden_verify_line}" "apple-device-update" "golden pipeline verification should not depend on physical-device update targets"
+assert_not_contains "${golden_verify_line}" "run_app_device_deploy.py" "golden pipeline verification should not route through physical-device deployment"
 
 echo "apple shared pipeline helper checks passed"
