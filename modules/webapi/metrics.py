@@ -182,6 +182,13 @@ IMAGE_NODE_ROUTE_DURATION = Histogram(
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
 )
 
+LLM_MODEL_ROUTE_DURATION = Histogram(
+    "ebook_tools_llm_model_route_duration_seconds",
+    "LLM model inventory route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
+)
+
 # ---------------------------------------------------------------------------
 # Users & sessions
 # ---------------------------------------------------------------------------

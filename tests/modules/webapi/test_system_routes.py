@@ -287,6 +287,67 @@ def test_pipeline_defaults_endpoint_rejects_viewer_with_safe_telemetry(
     )
 
 
+def test_llm_models_endpoint_records_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
+    monkeypatch.setattr(
+        pipeline_system_routes,
+        "list_available_llm_models",
+        lambda: ["ollama_local:secret-model", "lmstudio_local:private-model"],
+    )
+    app = create_app()
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/pipelines/llm-models",
+            headers={"X-User-Id": "model-viewer", "X-User-Role": "viewer"},
+        )
+        metrics_response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "models": ["ollama_local:secret-model", "lmstudio_local:private-model"]
+    }
+    rendered_logs = "\n".join(logger.messages)
+    assert "LLM model inventory result=success" in rendered_logs
+    assert "models=2" in rendered_logs
+    assert "model-viewer" not in rendered_logs
+    assert "secret-model" not in rendered_logs
+    assert "private-model" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_llm_model_route_duration_seconds_count{operation="list",result="success"}'
+        in metrics_response.text
+    )
+
+
+def test_llm_models_endpoint_rejects_guest_with_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
+    app = create_app()
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/pipelines/llm-models",
+            headers={"X-User-Id": "guest-user", "X-User-Role": "guest"},
+        )
+        metrics_response = client.get("/metrics")
+
+    assert response.status_code == 403
+    rendered_logs = "\n".join(logger.messages)
+    assert "LLM model inventory result=forbidden" in rendered_logs
+    assert "guest-user" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_llm_model_route_duration_seconds_count{operation="list",result="forbidden"}'
+        in metrics_response.text
+    )
+
+
 def test_public_runtime_descriptor_returns_non_secret_contract() -> None:
     app = create_app()
 

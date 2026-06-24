@@ -76,6 +76,18 @@ def _record_image_node_route_duration(operation: str, result: str, started_at: f
     )
 
 
+def _record_llm_model_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe LLM model route timing if metrics are available."""
+
+    try:
+        from ..metrics import LLM_MODEL_ROUTE_DURATION
+    except Exception:
+        return
+    LLM_MODEL_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
 def _log_pipeline_defaults_result(
     *,
     result: str,
@@ -89,6 +101,20 @@ def _log_pipeline_defaults_result(
         details += f" config_keys={config_keys}"
     if has_input_file is not None:
         details += f" has_input_file={has_input_file}"
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(details)
+
+
+def _log_llm_model_inventory(
+    *,
+    result: str,
+    started_at: float,
+    model_count: int | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000
+    details = f"LLM model inventory result={result} duration_ms={duration_ms:.1f}"
+    if model_count is not None:
+        details += f" models={model_count}"
     log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
     log_method(details)
 
@@ -143,11 +169,6 @@ def _ensure_editor(request_user: RequestUserContext) -> None:
     if role not in _ALLOWED_ROLES:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
-
-def _ensure_llm_model_access(request_user: RequestUserContext) -> None:
-    role = normalize_role(request_user.user_role) or ""
-    if role not in _ALLOWED_LLM_MODEL_ROLES:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 @router.get("/defaults", response_model=PipelineDefaultsResponse)
 async def get_pipeline_defaults(
@@ -234,14 +255,29 @@ async def get_llm_models(
 ) -> LLMModelListResponse:
     """Return the available LLM models from configured providers."""
 
-    _ensure_llm_model_access(request_user)
+    started_at = time.perf_counter()
+    role = normalize_role(request_user.user_role) or ""
+    if role not in _ALLOWED_LLM_MODEL_ROLES:
+        _record_llm_model_route_duration("list", "forbidden", started_at)
+        _log_llm_model_inventory(result="forbidden", started_at=started_at)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+
     try:
         models = list_available_llm_models()
     except Exception as exc:
+        _record_llm_model_route_duration("list", "error", started_at)
+        _log_llm_model_inventory(result="error", started_at=started_at)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to query LLM model list.",
         ) from exc
+
+    _record_llm_model_route_duration("list", "success", started_at)
+    _log_llm_model_inventory(
+        result="success",
+        started_at=started_at,
+        model_count=len(models),
+    )
     return LLMModelListResponse(models=models)
 
 

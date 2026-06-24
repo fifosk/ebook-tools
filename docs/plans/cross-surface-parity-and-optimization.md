@@ -685,7 +685,10 @@ Refactor before restyling:
   without logging user ids, auth headers, tokens, job ids, or configured input
   paths. The `/api/pipelines/image-nodes/availability` route now records the
   same token-safe availability telemetry with aggregate requested, available,
-  and unavailable counts, without logging image node URLs or caller identifiers. The
+  and unavailable counts, without logging image node URLs or caller identifiers.
+  The shared `/api/pipelines/llm-models` route now records token-safe model
+  inventory telemetry with aggregate model counts for Web and Apple picker
+  loads, without logging model names or caller identifiers. The
   manifest-registered `test-backend-audio-routes` target now exercises
   `/api/audio`, `/api/audio/voices`, and `/api/audio/match` with stubbed
   synthesis, so the shared pipeline catches voice inventory and preview drift
