@@ -92,10 +92,17 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
             for candidate, sub_ext in subtitle_candidates:
                 if not _subtitle_matches_video(path, candidate):
                     continue
+                try:
+                    if not candidate.is_file():
+                        continue
+                    resolved_subtitle = candidate.resolve()
+                except OSError:
+                    logger.debug("Skipping stale NAS subtitle candidate %s", candidate, exc_info=True)
+                    continue
                 language = _find_language_token(candidate)
                 subtitles.append(
                     YoutubeNasSubtitle(
-                        path=candidate.resolve(),
+                        path=resolved_subtitle,
                         language=language,
                         format=sub_ext,
                     )

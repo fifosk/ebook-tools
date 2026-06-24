@@ -140,6 +140,29 @@ def test_list_downloaded_videos_skips_stale_walked_video(
     assert [video.path.name for video in videos] == ["stable.mp4"]
 
 
+def test_list_downloaded_videos_skips_stale_walked_subtitle(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    video_path = tmp_path / "episode.mp4"
+    subtitle_path = tmp_path / "episode.en.srt"
+    video_path.write_bytes(b"\x00" * 10)
+    subtitle_path.write_text("1\n00:00:00,000 --> 00:00:02,000\nHello\n", encoding="utf-8")
+    original_stat = Path.stat
+
+    def fake_stat(path: Path, *args, **kwargs):
+        if path == subtitle_path:
+            raise FileNotFoundError(path)
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+
+    videos = list_downloaded_videos(tmp_path)
+
+    assert [video.path.name for video in videos] == ["episode.mp4"]
+    assert videos[0].subtitles == []
+
+
 def test_has_video_stream_handles_out_of_order_ffprobe_fields(monkeypatch, tmp_path: Path) -> None:
     # ffprobe may emit width/height before pix_fmt; we parse JSON to avoid order issues.
     payload = b'{"streams": [{"pix_fmt": "yuv420p", "width": 612, "height": 480}]}'
