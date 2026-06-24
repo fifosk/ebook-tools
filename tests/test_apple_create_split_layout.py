@@ -59,6 +59,15 @@ CREATE_METADATA_VIEWS = (
     / "Create"
     / "AppleBookCreateMetadataViews.swift"
 )
+CREATE_BASIC_SECTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateBasicSections.swift"
+)
 CREATE_STATUS_VIEWS = (
     ROOT
     / "ios"
@@ -153,6 +162,25 @@ def test_create_status_views_are_split_from_create_view_and_target_wired() -> No
     assert project.count("AppleBookCreateStatusViews.swift in Sources") == 4
 
 
+def test_create_basic_sections_are_split_from_create_view_and_target_wired() -> None:
+    basic_source = _source(CREATE_BASIC_SECTIONS)
+    view_source = _source(CREATE_VIEW)
+    project = _source(XCODE_PROJECT)
+
+    assert "struct AppleBookCreatePromptSection: View" in basic_source
+    assert "struct AppleBookCreateMetadataSection: View" in basic_source
+    assert "struct AppleBookCreateJobTypeSection: View" in basic_source
+    assert "struct AppleBookCreateJobSettingsSection: View" in basic_source
+    assert 'accessibilityIdentifier("createBookTopicField")' in basic_source
+    assert 'accessibilityIdentifier("createNarrateOutputPathField")' in basic_source
+    assert "AppleBookCreatePromptSection(" in view_source
+    assert "AppleBookCreateMetadataSection(" in view_source
+    assert "AppleBookCreateJobTypeSection(" in view_source
+    assert "AppleBookCreateJobSettingsSection(" in view_source
+    assert "AppleBookCreateBasicSections.swift in Sources" in project
+    assert project.count("AppleBookCreateBasicSections.swift in Sources") == 4
+
+
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     source = _source(CREATE_SECTIONS)
 
@@ -189,6 +217,7 @@ def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
 
 def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     source = _source(CREATE_VIEW)
+    basic_source = _source(CREATE_BASIC_SECTIONS)
 
     assert "regularWidthCreateLayout" in source
     assert 'accessibilityIdentifier: "appleBookCreateSetupPane"' in source
@@ -238,36 +267,24 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "narrationSection" in settings_sections.group("body")
     assert "outputSection" in settings_sections.group("body")
     assert "submitSection" in settings_sections.group("body")
-    assert 'Section("Job Type")' in source
-    assert 'Picker("Job type", selection: $creationMode)' in source
-    assert '.accessibilityIdentifier("createJobTypePicker")' in source
+    assert 'Section("Job Type")' in basic_source
+    assert 'Picker("Job type", selection: $creationMode)' in basic_source
+    assert '.accessibilityIdentifier("createJobTypePicker")' in basic_source
 
-    prompt_section = re.search(
-        r"private var promptSection: some View \{(?P<body>.*?)\n    \}",
-        source,
-        re.DOTALL,
-    )
-    job_settings_section = re.search(
-        r"private var jobSettingsSection: some View \{(?P<body>.*?)\n    \}",
-        source,
-        re.DOTALL,
-    )
-
-    assert prompt_section
-    assert job_settings_section
-    assert "sentenceCountControl" not in prompt_section.group("body")
-    assert "sentenceCountControl" in job_settings_section.group("body")
-    assert "narrateChapterSettingsControls" in job_settings_section.group("body")
-    assert 'accessibilityIdentifier("createNarrateOutputPathField")' in job_settings_section.group("body")
-    assert 'accessibilityIdentifier("createNarrateStartSentenceField")' in job_settings_section.group("body")
-    assert 'accessibilityIdentifier("createNarrateEndSentenceField")' in job_settings_section.group("body")
+    assert "AppleBookCreatePromptSection(" in source
+    assert "AppleBookCreateJobSettingsSection(" in source
+    assert "sentenceCountControl" in basic_source
+    assert "narrateChapterSettingsControls" in basic_source
+    assert 'accessibilityIdentifier("createNarrateOutputPathField")' in basic_source
+    assert 'accessibilityIdentifier("createNarrateStartSentenceField")' in basic_source
+    assert 'accessibilityIdentifier("createNarrateEndSentenceField")' in basic_source
     assert "showsNarrateRangeControls: false" in source
 
-    assert "private var narrateChapterSettingsControls: some View" in source
-    assert "Button(action: loadNarrateChapters)" in source
-    assert 'accessibilityIdentifier("createNarrateLoadChaptersButton")' in source
-    assert 'accessibilityIdentifier("createNarrateStartChapterPicker")' in source
-    assert 'accessibilityIdentifier("createNarrateEndChapterPicker")' in source
+    assert "private var narrateChapterSettingsControls: some View" in basic_source
+    assert "Button(action: onLoadNarrateChapters)" in basic_source
+    assert 'accessibilityIdentifier("createNarrateLoadChaptersButton")' in basic_source
+    assert 'accessibilityIdentifier("createNarrateStartChapterPicker")' in basic_source
+    assert 'accessibilityIdentifier("createNarrateEndChapterPicker")' in basic_source
     assert "applyNarrateChapterRangeSelection" in source
 
 
@@ -313,18 +330,19 @@ def test_apple_create_subtitle_server_sources_match_web_ass_behavior() -> None:
 
 def test_generated_book_create_exposes_source_context_fields() -> None:
     source = _source(CREATE_VIEW)
+    basic_source = _source(CREATE_BASIC_SECTIONS)
     support_source = _source(CREATE_VIEW_MODEL)
     draft_source = _source(CREATE_MODELS)
 
-    assert "creationMode == .generatedBook || creationMode == .narrateEbook" in source
-    assert 'Section(creationMode == .generatedBook ? "Source Book" : "Metadata")' in source
-    assert 'creationMode == .generatedBook ? "Source title" : "Title"' in source
-    assert 'creationMode == .generatedBook ? "Source author" : "Author"' in source
-    assert 'creationMode == .generatedBook ? "Source genre" : "Genre"' in source
-    assert 'creationMode == .generatedBook ? "Source summary" : "Summary"' in source
-    assert '"createGeneratedSourceBookTitleField"' in source
-    assert '"createGeneratedSourceBookAuthorField"' in source
-    assert '"createGeneratedSourceBookGenreField"' in source
+    assert "creationMode == .generatedBook || creationMode == .narrateEbook" in basic_source
+    assert 'Section(creationMode == .generatedBook ? "Source Book" : "Metadata")' in basic_source
+    assert 'creationMode == .generatedBook ? "Source title" : "Title"' in basic_source
+    assert 'creationMode == .generatedBook ? "Source author" : "Author"' in basic_source
+    assert 'creationMode == .generatedBook ? "Source genre" : "Genre"' in basic_source
+    assert 'creationMode == .generatedBook ? "Source summary" : "Summary"' in basic_source
+    assert '"createGeneratedSourceBookTitleField"' in basic_source
+    assert '"createGeneratedSourceBookAuthorField"' in basic_source
+    assert '"createGeneratedSourceBookGenreField"' in basic_source
     assert "sourceBookTitle: sourceBookTitle" in source
     assert "sourceBookAuthor: sourceBookAuthor" in source
     assert "sourceBookGenre: sourceBookGenre" in source

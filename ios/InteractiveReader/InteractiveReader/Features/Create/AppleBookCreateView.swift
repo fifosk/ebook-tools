@@ -363,115 +363,25 @@ struct AppleBookCreateView: View {
     }
 
     private var promptSection: some View {
-        Section("Book") {
-            TextField("Topic", text: textBinding(for: .topic, value: $topic))
-                .textInputAutocapitalization(.sentences)
-                .accessibilityIdentifier("createBookTopicField")
-            TextField("Title", text: textBinding(for: .bookName, value: $bookName))
-                .textInputAutocapitalization(.words)
-                .accessibilityIdentifier("createBookTitleField")
-            TextField("Genre", text: textBinding(for: .genre, value: $genre))
-                .textInputAutocapitalization(.words)
-                .accessibilityIdentifier("createBookGenreField")
-            TextField("Author", text: textBinding(for: .author, value: $author))
-                .textInputAutocapitalization(.words)
-                .accessibilityIdentifier("createBookAuthorField")
-        }
+        AppleBookCreatePromptSection(
+            topic: textBinding(for: .topic, value: $topic),
+            bookName: textBinding(for: .bookName, value: $bookName),
+            genre: textBinding(for: .genre, value: $genre),
+            author: textBinding(for: .author, value: $author)
+        )
     }
 
     private var metadataSection: some View {
-        Section(creationMode == .generatedBook ? "Source Book" : "Metadata") {
-            if creationMode == .generatedBook || creationMode == .narrateEbook {
-                TextField(
-                    creationMode == .generatedBook ? "Source title" : "Title",
-                    text: textBinding(for: .sourceBookTitle, value: $sourceBookTitle)
-                )
-                    .textInputAutocapitalization(.words)
-                    .accessibilityIdentifier(
-                        creationMode == .generatedBook
-                            ? "createGeneratedSourceBookTitleField"
-                            : "createNarrateBookTitleField"
-                    )
-                TextField(
-                    creationMode == .generatedBook ? "Source author" : "Author",
-                    text: textBinding(for: .sourceBookAuthor, value: $sourceBookAuthor)
-                )
-                    .textInputAutocapitalization(.words)
-                    .accessibilityIdentifier(
-                        creationMode == .generatedBook
-                            ? "createGeneratedSourceBookAuthorField"
-                            : "createNarrateBookAuthorField"
-                    )
-                TextField(
-                    creationMode == .generatedBook ? "Source genre" : "Genre",
-                    text: textBinding(for: .sourceBookGenre, value: $sourceBookGenre)
-                )
-                    .textInputAutocapitalization(.words)
-                    .accessibilityIdentifier(
-                        creationMode == .generatedBook
-                            ? "createGeneratedSourceBookGenreField"
-                            : "createNarrateBookGenreField"
-                    )
-            }
-            TextField(
-                creationMode == .generatedBook ? "Source summary" : "Summary",
-                text: textBinding(for: .bookSummary, value: $bookSummary),
-                axis: .vertical
-            )
-                .lineLimit(2...5)
-                .textInputAutocapitalization(.sentences)
-                .accessibilityIdentifier("createBookSummaryField")
-            TextField("Year", text: textBinding(for: .bookYear, value: $bookYear))
-                #if os(iOS)
-                .keyboardType(.numberPad)
-                #endif
-                .accessibilityIdentifier("createBookYearField")
-            TextField("ISBN", text: textBinding(for: .bookIsbn, value: $bookIsbn))
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .accessibilityIdentifier("createBookIsbnField")
-            TextField("Cover file path", text: textBinding(for: .bookCoverFile, value: $bookCoverFile))
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .accessibilityIdentifier("createBookCoverFileField")
-        }
-    }
-
-    @ViewBuilder
-    private var sentenceCountControl: some View {
-        #if os(tvOS)
-        LabeledContent("Sentences") {
-            HStack(spacing: 12) {
-                Button {
-                    markEdited(.sentenceCount)
-                    sentenceCount = max(sentenceBounds.min, sentenceCount - 5)
-                } label: {
-                    Image(systemName: "minus")
-                }
-                .disabled(sentenceCount <= sentenceBounds.min)
-                .accessibilityLabel("Decrease sentences")
-
-                Text("\(sentenceCount)")
-                    .monospacedDigit()
-                    .frame(minWidth: 48)
-
-                Button {
-                    markEdited(.sentenceCount)
-                    sentenceCount = min(sentenceBounds.max, sentenceCount + 5)
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .disabled(sentenceCount >= sentenceBounds.max)
-                .accessibilityLabel("Increase sentences")
-            }
-        }
-        .accessibilityIdentifier("createBookSentenceControl")
-        #else
-        Stepper(value: sentenceCountBinding, in: sentenceBounds.min...sentenceBounds.max, step: 5) {
-            LabeledContent("Sentences", value: "\(sentenceCount)")
-        }
-        .accessibilityIdentifier("createBookSentenceStepper")
-        #endif
+        AppleBookCreateMetadataSection(
+            creationMode: creationMode,
+            sourceBookTitle: textBinding(for: .sourceBookTitle, value: $sourceBookTitle),
+            sourceBookAuthor: textBinding(for: .sourceBookAuthor, value: $sourceBookAuthor),
+            sourceBookGenre: textBinding(for: .sourceBookGenre, value: $sourceBookGenre),
+            bookSummary: textBinding(for: .bookSummary, value: $bookSummary),
+            bookYear: textBinding(for: .bookYear, value: $bookYear),
+            bookIsbn: textBinding(for: .bookIsbn, value: $bookIsbn),
+            bookCoverFile: textBinding(for: .bookCoverFile, value: $bookCoverFile)
+        )
     }
 
     private var narrationSection: some View {
@@ -518,109 +428,33 @@ struct AppleBookCreateView: View {
 
     @ViewBuilder
     private var jobTypeSection: some View {
-        if showsInlineJobTypePicker {
-            Section("Job Type") {
-                Picker("Job type", selection: $creationMode) {
-                    ForEach(availableCreateModes) { mode in
-                        Text(mode.label).tag(mode)
-                    }
-                }
-                #if os(iOS)
-                .pickerStyle(.segmented)
-                #endif
-                .accessibilityIdentifier("createJobTypePicker")
-            }
-        }
+        AppleBookCreateJobTypeSection(
+            creationMode: $creationMode,
+            availableCreateModes: availableCreateModes,
+            showsInlineJobTypePicker: showsInlineJobTypePicker
+        )
     }
 
     @ViewBuilder
     private var jobSettingsSection: some View {
-        if creationMode == .generatedBook {
-            Section("Job Settings") {
-                sentenceCountControl
+        AppleBookCreateJobSettingsSection(
+            creationMode: creationMode,
+            sentenceBounds: sentenceBounds,
+            sentenceCount: sentenceCountBinding,
+            sourceBaseOutput: textBinding(for: .sourceBaseOutput, value: $sourceBaseOutput),
+            sourceStartSentence: textBinding(for: .sourceStartSentence, value: $sourceStartSentence),
+            sourceEndSentence: textBinding(for: .sourceEndSentence, value: $sourceEndSentence),
+            narrateSourcePath: sourcePath,
+            narrateChapterOptions: viewModel.narrateChapterOptions,
+            selectedNarrateStartChapterID: $selectedNarrateStartChapterID,
+            selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
+            isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
+            narrateChaptersErrorMessage: viewModel.narrateChaptersErrorMessage,
+            onLoadNarrateChapters: loadNarrateChapters,
+            onChapterRangeSelection: { startID, endID in
+                applyNarrateChapterRangeSelection(startID: startID, endID: endID)
             }
-        } else if creationMode == .narrateEbook {
-            Section("Job Settings") {
-                TextField("Output path", text: textBinding(for: .sourceBaseOutput, value: $sourceBaseOutput))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("createNarrateOutputPathField")
-                narrateChapterSettingsControls
-                TextField("Start sentence", text: textBinding(for: .sourceStartSentence, value: $sourceStartSentence))
-                    #if os(iOS)
-                    .keyboardType(.numberPad)
-                    #endif
-                    .accessibilityIdentifier("createNarrateStartSentenceField")
-                TextField("End sentence", text: textBinding(for: .sourceEndSentence, value: $sourceEndSentence))
-                    #if os(iOS)
-                    .keyboardType(.numbersAndPunctuation)
-                    #endif
-                    .accessibilityIdentifier("createNarrateEndSentenceField")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var narrateChapterSettingsControls: some View {
-        Button(action: loadNarrateChapters) {
-            Label(
-                viewModel.isLoadingNarrateChapters ? "Loading Chapters" : "Load Chapters",
-                systemImage: "list.bullet.rectangle"
-            )
-        }
-        .disabled(
-            viewModel.isLoadingNarrateChapters
-                || trimmed(sourcePath).isEmpty
         )
-        .accessibilityIdentifier("createNarrateLoadChaptersButton")
-
-        if viewModel.isLoadingNarrateChapters {
-            ProgressView()
-                .accessibilityIdentifier("createNarrateChaptersProgress")
-        }
-
-        if let narrateChaptersErrorMessage = viewModel.narrateChaptersErrorMessage {
-            Text(narrateChaptersErrorMessage)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("createNarrateChaptersMessage")
-        }
-
-        if !viewModel.narrateChapterOptions.isEmpty {
-            Picker("Start chapter", selection: $selectedNarrateStartChapterID) {
-                Text("Manual sentence range").tag("")
-                ForEach(viewModel.narrateChapterOptions) { chapter in
-                    Text(chapter.pickerLabel).tag(chapter.id)
-                }
-            }
-            .accessibilityIdentifier("createNarrateStartChapterPicker")
-            .onChange(of: selectedNarrateStartChapterID) { _, newValue in
-                applyNarrateChapterRangeSelection(startID: newValue, endID: selectedNarrateEndChapterID)
-            }
-
-            if !selectedNarrateStartChapterID.isEmpty {
-                Picker("End chapter", selection: $selectedNarrateEndChapterID) {
-                    ForEach(viewModel.narrateChapterOptions) { chapter in
-                        Text(chapter.pickerLabel).tag(chapter.id)
-                    }
-                }
-                .accessibilityIdentifier("createNarrateEndChapterPicker")
-                .onChange(of: selectedNarrateEndChapterID) { _, newValue in
-                    applyNarrateChapterRangeSelection(startID: selectedNarrateStartChapterID, endID: newValue)
-                }
-
-                if let selection = AppleBookCreatePresentation.chapterRangeSelection(
-                    chapters: viewModel.narrateChapterOptions,
-                    startChapterID: selectedNarrateStartChapterID,
-                    endChapterID: selectedNarrateEndChapterID
-                ) {
-                    Text("\(selection.label) · \(selection.sentenceRangeLabel)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("createNarrateChapterRangeSummary")
-                }
-            }
-        }
     }
 
     private var outputSection: some View {
