@@ -2,7 +2,8 @@ import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } fro
 import type {
   AccessPolicyUpdatePayload,
   LibraryItem,
-  LibraryViewMode
+  LibraryViewMode,
+  ResumePositionEntry
 } from '../api/dtos';
 import {
   applyLibraryIsbn,
@@ -19,6 +20,7 @@ import {
   withBase,
   type LibrarySearchParams
 } from '../api/client';
+import { fetchResumePositions } from '../api/client/resume';
 import {
   buildLibraryItemBuckets,
   buildLibraryMetadataUpdatePlan,
@@ -106,6 +108,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     confidence?: string | null;
   } | null>(null);
   const [detailTab, setDetailTab] = useState<LibraryDetailTab>('overview');
+  const [resumeEntries, setResumeEntries] = useState<ResumePositionEntry[]>([]);
 
   const resolveItemPermissions = useCallback(
     (item: LibraryItem) => {
@@ -194,6 +197,22 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
           }
           return response.items.find((item) => item.jobId === current.jobId) ?? null;
         });
+        const jobIds = response.items.map((item) => item.jobId).filter(Boolean);
+        if (jobIds.length === 0) {
+          setResumeEntries([]);
+          return;
+        }
+        fetchResumePositions(jobIds)
+          .then((resumeResponse) => {
+            if (!cancelled) {
+              setResumeEntries(resumeResponse.entries);
+            }
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setResumeEntries([]);
+            }
+          });
       })
       .catch((loadError) => {
         if (cancelled) {
@@ -205,6 +224,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         setItems([]);
         setTotal(0);
         setSelectedItem(null);
+        setResumeEntries([]);
       })
       .finally(() => {
         if (!cancelled) {
@@ -721,6 +741,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
               resolvePermissions={resolveItemPermissions}
               selectedJobId={selectedItem?.jobId}
               mutating={mutating}
+              resumeEntries={resumeEntries}
             />
           </div>
         </section>

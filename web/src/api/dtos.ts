@@ -1170,6 +1170,10 @@ export interface ResumePositionResponse {
   entry: ResumePositionEntry | null;
 }
 
+export interface ResumePositionListResponse {
+  entries: ResumePositionEntry[];
+}
+
 export interface ResumePositionDeleteResponse {
   deleted: boolean;
 }

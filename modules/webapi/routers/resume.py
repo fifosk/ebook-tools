@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from ..dependencies import RequestUserContext, get_resume_service, get_request_user
 from ..schemas.resume import (
     ResumePositionDeleteResponse,
     ResumePositionEntry,
+    ResumePositionListResponse,
     ResumePositionPayload,
     ResumePositionResponse,
 )
@@ -21,6 +22,19 @@ def _require_user(request_user: RequestUserContext) -> str:
     if not request_user.user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session token")
     return request_user.user_id
+
+
+@router.get("", response_model=ResumePositionListResponse)
+def list_resume_positions(
+    job_id: list[str] | None = Query(default=None),
+    request_user: RequestUserContext = Depends(get_request_user),
+    resume_service: ResumeService = Depends(get_resume_service),
+) -> ResumePositionListResponse:
+    user_id = _require_user(request_user)
+    entries = resume_service.list(user_id, job_ids=job_id, limit=200)
+    return ResumePositionListResponse(
+        entries=[ResumePositionEntry(**entry.__dict__) for entry in entries]
+    )
 
 
 @router.get("/{job_id}", response_model=ResumePositionResponse)

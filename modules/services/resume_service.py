@@ -6,7 +6,7 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 from .file_locator import FileLocator
 from .. import logging_manager
@@ -64,6 +64,39 @@ class ResumeService:
         if not isinstance(raw_entry, dict):
             return None
         return self._normalize_entry(job_id, raw_entry)
+
+    def list(
+        self,
+        user_id: str,
+        *,
+        job_ids: Optional[Sequence[str]] = None,
+        limit: int = 200,
+    ) -> list[ResumeEntry]:
+        user_fragment = _sanitize_fragment(user_id, "user")
+        root = self._file_locator.storage_root / "resume" / user_fragment
+        if not root.exists():
+            return []
+
+        allowed = {job_id for job_id in (job_ids or []) if job_id}
+        entries: list[ResumeEntry] = []
+        for path in sorted(root.glob("*.json")):
+            if len(entries) >= limit:
+                break
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                logger.warning("Failed to load resume data from %s: %s", path, exc)
+                continue
+            if not isinstance(payload, dict):
+                continue
+            job_id = self._coerce_string(payload.get("job_id")) or path.stem
+            if allowed and job_id not in allowed:
+                continue
+            raw_entry = payload.get("entry")
+            if not isinstance(raw_entry, dict):
+                continue
+            entries.append(self._normalize_entry(job_id, raw_entry))
+        return sorted(entries, key=lambda entry: entry.updated_at, reverse=True)
 
     def save(self, job_id: str, user_id: str, data: Dict[str, Any]) -> ResumeEntry:
         entry = self._normalize_entry(job_id, data)

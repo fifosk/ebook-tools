@@ -36,5 +36,9 @@ class ResumePositionResponse(BaseModel):
     entry: ResumePositionEntry | None = None
 
 
+class ResumePositionListResponse(BaseModel):
+    entries: list[ResumePositionEntry]
+
+
 class ResumePositionDeleteResponse(BaseModel):
     deleted: bool

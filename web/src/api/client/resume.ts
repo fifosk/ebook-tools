@@ -4,10 +4,23 @@
 
 import type {
   ResumePositionDeleteResponse,
+  ResumePositionListResponse,
   ResumePositionPayload,
   ResumePositionResponse,
 } from '../dtos';
 import { apiFetch, handleResponse } from './base';
+
+export async function fetchResumePositions(jobIds: string[] = []): Promise<ResumePositionListResponse> {
+  const params = new URLSearchParams();
+  jobIds.forEach((jobId) => {
+    if (jobId) {
+      params.append('job_id', jobId);
+    }
+  });
+  const query = params.toString();
+  const response = await apiFetch(`/api/resume${query ? `?${query}` : ''}`);
+  return handleResponse<ResumePositionListResponse>(response);
+}
 
 export async function fetchResumePosition(jobId: string): Promise<ResumePositionResponse> {
   const response = await apiFetch(`/api/resume/${encodeURIComponent(jobId)}`);

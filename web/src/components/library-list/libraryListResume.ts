@@ -1,8 +1,9 @@
-import type { LibraryItem, ResumePositionMediaType } from '../../api/dtos';
+import type { LibraryItem, ResumePositionEntry, ResumePositionMediaType } from '../../api/dtos';
 import { getBrowserStorage, getStorageItem, type BrowserStorage } from '../../utils/browserStorage';
 
 const MEDIA_MEMORY_PREFIX = 'media-memory';
 const MIN_MEANINGFUL_TIME_SECONDS = 5;
+const MIN_MEANINGFUL_SENTENCE = 1;
 
 type MediaCategory = ResumePositionMediaType;
 
@@ -26,6 +27,7 @@ export interface LibraryResumeBadge {
   label: string;
   title: string;
   position: number;
+  updatedAt: number;
   mediaType: MediaCategory | null;
 }
 
@@ -72,6 +74,41 @@ function mediaLabel(mediaType: MediaCategory | null): string {
   }
 }
 
+export function resolveResumeEntryBadge(entry: ResumePositionEntry | null | undefined): LibraryResumeBadge | null {
+  if (!entry) {
+    return null;
+  }
+  const mediaType = entry.media_type ?? null;
+  if (entry.kind === 'sentence') {
+    const sentence = typeof entry.sentence === 'number' && Number.isFinite(entry.sentence)
+      ? Math.trunc(entry.sentence)
+      : 0;
+    if (sentence <= MIN_MEANINGFUL_SENTENCE) {
+      return null;
+    }
+    return {
+      label: `Continue sentence ${sentence}`,
+      title: `Continue ${mediaLabel(mediaType)} playback from sentence ${sentence}`,
+      position: 0,
+      updatedAt: normalizePosition(entry.updated_at),
+      mediaType,
+    };
+  }
+
+  const position = normalizePosition(entry.position);
+  if (position <= MIN_MEANINGFUL_TIME_SECONDS) {
+    return null;
+  }
+  const formatted = formatPlaybackTime(position);
+  return {
+    label: `Continue ${formatted}`,
+    title: `Continue ${mediaLabel(mediaType)} playback from ${formatted}`,
+    position,
+    updatedAt: normalizePosition(entry.updated_at),
+    mediaType,
+  };
+}
+
 export function resolveLibraryResumeBadge(raw: string | null): LibraryResumeBadge | null {
   const memory = parseStoredMediaMemory(raw);
   if (!memory) {
@@ -102,20 +139,45 @@ export function resolveLibraryResumeBadge(raw: string | null): LibraryResumeBadg
     label: `Continue ${formatted}`,
     title: `Continue ${mediaLabel(best.mediaType)} playback from ${formatted}`,
     position: best.position,
+    updatedAt: 0,
     mediaType: best.mediaType,
   };
 }
 
+function chooseBadge(
+  localBadge: LibraryResumeBadge | null | undefined,
+  serverBadge: LibraryResumeBadge | null | undefined,
+): LibraryResumeBadge | null {
+  if (!localBadge) {
+    return serverBadge ?? null;
+  }
+  if (!serverBadge) {
+    return localBadge;
+  }
+  if (localBadge.position > 0 && serverBadge.position > 0) {
+    return localBadge.position >= serverBadge.position ? localBadge : serverBadge;
+  }
+  return localBadge.updatedAt >= serverBadge.updatedAt ? localBadge : serverBadge;
+}
+
 export function buildLibraryResumeBadgeMap(
   items: Pick<LibraryItem, 'jobId'>[],
+  serverEntries: ResumePositionEntry[] = [],
   storage: BrowserStorage | null = getBrowserStorage('session'),
 ): Map<string, LibraryResumeBadge> {
   const badges = new Map<string, LibraryResumeBadge>();
-  if (!storage) {
-    return badges;
-  }
+  const serverBadges = new Map<string, LibraryResumeBadge>();
+  serverEntries.forEach((entry) => {
+    const badge = resolveResumeEntryBadge(entry);
+    if (badge) {
+      serverBadges.set(entry.job_id, badge);
+    }
+  });
   items.forEach((item) => {
-    const badge = resolveLibraryResumeBadge(getStorageItem(storage, `${MEDIA_MEMORY_PREFIX}:${item.jobId}`));
+    const localBadge = storage
+      ? resolveLibraryResumeBadge(getStorageItem(storage, `${MEDIA_MEMORY_PREFIX}:${item.jobId}`))
+      : null;
+    const badge = chooseBadge(localBadge, serverBadges.get(item.jobId));
     if (badge) {
       badges.set(item.jobId, badge);
     }

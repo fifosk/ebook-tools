@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { LibraryItem, LibraryViewMode } from '../api/dtos';
+import type { LibraryItem, LibraryViewMode, ResumePositionEntry } from '../api/dtos';
 import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
 import { extractJobType, getJobTypeGlyph, isTvSeriesMetadata } from '../utils/jobGlyphs';
 import JobTypeGlyphBadge from './JobTypeGlyphBadge';
@@ -57,6 +57,7 @@ type Props = {
   selectedJobId?: string | null;
   mutating?: Record<string, boolean>;
   variant?: 'card' | 'embedded';
+  resumeEntries?: ResumePositionEntry[];
 };
 
 function renderLanguageLabel(language: string | null | undefined) {
@@ -318,7 +319,8 @@ function LibraryList({
   resolvePermissions,
   selectedJobId,
   mutating = {},
-  variant = 'card'
+  variant = 'card',
+  resumeEntries = []
 }: Props) {
   const authorGroups = useMemo(() => buildAuthorGroups(items), [items]);
   const genreGroups = useMemo(() => buildGenreGroups(items), [items]);
@@ -326,7 +328,10 @@ function LibraryList({
   const isBookLayout = useMemo(() => items.length > 0 && items.every((item) => isBookItem(item)), [items]);
   const isSubtitleLayout = useMemo(() => items.length > 0 && items.every((item) => isSubtitleItem(item)), [items]);
   const isVideoLayout = useMemo(() => items.length > 0 && items.every((item) => isVideoItem(item)), [items]);
-  const resumeBadges = useMemo(() => buildLibraryResumeBadgeMap(items), [items]);
+  const resumeBadges = useMemo(
+    () => buildLibraryResumeBadgeMap(items, resumeEntries),
+    [items, resumeEntries],
+  );
 
   const handleSelect = (item: LibraryItem) => {
     if (onSelect) {

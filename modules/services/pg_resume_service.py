@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 from sqlalchemy import and_, select
 
@@ -34,6 +34,23 @@ class PgResumeService:
             if model is None:
                 return None
             return self._model_to_entry(model, job_id=job_id)
+
+    def list(
+        self,
+        user_id: str,
+        *,
+        job_ids: Optional[Sequence[str]] = None,
+        limit: int = 200,
+    ) -> list[ResumeEntry]:
+        statement = select(ResumePositionModel).where(ResumePositionModel.user_id == user_id)
+        if job_ids:
+            filtered_job_ids = [job_id for job_id in job_ids if job_id]
+            if filtered_job_ids:
+                statement = statement.where(ResumePositionModel.job_id.in_(filtered_job_ids))
+        statement = statement.order_by(ResumePositionModel.updated_at.desc()).limit(limit)
+        with get_db_session() as session:
+            models = session.execute(statement).scalars().all()
+            return [self._model_to_entry(model, job_id=model.job_id) for model in models]
 
     def save(self, job_id: str, user_id: str, data: Dict[str, Any]) -> ResumeEntry:
         kind = str(data.get("kind") or "time").strip().lower()
