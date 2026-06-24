@@ -218,6 +218,12 @@ def test_create_readiness_journey_checks_youtube_job_settings() -> None:
             and step.get("timeout") == 15
             for step in youtube_steps
         )
+    assert any(
+        step.get("action") == "assert_visible"
+        and step.get("selector") == "createBookOpenWebCreateButton"
+        and step.get("timeout") == 15
+        for step in youtube_steps
+    )
 
 
 def test_journey_runner_supports_value_contains_assertion() -> None:

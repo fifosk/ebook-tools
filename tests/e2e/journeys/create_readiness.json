@@ -280,6 +280,12 @@
       "selector": "createYoutubePreserveAspectRatioToggle",
       "timeout": 15,
       "screenshot": "youtube_dub_job_settings"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookOpenWebCreateButton",
+      "timeout": 15,
+      "screenshot": "web_create_handoff"
     }
   ]
 }

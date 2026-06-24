@@ -661,7 +661,10 @@ Suggested features to evaluate after parity scaffolding:
 - Draft jobs: start on iPad, finish advanced settings on Web.
 - Creation handoff: Apple app opens the corresponding Web creation URL for unsupported advanced options. Status:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,
-  and maps native creation modes to validated Web `?view=` deep links.
+  and maps native creation modes to validated Web `?view=` deep links. The
+  shared Create-readiness journey now also verifies the native Web handoff
+  button is reachable after driving generated-book, subtitle, and YouTube
+  default settings.
 - Job health timeline: show backend stage durations and slow phases in Web and iPad. Status:
   Apple Jobs rows now surface the latest backend stage with elapsed runtime
   and ETA from progress events, giving iPad/iPhone a compact health signal
