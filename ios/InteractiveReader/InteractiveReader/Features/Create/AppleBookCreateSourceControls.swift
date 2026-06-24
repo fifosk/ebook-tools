@@ -39,7 +39,7 @@ struct AppleBookCreateNarrateSourceControls: View {
                     Text(sourcePath).tag(sourcePath)
                 }
                 ForEach(narrateServerEbooks, id: \.path) { entry in
-                    Text(entry.name).tag(entry.path)
+                    Text(AppleBookCreatePresentation.pipelineEbookPickerLabel(entry)).tag(entry.path)
                 }
             }
             .accessibilityIdentifier("createNarrateServerEbookPicker")

@@ -82,7 +82,7 @@ struct AppleCreationPayloadCheck {
           "ebooks": [
             {"name": "Older.epub", "path": "z-older.epub", "type": "file", "modified_at": "2026-06-23T12:00:00Z"},
             {"name": "Folder", "path": "folder", "type": "directory", "modified_at": "2026-06-25T12:00:00Z"},
-            {"name": "Newest.epub", "path": "a-newest.epub", "type": "file", "modified_at": "2026-06-24T12:00:00Z"}
+            {"name": "Newest.epub", "path": "a-newest.epub", "type": "file", "size_bytes": 1572864, "modified_at": "2026-06-24T12:00:00Z"}
           ],
           "outputs": [
             {"name": "generated", "path": "generated", "type": "directory"}
@@ -99,6 +99,12 @@ struct AppleCreationPayloadCheck {
         require(
             AppleBookCreatePresentation.preferredPipelineEbook(from: pipelineFiles)?.path == "a-newest.epub",
             "Apple Create should prefer the latest modified backend-visible EPUB when auto-filling Narrate EPUB"
+        )
+        require(
+            AppleBookCreatePresentation.pipelineEbookPickerLabel(
+                pipelineFiles.ebooks.first { $0.path == "a-newest.epub" }!
+            ) == "Newest.epub · 1.5 MB · 2026-06-24",
+            "Apple Create should show NAS EPUB metadata in the server picker label"
         )
         require(
             AppleBookCreatePresentation.preferredPipelineEbook(

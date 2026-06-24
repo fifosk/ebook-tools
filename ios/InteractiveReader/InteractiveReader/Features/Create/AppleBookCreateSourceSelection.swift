@@ -37,6 +37,14 @@ extension AppleBookCreatePresentation {
         }.first
     }
 
+    static func pipelineEbookPickerLabel(_ entry: PipelineFileEntry) -> String {
+        let details = pickerMetadataParts(
+            sizeBytes: entry.sizeBytes,
+            modifiedAt: entry.modifiedAt
+        )
+        return details.isEmpty ? entry.name : "\(entry.name) · \(details.joined(separator: " · "))"
+    }
+
     static func subtitleJobSources(from response: SubtitleSourceListResponse?) -> [SubtitleSourceEntry] {
         response?.sources.filter {
             AppleBookCreateSourceSelectionConstants.subtitleJobSourceFormats.contains(normalizedSourceText($0.format).lowercased())
@@ -272,6 +280,43 @@ extension AppleBookCreatePresentation {
 
     static func subtitleShowOriginalPreferenceKey(baseKey: String) -> String {
         "ebookTools.appleCreate.subtitles.showOriginal.\(baseKey)"
+    }
+
+    private static func pickerMetadataParts(sizeBytes: Int?, modifiedAt: String?) -> [String] {
+        [
+            formatPickerSize(sizeBytes),
+            formatPickerModifiedDate(modifiedAt)
+        ].compactMap(\.self)
+    }
+
+    private static func formatPickerSize(_ bytes: Int?) -> String? {
+        guard let bytes, bytes > 0 else { return nil }
+        let units: [(threshold: Double, label: String)] = [
+            (1_073_741_824, "GB"),
+            (1_048_576, "MB"),
+            (1_024, "KB"),
+        ]
+        guard let unit = units.first(where: { Double(bytes) >= $0.threshold }) else {
+            return "\(bytes) B"
+        }
+        let value = Double(bytes) / unit.threshold
+        let precision = value >= 10 ? "%.0f %@" : "%.1f %@"
+        return String(
+            format: precision,
+            locale: Locale(identifier: "en_US_POSIX"),
+            value,
+            unit.label
+        )
+    }
+
+    private static func formatPickerModifiedDate(_ value: String?) -> String? {
+        guard let value = value?.nonEmptyValue else { return nil }
+        let date = parseSourceModifiedDate(value)
+        if date != .distantPast {
+            return String(value.prefix(10))
+        }
+        let prefix = value.prefix(10)
+        return prefix.isEmpty ? nil : String(prefix)
     }
 
     private static func parseSourceModifiedDate(_ value: String?) -> Date {

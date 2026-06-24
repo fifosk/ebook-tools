@@ -419,6 +419,7 @@ CREATE_STATUS_VIEWS = (
 )
 XCODE_PROJECT = ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj"
 APPLE_CREATION_PAYLOADS_SCRIPT = ROOT / "scripts" / "check_apple_creation_payloads.sh"
+WEB_APP_VIEWS = ROOT / "web" / "src" / "utils" / "appViewDeepLink.ts"
 
 
 def _source(path: Path) -> str:
@@ -436,6 +437,38 @@ def _call_arguments(source: str, start: int) -> str:
             if depth == 0:
                 return source[start : index + 1]
     raise AssertionError("Could not parse AppleBookCreateView call arguments")
+
+
+def _web_apple_create_views(source: str) -> dict[str, str]:
+    constant_values = {
+        name: value
+        for name, value in re.findall(
+            r"export const ([A-Z0-9_]+) = '([^']+)' as const;",
+            _source(ROOT / "web" / "src" / "constants" / "appViews.ts"),
+        )
+    }
+    object_match = re.search(
+        r"export const APPLE_CREATE_WEB_VIEW_BY_MODE = \{(?P<body>.*?)\} as const;",
+        source,
+        flags=re.S,
+    )
+    assert object_match is not None
+
+    modes: dict[str, str] = {}
+    for mode, raw_value in re.findall(r"(\w+):\s*([^,\n]+)", object_match.group("body")):
+        value = raw_value.strip().strip("'\"")
+        modes[mode] = constant_values.get(value, value)
+    return modes
+
+
+def _swift_apple_create_views(source: str) -> dict[str, str]:
+    return {
+        mode: view
+        for mode, view in re.findall(
+            r"case \.(\w+):\s*return \"([^\"]+)\"",
+            source,
+        )
+    }
 
 
 def test_create_view_uses_shell_owned_mode_binding() -> None:
@@ -958,6 +991,7 @@ def test_create_routing_is_split_from_support_and_target_wired() -> None:
     support_source = _source(CREATE_SUPPORT)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+    web_app_views = _source(WEB_APP_VIEWS)
 
     assert "extension AppleBookCreatePresentation" in routing_source
     assert "static func availableCreateModes(isTV: Bool)" in routing_source
@@ -968,6 +1002,7 @@ def test_create_routing_is_split_from_support_and_target_wired() -> None:
     assert 'return "books:create"' in routing_source
     assert 'return "pipeline:source"' in routing_source
     assert 'return "subtitles:youtube-dub"' in routing_source
+    assert _swift_apple_create_views(routing_source) == _web_apple_create_views(web_app_views)
     assert "static func availableCreateModes" not in support_source
     assert "static func webCreateViewID" not in support_source
     assert "static func webCreateHandoffURL" not in support_source
@@ -1463,8 +1498,14 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
 
 def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     source = _source(CREATE_SOURCE_SELECTION)
+    controls_source = _source(CREATE_SOURCE_CONTROLS)
 
     assert "static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry?" in source
+    assert "static func pipelineEbookPickerLabel(_ entry: PipelineFileEntry) -> String" in source
+    assert "pickerMetadataParts(" in source
+    assert "formatPickerSize(" in source
+    assert "formatPickerModifiedDate(" in source
+    assert "AppleBookCreatePresentation.pipelineEbookPickerLabel(entry)" in controls_source
     assert "files?.ebooks.filter({ $0.type == \"file\" })" in source
     assert "parseSourceModifiedDate(left.modifiedAt)" in source
     assert "parseSourceModifiedDate(right.modifiedAt)" in source
