@@ -15,6 +15,7 @@ import {
   resolveLatestBookNarrationJobSettings,
   resolveStartFromNarrationHistory,
   restoreBookNarrationEditedImageDefaults,
+  selectPreferredPipelineEbook,
   targetLanguageFieldsFromLanguages,
   targetLanguagesFromBookNarrationConfig,
 } from '../book-narration/bookNarrationFormUtils';
@@ -43,6 +44,54 @@ function makeJob(
 }
 
 describe('bookNarrationFormUtils recent-job helpers', () => {
+  it('selects the latest modified pipeline EPUB entry for default narration source', () => {
+    expect(
+      selectPreferredPipelineEbook([
+        {
+          name: 'folder',
+          path: '/books/folder',
+          type: 'directory',
+          modified_at: '2026-06-24T12:00:00Z',
+        },
+        {
+          name: 'older.epub',
+          path: '/books/z-older.epub',
+          type: 'file',
+          modified_at: '2026-06-23T12:00:00Z',
+        },
+        {
+          name: 'newer.epub',
+          path: '/books/a-newer.epub',
+          type: 'file',
+          modified_at: '2026-06-24T12:00:00Z',
+        },
+      ]),
+    )?.toMatchObject({
+      path: '/books/a-newer.epub',
+    });
+  });
+
+  it('breaks pipeline EPUB modified-time ties by path', () => {
+    expect(
+      selectPreferredPipelineEbook([
+        {
+          name: 'z.epub',
+          path: '/books/z.epub',
+          type: 'file',
+          modified_at: '2026-06-24T12:00:00Z',
+        },
+        {
+          name: 'a.epub',
+          path: '/books/a.epub',
+          type: 'file',
+          modified_at: '2026-06-24T12:00:00Z',
+        },
+      ]),
+    )?.toMatchObject({
+      path: '/books/a.epub',
+    });
+  });
+
   it('normalizes paths for recent-job matching', () => {
     expect(normalizeBookNarrationPath(' /Volumes/Books/Example.EPUB/// ')).toBe('/volumes/books/example.epub');
     expect(normalizeBookNarrationPath('')).toBeNull();

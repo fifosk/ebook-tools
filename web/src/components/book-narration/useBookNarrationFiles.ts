@@ -4,8 +4,8 @@ import type { PipelineFileBrowserResponse, PipelineFileEntry } from '../../api/d
 import { deletePipelineEbook, fetchPipelineFiles, uploadEpubFile } from '../../api/client';
 import { loadCachedMediaMetadataJson } from '../../utils/mediaMetadataCache';
 import type { FormState } from './bookNarrationFormTypes';
-import { DEFAULT_FORM_STATE, PREFERRED_SAMPLE_EBOOK } from './bookNarrationFormDefaults';
-import { deriveBaseOutputName } from './bookNarrationFormUtils';
+import { DEFAULT_FORM_STATE } from './bookNarrationFormDefaults';
+import { deriveBaseOutputName, selectPreferredPipelineEbook } from './bookNarrationFormUtils';
 
 type UseBookNarrationFilesOptions = {
   isGeneratedSource: boolean;
@@ -222,10 +222,10 @@ export function useBookNarrationFiles({
       if (previous.input_file && previous.input_file.trim()) {
         return previous;
       }
-      const preferred =
-        fileOptions.ebooks.find((entry) =>
-          entry.name.trim().toLowerCase() === PREFERRED_SAMPLE_EBOOK,
-        ) || fileOptions.ebooks[0];
+      const preferred = selectPreferredPipelineEbook(fileOptions.ebooks);
+      if (!preferred) {
+        return previous;
+      }
       const nextInput = preferred.path;
       const derivedBase = deriveBaseOutputName(preferred.name || preferred.path);
       const suggestedStart = resolveStartFromHistory(nextInput);

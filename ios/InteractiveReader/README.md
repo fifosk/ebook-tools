@@ -92,9 +92,9 @@ modified source and remembering the Show Original option, and YouTube dubbing
 loads NAS videos plus adjacent subtitles from `/api/subtitles/youtube/library`,
 with an editable remembered NAS base directory plus the last valid
 video/subtitle selection for the current API/user scope.
-Pipeline EPUB listings are newest-first and include optional file metadata, so
-the untouched Narrate EPUB source defaults to the latest backend-visible NAS
-EPUB after the preferred sample book rule. When recent jobs are available,
+Pipeline EPUB listings include optional file metadata, so the untouched
+Narrate EPUB source defaults to the latest modified backend-visible NAS EPUB
+with a deterministic path tie-breaker. When recent jobs are available,
 untouched Narrate EPUB fields also reuse the latest book/narration input and
 base paths, resume near the prior end sentence, and carry forward language and
 lookup-cache defaults.

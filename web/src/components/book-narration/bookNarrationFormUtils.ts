@@ -1,6 +1,7 @@
 import type {
   JobParameterSnapshot,
   MacOSVoice,
+  PipelineFileEntry,
   PipelineStatusResponse,
 } from '../../api/dtos';
 import { checkImageNodeAvailability } from '../../api/client';
@@ -798,6 +799,32 @@ export function normalizeBookNarrationPath(value: string | null | undefined): st
   }
   const withoutTrail = trimmed.replace(/[\\/]+$/, '');
   return withoutTrail.toLowerCase();
+}
+
+function parsePipelineFileModifiedTime(value: string | null | undefined): number {
+  if (!value) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
+
+export function selectPreferredPipelineEbook(
+  entries: PipelineFileEntry[] | null | undefined,
+): PipelineFileEntry | null {
+  const files = entries?.filter((entry) => entry.type === 'file') ?? [];
+  if (files.length === 0) {
+    return null;
+  }
+  return [...files].sort((left, right) => {
+    const modifiedDelta =
+      parsePipelineFileModifiedTime(right.modified_at) -
+      parsePipelineFileModifiedTime(left.modified_at);
+    if (modifiedDelta !== 0) {
+      return modifiedDelta;
+    }
+    return left.path.localeCompare(right.path, undefined, { sensitivity: 'base' });
+  })[0];
 }
 
 function isReusableBookNarrationJob(job: PipelineStatusResponse | null | undefined): job is PipelineStatusResponse {

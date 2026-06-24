@@ -700,7 +700,6 @@ struct AppleCreateSubmitState: Equatable {
 }
 
 enum AppleBookCreatePresentation {
-    private static let preferredSampleEbookName = "test-agatha-poirot-30sentences.epub"
     private static let subtitleJobSourceFormats: Set<String> = ["srt", "vtt"]
     private static let youtubePlayableSubtitleFormats: Set<String> = ["ass", "srt", "vtt", "sub"]
 
@@ -712,9 +711,14 @@ enum AppleBookCreatePresentation {
         guard let ebooks = files?.ebooks.filter({ $0.type == "file" }), !ebooks.isEmpty else {
             return nil
         }
-        return ebooks.first { entry in
-            trimmed(entry.name).lowercased() == preferredSampleEbookName
-        } ?? ebooks[0]
+        return ebooks.sorted { left, right in
+            let leftDate = parseSubtitleSourceDate(left.modifiedAt)
+            let rightDate = parseSubtitleSourceDate(right.modifiedAt)
+            if leftDate != rightDate {
+                return leftDate > rightDate
+            }
+            return left.path.localizedStandardCompare(right.path) == .orderedAscending
+        }.first
     }
 
     static func subtitleJobSources(from response: SubtitleSourceListResponse?) -> [SubtitleSourceEntry] {

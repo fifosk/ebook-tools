@@ -80,8 +80,9 @@ struct AppleCreationPayloadCheck {
         let pipelineFilesJSON = """
         {
           "ebooks": [
-            {"name": "Other.epub", "path": "Other.epub", "type": "file"},
-            {"name": "test-agatha-poirot-30sentences.epub", "path": "samples/poirot.epub", "type": "file"}
+            {"name": "Older.epub", "path": "z-older.epub", "type": "file", "modified_at": "2026-06-23T12:00:00Z"},
+            {"name": "Folder", "path": "folder", "type": "directory", "modified_at": "2026-06-25T12:00:00Z"},
+            {"name": "Newest.epub", "path": "a-newest.epub", "type": "file", "modified_at": "2026-06-24T12:00:00Z"}
           ],
           "outputs": [
             {"name": "generated", "path": "generated", "type": "directory"}
@@ -96,19 +97,32 @@ struct AppleCreationPayloadCheck {
             "Apple Create should decode pipeline file browser roots"
         )
         require(
-            AppleBookCreatePresentation.preferredPipelineEbook(from: pipelineFiles)?.path == "samples/poirot.epub",
-            "Apple Create should prefer the same sample EPUB as Web when auto-filling Narrate EPUB"
+            AppleBookCreatePresentation.preferredPipelineEbook(from: pipelineFiles)?.path == "a-newest.epub",
+            "Apple Create should prefer the latest modified backend-visible EPUB when auto-filling Narrate EPUB"
         )
         require(
             AppleBookCreatePresentation.preferredPipelineEbook(
                 from: PipelineFileBrowserResponse(
-                    ebooks: [PipelineFileEntry(name: "First.epub", path: "First.epub", type: "file")],
+                    ebooks: [
+                        PipelineFileEntry(
+                            name: "Z.epub",
+                            path: "Z.epub",
+                            type: "file",
+                            modifiedAt: "2026-06-24T12:00:00Z"
+                        ),
+                        PipelineFileEntry(
+                            name: "A.epub",
+                            path: "A.epub",
+                            type: "file",
+                            modifiedAt: "2026-06-24T12:00:00Z"
+                        ),
+                    ],
                     outputs: [],
                     booksRoot: "/books",
                     outputRoot: "/output"
                 )
-            )?.path == "First.epub",
-            "Apple Create should fall back to the first backend-listed EPUB"
+            )?.path == "A.epub",
+            "Apple Create should break same-time EPUB preference ties by path"
         )
         let subtitleSourcesJSON = """
         {

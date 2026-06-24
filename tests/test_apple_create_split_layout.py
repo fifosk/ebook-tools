@@ -180,6 +180,26 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "applyNarrateChapterRangeSelection" in source
 
 
+def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
+    source = _source(
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Create"
+        / "AppleBookCreateSupport.swift"
+    )
+
+    assert "static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry?" in source
+    assert "files?.ebooks.filter({ $0.type == \"file\" })" in source
+    assert "parseSubtitleSourceDate(left.modifiedAt)" in source
+    assert "parseSubtitleSourceDate(right.modifiedAt)" in source
+    assert "return leftDate > rightDate" in source
+    assert "left.path.localizedStandardCompare(right.path)" in source
+    assert "test-agatha-poirot-30sentences.epub" not in source
+
+
 def test_generated_book_create_exposes_source_context_fields() -> None:
     source = _source(CREATE_VIEW)
     support_source = _source(CREATE_VIEW_MODEL)

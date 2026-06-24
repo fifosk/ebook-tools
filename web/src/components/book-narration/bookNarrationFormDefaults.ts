@@ -1,8 +1,6 @@
 import { DEFAULT_IMAGE_API_BASE_URLS } from '../../constants/imageNodes';
 import type { BookNarrationFormSection, FormState } from './bookNarrationFormTypes';
 
-export const PREFERRED_SAMPLE_EBOOK = 'test-agatha-poirot-30sentences.epub';
-
 export const IMAGE_DEFAULT_FIELDS = new Set<keyof FormState>([
   'add_images',
   'image_prompt_pipeline',
