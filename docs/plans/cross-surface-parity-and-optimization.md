@@ -213,7 +213,11 @@ Current Apple UI partially exposes:
   Apple Create language controls are now contract-pinned to the shared
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults
-  or older option responses are sparse.
+  or older option responses are sparse. The iPad regular-width Create layout now
+  keeps the left setup pane source-only and moves Book, Metadata, Job Settings,
+  Narration, Output, status, and submit controls into the right-side settings
+  pane so creation settings use the detail area instead of reading like sidebar
+  content.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The

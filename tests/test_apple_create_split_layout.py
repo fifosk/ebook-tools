@@ -202,11 +202,13 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert setup_sections
     assert settings_sections
     assert "sourceSection" in setup_sections.group("body")
-    assert "promptSection" in setup_sections.group("body")
-    assert "metadataSection" in setup_sections.group("body")
+    assert "promptSection" not in setup_sections.group("body")
+    assert "metadataSection" not in setup_sections.group("body")
     assert "jobTypeSection" not in setup_sections.group("body")
     assert "jobSettingsSection" not in setup_sections.group("body")
     assert "jobTypeSection" in settings_sections.group("body")
+    assert "promptSection" in settings_sections.group("body")
+    assert "metadataSection" in settings_sections.group("body")
     assert "jobSettingsSection" in settings_sections.group("body")
     assert "narrationSection" in settings_sections.group("body")
     assert "outputSection" in settings_sections.group("body")

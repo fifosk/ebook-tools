@@ -255,17 +255,17 @@ struct AppleBookCreateView: View {
     @ViewBuilder
     private var createSetupSections: some View {
         sourceSection
+    }
+
+    @ViewBuilder
+    private var createSettingsSections: some View {
+        jobTypeSection
         if creationMode == .generatedBook {
             promptSection
         }
         if creationMode == .generatedBook || creationMode == .narrateEbook {
             metadataSection
         }
-    }
-
-    @ViewBuilder
-    private var createSettingsSections: some View {
-        jobTypeSection
         jobSettingsSection
         narrationSection
         if creationMode == .subtitleJob {
