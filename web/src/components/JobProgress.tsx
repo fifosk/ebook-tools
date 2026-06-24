@@ -21,6 +21,7 @@ import { JobProgressOverviewSection } from './job-progress/JobProgressOverviewSe
 import { JobProgressPermissionsSection } from './job-progress/JobProgressPermissionsSection';
 import { JobProgressStageSection } from './job-progress/JobProgressStageSection';
 import { JobProgressTabs, type JobProgressTab } from './job-progress/JobProgressTabs';
+import { JobProgressTimingSummary } from './job-progress/JobProgressTimingSummary';
 import { resolveProgressStage } from '../utils/progressEvents';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
 import {
@@ -32,7 +33,6 @@ import {
   buildImageClusterNodes,
   buildParallelismEntries,
   coerceNumber,
-  formatDate,
   formatTuningValue,
   isNarratedSubtitleJobStatus,
   normalizeTranslationProvider,
@@ -390,19 +390,12 @@ export function JobProgress({
         onCopy={onCopy}
         onMoveToLibrary={onMoveToLibrary}
       />
-      <p>
-        <strong>Created:</strong> {formatDate(status?.created_at ?? null)}
-        <br />
-        <strong>Started:</strong> {formatDate(status?.started_at)}
-        <br />
-        <strong>Completed:</strong> {formatDate(status?.completed_at)}
-        {mediaCompleted !== null ? (
-          <>
-            <br />
-            <strong>Media finalized:</strong> {mediaCompleted ? 'Yes' : 'In progress'}
-          </>
-        ) : null}
-      </p>
+      <JobProgressTimingSummary
+        createdAt={status?.created_at}
+        startedAt={status?.started_at}
+        completedAt={status?.completed_at}
+        mediaCompleted={mediaCompleted}
+      />
       <JobProgressTabs activeTab={jobTab} onChange={setJobTab} />
       {showMetadataSections ? (
         <JobProgressMediaMetadata
