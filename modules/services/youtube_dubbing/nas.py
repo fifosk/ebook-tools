@@ -413,8 +413,12 @@ def delete_nas_subtitle(subtitle_path: Path) -> SubtitleDeletionResult:
     suffix = resolved.suffix.lower().lstrip(".")
     if suffix not in _SUBTITLE_EXTENSIONS:
         raise ValueError("subtitle_path must reference an ASS, SRT, VTT, or SUB subtitle file")
-    if not resolved.exists():
-        raise FileNotFoundError(f"Subtitle file '{resolved}' does not exist")
+    try:
+        exists = resolved.exists()
+    except OSError:
+        exists = False
+    if not exists:
+        return SubtitleDeletionResult(removed=[], missing=[resolved])
 
     removed: List[Path] = []
     missing: List[Path] = []

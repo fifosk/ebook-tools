@@ -311,6 +311,20 @@ def test_delete_nas_subtitle_removes_mirrors(monkeypatch, tmp_path: Path) -> Non
     assert mirror_html.resolve() in removed_paths
 
 
+def test_delete_nas_subtitle_reports_missing_valid_subtitle_path(tmp_path: Path) -> None:
+    missing_subtitle = tmp_path / "movie.en.srt"
+
+    result = delete_nas_subtitle(missing_subtitle)
+
+    assert result.removed == []
+    assert result.missing == [missing_subtitle.resolve()]
+
+
+def test_delete_nas_subtitle_rejects_missing_non_subtitle_path(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="subtitle file"):
+        delete_nas_subtitle(tmp_path / "movie.txt")
+
+
 def test_delete_downloaded_video_removes_folder_and_artifacts(monkeypatch, tmp_path: Path) -> None:
     video_dir = tmp_path / "Sample Video - 2024-01-01 10-00-00"
     video_dir.mkdir()
