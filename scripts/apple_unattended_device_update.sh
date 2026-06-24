@@ -60,6 +60,7 @@ Options:
                                  Temporarily remove the iOS app entitlements build setting
                                  during build, then restore the project file. Useful when
                                  a local development profile lacks iCloud/push/sign-in.
+                                 Requires APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES.
   --launch-console-timeout SECONDS
                                  Launch with --console and treat a timeout as success,
                                  proving the app did not immediately crash.
@@ -79,6 +80,8 @@ Environment:
   XCPROJ, SCHEME, CONFIGURATION, PRODUCT_NAME, and BUNDLE_ID override defaults.
   APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS=1 and APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT
   enable the matching unattended fallback behaviors.
+  APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES is required before the
+  entitlement-stripping fallback can mutate project settings during a build.
 USAGE
 }
 
@@ -415,6 +418,11 @@ if [[ "${SKIP_BUILD}" != "1" ]]; then
   print_command "Build command" "${BUILD_CMD[@]}"
   echo "Resolved app path: ${APP_PATH}"
   if [[ "${STRIP_IOS_ENTITLEMENTS}" == "1" ]]; then
+    if [[ "${APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING:-}" != "YES" ]]; then
+      echo "Refusing to strip iOS entitlements without APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES." >&2
+      echo "Use the full-entitlement codesign fallback when validating iCloud, Push, or Sign in with Apple." >&2
+      exit 2
+    fi
     echo "Local signing patch: temporarily strip iOS app entitlements during build, then restore project file."
   fi
 fi

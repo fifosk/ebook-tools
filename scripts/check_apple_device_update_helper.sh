@@ -141,8 +141,28 @@ if [[ "${bad_profile_status}" -eq 0 ]]; then
 fi
 assert_contains "${bad_profile_output}" "Unknown device profile: watch" "unknown profile should explain the bad profile name"
 
-local_signing_output="$(
+set +e
+strip_refusal_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \
+    --device TEST-DEVICE \
+    --dry-run \
+    --install \
+    --configuration Release \
+    --strip-ios-entitlements-for-local-signing 2>&1
+)"
+strip_refusal_status=$?
+set -e
+if [[ "${strip_refusal_status}" -eq 0 ]]; then
+  echo "ERROR: entitlement-stripping fallback should require an explicit unlock" >&2
+  exit 1
+fi
+assert_contains "${strip_refusal_output}" "APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES" "entitlement stripping should require an explicit unlock"
+assert_contains "${strip_refusal_output}" "full-entitlement codesign fallback" "entitlement stripping refusal should point to the safer iCloud-preserving fallback"
+
+local_signing_output="$(
+  APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES \
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+    bash "${HELPER}" \
     --device TEST-DEVICE \
     --dry-run \
     --install \

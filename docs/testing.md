@@ -40,6 +40,11 @@ python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --dry-
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile iphone --dry-run
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile appletv --dry-run
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile cinema --dry-run
+
+# Repo-owned wrappers for the same attended-device gates
+make apple-device-preflight APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID=<id>
+make apple-device-signed-build-only APPLE_DEVICE_PROFILE=ipad
+make apple-device-deploy-dry-run APPLE_DEVICE_PROFILE=appletv
 ```
 
 The shared pipeline validates the MacBook simulator lane from the local
@@ -383,6 +388,9 @@ of the iOS/iPadOS app contract. Treat CLI signing failures as an Xcode
 account/profile refresh gate or use the full-entitlement manual codesign
 fallback above; do not remove or strip the iCloud/Sign in with Apple/Push
 entitlements when validating device features.
+The older entitlement-stripping fallback now requires
+`APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES` and should stay locked for any
+iCloud, Push Notifications, or Sign in with Apple validation.
 
 To inspect local cached profile capability shape without printing secrets, run:
 

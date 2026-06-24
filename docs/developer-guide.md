@@ -193,6 +193,9 @@ make apple-pipeline-contracts
 make apple-pipeline-backend
 make apple-pipeline-source-sync
 make verify-apple-shared-pipeline
+make apple-device-preflight APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID=<id>
+make apple-device-signed-build-only APPLE_DEVICE_PROFILE=ipad
+make apple-device-deploy-dry-run APPLE_DEVICE_PROFILE=appletv
 
 # Local Mac Designed for iPad/iPhone compile checks
 make apple-macos-ipad-destination
@@ -243,6 +246,9 @@ dylibs/extensions first and `InteractiveReader.app` last, then install with
 `scripts/apple_unattended_device_update.sh --skip-build --app-path <app> --install --launch --launch-console-timeout 10`.
 This preserves iCloud behavior and avoids the older entitlement-stripping local
 signing fallback when device feature validation matters.
+The entitlement-stripping fallback is now locked behind
+`APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES`; leave it locked when validating
+iCloud, Push Notifications, or Sign in with Apple.
 
 For the repo-owned unattended helper, pass `--profile iphone`, `--profile ipad`,
 or `--profile appletv` instead of hand-setting target-specific environment

@@ -373,6 +373,11 @@ Expected Apple work:
 
 Status: API plumbing and generated-book payload coverage are in place. Continue
 expanding contract checks whenever a new Web-only creation flow becomes native.
+Repo-owned physical-device helpers now expose attended preflight,
+shared-pipeline signed-build-only, and shared-pipeline deploy dry-run wrappers,
+and the legacy entitlement-stripping fallback requires
+`APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES` so iCloud/Push/Sign in with Apple
+validation keeps the full entitlement set by default.
 
 ### Milestone 2: iPad/iPhone Native New Job
 
@@ -577,7 +582,7 @@ Every cross-surface change should pass the relevant subset:
   `python3 scripts/run_app_web_checks.py --app ebook-tools`, which runs the
   registered Create, Library, Video Dubbing, and Subtitle Tool focused checks,
   production/export build, and generated-artifact cleanup.
-- Apple: release contract, iOS/tvOS simulator builds, the iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the local Apple surface build gate, the local Apple verification gate, guarded CoreDevice preflight before confirmed physical-device updates, shared Apple pipeline preflight targets, and shared pipeline simulator smokes.
+- Apple: release contract, iOS/tvOS simulator builds, the iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the local Apple surface build gate, the local Apple verification gate, `make apple-device-preflight`, `make apple-device-signed-build-only`, `make apple-device-deploy-dry-run`, guarded CoreDevice preflight before confirmed physical-device updates, shared Apple pipeline preflight targets, and shared pipeline simulator smokes.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

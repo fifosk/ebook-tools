@@ -3,6 +3,7 @@
        test-config test-metadata test-changed \
        test-apple-contracts build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
+       apple-device-preflight apple-device-signed-build-only apple-device-deploy-dry-run \
        build-apple-iphone-simulator build-apple-ipad-simulator \
        build-apple-ios-simulators build-apple-tvos-simulator \
        build-apple-local-surfaces verify-apple-local-surfaces \
@@ -23,6 +24,7 @@ PYTHON ?= $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else e
 APPLE_PIPELINE_ROOT ?= /Users/fifo/Projects/home/apple-device-app-pipeline
 APPLE_PIPELINE_APP ?= ebook-tools
 APPLE_PIPELINE_PYTHON ?= python3
+APPLE_DEVICE_PROFILE ?= ipad
 
 # ── Full suite ───────────────────────────────────────────────────────────
 test:
@@ -98,6 +100,15 @@ apple-pipeline-source-sync:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_source_sync.py --app "$(APPLE_PIPELINE_APP)"
 
 verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend
+
+apple-device-preflight:
+	bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only
+
+apple-device-signed-build-only:
+	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only
+
+apple-device-deploy-dry-run:
+	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run
 
 build-apple-macos-ipad-style:
 	bash scripts/apple_build_macos_ipad_style.sh
