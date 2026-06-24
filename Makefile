@@ -3,6 +3,7 @@
        test-config test-metadata test-changed \
        test-backend-library-search-source-isbn test-backend-admin-system-status \
        test-backend-create-book test-backend-creation-templates \
+       test-backend-audio-routes \
        test-backend-subtitle-router \
        test-backend-playback-state \
        test-backend-offline-export \
@@ -87,6 +88,9 @@ test-backend-create-book:
 
 test-backend-creation-templates:
 	$(PYTHON) -m pytest tests/modules/webapi/test_creation_template_routes.py
+
+test-backend-audio-routes:
+	$(PYTHON) -m pytest tests/modules/webapi/test_audio_routes.py
 
 test-backend-subtitle-router:
 	$(PYTHON) -m pytest tests/webapi/test_subtitles_router.py

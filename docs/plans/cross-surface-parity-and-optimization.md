@@ -656,6 +656,10 @@ Refactor before restyling:
   language catalog used by the pickers, instead of a narrow local name map, and
   native voice previews now carry localized sample sentences across the same
   backend/Web language catalog instead of only the original six languages. The
+  manifest-registered `test-backend-audio-routes` target now exercises
+  `/api/audio`, `/api/audio/voices`, and `/api/audio/match` with stubbed
+  synthesis, so the shared pipeline catches voice inventory and preview drift
+  before Apple Create or Web creation surfaces rely on it. The
   native preview sample catalog now lives in its own Create helper file and is
   wired into the Xcode project plus creation-payload compile contract so future
   catalog changes are verified across Apple targets. Focused parity tests now
