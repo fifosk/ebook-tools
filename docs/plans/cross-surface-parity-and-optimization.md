@@ -619,7 +619,9 @@ Refactor before restyling:
   languages appear in the pickers even when they are not selected defaults.
   `/api/books/options` now reads and normalizes generated-source image defaults
   from backend config so Web and Apple start from the same image
-  pipeline/style/context/size values.
+  pipeline/style/context/size values. Apple Create voice inventory matching and
+  preview keys now normalize language selections through the same full Apple
+  language catalog used by the pickers, instead of a narrow local name map.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 

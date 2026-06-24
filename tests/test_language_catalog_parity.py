@@ -180,3 +180,13 @@ def test_apple_create_language_controls_share_available_lists_across_surfaces() 
     assert "options: availableTargetLanguages" in non_tvos_block.group("body")
     assert 'Text("\\(options.count) available")' in selector_source
     assert '.accessibilityValue("\\(selection.label), \\(options.count) available")' in selector_source
+
+
+def test_apple_create_voice_language_normalization_uses_full_catalog() -> None:
+    source = APPLE_CREATE_LANGUAGE_OPTIONS.read_text(encoding="utf-8")
+
+    assert "AppleLanguageCatalog.languageCode(for: trimmed)" in source
+    assert 'replacingOccurrences(of: "_", with: "-")' in source
+    assert 'let languageMap = [' not in source
+    for language in ("english", "arabic", "spanish", "french", "german", "slovak"):
+        assert f'"{language}"' not in source

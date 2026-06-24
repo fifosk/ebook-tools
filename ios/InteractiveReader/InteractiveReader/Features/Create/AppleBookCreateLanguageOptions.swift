@@ -183,18 +183,15 @@ extension AppleBookCreatePresentation {
     }
 
     private static func normalizedVoiceLanguage(_ value: String) -> String {
-        let normalized = normalizedCreateOptionText(value)
+        let trimmed = normalizedCreateOptionText(value)
+        if let code = AppleLanguageCatalog.languageCode(for: trimmed) {
+            return code
+                .replacingOccurrences(of: "_", with: "-")
+                .lowercased()
+        }
+        return trimmed
             .replacingOccurrences(of: "_", with: "-")
             .lowercased()
-        let languageMap = [
-            "english": "en",
-            "arabic": "ar",
-            "spanish": "es",
-            "french": "fr",
-            "german": "de",
-            "slovak": "sk"
-        ]
-        return languageMap[normalized] ?? normalized
     }
 
     private static func baseVoiceLanguage(_ value: String) -> String {
