@@ -86,6 +86,8 @@ describe('useVideoDubbingOutputState', () => {
           target_height: 720,
           preserve_aspect_ratio: false,
           split_batches: false,
+          stitch_batches: false,
+          enable_lookup_cache: false,
           include_transliteration: false
         }
       })
@@ -101,9 +103,9 @@ describe('useVideoDubbingOutputState', () => {
     expect(result.current.targetHeight).toBe(720);
     expect(result.current.preserveAspectRatio).toBe(false);
     expect(result.current.splitBatches).toBe(false);
+    expect(result.current.stitchBatches).toBe(false);
+    expect(result.current.enableLookupCache).toBe(false);
     expect(result.current.includeTransliteration).toBe(false);
-    expect(result.current.stitchBatches).toBe(true);
-    expect(result.current.enableLookupCache).toBe(true);
   });
 
   it('starts from built-in defaults before async defaults arrive', () => {

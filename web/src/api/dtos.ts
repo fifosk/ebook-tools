@@ -254,6 +254,7 @@ export interface JobParameterSnapshot {
   original_mix_percent?: number | null;
   flush_sentences?: number | null;
   split_batches?: boolean | null;
+  stitch_batches?: boolean | null;
   include_transliteration?: boolean | null;
   add_images?: boolean | null;
   translation_provider?: string | null;

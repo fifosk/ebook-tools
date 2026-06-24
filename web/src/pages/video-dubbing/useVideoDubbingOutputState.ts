@@ -105,7 +105,13 @@ export function useVideoDubbingOutputState({
     setTargetHeight(prefill.targetHeight);
     setPreserveAspectRatio(prefill.preserveAspectRatio);
     setSplitBatches(prefill.splitBatches);
+    if (prefill.stitchBatches !== undefined) {
+      setStitchBatches(prefill.stitchBatches);
+    }
     setIncludeTransliteration(prefill.includeTransliteration);
+    if (prefill.enableLookupCache !== undefined) {
+      setEnableLookupCache(prefill.enableLookupCache);
+    }
   }, [prefillParameters]);
 
   return {

@@ -566,11 +566,13 @@ describe('videoDubbingUtils', () => {
         target_height: 720,
         preserve_aspect_ratio: false,
         split_batches: false,
+        stitch_batches: false,
         llm_model: ' gpt-4.1-mini ',
         translation_provider: ' llm ',
         transliteration_mode: ' always ',
         transliteration_model: ' uroman ',
-        include_transliteration: false
+        include_transliteration: false,
+        enable_lookup_cache: false
       })
     ).toEqual({
       videoPath: '/video/from-input.mkv',
@@ -585,11 +587,13 @@ describe('videoDubbingUtils', () => {
       targetHeight: 720,
       preserveAspectRatio: false,
       splitBatches: false,
+      stitchBatches: false,
       llmModel: 'gpt-4.1-mini',
       translationProvider: 'llm',
       transliterationMode: 'always',
       transliterationModel: 'uroman',
-      includeTransliteration: false
+      includeTransliteration: false,
+      enableLookupCache: false
     });
   });
 
@@ -603,7 +607,9 @@ describe('videoDubbingUtils', () => {
         target_height: null,
         preserve_aspect_ratio: null,
         split_batches: null,
-        include_transliteration: null
+        stitch_batches: null,
+        include_transliteration: null,
+        enable_lookup_cache: null
       })
     ).toEqual({
       videoPath: '/video/from-fallback.mkv',
@@ -618,11 +624,13 @@ describe('videoDubbingUtils', () => {
       targetHeight: 480,
       preserveAspectRatio: true,
       splitBatches: true,
+      stitchBatches: undefined,
       llmModel: undefined,
       translationProvider: undefined,
       transliterationMode: undefined,
       transliterationModel: undefined,
-      includeTransliteration: true
+      includeTransliteration: true,
+      enableLookupCache: undefined
     });
   });
 

@@ -658,11 +658,13 @@ export type VideoDubPrefillValues = {
   targetHeight: number;
   preserveAspectRatio: boolean;
   splitBatches: boolean;
+  stitchBatches?: boolean;
   llmModel?: string;
   translationProvider?: string;
   transliterationMode?: string;
   transliterationModel?: string;
   includeTransliteration: boolean;
+  enableLookupCache?: boolean;
 };
 
 function finiteNumber(value: unknown): number | undefined {
@@ -705,11 +707,14 @@ export function resolveVideoDubPrefill(
     preserveAspectRatio:
       typeof parameters.preserve_aspect_ratio === 'boolean' ? parameters.preserve_aspect_ratio : true,
     splitBatches: typeof parameters.split_batches === 'boolean' ? parameters.split_batches : true,
+    stitchBatches: typeof parameters.stitch_batches === 'boolean' ? parameters.stitch_batches : undefined,
     llmModel: trimmedString(parameters.llm_model),
     translationProvider: trimmedString(parameters.translation_provider),
     transliterationMode: trimmedString(parameters.transliteration_mode),
     transliterationModel: trimmedString(parameters.transliteration_model),
     includeTransliteration:
-      typeof parameters.include_transliteration === 'boolean' ? parameters.include_transliteration : true
+      typeof parameters.include_transliteration === 'boolean' ? parameters.include_transliteration : true,
+    enableLookupCache:
+      typeof parameters.enable_lookup_cache === 'boolean' ? parameters.enable_lookup_cache : undefined
   };
 }
