@@ -6,6 +6,21 @@ enum AppChangelogData {
             version: "2026.06.24.27",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-nas-ebook-metadata",
+                    title: "Create labels NAS books",
+                    detail: "Apple Create now shows backend-visible EPUB size and modified date in the server book picker, making the latest NAS source easier to verify before starting Narrate EPUB jobs."
+                ),
+                AppChangelogEntry(
+                    id: "apple-tvos-create-tuning-controls",
+                    title: "TV Create gets tuning",
+                    detail: "Apple TV Create now exposes subtitle typography, subtitle batch tuning, and YouTube dubbing mix, flush, and batch controls through remote-friendly value steppers."
+                ),
+                AppChangelogEntry(
+                    id: "web-media-provider-defaults",
+                    title: "Web media defaults align",
+                    detail: "Web Subtitle Tool and Video Dubbing now use the same backend translation provider and transliteration defaults that Apple Create reads from /api/books/options."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-media-default-readiness",
                     title: "Create checks media defaults",
                     detail: "Apple Create readiness now verifies that the backend advertises shared subtitle and YouTube dubbing processing defaults before simulator journeys run."
