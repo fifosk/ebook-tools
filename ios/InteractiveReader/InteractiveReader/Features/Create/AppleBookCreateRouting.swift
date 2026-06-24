@@ -18,7 +18,11 @@ extension AppleBookCreatePresentation {
         }
     }
 
-    static func webCreateHandoffURL(apiBaseURL: URL?, mode: AppleCreateMode) -> URL? {
+    static func webCreateHandoffURL(
+        apiBaseURL: URL?,
+        mode: AppleCreateMode,
+        templateID: String? = nil
+    ) -> URL? {
         guard
             let apiBaseURL,
             var components = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false),
@@ -40,9 +44,14 @@ extension AppleBookCreatePresentation {
 
         components.host = host
         components.path = "/"
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "view", value: webCreateViewID(for: mode))
         ]
+        if let templateID = templateID?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !templateID.isEmpty {
+            queryItems.append(URLQueryItem(name: "template_id", value: templateID))
+        }
+        components.queryItems = queryItems
         components.fragment = nil
         return components.url
     }

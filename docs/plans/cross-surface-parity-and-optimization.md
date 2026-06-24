@@ -853,8 +853,12 @@ Suggested features to evaluate after parity scaffolding:
   Narrate Ebook or generated-book form state into the selected creation surface;
   generated-book templates also carry sanitized prompt fields (topic, book name,
   genre, author, sentence count) so "continue this book" drafts restore both
-  the source prompt and narration settings. Next step is wiring native Create
-  draft/save actions to mint those links directly from iPad/iPhone.
+  the source prompt and narration settings. Native Apple Create now appends the
+  selected compatible generated-book or Narrate Ebook template id when opening
+  Web Create, letting iPad/iPhone hand a saved draft into the advanced Web form.
+  Next step is wiring native Create draft/save actions for one-tap template
+  creation before handoff, then extending Web `template_id` application to
+  subtitle and YouTube dubbing surfaces.
 - Creation handoff: Apple app opens the corresponding Web creation URL for unsupported advanced options. Status:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,
   and maps native creation modes to validated Web `?view=` deep links. The

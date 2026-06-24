@@ -622,8 +622,16 @@ struct AppleBookCreateView: View {
     private var webCreateHandoffURL: URL? {
         AppleBookCreatePresentation.webCreateHandoffURL(
             apiBaseURL: appState.apiBaseURL,
-            mode: creationMode
+            mode: creationMode,
+            templateID: webCreateHandoffTemplateID
         )
+    }
+
+    private var webCreateHandoffTemplateID: String? {
+        guard creationMode == .generatedBook || creationMode == .narrateEbook else {
+            return nil
+        }
+        return compatibleCreationTemplates.first { $0.id == selectedTemplateID }?.id
     }
 
     private var derivedBaseOutput: String {

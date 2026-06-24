@@ -1135,10 +1135,16 @@ def test_create_routing_is_split_from_support_and_target_wired() -> None:
     assert "AppleCreateMode.allCases" in routing_source
     assert "isTV ? []" not in routing_source
     assert "static func webCreateViewID(for mode: AppleCreateMode)" in routing_source
-    assert "static func webCreateHandoffURL(apiBaseURL: URL?, mode: AppleCreateMode)" in routing_source
+    assert "static func webCreateHandoffURL(" in routing_source
+    assert "templateID: String? = nil" in routing_source
     assert 'return "books:create"' in routing_source
     assert 'return "pipeline:source"' in routing_source
     assert 'return "subtitles:youtube-dub"' in routing_source
+    assert 'URLQueryItem(name: "template_id", value: templateID)' in routing_source
+    assert "templateID: webCreateHandoffTemplateID" in _source(CREATE_VIEW)
+    assert "private var webCreateHandoffTemplateID: String?" in _source(CREATE_VIEW)
+    assert "creationMode == .generatedBook || creationMode == .narrateEbook" in _source(CREATE_VIEW)
+    assert "compatibleCreationTemplates.first { $0.id == selectedTemplateID }?.id" in _source(CREATE_VIEW)
     assert _swift_apple_create_views(routing_source) == _web_apple_create_views(web_app_views)
     assert "static func availableCreateModes" not in support_source
     assert "static func webCreateViewID" not in support_source
