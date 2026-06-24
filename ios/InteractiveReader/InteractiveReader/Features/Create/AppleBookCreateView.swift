@@ -120,6 +120,7 @@ struct AppleBookCreateView: View {
     @State private var bookJobMaxWorkers = ""
     @State private var editedFields = Set<AppleBookCreateEditedField>()
     @State private var youtubeSelectionStorageScope = ""
+    @State private var selectedTemplateID = ""
 
     var body: some View {
         AppleBookCreateContainer(
@@ -186,6 +187,9 @@ struct AppleBookCreateView: View {
     @ViewBuilder
     private var createSettingsSections: some View {
         jobTypeSection
+        if creationMode == .generatedBook || creationMode == .narrateEbook {
+            templateSection
+        }
         if creationMode == .generatedBook {
             promptSection
         }
@@ -310,6 +314,18 @@ struct AppleBookCreateView: View {
             creationMode: $creationMode,
             availableCreateModes: availableCreateModes,
             showsInlineJobTypePicker: showsInlineJobTypePicker
+        )
+    }
+
+    private var templateSection: some View {
+        AppleBookCreateTemplateSection(
+            templates: compatibleCreationTemplates,
+            selectedTemplateID: selectedCompatibleTemplateIDBinding,
+            isLoading: viewModel.isLoadingCreationTemplates,
+            errorMessage: viewModel.creationTemplatesErrorMessage,
+            message: viewModel.creationTemplateMessage,
+            onRefresh: refreshCreationTemplatesFromSection,
+            onApply: applySelectedCreationTemplate
         )
     }
 
@@ -582,6 +598,28 @@ struct AppleBookCreateView: View {
 
     private var availableCreateModes: [AppleCreateMode] {
         AppleBookCreatePresentation.availableCreateModes(isTV: Self.isTVPlatform)
+    }
+
+    private var compatibleCreationTemplates: [CreationTemplateEntry] {
+        viewModel.creationTemplates.filter { template in
+            switch creationMode {
+            case .generatedBook:
+                return template.normalizedMode == "generated_book"
+            case .narrateEbook:
+                return template.normalizedMode == "narrate_ebook"
+            case .subtitleJob, .youtubeDub:
+                return false
+            }
+        }
+    }
+
+    private var selectedCompatibleTemplateIDBinding: Binding<String> {
+        Binding(
+            get: {
+                compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID }) ? selectedTemplateID : ""
+            },
+            set: { selectedTemplateID = $0 }
+        )
     }
 
     private var webCreateHandoffURL: URL? {
@@ -877,6 +915,7 @@ struct AppleBookCreateView: View {
         await refreshCreationOptions()
         await refreshIntakeStatus()
         await refreshPipelineFiles()
+        await refreshCreationTemplates()
         await refreshSubtitleSources()
         applyStoredYoutubeBaseDir()
         await refreshYoutubeLibrary()
@@ -933,6 +972,10 @@ struct AppleBookCreateView: View {
 
     private func refreshPipelineFilesFromSourceSection() {
         Task { await refreshPipelineFiles(force: true) }
+    }
+
+    private func refreshCreationTemplatesFromSection() {
+        Task { await refreshCreationTemplates(force: true) }
     }
 
     private func refreshSubtitleSourcesFromSourceSection() {
@@ -1101,6 +1144,430 @@ struct AppleBookCreateView: View {
             force: force
         )
         applyPreferredNarrateSource(from: files)
+    }
+
+    private func refreshCreationTemplates(force: Bool = false) async {
+        _ = await viewModel.loadCreationTemplates(
+            using: appState,
+            cacheKey: creationOptionsLoadKey,
+            force: force
+        )
+        guard !compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID }) else {
+            return
+        }
+        selectedTemplateID = compatibleCreationTemplates.first?.id ?? ""
+    }
+
+    private func applySelectedCreationTemplate() {
+        guard let template = compatibleCreationTemplates.first(where: { $0.id == selectedTemplateID }) else {
+            viewModel.creationTemplateMessage = nil
+            viewModel.errorMessage = "Choose a saved template before applying it."
+            return
+        }
+        applyCreationTemplate(template)
+    }
+
+    private func applyCreationTemplate(_ template: CreationTemplateEntry) {
+        guard let formState = templateFormState(from: template) else {
+            viewModel.creationTemplateMessage = nil
+            viewModel.errorMessage = "Template \(template.displayName) does not contain Web book settings."
+            return
+        }
+
+        var appliedFields = Set<AppleBookCreateEditedField>()
+        func markApplied(_ field: AppleBookCreateEditedField) {
+            appliedFields.insert(field)
+        }
+
+        if template.normalizedMode == "generated_book" {
+            creationMode = .generatedBook
+        } else if template.normalizedMode == "narrate_ebook" {
+            creationMode = .narrateEbook
+        }
+
+        if let value = templateString(formState, "input_file") {
+            sourcePath = value
+            selectedNarrateFileURL = nil
+            selectedNarrateFileName = nil
+            clearNarrateChapterSelection()
+            markApplied(.sourcePath)
+        }
+        if let value = templateString(formState, "base_output_file") {
+            sourceBaseOutput = value
+            markApplied(.sourceBaseOutput)
+        }
+        if let value = templateInt(formState, "start_sentence") {
+            sourceStartSentence = "\(value)"
+            markApplied(.sourceStartSentence)
+        }
+        if let value = templateEndSentenceText(formState["end_sentence"]) {
+            sourceEndSentence = value
+            markApplied(.sourceEndSentence)
+        }
+        if let value = templateInt(formState, "sentences_per_output_file") {
+            bookSentencesPerOutputFile = AppleBookCreatePresentation.clampBookSentencesPerOutputFile(value)
+            markApplied(.bookSentencesPerOutputFile)
+        }
+
+        applyTemplateLanguages(formState, appliedFields: &appliedFields)
+        applyTemplateNarrationSettings(formState, appliedFields: &appliedFields)
+        applyTemplateOutputSettings(formState, appliedFields: &appliedFields)
+        applyTemplateImageSettings(formState, appliedFields: &appliedFields)
+        applyTemplateWorkerSettings(formState, appliedFields: &appliedFields)
+        applyTemplateMetadata(formState, appliedFields: &appliedFields)
+
+        editedFields.formUnion(appliedFields)
+        viewModel.errorMessage = nil
+        viewModel.creationTemplateMessage = "Applied template \(template.displayName)."
+    }
+
+    private func applyTemplateLanguages(
+        _ formState: [String: JSONValue],
+        appliedFields: inout Set<AppleBookCreateEditedField>
+    ) {
+        if let value = templateString(formState, "input_language"),
+           let language = AppleBookCreateLanguage(backendValue: value) {
+            inputLanguage = language
+            appliedFields.insert(.inputLanguage)
+        }
+
+        let targets = templateStringArray(formState, "target_languages")
+            .compactMap(AppleBookCreateLanguage.init(backendValue:))
+        if let primary = targets.first {
+            targetLanguage = primary
+            appliedFields.insert(.targetLanguage)
+            additionalTargetLanguages = targets.dropFirst().map(\.backendValue).joined(separator: ", ")
+            appliedFields.insert(.additionalTargetLanguages)
+        }
+    }
+
+    private func applyTemplateNarrationSettings(
+        _ formState: [String: JSONValue],
+        appliedFields: inout Set<AppleBookCreateEditedField>
+    ) {
+        if let value = templateString(formState, "selected_voice"),
+           let option = AppleBookCreateVoiceOption(backendValue: value) {
+            voice = option
+            appliedFields.insert(.voice)
+        }
+        if let overrides = templateStringDictionary(formState["voice_overrides"]) {
+            languageVoiceOverrides = overrides
+            appliedFields.insert(.languageVoiceOverrides)
+        }
+        if let value = templateBool(formState, "generate_audio") {
+            generateAudio = value
+            appliedFields.insert(.generateAudio)
+        }
+        if let value = templateString(formState, "audio_mode") {
+            audioMode = value
+            appliedFields.insert(.audioMode)
+        }
+        if let value = templateString(formState, "audio_bitrate_kbps") {
+            audioBitrateKbps = value
+            appliedFields.insert(.audioBitrateKbps)
+        }
+        if let value = templateString(formState, "written_mode") {
+            writtenMode = value
+            appliedFields.insert(.writtenMode)
+        }
+        if let value = templateDouble(formState, "tempo") {
+            tempo = value
+            appliedFields.insert(.tempo)
+        }
+        if let value = templateBool(formState, "stitch_full") {
+            stitchFull = value
+            appliedFields.insert(.stitchFull)
+        }
+        if let value = templateBool(formState, "include_transliteration") {
+            includeTransliteration = value
+            appliedFields.insert(.includeTransliteration)
+        }
+        if let value = templateString(formState, "translation_provider"),
+           let provider = AppleSubtitleTranslationProvider(backendValue: value) {
+            bookTranslationProvider = provider
+            appliedFields.insert(.bookTranslationProvider)
+        }
+        if let value = templateString(formState, "ollama_model") {
+            bookLlmModel = value
+            appliedFields.insert(.bookLlmModel)
+        }
+        if let value = templateInt(formState, "translation_batch_size") {
+            bookTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
+            appliedFields.insert(.bookTranslationBatchSize)
+        }
+        if let value = templateString(formState, "transliteration_mode"),
+           let mode = AppleSubtitleTransliterationMode(backendValue: value) {
+            bookTransliterationMode = mode
+            appliedFields.insert(.bookTransliterationMode)
+        }
+        if let value = templateString(formState, "transliteration_model") {
+            bookTransliterationModel = value
+            appliedFields.insert(.bookTransliterationModel)
+        }
+        if let value = templateBool(formState, "enable_lookup_cache") {
+            enableLookupCache = value
+            appliedFields.insert(.enableLookupCache)
+        }
+        if let value = templateInt(formState, "lookup_cache_batch_size") {
+            bookLookupCacheBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
+            appliedFields.insert(.bookLookupCacheBatchSize)
+        }
+    }
+
+    private func applyTemplateOutputSettings(
+        _ formState: [String: JSONValue],
+        appliedFields: inout Set<AppleBookCreateEditedField>
+    ) {
+        if let value = templateBool(formState, "output_html") {
+            outputHtml = value
+            appliedFields.insert(.outputHtml)
+        }
+        if let value = templateBool(formState, "output_pdf") {
+            outputPdf = value
+            appliedFields.insert(.outputPdf)
+        }
+    }
+
+    private func applyTemplateImageSettings(
+        _ formState: [String: JSONValue],
+        appliedFields: inout Set<AppleBookCreateEditedField>
+    ) {
+        if let value = templateBool(formState, "add_images") {
+            includeImages = value
+            appliedFields.insert(.includeImages)
+        }
+        if let value = templateString(formState, "image_prompt_pipeline"),
+           let pipeline = AppleGeneratedBookImagePromptPipeline(backendValue: value) {
+            imagePromptPipeline = pipeline
+            appliedFields.insert(.imagePromptPipeline)
+        }
+        if let value = templateString(formState, "image_style_template"),
+           let style = AppleGeneratedBookImageStyleTemplate(backendValue: value) {
+            imageStyleTemplate = style
+            appliedFields.insert(.imageStyleTemplate)
+        }
+        if let value = templateBool(formState, "image_prompt_batching_enabled") {
+            imagePromptBatchingEnabled = value
+            appliedFields.insert(.imagePromptBatchingEnabled)
+        }
+        if let value = templateInt(formState, "image_prompt_batch_size") {
+            imagePromptBatchSize = AppleBookCreatePresentation.clampImagePromptBatchSize(value)
+            appliedFields.insert(.imagePromptBatchSize)
+        }
+        if let value = templateInt(formState, "image_prompt_plan_batch_size") {
+            imagePromptPlanBatchSize = AppleBookCreatePresentation.clampImagePromptBatchSize(value)
+            appliedFields.insert(.imagePromptPlanBatchSize)
+        }
+        if let value = templateInt(formState, "image_prompt_context_sentences") {
+            imagePromptContextSentences = AppleBookCreatePresentation.clampImagePromptContextSentences(value)
+            appliedFields.insert(.imagePromptContextSentences)
+        }
+        if let value = templateString(formState, "image_width") {
+            imageWidth = value
+            appliedFields.insert(.imageWidth)
+        }
+        if let value = templateString(formState, "image_height") {
+            imageHeight = value
+            appliedFields.insert(.imageHeight)
+        }
+        if let value = templateString(formState, "image_steps") {
+            imageSteps = value
+            appliedFields.insert(.imageSteps)
+        }
+        if let value = templateString(formState, "image_cfg_scale") {
+            imageCfgScale = value
+            appliedFields.insert(.imageCfgScale)
+        }
+        if let value = templateString(formState, "image_sampler_name") {
+            imageSamplerName = value
+            appliedFields.insert(.imageSamplerName)
+        }
+        if let value = templateBool(formState, "image_seed_with_previous_image") {
+            imageSeedWithPreviousImage = value
+            appliedFields.insert(.imageSeedWithPreviousImage)
+        }
+        if let value = templateBool(formState, "image_blank_detection_enabled") {
+            imageBlankDetectionEnabled = value
+            appliedFields.insert(.imageBlankDetectionEnabled)
+        }
+        let apiBaseURLs = templateStringArray(formState, "image_api_base_urls")
+        if !apiBaseURLs.isEmpty {
+            imageApiBaseURLs = apiBaseURLs.joined(separator: "\n")
+            appliedFields.insert(.imageApiBaseURLs)
+        }
+        if let value = templateString(formState, "image_api_timeout_seconds") {
+            imageApiTimeoutSeconds = value
+            appliedFields.insert(.imageApiTimeoutSeconds)
+        }
+    }
+
+    private func applyTemplateWorkerSettings(
+        _ formState: [String: JSONValue],
+        appliedFields: inout Set<AppleBookCreateEditedField>
+    ) {
+        if let value = templateString(formState, "thread_count") {
+            bookThreadCount = value
+            appliedFields.insert(.threadCount)
+        }
+        if let value = templateString(formState, "queue_size") {
+            bookQueueSize = value
+            appliedFields.insert(.queueSize)
+        }
+        if let value = templateString(formState, "job_max_workers") {
+            bookJobMaxWorkers = value
+            appliedFields.insert(.jobMaxWorkers)
+        }
+        if let value = templateString(formState, "image_concurrency") {
+            imageConcurrency = value
+            appliedFields.insert(.imageConcurrency)
+        }
+    }
+
+    private func applyTemplateMetadata(
+        _ formState: [String: JSONValue],
+        appliedFields: inout Set<AppleBookCreateEditedField>
+    ) {
+        guard let metadata = templateObject(from: formState["book_metadata"]) else {
+            return
+        }
+
+        let title = templateString(metadata, "book_title") ?? templateString(metadata, "title")
+        let metadataAuthor = templateString(metadata, "book_author") ?? templateString(metadata, "author")
+        let metadataGenre = templateString(metadata, "book_genre") ?? templateString(metadata, "genre")
+
+        if let title {
+            if creationMode == .generatedBook {
+                bookName = title
+                appliedFields.insert(.bookName)
+            } else {
+                sourceBookTitle = title
+                appliedFields.insert(.sourceBookTitle)
+            }
+        }
+        if let metadataAuthor {
+            if creationMode == .generatedBook {
+                author = metadataAuthor
+                appliedFields.insert(.author)
+            } else {
+                sourceBookAuthor = metadataAuthor
+                appliedFields.insert(.sourceBookAuthor)
+            }
+        }
+        if let metadataGenre {
+            if creationMode == .generatedBook {
+                genre = metadataGenre
+                appliedFields.insert(.genre)
+            } else {
+                sourceBookGenre = metadataGenre
+                appliedFields.insert(.sourceBookGenre)
+            }
+        }
+        if let value = templateString(metadata, "book_summary") ?? templateString(metadata, "summary") {
+            bookSummary = value
+            appliedFields.insert(.bookSummary)
+        }
+        if let value = templateString(metadata, "book_year") ?? templateString(metadata, "year") {
+            bookYear = value
+            appliedFields.insert(.bookYear)
+        }
+        if let value = templateString(metadata, "book_isbn") ?? templateString(metadata, "isbn") {
+            bookIsbn = value
+            appliedFields.insert(.bookIsbn)
+        }
+        if let value = templateString(metadata, "book_cover_file") ?? templateString(metadata, "cover_file") {
+            bookCoverFile = value
+            appliedFields.insert(.bookCoverFile)
+        }
+    }
+
+    private func templateFormState(from template: CreationTemplateEntry) -> [String: JSONValue]? {
+        template.payload["form_state"]?.objectValue
+            ?? template.payload["formState"]?.objectValue
+            ?? template.payload["payload"]?.objectValue?["form_state"]?.objectValue
+    }
+
+    private func templateObject(from value: JSONValue?) -> [String: JSONValue]? {
+        guard let value else { return nil }
+        if let object = value.objectValue {
+            return object
+        }
+        guard case let .string(text) = value,
+              let data = text.data(using: .utf8),
+              let object = try? JSONDecoder().decode([String: JSONValue].self, from: data) else {
+            return nil
+        }
+        return object
+    }
+
+    private func templateStringDictionary(_ value: JSONValue?) -> [String: String]? {
+        guard let object = templateObject(from: value) else {
+            return nil
+        }
+        return object.reduce(into: [String: String]()) { result, element in
+            if let value = element.value.stringValue {
+                result[element.key] = value
+            }
+        }
+    }
+
+    private func templateString(_ object: [String: JSONValue], _ key: String) -> String? {
+        object[key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+    }
+
+    private func templateStringArray(_ object: [String: JSONValue], _ key: String) -> [String] {
+        guard let value = object[key] else { return [] }
+        if let array = value.arrayValue {
+            return array.compactMap { $0.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue }
+        }
+        return value.stringValue?
+            .split(separator: ",")
+            .compactMap { String($0).trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue } ?? []
+    }
+
+    private func templateInt(_ object: [String: JSONValue], _ key: String) -> Int? {
+        object[key]?.intValue
+    }
+
+    private func templateDouble(_ object: [String: JSONValue], _ key: String) -> Double? {
+        switch object[key] {
+        case let .number(value):
+            return value.isFinite ? value : nil
+        case let .string(value):
+            return Double(value.trimmingCharacters(in: .whitespacesAndNewlines))
+        case let .bool(value):
+            return value ? 1 : 0
+        default:
+            return nil
+        }
+    }
+
+    private func templateBool(_ object: [String: JSONValue], _ key: String) -> Bool? {
+        switch object[key] {
+        case let .bool(value):
+            return value
+        case let .number(value):
+            return value != 0
+        case let .string(value):
+            switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+            case "1", "true", "yes", "on":
+                return true
+            case "0", "false", "no", "off":
+                return false
+            default:
+                return nil
+            }
+        default:
+            return nil
+        }
+    }
+
+    private func templateEndSentenceText(_ value: JSONValue?) -> String? {
+        switch value {
+        case .null, nil:
+            return ""
+        default:
+            return value?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
     }
 
     private func requestDeletePipelineEbook(_ entry: PipelineFileEntry) {

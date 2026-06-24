@@ -6,10 +6,12 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isLoadingOptions = false
     @Published private(set) var isLoadingIntakeStatus = false
     @Published private(set) var isLoadingPipelineFiles = false
+    @Published private(set) var isLoadingCreationTemplates = false
     @Published private(set) var isDeletingPipelineEbook = false
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
     @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
     @Published private(set) var pipelineFiles: PipelineFileBrowserResponse?
+    @Published private(set) var creationTemplates: [CreationTemplateEntry] = []
     @Published private(set) var subtitleSources: SubtitleSourceListResponse?
     @Published var subtitleTvMetadataPreview: SubtitleTvMetadataPreviewResponse?
     @Published var subtitleMediaMetadataDraft: [String: JSONValue]?
@@ -40,7 +42,9 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isLoadingVoiceInventory = false
     @Published private(set) var narrateChaptersErrorMessage: String?
     @Published private(set) var pipelineFilesErrorMessage: String?
+    @Published private(set) var creationTemplatesErrorMessage: String?
     @Published private(set) var subtitleSourcesErrorMessage: String?
+    @Published var creationTemplateMessage: String?
     @Published var subtitleMetadataMessage: String?
     @Published var subtitleMetadataErrorMessage: String?
     @Published private(set) var youtubeLibraryErrorMessage: String?
@@ -57,6 +61,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     private var loadedOptionsCacheKey: String?
     private var loadedIntakeStatusCacheKey: String?
     private var loadedPipelineFilesCacheKey: String?
+    private var loadedCreationTemplatesCacheKey: String?
     private var loadedSubtitleSourcesCacheKey: String?
     private var loadedYoutubeLibraryCacheKey: String?
     private var loadedVoiceInventoryCacheKey: String?
@@ -152,6 +157,39 @@ final class AppleBookCreateViewModel: ObservableObject {
             pipelineFiles = nil
             pipelineFilesErrorMessage = error.localizedDescription
             return nil
+        }
+    }
+
+    func loadCreationTemplates(
+        using appState: AppState,
+        cacheKey: String,
+        force: Bool = false
+    ) async -> [CreationTemplateEntry] {
+        guard let configuration = appState.configuration else {
+            return []
+        }
+        if !force, loadedCreationTemplatesCacheKey == cacheKey {
+            return creationTemplates
+        }
+
+        isLoadingCreationTemplates = true
+        creationTemplatesErrorMessage = nil
+        defer { isLoadingCreationTemplates = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.fetchCreationTemplates()
+            creationTemplates = response.templates
+            loadedCreationTemplatesCacheKey = cacheKey
+            return response.templates
+        } catch APIClientError.httpError(let statusCode, _) where statusCode == 404 {
+            creationTemplates = []
+            creationTemplatesErrorMessage = "This backend does not expose saved creation templates yet."
+            return []
+        } catch {
+            creationTemplates = []
+            creationTemplatesErrorMessage = error.localizedDescription
+            return []
         }
     }
 

@@ -35,6 +35,19 @@ extension APIClient {
         return try decode(PipelineIntakeStatusResponse.self, from: data)
     }
 
+    func fetchCreationTemplates(mode: String? = nil) async throws -> CreationTemplateListResponse {
+        var path = AppleCreateRuntimeContract.templateListPath
+        if let mode = mode?.trimmingCharacters(in: .whitespacesAndNewlines), !mode.isEmpty {
+            var components = URLComponents()
+            components.queryItems = [URLQueryItem(name: "mode", value: mode)]
+            if let query = components.percentEncodedQuery, !query.isEmpty {
+                path += "?\(query)"
+            }
+        }
+        let data = try await sendRequest(path: path)
+        return try decode(CreationTemplateListResponse.self, from: data)
+    }
+
     func fetchPipelineFiles() async throws -> PipelineFileBrowserResponse {
         let data = try await sendRequest(path: AppleCreateRuntimeContract.pipelineFilesPath)
         return try decode(PipelineFileBrowserResponse.self, from: data)

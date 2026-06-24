@@ -496,6 +496,62 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert source.count("onJobSubmitted(jobId)") == 1
 
 
+def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
+    view_source = _source(CREATE_VIEW)
+    view_model_source = _source(CREATE_VIEW_MODEL)
+    status_views_source = _source(CREATE_STATUS_VIEWS)
+    api_models_source = _source(PIPELINE_CREATION_API_MODELS)
+    api_client_source = _source(API_CLIENT_CREATION)
+
+    assert "struct CreationTemplateListResponse: Decodable, Equatable" in api_models_source
+    assert "struct CreationTemplateEntry: Decodable, Equatable, Identifiable" in api_models_source
+    assert "case createdAt = \"created_at\"" in api_models_source
+    assert "case updatedAt = \"updated_at\"" in api_models_source
+    assert "var normalizedMode: String" in api_models_source
+    assert "var displayName: String" in api_models_source
+
+    assert "func fetchCreationTemplates(mode: String? = nil)" in api_client_source
+    assert "AppleCreateRuntimeContract.templateListPath" in api_client_source
+    assert 'URLQueryItem(name: "mode", value: mode)' in api_client_source
+
+    assert "@Published private(set) var creationTemplates: [CreationTemplateEntry] = []" in view_model_source
+    assert "@Published private(set) var isLoadingCreationTemplates = false" in view_model_source
+    assert "@Published private(set) var creationTemplatesErrorMessage: String?" in view_model_source
+    assert "@Published var creationTemplateMessage: String?" in view_model_source
+    assert "func loadCreationTemplates(" in view_model_source
+    assert "client.fetchCreationTemplates()" in view_model_source
+
+    assert "struct AppleBookCreateTemplateSection: View" in status_views_source
+    for identifier in [
+        "createBookTemplatePicker",
+        "createBookApplyTemplateButton",
+        "createBookRefreshTemplatesButton",
+        "createBookTemplateStatusLabel",
+        "createBookTemplateErrorLabel",
+    ]:
+        assert identifier in status_views_source
+
+    assert "private var templateSection: some View" in view_source
+    assert "AppleBookCreateTemplateSection(" in view_source
+    assert "await refreshCreationTemplates()" in view_source
+    assert "private func applySelectedCreationTemplate()" in view_source
+    assert "private func applyCreationTemplate(_ template: CreationTemplateEntry)" in view_source
+    assert "private func templateFormState(from template: CreationTemplateEntry)" in view_source
+    for web_template_key in [
+        '"input_file"',
+        '"base_output_file"',
+        '"target_languages"',
+        '"selected_voice"',
+        '"voice_overrides"',
+        '"translation_provider"',
+        '"enable_lookup_cache"',
+        '"add_images"',
+        '"image_api_base_urls"',
+        '"book_metadata"',
+    ]:
+        assert web_template_key in view_source
+
+
 def test_create_lifecycle_modifier_owns_view_side_effect_wiring() -> None:
     source = _source(CREATE_VIEW)
     lifecycle_source = _source(CREATE_LIFECYCLE)

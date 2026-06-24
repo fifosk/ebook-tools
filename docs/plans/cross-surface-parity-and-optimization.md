@@ -727,8 +727,11 @@ Suggested features to evaluate after parity scaffolding:
   storage with recursive secret-key stripping, and the public runtime descriptor
   advertises the template endpoints for Web/Apple clients. Web Narrate Ebook and
   generated-book forms can now save sanitized creation templates from their
-  current settings. Native Apple template listing/apply UI remains the next
-  consumer-facing layer.
+  current settings. Native Apple Create on iPhone/iPad can list those saved
+  generated-book and Narrate EPUB templates, apply the Web form state into its
+  source, language, narration, output, image, metadata, and worker controls, and
+  mark the applied fields as edited so later backend/history defaults do not
+  overwrite them. Subtitle and YouTube template reuse remains future work.
 - Draft jobs: start on iPad, finish advanced settings on Web.
 - Creation handoff: Apple app opens the corresponding Web creation URL for unsupported advanced options. Status:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,

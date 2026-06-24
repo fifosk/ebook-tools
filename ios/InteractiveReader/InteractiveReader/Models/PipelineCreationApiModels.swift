@@ -151,6 +151,40 @@ struct PipelineSubmissionResponse: Decodable, Equatable {
     let jobType: String
 }
 
+struct CreationTemplateListResponse: Decodable, Equatable {
+    let templates: [CreationTemplateEntry]
+}
+
+struct CreationTemplateEntry: Decodable, Equatable, Identifiable {
+    let id: String
+    let name: String
+    let mode: String
+    let createdAt: Double
+    let updatedAt: Double
+    let payload: [String: JSONValue]
+
+    var normalizedMode: String {
+        mode.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    var displayName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue ?? "Untitled template"
+    }
+
+    var isBookNarrationTemplate: Bool {
+        normalizedMode == "generated_book" || normalizedMode == "narrate_ebook"
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case mode
+        case payload
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
 struct PipelineIntakeStatusResponse: Decodable, Equatable {
     let acceptingJobs: Bool
     let isUnderPressure: Bool

@@ -1,5 +1,61 @@
 import SwiftUI
 
+struct AppleBookCreateTemplateSection: View {
+    let templates: [CreationTemplateEntry]
+    @Binding var selectedTemplateID: String
+    let isLoading: Bool
+    let errorMessage: String?
+    let message: String?
+    let onRefresh: () -> Void
+    let onApply: () -> Void
+
+    var body: some View {
+        Section("Saved Templates") {
+            if templates.isEmpty {
+                Label(emptyLabel, systemImage: "doc.badge.plus")
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createBookTemplateStatusLabel")
+            } else {
+                Picker("Template", selection: $selectedTemplateID) {
+                    Text("Choose template").tag("")
+                    ForEach(templates) { template in
+                        Text(template.displayName).tag(template.id)
+                    }
+                }
+                .accessibilityIdentifier("createBookTemplatePicker")
+
+                Button(action: onApply) {
+                    Label("Apply Template", systemImage: "arrow.down.doc")
+                }
+                .disabled(selectedTemplateID.isEmpty)
+                .accessibilityIdentifier("createBookApplyTemplateButton")
+            }
+
+            Button(action: onRefresh) {
+                Label(isLoading ? "Refreshing Templates" : "Refresh Templates", systemImage: "arrow.clockwise")
+            }
+            .disabled(isLoading)
+            .accessibilityIdentifier("createBookRefreshTemplatesButton")
+
+            if let message {
+                Label(message, systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .accessibilityIdentifier("createBookTemplateStatusLabel")
+            }
+
+            if let errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .accessibilityIdentifier("createBookTemplateErrorLabel")
+            }
+        }
+    }
+
+    private var emptyLabel: String {
+        isLoading ? "Loading saved templates..." : "No saved templates for this job type"
+    }
+}
+
 struct AppleBookCreateStatusSection: View {
     let isLoadingOptions: Bool
     let optionsErrorMessage: String?
