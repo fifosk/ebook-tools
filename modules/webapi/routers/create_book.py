@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+import time
 from datetime import datetime
 from dataclasses import replace as dataclass_replace
 from pathlib import Path
@@ -97,6 +98,41 @@ _SOURCE_BOOK_CONTEXT_FIELDS = (
 )
 
 logger = log_mgr.get_logger()
+
+
+def _record_book_options_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe book options route timing if metrics are available."""
+
+    try:
+        from modules.webapi.metrics import BOOK_OPTIONS_ROUTE_DURATION
+    except Exception:
+        return
+    BOOK_OPTIONS_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
+def _log_book_options_result(
+    *,
+    result: str,
+    started_at: float,
+    input_language_count: int | None = None,
+    output_language_count: int | None = None,
+    voice_count: int | None = None,
+    target_language_count: int | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000
+    details = f"Book creation options result={result} duration_ms={duration_ms:.1f}"
+    if input_language_count is not None:
+        details += f" input_languages={input_language_count}"
+    if output_language_count is not None:
+        details += f" output_languages={output_language_count}"
+    if voice_count is not None:
+        details += f" voices={voice_count}"
+    if target_language_count is not None:
+        details += f" target_languages={target_language_count}"
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(details)
 
 
 def _require_authorised_user(
@@ -1018,8 +1054,33 @@ async def get_book_creation_options(
 ) -> BookCreationOptionsResponse:
     """Return non-secret generated-book defaults shared by Web and Apple clients."""
 
-    _ensure_book_role(request_user)
-    return _build_creation_options(context_provider.resolve_config({}))
+    started_at = time.perf_counter()
+    role = (request_user.user_role or "").strip().lower()
+    if _ALLOWED_ROLES and role not in _ALLOWED_ROLES:
+        _record_book_options_route_duration("get", "forbidden", started_at)
+        _log_book_options_result(result="forbidden", started_at=started_at)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    try:
+        options = _build_creation_options(context_provider.resolve_config({}))
+    except Exception:
+        _record_book_options_route_duration("get", "error", started_at)
+        _log_book_options_result(result="error", started_at=started_at)
+        raise
+
+    _record_book_options_route_duration("get", "success", started_at)
+    _log_book_options_result(
+        result="success",
+        started_at=started_at,
+        input_language_count=len(options.supported_input_languages),
+        output_language_count=len(options.supported_output_languages),
+        voice_count=len(options.supported_voices),
+        target_language_count=len(options.defaults.target_languages),
+    )
+    return options
 
 
 @router.post("/create", response_model=BookCreationResponse)

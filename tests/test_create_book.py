@@ -25,6 +25,7 @@ from modules.webapi.dependencies import (
     get_runtime_context_provider,
 )
 from modules.webapi.routes.books_routes import _list_ebook_files, _list_output_entries
+import modules.webapi.routers.create_book as create_book_router
 from modules.webapi.routers.create_book import _parse_sentences, _source_book_context
 from modules.webapi.schemas.create_book import BookGenerationJobSubmission
 
@@ -781,6 +782,57 @@ def test_book_creation_options_endpoint_returns_non_secret_defaults(tmp_path: Pa
     assert "DemoVoice" in body["supported_voices"]
 
 
+def test_book_creation_options_records_token_safe_telemetry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+
+    user = UserRecord(username="editor", password_hash="", roles=["editor"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    stub_context_provider._base_config.update(
+        {
+            "input_language": "Secret Source Language",
+            "target_languages": ["Private Target", "Another Target"],
+            "selected_voice": "PrivateVoice",
+        }
+    )
+    logger = _RecordingLogger()
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    monkeypatch.setattr(create_book_router, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/books/options",
+                headers={"X-User-Id": "office-ipad-user", "X-User-Role": "editor"},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    rendered_logs = "\n".join(logger.messages)
+    assert "Book creation options result=success" in rendered_logs
+    assert "input_languages=" in rendered_logs
+    assert "output_languages=" in rendered_logs
+    assert "voices=" in rendered_logs
+    assert "target_languages=2" in rendered_logs
+    assert "office-ipad-user" not in rendered_logs
+    assert "Secret Source Language" not in rendered_logs
+    assert "Private Target" not in rendered_logs
+    assert "PrivateVoice" not in rendered_logs
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_book_options_route_duration_seconds",
+        operation="get",
+        result="success",
+    )
+
+
 def test_book_creation_options_exposes_cross_surface_job_default_overrides(tmp_path: Path) -> None:
     app = create_app()
 
@@ -870,3 +922,41 @@ def test_book_creation_options_requires_editor_role(tmp_path: Path) -> None:
     )
 
     assert response.status_code == 403
+
+
+def test_book_creation_options_records_forbidden_telemetry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+
+    user = UserRecord(username="viewer", password_hash="", roles=["viewer"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    logger = _RecordingLogger()
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    monkeypatch.setattr(create_book_router, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/books/options",
+                headers={"X-User-Id": "viewer-user", "X-User-Role": "viewer"},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    rendered_logs = "\n".join(logger.messages)
+    assert "Book creation options result=forbidden" in rendered_logs
+    assert "viewer-user" not in rendered_logs
+    assert "viewer" not in rendered_logs
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_book_options_route_duration_seconds",
+        operation="get",
+        result="forbidden",
+    )

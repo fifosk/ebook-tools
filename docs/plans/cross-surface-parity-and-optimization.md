@@ -692,7 +692,11 @@ Refactor before restyling:
   `/api/audio/voices` and `/api/audio/match` picker routes now record
   token-safe audio telemetry with aggregate inventory counts and match engine
   outcomes, without logging voice names, language parameters, or caller
-  identifiers. The
+  identifiers. The shared `/api/books/options` defaults route now records
+  token-safe duration telemetry with aggregate language/voice/default target
+  counts for Web and Apple Create readiness loads, without logging configured
+  defaults, language names, voice names, user ids, auth headers, tokens, or
+  paths. The
   manifest-registered `test-backend-audio-routes` target now exercises
   `/api/audio`, `/api/audio/voices`, and `/api/audio/match` with stubbed
   synthesis, so the shared pipeline catches voice inventory and preview drift
