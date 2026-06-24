@@ -489,7 +489,11 @@ Optimization candidates:
   password login, compact session restore payload, logout invalidation, missing
   or invalid token rejection, and auth route duration metric used by Web and
   Apple clients, and the shared Apple backend manifest runs it as an
-  auth/session regression gate.
+  auth/session regression gate. The repo-owned `test-web-auth-focused` target
+  now runs the Web authentication flow coverage for token persistence,
+  authenticated API headers, logout cleanup, password-change calls, and
+  cross-tab/session restore behavior, and the shared Apple Web manifest runs it
+  as the matching Web auth regression gate.
 
 ## Parity Roadmap
 

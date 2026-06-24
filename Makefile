@@ -13,6 +13,7 @@
        test-backend-playback-media \
        test-backend-offline-export \
        test-backend-youtube-dubbing-service \
+       test-web-auth-focused \
        test-web-create-book-focused test-web-create-intake-focused \
        test-web-creation-templates-focused \
        test-web-library-focused test-web-playback-focused test-web-video-dubbing-focused \
@@ -136,6 +137,10 @@ test-backend-youtube-dubbing-service:
 		tests/modules/webapi/test_youtube_library_route.py \
 		tests/modules/services/test_youtube_dubbing_subtitles.py \
 		tests/modules/services/test_youtube_subtitles.py
+
+test-web-auth-focused:
+	npm --prefix web test -- --run \
+		src/components/__tests__/AuthFlows.test.tsx
 
 test-web-create-book-focused:
 	npm --prefix web test -- --run \
