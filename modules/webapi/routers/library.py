@@ -522,18 +522,18 @@ async def get_library_media(
         )
     except LibraryNotFoundError as exc:
         duration_ms = (time.perf_counter() - start) * 1000
+        _record_library_route_duration("media", "not_found", start)
         LOGGER.info(
-            "Library media lookup failed job_id=%s summary=%s duration_ms=%.1f",
-            job_id,
+            "Library media lookup failed operation=media result=not_found summary=%s duration_ms=%.1f",
             summary,
             duration_ms,
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryError as exc:
         duration_ms = (time.perf_counter() - start) * 1000
+        _record_library_route_duration("media", "error", start)
         LOGGER.info(
-            "Library media lookup failed job_id=%s summary=%s duration_ms=%.1f",
-            job_id,
+            "Library media lookup failed operation=media result=error summary=%s duration_ms=%.1f",
             summary,
             duration_ms,
         )
@@ -542,22 +542,26 @@ async def get_library_media(
     duration_ms = (time.perf_counter() - start) * 1000
     chunk_count = len(chunk_records)
     media_count = sum(len(entries) for entries in media_map.values())
+    category_count = len(media_map)
+    _record_library_route_duration("media", "success", start)
     if duration_ms >= 250:
         LOGGER.info(
-            "Library media lookup job_id=%s summary=%s chunks=%s files=%s duration_ms=%.1f",
-            job_id,
+            "Library media lookup operation=media result=success summary=%s categories=%s chunks=%s files=%s complete=%s duration_ms=%.1f",
             summary,
+            category_count,
             chunk_count,
             media_count,
+            complete,
             duration_ms,
         )
     else:
         LOGGER.debug(
-            "Library media lookup job_id=%s summary=%s chunks=%s files=%s duration_ms=%.1f",
-            job_id,
+            "Library media lookup operation=media result=success summary=%s categories=%s chunks=%s files=%s complete=%s duration_ms=%.1f",
             summary,
+            category_count,
             chunk_count,
             media_count,
+            complete,
             duration_ms,
         )
 

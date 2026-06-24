@@ -388,7 +388,10 @@ Optimization candidates:
   for success/error outcomes without logging user ids or job ids. Pipeline media
   manifests now record token-safe duration and aggregate category/file/chunk
   counts for completed and live manifest routes without logging job ids, user
-  ids, auth headers, tokens, or file names. Offline export create/download
+  ids, auth headers, tokens, or file names. Library media manifests now use the
+  same token-safe aggregate route telemetry for success, missing-item, and
+  error paths, without logging job ids, user ids, auth headers, tokens, NAS
+  paths, or filenames. Offline export create/download
   routes now record token-safe duration telemetry and aggregate logs without
   logging source ids, export ids, user ids, file paths, filenames, auth headers,
   or tokens. Local media file streaming now records token-safe setup duration
