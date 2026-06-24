@@ -285,7 +285,17 @@ final class PlaybackResumeStore {
         #if os(tvOS)
         return false
         #else
-        return true
+        guard let profileURL = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
+              let profileData = try? Data(contentsOf: profileURL),
+              let profile = String(data: profileData, encoding: .isoLatin1)
+                ?? String(data: profileData, encoding: .utf8) else {
+            return false
+        }
+        return profile.contains("<key>com.apple.developer.icloud-services</key>")
+            && (
+                profile.contains("<string>CloudKit</string>")
+                    || profile.contains("<string>CloudKit-Anonymous</string>")
+            )
         #endif
     }
 

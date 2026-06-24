@@ -15,6 +15,8 @@ APP_PATH="${APPLE_DEVICE_APP_PATH:-}"
 DEVELOPMENT_TEAM="${APPLE_DEVELOPMENT_TEAM:-}"
 DEVICECTL_TIMEOUT="${APPLE_DEVICECTL_TIMEOUT:-60}"
 ALLOW_PROVISIONING_UPDATES="${ALLOW_PROVISIONING_UPDATES:-0}"
+STRIP_IOS_ENTITLEMENTS="${APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS:-0}"
+LAUNCH_CONSOLE_TIMEOUT="${APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT:-}"
 INSTALL=0
 LAUNCH=0
 DRY_RUN=0
@@ -48,6 +50,13 @@ Options:
   --no-verify                    Skip post-install app metadata verification.
   --no-preflight                 Skip the pre-install CoreDevice health check.
   --allow-provisioning-updates   Pass -allowProvisioningUpdates to xcodebuild.
+  --strip-ios-entitlements-for-local-signing
+                                 Temporarily remove the iOS app entitlements build setting
+                                 during build, then restore the project file. Useful when
+                                 a local development profile lacks iCloud/push/sign-in.
+  --launch-console-timeout SECONDS
+                                 Launch with --console and treat a timeout as success,
+                                 proving the app did not immediately crash.
   --team-id TEAMID               Pass DEVELOPMENT_TEAM=TEAMID to xcodebuild.
   --configuration NAME           Xcode configuration. Defaults to Debug.
   --dry-run                      Print the commands that would run, then exit without building or installing.
@@ -58,6 +67,8 @@ Environment:
   APPLE_DEVICE_ID, APPLE_DEVICE_APP_PATH, APPLE_DEVELOPMENT_TEAM,
   APPLE_DEVICE_DERIVED_DATA, APPLE_DEVICECTL_TIMEOUT, XCBUILD, DEVICECTL,
   XCPROJ, SCHEME, CONFIGURATION, PRODUCT_NAME, and BUNDLE_ID override defaults.
+  APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS=1 and APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT
+  enable the matching unattended fallback behaviors.
 USAGE
 }
 
@@ -95,8 +106,7 @@ matches = []
 
 def walk(value):
     if isinstance(value, dict):
-        values = {str(v) for v in value.values() if isinstance(v, (str, int, float))}
-        if bundle_id in values:
+        if value.get("bundleIdentifier") == bundle_id:
             matches.append(value)
         for child in value.values():
             walk(child)
@@ -122,6 +132,38 @@ name = pick("name", "localizedName", "bundleName")
 version = pick("version", "shortVersionString", "CFBundleShortVersionString")
 build = pick("bundleVersion", "buildVersion", "CFBundleVersion")
 print(f"Verified installed app: {name} {bundle_id} version={version} build={build}")
+PY
+}
+
+restore_project_file() {
+  if [[ -n "${PROJECT_FILE_BACKUP:-}" && -f "${PROJECT_FILE_BACKUP}" && -n "${PROJECT_FILE_TO_RESTORE:-}" ]]; then
+    cp "${PROJECT_FILE_BACKUP}" "${PROJECT_FILE_TO_RESTORE}"
+  fi
+}
+
+strip_ios_entitlements_for_local_signing() {
+  local project_file="${XCPROJ}/project.pbxproj"
+  if [[ ! -f "${project_file}" ]]; then
+    echo "Cannot strip iOS entitlements; project file not found: ${project_file}" >&2
+    exit 1
+  fi
+  PROJECT_FILE_TO_RESTORE="${project_file}"
+  PROJECT_FILE_BACKUP="$(json_scratch_path apple-device-project-backup)"
+  mkdir -p "$(dirname "${PROJECT_FILE_BACKUP}")"
+  cp "${project_file}" "${PROJECT_FILE_BACKUP}"
+  trap restore_project_file EXIT
+  python3 - "${project_file}" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+source = path.read_text()
+needle = "\t\t\t\t\tCODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;\n"
+count = source.count(needle)
+if count == 0:
+    raise SystemExit("No iOS CODE_SIGN_ENTITLEMENTS lines matched the local-signing patch.")
+path.write_text(source.replace(needle, ""))
+print(f"Temporarily removed {count} iOS app entitlement build setting(s) for local signing.")
 PY
 }
 
@@ -174,6 +216,14 @@ while [[ $# -gt 0 ]]; do
     --allow-provisioning-updates)
       ALLOW_PROVISIONING_UPDATES=1
       shift
+      ;;
+    --strip-ios-entitlements-for-local-signing)
+      STRIP_IOS_ENTITLEMENTS=1
+      shift
+      ;;
+    --launch-console-timeout)
+      LAUNCH_CONSOLE_TIMEOUT="${2:-}"
+      shift 2
       ;;
     --team-id)
       DEVELOPMENT_TEAM="${2:-}"
@@ -272,6 +322,19 @@ LAUNCH_CMD=(
   --json-output "${LAUNCH_JSON}"
   "${BUNDLE_ID}"
 )
+if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" ]]; then
+  LAUNCH_CMD=(
+    "${DEVICECTL}" device process
+    --timeout "${LAUNCH_CONSOLE_TIMEOUT}"
+    --json-output "${LAUNCH_JSON}"
+    launch
+    --terminate-existing
+    --device "${DEVICE_ID}"
+    --console
+    --environment-variables '{"OS_ACTIVITY_DT_MODE":"YES"}'
+    "${BUNDLE_ID}"
+  )
+fi
 
 if [[ "${PREFLIGHT_ONLY}" == "1" ]]; then
   print_command "Device preflight command" "${PREFLIGHT_CMD[@]}"
@@ -300,6 +363,9 @@ fi
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   print_command "Build command" "${BUILD_CMD[@]}"
+  if [[ "${STRIP_IOS_ENTITLEMENTS}" == "1" ]]; then
+    echo "Local signing patch: temporarily strip iOS app entitlements during build, then restore project file."
+  fi
 fi
 
 if [[ "${INSTALL}" == "1" ]]; then
@@ -336,6 +402,9 @@ if [[ "${INSTALL}" == "1" && "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]]; then
 fi
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
+  if [[ "${STRIP_IOS_ENTITLEMENTS}" == "1" ]]; then
+    strip_ios_entitlements_for_local_signing
+  fi
   "${BUILD_CMD[@]}"
 fi
 
@@ -361,5 +430,13 @@ if [[ "${VERIFY_AFTER_INSTALL}" == "1" ]]; then
 fi
 
 if [[ "${LAUNCH}" == "1" ]]; then
+  set +e
   "${LAUNCH_CMD[@]}"
+  launch_status=$?
+  set -e
+  if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" && "${launch_status}" == "2" ]]; then
+    echo "Launch console timeout reached after ${LAUNCH_CONSOLE_TIMEOUT}s; treating this as app-alive verification."
+  elif [[ "${launch_status}" != "0" ]]; then
+    exit "${launch_status}"
+  fi
 fi

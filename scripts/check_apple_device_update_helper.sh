@@ -90,6 +90,21 @@ assert_contains "${provisioning_output}" "-allowProvisioningUpdates" "provisioni
 assert_contains "${provisioning_output}" "DEVELOPMENT_TEAM=ABC123XYZ" "provisioning dry run should pass the requested development team"
 assert_contains "${provisioning_output}" "-configuration  Release" "provisioning dry run should honor custom configuration"
 
+local_signing_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \
+    --device TEST-DEVICE \
+    --dry-run \
+    --install \
+    --configuration Release \
+    --strip-ios-entitlements-for-local-signing \
+    --launch \
+    --launch-console-timeout 12
+)"
+assert_contains "${local_signing_output}" "Local signing patch: temporarily strip iOS app entitlements during build, then restore project file." "local signing dry run should explain the transient entitlement patch"
+assert_contains "${local_signing_output}" "device  process  --timeout  12" "console launch should put process-level timeout before launch"
+assert_contains "${local_signing_output}" "--console" "console launch dry run should attach to app output"
+assert_contains "${local_signing_output}" "--environment-variables  \\{\\\"OS_ACTIVITY_DT_MODE\\\":\\\"YES\\\"\\}" "console launch should enable app activity logs"
+
 set +e
 refusal_output="$(
   bash "${HELPER}" \
