@@ -132,7 +132,10 @@ Large Web UI hotspots to split before redesign work:
   unavailable-translation detection, metadata entry splitting, narrated
   subtitle detection, and progress label helpers now live in
   `web/src/components/job-progress/jobProgressUtils.ts` with focused Vitest
-  coverage.
+  coverage. OpenLibrary metadata lookup query state, success/error handling,
+  backend cache clearing, and reload side effects now live in
+  `web/src/components/job-progress/useJobProgressMetadataLookup.ts` with
+  focused hook coverage.
 - `web/src/components/LibraryList.tsx` - 703 lines. Status: layout type
   detection, title/author/genre fallback labels, and author/genre/language
   grouping now live in `web/src/components/library-list/libraryListUtils.ts`

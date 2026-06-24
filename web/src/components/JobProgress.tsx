@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useJobEventsWithRetry } from '../hooks/useJobEventsWithRetry';
-import { appendAccessToken, clearMediaMetadataCache, lookupBookOpenLibraryMetadata, resolveJobCoverUrl } from '../api/client';
+import { appendAccessToken, resolveJobCoverUrl } from '../api/client';
 import {
   AccessPolicyUpdatePayload,
   PipelineResponsePayload,
@@ -38,7 +38,6 @@ import {
   formatTuningLabel,
   formatTuningValue,
   isNarratedSubtitleJobStatus,
-  normalizeIsbnCandidate,
   normalizeTranslationProvider,
   normalizeTextValue,
   resolveGeneratedFileRecord,
@@ -51,6 +50,7 @@ import {
   resolveTranslationStageProgress,
   sortTuningEntries,
 } from './job-progress/jobProgressUtils';
+import { useJobProgressMetadataLookup } from './job-progress/useJobProgressMetadataLookup';
 
 type Props = {
   jobId: string;
@@ -359,100 +359,16 @@ export function JobProgress({
   const showOverviewSections = jobTab === 'overview';
   const showPermissionsSections = jobTab === 'permissions';
 
-  // Metadata lookup state (unified - replaces separate enrichment and lookup states)
-  const [isbnLookupQuery, setIsbnLookupQuery] = useState('');
-  const [isLookingUp, setIsLookingUp] = useState(false);
-  const [lookupError, setLookupError] = useState<string | null>(null);
-  const [lookupResult, setLookupResult] = useState<{
-    success: boolean;
-    source?: string | null;
-    confidence?: string | null;
-  } | null>(null);
-
-  // Extract ISBN from existing metadata for auto-populating lookup
-  const existingIsbn = useMemo(() => {
-    return normalizeTextValue(metadata['book_isbn']) ?? normalizeTextValue(metadata['isbn']) ?? null;
-  }, [metadata]);
-
-  // Resolve final lookup query (ISBN input or existing ISBN from metadata)
-  const resolvedLookupQuery = useMemo(() => {
-    const inputIsbn = normalizeIsbnCandidate(isbnLookupQuery);
-    if (inputIsbn) {
-      return inputIsbn;
-    }
-    const metadataIsbn = normalizeIsbnCandidate(existingIsbn);
-    if (metadataIsbn) {
-      return metadataIsbn;
-    }
-    return isbnLookupQuery.trim();
-  }, [isbnLookupQuery, existingIsbn]);
-
-  const handleLookupMetadata = useCallback(async (force: boolean) => {
-    setIsLookingUp(true);
-    setLookupError(null);
-    setLookupResult(null);
-    try {
-      const result = await lookupBookOpenLibraryMetadata(jobId, { force });
-      const mediaMetadata = result.media_metadata_lookup;
-      const lookupBook = mediaMetadata && typeof mediaMetadata === 'object'
-        ? (mediaMetadata as Record<string, unknown>)['book']
-        : null;
-      const hasTitle = lookupBook && typeof lookupBook === 'object'
-        ? Boolean((lookupBook as Record<string, unknown>)['title'])
-        : false;
-      const lookupErr = mediaMetadata && typeof mediaMetadata === 'object'
-        ? (mediaMetadata as Record<string, unknown>)['error']
-        : null;
-      // Extract source and confidence from response
-      const provider = mediaMetadata && typeof mediaMetadata === 'object'
-        ? (mediaMetadata as Record<string, unknown>)['provider']
-        : null;
-      const confidence = mediaMetadata && typeof mediaMetadata === 'object'
-        ? (mediaMetadata as Record<string, unknown>)['confidence']
-        : null;
-
-      if (lookupErr && typeof lookupErr === 'string') {
-        setLookupError(lookupErr);
-        setLookupResult({ success: false });
-      } else if (hasTitle) {
-        setLookupResult({
-          success: true,
-          source: typeof provider === 'string' ? provider : null,
-          confidence: typeof confidence === 'string' ? confidence : null,
-        });
-        onReload();
-      } else {
-        setLookupError('No book metadata found.');
-        setLookupResult({ success: false });
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to lookup metadata';
-      setLookupError(message);
-      setLookupResult(null);
-    } finally {
-      setIsLookingUp(false);
-    }
-  }, [jobId, onReload]);
-
-  const handleClearMetadata = useCallback(async () => {
-    // Clear frontend lookup state
-    setLookupResult(null);
-    setLookupError(null);
-    setIsbnLookupQuery('');
-
-    // Clear backend cache for a fresh lookup
-    const query = resolvedLookupQuery.trim();
-    if (query) {
-      try {
-        await clearMediaMetadataCache(query);
-      } catch {
-        // Ignore cache clear failures - frontend state is already cleared
-      }
-    }
-
-    // Reload the job to refresh the display
-    onReload();
-  }, [resolvedLookupQuery, onReload]);
+  const {
+    isbnLookupQuery,
+    setIsbnLookupQuery,
+    isLookingUp,
+    lookupError,
+    lookupResult,
+    existingIsbn,
+    handleLookupMetadata,
+    handleClearMetadata
+  } = useJobProgressMetadataLookup({ jobId, metadata, onReload });
 
   return (
     <div className="job-card" aria-live="polite">
