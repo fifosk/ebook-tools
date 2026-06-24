@@ -2740,6 +2740,39 @@ struct AppleBookCreateView: View {
         if let provider = defaults.subtitleTranslationProvider {
             subtitleTranslationProvider = provider
         }
+        if let value = defaults.subtitleWorkerCount {
+            subtitleWorkerCount = value
+        }
+        if let value = defaults.subtitleBatchSize {
+            subtitleBatchSize = value
+        }
+        if let value = defaults.subtitleTranslationBatchSize {
+            subtitleTranslationBatchSize = value
+        }
+        if let value = defaults.subtitleAssFontSize {
+            subtitleAssFontSize = value
+        }
+        if let value = defaults.subtitleAssEmphasisScale {
+            subtitleAssEmphasisScale = value
+        }
+        if let value = defaults.youtubeOriginalMixPercent {
+            youtubeOriginalMixPercent = value
+        }
+        if let value = defaults.youtubeFlushSentences {
+            youtubeFlushSentences = value
+        }
+        if let value = defaults.youtubeTargetHeight {
+            youtubeTargetHeight = value
+        }
+        if let value = defaults.youtubePreserveAspectRatio {
+            youtubePreserveAspectRatio = value
+        }
+        if let value = defaults.youtubeSplitBatches {
+            youtubeSplitBatches = value
+        }
+        if let value = defaults.youtubeStitchBatches {
+            youtubeStitchBatches = value
+        }
     }
 
     private func clampSentenceCount(_ value: Int) -> Int {

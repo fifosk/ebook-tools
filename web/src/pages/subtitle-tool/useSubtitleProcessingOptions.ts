@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import type { BookCreationOptionsResponse } from '../../api/createBook';
 import {
   DEFAULT_ASS_EMPHASIS,
   DEFAULT_ASS_FONT_SIZE,
@@ -29,6 +30,20 @@ export function useSubtitleProcessingOptions() {
   const [transliterationModel, setTransliterationModel] = useState<string>('');
   const [translationProvider, setTranslationProvider] = useState<string>('llm');
   const [transliterationMode, setTransliterationMode] = useState<string>('default');
+  const applySubtitleDefaults = useCallback((defaults: BookCreationOptionsResponse['subtitle_defaults']) => {
+    if (!defaults) {
+      return;
+    }
+    setWorkerCount((current) => (current === DEFAULT_WORKER_COUNT ? defaults.worker_count : current));
+    setBatchSize((current) => (current === DEFAULT_BATCH_SIZE ? defaults.batch_size : current));
+    setTranslationBatchSize((current) =>
+      current === DEFAULT_TRANSLATION_BATCH_SIZE ? defaults.translation_batch_size : current
+    );
+    setAssFontSize((current) => (current === DEFAULT_ASS_FONT_SIZE ? defaults.ass_font_size : current));
+    setAssEmphasis((current) =>
+      current === DEFAULT_ASS_EMPHASIS ? defaults.ass_emphasis_scale : current
+    );
+  }, []);
 
   return {
     enableTransliteration,
@@ -62,6 +77,7 @@ export function useSubtitleProcessingOptions() {
     translationProvider,
     setTranslationProvider,
     transliterationMode,
-    setTransliterationMode
+    setTransliterationMode,
+    applySubtitleDefaults
   };
 }

@@ -632,6 +632,17 @@ struct AppleCreateResolvedDefaults: Equatable {
     let imageWidth: String?
     let imageHeight: String?
     let subtitleTranslationProvider: AppleSubtitleTranslationProvider?
+    let subtitleWorkerCount: Int?
+    let subtitleBatchSize: Int?
+    let subtitleTranslationBatchSize: Int?
+    let subtitleAssFontSize: Int?
+    let subtitleAssEmphasisScale: Double?
+    let youtubeOriginalMixPercent: Double?
+    let youtubeFlushSentences: Int?
+    let youtubeTargetHeight: AppleYoutubeDubTargetHeight?
+    let youtubePreserveAspectRatio: Bool?
+    let youtubeSplitBatches: Bool?
+    let youtubeStitchBatches: Bool?
 }
 
 enum AppleCreateMode: String, CaseIterable, Identifiable {

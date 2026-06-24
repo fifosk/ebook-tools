@@ -394,11 +394,49 @@ struct BookCreationGeneratedSourceDefaults: Decodable, Equatable {
     }
 }
 
+struct BookCreationSubtitleDefaults: Decodable, Equatable {
+    let workerCount: Int
+    let batchSize: Int
+    let translationBatchSize: Int
+    let assFontSize: Int
+    let assEmphasisScale: Double
+
+    enum CodingKeys: String, CodingKey {
+        case workerCount = "worker_count"
+        case batchSize = "batch_size"
+        case translationBatchSize = "translation_batch_size"
+        case assFontSize = "ass_font_size"
+        case assEmphasisScale = "ass_emphasis_scale"
+    }
+}
+
+struct BookCreationYoutubeDubDefaults: Decodable, Equatable {
+    let originalMixPercent: Double
+    let flushSentences: Int
+    let translationBatchSize: Int
+    let splitBatches: Bool
+    let stitchBatches: Bool
+    let targetHeight: Int
+    let preserveAspectRatio: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case originalMixPercent = "original_mix_percent"
+        case flushSentences = "flush_sentences"
+        case translationBatchSize = "translation_batch_size"
+        case splitBatches = "split_batches"
+        case stitchBatches = "stitch_batches"
+        case targetHeight = "target_height"
+        case preserveAspectRatio = "preserve_aspect_ratio"
+    }
+}
+
 struct BookCreationOptionsResponse: Decodable, Equatable {
     let sentenceBounds: BookCreationSentenceBounds
     let defaults: BookCreationDefaults
     let pipelineDefaults: BookCreationPipelineDefaults
     let generatedSourceDefaults: BookCreationGeneratedSourceDefaults
+    let subtitleDefaults: BookCreationSubtitleDefaults?
+    let youtubeDubDefaults: BookCreationYoutubeDubDefaults?
     let supportedInputLanguages: [String]
     let supportedOutputLanguages: [String]
     let supportedVoices: [String]
@@ -408,6 +446,8 @@ struct BookCreationOptionsResponse: Decodable, Equatable {
         case defaults
         case pipelineDefaults = "pipeline_defaults"
         case generatedSourceDefaults = "generated_source_defaults"
+        case subtitleDefaults = "subtitle_defaults"
+        case youtubeDubDefaults = "youtube_dub_defaults"
         case supportedInputLanguages = "supported_input_languages"
         case supportedOutputLanguages = "supported_output_languages"
         case supportedVoices = "supported_voices"

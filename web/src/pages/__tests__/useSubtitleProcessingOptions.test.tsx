@@ -72,4 +72,25 @@ describe('useSubtitleProcessingOptions', () => {
     expect(result.current.translationProvider).toBe('deepl');
     expect(result.current.transliterationMode).toBe('strict');
   });
+
+  it('applies backend subtitle defaults only to untouched fallback values', () => {
+    const { result } = renderHook(() => useSubtitleProcessingOptions());
+
+    act(() => {
+      result.current.setWorkerCount(4);
+      result.current.applySubtitleDefaults({
+        worker_count: 12,
+        batch_size: 22,
+        translation_batch_size: 8,
+        ass_font_size: 64,
+        ass_emphasis_scale: 1.6,
+      });
+    });
+
+    expect(result.current.workerCount).toBe(4);
+    expect(result.current.batchSize).toBe(22);
+    expect(result.current.translationBatchSize).toBe(8);
+    expect(result.current.assFontSize).toBe(64);
+    expect(result.current.assEmphasis).toBe(1.6);
+  });
 });

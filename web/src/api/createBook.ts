@@ -64,6 +64,22 @@ export interface BookCreationOptionsResponse {
     image_width: string;
     image_height: string;
   };
+  subtitle_defaults?: {
+    worker_count: number;
+    batch_size: number;
+    translation_batch_size: number;
+    ass_font_size: number;
+    ass_emphasis_scale: number;
+  };
+  youtube_dub_defaults?: {
+    original_mix_percent: number;
+    flush_sentences: number;
+    translation_batch_size: number;
+    split_batches: boolean;
+    stitch_batches: boolean;
+    target_height: number;
+    preserve_aspect_ratio: boolean;
+  };
   supported_input_languages: string[];
   supported_output_languages: string[];
   supported_voices: string[];

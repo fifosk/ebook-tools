@@ -253,11 +253,80 @@ def test_book_creation_options_endpoint_returns_non_secret_defaults(tmp_path: Pa
     assert body["pipeline_defaults"]["written_mode"] == "4"
     assert body["pipeline_defaults"]["selected_voice"] == "DemoVoice"
     assert body["generated_source_defaults"]["image_style_template"] == "wireframe"
+    assert body["subtitle_defaults"] == {
+        "worker_count": 10,
+        "batch_size": 20,
+        "translation_batch_size": 10,
+        "ass_font_size": 56,
+        "ass_emphasis_scale": 1.3,
+    }
+    assert body["youtube_dub_defaults"] == {
+        "original_mix_percent": 5.0,
+        "flush_sentences": 10,
+        "translation_batch_size": 10,
+        "split_batches": True,
+        "stitch_batches": True,
+        "target_height": 480,
+        "preserve_aspect_ratio": True,
+    }
     assert "English" in body["supported_input_languages"]
     assert "Hindi" in body["supported_input_languages"]
     assert "Chinese (Traditional)" in body["supported_output_languages"]
     assert "Persian" in body["supported_output_languages"]
     assert "DemoVoice" in body["supported_voices"]
+
+
+def test_book_creation_options_exposes_cross_surface_job_default_overrides(tmp_path: Path) -> None:
+    app = create_app()
+
+    user = UserRecord(username="editor", password_hash="", roles=["editor"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    stub_context_provider._base_config.update(
+        {
+            "subtitle_worker_count": "12",
+            "subtitle_batch_size": "22",
+            "subtitle_translation_batch_size": "8",
+            "subtitle_ass_font_size": "64",
+            "subtitle_ass_emphasis_scale": "1.6",
+            "youtube_dub_original_mix_percent": "25",
+            "youtube_dub_flush_sentences": "18",
+            "youtube_dub_translation_batch_size": "6",
+            "youtube_dub_split_batches": False,
+            "youtube_dub_stitch_batches": False,
+            "youtube_dub_target_height": "720",
+            "youtube_dub_preserve_aspect_ratio": "0",
+        }
+    )
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/books/options",
+        headers={"X-User-Id": "editor", "X-User-Role": "editor"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["subtitle_defaults"] == {
+        "worker_count": 12,
+        "batch_size": 22,
+        "translation_batch_size": 8,
+        "ass_font_size": 64,
+        "ass_emphasis_scale": 1.6,
+    }
+    assert body["youtube_dub_defaults"] == {
+        "original_mix_percent": 25.0,
+        "flush_sentences": 18,
+        "translation_batch_size": 6,
+        "split_batches": False,
+        "stitch_batches": False,
+        "target_height": 720,
+        "preserve_aspect_ratio": False,
+    }
 
 
 def test_book_creation_options_requires_editor_role(tmp_path: Path) -> None:

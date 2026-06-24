@@ -13,6 +13,7 @@ import {
   clearYoutubeMetadataCache,
   fetchPipelineIntakeStatus
 } from '../../api/client';
+import { fetchBookCreationOptions } from '../../api/createBook';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { LanguageProvider } from '../../context/LanguageProvider';
@@ -37,6 +38,10 @@ vi.mock('../../api/client', () => ({
   fetchPipelineIntakeStatus: vi.fn()
 }));
 
+vi.mock('../../api/createBook', () => ({
+  fetchBookCreationOptions: vi.fn()
+}));
+
 const mockFetchYoutubeLibrary = vi.mocked(fetchYoutubeLibrary);
 const mockFetchVoiceInventory = vi.mocked(fetchVoiceInventory);
 const mockFetchSubtitleModels = vi.mocked(fetchSubtitleModels);
@@ -50,6 +55,7 @@ const mockDeleteYoutubeVideo = vi.mocked(deleteYoutubeVideo);
 const mockClearTvMetadataCache = vi.mocked(clearTvMetadataCache);
 const mockClearYoutubeMetadataCache = vi.mocked(clearYoutubeMetadataCache);
 const mockFetchPipelineIntakeStatus = vi.mocked(fetchPipelineIntakeStatus);
+const mockFetchBookCreationOptions = vi.mocked(fetchBookCreationOptions);
 
 describe('VideoDubbingPage', () => {
   beforeEach(() => {
@@ -72,6 +78,56 @@ describe('VideoDubbingPage', () => {
     mockClearTvMetadataCache.mockResolvedValue({ cleared: 0 });
     mockClearYoutubeMetadataCache.mockResolvedValue({ cleared: 0 });
     mockFetchPipelineIntakeStatus.mockResolvedValue(null);
+    mockFetchBookCreationOptions.mockResolvedValue({
+      sentence_bounds: { min: 1, max: 500, default: 30 },
+      defaults: {
+        topic: '',
+        book_name: '',
+        genre: '',
+        author: 'Me',
+        input_language: 'English',
+        output_language: 'Arabic',
+        voice: 'gTTS'
+      },
+      pipeline_defaults: {
+        sentences_per_output_file: 10,
+        stitch_full: false,
+        audio_mode: '4',
+        audio_bitrate_kbps: 96,
+        written_mode: '4',
+        selected_voice: 'gTTS',
+        generate_audio: true,
+        output_html: false,
+        output_pdf: false,
+        include_transliteration: true,
+        translation_provider: 'llm',
+        translation_batch_size: 10,
+        transliteration_mode: 'default',
+        enable_lookup_cache: true,
+        lookup_cache_batch_size: 10,
+        tempo: 1
+      },
+      generated_source_defaults: {
+        add_images: false,
+        image_prompt_pipeline: 'prompt_plan',
+        image_style_template: 'wireframe',
+        image_prompt_context_sentences: 0,
+        image_width: '256',
+        image_height: '256'
+      },
+      youtube_dub_defaults: {
+        original_mix_percent: 5,
+        flush_sentences: 10,
+        translation_batch_size: 10,
+        split_batches: true,
+        stitch_batches: true,
+        target_height: 480,
+        preserve_aspect_ratio: true
+      },
+      supported_input_languages: ['English'],
+      supported_output_languages: ['Arabic'],
+      supported_voices: ['gTTS']
+    });
   });
 
   it('renders NAS videos with SUB subtitles listed', async () => {
@@ -121,6 +177,107 @@ describe('VideoDubbingPage', () => {
 
     expect(screen.getByLabelText(/Target resolution/i)).toHaveValue('480');
     expect(screen.getByRole('checkbox', { name: /Keep original aspect ratio/i })).toBeChecked();
+  });
+
+  it('applies backend YouTube dub defaults to untouched controls', async () => {
+    const modifiedAt = new Date('2024-01-02T03:04:05Z').toISOString();
+    mockFetchBookCreationOptions.mockResolvedValueOnce({
+      sentence_bounds: { min: 1, max: 500, default: 30 },
+      defaults: {
+        topic: '',
+        book_name: '',
+        genre: '',
+        author: 'Me',
+        input_language: 'English',
+        output_language: 'Arabic',
+        voice: 'gTTS'
+      },
+      pipeline_defaults: {
+        sentences_per_output_file: 10,
+        stitch_full: false,
+        audio_mode: '4',
+        audio_bitrate_kbps: 96,
+        written_mode: '4',
+        selected_voice: 'gTTS',
+        generate_audio: true,
+        output_html: false,
+        output_pdf: false,
+        include_transliteration: true,
+        translation_provider: 'llm',
+        translation_batch_size: 10,
+        transliteration_mode: 'default',
+        enable_lookup_cache: true,
+        lookup_cache_batch_size: 10,
+        tempo: 1
+      },
+      generated_source_defaults: {
+        add_images: false,
+        image_prompt_pipeline: 'prompt_plan',
+        image_style_template: 'wireframe',
+        image_prompt_context_sentences: 0,
+        image_width: '256',
+        image_height: '256'
+      },
+      youtube_dub_defaults: {
+        original_mix_percent: 20,
+        flush_sentences: 24,
+        translation_batch_size: 7,
+        split_batches: false,
+        stitch_batches: false,
+        target_height: 720,
+        preserve_aspect_ratio: false
+      },
+      supported_input_languages: ['English'],
+      supported_output_languages: ['Arabic'],
+      supported_voices: ['gTTS']
+    });
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: [
+        {
+          path: '/Volumes/Data/Download/DStation/generic-video.mkv',
+          filename: 'generic-video.mkv',
+          folder: '/Volumes/Data/Download/DStation',
+          size_bytes: 2048,
+          modified_at: modifiedAt,
+          source: 'nas_video',
+          subtitles: [
+            {
+              path: '/Volumes/Data/Download/DStation/generic-video.en.srt',
+              filename: 'generic-video.en.srt',
+              language: 'en',
+              format: 'srt'
+            }
+          ]
+        }
+      ]
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+
+    render(
+      <LanguageProvider>
+        <VideoDubbingPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: /Options/i }));
+
+    await waitFor(() => expect(screen.getByLabelText(/Target resolution/i)).toHaveValue('720'));
+    expect(screen.getByLabelText(/Original audio mix/i)).toHaveValue('20');
+    expect(screen.getByRole('checkbox', { name: /Keep original aspect ratio/i })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Create separate video per batch/i })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Stitch batches into a single final MP4/i })).not.toBeChecked();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Tuning/i }));
+
+    expect(screen.getByLabelText(/LLM batch size/i)).toHaveValue(7);
+    expect(screen.getByLabelText(/Flush interval/i)).toHaveValue(24);
   });
 
   it('shows backend intake pressure before generating a dub', async () => {

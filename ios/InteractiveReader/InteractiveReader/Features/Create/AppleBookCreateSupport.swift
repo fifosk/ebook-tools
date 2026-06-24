@@ -712,7 +712,43 @@ enum AppleBookCreatePresentation {
                 : normalizedImageDimension(options.generatedSourceDefaults.imageHeight),
             subtitleTranslationProvider: editedFields.contains(.subtitleTranslationProvider)
                 ? nil
-                : AppleSubtitleTranslationProvider(backendValue: options.pipelineDefaults.translationProvider)
+                : AppleSubtitleTranslationProvider(backendValue: options.pipelineDefaults.translationProvider),
+            subtitleWorkerCount: editedFields.contains(.subtitleWorkerCount)
+                ? nil
+                : options.subtitleDefaults.map { clampSubtitleWorkerCount($0.workerCount) },
+            subtitleBatchSize: editedFields.contains(.subtitleBatchSize)
+                ? nil
+                : options.subtitleDefaults.map { clampSubtitleBatchSize($0.batchSize) },
+            subtitleTranslationBatchSize: editedFields.contains(.subtitleTranslationBatchSize)
+                ? nil
+                : (
+                    options.subtitleDefaults.map { clampSubtitleTranslationBatchSize($0.translationBatchSize) }
+                        ?? options.youtubeDubDefaults.map { clampSubtitleTranslationBatchSize($0.translationBatchSize) }
+                ),
+            subtitleAssFontSize: editedFields.contains(.subtitleAssFontSize)
+                ? nil
+                : options.subtitleDefaults.map { clampAssFontSize($0.assFontSize) },
+            subtitleAssEmphasisScale: editedFields.contains(.subtitleAssEmphasisScale)
+                ? nil
+                : options.subtitleDefaults.map { clampAssEmphasisScale($0.assEmphasisScale) },
+            youtubeOriginalMixPercent: editedFields.contains(.youtubeOriginalMixPercent)
+                ? nil
+                : options.youtubeDubDefaults.map { clampYoutubeOriginalMixPercent($0.originalMixPercent) },
+            youtubeFlushSentences: editedFields.contains(.youtubeFlushSentences)
+                ? nil
+                : options.youtubeDubDefaults.map { clampYoutubeFlushSentences($0.flushSentences) },
+            youtubeTargetHeight: editedFields.contains(.youtubeTargetHeight)
+                ? nil
+                : options.youtubeDubDefaults.flatMap { AppleYoutubeDubTargetHeight(rawValue: $0.targetHeight) },
+            youtubePreserveAspectRatio: editedFields.contains(.youtubePreserveAspectRatio)
+                ? nil
+                : options.youtubeDubDefaults?.preserveAspectRatio,
+            youtubeSplitBatches: editedFields.contains(.youtubeSplitBatches)
+                ? nil
+                : options.youtubeDubDefaults?.splitBatches,
+            youtubeStitchBatches: editedFields.contains(.youtubeStitchBatches)
+                ? nil
+                : options.youtubeDubDefaults?.stitchBatches
         )
     }
 

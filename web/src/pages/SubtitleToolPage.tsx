@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import type { JobState } from '../components/JobList';
 import type { JobParameterSnapshot } from '../api/dtos';
+import { fetchBookCreationOptions } from '../api/createBook';
 import SubtitleJobsPanel from './subtitle-tool/SubtitleJobsPanel';
 import SubtitleMetadataPanel from './subtitle-tool/SubtitleMetadataPanel';
 import SubtitleOptionsPanel from './subtitle-tool/SubtitleOptionsPanel';
@@ -143,8 +145,31 @@ export default function SubtitleToolPage({
     translationProvider,
     setTranslationProvider,
     transliterationMode,
-    setTransliterationMode
+    setTransliterationMode,
+    applySubtitleDefaults
   } = useSubtitleProcessingOptions();
+  useEffect(() => {
+    if (prefillParameters) {
+      return undefined;
+    }
+    let cancelled = false;
+    const loadCreationDefaults = async () => {
+      try {
+        const options = await fetchBookCreationOptions();
+        if (!cancelled) {
+          applySubtitleDefaults(options.subtitle_defaults);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('Unable to load subtitle creation defaults', error);
+        }
+      }
+    };
+    void loadCreationDefaults();
+    return () => {
+      cancelled = true;
+    };
+  }, [applySubtitleDefaults, prefillParameters]);
   const { availableModels, modelsLoading, modelsError } = useSubtitleModels();
   const jobResults = useSubtitleJobResults(subtitleJobs);
   const { submittedSummary, recordSubmission } = useSubtitleSubmitFeedback({

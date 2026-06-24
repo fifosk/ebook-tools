@@ -15,6 +15,7 @@ import {
   clearTvMetadataCache,
   clearYoutubeMetadataCache
 } from '../api/client';
+import { fetchBookCreationOptions } from '../api/createBook';
 import type {
   YoutubeNasLibraryResponse,
   YoutubeNasVideo,
@@ -49,7 +50,13 @@ import VideoDubbingTuningPanel from './video-dubbing/VideoDubbingTuningPanel';
 import { CreateIntakeStatusCallout } from '../components/create-intake/CreateIntakeStatusCallout';
 import { useCreateIntakeStatus } from '../components/create-intake/useCreateIntakeStatus';
 import {
+  DEFAULT_FLUSH_SENTENCES,
   DEFAULT_LLM_MODEL,
+  DEFAULT_ORIGINAL_MIX_PERCENT,
+  DEFAULT_PRESERVE_ASPECT_RATIO,
+  DEFAULT_SPLIT_BATCHES,
+  DEFAULT_STITCH_BATCHES,
+  DEFAULT_TARGET_HEIGHT,
   DEFAULT_TRANSLATION_BATCH_SIZE,
   VIDEO_DUB_STORAGE_KEYS
 } from './video-dubbing/videoDubbingConfig';
@@ -133,17 +140,17 @@ export default function VideoDubbingPage({
   const [fetchedLanguages, setFetchedLanguages] = useState<string[]>([]);
   const [startOffset, setStartOffset] = useState('');
   const [endOffset, setEndOffset] = useState('');
-  const [originalMixPercent, setOriginalMixPercent] = useState(5);
-  const [flushSentences, setFlushSentences] = useState(10);
+  const [originalMixPercent, setOriginalMixPercent] = useState(DEFAULT_ORIGINAL_MIX_PERCENT);
+  const [flushSentences, setFlushSentences] = useState(DEFAULT_FLUSH_SENTENCES);
   const [translationBatchSize, setTranslationBatchSize] = useState(DEFAULT_TRANSLATION_BATCH_SIZE);
-  const [targetHeight, setTargetHeight] = useState(480);
-  const [preserveAspectRatio, setPreserveAspectRatio] = useState(true);
+  const [targetHeight, setTargetHeight] = useState(DEFAULT_TARGET_HEIGHT);
+  const [preserveAspectRatio, setPreserveAspectRatio] = useState(DEFAULT_PRESERVE_ASPECT_RATIO);
   const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
   const [transliterationModel, setTransliterationModel] = useState('');
   const [translationProvider, setTranslationProvider] = useState('llm');
   const [transliterationMode, setTransliterationMode] = useState('default');
-  const [splitBatches, setSplitBatches] = useState(true);
-  const [stitchBatches, setStitchBatches] = useState(true);
+  const [splitBatches, setSplitBatches] = useState(DEFAULT_SPLIT_BATCHES);
+  const [stitchBatches, setStitchBatches] = useState(DEFAULT_STITCH_BATCHES);
   const [includeTransliteration, setIncludeTransliteration] = useState(true);
   const [enableLookupCache, setEnableLookupCache] = useState(true);
   const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
@@ -163,6 +170,59 @@ export default function VideoDubbingPage({
       previewAudioRef.current = null;
     }
   }, []);
+
+  const applyYoutubeDubDefaults = useCallback(
+    (defaults: Awaited<ReturnType<typeof fetchBookCreationOptions>>['youtube_dub_defaults']) => {
+      if (!defaults) {
+        return;
+      }
+      setOriginalMixPercent((current) =>
+        current === DEFAULT_ORIGINAL_MIX_PERCENT ? defaults.original_mix_percent : current
+      );
+      setFlushSentences((current) =>
+        current === DEFAULT_FLUSH_SENTENCES ? defaults.flush_sentences : current
+      );
+      setTranslationBatchSize((current) =>
+        current === DEFAULT_TRANSLATION_BATCH_SIZE ? defaults.translation_batch_size : current
+      );
+      setTargetHeight((current) =>
+        current === DEFAULT_TARGET_HEIGHT ? defaults.target_height : current
+      );
+      setPreserveAspectRatio((current) =>
+        current === DEFAULT_PRESERVE_ASPECT_RATIO ? defaults.preserve_aspect_ratio : current
+      );
+      setSplitBatches((current) =>
+        current === DEFAULT_SPLIT_BATCHES ? defaults.split_batches : current
+      );
+      setStitchBatches((current) =>
+        current === DEFAULT_STITCH_BATCHES ? defaults.stitch_batches : current
+      );
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (prefillParameters) {
+      return undefined;
+    }
+    let cancelled = false;
+    const loadCreationDefaults = async () => {
+      try {
+        const options = await fetchBookCreationOptions();
+        if (!cancelled) {
+          applyYoutubeDubDefaults(options.youtube_dub_defaults);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('Unable to load YouTube dubbing creation defaults', error);
+        }
+      }
+    };
+    void loadCreationDefaults();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyYoutubeDubDefaults, prefillParameters]);
 
   useEffect(() => {
     selectedVideoPathRef.current = selectedVideoPath;

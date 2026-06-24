@@ -116,6 +116,28 @@ class BookCreationGeneratedSourceDefaults(BaseModel):
     image_height: str = "256"
 
 
+class BookCreationSubtitleDefaults(BaseModel):
+    """Default subtitle-job processing values shared by Web and Apple clients."""
+
+    worker_count: int = 10
+    batch_size: int = 20
+    translation_batch_size: int = 10
+    ass_font_size: int = 56
+    ass_emphasis_scale: float = 1.3
+
+
+class BookCreationYoutubeDubDefaults(BaseModel):
+    """Default YouTube/NAS dubbing values shared by Web and Apple clients."""
+
+    original_mix_percent: float = 5.0
+    flush_sentences: int = 10
+    translation_batch_size: int = 10
+    split_batches: bool = True
+    stitch_batches: bool = True
+    target_height: int = 480
+    preserve_aspect_ratio: bool = True
+
+
 class BookCreationOptionsResponse(BaseModel):
     """Non-secret options contract for generated-book creation clients."""
 
@@ -123,6 +145,8 @@ class BookCreationOptionsResponse(BaseModel):
     defaults: BookCreationDefaults
     pipeline_defaults: BookCreationPipelineDefaults
     generated_source_defaults: BookCreationGeneratedSourceDefaults
+    subtitle_defaults: BookCreationSubtitleDefaults = Field(default_factory=BookCreationSubtitleDefaults)
+    youtube_dub_defaults: BookCreationYoutubeDubDefaults = Field(default_factory=BookCreationYoutubeDubDefaults)
     supported_input_languages: List[str] = Field(default_factory=list)
     supported_output_languages: List[str] = Field(default_factory=list)
     supported_voices: List[str] = Field(default_factory=list)
