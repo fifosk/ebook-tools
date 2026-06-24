@@ -243,9 +243,8 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
     entry = _find_bed(payload, bed_id)
     if entry is None:
         logger.info(
-            "Reading bed not found: %s",
-            bed_id,
-            extra={"event": "reading_beds.fetch.not_found", "bed_id": bed_id},
+            "Reading bed fetch result=not_found",
+            extra={"event": "reading_beds.fetch.not_found"},
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed not found")
 
@@ -265,9 +264,8 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
     filename = entry.get("filename")
     if not isinstance(filename, str) or not filename.strip():
         logger.warning(
-            "Reading bed file missing for %s",
-            bed_id,
-            extra={"event": "reading_beds.fetch.missing_file", "bed_id": bed_id},
+            "Reading bed fetch result=missing_file",
+            extra={"event": "reading_beds.fetch.missing_file"},
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed file missing")
 
@@ -275,18 +273,14 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
     candidate = (root / filename).resolve()
     if root.resolve() not in candidate.parents and candidate != root.resolve():
         logger.warning(
-            "Invalid reading bed file path for %s: %s",
-            bed_id,
-            candidate,
-            extra={"event": "reading_beds.fetch.invalid_path", "bed_id": bed_id},
+            "Reading bed fetch result=invalid_path",
+            extra={"event": "reading_beds.fetch.invalid_path"},
         )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reading bed file path")
     if not candidate.exists():
         logger.warning(
-            "Reading bed file not found for %s: %s",
-            bed_id,
-            candidate,
-            extra={"event": "reading_beds.fetch.file_not_found", "bed_id": bed_id},
+            "Reading bed fetch result=file_not_found",
+            extra={"event": "reading_beds.fetch.file_not_found"},
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed file missing")
 

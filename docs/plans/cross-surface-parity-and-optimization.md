@@ -838,8 +838,9 @@ Suggested features to evaluate after parity scaffolding:
   manifest runs it as a playback-media regression gate. The
   repo-owned `test-backend-reading-beds` target now also covers the
   reading-bed catalog, admin upload/default update, uploaded file streaming,
-  and cleanup fallback used by Web playback controls plus Apple playback and
-  offline sync, and the shared Apple backend manifest runs it as a
+  cleanup fallback, and token-safe stale-file fetch logs used by Web playback
+  controls plus Apple playback and offline sync, and the shared Apple backend
+  manifest runs it as a
   reading-bed regression gate. The repo-owned `test-backend-notifications`
   target now covers Apple Settings notification device registration,
   preferences, test sends, rich test sends, disabled-server messaging, and

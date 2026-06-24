@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -145,3 +146,34 @@ def test_reading_bed_admin_routes_require_admin(
     )
 
     assert response.status_code == 401
+
+
+def test_reading_bed_missing_file_logs_without_paths_or_ids(
+    reading_bed_client: tuple[TestClient, str, Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    client, admin_token, storage_root = reading_bed_client
+    auth_headers = {"Authorization": f"Bearer {admin_token}"}
+    caplog.set_level(logging.WARNING, logger="ebook_tools")
+
+    upload_response = client.post(
+        "/api/admin/reading-beds",
+        data={"label": "Secret Rain Room"},
+        files={"file": ("secret-rain.mp3", b"fake mp3 bytes", "audio/mpeg")},
+        headers=auth_headers,
+    )
+    uploaded = upload_response.json()
+    stored_file = storage_root / "reading_beds" / "files" / "secret-rain-room.mp3"
+    assert stored_file.exists()
+    stored_file.unlink()
+
+    response = client.get(uploaded["url"])
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Reading bed file missing"
+
+    rendered_logs = caplog.text
+    assert "Reading bed fetch result=file_not_found" in rendered_logs
+    assert "secret-rain-room" not in rendered_logs
+    assert "secret-rain.mp3" not in rendered_logs
+    assert str(stored_file) not in rendered_logs
