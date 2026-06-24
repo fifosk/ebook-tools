@@ -430,8 +430,9 @@ Optimization candidates:
   concurrent cleanup. Newest-first EPUB defaults are preserved, and EPUB
   matching is case-insensitive so NAS files ending in `.EPUB` are eligible for
   the same default-source flow. `/api/subtitles/sources` now applies the same
-  stale-entry skip when building Web/Apple subtitle source pickers, so vanished
-  subtitle paths do not become default selections. The
+  transient directory-scan tolerance and stale-entry skip when building
+  Web/Apple subtitle source pickers, so NAS remounts or vanished subtitle paths
+  do not become broken default selections. The
   NAS YouTube/video scanner also skips video candidates that vanish after
   `os.walk()`, keeping Web Video Dubbing and Apple Create source pickers usable
   during concurrent downloads or cleanup.

@@ -673,9 +673,26 @@ class SubtitleService:
                 raise FileNotFoundError(f"Subtitle directory '{base_candidate}' is not accessible")
             return []
         entries: List[Path] = []
-        for candidate in resolved.iterdir():
-            if candidate.is_file() and candidate.suffix.lower() in DISCOVERABLE_EXTENSIONS:
-                entries.append(candidate.resolve())
+        try:
+            candidates = list(resolved.iterdir())
+        except OSError:
+            logger.debug(
+                "Unable to scan subtitle source directory %s",
+                resolved,
+                exc_info=True,
+            )
+            return []
+        for candidate in candidates:
+            try:
+                if candidate.is_file() and candidate.suffix.lower() in DISCOVERABLE_EXTENSIONS:
+                    entries.append(candidate.resolve())
+            except OSError:
+                logger.debug(
+                    "Skipping unreadable subtitle source candidate %s",
+                    candidate,
+                    exc_info=True,
+                )
+                continue
         entries.sort()
         return entries
 

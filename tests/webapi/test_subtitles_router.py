@@ -13,6 +13,7 @@ from modules.webapi.routers.subtitles import (
     parse_time_offset,
 )
 from modules.webapi.schemas import SubtitleSourceEntry
+from modules.services.subtitle_service import SubtitleService
 
 pytestmark = pytest.mark.webapi
 
@@ -126,3 +127,24 @@ def test_list_subtitle_sources_skips_stale_paths(tmp_path: Path, monkeypatch: py
     )
 
     assert [entry.path for entry in response.sources] == [stable.as_posix()]
+
+
+def test_subtitle_service_list_sources_tolerates_scan_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = SubtitleService(
+        job_manager=object(),
+        locator=object(),
+        default_source_dir=tmp_path,
+    )
+    resolved = tmp_path.resolve()
+    original_iterdir = Path.iterdir
+
+    def fake_iterdir(path: Path):
+        if path == resolved:
+            raise OSError("transient NAS remount")
+        return original_iterdir(path)
+
+    monkeypatch.setattr(Path, "iterdir", fake_iterdir)
+
+    assert service.list_sources() == []
