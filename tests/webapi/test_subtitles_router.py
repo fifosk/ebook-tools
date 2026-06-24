@@ -8,11 +8,12 @@ from modules.webapi.dependencies import RequestUserContext
 from modules.webapi.routers.subtitles import (
     _subtitle_source_entry,
     _subtitle_source_sort_key,
+    delete_subtitle_source,
     list_subtitle_sources,
     parse_end_time,
     parse_time_offset,
 )
-from modules.webapi.schemas import SubtitleSourceEntry
+from modules.webapi.schemas import SubtitleDeleteRequest, SubtitleSourceEntry
 from modules.services.subtitle_service import SubtitleService
 
 pytestmark = pytest.mark.webapi
@@ -177,3 +178,50 @@ def test_subtitle_service_delete_source_rejects_missing_file_outside_base(tmp_pa
 
     with pytest.raises(PermissionError):
         service.delete_source(outside / "vanished.en.srt")
+
+
+def test_delete_subtitle_source_reports_missing_in_scope_file(tmp_path: Path) -> None:
+    service = SubtitleService(
+        job_manager=object(),
+        locator=object(),
+        default_source_dir=tmp_path,
+    )
+    missing = tmp_path / "vanished.en.srt"
+
+    response = delete_subtitle_source(
+        payload=SubtitleDeleteRequest(
+            subtitle_path=missing.as_posix(),
+            base_dir=tmp_path.as_posix(),
+        ),
+        service=service,
+        request_user=RequestUserContext(user_id="editor", user_role="editor"),
+    )
+
+    assert response.subtitle_path == missing.as_posix()
+    assert response.base_dir == tmp_path.as_posix()
+    assert response.removed == []
+    assert response.missing == [missing.resolve().as_posix()]
+
+
+def test_delete_subtitle_source_rejects_missing_file_outside_base(tmp_path: Path) -> None:
+    base = tmp_path / "base"
+    outside = tmp_path / "outside"
+    base.mkdir()
+    outside.mkdir()
+    service = SubtitleService(
+        job_manager=object(),
+        locator=object(),
+        default_source_dir=base,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        delete_subtitle_source(
+            payload=SubtitleDeleteRequest(
+                subtitle_path=(outside / "vanished.en.srt").as_posix(),
+                base_dir=base.as_posix(),
+            ),
+            service=service,
+            request_user=RequestUserContext(user_id="editor", user_role="editor"),
+        )
+
+    assert exc_info.value.status_code == 403
