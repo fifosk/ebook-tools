@@ -101,6 +101,37 @@ describe('createBookPageUtils', () => {
     });
   });
 
+  it('preserves multi-target generated source pipeline defaults', () => {
+    expect(
+      buildGeneratedSourcePipelineDefaults({
+        ...creationOptions,
+        defaults: {
+          ...creationOptions.defaults,
+          output_language: 'Arabic',
+          output_languages: ['German', 'French'],
+          target_languages: [' German ', 'Persian', 'german', ''],
+        },
+      }),
+    ).toMatchObject({
+      target_languages: ['German', 'Persian', 'French', 'Arabic'],
+    });
+  });
+
+  it('falls back to output_languages when generated source target_languages are absent', () => {
+    expect(
+      buildGeneratedSourcePipelineDefaults({
+        ...creationOptions,
+        defaults: {
+          ...creationOptions.defaults,
+          output_language: 'Arabic',
+          output_languages: ['Spanish', 'French'],
+        },
+      }),
+    ).toMatchObject({
+      target_languages: ['Spanish', 'French', 'Arabic'],
+    });
+  });
+
   it('builds generated book job requests with trimmed generator values and clamped counts', () => {
     const pipelinePayload: PipelineRequestPayload = {
       config: {},

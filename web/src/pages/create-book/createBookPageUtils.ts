@@ -92,6 +92,31 @@ export function buildGeneratedSourceImageDefaults(options: BookCreationOptionsRe
   };
 }
 
+function normalizeDefaultTargetLanguages(
+  defaults: BookCreationOptionsResponse['defaults'],
+): string[] | undefined {
+  const candidates = [
+    ...(defaults.target_languages ?? []),
+    ...(defaults.output_languages ?? []),
+    defaults.output_language,
+  ];
+  const seen = new Set<string>();
+  const languages: string[] = [];
+  for (const candidate of candidates) {
+    const language = candidate?.trim();
+    if (!language) {
+      continue;
+    }
+    const key = language.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    languages.push(language);
+  }
+  return languages.length > 0 ? languages : undefined;
+}
+
 export function buildGeneratedSourcePipelineDefaults(
   options: BookCreationOptionsResponse | null,
 ): BookNarrationPipelineDefaults | null {
@@ -103,7 +128,7 @@ export function buildGeneratedSourcePipelineDefaults(
   return {
     ...pipelineDefaults,
     input_language: promptDefaults.input_language || undefined,
-    target_languages: promptDefaults.output_language ? [promptDefaults.output_language] : undefined,
+    target_languages: normalizeDefaultTargetLanguages(promptDefaults),
     selected_voice: promptDefaults.voice || pipelineDefaults.selected_voice,
   };
 }

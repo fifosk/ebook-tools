@@ -36,6 +36,8 @@ export interface BookCreationOptionsResponse {
     author: string;
     input_language: string;
     output_language: string;
+    target_languages?: string[];
+    output_languages?: string[];
     voice: string;
   };
   pipeline_defaults: {
