@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.20
+
+- Advanced visible Apple app versioning to `v2026.06.24.20`.
+- Apple Create Narrate EPUB now reuses prior narration job audio, output, translation, transliteration, lookup-cache, and chunking settings while still preserving any fields edited in the current form.
+
 ### 2026.06.24.19
 
 - Advanced visible Apple app versioning to `v2026.06.24.19`.

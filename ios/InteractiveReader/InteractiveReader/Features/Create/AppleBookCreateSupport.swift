@@ -502,7 +502,24 @@ struct AppleNarrationHistoryDefaults: Equatable {
     let inputLanguage: AppleBookCreateLanguage?
     let targetLanguage: AppleBookCreateLanguage?
     let additionalTargetLanguages: String?
+    let voice: AppleBookCreateVoiceOption?
+    let generateAudio: Bool?
+    let audioMode: String?
+    let audioBitrateKbps: String?
+    let writtenMode: String?
+    let tempo: Double?
+    let sentencesPerOutputFile: Int?
+    let stitchFull: Bool?
+    let includeTransliteration: Bool?
+    let translationProvider: AppleSubtitleTranslationProvider?
+    let llmModel: String?
+    let translationBatchSize: Int?
+    let transliterationMode: AppleSubtitleTransliterationMode?
+    let transliterationModel: String?
     let enableLookupCache: Bool?
+    let lookupCacheBatchSize: Int?
+    let outputHtml: Bool?
+    let outputPdf: Bool?
 }
 
 struct AppleSubtitleHistoryDefaults: Equatable {
@@ -868,7 +885,40 @@ enum AppleBookCreatePresentation {
         let normalizedTargets = normalizedLanguageList(targetLanguages)
         let targetLanguage = normalizedTargets.first.flatMap(AppleBookCreateLanguage.init(backendValue:))
         let additionalTargetLanguages = normalizedTargets.dropFirst().joined(separator: ", ")
+        let voice = latest
+            .flatMap { narrationString($0, keys: ["voice", "selected_voice", "selectedVoice"]) }
+            .flatMap(AppleBookCreateVoiceOption.init(backendValue:))
+        let generateAudio = latest.flatMap { narrationBool($0, keys: ["generate_audio", "generateAudio"]) }
+        let audioMode = latest.flatMap { narrationString($0, keys: ["audio_mode", "audioMode"]) }
+        let audioBitrateKbps = latest
+            .flatMap { narrationInt($0, keys: ["audio_bitrate_kbps", "audioBitrateKbps"]) }
+            .map { "\(max(32, $0))" }
+        let writtenMode = latest.flatMap { narrationString($0, keys: ["written_mode", "writtenMode"]) }
+        let tempo = latest
+            .flatMap { historyDouble($0, keys: ["tempo"]) }
+            .map(clampTempo)
+        let sentencesPerOutputFile = latest
+            .flatMap { narrationInt($0, keys: ["sentences_per_output_file", "sentencesPerOutputFile"]) }
+            .map(clampBookSentencesPerOutputFile)
+        let stitchFull = latest.flatMap { narrationBool($0, keys: ["stitch_full", "stitchFull"]) }
+        let includeTransliteration = latest.flatMap { narrationBool($0, keys: ["include_transliteration", "includeTransliteration"]) }
+        let translationProvider = latest
+            .flatMap { narrationString($0, keys: ["translation_provider", "translationProvider"]) }
+            .flatMap(AppleSubtitleTranslationProvider.init(backendValue:))
+        let llmModel = latest.flatMap { narrationString($0, keys: ["llm_model", "llmModel"]) }
+        let translationBatchSize = latest
+            .flatMap { narrationInt($0, keys: ["translation_batch_size", "translationBatchSize"]) }
+            .map(clampSubtitleTranslationBatchSize)
+        let transliterationMode = latest
+            .flatMap { narrationString($0, keys: ["transliteration_mode", "transliterationMode"]) }
+            .flatMap(AppleSubtitleTransliterationMode.init(backendValue:))
+        let transliterationModel = latest.flatMap { narrationString($0, keys: ["transliteration_model", "transliterationModel"]) }
         let lookupCache = latest.flatMap { narrationBool($0, keys: ["enable_lookup_cache", "enableLookupCache"]) }
+        let lookupCacheBatchSize = latest
+            .flatMap { narrationInt($0, keys: ["lookup_cache_batch_size", "lookupCacheBatchSize"]) }
+            .map(clampSubtitleTranslationBatchSize)
+        let outputHtml = latest.flatMap { narrationBool($0, keys: ["output_html", "outputHtml"]) }
+        let outputPdf = latest.flatMap { narrationBool($0, keys: ["output_pdf", "outputPdf"]) }
 
         guard inputFile != nil
             || baseOutput != nil
@@ -876,7 +926,24 @@ enum AppleBookCreatePresentation {
             || inputLanguage != nil
             || targetLanguage != nil
             || !additionalTargetLanguages.isEmpty
+            || voice != nil
+            || generateAudio != nil
+            || audioMode != nil
+            || audioBitrateKbps != nil
+            || writtenMode != nil
+            || tempo != nil
+            || sentencesPerOutputFile != nil
+            || stitchFull != nil
+            || includeTransliteration != nil
+            || translationProvider != nil
+            || llmModel != nil
+            || translationBatchSize != nil
+            || transliterationMode != nil
+            || transliterationModel != nil
             || lookupCache != nil
+            || lookupCacheBatchSize != nil
+            || outputHtml != nil
+            || outputPdf != nil
         else {
             return nil
         }
@@ -888,7 +955,24 @@ enum AppleBookCreatePresentation {
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
             additionalTargetLanguages: additionalTargetLanguages.isEmpty ? nil : additionalTargetLanguages,
-            enableLookupCache: lookupCache
+            voice: voice,
+            generateAudio: generateAudio,
+            audioMode: audioMode,
+            audioBitrateKbps: audioBitrateKbps,
+            writtenMode: writtenMode,
+            tempo: tempo,
+            sentencesPerOutputFile: sentencesPerOutputFile,
+            stitchFull: stitchFull,
+            includeTransliteration: includeTransliteration,
+            translationProvider: translationProvider,
+            llmModel: llmModel,
+            translationBatchSize: translationBatchSize,
+            transliterationMode: transliterationMode,
+            transliterationModel: transliterationModel,
+            enableLookupCache: lookupCache,
+            lookupCacheBatchSize: lookupCacheBatchSize,
+            outputHtml: outputHtml,
+            outputPdf: outputPdf
         )
     }
 

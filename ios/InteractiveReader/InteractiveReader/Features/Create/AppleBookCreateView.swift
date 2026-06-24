@@ -1497,9 +1497,77 @@ struct AppleBookCreateView: View {
            let additionalTargetLanguages = defaults.additionalTargetLanguages {
             self.additionalTargetLanguages = additionalTargetLanguages
         }
+        if !editedFields.contains(.voice),
+           let voice = defaults.voice {
+            self.voice = voice
+        }
+        if !editedFields.contains(.generateAudio),
+           let generateAudio = defaults.generateAudio {
+            self.generateAudio = generateAudio
+        }
+        if !editedFields.contains(.audioMode),
+           let audioMode = defaults.audioMode?.nonEmptyValue {
+            self.audioMode = audioMode
+        }
+        if !editedFields.contains(.audioBitrateKbps),
+           let audioBitrateKbps = defaults.audioBitrateKbps?.nonEmptyValue {
+            self.audioBitrateKbps = audioBitrateKbps
+        }
+        if !editedFields.contains(.writtenMode),
+           let writtenMode = defaults.writtenMode?.nonEmptyValue {
+            self.writtenMode = writtenMode
+        }
+        if !editedFields.contains(.tempo),
+           let tempo = defaults.tempo {
+            self.tempo = tempo
+        }
+        if !editedFields.contains(.bookSentencesPerOutputFile),
+           let sentencesPerOutputFile = defaults.sentencesPerOutputFile {
+            bookSentencesPerOutputFile = sentencesPerOutputFile
+        }
+        if !editedFields.contains(.stitchFull),
+           let stitchFull = defaults.stitchFull {
+            self.stitchFull = stitchFull
+        }
+        if !editedFields.contains(.includeTransliteration),
+           let includeTransliteration = defaults.includeTransliteration {
+            self.includeTransliteration = includeTransliteration
+        }
+        if !editedFields.contains(.bookTranslationProvider),
+           let translationProvider = defaults.translationProvider {
+            bookTranslationProvider = translationProvider
+        }
+        if !editedFields.contains(.bookLlmModel),
+           let llmModel = defaults.llmModel?.nonEmptyValue {
+            bookLlmModel = llmModel
+        }
+        if !editedFields.contains(.bookTranslationBatchSize),
+           let translationBatchSize = defaults.translationBatchSize {
+            bookTranslationBatchSize = translationBatchSize
+        }
+        if !editedFields.contains(.bookTransliterationMode),
+           let transliterationMode = defaults.transliterationMode {
+            bookTransliterationMode = transliterationMode
+        }
+        if !editedFields.contains(.bookTransliterationModel),
+           let transliterationModel = defaults.transliterationModel?.nonEmptyValue {
+            bookTransliterationModel = transliterationModel
+        }
         if !editedFields.contains(.enableLookupCache),
            let enableLookupCache = defaults.enableLookupCache {
             self.enableLookupCache = enableLookupCache
+        }
+        if !editedFields.contains(.bookLookupCacheBatchSize),
+           let lookupCacheBatchSize = defaults.lookupCacheBatchSize {
+            bookLookupCacheBatchSize = lookupCacheBatchSize
+        }
+        if !editedFields.contains(.outputHtml),
+           let outputHtml = defaults.outputHtml {
+            self.outputHtml = outputHtml
+        }
+        if !editedFields.contains(.outputPdf),
+           let outputPdf = defaults.outputPdf {
+            self.outputPdf = outputPdf
         }
     }
 

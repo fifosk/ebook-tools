@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.19",
+            version: "2026.06.24.20",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-narrate-epub-history-settings",
+                    title: "Narrate EPUB remembers settings",
+                    detail: "Apple Create Narrate EPUB now reuses prior narration job audio, output, translation, transliteration, lookup-cache, and chunking settings while still preserving fields edited in the current form."
+                ),
                 AppChangelogEntry(
                     id: "apple-shared-pipeline-make-wrappers",
                     title: "Shared pipeline gets local commands",
