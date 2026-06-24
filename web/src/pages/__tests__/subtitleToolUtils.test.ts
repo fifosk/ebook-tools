@@ -9,6 +9,7 @@ import {
   resolveSubtitleSubmitValues,
   type SubtitleSubmitInput
 } from '../subtitle-tool/subtitleSubmitUtils';
+import { buildSubtitleTemplatePayload } from '../subtitle-tool/subtitleTemplateUtils';
 
 describe('formatSubmittedSubtitleSummary', () => {
   it('describes auto-detected submissions when no tuning details were captured', () => {
@@ -480,5 +481,72 @@ describe('buildSubtitleSubmitFormData', () => {
     expect(formData.has('ass_font_size')).toBe(false);
     expect(formData.has('worker_count')).toBe(false);
     expect((formData.get('file') as File | null)?.name).toBe('upload.srt');
+  });
+});
+
+describe('buildSubtitleTemplatePayload', () => {
+  it('builds a reusable subtitle template from resolved submission values', () => {
+    const resolved = resolveSubtitleSubmitValues(baseSubmitInput);
+    if (!resolved.ok) {
+      throw new Error(resolved.error);
+    }
+
+    const template = buildSubtitleTemplatePayload({
+      values: resolved.values,
+      sourceMode: 'existing',
+      enableTransliteration: true,
+      enableHighlight: false,
+      showOriginal: true,
+      generateAudioBook: false,
+      outputFormat: 'ass',
+      mirrorToSourceDir: true,
+      mediaMetadataDraft: {
+        show: { name: 'Example Show' },
+        episode: { name: 'A Soft Launch' },
+        api_token: 'do-not-store'
+      }
+    });
+
+    expect(template).toMatchObject({
+      name: 'A Soft Launch',
+      mode: 'subtitle_job',
+      payload: {
+        kind: 'subtitle_job_form',
+        source: 'web',
+        version: 1,
+        source_mode: 'existing',
+        form_state: {
+          source_mode: 'existing',
+          input_language: 'English',
+          original_language: 'English',
+          target_language: 'French',
+          enable_transliteration: true,
+          highlight: false,
+          show_original: true,
+          generate_audio_book: false,
+          output_format: 'ass',
+          mirror_batches_to_source_dir: true,
+          start_time: '01:02',
+          end_time: '+03:00',
+          ass_font_size: 120,
+          ass_emphasis_scale: 1.23,
+          llm_model: 'gpt-test',
+          translation_provider: 'llm',
+          transliteration_mode: 'default',
+          transliteration_model: 'romanizer',
+          source_path: '/media/source.srt',
+          worker_count: 4,
+          batch_size: 20,
+          translation_batch_size: 8,
+          media_metadata: {
+            show: { name: 'Example Show' },
+            episode: { name: 'A Soft Launch' }
+          }
+        }
+      }
+    });
+    const formState = template.payload.form_state as Record<string, unknown>;
+    const metadata = formState.media_metadata as Record<string, unknown>;
+    expect(metadata.api_token).toBeUndefined();
   });
 });

@@ -1,4 +1,5 @@
 import type {
+  CreationTemplatePayload,
   JobParameterSnapshot,
   MacOSVoice,
   VoiceInventoryResponse,
@@ -10,6 +11,7 @@ import type {
 import type { JobState } from '../../components/JobList';
 import { resolveLanguageName } from '../../constants/languageCodes';
 import { VOICE_OPTIONS } from '../../constants/menuOptions';
+import { sanitizeTemplateValue } from '../../utils/creationTemplateSanitizer';
 import { resolveSubtitleLanguageLabel } from '../../utils/subtitles';
 
 export function basenameFromPath(value: string): string {
@@ -628,6 +630,51 @@ export function buildVideoDubbingGeneratePayload({
       enable_lookup_cache: enableLookupCache,
     },
     error: null,
+  };
+}
+
+function firstTemplateNameFromMetadata(metadata: Record<string, unknown> | null | undefined): string | null {
+  const youtube = metadata ? coerceRecord(metadata['youtube']) : null;
+  const episode = metadata ? coerceRecord(metadata['episode']) : null;
+  const show = metadata ? coerceRecord(metadata['show']) : null;
+  return (
+    normalizeTextValue(youtube ? youtube['title'] : null) ??
+    normalizeTextValue(episode ? episode['name'] : null) ??
+    normalizeTextValue(episode ? episode['title'] : null) ??
+    normalizeTextValue(show ? show['name'] : null) ??
+    normalizeTextValue(metadata ? metadata['title'] : null)
+  );
+}
+
+export function deriveVideoDubbingTemplateName(payload: YoutubeDubRequest): string {
+  const metadataName = firstTemplateNameFromMetadata(payload.media_metadata ?? null);
+  if (metadataName) {
+    return metadataName;
+  }
+
+  const videoName = basenameFromPath(payload.video_path);
+  if (videoName) {
+    return videoName.replace(/\.[^.]+$/, '');
+  }
+
+  return 'YouTube dub template';
+}
+
+export function buildVideoDubbingTemplatePayload(payload: YoutubeDubRequest): CreationTemplatePayload {
+  const formState: Record<string, unknown> = { ...payload };
+  if (payload.media_metadata) {
+    formState.media_metadata = sanitizeTemplateValue(payload.media_metadata);
+  }
+
+  return {
+    name: deriveVideoDubbingTemplateName(payload),
+    mode: 'youtube_dub',
+    payload: {
+      kind: 'youtube_dub_form',
+      source: 'web',
+      version: 1,
+      form_state: formState
+    }
   };
 }
 

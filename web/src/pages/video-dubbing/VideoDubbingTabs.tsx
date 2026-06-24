@@ -6,9 +6,11 @@ type VideoDubbingTabsProps = {
   videoCount: number;
   jobCount: number;
   isGenerating: boolean;
+  isSavingTemplate: boolean;
   canGenerate: boolean;
   onTabChange: (tab: VideoDubbingTab) => void;
   onGenerate: () => void;
+  onSaveTemplate: () => void;
 };
 
 export default function VideoDubbingTabs({
@@ -16,9 +18,11 @@ export default function VideoDubbingTabs({
   videoCount,
   jobCount,
   isGenerating,
+  isSavingTemplate,
   canGenerate,
   onTabChange,
-  onGenerate
+  onGenerate,
+  onSaveTemplate
 }: VideoDubbingTabsProps) {
   return (
     <div className={styles.tabsRow}>
@@ -70,6 +74,14 @@ export default function VideoDubbingTabs({
         </button>
       </div>
       <div className={styles.tabsActions}>
+        <button
+          className={styles.secondaryButton}
+          type="button"
+          onClick={onSaveTemplate}
+          disabled={isSavingTemplate || isGenerating}
+        >
+          {isSavingTemplate ? 'Saving...' : 'Save template'}
+        </button>
         <button className={styles.primaryButton} type="button" onClick={onGenerate} disabled={!canGenerate}>
           {isGenerating ? 'Rendering…' : 'Generate dubbed video'}
         </button>

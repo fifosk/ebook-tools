@@ -6,9 +6,11 @@ type SubtitleToolTabsProps = {
   sourceCount: number;
   jobCount: number;
   isSubmitting: boolean;
+  isSavingTemplate: boolean;
   isAssSelection: boolean;
   isIntakeAtCapacity: boolean;
   onTabChange: (tab: SubtitleToolTab) => void;
+  onSaveTemplate: () => void;
 };
 
 export default function SubtitleToolTabs({
@@ -16,9 +18,11 @@ export default function SubtitleToolTabs({
   sourceCount,
   jobCount,
   isSubmitting,
+  isSavingTemplate,
   isAssSelection,
   isIntakeAtCapacity,
-  onTabChange
+  onTabChange,
+  onSaveTemplate
 }: SubtitleToolTabsProps) {
   return (
     <div className={styles.tabsRow}>
@@ -72,6 +76,14 @@ export default function SubtitleToolTabs({
         </button>
       </div>
       <div className={styles.tabsActions}>
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          onClick={onSaveTemplate}
+          disabled={isSavingTemplate || isSubmitting}
+        >
+          {isSavingTemplate ? 'Saving...' : 'Save template'}
+        </button>
         <button
           type="submit"
           form="subtitle-submit-form"

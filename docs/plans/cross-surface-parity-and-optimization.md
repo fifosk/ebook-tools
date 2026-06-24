@@ -94,9 +94,12 @@ Large Web UI hotspots to split before redesign work:
   video deletion, prefill/current-selection fallback, and post-delete fallback
   selection now live in
   `web/src/pages/video-dubbing/useVideoDubbingLibraryState.ts` with focused hook
-  coverage. The repo-owned `test-web-video-dubbing-focused` target now runs the
-  full Video Dubbing utility/hook/page slice so the reusable Apple pipeline Web
-  gate can keep this split work covered with one stable app command.
+  coverage. The YouTube Dub template payload builder reuses the same generated
+  request payload and strips sensitive metadata keys before saving through
+  `/api/creation/templates`. The repo-owned `test-web-video-dubbing-focused`
+  target now runs the full Video Dubbing utility/hook/page slice so the reusable
+  Apple pipeline Web gate can keep this split work covered with one stable app
+  command.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style
@@ -129,9 +132,12 @@ Large Web UI hotspots to split before redesign work:
   focused hook coverage.
   Source-list refresh selection also stays pinned in the utility module, clearing
   stale selections after deletes and choosing the latest usable subtitle source
-  when needed. The repo-owned `test-web-subtitle-tool-focused` target now runs
-  the full Subtitle Tool utility/hook slice so the reusable Apple pipeline Web
-  gate can keep this split work covered with one stable app command.
+  when needed. The subtitle template payload builder mirrors resolved submit
+  field names and strips sensitive metadata keys before saving through
+  `/api/creation/templates`. The repo-owned `test-web-subtitle-tool-focused`
+  target now runs the full Subtitle Tool utility/hook slice so the reusable
+  Apple pipeline Web gate can keep this split work covered with one stable app
+  command.
 - `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1119 lines.
   Status: subtitle cue lookup, token navigation, selection shadowing, clamp
   math, track variant mapping, and TTS voice option helpers now live in
@@ -733,8 +739,8 @@ Suggested features to evaluate after parity scaffolding:
   mark the applied fields as edited so later backend/history defaults do not
   overwrite them. Apple Create also applies saved subtitle and YouTube dubbing
   templates into source, language, model, timing, output, metadata JSON, and
-  tuning controls. Web save buttons for subtitle and YouTube templates remain
-  future work.
+  tuning controls. Web Subtitle Tool and Video Dubbing can now save sanitized
+  subtitle and YouTube templates from their current settings for Apple reuse.
 - Draft jobs: start on iPad, finish advanced settings on Web.
 - Creation handoff: Apple app opens the corresponding Web creation URL for unsupported advanced options. Status:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { generateYoutubeDub } from '../api/client';
+import { generateYoutubeDub, saveCreationTemplate } from '../api/client';
 import type {
   YoutubeNasVideo,
   JobParameterSnapshot
@@ -29,6 +29,7 @@ import { useVideoDubbingSubtitleExtraction } from './video-dubbing/useVideoDubbi
 import { useVideoDubbingLibraryState } from './video-dubbing/useVideoDubbingLibraryState';
 import {
   buildVideoDubbingGeneratePayload,
+  buildVideoDubbingTemplatePayload,
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
   resolveVideoDubPrefill,
@@ -114,6 +115,9 @@ export default function VideoDubbingPage({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [templateStatus, setTemplateStatus] = useState<string | null>(null);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
 
   const {
     library,
@@ -405,6 +409,75 @@ export default function VideoDubbingPage({
     refreshIntakeStatus
   ]);
 
+  const handleSaveTemplate = useCallback(async () => {
+    const result = buildVideoDubbingGeneratePayload({
+      selectedVideo,
+      selectedSubtitle,
+      mediaMetadataDraft,
+      subtitleLanguageLabel,
+      subtitleLanguageCode,
+      targetLanguageCode,
+      voice,
+      startOffset,
+      endOffset,
+      originalMixPercent,
+      flushSentences,
+      translationBatchSize,
+      llmModel,
+      translationProvider,
+      transliterationMode,
+      transliterationModel,
+      splitBatches,
+      stitchBatches,
+      includeTransliteration,
+      targetHeight,
+      preserveAspectRatio,
+      enableLookupCache,
+    });
+    if (!result.payload) {
+      setTemplateError(result.error);
+      setTemplateStatus(null);
+      return;
+    }
+
+    setIsSavingTemplate(true);
+    setTemplateError(null);
+    setTemplateStatus(null);
+    try {
+      const saved = await saveCreationTemplate(buildVideoDubbingTemplatePayload(result.payload));
+      setTemplateStatus(`Saved template "${saved.name}". Apple Create can apply it from YouTube Dub.`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message || 'Unable to save video template.' : 'Unable to save video template.';
+      setTemplateError(message);
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  }, [
+    selectedVideo,
+    selectedSubtitle,
+    subtitleLanguageLabel,
+    subtitleLanguageCode,
+    targetLanguageCode,
+    voice,
+    startOffset,
+    endOffset,
+    originalMixPercent,
+    flushSentences,
+    translationBatchSize,
+    llmModel,
+    translationProvider,
+    transliterationMode,
+    transliterationModel,
+    splitBatches,
+    stitchBatches,
+    includeTransliteration,
+    targetHeight,
+    preserveAspectRatio,
+    enableLookupCache,
+    mediaMetadataDraft
+  ]);
+
   const subtitleNotice = useMemo(() => {
     return resolveSubtitleNotice(selectedVideo, playableSubtitles);
   }, [playableSubtitles, selectedVideo]);
@@ -418,13 +491,17 @@ export default function VideoDubbingPage({
         videoCount={videos.length}
         jobCount={jobs.length}
         isGenerating={isGenerating}
+        isSavingTemplate={isSavingTemplate}
         canGenerate={canGenerate}
         onTabChange={setActiveTab}
         onGenerate={() => void handleGenerate()}
+        onSaveTemplate={() => void handleSaveTemplate()}
       />
 
       {statusMessage ? <p className={styles.success}>{statusMessage}</p> : null}
       {generateError ? <p className={styles.error}>{generateError}</p> : null}
+      {templateStatus ? <p className={styles.success}>{templateStatus}</p> : null}
+      {templateError ? <p className={styles.error}>{templateError}</p> : null}
       <CreateIntakeStatusCallout status={intakeStatus} isLoading={isLoadingIntakeStatus} />
 
       {activeTab === 'videos' ? (

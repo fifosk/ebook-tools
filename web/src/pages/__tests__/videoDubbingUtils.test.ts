@@ -7,6 +7,7 @@ import type {
 } from '../../api/dtos';
 import {
   buildVideoDubbingGeneratePayload,
+  buildVideoDubbingTemplatePayload,
   buildVoiceOptions,
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
@@ -458,6 +459,54 @@ describe('videoDubbingUtils', () => {
     expect(result.payload.translation_provider).toBeUndefined();
     expect(result.payload.transliteration_mode).toBeUndefined();
     expect(result.payload.transliteration_model).toBeUndefined();
+  });
+
+  it('builds a reusable YouTube dub template from the generate payload', () => {
+    const result = buildVideoDubbingGeneratePayload(generateInput({
+      mediaMetadataDraft: {
+        youtube: { title: 'Example Video', auth_token: 'do-not-store' },
+        episode: { name: 'Episode One' }
+      },
+      subtitleLanguageLabel: 'Spanish',
+      targetLanguageCode: 'en',
+      voice: 'Monica',
+      startOffset: '00:15',
+      endOffset: '01:45',
+      llmModel: 'gpt-test'
+    }));
+
+    if (!result.payload) {
+      throw new Error(result.error);
+    }
+    const template = buildVideoDubbingTemplatePayload(result.payload);
+
+    expect(template).toMatchObject({
+      name: 'Example Video',
+      mode: 'youtube_dub',
+      payload: {
+        kind: 'youtube_dub_form',
+        source: 'web',
+        version: 1,
+        form_state: {
+          video_path: '/videos/show.mkv',
+          subtitle_path: '/subs/show.es.ass',
+          source_language: 'Spanish',
+          target_language: 'en',
+          voice: 'Monica',
+          start_time_offset: '00:15',
+          end_time_offset: '01:45',
+          llm_model: 'gpt-test',
+          media_metadata: {
+            youtube: { title: 'Example Video' },
+            episode: { name: 'Episode One' }
+          }
+        }
+      }
+    });
+    const formState = template.payload.form_state as Record<string, unknown>;
+    const metadata = formState.media_metadata as Record<string, unknown>;
+    const youtube = metadata.youtube as Record<string, unknown>;
+    expect(youtube.auth_token).toBeUndefined();
   });
 
   it('rejects YouTube dub generation without a selected video and subtitle', () => {
