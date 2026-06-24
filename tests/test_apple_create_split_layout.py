@@ -183,6 +183,11 @@ def test_generated_book_create_exposes_source_context_fields() -> None:
     )
 
     assert "creationMode == .generatedBook || creationMode == .narrateEbook" in source
+    assert 'Section(creationMode == .generatedBook ? "Source Book" : "Metadata")' in source
+    assert 'creationMode == .generatedBook ? "Source title" : "Title"' in source
+    assert 'creationMode == .generatedBook ? "Source author" : "Author"' in source
+    assert 'creationMode == .generatedBook ? "Source genre" : "Genre"' in source
+    assert 'creationMode == .generatedBook ? "Source summary" : "Summary"' in source
     assert '"createGeneratedSourceBookTitleField"' in source
     assert '"createGeneratedSourceBookAuthorField"' in source
     assert '"createGeneratedSourceBookGenreField"' in source

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.25",
+            version: "2026.06.24.26",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-generated-book-source-labels",
+                    title: "Generated books clarify sources",
+                    detail: "Apple Create generated-book fields now label continuation context as source-book title, author, genre, and summary so it is clear what belongs to the existing book versus the new generated book."
+                ),
                 AppChangelogEntry(
                     id: "apple-generated-book-source-context",
                     title: "Generated books get source context",

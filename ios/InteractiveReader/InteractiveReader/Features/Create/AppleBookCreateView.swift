@@ -363,23 +363,32 @@ struct AppleBookCreateView: View {
     }
 
     private var metadataSection: some View {
-        Section("Metadata") {
+        Section(creationMode == .generatedBook ? "Source Book" : "Metadata") {
             if creationMode == .generatedBook || creationMode == .narrateEbook {
-                TextField("Title", text: textBinding(for: .sourceBookTitle, value: $sourceBookTitle))
+                TextField(
+                    creationMode == .generatedBook ? "Source title" : "Title",
+                    text: textBinding(for: .sourceBookTitle, value: $sourceBookTitle)
+                )
                     .textInputAutocapitalization(.words)
                     .accessibilityIdentifier(
                         creationMode == .generatedBook
                             ? "createGeneratedSourceBookTitleField"
                             : "createNarrateBookTitleField"
                     )
-                TextField("Author", text: textBinding(for: .sourceBookAuthor, value: $sourceBookAuthor))
+                TextField(
+                    creationMode == .generatedBook ? "Source author" : "Author",
+                    text: textBinding(for: .sourceBookAuthor, value: $sourceBookAuthor)
+                )
                     .textInputAutocapitalization(.words)
                     .accessibilityIdentifier(
                         creationMode == .generatedBook
                             ? "createGeneratedSourceBookAuthorField"
                             : "createNarrateBookAuthorField"
                     )
-                TextField("Genre", text: textBinding(for: .sourceBookGenre, value: $sourceBookGenre))
+                TextField(
+                    creationMode == .generatedBook ? "Source genre" : "Genre",
+                    text: textBinding(for: .sourceBookGenre, value: $sourceBookGenre)
+                )
                     .textInputAutocapitalization(.words)
                     .accessibilityIdentifier(
                         creationMode == .generatedBook
@@ -387,7 +396,11 @@ struct AppleBookCreateView: View {
                             : "createNarrateBookGenreField"
                     )
             }
-            TextField("Summary", text: textBinding(for: .bookSummary, value: $bookSummary), axis: .vertical)
+            TextField(
+                creationMode == .generatedBook ? "Source summary" : "Summary",
+                text: textBinding(for: .bookSummary, value: $bookSummary),
+                axis: .vertical
+            )
                 .lineLimit(2...5)
                 .textInputAutocapitalization(.sentences)
                 .accessibilityIdentifier("createBookSummaryField")

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.26
+
+- Advanced visible Apple app versioning to `v2026.06.24.26`.
+- Clarified Apple generated-book Create labels so continuation context appears as source-book title, author, genre, and summary instead of generic metadata fields.
+
 ### 2026.06.24.25
 
 - Advanced visible Apple app versioning to `v2026.06.24.25`.
