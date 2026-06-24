@@ -200,6 +200,18 @@ def test_parse_sentences_accepts_named_sentence_list_and_dedupes() -> None:
     ]
 
 
+def test_parse_sentences_ignores_non_string_items() -> None:
+    payload = {
+        "sentences": [
+            {"text": "Object payload should not be coerced."},
+            123,
+            "Actual sentence.",
+        ]
+    }
+
+    assert _parse_sentences(json.dumps(payload), 1) == ["Actual sentence."]
+
+
 def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     app = create_app()
 

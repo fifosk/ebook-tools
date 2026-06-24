@@ -555,7 +555,9 @@ def _parse_sentences(payload: str, expected: int) -> list[str]:
     sentences: list[str] = []
     seen_lower: set[str] = set()
     for item in data:
-        sentence = str(item).strip()
+        if not isinstance(item, str):
+            continue
+        sentence = item.strip()
         if not sentence:
             continue
         lowered = sentence.lower()
