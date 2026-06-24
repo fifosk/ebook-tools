@@ -710,6 +710,7 @@ available and `python3` otherwise.
 | `make test-web-create-intake-focused` | `npm --prefix web test -- --run ...` | Focused Create intake and narration form Vitest slice |
 | `make test-web-creation-templates-focused` | `npm --prefix web test -- --run ...` | Focused saved creation-template sanitizer and payload Vitest slice |
 | `make test-web-library-focused` | `npm --prefix web test -- --run ...` | Focused Library metadata Vitest slice |
+| `make test-web-playback-focused` | `npm --prefix web test -- --run ...` | Focused live-media, PlayerPanel, subtitle overlay, and playback sequencing Vitest slice |
 | `make test-web-video-dubbing-focused` | `npm --prefix web test -- --run ...` | Focused Video Dubbing utility, hook, and page Vitest slice |
 | `make test-web-subtitle-tool-focused` | `npm --prefix web test -- --run ...` | Focused Subtitle Tool utility and hook Vitest slice |
 | `make test-web-app-view-deeplink-focused` | `npm --prefix web test -- --run ...` | Focused app-view deeplink utility Vitest slice |

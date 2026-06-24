@@ -53,6 +53,41 @@ def test_library_focused_web_target_covers_library_metadata() -> None:
     assert "src/pages/__tests__/libraryPageMetadata.test.ts" in block
 
 
+def test_playback_focused_web_target_covers_player_and_media_state() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    assert "test-web-playback-focused" in makefile
+    block = _target_block(makefile, "test-web-playback-focused")
+    assert "npm --prefix web test -- --run" in block
+    for path in [
+        "src/hooks/__tests__/liveMediaState.test.ts",
+        "src/hooks/__tests__/liveMediaTiming.test.ts",
+        "src/hooks/__tests__/useLiveMedia.test.tsx",
+        "src/components/__tests__/playerPanelUtils.test.ts",
+        "src/components/__tests__/usePlayerPanelActiveText.test.tsx",
+        "src/components/__tests__/usePlayerPanelMediaNavigation.test.tsx",
+        "src/components/__tests__/PlayerPanelBoundaryState.test.tsx",
+        "src/components/__tests__/PlayerPanelContent.test.tsx",
+        "src/components/__tests__/PlayerPanelNavigationGroups.test.tsx",
+        "src/components/__tests__/PlayerPanelSearchSlot.test.tsx",
+        "src/components/__tests__/PlayerPanelSentenceJumpDatalist.test.tsx",
+        "src/components/video-subtitles/__tests__/subtitleTrackOverlayUtils.test.ts",
+        "src/lib/media/__tests__/audioUrlResolver.test.ts",
+        "src/lib/media/__tests__/sentenceChunkIndex.test.ts",
+        "src/lib/playback/__tests__/sequencePlan.test.ts",
+        "src/utils/__tests__/browserStorage.test.ts",
+    ]:
+        assert path in block
+
+
+def test_docs_publish_playback_focused_web_target() -> None:
+    docs = TESTING_DOC.read_text(encoding="utf-8")
+    plan = PLAN_DOC.read_text(encoding="utf-8")
+
+    assert "make test-web-playback-focused" in docs
+    assert "test-web-playback-focused" in plan
+
+
 def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
@@ -147,6 +182,7 @@ def test_docs_publish_all_repo_owned_web_pipeline_targets() -> None:
         "make test-web-create-intake-focused",
         "make test-web-creation-templates-focused",
         "make test-web-library-focused",
+        "make test-web-playback-focused",
         "make test-web-video-dubbing-focused",
         "make test-web-subtitle-tool-focused",
         "make test-web-app-view-deeplink-focused",

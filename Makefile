@@ -7,7 +7,7 @@
        test-backend-youtube-dubbing-service \
        test-web-create-book-focused test-web-create-intake-focused \
        test-web-creation-templates-focused \
-       test-web-library-focused test-web-video-dubbing-focused \
+       test-web-library-focused test-web-playback-focused test-web-video-dubbing-focused \
        test-web-subtitle-tool-focused test-web-app-view-deeplink-focused \
        test-web-full build-web-production \
        generate-language-catalogs check-language-catalogs test-apple-language-catalogs \
@@ -117,6 +117,27 @@ test-web-library-focused:
 	npm --prefix web test -- --run \
 		src/pages/__tests__/libraryPageMetadata.test.ts \
 		src/components/__tests__/libraryListResume.test.ts
+
+test-web-playback-focused:
+	npm --prefix web test -- --run \
+		src/hooks/__tests__/liveMediaState.test.ts \
+		src/hooks/__tests__/liveMediaTiming.test.ts \
+		src/hooks/__tests__/useLiveMedia.test.tsx \
+		src/components/__tests__/playerPanelUtils.test.ts \
+		src/components/__tests__/playerPanelChromeState.test.ts \
+		src/components/__tests__/playerPanelDocumentState.test.ts \
+		src/components/__tests__/usePlayerPanelActiveText.test.tsx \
+		src/components/__tests__/usePlayerPanelMediaNavigation.test.tsx \
+		src/components/__tests__/PlayerPanelBoundaryState.test.tsx \
+		src/components/__tests__/PlayerPanelContent.test.tsx \
+		src/components/__tests__/PlayerPanelNavigationGroups.test.tsx \
+		src/components/__tests__/PlayerPanelSearchSlot.test.tsx \
+		src/components/__tests__/PlayerPanelSentenceJumpDatalist.test.tsx \
+		src/components/video-subtitles/__tests__/subtitleTrackOverlayUtils.test.ts \
+		src/lib/media/__tests__/audioUrlResolver.test.ts \
+		src/lib/media/__tests__/sentenceChunkIndex.test.ts \
+		src/lib/playback/__tests__/sequencePlan.test.ts \
+		src/utils/__tests__/browserStorage.test.ts
 
 test-web-video-dubbing-focused:
 	npm --prefix web test -- --run \
