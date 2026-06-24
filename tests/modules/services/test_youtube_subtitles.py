@@ -8,6 +8,7 @@ from modules.services.youtube_subtitles import (
     YoutubeSubtitleListing,
     _finalize_partial_download,
     _recent_files,
+    download_subtitle,
     download_video,
 )
 
@@ -59,6 +60,56 @@ def test_recent_files_stops_on_candidate_scan_failure(tmp_path: Path) -> None:
     assert [path for path, _mtime in _recent_files(_BrokenCandidateIterator(), context="test")] == [
         stable
     ]
+
+
+def test_download_subtitle_skips_stale_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    stale = tmp_path / "stale-abc.en.srt"
+    stable = tmp_path / "stable-abc.en.srt"
+    stale.write_text("stale", encoding="utf-8")
+    stable.write_text("stable", encoding="utf-8")
+    original_stat = Path.stat
+
+    class _FakeYoutubeDL:
+        def __init__(self, options):
+            self.params = options
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args) -> None:
+            return None
+
+        def prepare_filename(self, _info) -> str:
+            return str(self.params["outtmpl"]).replace("%(ext)s", "mp4")
+
+    def fake_extract(_ydl, _url: str, *, download: bool):
+        assert download
+        return {"id": "abc", "title": "Demo"}
+
+    def fake_stat(path: Path, *args, **kwargs):
+        if path == stale:
+            raise FileNotFoundError(path)
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(youtube_subtitles, "YoutubeDL", _FakeYoutubeDL)
+    monkeypatch.setattr(youtube_subtitles, "_extract_with_backoff", fake_extract)
+    monkeypatch.setattr(Path, "stat", fake_stat)
+
+    downloaded = download_subtitle(
+        "https://youtube.example/watch?v=abc",
+        language="en",
+        kind="manual",
+        output_dir=tmp_path,
+        video_id="abc",
+        video_title="Demo",
+    )
+
+    assert downloaded == tmp_path / "Demo [abc]_yt.en.srt"
+    assert downloaded.read_text(encoding="utf-8") == "stable"
+    assert not stable.exists()
 
 
 def test_download_video_falls_back_to_prepared_filename_when_output_scan_fails(

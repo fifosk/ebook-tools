@@ -435,11 +435,11 @@ Optimization candidates:
   do not become broken default selections. The
   NAS YouTube/video scanner also skips video and subtitle sidecar candidates
   that vanish after `os.walk()`, keeping Web Video Dubbing and Apple Create
-  source pickers usable during concurrent downloads or cleanup. YouTube video
+  source pickers usable during concurrent downloads or cleanup. YouTube
   download finalization now applies the same stale-entry tolerance when sorting
-  partial recovery files and when scanning muxed output files, so a transient
-  NAS directory race can still fall back to yt-dlp's prepared filename instead
-  of losing a completed download.
+  downloaded subtitle files, partial recovery files, and muxed output files, so
+  a transient NAS directory race can still fall back to a usable downloaded
+  artifact instead of losing a completed download.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap

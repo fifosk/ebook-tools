@@ -322,23 +322,33 @@ def download_subtitle(
         base_file = Path(ydl.prepare_filename(info))
         base_without_ext = base_file.with_suffix("")
         expected_path = base_without_ext.with_name(f"{base_without_ext.name}.{normalized_lang}.srt")
-        if expected_path.exists():
+        if _recent_files([expected_path], context="subtitle download"):
             downloaded_path = expected_path
         if downloaded_path is None:
-            candidates = sorted(
-                resolved_dir.glob(f"*{resolved_video_id}*.{normalized_lang}.srt"),
-                key=lambda path: path.stat().st_mtime,
-                reverse=True,
-            )
+            candidates = [
+                path
+                for path, _mtime in sorted(
+                    _recent_files(
+                        resolved_dir.glob(f"*{resolved_video_id}*.{normalized_lang}.srt"),
+                        context="subtitle download",
+                    ),
+                    key=lambda entry: -entry[1],
+                )
+            ]
             if candidates:
                 downloaded_path = candidates[0]
 
         if downloaded_path is None:
-            fallback_candidates = sorted(
-                resolved_dir.glob(f"*{normalized_lang}.srt"),
-                key=lambda path: path.stat().st_mtime,
-                reverse=True,
-            )
+            fallback_candidates = [
+                path
+                for path, _mtime in sorted(
+                    _recent_files(
+                        resolved_dir.glob(f"*{normalized_lang}.srt"),
+                        context="subtitle download fallback",
+                    ),
+                    key=lambda entry: -entry[1],
+                )
+            ]
             if fallback_candidates:
                 downloaded_path = fallback_candidates[0]
 
