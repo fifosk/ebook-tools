@@ -255,6 +255,11 @@ Optimization candidates:
   also continues when a job root exists but its metadata manifest is absent,
   using the chunk data already present on the job and skipping eager manifest
   iteration in that case.
+- Avoid full job hydration when tagging YouTube NAS inventory with linked jobs.
+  Status: `/api/subtitles/youtube/library` now asks `PipelineJobManager` for
+  visible `youtube_dub` metadata only, preserving role-based access checks while
+  avoiding reconstruction of every visible stored job before Apple/Web Create
+  default video pickers render.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap

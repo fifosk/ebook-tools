@@ -174,6 +174,97 @@ def test_admin_list_jobs_uses_store_pagination_without_active_jobs(tmp_path: Pat
         manager._executor.shutdown()
 
 
+def test_list_metadata_filters_job_type_without_hydrating_stored_jobs(tmp_path: Path) -> None:
+    store = _RecordingInMemoryJobStore()
+    youtube_metadata = PipelineJobMetadata(
+        job_id="youtube-job",
+        job_type="youtube_dub",
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime(2026, 6, 22, 10, 0, tzinfo=timezone.utc),
+        request_payload={"video_path": "/nas/video-a.mp4"},
+        user_id="alice",
+        user_role="editor",
+    )
+    store.save(youtube_metadata)
+    store.save(
+        PipelineJobMetadata(
+            job_id="pipeline-job",
+            job_type="pipeline",
+            status=PipelineJobStatus.COMPLETED,
+            created_at=datetime(2026, 6, 22, 10, 1, tzinfo=timezone.utc),
+            request_payload={"input_file": "book.epub"},
+            user_id="alice",
+            user_role="editor",
+        )
+    )
+    manager = PipelineJobManager(
+        max_workers=1,
+        store=store,
+        worker_pool_factory=lambda _: DummyWorkerPool(),
+    )
+    build_calls: list[PipelineJobMetadata] = []
+    original_build_job = manager._persistence.build_job
+
+    def recording_build_job(metadata: PipelineJobMetadata):
+        build_calls.append(metadata)
+        return original_build_job(metadata)
+
+    manager._persistence.build_job = recording_build_job
+    store.list_calls.clear()
+
+    try:
+        visible = manager.list_metadata(
+            user_id="alice",
+            user_role="editor",
+            job_type="youtube_dub",
+        )
+    finally:
+        manager._executor.shutdown()
+
+    assert store.list_calls == [{"offset": None, "limit": None}]
+    assert build_calls == []
+    assert list(visible) == ["youtube-job"]
+    assert visible["youtube-job"].request_payload == {"video_path": "/nas/video-a.mp4"}
+
+
+def test_list_metadata_respects_role_visibility(tmp_path: Path) -> None:
+    store = InMemoryJobStore()
+    for owner in ["alice", "bob"]:
+        store.save(
+            PipelineJobMetadata(
+                job_id=f"{owner}-youtube-job",
+                job_type="youtube_dub",
+                status=PipelineJobStatus.COMPLETED,
+                created_at=datetime(2026, 6, 22, 10, 0, tzinfo=timezone.utc),
+                request_payload={"video_path": f"/nas/{owner}.mp4"},
+                user_id=owner,
+                user_role="editor",
+            )
+        )
+    manager = PipelineJobManager(
+        max_workers=1,
+        store=store,
+        worker_pool_factory=lambda _: DummyWorkerPool(),
+    )
+
+    try:
+        alice_visible = manager.list_metadata(
+            user_id="alice",
+            user_role="editor",
+            job_type="youtube_dub",
+        )
+        admin_visible = manager.list_metadata(
+            user_id="admin",
+            user_role="admin",
+            job_type="youtube_dub",
+        )
+    finally:
+        manager._executor.shutdown()
+
+    assert set(alice_visible) == {"alice-youtube-job"}
+    assert set(admin_visible) == {"alice-youtube-job", "bob-youtube-job"}
+
+
 def test_executor_runs_owned_jobs(tmp_path: Path) -> None:
     store = InMemoryJobStore()
     execution_adapter = PipelineExecutionAdapter(lambda _: PipelineResponse(success=True))

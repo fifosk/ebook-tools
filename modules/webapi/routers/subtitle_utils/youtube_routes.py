@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from modules import logging_manager as log_mgr
 from modules.services.job_manager import PipelineJobManager
+from modules.services.job_manager.metadata import PipelineJobMetadata
 from modules.services.youtube_subtitles import (
     SubtitleKind,
     download_video as perform_youtube_video_download,
@@ -123,23 +124,11 @@ def _normalize_path_token(path: Path) -> Optional[str]:
             return None
 
 
-def _index_youtube_video_jobs(
-    job_manager: PipelineJobManager,
-    request_user: Optional[RequestUserContext],
+def _index_youtube_video_job_metadata(
+    job_metadata: Mapping[str, PipelineJobMetadata],
 ) -> dict[str, set[str]]:
     jobs_by_video: dict[str, set[str]] = {}
-    try:
-        jobs = job_manager.list(
-            user_id=request_user.user_id if request_user else None,
-            user_role=request_user.user_role if request_user else None,
-        ).values()
-    except Exception:
-        logger.warning("Unable to enumerate jobs while tagging YouTube videos", exc_info=True)
-        return jobs_by_video
-
-    for job in jobs:
-        if getattr(job, "job_type", "").lower() != "youtube_dub":
-            continue
+    for job in job_metadata.values():
         payload = job.request_payload or job.resume_context or {}
         if not isinstance(payload, Mapping):
             continue
@@ -151,6 +140,22 @@ def _index_youtube_video_jobs(
             continue
         jobs_by_video.setdefault(token, set()).add(job.job_id)
     return jobs_by_video
+
+
+def _index_youtube_video_jobs(
+    job_manager: PipelineJobManager,
+    request_user: Optional[RequestUserContext],
+) -> dict[str, set[str]]:
+    try:
+        job_metadata = job_manager.list_metadata(
+            user_id=request_user.user_id if request_user else None,
+            user_role=request_user.user_role if request_user else None,
+            job_type="youtube_dub",
+        )
+    except Exception:
+        logger.warning("Unable to enumerate jobs while tagging YouTube videos", exc_info=True)
+        return {}
+    return _index_youtube_video_job_metadata(job_metadata)
 
 
 def _serialize_nas_video(entry, *, linked_jobs: Optional[set[str]] = None) -> YoutubeNasVideoPayload:

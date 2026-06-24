@@ -862,6 +862,68 @@ class PipelineJobManager:
             return self._store.count()
         return len(self.list(user_id=user_id, user_role=user_role))
 
+    @staticmethod
+    def _metadata_from_active_job(job: PipelineJob) -> PipelineJobMetadata:
+        request_payload = job.request_payload
+        resume_context = job.resume_context if job.resume_context is not None else request_payload
+        return PipelineJobMetadata(
+            job_id=job.job_id,
+            job_type=job.job_type,
+            status=job.status,
+            created_at=job.created_at,
+            started_at=job.started_at,
+            completed_at=job.completed_at,
+            error_message=job.error_message,
+            request_payload=request_payload,
+            resume_context=resume_context,
+            tuning_summary=job.tuning_summary,
+            retry_summary=job.retry_summary,
+            user_id=job.user_id,
+            user_role=job.user_role,
+            access=job.access,
+            generated_files=job.generated_files,
+            media_completed=job.media_completed,
+        )
+
+    def list_metadata(
+        self,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+        job_type: Optional[str] = None,
+    ) -> Dict[str, PipelineJobMetadata]:
+        """Return visible job metadata without hydrating stored jobs."""
+
+        normalized_type = (job_type or "").strip().lower()
+        with self._lock:
+            active_jobs = dict(self._jobs)
+
+        stored = self._store.list()
+        metadata_by_id: Dict[str, PipelineJobMetadata] = dict(stored)
+        for job_id, job in active_jobs.items():
+            metadata_by_id[job_id] = self._metadata_from_active_job(job)
+
+        visible: Dict[str, PipelineJobMetadata] = {}
+        for job_id, metadata in metadata_by_id.items():
+            if normalized_type and metadata.job_type.lower() != normalized_type:
+                continue
+            if self._is_admin(user_role):
+                visible[job_id] = metadata
+                continue
+
+            default_visibility = "private" if metadata.user_id else "public"
+            policy = resolve_access_policy(metadata.access, default_visibility=default_visibility)
+            if can_access(
+                policy,
+                owner_id=metadata.user_id,
+                user_id=user_id,
+                user_role=user_role,
+                permission="view",
+            ):
+                visible[job_id] = metadata
+
+        return visible
+
     def list(
         self,
         *,
