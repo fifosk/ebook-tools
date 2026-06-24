@@ -50,6 +50,39 @@ router = APIRouter()
 LOGGER = logging_manager.get_logger().getChild("webapi.media")
 
 
+def _record_sentence_image_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe sentence-image route timing if metrics are available."""
+
+    try:
+        from ...metrics import MEDIA_ROUTE_DURATION
+    except Exception:
+        return
+    MEDIA_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
+def _log_sentence_image_lookup(
+    *,
+    operation: str,
+    started_at: float,
+    count: int,
+    missing: int = 0,
+) -> None:
+    """Log aggregate sentence-image lookup telemetry without identifiers."""
+
+    duration_ms = (time.perf_counter() - started_at) * 1000
+    _record_sentence_image_route_duration(operation, "success", started_at)
+    log_method = LOGGER.info if duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Sentence image lookup operation=%s result=success count=%s missing=%s duration_ms=%.1f",
+        operation,
+        count,
+        missing,
+        duration_ms,
+    )
+
+
 def _coerce_int_default(value: Any, default: int) -> int:
     try:
         return int(value)
@@ -685,23 +718,12 @@ async def get_sentence_image_info_batch(
 
     start = time.perf_counter()
     items, missing = await run_in_threadpool(_load_batch)
-    duration_ms = (time.perf_counter() - start) * 1000
-    if duration_ms >= 250:
-        LOGGER.info(
-            "Sentence image batch lookup job_id=%s count=%s missing=%s duration_ms=%.1f",
-            job_id,
-            len(requested),
-            len(missing),
-            duration_ms,
-        )
-    else:
-        LOGGER.debug(
-            "Sentence image batch lookup job_id=%s count=%s missing=%s duration_ms=%.1f",
-            job_id,
-            len(requested),
-            len(missing),
-            duration_ms,
-        )
+    _log_sentence_image_lookup(
+        operation="sentence_image_batch",
+        started_at=start,
+        count=len(requested),
+        missing=len(missing),
+    )
 
     return SentenceImageInfoBatchResponse(job_id=job_id, items=items, missing=missing)
 
@@ -747,21 +769,11 @@ async def get_sentence_image_info(
         sentence_entry=sentence_entry,
         manifest_entry=manifest_entry,
     )
-    duration_ms = (time.perf_counter() - start) * 1000
-    if duration_ms >= 250:
-        LOGGER.info(
-            "Sentence image lookup job_id=%s sentence=%s duration_ms=%.1f",
-            job_id,
-            sentence_number,
-            duration_ms,
-        )
-    else:
-        LOGGER.debug(
-            "Sentence image lookup job_id=%s sentence=%s duration_ms=%.1f",
-            job_id,
-            sentence_number,
-            duration_ms,
-        )
+    _log_sentence_image_lookup(
+        operation="sentence_image",
+        started_at=start,
+        count=1,
+    )
     return response
 
 
