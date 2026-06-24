@@ -213,10 +213,12 @@ Current Apple UI partially exposes:
   work. Output control subviews live in
   `AppleBookCreateOutputControls.swift`, letting
   `AppleBookCreateOutputSection.swift` own only section-level routing.
-  Advanced metadata JSON editing and artwork
-  preview subviews now live in `AppleBookCreateMetadataViews.swift`, trimming
-  repeated metadata UI out of `AppleBookCreateSections.swift` while preserving
-  the tvOS-safe JSON editor fallback. Subtitle time-range and YouTube
+  Media metadata controls live in `AppleBookCreateMediaMetadataControls.swift`
+  while `AppleBookCreateMediaMetadataSections.swift` owns the metadata section
+  routing. Advanced metadata JSON editing and artwork preview subviews now live
+  in `AppleBookCreateMetadataViews.swift`, trimming repeated metadata UI out of
+  `AppleBookCreateSections.swift` while preserving the tvOS-safe JSON editor
+  fallback. Subtitle time-range and YouTube
   offset-range validation now use pure support helpers that preserve the
   existing visible error messages. Backend default resolution and edited-field
   preservation now live in support too, so backend-driven Apple Create defaults

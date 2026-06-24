@@ -203,6 +203,15 @@ CREATE_MEDIA_METADATA_SECTIONS = (
     / "Create"
     / "AppleBookCreateMediaMetadataSections.swift"
 )
+CREATE_MEDIA_METADATA_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateMediaMetadataControls.swift"
+)
 CREATE_STATUS_VIEWS = (
     ROOT
     / "ios"
@@ -412,6 +421,7 @@ def test_create_draft_helpers_are_split_from_support_and_target_wired() -> None:
 
 def test_create_metadata_views_are_split_from_sections_and_target_wired() -> None:
     metadata_source = _source(CREATE_METADATA_VIEWS)
+    metadata_controls_source = _source(CREATE_MEDIA_METADATA_CONTROLS)
     sections_source = _source(CREATE_SECTIONS)
     project = _source(XCODE_PROJECT)
 
@@ -419,8 +429,8 @@ def test_create_metadata_views_are_split_from_sections_and_target_wired() -> Non
     assert "struct AppleBookCreateMetadataArtworkPreview: View" in metadata_source
     assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" not in sections_source
     assert "struct AppleBookCreateMetadataArtworkPreview: View" not in sections_source
-    assert "AppleBookCreateAdvancedMetadataJSONEditor(" in sections_source
-    assert "AppleBookCreateMetadataArtworkPreview(" in sections_source
+    assert "AppleBookCreateAdvancedMetadataJSONEditor(" in metadata_controls_source
+    assert "AppleBookCreateMetadataArtworkPreview(" in metadata_controls_source
     assert "AppleBookCreateMetadataViews.swift in Sources" in project
     assert project.count("AppleBookCreateMetadataViews.swift in Sources") == 4
 
@@ -493,6 +503,8 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
 
 def test_create_media_metadata_sections_are_split_from_create_view_and_target_wired() -> None:
     metadata_sections_source = _source(CREATE_MEDIA_METADATA_SECTIONS)
+    metadata_controls_source = _source(CREATE_MEDIA_METADATA_CONTROLS)
+    sections_source = _source(CREATE_SECTIONS)
     view_source = _source(CREATE_VIEW)
     project = _source(XCODE_PROJECT)
 
@@ -500,12 +512,20 @@ def test_create_media_metadata_sections_are_split_from_create_view_and_target_wi
     assert "struct AppleBookCreateSubtitleMetadataSection: View" in metadata_sections_source
     assert "AppleBookCreateYoutubeMetadataControls(" in metadata_sections_source
     assert "AppleBookCreateSubtitleMetadataControls(" in metadata_sections_source
+    assert "struct AppleBookCreateYoutubeMetadataControls: View" in metadata_controls_source
+    assert "struct AppleBookCreateSubtitleMetadataControls: View" in metadata_controls_source
+    assert "struct AppleBookCreateYoutubeMetadataControls: View" not in metadata_sections_source
+    assert "struct AppleBookCreateSubtitleMetadataControls: View" not in metadata_sections_source
+    assert "struct AppleBookCreateYoutubeMetadataControls: View" not in sections_source
+    assert "struct AppleBookCreateSubtitleMetadataControls: View" not in sections_source
     assert "AppleBookCreateYoutubeMetadataSection(" in view_source
     assert "AppleBookCreateSubtitleMetadataSection(" in view_source
     assert "AppleBookCreateYoutubeMetadataControls(" not in view_source
     assert "AppleBookCreateSubtitleMetadataControls(" not in view_source
     assert "AppleBookCreateMediaMetadataSections.swift in Sources" in project
     assert project.count("AppleBookCreateMediaMetadataSections.swift in Sources") == 4
+    assert "AppleBookCreateMediaMetadataControls.swift in Sources" in project
+    assert project.count("AppleBookCreateMediaMetadataControls.swift in Sources") == 4
 
 
 def test_create_payload_factory_is_split_from_view_model_and_target_wired() -> None:
@@ -933,36 +953,37 @@ def test_youtube_create_exposes_inline_subtitle_extraction_controls() -> None:
 
 
 def test_subtitle_create_exposes_editable_metadata_lookup_name() -> None:
-    sections_source = _source(CREATE_SECTIONS)
+    metadata_sections_source = _source(CREATE_MEDIA_METADATA_SECTIONS)
+    metadata_controls_source = _source(CREATE_MEDIA_METADATA_CONTROLS)
     view_source = _source(CREATE_VIEW)
 
-    assert "AppleBookCreateSubtitleMetadataControls" in sections_source
-    assert "@Binding var lookupSourceName: String" in sections_source
-    assert 'TextField("Lookup filename", text: $lookupSourceName)' in sections_source
-    assert 'accessibilityIdentifier("createSubtitleMetadataLookupField")' in sections_source
+    assert "AppleBookCreateSubtitleMetadataControls" in metadata_sections_source
+    assert "@Binding var lookupSourceName: String" in metadata_controls_source
+    assert 'TextField("Lookup filename", text: $lookupSourceName)' in metadata_controls_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataLookupField")' in metadata_controls_source
     assert "subtitleMetadataLookupSourceName" in view_source
     assert "sourceName: subtitleMetadataLookupSourceName" in view_source
 
 
 def test_apple_create_exposes_metadata_cache_clear_controls() -> None:
-    sections_source = _source(CREATE_SECTIONS)
+    metadata_controls_source = _source(CREATE_MEDIA_METADATA_CONTROLS)
     view_source = _source(CREATE_VIEW)
 
-    assert "let isClearingCache: Bool" in sections_source
-    assert "let onClearCache: () -> Void" in sections_source
-    assert 'accessibilityIdentifier("createSubtitleMetadataClearCacheButton")' in sections_source
+    assert "let isClearingCache: Bool" in metadata_controls_source
+    assert "let onClearCache: () -> Void" in metadata_controls_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataClearCacheButton")' in metadata_controls_source
     assert "viewModel.isClearingSubtitleTvMetadataCache" in view_source
     assert "clearSubtitleTvMetadataCache(" in view_source
     assert "query: subtitleMetadataLookupSourceName" in view_source
 
-    assert "let isClearingTvMetadataCache: Bool" in sections_source
-    assert "let isClearingYoutubeMetadataCache: Bool" in sections_source
-    assert "let canClearTvMetadataCache: Bool" in sections_source
-    assert "let canClearYoutubeMetadataCache: Bool" in sections_source
-    assert "let onClearTvMetadataCache: () -> Void" in sections_source
-    assert "let onClearYoutubeMetadataCache: () -> Void" in sections_source
-    assert 'accessibilityIdentifier("createYoutubeClearTvMetadataCacheButton")' in sections_source
-    assert 'accessibilityIdentifier("createYoutubeClearYoutubeMetadataCacheButton")' in sections_source
+    assert "let isClearingTvMetadataCache: Bool" in metadata_controls_source
+    assert "let isClearingYoutubeMetadataCache: Bool" in metadata_controls_source
+    assert "let canClearTvMetadataCache: Bool" in metadata_controls_source
+    assert "let canClearYoutubeMetadataCache: Bool" in metadata_controls_source
+    assert "let onClearTvMetadataCache: () -> Void" in metadata_controls_source
+    assert "let onClearYoutubeMetadataCache: () -> Void" in metadata_controls_source
+    assert 'accessibilityIdentifier("createYoutubeClearTvMetadataCacheButton")' in metadata_controls_source
+    assert 'accessibilityIdentifier("createYoutubeClearYoutubeMetadataCacheButton")' in metadata_controls_source
     assert "viewModel.isClearingYoutubeTvMetadataCache" in view_source
     assert "viewModel.isClearingYoutubeMetadataCache" in view_source
     assert "canClearTvMetadataCache: !youtubeMetadataTvSourceName.isEmpty" in view_source
@@ -974,7 +995,7 @@ def test_apple_create_exposes_metadata_cache_clear_controls() -> None:
 
 
 def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
-    sections_source = _source(CREATE_SECTIONS)
+    metadata_controls_source = _source(CREATE_MEDIA_METADATA_CONTROLS)
     metadata_source = _source(CREATE_METADATA_VIEWS)
     view_source = _source(CREATE_VIEW)
     view_model_source = _source(CREATE_VIEW_MODEL)
@@ -987,24 +1008,24 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert "createMetadataStillPreview" in metadata_source
     assert "createMetadataYoutubeThumbnailPreview" in metadata_source
 
-    assert 'DisclosureGroup("Artwork")' in sections_source
-    assert "#if os(tvOS)" in sections_source
-    assert "subtitleArtworkFields" in sections_source
-    assert "youtubeArtworkFields" in sections_source
-    assert 'accessibilityIdentifier("createSubtitleMetadataArtworkDisclosure")' in sections_source
-    assert 'accessibilityIdentifier("createSubtitleMetadataPosterUrlField")' in sections_source
-    assert 'accessibilityIdentifier("createSubtitleMetadataStillUrlField")' in sections_source
+    assert 'DisclosureGroup("Artwork")' in metadata_controls_source
+    assert "#if os(tvOS)" in metadata_controls_source
+    assert "subtitleArtworkFields" in metadata_controls_source
+    assert "youtubeArtworkFields" in metadata_controls_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataArtworkDisclosure")' in metadata_controls_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataPosterUrlField")' in metadata_controls_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataStillUrlField")' in metadata_controls_source
     assert "showPosterURL: subtitleMetadataNestedTextBinding(section: \"show\", nestedKey: \"image\", key: \"medium\")" in view_source
     assert "episodeStillURL: subtitleMetadataNestedTextBinding(section: \"episode\", nestedKey: \"image\", key: \"medium\")" in view_source
     assert 'tmdbId: subtitleMetadataNumberBinding(section: "show", key: "tmdb_id")' in view_source
     assert 'imdbId: subtitleMetadataTextBinding(section: "show", key: "imdb_id")' in view_source
-    assert 'accessibilityIdentifier("createSubtitleMetadataTmdbIdField")' in sections_source
-    assert 'accessibilityIdentifier("createSubtitleMetadataImdbIdField")' in sections_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataTmdbIdField")' in metadata_controls_source
+    assert 'accessibilityIdentifier("createSubtitleMetadataImdbIdField")' in metadata_controls_source
 
-    assert 'accessibilityIdentifier("createYoutubeMetadataArtworkDisclosure")' in sections_source
-    assert 'accessibilityIdentifier("createYoutubeMetadataPosterUrlField")' in sections_source
-    assert 'accessibilityIdentifier("createYoutubeMetadataStillUrlField")' in sections_source
-    assert 'accessibilityIdentifier("createYoutubeMetadataThumbnailUrlField")' in sections_source
+    assert 'accessibilityIdentifier("createYoutubeMetadataArtworkDisclosure")' in metadata_controls_source
+    assert 'accessibilityIdentifier("createYoutubeMetadataPosterUrlField")' in metadata_controls_source
+    assert 'accessibilityIdentifier("createYoutubeMetadataStillUrlField")' in metadata_controls_source
+    assert 'accessibilityIdentifier("createYoutubeMetadataThumbnailUrlField")' in metadata_controls_source
     assert "tvPosterURL: youtubeMetadataNestedTextBinding(section: \"show\", nestedKey: \"image\", key: \"medium\")" in view_source
     assert "tvEpisodeStillURL: youtubeMetadataNestedTextBinding(section: \"episode\", nestedKey: \"image\", key: \"medium\")" in view_source
     assert 'youtubeThumbnailURL: youtubeMetadataTextBinding(section: "youtube", key: "thumbnail")' in view_source
@@ -1022,17 +1043,17 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert "sectionDraft.removeValue(forKey: nestedKey)" in view_model_source
     assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" in metadata_source
     assert 'DisclosureGroup("Advanced Metadata JSON")' in metadata_source
-    assert "@Binding var advancedMetadataJSON: String" in sections_source
-    assert "let advancedMetadataErrorMessage: String?" in sections_source
+    assert "@Binding var advancedMetadataJSON: String" in metadata_controls_source
+    assert "let advancedMetadataErrorMessage: String?" in metadata_controls_source
     assert "TextEditor(text: $text)" in metadata_source
-    assert 'disclosureIdentifier: "createSubtitleAdvancedMetadataDisclosure"' in sections_source
-    assert 'textEditorIdentifier: "createSubtitleAdvancedMetadataJSONEditor"' in sections_source
-    assert 'applyIdentifier: "createSubtitleAdvancedMetadataApplyButton"' in sections_source
-    assert 'syncIdentifier: "createSubtitleAdvancedMetadataSyncButton"' in sections_source
-    assert 'disclosureIdentifier: "createYoutubeAdvancedMetadataDisclosure"' in sections_source
-    assert 'textEditorIdentifier: "createYoutubeAdvancedMetadataJSONEditor"' in sections_source
-    assert 'applyIdentifier: "createYoutubeAdvancedMetadataApplyButton"' in sections_source
-    assert 'syncIdentifier: "createYoutubeAdvancedMetadataSyncButton"' in sections_source
+    assert 'disclosureIdentifier: "createSubtitleAdvancedMetadataDisclosure"' in metadata_controls_source
+    assert 'textEditorIdentifier: "createSubtitleAdvancedMetadataJSONEditor"' in metadata_controls_source
+    assert 'applyIdentifier: "createSubtitleAdvancedMetadataApplyButton"' in metadata_controls_source
+    assert 'syncIdentifier: "createSubtitleAdvancedMetadataSyncButton"' in metadata_controls_source
+    assert 'disclosureIdentifier: "createYoutubeAdvancedMetadataDisclosure"' in metadata_controls_source
+    assert 'textEditorIdentifier: "createYoutubeAdvancedMetadataJSONEditor"' in metadata_controls_source
+    assert 'applyIdentifier: "createYoutubeAdvancedMetadataApplyButton"' in metadata_controls_source
+    assert 'syncIdentifier: "createYoutubeAdvancedMetadataSyncButton"' in metadata_controls_source
     assert "advancedMetadataJSON: $viewModel.subtitleMediaMetadataJSONText" in view_source
     assert "advancedMetadataJSON: $viewModel.youtubeMediaMetadataJSONText" in view_source
     assert "viewModel.applySubtitleMediaMetadataJSONText()" in view_source
@@ -1043,5 +1064,5 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert "func applyYoutubeMediaMetadataJSONText()" in view_model_source
     assert "private static func parseMetadataJSONObject" in view_model_source
     assert "JSONDecoder().decode([String: JSONValue].self" in view_model_source
-    assert 'accessibilityIdentifier("createYoutubeMetadataTmdbIdField")' in sections_source
-    assert 'accessibilityIdentifier("createYoutubeMetadataImdbIdField")' in sections_source
+    assert 'accessibilityIdentifier("createYoutubeMetadataTmdbIdField")' in metadata_controls_source
+    assert 'accessibilityIdentifier("createYoutubeMetadataImdbIdField")' in metadata_controls_source
