@@ -100,6 +100,28 @@ struct AppleBookCreateMetadataArtworkPreview: View {
     }
 }
 
+struct AppleBookCreateMetadataStatusMessages: View {
+    let message: String?
+    let errorMessage: String?
+    let statusIdentifier: String
+    let errorIdentifier: String
+
+    var body: some View {
+        if let message, !message.isEmpty {
+            Label(message, systemImage: "checkmark.circle")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier(statusIdentifier)
+        }
+        if let errorMessage, !errorMessage.isEmpty {
+            Label(errorMessage, systemImage: "exclamationmark.triangle")
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .accessibilityIdentifier(errorIdentifier)
+        }
+    }
+}
+
 private struct AppleBookCreateMetadataArtworkTile: View {
     let item: ArtworkItem
 

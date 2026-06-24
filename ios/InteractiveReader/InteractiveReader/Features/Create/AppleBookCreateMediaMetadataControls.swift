@@ -79,18 +79,12 @@ struct AppleBookCreateSubtitleMetadataControls: View {
             stillLabel: episodeName.isEmpty ? "Episode still" : "\(episodeName) still"
         )
 
-        if let message, !message.isEmpty {
-            Label(message, systemImage: "checkmark.circle")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("createSubtitleMetadataStatus")
-        }
-        if let errorMessage, !errorMessage.isEmpty {
-            Label(errorMessage, systemImage: "exclamationmark.triangle")
-                .font(.footnote)
-                .foregroundStyle(.red)
-                .accessibilityIdentifier("createSubtitleMetadataError")
-        }
+        AppleBookCreateMetadataStatusMessages(
+            message: message,
+            errorMessage: errorMessage,
+            statusIdentifier: "createSubtitleMetadataStatus",
+            errorIdentifier: "createSubtitleMetadataError"
+        )
 
         TextField("Job label", text: $jobLabel)
             .textInputAutocapitalization(.words)
@@ -253,18 +247,12 @@ struct AppleBookCreateYoutubeMetadataControls: View {
             thumbnailLabel: title.isEmpty ? "YouTube thumbnail" : "\(title) thumbnail"
         )
 
-        if let message, !message.isEmpty {
-            Label(message, systemImage: "checkmark.circle")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("createYoutubeMetadataStatus")
-        }
-        if let errorMessage, !errorMessage.isEmpty {
-            Label(errorMessage, systemImage: "exclamationmark.triangle")
-                .font(.footnote)
-                .foregroundStyle(.red)
-                .accessibilityIdentifier("createYoutubeMetadataError")
-        }
+        AppleBookCreateMetadataStatusMessages(
+            message: message,
+            errorMessage: errorMessage,
+            statusIdentifier: "createYoutubeMetadataStatus",
+            errorIdentifier: "createYoutubeMetadataError"
+        )
 
         TextField("YouTube title", text: $title)
             .textInputAutocapitalization(.sentences)

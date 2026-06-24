@@ -645,10 +645,14 @@ def test_create_metadata_views_are_split_from_sections_and_target_wired() -> Non
 
     assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" in metadata_source
     assert "struct AppleBookCreateMetadataArtworkPreview: View" in metadata_source
+    assert "struct AppleBookCreateMetadataStatusMessages: View" in metadata_source
     assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" not in narration_source
     assert "struct AppleBookCreateMetadataArtworkPreview: View" not in narration_source
     assert "AppleBookCreateAdvancedMetadataJSONEditor(" in metadata_controls_source
     assert "AppleBookCreateMetadataArtworkPreview(" in metadata_controls_source
+    assert metadata_controls_source.count("AppleBookCreateMetadataStatusMessages(") == 2
+    assert "createSubtitleMetadataStatus" in metadata_controls_source
+    assert "createYoutubeMetadataStatus" in metadata_controls_source
     assert "AppleBookCreateMetadataViews.swift in Sources" in project
     assert project.count("AppleBookCreateMetadataViews.swift in Sources") == 4
 
