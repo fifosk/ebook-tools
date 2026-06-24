@@ -230,7 +230,7 @@ struct AppleBookCreateView: View {
 
             Divider()
 
-            createList(accessibilityIdentifier: "appleBookCreateSettingsPane") {
+            createSettingsForm(accessibilityIdentifier: "appleBookCreateSettingsPane") {
                 createSettingsSections
             }
             .frame(
@@ -290,6 +290,21 @@ struct AppleBookCreateView: View {
         .listStyle(.plain)
         #else
         .listStyle(.insetGrouped)
+        .scrollContentBackground(usesDarkBackground ? .hidden : .automatic)
+        #endif
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func createSettingsForm<Content: View>(
+        accessibilityIdentifier: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        Form {
+            content()
+        }
+        #if os(tvOS)
+        .listStyle(.plain)
+        #else
         .scrollContentBackground(usesDarkBackground ? .hidden : .automatic)
         #endif
         .accessibilityIdentifier(accessibilityIdentifier)

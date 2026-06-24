@@ -177,10 +177,12 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "idealWidth: Self.setupPaneIdealWidth" in source
     assert "maxWidth: Self.setupPaneMaxWidth" in source
     assert ".layoutPriority(0)" in source
-    assert 'createList(accessibilityIdentifier: "appleBookCreateSettingsPane")' in source
+    assert 'createSettingsForm(accessibilityIdentifier: "appleBookCreateSettingsPane")' in source
     assert "minWidth: Self.settingsPaneMinWidth" in source
     assert "idealWidth: Self.settingsPaneIdealWidth" in source
     assert ".layoutPriority(2)" in source
+    assert "private func createSettingsForm<Content: View>" in source
+    assert "Form {\n            content()\n        }" in source
     assert "private var createSetupSections: some View" in source
     assert "private var createSettingsSections: some View" in source
     assert "private var jobTypeSection: some View" in source
