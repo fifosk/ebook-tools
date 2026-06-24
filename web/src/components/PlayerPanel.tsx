@@ -64,6 +64,10 @@ import {
   buildPlayerPanelDocumentState,
   resolveInteractiveViewerRenderability,
 } from './player-panel/playerPanelDocumentState';
+import {
+  buildPlayerPanelChromeState,
+  hasPlayerPanelAdvancedControls,
+} from './player-panel/playerPanelChromeState';
 
 type ReadingBedOverride = {
   id: string;
@@ -427,7 +431,27 @@ export default function PlayerPanel({
     canRenderInteractiveViewer,
     hasInteractiveChunks,
   });
-  const hasTextItems = media.text.length > 0;
+  const {
+    hasAnyMedia,
+    hasTextItems,
+    isInitialLoading,
+    playbackControlsAvailable,
+    isActiveMediaPlaying,
+    shouldHoldWakeLock,
+    isPlaybackDisabled,
+    isFullscreenDisabled,
+    shouldShowBackToLibrary,
+  } = buildPlayerPanelChromeState({
+    mediaTextCount: media.text.length,
+    mediaAudioCount: media.audio.length,
+    mediaVideoCount: media.video.length,
+    isLoading,
+    hasInlineAudioControls,
+    canRenderInteractiveViewer,
+    isInlineAudioPlaying,
+    origin,
+    showBackToLibrary,
+  });
   const {
     interactiveViewerContent,
     interactiveViewerRaw,
@@ -445,12 +469,7 @@ export default function PlayerPanel({
     textLoading,
     textError,
   });
-  const playbackControlsAvailable = hasInlineAudioControls;
-  const isActiveMediaPlaying = isInlineAudioPlaying;
-  const shouldHoldWakeLock = isInlineAudioPlaying;
   useWakeLock(shouldHoldWakeLock);
-  const isPlaybackDisabled = !playbackControlsAvailable;
-  const isFullscreenDisabled = !canRenderInteractiveViewer;
 
   const adjustMyLinguistFontScale = useCallback(
     (direction: 'increase' | 'decrease') => {
@@ -635,7 +654,6 @@ export default function PlayerPanel({
     hasInteractiveChunks,
     hasTextItems,
   });
-  const hasAnyMedia = media.text.length + media.audio.length + media.video.length > 0;
   const interactiveFontScale = fontScalePercent / 100;
 
   useMediaSessionMetadata({
@@ -659,7 +677,6 @@ export default function PlayerPanel({
     <PlayerPanelSentenceJumpDatalist id={sentenceJumpListId} suggestions={sentenceLookup.suggestions} />
   );
 
-  const shouldShowBackToLibrary = origin === 'library' && showBackToLibrary;
   const { panelSearchPanel, fullscreenSearchPanel } = buildPlayerPanelSearchSlots({
     currentJobId: jobId,
     enabled: searchEnabled,
@@ -717,18 +734,7 @@ export default function PlayerPanel({
     },
     onResetLayout: handleResetInteractiveLayout,
   });
-  const hasPanelAdvancedControls = Boolean(
-    navigationBaseProps.showTranslationSpeed ||
-      navigationBaseProps.showSubtitleScale ||
-      navigationBaseProps.showSubtitleBackgroundOpacity ||
-      navigationBaseProps.showFontScale ||
-      navigationBaseProps.showMyLinguistFontScale ||
-      navigationBaseProps.showInteractiveBackgroundOpacity ||
-      navigationBaseProps.showInteractiveSentenceCardOpacity ||
-      navigationBaseProps.showInteractiveThemeControls ||
-      navigationBaseProps.showReadingBedVolume ||
-      navigationBaseProps.showReadingBedTrack,
-  );
+  const hasPanelAdvancedControls = hasPlayerPanelAdvancedControls(navigationBaseProps);
 
   const {
     panelNavigation,
@@ -813,7 +819,6 @@ export default function PlayerPanel({
     },
   });
 
-  const isInitialLoading = isLoading && !hasAnyMedia;
   if (error || isInitialLoading || !hasJobId) {
     return (
       <PlayerPanelBoundaryState

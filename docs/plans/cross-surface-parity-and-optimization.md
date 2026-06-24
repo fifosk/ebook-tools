@@ -602,7 +602,10 @@ Refactor before restyling:
   focused tested hook rather than inline in the panel coordinator. Interactive
   document preview/fallback content and placeholder visibility now resolve
   through a tested pure helper so the panel coordinator no longer owns those
-  display-state branches inline.
+  display-state branches inline. Panel chrome decisions for initial loading,
+  media presence, playback/fullscreen disabled states, wake-lock intent,
+  back-to-library visibility, and advanced-control gating now also live in a
+  tested pure helper.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, genre, author, sentence,
   generated-source image, and pipeline defaults from `/api/books/options`
