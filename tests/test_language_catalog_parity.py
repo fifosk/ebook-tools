@@ -10,6 +10,7 @@ from modules.webapi.routers import create_book
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB_LANGUAGE_CODES = ROOT / "web" / "src" / "constants" / "languageCodes.ts"
+WEB_SAMPLE_SENTENCES = ROOT / "web" / "src" / "utils" / "sampleSentences.ts"
 APPLE_LANGUAGE_CATALOG = (
     ROOT
     / "ios"
@@ -106,6 +107,41 @@ def _apple_language_catalog() -> list[tuple[str, str]]:
     )
     assert match is not None, "Could not find AppleLanguageCatalog.entries"
     return re.findall(r'\("([^"]+)",\s*"([^"]+)"\)', match.group("body"))
+
+
+def _web_sample_sentences() -> dict[str, str]:
+    source = WEB_SAMPLE_SENTENCES.read_text(encoding="utf-8")
+    match = re.search(
+        r"const SAMPLE_SENTENCES: Record<string, string> = \{(?P<body>.*?)\n\};",
+        source,
+        flags=re.S,
+    )
+    assert match is not None, "Could not find Web SAMPLE_SENTENCES object"
+
+    samples: dict[str, str] = {}
+    for line in match.group("body").splitlines():
+        entry = re.search(
+            r"^\s*(?:'(?P<quoted>[^']+)'|(?P<bare>[A-Za-z0-9_-]+)):\s*"
+            r"(?:'(?P<single>[^']*)'|\"(?P<double>[^\"]*)\")",
+            line,
+        )
+        if entry is None:
+            continue
+        key = entry.group("quoted") or entry.group("bare")
+        value = entry.group("single") if entry.group("single") is not None else entry.group("double")
+        samples[key] = value
+    return samples
+
+
+def _apple_voice_preview_samples() -> dict[str, str]:
+    source = APPLE_CREATE_VOICE_PREVIEW_SAMPLES.read_text(encoding="utf-8")
+    match = re.search(
+        r"static let sentences: \[String: String\] = \[(?P<body>.*?)\n\s*\]",
+        source,
+        flags=re.S,
+    )
+    assert match is not None, "Could not find Apple voice preview sample sentences"
+    return dict(re.findall(r'"([^"]+)":\s*"([^"]*)"', match.group("body")))
 
 
 def test_language_catalogs_match_across_backend_web_and_apple() -> None:
@@ -205,15 +241,12 @@ def test_apple_create_voice_language_normalization_uses_full_catalog() -> None:
 
 
 def test_apple_create_voice_preview_samples_cover_web_catalog() -> None:
-    source = APPLE_CREATE_VOICE_PREVIEW_SAMPLES.read_text(encoding="utf-8")
-    match = re.search(
-        r"static let sentences: \[String: String\] = \[(?P<body>.*?)\n\s*\]",
-        source,
-        flags=re.S,
-    )
-    assert match is not None
-    apple_sample_codes = set(re.findall(r'"([^"]+)":\s*"', match.group("body")))
+    apple_sample_codes = set(_apple_voice_preview_samples())
     expected_codes = {code.lower() for code in LANGUAGE_CODES.values()}
 
     assert expected_codes <= apple_sample_codes
     assert {"zh-cn", "zh-tw", "pt-br"} <= apple_sample_codes
+
+
+def test_web_and_apple_voice_preview_samples_match() -> None:
+    assert _apple_voice_preview_samples() == _web_sample_sentences()

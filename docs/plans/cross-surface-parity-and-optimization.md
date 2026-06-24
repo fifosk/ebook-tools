@@ -626,7 +626,9 @@ Refactor before restyling:
   backend/Web language catalog instead of only the original six languages. The
   native preview sample catalog now lives in its own Create helper file and is
   wired into the Xcode project plus creation-payload compile contract so future
-  catalog changes are verified across Apple targets.
+  catalog changes are verified across Apple targets. Focused parity tests now
+  compare Web and Apple preview samples exactly, catching subtle punctuation or
+  diacritic drift as well as missing language codes.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 
