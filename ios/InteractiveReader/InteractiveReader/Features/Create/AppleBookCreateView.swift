@@ -876,97 +876,32 @@ struct AppleBookCreateView: View {
 
     @ViewBuilder
     private var statusSection: some View {
-        if viewModel.isLoadingOptions {
-            Section {
-                Label("Loading backend creation defaults", systemImage: "arrow.triangle.2.circlepath")
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("createBookOptionsLoadingLabel")
-            }
-        } else if let optionsErrorMessage = viewModel.optionsErrorMessage {
-            Section {
-                Label("Using built-in defaults", systemImage: "exclamationmark.arrow.triangle.2.circlepath")
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("createBookOptionsFallbackLabel")
-                Text(optionsErrorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("createBookOptionsErrorLabel")
-                Button {
-                    Task { await refreshCreationOptions(force: true) }
-                } label: {
-                    Label("Retry Defaults", systemImage: "arrow.clockwise")
-                }
-                .accessibilityIdentifier("createBookOptionsRetryButton")
-            }
-        }
-
-        if let errorMessage = viewModel.errorMessage {
-            Section {
-                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .accessibilityIdentifier("createBookErrorLabel")
-            }
-        }
-
-        if let intakeStatus = viewModel.intakeStatus {
-            Section {
-                let presentation = AppleBookCreatePresentation.intakeStatusPresentation(for: intakeStatus)
-                Label(presentation.label, systemImage: intakeStatusSystemImage(for: intakeStatus))
-                    .foregroundStyle(intakeStatusForegroundStyle(for: intakeStatus))
-                    .accessibilityIdentifier("createBookIntakeStatusLabel")
-                ForEach(presentation.detailLines, id: \.self) { detailLine in
-                    Text(detailLine)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        } else if viewModel.isLoadingIntakeStatus {
-            Section {
-                Label("Checking job intake...", systemImage: "clock.arrow.circlepath")
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("createBookIntakeStatusLoadingLabel")
-            }
-        }
-
-        if let submittedJobId = viewModel.submittedJobId {
-            Section {
-                Label("Job \(submittedJobId)", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                    .accessibilityIdentifier("createBookSubmittedJobLabel")
-                Button {
-                    onOpenJobs(submittedJobId)
-                } label: {
-                    Label("Open Jobs", systemImage: "tray.full")
-                }
-                .accessibilityIdentifier("createBookOpenJobsButton")
-            }
-        }
+        AppleBookCreateStatusSection(
+            isLoadingOptions: viewModel.isLoadingOptions,
+            optionsErrorMessage: viewModel.optionsErrorMessage,
+            errorMessage: viewModel.errorMessage,
+            intakeStatus: viewModel.intakeStatus,
+            isLoadingIntakeStatus: viewModel.isLoadingIntakeStatus,
+            submittedJobId: viewModel.submittedJobId,
+            onRetryDefaults: {
+                Task { await refreshCreationOptions(force: true) }
+            },
+            onOpenJobs: onOpenJobs
+        )
     }
 
     private var submitSection: some View {
-        Section {
-            Button {
-                submit()
-            } label: {
-                let presentation = AppleBookCreatePresentation.submitButtonPresentation(
-                    for: creationMode,
-                    isSubmitting: viewModel.isSubmitting
-                )
-                Label(presentation.title, systemImage: presentation.systemImage)
+        AppleBookCreateSubmitSection(
+            creationMode: creationMode,
+            isSubmitting: viewModel.isSubmitting,
+            canSubmit: canSubmit,
+            isIntakeAtCapacity: isIntakeAtCapacity,
+            webCreateHandoffURL: webCreateHandoffURL,
+            onSubmit: submit,
+            onOpenWebCreate: { url in
+                openURL(url)
             }
-            .disabled(!canSubmit || viewModel.isSubmitting || isIntakeAtCapacity)
-            .accessibilityIdentifier("createBookSubmitButton")
-            #if !os(tvOS)
-            if let handoffURL = webCreateHandoffURL {
-                Button {
-                    openURL(handoffURL)
-                } label: {
-                    Label("Open Web Create", systemImage: "safari")
-                }
-                .accessibilityIdentifier("createBookOpenWebCreateButton")
-            }
-            #endif
-        }
+        )
     }
 
     private var canSubmit: Bool {
@@ -1003,26 +938,6 @@ struct AppleBookCreateView: View {
             apiBaseURL: appState.apiBaseURL,
             mode: creationMode
         )
-    }
-
-    private func intakeStatusSystemImage(for status: PipelineIntakeStatusResponse) -> String {
-        if !status.acceptingJobs {
-            return "pause.circle.fill"
-        }
-        if status.isUnderPressure {
-            return "clock.badge.exclamationmark"
-        }
-        return "checkmark.circle.fill"
-    }
-
-    private func intakeStatusForegroundStyle(for status: PipelineIntakeStatusResponse) -> Color {
-        if !status.acceptingJobs {
-            return .red
-        }
-        if status.isUnderPressure {
-            return .orange
-        }
-        return .green
     }
 
     private var derivedBaseOutput: String {

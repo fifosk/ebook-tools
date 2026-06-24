@@ -59,6 +59,15 @@ CREATE_METADATA_VIEWS = (
     / "Create"
     / "AppleBookCreateMetadataViews.swift"
 )
+CREATE_STATUS_VIEWS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateStatusViews.swift"
+)
 XCODE_PROJECT = ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj"
 
 
@@ -126,6 +135,22 @@ def test_create_metadata_views_are_split_from_sections_and_target_wired() -> Non
     assert "AppleBookCreateMetadataArtworkPreview(" in sections_source
     assert "AppleBookCreateMetadataViews.swift in Sources" in project
     assert project.count("AppleBookCreateMetadataViews.swift in Sources") == 4
+
+
+def test_create_status_views_are_split_from_create_view_and_target_wired() -> None:
+    status_source = _source(CREATE_STATUS_VIEWS)
+    view_source = _source(CREATE_VIEW)
+    project = _source(XCODE_PROJECT)
+
+    assert "struct AppleBookCreateStatusSection: View" in status_source
+    assert "struct AppleBookCreateSubmitSection: View" in status_source
+    assert 'accessibilityIdentifier("createBookOptionsLoadingLabel")' in status_source
+    assert 'accessibilityIdentifier("createBookSubmitButton")' in status_source
+    assert "AppleBookCreateStatusSection(" in view_source
+    assert "AppleBookCreateSubmitSection(" in view_source
+    assert "private func intakeStatusSystemImage" not in view_source
+    assert "AppleBookCreateStatusViews.swift in Sources" in project
+    assert project.count("AppleBookCreateStatusViews.swift in Sources") == 4
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:

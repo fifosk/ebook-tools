@@ -228,7 +228,9 @@ Current Apple UI partially exposes:
   keeps the left setup pane source-only and moves Book, Metadata, Job Settings,
   Narration, Output, status, and submit controls into the right-side settings
   pane so creation settings use the detail area instead of reading like sidebar
-  content.
+  content. Create status and submit sections now live in
+  `AppleBookCreateStatusViews.swift`, keeping loading, intake, success, Web
+  handoff, and submit-button UI target-wired outside the main Create view.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The
