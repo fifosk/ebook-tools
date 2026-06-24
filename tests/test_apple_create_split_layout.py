@@ -41,6 +41,15 @@ CREATE_VIEW_MODEL = (
     / "Create"
     / "AppleBookCreateViewModel.swift"
 )
+CREATE_PAYLOAD_FACTORY = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreatePayloadFactory.swift"
+)
 CREATE_MODELS = (
     ROOT
     / "ios"
@@ -234,6 +243,28 @@ def test_create_media_metadata_sections_are_split_from_create_view_and_target_wi
     assert project.count("AppleBookCreateMediaMetadataSections.swift in Sources") == 4
 
 
+def test_create_payload_factory_is_split_from_view_model_and_target_wired() -> None:
+    factory_source = _source(CREATE_PAYLOAD_FACTORY)
+    view_model_source = _source(CREATE_VIEW_MODEL)
+    project = _source(XCODE_PROJECT)
+
+    assert "enum AppleBookCreatePayloadFactory" in factory_source
+    assert "static func makeSubmission(from draft: AppleBookCreateDraft)" in factory_source
+    assert "static func makePipelineSubmission(from draft: AppleNarrateEbookDraft)" in factory_source
+    assert "static func makeSubtitlePayload(from draft: AppleSubtitleJobDraft)" in factory_source
+    assert "static func makeYoutubeDubPayload(from draft: AppleYoutubeDubDraft)" in factory_source
+    assert "AppleBookCreatePayloadFactory.makeSubmission(from: draft)" in view_model_source
+    assert "AppleBookCreatePayloadFactory.makePipelineSubmission(from: effectiveDraft)" in view_model_source
+    assert "AppleBookCreatePayloadFactory.makeSubtitlePayload(from: draft)" in view_model_source
+    assert "AppleBookCreatePayloadFactory.makeYoutubeDubPayload(from: draft)" in view_model_source
+    assert "private static func makeSubmission" not in view_model_source
+    assert "private static func makePipelineSubmission(from draft: AppleNarrateEbookDraft)" not in view_model_source
+    assert "private static func makeSubtitlePayload" not in view_model_source
+    assert "private static func makeYoutubeDubPayload" not in view_model_source
+    assert "AppleBookCreatePayloadFactory.swift in Sources" in project
+    assert project.count("AppleBookCreatePayloadFactory.swift in Sources") == 4
+
+
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     source = _source(CREATE_SECTIONS)
 
@@ -384,7 +415,7 @@ def test_apple_create_subtitle_server_sources_match_web_ass_behavior() -> None:
 def test_generated_book_create_exposes_source_context_fields() -> None:
     source = _source(CREATE_VIEW)
     basic_source = _source(CREATE_BASIC_SECTIONS)
-    support_source = _source(CREATE_VIEW_MODEL)
+    payload_factory_source = _source(CREATE_PAYLOAD_FACTORY)
     draft_source = _source(CREATE_MODELS)
 
     assert "creationMode == .generatedBook || creationMode == .narrateEbook" in basic_source
@@ -406,10 +437,10 @@ def test_generated_book_create_exposes_source_context_fields() -> None:
     assert "let sourceBookGenre: String?" in draft_source
     assert "let sourceBookSummary: String?" in draft_source
 
-    assert "sourceBookTitle: draft.sourceBookTitle" in support_source
-    assert "sourceBookAuthor: draft.sourceBookAuthor" in support_source
-    assert "sourceBookGenre: draft.sourceBookGenre" in support_source
-    assert "sourceBookSummary: draft.sourceBookSummary" in support_source
+    assert "sourceBookTitle: draft.sourceBookTitle" in payload_factory_source
+    assert "sourceBookAuthor: draft.sourceBookAuthor" in payload_factory_source
+    assert "sourceBookGenre: draft.sourceBookGenre" in payload_factory_source
+    assert "sourceBookSummary: draft.sourceBookSummary" in payload_factory_source
 
 
 def test_ipad_split_view_keeps_settings_in_detail_panel() -> None:
