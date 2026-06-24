@@ -28,7 +28,6 @@ import {
 } from './player-panel/utils';
 import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, MediaSelectionRequest, PlayerFeatureFlags, PlayerMode } from '../types/player';
-import { NavigationControls } from './player-panel/NavigationControls';
 import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
 import {
   deriveBaseIdFromReference,
@@ -54,6 +53,7 @@ import { usePlayerPanelExport } from './player-panel/usePlayerPanelExport';
 import { useMediaSessionActions, useMediaSessionMetadata } from './player-panel/useMediaSession';
 import { usePlayerPanelActions } from './player-panel/usePlayerPanelActions';
 import { buildInteractiveViewerProps, buildNavigationBaseProps } from './player-panel/playerPanelProps';
+import { buildPlayerPanelNavigationGroups } from './player-panel/PlayerPanelNavigationGroups';
 import { useInteractiveFullscreenPreference } from './player-panel/useInteractiveFullscreenPreference';
 import { usePlayerPanelScrollMemory } from './player-panel/usePlayerPanelScrollMemory';
 import { usePlayerPanelMediaNavigation } from './player-panel/usePlayerPanelMediaNavigation';
@@ -753,39 +753,20 @@ export default function PlayerPanel({
       navigationBaseProps.showReadingBedTrack,
   );
 
-  const navigationGroup = (
-    <NavigationControls
-      context="panel"
-      sentenceJumpInputId={sentenceJumpInputId}
-      searchPanel={panelSearchPanel}
-      {...navigationBaseProps}
-      showAdvancedControls={panelAdvancedControlsOpen && hasPanelAdvancedControls}
-      showAdvancedToggle={hasPanelAdvancedControls}
-      advancedControlsOpen={panelAdvancedControlsOpen}
-      onToggleAdvancedControls={hasPanelAdvancedControls ? handlePanelAdvancedControlsToggle : undefined}
-    />
-  );
-
-  const fullscreenMainControls = isInteractiveFullscreen ? (
-    <NavigationControls
-      context="fullscreen"
-      sentenceJumpInputId={sentenceJumpInputFullscreenId}
-      showPrimaryControls
-      showAdvancedControls={false}
-      searchPanel={fullscreenSearchPanel}
-      {...navigationBaseProps}
-    />
-  ) : null;
-
-  const fullscreenAdvancedControls = isInteractiveFullscreen ? (
-    <NavigationControls
-      context="fullscreen"
-      sentenceJumpInputId={sentenceJumpInputFullscreenId}
-      showPrimaryControls={false}
-      showAdvancedControls
-      {...navigationBaseProps}
-    />
-  ) : null;
+  const {
+    panelNavigation,
+    fullscreenMainControls,
+    fullscreenAdvancedControls,
+  } = buildPlayerPanelNavigationGroups({
+    baseProps: navigationBaseProps,
+    panelSentenceJumpInputId: sentenceJumpInputId,
+    fullscreenSentenceJumpInputId: sentenceJumpInputFullscreenId,
+    panelSearchPanel,
+    fullscreenSearchPanel,
+    hasAdvancedControls: hasPanelAdvancedControls,
+    advancedControlsOpen: panelAdvancedControlsOpen,
+    onToggleAdvancedControls: handlePanelAdvancedControlsToggle,
+  });
 
   const interactiveViewerProps = buildInteractiveViewerProps({
     core: {
@@ -892,7 +873,7 @@ export default function PlayerPanel({
           {isInteractiveFullscreen ? null : shortcutHelpOverlay}
         </>
       }
-      toolbar={navigationGroup}
+      toolbar={panelNavigation}
     >
       {!hasAnyMedia && !isLoading ? (
         <p role="status">{emptyMediaMessage}</p>
