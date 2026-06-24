@@ -452,6 +452,75 @@ def test_pipeline_intake_status_rejects_viewer(
     )
 
 
+def test_image_node_availability_records_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
+
+    def fake_probe(base_urls: list[str]) -> tuple[list[str], list[str]]:
+        return ([base_urls[0]], base_urls[1:])
+
+    monkeypatch.setattr(pipeline_system_routes, "probe_drawthings_base_urls", fake_probe)
+    app = create_app()
+    secret_primary = "http://secret-image-node.local:7860"
+    secret_fallback = "http://10.0.0.42:7860"
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/pipelines/image-nodes/availability",
+            json={"base_urls": [secret_primary, secret_fallback]},
+            headers={"X-User-Id": "image-editor", "X-User-Role": "editor"},
+        )
+        metrics_response = client.get("/metrics")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["available"] == [secret_primary]
+    assert payload["unavailable"] == [secret_fallback]
+    rendered_logs = "\n".join(logger.messages)
+    assert "Image node availability result=success" in rendered_logs
+    assert "requested=2" in rendered_logs
+    assert "available=1" in rendered_logs
+    assert "unavailable=1" in rendered_logs
+    assert "image-editor" not in rendered_logs
+    assert secret_primary not in rendered_logs
+    assert secret_fallback not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_image_node_route_duration_seconds_count{operation="availability",result="success"}'
+        in metrics_response.text
+    )
+
+
+def test_image_node_availability_rejects_viewer_with_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
+    app = create_app()
+    secret_node = "http://secret-image-node.local:7860"
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/pipelines/image-nodes/availability",
+            json={"base_urls": [secret_node]},
+            headers={"X-User-Id": "image-viewer", "X-User-Role": "viewer"},
+        )
+        metrics_response = client.get("/metrics")
+
+    assert response.status_code == 403
+    rendered_logs = "\n".join(logger.messages)
+    assert "Image node availability result=forbidden" in rendered_logs
+    assert "image-viewer" not in rendered_logs
+    assert secret_node not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_image_node_route_duration_seconds_count{operation="availability",result="forbidden"}'
+        in metrics_response.text
+    )
+
+
 def test_restart_request_rejects_when_pipeline_jobs_are_running(admin_system_client) -> None:
     client, admin_token, manager = admin_system_client
     manager._jobs = {

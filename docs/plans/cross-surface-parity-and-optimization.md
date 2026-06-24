@@ -683,7 +683,9 @@ Refactor before restyling:
   shared `/api/pipelines/defaults` route now records token-safe duration
   telemetry and aggregate logs for success, forbidden, and error outcomes
   without logging user ids, auth headers, tokens, job ids, or configured input
-  paths. The
+  paths. The `/api/pipelines/image-nodes/availability` route now records the
+  same token-safe availability telemetry with aggregate requested, available,
+  and unavailable counts, without logging image node URLs or caller identifiers. The
   manifest-registered `test-backend-audio-routes` target now exercises
   `/api/audio`, `/api/audio/voices`, and `/api/audio/match` with stubbed
   synthesis, so the shared pipeline catches voice inventory and preview drift

@@ -64,6 +64,18 @@ def _record_pipeline_defaults_route_duration(
     )
 
 
+def _record_image_node_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe image-node route timing if metrics are available."""
+
+    try:
+        from ..metrics import IMAGE_NODE_ROUTE_DURATION
+    except Exception:
+        return
+    IMAGE_NODE_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
 def _log_pipeline_defaults_result(
     *,
     result: str,
@@ -77,6 +89,26 @@ def _log_pipeline_defaults_result(
         details += f" config_keys={config_keys}"
     if has_input_file is not None:
         details += f" has_input_file={has_input_file}"
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(details)
+
+
+def _log_image_node_availability(
+    *,
+    result: str,
+    started_at: float,
+    requested: int | None = None,
+    available: int | None = None,
+    unavailable: int | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000
+    details = f"Image node availability result={result} duration_ms={duration_ms:.1f}"
+    if requested is not None:
+        details += f" requested={requested}"
+    if available is not None:
+        details += f" available={available}"
+    if unavailable is not None:
+        details += f" unavailable={unavailable}"
     log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
     log_method(details)
 
@@ -224,19 +256,57 @@ async def check_image_node_availability(
 ) -> ImageNodeAvailabilityResponse:
     """Check reachability of supplied Draw Things nodes."""
 
-    _ensure_editor(request_user)
-    base_urls = normalize_drawthings_base_urls(base_urls=payload.base_urls)
+    started_at = time.perf_counter()
+    role = normalize_role(request_user.user_role) or ""
+    if role not in _ALLOWED_ROLES:
+        _record_image_node_route_duration("availability", "forbidden", started_at)
+        _log_image_node_availability(result="forbidden", started_at=started_at)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+
+    try:
+        base_urls = normalize_drawthings_base_urls(base_urls=payload.base_urls)
+    except Exception:
+        _record_image_node_route_duration("availability", "error", started_at)
+        _log_image_node_availability(result="error", started_at=started_at)
+        raise
+
     if not base_urls:
+        _record_image_node_route_duration("availability", "empty", started_at)
+        _log_image_node_availability(
+            result="empty",
+            started_at=started_at,
+            requested=0,
+            available=0,
+            unavailable=0,
+        )
         return ImageNodeAvailabilityResponse()
 
-    available, unavailable = await run_in_threadpool(
-        probe_drawthings_base_urls, base_urls
-    )
+    try:
+        available, unavailable = await run_in_threadpool(
+            probe_drawthings_base_urls, base_urls
+        )
+    except Exception:
+        _record_image_node_route_duration("availability", "error", started_at)
+        _log_image_node_availability(
+            result="error",
+            started_at=started_at,
+            requested=len(base_urls),
+        )
+        raise
+
     available_set = set(available)
     nodes = [
         ImageNodeAvailabilityEntry(base_url=url, available=url in available_set)
         for url in base_urls
     ]
+    _record_image_node_route_duration("availability", "success", started_at)
+    _log_image_node_availability(
+        result="success",
+        started_at=started_at,
+        requested=len(base_urls),
+        available=len(available),
+        unavailable=len(unavailable),
+    )
     return ImageNodeAvailabilityResponse(
         nodes=nodes, available=available, unavailable=unavailable
     )
