@@ -148,3 +148,32 @@ def test_subtitle_service_list_sources_tolerates_scan_failure(
     monkeypatch.setattr(Path, "iterdir", fake_iterdir)
 
     assert service.list_sources() == []
+
+
+def test_subtitle_service_delete_source_reports_missing_in_scope_file(tmp_path: Path) -> None:
+    service = SubtitleService(
+        job_manager=object(),
+        locator=object(),
+        default_source_dir=tmp_path,
+    )
+    missing = tmp_path / "vanished.en.srt"
+
+    result = service.delete_source(missing)
+
+    assert result.removed == []
+    assert result.missing == [missing.resolve()]
+
+
+def test_subtitle_service_delete_source_rejects_missing_file_outside_base(tmp_path: Path) -> None:
+    base = tmp_path / "base"
+    outside = tmp_path / "outside"
+    base.mkdir()
+    outside.mkdir()
+    service = SubtitleService(
+        job_manager=object(),
+        locator=object(),
+        default_source_dir=base,
+    )
+
+    with pytest.raises(PermissionError):
+        service.delete_source(outside / "vanished.en.srt")

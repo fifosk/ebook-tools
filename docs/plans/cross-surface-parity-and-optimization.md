@@ -432,7 +432,9 @@ Optimization candidates:
   the same default-source flow. `/api/subtitles/sources` now applies the same
   transient directory-scan tolerance and stale-entry skip when building
   Web/Apple subtitle source pickers, so NAS remounts or vanished subtitle paths
-  do not become broken default selections. The
+  do not become broken default selections. `/api/subtitles/delete-source` now
+  treats already-vanished, in-scope subtitle sources as idempotent cleanup
+  results while still rejecting paths outside the allowed base directory. The
   NAS YouTube/video scanner also skips video and subtitle sidecar candidates
   that vanish after `os.walk()`, keeping Web Video Dubbing and Apple Create
   source pickers usable during concurrent downloads or cleanup. YouTube

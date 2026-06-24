@@ -21,7 +21,7 @@ from modules.retry_annotations import is_failure_annotation
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager, PipelineJobStatus
 from modules.services.job_manager.runtime_context import job_runtime_context
-from modules.services.youtube_dubbing import delete_nas_subtitle
+from modules.services.youtube_dubbing import SubtitleDeletionResult, delete_nas_subtitle
 from modules.subtitles import SubtitleCue, SubtitleJobOptions
 from modules.subtitles.common import ASS_EXTENSION, DEFAULT_OUTPUT_SUFFIX, SRT_EXTENSION
 from modules.subtitles.models import SubtitleHtmlEntry
@@ -643,12 +643,13 @@ class SubtitleService:
         """Delete a subtitle source plus any mirrored HTML companions."""
 
         try:
-            resolved_path = subtitle_path.expanduser().resolve()
+            resolved_path = subtitle_path.expanduser().resolve(strict=False)
         except Exception as exc:
             raise FileNotFoundError(f"Subtitle path '{subtitle_path}' is invalid") from exc
 
-        if not resolved_path.exists():
-            raise FileNotFoundError(f"Subtitle file '{resolved_path}' does not exist")
+        suffix = resolved_path.suffix.lower().lstrip(".")
+        if suffix not in {"ass", "srt", "sub", "vtt"}:
+            raise ValueError("subtitle_path must reference an ASS, SRT, VTT, or SUB subtitle file")
 
         target_base = base_dir.expanduser() if base_dir is not None else self._default_source_dir
         resolved_base = self._probe_directory(target_base, require_write=True)
@@ -660,6 +661,13 @@ class SubtitleService:
             raise PermissionError(
                 f"Subtitle '{resolved_path}' is outside allowed directory '{resolved_base}'"
             ) from exc
+
+        try:
+            exists = resolved_path.exists()
+        except OSError:
+            exists = False
+        if not exists:
+            return SubtitleDeletionResult(removed=[], missing=[resolved_path])
 
         return delete_nas_subtitle(resolved_path)
 
