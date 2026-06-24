@@ -457,12 +457,20 @@ def delete_downloaded_video(video_path: Path) -> SubtitleDeletionResult:
 
     resolved = video_path.expanduser()
     try:
-        resolved = resolved.resolve()
-    except FileNotFoundError:
+        resolved = resolved.resolve(strict=False)
+    except OSError:
         raise FileNotFoundError(f"Video file '{resolved}' does not exist")
 
-    if not resolved.exists():
-        raise FileNotFoundError(f"Video file '{resolved}' does not exist")
+    suffix = resolved.suffix.lower().lstrip(".")
+    if suffix not in _VIDEO_EXTENSIONS:
+        raise ValueError("video_path must reference a supported video file")
+
+    try:
+        exists = resolved.exists()
+    except OSError:
+        exists = False
+    if not exists:
+        return SubtitleDeletionResult(removed=[], missing=[resolved])
     if not resolved.is_file():
         raise ValueError("video_path must reference a file")
 

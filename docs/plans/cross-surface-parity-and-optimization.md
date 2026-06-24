@@ -446,7 +446,9 @@ Optimization candidates:
   a transient NAS directory race can still fall back to a usable downloaded
   artifact instead of losing a completed download. Downloaded-video cleanup
   uses the same stale-entry tolerance while discovering adjacent subtitle
-  artifacts before folder removal.
+  artifacts before folder removal, and already-vanished video selections with a
+  valid video suffix now return a structured `missing` result instead of a
+  picker-breaking 404.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap

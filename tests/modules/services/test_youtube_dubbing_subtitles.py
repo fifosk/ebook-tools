@@ -373,3 +373,17 @@ def test_delete_downloaded_video_skips_stale_subtitle_candidates(
     removed_paths = {path.resolve() for path in result.removed}
     assert video_dir.resolve() in removed_paths
     assert video_path.resolve() in removed_paths
+
+
+def test_delete_downloaded_video_reports_missing_valid_video_path(tmp_path: Path) -> None:
+    missing_video = tmp_path / "missing_yt.mp4"
+
+    result = delete_downloaded_video(missing_video)
+
+    assert result.removed == []
+    assert result.missing == [missing_video.resolve()]
+
+
+def test_delete_downloaded_video_rejects_missing_non_video_path(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="supported video file"):
+        delete_downloaded_video(tmp_path / "missing.txt")
