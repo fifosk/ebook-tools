@@ -243,6 +243,11 @@ Optimization candidates:
   job is missing, so normal active-job media searches avoid a library sync
   lookup while preserving library fallback behavior for archived items and
   unknown-job 404s.
+- Avoid avoidable chunk metadata reads in shared search paths. Status:
+  generated media search now skips per-chunk metadata JSON reads when the
+  generated chunk already carries id/range/sentence fields and a searchable
+  text file, while preserving metadata fallbacks for sparse chunk entries and
+  metadata-only sentence text.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap

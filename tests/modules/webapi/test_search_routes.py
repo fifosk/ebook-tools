@@ -243,6 +243,75 @@ def test_search_match_summary_counts_repeated_terms_without_tuple_list() -> None
     assert "fortune" in snippet
 
 
+def test_search_skips_chunk_metadata_read_when_generated_chunk_is_complete(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    file_locator = FileLocator(storage_dir=tmp_path, base_url="https://example.invalid/jobs")
+    job_id = "complete-generated-chunk"
+    job_root = file_locator.resolve_path(job_id)
+    text_dir = job_root / "media" / "chunk-001"
+    text_dir.mkdir(parents=True, exist_ok=True)
+    html_path = text_dir / "sample.html"
+    html_path.write_text("<p>Searchable fortune text.</p>", encoding="utf-8")
+
+    load_chunk_calls: list[dict[str, object]] = []
+
+    class _NoChunkReadMetadataLoader:
+        def __init__(self, _job_root: Path) -> None:
+            pass
+
+        def iter_chunks(self):
+            return iter(())
+
+        def build_chunk_manifest(self):
+            return {"chunks": []}
+
+        def load_chunk(self, chunk, include_sentences=False):
+            load_chunk_calls.append(
+                {"chunk": chunk, "include_sentences": include_sentences}
+            )
+            raise AssertionError("complete generated chunks should not read chunk metadata")
+
+    monkeypatch.setattr(search_service, "MetadataLoader", _NoChunkReadMetadataLoader)
+
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    job.generated_files = {
+        "chunks": [
+            {
+                "chunk_id": "chunk-001",
+                "range_fragment": "0001-0001",
+                "start_sentence": 1,
+                "end_sentence": 1,
+                "files": [
+                    {
+                        "type": "html",
+                        "relative_path": "media/chunk-001/sample.html",
+                        "path": str(html_path),
+                    }
+                ],
+            }
+        ]
+    }
+
+    results = search_service.search_generated_media(
+        query="fortune",
+        jobs=[job],
+        locator=file_locator,
+    )
+
+    assert len(results) == 1
+    assert results[0].chunk_id == "chunk-001"
+    assert results[0].range_fragment == "0001-0001"
+    assert results[0].start_sentence == 1
+    assert results[0].end_sentence == 1
+    assert load_chunk_calls == []
+
+
 def test_search_records_safe_timing(api_app, monkeypatch: pytest.MonkeyPatch) -> None:
     app, file_locator = api_app
     job_id = "search-observability-job"

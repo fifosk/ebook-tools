@@ -857,7 +857,19 @@ def search_generated_media(
                         continue
 
             metadata_payload = None
-            if metadata_loader is not None:
+            chunk_id_value = chunk.get("chunk_id")
+            range_fragment_value = chunk.get("range_fragment")
+            start_sentence_value = chunk.get("start_sentence")
+            end_sentence_value = chunk.get("end_sentence")
+            if (
+                metadata_loader is not None
+                and (
+                    chunk_id_value is None
+                    or range_fragment_value is None
+                    or start_sentence_value is None
+                    or end_sentence_value is None
+                )
+            ):
                 try:
                     metadata_payload = metadata_loader.load_chunk(
                         chunk, include_sentences=False
@@ -875,16 +887,12 @@ def search_generated_media(
             else:
                 text_content = _load_text_from_entry(job.job_id, text_entry, locator)
 
-            chunk_id_value = chunk.get("chunk_id")
             if chunk_id_value is None and isinstance(metadata_payload, Mapping):
                 chunk_id_value = metadata_payload.get("chunk_id")
-            range_fragment_value = chunk.get("range_fragment")
             if range_fragment_value is None and isinstance(metadata_payload, Mapping):
                 range_fragment_value = metadata_payload.get("range_fragment")
-            start_sentence_value = chunk.get("start_sentence")
             if start_sentence_value is None and isinstance(metadata_payload, Mapping):
                 start_sentence_value = metadata_payload.get("start_sentence")
-            end_sentence_value = chunk.get("end_sentence")
             if end_sentence_value is None and isinstance(metadata_payload, Mapping):
                 end_sentence_value = metadata_payload.get("end_sentence")
 
