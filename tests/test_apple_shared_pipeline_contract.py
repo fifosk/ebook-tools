@@ -81,6 +81,18 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)"' in fallback_target
     assert "--fallback-to-signed-artifact" in fallback_target
     assert '--signed-artifact-path "$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)"' in fallback_target
+    assert "apple-device-full-entitlement-stable-install:" in makefile
+    stable_target = makefile.split("apple-device-full-entitlement-stable-install:", 1)[1].split("\n\n", 1)[0]
+    assert "bash scripts/apple_unattended_device_update.sh" in stable_target
+    assert '--profile "$(APPLE_DEVICE_PROFILE)"' in stable_target
+    assert '--device "$(APPLE_DEVICE_ID)"' in stable_target
+    assert "--skip-build" in stable_target
+    assert '--app-path "$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)"' in stable_target
+    assert "--install" in stable_target
+    assert "--launch" in stable_target
+    assert '--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)"' in stable_target
+    assert "--fallback-to-signed-artifact" in stable_target
+    assert '--signed-artifact-path "$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)"' in stable_target
 
 
 def test_shared_pipeline_verification_stays_non_physical() -> None:
@@ -101,6 +113,7 @@ def test_shared_pipeline_verification_stays_non_physical() -> None:
     assert "apple-device-update" not in target
     assert "run_app_device_deploy.py" not in target
     assert "apple_unattended_device_update.sh" not in target
+    assert "apple-device-full-entitlement-stable-install" not in target
     assert "devicectl" not in target
 
 
@@ -116,6 +129,7 @@ def test_golden_pipeline_verification_includes_source_sync_without_physical_depl
     assert "apple-device-update" not in target
     assert "run_app_device_deploy.py" not in target
     assert "apple_unattended_device_update.sh" not in target
+    assert "apple-device-full-entitlement-stable-install" not in target
     assert "devicectl" not in target
 
 

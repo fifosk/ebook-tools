@@ -179,6 +179,22 @@ without switching to the entitlement-stripping path:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  make apple-device-full-entitlement-stable-install \
+    APPLE_DEVICE_PROFILE=ipad \
+    APPLE_DEVICE_ID="<device-id-or-name>" \
+    APPLE_DEVICE_SIGNED_ARTIFACT_PATH=test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app
+```
+
+That shortcut is the preferred "latest stable" path when the signed artifact is
+already current. It skips Xcode rebuilds, verifies the app's code signature plus
+current bundle id, marketing version, and build number, installs it, verifies
+installed metadata, then launches with the crash-watch timeout.
+
+If you want the helper to try a command-line Xcode build first and swap to the
+signed artifact only after that build fails, use:
+
+```bash
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   make apple-device-full-entitlement-fallback-install \
     APPLE_DEVICE_PROFILE=ipad \
     APPLE_DEVICE_ID="<device-id-or-name>" \

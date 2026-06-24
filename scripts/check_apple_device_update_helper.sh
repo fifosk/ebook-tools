@@ -48,6 +48,9 @@ assert_contains "${makefile}" "apple-device-full-entitlement-fallback-install:" 
 assert_contains "${makefile}" "--fallback-to-signed-artifact" "Makefile fallback installer should enable the signed-artifact fallback"
 assert_contains "${makefile}" "--signed-artifact-path \"\$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)\"" "Makefile fallback installer should pass the configured signed artifact path"
 assert_contains "${makefile}" "--launch-console-timeout \"\$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)\"" "Makefile fallback installer should pass the launch crash-watch timeout"
+assert_contains "${makefile}" "apple-device-full-entitlement-stable-install:" "Makefile should expose the direct full-entitlement stable artifact installer"
+assert_contains "${makefile}" "--skip-build" "stable artifact installer should avoid rebuilding the cached signed app"
+assert_contains "${makefile}" "--app-path \"\$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)\"" "stable artifact installer should install the configured signed artifact path"
 
 build_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --build-only)"
 assert_contains "${build_output}" "Build command:" "build-only dry run should print the build command"
@@ -213,6 +216,22 @@ assert_contains "${fallback_install_output}" "xcodebuild failed with status 65; 
 assert_contains "${fallback_install_output}" "Signed artifact fallback install command:" "signed-artifact fallback should print the swapped install command"
 assert_contains "${fallback_install_output}" "${signed_artifact}" "signed-artifact fallback should install the verified artifact path"
 assert_contains "${fallback_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.24 build=2026062427" "signed-artifact fallback should still verify installed metadata"
+
+stable_install_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  CODESIGN="${fake_tools_dir}/codesign" \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --install \
+      --skip-build \
+      --app-path "${signed_artifact}" \
+      --fallback-to-signed-artifact
+)"
+assert_not_contains "${stable_install_output}" "Build command:" "stable signed-artifact install should not drive Xcode"
+assert_contains "${stable_install_output}" "fake codesign --verify --deep --strict --verbose=4 ${signed_artifact}" "stable signed-artifact install should verify the app bundle before install"
+assert_contains "${stable_install_output}" "${signed_artifact}" "stable signed-artifact install should use the verified artifact path"
+assert_contains "${stable_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.24 build=2026062427" "stable signed-artifact install should still verify installed metadata"
 
 appletv_output="$(
   bash "${HELPER}" \

@@ -56,7 +56,8 @@ Options:
   --skip-build                   Install the existing --app-path/APPLE_DEVICE_APP_PATH without rebuilding.
   --app-path PATH                App bundle to install or verify after a skipped build.
   --fallback-to-signed-artifact  If xcodebuild fails during a confirmed install, verify and install
-                                 a pre-signed full-entitlement app bundle instead.
+                                 a pre-signed full-entitlement app bundle instead. With
+                                 --skip-build, verify --app-path as the signed artifact before install.
   --signed-artifact-path PATH    Pre-signed app bundle for --fallback-to-signed-artifact.
                                  Defaults to test-results/DerivedData-device-full-entitlements.
   --launch                       Launch the installed app after install.
@@ -628,6 +629,10 @@ fi
 if [[ ! -d "${APP_PATH}" ]]; then
   echo "App bundle not found: ${APP_PATH}" >&2
   exit 1
+fi
+
+if [[ "${SKIP_BUILD}" == "1" && "${FALLBACK_TO_SIGNED_ARTIFACT}" == "1" ]]; then
+  verify_signed_artifact_bundle "${APP_PATH}"
 fi
 
 "${INSTALL_CMD[@]}"

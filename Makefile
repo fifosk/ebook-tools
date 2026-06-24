@@ -29,6 +29,7 @@
        apple-device-preflight apple-device-signed-build-only apple-device-deploy-dry-run \
        apple-device-full-entitlement-plan apple-device-full-entitlement-build \
        apple-device-full-entitlement-install apple-device-full-entitlement-fallback-install \
+       apple-device-full-entitlement-stable-install \
        build-apple-iphone-simulator build-apple-ipad-simulator \
        build-apple-ios-simulators build-apple-ios-uitests build-apple-tvos-simulator \
        build-apple-office-ipad-surfaces verify-apple-office-ipad-surfaces \
@@ -414,6 +415,18 @@ apple-device-full-entitlement-fallback-install:
 	bash scripts/apple_unattended_device_update.sh \
 		--profile "$(APPLE_DEVICE_PROFILE)" \
 		--device "$(APPLE_DEVICE_ID)" \
+		--install \
+		--launch \
+		--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)" \
+		--fallback-to-signed-artifact \
+		--signed-artifact-path "$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)"
+
+apple-device-full-entitlement-stable-install:
+	bash scripts/apple_unattended_device_update.sh \
+		--profile "$(APPLE_DEVICE_PROFILE)" \
+		--device "$(APPLE_DEVICE_ID)" \
+		--skip-build \
+		--app-path "$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)" \
 		--install \
 		--launch \
 		--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)" \

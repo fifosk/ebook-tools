@@ -279,11 +279,15 @@ handoff.
 This preserves iCloud behavior and avoids the older entitlement-stripping local
 signing fallback when device feature validation matters.
 If a current full-entitlement `InteractiveReader.app` has already been signed
-and only needs to be reused after a CLI signing failure, run
-`CONFIRM_PHYSICAL_DEVICE_UPDATE=YES make apple-device-full-entitlement-fallback-install`
+and the user asks for the latest stable iPhone/iPad deploy, run
+`CONFIRM_PHYSICAL_DEVICE_UPDATE=YES make apple-device-full-entitlement-stable-install`
 with `APPLE_DEVICE_ID` and `APPLE_DEVICE_SIGNED_ARTIFACT_PATH`. That shortcut
-keeps the signed-artifact fallback guarded and verifies the app signature plus
-current bundle id/version/build before install.
+skips Xcode rebuilds, verifies the app signature plus current bundle
+id/version/build, installs, verifies installed metadata, and runs the launch
+crash-watch. Use
+`CONFIRM_PHYSICAL_DEVICE_UPDATE=YES make apple-device-full-entitlement-fallback-install`
+instead when you want the helper to try Xcode first and only swap to the signed
+artifact after a CLI signing failure.
 The entitlement-stripping fallback is now locked behind
 `APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES`; leave it locked when validating
 iCloud, Push Notifications, or Sign in with Apple.

@@ -401,7 +401,10 @@ device is awake and unlocked; locked devices can still install and verify
 metadata, but foreground launch may block until the user unlocks the device.
 When a signed app has already been produced by Xcode or a prior build, use
 `--skip-build --app-path /path/to/InteractiveReader.app` with the same
-confirmation guard to install that bundle without driving Xcode again.
+confirmation guard to install that bundle without driving Xcode again. Add
+`--fallback-to-signed-artifact` on that direct skip-build path when the app is
+the current full-entitlement release artifact; the helper verifies the bundle
+signature plus current bundle id/version/build before installing.
 If a confirmed install build fails because command-line Xcode cannot access the
 signed-in account or full-capability profile, keep the deploy unattended by
 adding `--fallback-to-signed-artifact --signed-artifact-path <app>`. The helper
@@ -409,7 +412,18 @@ verifies the fallback bundle signature plus current bundle id/version/build
 before swapping the install path, so stale or partially signed artifacts fail
 before `devicectl install`.
 
-The Makefile shortcut for that remembered fallback recipe is:
+The Makefile shortcut for the remembered latest-stable recipe is:
+
+```bash
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  make apple-device-full-entitlement-stable-install \
+    APPLE_DEVICE_PROFILE=ipad \
+    APPLE_DEVICE_ID="Fifo Ipad Pro" \
+    APPLE_DEVICE_SIGNED_ARTIFACT_PATH=test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app
+```
+
+Use the fallback variant when you want the helper to try Xcode first and only
+swap to the signed artifact after a CLI signing failure:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
@@ -432,7 +446,8 @@ post-install `devicectl` verification reported:
 InteractiveReader   com.example.InteractiveReader   2026.6.24   2026062427
 ```
 
-That install used the verified
+That install is now captured by
+`make apple-device-full-entitlement-stable-install` and used the verified
 `test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app`
 artifact and the unattended `--skip-build --app-path ... --install --launch
 --launch-console-timeout 10` path; the launch console timeout was treated as
