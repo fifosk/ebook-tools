@@ -410,6 +410,30 @@ make apple-device-full-entitlement-plan \
   APPLE_DEVELOPMENT_IDENTITY="$APPLE_DEVELOPMENT_IDENTITY"
 ```
 
+The planner is dry by default. To run the same full-entitlement build, profile
+embedding, merged-entitlements generation, signing, and verification flow
+without touching a device, use:
+
+```bash
+make apple-device-full-entitlement-build \
+  APPLE_DEVICE_ID="<device-id-or-name>" \
+  FULL_CAPABILITY_IOS_PROFILE="$FULL_CAPABILITY_IOS_PROFILE" \
+  WILDCARD_IOS_EXTENSION_PROFILE="$WILDCARD_IOS_EXTENSION_PROFILE" \
+  APPLE_DEVELOPMENT_IDENTITY="$APPLE_DEVELOPMENT_IDENTITY"
+```
+
+Only after an explicit physical-device deploy request, add the guarded install
+handoff:
+
+```bash
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  make apple-device-full-entitlement-install \
+  APPLE_DEVICE_ID="<device-id-or-name>" \
+  FULL_CAPABILITY_IOS_PROFILE="$FULL_CAPABILITY_IOS_PROFILE" \
+  WILDCARD_IOS_EXTENSION_PROFILE="$WILDCARD_IOS_EXTENSION_PROFILE" \
+  APPLE_DEVELOPMENT_IDENTITY="$APPLE_DEVELOPMENT_IDENTITY"
+```
+
 The generated plan follows this sequence:
 
 ```bash

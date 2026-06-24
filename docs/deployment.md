@@ -147,17 +147,26 @@ uses the generated plist paths in its codesign steps.
 Otherwise local `codesign --verify` can pass while device install fails with
 `0xe8008015`.
 
-Install the signed app from that plan with:
+The planner is dry by default. To run the same flow without installing, use:
 
 ```bash
-APPLE_DEVICE_ID="<device-id-or-name>" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
-  bash scripts/apple_unattended_device_update.sh \
-    --profile ipad \
-    --skip-build \
-    --app-path "<signed-app-path>" \
-    --install \
-    --launch \
-    --launch-console-timeout 10
+make apple-device-full-entitlement-build \
+  APPLE_DEVICE_ID="<device-id-or-name>" \
+  FULL_CAPABILITY_IOS_PROFILE="<app.mobileprovision>" \
+  WILDCARD_IOS_EXTENSION_PROFILE="<extension.mobileprovision>" \
+  APPLE_DEVELOPMENT_IDENTITY="<Apple Development identity>"
+```
+
+After an explicit physical-device deploy request, run the guarded install handoff
+with:
+
+```bash
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  make apple-device-full-entitlement-install \
+    APPLE_DEVICE_ID="<device-id-or-name>" \
+    FULL_CAPABILITY_IOS_PROFILE="<app.mobileprovision>" \
+    WILDCARD_IOS_EXTENSION_PROFILE="<extension.mobileprovision>" \
+    APPLE_DEVELOPMENT_IDENTITY="<Apple Development identity>"
 ```
 
 Do not use the entitlement-stripping fallback when testing iCloud features. It

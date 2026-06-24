@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 XCBUILD="${XCBUILD:-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild}"
+CODESIGN="${CODESIGN:-/usr/bin/codesign}"
 XCPROJ="${XCPROJ:-${ROOT_DIR}/ios/InteractiveReader/InteractiveReader.xcodeproj}"
 SCHEME="${SCHEME:-InteractiveReader}"
 CONFIGURATION="${CONFIGURATION:-Debug}"
@@ -20,6 +21,8 @@ EXTENSION_PROFILE="${WILDCARD_IOS_EXTENSION_PROFILE:-}"
 SIGNING_IDENTITY="${APPLE_DEVELOPMENT_IDENTITY:-}"
 DEVICE_ID="${APPLE_DEVICE_ID:-}"
 LAUNCH_CONSOLE_TIMEOUT="${APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT:-10}"
+EXECUTE=0
+INSTALL=0
 
 usage() {
   cat <<'USAGE'
@@ -43,6 +46,8 @@ Options:
   --derived-data PATH            DerivedData folder for the unsigned device build.
   --configuration NAME           Xcode configuration. Defaults to Debug.
   --launch-console-timeout SEC   Final launch-console timeout. Defaults to 10.
+  --execute                      Run the printed build/sign/verify flow, without installing.
+  --install                      With --execute, run the guarded physical-device install handoff.
   -h, --help                     Show this help.
 
 Environment aliases:
@@ -53,9 +58,10 @@ Environment aliases:
   SCHEME, CONFIGURATION, PRODUCT_NAME, BUNDLE_ID, APPLE_EXTENSION_PRODUCT_NAME,
   and APPLE_EXTENSION_BUNDLE_ID.
 
-This planner is intentionally non-mutating: it validates required inputs and
+This planner is non-mutating by default: it validates required inputs and
 prints the full-entitlement build, profile embedding, codesign, verify, and
-guarded skip-build install commands. It never builds, signs, or installs.
+guarded skip-build install commands. Add --execute to build/sign/verify, and
+add --install only after an explicit physical-device deploy request.
 USAGE
 }
 
@@ -135,6 +141,14 @@ while [[ $# -gt 0 ]]; do
       LAUNCH_CONSOLE_TIMEOUT="${2:-}"
       shift 2
       ;;
+    --execute)
+      EXECUTE=1
+      shift
+      ;;
+    --install)
+      INSTALL=1
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -146,6 +160,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "${INSTALL}" == "1" && "${EXECUTE}" != "1" ]]; then
+  echo "--install requires --execute." >&2
+  exit 2
+fi
 
 require_value "APPLE_DEVICE_ID or --device" "${DEVICE_ID}"
 require_value "APPLE_DEVELOPMENT_IDENTITY or --signing-identity" "${SIGNING_IDENTITY}"
@@ -201,18 +220,18 @@ SIGN_EXTENSION_DYLIBS_CMD=(
 SIGN_APP_DYLIBS_CMD=(
   find "${APP_PATH}" -maxdepth 1 -type f -name "*.dylib" -print0
 )
-SIGN_EXTENSION_CMD=(/usr/bin/codesign --force --sign "${SIGNING_IDENTITY}" --timestamp=none)
+SIGN_EXTENSION_CMD=("${CODESIGN}" --force --sign "${SIGNING_IDENTITY}" --timestamp=none)
 SIGN_EXTENSION_CMD+=(--entitlements "${MERGED_EXTENSION_ENTITLEMENTS}")
 SIGN_EXTENSION_CMD+=("${APPEX_PATH}")
 SIGN_APP_CMD=(
-  /usr/bin/codesign
+  "${CODESIGN}"
   --force
   --sign "${SIGNING_IDENTITY}"
   --timestamp=none
   --entitlements "${MERGED_APP_ENTITLEMENTS}"
   "${APP_PATH}"
 )
-VERIFY_CMD=(/usr/bin/codesign --verify --deep --strict --verbose=4 "${APP_PATH}")
+VERIFY_CMD=("${CODESIGN}" --verify --deep --strict --verbose=4 "${APP_PATH}")
 INSTALL_CMD=(
   bash "${ROOT_DIR}/scripts/apple_unattended_device_update.sh"
   --device "${DEVICE_ID}"
@@ -240,14 +259,43 @@ print_command "Embed app provisioning profile" "${PROFILE_APP_CMD[@]}"
 print_command "Embed extension provisioning profile" "${PROFILE_EXTENSION_CMD[@]}"
 echo "Sign extension dylibs:"
 printf '  %q' "${SIGN_EXTENSION_DYLIBS_CMD[@]}"
-printf ' | xargs -0 -I{} %q --force --sign %q --timestamp=none "{}"\n' /usr/bin/codesign "${SIGNING_IDENTITY}"
+printf ' | xargs -0 -I{} %q --force --sign %q --timestamp=none "{}"\n' "${CODESIGN}" "${SIGNING_IDENTITY}"
 print_command "Sign notification extension" "${SIGN_EXTENSION_CMD[@]}"
 echo "Sign app dylibs:"
 printf '  %q' "${SIGN_APP_DYLIBS_CMD[@]}"
-printf ' | xargs -0 -I{} %q --force --sign %q --timestamp=none "{}"\n' /usr/bin/codesign "${SIGNING_IDENTITY}"
+printf ' | xargs -0 -I{} %q --force --sign %q --timestamp=none "{}"\n' "${CODESIGN}" "${SIGNING_IDENTITY}"
 print_command "Sign app with full entitlements" "${SIGN_APP_CMD[@]}"
 print_command "Verify signed app" "${VERIFY_CMD[@]}"
 echo "Final guarded install command:"
 echo "  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \\"
 printf '  %q' "${INSTALL_CMD[@]}"
 echo
+
+if [[ "${EXECUTE}" != "1" ]]; then
+  exit 0
+fi
+
+echo
+echo "Executing full-entitlement build/sign flow..."
+"${BUILD_CMD[@]}"
+"${MERGE_APP_ENTITLEMENTS_CMD[@]}"
+"${MERGE_EXTENSION_ENTITLEMENTS_CMD[@]}"
+"${PROFILE_APP_CMD[@]}"
+"${PROFILE_EXTENSION_CMD[@]}"
+find "${APPEX_PATH}" -maxdepth 1 -type f -name "*.dylib" -print0 \
+  | while IFS= read -r -d '' dylib_path; do
+      "${CODESIGN}" --force --sign "${SIGNING_IDENTITY}" --timestamp=none "${dylib_path}"
+    done
+"${SIGN_EXTENSION_CMD[@]}"
+find "${APP_PATH}" -maxdepth 1 -type f -name "*.dylib" -print0 \
+  | while IFS= read -r -d '' dylib_path; do
+      "${CODESIGN}" --force --sign "${SIGNING_IDENTITY}" --timestamp=none "${dylib_path}"
+    done
+"${SIGN_APP_CMD[@]}"
+"${VERIFY_CMD[@]}"
+
+if [[ "${INSTALL}" == "1" ]]; then
+  "${INSTALL_CMD[@]}"
+else
+  echo "Built and signed app: ${APP_PATH}"
+fi

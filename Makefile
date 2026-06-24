@@ -12,7 +12,8 @@
        test-apple-contracts build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
        apple-device-preflight apple-device-signed-build-only apple-device-deploy-dry-run \
-       apple-device-full-entitlement-plan \
+       apple-device-full-entitlement-plan apple-device-full-entitlement-build \
+       apple-device-full-entitlement-install \
        build-apple-iphone-simulator build-apple-ipad-simulator \
        build-apple-ios-simulators build-apple-ios-uitests build-apple-tvos-simulator \
        build-apple-office-ipad-surfaces verify-apple-office-ipad-surfaces \
@@ -272,6 +273,23 @@ apple-device-deploy-dry-run:
 
 apple-device-full-entitlement-plan:
 	bash scripts/apple_full_entitlement_signing_plan.sh \
+		--device "$(APPLE_DEVICE_ID)" \
+		--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)" \
+		--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)" \
+		--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"
+
+apple-device-full-entitlement-build:
+	bash scripts/apple_full_entitlement_signing_plan.sh \
+		--execute \
+		--device "$(APPLE_DEVICE_ID)" \
+		--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)" \
+		--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)" \
+		--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"
+
+apple-device-full-entitlement-install:
+	bash scripts/apple_full_entitlement_signing_plan.sh \
+		--execute \
+		--install \
 		--device "$(APPLE_DEVICE_ID)" \
 		--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)" \
 		--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)" \

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import plistlib
+import os
 import subprocess
 from pathlib import Path
 
@@ -11,6 +13,25 @@ SCRIPT = ROOT / "scripts" / "apple_full_entitlement_signing_plan.sh"
 def _touch(path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("placeholder", encoding="utf-8")
+    return path
+
+
+def _write_plist(path: Path, payload: dict) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as handle:
+        plistlib.dump(payload, handle)
+    return path
+
+
+def _read_plist(path: Path) -> dict:
+    with path.open("rb") as handle:
+        return plistlib.load(handle)
+
+
+def _write_executable(path: Path, content: str) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    path.chmod(0o755)
     return path
 
 
@@ -85,6 +106,184 @@ def test_full_entitlement_signing_plan_prints_non_mutating_recipe(tmp_path: Path
     assert "devicectl" not in output
 
 
+def test_full_entitlement_signing_plan_execute_builds_and_signs_with_merged_entitlements(
+    tmp_path: Path,
+) -> None:
+    app_profile = _write_plist(
+        tmp_path / "profiles" / "app.mobileprovision",
+        {
+            "Entitlements": {
+                "application-identifier": "3Y7288895K.com.example.InteractiveReader",
+                "com.apple.developer.team-identifier": "3Y7288895K",
+                "get-task-allow": True,
+                "keychain-access-groups": ["3Y7288895K.*"],
+            }
+        },
+    )
+    extension_profile = _write_plist(
+        tmp_path / "profiles" / "extension.mobileprovision",
+        {
+            "Entitlements": {
+                "application-identifier": "3Y7288895K.*",
+                "com.apple.developer.team-identifier": "3Y7288895K",
+                "get-task-allow": True,
+                "keychain-access-groups": ["3Y7288895K.*"],
+            }
+        },
+    )
+    app_entitlements = _write_plist(
+        tmp_path / "entitlements" / "app.plist",
+        {
+            "aps-environment": "development",
+            "com.apple.developer.applesignin": ["Default"],
+            "com.apple.developer.icloud-container-identifiers": [
+                "iCloud.com.ebook-tools.interactivereader"
+            ],
+            "com.apple.developer.ubiquity-kvstore-identifier": (
+                "$(TeamIdentifierPrefix)$(CFBundleIdentifier)"
+            ),
+        },
+    )
+    derived_data = tmp_path / "DerivedData-device-full-entitlements"
+    codesign_log = tmp_path / "codesign.log"
+    fake_xcodebuild = _write_executable(
+        tmp_path / "bin" / "xcodebuild",
+        """#!/usr/bin/env bash
+set -euo pipefail
+derived=""
+configuration="Debug"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -derivedDataPath)
+      derived="$2"
+      shift 2
+      ;;
+    -configuration)
+      configuration="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+if [[ -z "${derived}" ]]; then
+  echo "missing derived data path" >&2
+  exit 2
+fi
+app="${derived}/Build/Products/${configuration}-iphoneos/InteractiveReader.app"
+appex="${app}/PlugIns/NotificationServiceExtension.appex"
+mkdir -p "${appex}"
+touch "${app}/InteractiveReader.debug.dylib"
+touch "${app}/__preview.dylib"
+touch "${appex}/NotificationServiceExtension.debug.dylib"
+touch "${appex}/__preview.dylib"
+echo "fake xcodebuild created ${app}"
+""",
+    )
+    fake_codesign = _write_executable(
+        tmp_path / "bin" / "codesign",
+        """#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\\n' "$*" >> "${CODESIGN_LOG}"
+""",
+    )
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--execute",
+            "--device",
+            "TEST-IPAD",
+            "--app-profile",
+            str(app_profile),
+            "--extension-profile",
+            str(extension_profile),
+            "--app-entitlements",
+            str(app_entitlements),
+            "--signing-identity",
+            "Apple Development: Test User (TEAMID)",
+            "--derived-data",
+            str(derived_data),
+            "--configuration",
+            "Debug",
+        ],
+        check=True,
+        env={
+            **os.environ,
+            "XCBUILD": str(fake_xcodebuild),
+            "CODESIGN": str(fake_codesign),
+            "CODESIGN_LOG": str(codesign_log),
+        },
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+
+    app_path = derived_data / "Build/Products/Debug-iphoneos/InteractiveReader.app"
+    appex_path = app_path / "PlugIns/NotificationServiceExtension.appex"
+    merged_app_entitlements = derived_data / "MergedEntitlements/InteractiveReader.entitlements.plist"
+    merged_extension_entitlements = (
+        derived_data / "MergedEntitlements/NotificationServiceExtension.entitlements.plist"
+    )
+
+    assert "Executing full-entitlement build/sign flow..." in result.stdout
+    assert f"Built and signed app: {app_path}" in result.stdout
+    assert (app_path / "embedded.mobileprovision").read_bytes() == app_profile.read_bytes()
+    assert (appex_path / "embedded.mobileprovision").read_bytes() == extension_profile.read_bytes()
+
+    merged_app = _read_plist(merged_app_entitlements)
+    assert merged_app["application-identifier"] == "3Y7288895K.com.example.InteractiveReader"
+    assert merged_app["com.apple.developer.icloud-container-identifiers"] == [
+        "iCloud.com.ebook-tools.interactivereader"
+    ]
+    assert (
+        merged_app["com.apple.developer.ubiquity-kvstore-identifier"]
+        == "3Y7288895K.com.example.InteractiveReader"
+    )
+    merged_extension = _read_plist(merged_extension_entitlements)
+    assert (
+        merged_extension["application-identifier"]
+        == "3Y7288895K.com.example.InteractiveReader.NotificationServiceExtension"
+    )
+
+    sign_log = codesign_log.read_text(encoding="utf-8")
+    assert f"--entitlements {merged_extension_entitlements} {appex_path}" in sign_log
+    assert f"--entitlements {merged_app_entitlements} {app_path}" in sign_log
+    assert f"--verify --deep --strict --verbose=4 {app_path}" in sign_log
+
+
+def test_full_entitlement_signing_plan_install_requires_execute(tmp_path: Path) -> None:
+    app_profile = _touch(tmp_path / "profiles" / "app.mobileprovision")
+    extension_profile = _touch(tmp_path / "profiles" / "extension.mobileprovision")
+    app_entitlements = _touch(tmp_path / "entitlements" / "app.plist")
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--install",
+            "--device",
+            "TEST-IPAD",
+            "--app-profile",
+            str(app_profile),
+            "--extension-profile",
+            str(extension_profile),
+            "--app-entitlements",
+            str(app_entitlements),
+            "--signing-identity",
+            "Apple Development: Test User (TEAMID)",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "--install requires --execute." in result.stderr
+
+
 def test_full_entitlement_signing_plan_requires_capability_inputs(tmp_path: Path) -> None:
     app_entitlements = _touch(tmp_path / "entitlements" / "app.plist")
 
@@ -129,6 +328,35 @@ def test_make_full_entitlement_plan_target_passes_required_inputs() -> None:
 
     output = result.stdout
     assert "bash scripts/apple_full_entitlement_signing_plan.sh" in output
+    assert '--device "TEST-IPAD"' in output
+    assert '--app-profile "/tmp/app.mobileprovision"' in output
+    assert '--extension-profile "/tmp/extension.mobileprovision"' in output
+    assert '--signing-identity "Apple Development: Test User (TEAMID)"' in output
+
+
+def test_make_full_entitlement_execute_targets_pass_required_inputs() -> None:
+    result = subprocess.run(
+        [
+            "make",
+            "--no-print-directory",
+            "-n",
+            "apple-device-full-entitlement-build",
+            "apple-device-full-entitlement-install",
+            "APPLE_DEVICE_ID=TEST-IPAD",
+            "FULL_CAPABILITY_IOS_PROFILE=/tmp/app.mobileprovision",
+            "WILDCARD_IOS_EXTENSION_PROFILE=/tmp/extension.mobileprovision",
+            "APPLE_DEVELOPMENT_IDENTITY=Apple Development: Test User (TEAMID)",
+        ],
+        cwd=ROOT,
+        check=True,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+
+    output = result.stdout
+    assert output.count("bash scripts/apple_full_entitlement_signing_plan.sh") == 2
+    assert output.count("--execute") == 2
+    assert "--install" in output
     assert '--device "TEST-IPAD"' in output
     assert '--app-profile "/tmp/app.mobileprovision"' in output
     assert '--extension-profile "/tmp/extension.mobileprovision"' in output
