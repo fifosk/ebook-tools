@@ -1,5 +1,10 @@
 import '@testing-library/jest-dom/vitest';
 
+Object.defineProperty(console, 'debug', {
+  configurable: true,
+  value: () => {}
+});
+
 function createMemoryStorage(): Storage {
   const values = new Map<string, string>();
   return {

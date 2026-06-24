@@ -7,19 +7,10 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
-  console.log("[DEBUG] config running, mode =", mode);
-
   // Load env vars from the same dir as this config file
   const env = loadEnv(mode, __dirname, "");
   const isExportBuild = mode === "export";
   const appBranch = resolveGitBranch(env);
-
-  console.log("[DEBUG] loaded env via loadEnv:", {
-    https: env.VITE_DEV_HTTPS,
-    cert: env.VITE_DEV_HTTPS_CERT,
-    key: env.VITE_DEV_HTTPS_KEY,
-    ca: env.VITE_DEV_HTTPS_CA
-  });
 
   const httpsOptions = resolveHttpsOptions(env);
   const serverPort = parsePort(env.VITE_DEV_PORT) ?? 5173;
@@ -80,15 +71,12 @@ export default defineConfig(({ mode }) => {
 });
 
 function resolveHttpsOptions(env: Record<string, string>): HttpsServerOptions | undefined {
-  console.log("[DEBUG] resolveHttpsOptions env:", env);
-
   const explicit = parseBooleanFlag(env.VITE_DEV_HTTPS);
   const certPath = env.VITE_DEV_HTTPS_CERT;
   const keyPath = env.VITE_DEV_HTTPS_KEY;
 
   const shouldEnable = explicit ?? Boolean(certPath && keyPath);
   if (!shouldEnable) {
-    console.log("[DEBUG] HTTPS disabled.");
     return undefined;
   }
 

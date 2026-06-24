@@ -133,6 +133,7 @@ describe('subscribeToJobEvents', () => {
   it('ignores malformed JSON payloads', () => {
     buildEventStreamUrlMock.mockReturnValue('https://example.invalid/events');
     const received: ProgressEventPayload[] = [];
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     subscribeToJobEvents('job-500', {
       onEvent: (event) => received.push(event)
@@ -142,5 +143,6 @@ describe('subscribeToJobEvents', () => {
     MockEventSource.instances[0].emitMessage('not-json');
 
     expect(received).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledWith('Failed to parse job event payload', expect.any(SyntaxError));
   });
 });
