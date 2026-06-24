@@ -49,6 +49,12 @@ CREATION_DESCRIPTOR = {
     "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
     "youtubeDubPath": "/api/subtitles/youtube/dub",
 }
+OFFLINE_EXPORTS_DESCRIPTOR = {
+    "createPath": "/api/exports",
+    "downloadPathTemplate": "/api/exports/{export_id}/download",
+    "sourceKinds": ("job", "library"),
+    "playerTypes": ("interactive-text",),
+}
 ALLOWED_PUBLIC_METADATA_KEYS = frozenset(
     {
         "legacytokenmigration",
@@ -72,6 +78,7 @@ def build_runtime_descriptor(version: str) -> dict[str, object]:
         "clientConfig": _copy_public_descriptor_section(CLIENT_CONFIG_DESCRIPTOR),
         "applePipeline": _copy_public_descriptor_section(APPLE_PIPELINE_DESCRIPTOR),
         "creation": _copy_public_descriptor_section(CREATION_DESCRIPTOR),
+        "offlineExports": _copy_public_descriptor_section(OFFLINE_EXPORTS_DESCRIPTOR),
     }
     assert_runtime_descriptor_is_public(payload)
     return payload

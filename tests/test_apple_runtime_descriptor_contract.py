@@ -4,6 +4,7 @@ from pathlib import Path
 
 from modules.webapi.runtime_descriptor import (
     CREATION_DESCRIPTOR,
+    OFFLINE_EXPORTS_DESCRIPTOR,
     assert_runtime_descriptor_is_public,
     build_runtime_descriptor,
 )
@@ -61,6 +62,16 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
     assert descriptor["clientConfig"]["legacyTokenMigration"] == "userdefaults-authToken"
     assert descriptor["applePipeline"]["manifestId"] == "ebook-tools"
     assert descriptor["creation"] == CREATION_DESCRIPTOR
+    assert descriptor["offlineExports"] == {
+        "createPath": "/api/exports",
+        "downloadPathTemplate": "/api/exports/{export_id}/download",
+        "sourceKinds": ["job", "library"],
+        "playerTypes": ["interactive-text"],
+    }
+    assert descriptor["offlineExports"] == OFFLINE_EXPORTS_DESCRIPTOR | {
+        "sourceKinds": ["job", "library"],
+        "playerTypes": ["interactive-text"],
+    }
     assert_runtime_descriptor_is_public(descriptor)
 
 
@@ -96,6 +107,12 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         assert f"let {key}: String?" in source
     assert "let applePipeline: ApplePipelineContract?" in source
     assert "let creation: CreationContract?" in source
+    assert "struct OfflineExportContract: Decodable, Equatable" in source
+    assert "let createPath: String" in source
+    assert "let downloadPathTemplate: String" in source
+    assert "let sourceKinds: [String]" in source
+    assert "let playerTypes: [String]" in source
+    assert "let offlineExports: OfflineExportContract?" in source
 
 
 def test_settings_surfaces_create_contract_runtime_status() -> None:

@@ -693,7 +693,10 @@ Suggested features to evaluate after parity scaffolding:
   item and show status in Jobs. Status: Apple Jobs and Library rows can request
   offline player exports for completed media, disable duplicate export requests,
   open the returned download URL, and now show a visible Creating offline
-  export progress overlay while the backend archive is being prepared.
+  export progress overlay while the backend archive is being prepared. The
+  public runtime descriptor now also advertises the offline export create path,
+  download URL template, supported source kinds, and player type so Apple and
+  shared pipeline preflights can detect export contract drift.
 
 ## Verification Contract
 

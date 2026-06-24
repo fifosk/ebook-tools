@@ -54,6 +54,13 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let youtubeDubPath: String?
     }
 
+    struct OfflineExportContract: Decodable, Equatable {
+        let createPath: String
+        let downloadPathTemplate: String
+        let sourceKinds: [String]
+        let playerTypes: [String]
+    }
+
     let status: String
     let app: String
     let service: String
@@ -63,6 +70,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     let clientConfig: ClientConfig
     let applePipeline: ApplePipelineContract?
     let creation: CreationContract?
+    let offlineExports: OfflineExportContract?
 }
 
 struct LoginRequestPayload: Encodable {

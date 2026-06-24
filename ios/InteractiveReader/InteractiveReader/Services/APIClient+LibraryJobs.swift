@@ -1,5 +1,10 @@
 import Foundation
 
+enum AppleOfflineExportRuntimeContract {
+    static let createPath = "/api/exports"
+    static let playerType = "interactive-text"
+}
+
 extension APIClient {
     func fetchLibraryItems(query: String? = nil, page: Int = 1, limit: Int = 100) async throws -> LibrarySearchResponse {
         var components = URLComponents()
@@ -149,12 +154,12 @@ extension APIClient {
         }
 
         let data = try await sendJSONRequest(
-            path: "/api/exports",
+            path: AppleOfflineExportRuntimeContract.createPath,
             method: "POST",
             payload: ExportRequest(
                 sourceKind: sourceKind,
                 sourceId: sourceId,
-                playerType: "interactive-text"
+                playerType: AppleOfflineExportRuntimeContract.playerType
             )
         )
         return try decode(OfflineExportResponse.self, from: data)

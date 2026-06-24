@@ -47,6 +47,12 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "subtitle_jobs_path": "/api/subtitles/jobs",
             "youtube_library_path": "/api/subtitles/youtube/library",
             "youtube_dub_path": "/api/subtitles/youtube/dub"
+          },
+          "offline_exports": {
+            "create_path": "/api/exports",
+            "download_path_template": "/api/exports/{export_id}/download",
+            "source_kinds": ["job", "library"],
+            "player_types": ["interactive-text"]
           }
         }
         """.data(using: .utf8)!
@@ -85,6 +91,22 @@ struct AppleRuntimeDescriptorPayloadCheck {
             current.creation?.youtubeDubPath == "/api/subtitles/youtube/dub",
             "Apple runtime descriptor should decode YouTube dubbing endpoint"
         )
+        require(
+            current.offlineExports?.createPath == "/api/exports",
+            "Apple runtime descriptor should decode offline export create endpoint"
+        )
+        require(
+            current.offlineExports?.downloadPathTemplate == "/api/exports/{export_id}/download",
+            "Apple runtime descriptor should decode offline export download template"
+        )
+        require(
+            current.offlineExports?.sourceKinds == ["job", "library"],
+            "Apple runtime descriptor should decode offline export source kinds"
+        )
+        require(
+            current.offlineExports?.playerTypes == ["interactive-text"],
+            "Apple runtime descriptor should decode offline export player types"
+        )
 
         let legacyRuntimeJSON = """
         {
@@ -108,6 +130,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
         let legacy = try decoder.decode(BackendRuntimeDescriptorResponse.self, from: legacyRuntimeJSON)
         require(legacy.applePipeline == nil, "Apple runtime descriptor should tolerate legacy payloads without pipeline metadata")
         require(legacy.creation == nil, "Apple runtime descriptor should tolerate legacy payloads without Create metadata")
+        require(legacy.offlineExports == nil, "Apple runtime descriptor should tolerate legacy payloads without offline export metadata")
 
         print("apple runtime descriptor payload checks passed")
     }
