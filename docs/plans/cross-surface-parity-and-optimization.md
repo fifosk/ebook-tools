@@ -221,7 +221,7 @@ Current Apple UI partially exposes:
   normalization now lives in `AppleBookCreateFileImport.swift`, metadata lookup
   source-name derivation now lives in `AppleBookCreateMetadataSources.swift`,
   and Create persistence key construction now lives in
-  `AppleBookCreateStorageKeys.swift`, keeping local file, lookup, and
+  `AppleBookCreateStorageKeys.swift`, keeping API/user-scoped local file, lookup, and
   UserDefaults formats contract-pinned outside the main view. Narration
   language/voice routing now lives in
   `AppleBookCreateNarrationSection.swift`, and the

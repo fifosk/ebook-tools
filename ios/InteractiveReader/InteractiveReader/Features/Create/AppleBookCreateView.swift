@@ -1738,12 +1738,11 @@ struct AppleBookCreateView: View {
     #endif
 
     private var creationOptionsLoadKey: String {
-        guard let configuration = appState.configuration else { return "missing" }
-        return [
-            configuration.apiBaseURL.absoluteString,
-            configuration.userID ?? "",
-            configuration.userRole ?? ""
-        ].joined(separator: "|")
+        AppleBookCreateStorageKeys.loadScope(
+            apiBaseURL: appState.configuration?.apiBaseURL,
+            userID: appState.configuration?.userID,
+            userRole: appState.configuration?.userRole
+        )
     }
 
     private var sentenceBounds: BookCreationSentenceBounds {

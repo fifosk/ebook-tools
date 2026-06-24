@@ -1,4 +1,15 @@
+import Foundation
+
 enum AppleBookCreateStorageKeys {
+    static func loadScope(apiBaseURL: URL?, userID: String?, userRole: String?) -> String {
+        guard let apiBaseURL else { return "missing" }
+        return [
+            apiBaseURL.absoluteString,
+            userID ?? "",
+            userRole ?? ""
+        ].joined(separator: "|")
+    }
+
     static func youtubeSelection(baseKey: String, baseDir: String, field: String) -> String {
         _ = baseDir
         return "ebookTools.appleCreate.youtubeDub.\(field).\(baseKey)"

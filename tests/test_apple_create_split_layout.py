@@ -727,6 +727,7 @@ def test_create_storage_keys_are_split_from_view_and_target_wired() -> None:
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
 
     assert "enum AppleBookCreateStorageKeys" in storage_source
+    assert "static func loadScope(apiBaseURL: URL?, userID: String?, userRole: String?)" in storage_source
     assert "static func youtubeSelection(baseKey: String, baseDir: String, field: String)" in storage_source
     assert "static func subtitleShowOriginal(baseKey: String)" in storage_source
     assert "static func youtubeBaseDir(baseKey: String)" in storage_source
@@ -745,6 +746,8 @@ def test_create_storage_keys_are_split_from_view_and_target_wired() -> None:
     assert "AppleBookCreateStorageKeys.youtubeBaseDir(" in view_source
     assert "AppleBookCreateStorageKeys.youtubeLibraryLoad(" in view_source
     assert "AppleBookCreateStorageKeys.languagePreferences(" in view_source
+    assert "AppleBookCreateStorageKeys.loadScope(" in view_source
+    assert "configuration.apiBaseURL.absoluteString" not in view_source
     assert "AppleBookCreateStorageKeys.swift in Sources" in project
     assert project.count("AppleBookCreateStorageKeys.swift in Sources") == 4
     assert "AppleBookCreateStorageKeys.swift" in payload_script
