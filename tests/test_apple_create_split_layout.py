@@ -131,6 +131,15 @@ CREATE_MODELS = (
     / "Create"
     / "AppleBookCreateModels.swift"
 )
+CREATE_OPTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateOptions.swift"
+)
 CREATE_DEFAULTS = (
     ROOT
     / "ios"
@@ -411,6 +420,7 @@ def test_create_view_model_metadata_actions_are_split_and_target_wired() -> None
 
 def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     models_source = _source(CREATE_MODELS)
+    options_source = _source(CREATE_OPTIONS)
     support_source = _source(
         ROOT
         / "ios"
@@ -427,11 +437,25 @@ def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     assert "struct AppleNarrateSourceDefaults: Equatable" in models_source
     assert "struct AppleSubtitleSourceDefaults: Equatable" in models_source
     assert "struct AppleYoutubeSourceDefaults: Equatable" in models_source
-    assert "enum AppleCreateMode: String" in models_source
+    assert "enum AppleCreateMode: String" not in models_source
+    assert "struct AppleCreateSubmitState: Equatable" not in models_source
+    assert "enum AppleSubtitleTranslationProvider: String" not in models_source
+    assert "enum AppleCreateMode: String" in options_source
+    assert "struct AppleCreateSubmitState: Equatable" in options_source
+    assert "enum AppleYoutubeDubTargetHeight: Int" in options_source
+    assert "enum AppleSubtitleOutputFormat: String" in options_source
+    assert "enum AppleSubtitleTranslationProvider: String" in options_source
+    assert "enum AppleSubtitleTransliterationMode: String" in options_source
+    assert "enum AppleSubtitleTuning" in options_source
+    assert "enum AppleBookOutputChunking" in options_source
     assert "enum AppleBookCreatePresentation" not in models_source
     assert "enum AppleBookCreatePresentation" in support_source
     assert "AppleBookCreateModels.swift in Sources" in project
     assert project.count("AppleBookCreateModels.swift in Sources") == 4
+    assert "AppleBookCreateOptions.swift in Sources" in project
+    assert project.count("AppleBookCreateOptions.swift in Sources") == 4
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+    assert "AppleBookCreateOptions.swift" in payload_script
 
 
 def test_create_defaults_are_split_from_support_and_target_wired() -> None:

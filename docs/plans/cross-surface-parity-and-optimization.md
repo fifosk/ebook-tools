@@ -204,9 +204,10 @@ Current Apple UI partially exposes:
   YouTube clamp and formatting helpers, YouTube offset normalization, draft
   construction, backend default resolution, backend language/voice option
   building, source selection, and routing to focused `AppleBookCreate*`
-  presentation/helper files. Create draft value types, shared language and mode
-  models, history/default structs, and creation tuning/format/provider enums
-  now live in `AppleBookCreateModels.swift`, while job-history payload parsing
+  presentation/helper files. Create draft value types, shared language models,
+  and history/default structs now live in `AppleBookCreateModels.swift`, while
+  mode, submit-state, tuning, format, and provider options live in
+  `AppleBookCreateOptions.swift`, and job-history payload parsing
   lives in `AppleBookCreateHistoryParsing.swift`; subtitle and YouTube request
   body builders live in `AppleBookCreateMediaPayloads.swift`, keeping the
   support file as a thin namespace and the view model focused on submission
