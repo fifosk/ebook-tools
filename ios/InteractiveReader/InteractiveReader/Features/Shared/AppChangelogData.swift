@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.24.27",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-delete-saved-templates",
+                    title: "Create manages templates",
+                    detail: "Apple Create can now delete the selected saved creation template after applying or reviewing it, keeping Web-authored book, subtitle, and YouTube dubbing presets tidy from iPad, iPhone, and Apple TV."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-nas-ebook-metadata",
                     title: "Create labels NAS books",
                     detail: "Apple Create now shows backend-visible EPUB size and modified date in the server book picker, making the latest NAS source easier to verify before starting Narrate EPUB jobs."

@@ -22,6 +22,10 @@ enum AppleCreateRuntimeContract {
     static let youtubeDubPath = "/api/subtitles/youtube/dub"
     static let templateListPath = "/api/creation/templates"
     static let templatePathTemplate = "/api/creation/templates/{template_id}"
+
+    static func templatePath(_ encodedTemplateId: String) -> String {
+        "\(templateListPath)/\(encodedTemplateId)"
+    }
 }
 
 extension APIClient {
@@ -46,6 +50,15 @@ extension APIClient {
         }
         let data = try await sendRequest(path: path)
         return try decode(CreationTemplateListResponse.self, from: data)
+    }
+
+    func deleteCreationTemplate(templateId: String) async throws {
+        let trimmed = templateId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? trimmed
+        _ = try await sendRequest(
+            path: AppleCreateRuntimeContract.templatePath(encoded),
+            method: "DELETE"
+        )
     }
 
     func fetchPipelineFiles() async throws -> PipelineFileBrowserResponse {

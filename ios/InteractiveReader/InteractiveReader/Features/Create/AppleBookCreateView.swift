@@ -320,10 +320,12 @@ struct AppleBookCreateView: View {
             templates: compatibleCreationTemplates,
             selectedTemplateID: selectedCompatibleTemplateIDBinding,
             isLoading: viewModel.isLoadingCreationTemplates,
+            isDeleting: viewModel.isDeletingCreationTemplate,
             errorMessage: viewModel.creationTemplatesErrorMessage,
             message: viewModel.creationTemplateMessage,
             onRefresh: refreshCreationTemplatesFromSection,
-            onApply: applySelectedCreationTemplate
+            onApply: applySelectedCreationTemplate,
+            onDelete: deleteSelectedCreationTemplateFromSection
         )
     }
 
@@ -978,6 +980,10 @@ struct AppleBookCreateView: View {
         Task { await refreshCreationTemplates(force: true) }
     }
 
+    private func deleteSelectedCreationTemplateFromSection() {
+        Task { await deleteSelectedCreationTemplate() }
+    }
+
     private func refreshSubtitleSourcesFromSourceSection() {
         Task { await refreshSubtitleSources(force: true) }
     }
@@ -1165,6 +1171,20 @@ struct AppleBookCreateView: View {
             return
         }
         applyCreationTemplate(template)
+    }
+
+    private func deleteSelectedCreationTemplate() async {
+        guard compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID }) else {
+            viewModel.creationTemplateMessage = nil
+            viewModel.errorMessage = "Choose a saved template before deleting it."
+            return
+        }
+        let didDelete = await viewModel.deleteCreationTemplate(
+            templateID: selectedTemplateID,
+            using: appState
+        )
+        guard didDelete else { return }
+        selectedTemplateID = compatibleCreationTemplates.first?.id ?? ""
     }
 
     private func applyCreationTemplate(_ template: CreationTemplateEntry) {

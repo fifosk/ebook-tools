@@ -7,6 +7,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isLoadingIntakeStatus = false
     @Published private(set) var isLoadingPipelineFiles = false
     @Published private(set) var isLoadingCreationTemplates = false
+    @Published private(set) var isDeletingCreationTemplate = false
     @Published private(set) var isDeletingPipelineEbook = false
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
     @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
@@ -190,6 +191,37 @@ final class AppleBookCreateViewModel: ObservableObject {
             creationTemplates = []
             creationTemplatesErrorMessage = error.localizedDescription
             return []
+        }
+    }
+
+    func deleteCreationTemplate(
+        templateID: String,
+        using appState: AppState
+    ) async -> Bool {
+        guard let configuration = appState.configuration else {
+            creationTemplatesErrorMessage = "Configure a valid API base URL before deleting saved templates."
+            return false
+        }
+        let trimmedID = templateID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedID.isEmpty else {
+            creationTemplatesErrorMessage = "Choose a saved template before deleting it."
+            return false
+        }
+
+        isDeletingCreationTemplate = true
+        creationTemplatesErrorMessage = nil
+        creationTemplateMessage = nil
+        defer { isDeletingCreationTemplate = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            try await client.deleteCreationTemplate(templateId: trimmedID)
+            creationTemplates.removeAll { $0.id == trimmedID }
+            creationTemplateMessage = "Deleted saved template."
+            return true
+        } catch {
+            creationTemplatesErrorMessage = error.localizedDescription
+            return false
         }
     }
 

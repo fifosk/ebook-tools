@@ -4,10 +4,12 @@ struct AppleBookCreateTemplateSection: View {
     let templates: [CreationTemplateEntry]
     @Binding var selectedTemplateID: String
     let isLoading: Bool
+    let isDeleting: Bool
     let errorMessage: String?
     let message: String?
     let onRefresh: () -> Void
     let onApply: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
         Section("Saved Templates") {
@@ -29,12 +31,18 @@ struct AppleBookCreateTemplateSection: View {
                 }
                 .disabled(selectedTemplateID.isEmpty)
                 .accessibilityIdentifier("createBookApplyTemplateButton")
+
+                Button(role: .destructive, action: onDelete) {
+                    Label(isDeleting ? "Deleting Template" : "Delete Template", systemImage: "trash")
+                }
+                .disabled(selectedTemplateID.isEmpty || isDeleting)
+                .accessibilityIdentifier("createBookDeleteTemplateButton")
             }
 
             Button(action: onRefresh) {
                 Label(isLoading ? "Refreshing Templates" : "Refresh Templates", systemImage: "arrow.clockwise")
             }
-            .disabled(isLoading)
+            .disabled(isLoading || isDeleting)
             .accessibilityIdentifier("createBookRefreshTemplatesButton")
 
             if let message {

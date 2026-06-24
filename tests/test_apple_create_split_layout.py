@@ -512,19 +512,28 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
 
     assert "func fetchCreationTemplates(mode: String? = nil)" in api_client_source
     assert "AppleCreateRuntimeContract.templateListPath" in api_client_source
+    assert "static func templatePath(_ encodedTemplateId: String)" in api_client_source
+    assert "func deleteCreationTemplate(templateId: String) async throws" in api_client_source
+    assert "AppleCreateRuntimeContract.templatePath(encoded)" in api_client_source
+    assert 'method: "DELETE"' in api_client_source
     assert 'URLQueryItem(name: "mode", value: mode)' in api_client_source
 
     assert "@Published private(set) var creationTemplates: [CreationTemplateEntry] = []" in view_model_source
     assert "@Published private(set) var isLoadingCreationTemplates = false" in view_model_source
+    assert "@Published private(set) var isDeletingCreationTemplate = false" in view_model_source
     assert "@Published private(set) var creationTemplatesErrorMessage: String?" in view_model_source
     assert "@Published var creationTemplateMessage: String?" in view_model_source
     assert "func loadCreationTemplates(" in view_model_source
     assert "client.fetchCreationTemplates()" in view_model_source
+    assert "func deleteCreationTemplate(" in view_model_source
+    assert "client.deleteCreationTemplate(templateId: trimmedID)" in view_model_source
+    assert "creationTemplates.removeAll { $0.id == trimmedID }" in view_model_source
 
     assert "struct AppleBookCreateTemplateSection: View" in status_views_source
     for identifier in [
         "createBookTemplatePicker",
         "createBookApplyTemplateButton",
+        "createBookDeleteTemplateButton",
         "createBookRefreshTemplatesButton",
         "createBookTemplateStatusLabel",
         "createBookTemplateErrorLabel",
@@ -535,6 +544,9 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "AppleBookCreateTemplateSection(" in view_source
     assert "await refreshCreationTemplates()" in view_source
     assert "private func applySelectedCreationTemplate()" in view_source
+    assert "private func deleteSelectedCreationTemplate()" in view_source
+    assert "private func deleteSelectedCreationTemplateFromSection()" in view_source
+    assert "await viewModel.deleteCreationTemplate(" in view_source
     assert "private func applyCreationTemplate(_ template: CreationTemplateEntry)" in view_source
     assert 'template.normalizedMode == "subtitle_job"' in view_source
     assert 'template.normalizedMode == "youtube_dub"' in view_source

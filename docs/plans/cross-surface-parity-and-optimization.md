@@ -736,11 +736,12 @@ Suggested features to evaluate after parity scaffolding:
   current settings. Native Apple Create on iPhone/iPad can list those saved
   generated-book and Narrate EPUB templates, apply the Web form state into its
   source, language, narration, output, image, metadata, and worker controls, and
-  mark the applied fields as edited so later backend/history defaults do not
-  overwrite them. Apple Create also applies saved subtitle and YouTube dubbing
-  templates into source, language, model, timing, output, metadata JSON, and
-  tuning controls. Web Subtitle Tool and Video Dubbing can now save sanitized
-  subtitle and YouTube templates from their current settings for Apple reuse.
+  delete stale saved templates after review. Applied fields are marked as edited
+  so later backend/history defaults do not overwrite them. Apple Create also
+  applies saved subtitle and YouTube dubbing templates into source, language,
+  model, timing, output, metadata JSON, and tuning controls. Web Subtitle Tool
+  and Video Dubbing can now save sanitized subtitle and YouTube templates from
+  their current settings for Apple reuse.
 - Draft jobs: start on iPad, finish advanced settings on Web.
 - Creation handoff: Apple app opens the corresponding Web creation URL for unsupported advanced options. Status:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,
