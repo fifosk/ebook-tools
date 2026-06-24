@@ -26,9 +26,9 @@ import { BookNarrationFormSections } from './BookNarrationFormSections';
 import { useBookNarrationChapters } from './useBookNarrationChapters';
 import { useBookNarrationLlmModels } from './useBookNarrationLlmModels';
 import { useBookNarrationDefaults } from './useBookNarrationDefaults';
-import { CreateIntakeStatusCallout } from '../create-intake/CreateIntakeStatusCallout';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
+import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
 import type {
   BookNarrationFormProps,
   BookNarrationFormSection,
@@ -586,17 +586,14 @@ export function BookNarrationForm({
           isSubmitting={isSubmitting}
           submitText={submitText}
         />
-        <CreateIntakeStatusCallout status={intakeStatus} isLoading={isLoadingIntakeStatus} />
-        {hasMissingRequirements ? (
-          <div className="form-callout form-callout--warning" role="status">
-            Provide {missingRequirementText} before submitting.
-          </div>
-        ) : null}
-        {error || externalError ? (
-          <div className="alert" role="alert">
-            {error ?? externalError}
-          </div>
-        ) : null}
+        <BookNarrationSubmitStatus
+          intakeStatus={intakeStatus}
+          isLoadingIntakeStatus={isLoadingIntakeStatus}
+          hasMissingRequirements={hasMissingRequirements}
+          missingRequirementText={missingRequirementText}
+          error={error}
+          externalError={externalError}
+        />
         <div className="pipeline-section-panel">
           <BookNarrationFormSections
             section={activeTab}
