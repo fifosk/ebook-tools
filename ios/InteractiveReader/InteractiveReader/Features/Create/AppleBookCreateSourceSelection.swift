@@ -60,6 +60,47 @@ extension AppleBookCreatePresentation {
         }.first
     }
 
+    static func narrateSourceDefaults(
+        selectedLocalFile: Bool,
+        didEditSourcePath: Bool,
+        sourcePath: String,
+        sourceBaseOutput: String,
+        didEditBaseOutput: Bool,
+        files: PipelineFileBrowserResponse?
+    ) -> AppleNarrateSourceDefaults? {
+        guard
+            !selectedLocalFile,
+            !didEditSourcePath,
+            normalizedSourceText(sourcePath).isEmpty,
+            let entry = preferredPipelineEbook(from: files)
+        else {
+            return nil
+        }
+
+        let baseOutput = normalizedSourceText(sourceBaseOutput).isEmpty && !didEditBaseOutput
+            ? deriveBaseOutputName(entry.name)
+            : nil
+        return AppleNarrateSourceDefaults(path: entry.path, baseOutput: baseOutput)
+    }
+
+    static func subtitleSourceDefaults(
+        selectedLocalFile: Bool,
+        didEditSourcePath: Bool,
+        sourcePath: String,
+        sources: SubtitleSourceListResponse?
+    ) -> AppleSubtitleSourceDefaults? {
+        guard
+            !selectedLocalFile,
+            !didEditSourcePath,
+            normalizedSourceText(sourcePath).isEmpty,
+            let entry = preferredSubtitleSource(from: sources)
+        else {
+            return nil
+        }
+
+        return AppleSubtitleSourceDefaults(path: entry.path, metadataLookupSourceName: entry.name)
+    }
+
     static func playableYoutubeSubtitles(for video: YoutubeNasVideoEntry?) -> [YoutubeNasSubtitleEntry] {
         video?.subtitles.filter {
             AppleBookCreateSourceSelectionConstants.youtubePlayableSubtitleFormats.contains(normalizedSourceText($0.format).lowercased())

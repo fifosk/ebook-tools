@@ -227,6 +227,16 @@ struct AppleYoutubeSourceSelection: Equatable {
     let subtitle: YoutubeNasSubtitleEntry?
 }
 
+struct AppleNarrateSourceDefaults: Equatable {
+    let path: String
+    let baseOutput: String?
+}
+
+struct AppleSubtitleSourceDefaults: Equatable {
+    let path: String
+    let metadataLookupSourceName: String
+}
+
 struct AppleCreateEstimatedAudio {
     static let secondsPerSentence = 6.4
 }

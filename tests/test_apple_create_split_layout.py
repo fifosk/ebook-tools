@@ -314,6 +314,8 @@ def test_create_models_are_split_from_presentation_and_target_wired() -> None:
 
     assert "struct AppleBookCreateDraft: Equatable" in models_source
     assert "struct AppleNarrationHistoryDefaults: Equatable" in models_source
+    assert "struct AppleNarrateSourceDefaults: Equatable" in models_source
+    assert "struct AppleSubtitleSourceDefaults: Equatable" in models_source
     assert "enum AppleCreateMode: String" in models_source
     assert "enum AppleBookCreatePresentation" not in models_source
     assert "enum AppleBookCreatePresentation" in support_source
@@ -708,6 +710,8 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
     assert "extension AppleBookCreatePresentation" in source_selection
     assert "static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry?" in source_selection
     assert "static func preferredSubtitleSource(from response: SubtitleSourceListResponse?)" in source_selection
+    assert "static func narrateSourceDefaults(" in source_selection
+    assert "static func subtitleSourceDefaults(" in source_selection
     assert "static func preferredYoutubeSelection(from library: YoutubeNasLibraryResponse?)" in source_selection
     assert "static func youtubeSelection(" in source_selection
     assert "static func youtubeLibraryCacheKey(baseKey: String, baseDir: String)" in source_selection
@@ -718,6 +722,9 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
     assert "AppleBookCreateSourceSelection.swift in Sources" in project
     assert project.count("AppleBookCreateSourceSelection.swift in Sources") == 4
     assert "AppleBookCreateSourceSelection.swift" in payload_script
+    view_source = _source(CREATE_VIEW)
+    assert "AppleBookCreatePresentation.narrateSourceDefaults(" in view_source
+    assert "AppleBookCreatePresentation.subtitleSourceDefaults(" in view_source
 
 
 def test_create_storage_keys_are_split_from_view_and_target_wired() -> None:

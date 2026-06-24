@@ -1166,33 +1166,35 @@ struct AppleBookCreateView: View {
     }
 
     private func applyPreferredNarrateSource(from files: PipelineFileBrowserResponse?) {
-        guard
-            selectedNarrateFileURL == nil,
-            !editedFields.contains(.sourcePath),
-            trimmed(sourcePath).isEmpty,
-            let entry = AppleBookCreatePresentation.preferredPipelineEbook(from: files)
-        else {
+        guard let defaults = AppleBookCreatePresentation.narrateSourceDefaults(
+            selectedLocalFile: selectedNarrateFileURL != nil,
+            didEditSourcePath: editedFields.contains(.sourcePath),
+            sourcePath: sourcePath,
+            sourceBaseOutput: sourceBaseOutput,
+            didEditBaseOutput: editedFields.contains(.sourceBaseOutput),
+            files: files
+        ) else {
             return
         }
 
-        sourcePath = entry.path
-        if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
-            sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(entry.name)
+        sourcePath = defaults.path
+        if let baseOutput = defaults.baseOutput {
+            sourceBaseOutput = baseOutput
         }
     }
 
     private func applyPreferredSubtitleSource(from sources: SubtitleSourceListResponse?) {
-        guard
-            selectedSubtitleFileURL == nil,
-            !editedFields.contains(.subtitleSourcePath),
-            trimmed(subtitleSourcePath).isEmpty,
-            let entry = AppleBookCreatePresentation.preferredSubtitleSource(from: sources)
-        else {
+        guard let defaults = AppleBookCreatePresentation.subtitleSourceDefaults(
+            selectedLocalFile: selectedSubtitleFileURL != nil,
+            didEditSourcePath: editedFields.contains(.subtitleSourcePath),
+            sourcePath: subtitleSourcePath,
+            sources: sources
+        ) else {
             return
         }
 
-        subtitleSourcePath = entry.path
-        subtitleMetadataLookupSourceName = entry.name
+        subtitleSourcePath = defaults.path
+        subtitleMetadataLookupSourceName = defaults.metadataLookupSourceName
     }
 
     private func applyPreferredYoutubeSource(from library: YoutubeNasLibraryResponse?) {
