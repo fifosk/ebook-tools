@@ -17,6 +17,9 @@ from modules.webapi.application import create_app
 from modules.webapi.dependencies import get_auth_service, get_pipeline_job_manager
 from modules.webapi.runtime_descriptor import (
     CREATION_DESCRIPTOR,
+    LIBRARY_ACTIONS_DESCRIPTOR,
+    OFFLINE_EXPORTS_DESCRIPTOR,
+    PLAYBACK_STATE_DESCRIPTOR,
     assert_runtime_descriptor_is_public,
     build_runtime_descriptor,
     find_sensitive_descriptor_keys,
@@ -121,6 +124,18 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
         "deviceProfiles": ["iphone", "ipad", "appletv", "cinema"],
     }
     assert payload["creation"] == CREATION_DESCRIPTOR
+    assert payload["offlineExports"] == {
+        "createPath": "/api/exports",
+        "downloadPathTemplate": "/api/exports/{export_id}/download",
+        "sourceKinds": ["job", "library"],
+        "playerTypes": ["interactive-text"],
+    }
+    assert payload["offlineExports"] == OFFLINE_EXPORTS_DESCRIPTOR | {
+        "sourceKinds": ["job", "library"],
+        "playerTypes": ["interactive-text"],
+    }
+    assert payload["libraryActions"] == LIBRARY_ACTIONS_DESCRIPTOR
+    assert payload["playbackState"] == PLAYBACK_STATE_DESCRIPTOR
     assert_runtime_descriptor_is_public(payload)
 
 
