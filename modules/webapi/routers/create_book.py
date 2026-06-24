@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 from dataclasses import replace as dataclass_replace
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -549,7 +549,7 @@ def _parse_sentences(payload: str, expected: int) -> list[str]:
     if isinstance(data, dict):
         data = data.get("sentences")
 
-    if not isinstance(data, Iterable):
+    if not isinstance(data, list):
         raise ValueError("LLM response did not contain a sentence list")
 
     sentences: list[str] = []

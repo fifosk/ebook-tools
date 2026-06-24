@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,7 +18,7 @@ from modules.webapi.dependencies import (
     get_runtime_context_provider,
 )
 from modules.webapi.routes.books_routes import _list_ebook_files
-from modules.webapi.routers.create_book import _source_book_context
+from modules.webapi.routers.create_book import _parse_sentences, _source_book_context
 from modules.webapi.schemas.create_book import BookGenerationJobSubmission
 
 pytestmark = pytest.mark.pipeline
@@ -156,6 +157,27 @@ def test_source_book_context_normalizes_optional_continuation_fields() -> None:
         "source_book_title": "Inferno",
         "source_book_author": "Dan Brown",
     }
+
+
+def test_parse_sentences_rejects_json_string_payload() -> None:
+    with pytest.raises(ValueError, match="sentence list"):
+        _parse_sentences('"One sentence only."', 1)
+
+
+def test_parse_sentences_accepts_named_sentence_list_and_dedupes() -> None:
+    payload = {
+        "sentences": [
+            "First generated sentence.",
+            "First generated sentence.",
+            "This is a sample sentence",
+            "Second generated sentence.",
+        ]
+    }
+
+    assert _parse_sentences(json.dumps(payload), 2) == [
+        "First generated sentence.",
+        "Second generated sentence.",
+    ]
 
 
 def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
