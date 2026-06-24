@@ -9,8 +9,9 @@
        build-apple-local-surfaces verify-apple-local-surfaces \
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
        apple-pipeline-source-sync apple-pipeline-web-checks \
-       apple-pipeline-simulator-smoke apple-pipeline-simulator-smoke-dry-run \
+       apple-pipeline-simulator-smoke apple-pipeline-simulator-smoke-dry-run apple-pipeline-simulator-smokes-dry-run \
        apple-pipeline-owned-journeys apple-pipeline-owned-journey apple-pipeline-owned-journey-dry-run \
+       apple-pipeline-owned-journeys-dry-run apple-pipeline-orchestration-dry-runs \
        verify-apple-shared-pipeline \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
@@ -28,7 +29,9 @@ APPLE_PIPELINE_ROOT ?= /Users/fifo/Projects/home/apple-device-app-pipeline
 APPLE_PIPELINE_APP ?= ebook-tools
 APPLE_PIPELINE_PYTHON ?= python3
 APPLE_PIPELINE_SMOKE_PROFILE ?= ipados
+APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos
 APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados
+APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create macos-ipad-style-dry-run macos-ipad-style
 APPLE_DEVICE_PROFILE ?= ipad
 
 # ── Full suite ───────────────────────────────────────────────────────────
@@ -116,6 +119,11 @@ apple-pipeline-simulator-smoke:
 apple-pipeline-simulator-smoke-dry-run:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_simulator_smoke.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_SMOKE_PROFILE)" --dry-run
 
+apple-pipeline-simulator-smokes-dry-run:
+	@for profile in $(APPLE_PIPELINE_SMOKE_PROFILES); do \
+		$(MAKE) apple-pipeline-simulator-smoke-dry-run APPLE_PIPELINE_SMOKE_PROFILE="$$profile"; \
+	done
+
 apple-pipeline-owned-journeys:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --list
 
@@ -124,6 +132,13 @@ apple-pipeline-owned-journey:
 
 apple-pipeline-owned-journey-dry-run:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_JOURNEY_PROFILE)" --dry-run
+
+apple-pipeline-owned-journeys-dry-run:
+	@for profile in $(APPLE_PIPELINE_JOURNEY_PROFILES); do \
+		$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE="$$profile"; \
+	done
+
+apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run
 
 verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks
 

@@ -15,7 +15,12 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "APPLE_PIPELINE_ROOT ?= /Users/fifo/Projects/home/apple-device-app-pipeline" in makefile
     assert "APPLE_PIPELINE_APP ?= ebook-tools" in makefile
     assert "APPLE_PIPELINE_SMOKE_PROFILE ?= ipados" in makefile
+    assert "APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos" in makefile
     assert "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" in makefile
+    assert (
+        "APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create "
+        "ipados-create macos-ipad-style-dry-run macos-ipad-style"
+    ) in makefile
     assert "apple-pipeline-contracts:" in makefile
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "apple-pipeline-backend:" in makefile
@@ -30,12 +35,20 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert 'scripts/run_app_simulator_smoke.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_SMOKE_PROFILE)"' in makefile
     assert "apple-pipeline-simulator-smoke-dry-run:" in makefile
     assert "--profile \"$(APPLE_PIPELINE_SMOKE_PROFILE)\" --dry-run" in makefile
+    assert "apple-pipeline-simulator-smokes-dry-run:" in makefile
+    assert '$(MAKE) apple-pipeline-simulator-smoke-dry-run APPLE_PIPELINE_SMOKE_PROFILE="$$profile"' in makefile
     assert "apple-pipeline-owned-journeys:" in makefile
     assert 'scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --list' in makefile
     assert "apple-pipeline-owned-journey:" in makefile
     assert "--profile \"$(APPLE_PIPELINE_JOURNEY_PROFILE)\" --use-remote-env" in makefile
     assert "apple-pipeline-owned-journey-dry-run:" in makefile
     assert "--profile \"$(APPLE_PIPELINE_JOURNEY_PROFILE)\" --dry-run" in makefile
+    assert "apple-pipeline-owned-journeys-dry-run:" in makefile
+    assert '$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE="$$profile"' in makefile
+    assert (
+        "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run "
+        "apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run"
+    ) in makefile
 
 
 def test_shared_pipeline_verification_stays_non_physical() -> None:
@@ -83,8 +96,11 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-pipeline-source-sync",
         "make apple-pipeline-web-checks",
         "make apple-pipeline-simulator-smoke-dry-run",
+        "make apple-pipeline-simulator-smokes-dry-run",
         "make apple-pipeline-owned-journeys",
         "make apple-pipeline-owned-journey-dry-run",
+        "make apple-pipeline-owned-journeys-dry-run",
+        "make apple-pipeline-orchestration-dry-runs",
         "make verify-apple-shared-pipeline",
     ]:
         assert command in docs

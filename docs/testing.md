@@ -187,8 +187,11 @@ make apple-pipeline-backend-tests
 make apple-pipeline-source-sync
 make apple-pipeline-web-checks
 make apple-pipeline-simulator-smoke-dry-run
+make apple-pipeline-simulator-smokes-dry-run
 make apple-pipeline-owned-journeys
 make apple-pipeline-owned-journey-dry-run
+make apple-pipeline-owned-journeys-dry-run
+make apple-pipeline-orchestration-dry-runs
 make verify-apple-shared-pipeline
 ```
 
@@ -204,7 +207,9 @@ shared pipeline runner, then restores generated Web artifacts. Use
 `apple-pipeline-simulator-smoke-dry-run` before launching a shared simulator
 smoke, and `APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create` (or another listed
 journey) with `apple-pipeline-owned-journey-dry-run` before running an
-app-owned XCUITest journey.
+app-owned XCUITest journey. `apple-pipeline-orchestration-dry-runs` expands the
+registered iPhone/iPad/tvOS simulator smoke profiles and app-owned journeys
+without booting simulators or loading remote secrets.
 
 For a quick Apple TV compile check without launching the full tvOS journey, run
 the repo-owned simulator build lane:

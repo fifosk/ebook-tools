@@ -198,8 +198,11 @@ make apple-pipeline-backend-tests
 make apple-pipeline-source-sync
 make apple-pipeline-web-checks
 make apple-pipeline-simulator-smoke-dry-run APPLE_PIPELINE_SMOKE_PROFILE=ipados
+make apple-pipeline-simulator-smokes-dry-run
 make apple-pipeline-owned-journeys
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create
+make apple-pipeline-owned-journeys-dry-run
+make apple-pipeline-orchestration-dry-runs
 make verify-apple-shared-pipeline
 make apple-device-preflight APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID=<id>
 make apple-device-signed-build-only APPLE_DEVICE_PROFILE=ipad
