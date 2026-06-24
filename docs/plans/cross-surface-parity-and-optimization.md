@@ -220,7 +220,9 @@ Current Apple UI partially exposes:
   `AppleBookCreateSections.swift` while preserving the tvOS-safe JSON editor
   fallback. The iOS/iPad searchable full-language selector now lives in
   `AppleBookCreateLanguageSelector.swift`, keeping the shared narration section
-  focused on language/voice routing. Subtitle time-range and YouTube
+  focused on language/voice routing. Source selection for newest-first server
+  EPUBs, subtitle jobs, and NAS YouTube dubbing lives in
+  `AppleBookCreateSourceSection.swift`. Subtitle time-range and YouTube
   offset-range validation now use pure support helpers that preserve the
   existing visible error messages. Backend default resolution and edited-field
   preservation now live in support too, so backend-driven Apple Create defaults

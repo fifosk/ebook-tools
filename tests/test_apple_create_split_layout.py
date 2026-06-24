@@ -176,6 +176,15 @@ CREATE_HISTORY_PARSING = (
     / "Create"
     / "AppleBookCreateHistoryParsing.swift"
 )
+CREATE_SOURCE_SECTION = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSourceSection.swift"
+)
 CREATE_BASIC_SECTIONS = (
     ROOT
     / "ios"
@@ -677,14 +686,20 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
-    source = _source(CREATE_SECTIONS)
+    source = _source(CREATE_SOURCE_SECTION)
+    sections_source = _source(CREATE_SECTIONS)
+    project = _source(XCODE_PROJECT)
 
+    assert "struct AppleBookCreateSourceSection: View" in source
     assert "let showsJobTypePicker: Bool" in source
     assert "let showsNarrateRangeControls: Bool" in source
     assert "if showsJobTypePicker || creationMode != .generatedBook" in source
     assert 'Picker("Job type", selection: $creationMode)' in source
     assert '.accessibilityIdentifier("createJobTypePicker")' in source
     assert "if showsNarrateRangeControls" in source
+    assert "struct AppleBookCreateSourceSection: View" not in sections_source
+    assert "AppleBookCreateSourceSection.swift in Sources" in project
+    assert project.count("AppleBookCreateSourceSection.swift in Sources") == 4
 
 
 def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
@@ -952,15 +967,15 @@ def test_tvos_create_metadata_json_editor_avoids_text_editor() -> None:
 
 
 def test_youtube_create_exposes_inline_subtitle_extraction_controls() -> None:
-    sections_source = _source(CREATE_SECTIONS)
+    source_section = _source(CREATE_SOURCE_SECTION)
     view_source = _source(CREATE_VIEW)
 
-    assert "embeddedYoutubeSubtitleControls" in sections_source
-    assert 'accessibilityIdentifier("createYoutubeInspectEmbeddedSubtitlesButton")' in sections_source
-    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitleLanguagesField")' in sections_source
-    assert 'accessibilityIdentifier("createYoutubeExtractEmbeddedSubtitlesButton")' in sections_source
-    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesMessage")' in sections_source
-    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesError")' in sections_source
+    assert "embeddedYoutubeSubtitleControls" in source_section
+    assert 'accessibilityIdentifier("createYoutubeInspectEmbeddedSubtitlesButton")' in source_section
+    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitleLanguagesField")' in source_section
+    assert 'accessibilityIdentifier("createYoutubeExtractEmbeddedSubtitlesButton")' in source_section
+    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesMessage")' in source_section
+    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesError")' in source_section
     assert "youtubeInlineSubtitleStreams: viewModel.youtubeInlineSubtitleStreams" in view_source
     assert "onInspectYoutubeSubtitles: inspectYoutubeSubtitles" in view_source
     assert "onExtractYoutubeSubtitles: extractYoutubeSubtitles" in view_source
