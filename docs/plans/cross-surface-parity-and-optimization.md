@@ -215,7 +215,10 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/sidebar/SidebarCreationLinks.tsx` with focused rendered
   coverage. Admin navigation and observability links now live in
   `web/src/components/sidebar/SidebarAdminLinks.tsx` with focused rendered
-  coverage. Job overview bucketing and section rendering now live in
+  coverage. The repo-owned `test-web-admin-focused` target now covers
+  user-management, system status/restart controls, and admin/observability
+  navigation so the shared Apple Web manifest catches admin shell regressions
+  before full Vitest. Job overview bucketing and section rendering now live in
   `web/src/components/sidebar/SidebarJobOverview.tsx` with focused rendered
   coverage.
 - `web/src/components/book-narration/BookNarrationForm.tsx` - 675 lines.

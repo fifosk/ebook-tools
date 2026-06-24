@@ -28,6 +28,25 @@ def test_docs_publish_auth_focused_web_target() -> None:
     assert "test-web-auth-focused" in plan
 
 
+def test_admin_focused_web_target_covers_admin_shell_surfaces() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    assert "test-web-admin-focused" in makefile
+    block = _target_block(makefile, "test-web-admin-focused")
+    assert "npm --prefix web test -- --run" in block
+    assert "src/components/__tests__/UserManagementPanel.test.tsx" in block
+    assert "src/components/__tests__/SystemPanel.test.tsx" in block
+    assert "src/components/__tests__/SidebarAdminLinks.test.tsx" in block
+
+
+def test_docs_publish_admin_focused_web_target() -> None:
+    docs = TESTING_DOC.read_text(encoding="utf-8")
+    plan = PLAN_DOC.read_text(encoding="utf-8")
+
+    assert "make test-web-admin-focused" in docs
+    assert "test-web-admin-focused" in plan
+
+
 def test_create_book_focused_web_target_covers_create_page_tests() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
@@ -196,6 +215,7 @@ def test_docs_publish_all_repo_owned_web_pipeline_targets() -> None:
 
     for command in [
         "make test-web-auth-focused",
+        "make test-web-admin-focused",
         "make test-web-create-book-focused",
         "make test-web-create-intake-focused",
         "make test-web-creation-templates-focused",
