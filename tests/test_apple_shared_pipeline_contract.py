@@ -25,6 +25,8 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "test-apple-language-catalogs:" in makefile
     assert "tests/test_language_catalog_parity.py tests/scripts/test_generate_language_catalogs.py" in makefile
+    assert "test-apple-create-readiness-contract:" in makefile
+    assert "tests/scripts/test_check_apple_create_readiness.py tests/test_apple_create_readiness_journey.py tests/test_apple_e2e_env_file_contract.py" in makefile
     assert "apple-pipeline-backend:" in makefile
     assert 'scripts/check_app_backend.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "apple-pipeline-backend-tests:" in makefile
@@ -126,6 +128,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
     for command in [
         "make apple-pipeline-contracts",
         "make test-apple-language-catalogs",
+        "make test-apple-create-readiness-contract",
         "make apple-pipeline-backend",
         "make apple-pipeline-backend-tests",
         "make apple-pipeline-source-sync",

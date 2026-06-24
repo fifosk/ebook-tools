@@ -212,6 +212,7 @@ through repo-owned wrapper targets:
 ```bash
 make apple-pipeline-contracts
 make test-apple-language-catalogs
+make test-apple-create-readiness-contract
 make apple-pipeline-backend
 make apple-pipeline-backend-tests
 make apple-pipeline-source-sync
@@ -340,6 +341,16 @@ make test-apple-language-catalogs
 This runs the backend/Web/Apple catalog parity tests, the catalog generator
 tests, and the generator staleness check without invoking the full Apple
 contract suite.
+
+For focused Apple Create readiness preflight work, use:
+
+```bash
+make test-apple-create-readiness-contract
+```
+
+This runs the native Create readiness checker tests plus the simulator-journey
+and env-file contracts that prove the preflight is wired before iPhone, iPad,
+and tvOS Create journeys.
 
 The public runtime descriptor at `/api/system/runtime` also advertises the
 Create, saved-template, Library action, offline export, and playback-state

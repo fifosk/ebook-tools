@@ -689,7 +689,9 @@ After Narrate Ebook:
   pipeline defaults from `/api/books/options`, and the native Create readiness
   journey opens Generate before the media modes, scrolls as needed, and types a
   source-book continuation context so unattended iPhone/iPad simulator checks
-  prove the generated-book controls are drivable.
+  prove the generated-book controls are drivable. The shared pipeline also has
+  a focused `make test-apple-create-readiness-contract` gate for the preflight
+  parser/default-source/default-settings contract.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
   files, including NAS library video/subtitle pickers, remembered base
