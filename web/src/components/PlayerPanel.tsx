@@ -18,6 +18,7 @@ import {
 } from './player-panel/constants';
 import MediaSearchPanel from './MediaSearchPanel';
 import type { LibraryItem } from '../api/dtos';
+import { PlayerPanelContent } from './player-panel/PlayerPanelContent';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
 import {
   buildInteractiveAudioCatalog,
@@ -875,35 +876,27 @@ export default function PlayerPanel({
       }
       toolbar={panelNavigation}
     >
-      {!hasAnyMedia && !isLoading ? (
-        <p role="status">{emptyMediaMessage}</p>
-      ) : !hasTextItems && !hasInteractiveChunks ? (
-        <p role="status">No interactive reader media yet.</p>
-      ) : (
-        <div className="player-panel__stage">
-          {!mediaComplete ? (
-            <div className="player-panel__notice" role="status">
-              Media generation is still finishing. Newly generated files will appear automatically.
-            </div>
-          ) : null}
-          <div className="player-panel__viewer">
-            <div className="player-panel__document">
-              <PlayerPanelInteractiveDocument
-                shouldShowEmptySelectionPlaceholder={shouldShowEmptySelectionPlaceholder}
-                shouldShowLoadingPlaceholder={shouldShowLoadingPlaceholder}
-                shouldShowStandaloneError={shouldShowStandaloneError}
-                shouldShowInteractiveViewer={shouldShowInteractiveViewer}
-                canRenderInteractiveViewer={canRenderInteractiveViewer}
-                textError={textError}
-                textLoading={textLoading}
-                selectedItem={selectedItem}
-                viewerProps={interactiveViewerProps}
-                textScrollRef={textScrollRef}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <PlayerPanelContent
+        hasAnyMedia={hasAnyMedia}
+        isLoading={isLoading}
+        emptyMediaMessage={emptyMediaMessage}
+        hasTextItems={hasTextItems}
+        hasInteractiveChunks={hasInteractiveChunks}
+        mediaComplete={mediaComplete}
+      >
+        <PlayerPanelInteractiveDocument
+          shouldShowEmptySelectionPlaceholder={shouldShowEmptySelectionPlaceholder}
+          shouldShowLoadingPlaceholder={shouldShowLoadingPlaceholder}
+          shouldShowStandaloneError={shouldShowStandaloneError}
+          shouldShowInteractiveViewer={shouldShowInteractiveViewer}
+          canRenderInteractiveViewer={canRenderInteractiveViewer}
+          textError={textError}
+          textLoading={textLoading}
+          selectedItem={selectedItem}
+          viewerProps={interactiveViewerProps}
+          textScrollRef={textScrollRef}
+        />
+      </PlayerPanelContent>
     </PlayerPanelShell>
   );
 }
