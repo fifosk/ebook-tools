@@ -74,6 +74,9 @@ Large Web UI hotspots to split before redesign work:
   voice option construction, sample synthesis, browser audio cleanup, and
   preview error handling now live in
   `web/src/pages/video-dubbing/useVideoDubbingVoiceState.ts` with focused hook
+  coverage. Translation model inventory loading, model-load error handling, and
+  selected translation/transliteration provider/model state now live in
+  `web/src/pages/video-dubbing/useVideoDubbingModelState.ts` with focused hook
   coverage.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill

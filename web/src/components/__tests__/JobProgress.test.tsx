@@ -34,9 +34,9 @@ describe('JobProgress', () => {
       job_id: 'job-1',
       job_type: 'pipeline',
       status: 'completed',
-      created_at: new Date().toISOString(),
-      started_at: new Date().toISOString(),
-      completed_at: new Date().toISOString(),
+      created_at: '2024-01-02T03:04:05.000Z',
+      started_at: '2024-01-02T03:04:06.000Z',
+      completed_at: '2024-01-02T03:04:07.000Z',
       result: null,
       error: null,
       latest_event: null,
@@ -74,7 +74,7 @@ describe('JobProgress', () => {
     );
 
     expect(screen.getByText(/Latest progress/i)).toBeInTheDocument();
-    expect(screen.getByText(/10 /)).toBeInTheDocument();
+    expect(screen.getByText('10 / 20')).toBeInTheDocument();
     expect(screen.getByText(/2.00 items/)).toBeInTheDocument();
   });
 

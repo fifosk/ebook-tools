@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchYoutubeLibrary,
   generateYoutubeDub,
-  fetchSubtitleModels,
   fetchInlineSubtitleStreams,
   extractInlineSubtitles,
   deleteNasSubtitle,
@@ -32,7 +31,6 @@ import { CreateIntakeStatusCallout } from '../components/create-intake/CreateInt
 import { useCreateIntakeStatus } from '../components/create-intake/useCreateIntakeStatus';
 import {
   DEFAULT_FLUSH_SENTENCES,
-  DEFAULT_LLM_MODEL,
   DEFAULT_ORIGINAL_MIX_PERCENT,
   DEFAULT_PRESERVE_ASPECT_RATIO,
   DEFAULT_SPLIT_BATCHES,
@@ -45,6 +43,7 @@ import { useVideoDubbingSelectionState } from './video-dubbing/useVideoDubbingSe
 import { useVideoDubbingMetadata } from './video-dubbing/useVideoDubbingMetadata';
 import { useVideoDubbingLanguageState } from './video-dubbing/useVideoDubbingLanguageState';
 import { useVideoDubbingVoiceState } from './video-dubbing/useVideoDubbingVoiceState';
+import { useVideoDubbingModelState } from './video-dubbing/useVideoDubbingModelState';
 import {
   buildVideoDubbingGeneratePayload,
   canExtractEmbeddedSubtitles,
@@ -103,17 +102,23 @@ export default function VideoDubbingPage({
   const [translationBatchSize, setTranslationBatchSize] = useState(DEFAULT_TRANSLATION_BATCH_SIZE);
   const [targetHeight, setTargetHeight] = useState(DEFAULT_TARGET_HEIGHT);
   const [preserveAspectRatio, setPreserveAspectRatio] = useState(DEFAULT_PRESERVE_ASPECT_RATIO);
-  const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
-  const [transliterationModel, setTransliterationModel] = useState('');
-  const [translationProvider, setTranslationProvider] = useState('llm');
-  const [transliterationMode, setTransliterationMode] = useState('default');
   const [splitBatches, setSplitBatches] = useState(DEFAULT_SPLIT_BATCHES);
   const [stitchBatches, setStitchBatches] = useState(DEFAULT_STITCH_BATCHES);
   const [includeTransliteration, setIncludeTransliteration] = useState(true);
   const [enableLookupCache, setEnableLookupCache] = useState(true);
-  const [llmModels, setLlmModels] = useState<string[]>([]);
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
-  const [modelError, setModelError] = useState<string | null>(null);
+  const {
+    llmModel,
+    setLlmModel,
+    transliterationModel,
+    setTransliterationModel,
+    translationProvider,
+    setTranslationProvider,
+    transliterationMode,
+    setTransliterationMode,
+    llmModels,
+    isLoadingModels,
+    modelError
+  } = useVideoDubbingModelState();
 
   const applyYoutubeDubDefaults = useCallback(
     (defaults: Awaited<ReturnType<typeof fetchBookCreationOptions>>['youtube_dub_defaults']) => {
@@ -422,35 +427,6 @@ export default function VideoDubbingPage({
     setSelectedSubtitlePath(defaultSubtitle?.path ?? null);
     ensureTargetLanguage(defaultSubtitle?.language);
   }, [ensureTargetLanguage, playableSubtitles, selectedSubtitlePath, selectedVideo]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadModels = async () => {
-      setIsLoadingModels(true);
-      setModelError(null);
-      try {
-        const models = await fetchSubtitleModels();
-        if (cancelled) return;
-        setLlmModels(models);
-        if (!llmModel && models.length > 0) {
-          setLlmModel(models.includes(DEFAULT_LLM_MODEL) ? DEFAULT_LLM_MODEL : models[0]);
-        }
-      } catch (error) {
-        if (cancelled) return;
-        const message =
-          error instanceof Error ? error.message || 'Unable to load translation models.' : 'Unable to load translation models.';
-        setModelError(message);
-      } finally {
-        if (!cancelled) {
-          setIsLoadingModels(false);
-        }
-      }
-    };
-    void loadModels();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const handleSelectVideo = useCallback((video: YoutubeNasVideo) => {
     setSelectedVideoPath(video.path);
