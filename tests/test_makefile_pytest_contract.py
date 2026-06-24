@@ -5,6 +5,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 MAKEFILE = ROOT / "Makefile"
 TESTING_DOC = ROOT / "docs" / "testing.md"
+GITIGNORE = ROOT / ".gitignore"
 
 
 def _target_body(makefile: str, target: str) -> str:
@@ -40,3 +41,10 @@ def test_testing_docs_note_makefile_python_selection() -> None:
 
     assert "Makefile pytest targets run through `$(PYTHON) -m pytest`" in normalized_docs
     assert "`.venv/bin/python` when available" in normalized_docs
+
+
+def test_generated_e2e_artifacts_do_not_dirty_source_sync() -> None:
+    gitignore = GITIGNORE.read_text(encoding="utf-8")
+
+    assert "test-results/" in gitignore
+    assert "!test-results/*-e2e-report.md" not in gitignore

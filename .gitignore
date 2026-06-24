@@ -49,12 +49,8 @@ conf/secrets/
 # Xcode project backups from scripts
 *.pbxproj.backup
 
-# E2E test artifacts (raw per-test dirs, traces, xcresult bundles)
-test-results/*/
-test-results/*.xcresult
-# Keep the Markdown reports and screenshots (no secrets)
-!test-results/*-e2e-report.md
-!test-results/screenshots/
+# E2E test artifacts (reports, screenshots, traces, xcresult bundles)
+test-results/
 
 # Xcode per-user state
 *.xcuserstate
