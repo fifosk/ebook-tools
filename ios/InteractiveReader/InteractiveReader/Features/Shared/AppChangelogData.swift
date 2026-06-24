@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.20",
+            version: "2026.06.24.21",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-opens-created-job",
+                    title: "Create opens new jobs",
+                    detail: "Apple Create now routes successful submissions directly to the created job in Jobs, selects the matching Jobs category, and starts Jobs auto-refresh so newly submitted book, subtitle, and video jobs are immediately visible."
+                ),
                 AppChangelogEntry(
                     id: "apple-narrate-epub-history-settings",
                     title: "Narrate EPUB remembers settings",

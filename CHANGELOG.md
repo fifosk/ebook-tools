@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.21
+
+- Advanced visible Apple app versioning to `v2026.06.24.21`.
+- Apple Create now routes successful submissions directly to the created job in Jobs, selects the matching Jobs category, and starts Jobs auto-refresh so newly submitted book, subtitle, and video jobs are immediately visible.
+
 ### 2026.06.24.20
 
 - Advanced visible Apple app versioning to `v2026.06.24.20`.

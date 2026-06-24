@@ -205,6 +205,47 @@ def test_ipad_split_view_keeps_settings_in_detail_panel() -> None:
     assert browse_compact_settings
 
 
+def test_create_submission_routes_to_created_job_with_matching_jobs_filter() -> None:
+    source = _source(LIBRARY_SHELL)
+
+    handle_created = re.search(
+        r"private func handleCreatedJob\(_ jobId: String\) \{(?P<body>.*?)\n    \}",
+        source,
+        re.DOTALL,
+    )
+    open_created = re.search(
+        r"private func openCreatedJob\(_ jobId: String\) \{(?P<body>.*?)\n    \}",
+        source,
+        re.DOTALL,
+    )
+    focus_created = re.search(
+        r"@MainActor\s+private func focusCreatedJob\(_ jobId: String\) async \{(?P<body>.*?)\n    \}",
+        source,
+        re.DOTALL,
+    )
+    navigate_job = re.search(
+        r"private func navigateToJob\(_ job: PipelineStatusResponse, autoPlay: Bool\) \{(?P<body>.*?)\n    \}",
+        source,
+        re.DOTALL,
+    )
+
+    assert handle_created
+    assert open_created
+    assert focus_created
+    assert navigate_job
+
+    for body in (handle_created.group("body"), open_created.group("body")):
+        assert "activeSection = .jobs" in body
+        assert "jobsAutoPlay = false" in body
+        assert "jobsPlaybackMode = .resume" in body
+        assert "focusCreatedJob(jobId)" in body
+
+    assert "await jobsViewModel.load(using: appState)" in focus_created.group("body")
+    assert "navigateToJob(job, autoPlay: false)" in focus_created.group("body")
+    assert "jobsViewModel.startAutoRefresh(using: appState)" in focus_created.group("body")
+    assert "jobsViewModel.activeFilter = jobsViewModel.jobCategory(for: job)" in navigate_job.group("body")
+
+
 def test_ios_create_languages_use_reachable_list_selector() -> None:
     source = _source(CREATE_SECTIONS)
 

@@ -276,7 +276,11 @@ Target Apple UX:
   Status: implemented in Apple Create Narrate EPUB by picking a local `.epub`,
   uploading it to `/api/pipelines/files/upload`, and submitting the returned
   server path to `/api/pipelines`. Narrate EPUB history defaults now reuse prior audio, output, translation, transliteration, lookup-cache, and chunking settings while preserving any fields edited in the current form.
-- Route success to the new job in Jobs and start auto-refresh.
+- Route success to the new job in Jobs and start auto-refresh. Status: Apple
+  Create now switches to Jobs after successful submission, selects the created
+  job, aligns the Jobs filter with the created job's category, and starts the
+  Jobs auto-refresh loop so fresh generated-book, Narrate EPUB, subtitle, and
+  YouTube jobs are immediately visible.
 
 Do not add creation to Apple TV in this milestone.
 

@@ -407,16 +407,31 @@ struct LibraryShellView: View {
         }
     }
 
-    private func handleCreatedJob(_: String) {
-        Task { await jobsViewModel.load(using: appState) }
+    private func handleCreatedJob(_ jobId: String) {
+        activeSection = .jobs
+        jobsAutoPlay = false
+        jobsPlaybackMode = .resume
+        Task { await focusCreatedJob(jobId) }
     }
 
     private func openCreatedJob(_ jobId: String) {
         activeSection = .jobs
+        jobsAutoPlay = false
+        jobsPlaybackMode = .resume
         Task {
-            await jobsViewModel.load(using: appState)
-            selectedJob = jobsViewModel.jobs.first { $0.jobId == jobId }
+            await focusCreatedJob(jobId)
         }
+    }
+
+    @MainActor
+    private func focusCreatedJob(_ jobId: String) async {
+        await jobsViewModel.load(using: appState)
+        guard let job = jobsViewModel.jobs.first(where: { $0.jobId == jobId }) else {
+            jobsViewModel.startAutoRefresh(using: appState)
+            return
+        }
+        navigateToJob(job, autoPlay: false)
+        jobsViewModel.startAutoRefresh(using: appState)
     }
 
     /// Handle notification tap - navigate to job and start playback
@@ -465,6 +480,7 @@ struct LibraryShellView: View {
     private func navigateToJob(_ job: PipelineStatusResponse, autoPlay: Bool) {
         // Switch to jobs section
         activeSection = .jobs
+        jobsViewModel.activeFilter = jobsViewModel.jobCategory(for: job)
 
         // Set auto-play mode
         jobsAutoPlay = autoPlay
