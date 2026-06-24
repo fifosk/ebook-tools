@@ -33,6 +33,7 @@ from ..dependencies import (
     get_request_user,
     get_subtitle_service,
 )
+from ..route_telemetry import log_create_submission_route
 from ..schemas import (
     PipelineSubmissionResponse,
     SubtitleSourceEntry,
@@ -103,16 +104,6 @@ def _log_subtitle_source_picker(
     )
 
 
-def _record_create_submission_route_duration(operation: str, result: str, elapsed_seconds: float) -> None:
-    """Record token-safe Create submission route timing if metrics are available."""
-
-    try:
-        from ..metrics import CREATE_SUBMISSION_ROUTE_DURATION
-    except Exception:
-        return
-    CREATE_SUBMISSION_ROUTE_DURATION.labels(operation=operation, result=result).observe(elapsed_seconds)
-
-
 def _log_create_submission_route(
     operation: str,
     result: str,
@@ -121,21 +112,14 @@ def _log_create_submission_route(
     upload: bool | None = None,
     source_path_present: bool | None = None,
 ) -> None:
-    """Log aggregate Create submission timing without identifiers, paths, or payload values."""
-
-    elapsed_seconds = time.perf_counter() - started_at
-    duration_ms = elapsed_seconds * 1000.0
-    _record_create_submission_route_duration(operation, result, elapsed_seconds)
-    details = (
-        f"Create submission operation={operation} result={result} "
-        f"duration_ms={duration_ms:.1f}"
+    log_create_submission_route(
+        logger,
+        operation,
+        result,
+        started_at,
+        upload=upload,
+        source_path_present=source_path_present,
     )
-    if upload is not None:
-        details += f" upload={str(upload).lower()}"
-    if source_path_present is not None:
-        details += f" source_path_present={str(source_path_present).lower()}"
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(details)
 
 
 def _subtitle_source_sort_key(entry: SubtitleSourceEntry) -> tuple[int, float, str]:

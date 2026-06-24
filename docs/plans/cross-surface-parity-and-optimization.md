@@ -560,7 +560,10 @@ a physical Apple TV deploy is explicitly requested. Create submission routes
 now also record token-safe duration telemetry for subtitle jobs and YouTube Dub
 jobs across success, validation, forbidden, not-found, and error outcomes
 without logging source paths, file names, job ids, user ids, language or voice
-values, metadata payloads, auth headers, or tokens.
+values, metadata payloads, auth headers, or tokens. The shared
+`modules/webapi/route_telemetry.py` helper owns the common Create submission
+metric/log formatting so future creation endpoints can adopt the same contract
+without duplicating route-local metric plumbing.
 
 ### Milestone 2: iPad/iPhone Native New Job
 
