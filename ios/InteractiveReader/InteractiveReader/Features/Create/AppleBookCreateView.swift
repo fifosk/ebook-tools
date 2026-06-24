@@ -4,12 +4,6 @@ import UniformTypeIdentifiers
 #endif
 
 struct AppleBookCreateView: View {
-    private static let setupPaneMinWidth: CGFloat = 220
-    private static let setupPaneIdealWidth: CGFloat = 260
-    private static let setupPaneMaxWidth: CGFloat = 280
-    private static let settingsPaneMinWidth: CGFloat = 480
-    private static let settingsPaneIdealWidth: CGFloat = 680
-
     @EnvironmentObject private var appState: AppState
     @Environment(\.openURL) private var openURL
     #if os(iOS)
@@ -135,7 +129,10 @@ struct AppleBookCreateView: View {
             if usesRegularWidthCreateLayout {
                 regularWidthCreateLayout
             } else {
-                createList(accessibilityIdentifier: "appleBookCreateSingleColumnList") {
+                AppleBookCreateList(
+                    usesDarkBackground: usesDarkBackground,
+                    accessibilityIdentifier: "appleBookCreateSingleColumnList"
+                ) {
                     createSetupSections
                     createSettingsSections
                 }
@@ -203,32 +200,11 @@ struct AppleBookCreateView: View {
 
     @ViewBuilder
     private var regularWidthCreateLayout: some View {
-        HStack(alignment: .top, spacing: 0) {
-            createList(accessibilityIdentifier: "appleBookCreateSetupPane") {
-                createSetupSections
-            }
-            .frame(
-                minWidth: Self.setupPaneMinWidth,
-                idealWidth: Self.setupPaneIdealWidth,
-                maxWidth: Self.setupPaneMaxWidth,
-                maxHeight: .infinity
-            )
-            .layoutPriority(0)
-
-            Divider()
-
-            createSettingsForm(accessibilityIdentifier: "appleBookCreateSettingsPane") {
-                createSettingsSections
-            }
-            .frame(
-                minWidth: Self.settingsPaneMinWidth,
-                idealWidth: Self.settingsPaneIdealWidth,
-                maxWidth: .infinity,
-                maxHeight: .infinity
-            )
-            .layoutPriority(2)
+        AppleBookCreateRegularWidthLayout(usesDarkBackground: usesDarkBackground) {
+            createSetupSections
+        } settingsContent: {
+            createSettingsSections
         }
-        .accessibilityIdentifier("appleBookCreateRegularWidthLayout")
     }
 
     private var usesRegularWidthCreateLayout: Bool {
@@ -264,37 +240,6 @@ struct AppleBookCreateView: View {
         outputSection
         statusSection
         submitSection
-    }
-
-    private func createList<Content: View>(
-        accessibilityIdentifier: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        List {
-            content()
-        }
-        #if os(tvOS)
-        .listStyle(.plain)
-        #else
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(usesDarkBackground ? .hidden : .automatic)
-        #endif
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private func createSettingsForm<Content: View>(
-        accessibilityIdentifier: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        Form {
-            content()
-        }
-        #if os(tvOS)
-        .listStyle(.plain)
-        #else
-        .scrollContentBackground(usesDarkBackground ? .hidden : .automatic)
-        #endif
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var sourceSection: some View {

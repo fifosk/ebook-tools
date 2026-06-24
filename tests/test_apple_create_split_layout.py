@@ -14,6 +14,15 @@ CREATE_VIEW = (
     / "Create"
     / "AppleBookCreateView.swift"
 )
+CREATE_LAYOUT = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateLayout.swift"
+)
 CREATE_NARRATION_SECTION = (
     ROOT
     / "ios"
@@ -951,26 +960,37 @@ def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
 
 def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     source = _source(CREATE_VIEW)
+    layout_source = _source(CREATE_LAYOUT)
     basic_source = _source(CREATE_BASIC_SECTIONS)
+    project = _source(XCODE_PROJECT)
 
     assert "regularWidthCreateLayout" in source
-    assert 'accessibilityIdentifier: "appleBookCreateSetupPane"' in source
-    assert 'accessibilityIdentifier: "appleBookCreateSettingsPane"' in source
-    assert "private static let setupPaneMinWidth: CGFloat = 220" in source
-    assert "private static let setupPaneIdealWidth: CGFloat = 260" in source
-    assert "private static let setupPaneMaxWidth: CGFloat = 280" in source
-    assert "private static let settingsPaneMinWidth: CGFloat = 480" in source
-    assert "private static let settingsPaneIdealWidth: CGFloat = 680" in source
-    assert "minWidth: Self.setupPaneMinWidth" in source
-    assert "idealWidth: Self.setupPaneIdealWidth" in source
-    assert "maxWidth: Self.setupPaneMaxWidth" in source
-    assert ".layoutPriority(0)" in source
-    assert 'createSettingsForm(accessibilityIdentifier: "appleBookCreateSettingsPane")' in source
-    assert "minWidth: Self.settingsPaneMinWidth" in source
-    assert "idealWidth: Self.settingsPaneIdealWidth" in source
-    assert ".layoutPriority(2)" in source
-    assert "private func createSettingsForm<Content: View>" in source
-    assert "Form {\n            content()\n        }" in source
+    assert "AppleBookCreateRegularWidthLayout(" in source
+    assert "AppleBookCreateList(" in source
+    assert 'accessibilityIdentifier: "appleBookCreateSingleColumnList"' in source
+    assert "private static let setupPaneMinWidth: CGFloat = 220" not in source
+    assert "private func createSettingsForm<Content: View>" not in source
+    assert "struct AppleBookCreateRegularWidthLayout" in layout_source
+    assert "struct AppleBookCreateList" in layout_source
+    assert "struct AppleBookCreateSettingsForm" in layout_source
+    assert "private enum AppleBookCreateLayoutMetrics" in layout_source
+    assert 'accessibilityIdentifier: "appleBookCreateSetupPane"' in layout_source
+    assert 'accessibilityIdentifier: "appleBookCreateSettingsPane"' in layout_source
+    assert "static let setupPaneMinWidth: CGFloat = 220" in layout_source
+    assert "static let setupPaneIdealWidth: CGFloat = 260" in layout_source
+    assert "static let setupPaneMaxWidth: CGFloat = 280" in layout_source
+    assert "static let settingsPaneMinWidth: CGFloat = 480" in layout_source
+    assert "static let settingsPaneIdealWidth: CGFloat = 680" in layout_source
+    assert "minWidth: AppleBookCreateLayoutMetrics.setupPaneMinWidth" in layout_source
+    assert "idealWidth: AppleBookCreateLayoutMetrics.setupPaneIdealWidth" in layout_source
+    assert "maxWidth: AppleBookCreateLayoutMetrics.setupPaneMaxWidth" in layout_source
+    assert ".layoutPriority(0)" in layout_source
+    assert "minWidth: AppleBookCreateLayoutMetrics.settingsPaneMinWidth" in layout_source
+    assert "idealWidth: AppleBookCreateLayoutMetrics.settingsPaneIdealWidth" in layout_source
+    assert ".layoutPriority(2)" in layout_source
+    assert "Form {\n            content()\n        }" in layout_source
+    assert "AppleBookCreateLayout.swift in Sources" in project
+    assert project.count("AppleBookCreateLayout.swift in Sources") == 4
     assert "private var createSetupSections: some View" in source
     assert "private var createSettingsSections: some View" in source
     assert "private var jobTypeSection: some View" in source
