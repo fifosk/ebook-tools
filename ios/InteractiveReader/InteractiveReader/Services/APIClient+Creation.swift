@@ -22,9 +22,19 @@ enum AppleCreateRuntimeContract {
     static let youtubeDubPath = "/api/subtitles/youtube/dub"
     static let templateListPath = "/api/creation/templates"
     static let templatePathTemplate = "/api/creation/templates/{template_id}"
+    private static let templateIDPathAllowed: CharacterSet = {
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/?#")
+        return allowed
+    }()
 
     static func templatePath(_ encodedTemplateId: String) -> String {
         "\(templateListPath)/\(encodedTemplateId)"
+    }
+
+    static func encodedTemplateID(_ templateId: String) -> String {
+        let trimmed = templateId.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.addingPercentEncoding(withAllowedCharacters: templateIDPathAllowed) ?? trimmed
     }
 }
 
@@ -52,9 +62,14 @@ extension APIClient {
         return try decode(CreationTemplateListResponse.self, from: data)
     }
 
+    func fetchCreationTemplate(templateId: String) async throws -> CreationTemplateEntry {
+        let encoded = AppleCreateRuntimeContract.encodedTemplateID(templateId)
+        let data = try await sendRequest(path: AppleCreateRuntimeContract.templatePath(encoded))
+        return try decode(CreationTemplateEntry.self, from: data)
+    }
+
     func deleteCreationTemplate(templateId: String) async throws {
-        let trimmed = templateId.trimmingCharacters(in: .whitespacesAndNewlines)
-        let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? trimmed
+        let encoded = AppleCreateRuntimeContract.encodedTemplateID(templateId)
         _ = try await sendRequest(
             path: AppleCreateRuntimeContract.templatePath(encoded),
             method: "DELETE"

@@ -177,6 +177,7 @@ test-web-create-intake-focused:
 
 test-web-creation-templates-focused:
 	npm --prefix web test -- --run --threads=false \
+		src/api/client/__tests__/creationTemplates.test.ts \
 		src/utils/__tests__/creationTemplateSanitizer.test.ts \
 		src/components/__tests__/bookNarrationTemplates.test.ts \
 		src/pages/__tests__/subtitleToolUtils.test.ts \

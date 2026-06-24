@@ -104,6 +104,8 @@ def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -
                 "/api/creation/templates",
                 params={"mode": "generated_book"},
             )
+            fetched = client.get("/api/creation/templates/dan-brown-continuation")
+            missing = client.get("/api/creation/templates/missing-template")
             deleted = client.delete("/api/creation/templates/subtitle-defaults")
             listed_after_delete = client.get("/api/creation/templates")
     finally:
@@ -133,6 +135,11 @@ def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -
     assert [entry["id"] for entry in filtered.json()["templates"]] == [
         "dan-brown-continuation"
     ]
+    assert fetched.status_code == 200
+    assert fetched.json()["id"] == "dan-brown-continuation"
+    assert fetched.json()["payload"] == first.json()["payload"]
+    assert "do-not-store" not in fetched.text
+    assert missing.status_code == 404
     assert deleted.json() == {"deleted": True, "template_id": "subtitle-defaults"}
     assert [entry["id"] for entry in listed_after_delete.json()["templates"]] == [
         "dan-brown-continuation"
@@ -199,6 +206,54 @@ def test_creation_templates_unknown_mode_filter_does_not_fall_back_to_generated(
     ]
 
 
+def test_creation_template_get_is_user_scoped_and_sanitizes_template_id(tmp_path) -> None:
+    app = create_app()
+    service = CreationTemplateService(
+        file_locator=FileLocator(storage_dir=tmp_path),
+    )
+    current_user = {"user_id": "alice@example.test"}
+    app.dependency_overrides[get_creation_template_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id=current_user["user_id"],
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            saved = client.post(
+                "/api/creation/templates",
+                json={
+                    "id": "draft/template?secret",
+                    "name": "Reusable draft",
+                    "mode": "narrate_ebook",
+                    "payload": {
+                        "form_state": {
+                            "input_file": "/nas/book.epub",
+                            "authToken": "do-not-store",
+                        },
+                    },
+                },
+            )
+            fetched = client.get("/api/creation/templates/draft_template_secret")
+            current_user["user_id"] = "bob@example.test"
+            other_user = client.get("/api/creation/templates/draft_template_secret")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert saved.status_code == 200
+    assert saved.json()["id"] == "draft_template_secret"
+    assert fetched.status_code == 200
+    assert fetched.json()["id"] == "draft_template_secret"
+    assert fetched.json()["mode"] == "narrate_ebook"
+    assert fetched.json()["payload"] == {
+        "form_state": {
+            "input_file": "/nas/book.epub",
+        },
+    }
+    assert "do-not-store" not in fetched.text
+    assert other_user.status_code == 404
+
+
 def test_creation_templates_require_authenticated_user() -> None:
     app = create_app()
     app.dependency_overrides[get_creation_template_service] = lambda: CreationTemplateService()
@@ -214,12 +269,14 @@ def test_creation_templates_require_authenticated_user() -> None:
                 "/api/creation/templates",
                 json={"name": "Template", "mode": "generated_book", "payload": {}},
             )
+            get_response = client.get("/api/creation/templates/template")
             delete_response = client.delete("/api/creation/templates/template")
     finally:
         app.dependency_overrides.clear()
 
     assert list_response.status_code == 401
     assert save_response.status_code == 401
+    assert get_response.status_code == 401
     assert delete_response.status_code == 401
 
 
@@ -254,6 +311,8 @@ def test_creation_templates_record_token_safe_route_telemetry(tmp_path, monkeypa
                 "/api/creation/templates",
                 params={"mode": "subtitle_job"},
             )
+            fetched = client.get("/api/creation/templates/secret-template-id")
+            missing = client.get("/api/creation/templates/missing-secret-template")
             deleted = client.delete("/api/creation/templates/secret-template-id")
             metrics_response = client.get("/metrics")
     finally:
@@ -261,12 +320,16 @@ def test_creation_templates_record_token_safe_route_telemetry(tmp_path, monkeypa
 
     assert saved.status_code == 200
     assert listed.status_code == 200
+    assert fetched.status_code == 200
+    assert missing.status_code == 404
     assert deleted.status_code == 200
 
     rendered_logs = "\n".join(logger.messages)
     assert "Creation template route operation=save result=success" in rendered_logs
     assert "Creation template route operation=list result=success" in rendered_logs
     assert "templates=1" in rendered_logs
+    assert "Creation template route operation=get result=success" in rendered_logs
+    assert "Creation template route operation=get result=not_found" in rendered_logs
     assert "Creation template route operation=delete result=success" in rendered_logs
     assert "deleted=true" in rendered_logs
     assert "template-user@example.test" not in rendered_logs
@@ -278,6 +341,8 @@ def test_creation_templates_record_token_safe_route_telemetry(tmp_path, monkeypa
 
     assert _has_metric_count(metrics_response.text, operation="save", result="success")
     assert _has_metric_count(metrics_response.text, operation="list", result="success")
+    assert _has_metric_count(metrics_response.text, operation="get", result="success")
+    assert _has_metric_count(metrics_response.text, operation="get", result="not_found")
     assert _has_metric_count(metrics_response.text, operation="delete", result="success")
 
 
@@ -298,6 +363,7 @@ def test_creation_templates_record_unauthorized_telemetry(monkeypatch) -> None:
                 "/api/creation/templates",
                 json={"name": "Template", "mode": "generated_book", "payload": {}},
             )
+            get_response = client.get("/api/creation/templates/private-template")
             delete_response = client.delete("/api/creation/templates/private-template")
             metrics_response = client.get("/metrics")
     finally:
@@ -305,14 +371,17 @@ def test_creation_templates_record_unauthorized_telemetry(monkeypatch) -> None:
 
     assert list_response.status_code == 401
     assert save_response.status_code == 401
+    assert get_response.status_code == 401
     assert delete_response.status_code == 401
     rendered_logs = "\n".join(logger.messages)
     assert "operation=list result=unauthorized" in rendered_logs
     assert "operation=save result=unauthorized" in rendered_logs
+    assert "operation=get result=unauthorized" in rendered_logs
     assert "operation=delete result=unauthorized" in rendered_logs
     assert "anonymous" not in rendered_logs
     assert "private-template" not in rendered_logs
     assert "Template" not in rendered_logs
     assert _has_metric_count(metrics_response.text, operation="list", result="unauthorized")
     assert _has_metric_count(metrics_response.text, operation="save", result="unauthorized")
+    assert _has_metric_count(metrics_response.text, operation="get", result="unauthorized")
     assert _has_metric_count(metrics_response.text, operation="delete", result="unauthorized")

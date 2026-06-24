@@ -74,6 +74,7 @@ def test_creation_templates_focused_web_target_covers_shared_payload_builders() 
     assert "test-web-creation-templates-focused" in makefile
     block = _target_block(makefile, "test-web-creation-templates-focused")
     assert "npm --prefix web test -- --run --threads=false" in block
+    assert "src/api/client/__tests__/creationTemplates.test.ts" in block
     assert "src/utils/__tests__/creationTemplateSanitizer.test.ts" in block
     assert "src/components/__tests__/bookNarrationTemplates.test.ts" in block
     assert "src/pages/__tests__/subtitleToolUtils.test.ts" in block

@@ -525,6 +525,11 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "func fetchCreationTemplates(mode: String? = nil)" in api_client_source
     assert "AppleCreateRuntimeContract.templateListPath" in api_client_source
     assert "static func templatePath(_ encodedTemplateId: String)" in api_client_source
+    assert "static func encodedTemplateID(_ templateId: String) -> String" in api_client_source
+    assert 'allowed.remove(charactersIn: "/?#")' in api_client_source
+    assert "func fetchCreationTemplate(templateId: String) async throws -> CreationTemplateEntry" in api_client_source
+    assert "AppleCreateRuntimeContract.encodedTemplateID(templateId)" in api_client_source
+    assert "try decode(CreationTemplateEntry.self, from: data)" in api_client_source
     assert "func deleteCreationTemplate(templateId: String) async throws" in api_client_source
     assert "AppleCreateRuntimeContract.templatePath(encoded)" in api_client_source
     assert 'method: "DELETE"' in api_client_source

@@ -843,7 +843,13 @@ Suggested features to evaluate after parity scaffolding:
   model, timing, output, metadata JSON, and tuning controls. Web Subtitle Tool
   and Video Dubbing can now save sanitized subtitle and YouTube templates from
   their current settings for Apple reuse.
-- Draft jobs: start on iPad, finish advanced settings on Web.
+- Draft jobs: start on iPad, finish advanced settings on Web. Status:
+  the shared creation-template contract now supports authenticated single-template
+  reads at `/api/creation/templates/{template_id}` with the same sanitized,
+  user-scoped payload shape as list/save; Web and Apple clients both expose the
+  single-template fetch primitive, and Apple encodes template path components
+  without letting `/`, `?`, or `#` split the route. Next step is wiring native
+  Create draft/save actions and Web `template_id` deep-link application.
 - Creation handoff: Apple app opens the corresponding Web creation URL for unsupported advanced options. Status:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,
   and maps native creation modes to validated Web `?view=` deep links. The

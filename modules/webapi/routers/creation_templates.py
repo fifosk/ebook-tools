@@ -133,6 +133,42 @@ def save_creation_template(
     return CreationTemplateEntryPayload(**entry.__dict__)
 
 
+@router.get("/{template_id}", response_model=CreationTemplateEntryPayload)
+def get_creation_template(
+    template_id: str,
+    request_user: RequestUserContext = Depends(get_request_user),
+    template_service: CreationTemplateService = Depends(get_creation_template_service),
+) -> CreationTemplateEntryPayload:
+    started_at = time.perf_counter()
+    try:
+        user_id = _require_user(request_user)
+    except HTTPException:
+        _record_template_route_duration("get", "unauthorized", started_at)
+        _log_template_route_result(
+            operation="get",
+            result="unauthorized",
+            started_at=started_at,
+        )
+        raise
+
+    try:
+        entry = template_service.get_template(user_id, template_id)
+    except Exception:
+        _record_template_route_duration("get", "error", started_at)
+        _log_template_route_result(operation="get", result="error", started_at=started_at)
+        raise
+    if entry is None:
+        _record_template_route_duration("get", "not_found", started_at)
+        _log_template_route_result(operation="get", result="not_found", started_at=started_at)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Creation template not found",
+        )
+    _record_template_route_duration("get", "success", started_at)
+    _log_template_route_result(operation="get", result="success", started_at=started_at)
+    return CreationTemplateEntryPayload(**entry.__dict__)
+
+
 @router.delete("/{template_id}", response_model=CreationTemplateDeleteResponse)
 def delete_creation_template(
     template_id: str,

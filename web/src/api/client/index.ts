@@ -74,6 +74,7 @@ export {
 // Cross-surface creation templates
 export {
   fetchCreationTemplates,
+  fetchCreationTemplate,
   saveCreationTemplate,
   deleteCreationTemplate
 } from './creationTemplates';

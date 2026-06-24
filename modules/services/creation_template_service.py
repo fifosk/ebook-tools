@@ -122,6 +122,19 @@ class CreationTemplateService:
         entries.sort(key=lambda entry: entry.updated_at, reverse=True)
         return entries
 
+    def get_template(
+        self,
+        user_id: str,
+        template_id: str,
+    ) -> Optional[CreationTemplateEntry]:
+        safe_id = _sanitize_fragment(template_id, "")
+        if not safe_id:
+            return None
+        for entry in self._load_entries(user_id):
+            if entry.id == safe_id:
+                return entry
+        return None
+
     def save_template(self, user_id: str, entry: Dict[str, Any]) -> CreationTemplateEntry:
         entries = self._load_entries(user_id)
         normalized = self._normalize_incoming(entry)

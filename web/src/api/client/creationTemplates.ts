@@ -15,6 +15,15 @@ export async function fetchCreationTemplates(mode?: string): Promise<CreationTem
   return payload.templates;
 }
 
+export async function fetchCreationTemplate(
+  templateId: string
+): Promise<CreationTemplateEntry> {
+  const response = await apiFetch(
+    `${CREATION_TEMPLATES_PATH}/${encodeURIComponent(templateId)}`
+  );
+  return handleResponse<CreationTemplateEntry>(response);
+}
+
 export async function saveCreationTemplate(
   payload: CreationTemplatePayload
 ): Promise<CreationTemplateEntry> {
