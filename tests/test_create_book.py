@@ -182,6 +182,27 @@ def test_pipeline_file_listing_skips_entries_that_disappear(tmp_path: Path, monk
     assert [entry.name for entry in output_entries] == ["stable-output"]
 
 
+def test_pipeline_file_listing_tolerates_root_scan_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    books_dir = tmp_path / "books"
+    output_dir = tmp_path / "output"
+    books_dir.mkdir()
+    output_dir.mkdir()
+    original_iterdir = Path.iterdir
+
+    def fake_iterdir(path: Path, *args, **kwargs):
+        if path in {books_dir, output_dir}:
+            raise OSError(f"{path} is temporarily unavailable")
+        return original_iterdir(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "iterdir", fake_iterdir)
+
+    assert _list_ebook_files(books_dir) == []
+    assert _list_output_entries(output_dir) == []
+
+
 def test_book_generation_job_schema_accepts_source_context() -> None:
     payload = BookGenerationJobSubmission.model_validate(
         {

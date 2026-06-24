@@ -114,11 +114,18 @@ def _safe_stat(path: Path) -> Optional[os.stat_result]:
         return None
 
 
+def _safe_iterdir(root: Path) -> List[Path]:
+    try:
+        return list(root.iterdir())
+    except OSError:
+        return []
+
+
 def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
     if not root.exists():
         return entries
-    for path in root.iterdir():
+    for path in _safe_iterdir(root):
         if path.name.startswith(".") or path.suffix.lower() != ".epub":
             continue
         stat = _safe_stat(path)
@@ -146,7 +153,7 @@ def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
     if not root.exists():
         return entries
-    for path in sorted(root.iterdir()):
+    for path in sorted(_safe_iterdir(root)):
         if path.name.startswith("."):
             continue
         stat = _safe_stat(path)
