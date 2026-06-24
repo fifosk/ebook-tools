@@ -1228,8 +1228,11 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
     assert "static func preferredYoutubeSelection(from library: YoutubeNasLibraryResponse?)" in source_selection
     assert "sortedYoutubeVideosForDefaultSelection(library?.videos ?? [])" in source_selection
     assert "private static func sortedYoutubeVideosForDefaultSelection(" in source_selection
+    assert "let video = videos.first { !playableYoutubeSubtitles(for: $0).isEmpty } ?? videos[0]" in source_selection
     assert "static func youtubeSelection(" in source_selection
+    assert "let storedSubtitle = requestedVideoPath == selectedVideo.path" in source_selection
     assert "static func youtubeSourceDefaults(" in source_selection
+    assert "let scopeChanged = currentStorageScope != nextStorageScope" in source_selection
     assert "static func youtubeLibraryCacheKey(baseKey: String, baseDir: String)" in source_selection
     assert "static func subtitleShowOriginalPreferenceKey(baseKey: String)" in source_selection
     assert "private static let subtitleJobSourceFormats" not in support_source
@@ -1628,6 +1631,30 @@ def test_apple_create_subtitle_server_sources_match_web_ass_behavior() -> None:
     assert ".contains(normalizedSourceText($0.format).lowercased())" in source
     assert "let pool = preferred.isEmpty ? candidates : preferred" in source
     assert "return pool.sorted" in source
+    assert "parseSourceModifiedDate(left.modifiedAt)" in source
+    assert "parseSourceModifiedDate(right.modifiedAt)" in source
+    assert "return leftDate > rightDate" in source
+
+
+def test_apple_create_youtube_default_selection_matches_readiness_preflight() -> None:
+    source = _source(CREATE_SOURCE_SELECTION)
+
+    assert '["ass", "srt", "vtt", "sub"]' in source
+    assert "static func playableYoutubeSubtitles(for video: YoutubeNasVideoEntry?)" in source
+    assert "normalizedSourceText($0.format).lowercased()" in source
+    assert "static func preferredYoutubeSubtitle(for video: YoutubeNasVideoEntry?)" in source
+    assert "guard !candidates.isEmpty else" in source
+    assert "normalizedSourceText(subtitle.language ?? \"\").lowercased().hasPrefix(\"en\")" in source
+    assert "} ?? candidates[0]" in source
+    assert "static func preferredYoutubeSelection(from library: YoutubeNasLibraryResponse?)" in source
+    assert "let videos = sortedYoutubeVideosForDefaultSelection(library?.videos ?? [])" in source
+    assert "let video = videos.first { !playableYoutubeSubtitles(for: $0).isEmpty } ?? videos[0]" in source
+    assert "return AppleYoutubeSourceSelection(video: video, subtitle: preferredYoutubeSubtitle(for: video))" in source
+    assert "private static func sortedYoutubeVideosForDefaultSelection(" in source
+    assert "parseSourceModifiedDate(left.modifiedAt)" in source
+    assert "parseSourceModifiedDate(right.modifiedAt)" in source
+    assert "return leftDate > rightDate" in source
+    assert "left.path.localizedStandardCompare(right.path)" in source
 
 
 def test_generated_book_create_exposes_source_context_fields() -> None:

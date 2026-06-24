@@ -475,10 +475,13 @@ Optimization candidates:
   token-safe duration telemetry with aggregate source/output counts and no NAS
   path, filename, job id, user id, auth header, or token logging. The
   manifest-registered `test-backend-pipeline-sources` target now covers EPUB
-  source listing, vanished-source deletion, outside-root rejection, and local
-  EPUB upload persistence through `/api/pipelines/files/upload`, so the shared
-  backend pipeline protects the picker/import paths used by Web and Apple
-  Create. The
+  source listing, selected-source content-index loading, vanished-source
+  deletion, outside-root rejection, and local EPUB upload persistence through
+  `/api/pipelines/files/upload`, so the shared backend pipeline protects the
+  picker/import paths used by Web and Apple Create. Apple Create source-selection
+  contracts also pin the native default picker rules to the readiness preflight:
+  newest backend-visible EPUB, SRT/VTT before ASS for subtitle jobs, newest
+  playable NAS video, and English sidecar preference when available. The
   NAS YouTube/video scanner also skips video and subtitle sidecar candidates
   that vanish after `os.walk()` and prunes hidden folders/files, keeping Web
   Video Dubbing and Apple Create source pickers usable during concurrent
