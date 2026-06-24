@@ -1130,6 +1130,9 @@ E2E tests are **not** part of the regular test suite. They require a running API
 - Python `WebJourneyRunner` (Playwright) for Web
 - Swift `JourneyRunner` (XCUITest) for iPhone, iPad, Apple TV
 
+Use a step-level `platforms` array for surface-only checks. Web accepts
+`web`/`browser`; Apple accepts `iPhone`, `iPad`, and `tvOS`.
+
 ```bash
 # Web E2E (Playwright)
 # Requires: pip install -e .[e2e]  &&  playwright install

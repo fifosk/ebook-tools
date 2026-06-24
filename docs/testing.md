@@ -808,6 +808,9 @@ and require:
 
 E2E tests use a shared journey architecture where platform-agnostic test
 scenarios are defined in JSON and interpreted by platform-specific runners.
+Steps may include a `platforms` array when a check belongs only to a specific
+surface, such as `["tvOS"]` for an Apple TV-only Create smoke check or
+`["web"]` for a Web-only assertion.
 
 ```
 tests/e2e/journeys/*.json          # Journey definitions (shared)
@@ -833,6 +836,7 @@ without any code changes.
 | `go_back` | Return to the previous view (SPA close / edge swipe / Menu button) |
 | `assert_visible` | Assert a CSS selector is visible with optional timeout |
 | `wait` | Wait for a specified number of milliseconds |
+| `platforms` | Optional per-step filter; Web accepts `web`/`browser`, Apple accepts `iPhone`, `iPad`, or `tvOS` |
 
 #### Example Journey
 

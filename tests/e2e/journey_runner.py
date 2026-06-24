@@ -61,6 +61,8 @@ class WebJourneyRunner:
     def run(self, journey: dict) -> None:
         """Execute all steps in *journey* sequentially."""
         for step in journey.get("steps", []):
+            if not self._should_run(step):
+                continue
             action = step["action"]
             handler = getattr(self, f"_do_{action}", None)
             if handler is None:
@@ -169,3 +171,12 @@ class WebJourneyRunner:
                 path=f"test-results/screenshots/web-journey-{name}.png",
                 full_page=True,
             )
+
+    def _should_run(self, step: dict) -> bool:
+        platforms = step.get("platforms")
+        if not platforms:
+            return True
+        return any(
+            str(candidate).strip().lower() in {"web", "browser"}
+            for candidate in platforms
+        )

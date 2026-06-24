@@ -27,6 +27,31 @@
       "min_aspect_ratio": 3.2
     },
     {
+      "action": "assert_visible",
+      "selector": "browseSectionCreateButton",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "navigate_tab",
+      "tab": "Create",
+      "selector": "browseSectionCreateButton",
+      "platforms": ["tvOS"],
+      "screenshot": "tvos_create_tab"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "appleBookCreateView",
+      "platforms": ["tvOS"],
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createJobTypePicker",
+      "platforms": ["tvOS"],
+      "timeout": 15
+    },
+    {
       "action": "navigate_tab",
       "tab": "Search",
       "selector": "browseSectionSearchButton",

@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+BASIC_PLAYBACK_JOURNEY = ROOT / "tests" / "e2e" / "journeys" / "basic_playback.json"
 CREATE_READINESS_JOURNEY = ROOT / "tests" / "e2e" / "journeys" / "create_readiness.json"
 JOURNEY_RUNNER = (
     ROOT
@@ -13,6 +14,7 @@ JOURNEY_RUNNER = (
     / "InteractiveReaderUITests"
     / "JourneyRunner.swift"
 )
+WEB_JOURNEY_RUNNER = ROOT / "tests" / "e2e" / "journey_runner.py"
 
 
 def test_create_readiness_journey_checks_runtime_create_contract() -> None:
@@ -152,6 +154,59 @@ def test_journey_runner_supports_platform_scoped_steps() -> None:
     assert "guard shouldRun(step) else" in source
     assert "private func shouldRun(_ step: JourneyStep) -> Bool" in source
     assert "platform.rawValue.lowercased()" in source
+
+
+def test_web_journey_runner_skips_non_web_platform_steps() -> None:
+    source = WEB_JOURNEY_RUNNER.read_text(encoding="utf-8")
+
+    assert "if not self._should_run(step):" in source
+    assert "def _should_run(self, step: dict) -> bool:" in source
+    assert '{"web", "browser"}' in source
+
+
+def test_basic_playback_journey_smoke_checks_tvos_create_reachability() -> None:
+    journey = json.loads(BASIC_PLAYBACK_JOURNEY.read_text(encoding="utf-8"))
+    steps = journey["steps"]
+
+    version_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("selector") == "appVersionBadge"
+        and step.get("action") == "assert_frame"
+    )
+    search_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("selector") == "browseSectionSearchButton"
+        and step.get("action") == "navigate_tab"
+    )
+    create_steps = steps[version_index:search_index]
+
+    assert {
+        "action": "assert_visible",
+        "selector": "browseSectionCreateButton",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    } in create_steps
+    assert {
+        "action": "navigate_tab",
+        "tab": "Create",
+        "selector": "browseSectionCreateButton",
+        "platforms": ["tvOS"],
+        "screenshot": "tvos_create_tab",
+    } in create_steps
+    assert {
+        "action": "assert_visible",
+        "selector": "appleBookCreateView",
+        "platforms": ["tvOS"],
+        "timeout": 15,
+    } in create_steps
+    assert {
+        "action": "assert_visible",
+        "selector": "createJobTypePicker",
+        "platforms": ["tvOS"],
+        "timeout": 15,
+    } in create_steps
 
 
 def test_create_readiness_journey_checks_generated_book_defaults_before_media_modes() -> None:
