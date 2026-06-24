@@ -82,6 +82,7 @@ def test_narrate_epub_history_defaults_include_web_style_output_settings() -> No
 
     for field in [
         "let voice: AppleBookCreateVoiceOption?",
+        "let voiceOverrides: [String: String]?",
         "let generateAudio: Bool?",
         "let audioMode: String?",
         "let audioBitrateKbps: String?",
@@ -103,6 +104,7 @@ def test_narrate_epub_history_defaults_include_web_style_output_settings() -> No
 
     for token in [
         'narrationString($0, keys: ["voice", "selected_voice", "selectedVoice"])',
+        'historyStringMap(in: narrationParameterSources($0), keys: ["voice_overrides", "voiceOverrides"])',
         'narrationBool($0, keys: ["generate_audio", "generateAudio"])',
         'narrationString($0, keys: ["audio_mode", "audioMode"])',
         'narrationInt($0, keys: ["audio_bitrate_kbps", "audioBitrateKbps"])',
@@ -151,6 +153,7 @@ def test_narrate_epub_history_defaults_preserve_user_edited_fields() -> None:
 
     for token in [
         "if !editedFields.contains(.voice),",
+        "if !editedFields.contains(.languageVoiceOverrides),",
         "if !editedFields.contains(.generateAudio),",
         "if !editedFields.contains(.audioMode),",
         "if !editedFields.contains(.audioBitrateKbps),",
@@ -169,6 +172,64 @@ def test_narrate_epub_history_defaults_preserve_user_edited_fields() -> None:
         "if !editedFields.contains(.outputPdf),",
     ]:
         assert token in block
+
+
+def test_generated_book_history_defaults_restore_continuation_context_and_voice_overrides() -> None:
+    model_source = _source(CREATE_MODELS)
+    history_source = _source(CREATE_HISTORY_DEFAULTS)
+    view_source = _source(CREATE_VIEW)
+    struct_block = _named_block(
+        model_source,
+        r"struct AppleGeneratedBookHistoryDefaults: Equatable \{",
+        "struct AppleCreateResolvedDefaults",
+    )
+    function_block = _named_block(
+        history_source,
+        r"static func generatedBookHistoryDefaults",
+        "static func subtitleHistoryDefaults",
+    )
+    view_block = _named_block(
+        view_source,
+        r"private func applyGeneratedBookHistoryDefaults\(\) \{",
+        "private func applyNarrationHistoryDefaults",
+    )
+
+    for field in [
+        "let sourceBookTitle: String?",
+        "let sourceBookAuthor: String?",
+        "let sourceBookGenre: String?",
+        "let sourceBookSummary: String?",
+        "let voiceOverrides: [String: String]?",
+    ]:
+        assert field in struct_block
+
+    for token in [
+        'sourceBookTitle: historyString(in: sources, keys: ["source_book_title", "sourceBookTitle"])',
+        'sourceBookAuthor: historyString(in: sources, keys: ["source_book_author", "sourceBookAuthor"])',
+        'sourceBookGenre: historyString(in: sources, keys: ["source_book_genre", "sourceBookGenre"])',
+        'sourceBookSummary: historyString(in: sources, keys: ["source_book_summary", "sourceBookSummary"])',
+        'voiceOverrides: historyStringMap(in: sources, keys: ["voice_overrides", "voiceOverrides"])',
+        "|| defaults.sourceBookTitle != nil",
+        "|| defaults.voiceOverrides != nil",
+    ]:
+        assert token in function_block
+
+    for token in [
+        "if !editedFields.contains(.sourceBookTitle),",
+        "if !editedFields.contains(.sourceBookAuthor),",
+        "if !editedFields.contains(.sourceBookGenre),",
+        "if !editedFields.contains(.bookSummary),",
+        "if !editedFields.contains(.languageVoiceOverrides),",
+    ]:
+        assert token in view_block
+
+
+def test_history_parsing_supports_string_maps_for_voice_overrides() -> None:
+    parsing_source = _source(CREATE_HISTORY_PARSING)
+
+    assert "static func historyStringMap(" in parsing_source
+    assert "guard let object = source[key]?.objectValue else { continue }" in parsing_source
+    assert "result[normalizedKey] = normalizedValue" in parsing_source
 
 
 def test_create_history_defaults_do_not_replace_loaded_nas_sources() -> None:
@@ -203,4 +264,5 @@ def test_create_history_defaults_do_not_replace_loaded_nas_sources() -> None:
 def test_parity_plan_mentions_narrate_epub_history_defaults() -> None:
     plan = _source(PLAN_DOC)
 
-    assert "Narrate EPUB history defaults now reuse prior audio, output, translation, transliteration, lookup-cache, and chunking settings" in plan
+    assert "Narrate EPUB history defaults now reuse prior audio, output, translation, transliteration, lookup-cache, voice overrides, and chunking settings" in plan
+    assert "generated-book history also restores source-book continuation context and voice overrides" in plan

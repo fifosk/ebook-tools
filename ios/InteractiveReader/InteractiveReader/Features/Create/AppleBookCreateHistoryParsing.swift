@@ -199,6 +199,28 @@ extension AppleBookCreatePresentation {
         return nil
     }
 
+    static func historyStringMap(
+        in sources: [[String: JSONValue]],
+        keys: [String]
+    ) -> [String: String]? {
+        for source in sources {
+            for key in keys {
+                guard let object = source[key]?.objectValue else { continue }
+                var result = [String: String]()
+                for (entryKey, entryValue) in object {
+                    let normalizedKey = normalizedHistoryText(entryKey)
+                    guard !normalizedKey.isEmpty else { continue }
+                    guard let normalizedValue = entryValue.stringValue?.nonEmptyValue else { continue }
+                    result[normalizedKey] = normalizedValue
+                }
+                if !result.isEmpty {
+                    return result
+                }
+            }
+        }
+        return nil
+    }
+
     static func narrationInt(
         _ job: PipelineStatusResponse,
         keys: [String]

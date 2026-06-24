@@ -25,6 +25,9 @@ extension AppleBookCreatePresentation {
         let voice = latest
             .flatMap { narrationString($0, keys: ["voice", "selected_voice", "selectedVoice"]) }
             .flatMap(AppleBookCreateVoiceOption.init(backendValue:))
+        let voiceOverrides = latest
+            .flatMap { $0.parameters?.objectValue }
+            .flatMap { historyStringMap(in: narrationParameterSources($0), keys: ["voice_overrides", "voiceOverrides"]) }
         let generateAudio = latest.flatMap { narrationBool($0, keys: ["generate_audio", "generateAudio"]) }
         let audioMode = latest.flatMap { narrationString($0, keys: ["audio_mode", "audioMode"]) }
         let audioBitrateKbps = latest
@@ -64,6 +67,7 @@ extension AppleBookCreatePresentation {
             || targetLanguage != nil
             || !additionalTargetLanguages.isEmpty
             || voice != nil
+            || voiceOverrides != nil
             || generateAudio != nil
             || audioMode != nil
             || audioBitrateKbps != nil
@@ -93,6 +97,7 @@ extension AppleBookCreatePresentation {
             targetLanguage: targetLanguage,
             additionalTargetLanguages: additionalTargetLanguages.isEmpty ? nil : additionalTargetLanguages,
             voice: voice,
+            voiceOverrides: voiceOverrides,
             generateAudio: generateAudio,
             audioMode: audioMode,
             audioBitrateKbps: audioBitrateKbps,
@@ -134,6 +139,10 @@ extension AppleBookCreatePresentation {
             bookName: historyString(in: sources, keys: ["book_name", "bookName", "book_title", "bookTitle"]),
             genre: historyString(in: sources, keys: ["genre", "book_genre", "bookGenre"]),
             author: historyString(in: sources, keys: ["author", "book_author", "bookAuthor"]),
+            sourceBookTitle: historyString(in: sources, keys: ["source_book_title", "sourceBookTitle"]),
+            sourceBookAuthor: historyString(in: sources, keys: ["source_book_author", "sourceBookAuthor"]),
+            sourceBookGenre: historyString(in: sources, keys: ["source_book_genre", "sourceBookGenre"]),
+            sourceBookSummary: historyString(in: sources, keys: ["source_book_summary", "sourceBookSummary"]),
             sentenceCount: sentenceCount,
             inputLanguage: historyString(in: sources, keys: ["input_language", "inputLanguage", "source_language", "sourceLanguage"])
                 .flatMap(AppleBookCreateLanguage.init(backendValue:)),
@@ -141,6 +150,7 @@ extension AppleBookCreatePresentation {
             additionalTargetLanguages: additionalTargetLanguages.isEmpty ? nil : additionalTargetLanguages,
             voice: historyString(in: sources, keys: ["voice", "selected_voice", "selectedVoice"])
                 .flatMap(AppleBookCreateVoiceOption.init(backendValue:)),
+            voiceOverrides: historyStringMap(in: sources, keys: ["voice_overrides", "voiceOverrides"]),
             generateAudio: historyBool(in: sources, keys: ["generate_audio", "generateAudio"]),
             audioMode: historyString(in: sources, keys: ["audio_mode", "audioMode"]),
             audioBitrateKbps: historyInt(in: sources, keys: ["audio_bitrate_kbps", "audioBitrateKbps"])
@@ -182,11 +192,16 @@ extension AppleBookCreatePresentation {
             || defaults.bookName != nil
             || defaults.genre != nil
             || defaults.author != nil
+            || defaults.sourceBookTitle != nil
+            || defaults.sourceBookAuthor != nil
+            || defaults.sourceBookGenre != nil
+            || defaults.sourceBookSummary != nil
             || defaults.sentenceCount != nil
             || defaults.inputLanguage != nil
             || defaults.targetLanguage != nil
             || defaults.additionalTargetLanguages != nil
             || defaults.voice != nil
+            || defaults.voiceOverrides != nil
             || defaults.generateAudio != nil
             || defaults.audioMode != nil
             || defaults.audioBitrateKbps != nil

@@ -1232,6 +1232,22 @@ struct AppleBookCreateView: View {
            let value = defaults.author?.nonEmptyValue {
             author = value
         }
+        if !editedFields.contains(.sourceBookTitle),
+           let value = defaults.sourceBookTitle?.nonEmptyValue {
+            sourceBookTitle = value
+        }
+        if !editedFields.contains(.sourceBookAuthor),
+           let value = defaults.sourceBookAuthor?.nonEmptyValue {
+            sourceBookAuthor = value
+        }
+        if !editedFields.contains(.sourceBookGenre),
+           let value = defaults.sourceBookGenre?.nonEmptyValue {
+            sourceBookGenre = value
+        }
+        if !editedFields.contains(.bookSummary),
+           let value = defaults.sourceBookSummary?.nonEmptyValue {
+            bookSummary = value
+        }
         if !editedFields.contains(.sentenceCount),
            let value = defaults.sentenceCount {
             sentenceCount = clampSentenceCount(value)
@@ -1251,6 +1267,11 @@ struct AppleBookCreateView: View {
         if !editedFields.contains(.voice),
            let voice = defaults.voice {
             self.voice = voice
+        }
+        if !editedFields.contains(.languageVoiceOverrides),
+           let voiceOverrides = defaults.voiceOverrides,
+           !voiceOverrides.isEmpty {
+            languageVoiceOverrides = voiceOverrides
         }
         if !editedFields.contains(.generateAudio),
            let generateAudio = defaults.generateAudio {
@@ -1382,6 +1403,11 @@ struct AppleBookCreateView: View {
         if !editedFields.contains(.voice),
            let voice = defaults.voice {
             self.voice = voice
+        }
+        if !editedFields.contains(.languageVoiceOverrides),
+           let voiceOverrides = defaults.voiceOverrides,
+           !voiceOverrides.isEmpty {
+            languageVoiceOverrides = voiceOverrides
         }
         if !editedFields.contains(.generateAudio),
            let generateAudio = defaults.generateAudio {

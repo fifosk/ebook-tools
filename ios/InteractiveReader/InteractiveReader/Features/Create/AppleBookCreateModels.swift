@@ -523,6 +523,7 @@ struct AppleNarrationHistoryDefaults: Equatable {
     let targetLanguage: AppleBookCreateLanguage?
     let additionalTargetLanguages: String?
     let voice: AppleBookCreateVoiceOption?
+    let voiceOverrides: [String: String]?
     let generateAudio: Bool?
     let audioMode: String?
     let audioBitrateKbps: String?
@@ -586,11 +587,16 @@ struct AppleGeneratedBookHistoryDefaults: Equatable {
     let bookName: String?
     let genre: String?
     let author: String?
+    let sourceBookTitle: String?
+    let sourceBookAuthor: String?
+    let sourceBookGenre: String?
+    let sourceBookSummary: String?
     let sentenceCount: Int?
     let inputLanguage: AppleBookCreateLanguage?
     let targetLanguage: AppleBookCreateLanguage?
     let additionalTargetLanguages: String?
     let voice: AppleBookCreateVoiceOption?
+    let voiceOverrides: [String: String]?
     let generateAudio: Bool?
     let audioMode: String?
     let audioBitrateKbps: String?
