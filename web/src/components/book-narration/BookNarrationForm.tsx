@@ -7,6 +7,7 @@ import {
 } from 'react';
 import type { FormEvent } from 'react';
 import { PipelineStatusResponse } from '../../api/dtos';
+import { saveCreationTemplate } from '../../api/client';
 import {
   AUDIO_MODE_OPTIONS,
   AUDIO_QUALITY_OPTIONS,
@@ -29,6 +30,7 @@ import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
 import { BookNarrationFileDialog } from './BookNarrationFileDialog';
+import { buildBookNarrationTemplatePayload } from './bookNarrationTemplates';
 import type {
   BookNarrationFormProps,
   BookNarrationFormSection,
@@ -144,6 +146,9 @@ export function BookNarrationForm({
   });
   const { availableLlmModels, llmModelError, isLoadingLlmModels } = useBookNarrationLlmModels();
   const [error, setError] = useState<string | null>(null);
+  const [templateStatus, setTemplateStatus] = useState<string | null>(null);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const prefillAppliedRef = useRef<string | null>(null);
   const prefillParametersRef = useRef<string | null>(null);
   const recentJobsRef = useRef<PipelineStatusResponse[] | null>(recentJobs ?? null);
@@ -544,6 +549,30 @@ export function BookNarrationForm({
     setError
   });
 
+  const handleSaveTemplate = useCallback(async () => {
+    setTemplateStatus(null);
+    setTemplateError(null);
+    setIsSavingTemplate(true);
+    try {
+      const payload = buildBookNarrationTemplatePayload({
+        formState,
+        normalizedTargetLanguages,
+        sourceMode,
+        activeSection: activeTab
+      });
+      const saved = await saveCreationTemplate(payload);
+      setTemplateStatus(`Saved template "${saved.name}".`);
+    } catch (saveError) {
+      const message =
+        saveError instanceof Error
+          ? saveError.message
+          : 'Unable to save creation template.';
+      setTemplateError(message);
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  }, [activeTab, formState, normalizedTargetLanguages, sourceMode]);
+
   const handleSubmitAndRefreshIntake = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       const didSubmit = await handleSubmit(event);
@@ -587,6 +616,8 @@ export function BookNarrationForm({
           isSubmitDisabled={isSubmitDisabled}
           isSubmitting={isSubmitting}
           submitText={submitText}
+          isSavingTemplate={isSavingTemplate}
+          onSaveTemplate={handleSaveTemplate}
         />
         <BookNarrationSubmitStatus
           intakeStatus={intakeStatus}
@@ -595,6 +626,8 @@ export function BookNarrationForm({
           missingRequirementText={missingRequirementText}
           error={error}
           externalError={externalError}
+          templateStatus={templateStatus}
+          templateError={templateError}
         />
         <div className="pipeline-section-panel">
           <BookNarrationFormSections

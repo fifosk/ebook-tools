@@ -159,6 +159,37 @@ export interface PipelineSubmissionResponse {
   job_type: string;
 }
 
+export type CreationTemplateMode =
+  | 'generated_book'
+  | 'narrate_ebook'
+  | 'subtitle_job'
+  | 'youtube_dub';
+
+export interface CreationTemplatePayload {
+  id?: string | null;
+  name: string;
+  mode: CreationTemplateMode | string;
+  payload: Record<string, unknown>;
+}
+
+export interface CreationTemplateEntry {
+  id: string;
+  name: string;
+  mode: CreationTemplateMode;
+  created_at: number;
+  updated_at: number;
+  payload: Record<string, unknown>;
+}
+
+export interface CreationTemplateListResponse {
+  templates: CreationTemplateEntry[];
+}
+
+export interface CreationTemplateDeleteResponse {
+  deleted: boolean;
+  template_id: string;
+}
+
 export interface ProgressSnapshotPayload {
   completed: number;
   total: number | null;

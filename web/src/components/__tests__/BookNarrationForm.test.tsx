@@ -15,6 +15,7 @@ import {
   fetchVoiceInventory,
   checkImageNodeAvailability,
   lookupBookOpenLibraryMetadataPreview,
+  saveCreationTemplate,
   synthesizeVoicePreview,
   uploadEpubFile
 } from '../../api/client';
@@ -29,6 +30,7 @@ vi.mock('../../api/client', () => ({
   fetchVoiceInventory: vi.fn(),
   checkImageNodeAvailability: vi.fn(),
   lookupBookOpenLibraryMetadataPreview: vi.fn(),
+  saveCreationTemplate: vi.fn(),
   synthesizeVoicePreview: vi.fn(),
   uploadEpubFile: vi.fn()
 }));
@@ -202,6 +204,48 @@ describe('BookNarrationForm', () => {
     expect(payload.pipeline_overrides.voice_overrides).toEqual({ en: 'macOS-auto' });
     await waitFor(() => expect(fetchPipelineIntakeStatus).toHaveBeenCalledTimes(2));
   }, 10000);
+
+  it('saves current narration settings as a sanitized creation template', async () => {
+    const user = userEvent.setup();
+    vi.mocked(saveCreationTemplate).mockResolvedValue({
+      id: 'template-1',
+      name: 'output',
+      mode: 'narrate_ebook',
+      created_at: 1,
+      updated_at: 2,
+      payload: {}
+    });
+
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    fireEvent.change(screen.getByLabelText(/Input file path/i), {
+      target: { value: '/tmp/input.epub' }
+    });
+    fireEvent.change(screen.getByLabelText(/Base output file/i), {
+      target: { value: 'output' }
+    });
+    await user.click(screen.getByRole('button', { name: /Save template/i }));
+
+    await waitFor(() => expect(saveCreationTemplate).toHaveBeenCalledTimes(1));
+    const [template] = vi.mocked(saveCreationTemplate).mock.calls[0];
+    expect(template.name).toBe('output');
+    expect(template.mode).toBe('narrate_ebook');
+    expect(template.payload.source).toBe('web');
+    expect(template.payload.kind).toBe('book_narration_form');
+    const savedFormState = template.payload.form_state as Record<string, unknown>;
+    expect(savedFormState).toMatchObject({
+      input_file: '/tmp/input.epub',
+      base_output_file: 'output',
+      environment_overrides: '{}'
+    });
+    expect(await screen.findByText(/Saved template "output"/i)).toBeInTheDocument();
+  });
 
   it('includes backend-supported language lists in the narration pickers', async () => {
     await act(async () => {

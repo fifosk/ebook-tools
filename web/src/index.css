@@ -2157,6 +2157,27 @@ section {
   gap: var(--space-sm);
 }
 
+.pipeline-step-action-secondary {
+  min-width: 8.5rem;
+  background: var(--color-button-secondary-bg);
+  color: var(--color-button-secondary-text);
+  border: 1px solid var(--color-button-secondary-border);
+  box-shadow: none;
+}
+
+.pipeline-step-action-secondary:hover:not(:disabled),
+.pipeline-step-action-secondary:focus:not(:disabled) {
+  background: var(--color-button-secondary-hover-bg);
+  border-color: var(--color-button-secondary-hover-border);
+  box-shadow: none;
+  transform: none;
+}
+
+.pipeline-step-action-secondary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .pipeline-step-tab {
   border: none;
   background: transparent;

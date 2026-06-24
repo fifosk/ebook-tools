@@ -13,6 +13,8 @@ interface BookNarrationStepBarProps {
   isSubmitDisabled: boolean;
   isSubmitting: boolean;
   submitText: string;
+  isSavingTemplate?: boolean;
+  onSaveTemplate?: () => void;
 }
 
 export function BookNarrationStepBar({
@@ -22,7 +24,9 @@ export function BookNarrationStepBar({
   onSectionChange,
   isSubmitDisabled,
   isSubmitting,
-  submitText
+  submitText,
+  isSavingTemplate = false,
+  onSaveTemplate
 }: BookNarrationStepBarProps) {
   return (
     <div className="pipeline-step-bar">
@@ -45,6 +49,16 @@ export function BookNarrationStepBar({
         })}
       </div>
       <div className="pipeline-step-actions">
+        {onSaveTemplate ? (
+          <button
+            type="button"
+            className="pipeline-step-action-secondary"
+            onClick={onSaveTemplate}
+            disabled={isSavingTemplate}
+          >
+            {isSavingTemplate ? 'Saving…' : 'Save template'}
+          </button>
+        ) : null}
         <button type="submit" disabled={isSubmitDisabled}>
           {isSubmitting ? 'Submitting…' : submitText}
         </button>

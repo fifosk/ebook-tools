@@ -71,6 +71,13 @@ export {
   fetchLookupCacheSummary
 } from './jobs';
 
+// Cross-surface creation templates
+export {
+  fetchCreationTemplates,
+  saveCreationTemplate,
+  deleteCreationTemplate
+} from './creationTemplates';
+
 // Admin and user management
 export {
   listUsers,

@@ -8,6 +8,8 @@ interface BookNarrationSubmitStatusProps {
   missingRequirementText: string;
   error: string | null;
   externalError: string | null;
+  templateStatus?: string | null;
+  templateError?: string | null;
 }
 
 export function BookNarrationSubmitStatus({
@@ -16,19 +18,26 @@ export function BookNarrationSubmitStatus({
   hasMissingRequirements,
   missingRequirementText,
   error,
-  externalError
+  externalError,
+  templateStatus = null,
+  templateError = null
 }: BookNarrationSubmitStatusProps) {
   return (
     <>
       <CreateIntakeStatusCallout status={intakeStatus} isLoading={isLoadingIntakeStatus} />
+      {templateStatus ? (
+        <div className="form-callout form-callout--success" role="status">
+          {templateStatus}
+        </div>
+      ) : null}
       {hasMissingRequirements ? (
         <div className="form-callout form-callout--warning" role="status">
           Provide {missingRequirementText} before submitting.
         </div>
       ) : null}
-      {error || externalError ? (
+      {templateError || error || externalError ? (
         <div className="alert" role="alert">
-          {error ?? externalError}
+          {templateError ?? error ?? externalError}
         </div>
       ) : null}
     </>
