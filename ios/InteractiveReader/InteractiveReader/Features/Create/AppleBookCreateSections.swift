@@ -1056,7 +1056,23 @@ struct AppleBookCreateSubtitleMetadataControls: View {
             .autocorrectionDisabled()
             .accessibilityIdentifier("createSubtitleMetadataAirdateField")
 
+        #if os(tvOS)
+        Group {
+            Text("Artwork")
+                .font(.headline)
+            subtitleArtworkFields
+        }
+        .accessibilityIdentifier("createSubtitleMetadataArtworkDisclosure")
+        #else
         DisclosureGroup("Artwork") {
+            subtitleArtworkFields
+        }
+        .accessibilityIdentifier("createSubtitleMetadataArtworkDisclosure")
+        #endif
+    }
+
+    private var subtitleArtworkFields: some View {
+        Group {
             TextField("Show poster URL", text: $showPosterURL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -1066,7 +1082,6 @@ struct AppleBookCreateSubtitleMetadataControls: View {
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("createSubtitleMetadataStillUrlField")
         }
-        .accessibilityIdentifier("createSubtitleMetadataArtworkDisclosure")
     }
 }
 
@@ -1280,7 +1295,23 @@ struct AppleBookCreateYoutubeMetadataControls: View {
             .autocorrectionDisabled()
             .accessibilityIdentifier("createYoutubeMetadataEpisodeField")
 
+        #if os(tvOS)
+        Group {
+            Text("Artwork")
+                .font(.headline)
+            youtubeArtworkFields
+        }
+        .accessibilityIdentifier("createYoutubeMetadataArtworkDisclosure")
+        #else
         DisclosureGroup("Artwork") {
+            youtubeArtworkFields
+        }
+        .accessibilityIdentifier("createYoutubeMetadataArtworkDisclosure")
+        #endif
+    }
+
+    private var youtubeArtworkFields: some View {
+        Group {
             TextField("Series poster URL", text: $tvPosterURL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -1294,7 +1325,6 @@ struct AppleBookCreateYoutubeMetadataControls: View {
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("createYoutubeMetadataThumbnailUrlField")
         }
-        .accessibilityIdentifier("createYoutubeMetadataArtworkDisclosure")
     }
 }
 

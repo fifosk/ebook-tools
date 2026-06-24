@@ -190,8 +190,9 @@ Current Apple UI partially exposes:
 - ISBN metadata preview/apply. Status: iPhone/iPad Library rows can fetch
   `/api/library/isbn/lookup` previews and then apply the ISBN through
   `/api/library/items/{job_id}/isbn`, matching the Web lookup/apply contract.
-  Remaining parity gaps: richer source metadata review before upload and
-  TV-safe read-only source diagnostics.
+- TV-safe source diagnostics. Status: iPhone, iPad, and Apple TV Library rows
+  expose read-only Source Details with stored-source, file, type, relative path,
+  status, and media completion diagnostics without upload/edit controls.
 
 ## Backend Optimization Targets
 
@@ -380,6 +381,9 @@ After Narrate Ebook:
   source files, review the selected file before upload, post it to
   `/api/library/items/{job_id}/upload-source`, and replace the refreshed row
   returned by the backend. Apple TV remains playback-first.
+- Library source diagnostics on Apple TV. Status: Library row context menus now
+  expose read-only Source Details on Apple TV as well as iPhone/iPad, keeping
+  remote navigation simple and avoiding mutation controls.
 - Library ISBN metadata preview/apply on iPhone/iPad. Status: Library row
   context menus now expose Preview ISBN Metadata, fetch
   `/api/library/isbn/lookup` results in a sheet, and can then apply the ISBN

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.13",
+            version: "2026.06.24.14",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-library-source-diagnostics",
+                    title: "Library shows sources",
+                    detail: "Apple Library rows now expose read-only Source Details on iPhone, iPad, and Apple TV with stored-source, file, type, path, status, and media diagnostics."
+                ),
                 AppChangelogEntry(
                     id: "apple-library-source-upload-review",
                     title: "Library reviews sources",

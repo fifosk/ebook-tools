@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.14
+
+- Advanced visible Apple app versioning to `v2026.06.24.14`.
+- Apple Library rows now expose read-only Source Details on iPhone, iPad, and Apple TV with stored-source, file, type, path, status, and media diagnostics.
+
 ### 2026.06.24.13
 
 - Advanced visible Apple app versioning to `v2026.06.24.13`.

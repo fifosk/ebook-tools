@@ -27,6 +27,7 @@ struct LibraryView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
     @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+    @State private var sourceDiagnosticsItem: LibrarySourceDiagnosticsDraft?
     #if os(iOS)
     @State private var rowFrames: [CGRect] = []
     @State private var sourceUploadItem: LibraryItem?
@@ -83,6 +84,9 @@ struct LibraryView: View {
             NotificationCenter.default.publisher(for: PlaybackResumeStore.didChangeNotification),
             perform: handleResumeStoreChange
         )
+        .sheet(item: $sourceDiagnosticsItem) { draft in
+            LibrarySourceDiagnosticsSheet(draft: draft)
+        }
         #if os(iOS)
         .fileImporter(
             isPresented: $isImportingLibrarySource,
@@ -122,6 +126,7 @@ struct LibraryView: View {
             .contextMenu {
                 playbackContextMenu(for: item)
                 offlineContextMenu(for: item)
+                sourceDiagnosticsAction(for: item)
                 enrichMetadataAction(for: item)
                 offlineExportAction(for: item)
                 deleteItemAction(for: item)
@@ -141,6 +146,7 @@ struct LibraryView: View {
             }
             .contextMenu {
                 playbackContextMenu(for: item)
+                sourceDiagnosticsAction(for: item)
                 enrichMetadataAction(for: item)
                 offlineExportAction(for: item)
                 metadataEditAction(for: item)
@@ -276,6 +282,16 @@ struct LibraryView: View {
 
     private func handleStartOverItemSelection(_ item: LibraryItem) {
         selectItem(item, mode: .startOver)
+    }
+
+    private func handleSourceDiagnosticsRequest(_ item: LibraryItem) {
+        sourceDiagnosticsItem = LibrarySourceDiagnosticsDraft(item: item)
+    }
+
+    private func sourceDiagnosticsAction(for item: LibraryItem) -> some View {
+        Button(action: { handleSourceDiagnosticsRequest(item) }) {
+            Label("Source Details", systemImage: "info.circle")
+        }
     }
 
     private func handleLibraryAppear() {
@@ -595,6 +611,72 @@ struct LibraryView: View {
         offlineStore.remove(jobId: item.jobId, kind: .library)
         resumeAvailability.removeValue(forKey: item.jobId)
         iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+    }
+}
+
+private struct LibrarySourceDiagnosticsDraft: Identifiable {
+    let item: LibraryItem
+
+    var id: String { item.jobId }
+
+    var sourcePath: String? {
+        item.sourcePath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+    }
+
+    var sourceFilename: String? {
+        guard let sourcePath else { return nil }
+        return URL(fileURLWithPath: sourcePath).lastPathComponent.nonEmptyValue ?? sourcePath
+    }
+
+    var sourceTypeLabel: String {
+        guard let sourceFilename else { return "Missing" }
+        let extensionValue = URL(fileURLWithPath: sourceFilename).pathExtension
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return extensionValue.isEmpty ? "Unknown" : extensionValue.uppercased()
+    }
+}
+
+private struct LibrarySourceDiagnosticsSheet: View {
+    let draft: LibrarySourceDiagnosticsDraft
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Library Item") {
+                    LabeledContent("Title", value: draft.item.bookTitle)
+                    LabeledContent("Author", value: draft.item.author)
+                    LabeledContent("Type", value: draft.item.itemType)
+                    LabeledContent("Status", value: draft.item.status)
+                    LabeledContent("Media", value: draft.item.mediaCompleted ? "Complete" : "Incomplete")
+                }
+
+                Section("Source") {
+                    LabeledContent("Stored", value: draft.sourcePath == nil ? "No" : "Yes")
+                        .accessibilityIdentifier("librarySourceDiagnosticsStoredLabel")
+                    LabeledContent("File", value: draft.sourceFilename ?? "No source file stored")
+                        .accessibilityIdentifier("librarySourceDiagnosticsFilenameLabel")
+                    LabeledContent("Type", value: draft.sourceTypeLabel)
+                        .accessibilityIdentifier("librarySourceDiagnosticsTypeLabel")
+                    if let sourcePath = draft.sourcePath {
+                        LabeledContent("Relative path", value: sourcePath)
+                            .accessibilityIdentifier("librarySourceDiagnosticsPathLabel")
+                    }
+                    LabeledContent("Updated", value: draft.item.updatedAt)
+                }
+            }
+            .navigationTitle("Source Details")
+            #if !os(tvOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 

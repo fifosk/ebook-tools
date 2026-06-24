@@ -292,6 +292,9 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert "createMetadataYoutubeThumbnailPreview" in sections_source
 
     assert 'DisclosureGroup("Artwork")' in sections_source
+    assert "#if os(tvOS)" in sections_source
+    assert "subtitleArtworkFields" in sections_source
+    assert "youtubeArtworkFields" in sections_source
     assert 'accessibilityIdentifier("createSubtitleMetadataArtworkDisclosure")' in sections_source
     assert 'accessibilityIdentifier("createSubtitleMetadataPosterUrlField")' in sections_source
     assert 'accessibilityIdentifier("createSubtitleMetadataStillUrlField")' in sections_source
