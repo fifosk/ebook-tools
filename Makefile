@@ -5,6 +5,7 @@
        test-backend-create-book test-backend-creation-templates \
        test-backend-subtitle-router \
        test-backend-playback-state \
+       test-backend-offline-export \
        test-backend-youtube-dubbing-service \
        test-web-create-book-focused test-web-create-intake-focused \
        test-web-creation-templates-focused \
@@ -95,6 +96,9 @@ test-backend-playback-state:
 		tests/modules/webapi/test_resume_routes.py \
 		tests/modules/webapi/test_bookmark_routes.py \
 		tests/modules/test_resume_service.py
+
+test-backend-offline-export:
+	$(PYTHON) -m pytest tests/modules/webapi/test_export_routes.py
 
 test-backend-youtube-dubbing-service:
 	$(PYTHON) -m pytest \

@@ -36,6 +36,9 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
             "tests/modules/webapi/test_bookmark_routes.py",
             "tests/modules/test_resume_service.py",
         ),
+        "test-backend-offline-export": (
+            "tests/modules/webapi/test_export_routes.py",
+        ),
         "test-backend-youtube-dubbing-service": (
             "tests/modules/webapi/test_youtube_library_route.py",
             "tests/modules/services/test_youtube_dubbing_subtitles.py",
@@ -61,6 +64,7 @@ def test_docs_publish_backend_pipeline_targets() -> None:
         "make test-backend-creation-templates",
         "make test-backend-subtitle-router",
         "make test-backend-playback-state",
+        "make test-backend-offline-export",
         "make test-backend-youtube-dubbing-service",
     ]:
         assert command in docs

@@ -822,7 +822,10 @@ Suggested features to evaluate after parity scaffolding:
   before device deployment. The shared pipeline backend manifest now pins the
   offline export `sourceKinds` and `playerTypes` list values as well as the
   export URLs, so reusable backend preflight fails if the Web/Apple offline
-  player payload contract changes.
+  player payload contract changes. The manifest-registered
+  `test-backend-offline-export` target now exercises the `/api/exports` create
+  and download routes, including token-safe logging and Prometheus timing
+  metrics, so Apple export actions are covered by the regular backend pipeline.
 
 ## Verification Contract
 
