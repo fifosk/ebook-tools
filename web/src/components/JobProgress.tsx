@@ -17,6 +17,7 @@ import {
 import { JobProgressHeader } from './job-progress/JobProgressHeader';
 import { JobProgressMediaMetadata } from './job-progress/JobProgressMediaMetadata';
 import { JobProgressPermissionsSection } from './job-progress/JobProgressPermissionsSection';
+import { JobProgressStageSection } from './job-progress/JobProgressStageSection';
 import { JobProgressTabs, type JobProgressTab } from './job-progress/JobProgressTabs';
 import { resolveProgressStage } from '../utils/progressEvents';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
@@ -33,8 +34,6 @@ import {
   formatDate,
   formatMetadataLabel,
   formatMetadataValue,
-  formatProgressValue,
-  formatSeconds,
   formatSecondsPerImage,
   formatTuningDescription,
   formatTuningLabel,
@@ -322,8 +321,6 @@ export function JobProgress({
   const showBatchStageProgress =
     useBatchProgress &&
     Boolean(translationBatchProgress || transliterationBatchProgress || mediaBatchProgress);
-  const showSentenceStageProgress =
-    !useBatchProgress && Boolean(translationProgress || mediaProgress);
   // Show playable progress when we have playable events or batch stats
   const showPlayableProgress = Boolean(playableProgress);
   // Show lookup cache progress when cache was built
@@ -536,97 +533,21 @@ export function JobProgress({
           </div>
         </div>
       ) : null}
-      {showOverviewSections && (showPlayableProgress || showBatchStageProgress || showSentenceStageProgress || showLookupCacheProgress || showLookupCacheBuilding) ? (
-        <div>
-          <h4>Stage progress</h4>
-          <div className="progress-grid">
-            {showPlayableProgress && playableProgress ? (
-              <div className="progress-metric">
-                <strong>Playable sentences</strong>
-                <span>{formatProgressValue(playableProgress)}</span>
-                <p className="progress-metric__hint">Sentences fully processed and ready for playback.</p>
-              </div>
-            ) : null}
-            {showLookupCacheBuilding && lookupCacheBuildingProgress ? (
-              <div className="progress-metric">
-                <strong>Dictionary cache</strong>
-                <span className="progress-metric__status progress-metric__status--building">
-                  {lookupCacheBuildingProgress.cachedEntries !== null
-                    ? `${lookupCacheBuildingProgress.cachedEntries} word${lookupCacheBuildingProgress.cachedEntries === 1 ? '' : 's'}`
-                    : 'Building…'}
-                </span>
-                <p className="progress-metric__hint">
-                  {lookupCacheBuildingProgress.batchesCompleted !== null && lookupCacheBuildingProgress.batchesTotal !== null
-                    ? `Batch ${lookupCacheBuildingProgress.batchesCompleted} / ${lookupCacheBuildingProgress.batchesTotal}`
-                    : 'Processing words'}
-                  {lookupCacheBuildingProgress.wordsToLookup !== null
-                    ? ` (${lookupCacheBuildingProgress.wordsToLookup} unique words)`
-                    : ''}
-                  . Playback is available.
-                </p>
-              </div>
-            ) : null}
-            {showLookupCacheProgress && lookupCacheProgress ? (
-              <div className="progress-metric">
-                <strong>Dictionary cache</strong>
-                <span>
-                  {lookupCacheProgress.wordCount} word{lookupCacheProgress.wordCount === 1 ? '' : 's'}
-                  {lookupCacheProgress.skippedStopwords !== null
-                    ? ` (${lookupCacheProgress.skippedStopwords} stopwords skipped)`
-                    : ''}
-                </span>
-                <p className="progress-metric__hint">
-                  Unique words cached for instant lookups.
-                  {lookupCacheProgress.llmCalls !== null
-                    ? ` ${lookupCacheProgress.llmCalls} LLM call${lookupCacheProgress.llmCalls === 1 ? '' : 's'}.`
-                    : ''}
-                  {lookupCacheProgress.buildTimeSeconds !== null
-                    ? ` Built in ${formatSeconds(lookupCacheProgress.buildTimeSeconds, 's')}.`
-                    : ''}
-                </p>
-              </div>
-            ) : null}
-            {showBatchStageProgress ? (
-              <>
-                {translationBatchProgress ? (
-                  <div className="progress-metric">
-                    <strong>Translation batches</strong>
-                    <span>{formatProgressValue(translationBatchProgress)}</span>
-                    <p className="progress-metric__hint">Counts completed translation batches.</p>
-                  </div>
-                ) : null}
-                {transliterationBatchProgress ? (
-                  <div className="progress-metric">
-                    <strong>Transliteration batches</strong>
-                    <span>{formatProgressValue(transliterationBatchProgress)}</span>
-                    <p className="progress-metric__hint">Counts completed transliteration batches.</p>
-                  </div>
-                ) : null}
-                {mediaBatchProgress ? (
-                  <div className="progress-metric">
-                    <strong>Media batches</strong>
-                    <span>{formatProgressValue(mediaBatchProgress)}</span>
-                    <p className="progress-metric__hint">Counts batches with finished media output.</p>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
-            {!showBatchStageProgress && translationProgress ? (
-              <div className="progress-metric">
-                <strong>Translation progress</strong>
-                <span>{formatProgressValue(translationProgress)}</span>
-                <p className="progress-metric__hint">Counts translated sentences (LLM/googletrans).</p>
-              </div>
-            ) : null}
-            {!showBatchStageProgress && mediaProgress ? (
-              <div className="progress-metric">
-                <strong>Media progress</strong>
-                <span>{formatProgressValue(mediaProgress)}</span>
-                <p className="progress-metric__hint">Counts sentences with generated media output.</p>
-              </div>
-            ) : null}
-          </div>
-        </div>
+      {showOverviewSections ? (
+        <JobProgressStageSection
+          playableProgress={playableProgress}
+          lookupCacheBuildingProgress={lookupCacheBuildingProgress}
+          lookupCacheProgress={lookupCacheProgress}
+          translationBatchProgress={translationBatchProgress}
+          transliterationBatchProgress={transliterationBatchProgress}
+          mediaBatchProgress={mediaBatchProgress}
+          translationProgress={translationProgress}
+          mediaProgress={mediaProgress}
+          showBatchStageProgress={showBatchStageProgress}
+          showLookupCacheBuilding={showLookupCacheBuilding}
+          showLookupCacheProgress={showLookupCacheProgress}
+          showPlayableProgress={showPlayableProgress}
+        />
       ) : null}
       {showOverviewSections && translationsUnavailable ? (
         <div className="alert" role="status">
