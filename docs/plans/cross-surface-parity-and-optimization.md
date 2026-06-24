@@ -424,7 +424,10 @@ Optimization candidates:
   newest-first EPUB defaults for Web and Apple Create without failing the
   whole picker response during concurrent file changes. `/api/subtitles/sources`
   now applies the same stale-entry skip when building Web/Apple subtitle source
-  pickers, so vanished subtitle paths do not become default selections.
+  pickers, so vanished subtitle paths do not become default selections. The
+  NAS YouTube/video scanner also skips video candidates that vanish after
+  `os.walk()`, keeping Web Video Dubbing and Apple Create source pickers usable
+  during concurrent downloads or cleanup.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap

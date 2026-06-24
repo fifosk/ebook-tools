@@ -118,6 +118,28 @@ def test_list_downloaded_videos_reuses_walked_folder_files_for_subtitle_matching
     }
 
 
+def test_list_downloaded_videos_skips_stale_walked_video(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    stable_video = tmp_path / "stable.mp4"
+    vanished_video = tmp_path / "vanished.mp4"
+    stable_video.write_bytes(b"\x00" * 10)
+    vanished_video.write_bytes(b"\x00" * 10)
+    original_stat = Path.stat
+
+    def fake_stat(path: Path, *args, **kwargs):
+        if path == vanished_video:
+            raise FileNotFoundError(path)
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+
+    videos = list_downloaded_videos(tmp_path)
+
+    assert [video.path.name for video in videos] == ["stable.mp4"]
+
+
 def test_has_video_stream_handles_out_of_order_ffprobe_fields(monkeypatch, tmp_path: Path) -> None:
     # ffprobe may emit width/height before pix_fmt; we parse JSON to avoid order issues.
     payload = b'{"streams": [{"pix_fmt": "yuv420p", "width": 612, "height": 480}]}'

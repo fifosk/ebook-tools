@@ -100,7 +100,11 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
                         format=sub_ext,
                     )
                 )
-            stat = path.stat()
+            try:
+                stat = path.stat()
+            except OSError:
+                logger.debug("Skipping stale NAS video candidate %s", path, exc_info=True)
+                continue
             try:
                 folder_stat = folder.stat()
                 effective_mtime = max(stat.st_mtime, folder_stat.st_mtime)
