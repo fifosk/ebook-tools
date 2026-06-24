@@ -68,6 +68,15 @@ CREATE_BASIC_SECTIONS = (
     / "Create"
     / "AppleBookCreateBasicSections.swift"
 )
+CREATE_OUTPUT_SECTION = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateOutputSection.swift"
+)
 CREATE_STATUS_VIEWS = (
     ROOT
     / "ios"
@@ -179,6 +188,24 @@ def test_create_basic_sections_are_split_from_create_view_and_target_wired() -> 
     assert "AppleBookCreateJobSettingsSection(" in view_source
     assert "AppleBookCreateBasicSections.swift in Sources" in project
     assert project.count("AppleBookCreateBasicSections.swift in Sources") == 4
+
+
+def test_create_output_section_is_split_from_create_view_and_target_wired() -> None:
+    output_source = _source(CREATE_OUTPUT_SECTION)
+    view_source = _source(CREATE_VIEW)
+    project = _source(XCODE_PROJECT)
+
+    assert "struct AppleBookCreateOutputSection: View" in output_source
+    assert 'Section("Output")' in output_source
+    assert "AppleBookCreateSubtitleOutputControls(" in output_source
+    assert "AppleBookCreateYoutubeOutputControls(" in output_source
+    assert "AppleBookCreateGeneratedOutputControls(" in output_source
+    assert "AppleBookCreateOutputSection(" in view_source
+    assert "AppleBookCreateSubtitleOutputControls(" not in view_source
+    assert "AppleBookCreateYoutubeOutputControls(" not in view_source
+    assert "AppleBookCreateGeneratedOutputControls(" not in view_source
+    assert "AppleBookCreateOutputSection.swift in Sources" in project
+    assert project.count("AppleBookCreateOutputSection.swift in Sources") == 4
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:

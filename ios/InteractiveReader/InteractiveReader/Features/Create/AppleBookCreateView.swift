@@ -458,131 +458,128 @@ struct AppleBookCreateView: View {
     }
 
     private var outputSection: some View {
-        Section("Output") {
-            if creationMode == .subtitleJob {
-                AppleBookCreateSubtitleOutputControls(
-                    outputFormat: subtitleOutputFormatBinding,
-                    selectedOutputFormat: subtitleOutputFormat,
-                    assFontSize: subtitleAssFontSizeBinding,
-                    clampedAssFontSize: clampedAssFontSize,
-                    assEmphasisScale: subtitleAssEmphasisScaleBinding,
-                    formattedAssEmphasisScale: formattedAssEmphasisScale,
-                    startTime: textBinding(for: .subtitleStartTime, value: $subtitleStartTime),
-                    endTime: textBinding(for: .subtitleEndTime, value: $subtitleEndTime),
-                    enableTransliteration: boolBinding(for: .subtitleEnableTransliteration, value: $subtitleEnableTransliteration),
-                    isTransliterationEnabled: subtitleEnableTransliteration,
-                    transliterationMode: subtitleTransliterationModeBinding,
-                    selectedTransliterationMode: subtitleTransliterationMode,
-                    transliterationModel: textBinding(for: .subtitleTransliterationModel, value: $subtitleTransliterationModel),
-                    availableTransliterationModels: availableSubtitleTransliterationModels,
-                    highlight: boolBinding(for: .subtitleHighlight, value: $subtitleHighlight),
-                    showOriginal: boolBinding(for: .subtitleShowOriginal, value: $subtitleShowOriginal),
-                    generateAudioBook: boolBinding(for: .subtitleGenerateAudioBook, value: $subtitleGenerateAudioBook),
-                    mirrorBatchesToSourceDir: boolBinding(for: .subtitleMirrorBatchesToSourceDir, value: $subtitleMirrorBatchesToSourceDir),
-                    translationProvider: subtitleTranslationProviderBinding,
-                    selectedTranslationProvider: subtitleTranslationProvider,
-                    workerCount: subtitleWorkerCountBinding,
-                    clampedWorkerCount: clampedSubtitleWorkerCount,
-                    batchSize: subtitleBatchSizeBinding,
-                    clampedBatchSize: clampedSubtitleBatchSize,
-                    llmModel: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel),
-                    availableLlmModels: availableSubtitleLlmModels,
-                    translationBatchSize: subtitleTranslationBatchSizeBinding,
-                    clampedTranslationBatchSize: clampedSubtitleTranslationBatchSize
-                )
-            } else if creationMode == .youtubeDub {
-                AppleBookCreateYoutubeOutputControls(
-                    translationProvider: subtitleTranslationProviderBinding,
-                    selectedTranslationProvider: subtitleTranslationProvider,
-                    llmModel: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel),
-                    availableSubtitleLlmModels: availableSubtitleLlmModels,
-                    targetHeight: youtubeTargetHeightBinding,
-                    startOffset: textBinding(for: .youtubeStartOffset, value: $youtubeStartOffset),
-                    endOffset: textBinding(for: .youtubeEndOffset, value: $youtubeEndOffset),
-                    originalMixPercent: youtubeOriginalMixPercentBinding,
-                    formattedOriginalMixPercent: formattedYoutubeOriginalMixPercent,
-                    flushSentences: youtubeFlushSentencesBinding,
-                    clampedFlushSentences: clampedYoutubeFlushSentences,
-                    translationBatchSize: subtitleTranslationBatchSizeBinding,
-                    clampedTranslationBatchSize: clampedSubtitleTranslationBatchSize,
-                    splitBatches: boolBinding(for: .youtubeSplitBatches, value: $youtubeSplitBatches),
-                    isSplitBatchesEnabled: youtubeSplitBatches,
-                    stitchBatches: boolBinding(for: .youtubeStitchBatches, value: $youtubeStitchBatches),
-                    preserveAspectRatio: boolBinding(for: .youtubePreserveAspectRatio, value: $youtubePreserveAspectRatio),
-                    includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
-                    enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache)
-                )
-            } else {
-                AppleBookCreateGeneratedOutputControls(
-                    derivedBaseOutput: derivedBaseOutput,
-                    generateAudio: boolBinding(for: .generateAudio, value: $generateAudio),
-                    audioMode: textBinding(for: .audioMode, value: $audioMode),
-                    audioBitrateKbps: textBinding(for: .audioBitrateKbps, value: $audioBitrateKbps),
-                    writtenMode: textBinding(for: .writtenMode, value: $writtenMode),
-                    tempo: tempoBinding,
-                    formattedTempo: formattedTempo,
-                    estimatedAudioDurationLabel: estimatedAudioDurationLabel,
-                    sentencesPerOutputFile: bookSentencesPerOutputFileBinding,
-                    clampedSentencesPerOutputFile: clampedBookSentencesPerOutputFile,
-                    stitchFull: boolBinding(for: .stitchFull, value: $stitchFull),
-                    includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
-                    translationProvider: bookTranslationProviderBinding,
-                    selectedTranslationProvider: bookTranslationProvider,
-                    llmModel: textBinding(for: .bookLlmModel, value: $bookLlmModel),
-                    availableLlmModels: availableSubtitleLlmModels,
-                    translationBatchSize: bookTranslationBatchSizeBinding,
-                    clampedTranslationBatchSize: clampedBookTranslationBatchSize,
-                    transliterationMode: bookTransliterationModeBinding,
-                    selectedTransliterationMode: bookTransliterationMode,
-                    transliterationModel: textBinding(
-                        for: .bookTransliterationModel,
-                        value: $bookTransliterationModel
-                    ),
-                    availableTransliterationModels: availableBookTransliterationModels,
-                    enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache),
-                    lookupCacheBatchSize: bookLookupCacheBatchSizeBinding,
-                    clampedLookupCacheBatchSize: clampedBookLookupCacheBatchSize,
-                    outputHtml: boolBinding(for: .outputHtml, value: $outputHtml),
-                    outputPdf: boolBinding(for: .outputPdf, value: $outputPdf),
-                    includeImages: boolBinding(for: .includeImages, value: $includeImages),
-                    imagePromptPipeline: imagePromptPipelineBinding,
-                    imageStyleTemplate: imageStyleTemplateBinding,
-                    imagePromptBatchingEnabled: boolBinding(
-                        for: .imagePromptBatchingEnabled,
-                        value: $imagePromptBatchingEnabled
-                    ),
-                    imagePromptBatchSize: imagePromptBatchSizeBinding,
-                    clampedImagePromptBatchSize: clampedImagePromptBatchSize,
-                    imagePromptPlanBatchSize: imagePromptPlanBatchSizeBinding,
-                    clampedImagePromptPlanBatchSize: clampedImagePromptPlanBatchSize,
-                    imagePromptContextSentences: imagePromptContextSentencesBinding,
-                    clampedImagePromptContextSentences: clampedImagePromptContextSentences,
-                    imageWidth: textBinding(for: .imageWidth, value: $imageWidth),
-                    imageHeight: textBinding(for: .imageHeight, value: $imageHeight),
-                    imageSteps: textBinding(for: .imageSteps, value: $imageSteps),
-                    imageCfgScale: textBinding(for: .imageCfgScale, value: $imageCfgScale),
-                    imageSamplerName: textBinding(for: .imageSamplerName, value: $imageSamplerName),
-                    imageSeedWithPreviousImage: boolBinding(
-                        for: .imageSeedWithPreviousImage,
-                        value: $imageSeedWithPreviousImage
-                    ),
-                    imageBlankDetectionEnabled: boolBinding(
-                        for: .imageBlankDetectionEnabled,
-                        value: $imageBlankDetectionEnabled
-                    ),
-                    imageApiBaseURLs: textBinding(for: .imageApiBaseURLs, value: $imageApiBaseURLs),
-                    imageConcurrency: textBinding(for: .imageConcurrency, value: $imageConcurrency),
-                    imageApiTimeoutSeconds: textBinding(
-                        for: .imageApiTimeoutSeconds,
-                        value: $imageApiTimeoutSeconds
-                    ),
-                    threadCount: textBinding(for: .threadCount, value: $bookThreadCount),
-                    queueSize: textBinding(for: .queueSize, value: $bookQueueSize),
-                    jobMaxWorkers: textBinding(for: .jobMaxWorkers, value: $bookJobMaxWorkers),
-                    supportsImages: creationMode == .generatedBook
-                )
-            }
-        }
+        AppleBookCreateOutputSection(
+            creationMode: creationMode,
+            derivedBaseOutput: derivedBaseOutput,
+            subtitleOutputFormat: subtitleOutputFormatBinding,
+            selectedSubtitleOutputFormat: subtitleOutputFormat,
+            subtitleAssFontSize: subtitleAssFontSizeBinding,
+            clampedSubtitleAssFontSize: clampedAssFontSize,
+            subtitleAssEmphasisScale: subtitleAssEmphasisScaleBinding,
+            formattedSubtitleAssEmphasisScale: formattedAssEmphasisScale,
+            subtitleStartTime: textBinding(for: .subtitleStartTime, value: $subtitleStartTime),
+            subtitleEndTime: textBinding(for: .subtitleEndTime, value: $subtitleEndTime),
+            subtitleEnableTransliteration: boolBinding(
+                for: .subtitleEnableTransliteration,
+                value: $subtitleEnableTransliteration
+            ),
+            isSubtitleTransliterationEnabled: subtitleEnableTransliteration,
+            subtitleTransliterationMode: subtitleTransliterationModeBinding,
+            selectedSubtitleTransliterationMode: subtitleTransliterationMode,
+            subtitleTransliterationModel: textBinding(
+                for: .subtitleTransliterationModel,
+                value: $subtitleTransliterationModel
+            ),
+            availableSubtitleTransliterationModels: availableSubtitleTransliterationModels,
+            subtitleHighlight: boolBinding(for: .subtitleHighlight, value: $subtitleHighlight),
+            subtitleShowOriginal: boolBinding(for: .subtitleShowOriginal, value: $subtitleShowOriginal),
+            subtitleGenerateAudioBook: boolBinding(
+                for: .subtitleGenerateAudioBook,
+                value: $subtitleGenerateAudioBook
+            ),
+            subtitleMirrorBatchesToSourceDir: boolBinding(
+                for: .subtitleMirrorBatchesToSourceDir,
+                value: $subtitleMirrorBatchesToSourceDir
+            ),
+            subtitleTranslationProvider: subtitleTranslationProviderBinding,
+            selectedSubtitleTranslationProvider: subtitleTranslationProvider,
+            subtitleWorkerCount: subtitleWorkerCountBinding,
+            clampedSubtitleWorkerCount: clampedSubtitleWorkerCount,
+            subtitleBatchSize: subtitleBatchSizeBinding,
+            clampedSubtitleBatchSize: clampedSubtitleBatchSize,
+            subtitleLlmModel: textBinding(for: .subtitleLlmModel, value: $subtitleLlmModel),
+            availableSubtitleLlmModels: availableSubtitleLlmModels,
+            subtitleTranslationBatchSize: subtitleTranslationBatchSizeBinding,
+            clampedSubtitleTranslationBatchSize: clampedSubtitleTranslationBatchSize,
+            youtubeTargetHeight: youtubeTargetHeightBinding,
+            youtubeStartOffset: textBinding(for: .youtubeStartOffset, value: $youtubeStartOffset),
+            youtubeEndOffset: textBinding(for: .youtubeEndOffset, value: $youtubeEndOffset),
+            youtubeOriginalMixPercent: youtubeOriginalMixPercentBinding,
+            formattedYoutubeOriginalMixPercent: formattedYoutubeOriginalMixPercent,
+            youtubeFlushSentences: youtubeFlushSentencesBinding,
+            clampedYoutubeFlushSentences: clampedYoutubeFlushSentences,
+            youtubeSplitBatches: boolBinding(for: .youtubeSplitBatches, value: $youtubeSplitBatches),
+            isYoutubeSplitBatchesEnabled: youtubeSplitBatches,
+            youtubeStitchBatches: boolBinding(for: .youtubeStitchBatches, value: $youtubeStitchBatches),
+            youtubePreserveAspectRatio: boolBinding(
+                for: .youtubePreserveAspectRatio,
+                value: $youtubePreserveAspectRatio
+            ),
+            generateAudio: boolBinding(for: .generateAudio, value: $generateAudio),
+            audioMode: textBinding(for: .audioMode, value: $audioMode),
+            audioBitrateKbps: textBinding(for: .audioBitrateKbps, value: $audioBitrateKbps),
+            writtenMode: textBinding(for: .writtenMode, value: $writtenMode),
+            tempo: tempoBinding,
+            formattedTempo: formattedTempo,
+            estimatedAudioDurationLabel: estimatedAudioDurationLabel,
+            sentencesPerOutputFile: bookSentencesPerOutputFileBinding,
+            clampedSentencesPerOutputFile: clampedBookSentencesPerOutputFile,
+            stitchFull: boolBinding(for: .stitchFull, value: $stitchFull),
+            includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
+            bookTranslationProvider: bookTranslationProviderBinding,
+            selectedBookTranslationProvider: bookTranslationProvider,
+            bookLlmModel: textBinding(for: .bookLlmModel, value: $bookLlmModel),
+            bookTranslationBatchSize: bookTranslationBatchSizeBinding,
+            clampedBookTranslationBatchSize: clampedBookTranslationBatchSize,
+            bookTransliterationMode: bookTransliterationModeBinding,
+            selectedBookTransliterationMode: bookTransliterationMode,
+            bookTransliterationModel: textBinding(
+                for: .bookTransliterationModel,
+                value: $bookTransliterationModel
+            ),
+            availableBookTransliterationModels: availableBookTransliterationModels,
+            enableLookupCache: boolBinding(for: .enableLookupCache, value: $enableLookupCache),
+            bookLookupCacheBatchSize: bookLookupCacheBatchSizeBinding,
+            clampedBookLookupCacheBatchSize: clampedBookLookupCacheBatchSize,
+            outputHtml: boolBinding(for: .outputHtml, value: $outputHtml),
+            outputPdf: boolBinding(for: .outputPdf, value: $outputPdf),
+            includeImages: boolBinding(for: .includeImages, value: $includeImages),
+            imagePromptPipeline: imagePromptPipelineBinding,
+            imageStyleTemplate: imageStyleTemplateBinding,
+            imagePromptBatchingEnabled: boolBinding(
+                for: .imagePromptBatchingEnabled,
+                value: $imagePromptBatchingEnabled
+            ),
+            imagePromptBatchSize: imagePromptBatchSizeBinding,
+            clampedImagePromptBatchSize: clampedImagePromptBatchSize,
+            imagePromptPlanBatchSize: imagePromptPlanBatchSizeBinding,
+            clampedImagePromptPlanBatchSize: clampedImagePromptPlanBatchSize,
+            imagePromptContextSentences: imagePromptContextSentencesBinding,
+            clampedImagePromptContextSentences: clampedImagePromptContextSentences,
+            imageWidth: textBinding(for: .imageWidth, value: $imageWidth),
+            imageHeight: textBinding(for: .imageHeight, value: $imageHeight),
+            imageSteps: textBinding(for: .imageSteps, value: $imageSteps),
+            imageCfgScale: textBinding(for: .imageCfgScale, value: $imageCfgScale),
+            imageSamplerName: textBinding(for: .imageSamplerName, value: $imageSamplerName),
+            imageSeedWithPreviousImage: boolBinding(
+                for: .imageSeedWithPreviousImage,
+                value: $imageSeedWithPreviousImage
+            ),
+            imageBlankDetectionEnabled: boolBinding(
+                for: .imageBlankDetectionEnabled,
+                value: $imageBlankDetectionEnabled
+            ),
+            imageApiBaseURLs: textBinding(for: .imageApiBaseURLs, value: $imageApiBaseURLs),
+            imageConcurrency: textBinding(for: .imageConcurrency, value: $imageConcurrency),
+            imageApiTimeoutSeconds: textBinding(
+                for: .imageApiTimeoutSeconds,
+                value: $imageApiTimeoutSeconds
+            ),
+            threadCount: textBinding(for: .threadCount, value: $bookThreadCount),
+            queueSize: textBinding(for: .queueSize, value: $bookQueueSize),
+            jobMaxWorkers: textBinding(for: .jobMaxWorkers, value: $bookJobMaxWorkers),
+            supportsImages: creationMode == .generatedBook
+        )
     }
 
     private var youtubeMetadataSection: some View {
