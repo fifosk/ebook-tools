@@ -300,8 +300,9 @@ The reusable Apple device pipeline also calls the repo-owned
 `src/check_poc_readiness.py` hook before signed build/install when readiness is
 not skipped. Despite the legacy filename, the ebook-tools hook is intentionally
 token-safe: it checks `/_health` and `/api/system/runtime`, then verifies that
-the public runtime descriptor advertises the Apple Create paths used by iPhone,
-iPad, macOS iPad-style, and tvOS surfaces. It accepts the shared helper's
+the public runtime descriptor advertises the Apple Create, Library action,
+offline export, and playback-state paths used by iPhone, iPad, macOS
+iPad-style, and tvOS surfaces. It accepts the shared helper's
 legacy flags (`--use-remote-env-tokens`, read/write token requirements, and
 `--skip-apple-build`) so iPad/TV update runs can reuse the same unattended
 command shape while the unavailable iPhone profile is left out of the run.

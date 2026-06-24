@@ -9,61 +9,54 @@ and the public runtime descriptor used by Apple surfaces.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 from collections.abc import Mapping
+from pathlib import Path
 import sys
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+_RUNTIME_DESCRIPTOR_PATH = ROOT_DIR / "modules" / "webapi" / "runtime_descriptor.py"
+_RUNTIME_DESCRIPTOR_SPEC = importlib.util.spec_from_file_location(
+    "ebook_tools_runtime_descriptor",
+    _RUNTIME_DESCRIPTOR_PATH,
+)
+if _RUNTIME_DESCRIPTOR_SPEC is None or _RUNTIME_DESCRIPTOR_SPEC.loader is None:
+    raise RuntimeError(f"Unable to load runtime descriptor from {_RUNTIME_DESCRIPTOR_PATH}")
+_runtime_descriptor = importlib.util.module_from_spec(_RUNTIME_DESCRIPTOR_SPEC)
+_RUNTIME_DESCRIPTOR_SPEC.loader.exec_module(_runtime_descriptor)
+
+APPLE_PIPELINE_DESCRIPTOR = _runtime_descriptor.APPLE_PIPELINE_DESCRIPTOR
+AUTH_DESCRIPTOR = _runtime_descriptor.AUTH_DESCRIPTOR
+CLIENT_CONFIG_DESCRIPTOR = _runtime_descriptor.CLIENT_CONFIG_DESCRIPTOR
+CREATION_DESCRIPTOR = _runtime_descriptor.CREATION_DESCRIPTOR
+LIBRARY_ACTIONS_DESCRIPTOR = _runtime_descriptor.LIBRARY_ACTIONS_DESCRIPTOR
+OFFLINE_EXPORTS_DESCRIPTOR = _runtime_descriptor.OFFLINE_EXPORTS_DESCRIPTOR
+PLAYBACK_STATE_DESCRIPTOR = _runtime_descriptor.PLAYBACK_STATE_DESCRIPTOR
+
 DEFAULT_BASE_URL = "https://api.langtools.fifosk.synology.me"
 DEFAULT_HEALTH_PATH = "/_health"
 DEFAULT_RUNTIME_PATH = "/api/system/runtime"
-AUTH_DESCRIPTOR = {
-    "loginPath": "/api/auth/login",
-    "sessionPath": "/api/auth/session",
-}
-CLIENT_CONFIG_DESCRIPTOR = {
-    "sessionTokenStorage": "device-keychain",
-    "legacyTokenMigration": "userdefaults-authToken",
-}
-CREATION_DESCRIPTOR = {
-    "bookOptionsPath": "/api/books/options",
-    "bookJobsPath": "/api/books/jobs",
-    "pipelineFilesPath": "/api/pipelines/files",
-    "pipelineContentIndexPath": "/api/pipelines/files/content-index",
-    "pipelineUploadPath": "/api/pipelines/files/upload",
-    "pipelineJobsPath": "/api/pipelines",
-    "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
-    "subtitleSourcesPath": "/api/subtitles/sources",
-    "subtitleDeleteSourcePath": "/api/subtitles/delete-source",
-    "subtitleModelsPath": "/api/subtitles/models",
-    "subtitleJobsPath": "/api/subtitles/jobs",
-    "youtubeLibraryPath": "/api/subtitles/youtube/library",
-    "youtubeSubtitleStreamsPath": "/api/subtitles/youtube/subtitle-streams",
-    "youtubeExtractSubtitlesPath": "/api/subtitles/youtube/extract-subtitles",
-    "subtitleTvMetadataPreviewPath": "/api/subtitles/metadata/tv/lookup",
-    "subtitleTvMetadataCacheClearPath": "/api/subtitles/metadata/tv/cache/clear",
-    "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
-    "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
-    "youtubeDubPath": "/api/subtitles/youtube/dub",
-}
 EXPECTED_ROOT_VALUES = {
     "app": "ebook-tools",
     "service": "ebook-tools-api",
     "status": "ok",
 }
-EXPECTED_APPLE_PIPELINE_VALUES = {
-    "manifestId": "ebook-tools",
-}
-EXPECTED_AUTH_VALUES = {
-    "loginPath": AUTH_DESCRIPTOR["loginPath"],
-    "sessionPath": AUTH_DESCRIPTOR["sessionPath"],
-}
-EXPECTED_CLIENT_CONFIG_VALUES = {
-    "sessionTokenStorage": CLIENT_CONFIG_DESCRIPTOR["sessionTokenStorage"],
-    "legacyTokenMigration": CLIENT_CONFIG_DESCRIPTOR["legacyTokenMigration"],
+RUNTIME_SECTION_DESCRIPTORS = {
+    "auth": AUTH_DESCRIPTOR,
+    "clientConfig": CLIENT_CONFIG_DESCRIPTOR,
+    "applePipeline": APPLE_PIPELINE_DESCRIPTOR,
+    "creation": CREATION_DESCRIPTOR,
+    "libraryActions": LIBRARY_ACTIONS_DESCRIPTOR,
+    "offlineExports": OFFLINE_EXPORTS_DESCRIPTOR,
+    "playbackState": PLAYBACK_STATE_DESCRIPTOR,
 }
 
 
@@ -103,35 +96,18 @@ def validate_health(payload: Mapping[str, Any]) -> list[str]:
 def validate_runtime_descriptor(payload: Mapping[str, Any]) -> list[str]:
     failures: list[str] = []
     failures.extend(_validate_mapping_values(payload, EXPECTED_ROOT_VALUES, "runtime"))
-    failures.extend(
-        _validate_mapping_values(
-            _mapping_child(payload, "applePipeline"),
-            EXPECTED_APPLE_PIPELINE_VALUES,
-            "runtime.applePipeline",
+    for section_name, descriptor in RUNTIME_SECTION_DESCRIPTORS.items():
+        section = _mapping_child(payload, section_name)
+        if not section:
+            failures.append(f"runtime.{section_name}=<missing>")
+            continue
+        failures.extend(
+            _validate_mapping_values(
+                section,
+                descriptor,
+                f"runtime.{section_name}",
+            )
         )
-    )
-    failures.extend(
-        _validate_mapping_values(
-            _mapping_child(payload, "auth"),
-            EXPECTED_AUTH_VALUES,
-            "runtime.auth",
-        )
-    )
-    failures.extend(
-        _validate_mapping_values(
-            _mapping_child(payload, "clientConfig"),
-            EXPECTED_CLIENT_CONFIG_VALUES,
-            "runtime.clientConfig",
-        )
-    )
-    creation = _mapping_child(payload, "creation")
-    if not creation:
-        failures.append("runtime.creation=<missing>")
-    else:
-        for key, expected in CREATION_DESCRIPTOR.items():
-            actual = creation.get(key)
-            if actual != expected:
-                failures.append(f"runtime.creation.{key}={actual!r} expected {expected!r}")
     return failures
 
 
@@ -157,6 +133,10 @@ def check_readiness(
         "health_path": health_path,
         "runtime_path": runtime_path,
         "creation_paths": len(CREATION_DESCRIPTOR),
+        "library_action_paths": len(LIBRARY_ACTIONS_DESCRIPTOR),
+        "offline_export_paths": len(OFFLINE_EXPORTS_DESCRIPTOR),
+        "playback_state_paths": len(PLAYBACK_STATE_DESCRIPTOR),
+        "runtime_sections": len(RUNTIME_SECTION_DESCRIPTORS),
     }
 
 
@@ -172,10 +152,15 @@ def _validate_mapping_values(
 ) -> list[str]:
     failures: list[str] = []
     for key, expected in expected_values.items():
-        actual = payload.get(key)
-        if actual != expected:
-            failures.append(f"{label}.{key}={actual!r} expected {expected!r}")
+        actual = _normalize_descriptor_value(payload.get(key))
+        normalized_expected = _normalize_descriptor_value(expected)
+        if actual != normalized_expected:
+            failures.append(f"{label}.{key}={actual!r} expected {normalized_expected!r}")
     return failures
+
+
+def _normalize_descriptor_value(value: Any) -> Any:
+    return list(value) if isinstance(value, tuple) else value
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -208,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         "ebook-tools Apple deploy readiness passed: "
-        f"{summary['base_url']} advertised {summary['creation_paths']} Create paths"
+        f"{summary['base_url']} advertised {summary['runtime_sections']} Apple runtime sections"
     )
     return 0
 

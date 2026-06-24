@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import subprocess
+import sys
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "src" / "check_poc_readiness.py"
@@ -19,8 +21,11 @@ def build_runtime_descriptor() -> dict[str, object]:
         "service": "ebook-tools-api",
         "auth": dict(module.AUTH_DESCRIPTOR),
         "clientConfig": dict(module.CLIENT_CONFIG_DESCRIPTOR),
-        "applePipeline": {"manifestId": "ebook-tools"},
+        "applePipeline": dict(module.APPLE_PIPELINE_DESCRIPTOR),
         "creation": dict(module.CREATION_DESCRIPTOR),
+        "libraryActions": dict(module.LIBRARY_ACTIONS_DESCRIPTOR),
+        "offlineExports": dict(module.OFFLINE_EXPORTS_DESCRIPTOR),
+        "playbackState": dict(module.PLAYBACK_STATE_DESCRIPTOR),
     }
 
 
@@ -48,6 +53,28 @@ def test_deploy_readiness_contract_includes_subtitle_source_cleanup_path() -> No
     ]
 
 
+def test_deploy_readiness_validates_library_offline_and_playback_sections() -> None:
+    payload = build_runtime_descriptor()
+    del payload["libraryActions"]["isbnLookupPath"]
+    del payload["offlineExports"]["downloadPathTemplate"]
+    del payload["playbackState"]["resumeListPath"]
+
+    assert module.validate_runtime_descriptor(payload) == [
+        "runtime.libraryActions.isbnLookupPath=None expected '/api/library/isbn/lookup'",
+        "runtime.offlineExports.downloadPathTemplate=None expected '/api/exports/{export_id}/download'",
+        "runtime.playbackState.resumeListPath=None expected '/api/resume'",
+    ]
+
+
+def test_deploy_readiness_reports_missing_runtime_sections() -> None:
+    payload = build_runtime_descriptor()
+    del payload["offlineExports"]
+
+    assert module.validate_runtime_descriptor(payload) == [
+        "runtime.offlineExports=<missing>"
+    ]
+
+
 def test_check_readiness_uses_health_then_runtime(monkeypatch) -> None:
     paths: list[str] = []
 
@@ -67,6 +94,10 @@ def test_check_readiness_uses_health_then_runtime(monkeypatch) -> None:
 
     assert paths == ["/_health", "/api/system/runtime"]
     assert summary["creation_paths"] == len(module.CREATION_DESCRIPTOR)
+    assert summary["library_action_paths"] == len(module.LIBRARY_ACTIONS_DESCRIPTOR)
+    assert summary["offline_export_paths"] == len(module.OFFLINE_EXPORTS_DESCRIPTOR)
+    assert summary["playback_state_paths"] == len(module.PLAYBACK_STATE_DESCRIPTOR)
+    assert summary["runtime_sections"] == len(module.RUNTIME_SECTION_DESCRIPTORS)
 
 
 def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> None:
@@ -86,6 +117,10 @@ def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> Non
             "health_path": health_path,
             "runtime_path": runtime_path,
             "creation_paths": 21,
+            "library_action_paths": 6,
+            "offline_export_paths": 4,
+            "playback_state_paths": 5,
+            "runtime_sections": 7,
         }
 
     monkeypatch.setattr(module, "check_readiness", fake_check_readiness)
@@ -112,4 +147,27 @@ def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> Non
         "runtime_path": "/api/system/runtime",
         "timeout": 2.5,
     }
-    assert "ebook-tools Apple deploy readiness passed" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "ebook-tools Apple deploy readiness passed" in output
+    assert "advertised 7 Apple runtime sections" in output
+
+
+def test_script_invocation_loads_runtime_descriptor_without_importing_webapi_package() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--base-url",
+            "http://127.0.0.1:9",
+            "--timeout",
+            "0.1",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "ebook-tools Apple deploy readiness failed" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert "ModuleNotFoundError" not in result.stderr

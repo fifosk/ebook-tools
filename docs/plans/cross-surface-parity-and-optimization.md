@@ -489,10 +489,13 @@ a full-entitlement signing planner for cached-profile iPhone/iPad fallbacks; the
 legacy entitlement-stripping fallback requires
 `APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES` so iCloud/Push/Sign in with Apple
 validation keeps the full entitlement set by default. The shared-pipeline
-runtime Create contract now advertises the native subtitle source cleanup
-endpoint alongside source listing and submission endpoints, so Apple Settings
-and Create-readiness preflights catch backend/app drift before a simulator
-journey tries to use stale NAS cleanup controls. The shared-pipeline
+runtime contract now advertises the native subtitle source cleanup endpoint
+alongside source listing and submission endpoints, and the repo-owned deploy
+readiness hook validates the Create, Library action, offline export, and
+playback-state sections from `/api/system/runtime`, so Apple Settings,
+Create-readiness preflights, and attended device-update preflights catch
+backend/app drift before a simulator journey or device install tries to use
+stale NAS cleanup, Library, export, bookmark, or resume controls. The shared-pipeline
 office-iPad Create-readiness lane now has repo-owned
 `apple-pipeline-ipad-create-readiness` and dry-run shortcuts that delegate to
 the registered `ipados-create` app-owned journey without depending on an
