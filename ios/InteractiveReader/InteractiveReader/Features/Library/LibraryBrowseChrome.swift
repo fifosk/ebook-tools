@@ -52,7 +52,11 @@ struct BrowseSectionPicker: View {
     }
 
     private var orderedSections: [BrowseSection] {
+        #if os(tvOS)
+        [.jobs, .library, .settings, .search]
+        #else
         [.jobs, .create, .library, .settings, .search]
+        #endif
     }
 }
 

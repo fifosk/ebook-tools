@@ -41,6 +41,15 @@ LIBRARY_SHELL = (
     / "Library"
     / "LibraryShellView.swift"
 )
+LIBRARY_BROWSE_CHROME = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Library"
+    / "LibraryBrowseChrome.swift"
+)
 CREATE_VIEW_MODEL = (
     ROOT
     / "ios"
@@ -836,6 +845,7 @@ def test_create_routing_is_split_from_support_and_target_wired() -> None:
 
     assert "extension AppleBookCreatePresentation" in routing_source
     assert "static func availableCreateModes(isTV: Bool)" in routing_source
+    assert "isTV ? [] : AppleCreateMode.allCases" in routing_source
     assert "static func webCreateViewID(for mode: AppleCreateMode)" in routing_source
     assert "static func webCreateHandoffURL(apiBaseURL: URL?, mode: AppleCreateMode)" in routing_source
     assert 'return "books:create"' in routing_source
@@ -847,6 +857,27 @@ def test_create_routing_is_split_from_support_and_target_wired() -> None:
     assert "AppleBookCreateRouting.swift in Sources" in project
     assert project.count("AppleBookCreateRouting.swift in Sources") == 4
     assert "AppleBookCreateRouting.swift" in payload_script
+
+
+def test_tvos_browse_picker_excludes_native_create() -> None:
+    source = _source(LIBRARY_BROWSE_CHROME)
+
+    tvos_block = re.search(
+        r"#if os\(tvOS\)(?P<body>.*?)#else",
+        source,
+        flags=re.S,
+    )
+    assert tvos_block is not None
+    assert "[.jobs, .library, .settings, .search]" in tvos_block.group("body")
+    assert ".create" not in tvos_block.group("body")
+
+    non_tvos_block = re.search(
+        r"#else(?P<body>.*?)#endif",
+        source,
+        flags=re.S,
+    )
+    assert non_tvos_block is not None
+    assert "[.jobs, .create, .library, .settings, .search]" in non_tvos_block.group("body")
 
 
 def test_create_history_defaults_are_split_from_support_and_target_wired() -> None:

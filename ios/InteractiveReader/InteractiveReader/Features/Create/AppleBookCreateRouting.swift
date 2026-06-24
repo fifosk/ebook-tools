@@ -2,7 +2,7 @@ import Foundation
 
 extension AppleBookCreatePresentation {
     static func availableCreateModes(isTV: Bool) -> [AppleCreateMode] {
-        isTV ? [.generatedBook] : AppleCreateMode.allCases
+        isTV ? [] : AppleCreateMode.allCases
     }
 
     static func webCreateViewID(for mode: AppleCreateMode) -> String {

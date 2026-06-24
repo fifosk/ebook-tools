@@ -70,8 +70,8 @@ struct AppleCreationPayloadCheck {
             "Apple Create voice labels should shorten macOS inventory identifiers"
         )
         require(
-            AppleBookCreatePresentation.availableCreateModes(isTV: true) == [.generatedBook],
-            "Apple TV Create mode list should remain playback-safe"
+            AppleBookCreatePresentation.availableCreateModes(isTV: true).isEmpty,
+            "Apple TV Create mode list should stay empty and playback-safe"
         )
         require(
             AppleBookCreatePresentation.availableCreateModes(isTV: false) == AppleCreateMode.allCases,

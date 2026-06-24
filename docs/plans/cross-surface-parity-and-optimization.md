@@ -402,7 +402,10 @@ Target Apple UX:
   Jobs auto-refresh loop so fresh generated-book, Narrate EPUB, subtitle, and
   YouTube jobs are immediately visible.
 
-Do not add creation to Apple TV in this milestone.
+Do not add creation to Apple TV in this milestone. Status: the tvOS browse
+picker excludes Create, and the native Create routing helper advertises no tvOS
+creation modes, keeping Apple TV playback-first even as iPhone/iPad creation
+expands.
 
 ### Milestone 3: Web UI Redesign
 
