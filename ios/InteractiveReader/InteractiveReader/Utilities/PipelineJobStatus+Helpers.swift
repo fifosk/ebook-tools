@@ -104,6 +104,37 @@ extension PipelineStatusResponse {
         let total = stats["items_total"]?.intValue
         return ReadyProgressSnapshot(completed: completed, total: total)
     }
+
+    var healthTimelineLabel: String? {
+        guard isActiveForDisplay, let event = latestEvent else { return nil }
+        var parts: [String] = []
+        if let stage = event.displayStageLabel {
+            parts.append(stage)
+        }
+        if let elapsed = Self.formatRuntimeDuration(event.snapshot.elapsed) {
+            parts.append("elapsed \(elapsed)")
+        }
+        if let eta = event.snapshot.eta,
+           let etaLabel = Self.formatRuntimeDuration(eta) {
+            parts.append("ETA \(etaLabel)")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private static func formatRuntimeDuration(_ seconds: Double) -> String? {
+        guard seconds.isFinite, seconds > 0 else { return nil }
+        let rounded = Int(seconds.rounded())
+        let hours = rounded / 3600
+        let minutes = (rounded % 3600) / 60
+        let remainingSeconds = rounded % 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        }
+        if minutes > 0 {
+            return "\(minutes)m \(remainingSeconds)s"
+        }
+        return "\(remainingSeconds)s"
+    }
 }
 
 private extension JSONValue {
@@ -134,5 +165,22 @@ private extension ProgressEventPayload {
         // Exclude translation stage as it doesn't reflect final progress
         let readyStages: Set<String> = ["media", "playable", "tts", "audio", "export", "stitching"]
         return readyStages.contains(stage) || !stage.contains("translation")
+    }
+
+    var displayStageLabel: String? {
+        guard let stage = progressStage else { return nil }
+        let normalized = stage
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return nil }
+        let acronyms: Set<String> = ["api", "ass", "epub", "html", "llm", "nas", "pdf", "tts"]
+        return normalized
+            .split(separator: " ")
+            .map { word -> String in
+                let lower = word.lowercased()
+                return acronyms.contains(lower) ? lower.uppercased() : lower.capitalized
+            }
+            .joined(separator: " ")
     }
 }

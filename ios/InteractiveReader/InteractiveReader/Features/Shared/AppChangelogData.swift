@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.21",
+            version: "2026.06.24.22",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-job-health-row",
+                    title: "Jobs show running health",
+                    detail: "Apple Jobs rows now show a compact running-job health line with the latest backend stage, elapsed runtime, and ETA from progress events."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-opens-created-job",
                     title: "Create opens new jobs",

@@ -77,16 +77,20 @@ extension JobRowView {
     var progressLabel: String? {
         guard job.isActiveForDisplay else { return nil }
         guard let snapshot = job.readyProgressSnapshot else {
+            if let healthTimelineLabel = job.healthTimelineLabel {
+                return "Progress: preparing · \(healthTimelineLabel)"
+            }
             if job.status == .pending {
                 return "Progress: preparing"
             }
-            return nil
+            return job.healthTimelineLabel
         }
+        let healthSuffix = job.healthTimelineLabel.map { " · \($0)" } ?? ""
         if let total = snapshot.total, total > 0 {
             let percent = Int((Double(snapshot.completed) / Double(total)) * 100)
-            return "Progress \(snapshot.completed)/\(total) · \(percent)%"
+            return "Progress \(snapshot.completed)/\(total) · \(percent)%\(healthSuffix)"
         }
-        return "Progress \(snapshot.completed)"
+        return "Progress \(snapshot.completed)\(healthSuffix)"
     }
 
     var progressValue: Double? {

@@ -404,7 +404,10 @@ Suggested features to evaluate after parity scaffolding:
 - Creation handoff: Apple app opens the corresponding Web creation URL for unsupported advanced options. Status:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,
   and maps native creation modes to validated Web `?view=` deep links.
-- Job health timeline: show backend stage durations and slow phases in Web and iPad.
+- Job health timeline: show backend stage durations and slow phases in Web and iPad. Status:
+  Apple Jobs rows now surface the latest backend stage with elapsed runtime
+  and ETA from progress events, giving iPad/iPhone a compact health signal
+  while jobs are running.
 - Backend queue pressure indicator: expose accepting/backpressure state in Settings before users submit long jobs. Status:
   Web admin System status now shows job intake state, pending queue depth,
   active running jobs, and soft-limit warnings from the backend

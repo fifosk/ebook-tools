@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.22
+
+- Advanced visible Apple app versioning to `v2026.06.24.22`.
+- Apple Jobs rows now show a compact running-job health line with the latest backend stage, elapsed runtime, and ETA from progress events.
+
 ### 2026.06.24.21
 
 - Advanced visible Apple app versioning to `v2026.06.24.21`.
