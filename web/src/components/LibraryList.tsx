@@ -5,7 +5,6 @@ import { extractJobType, getJobTypeGlyph, isTvSeriesMetadata } from '../utils/jo
 import JobTypeGlyphBadge from './JobTypeGlyphBadge';
 import { normalizeLanguageLabel } from '../utils/languages';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
-import { getStatusGlyph } from '../utils/status';
 import EmojiIcon from './EmojiIcon';
 import {
   buildLibraryItemActionState,
@@ -15,6 +14,7 @@ import {
   type LibraryItemPermissions
 } from './library-list/libraryListActions';
 import { LibraryItemActions } from './library-list/LibraryItemActions';
+import { LibraryStatusBadge } from './library-list/LibraryStatusBadge';
 import {
   buildAuthorGroups,
   buildGenreGroups,
@@ -68,8 +68,6 @@ function renderLanguageLabel(language: string | null | undefined) {
     </span>
   );
 }
-
-type StatusVariant = 'ready' | 'missing';
 
 function resolveJobType(item: LibraryItem): string {
   return extractJobType(item.metadata) ?? 'pipeline';
@@ -285,29 +283,6 @@ function renderVideoCell(item: LibraryItem, options: { onOpen: () => void; disab
   );
 }
 
-function describeStatus(item: LibraryItem): { label: string; variant?: StatusVariant; glyphKey: string } {
-  if (!item.mediaCompleted) {
-    return { label: 'Media removed', variant: 'missing', glyphKey: 'cancelled' };
-  }
-  if (item.status === 'paused') {
-    return { label: 'Paused', variant: 'ready', glyphKey: 'paused' };
-  }
-  return { label: 'Finished', variant: 'ready', glyphKey: 'completed' };
-}
-
-function renderStatusBadge(item: LibraryItem) {
-  const { label, variant, glyphKey } = describeStatus(item);
-  const glyph = getStatusGlyph(glyphKey);
-  return (
-    <span className={styles.statusBadge} data-variant={variant} title={glyph.label}>
-      <span className={styles.statusIcon} aria-hidden="true">
-        {glyph.icon}
-      </span>
-      <span>{label}</span>
-    </span>
-  );
-}
-
 function formatTimestamp(value: string | null | undefined): string {
   if (!value) {
     return '—';
@@ -444,7 +419,9 @@ function LibraryList({
                           })}
                         </td>
                         <td>{renderLanguageLabel(item.language)}</td>
-                        <td>{renderStatusBadge(item)}</td>
+                        <td>
+                          <LibraryStatusBadge item={item} />
+                        </td>
                         <td>{formatTimestamp(item.updatedAt)}</td>
                         <td>{renderActions(item, actionState)}</td>
                       </>
@@ -457,7 +434,9 @@ function LibraryList({
                           })}
                         </td>
                         <td>{renderLanguageLabel(item.language)}</td>
-                        <td>{renderStatusBadge(item)}</td>
+                        <td>
+                          <LibraryStatusBadge item={item} />
+                        </td>
                         <td>{formatTimestamp(item.updatedAt)}</td>
                         <td>{renderActions(item, actionState)}</td>
                       </>
@@ -470,7 +449,9 @@ function LibraryList({
                           })}
                         </td>
                         <td>{renderLanguageLabel(item.language)}</td>
-                        <td>{renderStatusBadge(item)}</td>
+                        <td>
+                          <LibraryStatusBadge item={item} />
+                        </td>
                         <td>{formatTimestamp(item.updatedAt)}</td>
                         <td>{renderActions(item, actionState)}</td>
                       </>
@@ -480,7 +461,9 @@ function LibraryList({
                         <td>{renderJobTypeGlyph(item)}</td>
                         <td className={styles.cellAuthor}>{resolveAuthor(item)}</td>
                         <td>{renderLanguageLabel(item.language)}</td>
-                        <td>{renderStatusBadge(item)}</td>
+                        <td>
+                          <LibraryStatusBadge item={item} />
+                        </td>
                         <td>{formatTimestamp(item.updatedAt)}</td>
                         <td>{renderActions(item, actionState)}</td>
                       </>
@@ -523,7 +506,7 @@ function LibraryList({
                           >
                             <div className={styles.itemHeader}>
                               <span>Job {item.jobId}</span>
-                              {renderStatusBadge(item)}
+                              <LibraryStatusBadge item={item} />
                             </div>
                             <div className={styles.itemMeta}>
                               Updated {formatTimestamp(item.updatedAt)} · Job {renderJobTypeGlyph(item)} · Library path {item.libraryPath}
@@ -571,7 +554,7 @@ function LibraryList({
                           >
                             <div className={styles.itemHeader}>
                               <span>Job {item.jobId}</span>
-                              {renderStatusBadge(item)}
+                              <LibraryStatusBadge item={item} />
                             </div>
                             <div className={styles.itemMeta}>
                               Language {renderLanguageLabel(item.language)} · Job {renderJobTypeGlyph(item)} · Updated {formatTimestamp(item.updatedAt)}
@@ -618,7 +601,7 @@ function LibraryList({
                         >
                           <div className={styles.itemHeader}>
                             <span>Job {item.jobId}</span>
-                            {renderStatusBadge(item)}
+                            <LibraryStatusBadge item={item} />
                           </div>
                           <div className={styles.itemMeta}>
                             Updated {formatTimestamp(item.updatedAt)} · Job {renderJobTypeGlyph(item)} · Library path {item.libraryPath}

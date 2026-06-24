@@ -152,7 +152,7 @@ Large Web UI hotspots to split before redesign work:
   status, notices, batch stats, parallelism, tuning, and fallback sections now
   live in `JobProgressOverviewSection.tsx`. Job lifecycle timing summary now
   lives in `JobProgressTimingSummary.tsx`.
-- `web/src/components/LibraryList.tsx` - 641 lines. Status: layout type
+- `web/src/components/LibraryList.tsx` - 624 lines. Status: layout type
   detection, title/author/genre fallback labels, and author/genre/language
   grouping now live in `web/src/components/library-list/libraryListUtils.ts`
   with focused Vitest coverage. Book summary, TV/episode metadata, subtitle
@@ -163,6 +163,8 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/library-list/libraryListActions.ts` with focused Vitest
   coverage. Reusable row/card action buttons now live in
   `web/src/components/library-list/LibraryItemActions.tsx` with focused
+  rendered coverage. Library item status badges now live in
+  `web/src/components/library-list/LibraryStatusBadge.tsx` with focused
   rendered coverage.
 - `web/src/components/PlayerPanel.tsx` - 1014 lines. Status: selected text
   item, selected chunk, and active text chunk resolution now live in
