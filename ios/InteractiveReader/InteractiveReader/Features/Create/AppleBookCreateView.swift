@@ -1194,7 +1194,7 @@ struct AppleBookCreateView: View {
     }
 
     private func applyCreationTemplate(_ template: CreationTemplateEntry) {
-        guard let settings = templateSettings(from: template) else {
+        guard let settings = AppleBookCreateTemplateSettings.settings(from: template) else {
             viewModel.creationTemplateMessage = nil
             viewModel.errorMessage = "Template \(template.displayName) does not contain creation settings."
             return
@@ -1225,26 +1225,26 @@ struct AppleBookCreateView: View {
             creationMode = .narrateEbook
         }
 
-        if let value = templateString(formState, "input_file") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "input_file") {
             sourcePath = value
             selectedNarrateFileURL = nil
             selectedNarrateFileName = nil
             clearNarrateChapterSelection()
             markApplied(.sourcePath)
         }
-        if let value = templateString(formState, "base_output_file") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "base_output_file") {
             sourceBaseOutput = value
             markApplied(.sourceBaseOutput)
         }
-        if let value = templateInt(formState, "start_sentence") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "start_sentence") {
             sourceStartSentence = "\(value)"
             markApplied(.sourceStartSentence)
         }
-        if let value = templateEndSentenceText(formState["end_sentence"]) {
+        if let value = AppleBookCreateTemplateSettings.endSentenceText(from: formState["end_sentence"]) {
             sourceEndSentence = value
             markApplied(.sourceEndSentence)
         }
-        if let value = templateInt(formState, "sentences_per_output_file") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "sentences_per_output_file") {
             bookSentencesPerOutputFile = AppleBookCreatePresentation.clampBookSentencesPerOutputFile(value)
             markApplied(.bookSentencesPerOutputFile)
         }
@@ -1265,91 +1265,91 @@ struct AppleBookCreateView: View {
         var appliedFields = Set<AppleBookCreateEditedField>()
         creationMode = .subtitleJob
 
-        if let value = templateString(formState, "source_path") ?? templateString(formState, "subtitle_path") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "source_path") ?? AppleBookCreateTemplateSettings.string(formState, "subtitle_path") {
             subtitleSourcePath = value
             selectedSubtitleFileURL = nil
             selectedSubtitleFileName = nil
             subtitleMetadataLookupSourceName = URL(fileURLWithPath: value).lastPathComponent
             appliedFields.insert(.subtitleSourcePath)
         }
-        if let value = templateString(formState, "input_language"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "input_language"),
            let language = AppleBookCreateLanguage(backendValue: value) {
             inputLanguage = language
             appliedFields.insert(.inputLanguage)
         }
-        if let value = templateString(formState, "target_language"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "target_language"),
            let language = AppleBookCreateLanguage(backendValue: value) {
             targetLanguage = language
             appliedFields.insert(.targetLanguage)
         }
-        if let value = templateString(formState, "output_format"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "output_format"),
            let format = AppleSubtitleOutputFormat(rawValue: value.lowercased()) {
             subtitleOutputFormat = format
             appliedFields.insert(.subtitleOutputFormat)
         }
-        if let value = templateString(formState, "start_time") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "start_time") {
             subtitleStartTime = value
             appliedFields.insert(.subtitleStartTime)
         }
-        if let value = templateString(formState, "end_time") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "end_time") {
             subtitleEndTime = value
             appliedFields.insert(.subtitleEndTime)
         }
-        if let value = templateBool(formState, "enable_transliteration") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "enable_transliteration") {
             subtitleEnableTransliteration = value
             appliedFields.insert(.subtitleEnableTransliteration)
         }
-        if let value = templateBool(formState, "highlight") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "highlight") {
             subtitleHighlight = value
             appliedFields.insert(.subtitleHighlight)
         }
-        if let value = templateBool(formState, "show_original") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "show_original") {
             subtitleShowOriginal = value
             appliedFields.insert(.subtitleShowOriginal)
         }
-        if let value = templateBool(formState, "generate_audio_book") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "generate_audio_book") {
             subtitleGenerateAudioBook = value
             appliedFields.insert(.subtitleGenerateAudioBook)
         }
-        if let value = templateBool(formState, "mirror_batches_to_source_dir") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "mirror_batches_to_source_dir") {
             subtitleMirrorBatchesToSourceDir = value
             appliedFields.insert(.subtitleMirrorBatchesToSourceDir)
         }
-        if let value = templateString(formState, "translation_provider"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "translation_provider"),
            let provider = AppleSubtitleTranslationProvider(backendValue: value) {
             subtitleTranslationProvider = provider
             appliedFields.insert(.subtitleTranslationProvider)
         }
-        if let value = templateString(formState, "llm_model") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "llm_model") {
             subtitleLlmModel = value
             appliedFields.insert(.subtitleLlmModel)
         }
-        if let value = templateString(formState, "transliteration_mode"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_mode"),
            let mode = AppleSubtitleTransliterationMode(backendValue: value) {
             subtitleTransliterationMode = mode
             appliedFields.insert(.subtitleTransliterationMode)
         }
-        if let value = templateString(formState, "transliteration_model") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_model") {
             subtitleTransliterationModel = value
             appliedFields.insert(.subtitleTransliterationModel)
         }
-        if let value = templateInt(formState, "worker_count") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "worker_count") {
             subtitleWorkerCount = AppleBookCreatePresentation.clampSubtitleWorkerCount(value)
             appliedFields.insert(.subtitleWorkerCount)
         }
-        if let value = templateInt(formState, "batch_size") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "batch_size") {
             subtitleBatchSize = AppleBookCreatePresentation.clampSubtitleBatchSize(value)
             appliedFields.insert(.subtitleBatchSize)
         }
-        if let value = templateInt(formState, "translation_batch_size") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "translation_batch_size") {
             subtitleTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
             appliedFields.insert(.subtitleTranslationBatchSize)
         }
-        if let value = templateInt(formState, "ass_font_size") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "ass_font_size") {
             subtitleAssFontSize = AppleBookCreatePresentation.clampAssFontSize(value)
             appliedFields.insert(.subtitleAssFontSize)
         }
-        if let value = templateDouble(formState, "ass_emphasis_scale") {
+        if let value = AppleBookCreateTemplateSettings.double(formState, "ass_emphasis_scale") {
             subtitleAssEmphasisScale = AppleBookCreatePresentation.clampAssEmphasisScale(value)
             appliedFields.insert(.subtitleAssEmphasisScale)
         }
@@ -1364,91 +1364,91 @@ struct AppleBookCreateView: View {
         var appliedFields = Set<AppleBookCreateEditedField>()
         creationMode = .youtubeDub
 
-        if let value = templateString(formState, "video_path") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "video_path") {
             youtubeVideoPath = value
             youtubeSubtitleExtractionLanguages = ""
             viewModel.resetYoutubeSubtitleExtractionState()
             appliedFields.insert(.youtubeVideoPath)
         }
-        if let value = templateString(formState, "subtitle_path") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "subtitle_path") {
             youtubeSubtitlePath = value
             appliedFields.insert(.youtubeSubtitlePath)
         }
-        if let value = templateString(formState, "source_language"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "source_language"),
            let language = AppleBookCreateLanguage(backendValue: value) {
             inputLanguage = language
             appliedFields.insert(.inputLanguage)
         }
-        if let value = templateString(formState, "target_language"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "target_language"),
            let language = AppleBookCreateLanguage(backendValue: value) {
             targetLanguage = language
             appliedFields.insert(.targetLanguage)
         }
-        if let value = templateString(formState, "voice"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "voice"),
            let option = AppleBookCreateVoiceOption(backendValue: value) {
             voice = option
             appliedFields.insert(.voice)
         }
-        if let value = templateString(formState, "start_time_offset") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "start_time_offset") {
             youtubeStartOffset = value
             appliedFields.insert(.youtubeStartOffset)
         }
-        if let value = templateString(formState, "end_time_offset") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "end_time_offset") {
             youtubeEndOffset = value
             appliedFields.insert(.youtubeEndOffset)
         }
-        if let value = templateDouble(formState, "original_mix_percent") {
+        if let value = AppleBookCreateTemplateSettings.double(formState, "original_mix_percent") {
             youtubeOriginalMixPercent = AppleBookCreatePresentation.clampYoutubeOriginalMixPercent(value)
             appliedFields.insert(.youtubeOriginalMixPercent)
         }
-        if let value = templateInt(formState, "flush_sentences") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "flush_sentences") {
             youtubeFlushSentences = AppleBookCreatePresentation.clampYoutubeFlushSentences(value)
             appliedFields.insert(.youtubeFlushSentences)
         }
-        if let value = templateString(formState, "translation_provider"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "translation_provider"),
            let provider = AppleSubtitleTranslationProvider(backendValue: value) {
             subtitleTranslationProvider = provider
             appliedFields.insert(.subtitleTranslationProvider)
         }
-        if let value = templateString(formState, "llm_model") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "llm_model") {
             subtitleLlmModel = value
             appliedFields.insert(.subtitleLlmModel)
         }
-        if let value = templateInt(formState, "translation_batch_size") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "translation_batch_size") {
             subtitleTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
             appliedFields.insert(.subtitleTranslationBatchSize)
         }
-        if let value = templateString(formState, "transliteration_mode"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_mode"),
            let mode = AppleSubtitleTransliterationMode(backendValue: value) {
             subtitleTransliterationMode = mode
             appliedFields.insert(.subtitleTransliterationMode)
         }
-        if let value = templateString(formState, "transliteration_model") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_model") {
             subtitleTransliterationModel = value
             appliedFields.insert(.subtitleTransliterationModel)
         }
-        if let value = templateBool(formState, "split_batches") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "split_batches") {
             youtubeSplitBatches = value
             appliedFields.insert(.youtubeSplitBatches)
         }
-        if let value = templateBool(formState, "stitch_batches") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "stitch_batches") {
             youtubeStitchBatches = value
             appliedFields.insert(.youtubeStitchBatches)
         }
-        if let value = templateBool(formState, "include_transliteration") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "include_transliteration") {
             youtubeIncludeTransliteration = value
             appliedFields.insert(.youtubeIncludeTransliteration)
         }
-        if let value = templateInt(formState, "target_height"),
+        if let value = AppleBookCreateTemplateSettings.int(formState, "target_height"),
            let height = AppleYoutubeDubTargetHeight(rawValue: value) {
             youtubeTargetHeight = height
             appliedFields.insert(.youtubeTargetHeight)
         }
-        if let value = templateBool(formState, "preserve_aspect_ratio") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "preserve_aspect_ratio") {
             youtubePreserveAspectRatio = value
             appliedFields.insert(.youtubePreserveAspectRatio)
         }
-        if let value = templateBool(formState, "enable_lookup_cache") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "enable_lookup_cache") {
             youtubeEnableLookupCache = value
             appliedFields.insert(.youtubeEnableLookupCache)
         }
@@ -1463,13 +1463,13 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        if let value = templateString(formState, "input_language"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "input_language"),
            let language = AppleBookCreateLanguage(backendValue: value) {
             inputLanguage = language
             appliedFields.insert(.inputLanguage)
         }
 
-        let targets = templateStringArray(formState, "target_languages")
+        let targets = AppleBookCreateTemplateSettings.stringArray(formState, "target_languages")
             .compactMap(AppleBookCreateLanguage.init(backendValue:))
         if let primary = targets.first {
             targetLanguage = primary
@@ -1483,70 +1483,70 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        if let value = templateString(formState, "selected_voice"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "selected_voice"),
            let option = AppleBookCreateVoiceOption(backendValue: value) {
             voice = option
             appliedFields.insert(.voice)
         }
-        if let overrides = templateStringDictionary(formState["voice_overrides"]) {
+        if let overrides = AppleBookCreateTemplateSettings.stringDictionary(from: formState["voice_overrides"]) {
             languageVoiceOverrides = overrides
             appliedFields.insert(.languageVoiceOverrides)
         }
-        if let value = templateBool(formState, "generate_audio") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "generate_audio") {
             generateAudio = value
             appliedFields.insert(.generateAudio)
         }
-        if let value = templateString(formState, "audio_mode") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "audio_mode") {
             audioMode = value
             appliedFields.insert(.audioMode)
         }
-        if let value = templateString(formState, "audio_bitrate_kbps") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "audio_bitrate_kbps") {
             audioBitrateKbps = value
             appliedFields.insert(.audioBitrateKbps)
         }
-        if let value = templateString(formState, "written_mode") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "written_mode") {
             writtenMode = value
             appliedFields.insert(.writtenMode)
         }
-        if let value = templateDouble(formState, "tempo") {
+        if let value = AppleBookCreateTemplateSettings.double(formState, "tempo") {
             tempo = value
             appliedFields.insert(.tempo)
         }
-        if let value = templateBool(formState, "stitch_full") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "stitch_full") {
             stitchFull = value
             appliedFields.insert(.stitchFull)
         }
-        if let value = templateBool(formState, "include_transliteration") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "include_transliteration") {
             includeTransliteration = value
             appliedFields.insert(.includeTransliteration)
         }
-        if let value = templateString(formState, "translation_provider"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "translation_provider"),
            let provider = AppleSubtitleTranslationProvider(backendValue: value) {
             bookTranslationProvider = provider
             appliedFields.insert(.bookTranslationProvider)
         }
-        if let value = templateString(formState, "ollama_model") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "ollama_model") {
             bookLlmModel = value
             appliedFields.insert(.bookLlmModel)
         }
-        if let value = templateInt(formState, "translation_batch_size") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "translation_batch_size") {
             bookTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
             appliedFields.insert(.bookTranslationBatchSize)
         }
-        if let value = templateString(formState, "transliteration_mode"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_mode"),
            let mode = AppleSubtitleTransliterationMode(backendValue: value) {
             bookTransliterationMode = mode
             appliedFields.insert(.bookTransliterationMode)
         }
-        if let value = templateString(formState, "transliteration_model") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_model") {
             bookTransliterationModel = value
             appliedFields.insert(.bookTransliterationModel)
         }
-        if let value = templateBool(formState, "enable_lookup_cache") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "enable_lookup_cache") {
             enableLookupCache = value
             appliedFields.insert(.enableLookupCache)
         }
-        if let value = templateInt(formState, "lookup_cache_batch_size") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "lookup_cache_batch_size") {
             bookLookupCacheBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
             appliedFields.insert(.bookLookupCacheBatchSize)
         }
@@ -1556,11 +1556,11 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        if let value = templateBool(formState, "output_html") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "output_html") {
             outputHtml = value
             appliedFields.insert(.outputHtml)
         }
-        if let value = templateBool(formState, "output_pdf") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "output_pdf") {
             outputPdf = value
             appliedFields.insert(.outputPdf)
         }
@@ -1570,70 +1570,70 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        if let value = templateBool(formState, "add_images") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "add_images") {
             includeImages = value
             appliedFields.insert(.includeImages)
         }
-        if let value = templateString(formState, "image_prompt_pipeline"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "image_prompt_pipeline"),
            let pipeline = AppleGeneratedBookImagePromptPipeline(backendValue: value) {
             imagePromptPipeline = pipeline
             appliedFields.insert(.imagePromptPipeline)
         }
-        if let value = templateString(formState, "image_style_template"),
+        if let value = AppleBookCreateTemplateSettings.string(formState, "image_style_template"),
            let style = AppleGeneratedBookImageStyleTemplate(backendValue: value) {
             imageStyleTemplate = style
             appliedFields.insert(.imageStyleTemplate)
         }
-        if let value = templateBool(formState, "image_prompt_batching_enabled") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "image_prompt_batching_enabled") {
             imagePromptBatchingEnabled = value
             appliedFields.insert(.imagePromptBatchingEnabled)
         }
-        if let value = templateInt(formState, "image_prompt_batch_size") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "image_prompt_batch_size") {
             imagePromptBatchSize = AppleBookCreatePresentation.clampImagePromptBatchSize(value)
             appliedFields.insert(.imagePromptBatchSize)
         }
-        if let value = templateInt(formState, "image_prompt_plan_batch_size") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "image_prompt_plan_batch_size") {
             imagePromptPlanBatchSize = AppleBookCreatePresentation.clampImagePromptBatchSize(value)
             appliedFields.insert(.imagePromptPlanBatchSize)
         }
-        if let value = templateInt(formState, "image_prompt_context_sentences") {
+        if let value = AppleBookCreateTemplateSettings.int(formState, "image_prompt_context_sentences") {
             imagePromptContextSentences = AppleBookCreatePresentation.clampImagePromptContextSentences(value)
             appliedFields.insert(.imagePromptContextSentences)
         }
-        if let value = templateString(formState, "image_width") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "image_width") {
             imageWidth = value
             appliedFields.insert(.imageWidth)
         }
-        if let value = templateString(formState, "image_height") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "image_height") {
             imageHeight = value
             appliedFields.insert(.imageHeight)
         }
-        if let value = templateString(formState, "image_steps") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "image_steps") {
             imageSteps = value
             appliedFields.insert(.imageSteps)
         }
-        if let value = templateString(formState, "image_cfg_scale") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "image_cfg_scale") {
             imageCfgScale = value
             appliedFields.insert(.imageCfgScale)
         }
-        if let value = templateString(formState, "image_sampler_name") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "image_sampler_name") {
             imageSamplerName = value
             appliedFields.insert(.imageSamplerName)
         }
-        if let value = templateBool(formState, "image_seed_with_previous_image") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "image_seed_with_previous_image") {
             imageSeedWithPreviousImage = value
             appliedFields.insert(.imageSeedWithPreviousImage)
         }
-        if let value = templateBool(formState, "image_blank_detection_enabled") {
+        if let value = AppleBookCreateTemplateSettings.bool(formState, "image_blank_detection_enabled") {
             imageBlankDetectionEnabled = value
             appliedFields.insert(.imageBlankDetectionEnabled)
         }
-        let apiBaseURLs = templateStringArray(formState, "image_api_base_urls")
+        let apiBaseURLs = AppleBookCreateTemplateSettings.stringArray(formState, "image_api_base_urls")
         if !apiBaseURLs.isEmpty {
             imageApiBaseURLs = apiBaseURLs.joined(separator: "\n")
             appliedFields.insert(.imageApiBaseURLs)
         }
-        if let value = templateString(formState, "image_api_timeout_seconds") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "image_api_timeout_seconds") {
             imageApiTimeoutSeconds = value
             appliedFields.insert(.imageApiTimeoutSeconds)
         }
@@ -1643,19 +1643,19 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        if let value = templateString(formState, "thread_count") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "thread_count") {
             bookThreadCount = value
             appliedFields.insert(.threadCount)
         }
-        if let value = templateString(formState, "queue_size") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "queue_size") {
             bookQueueSize = value
             appliedFields.insert(.queueSize)
         }
-        if let value = templateString(formState, "job_max_workers") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "job_max_workers") {
             bookJobMaxWorkers = value
             appliedFields.insert(.jobMaxWorkers)
         }
-        if let value = templateString(formState, "image_concurrency") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "image_concurrency") {
             imageConcurrency = value
             appliedFields.insert(.imageConcurrency)
         }
@@ -1665,13 +1665,13 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        guard let metadata = templateObject(from: formState["book_metadata"]) else {
+        guard let metadata = AppleBookCreateTemplateSettings.object(from: formState["book_metadata"]) else {
             return
         }
 
-        let title = templateString(metadata, "book_title") ?? templateString(metadata, "title")
-        let metadataAuthor = templateString(metadata, "book_author") ?? templateString(metadata, "author")
-        let metadataGenre = templateString(metadata, "book_genre") ?? templateString(metadata, "genre")
+        let title = AppleBookCreateTemplateSettings.string(metadata, "book_title") ?? AppleBookCreateTemplateSettings.string(metadata, "title")
+        let metadataAuthor = AppleBookCreateTemplateSettings.string(metadata, "book_author") ?? AppleBookCreateTemplateSettings.string(metadata, "author")
+        let metadataGenre = AppleBookCreateTemplateSettings.string(metadata, "book_genre") ?? AppleBookCreateTemplateSettings.string(metadata, "genre")
 
         if let title {
             if creationMode == .generatedBook {
@@ -1700,26 +1700,26 @@ struct AppleBookCreateView: View {
                 appliedFields.insert(.sourceBookGenre)
             }
         }
-        if let value = templateString(metadata, "book_summary") ?? templateString(metadata, "summary") {
+        if let value = AppleBookCreateTemplateSettings.string(metadata, "book_summary") ?? AppleBookCreateTemplateSettings.string(metadata, "summary") {
             bookSummary = value
             appliedFields.insert(.bookSummary)
         }
-        if let value = templateString(metadata, "book_year") ?? templateString(metadata, "year") {
+        if let value = AppleBookCreateTemplateSettings.string(metadata, "book_year") ?? AppleBookCreateTemplateSettings.string(metadata, "year") {
             bookYear = value
             appliedFields.insert(.bookYear)
         }
-        if let value = templateString(metadata, "book_isbn") ?? templateString(metadata, "isbn") {
+        if let value = AppleBookCreateTemplateSettings.string(metadata, "book_isbn") ?? AppleBookCreateTemplateSettings.string(metadata, "isbn") {
             bookIsbn = value
             appliedFields.insert(.bookIsbn)
         }
-        if let value = templateString(metadata, "book_cover_file") ?? templateString(metadata, "cover_file") {
+        if let value = AppleBookCreateTemplateSettings.string(metadata, "book_cover_file") ?? AppleBookCreateTemplateSettings.string(metadata, "cover_file") {
             bookCoverFile = value
             appliedFields.insert(.bookCoverFile)
         }
     }
 
     private func applyTemplateSubtitleMetadata(_ formState: [String: JSONValue]) {
-        guard let metadata = templateMetadataObject(from: formState) else {
+        guard let metadata = AppleBookCreateTemplateSettings.metadataObject(from: formState) else {
             return
         }
         viewModel.subtitleMediaMetadataDraft = AppleBookCreatePresentation.normalizedSubtitleMediaMetadata(metadata)
@@ -1729,113 +1729,13 @@ struct AppleBookCreateView: View {
     }
 
     private func applyTemplateYoutubeMetadata(_ formState: [String: JSONValue]) {
-        guard let metadata = templateMetadataObject(from: formState) else {
+        guard let metadata = AppleBookCreateTemplateSettings.metadataObject(from: formState) else {
             return
         }
         viewModel.youtubeMediaMetadataDraft = AppleBookCreatePresentation.normalizedYoutubeMediaMetadata(metadata)
         viewModel.syncYoutubeMediaMetadataJSONText()
         viewModel.youtubeMetadataMessage = "Applied template metadata."
         viewModel.youtubeMetadataErrorMessage = nil
-    }
-
-    private func templateMetadataObject(from formState: [String: JSONValue]) -> [String: JSONValue]? {
-        templateObject(from: formState["media_metadata"])
-            ?? templateObject(from: formState["media_metadata_json"])
-            ?? templateObject(from: formState["youtube_metadata"])
-    }
-
-    private func templateFormState(from template: CreationTemplateEntry) -> [String: JSONValue]? {
-        template.payload["form_state"]?.objectValue
-            ?? template.payload["formState"]?.objectValue
-            ?? template.payload["payload"]?.objectValue?["form_state"]?.objectValue
-    }
-
-    private func templateSettings(from template: CreationTemplateEntry) -> [String: JSONValue]? {
-        templateFormState(from: template) ?? template.payload
-    }
-
-    private func templateObject(from value: JSONValue?) -> [String: JSONValue]? {
-        guard let value else { return nil }
-        if let object = value.objectValue {
-            return object
-        }
-        guard case let .string(text) = value,
-              let data = text.data(using: .utf8),
-              let object = try? JSONDecoder().decode([String: JSONValue].self, from: data) else {
-            return nil
-        }
-        return object
-    }
-
-    private func templateStringDictionary(_ value: JSONValue?) -> [String: String]? {
-        guard let object = templateObject(from: value) else {
-            return nil
-        }
-        return object.reduce(into: [String: String]()) { result, element in
-            if let value = element.value.stringValue {
-                result[element.key] = value
-            }
-        }
-    }
-
-    private func templateString(_ object: [String: JSONValue], _ key: String) -> String? {
-        object[key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
-    }
-
-    private func templateStringArray(_ object: [String: JSONValue], _ key: String) -> [String] {
-        guard let value = object[key] else { return [] }
-        if let array = value.arrayValue {
-            return array.compactMap { $0.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue }
-        }
-        return value.stringValue?
-            .split(separator: ",")
-            .compactMap { String($0).trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue } ?? []
-    }
-
-    private func templateInt(_ object: [String: JSONValue], _ key: String) -> Int? {
-        object[key]?.intValue
-    }
-
-    private func templateDouble(_ object: [String: JSONValue], _ key: String) -> Double? {
-        switch object[key] {
-        case let .number(value):
-            return value.isFinite ? value : nil
-        case let .string(value):
-            return Double(value.trimmingCharacters(in: .whitespacesAndNewlines))
-        case let .bool(value):
-            return value ? 1 : 0
-        default:
-            return nil
-        }
-    }
-
-    private func templateBool(_ object: [String: JSONValue], _ key: String) -> Bool? {
-        switch object[key] {
-        case let .bool(value):
-            return value
-        case let .number(value):
-            return value != 0
-        case let .string(value):
-            switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-            case "1", "true", "yes", "on":
-                return true
-            case "0", "false", "no", "off":
-                return false
-            default:
-                return nil
-            }
-        default:
-            return nil
-        }
-    }
-
-    private func templateEndSentenceText(_ value: JSONValue?) -> String? {
-        switch value {
-        case .null, nil:
-            return ""
-        default:
-            return value?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        }
     }
 
     private func requestDeletePipelineEbook(_ entry: PipelineFileEntry) {

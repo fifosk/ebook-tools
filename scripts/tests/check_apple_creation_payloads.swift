@@ -77,6 +77,68 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.availableCreateModes(isTV: false) == AppleCreateMode.allCases,
             "iPhone/iPad Create mode list should expose all native creation modes"
         )
+        let templateJSON = """
+        {
+          "id": "template-1",
+          "name": "Dan Brown continuation",
+          "mode": "narrate_ebook",
+          "created_at": 1710000000,
+          "updated_at": 1710000001,
+          "payload": {
+            "payload": {
+              "form_state": {
+                "input_file": " /books/source.epub ",
+                "target_languages": "Arabic, Hindi,  ",
+                "voice_overrides": "{\\"Arabic\\":\\"Laila\\",\\"Hindi\\":\\"Aarav\\"}",
+                "generate_audio": "yes",
+                "tempo": "1.15",
+                "end_sentence": null,
+                "media_metadata_json": "{\\"show\\":{\\"title\\":\\"Origin\\"}}"
+              }
+            }
+          }
+        }
+        """.data(using: .utf8)!
+        let creationTemplate = try decoder.decode(CreationTemplateEntry.self, from: templateJSON)
+        let templateSettings = try requireValue(
+            AppleBookCreateTemplateSettings.settings(from: creationTemplate),
+            "Apple Create should resolve nested saved-template form_state payloads"
+        )
+        require(
+            AppleBookCreateTemplateSettings.string(templateSettings, "input_file") == "/books/source.epub",
+            "Apple Create saved-template strings should trim whitespace"
+        )
+        require(
+            AppleBookCreateTemplateSettings.stringArray(templateSettings, "target_languages") == ["Arabic", "Hindi"],
+            "Apple Create saved-template target languages should split comma-separated Web values"
+        )
+        require(
+            AppleBookCreateTemplateSettings.stringDictionary(from: templateSettings["voice_overrides"]) == [
+                "Arabic": "Laila",
+                "Hindi": "Aarav",
+            ],
+            "Apple Create saved-template voice overrides should parse stringified dictionaries"
+        )
+        require(
+            AppleBookCreateTemplateSettings.bool(templateSettings, "generate_audio") == true,
+            "Apple Create saved-template booleans should accept Web form truthy strings"
+        )
+        require(
+            AppleBookCreateTemplateSettings.double(templateSettings, "tempo") == 1.15,
+            "Apple Create saved-template doubles should accept string values"
+        )
+        require(
+            AppleBookCreateTemplateSettings.endSentenceText(from: templateSettings["end_sentence"]) == "",
+            "Apple Create saved-template null end sentence should preserve an open-ended range"
+        )
+        let templateMetadata = try requireValue(
+            AppleBookCreateTemplateSettings.metadataObject(from: templateSettings),
+            "Apple Create saved-template media metadata should parse stringified JSON"
+        )
+        require(
+            templateMetadata["show"]?.objectValue?["title"]?.stringValue == "Origin",
+            "Apple Create saved-template media metadata should keep nested title values"
+        )
         let pipelineFilesJSON = """
         {
           "ebooks": [

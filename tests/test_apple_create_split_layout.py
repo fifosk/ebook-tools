@@ -291,6 +291,15 @@ CREATE_METADATA_JSON = (
     / "Create"
     / "AppleBookCreateMetadataJSON.swift"
 )
+CREATE_TEMPLATE_SETTINGS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateTemplateSettings.swift"
+)
 CREATE_HISTORY_DEFAULTS = (
     ROOT
     / "ios"
@@ -500,8 +509,11 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     view_source = _source(CREATE_VIEW)
     view_model_source = _source(CREATE_VIEW_MODEL)
     status_views_source = _source(CREATE_STATUS_VIEWS)
+    template_settings_source = _source(CREATE_TEMPLATE_SETTINGS)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
 
     assert "struct CreationTemplateListResponse: Decodable, Equatable" in api_models_source
     assert "struct CreationTemplateEntry: Decodable, Equatable, Identifiable" in api_models_source
@@ -553,8 +565,18 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'template.normalizedMode == "youtube_dub"' in view_source
     assert "private func applySubtitleCreationTemplate(" in view_source
     assert "private func applyYoutubeDubCreationTemplate(" in view_source
-    assert "private func templateFormState(from template: CreationTemplateEntry)" in view_source
-    assert "private func templateSettings(from template: CreationTemplateEntry)" in view_source
+    assert "AppleBookCreateTemplateSettings.settings(from: template)" in view_source
+    assert "AppleBookCreateTemplateSettings.stringArray(formState, \"target_languages\")" in view_source
+    assert "AppleBookCreateTemplateSettings.metadataObject(from: formState)" in view_source
+    assert "private func templateFormState(from template: CreationTemplateEntry)" not in view_source
+    assert "private func templateSettings(from template: CreationTemplateEntry)" not in view_source
+    assert "enum AppleBookCreateTemplateSettings" in template_settings_source
+    assert "static func formState(from template: CreationTemplateEntry)" in template_settings_source
+    assert "static func settings(from template: CreationTemplateEntry)" in template_settings_source
+    assert "static func metadataObject(from formState: [String: JSONValue])" in template_settings_source
+    assert "static func stringArray(_ object: [String: JSONValue], _ key: String)" in template_settings_source
+    assert "static func stringDictionary(from value: JSONValue?)" in template_settings_source
+    assert "static func endSentenceText(from value: JSONValue?)" in template_settings_source
     for web_template_key in [
         '"input_file"',
         '"base_output_file"',
@@ -580,7 +602,10 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
         '"target_height"',
         '"media_metadata"',
     ]:
-        assert web_template_key in view_source
+        assert web_template_key in view_source + template_settings_source
+    assert "AppleBookCreateTemplateSettings.swift in Sources" in project
+    assert project.count("AppleBookCreateTemplateSettings.swift in Sources") == 4
+    assert "AppleBookCreateTemplateSettings.swift" in payload_script
 
 
 def test_create_lifecycle_modifier_owns_view_side_effect_wiring() -> None:

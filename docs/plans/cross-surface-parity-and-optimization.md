@@ -333,10 +333,14 @@ Current Apple UI partially exposes:
   offset-range validation now use pure support helpers that preserve the
   existing visible error messages. Backend default resolution and edited-field
   preservation now live in support too, so backend-driven Apple Create defaults
-  stay pinned outside the SwiftUI state assignment code. Backend language and
-  voice inventory option building is also centralized in support, including
-  per-target-language voice override option maps, preserving selected voices
-  that are absent from backend inventory. The Apple journey runner can now
+  stay pinned outside the SwiftUI state assignment code. Saved-template payload
+  parsing now lives in `AppleBookCreateTemplateSettings.swift`, keeping Web
+  form-state extraction, stringified metadata JSON, voice overrides, loose
+  booleans/numbers, and open end-sentence handling out of the main SwiftUI
+  Create view. Backend language and voice inventory option building is also
+  centralized in support, including per-target-language voice override option
+  maps, preserving selected voices that are absent from backend inventory. The
+  Apple journey runner can now
   select Create picker options and assert non-empty field values, with opt-in
   iPhone/iPad Create-readiness Make targets that verify Narrate EPUB, subtitle,
   and YouTube/NAS default source loading against a populated API. The shared
