@@ -57,6 +57,7 @@ from .subtitle_utils import (
 router = APIRouter(prefix="/api/subtitles", tags=["subtitles"])
 logger = log_mgr.get_logger().getChild("webapi.subtitles")
 _ALLOWED_ROLES = {"editor", "admin"}
+_PREFERRED_SUBTITLE_SOURCE_FORMATS = {"srt", "vtt"}
 
 # Include sub-routers
 router.include_router(youtube_router)
@@ -67,6 +68,13 @@ def _ensure_editor(request_user: RequestUserContext) -> None:
     role = (request_user.user_role or "").strip().lower()
     if role not in _ALLOWED_ROLES:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+
+
+def _subtitle_source_sort_key(entry: SubtitleSourceEntry) -> tuple[int, float, str]:
+    normalized_format = entry.format.strip().lower()
+    format_weight = 0 if normalized_format in _PREFERRED_SUBTITLE_SOURCE_FORMATS else 1
+    modified_at = entry.modified_at.timestamp() if entry.modified_at is not None else 0.0
+    return (format_weight, -modified_at, entry.path.casefold())
 
 
 @router.get("/sources", response_model=SubtitleSourceListResponse)
@@ -102,6 +110,7 @@ def list_subtitle_sources(
                 modified_at=modified_at,
             )
         )
+    payload.sort(key=_subtitle_source_sort_key)
     return SubtitleSourceListResponse(sources=payload)
 
 

@@ -1,7 +1,14 @@
+from datetime import datetime
+
 import pytest
 from fastapi import HTTPException
 
-from modules.webapi.routers.subtitles import parse_end_time, parse_time_offset
+from modules.webapi.routers.subtitles import (
+    _subtitle_source_sort_key,
+    parse_end_time,
+    parse_time_offset,
+)
+from modules.webapi.schemas import SubtitleSourceEntry
 
 pytestmark = pytest.mark.webapi
 
@@ -37,3 +44,39 @@ def test_parse_end_time_requires_greater_than_start() -> None:
 def test_parse_end_time_invalid_relative_raises() -> None:
     with pytest.raises(HTTPException):
         parse_end_time("+abc", 0.0)
+
+
+def test_subtitle_source_sort_prefers_latest_srt_vtt_before_ass() -> None:
+    entries = [
+        SubtitleSourceEntry(
+            name="newer.ass",
+            path="/subs/newer.ass",
+            format="ass",
+            modified_at=datetime(2026, 6, 24, 10, 0, 0),
+        ),
+        SubtitleSourceEntry(
+            name="older.srt",
+            path="/subs/older.srt",
+            format="srt",
+            modified_at=datetime(2026, 1, 1, 10, 0, 0),
+        ),
+        SubtitleSourceEntry(
+            name="newer.vtt",
+            path="/subs/newer.vtt",
+            format="vtt",
+            modified_at=datetime(2026, 6, 24, 9, 0, 0),
+        ),
+        SubtitleSourceEntry(
+            name="same-time-a.srt",
+            path="/subs/a-same.srt",
+            format="srt",
+            modified_at=datetime(2026, 6, 24, 9, 0, 0),
+        ),
+    ]
+
+    assert [entry.path for entry in sorted(entries, key=_subtitle_source_sort_key)] == [
+        "/subs/a-same.srt",
+        "/subs/newer.vtt",
+        "/subs/older.srt",
+        "/subs/newer.ass",
+    ]
