@@ -3,14 +3,20 @@ import SwiftUI
 enum BackendRuntimeState: Equatable {
     case idle
     case checking
-    case verified(service: String, version: String, createContract: BackendCreateContractState)
+    case verified(
+        service: String,
+        version: String,
+        createContract: BackendRuntimeContractState,
+        libraryActionsContract: BackendRuntimeContractState,
+        offlineExportsContract: BackendRuntimeContractState
+    )
     case unavailable(String)
 
     var label: String {
         switch self {
         case .idle, .checking:
             return "Checking"
-        case let .verified(service, version, _):
+        case let .verified(service, version, _, _, _):
             let serviceLabel = service.nonEmptyValue ?? "Backend"
             let versionLabel = version.nonEmptyValue ?? "unknown"
             return "\(serviceLabel) · \(versionLabel)"
@@ -30,17 +36,35 @@ enum BackendRuntimeState: Equatable {
         }
     }
 
-    var createContractState: BackendCreateContractState? {
+    var createContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, createContract):
+        case let .verified(_, _, createContract, _, _):
             return createContract
+        case .idle, .checking, .unavailable:
+            return nil
+        }
+    }
+
+    var libraryActionsContractState: BackendRuntimeContractState? {
+        switch self {
+        case let .verified(_, _, _, libraryActionsContract, _):
+            return libraryActionsContract
+        case .idle, .checking, .unavailable:
+            return nil
+        }
+    }
+
+    var offlineExportsContractState: BackendRuntimeContractState? {
+        switch self {
+        case let .verified(_, _, _, _, offlineExportsContract):
+            return offlineExportsContract
         case .idle, .checking, .unavailable:
             return nil
         }
     }
 }
 
-enum BackendCreateContractState: Equatable {
+enum BackendRuntimeContractState: Equatable {
     case ready(summary: String)
     case mismatch(summary: String)
     case unavailable
@@ -106,6 +130,24 @@ struct SettingsConnectionSection: View {
                     value: createContractState.label,
                     systemImage: createContractState.systemImage,
                     accessibilityIdentifier: "settingsCreateContractRow"
+                )
+            }
+
+            if let libraryActionsContractState = backendRuntimeState.libraryActionsContractState {
+                SettingsInfoRow(
+                    title: "Library Contract",
+                    value: libraryActionsContractState.label,
+                    systemImage: libraryActionsContractState.systemImage,
+                    accessibilityIdentifier: "settingsLibraryActionsContractRow"
+                )
+            }
+
+            if let offlineExportsContractState = backendRuntimeState.offlineExportsContractState {
+                SettingsInfoRow(
+                    title: "Offline Export Contract",
+                    value: offlineExportsContractState.label,
+                    systemImage: offlineExportsContractState.systemImage,
+                    accessibilityIdentifier: "settingsOfflineExportsContractRow"
                 )
             }
 

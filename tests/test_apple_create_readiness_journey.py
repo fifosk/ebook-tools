@@ -32,6 +32,8 @@ def test_create_readiness_journey_checks_runtime_create_contract() -> None:
     runtime_steps = steps[settings_index:create_index]
 
     assert any(step.get("selector") == "settingsCreateContractRow" for step in runtime_steps)
+    assert any(step.get("selector") == "settingsLibraryActionsContractRow" for step in runtime_steps)
+    assert any(step.get("selector") == "settingsOfflineExportsContractRow" for step in runtime_steps)
     assert {
         "action": "assert_value_contains",
         "selector": "settingsCreateContractRow",
@@ -66,6 +68,42 @@ def test_create_readiness_journey_checks_runtime_create_contract() -> None:
         "action": "assert_value_contains",
         "selector": "settingsCreateContractRow",
         "text": "/api/subtitles/youtube/dub",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsLibraryActionsContractRow",
+        "text": "/api/library/items",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsLibraryActionsContractRow",
+        "text": "/api/library/items/{job_id}/upload-source",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsLibraryActionsContractRow",
+        "text": "/api/library/isbn/lookup",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsOfflineExportsContractRow",
+        "text": "/api/exports",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsOfflineExportsContractRow",
+        "text": "/api/exports/{export_id}/download",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsOfflineExportsContractRow",
+        "text": "interactive-text",
         "timeout": 20,
     } in runtime_steps
 

@@ -55,6 +55,52 @@
       "timeout": 20
     },
     {
+      "action": "assert_visible",
+      "selector": "settingsLibraryActionsContractRow",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsLibraryActionsContractRow",
+      "text": "/api/library/items",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsLibraryActionsContractRow",
+      "text": "/api/library/items/{job_id}/upload-source",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsLibraryActionsContractRow",
+      "text": "/api/library/isbn/lookup",
+      "timeout": 20
+    },
+    {
+      "action": "assert_visible",
+      "selector": "settingsOfflineExportsContractRow",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsOfflineExportsContractRow",
+      "text": "/api/exports",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsOfflineExportsContractRow",
+      "text": "/api/exports/{export_id}/download",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsOfflineExportsContractRow",
+      "text": "interactive-text",
+      "timeout": 20
+    },
+    {
       "action": "navigate_tab",
       "tab": "Create",
       "selector": "browseSectionCreateButton",

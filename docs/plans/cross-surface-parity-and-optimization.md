@@ -699,7 +699,10 @@ Suggested features to evaluate after parity scaffolding:
   export progress overlay while the backend archive is being prepared. The
   public runtime descriptor now also advertises the offline export create path,
   download URL template, supported source kinds, and player type so Apple and
-  shared pipeline preflights can detect export contract drift.
+  shared pipeline preflights can detect export contract drift. Apple Settings
+  and the Create readiness journey surface the Library action and offline
+  export descriptor sections alongside Create so simulator checks catch drift
+  before device deployment.
 
 ## Verification Contract
 

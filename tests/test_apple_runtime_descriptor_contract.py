@@ -136,12 +136,18 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
 def test_settings_surfaces_create_contract_runtime_status() -> None:
     source = PLAYBACK_SETTINGS_SECTIONS.read_text(encoding="utf-8")
 
-    assert "enum BackendCreateContractState: Equatable" in source
+    assert "enum BackendRuntimeContractState: Equatable" in source
     assert "case ready(summary: String)" in source
     assert "case mismatch(summary: String)" in source
     assert "case unavailable" in source
     assert 'title: "Create Contract"' in source
     assert 'accessibilityIdentifier: "settingsCreateContractRow"' in source
+    assert "var libraryActionsContractState: BackendRuntimeContractState?" in source
+    assert 'title: "Library Contract"' in source
+    assert 'accessibilityIdentifier: "settingsLibraryActionsContractRow"' in source
+    assert "var offlineExportsContractState: BackendRuntimeContractState?" in source
+    assert 'title: "Offline Export Contract"' in source
+    assert 'accessibilityIdentifier: "settingsOfflineExportsContractRow"' in source
 
 
 def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None:
@@ -187,7 +193,11 @@ def test_apple_library_client_uses_runtime_contract_constants() -> None:
 
     assert "enum AppleLibraryRuntimeContract" in source
     assert 'static let itemsPath = "/api/library/items"' in source
+    assert 'static let itemPathTemplate = "/api/library/items/{job_id}"' in source
+    assert 'static let sourceUploadPathTemplate = "/api/library/items/{job_id}/upload-source"' in source
     assert 'static let isbnLookupPath = "/api/library/isbn/lookup"' in source
+    assert 'static let isbnApplyPathTemplate = "/api/library/items/{job_id}/isbn"' in source
+    assert 'static let metadataEnrichPathTemplate = "/api/library/items/{job_id}/enrich"' in source
     assert "static func itemPath(_ encodedJobId: String) -> String" in source
     assert "static func sourceUploadPath(_ encodedJobId: String) -> String" in source
     assert "static func isbnApplyPath(_ encodedJobId: String) -> String" in source
@@ -198,3 +208,34 @@ def test_apple_library_client_uses_runtime_contract_constants() -> None:
     assert "AppleLibraryRuntimeContract.isbnLookupPath" in source
     assert "AppleLibraryRuntimeContract.isbnApplyPath(encoded)" in source
     assert "AppleLibraryRuntimeContract.metadataEnrichPath(encoded)" in source
+
+
+def test_apple_offline_export_client_uses_runtime_contract_constants() -> None:
+    source = API_CLIENT_LIBRARY_JOBS.read_text(encoding="utf-8")
+
+    assert "enum AppleOfflineExportRuntimeContract" in source
+    assert 'static let createPath = "/api/exports"' in source
+    assert 'static let downloadPathTemplate = "/api/exports/{export_id}/download"' in source
+    assert 'static let playerType = "interactive-text"' in source
+    assert 'static let supportedSourceKinds = ["job", "library"]' in source
+    assert "path: AppleOfflineExportRuntimeContract.createPath" in source
+    assert "playerType: AppleOfflineExportRuntimeContract.playerType" in source
+
+
+def test_settings_compares_library_and_offline_export_runtime_contracts() -> None:
+    source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
+
+    assert "libraryActionsContract: Self.libraryActionsContractState(from: descriptor.libraryActions)" in source
+    assert "offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports)" in source
+    assert "private static func libraryActionsContractState(" in source
+    assert "private static func offlineExportsContractState(" in source
+    for key in [
+        "itemPathTemplate",
+        "sourceUploadPathTemplate",
+        "isbnApplyPathTemplate",
+        "metadataEnrichPathTemplate",
+    ]:
+        assert f"AppleLibraryRuntimeContract.{key}" in source
+    assert "AppleOfflineExportRuntimeContract.downloadPathTemplate" in source
+    assert "AppleOfflineExportRuntimeContract.supportedSourceKinds" in source
+    assert "[AppleOfflineExportRuntimeContract.playerType]" in source

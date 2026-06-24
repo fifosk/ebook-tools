@@ -293,10 +293,10 @@ the XCUITest config writer without installing to iPhone, iPad, or Apple TV
 hardware.
 
 The public runtime descriptor at `/api/system/runtime` also advertises the
-Create endpoints used by Apple surfaces (`creation.bookOptionsPath` and
-`creation.bookJobsPath`). The reusable pipeline backend check validates those
-fields before simulator or device runs, so an older deployment fails early
-without needing credentials.
+Create, Library action, and offline export endpoints used by Apple surfaces.
+The reusable pipeline backend check validates those fields before simulator or
+device runs, and the Apple Settings screen exposes matching readiness rows, so
+an older deployment fails early without needing credentials.
 
 Use dry-runs to inspect the exact unattended command sequence before a physical
 update:

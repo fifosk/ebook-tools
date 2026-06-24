@@ -130,7 +130,9 @@ struct PlaybackSettingsView: View {
             backendRuntimeState = .verified(
                 service: descriptor.service,
                 version: descriptor.version,
-                createContract: Self.createContractState(from: descriptor.creation)
+                createContract: Self.createContractState(from: descriptor.creation),
+                libraryActionsContract: Self.libraryActionsContractState(from: descriptor.libraryActions),
+                offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports)
             )
         } catch is CancellationError {
             return
@@ -141,7 +143,7 @@ struct PlaybackSettingsView: View {
 
     private static func createContractState(
         from creation: BackendRuntimeDescriptorResponse.CreationContract?
-    ) -> BackendCreateContractState {
+    ) -> BackendRuntimeContractState {
         guard let creation else {
             return .unavailable
         }
@@ -178,6 +180,70 @@ struct PlaybackSettingsView: View {
         }
         return .ready(
             summary: "\(expectedPaths.count) endpoints · \(AppleCreateRuntimeContract.bookOptionsPath) · \(AppleCreateRuntimeContract.bookJobsPath) · \(AppleCreateRuntimeContract.pipelineFilesPath) · \(AppleCreateRuntimeContract.subtitleDeleteSourcePath) · \(AppleCreateRuntimeContract.subtitleJobsPath) · \(AppleCreateRuntimeContract.youtubeDubPath)"
+        )
+    }
+
+    private static func libraryActionsContractState(
+        from libraryActions: BackendRuntimeDescriptorResponse.LibraryActionsContract?
+    ) -> BackendRuntimeContractState {
+        guard let libraryActions else {
+            return .unavailable
+        }
+        let expectedPaths = [
+            ("itemsPath", libraryActions.itemsPath, AppleLibraryRuntimeContract.itemsPath),
+            ("itemMetadataPathTemplate", libraryActions.itemMetadataPathTemplate, AppleLibraryRuntimeContract.itemPathTemplate),
+            ("sourceUploadPathTemplate", libraryActions.sourceUploadPathTemplate, AppleLibraryRuntimeContract.sourceUploadPathTemplate),
+            ("isbnLookupPath", libraryActions.isbnLookupPath, AppleLibraryRuntimeContract.isbnLookupPath),
+            ("isbnApplyPathTemplate", libraryActions.isbnApplyPathTemplate, AppleLibraryRuntimeContract.isbnApplyPathTemplate),
+            ("metadataEnrichPathTemplate", libraryActions.metadataEnrichPathTemplate, AppleLibraryRuntimeContract.metadataEnrichPathTemplate),
+        ]
+        let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
+            let normalized = actual.nonEmptyValue
+            guard normalized == expected else {
+                return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
+            }
+            return nil
+        }
+        if !mismatches.isEmpty {
+            return .mismatch(summary: mismatches.joined(separator: " · "))
+        }
+        return .ready(
+            summary: "\(expectedPaths.count) endpoints · \(AppleLibraryRuntimeContract.itemsPath) · \(AppleLibraryRuntimeContract.sourceUploadPathTemplate) · \(AppleLibraryRuntimeContract.isbnLookupPath) · \(AppleLibraryRuntimeContract.metadataEnrichPathTemplate)"
+        )
+    }
+
+    private static func offlineExportsContractState(
+        from offlineExports: BackendRuntimeDescriptorResponse.OfflineExportContract?
+    ) -> BackendRuntimeContractState {
+        guard let offlineExports else {
+            return .unavailable
+        }
+        let expectedPaths = [
+            ("createPath", offlineExports.createPath, AppleOfflineExportRuntimeContract.createPath),
+            ("downloadPathTemplate", offlineExports.downloadPathTemplate, AppleOfflineExportRuntimeContract.downloadPathTemplate),
+        ]
+        var mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
+            let normalized = actual.nonEmptyValue
+            guard normalized == expected else {
+                return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
+            }
+            return nil
+        }
+        if offlineExports.sourceKinds != AppleOfflineExportRuntimeContract.supportedSourceKinds {
+            mismatches.append(
+                "sourceKinds=\(offlineExports.sourceKinds.joined(separator: ",")) expected \(AppleOfflineExportRuntimeContract.supportedSourceKinds.joined(separator: ","))"
+            )
+        }
+        if offlineExports.playerTypes != [AppleOfflineExportRuntimeContract.playerType] {
+            mismatches.append(
+                "playerTypes=\(offlineExports.playerTypes.joined(separator: ",")) expected \(AppleOfflineExportRuntimeContract.playerType)"
+            )
+        }
+        if !mismatches.isEmpty {
+            return .mismatch(summary: mismatches.joined(separator: " · "))
+        }
+        return .ready(
+            summary: "\(expectedPaths.count) endpoints · \(AppleOfflineExportRuntimeContract.createPath) · \(AppleOfflineExportRuntimeContract.downloadPathTemplate) · \(AppleOfflineExportRuntimeContract.playerType)"
         )
     }
 

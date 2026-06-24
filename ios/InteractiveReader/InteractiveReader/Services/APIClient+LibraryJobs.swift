@@ -2,12 +2,18 @@ import Foundation
 
 enum AppleOfflineExportRuntimeContract {
     static let createPath = "/api/exports"
+    static let downloadPathTemplate = "/api/exports/{export_id}/download"
     static let playerType = "interactive-text"
+    static let supportedSourceKinds = ["job", "library"]
 }
 
 enum AppleLibraryRuntimeContract {
     static let itemsPath = "/api/library/items"
+    static let itemPathTemplate = "/api/library/items/{job_id}"
+    static let sourceUploadPathTemplate = "/api/library/items/{job_id}/upload-source"
     static let isbnLookupPath = "/api/library/isbn/lookup"
+    static let isbnApplyPathTemplate = "/api/library/items/{job_id}/isbn"
+    static let metadataEnrichPathTemplate = "/api/library/items/{job_id}/enrich"
 
     static func itemPath(_ encodedJobId: String) -> String {
         "\(itemsPath)/\(encodedJobId)"
