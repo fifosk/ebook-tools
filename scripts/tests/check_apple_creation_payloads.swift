@@ -161,6 +161,158 @@ struct AppleCreationPayloadCheck {
             templateMetadata["show"]?.objectValue?["title"]?.stringValue == "Origin",
             "Apple Create saved-template media metadata should keep nested title values"
         )
+        let generatedTemplateRequest = AppleBookCreateTemplateSavePayloadFactory.makeGeneratedBookRequest(
+            from: AppleBookCreateDraft(
+                topic: "Symbologist mystery",
+                bookName: "Origin Continued",
+                genre: "Thriller",
+                author: "Me",
+                summary: "New story summary",
+                year: "2026",
+                isbn: nil,
+                coverFile: nil,
+                sourceBookTitle: "Origin",
+                sourceBookAuthor: "Dan Brown",
+                sourceBookGenre: "Mystery",
+                sourceBookSummary: "Existing book summary",
+                sentenceCount: 42,
+                inputLanguage: "English",
+                targetLanguage: "Arabic",
+                targetLanguages: ["Arabic", "Hindi"],
+                voice: "gTTS",
+                voiceOverrides: ["Hindi": "Aarav"],
+                baseOutput: "origin-continued",
+                generateAudio: true,
+                audioMode: "4",
+                audioBitrateKbps: 96,
+                writtenMode: "4",
+                tempo: 1.1,
+                sentencesPerOutputFile: 10,
+                stitchFull: true,
+                includeTransliteration: true,
+                translationProvider: "llm",
+                llmModel: "ollama_cloud:model",
+                translationBatchSize: 8,
+                transliterationMode: "default",
+                transliterationModel: nil,
+                enableLookupCache: true,
+                lookupCacheBatchSize: 8,
+                outputHtml: true,
+                outputPdf: false,
+                includeImages: true,
+                imagePromptPipeline: "prompt_plan",
+                imageStyleTemplate: "wireframe",
+                imagePromptBatchingEnabled: true,
+                imagePromptBatchSize: 10,
+                imagePromptPlanBatchSize: 50,
+                imagePromptContextSentences: 2,
+                imageWidth: "512",
+                imageHeight: "512",
+                imageSteps: 20,
+                imageCfgScale: 7.5,
+                imageSamplerName: "euler",
+                imageSeedWithPreviousImage: true,
+                imageBlankDetectionEnabled: true,
+                imageApiBaseURLs: ["http://image-node.local"],
+                imageConcurrency: 4,
+                imageApiTimeoutSeconds: 300,
+                threadCount: 3,
+                queueSize: 12,
+                jobMaxWorkers: 2,
+                pipelineDefaults: nil,
+                generatedSourceDefaults: nil
+            )
+        )
+        let generatedEncoded = try jsonObject(from: encoder.encode(generatedTemplateRequest))
+        let generatedPayload = try requireValue(
+            generatedEncoded["payload"] as? [String: Any],
+            "Apple-generated template save payload should encode a payload object"
+        )
+        let generatedFormState = try requireValue(
+            generatedPayload["form_state"] as? [String: Any],
+            "Apple-generated template save payload should encode form_state"
+        )
+        let generatedState = try requireValue(
+            generatedPayload["generator_state"] as? [String: Any],
+            "Apple-generated template save payload should encode generator_state"
+        )
+        require(generatedEncoded["mode"] as? String == "generated_book", "Apple-generated template should POST generated_book mode")
+        require(generatedPayload["kind"] as? String == "book_narration_form", "Apple-generated template should use Web book narration template kind")
+        require(generatedPayload["source"] as? String == "apple", "Apple-saved templates should be source-labelled")
+        require(generatedState["num_sentences"] as? Double == 42, "Apple-generated template should preserve generator sentence count")
+        require(generatedFormState["source_book_summary"] as? String == "Existing book summary", "Apple-generated template should preserve source-book context")
+        require((generatedFormState["target_languages"] as? [String]) == ["Arabic", "Hindi"], "Apple-generated template should encode target language arrays")
+        let encodedBookMetadata = try requireValue(
+            generatedFormState["book_metadata"] as? String,
+            "Apple-generated template should encode Web-compatible book metadata JSON"
+        )
+        require(
+            encodedBookMetadata.contains("Origin Continued"),
+            "Apple-generated template metadata JSON should carry the generated book title"
+        )
+        let subtitleTemplateRequest = AppleBookCreateTemplateSavePayloadFactory.makeSubtitleJobRequest(
+            from: AppleSubtitleJobDraft(
+                sourcePath: "/subs/pilot.srt",
+                mediaMetadata: ["title": .string("Pilot")],
+                inputLanguage: "English",
+                targetLanguage: "Arabic",
+                outputFormat: "ass",
+                startTime: "00:00",
+                endTime: "00:10",
+                enableTransliteration: true,
+                highlight: true,
+                showOriginal: false,
+                generateAudioBook: true,
+                mirrorBatchesToSourceDir: true,
+                translationProvider: "llm",
+                llmModel: "model",
+                transliterationMode: "default",
+                transliterationModel: nil,
+                workerCount: 2,
+                batchSize: 4,
+                translationBatchSize: 6,
+                assFontSize: 72,
+                assEmphasisScale: 1.15
+            )
+        )
+        let subtitleEncoded = try jsonObject(from: encoder.encode(subtitleTemplateRequest))
+        let subtitlePayload = try requireValue(subtitleEncoded["payload"] as? [String: Any], "Subtitle template should encode payload")
+        let subtitleFormState = try requireValue(subtitlePayload["form_state"] as? [String: Any], "Subtitle template should encode form_state")
+        require(subtitleEncoded["mode"] as? String == "subtitle_job", "Subtitle template should POST subtitle_job mode")
+        require(subtitlePayload["kind"] as? String == "subtitle_job_form", "Subtitle template should use Web subtitle template kind")
+        require(subtitleFormState["show_original"] as? Bool == false, "Subtitle template should preserve original-language display setting")
+        require(subtitleFormState["ass_font_size"] as? Double == 72, "Subtitle template should preserve ASS typography")
+        let youtubeTemplateRequest = AppleBookCreateTemplateSavePayloadFactory.makeYoutubeDubRequest(
+            from: AppleYoutubeDubDraft(
+                videoPath: "/nas/video.mp4",
+                subtitlePath: "/nas/video.ass",
+                mediaMetadata: ["title": .string("Video Pilot")],
+                sourceLanguage: "en",
+                targetLanguage: "ar",
+                voice: "gTTS",
+                startTimeOffset: "+00:01",
+                endTimeOffset: nil,
+                originalMixPercent: 5,
+                flushSentences: 10,
+                llmModel: "model",
+                translationProvider: "llm",
+                translationBatchSize: 5,
+                transliterationMode: "default",
+                transliterationModel: nil,
+                splitBatches: true,
+                stitchBatches: true,
+                includeTransliteration: true,
+                targetHeight: 720,
+                preserveAspectRatio: true,
+                enableLookupCache: true
+            )
+        )
+        let youtubeEncoded = try jsonObject(from: encoder.encode(youtubeTemplateRequest))
+        let youtubePayload = try requireValue(youtubeEncoded["payload"] as? [String: Any], "YouTube template should encode payload")
+        let youtubeFormState = try requireValue(youtubePayload["form_state"] as? [String: Any], "YouTube template should encode form_state")
+        require(youtubeEncoded["mode"] as? String == "youtube_dub", "YouTube template should POST youtube_dub mode")
+        require(youtubePayload["kind"] as? String == "youtube_dub_form", "YouTube template should use Web dubbing template kind")
+        require(youtubeFormState["target_height"] as? Double == 720, "YouTube template should preserve target height")
         let pipelineFilesJSON = """
         {
           "ebooks": [

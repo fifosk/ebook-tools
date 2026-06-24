@@ -434,6 +434,7 @@ enum AppleBookCreateEditedField: Hashable {
     case sourceBookTitle
     case sourceBookAuthor
     case sourceBookGenre
+    case sourceBookSummary
     case bookSummary
     case bookYear
     case bookIsbn

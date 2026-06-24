@@ -23,6 +23,7 @@ struct AppleBookCreateView: View {
     @State private var sourceBookTitle = ""
     @State private var sourceBookAuthor = ""
     @State private var sourceBookGenre = ""
+    @State private var sourceBookSummary = ""
     @State private var bookSummary = ""
     @State private var bookYear = ""
     @State private var bookIsbn = ""
@@ -275,7 +276,9 @@ struct AppleBookCreateView: View {
             sourceBookTitle: textBinding(for: .sourceBookTitle, value: $sourceBookTitle),
             sourceBookAuthor: textBinding(for: .sourceBookAuthor, value: $sourceBookAuthor),
             sourceBookGenre: textBinding(for: .sourceBookGenre, value: $sourceBookGenre),
-            bookSummary: textBinding(for: .bookSummary, value: $bookSummary),
+            bookSummary: creationMode == .generatedBook
+                ? textBinding(for: .sourceBookSummary, value: $sourceBookSummary)
+                : textBinding(for: .bookSummary, value: $bookSummary),
             bookYear: textBinding(for: .bookYear, value: $bookYear),
             bookIsbn: textBinding(for: .bookIsbn, value: $bookIsbn),
             bookCoverFile: textBinding(for: .bookCoverFile, value: $bookCoverFile)
@@ -323,10 +326,12 @@ struct AppleBookCreateView: View {
             templates: compatibleCreationTemplates,
             selectedTemplateID: selectedCompatibleTemplateIDBinding,
             isLoading: viewModel.isLoadingCreationTemplates,
+            isSaving: viewModel.isSavingCreationTemplate,
             isDeleting: viewModel.isDeletingCreationTemplate,
             errorMessage: viewModel.creationTemplatesErrorMessage,
             message: viewModel.creationTemplateMessage,
             onRefresh: refreshCreationTemplatesFromSection,
+            onSave: saveCurrentCreationTemplate,
             onApply: applySelectedCreationTemplate,
             onDelete: requestDeleteSelectedCreationTemplate
         )
@@ -695,7 +700,7 @@ struct AppleBookCreateView: View {
             sourceBookTitle: sourceBookTitle,
             sourceBookAuthor: sourceBookAuthor,
             sourceBookGenre: sourceBookGenre,
-            sourceBookSummary: bookSummary,
+            sourceBookSummary: sourceBookSummary,
             sentenceCount: sentenceCount,
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,
@@ -980,6 +985,229 @@ struct AppleBookCreateView: View {
         Task { await refreshCreationTemplates(force: true) }
     }
 
+    private func saveCurrentCreationTemplate() {
+        guard let request = currentCreationTemplateSaveRequest() else {
+            return
+        }
+        Task {
+            guard let template = await viewModel.saveCreationTemplate(request, using: appState) else {
+                return
+            }
+            selectedTemplateID = template.id
+        }
+    }
+
+    private func currentCreationTemplateSaveRequest() -> CreationTemplateSaveRequest? {
+        switch creationMode {
+        case .generatedBook:
+            return AppleBookCreateTemplateSavePayloadFactory.makeGeneratedBookRequest(
+                from: currentGeneratedBookDraft()
+            )
+        case .narrateEbook:
+            return AppleBookCreateTemplateSavePayloadFactory.makeNarrateEbookRequest(
+                from: currentNarrateEbookDraft()
+            )
+        case .subtitleJob:
+            guard let draft = currentSubtitleJobDraft() else { return nil }
+            return AppleBookCreateTemplateSavePayloadFactory.makeSubtitleJobRequest(from: draft)
+        case .youtubeDub:
+            guard let draft = currentYoutubeDubDraft() else { return nil }
+            return AppleBookCreateTemplateSavePayloadFactory.makeYoutubeDubRequest(from: draft)
+        }
+    }
+
+    private func currentGeneratedBookDraft() -> AppleBookCreateDraft {
+        AppleBookCreatePresentation.generatedBookDraft(
+            topic: trimmed(topic),
+            bookName: trimmed(bookName),
+            genre: trimmed(genre),
+            author: author,
+            summary: bookSummary,
+            year: bookYear,
+            isbn: bookIsbn,
+            coverFile: bookCoverFile,
+            sourceBookTitle: sourceBookTitle,
+            sourceBookAuthor: sourceBookAuthor,
+            sourceBookGenre: sourceBookGenre,
+            sourceBookSummary: sourceBookSummary,
+            sentenceCount: sentenceCount,
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            additionalTargetLanguages: additionalTargetLanguages,
+            voice: voice,
+            targetVoice: targetVoice,
+            languageVoiceOverrides: languageVoiceOverrides,
+            baseOutput: derivedBaseOutput,
+            generateAudio: generateAudio,
+            audioMode: audioMode,
+            audioBitrateKbps: audioBitrateKbps,
+            writtenMode: writtenMode,
+            tempo: tempo,
+            sentencesPerOutputFile: bookSentencesPerOutputFile,
+            stitchFull: stitchFull,
+            includeTransliteration: includeTransliteration,
+            translationProvider: bookTranslationProvider,
+            llmModel: bookLlmModel,
+            translationBatchSize: bookTranslationBatchSize,
+            transliterationMode: bookTransliterationMode,
+            transliterationModel: bookTransliterationModel,
+            enableLookupCache: enableLookupCache,
+            lookupCacheBatchSize: bookLookupCacheBatchSize,
+            outputHtml: outputHtml,
+            outputPdf: outputPdf,
+            includeImages: includeImages,
+            imagePromptPipeline: imagePromptPipeline,
+            imageStyleTemplate: imageStyleTemplate,
+            imagePromptBatchingEnabled: imagePromptBatchingEnabled,
+            imagePromptBatchSize: imagePromptBatchSize,
+            imagePromptPlanBatchSize: imagePromptPlanBatchSize,
+            imagePromptContextSentences: imagePromptContextSentences,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight,
+            imageSteps: imageSteps,
+            imageCfgScale: imageCfgScale,
+            imageSamplerName: imageSamplerName,
+            imageSeedWithPreviousImage: imageSeedWithPreviousImage,
+            imageBlankDetectionEnabled: imageBlankDetectionEnabled,
+            imageApiBaseURLs: imageApiBaseURLs,
+            imageConcurrency: imageConcurrency,
+            imageApiTimeoutSeconds: imageApiTimeoutSeconds,
+            threadCount: bookThreadCount,
+            queueSize: bookQueueSize,
+            jobMaxWorkers: bookJobMaxWorkers,
+            pipelineDefaults: viewModel.creationOptions?.pipelineDefaults,
+            generatedSourceDefaults: viewModel.creationOptions?.generatedSourceDefaults
+        )
+    }
+
+    private func currentNarrateEbookDraft() -> AppleNarrateEbookDraft {
+        AppleBookCreatePresentation.narrateEbookDraft(
+            inputFile: sourcePath,
+            baseOutput: sourceBaseOutput,
+            title: sourceBookTitle,
+            author: sourceBookAuthor,
+            genre: sourceBookGenre,
+            summary: bookSummary,
+            year: bookYear,
+            isbn: bookIsbn,
+            coverFile: bookCoverFile,
+            startSentence: sourceStartSentence,
+            endSentence: sourceEndSentence,
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            additionalTargetLanguages: additionalTargetLanguages,
+            voice: voice,
+            targetVoice: targetVoice,
+            languageVoiceOverrides: languageVoiceOverrides,
+            generateAudio: generateAudio,
+            audioMode: audioMode,
+            audioBitrateKbps: audioBitrateKbps,
+            writtenMode: writtenMode,
+            tempo: tempo,
+            sentencesPerOutputFile: bookSentencesPerOutputFile,
+            stitchFull: stitchFull,
+            includeTransliteration: includeTransliteration,
+            translationProvider: bookTranslationProvider,
+            llmModel: bookLlmModel,
+            translationBatchSize: bookTranslationBatchSize,
+            transliterationMode: bookTransliterationMode,
+            transliterationModel: bookTransliterationModel,
+            enableLookupCache: enableLookupCache,
+            lookupCacheBatchSize: bookLookupCacheBatchSize,
+            outputHtml: outputHtml,
+            outputPdf: outputPdf,
+            threadCount: bookThreadCount,
+            queueSize: bookQueueSize,
+            jobMaxWorkers: bookJobMaxWorkers,
+            pipelineDefaults: viewModel.creationOptions?.pipelineDefaults
+        )
+    }
+
+    private func currentSubtitleJobDraft() -> AppleSubtitleJobDraft? {
+        let timeRange: AppleCreateTimeRange
+        switch AppleBookCreatePresentation.normalizedSubtitleTimeRange(
+            start: subtitleStartTime,
+            end: subtitleEndTime
+        ) {
+        case let .success(normalizedRange):
+            timeRange = normalizedRange
+        case let .failure(error):
+            viewModel.errorMessage = error.message
+            return nil
+        }
+        subtitleStartTime = timeRange.start
+        subtitleEndTime = timeRange.end
+
+        return AppleBookCreatePresentation.subtitleJobDraft(
+            sourcePath: subtitleSourcePath,
+            mediaMetadata: viewModel.subtitleMediaMetadataDraft,
+            inputLanguage: inputLanguage,
+            targetLanguage: targetLanguage,
+            outputFormat: subtitleOutputFormat,
+            startTime: timeRange.start,
+            endTime: timeRange.end,
+            enableTransliteration: subtitleEnableTransliteration,
+            highlight: subtitleHighlight,
+            showOriginal: subtitleShowOriginal,
+            generateAudioBook: subtitleGenerateAudioBook,
+            mirrorBatchesToSourceDir: subtitleMirrorBatchesToSourceDir,
+            translationProvider: subtitleTranslationProvider,
+            llmModel: subtitleLlmModel,
+            transliterationMode: subtitleTransliterationMode,
+            transliterationModel: subtitleTransliterationModel,
+            workerCount: subtitleWorkerCount,
+            batchSize: subtitleBatchSize,
+            translationBatchSize: subtitleTranslationBatchSize,
+            assFontSize: subtitleAssFontSize,
+            assEmphasisScale: subtitleAssEmphasisScale
+        )
+    }
+
+    private func currentYoutubeDubDraft() -> AppleYoutubeDubDraft? {
+        let offsetRange: AppleCreateOffsetRange
+        switch AppleBookCreatePresentation.normalizedYoutubeOffsetRange(
+            start: youtubeStartOffset,
+            end: youtubeEndOffset
+        ) {
+        case let .success(normalizedRange):
+            offsetRange = normalizedRange
+        case let .failure(error):
+            viewModel.errorMessage = error.message
+            return nil
+        }
+        youtubeStartOffset = offsetRange.start
+        youtubeEndOffset = offsetRange.end
+
+        return AppleBookCreatePresentation.youtubeDubDraft(
+            videoPath: youtubeVideoPath,
+            subtitlePath: youtubeSubtitlePath,
+            sourceLanguage: inputLanguage,
+            subtitleLanguage: AppleBookCreatePresentation.youtubeSubtitleLanguage(
+                from: viewModel.youtubeLibrary,
+                videoPath: youtubeVideoPath,
+                subtitlePath: youtubeSubtitlePath
+            ),
+            targetLanguage: targetLanguage,
+            voice: voice,
+            mediaMetadata: viewModel.youtubeMediaMetadataDraft,
+            startTimeOffset: offsetRange.start,
+            endTimeOffset: offsetRange.end,
+            originalMixPercent: youtubeOriginalMixPercent,
+            flushSentences: youtubeFlushSentences,
+            translationProvider: subtitleTranslationProvider,
+            llmModel: subtitleLlmModel,
+            translationBatchSize: subtitleTranslationBatchSize,
+            transliterationMode: subtitleTransliterationMode,
+            transliterationModel: subtitleTransliterationModel,
+            splitBatches: youtubeSplitBatches,
+            stitchBatches: youtubeStitchBatches,
+            includeTransliteration: youtubeIncludeTransliteration,
+            targetHeight: youtubeTargetHeight,
+            preserveAspectRatio: youtubePreserveAspectRatio,
+            enableLookupCache: youtubeEnableLookupCache
+        )
+    }
+
     private func refreshSubtitleSourcesFromSourceSection() {
         Task { await refreshSubtitleSources(force: true) }
     }
@@ -1252,6 +1480,7 @@ struct AppleBookCreateView: View {
         applyTemplateImageSettings(formState, appliedFields: &appliedFields)
         applyTemplateWorkerSettings(formState, appliedFields: &appliedFields)
         applyTemplateMetadata(formState, appliedFields: &appliedFields)
+        applyTemplateSourceBookContext(formState, appliedFields: &appliedFields)
 
         editedFields.formUnion(appliedFields)
         viewModel.errorMessage = nil
@@ -1715,6 +1944,31 @@ struct AppleBookCreateView: View {
         }
     }
 
+    private func applyTemplateSourceBookContext(
+        _ formState: [String: JSONValue],
+        appliedFields: inout Set<AppleBookCreateEditedField>
+    ) {
+        guard creationMode == .generatedBook else {
+            return
+        }
+        if let value = AppleBookCreateTemplateSettings.string(formState, "source_book_title") {
+            sourceBookTitle = value
+            appliedFields.insert(.sourceBookTitle)
+        }
+        if let value = AppleBookCreateTemplateSettings.string(formState, "source_book_author") {
+            sourceBookAuthor = value
+            appliedFields.insert(.sourceBookAuthor)
+        }
+        if let value = AppleBookCreateTemplateSettings.string(formState, "source_book_genre") {
+            sourceBookGenre = value
+            appliedFields.insert(.sourceBookGenre)
+        }
+        if let value = AppleBookCreateTemplateSettings.string(formState, "source_book_summary") {
+            sourceBookSummary = value
+            appliedFields.insert(.sourceBookSummary)
+        }
+    }
+
     private func applyTemplateSubtitleMetadata(_ formState: [String: JSONValue]) {
         guard let metadata = AppleBookCreateTemplateSettings.metadataObject(from: formState) else {
             return
@@ -1923,9 +2177,9 @@ struct AppleBookCreateView: View {
            let value = defaults.sourceBookGenre?.nonEmptyValue {
             sourceBookGenre = value
         }
-        if !editedFields.contains(.bookSummary),
+        if !editedFields.contains(.sourceBookSummary),
            let value = defaults.sourceBookSummary?.nonEmptyValue {
-            bookSummary = value
+            sourceBookSummary = value
         }
         if !editedFields.contains(.sentenceCount),
            let value = defaults.sentenceCount {

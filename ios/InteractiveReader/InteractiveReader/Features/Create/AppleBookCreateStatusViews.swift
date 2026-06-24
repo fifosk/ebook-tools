@@ -4,15 +4,23 @@ struct AppleBookCreateTemplateSection: View {
     let templates: [CreationTemplateEntry]
     @Binding var selectedTemplateID: String
     let isLoading: Bool
+    let isSaving: Bool
     let isDeleting: Bool
     let errorMessage: String?
     let message: String?
     let onRefresh: () -> Void
+    let onSave: () -> Void
     let onApply: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
         Section("Saved Templates") {
+            Button(action: onSave) {
+                Label(isSaving ? "Saving Template" : "Save Template", systemImage: "square.and.arrow.down")
+            }
+            .disabled(isSaving || isLoading || isDeleting)
+            .accessibilityIdentifier("createBookSaveTemplateButton")
+
             if templates.isEmpty {
                 Label(emptyLabel, systemImage: "doc.badge.plus")
                     .foregroundStyle(.secondary)
@@ -42,7 +50,7 @@ struct AppleBookCreateTemplateSection: View {
             Button(action: onRefresh) {
                 Label(isLoading ? "Refreshing Templates" : "Refresh Templates", systemImage: "arrow.clockwise")
             }
-            .disabled(isLoading || isDeleting)
+            .disabled(isLoading || isSaving || isDeleting)
             .accessibilityIdentifier("createBookRefreshTemplatesButton")
 
             if let message {

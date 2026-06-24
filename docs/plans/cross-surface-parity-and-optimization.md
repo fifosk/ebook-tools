@@ -857,8 +857,11 @@ Suggested features to evaluate after parity scaffolding:
   also apply deep-linked saved templates into source, language, timing, output,
   metadata, model, and tuning controls. Native Apple Create appends the selected
   compatible template id when opening Web Create for all creation modes, letting
-  iPad/iPhone hand saved drafts into the advanced Web forms. Next step is wiring
-  native Create draft/save actions for one-tap template creation before handoff.
+  iPad/iPhone hand saved drafts into the advanced Web forms. Native Apple
+  Create can now save the current generated-book, Narrate EPUB, subtitle, or
+  YouTube dubbing settings as the same Web-compatible template payload shape,
+  selects the saved template immediately, and preserves generated-book source
+  context for continuation-style drafts before Web handoff.
 - Creation handoff: Apple app opens the corresponding Web creation URL for unsupported advanced options. Status:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,
   and maps native creation modes to validated Web `?view=` deep links. The

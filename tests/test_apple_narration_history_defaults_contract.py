@@ -218,7 +218,7 @@ def test_generated_book_history_defaults_restore_continuation_context_and_voice_
         "if !editedFields.contains(.sourceBookTitle),",
         "if !editedFields.contains(.sourceBookAuthor),",
         "if !editedFields.contains(.sourceBookGenre),",
-        "if !editedFields.contains(.bookSummary),",
+        "if !editedFields.contains(.sourceBookSummary),",
         "if !editedFields.contains(.languageVoiceOverrides),",
     ]:
         assert token in view_block

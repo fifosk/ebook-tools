@@ -7,6 +7,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isLoadingIntakeStatus = false
     @Published private(set) var isLoadingPipelineFiles = false
     @Published private(set) var isLoadingCreationTemplates = false
+    @Published private(set) var isSavingCreationTemplate = false
     @Published private(set) var isDeletingCreationTemplate = false
     @Published private(set) var isDeletingPipelineEbook = false
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
@@ -222,6 +223,38 @@ final class AppleBookCreateViewModel: ObservableObject {
         } catch {
             creationTemplatesErrorMessage = error.localizedDescription
             return false
+        }
+    }
+
+    func saveCreationTemplate(
+        _ request: CreationTemplateSaveRequest,
+        using appState: AppState
+    ) async -> CreationTemplateEntry? {
+        guard let configuration = appState.configuration else {
+            creationTemplatesErrorMessage = "Configure a valid API base URL before saving templates."
+            return nil
+        }
+        guard !request.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            creationTemplatesErrorMessage = "Template name cannot be empty."
+            return nil
+        }
+
+        isSavingCreationTemplate = true
+        creationTemplatesErrorMessage = nil
+        creationTemplateMessage = nil
+        defer { isSavingCreationTemplate = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let saved = try await client.saveCreationTemplate(request)
+            creationTemplates.removeAll { $0.id == saved.id }
+            creationTemplates.insert(saved, at: 0)
+            loadedCreationTemplatesCacheKey = nil
+            creationTemplateMessage = "Saved template \(saved.displayName)."
+            return saved
+        } catch {
+            creationTemplatesErrorMessage = error.localizedDescription
+            return nil
         }
     }
 

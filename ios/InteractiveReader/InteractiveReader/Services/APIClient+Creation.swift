@@ -68,6 +68,15 @@ extension APIClient {
         return try decode(CreationTemplateEntry.self, from: data)
     }
 
+    func saveCreationTemplate(_ payload: CreationTemplateSaveRequest) async throws -> CreationTemplateEntry {
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.templateListPath,
+            method: "POST",
+            payload: payload
+        )
+        return try decode(CreationTemplateEntry.self, from: data)
+    }
+
     func deleteCreationTemplate(templateId: String) async throws {
         let encoded = AppleCreateRuntimeContract.encodedTemplateID(templateId)
         _ = try await sendRequest(

@@ -557,6 +557,7 @@ The iOS app provides:
 - **Library browsing** -- Browse your processed books with cover art, organized by author, genre, or language.
 - **Interactive player** -- The same word-level highlighting, audio track toggles, and sequence mode as the web interface, optimized for touch.
 - **MyLinguist** -- Tap any word to look it up. The dictionary bubble adapts to the mobile layout.
+- **Create jobs** -- Start generated-book, Narrate EPUB, subtitle, and video dubbing jobs with the shared Web defaults; saved creation templates can be applied, deleted, saved from current settings, or opened in Web Create for advanced editing.
 - **Sentence images** -- View the image reel and browse illustrations with swipe gestures.
 - **Offline playback** -- Content can be cached for offline listening.
 - **Resume sync** -- Playback position syncs with the server, so you can switch between the web and iOS seamlessly.

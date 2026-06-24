@@ -185,6 +185,13 @@ struct CreationTemplateEntry: Decodable, Equatable, Identifiable {
     }
 }
 
+struct CreationTemplateSaveRequest: Encodable, Equatable {
+    let id: String?
+    let name: String
+    let mode: String
+    let payload: [String: JSONValue]
+}
+
 struct PipelineIntakeStatusResponse: Decodable, Equatable {
     let acceptingJobs: Bool
     let isUnderPressure: Bool

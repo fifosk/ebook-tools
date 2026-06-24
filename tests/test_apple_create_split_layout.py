@@ -517,6 +517,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
 
     assert "struct CreationTemplateListResponse: Decodable, Equatable" in api_models_source
     assert "struct CreationTemplateEntry: Decodable, Equatable, Identifiable" in api_models_source
+    assert "struct CreationTemplateSaveRequest: Encodable, Equatable" in api_models_source
     assert "case createdAt = \"created_at\"" in api_models_source
     assert "case updatedAt = \"updated_at\"" in api_models_source
     assert "var normalizedMode: String" in api_models_source
@@ -530,6 +531,9 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "func fetchCreationTemplate(templateId: String) async throws -> CreationTemplateEntry" in api_client_source
     assert "AppleCreateRuntimeContract.encodedTemplateID(templateId)" in api_client_source
     assert "try decode(CreationTemplateEntry.self, from: data)" in api_client_source
+    assert "func saveCreationTemplate(_ payload: CreationTemplateSaveRequest) async throws -> CreationTemplateEntry" in api_client_source
+    assert 'method: "POST"' in api_client_source
+    assert "client.saveCreationTemplate(request)" in view_model_source
     assert "func deleteCreationTemplate(templateId: String) async throws" in api_client_source
     assert "AppleCreateRuntimeContract.templatePath(encoded)" in api_client_source
     assert 'method: "DELETE"' in api_client_source
@@ -537,11 +541,14 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
 
     assert "@Published private(set) var creationTemplates: [CreationTemplateEntry] = []" in view_model_source
     assert "@Published private(set) var isLoadingCreationTemplates = false" in view_model_source
+    assert "@Published private(set) var isSavingCreationTemplate = false" in view_model_source
     assert "@Published private(set) var isDeletingCreationTemplate = false" in view_model_source
     assert "@Published private(set) var creationTemplatesErrorMessage: String?" in view_model_source
     assert "@Published var creationTemplateMessage: String?" in view_model_source
     assert "func loadCreationTemplates(" in view_model_source
     assert "client.fetchCreationTemplates()" in view_model_source
+    assert "func saveCreationTemplate(" in view_model_source
+    assert "creationTemplates.insert(saved, at: 0)" in view_model_source
     assert "func deleteCreationTemplate(" in view_model_source
     assert "client.deleteCreationTemplate(templateId: trimmedID)" in view_model_source
     assert "creationTemplates.removeAll { $0.id == trimmedID }" in view_model_source
@@ -549,6 +556,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "struct AppleBookCreateTemplateSection: View" in status_views_source
     for identifier in [
         "createBookTemplatePicker",
+        "createBookSaveTemplateButton",
         "createBookApplyTemplateButton",
         "createBookDeleteTemplateButton",
         "createBookRefreshTemplatesButton",
@@ -560,6 +568,10 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "private var templateSection: some View" in view_source
     assert "AppleBookCreateTemplateSection(" in view_source
     assert "await refreshCreationTemplates()" in view_source
+    assert "private func saveCurrentCreationTemplate()" in view_source
+    assert "private func currentCreationTemplateSaveRequest() -> CreationTemplateSaveRequest?" in view_source
+    assert "AppleBookCreateTemplateSavePayloadFactory.makeGeneratedBookRequest(" in view_source
+    assert "selectedTemplateID = template.id" in view_source
     assert "private func applySelectedCreationTemplate()" in view_source
     assert "private func requestDeleteSelectedCreationTemplate()" in view_source
     assert "private func deleteCreationTemplate(_ template: CreationTemplateEntry) async" in view_source
@@ -588,6 +600,14 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func stringArray(_ object: [String: JSONValue], _ key: String)" in template_settings_source
     assert "static func stringDictionary(from value: JSONValue?)" in template_settings_source
     assert "static func endSentenceText(from value: JSONValue?)" in template_settings_source
+    assert "enum AppleBookCreateTemplateSavePayloadFactory" in template_settings_source
+    assert "static func makeGeneratedBookRequest(from draft: AppleBookCreateDraft)" in template_settings_source
+    assert "static func makeNarrateEbookRequest(from draft: AppleNarrateEbookDraft)" in template_settings_source
+    assert "static func makeSubtitleJobRequest(from draft: AppleSubtitleJobDraft)" in template_settings_source
+    assert "static func makeYoutubeDubRequest(from draft: AppleYoutubeDubDraft)" in template_settings_source
+    assert '"kind": .string("book_narration_form")' in template_settings_source
+    assert '"source": .string("apple")' in template_settings_source
+    assert '"form_state": .object(formState)' in template_settings_source
     for web_template_key in [
         '"input_file"',
         '"base_output_file"',
@@ -1716,7 +1736,7 @@ def test_generated_book_create_exposes_source_context_fields() -> None:
     assert "sourceBookTitle: sourceBookTitle" in source
     assert "sourceBookAuthor: sourceBookAuthor" in source
     assert "sourceBookGenre: sourceBookGenre" in source
-    assert "sourceBookSummary: bookSummary" in source
+    assert "sourceBookSummary: sourceBookSummary" in source
 
     assert "let sourceBookTitle: String?" in draft_source
     assert "let sourceBookAuthor: String?" in draft_source
