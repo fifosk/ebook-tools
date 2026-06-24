@@ -18,6 +18,24 @@ APPLE_LANGUAGE_CATALOG = (
     / "Shared"
     / "PlayerLanguageFlagResolver.swift"
 )
+APPLE_CREATE_SUPPORT = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSupport.swift"
+)
+APPLE_CREATE_SECTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSections.swift"
+)
 
 
 def _web_language_codes() -> list[tuple[str, str]]:
@@ -69,3 +87,45 @@ def test_language_catalogs_match_across_backend_web_and_apple() -> None:
     assert len(web_menu_languages) == len(backend_entries)
     assert set(web_menu_languages) == set(LANGUAGE_CODES)
     assert set(web_menu_languages) == {name for name, _ in apple_entries}
+
+
+def test_apple_create_language_options_include_full_web_catalog_fallback() -> None:
+    source = APPLE_CREATE_SUPPORT.read_text(encoding="utf-8")
+
+    assert "static let fallbackOptions: [AppleBookCreateLanguage] =" in source
+    assert "AppleLanguageCatalog.orderedLanguageNames.compactMap { AppleBookCreateLanguage($0) }" in source
+    assert "static let allCases = fallbackOptions" in source
+    assert (
+        "for language in supported.compactMap(AppleBookCreateLanguage.init(backendValue:)) + fallbackOptions"
+        in source
+    )
+    assert "static func availableInputLanguages(" in source
+    assert "availableLanguages(options?.supportedInputLanguages ?? [])" in source
+    assert "static func availableTargetLanguages(" in source
+    assert "availableLanguages(options?.supportedOutputLanguages ?? [])" in source
+    assert "AppleBookCreateLanguage.options(from: supported)" in source
+
+
+def test_apple_create_language_controls_share_available_lists_across_surfaces() -> None:
+    source = APPLE_CREATE_SECTIONS.read_text(encoding="utf-8")
+
+    tvos_block = re.search(
+        r"#if os\(tvOS\)(?P<body>.*?)#else",
+        source,
+        flags=re.S,
+    )
+    assert tvos_block is not None
+    assert 'Picker("Input", selection: $inputLanguage)' in tvos_block.group("body")
+    assert "ForEach(availableInputLanguages)" in tvos_block.group("body")
+    assert 'Picker("Target", selection: $targetLanguage)' in tvos_block.group("body")
+    assert "ForEach(availableTargetLanguages)" in tvos_block.group("body")
+
+    non_tvos_block = re.search(
+        r"#else(?P<body>.*?)#endif",
+        source,
+        flags=re.S,
+    )
+    assert non_tvos_block is not None
+    assert "AppleBookCreateLanguageSelector(" in non_tvos_block.group("body")
+    assert "options: availableInputLanguages" in non_tvos_block.group("body")
+    assert "options: availableTargetLanguages" in non_tvos_block.group("body")

@@ -181,6 +181,10 @@ Current Apple UI partially exposes:
   runner can now select Create picker options and assert non-empty field values,
   with opt-in iPhone/iPad Create-readiness Make targets that verify Narrate
   EPUB, subtitle, and YouTube/NAS default source loading against a populated API.
+  Apple Create language controls are now contract-pinned to the shared
+  backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
+  pickers keep the full Web-supported language list even when runtime defaults
+  or older option responses are sparse.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The
