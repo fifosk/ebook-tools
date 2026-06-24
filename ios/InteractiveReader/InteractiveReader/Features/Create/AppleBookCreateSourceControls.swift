@@ -164,8 +164,10 @@ struct AppleBookCreateSubtitleSourceControls: View {
     let subtitleSources: SubtitleSourceListResponse?
     let selectedSubtitleFileName: String?
     let isLoadingSubtitleSources: Bool
+    let isDeletingSubtitleSource: Bool
     let subtitleSourcesErrorMessage: String?
     let onRefreshSubtitleSources: () -> Void
+    let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void
     let onChooseSubtitleFile: () -> Void
 
     var body: some View {
@@ -201,6 +203,26 @@ struct AppleBookCreateSubtitleSourceControls: View {
             progressIdentifier: "createSubtitleServerSourcesProgress",
             action: onRefreshSubtitleSources
         )
+        Button(role: .destructive) {
+            if let selectedSubtitleSourceEntry {
+                onDeleteSubtitleSource(selectedSubtitleSourceEntry)
+            }
+        } label: {
+            Label(
+                isDeletingSubtitleSource ? "Deleting Subtitle" : "Delete Selected Subtitle",
+                systemImage: "trash"
+            )
+        }
+        .disabled(
+            isDeletingSubtitleSource
+                || isLoadingSubtitleSources
+                || selectedSubtitleSourceEntry == nil
+        )
+        .accessibilityIdentifier("createSubtitleDeleteServerSourceButton")
+        if isDeletingSubtitleSource {
+            ProgressView()
+                .accessibilityIdentifier("createSubtitleDeleteServerSourceProgress")
+        }
         if let subtitleSourcesErrorMessage {
             Text(subtitleSourcesErrorMessage)
                 .font(.footnote)
@@ -215,6 +237,10 @@ struct AppleBookCreateSubtitleSourceControls: View {
 
     private var subtitleSourceEntries: [SubtitleSourceEntry] {
         AppleBookCreatePresentation.subtitleJobSources(from: subtitleSources)
+    }
+
+    private var selectedSubtitleSourceEntry: SubtitleSourceEntry? {
+        subtitleSourceEntries.first { $0.path == subtitleSourcePath }
     }
 
     private var shouldShowCurrentSubtitlePath: Bool {

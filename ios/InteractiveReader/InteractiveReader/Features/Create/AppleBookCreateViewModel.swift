@@ -26,6 +26,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
     @Published private(set) var isLoadingNarrateChapters = false
     @Published private(set) var isLoadingSubtitleSources = false
+    @Published private(set) var isDeletingSubtitleSource = false
     @Published var isLoadingSubtitleTvMetadata = false
     @Published private(set) var isLoadingYoutubeLibrary = false
     @Published private(set) var isLoadingYoutubeSubtitleStreams = false
@@ -179,6 +180,39 @@ final class AppleBookCreateViewModel: ObservableObject {
             subtitleSources = nil
             subtitleSourcesErrorMessage = error.localizedDescription
             return nil
+        }
+    }
+
+    func deleteSubtitleSource(
+        path: String,
+        using appState: AppState
+    ) async -> Bool {
+        guard let configuration = appState.configuration else {
+            subtitleSourcesErrorMessage = "Configure a valid API base URL before continuing."
+            return false
+        }
+        let trimmedPath = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            subtitleSourcesErrorMessage = "Select a server subtitle before deleting it."
+            return false
+        }
+
+        isDeletingSubtitleSource = true
+        subtitleSourcesErrorMessage = nil
+        defer { isDeletingSubtitleSource = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            _ = try await client.deleteSubtitleSource(subtitlePath: trimmedPath)
+            if let currentSources = subtitleSources {
+                subtitleSources = SubtitleSourceListResponse(
+                    sources: currentSources.sources.filter { $0.path != trimmedPath }
+                )
+            }
+            return true
+        } catch {
+            subtitleSourcesErrorMessage = error.localizedDescription
+            return false
         }
     }
 

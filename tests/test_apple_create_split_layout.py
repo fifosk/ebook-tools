@@ -131,6 +131,22 @@ CREATE_MODELS = (
     / "Create"
     / "AppleBookCreateModels.swift"
 )
+PIPELINE_CREATION_API_MODELS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Models"
+    / "PipelineCreationApiModels.swift"
+)
+API_CLIENT_CREATION = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Services"
+    / "APIClient+Creation.swift"
+)
 CREATE_OPTIONS = (
     ROOT
     / "ios"
@@ -1063,6 +1079,38 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert "AppleBookCreateNarrationSection.swift in Sources" in project
     assert project.count("AppleBookCreateNarrationSection.swift in Sources") == 4
     assert "AppleBookCreateSections.swift" not in project
+
+
+def test_subtitle_source_delete_is_wired_through_apple_create() -> None:
+    view_source = _source(CREATE_VIEW)
+    source = _source(CREATE_SOURCE_SECTION)
+    controls_source = _source(CREATE_SOURCE_CONTROLS)
+    view_model_source = _source(CREATE_VIEW_MODEL)
+    api_models_source = _source(PIPELINE_CREATION_API_MODELS)
+    api_client_source = _source(API_CLIENT_CREATION)
+
+    assert 'static let subtitleDeleteSourcePath = "/api/subtitles/delete-source"' in api_client_source
+    assert "func deleteSubtitleSource(" in api_client_source
+    assert "path: AppleCreateRuntimeContract.subtitleDeleteSourcePath" in api_client_source
+    assert "struct SubtitleSourceDeleteRequest: Encodable, Equatable" in api_models_source
+    assert "struct SubtitleSourceDeleteResponse: Decodable, Equatable" in api_models_source
+    assert "func deleteSubtitleSource(" in view_model_source
+    assert "isDeletingSubtitleSource = true" in view_model_source
+    assert "client.deleteSubtitleSource(subtitlePath: trimmedPath)" in view_model_source
+    assert "subtitleSources = SubtitleSourceListResponse(" in view_model_source
+    assert "let isDeletingSubtitleSource: Bool" in source
+    assert "let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void" in source
+    assert "isDeletingSubtitleSource: isDeletingSubtitleSource" in source
+    assert "onDeleteSubtitleSource: onDeleteSubtitleSource" in source
+    assert "let isDeletingSubtitleSource: Bool" in controls_source
+    assert "let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void" in controls_source
+    assert 'accessibilityIdentifier("createSubtitleDeleteServerSourceButton")' in controls_source
+    assert 'accessibilityIdentifier("createSubtitleDeleteServerSourceProgress")' in controls_source
+    assert "private var selectedSubtitleSourceEntry: SubtitleSourceEntry?" in controls_source
+    assert "subtitleSourcePendingDelete" in view_source
+    assert "confirmationDialog(" in view_source
+    assert 'accessibilityIdentifier("confirmDeleteSubtitleSourceButton")' in view_source
+    assert "onDeleteSubtitleSource: requestDeleteSubtitleSource" in view_source
 
 
 def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:

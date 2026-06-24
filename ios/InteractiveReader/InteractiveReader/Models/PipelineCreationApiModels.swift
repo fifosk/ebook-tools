@@ -235,6 +235,30 @@ struct SubtitleSourceListResponse: Decodable, Equatable {
     let sources: [SubtitleSourceEntry]
 }
 
+struct SubtitleSourceDeleteRequest: Encodable, Equatable {
+    let subtitlePath: String
+    let baseDir: String?
+
+    enum CodingKeys: String, CodingKey {
+        case subtitlePath = "subtitle_path"
+        case baseDir = "base_dir"
+    }
+}
+
+struct SubtitleSourceDeleteResponse: Decodable, Equatable {
+    let subtitlePath: String
+    let baseDir: String?
+    let removed: [String]
+    let missing: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case subtitlePath = "subtitle_path"
+        case baseDir = "base_dir"
+        case removed
+        case missing
+    }
+}
+
 struct YoutubeNasSubtitleEntry: Decodable, Equatable {
     let path: String
     let filename: String

@@ -73,6 +73,7 @@ struct AppleBookCreateView: View {
     @State private var selectedSubtitleFileURL: URL?
     @State private var selectedSubtitleFileName: String?
     @State private var isImportingSubtitleFile = false
+    @State private var subtitleSourcePendingDelete: SubtitleSourceEntry?
     @State private var sentenceCount = 30
     @State private var inputLanguage = AppleBookCreateLanguage.english
     @State private var targetLanguage = AppleBookCreateLanguage.arabic
@@ -181,6 +182,14 @@ struct AppleBookCreateView: View {
         .onChange(of: subtitleShowOriginal) { _, newValue in
             handleSubtitleShowOriginalChange(newValue)
         }
+        .modifier(
+            AppleBookCreateSubtitleDeleteConfirmationModifier(
+                pendingDelete: $subtitleSourcePendingDelete,
+                onDelete: { entry in
+                    Task { await deleteSubtitleSource(entry) }
+                }
+            )
+        )
         #if os(iOS)
         .fileImporter(
             isPresented: $isImportingNarrateEbook,
@@ -268,6 +277,7 @@ struct AppleBookCreateView: View {
             isLoadingPipelineFiles: viewModel.isLoadingPipelineFiles,
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
             isLoadingSubtitleSources: viewModel.isLoadingSubtitleSources,
+            isDeletingSubtitleSource: viewModel.isDeletingSubtitleSource,
             isLoadingYoutubeLibrary: viewModel.isLoadingYoutubeLibrary,
             isLoadingYoutubeSubtitleStreams: viewModel.isLoadingYoutubeSubtitleStreams,
             isExtractingYoutubeSubtitles: viewModel.isExtractingYoutubeSubtitles,
@@ -283,6 +293,7 @@ struct AppleBookCreateView: View {
             onRefreshSubtitleSources: {
                 Task { await refreshSubtitleSources(force: true) }
             },
+            onDeleteSubtitleSource: requestDeleteSubtitleSource,
             onRefreshYoutubeLibrary: {
                 Task { await refreshYoutubeLibrary(force: true) }
             },
@@ -1004,6 +1015,20 @@ struct AppleBookCreateView: View {
     private func handleSubtitleSourcePathChange() {
         subtitleMetadataLookupSourceName = subtitleMetadataSourceName
         viewModel.clearSubtitleMetadata()
+    }
+
+    private func requestDeleteSubtitleSource(_ entry: SubtitleSourceEntry) {
+        subtitleSourcePendingDelete = entry
+    }
+
+    private func deleteSubtitleSource(_ entry: SubtitleSourceEntry) async {
+        subtitleSourcePendingDelete = nil
+        let didDelete = await viewModel.deleteSubtitleSource(path: entry.path, using: appState)
+        guard didDelete else { return }
+        if subtitleSourcePath == entry.path {
+            subtitleSourcePath = ""
+        }
+        await refreshSubtitleSources(force: true)
     }
 
     private func handleYoutubeVideoPathChange(_ path: String) {
@@ -2533,5 +2558,43 @@ struct AppleBookCreateView: View {
 
     private func clampSentenceCount(_ value: Int) -> Int {
         AppleBookCreatePresentation.clampSentenceCount(value, bounds: sentenceBounds)
+    }
+}
+
+private struct AppleBookCreateSubtitleDeleteConfirmationModifier: ViewModifier {
+    @Binding var pendingDelete: SubtitleSourceEntry?
+    let onDelete: (SubtitleSourceEntry) -> Void
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            "Delete Subtitle Source?",
+            isPresented: isPresented,
+            titleVisibility: .visible
+        ) {
+            if let pendingDelete {
+                Button("Delete \(pendingDelete.name)", role: .destructive) {
+                    onDelete(pendingDelete)
+                }
+                .accessibilityIdentifier("confirmDeleteSubtitleSourceButton")
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDelete = nil
+            }
+        } message: {
+            if let pendingDelete {
+                Text("This removes \(pendingDelete.name) and any mirrored HTML transcript copies.")
+            }
+        }
+    }
+
+    private var isPresented: Binding<Bool> {
+        Binding(
+            get: { pendingDelete != nil },
+            set: { isPresented in
+                if !isPresented {
+                    pendingDelete = nil
+                }
+            }
+        )
     }
 }

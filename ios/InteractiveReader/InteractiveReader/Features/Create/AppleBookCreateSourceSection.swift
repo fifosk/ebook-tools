@@ -26,6 +26,7 @@ struct AppleBookCreateSourceSection: View {
     let isLoadingPipelineFiles: Bool
     let isLoadingNarrateChapters: Bool
     let isLoadingSubtitleSources: Bool
+    let isDeletingSubtitleSource: Bool
     let isLoadingYoutubeLibrary: Bool
     let isLoadingYoutubeSubtitleStreams: Bool
     let isExtractingYoutubeSubtitles: Bool
@@ -37,6 +38,7 @@ struct AppleBookCreateSourceSection: View {
     let youtubeSubtitleExtractionErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
     let onRefreshSubtitleSources: () -> Void
+    let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void
     let onRefreshYoutubeLibrary: () -> Void
     let onInspectYoutubeSubtitles: () -> Void
     let onExtractYoutubeSubtitles: () -> Void
@@ -102,8 +104,10 @@ struct AppleBookCreateSourceSection: View {
             subtitleSources: subtitleSources,
             selectedSubtitleFileName: selectedSubtitleFileName,
             isLoadingSubtitleSources: isLoadingSubtitleSources,
+            isDeletingSubtitleSource: isDeletingSubtitleSource,
             subtitleSourcesErrorMessage: subtitleSourcesErrorMessage,
             onRefreshSubtitleSources: onRefreshSubtitleSources,
+            onDeleteSubtitleSource: onDeleteSubtitleSource,
             onChooseSubtitleFile: onChooseSubtitleFile
         )
     }

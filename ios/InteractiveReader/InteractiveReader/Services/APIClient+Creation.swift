@@ -9,6 +9,7 @@ enum AppleCreateRuntimeContract {
     static let pipelineJobsPath = "/api/pipelines"
     static let pipelineIntakeStatusPath = "/api/pipelines/intake/status"
     static let subtitleSourcesPath = "/api/subtitles/sources"
+    static let subtitleDeleteSourcePath = "/api/subtitles/delete-source"
     static let subtitleModelsPath = "/api/subtitles/models"
     static let subtitleJobsPath = "/api/subtitles/jobs"
     static let youtubeLibraryPath = "/api/subtitles/youtube/library"
@@ -62,6 +63,22 @@ extension APIClient {
         }
         let data = try await sendRequest(path: path)
         return try decode(SubtitleSourceListResponse.self, from: data)
+    }
+
+    func deleteSubtitleSource(
+        subtitlePath: String,
+        baseDir: String? = nil
+    ) async throws -> SubtitleSourceDeleteResponse {
+        let payload = SubtitleSourceDeleteRequest(
+            subtitlePath: subtitlePath,
+            baseDir: baseDir?.nonEmptyValue
+        )
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.subtitleDeleteSourcePath,
+            method: "POST",
+            payload: payload
+        )
+        return try decode(SubtitleSourceDeleteResponse.self, from: data)
     }
 
     func fetchYoutubeLibrary(baseDir: String? = nil) async throws -> YoutubeNasLibraryResponse {
