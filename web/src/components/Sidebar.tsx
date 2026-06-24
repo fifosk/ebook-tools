@@ -1,8 +1,8 @@
 import type { SelectedView } from '../App';
 import type { JobState } from './JobList';
+import { SidebarCreationLinks } from './sidebar/SidebarCreationLinks';
 import { SidebarPlayerButton } from './sidebar/SidebarPlayerButton';
 import { SidebarJobRow } from './sidebar/SidebarJobRow';
-import { isPipelineView } from './sidebar/sidebarUtils';
 
 interface SidebarProps {
   selectedView: SelectedView;
@@ -45,7 +45,6 @@ export function Sidebar({
   adminSettingsView,
   adminSystemView
 }: SidebarProps) {
-  const isAddBookActive = isPipelineView(selectedView);
   const activeJob = activeJobId
     ? sidebarJobs.find((job) => job.jobId === activeJobId) ?? null
     : null;
@@ -74,63 +73,14 @@ export function Sidebar({
         </button>
       </div>
       {canScheduleJobs ? (
-        <>
-          <details className="sidebar__section" open>
-            <summary>🎧 Audiobooks</summary>
-            <ul className="sidebar__list">
-              <li>
-                <button
-                  type="button"
-                  className={`sidebar__link ${isAddBookActive ? 'is-active' : ''}`}
-                  onClick={() => onSelectView('pipeline:source')}
-                >
-                  📚 Book Page
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className={`sidebar__link ${selectedView === createBookView ? 'is-active' : ''}`}
-                  onClick={() => onSelectView(createBookView)}
-                >
-                  📝 Create Audiobook
-                </button>
-              </li>
-            </ul>
-          </details>
-          <details className="sidebar__section" open>
-            <summary>📺 Videos</summary>
-            <ul className="sidebar__list">
-              <li>
-                <button
-                  type="button"
-                  className={`sidebar__link ${selectedView === subtitlesView ? 'is-active' : ''}`}
-                  onClick={() => onSelectView(subtitlesView)}
-                >
-                  🎞️ Subtitles
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className={`sidebar__link ${selectedView === youtubeSubtitlesView ? 'is-active' : ''}`}
-                  onClick={() => onSelectView(youtubeSubtitlesView)}
-                >
-                  📺 YouTube Video
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className={`sidebar__link ${selectedView === youtubeDubView ? 'is-active' : ''}`}
-                  onClick={() => onSelectView(youtubeDubView)}
-                >
-                  🎙️ Dub Video
-                </button>
-              </li>
-            </ul>
-          </details>
-        </>
+        <SidebarCreationLinks
+          selectedView={selectedView}
+          onSelectView={onSelectView}
+          createBookView={createBookView}
+          subtitlesView={subtitlesView}
+          youtubeSubtitlesView={youtubeSubtitlesView}
+          youtubeDubView={youtubeDubView}
+        />
       ) : null}
       <details className="sidebar__section" open>
         <summary>📊 Job Overview</summary>
