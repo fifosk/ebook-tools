@@ -13,6 +13,8 @@ EXTENSION_PRODUCT_NAME="${APPLE_EXTENSION_PRODUCT_NAME:-NotificationServiceExten
 EXTENSION_BUNDLE_ID="${APPLE_EXTENSION_BUNDLE_ID:-com.example.InteractiveReader.NotificationServiceExtension}"
 APP_ENTITLEMENTS="${APP_ENTITLEMENTS_PLIST:-${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Supporting/InteractiveReader.entitlements}"
 EXTENSION_ENTITLEMENTS="${EXTENSION_ENTITLEMENTS_PLIST:-}"
+MERGED_APP_ENTITLEMENTS="${APPLE_MERGED_APP_ENTITLEMENTS_PLIST:-}"
+MERGED_EXTENSION_ENTITLEMENTS="${APPLE_MERGED_EXTENSION_ENTITLEMENTS_PLIST:-}"
 APP_PROFILE="${FULL_CAPABILITY_IOS_PROFILE:-}"
 EXTENSION_PROFILE="${WILDCARD_IOS_EXTENSION_PROFILE:-}"
 SIGNING_IDENTITY="${APPLE_DEVELOPMENT_IDENTITY:-}"
@@ -34,7 +36,10 @@ Options:
   --extension-profile PATH       Wildcard or exact profile for NotificationServiceExtension.appex.
   --signing-identity NAME        codesign identity to use for app, extension, and nested dylibs.
   --app-entitlements PATH        App entitlements plist. Defaults to InteractiveReader.entitlements.
-  --extension-entitlements PATH  Optional extension entitlements plist. Omitted by default.
+  --extension-entitlements PATH  Optional extension project entitlements plist. Omitted by default.
+  --merged-app-entitlements PATH Generated app entitlements output path.
+  --merged-extension-entitlements PATH
+                                 Generated extension entitlements output path.
   --derived-data PATH            DerivedData folder for the unsigned device build.
   --configuration NAME           Xcode configuration. Defaults to Debug.
   --launch-console-timeout SEC   Final launch-console timeout. Defaults to 10.
@@ -43,6 +48,7 @@ Options:
 Environment aliases:
   APPLE_DEVICE_ID, FULL_CAPABILITY_IOS_PROFILE, WILDCARD_IOS_EXTENSION_PROFILE,
   APPLE_DEVELOPMENT_IDENTITY, APP_ENTITLEMENTS_PLIST, EXTENSION_ENTITLEMENTS_PLIST,
+  APPLE_MERGED_APP_ENTITLEMENTS_PLIST, APPLE_MERGED_EXTENSION_ENTITLEMENTS_PLIST,
   APPLE_DEVICE_DERIVED_DATA, APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT, XCBUILD, XCPROJ,
   SCHEME, CONFIGURATION, PRODUCT_NAME, BUNDLE_ID, APPLE_EXTENSION_PRODUCT_NAME,
   and APPLE_EXTENSION_BUNDLE_ID.
@@ -109,6 +115,14 @@ while [[ $# -gt 0 ]]; do
       EXTENSION_ENTITLEMENTS="${2:-}"
       shift 2
       ;;
+    --merged-app-entitlements)
+      MERGED_APP_ENTITLEMENTS="${2:-}"
+      shift 2
+      ;;
+    --merged-extension-entitlements)
+      MERGED_EXTENSION_ENTITLEMENTS="${2:-}"
+      shift 2
+      ;;
     --derived-data)
       DERIVED_DATA="${2:-}"
       shift 2
@@ -144,6 +158,12 @@ fi
 
 APP_PATH="${DERIVED_DATA}/Build/Products/${CONFIGURATION}-iphoneos/${APP_PRODUCT_NAME}.app"
 APPEX_PATH="${APP_PATH}/PlugIns/${EXTENSION_PRODUCT_NAME}.appex"
+if [[ -z "${MERGED_APP_ENTITLEMENTS}" ]]; then
+  MERGED_APP_ENTITLEMENTS="${DERIVED_DATA}/MergedEntitlements/${APP_PRODUCT_NAME}.entitlements.plist"
+fi
+if [[ -z "${MERGED_EXTENSION_ENTITLEMENTS}" ]]; then
+  MERGED_EXTENSION_ENTITLEMENTS="${DERIVED_DATA}/MergedEntitlements/${EXTENSION_PRODUCT_NAME}.entitlements.plist"
+fi
 
 BUILD_CMD=(
   "${XCBUILD}"
@@ -157,6 +177,24 @@ BUILD_CMD=(
 )
 PROFILE_APP_CMD=(cp "${APP_PROFILE}" "${APP_PATH}/embedded.mobileprovision")
 PROFILE_EXTENSION_CMD=(cp "${EXTENSION_PROFILE}" "${APPEX_PATH}/embedded.mobileprovision")
+MERGE_APP_ENTITLEMENTS_CMD=(
+  python3
+  "${ROOT_DIR}/scripts/apple_merge_entitlements.py"
+  --profile "${APP_PROFILE}"
+  --bundle-id "${APP_BUNDLE_ID}"
+  --project-entitlements "${APP_ENTITLEMENTS}"
+  --output "${MERGED_APP_ENTITLEMENTS}"
+)
+MERGE_EXTENSION_ENTITLEMENTS_CMD=(
+  python3
+  "${ROOT_DIR}/scripts/apple_merge_entitlements.py"
+  --profile "${EXTENSION_PROFILE}"
+  --bundle-id "${EXTENSION_BUNDLE_ID}"
+  --output "${MERGED_EXTENSION_ENTITLEMENTS}"
+)
+if [[ -n "${EXTENSION_ENTITLEMENTS}" ]]; then
+  MERGE_EXTENSION_ENTITLEMENTS_CMD+=(--project-entitlements "${EXTENSION_ENTITLEMENTS}")
+fi
 SIGN_EXTENSION_DYLIBS_CMD=(
   find "${APPEX_PATH}" -maxdepth 1 -type f -name "*.dylib" -print0
 )
@@ -164,16 +202,14 @@ SIGN_APP_DYLIBS_CMD=(
   find "${APP_PATH}" -maxdepth 1 -type f -name "*.dylib" -print0
 )
 SIGN_EXTENSION_CMD=(/usr/bin/codesign --force --sign "${SIGNING_IDENTITY}" --timestamp=none)
-if [[ -n "${EXTENSION_ENTITLEMENTS}" ]]; then
-  SIGN_EXTENSION_CMD+=(--entitlements "${EXTENSION_ENTITLEMENTS}")
-fi
+SIGN_EXTENSION_CMD+=(--entitlements "${MERGED_EXTENSION_ENTITLEMENTS}")
 SIGN_EXTENSION_CMD+=("${APPEX_PATH}")
 SIGN_APP_CMD=(
   /usr/bin/codesign
   --force
   --sign "${SIGNING_IDENTITY}"
   --timestamp=none
-  --entitlements "${APP_ENTITLEMENTS}"
+  --entitlements "${MERGED_APP_ENTITLEMENTS}"
   "${APP_PATH}"
 )
 VERIFY_CMD=(/usr/bin/codesign --verify --deep --strict --verbose=4 "${APP_PATH}")
@@ -198,6 +234,8 @@ Notification extension path: ${APPEX_PATH}
 EOF
 
 print_command "Unsigned device build" "${BUILD_CMD[@]}"
+print_command "Generate merged app entitlements" "${MERGE_APP_ENTITLEMENTS_CMD[@]}"
+print_command "Generate merged extension entitlements" "${MERGE_EXTENSION_ENTITLEMENTS_CMD[@]}"
 print_command "Embed app provisioning profile" "${PROFILE_APP_CMD[@]}"
 print_command "Embed extension provisioning profile" "${PROFILE_EXTENSION_CMD[@]}"
 echo "Sign extension dylibs:"

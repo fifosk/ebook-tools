@@ -52,18 +52,28 @@ def test_full_entitlement_signing_plan_prints_non_mutating_recipe(tmp_path: Path
     output = result.stdout
     app_path = derived_data / "Build/Products/Release-iphoneos/InteractiveReader.app"
     appex_path = app_path / "PlugIns/NotificationServiceExtension.appex"
+    merged_app_entitlements = derived_data / "MergedEntitlements/InteractiveReader.entitlements.plist"
+    merged_extension_entitlements = (
+        derived_data / "MergedEntitlements/NotificationServiceExtension.entitlements.plist"
+    )
 
     assert "Full-entitlement iPhone/iPad signing plan" in output
     assert "Unsigned device build:" in output
     assert "-destination  generic/platform=iOS" in output
     assert "CODE_SIGNING_ALLOWED=NO" in output
+    assert "Generate merged app entitlements:" in output
+    assert "apple_merge_entitlements.py" in output
+    assert f"--output  {merged_app_entitlements}" in output
+    assert "Generate merged extension entitlements:" in output
+    assert f"--project-entitlements  {extension_entitlements}" in output
+    assert f"--output  {merged_extension_entitlements}" in output
     assert f"{app_path}/embedded.mobileprovision" in output
     assert f"{appex_path}/embedded.mobileprovision" in output
     assert "Sign extension dylibs:" in output
     assert "Sign notification extension:" in output
-    assert f"--entitlements  {extension_entitlements}" in output
+    assert f"--entitlements  {merged_extension_entitlements}" in output
     assert "Sign app with full entitlements:" in output
-    assert f"--entitlements  {app_entitlements}" in output
+    assert f"--entitlements  {merged_app_entitlements}" in output
     assert "Verify signed app:" in output
     assert "Final guarded install command:" in output
     assert "CONFIRM_PHYSICAL_DEVICE_UPDATE=YES" in output

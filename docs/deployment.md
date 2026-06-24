@@ -141,6 +141,9 @@ entitlements file alone. The app signature needs the profile-generated
 `application-identifier`, team id, `get-task-allow`, and keychain group in
 addition to the app iCloud/Push/Sign in with Apple values; the notification
 extension needs its own app id, team id, `get-task-allow`, and keychain group.
+Generate those files with `scripts/apple_merge_entitlements.py`; the
+`apple-device-full-entitlement-plan` output includes the exact commands and
+uses the generated plist paths in its codesign steps.
 Otherwise local `codesign --verify` can pass while device install fails with
 `0xe8008015`.
 

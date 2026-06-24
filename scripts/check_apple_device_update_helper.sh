@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HELPER="${ROOT_DIR}/scripts/apple_unattended_device_update.sh"
 FULL_ENTITLEMENT_PLANNER="${ROOT_DIR}/scripts/apple_full_entitlement_signing_plan.sh"
+MERGE_ENTITLEMENTS="${ROOT_DIR}/scripts/apple_merge_entitlements.py"
 MAKEFILE="${ROOT_DIR}/Makefile"
 
 assert_contains() {
@@ -34,6 +35,7 @@ assert_not_contains() {
 
 bash -n "${HELPER}"
 bash -n "${FULL_ENTITLEMENT_PLANNER}"
+python3 -m py_compile "${MERGE_ENTITLEMENTS}"
 
 makefile="$(cat "${MAKEFILE}")"
 assert_contains "${makefile}" "apple-device-full-entitlement-plan:" "Makefile should expose the full-entitlement signing planner"

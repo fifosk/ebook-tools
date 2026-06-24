@@ -429,14 +429,24 @@ APPEX="$APP/PlugIns/NotificationServiceExtension.appex"
 cp "$FULL_CAPABILITY_IOS_PROFILE" "$APP/embedded.mobileprovision"
 cp "$WILDCARD_IOS_EXTENSION_PROFILE" "$APPEX/embedded.mobileprovision"
 
+python3 scripts/apple_merge_entitlements.py \
+  --profile "$FULL_CAPABILITY_IOS_PROFILE" \
+  --bundle-id com.example.InteractiveReader \
+  --project-entitlements ios/InteractiveReader/InteractiveReader/Supporting/InteractiveReader.entitlements \
+  --output "$DERIVED/MergedEntitlements/InteractiveReader.entitlements.plist"
+python3 scripts/apple_merge_entitlements.py \
+  --profile "$WILDCARD_IOS_EXTENSION_PROFILE" \
+  --bundle-id com.example.InteractiveReader.NotificationServiceExtension \
+  --output "$DERIVED/MergedEntitlements/NotificationServiceExtension.entitlements.plist"
+
 find "$APPEX" -maxdepth 1 -type f -name '*.dylib' -print0 \
   | xargs -0 -I{} /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none "{}"
 /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none \
-  --entitlements "$EXTENSION_ENTITLEMENTS_PLIST" "$APPEX"
+  --entitlements "$DERIVED/MergedEntitlements/NotificationServiceExtension.entitlements.plist" "$APPEX"
 find "$APP" -maxdepth 1 -type f -name '*.dylib' -print0 \
   | xargs -0 -I{} /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none "{}"
 /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none \
-  --entitlements "$APP_ENTITLEMENTS_PLIST" "$APP"
+  --entitlements "$DERIVED/MergedEntitlements/InteractiveReader.entitlements.plist" "$APP"
 /usr/bin/codesign --verify --deep --strict --verbose=4 "$APP"
 
 APPLE_DEVICE_ID="<device-id-or-name>" \
@@ -450,15 +460,15 @@ For the June 24 `.27` iPad Pro install, `APPLE_DEVICE_ID="Fifo Ipad Pro"`
 worked for CoreDevice preflight but not as an `xcodebuild` destination id; the
 helper now resolves friendly names through `devicectl device info details` and
 passes the hardware UDID (`00008142-001C71AE3AC2401C`) to `xcodebuild`.
-The successful manual signing pass also used temporary merged entitlements for
-both bundles. The app entitlements combined the project iCloud/Push/Sign in
+The successful manual signing pass used `scripts/apple_merge_entitlements.py`
+for both bundles. The app entitlements combine the project iCloud/Push/Sign in
 with Apple values with profile-generated `application-identifier`,
 `com.apple.developer.team-identifier`, `get-task-allow`, and
-`keychain-access-groups`, and replaced the placeholder ubiquity kvstore value
+`keychain-access-groups`, and replace the placeholder ubiquity kvstore value
 with `3Y7288895K.com.example.InteractiveReader`. The notification extension
-was signed with its own `application-identifier`, team id, `get-task-allow`,
+is signed with its own `application-identifier`, team id, `get-task-allow`,
 and keychain group. Signing the app only with
-`InteractiveReader.entitlements` passed local `codesign --verify` but failed
+`InteractiveReader.entitlements` passes local `codesign --verify` but fails
 device install with `0xe8008015`.
 
 For Apple TV local dry-runs, use the repo-owned profile instead of manually
