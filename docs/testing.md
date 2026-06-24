@@ -200,7 +200,8 @@ make verify-apple-shared-pipeline
 ```
 
 `verify-apple-shared-pipeline` runs the shared pipeline contract, backend
-health/runtime, backend pytest, and Web checks without physical deployment. Run
+health/runtime, backend pytest, Web checks, and simulator/journey orchestration
+dry-runs without physical deployment. Run
 `apple-pipeline-source-sync` after the Mac Studio/runtime checkout has been
 fast-forwarded, because that check compares the local and remote Git state.
 `apple-pipeline-backend-tests` runs the manifest registered repo-owned

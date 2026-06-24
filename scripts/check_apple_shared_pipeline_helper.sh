@@ -41,7 +41,7 @@ owned_journey_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTH
 owned_journeys_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE="$$profile"'
 ipad_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create'
 ipad_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create'
-verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks"
+verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs"
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
 preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only'
@@ -82,7 +82,7 @@ assert_contains "${makefile}" "${ipad_create_readiness_line}" "iPad Create-readi
 assert_contains "${makefile}" "apple-pipeline-ipad-create-readiness-dry-run:" "Makefile should expose the iPad Create-readiness dry-run shortcut"
 assert_contains "${makefile}" "${ipad_create_readiness_dry_run_line}" "iPad Create-readiness dry-run shortcut should dry-run the ipados-create app-owned journey"
 assert_contains "${makefile}" "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run" "orchestration dry-runs should compose simulator and app-owned journey dry-runs"
-assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts, backend checks, backend tests, and Web checks"
+assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts, backend checks, backend tests, Web checks, and orchestration dry-runs"
 assert_contains "${makefile}" "apple-device-preflight:" "Makefile should expose a non-installing device preflight helper"
 assert_contains "${makefile}" "${preflight_line}" "device preflight should route through the repo-owned CoreDevice helper"
 assert_contains "${makefile}" "apple-device-signed-build-only:" "Makefile should expose the shared signed-build gate"

@@ -60,13 +60,15 @@ def test_shared_pipeline_verification_stays_non_physical() -> None:
 
     target_line = (
         "verify-apple-shared-pipeline: apple-pipeline-contracts "
-        "apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks"
+        "apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks "
+        "apple-pipeline-orchestration-dry-runs"
     )
     assert target_line in makefile
 
     target = makefile.split("verify-apple-shared-pipeline:", 1)[1].split("\n\n", 1)[0]
     assert "apple-pipeline-backend-tests" in target
     assert "apple-pipeline-web-checks" in target
+    assert "apple-pipeline-orchestration-dry-runs" in target
     assert "apple-pipeline-source-sync" not in target
     assert "apple-device-update" not in target
     assert "run_app_device_deploy.py" not in target
