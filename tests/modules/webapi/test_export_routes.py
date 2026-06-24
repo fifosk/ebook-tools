@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
-from modules.services.export_service import ExportResult
+from modules.services.export_service import ExportResult, ExportServiceError
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
     RequestUserContext,
@@ -128,6 +128,57 @@ def test_export_routes_record_token_safe_timing(
     assert any(
         sample.labels.get("operation") == "download"
         and sample.labels.get("result") == "success"
+        and sample.name.endswith("_count")
+        and sample.value >= 1
+        for sample in metric.samples
+    )
+
+
+def test_export_download_not_found_stays_token_safe(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    zip_path = tmp_path / "missing-secret-export.zip"
+    service = _StubExportService(zip_path)
+    app = create_app()
+    app.dependency_overrides[get_export_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="secret-user-id",
+        user_role="editor",
+    )
+    caplog.set_level(logging.DEBUG, logger="modules.webapi.routers.exports")
+
+    def raise_missing(export_id: str) -> ExportResult:
+        service.download_calls.append(export_id)
+        raise ExportServiceError("Offline export is unavailable")
+
+    service.resolve_export_download = raise_missing
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/exports/secret-missing-export-id/download")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Offline export is unavailable"
+    assert service.download_calls == ["secret-missing-export-id"]
+
+    rendered_logs = caplog.text
+    assert "Offline export route operation=download result=not_found" in rendered_logs
+    assert "secret-missing-export-id" not in rendered_logs
+    assert "secret-user-id" not in rendered_logs
+    assert str(zip_path) not in rendered_logs
+
+    families = {
+        family.name: family
+        for family in text_string_to_metric_families(metrics_response.text)
+    }
+    metric = families["ebook_tools_export_route_duration_seconds"]
+    assert any(
+        sample.labels.get("operation") == "download"
+        and sample.labels.get("result") == "not_found"
         and sample.name.endswith("_count")
         and sample.value >= 1
         for sample in metric.samples
