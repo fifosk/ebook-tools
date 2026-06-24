@@ -41,6 +41,7 @@ import {
 import LibraryList from '../components/LibraryList';
 import LibraryToolbar from '../components/LibraryToolbar';
 import LibraryMetadataTab from './library/LibraryMetadataTab';
+import LibraryOverviewTab from './library/LibraryOverviewTab';
 import AccessPolicyEditor from '../components/access/AccessPolicyEditor';
 import styles from './LibraryPage.module.css';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
@@ -774,251 +775,38 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
 
               {/* Overview Tab */}
               {detailTab === 'overview' ? (
-                <div className={styles.tabContent}>
-                  {selectedItemType !== 'book' && (tvPoster || tvStill) ? (
-                    <div className="tv-metadata-media" aria-label="TV images">
-                      {tvPoster ? (
-                        <a
-                          href={tvPoster.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="tv-metadata-media__poster"
-                        >
-                          <img
-                            src={tvPoster.src}
-                            alt="Show poster"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        </a>
-                      ) : null}
-                      {tvStill ? (
-                        <a
-                          href={tvStill.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="tv-metadata-media__still"
-                        >
-                          <img
-                            src={tvStill.src}
-                            alt="Episode still"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        </a>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {selectedItemType === 'video' && !(tvPoster || tvStill) && youtubeThumbnail ? (
-                    <div className="tv-metadata-media" aria-label="YouTube thumbnail">
-                      <a
-                        href={youtubeThumbnail.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="tv-metadata-media__still"
-                      >
-                        <img
-                          src={youtubeThumbnail.src}
-                          alt="YouTube thumbnail"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      </a>
-                    </div>
-                  ) : null}
-                  {displayedCoverUrl ? (
-                    <div className={styles.coverWrapper}>
-                      <img
-                        src={displayedCoverUrl}
-                        alt={`Cover art for ${selectedTitle}`}
-                        className={styles.coverImage}
-                      />
-                    </div>
-                  ) : null}
-                  <div className={styles.actionBar}>
-                    <button
-                      type="button"
-                      className={styles.primaryButton}
-                      onClick={handlePlay}
-                      disabled={!selectedPermissions?.canView}
-                    >
-                      Play
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryButton}
-                      onClick={() => startEditingItem(selectedItem)}
-                      disabled={isSaving || Boolean(mutating[selectedItem.jobId]) || !selectedPermissions?.canEdit}
-                    >
-                      Edit
-                    </button>
-                    {selectedItemType === 'book' ? (
-                      <button
-                        type="button"
-                        className={styles.secondaryButton}
-                        onClick={(e) => handleEnrichMetadata(e.shiftKey)}
-                        disabled={
-                          isEnriching ||
-                          isSaving ||
-                          Boolean(mutating[selectedItem.jobId]) ||
-                          !selectedPermissions?.canEdit
-                        }
-                        title="Fetch metadata from OpenLibrary, Google Books, etc. Hold Shift to force refresh."
-                      >
-                        {isEnriching ? 'Refreshing…' : 'Refresh metadata'}
-                      </button>
-                    ) : null}
-                    {!selectedItem.mediaCompleted ? (
-                      <span className={styles.actionHint}>
-                        Media is still finalizing or was previously removed for this entry.
-                      </span>
-                    ) : null}
-                  </div>
-                  {enrichmentError ? (
-                    <div className={styles.editError} role="alert" style={{ marginTop: '0.75rem' }}>
-                      {enrichmentError}
-                    </div>
-                  ) : null}
-                  {enrichmentResult ? (
-                    <div
-                      className={enrichmentResult.enriched ? styles.successNotice : styles.infoNotice}
-                      role="status"
-                      style={{ marginTop: '0.75rem', padding: '0.5rem', borderRadius: '4px', backgroundColor: enrichmentResult.enriched ? '#d4edda' : '#e7f3ff' }}
-                    >
-                      {enrichmentResult.enriched
-                        ? `Enriched from ${enrichmentResult.source ?? 'external source'} (confidence: ${enrichmentResult.confidence ?? 'unknown'})`
-                        : 'No additional metadata found from external sources'}
-                    </div>
-                  ) : null}
-                  {isEditing ? (
-                    <>
-                      <form className={styles.editForm} onSubmit={handleEditSubmit}>
-                        {editError ? <div className={styles.editError}>{editError}</div> : null}
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="library-edit-title">Title</label>
-                          <input
-                            id="library-edit-title"
-                            type="text"
-                            className={styles.fieldInput}
-                            value={editValues.title}
-                            onChange={handleEditValueChange('title')}
-                            disabled={isSaving}
-                          />
-                        </div>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="library-edit-author">Author / Creator</label>
-                          <input
-                            id="library-edit-author"
-                            type="text"
-                            className={styles.fieldInput}
-                            value={editValues.author}
-                            onChange={handleEditValueChange('author')}
-                            disabled={isSaving}
-                          />
-                        </div>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="library-edit-genre">Genre</label>
-                          <input
-                            id="library-edit-genre"
-                            type="text"
-                            className={styles.fieldInput}
-                            value={editValues.genre}
-                            onChange={handleEditValueChange('genre')}
-                            disabled={isSaving}
-                          />
-                        </div>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="library-edit-language">Language</label>
-                          <input
-                            id="library-edit-language"
-                            type="text"
-                            className={styles.fieldInput}
-                            value={editValues.language}
-                            onChange={handleEditValueChange('language')}
-                            disabled={isSaving}
-                          />
-                        </div>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="library-edit-isbn">ISBN</label>
-                          <div className={styles.inlineFieldRow}>
-                            <input
-                              id="library-edit-isbn"
-                              type="text"
-                              className={styles.fieldInput}
-                              value={editValues.isbn}
-                              onChange={handleEditValueChange('isbn')}
-                              disabled={isSaving || isFetchingIsbn}
-                            />
-                            <button
-                              type="button"
-                              className={styles.secondaryButton}
-                              onClick={handleFetchIsbnMetadata}
-                              disabled={isSaving || isFetchingIsbn || !editValues.isbn.trim()}
-                            >
-                              {isFetchingIsbn ? 'Fetching…' : 'Fetch from ISBN'}
-                            </button>
-                          </div>
-                          {isbnFetchError ? <div className={styles.editError}>{isbnFetchError}</div> : null}
-                        </div>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="library-edit-source">Replace Source File</label>
-                          <input
-                            id="library-edit-source"
-                            type="file"
-                            accept=".epub,.pdf,.mp4,.mkv,.mov,.webm"
-                            onChange={handleSourceFileChange}
-                            disabled={isSaving}
-                          />
-                          <span className={styles.fileHint}>
-                            {selectedFile
-                              ? `Selected: ${selectedFile.name}`
-                              : selectedItem.sourcePath
-                              ? `Current: ${selectedItem.sourcePath}`
-                              : 'No source file stored yet.'}
-                          </span>
-                        </div>
-                        <div className={styles.editActions}>
-                          <button type="submit" className={styles.primaryButton} disabled={isSaving}>
-                            Save changes
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.secondaryButton}
-                            onClick={handleEditCancel}
-                            disabled={isSaving}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                      {isbnPreview ? (
-                        <div className={styles.previewBlock}>
-                          <h3>Fetched Metadata Preview</h3>
-                          <pre className={styles.metadataBlock}>
-                            {JSON.stringify(isbnPreview, null, 2)}
-                          </pre>
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
-                  <ul className={styles.detailList}>
-                    <li className={styles.detailItem}>
-                      <strong>{selectedItemType === 'video' ? 'Creator:' : 'Author:'}</strong> {selectedAuthor}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>Genre:</strong> {selectedGenre}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>Language:</strong> {selectedItem.language}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>Status:</strong> {selectedItem.status}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>Media finalized:</strong> {selectedItem.mediaCompleted ? 'Yes' : 'No'}
-                    </li>
-                  </ul>
-                </div>
+                <LibraryOverviewTab
+                  item={selectedItem}
+                  itemType={selectedItemType}
+                  title={selectedTitle}
+                  author={selectedAuthor}
+                  genre={selectedGenre}
+                  displayedCoverUrl={displayedCoverUrl}
+                  tvPoster={tvPoster}
+                  tvStill={tvStill}
+                  youtubeThumbnail={youtubeThumbnail}
+                  permissions={selectedPermissions}
+                  mutating={Boolean(mutating[selectedItem.jobId])}
+                  isSaving={isSaving}
+                  isEditing={isEditing}
+                  isEnriching={isEnriching}
+                  enrichmentError={enrichmentError}
+                  enrichmentResult={enrichmentResult}
+                  editValues={editValues}
+                  editError={editError}
+                  selectedFile={selectedFile}
+                  isbnPreview={isbnPreview}
+                  isbnFetchError={isbnFetchError}
+                  isFetchingIsbn={isFetchingIsbn}
+                  onPlay={handlePlay}
+                  onStartEditing={startEditingItem}
+                  onEnrichMetadata={handleEnrichMetadata}
+                  onEditSubmit={handleEditSubmit}
+                  onEditCancel={handleEditCancel}
+                  onEditValueChange={handleEditValueChange}
+                  onFetchIsbnMetadata={handleFetchIsbnMetadata}
+                  onSourceFileChange={handleSourceFileChange}
+                />
               ) : null}
 
               {/* Metadata Tab */}
