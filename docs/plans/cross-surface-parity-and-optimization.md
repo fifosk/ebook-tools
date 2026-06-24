@@ -826,7 +826,10 @@ Suggested features to evaluate after parity scaffolding:
   routes now record token-safe duration telemetry for list/save/delete success,
   unauthorized, and error paths with aggregate counts/delete outcomes only,
   without logging template ids, names, payload content, mode filters, user ids,
-  auth headers, or tokens. Web Narrate Ebook and
+  auth headers, or tokens. Unknown template mode filters now return an empty
+  list without loading stored templates instead of silently falling back to
+  generated-book templates, keeping Apple/Web mode pickers from showing the
+  wrong saved configuration. Web Narrate Ebook and
   generated-book forms can now save sanitized creation templates from their
   current settings. Native Apple Create on iPhone/iPad can list those saved
   generated-book and Narrate EPUB templates, apply the Web form state into its

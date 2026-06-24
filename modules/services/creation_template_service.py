@@ -109,9 +109,15 @@ class CreationTemplateService:
         *,
         mode: Optional[str] = None,
     ) -> List[CreationTemplateEntry]:
+        if mode and mode.strip():
+            normalized_mode = self._normalize_filter_mode(mode)
+            if normalized_mode is None:
+                return []
+        else:
+            normalized_mode = None
+
         entries = self._load_entries(user_id)
-        if mode:
-            normalized_mode = self._normalize_mode(mode)
+        if normalized_mode:
             entries = [entry for entry in entries if entry.mode == normalized_mode]
         entries.sort(key=lambda entry: entry.updated_at, reverse=True)
         return entries
@@ -230,6 +236,16 @@ class CreationTemplateService:
         if key in _MODE_ALIASES:
             return _MODE_ALIASES[key]
         return _MODE_ALIASES.get(normalized.lower(), _DEFAULT_MODE)
+
+    @staticmethod
+    def _normalize_filter_mode(value: str) -> Optional[str]:
+        normalized = value.strip().replace(" ", "_")
+        if not normalized:
+            return None
+        key = normalized.replace("_", "").replace("-", "").lower()
+        if key in _MODE_ALIASES:
+            return _MODE_ALIASES[key]
+        return _MODE_ALIASES.get(normalized.lower())
 
     @classmethod
     def _sanitize_payload(cls, value: Any) -> Dict[str, Any]:

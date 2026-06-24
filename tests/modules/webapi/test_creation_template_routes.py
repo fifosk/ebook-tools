@@ -139,6 +139,66 @@ def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -
     ]
 
 
+def test_creation_templates_unknown_mode_filter_returns_empty_without_storage_read() -> None:
+    class RaisingService(CreationTemplateService):
+        def _load_entries(self, user_id: str):  # type: ignore[override]
+            raise AssertionError("invalid mode filters should skip template storage reads")
+
+    service = RaisingService()
+
+    assert service.list_templates("alice@example.test", mode="unsupported-mode") == []
+
+
+def test_creation_templates_unknown_mode_filter_does_not_fall_back_to_generated(tmp_path) -> None:
+    app = create_app()
+    service = CreationTemplateService(
+        file_locator=FileLocator(storage_dir=tmp_path),
+    )
+    app.dependency_overrides[get_creation_template_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice@example.test",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            saved = client.post(
+                "/api/creation/templates",
+                json={
+                    "id": "generated-template",
+                    "name": "Generated template",
+                    "mode": "generatedBook",
+                    "payload": {"topic": "Mystery"},
+                },
+            )
+            unknown_mode = client.get(
+                "/api/creation/templates",
+                params={"mode": "unsupported-mode"},
+            )
+            alias_mode = client.get(
+                "/api/creation/templates",
+                params={"mode": "generatedBook"},
+            )
+            blank_mode = client.get(
+                "/api/creation/templates",
+                params={"mode": "   "},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert saved.status_code == 200
+    assert unknown_mode.status_code == 200
+    assert unknown_mode.json() == {"templates": []}
+    assert alias_mode.status_code == 200
+    assert [entry["id"] for entry in alias_mode.json()["templates"]] == [
+        "generated-template"
+    ]
+    assert blank_mode.status_code == 200
+    assert [entry["id"] for entry in blank_mode.json()["templates"]] == [
+        "generated-template"
+    ]
+
+
 def test_creation_templates_require_authenticated_user() -> None:
     app = create_app()
     app.dependency_overrides[get_creation_template_service] = lambda: CreationTemplateService()
