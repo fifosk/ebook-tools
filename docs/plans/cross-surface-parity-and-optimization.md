@@ -80,7 +80,10 @@ Large Web UI hotspots to split before redesign work:
   coverage. Clip-window, mix, resolution, batch/flush, split/stitch,
   transliteration, lookup-cache, backend-default, and output-prefill state now
   live in `web/src/pages/video-dubbing/useVideoDubbingOutputState.ts` with
-  focused hook coverage.
+  focused hook coverage. Embedded subtitle stream inspection, extraction,
+  stream selection, subtitle deletion, and related progress/error state now
+  live in `web/src/pages/video-dubbing/useVideoDubbingSubtitleExtraction.ts`
+  with focused hook coverage.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style

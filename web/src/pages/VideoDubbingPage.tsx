@@ -2,16 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchYoutubeLibrary,
   generateYoutubeDub,
-  fetchInlineSubtitleStreams,
-  extractInlineSubtitles,
-  deleteNasSubtitle,
   deleteYoutubeVideo
 } from '../api/client';
 import type {
   YoutubeNasLibraryResponse,
   YoutubeNasVideo,
-  YoutubeNasSubtitle,
-  YoutubeInlineSubtitleStream,
   JobParameterSnapshot
 } from '../api/dtos';
 import type { JobState } from '../components/JobList';
@@ -35,13 +30,12 @@ import { useVideoDubbingLanguageState } from './video-dubbing/useVideoDubbingLan
 import { useVideoDubbingVoiceState } from './video-dubbing/useVideoDubbingVoiceState';
 import { useVideoDubbingModelState } from './video-dubbing/useVideoDubbingModelState';
 import { useVideoDubbingOutputState } from './video-dubbing/useVideoDubbingOutputState';
+import { useVideoDubbingSubtitleExtraction } from './video-dubbing/useVideoDubbingSubtitleExtraction';
 import {
   buildVideoDubbingGeneratePayload,
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
-  formatSubtitleExtractionStatus,
   resolveVideoDubPrefill,
-  resolveDefaultStreamLanguages,
   resolveDefaultSubtitle,
   resolveSelectionAfterVideoDelete,
   resolveSubtitleNotice,
@@ -127,14 +121,7 @@ export default function VideoDubbingPage({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isExtractingSubtitles, setIsExtractingSubtitles] = useState(false);
-  const [deletingSubtitlePath, setDeletingSubtitlePath] = useState<string | null>(null);
   const [deletingVideoPath, setDeletingVideoPath] = useState<string | null>(null);
-  const [extractError, setExtractError] = useState<string | null>(null);
-  const [availableSubtitleStreams, setAvailableSubtitleStreams] = useState<YoutubeInlineSubtitleStream[]>([]);
-  const [selectedStreamLanguages, setSelectedStreamLanguages] = useState<Set<string>>(new Set());
-  const [isChoosingStreams, setIsChoosingStreams] = useState(false);
-  const [isLoadingStreams, setIsLoadingStreams] = useState(false);
 
   const videos = library?.videos ?? [];
   const selectedVideo = useMemo(
@@ -222,10 +209,6 @@ export default function VideoDubbingPage({
   const canExtractEmbedded = useMemo(() => {
     return canExtractEmbeddedSubtitles(selectedVideo);
   }, [selectedVideo]);
-  const extractableStreams = useMemo(
-    () => availableSubtitleStreams.filter((stream) => stream.can_extract),
-    [availableSubtitleStreams]
-  );
 
   const handleRefresh = useCallback(async () => {
     setIsLoading(true);
@@ -311,13 +294,6 @@ export default function VideoDubbingPage({
   }, []);
 
   useEffect(() => {
-    setAvailableSubtitleStreams([]);
-    setSelectedStreamLanguages(new Set());
-    setIsChoosingStreams(false);
-    setDeletingSubtitlePath(null);
-  }, [selectedVideoPath]);
-
-  useEffect(() => {
     const prefill = resolveVideoDubPrefill(prefillParameters);
     if (!prefill) {
       return;
@@ -375,140 +351,29 @@ export default function VideoDubbingPage({
     ensureTargetLanguage(match?.language);
   }, [ensureTargetLanguage, playableSubtitles]);
 
-  const handleDeleteSubtitle = useCallback(
-    async (subtitle: YoutubeNasSubtitle) => {
-      if (!selectedVideo) {
-        return;
-      }
-      const confirmed =
-        typeof window === 'undefined' ||
-        window.confirm(
-          `Delete ${subtitle.filename}? This removes the subtitle and any mirrored HTML transcript copies.`,
-        );
-      if (!confirmed) {
-        return;
-      }
-      setExtractError(null);
-      setStatusMessage(null);
-      setDeletingSubtitlePath(subtitle.path);
-      try {
-        await deleteNasSubtitle(selectedVideo.path, subtitle.path);
-        await handleRefresh();
-        setSelectedVideoPath(selectedVideo.path);
-        if (selectedSubtitlePath === subtitle.path) {
-          setSelectedSubtitlePath(null);
-        }
-        setStatusMessage(`Deleted ${subtitle.filename}`);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message || 'Unable to delete subtitle.' : 'Unable to delete subtitle.';
-        setExtractError(message);
-      } finally {
-        setDeletingSubtitlePath(null);
-      }
-    },
-    [handleRefresh, selectedSubtitlePath, selectedVideo]
-  );
-
-  const performSubtitleExtraction = useCallback(
-    async (languages?: string[]) => {
-      if (!selectedVideo) {
-        return;
-      }
-      setIsExtractingSubtitles(true);
-      setExtractError(null);
-      setStatusMessage(null);
-      try {
-        const response = await extractInlineSubtitles(selectedVideo.path, languages);
-        const count = response.extracted?.length ?? 0;
-        setStatusMessage(formatSubtitleExtractionStatus(count, selectedVideo.filename));
-        await handleRefresh();
-        setSelectedVideoPath(selectedVideo.path);
-        setAvailableSubtitleStreams([]);
-        setSelectedStreamLanguages(new Set());
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message || 'Unable to extract subtitles.' : 'Unable to extract subtitles.';
-        setExtractError(message);
-      } finally {
-        setIsExtractingSubtitles(false);
-      }
-    },
-    [handleRefresh, selectedVideo]
-  );
-
-  const handleExtractSubtitles = useCallback(async () => {
-    if (!selectedVideo) {
-      return;
-    }
-    setIsLoadingStreams(true);
-    setIsChoosingStreams(false);
-    setExtractError(null);
-    setStatusMessage(null);
-    try {
-      const response = await fetchInlineSubtitleStreams(selectedVideo.path);
-      const streams = response.streams ?? [];
-      setAvailableSubtitleStreams(streams);
-      const extractable = streams.filter((stream) => stream.can_extract);
-      const defaults = resolveDefaultStreamLanguages(streams);
-      setSelectedStreamLanguages(defaults);
-      if (extractable.length === 0) {
-        setExtractError(
-          'No text-based subtitle streams were found. Image-based subtitle tracks cannot be extracted automatically.'
-        );
-        return;
-      }
-      if (extractable.length === 1) {
-        const languages = Array.from(defaults).filter(Boolean);
-        await performSubtitleExtraction(languages.length > 0 ? languages : undefined);
-        return;
-      }
-      setIsChoosingStreams(true);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message || 'Unable to inspect subtitle streams.' : 'Unable to inspect subtitle streams.';
-      setExtractError(message);
-    } finally {
-      setIsLoadingStreams(false);
-    }
-  }, [performSubtitleExtraction, resolveDefaultStreamLanguages, selectedVideo]);
-
-  const handleToggleSubtitleStream = useCallback((language: string, enabled: boolean) => {
-    if (!language) {
-      return;
-    }
-    setSelectedStreamLanguages((previous) => {
-      const next = new Set(previous);
-      if (enabled) {
-        next.add(language);
-      } else {
-        next.delete(language);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleConfirmSubtitleStreams = useCallback(async () => {
-    if (!selectedVideo) {
-      return;
-    }
-    if (availableSubtitleStreams.length > 1 && selectedStreamLanguages.size === 0) {
-      setExtractError('Select at least one subtitle language to extract.');
-      return;
-    }
-    setIsChoosingStreams(false);
-    const languages = Array.from(selectedStreamLanguages).filter(Boolean);
-    await performSubtitleExtraction(languages.length > 0 ? languages : undefined);
-  }, [availableSubtitleStreams.length, performSubtitleExtraction, selectedVideo, selectedStreamLanguages]);
-
-  const handleCancelStreamSelection = useCallback(() => {
-    setIsChoosingStreams(false);
-    setAvailableSubtitleStreams([]);
-  }, []);
-
-  const handleExtractAllStreams = useCallback(() => {
-    void performSubtitleExtraction(undefined);
-  }, [performSubtitleExtraction]);
+  const {
+    isExtractingSubtitles,
+    isLoadingStreams,
+    isChoosingStreams,
+    availableSubtitleStreams,
+    selectedStreamLanguages,
+    extractableStreams,
+    extractError,
+    deletingSubtitlePath,
+    deleteSubtitle,
+    inspectSubtitleStreams,
+    toggleSubtitleStream,
+    confirmSubtitleStreams,
+    cancelStreamSelection,
+    extractAllStreams
+  } = useVideoDubbingSubtitleExtraction({
+    selectedVideo,
+    selectedSubtitlePath,
+    onRefresh: handleRefresh,
+    onSelectedVideoPathChange: setSelectedVideoPath,
+    onSelectedSubtitlePathChange: setSelectedSubtitlePath,
+    onStatusMessageChange: setStatusMessage
+  });
 
   const handleGenerate = useCallback(async () => {
     if (isIntakeAtCapacity) {
@@ -635,12 +500,12 @@ export default function VideoDubbingPage({
           onSelectVideo={handleSelectVideo}
           onSelectSubtitle={handleSelectSubtitle}
           onDeleteVideo={(video) => void handleDeleteVideo(video)}
-          onDeleteSubtitle={(subtitle) => void handleDeleteSubtitle(subtitle)}
-          onExtractSubtitles={() => void handleExtractSubtitles()}
-          onToggleSubtitleStream={handleToggleSubtitleStream}
-          onConfirmSubtitleStreams={() => void handleConfirmSubtitleStreams()}
-          onCancelStreamSelection={handleCancelStreamSelection}
-          onExtractAllStreams={handleExtractAllStreams}
+          onDeleteSubtitle={(subtitle) => void deleteSubtitle(subtitle)}
+          onExtractSubtitles={() => void inspectSubtitleStreams()}
+          onToggleSubtitleStream={toggleSubtitleStream}
+          onConfirmSubtitleStreams={() => void confirmSubtitleStreams()}
+          onCancelStreamSelection={cancelStreamSelection}
+          onExtractAllStreams={extractAllStreams}
         />
       ) : null}
 
