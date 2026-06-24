@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.14",
+            version: "2026.06.24.15",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tvos-simulator-build-lane",
+                    title: "TV builds get a gate",
+                    detail: "The repo now has a quick tvOS simulator compile lane for the Apple TV app, so pipeline dogfood can catch tvOS-only Swift regressions before a full journey run or physical-device deploy."
+                ),
                 AppChangelogEntry(
                     id: "apple-library-source-diagnostics",
                     title: "Library shows sources",

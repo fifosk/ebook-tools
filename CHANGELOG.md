@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.15
+
+- Advanced visible Apple app versioning to `v2026.06.24.15`.
+- Added a repo-owned `make build-apple-tvos-simulator` compile gate for the Apple TV app so tvOS-only Swift regressions can be caught before full XCUITest journeys or physical-device deploys.
+
 ### 2026.06.24.14
 
 - Advanced visible Apple app versioning to `v2026.06.24.14`.

@@ -149,6 +149,17 @@ and `macos-ipad-style` app-owned profiles, mapping to the dry-run and compile
 targets above. These commands resolve the local Mac destination and app product
 path without touching physical iPhone/iPad/Apple TV devices.
 
+For a quick Apple TV compile check without launching the full tvOS journey, run
+the repo-owned simulator build lane:
+
+```bash
+make build-apple-tvos-simulator
+```
+
+This compiles the `InteractiveReaderTV` scheme for the default Apple TV 4K
+simulator destination and writes DerivedData under `test-results/`, without
+installing to Apple TV hardware.
+
 For repo-owned physical iPhone/iPad update readiness, the guarded helper can
 exercise CoreDevice paths without installing:
 
@@ -169,8 +180,8 @@ make test-apple-contracts
 This checks backend/Web/Apple language catalogue parity, iPad Create split-view
 layout wiring, the public runtime descriptor contract, preflight/config parsing,
 the Swift creation payload contract, the macOS iPad-style build helper, the
-guarded physical-device update helper, and the XCUITest config writer without
-installing to iPhone, iPad, or Apple TV hardware.
+tvOS simulator compile lane, the guarded physical-device update helper, and the
+XCUITest config writer without installing to iPhone, iPad, or Apple TV hardware.
 
 The public runtime descriptor at `/api/system/runtime` also advertises the
 Create endpoints used by Apple surfaces (`creation.bookOptionsPath` and
