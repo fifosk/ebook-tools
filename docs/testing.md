@@ -241,10 +241,10 @@ physical-device deployment.
 `make test-backend-*` pytest targets and cleans generated caches.
 `apple-pipeline-web-checks` runs the
 manifest registered Web focused checks and production/export build through the
-shared pipeline runner. The focused Create, Library, Video Dubbing, Subtitle
-Tool, app-view deeplink, full Vitest, and production/export build checks are
-repo-owned Web targets, so the shared manifest only names stable app commands
-before restoring generated Web artifacts. Use
+shared pipeline runner. The focused Create, saved-template, Library, Video
+Dubbing, Subtitle Tool, app-view deeplink, full Vitest, and production/export
+build checks are repo-owned Web targets, so the shared manifest only names
+stable app commands before restoring generated Web artifacts. Use
 `APPLE_PIPELINE_SMOKE_PROFILE=ios|ipados|tvos` with
 `apple-pipeline-simulator-smoke-dry-run` before launching a shared simulator
 smoke. Use `apple-pipeline-ipad-create-readiness-dry-run`, then
@@ -662,6 +662,7 @@ available and `python3` otherwise.
 | `make test-backend-youtube-dubbing-service` | `$(PYTHON) -m pytest ...` | Shared-pipeline YouTube dubbing/download route and service slice |
 | `make test-web-create-book-focused` | `npm --prefix web test -- --run ...` | Focused generated-book Create page Vitest slice |
 | `make test-web-create-intake-focused` | `npm --prefix web test -- --run ...` | Focused Create intake and narration form Vitest slice |
+| `make test-web-creation-templates-focused` | `npm --prefix web test -- --run ...` | Focused saved creation-template sanitizer and payload Vitest slice |
 | `make test-web-library-focused` | `npm --prefix web test -- --run ...` | Focused Library metadata Vitest slice |
 | `make test-web-video-dubbing-focused` | `npm --prefix web test -- --run ...` | Focused Video Dubbing utility, hook, and page Vitest slice |
 | `make test-web-subtitle-tool-focused` | `npm --prefix web test -- --run ...` | Focused Subtitle Tool utility and hook Vitest slice |

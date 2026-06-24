@@ -5,6 +5,7 @@
        test-backend-create-book test-backend-subtitle-router \
        test-backend-youtube-dubbing-service \
        test-web-create-book-focused test-web-create-intake-focused \
+       test-web-creation-templates-focused \
        test-web-library-focused test-web-video-dubbing-focused \
        test-web-subtitle-tool-focused test-web-app-view-deeplink-focused \
        test-web-full build-web-production \
@@ -98,6 +99,13 @@ test-web-create-intake-focused:
 		src/components/__tests__/createIntakeStatusUtils.test.ts \
 		src/components/__tests__/BookNarrationForm.test.tsx \
 		src/pages/__tests__/VideoDubbingPage.test.tsx
+
+test-web-creation-templates-focused:
+	npm --prefix web test -- --run --threads=false \
+		src/utils/__tests__/creationTemplateSanitizer.test.ts \
+		src/components/__tests__/bookNarrationTemplates.test.ts \
+		src/pages/__tests__/subtitleToolUtils.test.ts \
+		src/pages/__tests__/videoDubbingUtils.test.ts
 
 test-web-library-focused:
 	npm --prefix web test -- --run \

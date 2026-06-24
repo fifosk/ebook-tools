@@ -32,6 +32,18 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "src/pages/__tests__/VideoDubbingPage.test.tsx" in block
 
 
+def test_creation_templates_focused_web_target_covers_shared_payload_builders() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    assert "test-web-creation-templates-focused" in makefile
+    block = _target_block(makefile, "test-web-creation-templates-focused")
+    assert "npm --prefix web test -- --run --threads=false" in block
+    assert "src/utils/__tests__/creationTemplateSanitizer.test.ts" in block
+    assert "src/components/__tests__/bookNarrationTemplates.test.ts" in block
+    assert "src/pages/__tests__/subtitleToolUtils.test.ts" in block
+    assert "src/pages/__tests__/videoDubbingUtils.test.ts" in block
+
+
 def test_library_focused_web_target_covers_library_metadata() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
@@ -133,6 +145,7 @@ def test_docs_publish_all_repo_owned_web_pipeline_targets() -> None:
     for command in [
         "make test-web-create-book-focused",
         "make test-web-create-intake-focused",
+        "make test-web-creation-templates-focused",
         "make test-web-library-focused",
         "make test-web-video-dubbing-focused",
         "make test-web-subtitle-tool-focused",
