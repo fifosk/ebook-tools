@@ -188,3 +188,53 @@ def test_delete_youtube_subtitle_rejects_stale_non_subtitle_sidecar(tmp_path: Pa
 
     assert response.status_code == 400
     assert "subtitle file" in response.json()["detail"]
+
+
+def test_delete_youtube_video_reports_missing_stale_video(tmp_path: Path) -> None:
+    app = create_app()
+    manager = _MetadataOnlyJobManager()
+    video_path = tmp_path / "episode_yt.mp4"
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: manager
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/subtitles/youtube/delete-video",
+                json={"video_path": video_path.as_posix()},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["removed"] == []
+    assert payload["missing"] == [video_path.resolve().as_posix()]
+    assert manager.list_calls == 0
+
+
+def test_delete_youtube_video_rejects_stale_non_video_path(tmp_path: Path) -> None:
+    app = create_app()
+    manager = _MetadataOnlyJobManager()
+    video_path = tmp_path / "episode_yt.txt"
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: manager
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/subtitles/youtube/delete-video",
+                json={"video_path": video_path.as_posix()},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert "supported video file" in response.json()["detail"]
+    assert manager.list_calls == 0
