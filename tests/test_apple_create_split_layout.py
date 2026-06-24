@@ -86,6 +86,15 @@ CREATE_MODELS = (
     / "Create"
     / "AppleBookCreateModels.swift"
 )
+CREATE_LANGUAGE_OPTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateLanguageOptions.swift"
+)
 CREATE_METADATA_VIEWS = (
     ROOT
     / "ios"
@@ -342,6 +351,29 @@ def test_create_history_defaults_are_split_from_support_and_target_wired() -> No
     assert "AppleBookCreateHistoryDefaults.swift in Sources" in project
     assert project.count("AppleBookCreateHistoryDefaults.swift in Sources") == 4
     assert "AppleBookCreateHistoryDefaults.swift" in payload_script
+
+
+def test_create_language_options_are_split_from_support_and_target_wired() -> None:
+    language_source = _source(CREATE_LANGUAGE_OPTIONS)
+    support_source = _source(CREATE_SUPPORT)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+
+    assert "extension AppleBookCreatePresentation" in language_source
+    assert "static func availableInputLanguages(" in language_source
+    assert "static func availableTargetLanguages(" in language_source
+    assert "static func availableVoices(" in language_source
+    assert "static func voiceInventoryOptions(" in language_source
+    assert "static func sampleSentence(language: String, fallbackLabel: String)" in language_source
+    assert "static func voicePreviewKey(language: String)" in language_source
+    assert "AppleBookCreateLanguage.options(from: supported)" in language_source
+    assert "static func availableInputLanguages(" not in support_source
+    assert "static func availableTargetLanguages(" not in support_source
+    assert "static func availableVoices(" not in support_source
+    assert "static func voiceInventoryOptions(" not in support_source
+    assert "AppleBookCreateLanguageOptions.swift in Sources" in project
+    assert project.count("AppleBookCreateLanguageOptions.swift in Sources") == 4
+    assert "AppleBookCreateLanguageOptions.swift" in payload_script
 
 
 def test_create_source_selection_is_split_from_support_and_target_wired() -> None:

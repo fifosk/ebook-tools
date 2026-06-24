@@ -28,6 +28,15 @@ APPLE_CREATE_SUPPORT = (
     / "Create"
     / "AppleBookCreateSupport.swift"
 )
+APPLE_CREATE_LANGUAGE_OPTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateLanguageOptions.swift"
+)
 APPLE_CREATE_MODELS = (
     ROOT
     / "ios"
@@ -101,6 +110,7 @@ def test_language_catalogs_match_across_backend_web_and_apple() -> None:
 
 def test_apple_create_language_options_include_full_web_catalog_fallback() -> None:
     models_source = APPLE_CREATE_MODELS.read_text(encoding="utf-8")
+    language_options_source = APPLE_CREATE_LANGUAGE_OPTIONS.read_text(encoding="utf-8")
     support_source = APPLE_CREATE_SUPPORT.read_text(encoding="utf-8")
 
     assert "static let fallbackOptions: [AppleBookCreateLanguage] =" in models_source
@@ -110,11 +120,13 @@ def test_apple_create_language_options_include_full_web_catalog_fallback() -> No
         "for language in supported.compactMap(AppleBookCreateLanguage.init(backendValue:)) + fallbackOptions"
         in models_source
     )
-    assert "static func availableInputLanguages(" in support_source
-    assert "availableLanguages(options?.supportedInputLanguages ?? [])" in support_source
-    assert "static func availableTargetLanguages(" in support_source
-    assert "availableLanguages(options?.supportedOutputLanguages ?? [])" in support_source
-    assert "AppleBookCreateLanguage.options(from: supported)" in support_source
+    assert "static func availableInputLanguages(" in language_options_source
+    assert "availableLanguages(options?.supportedInputLanguages ?? [])" in language_options_source
+    assert "static func availableTargetLanguages(" in language_options_source
+    assert "availableLanguages(options?.supportedOutputLanguages ?? [])" in language_options_source
+    assert "AppleBookCreateLanguage.options(from: supported)" in language_options_source
+    assert "static func availableInputLanguages(" not in support_source
+    assert "static func availableTargetLanguages(" not in support_source
 
 
 def test_book_creation_options_advertise_full_language_catalog() -> None:
