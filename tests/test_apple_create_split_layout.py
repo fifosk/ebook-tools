@@ -320,6 +320,15 @@ CREATE_GENERATED_IMAGE_CONTROLS = (
     / "Create"
     / "AppleBookCreateGeneratedImageControls.swift"
 )
+CREATE_VALUE_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateValueControls.swift"
+)
 CREATE_MEDIA_METADATA_SECTIONS = (
     ROOT
     / "ios"
@@ -684,6 +693,7 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     output_controls_source = _source(CREATE_OUTPUT_CONTROLS)
     generated_output_source = _source(CREATE_GENERATED_OUTPUT_CONTROLS)
     generated_image_source = _source(CREATE_GENERATED_IMAGE_CONTROLS)
+    value_controls_source = _source(CREATE_VALUE_CONTROLS)
     narration_source = _source(CREATE_NARRATION_SECTION)
     view_source = _source(CREATE_VIEW)
     project = _source(XCODE_PROJECT)
@@ -698,7 +708,11 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "struct AppleBookCreateGeneratedOutputControls: View" not in output_controls_source
     assert "struct AppleBookCreateGeneratedOutputControls: View" in generated_output_source
     assert "struct AppleBookCreateGeneratedImageControls: View" in generated_image_source
+    assert "struct AppleBookCreateDiscreteValueControl: View" in value_controls_source
     assert "AppleBookCreateGeneratedImageControls(" in generated_output_source
+    assert generated_output_source.count("AppleBookCreateDiscreteValueControl(") == 3
+    assert "LabeledContent(\"Translation batch\")" not in generated_output_source
+    assert "LabeledContent(\"Lookup batch\")" not in generated_output_source
     assert 'accessibilityIdentifier("createBookImagePromptPipelinePicker")' in generated_image_source
     assert 'accessibilityIdentifier("createBookImagePromptPipelinePicker")' not in generated_output_source
     assert 'accessibilityIdentifier("createBookLookupCacheBatchSizeControl")' in generated_output_source
@@ -720,6 +734,8 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert project.count("AppleBookCreateGeneratedOutputControls.swift in Sources") == 4
     assert "AppleBookCreateGeneratedImageControls.swift in Sources" in project
     assert project.count("AppleBookCreateGeneratedImageControls.swift in Sources") == 4
+    assert "AppleBookCreateValueControls.swift in Sources" in project
+    assert project.count("AppleBookCreateValueControls.swift in Sources") == 4
 
 
 def test_create_media_metadata_sections_are_split_from_create_view_and_target_wired() -> None:

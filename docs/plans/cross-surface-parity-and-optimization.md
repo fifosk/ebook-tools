@@ -214,7 +214,8 @@ Current Apple UI partially exposes:
   work. Subtitle and YouTube output control subviews live in
   `AppleBookCreateOutputControls.swift`; generated-book output controls live
   in `AppleBookCreateGeneratedOutputControls.swift`, while generated-book
-  image controls live in `AppleBookCreateGeneratedImageControls.swift`, letting
+  image controls live in `AppleBookCreateGeneratedImageControls.swift`.
+  Reusable Create value controls live in `AppleBookCreateValueControls.swift`, letting
   `AppleBookCreateOutputSection.swift` own only section-level routing.
   Media metadata controls live in `AppleBookCreateMediaMetadataControls.swift`
   while `AppleBookCreateMediaMetadataSections.swift` owns the metadata section

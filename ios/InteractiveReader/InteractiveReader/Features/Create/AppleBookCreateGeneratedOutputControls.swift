@@ -129,39 +129,14 @@ struct AppleBookCreateGeneratedOutputControls: View {
         }
         .accessibilityIdentifier("createBookSentencesPerFileStepper")
         #else
-        LabeledContent("Sentences per file") {
-            HStack(spacing: 12) {
-                Button {
-                    sentencesPerOutputFile = max(
-                        AppleBookOutputChunking.sentencesPerOutputFileRange.lowerBound,
-                        clampedSentencesPerOutputFile - 1
-                    )
-                } label: {
-                    Image(systemName: "minus")
-                }
-                .disabled(
-                    clampedSentencesPerOutputFile <= AppleBookOutputChunking.sentencesPerOutputFileRange.lowerBound
-                )
-                .accessibilityLabel("Decrease sentences per file")
-
-                Text("\(clampedSentencesPerOutputFile)")
-                    .monospacedDigit()
-                    .frame(minWidth: 48)
-
-                Button {
-                    sentencesPerOutputFile = min(
-                        AppleBookOutputChunking.sentencesPerOutputFileRange.upperBound,
-                        clampedSentencesPerOutputFile + 1
-                    )
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .disabled(
-                    clampedSentencesPerOutputFile >= AppleBookOutputChunking.sentencesPerOutputFileRange.upperBound
-                )
-                .accessibilityLabel("Increase sentences per file")
-            }
-        }
+        AppleBookCreateDiscreteValueControl(
+            value: $sentencesPerOutputFile,
+            clampedValue: clampedSentencesPerOutputFile,
+            range: AppleBookOutputChunking.sentencesPerOutputFileRange,
+            title: "Sentences per file",
+            decrementAccessibilityLabel: "Decrease sentences per file",
+            incrementAccessibilityLabel: "Increase sentences per file"
+        )
         .accessibilityIdentifier("createBookSentencesPerFileControl")
         #endif
         Toggle("Stitch full book", isOn: $stitchFull)
@@ -192,35 +167,14 @@ struct AppleBookCreateGeneratedOutputControls: View {
         }
         .accessibilityIdentifier("createBookTranslationBatchSizeStepper")
         #else
-        LabeledContent("Translation batch") {
-            HStack(spacing: 12) {
-                Button {
-                    translationBatchSize = max(
-                        AppleSubtitleTuning.translationBatchSizeRange.lowerBound,
-                        clampedTranslationBatchSize - 1
-                    )
-                } label: {
-                    Image(systemName: "minus")
-                }
-                .disabled(clampedTranslationBatchSize <= AppleSubtitleTuning.translationBatchSizeRange.lowerBound)
-                .accessibilityLabel("Decrease translation batch")
-
-                Text("\(clampedTranslationBatchSize)")
-                    .monospacedDigit()
-                    .frame(minWidth: 48)
-
-                Button {
-                    translationBatchSize = min(
-                        AppleSubtitleTuning.translationBatchSizeRange.upperBound,
-                        clampedTranslationBatchSize + 1
-                    )
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .disabled(clampedTranslationBatchSize >= AppleSubtitleTuning.translationBatchSizeRange.upperBound)
-                .accessibilityLabel("Increase translation batch")
-            }
-        }
+        AppleBookCreateDiscreteValueControl(
+            value: $translationBatchSize,
+            clampedValue: clampedTranslationBatchSize,
+            range: AppleSubtitleTuning.translationBatchSizeRange,
+            title: "Translation batch",
+            decrementAccessibilityLabel: "Decrease translation batch",
+            incrementAccessibilityLabel: "Increase translation batch"
+        )
         .accessibilityIdentifier("createBookTranslationBatchSizeControl")
         #endif
         if includeTransliteration {
@@ -254,35 +208,14 @@ struct AppleBookCreateGeneratedOutputControls: View {
         }
         #else
         if enableLookupCache {
-            LabeledContent("Lookup batch") {
-                HStack(spacing: 12) {
-                    Button {
-                        lookupCacheBatchSize = max(
-                            AppleSubtitleTuning.translationBatchSizeRange.lowerBound,
-                            clampedLookupCacheBatchSize - 1
-                        )
-                    } label: {
-                        Image(systemName: "minus")
-                    }
-                    .disabled(clampedLookupCacheBatchSize <= AppleSubtitleTuning.translationBatchSizeRange.lowerBound)
-                    .accessibilityLabel("Decrease lookup batch")
-
-                    Text("\(clampedLookupCacheBatchSize)")
-                        .monospacedDigit()
-                        .frame(minWidth: 48)
-
-                    Button {
-                        lookupCacheBatchSize = min(
-                            AppleSubtitleTuning.translationBatchSizeRange.upperBound,
-                            clampedLookupCacheBatchSize + 1
-                        )
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .disabled(clampedLookupCacheBatchSize >= AppleSubtitleTuning.translationBatchSizeRange.upperBound)
-                    .accessibilityLabel("Increase lookup batch")
-                }
-            }
+            AppleBookCreateDiscreteValueControl(
+                value: $lookupCacheBatchSize,
+                clampedValue: clampedLookupCacheBatchSize,
+                range: AppleSubtitleTuning.translationBatchSizeRange,
+                title: "Lookup batch",
+                decrementAccessibilityLabel: "Decrease lookup batch",
+                incrementAccessibilityLabel: "Increase lookup batch"
+            )
             .accessibilityIdentifier("createBookLookupCacheBatchSizeControl")
         }
         #endif
