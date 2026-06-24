@@ -149,53 +149,40 @@ struct AppleBookCreateView: View {
         .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
         #endif
         .task(id: creationOptionsLoadKey) {
-            applyStoredSubtitleShowOriginal()
-            await refreshCreationOptions()
-            await refreshIntakeStatus()
-            await refreshPipelineFiles()
-            await refreshSubtitleSources()
-            applyStoredYoutubeBaseDir()
-            await refreshYoutubeLibrary()
-            _ = await viewModel.loadVoiceInventory(using: appState, cacheKey: creationOptionsLoadKey)
-            await viewModel.loadSubtitleModels(using: appState, cacheKey: creationOptionsLoadKey)
-            applyHistoryDefaultsForCurrentMode()
+            await loadCreateDependencies()
         }
         .onChange(of: recentJobs) { _, _ in
-            applyHistoryDefaultsForCurrentMode()
+            refreshHistoryDefaults()
         }
         .onChange(of: creationMode) { _, _ in
-            applyHistoryDefaultsForCurrentMode()
+            refreshHistoryDefaults()
         }
         .onChange(of: youtubeBaseDir) { _, newValue in
-            persistYoutubeBaseDir(newValue)
+            handleYoutubeBaseDirChange(newValue)
         }
         .onChange(of: subtitleSourcePath) { _, _ in
-            subtitleMetadataLookupSourceName = subtitleMetadataSourceName
-            viewModel.clearSubtitleMetadata()
+            handleSubtitleSourcePathChange()
         }
         .onChange(of: youtubeVideoPath) { _, newValue in
-            youtubeSubtitleExtractionLanguages = ""
-            viewModel.resetYoutubeSubtitleExtractionState()
-            viewModel.resetYoutubeMetadataState()
-            persistYoutubeSelectionPath(newValue, field: "video")
+            handleYoutubeVideoPathChange(newValue)
         }
         .onChange(of: youtubeSubtitlePath) { _, newValue in
-            persistYoutubeSelectionPath(newValue, field: "subtitle")
+            handleYoutubeSubtitlePathChange(newValue)
         }
         .onChange(of: inputLanguage) { _, _ in
-            persistLanguagePreferences()
+            handleLanguagePreferenceChange()
         }
         .onChange(of: targetLanguage) { _, _ in
-            persistLanguagePreferences()
+            handleLanguagePreferenceChange()
         }
         .onChange(of: additionalTargetLanguages) { _, _ in
-            persistLanguagePreferences()
+            handleLanguagePreferenceChange()
         }
         .onChange(of: enableLookupCache) { _, _ in
-            persistLanguagePreferences()
+            handleLanguagePreferenceChange()
         }
         .onChange(of: subtitleShowOriginal) { _, newValue in
-            persistSubtitleShowOriginal(newValue)
+            handleSubtitleShowOriginalChange(newValue)
         }
         #if os(iOS)
         .fileImporter(
@@ -1046,6 +1033,51 @@ struct AppleBookCreateView: View {
                 onJobSubmitted(jobId)
             }
         }
+    }
+
+    private func loadCreateDependencies() async {
+        applyStoredSubtitleShowOriginal()
+        await refreshCreationOptions()
+        await refreshIntakeStatus()
+        await refreshPipelineFiles()
+        await refreshSubtitleSources()
+        applyStoredYoutubeBaseDir()
+        await refreshYoutubeLibrary()
+        _ = await viewModel.loadVoiceInventory(using: appState, cacheKey: creationOptionsLoadKey)
+        await viewModel.loadSubtitleModels(using: appState, cacheKey: creationOptionsLoadKey)
+        refreshHistoryDefaults()
+    }
+
+    private func refreshHistoryDefaults() {
+        applyHistoryDefaultsForCurrentMode()
+    }
+
+    private func handleYoutubeBaseDirChange(_ value: String) {
+        persistYoutubeBaseDir(value)
+    }
+
+    private func handleSubtitleSourcePathChange() {
+        subtitleMetadataLookupSourceName = subtitleMetadataSourceName
+        viewModel.clearSubtitleMetadata()
+    }
+
+    private func handleYoutubeVideoPathChange(_ path: String) {
+        youtubeSubtitleExtractionLanguages = ""
+        viewModel.resetYoutubeSubtitleExtractionState()
+        viewModel.resetYoutubeMetadataState()
+        persistYoutubeSelectionPath(path, field: "video")
+    }
+
+    private func handleYoutubeSubtitlePathChange(_ path: String) {
+        persistYoutubeSelectionPath(path, field: "subtitle")
+    }
+
+    private func handleLanguagePreferenceChange() {
+        persistLanguagePreferences()
+    }
+
+    private func handleSubtitleShowOriginalChange(_ value: Bool) {
+        persistSubtitleShowOriginal(value)
     }
 
     private func loadNarrateChapters() {

@@ -297,6 +297,14 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert "@Environment(\\.horizontalSizeClass) private var horizontalSizeClass" in source
     assert "private var usesRegularWidthCreateLayout: Bool" in source
     assert "horizontalSizeClass == .regular" in source
+    assert "await loadCreateDependencies()" in source
+    assert "private func loadCreateDependencies() async" in source
+    assert "handleSubtitleSourcePathChange()" in source
+    assert "private func handleSubtitleSourcePathChange()" in source
+    assert "handleYoutubeVideoPathChange(newValue)" in source
+    assert "private func handleYoutubeVideoPathChange(_ path: String)" in source
+    assert "handleLanguagePreferenceChange()" in source
+    assert "private func handleLanguagePreferenceChange()" in source
 
 
 def test_create_models_are_split_from_presentation_and_target_wired() -> None:
