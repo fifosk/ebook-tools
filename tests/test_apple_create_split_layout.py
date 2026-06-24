@@ -95,6 +95,15 @@ CREATE_METADATA_VIEWS = (
     / "Create"
     / "AppleBookCreateMetadataViews.swift"
 )
+CREATE_HISTORY_DEFAULTS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateHistoryDefaults.swift"
+)
 CREATE_BASIC_SECTIONS = (
     ROOT
     / "ios"
@@ -312,6 +321,27 @@ def test_create_routing_is_split_from_support_and_target_wired() -> None:
     assert "AppleBookCreateRouting.swift in Sources" in project
     assert project.count("AppleBookCreateRouting.swift in Sources") == 4
     assert "AppleBookCreateRouting.swift" in payload_script
+
+
+def test_create_history_defaults_are_split_from_support_and_target_wired() -> None:
+    history_source = _source(CREATE_HISTORY_DEFAULTS)
+    support_source = _source(CREATE_SUPPORT)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+
+    assert "extension AppleBookCreatePresentation" in history_source
+    assert "static func narrationHistoryDefaults(" in history_source
+    assert "static func generatedBookHistoryDefaults" in history_source
+    assert "static func subtitleHistoryDefaults" in history_source
+    assert "static func youtubeHistoryDefaults" in history_source
+    assert "static func narrationStartSentence" in history_source
+    assert "static func narrationHistoryDefaults(" not in support_source
+    assert "static func generatedBookHistoryDefaults" not in support_source
+    assert "static func subtitleHistoryDefaults" not in support_source
+    assert "static func youtubeHistoryDefaults" not in support_source
+    assert "AppleBookCreateHistoryDefaults.swift in Sources" in project
+    assert project.count("AppleBookCreateHistoryDefaults.swift in Sources") == 4
+    assert "AppleBookCreateHistoryDefaults.swift" in payload_script
 
 
 def test_create_source_selection_is_split_from_support_and_target_wired() -> None:

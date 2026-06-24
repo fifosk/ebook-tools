@@ -14,6 +14,15 @@ CREATE_SUPPORT = (
     / "Create"
     / "AppleBookCreateSupport.swift"
 )
+CREATE_HISTORY_DEFAULTS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateHistoryDefaults.swift"
+)
 CREATE_MODELS = (
     ROOT
     / "ios"
@@ -50,14 +59,14 @@ def _named_block(source: str, start_pattern: str, end_pattern: str) -> str:
 
 def test_narrate_epub_history_defaults_include_web_style_output_settings() -> None:
     model_source = _source(CREATE_MODELS)
-    support_source = _source(CREATE_SUPPORT)
+    history_source = _source(CREATE_HISTORY_DEFAULTS)
     struct_block = _named_block(
         model_source,
         r"struct AppleNarrationHistoryDefaults: Equatable \{",
         "struct AppleSubtitleHistoryDefaults",
     )
     function_block = _named_block(
-        support_source,
+        history_source,
         r"static func narrationHistoryDefaults\(",
         "static func generatedBookHistoryDefaults",
     )
@@ -102,6 +111,12 @@ def test_narrate_epub_history_defaults_include_web_style_output_settings() -> No
         'narrationBool($0, keys: ["output_pdf", "outputPdf"])',
     ]:
         assert token in function_block
+
+    support_source = _source(CREATE_SUPPORT)
+    assert "static func narrationHistoryDefaults(" not in support_source
+    assert "static func generatedBookHistoryDefaults" not in support_source
+    assert "static func subtitleHistoryDefaults" not in support_source
+    assert "static func youtubeHistoryDefaults" not in support_source
 
 
 def test_narrate_epub_history_defaults_preserve_user_edited_fields() -> None:

@@ -14,6 +14,7 @@ swiftc \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Utilities/SubtitleTimecodeInput.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Shared/PlayerLanguageFlagResolver.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateModels.swift" \
+  "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateHistoryDefaults.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateRouting.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateSupport.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateSourceSelection.swift" \
