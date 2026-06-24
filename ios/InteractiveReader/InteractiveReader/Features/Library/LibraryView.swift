@@ -496,11 +496,18 @@ struct LibraryView: View {
         Task {
             let snapshot = await BrowseResumeSnapshotProvider.refreshedSnapshot(
                 for: resumeUserId,
-                aliases: appState.resumeUserAliases
+                aliases: appState.resumeUserAliases,
+                visibleItemTypesByJobID: visibleResumeItemTypesByJobID()
             )
             await MainActor.run {
                 applyResumeSnapshot(snapshot)
             }
+        }
+    }
+
+    private func visibleResumeItemTypesByJobID() -> [String: String] {
+        viewModel.filteredItems.reduce(into: [:]) { result, item in
+            result[item.jobId] = item.itemType
         }
     }
 

@@ -721,10 +721,13 @@ Suggested features to evaluate after parity scaffolding:
   shared-pipeline preflights can catch playback-state contract drift; Apple
   Settings also surfaces this playback-state contract in the Create readiness
   journey so simulator checks validate the routes the app uses for bookmark and
-  resume sync. The filesystem resume service now resolves filtered
-  `GET /api/resume?job_id=...` requests through direct per-job reads and sorts
-  before applying the limit, so Web/Apple list badges do not scan every stored
-  resume file and still return the freshest requested entries first.
+  resume sync. Apple Library and Jobs list refresh now batch-fetch backend
+  resume evidence for the visible row IDs through the shared snapshot provider,
+  preserving the same local/iCloud badge decisions while avoiding one request
+  per row. The filesystem resume service now resolves filtered `GET
+  /api/resume?job_id=...` requests through direct per-job reads and sorts before
+  applying the limit, so Web/Apple list badges do not scan every stored resume
+  file and still return the freshest requested entries first.
 - Shared media diagnostics: surface missing timing/audio/image assets without
   opening logs. Status: media manifest responses now include a token-safe
   aggregate diagnostics object with media, chunk, audio, image, timing,

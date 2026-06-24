@@ -191,26 +191,26 @@ final class PlaybackResumeStore {
 
     /// Fetch resume position for a specific job from the backend API and merge into cache.
     func refreshFromAPI(jobId: String, itemType: String) async {
+        await refreshFromAPI(jobIds: [jobId], itemTypes: [jobId: itemType])
+    }
+
+    /// Fetch resume positions for visible browse rows from the backend API and merge into cache.
+    func refreshFromAPI(jobIds: [String], itemTypes: [String: String]) async {
         guard let config = apiConfiguration else { return }
+        let cleanedJobIds = Array(Set(jobIds.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
+        guard !cleanedJobIds.isEmpty else { return }
         let client = APIClient(configuration: config)
         do {
-            guard let response = try await client.fetchResumePosition(jobId: jobId) else { return }
-            guard let apiEntry = response.entry else { return }
-            let entry = PlaybackResumeEntry(
-                jobId: apiEntry.jobId,
-                itemType: itemType,
-                kind: PlaybackResumeKind(rawValue: apiEntry.kind) ?? .time,
-                updatedAt: apiEntry.updatedAt,
-                sentenceNumber: apiEntry.sentence,
-                playbackTime: apiEntry.position
-            )
-            guard entry.isMeaningful else { return }
-            // Only apply if newer than what we already have.
-            if let existing = cloudCache[jobId], existing.updatedAt >= entry.updatedAt {
-                return
+            let response = try await client.fetchResumePositions(jobIds: cleanedJobIds)
+            var didUpdate = false
+            for apiEntry in response.entries {
+                let itemType = itemTypes[apiEntry.jobId] ?? "book"
+                guard mergeAPIResumeEntry(apiEntry, itemType: itemType) else { continue }
+                didUpdate = true
             }
-            cloudCache[jobId] = entry
-            notifyChange(userId: lastCloudUserId ?? "")
+            if didUpdate {
+                notifyChange(userId: lastCloudUserId ?? "")
+            }
         } catch {
             // API unavailable — rely on CloudKit data only.
         }
@@ -557,6 +557,23 @@ final class PlaybackResumeStore {
             let client = APIClient(configuration: config)
             _ = try? await client.deleteResumePosition(jobId: jobId)
         }
+    }
+
+    private func mergeAPIResumeEntry(_ apiEntry: ResumePositionEntry, itemType: String) -> Bool {
+        let entry = PlaybackResumeEntry(
+            jobId: apiEntry.jobId,
+            itemType: itemType,
+            kind: PlaybackResumeKind(rawValue: apiEntry.kind) ?? .time,
+            updatedAt: apiEntry.updatedAt,
+            sentenceNumber: apiEntry.sentence,
+            playbackTime: apiEntry.position
+        )
+        guard entry.isMeaningful else { return false }
+        if let existing = cloudCache[entry.jobId], existing.updatedAt >= entry.updatedAt {
+            return false
+        }
+        cloudCache[entry.jobId] = entry
+        return true
     }
 
     private func recordName(for jobId: String, userId: String) -> String {

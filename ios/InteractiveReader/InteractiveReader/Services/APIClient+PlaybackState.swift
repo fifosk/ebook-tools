@@ -18,6 +18,17 @@ enum ApplePlaybackStateRuntimeContract {
     static func resumePath(_ encodedJobId: String) -> String {
         "\(resumeListPath)/\(encodedJobId)"
     }
+
+    static func resumeListPath(jobIds: [String]) -> String {
+        let cleaned = Array(Set(jobIds.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
+        guard !cleaned.isEmpty else { return resumeListPath }
+        var components = URLComponents()
+        components.queryItems = cleaned.map { URLQueryItem(name: resumeFilterQuery, value: $0) }
+        guard let query = components.percentEncodedQuery, !query.isEmpty else {
+            return resumeListPath
+        }
+        return "\(resumeListPath)?\(query)"
+    }
 }
 
 extension APIClient {
@@ -60,6 +71,13 @@ extension APIClient {
             return nil
         }
         return try decode(ResumePositionResponse.self, from: data)
+    }
+
+    func fetchResumePositions(jobIds: [String]) async throws -> ResumePositionListResponse {
+        let data = try await sendRequest(
+            path: ApplePlaybackStateRuntimeContract.resumeListPath(jobIds: jobIds)
+        )
+        return try decode(ResumePositionListResponse.self, from: data)
     }
 
     func saveResumePosition(jobId: String, payload: ResumePositionSaveRequest) async throws -> ResumePositionResponse {

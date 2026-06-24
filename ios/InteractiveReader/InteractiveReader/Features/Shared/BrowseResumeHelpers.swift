@@ -109,7 +109,11 @@ enum BrowseResumeSnapshotProvider {
         )
     }
 
-    static func refreshedSnapshot(for userId: String?, aliases: [String]) async -> BrowseResumeSnapshot {
+    static func refreshedSnapshot(
+        for userId: String?,
+        aliases: [String],
+        visibleItemTypesByJobID: [String: String] = [:]
+    ) async -> BrowseResumeSnapshot {
         guard let userId else {
             await PlaybackResumeStore.shared.refreshCloudEntries(userId: "anonymous")
             return BrowseResumeSnapshot(
@@ -118,6 +122,10 @@ enum BrowseResumeSnapshotProvider {
             )
         }
         await PlaybackResumeStore.shared.refreshCloudEntries(userId: userId, aliases: aliases)
+        await PlaybackResumeStore.shared.refreshFromAPI(
+            jobIds: Array(visibleItemTypesByJobID.keys),
+            itemTypes: visibleItemTypesByJobID
+        )
         return snapshot(for: userId)
     }
 }

@@ -84,6 +84,10 @@ struct ResumePositionResponse: Decodable {
     let entry: ResumePositionEntry?
 }
 
+struct ResumePositionListResponse: Decodable {
+    let entries: [ResumePositionEntry]
+}
+
 struct ResumePositionSaveRequest: Encodable {
     let kind: String
     let position: Double?

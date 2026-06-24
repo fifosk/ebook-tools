@@ -148,6 +148,16 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "let resumePathTemplate: String" in source
     assert "let resumeFilterQuery: String" in source
     assert "let playbackState: PlaybackStateContract?" in source
+    playback_state_source = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Models"
+        / "PlaybackStateApiModels.swift"
+    ).read_text(encoding="utf-8")
+    assert "struct ResumePositionListResponse: Decodable" in playback_state_source
+    assert "let entries: [ResumePositionEntry]" in playback_state_source
 
 
 def test_settings_surfaces_create_contract_runtime_status() -> None:
@@ -254,9 +264,13 @@ def test_apple_playback_state_client_uses_runtime_contract_constants() -> None:
     assert "static func bookmarksPath(_ encodedJobId: String) -> String" in source
     assert "static func bookmarkDeletePath(" in source
     assert "static func resumePath(_ encodedJobId: String) -> String" in source
+    assert "static func resumeListPath(jobIds: [String]) -> String" in source
+    assert "URLQueryItem(name: resumeFilterQuery" in source
     assert "ApplePlaybackStateRuntimeContract.bookmarksPath(encoded)" in source
     assert "ApplePlaybackStateRuntimeContract.bookmarkDeletePath(" in source
     assert "ApplePlaybackStateRuntimeContract.resumePath(encoded)" in source
+    assert "func fetchResumePositions(jobIds: [String]) async throws -> ResumePositionListResponse" in source
+    assert "ApplePlaybackStateRuntimeContract.resumeListPath(jobIds: jobIds)" in source
 
 
 def test_settings_compares_runtime_contracts() -> None:

@@ -350,11 +350,18 @@ struct JobsView: View {
         Task {
             let snapshot = await BrowseResumeSnapshotProvider.refreshedSnapshot(
                 for: resumeUserId,
-                aliases: appState.resumeUserAliases
+                aliases: appState.resumeUserAliases,
+                visibleItemTypesByJobID: visibleResumeItemTypesByJobID()
             )
             await MainActor.run {
                 applyResumeSnapshot(snapshot)
             }
+        }
+    }
+
+    private func visibleResumeItemTypesByJobID() -> [String: String] {
+        viewModel.filteredJobs.reduce(into: [:]) { result, job in
+            result[job.jobId] = job.jobType
         }
     }
 
