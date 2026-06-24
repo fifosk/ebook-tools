@@ -26,6 +26,10 @@ struct AppleBookCreateSubtitleMetadataControls: View {
     let onApplyAdvancedMetadataJSON: () -> Void
     let onSyncAdvancedMetadataJSON: () -> Void
 
+    private var normalizedLookupSourceName: String {
+        lookupSourceName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var body: some View {
         if sourceName.isEmpty {
             Label("Choose a subtitle to load TV metadata.", systemImage: "captions.bubble")
@@ -39,36 +43,41 @@ struct AppleBookCreateSubtitleMetadataControls: View {
                 .accessibilityIdentifier("createSubtitleMetadataLookupField")
 
             HStack(spacing: 12) {
-                Button(action: onLookup) {
-                    Label(isLoading ? "Looking up" : "Lookup", systemImage: isLoading ? "hourglass" : "tv")
-                }
-                .disabled(isLoading || lookupSourceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .accessibilityIdentifier("createSubtitleMetadataLookupButton")
-
-                Button(action: onRefresh) {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .disabled(isLoading || lookupSourceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .accessibilityIdentifier("createSubtitleMetadataRefreshButton")
-
-                Button(action: onClearCache) {
-                    Label(
-                        isClearingCache ? "Clearing Cache" : "Clear Cache",
-                        systemImage: isClearingCache ? "hourglass" : "trash"
-                    )
-                }
-                .disabled(
-                    isLoading ||
-                    isClearingCache ||
-                    lookupSourceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                AppleBookCreateMetadataActionButton(
+                    title: "Lookup",
+                    busyTitle: "Looking up",
+                    systemImage: "tv",
+                    isBusy: isLoading,
+                    isDisabled: isLoading || normalizedLookupSourceName.isEmpty,
+                    accessibilityIdentifier: "createSubtitleMetadataLookupButton",
+                    action: onLookup
                 )
-                .accessibilityIdentifier("createSubtitleMetadataClearCacheButton")
 
-                Button(action: onClear) {
-                    Label("Clear", systemImage: "xmark.circle")
-                }
-                .disabled(isLoading || isClearingCache)
-                .accessibilityIdentifier("createSubtitleMetadataClearButton")
+                AppleBookCreateMetadataActionButton(
+                    title: "Refresh",
+                    systemImage: "arrow.clockwise",
+                    isDisabled: isLoading || normalizedLookupSourceName.isEmpty,
+                    accessibilityIdentifier: "createSubtitleMetadataRefreshButton",
+                    action: onRefresh
+                )
+
+                AppleBookCreateMetadataActionButton(
+                    title: "Clear Cache",
+                    busyTitle: "Clearing Cache",
+                    systemImage: "trash",
+                    isBusy: isClearingCache,
+                    isDisabled: isLoading || isClearingCache || normalizedLookupSourceName.isEmpty,
+                    accessibilityIdentifier: "createSubtitleMetadataClearCacheButton",
+                    action: onClearCache
+                )
+
+                AppleBookCreateMetadataActionButton(
+                    title: "Clear",
+                    systemImage: "xmark.circle",
+                    isDisabled: isLoading || isClearingCache,
+                    accessibilityIdentifier: "createSubtitleMetadataClearButton",
+                    action: onClear
+                )
             }
         }
 
@@ -189,53 +198,53 @@ struct AppleBookCreateYoutubeMetadataControls: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Button(action: onLoadTvMetadata) {
-                Label(
-                    isLoadingTvMetadata ? "Loading TV" : "Load TV",
-                    systemImage: isLoadingTvMetadata ? "hourglass" : "tv"
-                )
-            }
-            .disabled(isLoadingTvMetadata || isLoadingYoutubeMetadata)
-            .accessibilityIdentifier("createYoutubeLoadTvMetadataButton")
+            AppleBookCreateMetadataActionButton(
+                title: "Load TV",
+                busyTitle: "Loading TV",
+                systemImage: "tv",
+                isBusy: isLoadingTvMetadata,
+                isDisabled: isLoadingTvMetadata || isLoadingYoutubeMetadata,
+                accessibilityIdentifier: "createYoutubeLoadTvMetadataButton",
+                action: onLoadTvMetadata
+            )
 
-            Button(action: onLoadYoutubeMetadata) {
-                Label(
-                    isLoadingYoutubeMetadata ? "Loading YouTube" : "Load YouTube",
-                    systemImage: isLoadingYoutubeMetadata ? "hourglass" : "play.rectangle"
-                )
-            }
-            .disabled(isLoadingTvMetadata || isLoadingYoutubeMetadata)
-            .accessibilityIdentifier("createYoutubeLoadYoutubeMetadataButton")
+            AppleBookCreateMetadataActionButton(
+                title: "Load YouTube",
+                busyTitle: "Loading YouTube",
+                systemImage: "play.rectangle",
+                isBusy: isLoadingYoutubeMetadata,
+                isDisabled: isLoadingTvMetadata || isLoadingYoutubeMetadata,
+                accessibilityIdentifier: "createYoutubeLoadYoutubeMetadataButton",
+                action: onLoadYoutubeMetadata
+            )
         }
 
         HStack(spacing: 12) {
-            Button(action: onClearTvMetadataCache) {
-                Label(
-                    isClearingTvMetadataCache ? "Clearing TV" : "Clear TV Cache",
-                    systemImage: isClearingTvMetadataCache ? "hourglass" : "trash"
-                )
-            }
-            .disabled(
-                !canClearTvMetadataCache ||
-                isLoadingTvMetadata ||
-                isLoadingYoutubeMetadata ||
-                isClearingTvMetadataCache
+            AppleBookCreateMetadataActionButton(
+                title: "Clear TV Cache",
+                busyTitle: "Clearing TV",
+                systemImage: "trash",
+                isBusy: isClearingTvMetadataCache,
+                isDisabled: !canClearTvMetadataCache ||
+                    isLoadingTvMetadata ||
+                    isLoadingYoutubeMetadata ||
+                    isClearingTvMetadataCache,
+                accessibilityIdentifier: "createYoutubeClearTvMetadataCacheButton",
+                action: onClearTvMetadataCache
             )
-            .accessibilityIdentifier("createYoutubeClearTvMetadataCacheButton")
 
-            Button(action: onClearYoutubeMetadataCache) {
-                Label(
-                    isClearingYoutubeMetadataCache ? "Clearing YouTube" : "Clear YouTube Cache",
-                    systemImage: isClearingYoutubeMetadataCache ? "hourglass" : "trash"
-                )
-            }
-            .disabled(
-                !canClearYoutubeMetadataCache ||
-                isLoadingTvMetadata ||
-                isLoadingYoutubeMetadata ||
-                isClearingYoutubeMetadataCache
+            AppleBookCreateMetadataActionButton(
+                title: "Clear YouTube Cache",
+                busyTitle: "Clearing YouTube",
+                systemImage: "trash",
+                isBusy: isClearingYoutubeMetadataCache,
+                isDisabled: !canClearYoutubeMetadataCache ||
+                    isLoadingTvMetadata ||
+                    isLoadingYoutubeMetadata ||
+                    isClearingYoutubeMetadataCache,
+                accessibilityIdentifier: "createYoutubeClearYoutubeMetadataCacheButton",
+                action: onClearYoutubeMetadataCache
             )
-            .accessibilityIdentifier("createYoutubeClearYoutubeMetadataCacheButton")
         }
 
         AppleBookCreateMetadataArtworkPreview(

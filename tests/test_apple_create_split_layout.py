@@ -646,11 +646,13 @@ def test_create_metadata_views_are_split_from_sections_and_target_wired() -> Non
     assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" in metadata_source
     assert "struct AppleBookCreateMetadataArtworkPreview: View" in metadata_source
     assert "struct AppleBookCreateMetadataStatusMessages: View" in metadata_source
+    assert "struct AppleBookCreateMetadataActionButton: View" in metadata_source
     assert "struct AppleBookCreateAdvancedMetadataJSONEditor: View" not in narration_source
     assert "struct AppleBookCreateMetadataArtworkPreview: View" not in narration_source
     assert "AppleBookCreateAdvancedMetadataJSONEditor(" in metadata_controls_source
     assert "AppleBookCreateMetadataArtworkPreview(" in metadata_controls_source
     assert metadata_controls_source.count("AppleBookCreateMetadataStatusMessages(") == 2
+    assert metadata_controls_source.count("AppleBookCreateMetadataActionButton(") == 8
     assert "createSubtitleMetadataStatus" in metadata_controls_source
     assert "createYoutubeMetadataStatus" in metadata_controls_source
     assert "AppleBookCreateMetadataViews.swift in Sources" in project
@@ -1367,7 +1369,7 @@ def test_apple_create_exposes_metadata_cache_clear_controls() -> None:
 
     assert "let isClearingCache: Bool" in metadata_controls_source
     assert "let onClearCache: () -> Void" in metadata_controls_source
-    assert 'accessibilityIdentifier("createSubtitleMetadataClearCacheButton")' in metadata_controls_source
+    assert 'accessibilityIdentifier: "createSubtitleMetadataClearCacheButton"' in metadata_controls_source
     assert "viewModel.isClearingSubtitleTvMetadataCache" in view_source
     assert "clearSubtitleTvMetadataCache(" in view_source
     assert "query: subtitleMetadataLookupSourceName" in view_source
@@ -1378,8 +1380,8 @@ def test_apple_create_exposes_metadata_cache_clear_controls() -> None:
     assert "let canClearYoutubeMetadataCache: Bool" in metadata_controls_source
     assert "let onClearTvMetadataCache: () -> Void" in metadata_controls_source
     assert "let onClearYoutubeMetadataCache: () -> Void" in metadata_controls_source
-    assert 'accessibilityIdentifier("createYoutubeClearTvMetadataCacheButton")' in metadata_controls_source
-    assert 'accessibilityIdentifier("createYoutubeClearYoutubeMetadataCacheButton")' in metadata_controls_source
+    assert 'accessibilityIdentifier: "createYoutubeClearTvMetadataCacheButton"' in metadata_controls_source
+    assert 'accessibilityIdentifier: "createYoutubeClearYoutubeMetadataCacheButton"' in metadata_controls_source
     assert "viewModel.isClearingYoutubeTvMetadataCache" in view_source
     assert "viewModel.isClearingYoutubeMetadataCache" in view_source
     assert "canClearTvMetadataCache: !youtubeMetadataTvSourceName.isEmpty" in view_source

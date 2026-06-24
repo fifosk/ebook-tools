@@ -219,7 +219,8 @@ Current Apple UI partially exposes:
   `AppleBookCreateOutputSection.swift` own only section-level routing.
   Media metadata controls live in `AppleBookCreateMediaMetadataControls.swift`
   while `AppleBookCreateMediaMetadataSections.swift` owns the metadata section
-  routing. Advanced metadata JSON editing and artwork preview subviews now live
+  routing. Advanced metadata JSON editing, artwork preview, status, and action
+  subviews now live
   in `AppleBookCreateMetadataViews.swift`, trimming repeated metadata UI while
   preserving the tvOS-safe JSON editor fallback. Metadata JSON parsing/formatting
   helpers now live in `AppleBookCreateMetadataJSON.swift`, and subtitle/YouTube

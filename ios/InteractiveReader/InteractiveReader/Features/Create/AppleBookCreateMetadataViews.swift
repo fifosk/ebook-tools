@@ -122,6 +122,48 @@ struct AppleBookCreateMetadataStatusMessages: View {
     }
 }
 
+struct AppleBookCreateMetadataActionButton: View {
+    let title: String
+    let busyTitle: String?
+    let systemImage: String
+    let busySystemImage: String
+    let isBusy: Bool
+    let isDisabled: Bool
+    let accessibilityIdentifier: String
+    let action: () -> Void
+
+    init(
+        title: String,
+        busyTitle: String? = nil,
+        systemImage: String,
+        busySystemImage: String = "hourglass",
+        isBusy: Bool = false,
+        isDisabled: Bool,
+        accessibilityIdentifier: String,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.busyTitle = busyTitle
+        self.systemImage = systemImage
+        self.busySystemImage = busySystemImage
+        self.isBusy = isBusy
+        self.isDisabled = isDisabled
+        self.accessibilityIdentifier = accessibilityIdentifier
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Label(
+                isBusy ? (busyTitle ?? title) : title,
+                systemImage: isBusy ? busySystemImage : systemImage
+            )
+        }
+        .disabled(isDisabled)
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
 private struct AppleBookCreateMetadataArtworkTile: View {
     let item: ArtworkItem
 
