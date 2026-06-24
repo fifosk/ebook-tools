@@ -1,10 +1,14 @@
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
 
+from modules.webapi.dependencies import RequestUserContext
 from modules.webapi.routers.subtitles import (
+    _subtitle_source_entry,
     _subtitle_source_sort_key,
+    list_subtitle_sources,
     parse_end_time,
     parse_time_offset,
 )
@@ -80,3 +84,45 @@ def test_subtitle_source_sort_prefers_latest_srt_vtt_before_ass() -> None:
         "/subs/older.srt",
         "/subs/newer.ass",
     ]
+
+
+def test_subtitle_source_entry_skips_vanished_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    source = tmp_path / "episode.en.srt"
+    source.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    original_stat = Path.stat
+
+    def fake_stat(path: Path, *args, **kwargs):
+        if path == source:
+            raise FileNotFoundError(path)
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+
+    assert _subtitle_source_entry(source) is None
+
+
+def test_list_subtitle_sources_skips_stale_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    stable = tmp_path / "stable.en.srt"
+    vanished = tmp_path / "vanished.en.srt"
+    stable.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    vanished.write_text("1\n00:00:00,000 --> 00:00:01,000\nBye\n", encoding="utf-8")
+
+    class _Service:
+        def list_sources(self, base_path=None):
+            return [vanished, stable]
+
+    original_stat = Path.stat
+
+    def fake_stat(path: Path, *args, **kwargs):
+        if path == vanished:
+            raise FileNotFoundError(path)
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+
+    response = list_subtitle_sources(
+        service=_Service(),
+        request_user=RequestUserContext(user_id="editor", user_role="editor"),
+    )
+
+    assert [entry.path for entry in response.sources] == [stable.as_posix()]

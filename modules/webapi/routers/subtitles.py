@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+import stat as stat_module
 import tempfile
 from pathlib import Path
 from typing import Optional, Union
@@ -77,6 +78,22 @@ def _subtitle_source_sort_key(entry: SubtitleSourceEntry) -> tuple[int, float, s
     return (format_weight, -modified_at, entry.path.casefold())
 
 
+def _subtitle_source_entry(path: Path) -> Optional[SubtitleSourceEntry]:
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    if not stat_module.S_ISREG(stat.st_mode):
+        return None
+    return SubtitleSourceEntry(
+        name=path.name,
+        path=path.as_posix(),
+        format=path.suffix.lstrip(".").lower(),
+        language=infer_language_from_name(path),
+        modified_at=datetime.fromtimestamp(stat.st_mtime),
+    )
+
+
 @router.get("/sources", response_model=SubtitleSourceListResponse)
 def list_subtitle_sources(
     directory: Optional[str] = None,
@@ -94,22 +111,11 @@ def list_subtitle_sources(
     except FileNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
-    payload = []
+    payload: list[SubtitleSourceEntry] = []
     for path in entries:
-        try:
-            stat = path.stat()
-            modified_at = datetime.fromtimestamp(stat.st_mtime)
-        except Exception:
-            modified_at = None
-        payload.append(
-            SubtitleSourceEntry(
-                name=path.name,
-                path=path.as_posix(),
-                format=path.suffix.lstrip(".").lower(),
-                language=infer_language_from_name(path),
-                modified_at=modified_at,
-            )
-        )
+        entry = _subtitle_source_entry(path)
+        if entry is not None:
+            payload.append(entry)
     payload.sort(key=_subtitle_source_sort_key)
     return SubtitleSourceListResponse(sources=payload)
 

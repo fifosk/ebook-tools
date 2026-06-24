@@ -422,7 +422,9 @@ Optimization candidates:
   `/api/pipelines/files` now stats each visible ebook/output candidate once and
   skips entries that disappear or become unreadable during listing, preserving
   newest-first EPUB defaults for Web and Apple Create without failing the
-  whole picker response during concurrent file changes.
+  whole picker response during concurrent file changes. `/api/subtitles/sources`
+  now applies the same stale-entry skip when building Web/Apple subtitle source
+  pickers, so vanished subtitle paths do not become default selections.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap
