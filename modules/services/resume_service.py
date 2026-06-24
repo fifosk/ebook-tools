@@ -77,26 +77,24 @@ class ResumeService:
         if not root.exists():
             return []
 
-        allowed = {job_id for job_id in (job_ids or []) if job_id}
+        requested_job_ids = list(
+            dict.fromkeys(job_id for job_id in (job_ids or []) if job_id)
+        )
+        if requested_job_ids:
+            entries = []
+            for job_id in requested_job_ids:
+                entry = self._load_entry_from_path(job_id, self._job_path(job_id, user_id))
+                if entry is not None:
+                    entries.append(entry)
+            return sorted(entries, key=lambda entry: entry.updated_at, reverse=True)[:limit]
+
         entries: list[ResumeEntry] = []
         for path in sorted(root.glob("*.json")):
-            if len(entries) >= limit:
-                break
-            try:
-                payload = json.loads(path.read_text(encoding="utf-8"))
-            except Exception as exc:
-                logger.warning("Failed to load resume data from %s: %s", path, exc)
+            entry = self._load_entry_from_path(path.stem, path)
+            if entry is None:
                 continue
-            if not isinstance(payload, dict):
-                continue
-            job_id = self._coerce_string(payload.get("job_id")) or path.stem
-            if allowed and job_id not in allowed:
-                continue
-            raw_entry = payload.get("entry")
-            if not isinstance(raw_entry, dict):
-                continue
-            entries.append(self._normalize_entry(job_id, raw_entry))
-        return sorted(entries, key=lambda entry: entry.updated_at, reverse=True)
+            entries.append(entry)
+        return sorted(entries, key=lambda entry: entry.updated_at, reverse=True)[:limit]
 
     def save(self, job_id: str, user_id: str, data: Dict[str, Any]) -> ResumeEntry:
         entry = self._normalize_entry(job_id, data)
@@ -148,6 +146,24 @@ class ResumeService:
         if not isinstance(payload, dict):
             return {}
         return payload
+
+    def _load_entry_from_path(
+        self, fallback_job_id: str, path: Path
+    ) -> Optional[ResumeEntry]:
+        if not path.exists():
+            return None
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning("Failed to load resume data from %s: %s", path, exc)
+            return None
+        if not isinstance(payload, dict):
+            return None
+        job_id = self._coerce_string(payload.get("job_id")) or fallback_job_id
+        raw_entry = payload.get("entry")
+        if not isinstance(raw_entry, dict):
+            return None
+        return self._normalize_entry(job_id, raw_entry)
 
     def _normalize_entry(self, job_id: str, data: Dict[str, Any]) -> ResumeEntry:
         kind = str(data.get("kind") or "time").strip().lower()
