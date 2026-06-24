@@ -741,7 +741,7 @@ available and `python3` otherwise.
 | `make test-backend-runtime-descriptor` | `$(PYTHON) -m pytest ...` | Shared-pipeline public runtime descriptor and Apple contract backend slice |
 | `make test-backend-create-book` | `$(PYTHON) -m pytest ...` | Shared-pipeline generated-book backend slice |
 | `make test-backend-creation-templates` | `$(PYTHON) -m pytest ...` | Shared-pipeline saved creation-template backend slice |
-| `make test-backend-pipeline-sources` | `$(PYTHON) -m pytest ...` | Shared-pipeline EPUB source picker, cleanup, and upload backend slice |
+| `make test-backend-pipeline-sources` | `$(PYTHON) -m pytest ...` | Shared-pipeline EPUB source picker, content-index, cleanup, and upload backend slice |
 | `make test-backend-audio-routes` | `$(PYTHON) -m pytest ...` | Shared-pipeline audio synthesis, voice inventory, and voice-match backend slice |
 | `make test-backend-reading-beds` | `$(PYTHON) -m pytest ...` | Shared-pipeline reading-bed catalog, upload, default, streaming, and cleanup backend slice |
 | `make test-backend-notifications` | `$(PYTHON) -m pytest ...` | Shared-pipeline Apple notification device, preference, and test-send route slice |

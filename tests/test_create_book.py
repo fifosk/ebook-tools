@@ -328,6 +328,91 @@ def test_pipeline_file_picker_records_safe_timing(
     )
 
 
+def test_pipeline_content_index_uses_selected_epub(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    books_dir = tmp_path / "books" / "Dan Brown"
+    books_dir.mkdir(parents=True)
+    selected = books_dir / "latest-continuation.epub"
+    selected.write_bytes(b"epub bytes")
+    calls: dict[str, object] = {}
+    expected_index = {
+        "total_sentences": 2,
+        "chapters": [
+            {
+                "title": "Chapter 1",
+                "start_sentence": 0,
+                "end_sentence": 1,
+            }
+        ],
+        "alignment": {"status": "aligned"},
+    }
+
+    def fake_get_refined_sentences(input_file: str, pipeline_config, **kwargs):
+        calls["refined_input_file"] = input_file
+        calls["refined_max_words"] = pipeline_config.max_words
+        calls["refined_force_refresh"] = kwargs.get("force_refresh")
+        calls["refined_metadata"] = kwargs.get("metadata")
+        return ["One.", "Two."], False
+
+    def fake_get_content_index(
+        input_file: str,
+        pipeline_config,
+        refined_sentences,
+        **kwargs,
+    ):
+        calls["content_input_file"] = input_file
+        calls["content_max_words"] = pipeline_config.max_words
+        calls["content_refined_sentences"] = list(refined_sentences)
+        calls["content_force_refresh"] = kwargs.get("force_refresh")
+        calls["content_metadata"] = kwargs.get("metadata")
+        return expected_index
+
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    app.dependency_overrides[get_request_user] = lambda: SimpleNamespace(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(
+        books_routes.ingestion,
+        "get_refined_sentences",
+        fake_get_refined_sentences,
+    )
+    monkeypatch.setattr(books_routes.ingestion, "get_content_index", fake_get_content_index)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/pipelines/files/content-index",
+                params={"input_file": " Dan Brown/latest-continuation.epub "},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {
+        "input_file": "Dan Brown/latest-continuation.epub",
+        "content_index": expected_index,
+    }
+    assert calls["refined_input_file"] == str(selected)
+    assert calls["content_input_file"] == str(selected)
+    assert calls["content_refined_sentences"] == ["One.", "Two."]
+    assert calls["refined_force_refresh"] is False
+    assert calls["content_force_refresh"] is False
+    assert calls["refined_metadata"] == {
+        "mode": "api",
+        "max_words": calls["refined_max_words"],
+    }
+    assert calls["content_metadata"] == {
+        "mode": "api",
+        "max_words": calls["content_max_words"],
+    }
+
+
 def test_delete_pipeline_ebook_is_idempotent_for_missing_in_scope_file(tmp_path: Path) -> None:
     app = create_app()
     user = UserRecord(username="editor", password_hash="", roles=["editor"], metadata={})
