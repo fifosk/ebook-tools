@@ -18,6 +18,7 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
+from ..route_telemetry import record_started_route_duration
 from ..schemas import (
     ImageNodeAvailabilityEntry,
     ImageNodeAvailabilityRequest,
@@ -39,12 +40,11 @@ _ALLOWED_LLM_MODEL_ROLES = {"admin", "editor", "viewer"}
 def _record_pipeline_intake_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe intake route timing if metrics are available."""
 
-    try:
-        from ..metrics import PIPELINE_INTAKE_ROUTE_DURATION
-    except Exception:
-        return
-    PIPELINE_INTAKE_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "PIPELINE_INTAKE_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 
@@ -55,36 +55,33 @@ def _record_pipeline_defaults_route_duration(
 ) -> None:
     """Record token-safe defaults route timing if metrics are available."""
 
-    try:
-        from ..metrics import PIPELINE_DEFAULTS_ROUTE_DURATION
-    except Exception:
-        return
-    PIPELINE_DEFAULTS_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "PIPELINE_DEFAULTS_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 
 def _record_image_node_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe image-node route timing if metrics are available."""
 
-    try:
-        from ..metrics import IMAGE_NODE_ROUTE_DURATION
-    except Exception:
-        return
-    IMAGE_NODE_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "IMAGE_NODE_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 
 def _record_llm_model_route_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe LLM model route timing if metrics are available."""
 
-    try:
-        from ..metrics import LLM_MODEL_ROUTE_DURATION
-    except Exception:
-        return
-    LLM_MODEL_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
+    record_started_route_duration(
+        "LLM_MODEL_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
     )
 
 

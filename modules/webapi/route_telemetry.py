@@ -6,6 +6,34 @@ import time
 from typing import Any
 
 
+def record_route_duration(
+    metric_name: str,
+    operation: str,
+    result: str,
+    elapsed_seconds: float,
+) -> None:
+    """Record a token-safe route duration metric if metrics are available."""
+
+    try:
+        from . import metrics as webapi_metrics
+
+        metric = getattr(webapi_metrics, metric_name)
+    except Exception:
+        return
+    metric.labels(operation=operation, result=result).observe(elapsed_seconds)
+
+
+def record_started_route_duration(
+    metric_name: str,
+    operation: str,
+    result: str,
+    started_at: float,
+) -> None:
+    """Record a token-safe route duration metric from a perf-counter start."""
+
+    record_route_duration(metric_name, operation, result, time.perf_counter() - started_at)
+
+
 def record_source_picker_route_duration(
     operation: str,
     result: str,
@@ -13,11 +41,12 @@ def record_source_picker_route_duration(
 ) -> None:
     """Record token-safe source picker route timing if metrics are available."""
 
-    try:
-        from .metrics import SOURCE_PICKER_ROUTE_DURATION
-    except Exception:
-        return
-    SOURCE_PICKER_ROUTE_DURATION.labels(operation=operation, result=result).observe(elapsed_seconds)
+    record_route_duration(
+        "SOURCE_PICKER_ROUTE_DURATION",
+        operation,
+        result,
+        elapsed_seconds,
+    )
 
 
 def record_create_submission_route_duration(
@@ -27,11 +56,12 @@ def record_create_submission_route_duration(
 ) -> None:
     """Record token-safe Create submission route timing if metrics are available."""
 
-    try:
-        from .metrics import CREATE_SUBMISSION_ROUTE_DURATION
-    except Exception:
-        return
-    CREATE_SUBMISSION_ROUTE_DURATION.labels(operation=operation, result=result).observe(elapsed_seconds)
+    record_route_duration(
+        "CREATE_SUBMISSION_ROUTE_DURATION",
+        operation,
+        result,
+        elapsed_seconds,
+    )
 
 
 def log_create_submission_route(
