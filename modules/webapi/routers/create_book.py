@@ -353,6 +353,30 @@ def _build_youtube_dub_defaults(config: dict[str, Any]) -> BookCreationYoutubeDu
     )
 
 
+def _normalize_image_prompt_pipeline(value: object) -> str:
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"visual_canon", "visual-canon", "canon"}:
+            return "visual_canon"
+    return "prompt_plan"
+
+
+def _build_generated_source_defaults(config: dict[str, Any]) -> BookCreationGeneratedSourceDefaults:
+    style_value = _config_value(config, "image_style_template")
+    style_template = resolve_image_style_template(style_value or "wireframe").template_id
+    return BookCreationGeneratedSourceDefaults(
+        add_images=_coerce_bool(config.get("add_images"), False),
+        image_prompt_pipeline=_normalize_image_prompt_pipeline(config.get("image_prompt_pipeline")),
+        image_style_template=style_template,
+        image_prompt_context_sentences=min(
+            50,
+            max(0, _coerce_int(config.get("image_prompt_context_sentences"), 0)),
+        ),
+        image_width=str(max(64, _coerce_int(config.get("image_width"), 256))),
+        image_height=str(max(64, _coerce_int(config.get("image_height"), 256))),
+    )
+
+
 def _build_creation_options(config: dict[str, Any]) -> BookCreationOptionsResponse:
     selected_voice = _coerce_text(config.get("selected_voice"), _DEFAULT_VOICE)
     input_language = _coerce_text(config.get("input_language"), _DEFAULT_INPUT_LANGUAGE)
@@ -395,7 +419,7 @@ def _build_creation_options(config: dict[str, Any]) -> BookCreationOptionsRespon
             lookup_cache_batch_size=max(1, _coerce_int(config.get("lookup_cache_batch_size"), 10)),
             tempo=max(0.1, _coerce_float(config.get("tempo"), 1.0)),
         ),
-        generated_source_defaults=BookCreationGeneratedSourceDefaults(),
+        generated_source_defaults=_build_generated_source_defaults(config),
         subtitle_defaults=_build_subtitle_defaults(config),
         youtube_dub_defaults=_build_youtube_dub_defaults(config),
         supported_input_languages=list(_SUPPORTED_BOOK_LANGUAGES),

@@ -428,6 +428,12 @@ def test_book_creation_options_exposes_cross_surface_job_default_overrides(tmp_p
             "youtube_dub_stitch_batches": False,
             "youtube_dub_target_height": "720",
             "youtube_dub_preserve_aspect_ratio": "0",
+            "add_images": "true",
+            "image_prompt_pipeline": "visual-canon",
+            "image_style_template": "comic panel",
+            "image_prompt_context_sentences": "99",
+            "image_width": "32",
+            "image_height": "768",
         }
     )
 
@@ -458,6 +464,14 @@ def test_book_creation_options_exposes_cross_surface_job_default_overrides(tmp_p
         "stitch_batches": False,
         "target_height": 720,
         "preserve_aspect_ratio": False,
+    }
+    assert body["generated_source_defaults"] == {
+        "add_images": True,
+        "image_prompt_pipeline": "visual_canon",
+        "image_style_template": "comics",
+        "image_prompt_context_sentences": 50,
+        "image_width": "64",
+        "image_height": "768",
     }
 
 
