@@ -213,7 +213,8 @@ Current Apple UI partially exposes:
   support file as a thin namespace and the view model focused on submission
   work. Subtitle and YouTube output control subviews live in
   `AppleBookCreateOutputControls.swift`; generated-book output controls live
-  in `AppleBookCreateGeneratedOutputControls.swift`, letting
+  in `AppleBookCreateGeneratedOutputControls.swift`, while generated-book
+  image controls live in `AppleBookCreateGeneratedImageControls.swift`, letting
   `AppleBookCreateOutputSection.swift` own only section-level routing.
   Media metadata controls live in `AppleBookCreateMediaMetadataControls.swift`
   while `AppleBookCreateMediaMetadataSections.swift` owns the metadata section
