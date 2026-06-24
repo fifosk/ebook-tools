@@ -166,7 +166,7 @@ Large Web UI hotspots to split before redesign work:
   rendered coverage. Library item status badges now live in
   `web/src/components/library-list/LibraryStatusBadge.tsx` with focused
   rendered coverage.
-- `web/src/components/PlayerPanel.tsx` - 894 lines. Status: selected text
+- `web/src/components/PlayerPanel.tsx` - 890 lines. Status: selected text
   item, selected chunk, and active text chunk resolution now live in
   `web/src/components/player-panel/utils.ts` with focused Vitest coverage.
   Browser storage reads/writes used by PlayerPanel, interactive text, reading
@@ -181,7 +181,9 @@ Large Web UI hotspots to split before redesign work:
   in `web/src/components/player-panel/PlayerPanelContent.tsx` with focused
   rendered coverage. Boundary states for load errors, initial loading, and no
   selected job now live in `web/src/components/player-panel/PlayerPanelBoundaryState.tsx`
-  with focused rendered coverage.
+  with focused rendered coverage. Sentence-jump datalist rendering now lives in
+  `web/src/components/player-panel/PlayerPanelSentenceJumpDatalist.tsx` with
+  focused rendered coverage.
 - `web/src/components/Sidebar.tsx` - 556 lines. Status: pipeline-view
   detection, sidebar language/label/status/stage/glyph/progress resolution,
   and image-wait status now live in

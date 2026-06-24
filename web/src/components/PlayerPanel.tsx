@@ -21,6 +21,7 @@ import type { LibraryItem } from '../api/dtos';
 import { PlayerPanelBoundaryState } from './player-panel/PlayerPanelBoundaryState';
 import { PlayerPanelContent } from './player-panel/PlayerPanelContent';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
+import { PlayerPanelSentenceJumpDatalist } from './player-panel/PlayerPanelSentenceJumpDatalist';
 import {
   buildInteractiveAudioCatalog,
   fallbackTextFromSentences,
@@ -673,14 +674,9 @@ export default function PlayerPanel({
   const sentenceJumpListId = useId();
   const sentenceJumpInputId = useId();
   const sentenceJumpInputFullscreenId = useId();
-  const sentenceJumpDatalist =
-    sentenceLookup.suggestions.length > 0 ? (
-      <datalist id={sentenceJumpListId}>
-        {sentenceLookup.suggestions.map((value) => (
-          <option key={value} value={value} />
-        ))}
-      </datalist>
-    ) : null;
+  const sentenceJumpDatalist = (
+    <PlayerPanelSentenceJumpDatalist id={sentenceJumpListId} suggestions={sentenceLookup.suggestions} />
+  );
 
   const shouldShowBackToLibrary = origin === 'library' && showBackToLibrary;
   const panelSearchPanel =
