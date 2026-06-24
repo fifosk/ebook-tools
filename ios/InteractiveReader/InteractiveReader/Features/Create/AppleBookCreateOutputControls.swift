@@ -50,6 +50,30 @@ struct AppleBookCreateSubtitleOutputControls: View {
             }
             .accessibilityIdentifier("createSubtitleAssEmphasisStepper")
         }
+        #else
+        if selectedOutputFormat == .ass {
+            AppleBookCreateDiscreteValueControl(
+                value: $assFontSize,
+                clampedValue: clampedAssFontSize,
+                range: AppleSubtitleAssTypography.fontSizeRange,
+                step: 2,
+                title: "ASS font size",
+                decrementAccessibilityLabel: "Decrease ASS font size",
+                incrementAccessibilityLabel: "Increase ASS font size"
+            )
+            .accessibilityIdentifier("createSubtitleAssFontSizeControl")
+
+            AppleBookCreateDiscreteDoubleValueControl(
+                value: $assEmphasisScale,
+                clampedValueLabel: formattedAssEmphasisScale,
+                range: AppleSubtitleAssTypography.emphasisScaleRange,
+                step: 0.05,
+                title: "ASS emphasis",
+                decrementAccessibilityLabel: "Decrease ASS emphasis",
+                incrementAccessibilityLabel: "Increase ASS emphasis"
+            )
+            .accessibilityIdentifier("createSubtitleAssEmphasisControl")
+        }
         #endif
 
         TextField("Start time", text: $startTime)
@@ -85,10 +109,8 @@ struct AppleBookCreateSubtitleOutputControls: View {
             .accessibilityIdentifier("createSubtitleShowOriginalToggle")
         Toggle("Generate Audiobook", isOn: $generateAudioBook)
             .accessibilityIdentifier("createSubtitleGenerateAudioToggle")
-        #if os(iOS)
         Toggle("Mirror batches to source", isOn: $mirrorBatchesToSourceDir)
             .accessibilityIdentifier("createSubtitleMirrorBatchesToggle")
-        #endif
 
         Picker("Provider", selection: $translationProvider) {
             ForEach(AppleSubtitleTranslationProvider.allCases) { option in
@@ -115,6 +137,27 @@ struct AppleBookCreateSubtitleOutputControls: View {
             LabeledContent("Subtitle batch size", value: "\(clampedBatchSize)")
         }
         .accessibilityIdentifier("createSubtitleBatchSizeStepper")
+        #else
+        AppleBookCreateDiscreteValueControl(
+            value: $workerCount,
+            clampedValue: clampedWorkerCount,
+            range: AppleSubtitleTuning.workerCountRange,
+            title: "Worker threads",
+            decrementAccessibilityLabel: "Decrease worker threads",
+            incrementAccessibilityLabel: "Increase worker threads"
+        )
+        .accessibilityIdentifier("createSubtitleWorkerCountControl")
+
+        AppleBookCreateDiscreteValueControl(
+            value: $batchSize,
+            clampedValue: clampedBatchSize,
+            range: AppleSubtitleTuning.batchSizeRange,
+            step: 5,
+            title: "Subtitle batch size",
+            decrementAccessibilityLabel: "Decrease subtitle batch size",
+            incrementAccessibilityLabel: "Increase subtitle batch size"
+        )
+        .accessibilityIdentifier("createSubtitleBatchSizeControl")
         #endif
 
         if selectedTranslationProvider == .llm {
@@ -134,6 +177,16 @@ struct AppleBookCreateSubtitleOutputControls: View {
                 LabeledContent("LLM batch size", value: "\(clampedTranslationBatchSize)")
             }
             .accessibilityIdentifier("createSubtitleTranslationBatchSizeStepper")
+            #else
+            AppleBookCreateDiscreteValueControl(
+                value: $translationBatchSize,
+                clampedValue: clampedTranslationBatchSize,
+                range: AppleSubtitleTuning.translationBatchSizeRange,
+                title: "LLM batch size",
+                decrementAccessibilityLabel: "Decrease LLM batch size",
+                incrementAccessibilityLabel: "Increase LLM batch size"
+            )
+            .accessibilityIdentifier("createSubtitleTranslationBatchSizeControl")
             #endif
         }
     }
@@ -212,6 +265,37 @@ struct AppleBookCreateYoutubeOutputControls: View {
             LabeledContent("LLM batch size", value: "\(clampedTranslationBatchSize)")
         }
         .accessibilityIdentifier("createYoutubeTranslationBatchSizeStepper")
+        #else
+        AppleBookCreateDiscreteDoubleValueControl(
+            value: $originalMixPercent,
+            clampedValueLabel: formattedOriginalMixPercent,
+            range: 0...100,
+            step: 5,
+            title: "Original audio mix",
+            decrementAccessibilityLabel: "Decrease original audio mix",
+            incrementAccessibilityLabel: "Increase original audio mix"
+        )
+        .accessibilityIdentifier("createYoutubeOriginalMixControl")
+
+        AppleBookCreateDiscreteValueControl(
+            value: $flushSentences,
+            clampedValue: clampedFlushSentences,
+            range: 1...200,
+            title: "Flush interval",
+            decrementAccessibilityLabel: "Decrease flush interval",
+            incrementAccessibilityLabel: "Increase flush interval"
+        )
+        .accessibilityIdentifier("createYoutubeFlushSentencesControl")
+
+        AppleBookCreateDiscreteValueControl(
+            value: $translationBatchSize,
+            clampedValue: clampedTranslationBatchSize,
+            range: AppleSubtitleTuning.translationBatchSizeRange,
+            title: "LLM batch size",
+            decrementAccessibilityLabel: "Decrease LLM batch size",
+            incrementAccessibilityLabel: "Increase LLM batch size"
+        )
+        .accessibilityIdentifier("createYoutubeTranslationBatchSizeControl")
         #endif
 
         Toggle("Split batches", isOn: $splitBatches)

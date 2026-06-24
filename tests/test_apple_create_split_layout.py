@@ -896,11 +896,21 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "struct AppleBookCreateGeneratedOutputControls: View" in generated_output_source
     assert "struct AppleBookCreateGeneratedImageControls: View" in generated_image_source
     assert "struct AppleBookCreateDiscreteValueControl: View" in value_controls_source
+    assert "struct AppleBookCreateDiscreteDoubleValueControl: View" in value_controls_source
     assert "step: Int = 1" in value_controls_source
     assert "AppleBookCreateGeneratedImageControls(" in generated_output_source
     assert generated_output_source.count("AppleBookCreateDiscreteValueControl(") == 3
     assert "LabeledContent(\"Translation batch\")" not in generated_output_source
     assert "LabeledContent(\"Lookup batch\")" not in generated_output_source
+    assert 'accessibilityIdentifier("createSubtitleAssFontSizeControl")' in output_controls_source
+    assert 'accessibilityIdentifier("createSubtitleAssEmphasisControl")' in output_controls_source
+    assert 'accessibilityIdentifier("createSubtitleMirrorBatchesToggle")' in output_controls_source
+    assert 'accessibilityIdentifier("createSubtitleWorkerCountControl")' in output_controls_source
+    assert 'accessibilityIdentifier("createSubtitleBatchSizeControl")' in output_controls_source
+    assert 'accessibilityIdentifier("createSubtitleTranslationBatchSizeControl")' in output_controls_source
+    assert 'accessibilityIdentifier("createYoutubeOriginalMixControl")' in output_controls_source
+    assert 'accessibilityIdentifier("createYoutubeFlushSentencesControl")' in output_controls_source
+    assert 'accessibilityIdentifier("createYoutubeTranslationBatchSizeControl")' in output_controls_source
     assert 'accessibilityIdentifier("createBookImagePromptPipelinePicker")' in generated_image_source
     assert 'accessibilityIdentifier("createBookImagePromptPipelinePicker")' not in generated_output_source
     assert 'accessibilityIdentifier("createBookLookupCacheBatchSizeControl")' in generated_output_source

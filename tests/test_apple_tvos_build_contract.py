@@ -24,6 +24,24 @@ CREATE_ROUTING = (
     / "Create"
     / "AppleBookCreateRouting.swift"
 )
+CREATE_OUTPUT_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateOutputControls.swift"
+)
+CREATE_VALUE_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateValueControls.swift"
+)
 
 
 def test_tvos_simulator_build_lane_is_repo_owned_and_non_deploying() -> None:
@@ -65,3 +83,23 @@ def test_tvos_native_create_is_reachable_and_uses_shared_modes() -> None:
     assert "[.jobs, .create, .library, .settings, .search]" in browse_source
     assert "AppleCreateMode.allCases" in routing_source
     assert "isTV ? []" not in routing_source
+
+
+def test_tvos_create_exposes_media_job_tuning_controls() -> None:
+    output_source = CREATE_OUTPUT_CONTROLS.read_text(encoding="utf-8")
+    value_controls_source = CREATE_VALUE_CONTROLS.read_text(encoding="utf-8")
+
+    assert "struct AppleBookCreateDiscreteDoubleValueControl: View" in value_controls_source
+    assert 'accessibilityIdentifier("createSubtitleMirrorBatchesToggle")' in output_source
+
+    for identifier in [
+        "createSubtitleAssFontSizeControl",
+        "createSubtitleAssEmphasisControl",
+        "createSubtitleWorkerCountControl",
+        "createSubtitleBatchSizeControl",
+        "createSubtitleTranslationBatchSizeControl",
+        "createYoutubeOriginalMixControl",
+        "createYoutubeFlushSentencesControl",
+        "createYoutubeTranslationBatchSizeControl",
+    ]:
+        assert f'accessibilityIdentifier("{identifier}")' in output_source

@@ -53,3 +53,39 @@ struct AppleBookCreateDiscreteValueControl: View {
         }
     }
 }
+
+struct AppleBookCreateDiscreteDoubleValueControl: View {
+    @Binding var value: Double
+    let clampedValueLabel: String
+    let range: ClosedRange<Double>
+    let step: Double
+    let title: String
+    let decrementAccessibilityLabel: String
+    let incrementAccessibilityLabel: String
+
+    var body: some View {
+        LabeledContent(title) {
+            HStack(spacing: 12) {
+                Button {
+                    value = max(range.lowerBound, value - step)
+                } label: {
+                    Image(systemName: "minus")
+                }
+                .disabled(value <= range.lowerBound)
+                .accessibilityLabel(decrementAccessibilityLabel)
+
+                Text(clampedValueLabel)
+                    .monospacedDigit()
+                    .frame(minWidth: 56)
+
+                Button {
+                    value = min(range.upperBound, value + step)
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .disabled(value >= range.upperBound)
+                .accessibilityLabel(incrementAccessibilityLabel)
+            }
+        }
+    }
+}
