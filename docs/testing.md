@@ -206,10 +206,10 @@ fast-forwarded, because that check compares the local and remote Git state.
 `apple-pipeline-backend-tests` runs the manifest registered backend pytest
 commands and cleans generated caches. `apple-pipeline-web-checks` runs the
 manifest registered Web focused checks and production/export build through the
-shared pipeline runner, including the repo-owned
-`make test-web-video-dubbing-focused` target for the full Video Dubbing
-utility/hook slice and `make test-web-subtitle-tool-focused` for the full
-Subtitle Tool utility/hook slice, then restores generated Web artifacts. Use
+shared pipeline runner. The focused Create, Library, Video Dubbing, Subtitle
+Tool, and app-view deeplink checks are repo-owned `make test-web-*-focused`
+targets, so the shared manifest only names stable app commands before restoring
+generated Web artifacts. Use
 `APPLE_PIPELINE_SMOKE_PROFILE=ios|ipados|tvos` with
 `apple-pipeline-simulator-smoke-dry-run` before launching a shared simulator
 smoke. Use `apple-pipeline-ipad-create-readiness-dry-run`, then
@@ -551,8 +551,12 @@ available and `python3` otherwise.
 | `make test-audio` | `$(PYTHON) -m pytest -m audio` | TTS backends and audio tests |
 | `make test-translation` | `$(PYTHON) -m pytest -m translation` | Translation engine tests |
 | `make test-webapi` | `$(PYTHON) -m pytest -m webapi` | FastAPI route tests |
+| `make test-web-create-book-focused` | `npm --prefix web test -- --run ...` | Focused generated-book Create page Vitest slice |
+| `make test-web-create-intake-focused` | `npm --prefix web test -- --run ...` | Focused Create intake and narration form Vitest slice |
+| `make test-web-library-focused` | `npm --prefix web test -- --run ...` | Focused Library metadata Vitest slice |
 | `make test-web-video-dubbing-focused` | `npm --prefix web test -- --run ...` | Focused Video Dubbing utility and hook Vitest slice |
 | `make test-web-subtitle-tool-focused` | `npm --prefix web test -- --run ...` | Focused Subtitle Tool utility and hook Vitest slice |
+| `make test-web-app-view-deeplink-focused` | `npm --prefix web test -- --run ...` | Focused app-view deeplink utility Vitest slice |
 | `make test-services` | `$(PYTHON) -m pytest -m services` | Job manager and service tests |
 | `make test-pipeline` | `$(PYTHON) -m pytest -m pipeline` | Core pipeline tests |
 | `make test-cli` | `$(PYTHON) -m pytest -m cli` | CLI argument and command tests |

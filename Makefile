@@ -1,7 +1,9 @@
 .PHONY: test test-fast test-audio test-translation test-webapi test-services \
        test-pipeline test-cli test-auth test-library test-render test-media \
        test-config test-metadata test-changed \
-       test-web-video-dubbing-focused test-web-subtitle-tool-focused \
+       test-web-create-book-focused test-web-create-intake-focused \
+       test-web-library-focused test-web-video-dubbing-focused \
+       test-web-subtitle-tool-focused test-web-app-view-deeplink-focused \
        generate-language-catalogs check-language-catalogs \
        test-apple-contracts build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
@@ -55,6 +57,21 @@ test-translation:
 test-webapi:
 	$(PYTHON) -m pytest -m webapi
 
+test-web-create-book-focused:
+	npm --prefix web test -- --run \
+		src/pages/__tests__/CreateBookPage.test.tsx \
+		src/pages/__tests__/createBookPageUtils.test.ts
+
+test-web-create-intake-focused:
+	npm --prefix web test -- --run \
+		src/components/__tests__/createIntakeStatusUtils.test.ts \
+		src/components/__tests__/BookNarrationForm.test.tsx \
+		src/pages/__tests__/VideoDubbingPage.test.tsx
+
+test-web-library-focused:
+	npm --prefix web test -- --run \
+		src/pages/__tests__/libraryPageMetadata.test.ts
+
 test-web-video-dubbing-focused:
 	npm --prefix web test -- --run \
 		src/pages/__tests__/videoDubbingUtils.test.ts \
@@ -88,6 +105,10 @@ test-web-subtitle-tool-focused:
 		src/pages/__tests__/useSubtitleTabState.test.tsx \
 		src/pages/__tests__/useSubtitleSubmitStatus.test.tsx \
 		src/pages/__tests__/useSubtitleSubmit.test.tsx
+
+test-web-app-view-deeplink-focused:
+	npm --prefix web test -- --run \
+		src/utils/__tests__/appViewDeepLink.test.ts
 
 test-services:
 	$(PYTHON) -m pytest -m services
