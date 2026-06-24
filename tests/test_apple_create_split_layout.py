@@ -76,9 +76,11 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     source = _source(CREATE_SECTIONS)
 
     assert "let showsJobTypePicker: Bool" in source
+    assert "let showsNarrateRangeControls: Bool" in source
     assert "if showsJobTypePicker || creationMode != .generatedBook" in source
     assert 'Picker("Job type", selection: $creationMode)' in source
     assert '.accessibilityIdentifier("createJobTypePicker")' in source
+    assert "if showsNarrateRangeControls" in source
 
 
 def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
@@ -164,9 +166,18 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert job_settings_section
     assert "sentenceCountControl" not in prompt_section.group("body")
     assert "sentenceCountControl" in job_settings_section.group("body")
+    assert "narrateChapterSettingsControls" in job_settings_section.group("body")
     assert 'accessibilityIdentifier("createNarrateOutputPathField")' in job_settings_section.group("body")
     assert 'accessibilityIdentifier("createNarrateStartSentenceField")' in job_settings_section.group("body")
     assert 'accessibilityIdentifier("createNarrateEndSentenceField")' in job_settings_section.group("body")
+    assert "showsNarrateRangeControls: false" in source
+
+    assert "private var narrateChapterSettingsControls: some View" in source
+    assert "Button(action: loadNarrateChapters)" in source
+    assert 'accessibilityIdentifier("createNarrateLoadChaptersButton")' in source
+    assert 'accessibilityIdentifier("createNarrateStartChapterPicker")' in source
+    assert 'accessibilityIdentifier("createNarrateEndChapterPicker")' in source
+    assert "applyNarrateChapterRangeSelection" in source
 
 
 def test_generated_book_create_exposes_source_context_fields() -> None:
@@ -299,6 +310,8 @@ def test_ios_create_languages_use_reachable_list_selector() -> None:
     assert '.searchable(text: $searchText, prompt: "Search Languages")' in source
     assert '.sheet(item: $selectedLanguage)' in source
     assert '.accessibilityIdentifier("\\(accessibilityIdentifier).\\(language.id)")' in source
+    assert 'Text("\\(options.count) available")' in source
+    assert '.accessibilityValue("\\(selection.label), \\(options.count) available")' in source
 
 
 def test_youtube_create_exposes_inline_subtitle_extraction_controls() -> None:

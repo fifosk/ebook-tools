@@ -299,6 +299,7 @@ struct AppleBookCreateView: View {
             creationMode: $creationMode,
             availableCreateModes: availableCreateModes,
             showsJobTypePicker: showsInlineJobTypePicker,
+            showsNarrateRangeControls: false,
             sourcePath: narrateSourcePathBinding,
             sourceStartSentence: textBinding(for: .sourceStartSentence, value: $sourceStartSentence),
             sourceEndSentence: textBinding(for: .sourceEndSentence, value: $sourceEndSentence),
@@ -511,6 +512,7 @@ struct AppleBookCreateView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("createNarrateOutputPathField")
+                narrateChapterSettingsControls
                 TextField("Start sentence", text: textBinding(for: .sourceStartSentence, value: $sourceStartSentence))
                     #if os(iOS)
                     .keyboardType(.numberPad)
@@ -521,6 +523,69 @@ struct AppleBookCreateView: View {
                     .keyboardType(.numbersAndPunctuation)
                     #endif
                     .accessibilityIdentifier("createNarrateEndSentenceField")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var narrateChapterSettingsControls: some View {
+        Button(action: loadNarrateChapters) {
+            Label(
+                viewModel.isLoadingNarrateChapters ? "Loading Chapters" : "Load Chapters",
+                systemImage: "list.bullet.rectangle"
+            )
+        }
+        .disabled(
+            viewModel.isLoadingNarrateChapters
+                || trimmed(sourcePath).isEmpty
+        )
+        .accessibilityIdentifier("createNarrateLoadChaptersButton")
+
+        if viewModel.isLoadingNarrateChapters {
+            ProgressView()
+                .accessibilityIdentifier("createNarrateChaptersProgress")
+        }
+
+        if let narrateChaptersErrorMessage = viewModel.narrateChaptersErrorMessage {
+            Text(narrateChaptersErrorMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateChaptersMessage")
+        }
+
+        if !viewModel.narrateChapterOptions.isEmpty {
+            Picker("Start chapter", selection: $selectedNarrateStartChapterID) {
+                Text("Manual sentence range").tag("")
+                ForEach(viewModel.narrateChapterOptions) { chapter in
+                    Text(chapter.pickerLabel).tag(chapter.id)
+                }
+            }
+            .accessibilityIdentifier("createNarrateStartChapterPicker")
+            .onChange(of: selectedNarrateStartChapterID) { _, newValue in
+                applyNarrateChapterRangeSelection(startID: newValue, endID: selectedNarrateEndChapterID)
+            }
+
+            if !selectedNarrateStartChapterID.isEmpty {
+                Picker("End chapter", selection: $selectedNarrateEndChapterID) {
+                    ForEach(viewModel.narrateChapterOptions) { chapter in
+                        Text(chapter.pickerLabel).tag(chapter.id)
+                    }
+                }
+                .accessibilityIdentifier("createNarrateEndChapterPicker")
+                .onChange(of: selectedNarrateEndChapterID) { _, newValue in
+                    applyNarrateChapterRangeSelection(startID: selectedNarrateStartChapterID, endID: newValue)
+                }
+
+                if let selection = AppleBookCreatePresentation.chapterRangeSelection(
+                    chapters: viewModel.narrateChapterOptions,
+                    startChapterID: selectedNarrateStartChapterID,
+                    endChapterID: selectedNarrateEndChapterID
+                ) {
+                    Text("\(selection.label) · \(selection.sentenceRangeLabel)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("createNarrateChapterRangeSummary")
+                }
             }
         }
     }
@@ -1221,6 +1286,26 @@ struct AppleBookCreateView: View {
             selectedNarrateEndChapterID = ""
             await viewModel.loadNarrateChapters(inputFile: sourcePath, using: appState)
         }
+    }
+
+    private func applyNarrateChapterRangeSelection(startID: String, endID: String) {
+        guard !startID.isEmpty else {
+            selectedNarrateEndChapterID = ""
+            return
+        }
+        guard let selection = AppleBookCreatePresentation.chapterRangeSelection(
+            chapters: viewModel.narrateChapterOptions,
+            startChapterID: startID,
+            endChapterID: endID
+        ) else {
+            return
+        }
+        let resolvedEndID = viewModel.narrateChapterOptions[selection.endIndex].id
+        if selectedNarrateEndChapterID != resolvedEndID {
+            selectedNarrateEndChapterID = resolvedEndID
+        }
+        sourceStartSentence = "\(selection.startSentence)"
+        sourceEndSentence = "\(selection.endSentence)"
     }
 
     private func refreshIntakeStatus(force: Bool = false) async {

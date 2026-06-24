@@ -5,6 +5,7 @@ struct AppleBookCreateSourceSection: View {
     @Binding var creationMode: AppleCreateMode
     let availableCreateModes: [AppleCreateMode]
     let showsJobTypePicker: Bool
+    let showsNarrateRangeControls: Bool
     @Binding var sourcePath: String
     @Binding var sourceStartSentence: String
     @Binding var sourceEndSentence: String
@@ -121,6 +122,13 @@ struct AppleBookCreateSourceSection: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createNarrateSourcePathField")
+        if showsNarrateRangeControls {
+            narrateRangeControls
+        }
+    }
+
+    @ViewBuilder
+    private var narrateRangeControls: some View {
         Button(action: onLoadNarrateChapters) {
             Label(
                 isLoadingNarrateChapters ? "Loading Chapters" : "Load Chapters",
@@ -752,12 +760,17 @@ private struct AppleBookCreateLanguageSelector: View {
             HStack {
                 Text(title)
                 Spacer()
-                Text(selection.label)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(selection.label)
+                        .foregroundStyle(.secondary)
+                    Text("\(options.count) available")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
         }
         .accessibilityIdentifier(accessibilityIdentifier)
-        .accessibilityValue(selection.label)
+        .accessibilityValue("\(selection.label), \(options.count) available")
         .sheet(item: $selectedLanguage) { _ in
             NavigationStack {
                 List(filteredOptions) { language in
