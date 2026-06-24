@@ -12,10 +12,12 @@ struct AppleBookCreateNarrateSourceControls: View {
     @Binding var selectedNarrateEndChapterID: String
     let showsNarrateRangeControls: Bool
     let isLoadingPipelineFiles: Bool
+    let isDeletingPipelineEbook: Bool
     let isLoadingNarrateChapters: Bool
     let pipelineFilesErrorMessage: String?
     let narrateChaptersErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
+    let onDeletePipelineEbook: (PipelineFileEntry) -> Void
     let onLoadNarrateChapters: () -> Void
     let onChooseNarrateFile: () -> Void
 
@@ -52,6 +54,26 @@ struct AppleBookCreateNarrateSourceControls: View {
             progressIdentifier: "createNarrateServerEbooksProgress",
             action: onRefreshPipelineFiles
         )
+        Button(role: .destructive) {
+            if let selectedNarrateServerEbook {
+                onDeletePipelineEbook(selectedNarrateServerEbook)
+            }
+        } label: {
+            Label(
+                isDeletingPipelineEbook ? "Deleting EPUB" : "Delete Selected EPUB",
+                systemImage: "trash"
+            )
+        }
+        .disabled(
+            isDeletingPipelineEbook
+                || isLoadingPipelineFiles
+                || selectedNarrateServerEbook == nil
+        )
+        .accessibilityIdentifier("createNarrateDeleteServerEbookButton")
+        if isDeletingPipelineEbook {
+            ProgressView()
+                .accessibilityIdentifier("createNarrateDeleteServerEbookProgress")
+        }
         if let pipelineFilesErrorMessage {
             Text(pipelineFilesErrorMessage)
                 .font(.footnote)
@@ -128,6 +150,10 @@ struct AppleBookCreateNarrateSourceControls: View {
 
     private var narrateServerEbooks: [PipelineFileEntry] {
         pipelineFiles?.ebooks.filter { $0.type == "file" } ?? []
+    }
+
+    private var selectedNarrateServerEbook: PipelineFileEntry? {
+        narrateServerEbooks.first { $0.path == sourcePath }
     }
 
     private var shouldShowCurrentServerPath: Bool {

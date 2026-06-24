@@ -205,6 +205,10 @@ struct PipelineFileBrowserResponse: Decodable, Equatable {
     }
 }
 
+struct PipelineFileDeleteRequest: Encodable, Equatable {
+    let path: String
+}
+
 struct BookContentIndexResponse: Decodable, Equatable {
     let inputFile: String
     let contentIndex: JSONValue?

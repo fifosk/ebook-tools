@@ -70,6 +70,7 @@ struct AppleBookCreateView: View {
     @State private var selectedNarrateFileURL: URL?
     @State private var selectedNarrateFileName: String?
     @State private var isImportingNarrateEbook = false
+    @State private var pipelineEbookPendingDelete: PipelineFileEntry?
     @State private var selectedSubtitleFileURL: URL?
     @State private var selectedSubtitleFileName: String?
     @State private var isImportingSubtitleFile = false
@@ -183,6 +184,14 @@ struct AppleBookCreateView: View {
             handleSubtitleShowOriginalChange(newValue)
         }
         .modifier(
+            AppleBookCreateEbookDeleteConfirmationModifier(
+                pendingDelete: $pipelineEbookPendingDelete,
+                onDelete: { entry in
+                    Task { await deletePipelineEbook(entry) }
+                }
+            )
+        )
+        .modifier(
             AppleBookCreateSubtitleDeleteConfirmationModifier(
                 pendingDelete: $subtitleSourcePendingDelete,
                 onDelete: { entry in
@@ -276,6 +285,7 @@ struct AppleBookCreateView: View {
             selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
             isLoadingPipelineFiles: viewModel.isLoadingPipelineFiles,
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
+            isDeletingPipelineEbook: viewModel.isDeletingPipelineEbook,
             isLoadingSubtitleSources: viewModel.isLoadingSubtitleSources,
             isDeletingSubtitleSource: viewModel.isDeletingSubtitleSource,
             isLoadingYoutubeLibrary: viewModel.isLoadingYoutubeLibrary,
@@ -290,6 +300,7 @@ struct AppleBookCreateView: View {
             onRefreshPipelineFiles: {
                 Task { await refreshPipelineFiles(force: true) }
             },
+            onDeletePipelineEbook: requestDeletePipelineEbook,
             onRefreshSubtitleSources: {
                 Task { await refreshSubtitleSources(force: true) }
             },
@@ -1094,6 +1105,23 @@ struct AppleBookCreateView: View {
             force: force
         )
         applyPreferredNarrateSource(from: files)
+    }
+
+    private func requestDeletePipelineEbook(_ entry: PipelineFileEntry) {
+        pipelineEbookPendingDelete = entry
+    }
+
+    private func deletePipelineEbook(_ entry: PipelineFileEntry) async {
+        pipelineEbookPendingDelete = nil
+        let didDelete = await viewModel.deletePipelineEbook(path: entry.path, using: appState)
+        guard didDelete else { return }
+        if sourcePath == entry.path {
+            sourcePath = ""
+            sourceBaseOutput = ""
+            clearNarrateChapterSelection()
+            viewModel.clearNarrateChapters()
+        }
+        await refreshPipelineFiles(force: true)
     }
 
     private func refreshSubtitleSources(force: Bool = false) async {
@@ -2558,6 +2586,44 @@ struct AppleBookCreateView: View {
 
     private func clampSentenceCount(_ value: Int) -> Int {
         AppleBookCreatePresentation.clampSentenceCount(value, bounds: sentenceBounds)
+    }
+}
+
+private struct AppleBookCreateEbookDeleteConfirmationModifier: ViewModifier {
+    @Binding var pendingDelete: PipelineFileEntry?
+    let onDelete: (PipelineFileEntry) -> Void
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            "Delete EPUB Source?",
+            isPresented: isPresented,
+            titleVisibility: .visible
+        ) {
+            if let pendingDelete {
+                Button("Delete \(pendingDelete.name)", role: .destructive) {
+                    onDelete(pendingDelete)
+                }
+                .accessibilityIdentifier("confirmDeletePipelineEbookButton")
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDelete = nil
+            }
+        } message: {
+            if let pendingDelete {
+                Text("This removes \(pendingDelete.name) from the backend books directory.")
+            }
+        }
+    }
+
+    private var isPresented: Binding<Bool> {
+        Binding(
+            get: { pendingDelete != nil },
+            set: { isPresented in
+                if !isPresented {
+                    pendingDelete = nil
+                }
+            }
+        )
     }
 }
 

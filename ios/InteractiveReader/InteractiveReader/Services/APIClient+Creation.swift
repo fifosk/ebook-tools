@@ -38,6 +38,14 @@ extension APIClient {
         return try decode(PipelineFileBrowserResponse.self, from: data)
     }
 
+    func deletePipelineEbook(path: String) async throws {
+        _ = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.pipelineFilesPath,
+            method: "DELETE",
+            payload: PipelineFileDeleteRequest(path: path)
+        )
+    }
+
     func fetchSubtitleLlmModels() async throws -> LLMModelListResponse {
         let data = try await sendRequest(path: AppleCreateRuntimeContract.subtitleModelsPath)
         return try decode(LLMModelListResponse.self, from: data)

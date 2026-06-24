@@ -1113,6 +1113,37 @@ def test_subtitle_source_delete_is_wired_through_apple_create() -> None:
     assert "onDeleteSubtitleSource: requestDeleteSubtitleSource" in view_source
 
 
+def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
+    view_source = _source(CREATE_VIEW)
+    source = _source(CREATE_SOURCE_SECTION)
+    controls_source = _source(CREATE_SOURCE_CONTROLS)
+    view_model_source = _source(CREATE_VIEW_MODEL)
+    api_models_source = _source(PIPELINE_CREATION_API_MODELS)
+    api_client_source = _source(API_CLIENT_CREATION)
+
+    assert "struct PipelineFileDeleteRequest: Encodable, Equatable" in api_models_source
+    assert "func deletePipelineEbook(" in api_client_source
+    assert 'method: "DELETE"' in api_client_source
+    assert "payload: PipelineFileDeleteRequest(path: path)" in api_client_source
+    assert "func deletePipelineEbook(" in view_model_source
+    assert "isDeletingPipelineEbook = true" in view_model_source
+    assert "client.deletePipelineEbook(path: trimmedPath)" in view_model_source
+    assert "pipelineFiles = PipelineFileBrowserResponse(" in view_model_source
+    assert "let isDeletingPipelineEbook: Bool" in source
+    assert "let onDeletePipelineEbook: (PipelineFileEntry) -> Void" in source
+    assert "isDeletingPipelineEbook: isDeletingPipelineEbook" in source
+    assert "onDeletePipelineEbook: onDeletePipelineEbook" in source
+    assert "let isDeletingPipelineEbook: Bool" in controls_source
+    assert "let onDeletePipelineEbook: (PipelineFileEntry) -> Void" in controls_source
+    assert 'accessibilityIdentifier("createNarrateDeleteServerEbookButton")' in controls_source
+    assert 'accessibilityIdentifier("createNarrateDeleteServerEbookProgress")' in controls_source
+    assert "private var selectedNarrateServerEbook: PipelineFileEntry?" in controls_source
+    assert "pipelineEbookPendingDelete" in view_source
+    assert "AppleBookCreateEbookDeleteConfirmationModifier" in view_source
+    assert 'accessibilityIdentifier("confirmDeletePipelineEbookButton")' in view_source
+    assert "onDeletePipelineEbook: requestDeletePipelineEbook" in view_source
+
+
 def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
     source = _source(LIBRARY_SHELL)
 

@@ -6,6 +6,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isLoadingOptions = false
     @Published private(set) var isLoadingIntakeStatus = false
     @Published private(set) var isLoadingPipelineFiles = false
+    @Published private(set) var isDeletingPipelineEbook = false
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
     @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
     @Published private(set) var pipelineFiles: PipelineFileBrowserResponse?
@@ -151,6 +152,42 @@ final class AppleBookCreateViewModel: ObservableObject {
             pipelineFiles = nil
             pipelineFilesErrorMessage = error.localizedDescription
             return nil
+        }
+    }
+
+    func deletePipelineEbook(
+        path: String,
+        using appState: AppState
+    ) async -> Bool {
+        guard let configuration = appState.configuration else {
+            pipelineFilesErrorMessage = "Configure a valid API base URL before continuing."
+            return false
+        }
+        let trimmedPath = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            pipelineFilesErrorMessage = "Select a server EPUB before deleting it."
+            return false
+        }
+
+        isDeletingPipelineEbook = true
+        pipelineFilesErrorMessage = nil
+        defer { isDeletingPipelineEbook = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            try await client.deletePipelineEbook(path: trimmedPath)
+            if let currentFiles = pipelineFiles {
+                pipelineFiles = PipelineFileBrowserResponse(
+                    ebooks: currentFiles.ebooks.filter { $0.path != trimmedPath },
+                    outputs: currentFiles.outputs,
+                    booksRoot: currentFiles.booksRoot,
+                    outputRoot: currentFiles.outputRoot
+                )
+            }
+            return true
+        } catch {
+            pipelineFilesErrorMessage = error.localizedDescription
+            return false
         }
     }
 
