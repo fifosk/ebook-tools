@@ -52,6 +52,8 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let youtubeMetadataPreviewPath: String?
         let youtubeMetadataCacheClearPath: String?
         let youtubeDubPath: String?
+        let templateListPath: String?
+        let templatePathTemplate: String?
     }
 
     struct OfflineExportContract: Decodable, Equatable {

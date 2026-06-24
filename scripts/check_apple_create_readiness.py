@@ -37,6 +37,8 @@ EXPECTED_CREATE_PATHS = {
     "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
     "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
     "youtubeDubPath": "/api/subtitles/youtube/dub",
+    "templateListPath": "/api/creation/templates",
+    "templatePathTemplate": "/api/creation/templates/{template_id}",
 }
 MIN_SUPPORTED_BOOK_LANGUAGES = 50
 REQUIRED_BOOK_LANGUAGE_SENTINELS = (

@@ -123,6 +123,8 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "youtubeMetadataPreviewPath",
         "youtubeMetadataCacheClearPath",
         "youtubeDubPath",
+        "templateListPath",
+        "templatePathTemplate",
     ]:
         assert f"let {key}: String?" in source
     assert "let applePipeline: ApplePipelineContract?" in source
@@ -205,6 +207,8 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
         "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
         "youtubeDubPath": "/api/subtitles/youtube/dub",
+        "templateListPath": "/api/creation/templates",
+        "templatePathTemplate": "/api/creation/templates/{template_id}",
     }
     for key, path in expected_constants.items():
         assert f'static let {key} = "{path}"' in creation_source

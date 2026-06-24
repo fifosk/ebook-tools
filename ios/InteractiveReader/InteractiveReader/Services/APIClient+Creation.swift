@@ -20,6 +20,8 @@ enum AppleCreateRuntimeContract {
     static let youtubeMetadataPreviewPath = "/api/subtitles/metadata/youtube/lookup"
     static let youtubeMetadataCacheClearPath = "/api/subtitles/metadata/youtube/cache/clear"
     static let youtubeDubPath = "/api/subtitles/youtube/dub"
+    static let templateListPath = "/api/creation/templates"
+    static let templatePathTemplate = "/api/creation/templates/{template_id}"
 }
 
 extension APIClient {

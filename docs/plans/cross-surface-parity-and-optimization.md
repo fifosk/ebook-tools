@@ -722,7 +722,11 @@ After Narrate Ebook:
 
 Suggested features to evaluate after parity scaffolding:
 
-- Cross-surface job templates: save a Web configuration and reuse it from Apple.
+- Cross-surface job templates: save a Web configuration and reuse it from Apple. Status:
+  backend now exposes authenticated `/api/creation/templates` list/save/delete
+  storage with recursive secret-key stripping, and the public runtime descriptor
+  advertises the template endpoints for Web/Apple clients. Web save controls and
+  native Apple apply UI remain the next consumer-facing layer.
 - Draft jobs: start on iPad, finish advanced settings on Web.
 - Creation handoff: Apple app opens the corresponding Web creation URL for unsupported advanced options. Status:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,

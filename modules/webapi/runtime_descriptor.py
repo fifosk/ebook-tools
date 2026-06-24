@@ -48,6 +48,8 @@ CREATION_DESCRIPTOR = {
     "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
     "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
     "youtubeDubPath": "/api/subtitles/youtube/dub",
+    "templateListPath": "/api/creation/templates",
+    "templatePathTemplate": "/api/creation/templates/{template_id}",
 }
 OFFLINE_EXPORTS_DESCRIPTOR = {
     "createPath": "/api/exports",

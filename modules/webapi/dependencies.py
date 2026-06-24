@@ -31,6 +31,7 @@ from ..services.youtube_video_metadata_service import YoutubeVideoMetadataServic
 from ..services.youtube_dubbing import YoutubeDubbingService
 from ..services.export_service import ExportService
 from ..services.bookmark_service import BookmarkService
+from ..services.creation_template_service import CreationTemplateService
 from ..services.resume_service import ResumeService
 from ..user_management import AuthService, LocalUserStore, SessionManager
 from ..user_management import PgUserStore, PgSessionManager
@@ -310,6 +311,13 @@ def get_bookmark_service():
         from ..services.pg_bookmark_service import PgBookmarkService
         return PgBookmarkService()
     return BookmarkService(file_locator=get_file_locator())
+
+
+@lru_cache
+def get_creation_template_service() -> CreationTemplateService:
+    """Return the shared creation template service."""
+
+    return CreationTemplateService(file_locator=get_file_locator())
 
 
 @lru_cache

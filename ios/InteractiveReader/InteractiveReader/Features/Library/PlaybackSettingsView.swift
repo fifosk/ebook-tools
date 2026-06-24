@@ -168,6 +168,8 @@ struct PlaybackSettingsView: View {
             ("youtubeMetadataPreviewPath", creation.youtubeMetadataPreviewPath, AppleCreateRuntimeContract.youtubeMetadataPreviewPath),
             ("youtubeMetadataCacheClearPath", creation.youtubeMetadataCacheClearPath, AppleCreateRuntimeContract.youtubeMetadataCacheClearPath),
             ("youtubeDubPath", creation.youtubeDubPath, AppleCreateRuntimeContract.youtubeDubPath),
+            ("templateListPath", creation.templateListPath, AppleCreateRuntimeContract.templateListPath),
+            ("templatePathTemplate", creation.templatePathTemplate, AppleCreateRuntimeContract.templatePathTemplate),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
             let normalized = actual?.nonEmptyValue
@@ -180,7 +182,7 @@ struct PlaybackSettingsView: View {
             return .mismatch(summary: mismatches.joined(separator: " · "))
         }
         return .ready(
-            summary: "\(expectedPaths.count) endpoints · \(AppleCreateRuntimeContract.bookOptionsPath) · \(AppleCreateRuntimeContract.bookJobsPath) · \(AppleCreateRuntimeContract.pipelineFilesPath) · \(AppleCreateRuntimeContract.subtitleDeleteSourcePath) · \(AppleCreateRuntimeContract.subtitleJobsPath) · \(AppleCreateRuntimeContract.youtubeDubPath)"
+            summary: "\(expectedPaths.count) endpoints · \(AppleCreateRuntimeContract.bookOptionsPath) · \(AppleCreateRuntimeContract.bookJobsPath) · \(AppleCreateRuntimeContract.pipelineFilesPath) · \(AppleCreateRuntimeContract.subtitleDeleteSourcePath) · \(AppleCreateRuntimeContract.subtitleJobsPath) · \(AppleCreateRuntimeContract.youtubeDubPath) · \(AppleCreateRuntimeContract.templateListPath)"
         )
     }
 
