@@ -17,6 +17,7 @@ from modules.webapi.dependencies import (
     get_runtime_context_provider,
 )
 from modules.webapi.routes.books_routes import _list_ebook_files
+from modules.webapi.routers.create_book import _source_book_context
 from modules.webapi.schemas.create_book import BookGenerationJobSubmission
 
 pytestmark = pytest.mark.pipeline
@@ -139,6 +140,22 @@ def test_book_generation_job_schema_accepts_source_context() -> None:
     assert payload.generator.source_book_author == "Dan Brown"
     assert payload.generator.source_book_genre == "Conspiracy thriller"
     assert payload.generator.source_book_summary == "A symbologist follows clues across Europe."
+
+
+def test_source_book_context_normalizes_optional_continuation_fields() -> None:
+    context = _source_book_context(
+        SimpleNamespace(
+            source_book_title=" Inferno ",
+            source_book_author=" Dan Brown ",
+            source_book_genre=" ",
+            source_book_summary=None,
+        )
+    )
+
+    assert context == {
+        "source_book_title": "Inferno",
+        "source_book_author": "Dan Brown",
+    }
 
 
 def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -89,6 +89,12 @@ _DEFAULT_YOUTUBE_ORIGINAL_MIX_PERCENT = 5.0
 _DEFAULT_YOUTUBE_TARGET_HEIGHT = 480
 _SUPPORTED_BOOK_LANGUAGES = tuple(LANGUAGE_CODES.keys())
 _SUPPORTED_BOOK_VOICES = ["gTTS", "macOS", "edge-tts"]
+_SOURCE_BOOK_CONTEXT_FIELDS = (
+    "source_book_title",
+    "source_book_author",
+    "source_book_genre",
+    "source_book_summary",
+)
 
 logger = log_mgr.get_logger()
 
@@ -135,6 +141,15 @@ def _normalize_optional_text(value: object) -> str | None:
         return None
     cleaned = value.strip()
     return cleaned or None
+
+
+def _source_book_context(payload: object) -> dict[str, str]:
+    context: dict[str, str] = {}
+    for field_name in _SOURCE_BOOK_CONTEXT_FIELDS:
+        value = _normalize_optional_text(getattr(payload, field_name, None))
+        if value:
+            context[field_name] = value
+    return context
 
 
 def _extract_json_object(payload: str) -> dict[str, Any] | None:
@@ -676,6 +691,7 @@ def _execute_book_job(
     stop_event = job.stop_event
     generator_payload = generator.generator
     pipeline_payload = generator.pipeline
+    source_context = _source_book_context(generator_payload)
 
     def _publish_progress(metadata: dict[str, object]) -> None:
         if tracker is not None:
@@ -762,10 +778,7 @@ def _execute_book_job(
         input_language=input_language,
         topic=generator_payload.topic,
         target_language=target_language or input_language,
-        source_book_title=generator_payload.source_book_title,
-        source_book_author=generator_payload.source_book_author,
-        source_book_genre=generator_payload.source_book_genre,
-        source_book_summary=generator_payload.source_book_summary,
+        **source_context,
     )
     sentence_count = len(sentences)
     warnings: list[str] = []
@@ -906,14 +919,7 @@ def _execute_book_job(
         "creation_sentences_preview": list(sentences_preview),
         "creation_summary": creation_summary,
     }
-    if generator_payload.source_book_title:
-        metadata_updates["source_book_title"] = generator_payload.source_book_title
-    if generator_payload.source_book_author:
-        metadata_updates["source_book_author"] = generator_payload.source_book_author
-    if generator_payload.source_book_genre:
-        metadata_updates["source_book_genre"] = generator_payload.source_book_genre
-    if generator_payload.source_book_summary:
-        metadata_updates["source_book_summary"] = generator_payload.source_book_summary
+    metadata_updates.update(source_context)
     if cover_file_path:
         metadata_updates["book_cover_file"] = cover_file_path
     cover_prompt_value = cover_prompt_used or cover_prompt
@@ -930,14 +936,7 @@ def _execute_book_job(
         "genre": generator_payload.genre,
         "num_sentences": generator_payload.num_sentences,
     }
-    if generator_payload.source_book_title:
-        generation_snapshot["source_book_title"] = generator_payload.source_book_title
-    if generator_payload.source_book_author:
-        generation_snapshot["source_book_author"] = generator_payload.source_book_author
-    if generator_payload.source_book_genre:
-        generation_snapshot["source_book_genre"] = generator_payload.source_book_genre
-    if generator_payload.source_book_summary:
-        generation_snapshot["source_book_summary"] = generator_payload.source_book_summary
+    generation_snapshot.update(source_context)
     request.pipeline_overrides.setdefault("book_generation", generation_snapshot)
 
     serialized_request = serialize_pipeline_request(request)
@@ -985,6 +984,7 @@ async def create_book(
 
     messages: list[str] = []
     warnings: list[str] = []
+    source_context = _source_book_context(payload)
 
     try:
         sentences = await run_in_threadpool(
@@ -993,10 +993,7 @@ async def create_book(
             input_language=payload.input_language,
             topic=payload.topic,
             target_language=payload.output_language,
-            source_book_title=payload.source_book_title,
-            source_book_author=payload.source_book_author,
-            source_book_genre=payload.source_book_genre,
-            source_book_summary=payload.source_book_summary,
+            **source_context,
         )
     except RuntimeError as exc:
         raise HTTPException(
@@ -1039,14 +1036,7 @@ async def create_book(
             "base_output_file": base_output,
         }
     )
-    if payload.source_book_title:
-        config_payload["source_book_title"] = payload.source_book_title
-    if payload.source_book_author:
-        config_payload["source_book_author"] = payload.source_book_author
-    if payload.source_book_genre:
-        config_payload["source_book_genre"] = payload.source_book_genre
-    if payload.source_book_summary:
-        config_payload["source_book_summary"] = payload.source_book_summary
+    config_payload.update(source_context)
 
     context = context_provider.build_context(config_payload, {})
     books_dir = context.books_dir
@@ -1085,14 +1075,7 @@ async def create_book(
         "created_via": "create_book_api",
         "seed_epub_path": relative_epub_path,
     }
-    if payload.source_book_title:
-        media_metadata["source_book_title"] = payload.source_book_title
-    if payload.source_book_author:
-        media_metadata["source_book_author"] = payload.source_book_author
-    if payload.source_book_genre:
-        media_metadata["source_book_genre"] = payload.source_book_genre
-    if payload.source_book_summary:
-        media_metadata["source_book_summary"] = payload.source_book_summary
+    media_metadata.update(source_context)
 
     creation_summary = {
         "epub_path": relative_epub_path,

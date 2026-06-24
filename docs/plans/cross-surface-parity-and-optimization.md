@@ -487,7 +487,10 @@ After Narrate Ebook:
   generated-book jobs through `/api/books/jobs`; generated-book mode now also
   exposes source-book title, author, genre, and summary context on iPhone/iPad
   and sends those fields through the shared generator contract so
-  continuation-style jobs can start with explicit source metadata.
+  continuation-style jobs can start with explicit source metadata. The Create
+  Book backend now normalizes that source context once per request and reuses it
+  for sentence prompts, metadata, config, and pipeline snapshots so Web previews
+  and Apple job submissions stay aligned.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
   files, including NAS library video/subtitle pickers, remembered base
