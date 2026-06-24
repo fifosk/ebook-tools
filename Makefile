@@ -4,6 +4,7 @@
        test-backend-library-search-source-isbn test-backend-admin-system-status \
        test-backend-create-book test-backend-creation-templates \
        test-backend-subtitle-router \
+       test-backend-playback-state \
        test-backend-youtube-dubbing-service \
        test-web-create-book-focused test-web-create-intake-focused \
        test-web-creation-templates-focused \
@@ -88,6 +89,12 @@ test-backend-creation-templates:
 
 test-backend-subtitle-router:
 	$(PYTHON) -m pytest tests/webapi/test_subtitles_router.py
+
+test-backend-playback-state:
+	$(PYTHON) -m pytest \
+		tests/modules/webapi/test_resume_routes.py \
+		tests/modules/webapi/test_bookmark_routes.py \
+		tests/modules/test_resume_service.py
 
 test-backend-youtube-dubbing-service:
 	$(PYTHON) -m pytest \
