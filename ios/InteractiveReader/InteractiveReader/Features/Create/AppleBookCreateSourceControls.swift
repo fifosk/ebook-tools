@@ -164,6 +164,90 @@ struct AppleBookCreateNarrateSourceControls: View {
     }
 }
 
+struct AppleBookCreateSubtitleSourceControls: View {
+    @Binding var subtitleSourcePath: String
+    let subtitleSources: SubtitleSourceListResponse?
+    let selectedSubtitleFileName: String?
+    let isLoadingSubtitleSources: Bool
+    let subtitleSourcesErrorMessage: String?
+    let onRefreshSubtitleSources: () -> Void
+    let onChooseSubtitleFile: () -> Void
+
+    var body: some View {
+        #if os(iOS)
+        AppleBookCreateFileImportControl(
+            title: selectedSubtitleFileName ?? "Choose subtitle file",
+            selectedFileName: selectedSubtitleFileName,
+            systemImage: "captions.bubble",
+            buttonIdentifier: "createSubtitleFileImportButton",
+            labelIdentifier: "createSubtitleSelectedFileLabel",
+            action: onChooseSubtitleFile
+        )
+        #endif
+        if !subtitleSourceEntries.isEmpty {
+            Picker("Server subtitle", selection: $subtitleSourcePath) {
+                Text("Manual path").tag("")
+                if shouldShowCurrentSubtitlePath {
+                    Text(subtitleSourcePath).tag(subtitleSourcePath)
+                }
+                ForEach(subtitleSourceEntries, id: \.path) { entry in
+                    Text(subtitleEntryLabel(entry)).tag(entry.path)
+                }
+            }
+            .accessibilityIdentifier("createSubtitleServerSourcePicker")
+        }
+        HStack {
+            Button(action: onRefreshSubtitleSources) {
+                Label(
+                    isLoadingSubtitleSources ? "Refreshing Subtitles" : "Refresh Subtitles",
+                    systemImage: "arrow.clockwise"
+                )
+            }
+            .disabled(isLoadingSubtitleSources)
+            .accessibilityIdentifier("createSubtitleRefreshServerSourcesButton")
+
+            if isLoadingSubtitleSources {
+                ProgressView()
+                    .accessibilityIdentifier("createSubtitleServerSourcesProgress")
+            }
+        }
+        if let subtitleSourcesErrorMessage {
+            Text(subtitleSourcesErrorMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createSubtitleServerSourcesMessage")
+        }
+        TextField("Server subtitle path", text: $subtitleSourcePath)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createSubtitleSourcePathField")
+    }
+
+    private var subtitleSourceEntries: [SubtitleSourceEntry] {
+        AppleBookCreatePresentation.subtitleJobSources(from: subtitleSources)
+    }
+
+    private var shouldShowCurrentSubtitlePath: Bool {
+        let trimmedPath = subtitleSourcePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            return false
+        }
+        return !subtitleSourceEntries.contains { $0.path == subtitleSourcePath }
+    }
+
+    private func subtitleEntryLabel(_ entry: SubtitleSourceEntry) -> String {
+        let suffix = [entry.format.uppercased(), entry.language]
+            .compactMap { value -> String? in
+                guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+                    return nil
+                }
+                return value
+            }
+            .joined(separator: " · ")
+        return suffix.isEmpty ? entry.name : "\(entry.name) · \(suffix)"
+    }
+}
+
 struct AppleBookCreateFileImportControl: View {
     let title: String
     let selectedFileName: String?
