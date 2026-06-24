@@ -431,7 +431,8 @@ cp "$WILDCARD_IOS_EXTENSION_PROFILE" "$APPEX/embedded.mobileprovision"
 
 find "$APPEX" -maxdepth 1 -type f -name '*.dylib' -print0 \
   | xargs -0 -I{} /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none "{}"
-/usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none "$APPEX"
+/usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none \
+  --entitlements "$EXTENSION_ENTITLEMENTS_PLIST" "$APPEX"
 find "$APP" -maxdepth 1 -type f -name '*.dylib' -print0 \
   | xargs -0 -I{} /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none "{}"
 /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none \
@@ -444,6 +445,21 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   bash scripts/apple_unattended_device_update.sh \
   --skip-build --install --launch --launch-console-timeout 10
 ```
+
+For the June 24 `.27` iPad Pro install, `APPLE_DEVICE_ID="Fifo Ipad Pro"`
+worked for CoreDevice preflight but not as an `xcodebuild` destination id; the
+helper now resolves friendly names through `devicectl device info details` and
+passes the hardware UDID (`00008142-001C71AE3AC2401C`) to `xcodebuild`.
+The successful manual signing pass also used temporary merged entitlements for
+both bundles. The app entitlements combined the project iCloud/Push/Sign in
+with Apple values with profile-generated `application-identifier`,
+`com.apple.developer.team-identifier`, `get-task-allow`, and
+`keychain-access-groups`, and replaced the placeholder ubiquity kvstore value
+with `3Y7288895K.com.example.InteractiveReader`. The notification extension
+was signed with its own `application-identifier`, team id, `get-task-allow`,
+and keychain group. Signing the app only with
+`InteractiveReader.entitlements` passed local `codesign --verify` but failed
+device install with `0xe8008015`.
 
 For Apple TV local dry-runs, use the repo-owned profile instead of manually
 overriding scheme, bundle id, and output folder:

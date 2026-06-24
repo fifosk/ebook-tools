@@ -49,6 +49,47 @@ assert_contains "${build_output}" "-configuration  Debug" "build-only dry run sh
 assert_contains "${build_output}" "DerivedData-device-TEST-DEVICE" "build-only dry run should use a sanitized device-scoped derived data path"
 assert_not_contains "${build_output}" "Install command:" "build-only dry run should not print install command"
 
+fake_tools_dir="$(mktemp -d)"
+trap 'rm -rf "${fake_tools_dir}"' EXIT
+cat > "${fake_tools_dir}/devicectl" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+json_output=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json-output)
+      json_output="${2:-}"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+mkdir -p "$(dirname "${json_output}")"
+cat > "${json_output}" <<'JSON'
+{"result":{"device":{"hardwareProperties":{"udid":"FAKE-UDID-123"}}}}
+JSON
+echo "fake device details"
+SH
+chmod +x "${fake_tools_dir}/devicectl"
+cat > "${fake_tools_dir}/xcodebuild" <<'SH'
+#!/usr/bin/env bash
+printf 'fake xcodebuild'
+printf ' %q' "$@"
+printf '\n'
+SH
+chmod +x "${fake_tools_dir}/xcodebuild"
+
+resolved_destination_output="$(
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  XCBUILD="${fake_tools_dir}/xcodebuild" \
+    bash "${HELPER}" --device "Friendly iPad" --build-only
+)"
+assert_contains "${resolved_destination_output}" "Resolved xcodebuild destination id: FAKE-UDID-123" "real build path should resolve friendly device selectors to hardware UDIDs"
+assert_contains "${resolved_destination_output}" "-destination id=FAKE-UDID-123" "xcodebuild should receive the resolved hardware UDID"
+assert_not_contains "${resolved_destination_output}" "-destination id=Friendly\\ iPad" "xcodebuild should not receive the friendly device name as an id"
+
 preflight_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --device-preflight-only)"
 assert_contains "${preflight_output}" "Device preflight command:" "preflight dry run should print the preflight command"
 assert_contains "${preflight_output}" "device  info  details" "preflight should query device health without mutation"

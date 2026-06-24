@@ -148,6 +148,47 @@ print(f"Verified installed app: {name} {bundle_id} version={version} build={buil
 PY
 }
 
+resolve_xcodebuild_destination_id() {
+  local selector="$1"
+  local json_path="$2"
+  mkdir -p "$(dirname "${json_path}")"
+  "${DEVICECTL}" device info details \
+    --device "${selector}" \
+    --timeout "${DEVICECTL_TIMEOUT}" \
+    --json-output "${json_path}" >/dev/null
+  python3 - "${json_path}" "${selector}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+fallback = sys.argv[2]
+
+try:
+    payload = json.loads(path.read_text())
+except Exception:
+    print(fallback)
+    raise SystemExit(0)
+
+def walk(value):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == "udid" and isinstance(child, str) and child.strip():
+                return child.strip()
+            found = walk(child)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for child in value:
+            found = walk(child)
+            if found:
+                return found
+    return ""
+
+print(walk(payload) or fallback)
+PY
+}
+
 restore_project_file() {
   if [[ -n "${PROJECT_FILE_BACKUP:-}" && -f "${PROJECT_FILE_BACKUP}" && -n "${PROJECT_FILE_TO_RESTORE:-}" ]]; then
     cp "${PROJECT_FILE_BACKUP}" "${PROJECT_FILE_TO_RESTORE}"
@@ -328,15 +369,23 @@ fi
 
 VERIFY_JSON="$(json_scratch_path apple-device-installed-app)"
 PREFLIGHT_JSON="$(json_scratch_path apple-device-preflight)"
+BUILD_DESTINATION_JSON="$(json_scratch_path apple-device-build-destination)"
 INSTALL_JSON="$(json_scratch_path apple-device-install)"
 LAUNCH_JSON="$(json_scratch_path apple-device-launch)"
+XCODEBUILD_DESTINATION_ID="${DEVICE_ID}"
+if [[ "${SKIP_BUILD}" != "1" && "${DRY_RUN}" != "1" ]]; then
+  XCODEBUILD_DESTINATION_ID="$(resolve_xcodebuild_destination_id "${DEVICE_ID}" "${BUILD_DESTINATION_JSON}")"
+  if [[ "${XCODEBUILD_DESTINATION_ID}" != "${DEVICE_ID}" ]]; then
+    echo "Resolved xcodebuild destination id: ${XCODEBUILD_DESTINATION_ID}"
+  fi
+fi
 
 BUILD_CMD=(
   "${XCBUILD}"
   -project "${XCPROJ}"
   -scheme "${SCHEME}"
   -configuration "${CONFIGURATION}"
-  -destination "id=${DEVICE_ID}"
+  -destination "id=${XCODEBUILD_DESTINATION_ID}"
   -derivedDataPath "${DERIVED_DATA}"
 )
 if [[ "${ALLOW_PROVISIONING_UPDATES}" == "1" ]]; then
