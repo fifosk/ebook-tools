@@ -123,7 +123,18 @@ If Xcode CLI signing cannot use the signed-in account but Xcode-managed local
 profiles already contain the full iCloud, Sign in with Apple, and Push
 capability set, preserve entitlements by building the app with
 `CODE_SIGNING_ALLOWED=NO`, embedding the full-capability provisioning profiles,
-codesigning nested bundles first and the app last, then installing with:
+codesigning nested bundles first and the app last. Prefer the repo-owned
+planner before hand-running the sequence:
+
+```bash
+make apple-device-full-entitlement-plan \
+  APPLE_DEVICE_ID="<device-id-or-name>" \
+  FULL_CAPABILITY_IOS_PROFILE="<app.mobileprovision>" \
+  WILDCARD_IOS_EXTENSION_PROFILE="<extension.mobileprovision>" \
+  APPLE_DEVELOPMENT_IDENTITY="<Apple Development identity>"
+```
+
+Install the signed app from that plan with:
 
 ```bash
 APPLE_DEVICE_ID="<device-id-or-name>" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \

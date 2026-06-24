@@ -45,6 +45,10 @@ python3 scripts/run_app_device_deploy.py --app ebook-tools --profile cinema --dr
 make apple-device-preflight APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID=<id>
 make apple-device-signed-build-only APPLE_DEVICE_PROFILE=ipad
 make apple-device-deploy-dry-run APPLE_DEVICE_PROFILE=appletv
+make apple-device-full-entitlement-plan APPLE_DEVICE_ID=<id> \
+  FULL_CAPABILITY_IOS_PROFILE=<app.mobileprovision> \
+  WILDCARD_IOS_EXTENSION_PROFILE=<extension.mobileprovision> \
+  APPLE_DEVELOPMENT_IDENTITY="<identity>"
 ```
 
 The shared pipeline validates the MacBook simulator lane from the local
@@ -372,8 +376,18 @@ python3 scripts/ios_profile_capability_check.py \
   --embedded-bundle-id com.example.InteractiveReader.NotificationServiceExtension
 ```
 
-Then build unsigned for device, embed profiles, sign nested content first, and
-install the already-signed bundle:
+Then ask the repo-owned planner to print the unsigned build, profile embedding,
+codesign, verify, and guarded skip-build install commands:
+
+```bash
+make apple-device-full-entitlement-plan \
+  APPLE_DEVICE_ID="<device-id-or-name>" \
+  FULL_CAPABILITY_IOS_PROFILE="$FULL_CAPABILITY_IOS_PROFILE" \
+  WILDCARD_IOS_EXTENSION_PROFILE="$WILDCARD_IOS_EXTENSION_PROFILE" \
+  APPLE_DEVELOPMENT_IDENTITY="$APPLE_DEVELOPMENT_IDENTITY"
+```
+
+The generated plan follows this sequence:
 
 ```bash
 DERIVED="test-results/DerivedData-device-manual-codesign"
@@ -394,8 +408,7 @@ cp "$WILDCARD_IOS_EXTENSION_PROFILE" "$APPEX/embedded.mobileprovision"
 
 find "$APPEX" -maxdepth 1 -type f -name '*.dylib' -print0 \
   | xargs -0 -I{} /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none "{}"
-/usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none \
-  --entitlements "$EXTENSION_ENTITLEMENTS_PLIST" "$APPEX"
+/usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none "$APPEX"
 find "$APP" -maxdepth 1 -type f -name '*.dylib' -print0 \
   | xargs -0 -I{} /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none "{}"
 /usr/bin/codesign --force --sign "$APPLE_DEVELOPMENT_IDENTITY" --timestamp=none \

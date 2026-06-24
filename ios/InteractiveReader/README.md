@@ -75,7 +75,18 @@ the device build and `xcrun devicectl device install app` for installation.
 When Xcode CLI automatic signing reports missing accounts or mismatched
 capabilities even though `scripts/ios_profile_capability_check.py` finds a
 local full-capability `com.example.InteractiveReader` profile, use the
-full-entitlement unattended fallback instead of stripping entitlements:
+full-entitlement unattended fallback instead of stripping entitlements. Start
+with the repo-owned planner:
+
+```bash
+make apple-device-full-entitlement-plan \
+  APPLE_DEVICE_ID="<device-id-or-name>" \
+  FULL_CAPABILITY_IOS_PROFILE="<app.mobileprovision>" \
+  WILDCARD_IOS_EXTENSION_PROFILE="<extension.mobileprovision>" \
+  APPLE_DEVELOPMENT_IDENTITY="<Apple Development identity>"
+```
+
+The generated plan preserves capabilities by doing the following:
 
 1. Build the app unsigned for `generic/platform=iOS` with
    `CODE_SIGNING_ALLOWED=NO`.

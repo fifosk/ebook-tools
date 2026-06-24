@@ -12,6 +12,7 @@
        test-apple-contracts build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
        apple-device-preflight apple-device-signed-build-only apple-device-deploy-dry-run \
+       apple-device-full-entitlement-plan \
        build-apple-iphone-simulator build-apple-ipad-simulator \
        build-apple-ios-simulators build-apple-ios-uitests build-apple-tvos-simulator \
        build-apple-local-surfaces verify-apple-local-surfaces \
@@ -182,7 +183,7 @@ check-language-catalogs:
 	$(PYTHON) scripts/generate_language_catalogs.py --check
 
 test-apple-contracts:
-	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_job_health_timeline_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_resume_status_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_narration_history_defaults_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_backend_pipeline_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_generate_language_catalogs.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_check_poc_readiness.py tests/scripts/test_ios_profile_capability_check.py
+	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_job_health_timeline_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_resume_status_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_narration_history_defaults_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_backend_pipeline_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_generate_language_catalogs.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_check_poc_readiness.py tests/scripts/test_ios_profile_capability_check.py tests/scripts/test_apple_full_entitlement_signing_plan.py
 	$(PYTHON) scripts/generate_language_catalogs.py --check
 	bash scripts/check_apple_runtime_descriptor_payload.sh
 	bash scripts/check_apple_creation_payloads.sh
@@ -262,6 +263,13 @@ apple-device-signed-build-only:
 
 apple-device-deploy-dry-run:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run
+
+apple-device-full-entitlement-plan:
+	bash scripts/apple_full_entitlement_signing_plan.sh \
+		--device "$(APPLE_DEVICE_ID)" \
+		--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)" \
+		--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)" \
+		--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"
 
 build-apple-macos-ipad-style:
 	bash scripts/apple_build_macos_ipad_style.sh

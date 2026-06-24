@@ -47,6 +47,7 @@ verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeli
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
 preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only'
+full_entitlement_plan_line='bash scripts/apple_full_entitlement_signing_plan.sh \'
 
 assert_contains "${makefile}" "APPLE_PIPELINE_ROOT ?= /Users/fifo/Projects/home/apple-device-app-pipeline" "Makefile should declare the shared Apple pipeline root"
 assert_contains "${makefile}" "APPLE_PIPELINE_APP ?= ebook-tools" "Makefile should declare the ebook-tools pipeline app id"
@@ -95,6 +96,11 @@ assert_contains "${makefile}" "apple-device-signed-build-only:" "Makefile should
 assert_contains "${makefile}" "${signed_build_line}" "signed build helper should call the shared deploy pipeline without installing"
 assert_contains "${makefile}" "apple-device-deploy-dry-run:" "Makefile should expose shared physical deploy dry-runs"
 assert_contains "${makefile}" "${deploy_dry_run_line}" "deploy dry-run helper should call the shared deploy pipeline with --dry-run"
+assert_contains "${makefile}" "apple-device-full-entitlement-plan:" "Makefile should expose the full-entitlement signing planner"
+assert_contains "${makefile}" "${full_entitlement_plan_line}" "full-entitlement planner should route through the repo-owned planner script"
+assert_contains "${makefile}" '--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)"' "full-entitlement planner should pass the app provisioning profile"
+assert_contains "${makefile}" '--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)"' "full-entitlement planner should pass the extension provisioning profile"
+assert_contains "${makefile}" '--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"' "full-entitlement planner should pass the signing identity"
 assert_not_contains "${verify_line}" "apple-device-update" "shared pipeline verification should not depend on physical-device update targets"
 assert_not_contains "${verify_line}" "run_app_device_deploy.py" "shared pipeline verification should not route through physical-device deployment"
 

@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HELPER="${ROOT_DIR}/scripts/apple_unattended_device_update.sh"
+FULL_ENTITLEMENT_PLANNER="${ROOT_DIR}/scripts/apple_full_entitlement_signing_plan.sh"
+MAKEFILE="${ROOT_DIR}/Makefile"
 
 assert_contains() {
   local haystack="$1"
@@ -31,6 +33,15 @@ assert_not_contains() {
 }
 
 bash -n "${HELPER}"
+bash -n "${FULL_ENTITLEMENT_PLANNER}"
+
+makefile="$(cat "${MAKEFILE}")"
+assert_contains "${makefile}" "apple-device-full-entitlement-plan:" "Makefile should expose the full-entitlement signing planner"
+assert_contains "${makefile}" "bash scripts/apple_full_entitlement_signing_plan.sh \\" "Makefile planner target should call the planner script"
+assert_contains "${makefile}" "--device \"\$(APPLE_DEVICE_ID)\"" "Makefile planner target should pass the selected device id"
+assert_contains "${makefile}" "--app-profile \"\$(FULL_CAPABILITY_IOS_PROFILE)\"" "Makefile planner target should pass the app provisioning profile"
+assert_contains "${makefile}" "--extension-profile \"\$(WILDCARD_IOS_EXTENSION_PROFILE)\"" "Makefile planner target should pass the extension provisioning profile"
+assert_contains "${makefile}" "--signing-identity \"\$(APPLE_DEVELOPMENT_IDENTITY)\"" "Makefile planner target should pass the signing identity"
 
 build_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --build-only)"
 assert_contains "${build_output}" "Build command:" "build-only dry run should print the build command"

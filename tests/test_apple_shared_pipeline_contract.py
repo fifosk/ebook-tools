@@ -57,6 +57,12 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
         "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run "
         "apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run"
     ) in makefile
+    assert "apple-device-full-entitlement-plan:" in makefile
+    assert "bash scripts/apple_full_entitlement_signing_plan.sh \\" in makefile
+    assert '--device "$(APPLE_DEVICE_ID)"' in makefile
+    assert '--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)"' in makefile
+    assert '--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)"' in makefile
+    assert '--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"' in makefile
 
 
 def test_shared_pipeline_verification_stays_non_physical() -> None:
@@ -116,7 +122,9 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-pipeline-tvos-create-readiness-dry-run",
         "make apple-pipeline-orchestration-dry-runs",
         "make verify-apple-shared-pipeline",
+        "make apple-device-full-entitlement-plan",
     ]:
         assert command in docs
         assert command in developer_doc
     assert "shared Apple pipeline preflight targets" in plan
+    assert "make apple-device-full-entitlement-plan" in plan
