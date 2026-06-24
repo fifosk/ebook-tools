@@ -496,7 +496,12 @@ journey tries to use stale NAS cleanup controls. The shared-pipeline
 office-iPad Create-readiness lane now has repo-owned
 `apple-pipeline-ipad-create-readiness` and dry-run shortcuts that delegate to
 the registered `ipados-create` app-owned journey without depending on an
-available iPhone. Apple TV now has matching repo-owned
+available iPhone. Local office-iPad iteration now also has repo-owned
+office-iPad local build gate and office-iPad local verification gate targets:
+`build-apple-office-ipad-surfaces` and `verify-apple-office-ipad-surfaces`
+compile the iPad simulator and local Mac Designed for iPad/iPhone
+surfaces, plus the iPad-destination UITest build in the verification lane,
+without invoking iPhone simulator or physical-device deployment helpers. Apple TV now has matching repo-owned
 `test-e2e-tvos-create-readiness` and shared-pipeline
 `apple-pipeline-tvos-create-readiness`/dry-run shortcuts through the registered
 `tvos-create` journey, keeping native tvOS Create checks simulator-only unless
@@ -783,7 +788,7 @@ Every cross-surface change should pass the relevant subset:
   cleanup, and `make apple-pipeline-web-checks`, which calls the shared pipeline runner for
   the registered Create, Library, Video Dubbing, and Subtitle Tool focused
   checks, production/export build, and generated-artifact cleanup.
-- Apple: release contract, iOS/tvOS simulator builds, the iPhone/iPad simulator compile lanes, the iOS UITest build-for-testing lane, the tvOS simulator compile lane, the local Apple surface build gate, the local Apple verification gate, `make apple-device-preflight`, `make apple-device-signed-build-only`, `make apple-device-deploy-dry-run`, `make apple-device-full-entitlement-plan`, guarded CoreDevice preflight before confirmed physical-device updates, shared Apple pipeline preflight targets whose aggregate runs contract/backend-health/backend-pytest/Web checks plus simulator/journey orchestration dry-runs without source-sync or physical deployment, repo-owned shared simulator-smoke and app-owned-journey dry-runs including `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator smokes.
+- Apple: release contract, iOS/tvOS simulator builds, the iPhone/iPad simulator compile lanes, the iOS UITest build-for-testing lane, the tvOS simulator compile lane, the office-iPad local build/verification gates, the local Apple surface build gate, the local Apple verification gate, `make apple-device-preflight`, `make apple-device-signed-build-only`, `make apple-device-deploy-dry-run`, `make apple-device-full-entitlement-plan`, guarded CoreDevice preflight before confirmed physical-device updates, shared Apple pipeline preflight targets whose aggregate runs contract/backend-health/backend-pytest/Web checks plus simulator/journey orchestration dry-runs without source-sync or physical deployment, repo-owned shared simulator-smoke and app-owned-journey dry-runs including `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator smokes.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

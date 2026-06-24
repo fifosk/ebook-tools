@@ -37,6 +37,7 @@ CREATION_DESCRIPTOR = {
     "pipelineJobsPath": "/api/pipelines",
     "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
     "subtitleSourcesPath": "/api/subtitles/sources",
+    "subtitleDeleteSourcePath": "/api/subtitles/delete-source",
     "subtitleModelsPath": "/api/subtitles/models",
     "subtitleJobsPath": "/api/subtitles/jobs",
     "youtubeLibraryPath": "/api/subtitles/youtube/library",

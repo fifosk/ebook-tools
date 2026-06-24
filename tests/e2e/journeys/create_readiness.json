@@ -235,7 +235,27 @@
     },
     {
       "action": "assert_visible",
+      "selector": "createBookAudioBitratePicker",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
       "selector": "createBookWrittenModePicker",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookOutputHtmlToggle",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookOutputPdfToggle",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookIllustrationsToggle",
       "timeout": 15
     },
     {
@@ -248,6 +268,21 @@
       "selector": "createBookTranslationBatchSizeStepper",
       "timeout": 15,
       "screenshot": "generated_book_job_settings"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookThreadCountField",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookQueueSizeField",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookJobMaxWorkersField",
+      "timeout": 15
     },
     {
       "action": "select_option",

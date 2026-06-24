@@ -28,6 +28,26 @@ def test_local_surface_build_gate_chains_non_physical_apple_targets() -> None:
     assert "--install" not in target
 
 
+def test_office_ipad_surface_build_gate_avoids_iphone_and_physical_devices() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    target_line = (
+        "build-apple-office-ipad-surfaces: build-apple-ipad-simulator "
+        "build-apple-macos-ipad-style"
+    )
+    assert target_line in makefile
+    assert "build-apple-ipad-simulator:" in makefile
+    assert "build-apple-macos-ipad-style:" in makefile
+
+    target = makefile.split("build-apple-office-ipad-surfaces:", 1)[1].split("\n\n", 1)[0]
+    assert "build-apple-iphone-simulator" not in target
+    assert "build-apple-ios-simulators" not in target
+    assert "apple-device-update" not in target
+    assert "apple_unattended_device_update.sh" not in target
+    assert "devicectl" not in target
+    assert "--install" not in target
+
+
 def test_local_surface_verification_gate_chains_contracts_and_builds_only() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
@@ -44,11 +64,31 @@ def test_local_surface_verification_gate_chains_contracts_and_builds_only() -> N
     assert "--install" not in target
 
 
+def test_office_ipad_surface_verification_gate_chains_contracts_and_ipad_builds_only() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    target_line = (
+        "verify-apple-office-ipad-surfaces: test-apple-contracts "
+        "build-apple-office-ipad-surfaces build-apple-ios-uitests"
+    )
+    assert target_line in makefile
+
+    target = makefile.split("verify-apple-office-ipad-surfaces:", 1)[1].split("\n\n", 1)[0]
+    assert "build-apple-iphone-simulator" not in target
+    assert "build-apple-ios-simulators" not in target
+    assert "apple-device-update" not in target
+    assert "apple_unattended_device_update.sh" not in target
+    assert "devicectl" not in target
+    assert "--install" not in target
+
+
 def test_local_surface_contract_check_covers_aggregate_gate() -> None:
     contract_check = CONTRACT_CHECK.read_text(encoding="utf-8")
 
     assert "build-apple-local-surfaces" in contract_check
     assert "verify-apple-local-surfaces" in contract_check
+    assert "build-apple-office-ipad-surfaces" in contract_check
+    assert "verify-apple-office-ipad-surfaces" in contract_check
     assert "build-apple-ios-simulators" in contract_check
     assert "build-apple-ios-uitests" in contract_check
     assert "build-apple-tvos-simulator" in contract_check
@@ -63,7 +103,13 @@ def test_docs_publish_local_surface_build_gate() -> None:
 
     assert "make build-apple-local-surfaces" in docs
     assert "make verify-apple-local-surfaces" in docs
+    assert "make build-apple-office-ipad-surfaces" in docs
+    assert "make verify-apple-office-ipad-surfaces" in docs
     assert "make build-apple-local-surfaces" in developer_doc
     assert "make verify-apple-local-surfaces" in developer_doc
+    assert "make build-apple-office-ipad-surfaces" in developer_doc
+    assert "make verify-apple-office-ipad-surfaces" in developer_doc
     assert "local Apple surface build gate" in plan
     assert "local Apple verification gate" in plan
+    assert "office-iPad local build gate" in plan
+    assert "office-iPad local verification gate" in plan

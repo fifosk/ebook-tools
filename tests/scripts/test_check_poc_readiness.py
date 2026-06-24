@@ -37,6 +37,17 @@ def test_runtime_descriptor_validation_reports_missing_create_paths() -> None:
     ]
 
 
+def test_deploy_readiness_contract_includes_subtitle_source_cleanup_path() -> None:
+    assert module.CREATION_DESCRIPTOR["subtitleDeleteSourcePath"] == "/api/subtitles/delete-source"
+
+    payload = build_runtime_descriptor()
+    del payload["creation"]["subtitleDeleteSourcePath"]
+
+    assert module.validate_runtime_descriptor(payload) == [
+        "runtime.creation.subtitleDeleteSourcePath=None expected '/api/subtitles/delete-source'"
+    ]
+
+
 def test_check_readiness_uses_health_then_runtime(monkeypatch) -> None:
     paths: list[str] = []
 

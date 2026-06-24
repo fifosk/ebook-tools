@@ -15,6 +15,7 @@
        apple-device-full-entitlement-plan \
        build-apple-iphone-simulator build-apple-ipad-simulator \
        build-apple-ios-simulators build-apple-ios-uitests build-apple-tvos-simulator \
+       build-apple-office-ipad-surfaces verify-apple-office-ipad-surfaces \
        build-apple-local-surfaces verify-apple-local-surfaces \
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
        apple-pipeline-source-sync apple-pipeline-web-checks \
@@ -195,6 +196,10 @@ test-apple-contracts:
 	bash scripts/check_apple_local_surface_build_helper.sh
 	bash scripts/check_apple_shared_pipeline_helper.sh
 	bash scripts/check_apple_tvos_build_helper.sh
+
+build-apple-office-ipad-surfaces: build-apple-ipad-simulator build-apple-macos-ipad-style
+
+verify-apple-office-ipad-surfaces: test-apple-contracts build-apple-office-ipad-surfaces build-apple-ios-uitests
 
 build-apple-local-surfaces: build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style
 

@@ -285,9 +285,16 @@ def test_create_readiness_journey_checks_generated_book_defaults_before_media_mo
     assert any(step.get("selector") == "createBookSentenceStepper" for step in generated_steps)
     for selector in [
         "createBookAudioModePicker",
+        "createBookAudioBitratePicker",
         "createBookWrittenModePicker",
+        "createBookOutputHtmlToggle",
+        "createBookOutputPdfToggle",
+        "createBookIllustrationsToggle",
         "createBookSentencesPerFileStepper",
         "createBookTranslationBatchSizeStepper",
+        "createBookThreadCountField",
+        "createBookQueueSizeField",
+        "createBookJobMaxWorkersField",
     ]:
         assert any(
             step.get("action") == "assert_visible"
