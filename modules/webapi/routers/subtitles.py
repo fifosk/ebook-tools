@@ -33,7 +33,7 @@ from ..dependencies import (
     get_request_user,
     get_subtitle_service,
 )
-from ..route_telemetry import log_create_submission_route
+from ..route_telemetry import log_create_submission_route, record_source_picker_route_duration
 from ..schemas import (
     PipelineSubmissionResponse,
     SubtitleSourceEntry,
@@ -73,18 +73,6 @@ def _ensure_editor(request_user: RequestUserContext) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 
-def _record_source_picker_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe source picker route timing if metrics are available."""
-
-    try:
-        from ..metrics import SOURCE_PICKER_ROUTE_DURATION
-    except Exception:
-        return
-    SOURCE_PICKER_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
-    )
-
-
 def _log_subtitle_source_picker(
     started_at: float,
     *,
@@ -92,8 +80,9 @@ def _log_subtitle_source_picker(
     source_count: int = 0,
     directory_override: bool = False,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_source_picker_route_duration("subtitle_sources", result, started_at)
+    elapsed_seconds = time.perf_counter() - started_at
+    duration_ms = elapsed_seconds * 1000.0
+    record_source_picker_route_duration("subtitle_sources", result, elapsed_seconds)
     log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
     log_method(
         "Subtitle source picker result=%s sources=%s directory_override=%s duration_ms=%.1f",

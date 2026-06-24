@@ -32,6 +32,7 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
+from ..route_telemetry import record_source_picker_route_duration
 from ..schemas import (
     BookContentIndexResponse,
     PipelineFileBrowserResponse,
@@ -51,18 +52,6 @@ _COVER_ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 _ALLOWED_ROLES = {"admin", "editor"}
 
 
-def _record_source_picker_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe source picker route timing if metrics are available."""
-
-    try:
-        from ..metrics import SOURCE_PICKER_ROUTE_DURATION
-    except Exception:
-        return
-    SOURCE_PICKER_ROUTE_DURATION.labels(operation=operation, result=result).observe(
-        time.perf_counter() - started_at
-    )
-
-
 def _log_pipeline_file_picker(
     started_at: float,
     *,
@@ -72,8 +61,9 @@ def _log_pipeline_file_picker(
     books_root_present: bool | None = None,
     output_root_present: bool | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_source_picker_route_duration("pipeline_files", result, started_at)
+    elapsed_seconds = time.perf_counter() - started_at
+    duration_ms = elapsed_seconds * 1000.0
+    record_source_picker_route_duration("pipeline_files", result, elapsed_seconds)
     log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
     log_method(
         "Pipeline source picker result=%s ebooks=%s outputs=%s books_root_present=%s output_root_present=%s duration_ms=%.1f",

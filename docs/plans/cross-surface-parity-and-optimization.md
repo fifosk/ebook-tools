@@ -472,8 +472,9 @@ Optimization candidates:
   `/api/subtitles/delete-source` now treats already-vanished, in-scope subtitle
   sources as idempotent cleanup results while still rejecting paths outside the
   allowed base directory. EPUB and subtitle source picker routes now share
-  token-safe duration telemetry with aggregate source/output counts and no NAS
-  path, filename, job id, user id, auth header, or token logging. The
+  token-safe duration telemetry through the shared route telemetry helper, with
+  aggregate source/output counts and no NAS path, filename, job id, user id,
+  auth header, or token logging. The
   manifest-registered `test-backend-pipeline-sources` target now covers EPUB
   source listing, selected-source content-index loading, vanished-source
   deletion, outside-root rejection, and local EPUB upload persistence through

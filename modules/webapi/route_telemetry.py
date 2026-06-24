@@ -6,6 +6,20 @@ import time
 from typing import Any
 
 
+def record_source_picker_route_duration(
+    operation: str,
+    result: str,
+    elapsed_seconds: float,
+) -> None:
+    """Record token-safe source picker route timing if metrics are available."""
+
+    try:
+        from .metrics import SOURCE_PICKER_ROUTE_DURATION
+    except Exception:
+        return
+    SOURCE_PICKER_ROUTE_DURATION.labels(operation=operation, result=result).observe(elapsed_seconds)
+
+
 def record_create_submission_route_duration(
     operation: str,
     result: str,
