@@ -18,6 +18,7 @@ from modules.permissions import normalize_role
 from ..user_management.user_store_base import UserRecord
 from .dependencies import get_auth_service
 from .auth_utils import extract_session_token
+from .route_telemetry import record_started_route_duration
 from ..user_management.email_service import (
     EmailService,
     generate_initial_password,
@@ -47,11 +48,13 @@ def _inc_auth(method: str, result: str) -> None:
 
 def _observe_auth_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe auth route duration (safe no-op if metrics are unavailable)."""
-    try:
-        from .metrics import AUTH_DURATION
-        AUTH_DURATION.labels(operation=operation, result=result).observe(time.perf_counter() - started_at)
-    except Exception:
-        pass
+
+    record_started_route_duration(
+        "AUTH_DURATION",
+        operation,
+        result,
+        started_at,
+    )
 
 
 def _require_token(authorization: str | None) -> str:

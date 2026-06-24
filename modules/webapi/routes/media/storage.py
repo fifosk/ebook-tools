@@ -22,6 +22,7 @@ from ...dependencies import (
     get_pipeline_service,
     get_request_user,
 )
+from ...route_telemetry import record_started_media_stream_route_duration
 
 storage_router = APIRouter()
 logger = log_mgr.get_logger()
@@ -127,15 +128,7 @@ def _media_kind_for(path: Path, media_type: str | None = None) -> str:
 
 
 def _record_media_stream_duration(result: str, media_kind: str, started_at: float) -> None:
-    try:
-        from ...metrics import MEDIA_STREAM_DURATION
-    except Exception:
-        return
-    MEDIA_STREAM_DURATION.labels(
-        operation="file_stream",
-        result=result,
-        media_kind=media_kind,
-    ).observe(time.perf_counter() - started_at)
+    record_started_media_stream_route_duration(result, media_kind, started_at)
 
 
 def _log_media_stream(

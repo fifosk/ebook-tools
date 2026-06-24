@@ -6,6 +6,22 @@ import time
 from typing import Any
 
 
+def record_labeled_route_duration(
+    metric_name: str,
+    elapsed_seconds: float,
+    **labels: str,
+) -> None:
+    """Record a token-safe route duration metric with caller-supplied labels."""
+
+    try:
+        from . import metrics as webapi_metrics
+
+        metric = getattr(webapi_metrics, metric_name)
+    except Exception:
+        return
+    metric.labels(**labels).observe(elapsed_seconds)
+
+
 def record_route_duration(
     metric_name: str,
     operation: str,
@@ -14,13 +30,12 @@ def record_route_duration(
 ) -> None:
     """Record a token-safe route duration metric if metrics are available."""
 
-    try:
-        from . import metrics as webapi_metrics
-
-        metric = getattr(webapi_metrics, metric_name)
-    except Exception:
-        return
-    metric.labels(operation=operation, result=result).observe(elapsed_seconds)
+    record_labeled_route_duration(
+        metric_name,
+        elapsed_seconds,
+        operation=operation,
+        result=result,
+    )
 
 
 def record_started_route_duration(
@@ -32,6 +47,32 @@ def record_started_route_duration(
     """Record a token-safe route duration metric from a perf-counter start."""
 
     record_route_duration(metric_name, operation, result, time.perf_counter() - started_at)
+
+
+def record_media_stream_route_duration(
+    result: str,
+    media_kind: str,
+    elapsed_seconds: float,
+) -> None:
+    """Record token-safe local media streaming setup timing."""
+
+    record_labeled_route_duration(
+        "MEDIA_STREAM_DURATION",
+        elapsed_seconds,
+        operation="file_stream",
+        result=result,
+        media_kind=media_kind,
+    )
+
+
+def record_started_media_stream_route_duration(
+    result: str,
+    media_kind: str,
+    started_at: float,
+) -> None:
+    """Record token-safe local media streaming setup timing from a perf-counter start."""
+
+    record_media_stream_route_duration(result, media_kind, time.perf_counter() - started_at)
 
 
 def record_source_picker_route_duration(
