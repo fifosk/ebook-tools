@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from modules import config_manager as cfg
+import modules.webapi.routes.books_routes as books_routes
 from modules.services.job_manager.job import PipelineJob, PipelineJobStatus
 from modules.services.pipeline_service import PipelineRequest
 from modules.user_management.user_store_base import UserRecord
@@ -161,6 +162,30 @@ def test_pipeline_ebook_listing_accepts_uppercase_epub_suffix(tmp_path: Path) ->
     assert entries[0].modified_at is not None
 
 
+def test_pipeline_ebook_listing_recurses_into_visible_nas_folders(tmp_path: Path) -> None:
+    books_dir = tmp_path / "books"
+    nested_dir = books_dir / "Dan Brown"
+    hidden_dir = books_dir / ".imports"
+    nested_dir.mkdir(parents=True)
+    hidden_dir.mkdir(parents=True)
+    root_book = books_dir / "older.epub"
+    nested_book = nested_dir / "latest.EPUB"
+    hidden_book = hidden_dir / "hidden.epub"
+    root_book.write_bytes(b"older")
+    nested_book.write_bytes(b"latest")
+    hidden_book.write_bytes(b"hidden")
+    older_mtime = 1_700_000_000
+    newer_mtime = 1_700_000_400
+    os.utime(root_book, (older_mtime, older_mtime))
+    os.utime(nested_book, (newer_mtime, newer_mtime))
+
+    entries = _list_ebook_files(books_dir)
+
+    assert [entry.path for entry in entries] == ["Dan Brown/latest.EPUB", "older.epub"]
+    assert entries[0].name == "latest.EPUB"
+    assert entries[0].size_bytes == len(b"latest")
+
+
 def test_pipeline_file_listing_skips_entries_that_disappear(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     books_dir = tmp_path / "books"
     output_dir = tmp_path / "output"
@@ -199,13 +224,22 @@ def test_pipeline_file_listing_tolerates_root_scan_failure(
     output_dir = tmp_path / "output"
     books_dir.mkdir()
     output_dir.mkdir()
+    original_walk = os.walk
     original_iterdir = Path.iterdir
+
+    def fake_walk(path: Path, *args, **kwargs):
+        if Path(path) == books_dir:
+            if False:
+                yield None
+            return
+        yield from original_walk(path, *args, **kwargs)
 
     def fake_iterdir(path: Path, *args, **kwargs):
         if path in {books_dir, output_dir}:
             raise OSError(f"{path} is temporarily unavailable")
         return original_iterdir(path, *args, **kwargs)
 
+    monkeypatch.setattr(books_routes.os, "walk", fake_walk)
     monkeypatch.setattr(Path, "iterdir", fake_iterdir)
 
     assert _list_ebook_files(books_dir) == []

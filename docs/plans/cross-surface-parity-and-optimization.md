@@ -428,12 +428,15 @@ Optimization candidates:
   pickers lighter on NAS-backed folders.
 - Keep backend source pickers resilient on NAS-backed folders. Status:
   `/api/pipelines/files` now stats each visible ebook/output candidate once and
-  skips entries that disappear or become unreadable during listing; it also
-  treats transient source/output directory scan failures as an empty picker
-  response, preserving Web and Apple Create usability during NAS remounts or
-  concurrent cleanup. Newest-first EPUB defaults are preserved, and EPUB
-  matching is case-insensitive so NAS files ending in `.EPUB` are eligible for
-  the same default-source flow. `/api/pipelines/files` deletion now treats
+  skips entries that disappear or become unreadable during listing; EPUB
+  discovery now recurses into visible books-root subfolders while pruning hidden
+  folders, so Web and Apple Create defaults can pick the latest NAS book even
+  when ebooks are grouped by author or series. It also treats transient
+  source/output directory scan failures as an empty picker response, preserving
+  Web and Apple Create usability during NAS remounts or concurrent cleanup.
+  Newest-first EPUB defaults are preserved, and EPUB matching is
+  case-insensitive so NAS files ending in `.EPUB` are eligible for the same
+  default-source flow. `/api/pipelines/files` deletion now treats
   already-vanished, in-scope EPUB sources as an idempotent cleanup success
   while still rejecting paths outside the books root. `/api/subtitles/sources`
   now applies the same transient directory-scan tolerance and stale-entry skip

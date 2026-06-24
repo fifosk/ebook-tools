@@ -121,11 +121,23 @@ def _safe_iterdir(root: Path) -> List[Path]:
         return []
 
 
+def _walk_visible_files(root: Path) -> List[Path]:
+    if not root.exists():
+        return []
+    paths: List[Path] = []
+    for current_root, dirnames, filenames in os.walk(root, onerror=lambda _exc: None):
+        dirnames[:] = sorted(name for name in dirnames if not name.startswith("."))
+        current_path = Path(current_root)
+        for filename in sorted(filenames):
+            if filename.startswith("."):
+                continue
+            paths.append(current_path / filename)
+    return paths
+
+
 def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
-    if not root.exists():
-        return entries
-    for path in _safe_iterdir(root):
+    for path in _walk_visible_files(root):
         if path.name.startswith(".") or path.suffix.lower() != ".epub":
             continue
         stat = _safe_stat(path)
