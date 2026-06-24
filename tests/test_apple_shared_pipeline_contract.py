@@ -18,6 +18,8 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "apple-pipeline-backend:" in makefile
     assert 'scripts/check_app_backend.py --app "$(APPLE_PIPELINE_APP)"' in makefile
+    assert "apple-pipeline-backend-tests:" in makefile
+    assert 'scripts/run_app_backend_tests.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "apple-pipeline-source-sync:" in makefile
     assert 'scripts/check_app_source_sync.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "apple-pipeline-web-checks:" in makefile
@@ -29,11 +31,12 @@ def test_shared_pipeline_verification_stays_non_physical() -> None:
 
     target_line = (
         "verify-apple-shared-pipeline: apple-pipeline-contracts "
-        "apple-pipeline-backend apple-pipeline-web-checks"
+        "apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks"
     )
     assert target_line in makefile
 
     target = makefile.split("verify-apple-shared-pipeline:", 1)[1].split("\n\n", 1)[0]
+    assert "apple-pipeline-backend-tests" in target
     assert "apple-pipeline-web-checks" in target
     assert "apple-pipeline-source-sync" not in target
     assert "apple-device-update" not in target
@@ -47,6 +50,7 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
 
     assert "run_app_contract_checks.py" in contract_check
     assert "check_app_backend.py" in contract_check
+    assert "run_app_backend_tests.py" in contract_check
     assert "check_app_source_sync.py" in contract_check
     assert "run_app_web_checks.py" in contract_check
     assert "verify-apple-shared-pipeline" in contract_check
@@ -61,6 +65,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
     for command in [
         "make apple-pipeline-contracts",
         "make apple-pipeline-backend",
+        "make apple-pipeline-backend-tests",
         "make apple-pipeline-source-sync",
         "make apple-pipeline-web-checks",
         "make verify-apple-shared-pipeline",

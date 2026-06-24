@@ -582,10 +582,12 @@ Every cross-surface change should pass the relevant subset:
   manager available in the checkout, for example `npm --prefix web test -- --run
   ...` and `npm --prefix web run build`; the Web build script should remain
   package-manager neutral. For ebook-tools, prefer
-  `make apple-pipeline-web-checks`, which calls the shared pipeline runner for
+  `make apple-pipeline-backend-tests`, which runs the manifest registered
+  backend pytest bundle through the shared pipeline runner with generated-cache
+  cleanup, and `make apple-pipeline-web-checks`, which calls the shared pipeline runner for
   the registered Create, Library, Video Dubbing, and Subtitle Tool focused
   checks, production/export build, and generated-artifact cleanup.
-- Apple: release contract, iOS/tvOS simulator builds, the iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the local Apple surface build gate, the local Apple verification gate, `make apple-device-preflight`, `make apple-device-signed-build-only`, `make apple-device-deploy-dry-run`, guarded CoreDevice preflight before confirmed physical-device updates, shared Apple pipeline preflight targets whose aggregate runs contract/backend/Web checks without source-sync or physical deployment, and shared pipeline simulator smokes.
+- Apple: release contract, iOS/tvOS simulator builds, the iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the local Apple surface build gate, the local Apple verification gate, `make apple-device-preflight`, `make apple-device-signed-build-only`, `make apple-device-deploy-dry-run`, guarded CoreDevice preflight before confirmed physical-device updates, shared Apple pipeline preflight targets whose aggregate runs contract/backend-health/backend-pytest/Web checks without source-sync or physical deployment, and shared pipeline simulator smokes.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

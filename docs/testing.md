@@ -183,15 +183,18 @@ through repo-owned wrapper targets:
 ```bash
 make apple-pipeline-contracts
 make apple-pipeline-backend
+make apple-pipeline-backend-tests
 make apple-pipeline-source-sync
 make apple-pipeline-web-checks
 make verify-apple-shared-pipeline
 ```
 
-`verify-apple-shared-pipeline` runs the shared pipeline contract, backend, and
-Web checks without physical deployment. Run `apple-pipeline-source-sync` after
-the Mac Studio/runtime checkout has been fast-forwarded, because that check
-compares the local and remote Git state. `apple-pipeline-web-checks` runs the
+`verify-apple-shared-pipeline` runs the shared pipeline contract, backend
+health/runtime, backend pytest, and Web checks without physical deployment. Run
+`apple-pipeline-source-sync` after the Mac Studio/runtime checkout has been
+fast-forwarded, because that check compares the local and remote Git state.
+`apple-pipeline-backend-tests` runs the manifest registered backend pytest
+commands and cleans generated caches. `apple-pipeline-web-checks` runs the
 manifest registered Web focused checks and production/export build through the
 shared pipeline runner, then restores generated Web artifacts.
 

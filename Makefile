@@ -7,8 +7,8 @@
        build-apple-iphone-simulator build-apple-ipad-simulator \
        build-apple-ios-simulators build-apple-tvos-simulator \
        build-apple-local-surfaces verify-apple-local-surfaces \
-       apple-pipeline-contracts apple-pipeline-backend apple-pipeline-source-sync \
-       apple-pipeline-web-checks verify-apple-shared-pipeline \
+       apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
+       apple-pipeline-source-sync apple-pipeline-web-checks verify-apple-shared-pipeline \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-all test-e2e-apple-parallel \
@@ -96,13 +96,16 @@ apple-pipeline-contracts:
 apple-pipeline-backend:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_backend.py --app "$(APPLE_PIPELINE_APP)"
 
+apple-pipeline-backend-tests:
+	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_backend_tests.py --app "$(APPLE_PIPELINE_APP)"
+
 apple-pipeline-source-sync:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_source_sync.py --app "$(APPLE_PIPELINE_APP)"
 
 apple-pipeline-web-checks:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_web_checks.py --app "$(APPLE_PIPELINE_APP)"
 
-verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-web-checks
+verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks
 
 apple-device-preflight:
 	bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only
