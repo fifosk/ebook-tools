@@ -193,6 +193,8 @@ make apple-pipeline-simulator-smokes-dry-run
 make apple-pipeline-owned-journeys
 make apple-pipeline-owned-journey-dry-run
 make apple-pipeline-owned-journeys-dry-run
+make apple-pipeline-ipad-create-readiness
+make apple-pipeline-ipad-create-readiness-dry-run
 make apple-pipeline-orchestration-dry-runs
 make verify-apple-shared-pipeline
 ```
@@ -209,9 +211,12 @@ shared pipeline runner, including the repo-owned
 utility/hook slice, then restores generated Web artifacts. Use
 `APPLE_PIPELINE_SMOKE_PROFILE=ios|ipados|tvos` with
 `apple-pipeline-simulator-smoke-dry-run` before launching a shared simulator
-smoke, and `APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create` (or another listed
-journey) with `apple-pipeline-owned-journey-dry-run` before running an
-app-owned XCUITest journey. `apple-pipeline-orchestration-dry-runs` expands the
+smoke. Use `apple-pipeline-ipad-create-readiness-dry-run`, then
+`apple-pipeline-ipad-create-readiness`, for the office-iPad-only Create
+readiness lane; it delegates to the registered `ipados-create` app-owned
+journey. Use `APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create` (or another listed
+journey) with `apple-pipeline-owned-journey-dry-run` when you need an explicit
+profile override. `apple-pipeline-orchestration-dry-runs` expands the
 registered iPhone/iPad/tvOS simulator smoke profiles and app-owned journeys
 without booting simulators or loading remote secrets.
 

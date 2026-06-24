@@ -45,6 +45,10 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "--profile \"$(APPLE_PIPELINE_JOURNEY_PROFILE)\" --dry-run" in makefile
     assert "apple-pipeline-owned-journeys-dry-run:" in makefile
     assert '$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE="$$profile"' in makefile
+    assert "apple-pipeline-ipad-create-readiness:" in makefile
+    assert "$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create" in makefile
+    assert "apple-pipeline-ipad-create-readiness-dry-run:" in makefile
+    assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create" in makefile
     assert (
         "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run "
         "apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run"
@@ -100,6 +104,8 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-pipeline-owned-journeys",
         "make apple-pipeline-owned-journey-dry-run",
         "make apple-pipeline-owned-journeys-dry-run",
+        "make apple-pipeline-ipad-create-readiness",
+        "make apple-pipeline-ipad-create-readiness-dry-run",
         "make apple-pipeline-orchestration-dry-runs",
         "make verify-apple-shared-pipeline",
     ]:

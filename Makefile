@@ -13,7 +13,8 @@
        apple-pipeline-source-sync apple-pipeline-web-checks \
        apple-pipeline-simulator-smoke apple-pipeline-simulator-smoke-dry-run apple-pipeline-simulator-smokes-dry-run \
        apple-pipeline-owned-journeys apple-pipeline-owned-journey apple-pipeline-owned-journey-dry-run \
-       apple-pipeline-owned-journeys-dry-run apple-pipeline-orchestration-dry-runs \
+       apple-pipeline-owned-journeys-dry-run apple-pipeline-ipad-create-readiness \
+       apple-pipeline-ipad-create-readiness-dry-run apple-pipeline-orchestration-dry-runs \
        verify-apple-shared-pipeline \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
@@ -158,6 +159,12 @@ apple-pipeline-owned-journeys-dry-run:
 	@for profile in $(APPLE_PIPELINE_JOURNEY_PROFILES); do \
 		$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE="$$profile"; \
 	done
+
+apple-pipeline-ipad-create-readiness:
+	$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create
+
+apple-pipeline-ipad-create-readiness-dry-run:
+	$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create
 
 apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run
 

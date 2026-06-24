@@ -39,6 +39,8 @@ owned_journeys_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scr
 owned_journey_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_JOURNEY_PROFILE)" --use-remote-env'
 owned_journey_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_JOURNEY_PROFILE)" --dry-run'
 owned_journeys_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE="$$profile"'
+ipad_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create'
+ipad_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create'
 verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks"
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
@@ -75,6 +77,10 @@ assert_contains "${makefile}" "apple-pipeline-owned-journey-dry-run:" "Makefile 
 assert_contains "${makefile}" "${owned_journey_dry_run_line}" "app-owned journey dry-run wrapper should call run_app_owned_journey --dry-run"
 assert_contains "${makefile}" "apple-pipeline-owned-journeys-dry-run:" "Makefile should expose all app-owned journey dry-runs"
 assert_contains "${makefile}" "${owned_journeys_dry_run_line}" "app-owned journey aggregate should invoke the single-profile dry-run wrapper"
+assert_contains "${makefile}" "apple-pipeline-ipad-create-readiness:" "Makefile should expose the iPad Create-readiness shared pipeline shortcut"
+assert_contains "${makefile}" "${ipad_create_readiness_line}" "iPad Create-readiness shortcut should run the ipados-create app-owned journey"
+assert_contains "${makefile}" "apple-pipeline-ipad-create-readiness-dry-run:" "Makefile should expose the iPad Create-readiness dry-run shortcut"
+assert_contains "${makefile}" "${ipad_create_readiness_dry_run_line}" "iPad Create-readiness dry-run shortcut should dry-run the ipados-create app-owned journey"
 assert_contains "${makefile}" "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run" "orchestration dry-runs should compose simulator and app-owned journey dry-runs"
 assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts, backend checks, backend tests, and Web checks"
 assert_contains "${makefile}" "apple-device-preflight:" "Makefile should expose a non-installing device preflight helper"
