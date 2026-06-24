@@ -10,6 +10,7 @@ import {
   normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
   resolveBookNarrationMissingRequirements,
+  resolveBookNarrationVoiceOverrideLanguages,
   resolveBookNarrationSectionMeta,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
@@ -169,6 +170,36 @@ describe('bookNarrationFormUtils recent-job helpers', () => {
       targetLanguages: ['German', 'French'],
       enableLookupCache: false,
     });
+  });
+});
+
+describe('bookNarrationFormUtils voice override languages', () => {
+  it('deduplicates source and target languages by resolved catalog code', () => {
+    expect(
+      resolveBookNarrationVoiceOverrideLanguages(' English ', [
+        'Arabic',
+        'english',
+        'German',
+        'Arabic',
+      ]),
+    ).toEqual([
+      { label: 'English', code: 'en' },
+      { label: 'Arabic', code: 'ar' },
+      { label: 'German', code: 'de' },
+    ]);
+  });
+
+  it('keeps uncataloged language labels selectable for manual voice overrides', () => {
+    expect(
+      resolveBookNarrationVoiceOverrideLanguages('', [
+        'Custom Dialect',
+        ' custom dialect ',
+        'Another Variant',
+      ]),
+    ).toEqual([
+      { label: 'Custom Dialect', code: null },
+      { label: 'Another Variant', code: null },
+    ]);
   });
 });
 

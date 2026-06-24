@@ -1,6 +1,6 @@
 # Cross-Surface Parity And Optimization Plan
 
-Last updated: 2026-06-24
+Last updated: 2026-06-25
 
 ## Goal
 
@@ -229,7 +229,10 @@ Large Web UI hotspots to split before redesign work:
   image-default restoration, plus default-settings compaction and target-language
   normalization now live in
   `web/src/components/book-narration/bookNarrationFormUtils.ts` with focused
-  Vitest coverage. Pipeline step tabs and submit action rendering now live in
+  Vitest coverage. Narration voice override language derivation now also lives
+  in that utility module, keeping source/target language trimming, catalog-code
+  dedupe, and uncataloged-label preservation pinned outside the form
+  coordinator. Pipeline step tabs and submit action rendering now live in
   `web/src/components/book-narration/BookNarrationStepBar.tsx` with focused
   rendered coverage. Intake, missing-requirement, and submit-error messaging now
   live in `web/src/components/book-narration/BookNarrationSubmitStatus.tsx`

@@ -15,7 +15,6 @@ import {
   VOICE_OPTIONS,
   WRITTEN_MODE_OPTIONS
 } from '../../constants/menuOptions';
-import { resolveLanguageCode } from '../../constants/languageCodes';
 import { loadCachedMediaMetadataJson } from '../../utils/mediaMetadataCache';
 import { useLanguagePreferences } from '../../context/LanguageProvider';
 import { useBookNarrationVoices } from './useBookNarrationVoices';
@@ -54,6 +53,7 @@ import {
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
   resolveBookNarrationMissingRequirements,
+  resolveBookNarrationVoiceOverrideLanguages,
   resolveBookNarrationSectionMeta,
   resolveStartFromNarrationHistory,
   targetLanguageFieldsFromLanguages
@@ -483,26 +483,10 @@ export function BookNarrationForm({
   }, [formState.custom_target_languages, formState.target_languages]);
 
   const languagesForOverride = useMemo(() => {
-    const seen = new Set<string>();
-    const entries: Array<{ label: string; code: string | null }> = [];
-
-    const addLanguage = (label: string) => {
-      const trimmed = label.trim();
-      if (!trimmed) {
-        return;
-      }
-      const code = resolveLanguageCode(trimmed);
-      const key = (code ?? trimmed).toLowerCase();
-      if (seen.has(key)) {
-        return;
-      }
-      seen.add(key);
-      entries.push({ label: trimmed, code: code ?? null });
-    };
-
-    addLanguage(formState.input_language);
-    normalizedTargetLanguages.forEach(addLanguage);
-    return entries;
+    return resolveBookNarrationVoiceOverrideLanguages(
+      formState.input_language,
+      normalizedTargetLanguages
+    );
   }, [formState.input_language, normalizedTargetLanguages]);
 
   useEffect(() => {

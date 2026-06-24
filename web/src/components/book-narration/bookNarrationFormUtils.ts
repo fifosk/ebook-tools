@@ -9,6 +9,7 @@ import {
   expandImageNodeCandidates,
   getImageNodeFallbacks,
 } from '../../constants/imageNodes';
+import { resolveLanguageCode } from '../../constants/languageCodes';
 import { isRecord } from './bookNarrationUtils';
 import type {
   BookNarrationPipelineDefaults,
@@ -22,6 +23,11 @@ export type BookNarrationSectionMeta = Record<
   BookNarrationFormSection,
   { title: string; description: string }
 >;
+
+export type BookNarrationVoiceOverrideLanguage = {
+  label: string;
+  code: string | null;
+};
 
 const BOOK_NARRATION_IMAGE_DEFAULT_FIELDS: Array<keyof FormState> = [
   'add_images',
@@ -101,6 +107,32 @@ export function normalizeTargetLanguages(languages: string[]): string[] {
     normalized.push(trimmed);
   }
   return normalized;
+}
+
+export function resolveBookNarrationVoiceOverrideLanguages(
+  inputLanguage: string,
+  targetLanguages: string[],
+): BookNarrationVoiceOverrideLanguage[] {
+  const seen = new Set<string>();
+  const entries: BookNarrationVoiceOverrideLanguage[] = [];
+
+  const addLanguage = (label: string) => {
+    const trimmed = label.trim();
+    if (!trimmed) {
+      return;
+    }
+    const code = resolveLanguageCode(trimmed);
+    const key = (code ?? trimmed).toLowerCase();
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    entries.push({ label: trimmed, code: code ?? null });
+  };
+
+  addLanguage(inputLanguage);
+  targetLanguages.forEach(addLanguage);
+  return entries;
 }
 
 export function targetLanguageFieldsFromLanguages(languages: string[]): Pick<
