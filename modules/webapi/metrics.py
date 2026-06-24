@@ -140,6 +140,13 @@ EXPORT_ROUTE_DURATION = Histogram(
     buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60],
 )
 
+YOUTUBE_LIBRARY_ROUTE_DURATION = Histogram(
+    "ebook_tools_youtube_library_route_duration_seconds",
+    "YouTube NAS library route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+)
+
 # ---------------------------------------------------------------------------
 # Users & sessions
 # ---------------------------------------------------------------------------

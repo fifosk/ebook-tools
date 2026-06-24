@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import regex
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Mapping, Optional
@@ -68,6 +69,41 @@ def _ensure_editor(request_user: RequestUserContext) -> None:
     role = (request_user.user_role or "").strip().lower()
     if role not in _ALLOWED_ROLES:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+
+
+def _record_youtube_library_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe YouTube library route timing if metrics are available."""
+
+    try:
+        from ...metrics import YOUTUBE_LIBRARY_ROUTE_DURATION
+    except Exception:
+        return
+    YOUTUBE_LIBRARY_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
+def _log_youtube_library_route(
+    result: str,
+    started_at: float,
+    *,
+    video_count: int = 0,
+    subtitle_count: int = 0,
+    linked_job_count: int = 0,
+) -> None:
+    """Log aggregate YouTube library timing without identifiers or paths."""
+
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_youtube_library_route_duration("list", result, started_at)
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(
+        "YouTube library route result=%s videos=%s subtitles=%s linked_jobs=%s duration_ms=%.1f",
+        result,
+        video_count,
+        subtitle_count,
+        linked_job_count,
+        duration_ms,
+    )
 
 
 def _serialize_youtube_tracks(listing) -> YoutubeSubtitleListResponse:
@@ -338,11 +374,13 @@ def list_youtube_library(
 ) -> YoutubeNasLibraryResponse:
     """Return downloaded YouTube videos discovered in the NAS path."""
 
+    started_at = time.perf_counter()
     _ensure_editor(request_user)
     target_root = Path(base_dir or DEFAULT_YOUTUBE_VIDEO_ROOT).expanduser()
     try:
         videos = list_downloaded_videos(target_root)
     except FileNotFoundError as exc:
+        _log_youtube_library_route("not_found", started_at)
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     linked_jobs = _index_youtube_video_jobs(job_manager, request_user)
     payload = [
@@ -352,6 +390,13 @@ def list_youtube_library(
         )
         for video in videos
     ]
+    _log_youtube_library_route(
+        "success",
+        started_at,
+        video_count=len(payload),
+        subtitle_count=sum(len(video.subtitles) for video in payload),
+        linked_job_count=sum(len(video.linked_job_ids) for video in payload),
+    )
     return YoutubeNasLibraryResponse(base_dir=target_root.as_posix(), videos=payload)
 
 

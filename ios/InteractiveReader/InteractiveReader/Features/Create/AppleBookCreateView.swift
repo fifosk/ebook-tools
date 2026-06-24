@@ -265,6 +265,7 @@ struct AppleBookCreateView: View {
 
     @ViewBuilder
     private var createSettingsSections: some View {
+        jobTypeSection
         jobSettingsSection
         narrationSection
         if creationMode == .subtitleJob {
@@ -298,7 +299,7 @@ struct AppleBookCreateView: View {
         AppleBookCreateSourceSection(
             creationMode: $creationMode,
             availableCreateModes: availableCreateModes,
-            showsJobTypePicker: showsInlineJobTypePicker,
+            showsJobTypePicker: false,
             showsNarrateRangeControls: false,
             sourcePath: narrateSourcePathBinding,
             sourceStartSentence: textBinding(for: .sourceStartSentence, value: $sourceStartSentence),
@@ -498,6 +499,23 @@ struct AppleBookCreateView: View {
                 )
             }
         )
+    }
+
+    @ViewBuilder
+    private var jobTypeSection: some View {
+        if showsInlineJobTypePicker {
+            Section("Job Type") {
+                Picker("Job type", selection: $creationMode) {
+                    ForEach(availableCreateModes) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+                #if os(iOS)
+                .pickerStyle(.segmented)
+                #endif
+                .accessibilityIdentifier("createJobTypePicker")
+            }
+        }
     }
 
     @ViewBuilder

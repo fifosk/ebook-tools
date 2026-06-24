@@ -259,7 +259,9 @@ Optimization candidates:
   Status: `/api/subtitles/youtube/library` now asks `PipelineJobManager` for
   visible `youtube_dub` metadata only, preserving role-based access checks while
   avoiding reconstruction of every visible stored job before Apple/Web Create
-  default video pickers render.
+  default video pickers render. The route also records token-safe duration
+  telemetry and aggregate video/subtitle/linked-job counts without logging NAS
+  paths, filenames, job ids, user ids, auth headers, or tokens.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap

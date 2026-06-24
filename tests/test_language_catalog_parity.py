@@ -5,6 +5,7 @@ from pathlib import Path
 
 from modules.shared import assets
 from modules.language_constants import LANGUAGE_CODES
+from modules.webapi.routers import create_book
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -116,6 +117,16 @@ def test_apple_create_language_options_include_full_web_catalog_fallback() -> No
     assert "AppleBookCreateLanguage.options(from: supported)" in support_source
 
 
+def test_book_creation_options_advertise_full_language_catalog() -> None:
+    options = create_book._build_creation_options({})
+    expected_languages = list(LANGUAGE_CODES)
+
+    assert options.supported_input_languages == expected_languages
+    assert options.supported_output_languages == expected_languages
+    assert set(options.supported_input_languages) == set(assets.get_top_languages())
+    assert set(options.supported_output_languages) == set(assets.get_top_languages())
+
+
 def test_apple_create_language_controls_share_available_lists_across_surfaces() -> None:
     source = APPLE_CREATE_SECTIONS.read_text(encoding="utf-8")
 
@@ -139,3 +150,5 @@ def test_apple_create_language_controls_share_available_lists_across_surfaces() 
     assert "AppleBookCreateLanguageSelector(" in non_tvos_block.group("body")
     assert "options: availableInputLanguages" in non_tvos_block.group("body")
     assert "options: availableTargetLanguages" in non_tvos_block.group("body")
+    assert 'Text("\\(options.count) available")' in source
+    assert '.accessibilityValue("\\(selection.label), \\(options.count) available")' in source

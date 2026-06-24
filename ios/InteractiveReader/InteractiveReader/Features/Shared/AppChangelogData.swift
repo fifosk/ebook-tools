@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.24.27",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-right-pane-job-type",
+                    title: "Create moves job type right",
+                    detail: "On iPad and local Mac Designed for iPad, Apple Create now keeps the job type picker with the right-hand job settings pane so the left setup pane can stay focused on source and metadata."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-advanced-metadata-json",
                     title: "Create edits full metadata",
                     detail: "Apple Create now gives subtitle and YouTube jobs an advanced metadata JSON editor, so iPad and iPhone can review and apply full nested metadata payloads in addition to the high-value native fields."

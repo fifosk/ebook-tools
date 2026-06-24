@@ -85,7 +85,7 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert "@Binding var creationMode: AppleCreateMode" in source
     assert "@State private var creationMode = AppleCreateMode.generatedBook" not in source
     assert "showsInlineJobTypePicker: Bool" in source
-    assert "showsJobTypePicker: showsInlineJobTypePicker" in source
+    assert "showsJobTypePicker: false" in source
     assert "@Environment(\\.horizontalSizeClass) private var horizontalSizeClass" in source
     assert "private var usesRegularWidthCreateLayout: Bool" in source
     assert "horizontalSizeClass == .regular" in source
@@ -183,6 +183,7 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert ".layoutPriority(2)" in source
     assert "private var createSetupSections: some View" in source
     assert "private var createSettingsSections: some View" in source
+    assert "private var jobTypeSection: some View" in source
     assert "private var jobSettingsSection: some View" in source
 
     setup_sections = re.search(
@@ -201,11 +202,16 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "sourceSection" in setup_sections.group("body")
     assert "promptSection" in setup_sections.group("body")
     assert "metadataSection" in setup_sections.group("body")
+    assert "jobTypeSection" not in setup_sections.group("body")
     assert "jobSettingsSection" not in setup_sections.group("body")
+    assert "jobTypeSection" in settings_sections.group("body")
     assert "jobSettingsSection" in settings_sections.group("body")
     assert "narrationSection" in settings_sections.group("body")
     assert "outputSection" in settings_sections.group("body")
     assert "submitSection" in settings_sections.group("body")
+    assert 'Section("Job Type")' in source
+    assert 'Picker("Job type", selection: $creationMode)' in source
+    assert '.accessibilityIdentifier("createJobTypePicker")' in source
 
     prompt_section = re.search(
         r"private var promptSection: some View \{(?P<body>.*?)\n    \}",
