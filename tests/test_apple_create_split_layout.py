@@ -95,6 +95,15 @@ CREATE_DEFAULTS = (
     / "Create"
     / "AppleBookCreateDefaults.swift"
 )
+CREATE_PRESENTATION_HELPERS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreatePresentationHelpers.swift"
+)
 CREATE_LANGUAGE_OPTIONS = (
     ROOT
     / "ios"
@@ -242,6 +251,49 @@ def test_create_defaults_are_split_from_support_and_target_wired() -> None:
     assert "AppleBookCreateDefaults.swift in Sources" in project
     assert project.count("AppleBookCreateDefaults.swift in Sources") == 4
     assert "AppleBookCreateDefaults.swift" in payload_script
+
+
+def test_create_presentation_helpers_are_split_from_support_and_target_wired() -> None:
+    presentation_source = _source(CREATE_PRESENTATION_HELPERS)
+    support_source = _source(CREATE_SUPPORT)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+
+    assert "extension AppleBookCreatePresentation" in presentation_source
+    assert "static func contentIndexChapters(" in presentation_source
+    assert "static func chapterRangeSelection(" in presentation_source
+    assert "static func submitButtonPresentation(" in presentation_source
+    assert "static func intakeStatusPresentation(" in presentation_source
+    assert "static func canSubmit(" in presentation_source
+    assert "static func derivedBaseOutput(" in presentation_source
+    assert "static func subtitleModelLabel(" in presentation_source
+    assert "static func subtitleTransliterationModelLabel(" in presentation_source
+    assert "static func availableSubtitleLlmModels(" in presentation_source
+    assert "static func availableSubtitleTransliterationModels(" in presentation_source
+    assert "static func formattedAssEmphasisScale(" in presentation_source
+    assert "static func formattedYoutubeOriginalMixPercent(" in presentation_source
+    assert "static func formatDurationLabel(" in presentation_source
+    assert "static func estimatedAudioDurationLabel(" in presentation_source
+    assert "static func estimatedNarrateSentenceCount(" in presentation_source
+    assert "private static func normalizedPresentationText(" in presentation_source
+    assert "static func contentIndexChapters(" not in support_source
+    assert "static func chapterRangeSelection(" not in support_source
+    assert "static func submitButtonPresentation(" not in support_source
+    assert "static func intakeStatusPresentation(" not in support_source
+    assert "static func canSubmit(" not in support_source
+    assert "static func derivedBaseOutput(" not in support_source
+    assert "static func subtitleModelLabel(" not in support_source
+    assert "static func subtitleTransliterationModelLabel(" not in support_source
+    assert "static func availableSubtitleLlmModels(" not in support_source
+    assert "static func availableSubtitleTransliterationModels(" not in support_source
+    assert "static func formattedAssEmphasisScale(" not in support_source
+    assert "static func formattedYoutubeOriginalMixPercent(" not in support_source
+    assert "static func formatDurationLabel(" not in support_source
+    assert "static func estimatedAudioDurationLabel(" not in support_source
+    assert "static func estimatedNarrateSentenceCount(" not in support_source
+    assert "AppleBookCreatePresentationHelpers.swift in Sources" in project
+    assert project.count("AppleBookCreatePresentationHelpers.swift in Sources") == 4
+    assert "AppleBookCreatePresentationHelpers.swift" in payload_script
 
 
 def test_create_metadata_views_are_split_from_sections_and_target_wired() -> None:
