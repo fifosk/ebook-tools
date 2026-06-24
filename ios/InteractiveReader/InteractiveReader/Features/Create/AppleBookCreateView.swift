@@ -273,22 +273,16 @@ struct AppleBookCreateView: View {
             youtubeLibraryErrorMessage: viewModel.youtubeLibraryErrorMessage,
             youtubeSubtitleExtractionMessage: viewModel.youtubeSubtitleExtractionMessage,
             youtubeSubtitleExtractionErrorMessage: viewModel.youtubeSubtitleExtractionErrorMessage,
-            onRefreshPipelineFiles: {
-                Task { await refreshPipelineFiles(force: true) }
-            },
+            onRefreshPipelineFiles: refreshPipelineFilesFromSourceSection,
             onDeletePipelineEbook: requestDeletePipelineEbook,
-            onRefreshSubtitleSources: {
-                Task { await refreshSubtitleSources(force: true) }
-            },
+            onRefreshSubtitleSources: refreshSubtitleSourcesFromSourceSection,
             onDeleteSubtitleSource: requestDeleteSubtitleSource,
-            onRefreshYoutubeLibrary: {
-                Task { await refreshYoutubeLibrary(force: true) }
-            },
+            onRefreshYoutubeLibrary: refreshYoutubeLibraryFromSourceSection,
             onInspectYoutubeSubtitles: inspectYoutubeSubtitles,
             onExtractYoutubeSubtitles: extractYoutubeSubtitles,
             onLoadNarrateChapters: loadNarrateChapters,
-            onChooseNarrateFile: { isImportingNarrateEbook = true },
-            onChooseSubtitleFile: { isImportingSubtitleFile = true }
+            onChooseNarrateFile: chooseNarrateFile,
+            onChooseSubtitleFile: chooseSubtitleFile
         )
     }
 
@@ -336,23 +330,8 @@ struct AppleBookCreateView: View {
             voiceInventoryErrorMessage: viewModel.voiceInventoryErrorMessage,
             voicePreviewStates: viewModel.voicePreviewStates,
             voicePreviewErrorMessages: viewModel.voicePreviewErrorMessages,
-            onRefreshVoiceInventory: {
-                Task {
-                    await viewModel.loadVoiceInventory(
-                        using: appState,
-                        cacheKey: creationOptionsLoadKey,
-                        force: true
-                    )
-                }
-            },
-            onPreviewVoice: { language, label, selectedVoice in
-                viewModel.previewVoice(
-                    language: language,
-                    languageLabel: label,
-                    voice: selectedVoice,
-                    using: appState
-                )
-            }
+            onRefreshVoiceInventory: refreshVoiceInventory,
+            onPreviewVoice: previewVoice
         )
     }
 
@@ -533,44 +512,12 @@ struct AppleBookCreateView: View {
             episodeName: youtubeMetadataTextBinding(section: "episode", key: "name"),
             advancedMetadataJSON: $viewModel.youtubeMediaMetadataJSONText,
             advancedMetadataErrorMessage: viewModel.youtubeMediaMetadataJSONErrorMessage,
-            onLoadTvMetadata: {
-                Task {
-                    await viewModel.lookupYoutubeTvMetadata(
-                        sourceName: youtubeMetadataTvSourceName,
-                        using: appState
-                    )
-                }
-            },
-            onLoadYoutubeMetadata: {
-                Task {
-                    await viewModel.lookupYoutubeVideoMetadata(
-                        sourceName: youtubeMetadataVideoSourceName,
-                        using: appState
-                    )
-                }
-            },
-            onClearTvMetadataCache: {
-                Task {
-                    await viewModel.clearYoutubeTvMetadataCache(
-                        query: youtubeMetadataTvSourceName,
-                        using: appState
-                    )
-                }
-            },
-            onClearYoutubeMetadataCache: {
-                Task {
-                    await viewModel.clearYoutubeVideoMetadataCache(
-                        query: youtubeMetadataVideoSourceName,
-                        using: appState
-                    )
-                }
-            },
-            onApplyAdvancedMetadataJSON: {
-                viewModel.applyYoutubeMediaMetadataJSONText()
-            },
-            onSyncAdvancedMetadataJSON: {
-                viewModel.syncYoutubeMediaMetadataJSONText()
-            }
+            onLoadTvMetadata: loadYoutubeTvMetadata,
+            onLoadYoutubeMetadata: loadYoutubeVideoMetadata,
+            onClearTvMetadataCache: clearYoutubeTvMetadataCache,
+            onClearYoutubeMetadataCache: clearYoutubeVideoMetadataCache,
+            onApplyAdvancedMetadataJSON: applyYoutubeAdvancedMetadataJSON,
+            onSyncAdvancedMetadataJSON: syncYoutubeAdvancedMetadataJSON
         )
     }
 
@@ -594,40 +541,12 @@ struct AppleBookCreateView: View {
             airdate: subtitleMetadataTextBinding(section: "episode", key: "airdate"),
             advancedMetadataJSON: $viewModel.subtitleMediaMetadataJSONText,
             advancedMetadataErrorMessage: viewModel.subtitleMediaMetadataJSONErrorMessage,
-            onLookup: {
-                Task {
-                    await viewModel.lookupSubtitleTvMetadata(
-                        sourceName: subtitleMetadataLookupSourceName,
-                        using: appState
-                    )
-                }
-            },
-            onRefresh: {
-                Task {
-                    await viewModel.lookupSubtitleTvMetadata(
-                        sourceName: subtitleMetadataLookupSourceName,
-                        force: true,
-                        using: appState
-                    )
-                }
-            },
-            onClear: {
-                viewModel.clearSubtitleMetadata()
-            },
-            onClearCache: {
-                Task {
-                    await viewModel.clearSubtitleTvMetadataCache(
-                        query: subtitleMetadataLookupSourceName,
-                        using: appState
-                    )
-                }
-            },
-            onApplyAdvancedMetadataJSON: {
-                viewModel.applySubtitleMediaMetadataJSONText()
-            },
-            onSyncAdvancedMetadataJSON: {
-                viewModel.syncSubtitleMediaMetadataJSONText()
-            }
+            onLookup: lookupSubtitleMetadata,
+            onRefresh: refreshSubtitleMetadata,
+            onClear: clearSubtitleMetadata,
+            onClearCache: clearSubtitleMetadataCache,
+            onApplyAdvancedMetadataJSON: applySubtitleAdvancedMetadataJSON,
+            onSyncAdvancedMetadataJSON: syncSubtitleAdvancedMetadataJSON
         )
     }
 
@@ -640,9 +559,7 @@ struct AppleBookCreateView: View {
             intakeStatus: viewModel.intakeStatus,
             isLoadingIntakeStatus: viewModel.isLoadingIntakeStatus,
             submittedJobId: viewModel.submittedJobId,
-            onRetryDefaults: {
-                Task { await refreshCreationOptions(force: true) }
-            },
+            onRetryDefaults: retryCreationOptions,
             onOpenJobs: onOpenJobs
         )
     }
@@ -1035,6 +952,133 @@ struct AppleBookCreateView: View {
 
     private func handleSubtitleShowOriginalChange(_ value: Bool) {
         persistSubtitleShowOriginal(value)
+    }
+
+    private func refreshPipelineFilesFromSourceSection() {
+        Task { await refreshPipelineFiles(force: true) }
+    }
+
+    private func refreshSubtitleSourcesFromSourceSection() {
+        Task { await refreshSubtitleSources(force: true) }
+    }
+
+    private func refreshYoutubeLibraryFromSourceSection() {
+        Task { await refreshYoutubeLibrary(force: true) }
+    }
+
+    private func chooseNarrateFile() {
+        isImportingNarrateEbook = true
+    }
+
+    private func chooseSubtitleFile() {
+        isImportingSubtitleFile = true
+    }
+
+    private func refreshVoiceInventory() {
+        Task {
+            await viewModel.loadVoiceInventory(
+                using: appState,
+                cacheKey: creationOptionsLoadKey,
+                force: true
+            )
+        }
+    }
+
+    private func previewVoice(_ language: String, _ label: String, _ selectedVoice: AppleBookCreateVoiceOption) {
+        viewModel.previewVoice(
+            language: language,
+            languageLabel: label,
+            voice: selectedVoice,
+            using: appState
+        )
+    }
+
+    private func loadYoutubeTvMetadata() {
+        Task {
+            await viewModel.lookupYoutubeTvMetadata(
+                sourceName: youtubeMetadataTvSourceName,
+                using: appState
+            )
+        }
+    }
+
+    private func loadYoutubeVideoMetadata() {
+        Task {
+            await viewModel.lookupYoutubeVideoMetadata(
+                sourceName: youtubeMetadataVideoSourceName,
+                using: appState
+            )
+        }
+    }
+
+    private func clearYoutubeTvMetadataCache() {
+        Task {
+            await viewModel.clearYoutubeTvMetadataCache(
+                query: youtubeMetadataTvSourceName,
+                using: appState
+            )
+        }
+    }
+
+    private func clearYoutubeVideoMetadataCache() {
+        Task {
+            await viewModel.clearYoutubeVideoMetadataCache(
+                query: youtubeMetadataVideoSourceName,
+                using: appState
+            )
+        }
+    }
+
+    private func applyYoutubeAdvancedMetadataJSON() {
+        viewModel.applyYoutubeMediaMetadataJSONText()
+    }
+
+    private func syncYoutubeAdvancedMetadataJSON() {
+        viewModel.syncYoutubeMediaMetadataJSONText()
+    }
+
+    private func lookupSubtitleMetadata() {
+        Task {
+            await viewModel.lookupSubtitleTvMetadata(
+                sourceName: subtitleMetadataLookupSourceName,
+                using: appState
+            )
+        }
+    }
+
+    private func refreshSubtitleMetadata() {
+        Task {
+            await viewModel.lookupSubtitleTvMetadata(
+                sourceName: subtitleMetadataLookupSourceName,
+                force: true,
+                using: appState
+            )
+        }
+    }
+
+    private func clearSubtitleMetadata() {
+        viewModel.clearSubtitleMetadata()
+    }
+
+    private func clearSubtitleMetadataCache() {
+        Task {
+            await viewModel.clearSubtitleTvMetadataCache(
+                query: subtitleMetadataLookupSourceName,
+                using: appState
+            )
+        }
+    }
+
+    private func applySubtitleAdvancedMetadataJSON() {
+        viewModel.applySubtitleMediaMetadataJSONText()
+    }
+
+    private func syncSubtitleAdvancedMetadataJSON() {
+        viewModel.syncSubtitleMediaMetadataJSONText()
+    }
+
+    private func retryCreationOptions() {
+        Task { await refreshCreationOptions(force: true) }
     }
 
     private func loadNarrateChapters() {

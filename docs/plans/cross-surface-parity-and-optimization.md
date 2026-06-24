@@ -258,10 +258,11 @@ Current Apple UI partially exposes:
   live in `AppleBookCreatePreferences.swift`, as do shared language and
   lookup-cache preference JSON reads/writes, keeping scoped trimming, removal,
   and codec behavior contract-pinned outside the main view. Create lifecycle
-  loading and field-change side effects are now named handlers in the view
-  instead of inline modifier bodies, and successful job submission completion
-  shares one intake-refresh/notify handler while the view model shares one
-  submit-state/error wrapper in `AppleBookCreateViewModel+Submission.swift`.
+  loading, field-change, and section callback side effects are now named
+  handlers in the view instead of inline modifier/section bodies, and
+  successful job submission completion shares one intake-refresh/notify handler
+  while the view model shares one submit-state/error wrapper in
+  `AppleBookCreateViewModel+Submission.swift`.
   Narration language/voice routing now lives in
   `AppleBookCreateNarrationSection.swift`, and the
   iOS/iPad searchable full-language selector lives in

@@ -750,6 +750,36 @@ def test_create_status_views_are_split_from_create_view_and_target_wired() -> No
     assert project.count("AppleBookCreateStatusViews.swift in Sources") == 4
 
 
+def test_create_view_section_callbacks_route_through_named_actions() -> None:
+    view_source = _source(CREATE_VIEW)
+
+    for callback in [
+        "onRefreshPipelineFiles: refreshPipelineFilesFromSourceSection",
+        "onRefreshSubtitleSources: refreshSubtitleSourcesFromSourceSection",
+        "onRefreshYoutubeLibrary: refreshYoutubeLibraryFromSourceSection",
+        "onChooseNarrateFile: chooseNarrateFile",
+        "onChooseSubtitleFile: chooseSubtitleFile",
+        "onRefreshVoiceInventory: refreshVoiceInventory",
+        "onPreviewVoice: previewVoice",
+        "onLoadTvMetadata: loadYoutubeTvMetadata",
+        "onLoadYoutubeMetadata: loadYoutubeVideoMetadata",
+        "onClearTvMetadataCache: clearYoutubeTvMetadataCache",
+        "onClearYoutubeMetadataCache: clearYoutubeVideoMetadataCache",
+        "onLookup: lookupSubtitleMetadata",
+        "onRefresh: refreshSubtitleMetadata",
+        "onClear: clearSubtitleMetadata",
+        "onClearCache: clearSubtitleMetadataCache",
+        "onRetryDefaults: retryCreationOptions",
+    ]:
+        assert callback in view_source
+
+    assert "onRefreshPipelineFiles: {\n                Task" not in view_source
+    assert "onRefreshVoiceInventory: {\n                Task" not in view_source
+    assert "onLoadTvMetadata: {\n                Task" not in view_source
+    assert "onLookup: {\n                Task" not in view_source
+    assert "onRetryDefaults: {\n                Task" not in view_source
+
+
 def test_create_basic_sections_are_split_from_create_view_and_target_wired() -> None:
     basic_source = _source(CREATE_BASIC_SECTIONS)
     value_controls_source = _source(CREATE_VALUE_CONTROLS)
