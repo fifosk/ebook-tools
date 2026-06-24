@@ -556,7 +556,7 @@ available and `python3` otherwise.
 | `make test-backend-admin-system-status` | `$(PYTHON) -m pytest ...` | Shared-pipeline admin system status backend slice |
 | `make test-backend-create-book` | `$(PYTHON) -m pytest ...` | Shared-pipeline generated-book backend slice |
 | `make test-backend-subtitle-router` | `$(PYTHON) -m pytest ...` | Shared-pipeline subtitle router backend slice |
-| `make test-backend-youtube-dubbing-service` | `$(PYTHON) -m pytest ...` | Shared-pipeline YouTube dubbing service backend slice |
+| `make test-backend-youtube-dubbing-service` | `$(PYTHON) -m pytest ...` | Shared-pipeline YouTube dubbing/download backend slice |
 | `make test-web-create-book-focused` | `npm --prefix web test -- --run ...` | Focused generated-book Create page Vitest slice |
 | `make test-web-create-intake-focused` | `npm --prefix web test -- --run ...` | Focused Create intake and narration form Vitest slice |
 | `make test-web-library-focused` | `npm --prefix web test -- --run ...` | Focused Library metadata Vitest slice |

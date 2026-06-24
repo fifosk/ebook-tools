@@ -25,19 +25,21 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
     expected = {
-        "test-backend-admin-system-status": "tests/modules/webapi/test_system_routes.py",
-        "test-backend-create-book": "tests/test_create_book.py",
-        "test-backend-subtitle-router": "tests/webapi/test_subtitles_router.py",
+        "test-backend-admin-system-status": ("tests/modules/webapi/test_system_routes.py",),
+        "test-backend-create-book": ("tests/test_create_book.py",),
+        "test-backend-subtitle-router": ("tests/webapi/test_subtitles_router.py",),
         "test-backend-youtube-dubbing-service": (
-            "tests/modules/services/test_youtube_dubbing_subtitles.py"
+            "tests/modules/services/test_youtube_dubbing_subtitles.py",
+            "tests/modules/services/test_youtube_subtitles.py",
         ),
     }
 
-    for target, path in expected.items():
+    for target, paths in expected.items():
         assert target in makefile
         block = _target_block(makefile, target)
         assert "$(PYTHON) -m pytest" in block
-        assert path in block
+        for path in paths:
+            assert path in block
 
 
 def test_docs_publish_backend_pipeline_targets() -> None:

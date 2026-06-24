@@ -375,6 +375,20 @@ def download_subtitle(
 def _tag_youtube_filename(path: Path) -> Path:
     """Ensure filename includes `_yt` before the final extension (and language, if present)."""
 
+    tagged_path = _tagged_youtube_path(path)
+    if tagged_path == path:
+        return path
+
+    try:
+        path.rename(tagged_path)
+    except OSError:
+        return path
+    return tagged_path
+
+
+def _tagged_youtube_path(path: Path) -> Path:
+    """Return the target path whose filename includes `_yt`."""
+
     name = path.name
     if "_yt" in Path(name).stem:
         return path
@@ -388,12 +402,7 @@ def _tag_youtube_filename(path: Path) -> Path:
     else:
         tagged_name = f"{path.stem}_yt{path.suffix}"
 
-    tagged_path = path.with_name(tagged_name)
-    try:
-        path.rename(tagged_path)
-    except OSError:
-        return path
-    return tagged_path
+    return path.with_name(tagged_name)
 
 
 def _trim_title_segment(value: str, *, max_length: int = _TITLE_SEGMENT_LIMIT) -> str:
@@ -460,17 +469,58 @@ def _ensure_directory(path: Path) -> Path:
     return resolved
 
 
+def _recent_files(paths: Iterable[Path], *, context: str) -> List[tuple[Path, float]]:
+    """Return readable files with mtimes, skipping NAS entries that vanished mid-scan."""
+
+    entries: List[tuple[Path, float]] = []
+    iterator = iter(paths)
+    while True:
+        try:
+            path = next(iterator)
+        except StopIteration:
+            break
+        except OSError:
+            logger.debug("Unable to scan YouTube %s candidates", context, exc_info=True)
+            break
+        try:
+            if not path.is_file():
+                continue
+            entries.append((path, path.stat().st_mtime))
+        except OSError:
+            logger.debug("Skipping stale YouTube %s candidate %s", context, path, exc_info=True)
+            continue
+    return entries
+
+
+def _safe_iterdir(path: Path, *, context: str) -> List[Path]:
+    try:
+        return list(path.iterdir())
+    except OSError:
+        logger.debug("Unable to scan YouTube %s directory %s", context, path, exc_info=True)
+        return []
+
+
 def _finalize_partial_download(base_dir: Path, media_base: str) -> Optional[Path]:
     """Attempt to rescue a completed .part file if yt-dlp bailed mid-rename."""
 
     # yt-dlp writes {media_base}.{ext}.part before the final rename
-    partials = sorted(
-        (path for path in base_dir.glob(f"{media_base}*.part") if path.is_file()),
-        key=lambda path: -path.stat().st_mtime,
-    )
+    partials = [
+        path
+        for path, _mtime in sorted(
+            _recent_files(
+                (
+                    path
+                    for path in _safe_iterdir(base_dir, context="partial download")
+                    if path.name.startswith(media_base) and path.suffix.lower() == ".part"
+                ),
+                context="partial download",
+            ),
+            key=lambda entry: -entry[1],
+        )
+    ]
     for partial in partials:
         target_path = partial.with_suffix("")  # drop the trailing .part
-        candidate = _tag_youtube_filename(target_path)
+        candidate = _tagged_youtube_path(target_path)
         # Avoid clobbering an existing completed file.
         if candidate.exists():
             continue
@@ -536,14 +586,20 @@ def download_video(
             raise
         # Prefer any muxed output file in the download directory, falling back to
         # yt-dlp's prepared filename if needed.
-        candidates = sorted(
-            (
-                path
-                for path in base_dir.iterdir()
-                if path.is_file() and path.suffix.lower().lstrip(".") in video_extensions
-            ),
-            key=lambda path: (path.suffix.lower() != ".mp4", -path.stat().st_mtime),
-        )
+        candidates = [
+            path
+            for path, _mtime in sorted(
+                _recent_files(
+                    (
+                        path
+                        for path in _safe_iterdir(base_dir, context="video download")
+                        if path.suffix.lower().lstrip(".") in video_extensions
+                    ),
+                    context="video download",
+                ),
+                key=lambda entry: (entry[0].suffix.lower() != ".mp4", -entry[1]),
+            )
+        ]
         if candidates:
             candidate = _tag_youtube_filename(candidates[0])
             target_name = f"{media_base}_yt{candidate.suffix}"

@@ -77,7 +77,9 @@ test-backend-subtitle-router:
 	$(PYTHON) -m pytest tests/webapi/test_subtitles_router.py
 
 test-backend-youtube-dubbing-service:
-	$(PYTHON) -m pytest tests/modules/services/test_youtube_dubbing_subtitles.py
+	$(PYTHON) -m pytest \
+		tests/modules/services/test_youtube_dubbing_subtitles.py \
+		tests/modules/services/test_youtube_subtitles.py
 
 test-web-create-book-focused:
 	npm --prefix web test -- --run \
