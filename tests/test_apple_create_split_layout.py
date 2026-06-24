@@ -59,6 +59,15 @@ CREATE_PAYLOAD_FACTORY = (
     / "Create"
     / "AppleBookCreatePayloadFactory.swift"
 )
+CREATE_ROUTING = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateRouting.swift"
+)
 CREATE_SOURCE_SELECTION = (
     ROOT
     / "ios"
@@ -282,6 +291,27 @@ def test_create_payload_factory_is_split_from_view_model_and_target_wired() -> N
     assert "private static func makeYoutubeDubPayload" not in view_model_source
     assert "AppleBookCreatePayloadFactory.swift in Sources" in project
     assert project.count("AppleBookCreatePayloadFactory.swift in Sources") == 4
+
+
+def test_create_routing_is_split_from_support_and_target_wired() -> None:
+    routing_source = _source(CREATE_ROUTING)
+    support_source = _source(CREATE_SUPPORT)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+
+    assert "extension AppleBookCreatePresentation" in routing_source
+    assert "static func availableCreateModes(isTV: Bool)" in routing_source
+    assert "static func webCreateViewID(for mode: AppleCreateMode)" in routing_source
+    assert "static func webCreateHandoffURL(apiBaseURL: URL?, mode: AppleCreateMode)" in routing_source
+    assert 'return "books:create"' in routing_source
+    assert 'return "pipeline:source"' in routing_source
+    assert 'return "subtitles:youtube-dub"' in routing_source
+    assert "static func availableCreateModes" not in support_source
+    assert "static func webCreateViewID" not in support_source
+    assert "static func webCreateHandoffURL" not in support_source
+    assert "AppleBookCreateRouting.swift in Sources" in project
+    assert project.count("AppleBookCreateRouting.swift in Sources") == 4
+    assert "AppleBookCreateRouting.swift" in payload_script
 
 
 def test_create_source_selection_is_split_from_support_and_target_wired() -> None:
