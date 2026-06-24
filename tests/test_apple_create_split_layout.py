@@ -1027,6 +1027,7 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert "struct AppleBookCreateSubtitleSourceControls: View" in controls_source
     assert "struct AppleBookCreateYoutubeSourceControls: View" in youtube_source
     assert "struct AppleBookCreateFileImportControl: View" in controls_source
+    assert "struct AppleBookCreateSourceActionRow: View" in controls_source
     assert "let showsJobTypePicker: Bool" in source
     assert "let showsNarrateRangeControls: Bool" in source
     assert "if showsJobTypePicker || creationMode != .generatedBook" in source
@@ -1046,7 +1047,9 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert "AppleBookCreatePresentation.subtitleJobSources(from: subtitleSources)" in controls_source
     assert 'Picker("NAS video", selection: $youtubeVideoPath)' in youtube_source
     assert "AppleBookCreatePresentation.playableYoutubeSubtitles(for:" in youtube_source
-    assert ".accessibilityIdentifier(\"createYoutubeInspectEmbeddedSubtitlesButton\")" in youtube_source
+    assert controls_source.count("AppleBookCreateSourceActionRow(") == 2
+    assert youtube_source.count("AppleBookCreateSourceActionRow(") == 3
+    assert 'buttonIdentifier: "createYoutubeInspectEmbeddedSubtitlesButton"' in youtube_source
     assert "struct AppleBookCreateSourceSection: View" not in narration_source
     assert "AppleBookCreateSourceSection.swift in Sources" in project
     assert project.count("AppleBookCreateSourceSection.swift in Sources") == 4
@@ -1340,9 +1343,9 @@ def test_youtube_create_exposes_inline_subtitle_extraction_controls() -> None:
     view_source = _source(CREATE_VIEW)
 
     assert "embeddedYoutubeSubtitleControls" in youtube_source
-    assert 'accessibilityIdentifier("createYoutubeInspectEmbeddedSubtitlesButton")' in youtube_source
+    assert 'buttonIdentifier: "createYoutubeInspectEmbeddedSubtitlesButton"' in youtube_source
     assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitleLanguagesField")' in youtube_source
-    assert 'accessibilityIdentifier("createYoutubeExtractEmbeddedSubtitlesButton")' in youtube_source
+    assert 'buttonIdentifier: "createYoutubeExtractEmbeddedSubtitlesButton"' in youtube_source
     assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesMessage")' in youtube_source
     assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesError")' in youtube_source
     assert "youtubeInlineSubtitleStreams: viewModel.youtubeInlineSubtitleStreams" in view_source

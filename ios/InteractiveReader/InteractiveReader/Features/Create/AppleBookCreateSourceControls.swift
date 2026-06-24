@@ -42,21 +42,16 @@ struct AppleBookCreateNarrateSourceControls: View {
             }
             .accessibilityIdentifier("createNarrateServerEbookPicker")
         }
-        HStack {
-            Button(action: onRefreshPipelineFiles) {
-                Label(
-                    isLoadingPipelineFiles ? "Refreshing EPUBs" : "Refresh EPUBs",
-                    systemImage: "arrow.clockwise"
-                )
-            }
-            .disabled(isLoadingPipelineFiles)
-            .accessibilityIdentifier("createNarrateRefreshServerEbooksButton")
-
-            if isLoadingPipelineFiles {
-                ProgressView()
-                    .accessibilityIdentifier("createNarrateServerEbooksProgress")
-            }
-        }
+        AppleBookCreateSourceActionRow(
+            title: "Refresh EPUBs",
+            busyTitle: "Refreshing EPUBs",
+            systemImage: "arrow.clockwise",
+            isBusy: isLoadingPipelineFiles,
+            isDisabled: isLoadingPipelineFiles,
+            buttonIdentifier: "createNarrateRefreshServerEbooksButton",
+            progressIdentifier: "createNarrateServerEbooksProgress",
+            action: onRefreshPipelineFiles
+        )
         if let pipelineFilesErrorMessage {
             Text(pipelineFilesErrorMessage)
                 .font(.footnote)
@@ -196,21 +191,16 @@ struct AppleBookCreateSubtitleSourceControls: View {
             }
             .accessibilityIdentifier("createSubtitleServerSourcePicker")
         }
-        HStack {
-            Button(action: onRefreshSubtitleSources) {
-                Label(
-                    isLoadingSubtitleSources ? "Refreshing Subtitles" : "Refresh Subtitles",
-                    systemImage: "arrow.clockwise"
-                )
-            }
-            .disabled(isLoadingSubtitleSources)
-            .accessibilityIdentifier("createSubtitleRefreshServerSourcesButton")
-
-            if isLoadingSubtitleSources {
-                ProgressView()
-                    .accessibilityIdentifier("createSubtitleServerSourcesProgress")
-            }
-        }
+        AppleBookCreateSourceActionRow(
+            title: "Refresh Subtitles",
+            busyTitle: "Refreshing Subtitles",
+            systemImage: "arrow.clockwise",
+            isBusy: isLoadingSubtitleSources,
+            isDisabled: isLoadingSubtitleSources,
+            buttonIdentifier: "createSubtitleRefreshServerSourcesButton",
+            progressIdentifier: "createSubtitleServerSourcesProgress",
+            action: onRefreshSubtitleSources
+        )
         if let subtitleSourcesErrorMessage {
             Text(subtitleSourcesErrorMessage)
                 .font(.footnote)
@@ -269,6 +259,32 @@ struct AppleBookCreateFileImportControl: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .accessibilityIdentifier(labelIdentifier)
+            }
+        }
+    }
+}
+
+struct AppleBookCreateSourceActionRow: View {
+    let title: String
+    let busyTitle: String
+    let systemImage: String
+    let isBusy: Bool
+    let isDisabled: Bool
+    let buttonIdentifier: String
+    let progressIdentifier: String
+    let action: () -> Void
+
+    var body: some View {
+        HStack {
+            Button(action: action) {
+                Label(isBusy ? busyTitle : title, systemImage: systemImage)
+            }
+            .disabled(isDisabled)
+            .accessibilityIdentifier(buttonIdentifier)
+
+            if isBusy {
+                ProgressView()
+                    .accessibilityIdentifier(progressIdentifier)
             }
         }
     }

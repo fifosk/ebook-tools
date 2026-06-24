@@ -45,21 +45,16 @@ struct AppleBookCreateYoutubeSourceControls: View {
                 applyYoutubeVideoSelection(newValue)
             }
         }
-        HStack {
-            Button(action: onRefreshYoutubeLibrary) {
-                Label(
-                    isLoadingYoutubeLibrary ? "Refreshing Videos" : "Refresh Videos",
-                    systemImage: "arrow.clockwise"
-                )
-            }
-            .disabled(isLoadingYoutubeLibrary)
-            .accessibilityIdentifier("createYoutubeRefreshNasVideosButton")
-
-            if isLoadingYoutubeLibrary {
-                ProgressView()
-                    .accessibilityIdentifier("createYoutubeNasVideosProgress")
-            }
-        }
+        AppleBookCreateSourceActionRow(
+            title: "Refresh Videos",
+            busyTitle: "Refreshing Videos",
+            systemImage: "arrow.clockwise",
+            isBusy: isLoadingYoutubeLibrary,
+            isDisabled: isLoadingYoutubeLibrary,
+            buttonIdentifier: "createYoutubeRefreshNasVideosButton",
+            progressIdentifier: "createYoutubeNasVideosProgress",
+            action: onRefreshYoutubeLibrary
+        )
         if let youtubeLibraryErrorMessage {
             Text(youtubeLibraryErrorMessage)
                 .font(.footnote)
@@ -91,21 +86,16 @@ struct AppleBookCreateYoutubeSourceControls: View {
 
     @ViewBuilder
     private var embeddedYoutubeSubtitleControls: some View {
-        HStack {
-            Button(action: onInspectYoutubeSubtitles) {
-                Label(
-                    isLoadingYoutubeSubtitleStreams ? "Inspecting Embedded Subtitles" : "Inspect Embedded Subtitles",
-                    systemImage: "magnifyingglass"
-                )
-            }
-            .disabled(!hasYoutubeVideoPath || isLoadingYoutubeSubtitleStreams || isExtractingYoutubeSubtitles)
-            .accessibilityIdentifier("createYoutubeInspectEmbeddedSubtitlesButton")
-
-            if isLoadingYoutubeSubtitleStreams {
-                ProgressView()
-                    .accessibilityIdentifier("createYoutubeEmbeddedSubtitlesProgress")
-            }
-        }
+        AppleBookCreateSourceActionRow(
+            title: "Inspect Embedded Subtitles",
+            busyTitle: "Inspecting Embedded Subtitles",
+            systemImage: "magnifyingglass",
+            isBusy: isLoadingYoutubeSubtitleStreams,
+            isDisabled: !hasYoutubeVideoPath || isLoadingYoutubeSubtitleStreams || isExtractingYoutubeSubtitles,
+            buttonIdentifier: "createYoutubeInspectEmbeddedSubtitlesButton",
+            progressIdentifier: "createYoutubeEmbeddedSubtitlesProgress",
+            action: onInspectYoutubeSubtitles
+        )
 
         if !youtubeInlineSubtitleStreams.isEmpty {
             ForEach(youtubeInlineSubtitleStreams) { stream in
@@ -124,21 +114,16 @@ struct AppleBookCreateYoutubeSourceControls: View {
                 .accessibilityIdentifier("createYoutubeEmbeddedSubtitleLanguagesField")
         }
 
-        HStack {
-            Button(action: onExtractYoutubeSubtitles) {
-                Label(
-                    isExtractingYoutubeSubtitles ? "Extracting Subtitles" : "Extract Embedded Subtitles",
-                    systemImage: "square.and.arrow.down"
-                )
-            }
-            .disabled(!hasYoutubeVideoPath || isLoadingYoutubeSubtitleStreams || isExtractingYoutubeSubtitles)
-            .accessibilityIdentifier("createYoutubeExtractEmbeddedSubtitlesButton")
-
-            if isExtractingYoutubeSubtitles {
-                ProgressView()
-                    .accessibilityIdentifier("createYoutubeExtractEmbeddedSubtitlesProgress")
-            }
-        }
+        AppleBookCreateSourceActionRow(
+            title: "Extract Embedded Subtitles",
+            busyTitle: "Extracting Subtitles",
+            systemImage: "square.and.arrow.down",
+            isBusy: isExtractingYoutubeSubtitles,
+            isDisabled: !hasYoutubeVideoPath || isLoadingYoutubeSubtitleStreams || isExtractingYoutubeSubtitles,
+            buttonIdentifier: "createYoutubeExtractEmbeddedSubtitlesButton",
+            progressIdentifier: "createYoutubeExtractEmbeddedSubtitlesProgress",
+            action: onExtractYoutubeSubtitles
+        )
 
         if let youtubeSubtitleExtractionMessage {
             Text(youtubeSubtitleExtractionMessage)

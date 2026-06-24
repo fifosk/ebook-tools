@@ -215,13 +215,14 @@ Current Apple UI partially exposes:
   `AppleBookCreateOutputControls.swift`; generated-book output controls live
   in `AppleBookCreateGeneratedOutputControls.swift`, while generated-book
   image controls live in `AppleBookCreateGeneratedImageControls.swift`.
-  Reusable Create value controls live in `AppleBookCreateValueControls.swift`, letting
-  `AppleBookCreateOutputSection.swift` own only section-level routing.
+  Reusable Create value controls live in `AppleBookCreateValueControls.swift`,
+  letting `AppleBookCreateOutputSection.swift` own only section-level routing,
+  while shared source action rows in `AppleBookCreateSourceControls.swift`
+  keep EPUB, subtitle, and NAS video refresh/extract controls consistent.
   Media metadata controls live in `AppleBookCreateMediaMetadataControls.swift`
   while `AppleBookCreateMediaMetadataSections.swift` owns the metadata section
   routing. Advanced metadata JSON editing, artwork preview, status, and action
-  subviews now live
-  in `AppleBookCreateMetadataViews.swift`, trimming repeated metadata UI while
+  subviews now live in `AppleBookCreateMetadataViews.swift`, trimming repeated metadata UI while
   preserving the tvOS-safe JSON editor fallback. Metadata JSON parsing/formatting
   helpers now live in `AppleBookCreateMetadataJSON.swift`, and subtitle/YouTube
   metadata lookup, cache clearing, and draft-editing actions now live in
