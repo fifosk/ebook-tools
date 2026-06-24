@@ -185,6 +185,15 @@ CREATE_OUTPUT_SECTION = (
     / "Create"
     / "AppleBookCreateOutputSection.swift"
 )
+CREATE_OUTPUT_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateOutputControls.swift"
+)
 CREATE_MEDIA_METADATA_SECTIONS = (
     ROOT
     / "ios"
@@ -453,6 +462,8 @@ def test_create_basic_sections_are_split_from_create_view_and_target_wired() -> 
 
 def test_create_output_section_is_split_from_create_view_and_target_wired() -> None:
     output_source = _source(CREATE_OUTPUT_SECTION)
+    output_controls_source = _source(CREATE_OUTPUT_CONTROLS)
+    sections_source = _source(CREATE_SECTIONS)
     view_source = _source(CREATE_VIEW)
     project = _source(XCODE_PROJECT)
 
@@ -461,12 +472,23 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "AppleBookCreateSubtitleOutputControls(" in output_source
     assert "AppleBookCreateYoutubeOutputControls(" in output_source
     assert "AppleBookCreateGeneratedOutputControls(" in output_source
+    assert "struct AppleBookCreateSubtitleOutputControls: View" in output_controls_source
+    assert "struct AppleBookCreateYoutubeOutputControls: View" in output_controls_source
+    assert "struct AppleBookCreateGeneratedOutputControls: View" in output_controls_source
+    assert "struct AppleBookCreateSubtitleOutputControls: View" not in output_source
+    assert "struct AppleBookCreateYoutubeOutputControls: View" not in output_source
+    assert "struct AppleBookCreateGeneratedOutputControls: View" not in output_source
+    assert "struct AppleBookCreateSubtitleOutputControls: View" not in sections_source
+    assert "struct AppleBookCreateYoutubeOutputControls: View" not in sections_source
+    assert "struct AppleBookCreateGeneratedOutputControls: View" not in sections_source
     assert "AppleBookCreateOutputSection(" in view_source
     assert "AppleBookCreateSubtitleOutputControls(" not in view_source
     assert "AppleBookCreateYoutubeOutputControls(" not in view_source
     assert "AppleBookCreateGeneratedOutputControls(" not in view_source
     assert "AppleBookCreateOutputSection.swift in Sources" in project
     assert project.count("AppleBookCreateOutputSection.swift in Sources") == 4
+    assert "AppleBookCreateOutputControls.swift in Sources" in project
+    assert project.count("AppleBookCreateOutputControls.swift in Sources") == 4
 
 
 def test_create_media_metadata_sections_are_split_from_create_view_and_target_wired() -> None:
