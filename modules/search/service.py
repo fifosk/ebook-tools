@@ -828,6 +828,7 @@ def search_generated_media(
         preferred_subtitle_keys = _select_preferred_subtitle_keys(chunk_entries)
         processed_subtitle_keys: set[str] = set()
         chunk_total = len(chunk_entries)
+        job_label = _resolve_job_label(job)
 
         for chunk_index, chunk in enumerate(chunk_entries):
             files = chunk.get("files")
@@ -986,7 +987,7 @@ def search_generated_media(
                     results.append(
                         SearchMediaResult(
                             job_id=job.job_id,
-                            job_label=_resolve_job_label(job),
+                            job_label=job_label,
                             base_id=base_id,
                             chunk_id=str(chunk_id_value) if chunk_id_value is not None else None,
                             chunk_index=chunk_index,
@@ -1054,7 +1055,7 @@ def search_generated_media(
             results.append(
                 SearchMediaResult(
                     job_id=job.job_id,
-                    job_label=_resolve_job_label(job),
+                    job_label=job_label,
                     base_id=base_id,
                     chunk_id=str(chunk_id_value) if chunk_id_value is not None else None,
                     chunk_index=chunk_index,

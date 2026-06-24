@@ -312,6 +312,74 @@ def test_search_skips_chunk_metadata_read_when_generated_chunk_is_complete(
     assert load_chunk_calls == []
 
 
+def test_search_resolves_job_label_once_per_job(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    file_locator = FileLocator(storage_dir=tmp_path, base_url="https://example.invalid/jobs")
+    job_id = "multi-result-job"
+    job_root = file_locator.resolve_path(job_id)
+    chunks = []
+    for index in range(2):
+        chunk_id = f"chunk-{index + 1:03d}"
+        text_dir = job_root / "media" / chunk_id
+        text_dir.mkdir(parents=True, exist_ok=True)
+        html_path = text_dir / "sample.html"
+        html_path.write_text(f"<p>Searchable fortune text {index}.</p>", encoding="utf-8")
+        chunks.append(
+            {
+                "chunk_id": chunk_id,
+                "range_fragment": f"{index + 1:04d}-{index + 1:04d}",
+                "start_sentence": index + 1,
+                "end_sentence": index + 1,
+                "files": [
+                    {
+                        "type": "html",
+                        "relative_path": f"media/{chunk_id}/sample.html",
+                        "path": str(html_path),
+                    }
+                ],
+            }
+        )
+
+    label_calls: list[str] = []
+
+    def _label(job: PipelineJob) -> str:
+        label_calls.append(job.job_id)
+        return "Resolved Once"
+
+    class _NoManifestChunkMetadataLoader:
+        def __init__(self, _job_root: Path) -> None:
+            pass
+
+        def iter_chunks(self):
+            return iter(())
+
+        def build_chunk_manifest(self):
+            return {"chunks": []}
+
+    monkeypatch.setattr(search_service, "_resolve_job_label", _label)
+    monkeypatch.setattr(search_service, "MetadataLoader", _NoManifestChunkMetadataLoader)
+
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    job.generated_files = {"chunks": chunks}
+
+    results = search_service.search_generated_media(
+        query="fortune",
+        jobs=[job],
+        locator=file_locator,
+        limit=10,
+    )
+
+    assert len(results) == 2
+    assert [result.job_label for result in results] == ["Resolved Once", "Resolved Once"]
+    assert label_calls == [job_id]
+
+
 def test_search_records_safe_timing(api_app, monkeypatch: pytest.MonkeyPatch) -> None:
     app, file_locator = api_app
     job_id = "search-observability-job"
