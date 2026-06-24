@@ -439,7 +439,9 @@ Optimization candidates:
   download finalization now applies the same stale-entry tolerance when sorting
   downloaded subtitle files, partial recovery files, and muxed output files, so
   a transient NAS directory race can still fall back to a usable downloaded
-  artifact instead of losing a completed download.
+  artifact instead of losing a completed download. Downloaded-video cleanup
+  uses the same stale-entry tolerance while discovering adjacent subtitle
+  artifacts before folder removal.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap

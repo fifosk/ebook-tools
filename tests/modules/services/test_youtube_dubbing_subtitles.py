@@ -346,3 +346,30 @@ def test_delete_downloaded_video_removes_folder_and_artifacts(monkeypatch, tmp_p
     assert video_dir.resolve() in removed_paths
     assert video_path.resolve() in removed_paths
     assert subtitle_path.resolve() in removed_paths
+
+
+def test_delete_downloaded_video_skips_stale_subtitle_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    video_dir = tmp_path / "Sample Video - 2024-01-01 10-00-00"
+    video_dir.mkdir()
+    video_path = video_dir / "sample_yt.mp4"
+    video_path.write_bytes(b"\x00")
+    stale_subtitle = video_dir / "sample_yt.en.srt"
+    stale_subtitle.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    original_stat = Path.stat
+
+    def fake_stat(path: Path, *args, **kwargs):
+        if path == stale_subtitle:
+            raise FileNotFoundError(path)
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+
+    result = delete_downloaded_video(video_path)
+
+    assert not video_dir.exists()
+    removed_paths = {path.resolve() for path in result.removed}
+    assert video_dir.resolve() in removed_paths
+    assert video_path.resolve() in removed_paths

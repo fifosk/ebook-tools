@@ -474,12 +474,16 @@ def delete_downloaded_video(video_path: Path) -> SubtitleDeletionResult:
     subtitles: List[Path] = []
     try:
         for candidate in video_dir.iterdir():
-            if candidate.is_dir():
-                continue
-            suffix = candidate.suffix.lower().lstrip(".")
-            if suffix not in _SUBTITLE_EXTENSIONS:
-                continue
-            if not _subtitle_matches_video(resolved, candidate):
+            try:
+                if not candidate.is_file():
+                    continue
+                suffix = candidate.suffix.lower().lstrip(".")
+                if suffix not in _SUBTITLE_EXTENSIONS:
+                    continue
+                if not _subtitle_matches_video(resolved, candidate):
+                    continue
+            except OSError:
+                logger.debug("Skipping stale subtitle candidate %s during video deletion", candidate, exc_info=True)
                 continue
             subtitles.append(candidate)
     except OSError:
