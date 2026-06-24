@@ -300,7 +300,11 @@ Current Apple UI partially exposes:
   Apple Create language controls are now contract-pinned to the shared
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults
-  or older option responses are sparse. The iPad regular-width Create layout now
+  or older option responses are sparse. `scripts/generate_language_catalogs.py`
+  now regenerates the Web and Apple catalog blocks from
+  `modules/language_constants.py`, and the Apple contract gate runs the
+  generator in `--check` mode so future language additions fail fast if a
+  surface drifts. The iPad regular-width Create layout now
   keeps the left setup pane source-only and moves Book, Metadata, Job Settings,
   Narration, Output, status, and submit controls into the right-side settings
   pane so creation settings use the detail area instead of reading like sidebar

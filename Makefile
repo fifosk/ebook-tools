@@ -1,6 +1,7 @@
 .PHONY: test test-fast test-audio test-translation test-webapi test-services \
        test-pipeline test-cli test-auth test-library test-render test-media \
        test-config test-metadata test-changed \
+       generate-language-catalogs check-language-catalogs \
        test-apple-contracts build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
        apple-device-preflight apple-device-signed-build-only apple-device-deploy-dry-run \
@@ -82,8 +83,15 @@ test-metadata:
 test-observability:
 	$(PYTHON) -m pytest -m observability -v
 
+generate-language-catalogs:
+	$(PYTHON) scripts/generate_language_catalogs.py
+
+check-language-catalogs:
+	$(PYTHON) scripts/generate_language_catalogs.py --check
+
 test-apple-contracts:
-	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_job_health_timeline_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_narration_history_defaults_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_check_poc_readiness.py tests/scripts/test_ios_profile_capability_check.py
+	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_job_health_timeline_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_narration_history_defaults_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_generate_language_catalogs.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_check_poc_readiness.py tests/scripts/test_ios_profile_capability_check.py
+	$(PYTHON) scripts/generate_language_catalogs.py --check
 	bash scripts/check_apple_runtime_descriptor_payload.sh
 	bash scripts/check_apple_creation_payloads.sh
 	bash scripts/check_apple_macos_ipad_style_helper.sh
