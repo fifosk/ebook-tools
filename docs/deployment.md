@@ -173,6 +173,21 @@ Do not use the entitlement-stripping fallback when testing iCloud features. It
 exists only as an explicit local-signing escape hatch and requires
 `APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES`.
 
+If the confirmed install build still fails because command-line Xcode cannot
+use the signed-in account, install an already signed full-entitlement bundle
+without switching to the entitlement-stripping path:
+
+```bash
+APPLE_DEVICE_ID="<device-id-or-name>" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  bash scripts/apple_unattended_device_update.sh \
+  --profile ipad --install --launch --launch-console-timeout 10 \
+  --fallback-to-signed-artifact \
+  --signed-artifact-path test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app
+```
+
+The helper verifies the fallback app's code signature plus current bundle id,
+marketing version, and build number before calling `devicectl install`.
+
 ### Makefile Shortcuts
 
 The Makefile provides convenience targets for common Docker operations:

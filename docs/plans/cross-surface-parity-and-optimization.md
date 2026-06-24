@@ -500,6 +500,10 @@ expanding contract checks whenever a new Web-only creation flow becomes native.
 Repo-owned physical-device helpers now expose attended preflight,
 shared-pipeline signed-build-only, shared-pipeline deploy dry-run wrappers, and
 a full-entitlement signing planner for cached-profile iPhone/iPad fallbacks; the
+unattended deploy helper can now fall back from a failed Xcode CLI build to a
+verified current signed full-entitlement app artifact before installing, so the
+golden recipe preserves iCloud/Push/Sign in with Apple without hand-editing
+`--skip-build` paths; the
 legacy entitlement-stripping fallback requires
 `APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES` so iCloud/Push/Sign in with Apple
 validation keeps the full entitlement set by default. The shared-pipeline

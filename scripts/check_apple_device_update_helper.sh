@@ -57,6 +57,7 @@ cat > "${fake_tools_dir}/devicectl" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 json_output=""
+args="$*"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --json-output)
@@ -69,9 +70,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 mkdir -p "$(dirname "${json_output}")"
+if [[ "${args}" == *"device info apps"* ]]; then
+cat > "${json_output}" <<'JSON'
+{"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"2026.6.24","bundleVersion":"2026062427"}]}}
+JSON
+elif [[ "${args}" == *"device install app"* ]]; then
+cat > "${json_output}" <<'JSON'
+{"result":{"installed":true}}
+JSON
+else
 cat > "${json_output}" <<'JSON'
 {"result":{"device":{"hardwareProperties":{"udid":"FAKE-UDID-123"}}}}
 JSON
+fi
 echo "fake device details"
 SH
 chmod +x "${fake_tools_dir}/devicectl"
@@ -82,6 +93,17 @@ printf ' %q' "$@"
 printf '\n'
 SH
 chmod +x "${fake_tools_dir}/xcodebuild"
+cat > "${fake_tools_dir}/failing-xcodebuild" <<'SH'
+#!/usr/bin/env bash
+echo "fake xcodebuild signing failure" >&2
+exit 65
+SH
+chmod +x "${fake_tools_dir}/failing-xcodebuild"
+cat > "${fake_tools_dir}/codesign" <<'SH'
+#!/usr/bin/env bash
+echo "fake codesign $*"
+SH
+chmod +x "${fake_tools_dir}/codesign"
 
 resolved_destination_output="$(
   DEVICECTL="${fake_tools_dir}/devicectl" \
@@ -143,6 +165,50 @@ provisioning_output="$(
 assert_contains "${provisioning_output}" "-allowProvisioningUpdates" "provisioning dry run should expose Xcode account refresh option"
 assert_contains "${provisioning_output}" "DEVELOPMENT_TEAM=ABC123XYZ" "provisioning dry run should pass the requested development team"
 assert_contains "${provisioning_output}" "-configuration  Release" "provisioning dry run should honor custom configuration"
+
+fallback_dry_run_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \
+    --device TEST-DEVICE \
+    --dry-run \
+    --install \
+    --fallback-to-signed-artifact \
+    --signed-artifact-path /tmp/InteractiveReader-signed.app
+)"
+assert_contains "${fallback_dry_run_output}" "Signed artifact fallback path: /tmp/InteractiveReader-signed.app" "signed-artifact fallback dry run should print the fallback app path"
+assert_contains "${fallback_dry_run_output}" "Install command:" "signed-artifact fallback dry run should still show the primary install command"
+
+signed_artifact_dir="$(mktemp -d)"
+signed_artifact="${signed_artifact_dir}/InteractiveReader.app"
+mkdir -p "${signed_artifact}"
+cat > "${signed_artifact}/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>com.example.InteractiveReader</string>
+  <key>CFBundleShortVersionString</key>
+  <string>2026.6.24</string>
+  <key>CFBundleVersion</key>
+  <string>2026062427</string>
+</dict>
+</plist>
+PLIST
+fallback_install_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  XCBUILD="${fake_tools_dir}/failing-xcodebuild" \
+  CODESIGN="${fake_tools_dir}/codesign" \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --install \
+      --fallback-to-signed-artifact \
+      --signed-artifact-path "${signed_artifact}"
+)"
+assert_contains "${fallback_install_output}" "xcodebuild failed with status 65; verifying signed artifact fallback." "signed-artifact fallback should run after xcodebuild failure"
+assert_contains "${fallback_install_output}" "Signed artifact fallback install command:" "signed-artifact fallback should print the swapped install command"
+assert_contains "${fallback_install_output}" "${signed_artifact}" "signed-artifact fallback should install the verified artifact path"
+assert_contains "${fallback_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.24 build=2026062427" "signed-artifact fallback should still verify installed metadata"
 
 appletv_output="$(
   bash "${HELPER}" \

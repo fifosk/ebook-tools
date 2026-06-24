@@ -394,16 +394,28 @@ metadata, but foreground launch may block until the user unlocks the device.
 When a signed app has already been produced by Xcode or a prior build, use
 `--skip-build --app-path /path/to/InteractiveReader.app` with the same
 confirmation guard to install that bundle without driving Xcode again.
+If a confirmed install build fails because command-line Xcode cannot access the
+signed-in account or full-capability profile, keep the deploy unattended by
+adding `--fallback-to-signed-artifact --signed-artifact-path <app>`. The helper
+verifies the fallback bundle signature plus current bundle id/version/build
+before swapping the install path, so stale or partially signed artifacts fail
+before `devicectl install`.
 
-Latest attended iPad M5 deployment from June 22, 2026: `v2026.06.22.12`
-with marketing version `2026.6.22` and bundle version `2026062212`. The
+Latest attended iPad Pro deployment from June 24, 2026: `v2026.06.24.27`
+with marketing version `2026.6.24` and bundle version `2026062427`. The
 post-install `devicectl` verification reported:
 
 ```text
-InteractiveReader   com.example.InteractiveReader   2026.6.22   2026062212
+InteractiveReader   com.example.InteractiveReader   2026.6.24   2026062427
 ```
 
-The `.12` install used the shared pipeline's iPad simulator gate plus Xcode's
+That install used the verified
+`test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app`
+artifact and the unattended `--skip-build --app-path ... --install --launch
+--launch-console-timeout 10` path; the launch console timeout was treated as
+success after the app stayed alive through the crash-watch window.
+
+Earlier June 22 `.12` installs used the shared pipeline's iPad simulator gate plus Xcode's
 GUI `InteractiveReader` scheme and `Fifo Ipad Pro` run destination. The shared
 CLI deploy wrapper reached the signed device build but failed because
 command-line Xcode account/profile state rejected the app capabilities; the GUI

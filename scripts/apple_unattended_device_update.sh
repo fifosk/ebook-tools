@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 XCBUILD="${XCBUILD:-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild}"
 DEVICECTL="${DEVICECTL:-$(xcrun --find devicectl)}"
+CODESIGN="${CODESIGN:-/usr/bin/codesign}"
 XCPROJ="${XCPROJ:-${ROOT_DIR}/ios/InteractiveReader/InteractiveReader.xcodeproj}"
 SCHEME_ENV_SET="${SCHEME+x}"
 PRODUCT_NAME_ENV_SET="${PRODUCT_NAME+x}"
@@ -18,10 +19,12 @@ PLATFORM_PRODUCT_DIR="${APPLE_DEVICE_PLATFORM_PRODUCT_DIR:-iphoneos}"
 DEVICE_ID="${APPLE_DEVICE_ID:-}"
 DERIVED_DATA="${APPLE_DEVICE_DERIVED_DATA:-}"
 APP_PATH="${APPLE_DEVICE_APP_PATH:-}"
+SIGNED_ARTIFACT_PATH="${APPLE_DEVICE_SIGNED_ARTIFACT_PATH:-}"
 DEVELOPMENT_TEAM="${APPLE_DEVELOPMENT_TEAM:-}"
 DEVICECTL_TIMEOUT="${APPLE_DEVICECTL_TIMEOUT:-60}"
 ALLOW_PROVISIONING_UPDATES="${ALLOW_PROVISIONING_UPDATES:-0}"
 STRIP_IOS_ENTITLEMENTS="${APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS:-0}"
+FALLBACK_TO_SIGNED_ARTIFACT="${APPLE_DEVICE_FALLBACK_TO_SIGNED_ARTIFACT:-0}"
 LAUNCH_CONSOLE_TIMEOUT="${APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT:-}"
 INSTALL=0
 LAUNCH=0
@@ -52,6 +55,10 @@ Options:
   --install                      Build and install the app with devicectl. Requires CONFIRM_PHYSICAL_DEVICE_UPDATE=YES.
   --skip-build                   Install the existing --app-path/APPLE_DEVICE_APP_PATH without rebuilding.
   --app-path PATH                App bundle to install or verify after a skipped build.
+  --fallback-to-signed-artifact  If xcodebuild fails during a confirmed install, verify and install
+                                 a pre-signed full-entitlement app bundle instead.
+  --signed-artifact-path PATH    Pre-signed app bundle for --fallback-to-signed-artifact.
+                                 Defaults to test-results/DerivedData-device-full-entitlements.
   --launch                       Launch the installed app after install.
   --no-verify                    Skip post-install app metadata verification.
   --no-preflight                 Skip the pre-install CoreDevice health check.
@@ -78,6 +85,8 @@ Environment:
   APPLE_DEVELOPMENT_TEAM, APPLE_DEVICE_PLATFORM_PRODUCT_DIR,
   APPLE_DEVICE_DERIVED_DATA, APPLE_DEVICECTL_TIMEOUT, XCBUILD, DEVICECTL,
   XCPROJ, SCHEME, CONFIGURATION, PRODUCT_NAME, and BUNDLE_ID override defaults.
+  APPLE_DEVICE_FALLBACK_TO_SIGNED_ARTIFACT=1 and APPLE_DEVICE_SIGNED_ARTIFACT_PATH
+  enable the iCloud-preserving cached signed-artifact install fallback.
   APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS=1 and APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT
   enable the matching unattended fallback behaviors.
   APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES is required before the
@@ -146,6 +155,63 @@ version = pick("version", "shortVersionString", "CFBundleShortVersionString")
 build = pick("bundleVersion", "buildVersion", "CFBundleVersion")
 print(f"Verified installed app: {name} {bundle_id} version={version} build={build}")
 PY
+}
+
+plist_value() {
+  local plist_path="$1"
+  local key="$2"
+  /usr/bin/plutil -extract "${key}" raw -o - "${plist_path}" 2>/dev/null || true
+}
+
+source_info_plist() {
+  case "${DEVICE_PROFILE}" in
+    tvos|appletv)
+      echo "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist"
+      ;;
+    *)
+      echo "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Supporting/Info.plist"
+      ;;
+  esac
+}
+
+verify_signed_artifact_bundle() {
+  local artifact_path="$1"
+  local artifact_info="${artifact_path}/Info.plist"
+  local expected_info
+  local actual_bundle_id actual_short actual_build expected_short expected_build
+
+  if [[ -z "${artifact_path}" || ! -d "${artifact_path}" ]]; then
+    echo "Signed artifact app bundle not found: ${artifact_path}" >&2
+    return 1
+  fi
+  if [[ ! -f "${artifact_info}" ]]; then
+    echo "Signed artifact is missing Info.plist: ${artifact_path}" >&2
+    return 1
+  fi
+
+  "${CODESIGN}" --verify --deep --strict --verbose=4 "${artifact_path}"
+
+  actual_bundle_id="$(plist_value "${artifact_info}" CFBundleIdentifier)"
+  if [[ "${actual_bundle_id}" != "${BUNDLE_ID}" ]]; then
+    echo "Signed artifact bundle id ${actual_bundle_id:-<missing>} does not match ${BUNDLE_ID}." >&2
+    return 1
+  fi
+
+  expected_info="$(source_info_plist)"
+  if [[ -f "${expected_info}" ]]; then
+    actual_short="$(plist_value "${artifact_info}" CFBundleShortVersionString)"
+    actual_build="$(plist_value "${artifact_info}" CFBundleVersion)"
+    expected_short="$(plist_value "${expected_info}" CFBundleShortVersionString)"
+    expected_build="$(plist_value "${expected_info}" CFBundleVersion)"
+    if [[ -n "${expected_short}" && "${actual_short}" != "${expected_short}" ]]; then
+      echo "Signed artifact version ${actual_short:-<missing>} does not match current ${expected_short}." >&2
+      return 1
+    fi
+    if [[ -n "${expected_build}" && "${actual_build}" != "${expected_build}" ]]; then
+      echo "Signed artifact build ${actual_build:-<missing>} does not match current ${expected_build}." >&2
+      return 1
+    fi
+  fi
 }
 
 resolve_xcodebuild_destination_id() {
@@ -245,6 +311,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --app-path)
       APP_PATH="${2:-}"
+      shift 2
+      ;;
+    --fallback-to-signed-artifact)
+      FALLBACK_TO_SIGNED_ARTIFACT=1
+      shift
+      ;;
+    --signed-artifact-path)
+      SIGNED_ARTIFACT_PATH="${2:-}"
       shift 2
       ;;
     --launch)
@@ -366,6 +440,9 @@ fi
 if [[ -z "${APP_PATH}" ]]; then
   APP_PATH="${DERIVED_DATA}/Build/Products/${CONFIGURATION}-${PLATFORM_PRODUCT_DIR}/${PRODUCT_NAME}.app"
 fi
+if [[ -z "${SIGNED_ARTIFACT_PATH}" ]]; then
+  SIGNED_ARTIFACT_PATH="${ROOT_DIR}/test-results/DerivedData-device-full-entitlements/Build/Products/${CONFIGURATION}-${PLATFORM_PRODUCT_DIR}/${PRODUCT_NAME}.app"
+fi
 
 VERIFY_JSON="$(json_scratch_path apple-device-installed-app)"
 PREFLIGHT_JSON="$(json_scratch_path apple-device-preflight)"
@@ -466,6 +543,9 @@ fi
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   print_command "Build command" "${BUILD_CMD[@]}"
   echo "Resolved app path: ${APP_PATH}"
+  if [[ "${FALLBACK_TO_SIGNED_ARTIFACT}" == "1" ]]; then
+    echo "Signed artifact fallback path: ${SIGNED_ARTIFACT_PATH}"
+  fi
   if [[ "${STRIP_IOS_ENTITLEMENTS}" == "1" ]]; then
     if [[ "${APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING:-}" != "YES" ]]; then
       echo "Refusing to strip iOS entitlements without APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES." >&2
@@ -513,7 +593,27 @@ if [[ "${SKIP_BUILD}" != "1" ]]; then
   if [[ "${STRIP_IOS_ENTITLEMENTS}" == "1" ]]; then
     strip_ios_entitlements_for_local_signing
   fi
+  set +e
   "${BUILD_CMD[@]}"
+  build_status=$?
+  set -e
+  if [[ "${build_status}" != "0" ]]; then
+    if [[ "${INSTALL}" == "1" && "${FALLBACK_TO_SIGNED_ARTIFACT}" == "1" ]]; then
+      echo "xcodebuild failed with status ${build_status}; verifying signed artifact fallback."
+      verify_signed_artifact_bundle "${SIGNED_ARTIFACT_PATH}"
+      APP_PATH="${SIGNED_ARTIFACT_PATH}"
+      INSTALL_CMD=(
+        "${DEVICECTL}" device install app
+        --device "${DEVICE_ID}"
+        "${APP_PATH}"
+        --timeout "${DEVICECTL_TIMEOUT}"
+        --json-output "${INSTALL_JSON}"
+      )
+      print_command "Signed artifact fallback install command" "${INSTALL_CMD[@]}"
+    else
+      exit "${build_status}"
+    fi
+  fi
 fi
 
 if [[ "${INSTALL}" != "1" ]]; then
