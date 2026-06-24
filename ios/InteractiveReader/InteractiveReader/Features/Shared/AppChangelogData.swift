@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.23",
+            version: "2026.06.24.24",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-device-update-preflight",
+                    title: "Device updates preflight first",
+                    detail: "The guarded Apple physical-device update helper now runs a non-mutating CoreDevice health preflight before confirmed installs, while keeping installed-app metadata verification as a separate post-install check."
+                ),
                 AppChangelogEntry(
                     id: "apple-offline-export-progress",
                     title: "Exports show progress",

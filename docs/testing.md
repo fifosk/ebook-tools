@@ -219,6 +219,11 @@ APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh -
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --build-only --allow-provisioning-updates
 ```
 
+`--device-preflight-only` checks that CoreDevice can see and query the selected
+device without requiring the app to already be installed. `--verify-installed`
+is the separate installed-app metadata check, and confirmed installs run the
+device preflight before build/install unless `--no-preflight` is passed.
+
 Run the local Apple contract gate after changing native Create payloads,
 deployment helpers, or simulator journey config wiring:
 

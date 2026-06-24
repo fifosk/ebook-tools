@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.24
+
+- Advanced visible Apple app versioning to `v2026.06.24.24`.
+- The guarded Apple physical-device update helper now runs a non-mutating CoreDevice health preflight before confirmed installs, while keeping installed-app metadata verification as a separate post-install check.
+
 ### 2026.06.24.23
 
 - Advanced visible Apple app versioning to `v2026.06.24.23`.

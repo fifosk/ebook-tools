@@ -40,8 +40,9 @@ assert_not_contains "${build_output}" "Install command:" "build-only dry run sho
 
 preflight_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --device-preflight-only)"
 assert_contains "${preflight_output}" "Device preflight command:" "preflight dry run should print the preflight command"
-assert_contains "${preflight_output}" "device  info  apps" "preflight should query device app info without mutation"
-assert_contains "${preflight_output}" "--bundle-id  com.example.InteractiveReader" "preflight should scope to the app bundle id"
+assert_contains "${preflight_output}" "device  info  details" "preflight should query device health without mutation"
+assert_contains "${preflight_output}" "apple-device-preflight-TEST-DEVICE.json" "preflight should write a script-readable JSON path"
+assert_not_contains "${preflight_output}" "--bundle-id" "preflight should not require the app to already be installed"
 
 verify_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --verify-installed)"
 assert_contains "${verify_output}" "Installed app verification command:" "verify dry run should print app metadata verification"
@@ -57,10 +58,24 @@ install_output="$(
     --launch
 )"
 assert_not_contains "${install_output}" "Build command:" "skip-build install dry run should not print a build command"
+assert_contains "${install_output}" "Device preflight command:" "install dry run should print the pre-install device preflight"
+assert_contains "${install_output}" "device  info  details" "install dry run should preflight CoreDevice before install"
 assert_contains "${install_output}" "Install command:" "install dry run should print install command"
 assert_contains "${install_output}" "Post-install verification command:" "install dry run should verify installed metadata by default"
 assert_contains "${install_output}" "Launch command:" "install --launch dry run should print launch command"
 assert_contains "${install_output}" "--json-output  ${ROOT_DIR}/test-results/apple-device-launch-TEST-DEVICE.json  com.example.InteractiveReader" "launch output options should appear before the bundle id"
+
+no_preflight_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \
+    --device TEST-DEVICE \
+    --dry-run \
+    --install \
+    --skip-build \
+    --no-preflight \
+    --app-path /tmp/InteractiveReader.app
+)"
+assert_not_contains "${no_preflight_output}" "Device preflight command:" "install --no-preflight dry run should omit the pre-install preflight"
+assert_contains "${no_preflight_output}" "Install command:" "install --no-preflight should still show the install command"
 
 provisioning_output="$(
   bash "${HELPER}" \

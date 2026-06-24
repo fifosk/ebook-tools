@@ -21,6 +21,7 @@ DRY_RUN=0
 LIST=0
 SKIP_BUILD=0
 VERIFY_AFTER_INSTALL=1
+PREFLIGHT_BEFORE_INSTALL=1
 VERIFY_ONLY=0
 PREFLIGHT_ONLY=0
 
@@ -45,6 +46,7 @@ Options:
   --app-path PATH                App bundle to install or verify after a skipped build.
   --launch                       Launch the installed app after install.
   --no-verify                    Skip post-install app metadata verification.
+  --no-preflight                 Skip the pre-install CoreDevice health check.
   --allow-provisioning-updates   Pass -allowProvisioningUpdates to xcodebuild.
   --team-id TEAMID               Pass DEVELOPMENT_TEAM=TEAMID to xcodebuild.
   --configuration NAME           Xcode configuration. Defaults to Debug.
@@ -157,6 +159,10 @@ while [[ $# -gt 0 ]]; do
       VERIFY_AFTER_INSTALL=0
       shift
       ;;
+    --no-preflight)
+      PREFLIGHT_BEFORE_INSTALL=0
+      shift
+      ;;
     --verify-installed|--verify-only)
       VERIFY_ONLY=1
       shift
@@ -218,6 +224,7 @@ if [[ -z "${APP_PATH}" ]]; then
 fi
 
 VERIFY_JSON="$(json_scratch_path apple-device-installed-app)"
+PREFLIGHT_JSON="$(json_scratch_path apple-device-preflight)"
 INSTALL_JSON="$(json_scratch_path apple-device-install)"
 LAUNCH_JSON="$(json_scratch_path apple-device-launch)"
 
@@ -251,6 +258,12 @@ VERIFY_CMD=(
   --timeout "${DEVICECTL_TIMEOUT}"
   --json-output "${VERIFY_JSON}"
 )
+PREFLIGHT_CMD=(
+  "${DEVICECTL}" device info details
+  --device "${DEVICE_ID}"
+  --timeout "${DEVICECTL_TIMEOUT}"
+  --json-output "${PREFLIGHT_JSON}"
+)
 LAUNCH_CMD=(
   "${DEVICECTL}" device process launch
   --terminate-existing
@@ -261,12 +274,12 @@ LAUNCH_CMD=(
 )
 
 if [[ "${PREFLIGHT_ONLY}" == "1" ]]; then
-  print_command "Device preflight command" "${VERIFY_CMD[@]}"
+  print_command "Device preflight command" "${PREFLIGHT_CMD[@]}"
   if [[ "${DRY_RUN}" == "1" ]]; then
     exit 0
   fi
-  mkdir -p "$(dirname "${VERIFY_JSON}")"
-  "${VERIFY_CMD[@]}" || {
+  mkdir -p "$(dirname "${PREFLIGHT_JSON}")"
+  "${PREFLIGHT_CMD[@]}" || {
     echo "Device preflight failed. Confirm the device is connected, awake, trusted, and visible to CoreDevice." >&2
     exit 1
   }
@@ -290,6 +303,9 @@ if [[ "${SKIP_BUILD}" != "1" ]]; then
 fi
 
 if [[ "${INSTALL}" == "1" ]]; then
+  if [[ "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]]; then
+    print_command "Device preflight command" "${PREFLIGHT_CMD[@]}"
+  fi
   print_command "Install command" "${INSTALL_CMD[@]}"
   if [[ "${VERIFY_AFTER_INSTALL}" == "1" ]]; then
     print_command "Post-install verification command" "${VERIFY_CMD[@]}"
@@ -310,6 +326,14 @@ if [[ "${INSTALL}" == "1" && "${CONFIRM_PHYSICAL_DEVICE_UPDATE:-}" != "YES" ]]; 
 fi
 
 mkdir -p "$(dirname "${INSTALL_JSON}")"
+
+if [[ "${INSTALL}" == "1" && "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]]; then
+  mkdir -p "$(dirname "${PREFLIGHT_JSON}")"
+  "${PREFLIGHT_CMD[@]}" || {
+    echo "Device preflight failed. Confirm the device is connected, awake, trusted, and visible to CoreDevice." >&2
+    exit 1
+  }
+fi
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   "${BUILD_CMD[@]}"
