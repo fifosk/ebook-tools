@@ -1,6 +1,7 @@
 .PHONY: test test-fast test-audio test-translation test-webapi test-services \
        test-pipeline test-cli test-auth test-library test-render test-media \
        test-config test-metadata test-changed \
+       test-web-video-dubbing-focused \
        generate-language-catalogs check-language-catalogs \
        test-apple-contracts build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
@@ -52,6 +53,18 @@ test-translation:
 
 test-webapi:
 	$(PYTHON) -m pytest -m webapi
+
+test-web-video-dubbing-focused:
+	npm --prefix web test -- --run \
+		src/pages/__tests__/videoDubbingUtils.test.ts \
+		src/pages/__tests__/useVideoDubbingSelectionState.test.tsx \
+		src/pages/__tests__/useVideoDubbingMetadata.test.tsx \
+		src/pages/__tests__/useVideoDubbingLanguageState.test.tsx \
+		src/pages/__tests__/useVideoDubbingVoiceState.test.tsx \
+		src/pages/__tests__/useVideoDubbingModelState.test.tsx \
+		src/pages/__tests__/useVideoDubbingOutputState.test.tsx \
+		src/pages/__tests__/useVideoDubbingSubtitleExtraction.test.tsx \
+		src/pages/__tests__/useVideoDubbingLibraryState.test.tsx
 
 test-services:
 	$(PYTHON) -m pytest -m services
