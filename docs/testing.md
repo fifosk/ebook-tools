@@ -160,6 +160,19 @@ This compiles the `InteractiveReaderTV` scheme for the default Apple TV 4K
 simulator destination and writes DerivedData under `test-results/`, without
 installing to Apple TV hardware.
 
+For iPhone/iPad compile checks without launching the full XCUITest journeys,
+run the matching repo-owned simulator build lanes:
+
+```bash
+make build-apple-iphone-simulator
+make build-apple-ipad-simulator
+make build-apple-ios-simulators
+```
+
+These compile the shared `InteractiveReader` scheme for the default iPhone and
+iPad simulator destinations and write DerivedData under `test-results/`,
+without installing to iPhone or iPad hardware.
+
 For repo-owned physical iPhone/iPad update readiness, the guarded helper can
 exercise CoreDevice paths without installing:
 
@@ -180,8 +193,9 @@ make test-apple-contracts
 This checks backend/Web/Apple language catalogue parity, iPad Create split-view
 layout wiring, the public runtime descriptor contract, preflight/config parsing,
 the Swift creation payload contract, the macOS iPad-style build helper, the
-tvOS simulator compile lane, the guarded physical-device update helper, and the
-XCUITest config writer without installing to iPhone, iPad, or Apple TV hardware.
+iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the
+guarded physical-device update helper, and the XCUITest config writer without
+installing to iPhone, iPad, or Apple TV hardware.
 
 The public runtime descriptor at `/api/system/runtime` also advertises the
 Create endpoints used by Apple surfaces (`creation.bookOptionsPath` and

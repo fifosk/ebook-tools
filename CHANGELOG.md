@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.16
+
+- Advanced visible Apple app versioning to `v2026.06.24.16`.
+- Added repo-owned `make build-apple-iphone-simulator`, `make build-apple-ipad-simulator`, and `make build-apple-ios-simulators` compile gates so iPhone and iPad simulator builds can run without launching full journeys or touching physical devices.
+
 ### 2026.06.24.15
 
 - Advanced visible Apple app versioning to `v2026.06.24.15`.

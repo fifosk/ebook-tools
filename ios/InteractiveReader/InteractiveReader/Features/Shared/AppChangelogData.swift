@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.15",
+            version: "2026.06.24.16",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-ios-simulator-build-lanes",
+                    title: "Phone and iPad builds get gates",
+                    detail: "The repo now has quick iPhone and iPad simulator compile lanes, plus a combined iOS simulator target, so pipeline dogfood can verify handheld and tablet builds without launching full journeys or touching physical devices."
+                ),
                 AppChangelogEntry(
                     id: "apple-tvos-simulator-build-lane",
                     title: "TV builds get a gate",
