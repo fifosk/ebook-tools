@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import type { CreationTemplateEntry } from '../../api/dtos';
 import { DEFAULT_FORM_STATE } from '../book-narration/bookNarrationFormDefaults';
-import { buildBookNarrationTemplatePayload } from '../book-narration/bookNarrationTemplates';
+import {
+  buildBookNarrationTemplatePayload,
+  extractBookNarrationTemplateFormState
+} from '../book-narration/bookNarrationTemplates';
 
 describe('bookNarrationTemplates', () => {
   it('builds sanitized Web creation templates without environment secrets', () => {
@@ -40,5 +44,86 @@ describe('bookNarrationTemplates', () => {
     expect(formState.pipeline_overrides).toBe('{\n  "voice": "gTTS",\n  "nested": {\n    "safe": true\n  }\n}');
     expect(formState.book_metadata).toBe('{\n  "book_title": "Portable Template"\n}');
     expect(JSON.stringify(payload)).not.toContain('drop-me');
+  });
+
+  it('includes sanitized generated-book prompt state when provided', () => {
+    const payload = buildBookNarrationTemplatePayload({
+      formState: {
+        ...DEFAULT_FORM_STATE,
+        base_output_file: 'next-dan-brown'
+      },
+      normalizedTargetLanguages: ['Arabic'],
+      sourceMode: 'generated',
+      activeSection: 'language',
+      payloadExtras: {
+        generator_state: {
+          topic: 'Continue the current Dan Brown book',
+          book_name: 'Cipher Continuation',
+          genre: 'Mystery thriller',
+          author: 'Me',
+          num_sentences: 60,
+          api_key: 'drop-me'
+        },
+        form_state: {
+          input_file: 'should-not-overwrite'
+        }
+      }
+    });
+
+    expect(payload.mode).toBe('generated_book');
+    expect(payload.payload.generator_state).toEqual({
+      topic: 'Continue the current Dan Brown book',
+      book_name: 'Cipher Continuation',
+      genre: 'Mystery thriller',
+      author: 'Me',
+      num_sentences: 60
+    });
+    expect((payload.payload.form_state as Record<string, unknown>).base_output_file).toBe(
+      'next-dan-brown'
+    );
+    expect(JSON.stringify(payload)).not.toContain('drop-me');
+    expect(JSON.stringify(payload)).not.toContain('should-not-overwrite');
+  });
+
+  it('extracts compatible template form state for Web handoff', () => {
+    const template: CreationTemplateEntry = {
+      id: 'template-1',
+      name: 'Portable',
+      mode: 'narrate_ebook',
+      created_at: 1,
+      updated_at: 2,
+      payload: {
+        kind: 'book_narration_form',
+        source_mode: 'upload',
+        active_section: 'language',
+        form_state: {
+          input_file: '/books/current.epub',
+          input_language: 'English',
+          target_languages: ['Arabic', 'German'],
+          generate_audio: false,
+          tempo: '1.25',
+          voice_overrides: {
+            en: 'macOS-auto',
+            empty: ''
+          },
+          unknown_field: 'ignored'
+        }
+      }
+    };
+
+    expect(extractBookNarrationTemplateFormState(template, 'upload')).toEqual({
+      activeSection: 'language',
+      formState: {
+        input_file: '/books/current.epub',
+        input_language: 'English',
+        target_languages: ['Arabic', 'German'],
+        generate_audio: false,
+        tempo: 1.25,
+        voice_overrides: {
+          en: 'macOS-auto'
+        }
+      }
+    });
+    expect(extractBookNarrationTemplateFormState(template, 'generated')).toBeNull();
   });
 });

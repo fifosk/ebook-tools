@@ -29,7 +29,10 @@ import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
 import { BookNarrationFileDialog } from './BookNarrationFileDialog';
-import { buildBookNarrationTemplatePayload } from './bookNarrationTemplates';
+import {
+  buildBookNarrationTemplatePayload,
+  extractBookNarrationTemplateFormState
+} from './bookNarrationTemplates';
 import type {
   BookNarrationFormProps,
   BookNarrationFormSection,
@@ -69,6 +72,9 @@ export function BookNarrationForm({
   prefillInputFile = null,
   prefillParameters = null,
   recentJobs = null,
+  creationTemplate = null,
+  creationTemplateError = null,
+  isLoadingCreationTemplate = false,
   sourceMode = 'upload',
   submitLabel,
   forcedBaseOutputFile = null,
@@ -80,7 +86,8 @@ export function BookNarrationForm({
   defaultImageSettings = null,
   defaultPipelineSettings = null,
   supportedInputLanguages = null,
-  supportedTargetLanguages = null
+  supportedTargetLanguages = null,
+  templatePayloadExtras = null
 }: BookNarrationFormProps) {
   const isGeneratedSource = sourceMode === 'generated';
   const imageDefaults = defaultImageSettings ?? null;
@@ -150,6 +157,7 @@ export function BookNarrationForm({
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const prefillAppliedRef = useRef<string | null>(null);
   const prefillParametersRef = useRef<string | null>(null);
+  const creationTemplateAppliedRef = useRef<string | null>(null);
   const recentJobsRef = useRef<PipelineStatusResponse[] | null>(recentJobs ?? null);
   const userEditedStartRef = useRef<boolean>(false);
   const userEditedInputRef = useRef<boolean>(false);
@@ -360,6 +368,86 @@ export function BookNarrationForm({
     });
   }, [prefillParameters, forcedBaseOutputFile, preserveUserEditedFields]);
 
+  useEffect(() => {
+    if (!creationTemplate) {
+      creationTemplateAppliedRef.current = null;
+      return;
+    }
+    const applyKey = `${creationTemplate.id}:${creationTemplate.updated_at}:${sourceMode}`;
+    if (creationTemplateAppliedRef.current === applyKey) {
+      return;
+    }
+    const applied = extractBookNarrationTemplateFormState(creationTemplate, sourceMode);
+    if (!applied) {
+      setTemplateStatus(null);
+      setTemplateError(`Template "${creationTemplate.name}" is not compatible with this book job.`);
+      creationTemplateAppliedRef.current = applyKey;
+      return;
+    }
+
+    const appliedFormState: Partial<FormState> = { ...applied.formState };
+    if (Array.isArray(appliedFormState.target_languages)) {
+      const targetLanguageFields = targetLanguageFieldsFromLanguages(
+        normalizeTargetLanguages(appliedFormState.target_languages)
+      );
+      appliedFormState.target_languages = targetLanguageFields.target_languages;
+      appliedFormState.custom_target_languages = targetLanguageFields.custom_target_languages;
+    }
+
+    userEditedStartRef.current = 'start_sentence' in appliedFormState;
+    userEditedInputRef.current = 'input_file' in appliedFormState || 'base_output_file' in appliedFormState;
+    userEditedEndRef.current = 'end_sentence' in appliedFormState;
+    lastAutoEndSentenceRef.current = null;
+    for (const key of Object.keys(appliedFormState) as (keyof FormState)[]) {
+      userEditedFieldsRef.current.add(key);
+      if (IMAGE_DEFAULT_FIELDS.has(key)) {
+        userEditedImageDefaultsRef.current.add(key);
+      }
+    }
+
+    if (Array.isArray(appliedFormState.target_languages)) {
+      const normalizedTargets = normalizeTargetLanguages([
+        ...appliedFormState.target_languages,
+        ...(appliedFormState.custom_target_languages ?? '')
+          .split(/[,\n]/)
+          .map((language) => language.trim())
+          .filter(Boolean)
+      ]);
+      if (!areLanguageArraysEqual(sharedTargetLanguages, normalizedTargets)) {
+        setSharedTargetLanguages(normalizedTargets);
+      }
+    }
+    if (typeof appliedFormState.input_language === 'string') {
+      setSharedInputLanguage(appliedFormState.input_language);
+    }
+    if (typeof appliedFormState.enable_lookup_cache === 'boolean') {
+      setSharedEnableLookupCache(appliedFormState.enable_lookup_cache);
+    }
+    setFormState((previous) => ({
+      ...previous,
+      ...appliedFormState,
+      base_output_file:
+        forcedBaseOutputFile ??
+        appliedFormState.base_output_file ??
+        previous.base_output_file
+    }));
+    if (applied.activeSection) {
+      handleSectionChange(applied.activeSection);
+    }
+    setTemplateError(null);
+    setTemplateStatus(`Applied template "${creationTemplate.name}".`);
+    creationTemplateAppliedRef.current = applyKey;
+  }, [
+    creationTemplate,
+    forcedBaseOutputFile,
+    handleSectionChange,
+    setSharedEnableLookupCache,
+    setSharedInputLanguage,
+    setSharedTargetLanguages,
+    sharedTargetLanguages,
+    sourceMode
+  ]);
+
   useBookNarrationDefaults({
     formState,
     isGeneratedSource,
@@ -541,7 +629,8 @@ export function BookNarrationForm({
         formState,
         normalizedTargetLanguages,
         sourceMode,
-        activeSection: activeTab
+        activeSection: activeTab,
+        payloadExtras: templatePayloadExtras
       });
       const saved = await saveCreationTemplate(payload);
       setTemplateStatus(`Saved template "${saved.name}".`);
@@ -554,7 +643,7 @@ export function BookNarrationForm({
     } finally {
       setIsSavingTemplate(false);
     }
-  }, [activeTab, formState, normalizedTargetLanguages, sourceMode]);
+  }, [activeTab, formState, normalizedTargetLanguages, sourceMode, templatePayloadExtras]);
 
   const handleSubmitAndRefreshIntake = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -578,6 +667,9 @@ export function BookNarrationForm({
     isIntakeAtCapacity,
     submitLabel
   });
+  const effectiveTemplateStatus =
+    isLoadingCreationTemplate ? 'Loading saved template...' : templateStatus;
+  const effectiveTemplateError = creationTemplateError ?? templateError;
   const canBrowseFiles = Boolean(fileOptions);
   return (
     <div className="pipeline-settings">
@@ -606,8 +698,8 @@ export function BookNarrationForm({
           missingRequirementText={submitPresentation.missingRequirementText}
           error={error}
           externalError={externalError}
-          templateStatus={templateStatus}
-          templateError={templateError}
+          templateStatus={effectiveTemplateStatus}
+          templateError={effectiveTemplateError}
         />
         <div className="pipeline-section-panel">
           <BookNarrationFormSections

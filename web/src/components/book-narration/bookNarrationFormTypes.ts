@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type {
+  CreationTemplateEntry,
   JobParameterSnapshot,
   PipelineRequestPayload,
   PipelineStatusResponse,
@@ -23,6 +24,9 @@ export type BookNarrationFormProps = {
   prefillInputFile?: string | null;
   prefillParameters?: JobParameterSnapshot | null;
   recentJobs?: PipelineStatusResponse[] | null;
+  creationTemplate?: CreationTemplateEntry | null;
+  creationTemplateError?: string | null;
+  isLoadingCreationTemplate?: boolean;
   sourceMode?: 'upload' | 'generated';
   submitLabel?: string;
   forcedBaseOutputFile?: string | null;
@@ -35,6 +39,7 @@ export type BookNarrationFormProps = {
   defaultPipelineSettings?: BookNarrationPipelineDefaults | null;
   supportedInputLanguages?: string[] | null;
   supportedTargetLanguages?: string[] | null;
+  templatePayloadExtras?: Record<string, unknown> | null;
 };
 
 export type JsonFields =

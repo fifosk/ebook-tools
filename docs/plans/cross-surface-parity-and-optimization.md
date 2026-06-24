@@ -848,8 +848,13 @@ Suggested features to evaluate after parity scaffolding:
   reads at `/api/creation/templates/{template_id}` with the same sanitized,
   user-scoped payload shape as list/save; Web and Apple clients both expose the
   single-template fetch primitive, and Apple encodes template path components
-  without letting `/`, `?`, or `#` split the route. Next step is wiring native
-  Create draft/save actions and Web `template_id` deep-link application.
+  without letting `/`, `?`, or `#` split the route. Web `?view=...&template_id=...`
+  handoffs now fetch the saved template after login and apply compatible
+  Narrate Ebook or generated-book form state into the selected creation surface;
+  generated-book templates also carry sanitized prompt fields (topic, book name,
+  genre, author, sentence count) so "continue this book" drafts restore both
+  the source prompt and narration settings. Next step is wiring native Create
+  draft/save actions to mint those links directly from iPad/iPhone.
 - Creation handoff: Apple app opens the corresponding Web creation URL for unsupported advanced options. Status:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,
   and maps native creation modes to validated Web `?view=` deep links. The

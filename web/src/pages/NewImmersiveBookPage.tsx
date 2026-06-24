@@ -1,5 +1,10 @@
 import { useMemo } from 'react';
-import type { JobParameterSnapshot, PipelineRequestPayload, PipelineStatusResponse } from '../api/dtos';
+import type {
+  CreationTemplateEntry,
+  JobParameterSnapshot,
+  PipelineRequestPayload,
+  PipelineStatusResponse
+} from '../api/dtos';
 import BookNarrationForm, { type BookNarrationFormSection } from '../components/book-narration/BookNarrationForm';
 
 interface NewImmersiveBookPageProps {
@@ -11,6 +16,9 @@ interface NewImmersiveBookPageProps {
   submitError?: string | null;
   recentJobs?: PipelineStatusResponse[] | null;
   prefillParameters?: JobParameterSnapshot | null;
+  creationTemplate?: CreationTemplateEntry | null;
+  creationTemplateError?: string | null;
+  isLoadingCreationTemplate?: boolean;
 }
 
 export default function NewImmersiveBookPage({
@@ -21,7 +29,10 @@ export default function NewImmersiveBookPage({
   prefillInputFile = null,
   submitError = null,
   recentJobs = null,
-  prefillParameters = null
+  prefillParameters = null,
+  creationTemplate = null,
+  creationTemplateError = null,
+  isLoadingCreationTemplate = false
 }: NewImmersiveBookPageProps) {
   const effectiveSection: BookNarrationFormSection = useMemo(() => activeSection, [activeSection]);
 
@@ -32,6 +43,9 @@ export default function NewImmersiveBookPage({
         isSubmitting={isSubmitting}
         prefillInputFile={prefillInputFile}
         prefillParameters={prefillParameters}
+        creationTemplate={creationTemplate}
+        creationTemplateError={creationTemplateError}
+        isLoadingCreationTemplate={isLoadingCreationTemplate}
         activeSection={effectiveSection}
         onSectionChange={onSectionChange}
         externalError={submitError}

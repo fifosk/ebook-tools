@@ -1,4 +1,4 @@
-import type { PipelineRequestPayload } from '../../api/dtos';
+import type { CreationTemplateEntry, PipelineRequestPayload } from '../../api/dtos';
 import type {
   BookCreationOptionsResponse,
   BookGenerationJobRequest,
@@ -28,6 +28,10 @@ export const FALLBACK_SENTENCE_BOUNDS = {
   max: 500,
   default: DEFAULT_GENERATOR_STATE.num_sentences,
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 export function deriveBaseOutputName(value: string): string {
   const withoutExtension = value.replace(/\.[^/.]+$/, '');
@@ -79,6 +83,40 @@ export function resolveGeneratorDefaults({
       ? normalizeSentenceCount(previous.num_sentences, nextBounds)
       : nextDefaultCount,
   };
+}
+
+export function extractGeneratedBookTemplateGeneratorState(
+  template: CreationTemplateEntry | null | undefined,
+  bounds: BookCreationOptionsResponse['sentence_bounds'] = FALLBACK_SENTENCE_BOUNDS,
+): Partial<GeneratorFormState> | null {
+  if (!template || template.mode !== 'generated_book') {
+    return null;
+  }
+  const payload = template.payload;
+  if (!isRecord(payload) || payload.kind !== 'book_narration_form') {
+    return null;
+  }
+  const source = isRecord(payload.generator_state) ? payload.generator_state : payload;
+  const next: Partial<GeneratorFormState> = {};
+
+  for (const key of ['topic', 'book_name', 'genre', 'author'] as const) {
+    const value = source[key];
+    if (typeof value === 'string') {
+      next[key] = value;
+    }
+  }
+
+  const sentenceValue = source.num_sentences;
+  if (typeof sentenceValue === 'number' && Number.isFinite(sentenceValue)) {
+    next.num_sentences = normalizeSentenceCount(sentenceValue, bounds);
+  } else if (typeof sentenceValue === 'string') {
+    const parsed = Number(sentenceValue.trim());
+    if (Number.isFinite(parsed)) {
+      next.num_sentences = normalizeSentenceCount(parsed, bounds);
+    }
+  }
+
+  return Object.keys(next).length > 0 ? next : null;
 }
 
 export function buildGeneratedSourceImageDefaults(options: BookCreationOptionsResponse | null) {

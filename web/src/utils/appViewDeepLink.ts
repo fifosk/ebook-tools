@@ -8,6 +8,7 @@ import {
 } from '../constants/appViews';
 
 type LocationParts = Pick<Location, 'search' | 'hash'>;
+export const CREATION_TEMPLATE_QUERY_PARAM = 'template_id';
 
 export function parseAppView(value: string | null | undefined): SelectedView | null {
   const trimmed = value?.trim();
@@ -32,8 +33,35 @@ export function parseDeepLinkedAppView(location: LocationParts): SelectedView | 
   return parseAppView(hash);
 }
 
-export function buildAppViewHandoffPath(view: SelectedView): string {
-  return `/?${APP_VIEW_QUERY_PARAM}=${encodeURIComponent(view)}`;
+export function parseDeepLinkedCreationTemplateId(location: LocationParts): string | null {
+  const searchTemplate = new URLSearchParams(location.search)
+    .get(CREATION_TEMPLATE_QUERY_PARAM)
+    ?.trim();
+  if (searchTemplate) {
+    return searchTemplate;
+  }
+
+  const hash = location.hash.replace(/^#/, '');
+  if (!hash.startsWith('?')) {
+    return null;
+  }
+  return (
+    new URLSearchParams(hash.slice(1))
+      .get(CREATION_TEMPLATE_QUERY_PARAM)
+      ?.trim() || null
+  );
+}
+
+export function buildAppViewHandoffPath(
+  view: SelectedView,
+  options: { templateId?: string | null } = {}
+): string {
+  const params = new URLSearchParams();
+  params.set(APP_VIEW_QUERY_PARAM, view);
+  if (options.templateId?.trim()) {
+    params.set(CREATION_TEMPLATE_QUERY_PARAM, options.templateId.trim());
+  }
+  return `/?${params.toString()}`;
 }
 
 export const APPLE_CREATE_WEB_VIEW_BY_MODE = {

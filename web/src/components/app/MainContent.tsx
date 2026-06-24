@@ -3,6 +3,7 @@ import type { JobState } from '../JobList';
 import type { BookNarrationFormSection } from '../book-narration/BookNarrationForm';
 import type {
   AccessPolicyUpdatePayload,
+  CreationTemplateEntry,
   JobParameterSnapshot,
   PipelineRequestPayload,
   PipelineStatusResponse,
@@ -57,6 +58,9 @@ interface MainContentProps {
   recentPipelineJobs: PipelineStatusResponse[];
   pendingInputFile: string | null;
   copiedJobParameters: JobParameterSnapshot | null;
+  creationTemplate: CreationTemplateEntry | null;
+  creationTemplateError: string | null;
+  isLoadingCreationTemplate: boolean;
   isSubmitting: boolean;
   submitError: string | null;
   onSubmit: (payload: PipelineRequestPayload) => Promise<void>;
@@ -116,6 +120,9 @@ export function MainContent({
   recentPipelineJobs,
   pendingInputFile,
   copiedJobParameters,
+  creationTemplate,
+  creationTemplateError,
+  isLoadingCreationTemplate,
   isSubmitting,
   submitError,
   onSubmit,
@@ -162,6 +169,10 @@ export function MainContent({
   const activePipelineSection = isAddBookView
     ? BOOK_NARRATION_SECTION_MAP[selectedView as PipelineMenuView]
     : null;
+  const generatedBookCreationTemplate =
+    creationTemplate?.mode === 'generated_book' ? creationTemplate : null;
+  const narrateEbookCreationTemplate =
+    creationTemplate?.mode === 'narrate_ebook' ? creationTemplate : null;
 
   return (
     <main className="dashboard__main">
@@ -213,7 +224,13 @@ export function MainContent({
         />
       ) : isCreateBookView && canScheduleJobs ? (
         <section>
-          <CreateBookPage onJobSubmitted={onCreateBookJobSubmitted} recentJobs={recentPipelineJobs} />
+          <CreateBookPage
+            onJobSubmitted={onCreateBookJobSubmitted}
+            recentJobs={recentPipelineJobs}
+            creationTemplate={generatedBookCreationTemplate}
+            creationTemplateError={creationTemplateError}
+            isLoadingCreationTemplate={isLoadingCreationTemplate}
+          />
         </section>
       ) : (
         <>
@@ -226,6 +243,9 @@ export function MainContent({
                 isSubmitting={isSubmitting}
                 prefillInputFile={pendingInputFile}
                 prefillParameters={copiedJobParameters}
+                creationTemplate={narrateEbookCreationTemplate}
+                creationTemplateError={creationTemplateError}
+                isLoadingCreationTemplate={isLoadingCreationTemplate}
                 submitError={submitError}
                 recentJobs={recentPipelineJobs}
               />

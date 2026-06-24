@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import {
+import type {
+  CreationTemplateEntry,
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
   PipelineIntakeStatusResponse,
@@ -245,6 +246,60 @@ describe('BookNarrationForm', () => {
       environment_overrides: '{}'
     });
     expect(await screen.findByText(/Saved template "output"/i)).toBeInTheDocument();
+  });
+
+  it('applies a deep-linked narration creation template before backend defaults overwrite it', async () => {
+    const user = userEvent.setup();
+    const template: CreationTemplateEntry = {
+      id: 'template-1',
+      name: 'Current book continuation',
+      mode: 'narrate_ebook',
+      created_at: 1,
+      updated_at: 2,
+      payload: {
+        kind: 'book_narration_form',
+        source: 'web',
+        source_mode: 'upload',
+        active_section: 'source',
+        form_state: {
+          input_file: '/books/current.epub',
+          base_output_file: 'current-continuation',
+          input_language: 'Spanish',
+          target_languages: ['German', 'French'],
+          enable_lookup_cache: false
+        }
+      }
+    };
+
+    await act(async () => {
+      renderWithLanguageProvider(
+        <BookNarrationForm onSubmit={vi.fn()} creationTemplate={template} />
+      );
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches({
+      defaults: {
+        config: {
+          input_file: '/books/default.epub',
+          base_output_file: 'default-output',
+          input_language: 'English',
+          target_languages: ['Arabic'],
+          enable_lookup_cache: true
+        }
+      }
+    });
+
+    expect(await screen.findByText(/Applied template "Current book continuation"/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Input file path/i)).toHaveValue('/books/current.epub');
+    expect(screen.getByLabelText(/Base output file/i)).toHaveValue('current-continuation');
+
+    await openFormTab(user, /Language & translation/i);
+    expect(getInputLanguageField()).toHaveValue('Spanish');
+    expect(getSelectedTargetLanguages()).toEqual(['German']);
+    expect(screen.getByLabelText(/Additional target languages/i)).toHaveValue('French');
+    expect(screen.getByLabelText(/Cache word lookups/i)).not.toBeChecked();
   });
 
   it('includes backend-supported language lists in the narration pickers', async () => {

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CreationTemplateEntry } from '../../api/dtos';
 import CreateBookPage from '../CreateBookPage';
 import {
   fetchBookCreationOptions,
@@ -22,6 +23,12 @@ vi.mock('../../components/book-narration/BookNarrationForm', () => ({
       </div>
       <div data-testid="pipeline-defaults">
         {JSON.stringify(props.defaultPipelineSettings)}
+      </div>
+      <div data-testid="creation-template-id">
+        {props.creationTemplate?.id ?? ''}
+      </div>
+      <div data-testid="template-payload-extras">
+        {JSON.stringify(props.templatePayloadExtras)}
       </div>
       {props.customSourceSection}
     </div>
@@ -198,5 +205,43 @@ describe('CreateBookPage', () => {
 
     expect(screen.getByLabelText(/Topic/i)).toHaveValue('');
     expect(screen.getByLabelText(/Genre/i)).toHaveValue('Backend genre');
+  });
+
+  it('applies generated-book prompt fields from a creation template handoff', async () => {
+    const template: CreationTemplateEntry = {
+      id: 'generated-template',
+      name: 'Dan Brown continuation',
+      mode: 'generated_book',
+      created_at: 1,
+      updated_at: 2,
+      payload: {
+        kind: 'book_narration_form',
+        source: 'web',
+        source_mode: 'generated',
+        generator_state: {
+          topic: 'Continue the current Dan Brown book',
+          book_name: 'The Cipher Continues',
+          genre: 'Mystery thriller',
+          author: 'Me',
+          num_sentences: 80
+        },
+        form_state: {}
+      }
+    };
+
+    render(<CreateBookPage creationTemplate={template} />);
+
+    await waitFor(() => expect(fetchBookCreationOptions).toHaveBeenCalled());
+
+    expect(screen.getByLabelText(/Topic/i)).toHaveValue('Continue the current Dan Brown book');
+    expect(screen.getByLabelText(/Book name/i)).toHaveValue('The Cipher Continues');
+    expect(screen.getByLabelText(/Genre/i)).toHaveValue('Mystery thriller');
+    expect(screen.getByLabelText(/Author/i)).toHaveValue('Me');
+    expect(screen.getByLabelText(/Number of sentences/i)).toHaveValue(80);
+    expect(screen.getByTestId('forced-base-output')).toHaveTextContent('the-cipher-continues');
+    expect(screen.getByTestId('creation-template-id')).toHaveTextContent('generated-template');
+    expect(screen.getByTestId('template-payload-extras')).toHaveTextContent(
+      '"topic":"Continue the current Dan Brown book"'
+    );
   });
 });

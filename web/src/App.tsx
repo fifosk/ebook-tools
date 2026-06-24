@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import MyLinguistAssistant from './components/MyLinguistAssistant';
 import MyPainterAssistant from './components/MyPainterAssistant';
@@ -8,9 +8,13 @@ import { useAppJobs } from './hooks/useAppJobs';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { useJobsStore } from './stores/jobsStore';
 import { useUIStore } from './stores/uiStore';
-import { fetchPipelineStatus } from './api/client';
+import { fetchCreationTemplate, fetchPipelineStatus } from './api/client';
+import type { CreationTemplateEntry } from './api/dtos';
 import { normalizeRole } from './utils/accessControl';
-import { parseDeepLinkedAppView } from './utils/appViewDeepLink';
+import {
+  parseDeepLinkedAppView,
+  parseDeepLinkedCreationTemplateId
+} from './utils/appViewDeepLink';
 import {
   APP_BRANCH,
   JOB_PROGRESS_VIEW,
@@ -31,6 +35,13 @@ import {
 export type { PipelineMenuView, SelectedView } from './constants/appViews';
 
 export function App() {
+  const [deepLinkedCreationTemplateId] = useState(() =>
+    parseDeepLinkedCreationTemplateId(window.location)
+  );
+  const [creationTemplate, setCreationTemplate] = useState<CreationTemplateEntry | null>(null);
+  const [creationTemplateError, setCreationTemplateError] = useState<string | null>(null);
+  const [isLoadingCreationTemplate, setIsLoadingCreationTemplate] = useState(false);
+
   // Auth state and handlers
   const auth = useAppAuth();
   const {
@@ -151,6 +162,37 @@ export function App() {
       setSelectedView(deepLinkedView);
     }
   }, [setSelectedView]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !deepLinkedCreationTemplateId) {
+      return;
+    }
+    let cancelled = false;
+    setIsLoadingCreationTemplate(true);
+    setCreationTemplateError(null);
+    void fetchCreationTemplate(deepLinkedCreationTemplateId)
+      .then((template) => {
+        if (!cancelled) {
+          setCreationTemplate(template);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCreationTemplate(null);
+          setCreationTemplateError(
+            error instanceof Error ? error.message : 'Unable to load saved creation template.'
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingCreationTemplate(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [deepLinkedCreationTemplateId, isAuthenticated]);
 
   // Enforce role-based view access
   useEffect(() => {
@@ -420,6 +462,9 @@ export function App() {
           recentPipelineJobs={recentPipelineJobs}
           pendingInputFile={pendingInputFile}
           copiedJobParameters={copiedJobParameters}
+          creationTemplate={creationTemplate}
+          creationTemplateError={creationTemplateError}
+          isLoadingCreationTemplate={isLoadingCreationTemplate}
           isSubmitting={isSubmitting}
           submitError={submitError}
           onSubmit={handleSubmit}

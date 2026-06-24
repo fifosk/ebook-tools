@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { PipelineRequestPayload, PipelineStatusResponse } from '../api/dtos';
+import type { CreationTemplateEntry, PipelineRequestPayload, PipelineStatusResponse } from '../api/dtos';
 import {
   fetchBookCreationOptions,
   submitBookJob,
@@ -12,6 +12,7 @@ import {
   buildGeneratedSourcePipelineDefaults,
   DEFAULT_GENERATOR_STATE,
   deriveBaseOutputName,
+  extractGeneratedBookTemplateGeneratorState,
   FALLBACK_SENTENCE_BOUNDS,
   normalizeSentenceCount,
   resolveGeneratorDefaults,
@@ -22,11 +23,21 @@ import {
 interface CreateBookPageProps {
   onJobSubmitted?: (jobId: string) => void;
   recentJobs?: PipelineStatusResponse[] | null;
+  creationTemplate?: CreationTemplateEntry | null;
+  creationTemplateError?: string | null;
+  isLoadingCreationTemplate?: boolean;
 }
 
-export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: CreateBookPageProps) {
+export default function CreateBookPage({
+  onJobSubmitted,
+  recentJobs = null,
+  creationTemplate = null,
+  creationTemplateError = null,
+  isLoadingCreationTemplate = false
+}: CreateBookPageProps) {
   const [generatorState, setGeneratorState] = useState<GeneratorFormState>(DEFAULT_GENERATOR_STATE);
   const editedGeneratorFieldsRef = useRef<Set<GeneratorEditedField>>(new Set());
+  const appliedCreationTemplateRef = useRef<string | null>(null);
   const [creationOptions, setCreationOptions] = useState<BookCreationOptionsResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -44,6 +55,10 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
   const generatedSourcePipelineDefaults = useMemo(
     () => buildGeneratedSourcePipelineDefaults(creationOptions),
     [creationOptions]
+  );
+  const templatePayloadExtras = useMemo(
+    () => ({ generator_state: generatorState }),
+    [generatorState]
   );
 
   useEffect(() => {
@@ -71,6 +86,33 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!creationTemplate) {
+      appliedCreationTemplateRef.current = null;
+      return;
+    }
+    const applyKey = `${creationTemplate.id}:${creationTemplate.updated_at}`;
+    if (appliedCreationTemplateRef.current === applyKey) {
+      return;
+    }
+    const templateGeneratorState = extractGeneratedBookTemplateGeneratorState(
+      creationTemplate,
+      sentenceBounds
+    );
+    if (!templateGeneratorState) {
+      appliedCreationTemplateRef.current = applyKey;
+      return;
+    }
+    for (const key of Object.keys(templateGeneratorState) as GeneratorEditedField[]) {
+      editedGeneratorFieldsRef.current.add(key);
+    }
+    setGeneratorState((previous) => ({
+      ...previous,
+      ...templateGeneratorState
+    }));
+    appliedCreationTemplateRef.current = applyKey;
+  }, [creationTemplate, sentenceBounds]);
 
   const updateGenerator = <Key extends keyof GeneratorFormState>(
     key: Key,
@@ -208,6 +250,10 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
         forcedBaseOutputFile={forcedBaseOutput}
         defaultImageSettings={generatedSourceImageDefaults}
         defaultPipelineSettings={generatedSourcePipelineDefaults}
+        creationTemplate={creationTemplate}
+        creationTemplateError={creationTemplateError}
+        isLoadingCreationTemplate={isLoadingCreationTemplate}
+        templatePayloadExtras={templatePayloadExtras}
         supportedInputLanguages={creationOptions?.supported_input_languages ?? null}
         supportedTargetLanguages={creationOptions?.supported_output_languages ?? null}
         customSourceSection={bookPromptSection}
