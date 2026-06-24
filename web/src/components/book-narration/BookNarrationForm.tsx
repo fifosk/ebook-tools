@@ -17,7 +17,6 @@ import {
 import { resolveLanguageCode } from '../../constants/languageCodes';
 import { loadCachedMediaMetadataJson } from '../../utils/mediaMetadataCache';
 import { useLanguagePreferences } from '../../context/LanguageProvider';
-import FileSelectionDialog from '../FileSelectionDialog';
 import { useBookNarrationVoices } from './useBookNarrationVoices';
 import { useBookNarrationMetadata } from './useBookNarrationMetadata';
 import { useBookNarrationFiles } from './useBookNarrationFiles';
@@ -29,6 +28,7 @@ import { useBookNarrationDefaults } from './useBookNarrationDefaults';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
+import { BookNarrationFileDialog } from './BookNarrationFileDialog';
 import type {
   BookNarrationFormProps,
   BookNarrationFormSection,
@@ -657,33 +657,16 @@ export function BookNarrationForm({
           />
         </div>
       </form>
-      {activeFileDialog && fileOptions ? (
-        <FileSelectionDialog
-          title={activeFileDialog === 'input' ? 'Select ebook file' : 'Select output path'}
-          description={
-            activeFileDialog === 'input'
-              ? 'Choose an EPUB file from the configured books directory.'
-              : 'Select an existing output file or directory as the base path.'
-          }
-          files={activeFileDialog === 'input' ? fileOptions.ebooks : fileOptions.outputs}
-          onSelect={(path) => {
-            if (activeFileDialog === 'input') {
-              handleInputFileChange(path);
-            } else {
-              handleChange('base_output_file', path);
-            }
-            setActiveFileDialog(null);
-          }}
-          onClose={() => setActiveFileDialog(null)}
-          onDelete={
-            activeFileDialog === 'input'
-              ? (entry) => {
-                  void handleDeleteEbook(entry);
-                }
-              : undefined
-          }
-        />
-      ) : null}
+      <BookNarrationFileDialog
+        activeFileDialog={activeFileDialog}
+        fileOptions={fileOptions}
+        onInputFileSelect={handleInputFileChange}
+        onOutputPathSelect={(path) => handleChange('base_output_file', path)}
+        onClose={() => setActiveFileDialog(null)}
+        onDeleteEbook={(entry) => {
+          void handleDeleteEbook(entry);
+        }}
+      />
     </div>
   );
 
