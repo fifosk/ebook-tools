@@ -1,7 +1,7 @@
 .PHONY: test test-fast test-audio test-translation test-webapi test-services \
        test-pipeline test-cli test-auth test-library test-render test-media \
        test-config test-metadata test-changed \
-       test-web-video-dubbing-focused \
+       test-web-video-dubbing-focused test-web-subtitle-tool-focused \
        generate-language-catalogs check-language-catalogs \
        test-apple-contracts build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
@@ -66,6 +66,28 @@ test-web-video-dubbing-focused:
 		src/pages/__tests__/useVideoDubbingOutputState.test.tsx \
 		src/pages/__tests__/useVideoDubbingSubtitleExtraction.test.tsx \
 		src/pages/__tests__/useVideoDubbingLibraryState.test.tsx
+
+test-web-subtitle-tool-focused:
+	npm --prefix web test -- --run \
+		src/pages/__tests__/subtitleToolUtils.test.ts \
+		src/pages/__tests__/subtitleJobPresentation.test.ts \
+		src/pages/__tests__/subtitleJobUtils.test.ts \
+		src/pages/__tests__/subtitleMetadataUtils.test.ts \
+		src/pages/__tests__/subtitleSourceUtils.test.ts \
+		src/pages/__tests__/useSubtitleTvMetadata.test.tsx \
+		src/pages/__tests__/useSubtitleSources.test.tsx \
+		src/pages/__tests__/useSubtitleJobResults.test.tsx \
+		src/pages/__tests__/useSubtitleModels.test.tsx \
+		src/pages/__tests__/useSubtitleLanguageDefaults.test.tsx \
+		src/pages/__tests__/useSubtitleShowOriginalPreference.test.tsx \
+		src/pages/__tests__/useSubtitlePrefill.test.tsx \
+		src/pages/__tests__/useSubtitleLanguageState.test.tsx \
+		src/pages/__tests__/useSubtitleSubmitFeedback.test.tsx \
+		src/pages/__tests__/useSubtitleSourceMode.test.tsx \
+		src/pages/__tests__/useSubtitleProcessingOptions.test.tsx \
+		src/pages/__tests__/useSubtitleTabState.test.tsx \
+		src/pages/__tests__/useSubtitleSubmitStatus.test.tsx \
+		src/pages/__tests__/useSubtitleSubmit.test.tsx
 
 test-services:
 	$(PYTHON) -m pytest -m services

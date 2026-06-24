@@ -129,7 +129,9 @@ Large Web UI hotspots to split before redesign work:
   focused hook coverage.
   Source-list refresh selection also stays pinned in the utility module, clearing
   stale selections after deletes and choosing the latest usable subtitle source
-  when needed.
+  when needed. The repo-owned `test-web-subtitle-tool-focused` target now runs
+  the full Subtitle Tool utility/hook slice so the reusable Apple pipeline Web
+  gate can keep this split work covered with one stable app command.
 - `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1119 lines.
   Status: subtitle cue lookup, token navigation, selection shadowing, clamp
   math, track variant mapping, and TTS voice option helpers now live in
