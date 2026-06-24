@@ -17,12 +17,12 @@ import {
 import { JobProgressHeader } from './job-progress/JobProgressHeader';
 import { JobProgressLatestSection } from './job-progress/JobProgressLatestSection';
 import { JobProgressMediaMetadata } from './job-progress/JobProgressMediaMetadata';
+import { JobProgressMetadataSection } from './job-progress/JobProgressMetadataSection';
 import { JobProgressPermissionsSection } from './job-progress/JobProgressPermissionsSection';
 import { JobProgressStageSection } from './job-progress/JobProgressStageSection';
 import { JobProgressTabs, type JobProgressTab } from './job-progress/JobProgressTabs';
 import { resolveProgressStage } from '../utils/progressEvents';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
-import { MetadataLookupRow } from './metadata/MetadataLookupRow';
 import {
   TERMINAL_STATES,
   areTranslationsUnavailable,
@@ -33,8 +33,6 @@ import {
   buildParallelismEntries,
   coerceNumber,
   formatDate,
-  formatMetadataLabel,
-  formatMetadataValue,
   formatSecondsPerImage,
   formatTuningDescription,
   formatTuningLabel,
@@ -566,106 +564,32 @@ export function JobProgress({
       {showMetadataSections && creationSummary ? (
         <JobProgressCreationSummary summary={creationSummary} />
       ) : null}
-      {!showMetadataSections || isVideoDubJob ? null : (
-        <div className="job-card__section">
-          <h4>{isSubtitleJob ? 'Subtitle metadata' : 'Book metadata'}</h4>
-          {shouldShowCoverPreview && coverUrl && !coverFailed ? (
-            <div className="book-metadata-cover" aria-label="Book cover">
-              {openlibraryLink ? (
-                <a href={openlibraryLink} target="_blank" rel="noopener noreferrer">
-                  <img
-                    src={coverUrl}
-                    alt={coverAltText}
-                    loading="lazy"
-                    decoding="async"
-                    onError={() => setCoverFailed(true)}
-                  />
-                </a>
-              ) : (
-                <img
-                  src={coverUrl}
-                  alt={coverAltText}
-                  loading="lazy"
-                  decoding="async"
-                  onError={() => setCoverFailed(true)}
-                />
-              )}
-            </div>
-          ) : null}
-          {metadataEntries.length > 0 ? (
-            <dl className="metadata-grid">
-              {metadataEntries.map(([key, value]) => {
-                const formatted = formatMetadataValue(key, value);
-                if (!formatted) {
-                  return null;
-                }
-                return (
-                  <div key={key} className="metadata-grid__row">
-                    <dt>{formatMetadataLabel(key)}</dt>
-                    <dd>{formatted}</dd>
-                  </div>
-                );
-              })}
-            </dl>
-          ) : (
-            <p className="job-card__metadata-empty">Metadata is not available yet.</p>
-          )}
-          {isBookJob ? (
-            <MetadataLookupRow
-              query={isbnLookupQuery}
-              onQueryChange={setIsbnLookupQuery}
-              onLookup={(force) => void handleLookupMetadata(force)}
-              onClear={() => void handleClearMetadata()}
-              isLoading={isLookingUp}
-              placeholder={existingIsbn ? existingIsbn : 'Title, author, or ISBN'}
-              inputLabel="Lookup query"
-              hasResult={!!lookupResult}
-              disabled={!canManage || isReloading || isMutating}
-            />
-          ) : null}
-          {lookupError ? (
-            <div className="notice notice--warning" role="alert" style={{ marginBottom: '0.75rem' }}>
-              {lookupError}
-            </div>
-          ) : null}
-          {lookupResult?.success ? (
-            <div className="notice notice--success" role="status" style={{ marginBottom: '0.75rem' }}>
-              {`Metadata found from ${lookupResult.source ?? 'external source'}${lookupResult.confidence ? ` (confidence: ${lookupResult.confidence})` : ''}`}
-            </div>
-          ) : null}
-          {technicalMetadataEntries.length > 0 ? (
-            <details className="job-card__details">
-              <summary>Technical parameters</summary>
-              <dl className="metadata-grid">
-                {technicalMetadataEntries.map(([key, value]) => {
-                  const formatted = formatMetadataValue(key, value);
-                  if (!formatted) {
-                    return null;
-                  }
-                  return (
-                    <div key={key} className="metadata-grid__row">
-                      <dt>{formatMetadataLabel(key)}</dt>
-                      <dd>{formatted}</dd>
-                    </div>
-                  );
-                })}
-              </dl>
-            </details>
-          ) : null}
-          <div className="job-card__tab-actions">
-            <button
-              type="button"
-              className="link-button"
-              onClick={onReload}
-              disabled={!canManage || isReloading || isMutating || isLookingUp}
-              aria-busy={isReloading || isMutating}
-              data-variant="metadata-action"
-            >
-              {isReloading ? 'Reloading…' : 'Reload job'}
-            </button>
-          </div>
-        </div>
-      )}
+      {showMetadataSections && !isVideoDubJob ? (
+        <JobProgressMetadataSection
+          isSubtitleJob={isSubtitleJob}
+          isBookJob={isBookJob}
+          shouldShowCoverPreview={shouldShowCoverPreview}
+          coverUrl={coverUrl}
+          coverFailed={coverFailed}
+          coverAltText={coverAltText}
+          openlibraryLink={openlibraryLink}
+          metadataEntries={metadataEntries}
+          technicalMetadataEntries={technicalMetadataEntries}
+          isbnLookupQuery={isbnLookupQuery}
+          existingIsbn={existingIsbn}
+          isLookingUp={isLookingUp}
+          lookupError={lookupError}
+          lookupResult={lookupResult}
+          canManage={canManage}
+          isReloading={isReloading}
+          isMutating={isMutating}
+          onCoverError={() => setCoverFailed(true)}
+          onIsbnLookupQueryChange={setIsbnLookupQuery}
+          onLookupMetadata={(force) => void handleLookupMetadata(force)}
+          onClearMetadata={() => void handleClearMetadata()}
+          onReload={onReload}
+        />
+      ) : null}
     </div>
   );
 }

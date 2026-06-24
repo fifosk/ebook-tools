@@ -8,7 +8,7 @@ import {
   normalizeTextValue
 } from './jobProgressUtils';
 
-type LookupResult = {
+export type JobProgressMetadataLookupResult = {
   success: boolean;
   source?: string | null;
   confidence?: string | null;
@@ -28,7 +28,7 @@ export function useJobProgressMetadataLookup({
   const [isbnLookupQuery, setIsbnLookupQuery] = useState('');
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
-  const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
+  const [lookupResult, setLookupResult] = useState<JobProgressMetadataLookupResult | null>(null);
 
   const existingIsbn = useMemo(() => {
     return normalizeTextValue(metadata['book_isbn']) ?? normalizeTextValue(metadata['isbn']) ?? null;
