@@ -162,6 +162,8 @@ def _normalize_path_token(path: Path) -> Optional[str]:
 
 def _index_youtube_video_job_metadata(
     job_metadata: Mapping[str, PipelineJobMetadata],
+    *,
+    allowed_tokens: Optional[set[str]] = None,
 ) -> dict[str, set[str]]:
     jobs_by_video: dict[str, set[str]] = {}
     for job in job_metadata.values():
@@ -174,6 +176,8 @@ def _index_youtube_video_job_metadata(
         token = _normalize_path_token(Path(str(video_path)))
         if not token:
             continue
+        if allowed_tokens is not None and token not in allowed_tokens:
+            continue
         jobs_by_video.setdefault(token, set()).add(job.job_id)
     return jobs_by_video
 
@@ -181,7 +185,11 @@ def _index_youtube_video_job_metadata(
 def _index_youtube_video_jobs(
     job_manager: PipelineJobManager,
     request_user: Optional[RequestUserContext],
+    *,
+    allowed_tokens: Optional[set[str]] = None,
 ) -> dict[str, set[str]]:
+    if allowed_tokens is not None and not allowed_tokens:
+        return {}
     try:
         job_metadata = job_manager.list_metadata(
             user_id=request_user.user_id if request_user else None,
@@ -191,7 +199,7 @@ def _index_youtube_video_jobs(
     except Exception:
         logger.warning("Unable to enumerate jobs while tagging YouTube videos", exc_info=True)
         return {}
-    return _index_youtube_video_job_metadata(job_metadata)
+    return _index_youtube_video_job_metadata(job_metadata, allowed_tokens=allowed_tokens)
 
 
 def _serialize_nas_video(entry, *, linked_jobs: Optional[set[str]] = None) -> YoutubeNasVideoPayload:
@@ -382,7 +390,16 @@ def list_youtube_library(
     except FileNotFoundError as exc:
         _log_youtube_library_route("not_found", started_at)
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    linked_jobs = _index_youtube_video_jobs(job_manager, request_user)
+    video_tokens = {
+        token
+        for token in (_normalize_path_token(video.path) for video in videos)
+        if token
+    }
+    linked_jobs = _index_youtube_video_jobs(
+        job_manager,
+        request_user,
+        allowed_tokens=video_tokens,
+    )
     payload = [
         _serialize_nas_video(
             video,
@@ -523,8 +540,12 @@ def delete_youtube_video(
 
     _ensure_editor(request_user)
     video_path = Path(payload.video_path).expanduser()
-    linked_jobs = _index_youtube_video_jobs(job_manager, request_user)
     token = _normalize_path_token(video_path)
+    linked_jobs = _index_youtube_video_jobs(
+        job_manager,
+        request_user,
+        allowed_tokens={token} if token else set(),
+    )
     if token and linked_jobs.get(token):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,

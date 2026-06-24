@@ -425,7 +425,9 @@ Optimization candidates:
   paths, filenames, job ids, user ids, auth headers, or tokens. The NAS scanner
   also reuses each `os.walk` folder file list for subtitle matching instead of
   re-reading the same directory once per video, keeping large default video
-  pickers lighter on NAS-backed folders.
+  pickers lighter on NAS-backed folders. Linked-job indexing is now filtered to
+  the discovered video tokens, and empty NAS listings skip job metadata reads
+  entirely.
 - Keep backend source pickers resilient on NAS-backed folders. Status:
   `/api/pipelines/files` now stats each visible ebook/output candidate once and
   skips entries that disappear or become unreadable during listing; EPUB

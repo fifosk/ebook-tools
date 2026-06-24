@@ -63,6 +63,15 @@ class _MetadataOnlyJobManager:
                 request_payload={"video_path": "/nas/Secret Show/video-a.mp4"},
                 user_id=user_id,
                 user_role=user_role,
+            ),
+            "other-dub-job": PipelineJobMetadata(
+                job_id="other-dub-job",
+                job_type="youtube_dub",
+                status=PipelineJobStatus.COMPLETED,
+                created_at=datetime(2026, 6, 24, 12, 5, tzinfo=timezone.utc),
+                request_payload={"video_path": "/nas/Other Show/video-b.mp4"},
+                user_id=user_id,
+                user_role=user_role,
             )
         }
 
@@ -106,6 +115,7 @@ def test_youtube_library_links_jobs_from_metadata_without_full_job_hydration(
     payload = response.json()
     assert payload["base_dir"] == secret_base_dir
     assert payload["videos"][0]["linked_job_ids"] == ["dub-job"]
+    assert "other-dub-job" not in payload["videos"][0]["linked_job_ids"]
     assert manager.list_metadata_calls == [
         {
             "user_id": "alice",
@@ -121,6 +131,7 @@ def test_youtube_library_links_jobs_from_metadata_without_full_job_hydration(
     assert "/nas/Secret Show/video-a.mp4" not in rendered_logs
     assert "alice" not in rendered_logs
     assert "dub-job" not in rendered_logs
+    assert "other-dub-job" not in rendered_logs
 
     families = {
         family.name: family
@@ -134,6 +145,30 @@ def test_youtube_library_links_jobs_from_metadata_without_full_job_hydration(
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+def test_youtube_library_skips_job_metadata_when_no_videos(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    manager = _MetadataOnlyJobManager()
+    monkeypatch.setattr(youtube_routes, "list_downloaded_videos", lambda root: [])
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: manager
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/subtitles/youtube/library")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["videos"] == []
+    assert manager.list_metadata_calls == []
+    assert manager.list_calls == 0
 
 
 def test_delete_youtube_subtitle_reports_missing_stale_sidecar(tmp_path: Path) -> None:
