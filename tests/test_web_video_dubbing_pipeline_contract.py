@@ -110,7 +110,23 @@ def test_app_view_deeplink_focused_web_target_covers_deeplink_utils() -> None:
     assert "src/utils/__tests__/appViewDeepLink.test.ts" in block
 
 
-def test_docs_publish_all_repo_owned_focused_web_targets() -> None:
+def test_full_web_target_runs_complete_vitest_suite() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    assert "test-web-full" in makefile
+    block = _target_block(makefile, "test-web-full")
+    assert "npm --prefix web test -- --run" in block
+
+
+def test_web_production_build_target_runs_export_build() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    assert "build-web-production" in makefile
+    block = _target_block(makefile, "build-web-production")
+    assert "npm --prefix web run build" in block
+
+
+def test_docs_publish_all_repo_owned_web_pipeline_targets() -> None:
     docs = TESTING_DOC.read_text(encoding="utf-8")
 
     for command in [
@@ -120,5 +136,7 @@ def test_docs_publish_all_repo_owned_focused_web_targets() -> None:
         "make test-web-video-dubbing-focused",
         "make test-web-subtitle-tool-focused",
         "make test-web-app-view-deeplink-focused",
+        "make test-web-full",
+        "make build-web-production",
     ]:
         assert command in docs

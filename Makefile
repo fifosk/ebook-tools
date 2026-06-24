@@ -4,6 +4,7 @@
        test-web-create-book-focused test-web-create-intake-focused \
        test-web-library-focused test-web-video-dubbing-focused \
        test-web-subtitle-tool-focused test-web-app-view-deeplink-focused \
+       test-web-full build-web-production \
        generate-language-catalogs check-language-catalogs \
        test-apple-contracts build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
@@ -109,6 +110,12 @@ test-web-subtitle-tool-focused:
 test-web-app-view-deeplink-focused:
 	npm --prefix web test -- --run \
 		src/utils/__tests__/appViewDeepLink.test.ts
+
+test-web-full:
+	npm --prefix web test -- --run
+
+build-web-production:
+	npm --prefix web run build
 
 test-services:
 	$(PYTHON) -m pytest -m services

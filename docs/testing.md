@@ -207,9 +207,9 @@ fast-forwarded, because that check compares the local and remote Git state.
 commands and cleans generated caches. `apple-pipeline-web-checks` runs the
 manifest registered Web focused checks and production/export build through the
 shared pipeline runner. The focused Create, Library, Video Dubbing, Subtitle
-Tool, and app-view deeplink checks are repo-owned `make test-web-*-focused`
-targets, so the shared manifest only names stable app commands before restoring
-generated Web artifacts. Use
+Tool, app-view deeplink, full Vitest, and production/export build checks are
+repo-owned Web targets, so the shared manifest only names stable app commands
+before restoring generated Web artifacts. Use
 `APPLE_PIPELINE_SMOKE_PROFILE=ios|ipados|tvos` with
 `apple-pipeline-simulator-smoke-dry-run` before launching a shared simulator
 smoke. Use `apple-pipeline-ipad-create-readiness-dry-run`, then
@@ -557,6 +557,8 @@ available and `python3` otherwise.
 | `make test-web-video-dubbing-focused` | `npm --prefix web test -- --run ...` | Focused Video Dubbing utility and hook Vitest slice |
 | `make test-web-subtitle-tool-focused` | `npm --prefix web test -- --run ...` | Focused Subtitle Tool utility and hook Vitest slice |
 | `make test-web-app-view-deeplink-focused` | `npm --prefix web test -- --run ...` | Focused app-view deeplink utility Vitest slice |
+| `make test-web-full` | `npm --prefix web test -- --run` | Full Web Vitest suite |
+| `make build-web-production` | `npm --prefix web run build` | Production app and export-player build |
 | `make test-services` | `$(PYTHON) -m pytest -m services` | Job manager and service tests |
 | `make test-pipeline` | `$(PYTHON) -m pytest -m pipeline` | Core pipeline tests |
 | `make test-cli` | `$(PYTHON) -m pytest -m cli` | CLI argument and command tests |
