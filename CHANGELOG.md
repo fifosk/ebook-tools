@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.13
+
+- Advanced visible Apple app versioning to `v2026.06.24.13`.
+- Apple Library source replacement now opens a review sheet before upload and accepts the same common book/video source extensions as Web.
+
 ### 2026.06.24.12
 
 - Advanced visible Apple app versioning to `v2026.06.24.12`.

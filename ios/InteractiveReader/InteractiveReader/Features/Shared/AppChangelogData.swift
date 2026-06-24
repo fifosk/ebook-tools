@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.12",
+            version: "2026.06.24.13",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-library-source-upload-review",
+                    title: "Library reviews sources",
+                    detail: "Apple Library source replacement now opens a review sheet before upload and accepts the same common book and video source extensions as Web."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-ipad-job-settings-pane",
                     title: "Create shifts job settings",

@@ -30,6 +30,7 @@ struct LibraryView: View {
     #if os(iOS)
     @State private var rowFrames: [CGRect] = []
     @State private var sourceUploadItem: LibraryItem?
+    @State private var sourceUploadDraft: LibrarySourceUploadDraft?
     @State private var isImportingLibrarySource = false
     @State private var metadataEditDraft: LibraryMetadataEditDraft?
     @State private var isbnMetadataDraft: LibraryIsbnMetadataDraft?
@@ -95,6 +96,10 @@ struct LibraryView: View {
         }
         .sheet(item: $metadataEditDraft) { draft in
             LibraryMetadataEditSheet(item: draft.item, viewModel: viewModel)
+                .environmentObject(appState)
+        }
+        .sheet(item: $sourceUploadDraft) { draft in
+            LibrarySourceUploadReviewSheet(draft: draft, viewModel: viewModel)
                 .environmentObject(appState)
         }
         #endif
@@ -381,21 +386,12 @@ struct LibraryView: View {
     private func handleLibrarySourceImport(_ result: Result<[URL], Error>) {
         switch result {
         case let .success(urls):
-            guard let item = sourceUploadItem, let url = urls.first else { return }
-            Task {
-                let uploaded = await viewModel.uploadSource(
-                    for: item,
-                    fileURL: url,
-                    filename: url.lastPathComponent,
-                    using: appState
-                )
-                await MainActor.run {
-                    sourceUploadItem = nil
-                    if uploaded {
-                        refreshResumeStatus()
-                    }
-                }
+            guard let item = sourceUploadItem, let url = urls.first else {
+                sourceUploadItem = nil
+                return
             }
+            sourceUploadDraft = LibrarySourceUploadDraft(item: item, fileURL: url)
+            sourceUploadItem = nil
         case let .failure(error):
             sourceUploadItem = nil
             viewModel.errorMessage = error.localizedDescription
@@ -405,7 +401,11 @@ struct LibraryView: View {
     private static var librarySourceContentTypes: [UTType] {
         [
             UTType(filenameExtension: "epub") ?? UTType(importedAs: "org.idpf.epub-container"),
-            UTType.pdf
+            UTType.pdf,
+            UTType.movie,
+            UTType.mpeg4Movie,
+            UTType(filenameExtension: "mkv") ?? UTType(importedAs: "org.matroska.mkv"),
+            UTType(filenameExtension: "webm") ?? UTType(importedAs: "org.webmproject.webm")
         ]
     }
     #else
@@ -605,10 +605,117 @@ private struct LibraryMetadataEditDraft: Identifiable {
     var id: String { item.jobId }
 }
 
+private struct LibrarySourceUploadDraft: Identifiable {
+    let item: LibraryItem
+    let fileURL: URL
+
+    var id: String {
+        "\(item.jobId)-\(fileURL.lastPathComponent)"
+    }
+
+    var filename: String {
+        fileURL.lastPathComponent
+    }
+
+    var fileTypeLabel: String {
+        let suffix = fileURL.pathExtension.trimmingCharacters(in: .whitespacesAndNewlines)
+        return suffix.isEmpty ? "Unknown type" : suffix.uppercased()
+    }
+
+    var fileSizeLabel: String? {
+        guard let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize else {
+            return nil
+        }
+        return ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+    }
+}
+
 private struct LibraryIsbnMetadataDraft: Identifiable {
     let item: LibraryItem
 
     var id: String { item.jobId }
+}
+
+private struct LibrarySourceUploadReviewSheet: View {
+    let draft: LibrarySourceUploadDraft
+    @ObservedObject var viewModel: LibraryViewModel
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var uploadError: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Library Item") {
+                    LabeledContent("Title", value: draft.item.bookTitle)
+                    LabeledContent("Author", value: draft.item.author)
+                    LabeledContent("Current source", value: currentSourceLabel)
+                }
+
+                Section("Replacement Source") {
+                    LabeledContent("File", value: draft.filename)
+                        .accessibilityIdentifier("librarySourceUploadFilenameLabel")
+                    LabeledContent("Type", value: draft.fileTypeLabel)
+                    if let fileSizeLabel = draft.fileSizeLabel {
+                        LabeledContent("Size", value: fileSizeLabel)
+                            .accessibilityIdentifier("librarySourceUploadSizeLabel")
+                    }
+                }
+
+                if let uploadError {
+                    Section {
+                        Label(uploadError, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section {
+                    Button(action: handleUpload) {
+                        if viewModel.isUploadingSource {
+                            ProgressView()
+                        } else {
+                            Label("Replace Source File", systemImage: "square.and.arrow.up")
+                        }
+                    }
+                    .disabled(viewModel.isUploadingSource || appState.configuration == nil)
+                    .accessibilityIdentifier("librarySourceUploadConfirmButton")
+                }
+            }
+            .navigationTitle("Review Source")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .disabled(viewModel.isUploadingSource)
+                }
+            }
+        }
+    }
+
+    private var currentSourceLabel: String {
+        draft.item.sourcePath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue ?? "No source file stored"
+    }
+
+    private func handleUpload() {
+        uploadError = nil
+        Task {
+            let uploaded = await viewModel.uploadSource(
+                for: draft.item,
+                fileURL: draft.fileURL,
+                filename: draft.filename,
+                using: appState
+            )
+            await MainActor.run {
+                if uploaded {
+                    dismiss()
+                } else {
+                    uploadError = viewModel.errorMessage ?? "Unable to replace the source file."
+                }
+            }
+        }
+    }
 }
 
 private struct LibraryMetadataEditSheet: View {

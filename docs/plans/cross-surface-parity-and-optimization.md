@@ -182,8 +182,11 @@ Current Apple UI partially exposes:
   with opt-in iPhone/iPad Create-readiness Make targets that verify Narrate
   EPUB, subtitle, and YouTube/NAS default source loading against a populated API.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
-  replace an existing library item's EPUB/PDF source through the same
-  `/api/library/items/{job_id}/upload-source` backend route used by Web.
+  replace an existing library item's source through the same
+  `/api/library/items/{job_id}/upload-source` backend route used by Web. The
+  native flow now reviews the selected replacement file before upload and
+  accepts common book/video source extensions (`.epub`, `.pdf`, `.mp4`,
+  `.mkv`, `.mov`, `.webm`) to match the Web edit form.
 - ISBN metadata preview/apply. Status: iPhone/iPad Library rows can fetch
   `/api/library/isbn/lookup` previews and then apply the ISBN through
   `/api/library/items/{job_id}/isbn`, matching the Web lookup/apply contract.
@@ -373,9 +376,10 @@ After Narrate Ebook:
   job. Remaining parity gap: full Web-level metadata editing for every nested
   metadata field beyond the high-value TV, artwork, and YouTube summary fields.
 - Library source reupload on iPhone/iPad. Status: Library row context menus now
-  expose Replace Source File, open a document picker for EPUB/PDF sources, post
-  the file to `/api/library/items/{job_id}/upload-source`, and replace the
-  refreshed row returned by the backend. Apple TV remains playback-first.
+  expose Replace Source File, open a document picker for common book/video
+  source files, review the selected file before upload, post it to
+  `/api/library/items/{job_id}/upload-source`, and replace the refreshed row
+  returned by the backend. Apple TV remains playback-first.
 - Library ISBN metadata preview/apply on iPhone/iPad. Status: Library row
   context menus now expose Preview ISBN Metadata, fetch
   `/api/library/isbn/lookup` results in a sheet, and can then apply the ISBN
