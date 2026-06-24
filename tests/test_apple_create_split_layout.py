@@ -344,10 +344,18 @@ def test_create_history_defaults_are_split_from_support_and_target_wired() -> No
     assert "static func subtitleHistoryDefaults" in history_source
     assert "static func youtubeHistoryDefaults" in history_source
     assert "static func narrationStartSentence" in history_source
+    assert "private static func latestNarrationJob" in history_source
+    assert "private static func narrationString(" in history_source
+    assert "private static func historyOffset(" in history_source
+    assert "private static func parseJobDate(" in history_source
     assert "static func narrationHistoryDefaults(" not in support_source
     assert "static func generatedBookHistoryDefaults" not in support_source
     assert "static func subtitleHistoryDefaults" not in support_source
     assert "static func youtubeHistoryDefaults" not in support_source
+    assert "static func latestNarrationJob" not in support_source
+    assert "static func narrationString(" not in support_source
+    assert "static func historyOffset(" not in support_source
+    assert "static func parseJobDate(" not in support_source
     assert "AppleBookCreateHistoryDefaults.swift in Sources" in project
     assert project.count("AppleBookCreateHistoryDefaults.swift in Sources") == 4
     assert "AppleBookCreateHistoryDefaults.swift" in payload_script

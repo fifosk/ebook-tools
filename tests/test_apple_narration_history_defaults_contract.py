@@ -117,6 +117,14 @@ def test_narrate_epub_history_defaults_include_web_style_output_settings() -> No
     assert "static func generatedBookHistoryDefaults" not in support_source
     assert "static func subtitleHistoryDefaults" not in support_source
     assert "static func youtubeHistoryDefaults" not in support_source
+    assert "static func latestNarrationJob" not in support_source
+    assert "static func narrationString(" not in support_source
+    assert "static func historyOffset(" not in support_source
+    assert "static func parseJobDate(" not in support_source
+    assert "private static func latestNarrationJob" in history_source
+    assert "private static func narrationString(" in history_source
+    assert "private static func historyOffset(" in history_source
+    assert "private static func parseJobDate(" in history_source
 
 
 def test_narrate_epub_history_defaults_preserve_user_edited_fields() -> None:
