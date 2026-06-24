@@ -9,7 +9,6 @@ import {
 } from '../api/dtos';
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 import { getStatusGlyph } from '../utils/status';
-import { resolveImageNodeLabel } from '../constants/imageNodes';
 import {
   JobProgressCreationSummary,
   parseJobProgressCreationSummary
@@ -18,6 +17,7 @@ import { JobProgressHeader } from './job-progress/JobProgressHeader';
 import { JobProgressLatestSection } from './job-progress/JobProgressLatestSection';
 import { JobProgressMediaMetadata } from './job-progress/JobProgressMediaMetadata';
 import { JobProgressMetadataSection } from './job-progress/JobProgressMetadataSection';
+import { JobProgressOverviewSection } from './job-progress/JobProgressOverviewSection';
 import { JobProgressPermissionsSection } from './job-progress/JobProgressPermissionsSection';
 import { JobProgressStageSection } from './job-progress/JobProgressStageSection';
 import { JobProgressTabs, type JobProgressTab } from './job-progress/JobProgressTabs';
@@ -33,9 +33,6 @@ import {
   buildParallelismEntries,
   coerceNumber,
   formatDate,
-  formatSecondsPerImage,
-  formatTuningDescription,
-  formatTuningLabel,
   formatTuningValue,
   isNarratedSubtitleJobStatus,
   normalizeTranslationProvider,
@@ -417,18 +414,20 @@ export function JobProgress({
           onReload={onReload}
         />
       ) : null}
-      {showOverviewSections && jobParameterEntries.length > 0 ? (
-        <div className="job-card__section">
-          <h4>Job parameters</h4>
-          <dl className="metadata-grid">
-            {jobParameterEntries.map((entry) => (
-              <div key={entry.key} className="metadata-grid__row">
-                <dt>{entry.label}</dt>
-                <dd>{entry.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
+      {showOverviewSections ? (
+        <JobProgressOverviewSection
+          jobParameterEntries={jobParameterEntries}
+          isBookJob={isBookJob}
+          imageClusterNodes={imageClusterNodes}
+          statusError={status?.error}
+          showLibraryReadyNotice={showLibraryReadyNotice}
+          statusValue={statusValue}
+          mediaCompleted={mediaCompleted}
+          batchStatEntries={batchStatEntries}
+          parallelismEntries={parallelismEntries}
+          tuningEntries={tuningEntries}
+          fallbackEntries={fallbackEntries}
+        />
       ) : null}
       {showPermissionsSections ? (
         <JobProgressPermissionsSection
@@ -438,99 +437,6 @@ export function JobProgress({
           canEdit={canManage}
           onSave={onUpdateAccess}
         />
-      ) : null}
-      {showOverviewSections && isBookJob && imageClusterNodes.length > 0 ? (
-        <div className="job-card__section">
-          <h4>Image cluster</h4>
-          <dl className="metadata-grid">
-            {imageClusterNodes.map((node) => {
-              const label = resolveImageNodeLabel(node.baseUrl) ?? node.baseUrl;
-              const processedCount = typeof node.processed === 'number' ? node.processed : 0;
-              const processedLabel = `${processedCount} image${processedCount === 1 ? '' : 's'}`;
-              const statusLabel = node.active ? 'Active' : 'Inactive';
-              const speedLabel = formatSecondsPerImage(node.avgSecondsPerImage);
-              return (
-                <div key={node.baseUrl} className="metadata-grid__row">
-                  <dt>{label}</dt>
-                  <dd>{`${statusLabel} • ${processedLabel} • ${speedLabel}`}</dd>
-                </div>
-              );
-            })}
-          </dl>
-        </div>
-      ) : null}
-      {showOverviewSections && status?.error ? <div className="alert">{status.error}</div> : null}
-      {showOverviewSections && showLibraryReadyNotice ? (
-        <div className="notice notice--success" role="status">
-          Media generation finished. Move this job into the library when you're ready.
-        </div>
-      ) : null}
-      {showOverviewSections && statusValue === 'pausing' ? (
-        <div className="notice notice--info" role="status">
-          Pause requested. Completing in-flight media generation before the job fully pauses.
-        </div>
-      ) : null}
-      {showOverviewSections && statusValue === 'paused' && mediaCompleted === false ? (
-        <div className="notice notice--warning" role="status">
-          Some media is still finalizing. Generated files shown below reflect the latest available output.
-        </div>
-      ) : null}
-      {showOverviewSections && batchStatEntries.length > 0 ? (
-        <div>
-          <h4>LLM batch stats</h4>
-          <div className="progress-grid">
-            {batchStatEntries.map(([label, value]) => (
-              <div className="progress-metric" key={label}>
-                <strong>{label}</strong>
-                <span>{value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-      {showOverviewSections && parallelismEntries.length > 0 ? (
-        <div>
-          <h4>Parallelism overview</h4>
-          <div className="progress-grid">
-            {parallelismEntries.map(({ label, value, hint }) => (
-              <div className="progress-metric" key={label}>
-                <strong>{label}</strong>
-                <span>{value}</span>
-                {hint ? <p className="progress-metric__hint">{hint}</p> : null}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-      {showOverviewSections && !isBookJob && tuningEntries.length > 0 ? (
-        <div>
-          <h4>Performance tuning</h4>
-          <div className="progress-grid">
-            {tuningEntries.map(([key, value]) => {
-              const description = formatTuningDescription(key);
-              return (
-                <div className="progress-metric" key={key}>
-                  <strong>{formatTuningLabel(key)}</strong>
-                  <span>{formatTuningValue(value)}</span>
-                  {description ? <p className="progress-metric__hint">{description}</p> : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-      {showOverviewSections && fallbackEntries.length > 0 ? (
-        <div>
-          <h4>Fallbacks</h4>
-          <div className="progress-grid">
-            {fallbackEntries.map(([label, value]) => (
-              <div className="progress-metric" key={label}>
-                <strong>{label}</strong>
-                <span>{value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
       ) : null}
       {showOverviewSections ? (
         <JobProgressStageSection
