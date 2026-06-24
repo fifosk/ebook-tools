@@ -1720,17 +1720,19 @@ struct AppleBookCreateView: View {
     private func handleNarrateEbookImport(_ result: Result<[URL], Error>) {
         switch result {
         case let .success(urls):
-            guard let file = AppleBookCreateFileImport.importedFile(from: urls) else { return }
-            selectedNarrateFileURL = file.url
-            selectedNarrateFileName = file.fileName
-            sourcePath = ""
-            clearNarrateChapterSelection()
-            markEdited(.sourcePath)
-            if let baseOutput = AppleBookCreateFileImport.derivedNarrateBaseOutput(
-                file: file,
+            guard let selection = AppleBookCreateFileImport.narrateImportSelection(
+                from: urls,
                 currentBaseOutput: sourceBaseOutput,
                 didEditBaseOutput: editedFields.contains(.sourceBaseOutput)
-            ) {
+            ) else { return }
+            selectedNarrateFileURL = selection.file.url
+            selectedNarrateFileName = selection.file.fileName
+            sourcePath = selection.sourcePath
+            if selection.shouldClearChapterSelection {
+                clearNarrateChapterSelection()
+            }
+            markEdited(.sourcePath)
+            if let baseOutput = selection.derivedBaseOutput {
                 sourceBaseOutput = baseOutput
             }
         case let .failure(error):
@@ -1743,11 +1745,13 @@ struct AppleBookCreateView: View {
     private func handleSubtitleFileImport(_ result: Result<[URL], Error>) {
         switch result {
         case let .success(urls):
-            guard let file = AppleBookCreateFileImport.importedFile(from: urls) else { return }
-            selectedSubtitleFileURL = file.url
-            selectedSubtitleFileName = file.fileName
-            subtitleMetadataLookupSourceName = file.fileName
-            viewModel.clearSubtitleMetadata()
+            guard let selection = AppleBookCreateFileImport.subtitleImportSelection(from: urls) else { return }
+            selectedSubtitleFileURL = selection.file.url
+            selectedSubtitleFileName = selection.file.fileName
+            subtitleMetadataLookupSourceName = selection.metadataLookupSourceName
+            if selection.shouldClearMetadata {
+                viewModel.clearSubtitleMetadata()
+            }
             markEdited(.subtitleSourcePath)
         case let .failure(error):
             selectedSubtitleFileURL = nil

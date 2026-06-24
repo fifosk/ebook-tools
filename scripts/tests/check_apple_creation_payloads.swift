@@ -811,6 +811,64 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.deriveBaseOutputName("   ") == "generated-book",
             "Apple Create base output names should keep the generated-book fallback"
         )
+        let narrateImportSelection = try requireValue(
+            AppleBookCreateFileImport.narrateImportSelection(
+                from: [URL(fileURLWithPath: "/tmp/Imported Demo.epub")],
+                currentBaseOutput: "",
+                didEditBaseOutput: false
+            ),
+            "Narrate EPUB import selection should resolve a selected file"
+        )
+        require(
+            narrateImportSelection.file.fileName == "Imported Demo.epub",
+            "Narrate EPUB import selection should preserve selected filename"
+        )
+        require(
+            narrateImportSelection.sourcePath == "",
+            "Narrate EPUB import selection should clear server-side source path"
+        )
+        require(
+            narrateImportSelection.shouldClearChapterSelection,
+            "Narrate EPUB import selection should clear chapter range state"
+        )
+        require(
+            narrateImportSelection.derivedBaseOutput == "imported-demo",
+            "Narrate EPUB import selection should derive untouched base output"
+        )
+        let editedNarrateImportSelection = try requireValue(
+            AppleBookCreateFileImport.narrateImportSelection(
+                from: [URL(fileURLWithPath: "/tmp/Imported Demo.epub")],
+                currentBaseOutput: "",
+                didEditBaseOutput: true
+            ),
+            "Edited Narrate EPUB import selection should still resolve a selected file"
+        )
+        require(
+            editedNarrateImportSelection.derivedBaseOutput == nil,
+            "Narrate EPUB import selection should preserve manually edited base output"
+        )
+        let subtitleImportSelection = try requireValue(
+            AppleBookCreateFileImport.subtitleImportSelection(
+                from: [URL(fileURLWithPath: "/tmp/Episode Captions.vtt")]
+            ),
+            "Subtitle import selection should resolve a selected file"
+        )
+        require(
+            subtitleImportSelection.metadataLookupSourceName == "Episode Captions.vtt",
+            "Subtitle import selection should seed metadata lookup from selected filename"
+        )
+        require(
+            subtitleImportSelection.shouldClearMetadata,
+            "Subtitle import selection should clear stale metadata after local import"
+        )
+        require(
+            AppleBookCreateFileImport.narrateImportSelection(
+                from: [],
+                currentBaseOutput: "",
+                didEditBaseOutput: false
+            ) == nil,
+            "Empty import selections should be ignored"
+        )
         require(
             AppleGeneratedBookImageStyleTemplate(backendValue: "children_book") == .childrenBook,
             "Apple Create image style should map backend style ids"
@@ -2597,6 +2655,13 @@ struct AppleCreationPayloadCheck {
             throw CheckFailure(message)
         }
         return url
+    }
+
+    private static func requireValue<T>(_ value: T?, _ message: String) throws -> T {
+        guard let value else {
+            throw CheckFailure(message)
+        }
+        return value
     }
 }
 

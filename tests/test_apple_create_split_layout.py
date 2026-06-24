@@ -1130,16 +1130,20 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
 
     assert "struct AppleBookCreateImportedFile: Equatable" in import_source
+    assert "struct AppleBookCreateNarrateImportSelection: Equatable" in import_source
+    assert "struct AppleBookCreateSubtitleImportSelection: Equatable" in import_source
     assert "enum AppleBookCreateFileImport" in import_source
     assert "static var epubContentType: UTType" in import_source
     assert "static var subtitleContentTypes: [UTType]" in import_source
     assert "static func importedFile(from urls: [URL])" in import_source
     assert "static func derivedNarrateBaseOutput(" in import_source
+    assert "static func narrateImportSelection(" in import_source
+    assert "static func subtitleImportSelection(from urls: [URL])" in import_source
     assert "UTType(filenameExtension: \"epub\")" in import_source
     assert "UTType(filenameExtension: \"srt\")" in import_source
     assert "UTType(filenameExtension: \"vtt\")" in import_source
-    assert "AppleBookCreateFileImport.importedFile(from: urls)" in view_source
-    assert "AppleBookCreateFileImport.derivedNarrateBaseOutput(" in view_source
+    assert "AppleBookCreateFileImport.narrateImportSelection(" in view_source
+    assert "AppleBookCreateFileImport.subtitleImportSelection(from: urls)" in view_source
     assert "AppleBookCreateFileImport.epubContentType" in view_source
     assert "AppleBookCreateFileImport.subtitleContentTypes" in view_source
     assert "url.lastPathComponent" not in view_source

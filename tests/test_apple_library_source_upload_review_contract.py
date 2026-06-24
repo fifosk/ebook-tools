@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LIBRARY_ROUTER = ROOT / "modules" / "webapi" / "routers" / "library.py"
-WEB_LIBRARY_PAGE = ROOT / "web" / "src" / "pages" / "LibraryPage.tsx"
+WEB_LIBRARY_OVERVIEW_TAB = ROOT / "web" / "src" / "pages" / "library" / "LibraryOverviewTab.tsx"
 API_CLIENT_LIBRARY_JOBS = (
     ROOT
     / "ios"
@@ -40,7 +40,7 @@ def _source(path: Path) -> str:
 
 def test_library_source_upload_route_and_web_extensions_stay_pinned() -> None:
     router_source = _source(LIBRARY_ROUTER)
-    web_source = _source(WEB_LIBRARY_PAGE)
+    web_source = _source(WEB_LIBRARY_OVERVIEW_TAB)
     client_source = _source(API_CLIENT_LIBRARY_JOBS)
 
     assert '@router.post("/items/{job_id}/upload-source", response_model=LibraryItemPayload)' in router_source

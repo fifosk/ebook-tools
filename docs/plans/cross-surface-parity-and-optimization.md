@@ -248,7 +248,8 @@ Current Apple UI partially exposes:
   helpers now live in `AppleBookCreateMetadataJSON.swift`, and subtitle/YouTube
   metadata lookup, cache clearing, and draft-editing actions now live in
   `AppleBookCreateViewModel+Metadata.swift`. EPUB/subtitle file
-  import normalization now lives in `AppleBookCreateFileImport.swift`, metadata lookup
+  import normalization and local import selection plans now live in
+  `AppleBookCreateFileImport.swift`, metadata lookup
   source-name derivation now lives in `AppleBookCreateMetadataSources.swift`,
   and Create persistence key construction now lives in
   `AppleBookCreateStorageKeys.swift`, keeping API/user-scoped local file, lookup, and
