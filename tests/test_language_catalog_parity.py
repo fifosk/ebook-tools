@@ -37,6 +37,15 @@ APPLE_CREATE_LANGUAGE_OPTIONS = (
     / "Create"
     / "AppleBookCreateLanguageOptions.swift"
 )
+APPLE_CREATE_VOICE_PREVIEW_SAMPLES = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateVoicePreviewSamples.swift"
+)
 APPLE_CREATE_MODELS = (
     ROOT
     / "ios"
@@ -186,8 +195,8 @@ def test_apple_create_voice_language_normalization_uses_full_catalog() -> None:
     source = APPLE_CREATE_LANGUAGE_OPTIONS.read_text(encoding="utf-8")
 
     assert "AppleLanguageCatalog.languageCode(for: trimmed)" in source
-    assert "voicePreviewSampleSentences[code]" in source
-    assert "voicePreviewSampleSentences[base]" in source
+    assert "AppleBookCreateVoicePreviewSamples.sentences[code]" in source
+    assert "AppleBookCreateVoicePreviewSamples.sentences[base]" in source
     assert "AppleLanguageCatalog.canonicalLanguageName(for: language)" in source
     assert 'replacingOccurrences(of: "_", with: "-")' in source
     assert 'let languageMap = [' not in source
@@ -196,9 +205,9 @@ def test_apple_create_voice_language_normalization_uses_full_catalog() -> None:
 
 
 def test_apple_create_voice_preview_samples_cover_web_catalog() -> None:
-    source = APPLE_CREATE_LANGUAGE_OPTIONS.read_text(encoding="utf-8")
+    source = APPLE_CREATE_VOICE_PREVIEW_SAMPLES.read_text(encoding="utf-8")
     match = re.search(
-        r"private static let voicePreviewSampleSentences: \[String: String\] = \[(?P<body>.*?)\n\s*\]",
+        r"static let sentences: \[String: String\] = \[(?P<body>.*?)\n\s*\]",
         source,
         flags=re.S,
     )

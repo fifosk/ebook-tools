@@ -623,7 +623,10 @@ Refactor before restyling:
   preview keys now normalize language selections through the same full Apple
   language catalog used by the pickers, instead of a narrow local name map, and
   native voice previews now carry localized sample sentences across the same
-  backend/Web language catalog instead of only the original six languages.
+  backend/Web language catalog instead of only the original six languages. The
+  native preview sample catalog now lives in its own Create helper file and is
+  wired into the Xcode project plus creation-payload compile contract so future
+  catalog changes are verified across Apple targets.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 

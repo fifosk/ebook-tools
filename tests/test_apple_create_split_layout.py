@@ -228,6 +228,15 @@ CREATE_LANGUAGE_OPTIONS = (
     / "Create"
     / "AppleBookCreateLanguageOptions.swift"
 )
+CREATE_VOICE_PREVIEW_SAMPLES = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateVoicePreviewSamples.swift"
+)
 CREATE_LANGUAGE_SELECTOR = (
     ROOT
     / "ios"
@@ -1030,6 +1039,7 @@ def test_create_history_defaults_are_split_from_support_and_target_wired() -> No
 
 def test_create_language_options_are_split_from_support_and_target_wired() -> None:
     language_source = _source(CREATE_LANGUAGE_OPTIONS)
+    sample_source = _source(CREATE_VOICE_PREVIEW_SAMPLES)
     selector_source = _source(CREATE_LANGUAGE_SELECTOR)
     view_source = _source(CREATE_VIEW)
     support_source = _source(CREATE_SUPPORT)
@@ -1045,6 +1055,8 @@ def test_create_language_options_are_split_from_support_and_target_wired() -> No
     assert "static func voiceInventoryOptions(" in language_source
     assert "static func sampleSentence(language: String, fallbackLabel: String)" in language_source
     assert "static func voicePreviewKey(language: String)" in language_source
+    assert "AppleBookCreateVoicePreviewSamples.sentences[code]" in language_source
+    assert "enum AppleBookCreateVoicePreviewSamples" in sample_source
     assert "AppleBookCreateLanguage.options(from: supported)" in language_source
     assert "static func availableInputLanguages(" not in support_source
     assert "static func availableTargetLanguages(" not in support_source
@@ -1057,10 +1069,13 @@ def test_create_language_options_are_split_from_support_and_target_wired() -> No
     assert "var result = [String: [AppleBookCreateVoiceOption]]()" not in view_source
     assert "AppleBookCreateLanguageOptions.swift in Sources" in project
     assert project.count("AppleBookCreateLanguageOptions.swift in Sources") == 4
+    assert "AppleBookCreateVoicePreviewSamples.swift in Sources" in project
+    assert project.count("AppleBookCreateVoicePreviewSamples.swift in Sources") == 4
     assert "struct AppleBookCreateLanguageSelector: View" in selector_source
     assert "AppleBookCreateLanguageSelector.swift in Sources" in project
     assert project.count("AppleBookCreateLanguageSelector.swift in Sources") == 4
     assert "AppleBookCreateLanguageOptions.swift" in payload_script
+    assert "AppleBookCreateVoicePreviewSamples.swift" in payload_script
 
 
 def test_create_source_selection_is_split_from_support_and_target_wired() -> None:
