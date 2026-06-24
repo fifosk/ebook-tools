@@ -98,7 +98,8 @@ test-web-create-intake-focused:
 
 test-web-library-focused:
 	npm --prefix web test -- --run \
-		src/pages/__tests__/libraryPageMetadata.test.ts
+		src/pages/__tests__/libraryPageMetadata.test.ts \
+		src/components/__tests__/libraryListResume.test.ts
 
 test-web-video-dubbing-focused:
 	npm --prefix web test -- --run \

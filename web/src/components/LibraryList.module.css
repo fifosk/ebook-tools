@@ -161,6 +161,26 @@
   color: var(--color-status-warning-text, #92400e);
 }
 
+.statusStack {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.resumeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(14, 165, 233, 0.35);
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
 .actions {
   display: inline-flex;
   flex-wrap: wrap;
