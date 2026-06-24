@@ -167,6 +167,15 @@ CREATE_METADATA_VIEWS = (
     / "Create"
     / "AppleBookCreateMetadataViews.swift"
 )
+CREATE_METADATA_SOURCES = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateMetadataSources.swift"
+)
 CREATE_HISTORY_DEFAULTS = (
     ROOT
     / "ios"
@@ -722,6 +731,28 @@ def test_create_storage_keys_are_split_from_view_and_target_wired() -> None:
     assert "AppleBookCreateStorageKeys.swift in Sources" in project
     assert project.count("AppleBookCreateStorageKeys.swift in Sources") == 4
     assert "AppleBookCreateStorageKeys.swift" in payload_script
+
+
+def test_create_metadata_sources_are_split_from_view_and_target_wired() -> None:
+    metadata_source = _source(CREATE_METADATA_SOURCES)
+    view_source = _source(CREATE_VIEW)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+
+    assert "enum AppleBookCreateMetadataSources" in metadata_source
+    assert "static func youtubeTvSourceName(subtitlePath: String, videoPath: String)" in metadata_source
+    assert "static func youtubeVideoSourceName(videoPath: String)" in metadata_source
+    assert "static func subtitleSourceName(" in metadata_source
+    assert "sources: [SubtitleSourceEntry]" in metadata_source
+    assert "URL(fileURLWithPath: normalizedPath).lastPathComponent" in metadata_source
+    assert "AppleBookCreateMetadataSources.youtubeTvSourceName(" in view_source
+    assert "AppleBookCreateMetadataSources.youtubeVideoSourceName(" in view_source
+    assert "AppleBookCreateMetadataSources.subtitleSourceName(" in view_source
+    assert "private var defaultSubtitleMetadataLookupSourceName" not in view_source
+    assert "URL(fileURLWithPath: selectedPath).lastPathComponent" not in view_source
+    assert "AppleBookCreateMetadataSources.swift in Sources" in project
+    assert project.count("AppleBookCreateMetadataSources.swift in Sources") == 4
+    assert "AppleBookCreateMetadataSources.swift" in payload_script
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:

@@ -170,7 +170,7 @@ struct AppleBookCreateView: View {
             persistYoutubeBaseDir(newValue)
         }
         .onChange(of: subtitleSourcePath) { _, _ in
-            subtitleMetadataLookupSourceName = defaultSubtitleMetadataLookupSourceName
+            subtitleMetadataLookupSourceName = subtitleMetadataSourceName
             viewModel.clearSubtitleMetadata()
         }
         .onChange(of: youtubeVideoPath) { _, newValue in
@@ -779,29 +779,22 @@ struct AppleBookCreateView: View {
     }
 
     private var youtubeMetadataTvSourceName: String {
-        trimmed(youtubeSubtitlePath).nonEmptyValue ?? trimmed(youtubeVideoPath)
+        AppleBookCreateMetadataSources.youtubeTvSourceName(
+            subtitlePath: youtubeSubtitlePath,
+            videoPath: youtubeVideoPath
+        )
     }
 
     private var youtubeMetadataVideoSourceName: String {
-        trimmed(youtubeVideoPath)
+        AppleBookCreateMetadataSources.youtubeVideoSourceName(videoPath: youtubeVideoPath)
     }
 
     private var subtitleMetadataSourceName: String {
-        defaultSubtitleMetadataLookupSourceName
-    }
-
-    private var defaultSubtitleMetadataLookupSourceName: String {
-        if let fileName = selectedSubtitleFileName?.nonEmptyValue {
-            return fileName
-        }
-        let selectedPath = trimmed(subtitleSourcePath)
-        if let entryName = viewModel.subtitleSources?.sources.first(where: { $0.path == selectedPath })?.name.nonEmptyValue {
-            return entryName
-        }
-        guard !selectedPath.isEmpty else {
-            return ""
-        }
-        return URL(fileURLWithPath: selectedPath).lastPathComponent
+        AppleBookCreateMetadataSources.subtitleSourceName(
+            selectedFileName: selectedSubtitleFileName,
+            selectedPath: subtitleSourcePath,
+            sources: viewModel.subtitleSources?.sources ?? []
+        )
     }
 
     private static var isTVPlatform: Bool {
