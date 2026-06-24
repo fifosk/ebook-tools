@@ -353,6 +353,23 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   --skip-build --install --launch --launch-console-timeout 10
 ```
 
+For Apple TV local dry-runs, use the repo-owned profile instead of manually
+overriding scheme, bundle id, and output folder:
+
+```bash
+bash scripts/apple_unattended_device_update.sh \
+  --device "<apple-tv-id-or-name>" \
+  --profile appletv \
+  --dry-run \
+  --build-only
+```
+
+The `appletv` profile resolves `InteractiveReaderTV`,
+`com.example.InteractiveReader.tvos`, and
+`Debug-appletvos/InteractiveReaderTV.app`; physical install still requires the
+explicit `CONFIRM_PHYSICAL_DEVICE_UPDATE=YES` guard and an explicit deploy
+request.
+
 On the successful June 24 run, `devicectl` verified the same stable build on
 iPad Pro and iPhone, and the launch console showed remote notification
 registration:

@@ -5,10 +5,16 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 XCBUILD="${XCBUILD:-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild}"
 DEVICECTL="${DEVICECTL:-$(xcrun --find devicectl)}"
 XCPROJ="${XCPROJ:-${ROOT_DIR}/ios/InteractiveReader/InteractiveReader.xcodeproj}"
+SCHEME_ENV_SET="${SCHEME+x}"
+PRODUCT_NAME_ENV_SET="${PRODUCT_NAME+x}"
+BUNDLE_ID_ENV_SET="${BUNDLE_ID+x}"
+PLATFORM_PRODUCT_DIR_ENV_SET="${APPLE_DEVICE_PLATFORM_PRODUCT_DIR+x}"
 SCHEME="${SCHEME:-InteractiveReader}"
 CONFIGURATION="${CONFIGURATION:-Debug}"
 PRODUCT_NAME="${PRODUCT_NAME:-InteractiveReader}"
 BUNDLE_ID="${BUNDLE_ID:-com.example.InteractiveReader}"
+DEVICE_PROFILE="${APPLE_DEVICE_PROFILE:-ios}"
+PLATFORM_PRODUCT_DIR="${APPLE_DEVICE_PLATFORM_PRODUCT_DIR:-iphoneos}"
 DEVICE_ID="${APPLE_DEVICE_ID:-}"
 DERIVED_DATA="${APPLE_DEVICE_DERIVED_DATA:-}"
 APP_PATH="${APPLE_DEVICE_APP_PATH:-}"
@@ -59,12 +65,16 @@ Options:
                                  proving the app did not immediately crash.
   --team-id TEAMID               Pass DEVELOPMENT_TEAM=TEAMID to xcodebuild.
   --configuration NAME           Xcode configuration. Defaults to Debug.
+  --profile PROFILE              Device profile: ios, iphone, ipad, tvos, or appletv.
+                                 tvos/appletv selects InteractiveReaderTV,
+                                 com.example.InteractiveReader.tvos, and appletvos.
   --dry-run                      Print the commands that would run, then exit without building or installing.
   --device ID                    Device identifier, ECID, serial, UDID, CoreDevice id, or name.
 
 Environment:
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES is required for --install.
-  APPLE_DEVICE_ID, APPLE_DEVICE_APP_PATH, APPLE_DEVELOPMENT_TEAM,
+  APPLE_DEVICE_ID, APPLE_DEVICE_PROFILE, APPLE_DEVICE_APP_PATH,
+  APPLE_DEVELOPMENT_TEAM, APPLE_DEVICE_PLATFORM_PRODUCT_DIR,
   APPLE_DEVICE_DERIVED_DATA, APPLE_DEVICECTL_TIMEOUT, XCBUILD, DEVICECTL,
   XCPROJ, SCHEME, CONFIGURATION, PRODUCT_NAME, and BUNDLE_ID override defaults.
   APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS=1 and APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT
@@ -233,6 +243,10 @@ while [[ $# -gt 0 ]]; do
       CONFIGURATION="${2:-}"
       shift 2
       ;;
+    --profile)
+      DEVICE_PROFILE="${2:-}"
+      shift 2
+      ;;
     --dry-run)
       DRY_RUN=1
       shift
@@ -250,8 +264,44 @@ while [[ $# -gt 0 ]]; do
       usage >&2
       exit 2
       ;;
-  esac
+    esac
 done
+
+case "${DEVICE_PROFILE}" in
+  ios|iphone|ipad)
+    if [[ -z "${SCHEME_ENV_SET}" ]]; then
+      SCHEME="InteractiveReader"
+    fi
+    if [[ -z "${PRODUCT_NAME_ENV_SET}" ]]; then
+      PRODUCT_NAME="InteractiveReader"
+    fi
+    if [[ -z "${BUNDLE_ID_ENV_SET}" ]]; then
+      BUNDLE_ID="com.example.InteractiveReader"
+    fi
+    if [[ -z "${PLATFORM_PRODUCT_DIR_ENV_SET}" ]]; then
+      PLATFORM_PRODUCT_DIR="iphoneos"
+    fi
+    ;;
+  tvos|appletv)
+    if [[ -z "${SCHEME_ENV_SET}" ]]; then
+      SCHEME="InteractiveReaderTV"
+    fi
+    if [[ -z "${PRODUCT_NAME_ENV_SET}" ]]; then
+      PRODUCT_NAME="InteractiveReaderTV"
+    fi
+    if [[ -z "${BUNDLE_ID_ENV_SET}" ]]; then
+      BUNDLE_ID="com.example.InteractiveReader.tvos"
+    fi
+    if [[ -z "${PLATFORM_PRODUCT_DIR_ENV_SET}" ]]; then
+      PLATFORM_PRODUCT_DIR="appletvos"
+    fi
+    ;;
+  *)
+    echo "Unknown device profile: ${DEVICE_PROFILE}" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
 
 if [[ "${LIST}" == "1" ]]; then
   "${DEVICECTL}" list devices
@@ -270,7 +320,7 @@ if [[ -z "${DERIVED_DATA}" ]]; then
 fi
 
 if [[ -z "${APP_PATH}" ]]; then
-  APP_PATH="${DERIVED_DATA}/Build/Products/${CONFIGURATION}-iphoneos/${PRODUCT_NAME}.app"
+  APP_PATH="${DERIVED_DATA}/Build/Products/${CONFIGURATION}-${PLATFORM_PRODUCT_DIR}/${PRODUCT_NAME}.app"
 fi
 
 VERIFY_JSON="$(json_scratch_path apple-device-installed-app)"
@@ -363,6 +413,7 @@ fi
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   print_command "Build command" "${BUILD_CMD[@]}"
+  echo "Resolved app path: ${APP_PATH}"
   if [[ "${STRIP_IOS_ENTITLEMENTS}" == "1" ]]; then
     echo "Local signing patch: temporarily strip iOS app entitlements during build, then restore project file."
   fi

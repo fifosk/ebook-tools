@@ -205,6 +205,10 @@ python3 scripts/run_app_device_deploy.py --app ebook-tools --profile iphone --dr
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --dry-run
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile appletv --dry-run
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile cinema --dry-run
+
+# Repo-owned unattended helper dry-runs
+bash scripts/apple_unattended_device_update.sh --device <id> --profile ipad --dry-run --build-only
+bash scripts/apple_unattended_device_update.sh --device <id> --profile appletv --dry-run --build-only
 ```
 
 The shared pipeline owns MacBook simulator setup, clean install/launch, Xcode
@@ -239,6 +243,14 @@ dylibs/extensions first and `InteractiveReader.app` last, then install with
 `scripts/apple_unattended_device_update.sh --skip-build --app-path <app> --install --launch --launch-console-timeout 10`.
 This preserves iCloud behavior and avoids the older entitlement-stripping local
 signing fallback when device feature validation matters.
+
+For the repo-owned unattended helper, pass `--profile iphone`, `--profile ipad`,
+or `--profile appletv` instead of hand-setting target-specific environment
+variables. The Apple TV profile selects the `InteractiveReaderTV` scheme,
+`com.example.InteractiveReader.tvos` bundle id, and
+`Debug-appletvos/InteractiveReaderTV.app` product path. A build-only dry run also
+prints the resolved app path so the later `--skip-build --app-path ...` install
+step can be copied without opening Xcode.
 
 ### Schemes
 

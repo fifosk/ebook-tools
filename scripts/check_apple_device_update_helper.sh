@@ -90,6 +90,57 @@ assert_contains "${provisioning_output}" "-allowProvisioningUpdates" "provisioni
 assert_contains "${provisioning_output}" "DEVELOPMENT_TEAM=ABC123XYZ" "provisioning dry run should pass the requested development team"
 assert_contains "${provisioning_output}" "-configuration  Release" "provisioning dry run should honor custom configuration"
 
+appletv_output="$(
+  bash "${HELPER}" \
+    --device TEST-APPLE-TV \
+    --dry-run \
+    --build-only \
+    --profile appletv
+)"
+assert_contains "${appletv_output}" "-scheme  InteractiveReaderTV" "Apple TV profile should select the tvOS app scheme"
+assert_contains "${appletv_output}" "Debug-appletvos/InteractiveReaderTV.app" "Apple TV profile should derive the tvOS app bundle path"
+
+appletv_install_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \
+    --device TEST-APPLE-TV \
+    --dry-run \
+    --install \
+    --skip-build \
+    --profile appletv
+)"
+assert_contains "${appletv_install_output}" "Debug-appletvos/InteractiveReaderTV.app" "Apple TV skip-build dry run should use the tvOS default app path"
+assert_contains "${appletv_install_output}" "--bundle-id  com.example.InteractiveReader.tvos" "Apple TV profile should verify the tvOS bundle id"
+
+profile_override_output="$(
+  SCHEME=CustomScheme \
+  PRODUCT_NAME=CustomApp \
+  BUNDLE_ID=com.example.Custom \
+  APPLE_DEVICE_PLATFORM_PRODUCT_DIR=customos \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --dry-run \
+      --build-only \
+      --profile appletv
+)"
+assert_contains "${profile_override_output}" "-scheme  CustomScheme" "explicit SCHEME should override profile defaults"
+assert_contains "${profile_override_output}" "Debug-customos/CustomApp.app" "explicit product output settings should override profile defaults"
+
+set +e
+bad_profile_output="$(
+  bash "${HELPER}" \
+    --device TEST-DEVICE \
+    --dry-run \
+    --build-only \
+    --profile watch 2>&1
+)"
+bad_profile_status=$?
+set -e
+if [[ "${bad_profile_status}" -eq 0 ]]; then
+  echo "ERROR: unknown profile should fail before building" >&2
+  exit 1
+fi
+assert_contains "${bad_profile_output}" "Unknown device profile: watch" "unknown profile should explain the bad profile name"
+
 local_signing_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \
     --device TEST-DEVICE \
