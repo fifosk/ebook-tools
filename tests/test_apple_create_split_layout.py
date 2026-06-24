@@ -149,6 +149,15 @@ CREATE_HISTORY_DEFAULTS = (
     / "Create"
     / "AppleBookCreateHistoryDefaults.swift"
 )
+CREATE_HISTORY_PARSING = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateHistoryParsing.swift"
+)
 CREATE_BASIC_SECTIONS = (
     ROOT
     / "ios"
@@ -513,6 +522,7 @@ def test_create_routing_is_split_from_support_and_target_wired() -> None:
 
 def test_create_history_defaults_are_split_from_support_and_target_wired() -> None:
     history_source = _source(CREATE_HISTORY_DEFAULTS)
+    parsing_source = _source(CREATE_HISTORY_PARSING)
     support_source = _source(CREATE_SUPPORT)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
@@ -522,11 +532,17 @@ def test_create_history_defaults_are_split_from_support_and_target_wired() -> No
     assert "static func generatedBookHistoryDefaults" in history_source
     assert "static func subtitleHistoryDefaults" in history_source
     assert "static func youtubeHistoryDefaults" in history_source
-    assert "static func narrationStartSentence" in history_source
-    assert "private static func latestNarrationJob" in history_source
-    assert "private static func narrationString(" in history_source
-    assert "private static func historyOffset(" in history_source
-    assert "private static func parseJobDate(" in history_source
+    assert "static func narrationStartSentence" not in history_source
+    assert "static func latestNarrationJob" not in history_source
+    assert "static func narrationString(" not in history_source
+    assert "static func historyOffset(" not in history_source
+    assert "static func parseJobDate(" not in history_source
+    assert "extension AppleBookCreatePresentation" in parsing_source
+    assert "static func narrationStartSentence" in parsing_source
+    assert "static func latestNarrationJob" in parsing_source
+    assert "static func narrationString(" in parsing_source
+    assert "static func historyOffset(" in parsing_source
+    assert "static func parseJobDate(" in parsing_source
     assert "static func narrationHistoryDefaults(" not in support_source
     assert "static func generatedBookHistoryDefaults" not in support_source
     assert "static func subtitleHistoryDefaults" not in support_source
@@ -537,7 +553,10 @@ def test_create_history_defaults_are_split_from_support_and_target_wired() -> No
     assert "static func parseJobDate(" not in support_source
     assert "AppleBookCreateHistoryDefaults.swift in Sources" in project
     assert project.count("AppleBookCreateHistoryDefaults.swift in Sources") == 4
+    assert "AppleBookCreateHistoryParsing.swift in Sources" in project
+    assert project.count("AppleBookCreateHistoryParsing.swift in Sources") == 4
     assert "AppleBookCreateHistoryDefaults.swift" in payload_script
+    assert "AppleBookCreateHistoryParsing.swift" in payload_script
 
 
 def test_create_language_options_are_split_from_support_and_target_wired() -> None:

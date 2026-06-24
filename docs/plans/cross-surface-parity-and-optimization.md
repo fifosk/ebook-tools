@@ -201,13 +201,15 @@ Current Apple UI partially exposes:
 - Native Create flow. Status: `AppleBookCreateView.swift` now delegates create
   mode availability, submit-button presentation, base-output derivation,
   subtitle model labels, subtitle model option-list construction, ASS/subtitle/
-  YouTube clamp and formatting helpers, YouTube offset normalization, and
-  YouTube clamp and formatting helpers, and YouTube offset normalization to
-  `AppleBookCreateSupport.swift`. Create draft value types, shared language and
-  mode models, history/default structs, and creation tuning/format/provider
-  enums now live in `AppleBookCreateModels.swift`, keeping the support file
-  focused on pure presentation/default/payload helpers and the view model
-  focused on submission work. Advanced metadata JSON editing and artwork
+  YouTube clamp and formatting helpers, YouTube offset normalization, draft
+  construction, backend default resolution, backend language/voice option
+  building, source selection, and routing to focused `AppleBookCreate*`
+  presentation/helper files. Create draft value types, shared language and mode
+  models, history/default structs, and creation tuning/format/provider enums
+  now live in `AppleBookCreateModels.swift`, while job-history payload parsing
+  lives in `AppleBookCreateHistoryParsing.swift`, keeping the support file as a
+  thin namespace and the view model focused on submission work. Advanced
+  metadata JSON editing and artwork
   preview subviews now live in `AppleBookCreateMetadataViews.swift`, trimming
   repeated metadata UI out of `AppleBookCreateSections.swift` while preserving
   the tvOS-safe JSON editor fallback. Subtitle time-range and YouTube

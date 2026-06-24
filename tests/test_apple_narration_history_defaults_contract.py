@@ -23,6 +23,15 @@ CREATE_HISTORY_DEFAULTS = (
     / "Create"
     / "AppleBookCreateHistoryDefaults.swift"
 )
+CREATE_HISTORY_PARSING = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateHistoryParsing.swift"
+)
 CREATE_MODELS = (
     ROOT
     / "ios"
@@ -113,6 +122,7 @@ def test_narrate_epub_history_defaults_include_web_style_output_settings() -> No
         assert token in function_block
 
     support_source = _source(CREATE_SUPPORT)
+    parsing_source = _source(CREATE_HISTORY_PARSING)
     assert "static func narrationHistoryDefaults(" not in support_source
     assert "static func generatedBookHistoryDefaults" not in support_source
     assert "static func subtitleHistoryDefaults" not in support_source
@@ -121,10 +131,14 @@ def test_narrate_epub_history_defaults_include_web_style_output_settings() -> No
     assert "static func narrationString(" not in support_source
     assert "static func historyOffset(" not in support_source
     assert "static func parseJobDate(" not in support_source
-    assert "private static func latestNarrationJob" in history_source
-    assert "private static func narrationString(" in history_source
-    assert "private static func historyOffset(" in history_source
-    assert "private static func parseJobDate(" in history_source
+    assert "static func latestNarrationJob" not in history_source
+    assert "static func narrationString(" not in history_source
+    assert "static func historyOffset(" not in history_source
+    assert "static func parseJobDate(" not in history_source
+    assert "static func latestNarrationJob" in parsing_source
+    assert "static func narrationString(" in parsing_source
+    assert "static func historyOffset(" in parsing_source
+    assert "static func parseJobDate(" in parsing_source
 
 
 def test_narrate_epub_history_defaults_preserve_user_edited_fields() -> None:
