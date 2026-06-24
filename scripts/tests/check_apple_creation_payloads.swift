@@ -1436,6 +1436,10 @@ struct AppleCreationPayloadCheck {
             year: " 2026 ",
             isbn: " 9780140328721 ",
             coverFile: " covers/native.jpg ",
+            sourceBookTitle: " Inferno ",
+            sourceBookAuthor: " Dan Brown ",
+            sourceBookGenre: " thriller ",
+            sourceBookSummary: " A symbologist follows clues. ",
             sentenceCount: 42,
             inputLanguage: .english,
             targetLanguage: .slovak,
@@ -1494,6 +1498,13 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.year == "2026", "Generated draft should trim metadata year")
         require(generatedDraft.isbn == "9780140328721", "Generated draft should trim metadata ISBN")
         require(generatedDraft.coverFile == "covers/native.jpg", "Generated draft should trim metadata cover path")
+        require(generatedDraft.sourceBookTitle == "Inferno", "Generated draft should trim source book title")
+        require(generatedDraft.sourceBookAuthor == "Dan Brown", "Generated draft should trim source book author")
+        require(generatedDraft.sourceBookGenre == "thriller", "Generated draft should trim source book genre")
+        require(
+            generatedDraft.sourceBookSummary == "A symbologist follows clues.",
+            "Generated draft should trim source book summary"
+        )
         require(generatedDraft.targetLanguage == "Slovak", "Generated draft should map target language")
         require(
             generatedDraft.targetLanguages == ["Slovak", "German", "Arabic"],
@@ -2223,7 +2234,11 @@ struct AppleCreationPayloadCheck {
                 topic: "Portable Apple clients",
                 bookName: "Native Creation",
                 genre: "technical",
-                outputLanguage: "sk"
+                outputLanguage: "sk",
+                sourceBookTitle: "Inferno",
+                sourceBookAuthor: "Dan Brown",
+                sourceBookGenre: "Conspiracy thriller",
+                sourceBookSummary: "A symbologist follows clues across Europe."
             ),
             pipeline: pipeline
         )
@@ -2231,6 +2246,13 @@ struct AppleCreationPayloadCheck {
         let generator = bookObject["generator"] as? [String: Any]
         require(generator?["book_name"] as? String == "Native Creation", "book generator should encode book_name")
         require(generator?["num_sentences"] as? Int == 10, "book generator should keep default sentence count")
+        require(generator?["source_book_title"] as? String == "Inferno", "book generator should encode source_book_title")
+        require(generator?["source_book_author"] as? String == "Dan Brown", "book generator should encode source_book_author")
+        require(generator?["source_book_genre"] as? String == "Conspiracy thriller", "book generator should encode source_book_genre")
+        require(
+            generator?["source_book_summary"] as? String == "A symbologist follows clues across Europe.",
+            "book generator should encode source_book_summary"
+        )
         require(bookObject["pipeline"] != nil, "book job should include pipeline payload")
 
         let youtube = YoutubeDubRequestPayload(

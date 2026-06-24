@@ -973,7 +973,11 @@ final class AppleBookCreateViewModel: ObservableObject {
                 numSentences: draft.sentenceCount,
                 inputLanguage: draft.inputLanguage,
                 outputLanguage: draft.targetLanguage,
-                voice: draft.voice
+                voice: draft.voice,
+                sourceBookTitle: draft.sourceBookTitle,
+                sourceBookAuthor: draft.sourceBookAuthor,
+                sourceBookGenre: draft.sourceBookGenre,
+                sourceBookSummary: draft.sourceBookSummary
             ),
             pipeline: pipeline
         )

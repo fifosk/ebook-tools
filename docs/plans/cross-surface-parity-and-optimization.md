@@ -373,7 +373,11 @@ After Narrate Ebook:
   clearing, editable TVMaze poster/episode-still artwork URL previews, and
   TMDB/IMDb ID edits. Native time fields validate and normalize Web-style
   `MM:SS`, `HH:MM:SS`, and `+offset` values before submit.
-- Generated book job creation on iPad.
+- Generated book job creation on iPad. Status: Apple Create submits
+  generated-book jobs through `/api/books/jobs`; generated-book mode now also
+  exposes source-book title, author, genre, and summary context on iPhone/iPad
+  and sends those fields through the shared generator contract so
+  continuation-style jobs can start with explicit source metadata.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
   files, including NAS library video/subtitle pickers, remembered base

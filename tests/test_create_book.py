@@ -17,6 +17,7 @@ from modules.webapi.dependencies import (
     get_runtime_context_provider,
 )
 from modules.webapi.routes.books_routes import _list_ebook_files
+from modules.webapi.schemas.create_book import BookGenerationJobSubmission
 
 pytestmark = pytest.mark.pipeline
 
@@ -106,6 +107,40 @@ def test_pipeline_ebook_listing_is_newest_first_with_metadata(tmp_path: Path) ->
     assert entries[0].modified_at is not None
 
 
+def test_book_generation_job_schema_accepts_source_context() -> None:
+    payload = BookGenerationJobSubmission.model_validate(
+        {
+            "generator": {
+                "input_language": "English",
+                "output_language": "French",
+                "voice": "DemoVoice",
+                "num_sentences": 2,
+                "topic": "A new symbol trail",
+                "book_name": "The Marble Cipher",
+                "genre": "Mystery thriller",
+                "author": "Me",
+                "source_book_title": " Inferno ",
+                "source_book_author": " Dan Brown ",
+                "source_book_genre": " Conspiracy thriller ",
+                "source_book_summary": " A symbologist follows clues across Europe. ",
+            },
+            "pipeline": {
+                "inputs": {
+                    "input_file": "generated.epub",
+                    "base_output_file": "generated",
+                    "input_language": "English",
+                    "target_languages": ["French"],
+                }
+            },
+        }
+    )
+
+    assert payload.generator.source_book_title == "Inferno"
+    assert payload.generator.source_book_author == "Dan Brown"
+    assert payload.generator.source_book_genre == "Conspiracy thriller"
+    assert payload.generator.source_book_summary == "A symbologist follows clues across Europe."
+
+
 def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     app = create_app()
 
@@ -118,9 +153,15 @@ def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     app.dependency_overrides[get_pipeline_service] = lambda: stub_pipeline
     app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
 
+    captured_generation: dict[str, object] = {}
+
+    def fake_generate_sentences(**kwargs):
+        captured_generation.update(kwargs)
+        return ["One.", "Two."][: kwargs["count"]]
+
     monkeypatch.setattr(
         "modules.webapi.routers.create_book._generate_sentences",
-        lambda *, count, input_language, topic, target_language: ["One.", "Two."][:count],
+        fake_generate_sentences,
     )
 
     client = TestClient(app)
@@ -134,6 +175,10 @@ def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
         "book_name": "Drops",
         "genre": "Poetry",
         "author": "Me",
+        "source_book_title": "Inferno",
+        "source_book_author": "Dan Brown",
+        "source_book_genre": "Conspiracy thriller",
+        "source_book_summary": "A symbologist follows clues across Europe.",
     }
 
     response = client.post(
@@ -146,7 +191,15 @@ def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     body = response.json()
     assert body["status"] == "prepared"
     assert body["metadata"]["book_title"] == "Drops"
+    assert body["metadata"]["source_book_title"] == "Inferno"
+    assert body["metadata"]["source_book_author"] == "Dan Brown"
+    assert body["metadata"]["source_book_genre"] == "Conspiracy thriller"
+    assert body["metadata"]["source_book_summary"] == "A symbologist follows clues across Europe."
     assert body["metadata"]["generated_sentences"] == ["One.", "Two."]
+    assert captured_generation["source_book_title"] == "Inferno"
+    assert captured_generation["source_book_author"] == "Dan Brown"
+    assert captured_generation["source_book_genre"] == "Conspiracy thriller"
+    assert captured_generation["source_book_summary"] == "A symbologist follows clues across Europe."
     assert body["messages"]
     assert any("Seed EPUB prepared" in message for message in body["messages"])
     assert body["warnings"] == []

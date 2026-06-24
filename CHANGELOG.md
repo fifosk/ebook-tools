@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-24
 
+### 2026.06.24.25
+
+- Advanced visible Apple app versioning to `v2026.06.24.25`.
+- Apple Create generated-book jobs now accept source-book title, author, genre, and summary context so iPad/iPhone can start continuation-style books with explicit source metadata.
+
 ### 2026.06.24.24
 
 - Advanced visible Apple app versioning to `v2026.06.24.24`.

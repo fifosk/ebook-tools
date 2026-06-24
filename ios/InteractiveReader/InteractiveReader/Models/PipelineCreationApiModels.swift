@@ -501,6 +501,10 @@ struct BookGenerationRequest: Encodable, Equatable {
     let inputLanguage: String?
     let outputLanguage: String?
     let voice: String?
+    let sourceBookTitle: String?
+    let sourceBookAuthor: String?
+    let sourceBookGenre: String?
+    let sourceBookSummary: String?
 
     init(
         topic: String,
@@ -510,7 +514,11 @@ struct BookGenerationRequest: Encodable, Equatable {
         numSentences: Int = 10,
         inputLanguage: String? = nil,
         outputLanguage: String? = nil,
-        voice: String? = nil
+        voice: String? = nil,
+        sourceBookTitle: String? = nil,
+        sourceBookAuthor: String? = nil,
+        sourceBookGenre: String? = nil,
+        sourceBookSummary: String? = nil
     ) {
         self.topic = topic
         self.bookName = bookName
@@ -520,6 +528,10 @@ struct BookGenerationRequest: Encodable, Equatable {
         self.inputLanguage = inputLanguage
         self.outputLanguage = outputLanguage
         self.voice = voice
+        self.sourceBookTitle = sourceBookTitle
+        self.sourceBookAuthor = sourceBookAuthor
+        self.sourceBookGenre = sourceBookGenre
+        self.sourceBookSummary = sourceBookSummary
     }
 
     enum CodingKeys: String, CodingKey {
@@ -531,6 +543,10 @@ struct BookGenerationRequest: Encodable, Equatable {
         case inputLanguage = "input_language"
         case outputLanguage = "output_language"
         case voice
+        case sourceBookTitle = "source_book_title"
+        case sourceBookAuthor = "source_book_author"
+        case sourceBookGenre = "source_book_genre"
+        case sourceBookSummary = "source_book_summary"
     }
 }
 

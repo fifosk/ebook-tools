@@ -427,6 +427,10 @@ def _generate_sentences(
     input_language: str,
     topic: str,
     target_language: str,
+    source_book_title: str | None = None,
+    source_book_author: str | None = None,
+    source_book_genre: str | None = None,
+    source_book_summary: str | None = None,
 ) -> list[str]:
     system_prompt = (
         "You generate evaluation data for an e-book creation pipeline. "
@@ -438,12 +442,27 @@ def _generate_sentences(
             " Craft sentences that translate cleanly into "
             f"{target_language.strip()}."
         )
+    source_context_parts = []
+    if source_book_title and source_book_title.strip():
+        source_context_parts.append(f"title {source_book_title.strip()!r}")
+    if source_book_author and source_book_author.strip():
+        source_context_parts.append(f"author {source_book_author.strip()!r}")
+    if source_book_genre and source_book_genre.strip():
+        source_context_parts.append(f"genre {source_book_genre.strip()!r}")
+    if source_book_summary and source_book_summary.strip():
+        source_context_parts.append(f"summary {source_book_summary.strip()!r}")
+    source_context = ""
+    if source_context_parts:
+        source_context = (
+            " Treat this as continuation or homage context, without copying "
+            "protected text: " + "; ".join(source_context_parts) + "."
+        )
 
     user_prompt = (
         "Create a JSON array named sentences containing exactly "
         f"{count} distinctive {input_language.strip()} sentences about {topic.strip()}. "
         "Ensure every sentence is unique, avoids filler text, and stays under 20 words."
-        f"{target_clause} Return only the JSON payload."
+        f"{source_context}{target_clause} Return only the JSON payload."
     )
 
     last_error: str | None = None
@@ -610,6 +629,10 @@ def _execute_book_job(
         input_language=input_language,
         topic=generator_payload.topic,
         target_language=target_language or input_language,
+        source_book_title=generator_payload.source_book_title,
+        source_book_author=generator_payload.source_book_author,
+        source_book_genre=generator_payload.source_book_genre,
+        source_book_summary=generator_payload.source_book_summary,
     )
     sentence_count = len(sentences)
     warnings: list[str] = []
@@ -750,6 +773,14 @@ def _execute_book_job(
         "creation_sentences_preview": list(sentences_preview),
         "creation_summary": creation_summary,
     }
+    if generator_payload.source_book_title:
+        metadata_updates["source_book_title"] = generator_payload.source_book_title
+    if generator_payload.source_book_author:
+        metadata_updates["source_book_author"] = generator_payload.source_book_author
+    if generator_payload.source_book_genre:
+        metadata_updates["source_book_genre"] = generator_payload.source_book_genre
+    if generator_payload.source_book_summary:
+        metadata_updates["source_book_summary"] = generator_payload.source_book_summary
     if cover_file_path:
         metadata_updates["book_cover_file"] = cover_file_path
     cover_prompt_value = cover_prompt_used or cover_prompt
@@ -760,15 +791,21 @@ def _execute_book_job(
         metadata_updates["book_cover_negative_prompt"] = cover_negative_value
     request.inputs.media_metadata.update(metadata_updates)
     request.pipeline_overrides = dict(request.pipeline_overrides)
-    request.pipeline_overrides.setdefault(
-        "book_generation",
-        {
-            "topic": generator_payload.topic,
-            "book_name": generator_payload.book_name,
-            "genre": generator_payload.genre,
-            "num_sentences": generator_payload.num_sentences,
-        },
-    )
+    generation_snapshot = {
+        "topic": generator_payload.topic,
+        "book_name": generator_payload.book_name,
+        "genre": generator_payload.genre,
+        "num_sentences": generator_payload.num_sentences,
+    }
+    if generator_payload.source_book_title:
+        generation_snapshot["source_book_title"] = generator_payload.source_book_title
+    if generator_payload.source_book_author:
+        generation_snapshot["source_book_author"] = generator_payload.source_book_author
+    if generator_payload.source_book_genre:
+        generation_snapshot["source_book_genre"] = generator_payload.source_book_genre
+    if generator_payload.source_book_summary:
+        generation_snapshot["source_book_summary"] = generator_payload.source_book_summary
+    request.pipeline_overrides.setdefault("book_generation", generation_snapshot)
 
     serialized_request = serialize_pipeline_request(request)
     job.request_payload = copy.deepcopy(serialized_request)
@@ -823,6 +860,10 @@ async def create_book(
             input_language=payload.input_language,
             topic=payload.topic,
             target_language=payload.output_language,
+            source_book_title=payload.source_book_title,
+            source_book_author=payload.source_book_author,
+            source_book_genre=payload.source_book_genre,
+            source_book_summary=payload.source_book_summary,
         )
     except RuntimeError as exc:
         raise HTTPException(
@@ -865,6 +906,14 @@ async def create_book(
             "base_output_file": base_output,
         }
     )
+    if payload.source_book_title:
+        config_payload["source_book_title"] = payload.source_book_title
+    if payload.source_book_author:
+        config_payload["source_book_author"] = payload.source_book_author
+    if payload.source_book_genre:
+        config_payload["source_book_genre"] = payload.source_book_genre
+    if payload.source_book_summary:
+        config_payload["source_book_summary"] = payload.source_book_summary
 
     context = context_provider.build_context(config_payload, {})
     books_dir = context.books_dir
@@ -903,6 +952,14 @@ async def create_book(
         "created_via": "create_book_api",
         "seed_epub_path": relative_epub_path,
     }
+    if payload.source_book_title:
+        media_metadata["source_book_title"] = payload.source_book_title
+    if payload.source_book_author:
+        media_metadata["source_book_author"] = payload.source_book_author
+    if payload.source_book_genre:
+        media_metadata["source_book_genre"] = payload.source_book_genre
+    if payload.source_book_summary:
+        media_metadata["source_book_summary"] = payload.source_book_summary
 
     creation_summary = {
         "epub_path": relative_epub_path,

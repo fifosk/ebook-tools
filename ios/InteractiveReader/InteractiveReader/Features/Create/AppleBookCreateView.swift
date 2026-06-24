@@ -364,16 +364,28 @@ struct AppleBookCreateView: View {
 
     private var metadataSection: some View {
         Section("Metadata") {
-            if creationMode == .narrateEbook {
+            if creationMode == .generatedBook || creationMode == .narrateEbook {
                 TextField("Title", text: textBinding(for: .sourceBookTitle, value: $sourceBookTitle))
                     .textInputAutocapitalization(.words)
-                    .accessibilityIdentifier("createNarrateBookTitleField")
+                    .accessibilityIdentifier(
+                        creationMode == .generatedBook
+                            ? "createGeneratedSourceBookTitleField"
+                            : "createNarrateBookTitleField"
+                    )
                 TextField("Author", text: textBinding(for: .sourceBookAuthor, value: $sourceBookAuthor))
                     .textInputAutocapitalization(.words)
-                    .accessibilityIdentifier("createNarrateBookAuthorField")
+                    .accessibilityIdentifier(
+                        creationMode == .generatedBook
+                            ? "createGeneratedSourceBookAuthorField"
+                            : "createNarrateBookAuthorField"
+                    )
                 TextField("Genre", text: textBinding(for: .sourceBookGenre, value: $sourceBookGenre))
                     .textInputAutocapitalization(.words)
-                    .accessibilityIdentifier("createNarrateBookGenreField")
+                    .accessibilityIdentifier(
+                        creationMode == .generatedBook
+                            ? "createGeneratedSourceBookGenreField"
+                            : "createNarrateBookGenreField"
+                    )
             }
             TextField("Summary", text: textBinding(for: .bookSummary, value: $bookSummary), axis: .vertical)
                 .lineLimit(2...5)
@@ -954,6 +966,10 @@ struct AppleBookCreateView: View {
             year: bookYear,
             isbn: bookIsbn,
             coverFile: bookCoverFile,
+            sourceBookTitle: sourceBookTitle,
+            sourceBookAuthor: sourceBookAuthor,
+            sourceBookGenre: sourceBookGenre,
+            sourceBookSummary: bookSummary,
             sentenceCount: sentenceCount,
             inputLanguage: inputLanguage,
             targetLanguage: targetLanguage,

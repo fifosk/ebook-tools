@@ -22,6 +22,10 @@ class BookCreationRequest(BaseModel):
     book_name: str
     genre: str
     author: str = "Me"
+    source_book_title: str | None = None
+    source_book_author: str | None = None
+    source_book_genre: str | None = None
+    source_book_summary: str | None = None
 
     @field_validator("input_language", "output_language", "topic", "book_name", "genre")
     @classmethod
@@ -31,7 +35,14 @@ class BookCreationRequest(BaseModel):
             raise ValueError("Field cannot be empty")
         return result
 
-    @field_validator("voice", "author")
+    @field_validator(
+        "voice",
+        "author",
+        "source_book_title",
+        "source_book_author",
+        "source_book_genre",
+        "source_book_summary",
+    )
     @classmethod
     def _strip_optional(cls, value: str | None) -> str | None:
         if value is None:
@@ -130,6 +141,10 @@ class BookGenerationJobRequest(BaseModel):
     input_language: str | None = None
     output_language: str | None = None
     voice: str | None = None
+    source_book_title: str | None = None
+    source_book_author: str | None = None
+    source_book_genre: str | None = None
+    source_book_summary: str | None = None
 
     @field_validator("topic", "book_name", "genre")
     @classmethod
@@ -139,7 +154,16 @@ class BookGenerationJobRequest(BaseModel):
             raise ValueError("Field cannot be empty")
         return trimmed
 
-    @field_validator("author", "input_language", "output_language", "voice")
+    @field_validator(
+        "author",
+        "input_language",
+        "output_language",
+        "voice",
+        "source_book_title",
+        "source_book_author",
+        "source_book_genre",
+        "source_book_summary",
+    )
     @classmethod
     def _validate_optional(cls, value: str | None) -> str | None:
         if value is None:

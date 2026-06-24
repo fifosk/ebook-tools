@@ -96,6 +96,10 @@ export interface BookGenerationJobRequest {
     input_language?: string | null;
     output_language?: string | null;
     voice?: string | null;
+    source_book_title?: string | null;
+    source_book_author?: string | null;
+    source_book_genre?: string | null;
+    source_book_summary?: string | null;
   };
   pipeline: PipelineRequestPayload;
 }

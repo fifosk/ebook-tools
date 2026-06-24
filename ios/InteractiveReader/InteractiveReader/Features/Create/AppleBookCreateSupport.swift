@@ -9,6 +9,10 @@ struct AppleBookCreateDraft: Equatable {
     let year: String?
     let isbn: String?
     let coverFile: String?
+    let sourceBookTitle: String?
+    let sourceBookAuthor: String?
+    let sourceBookGenre: String?
+    let sourceBookSummary: String?
     let sentenceCount: Int
     let inputLanguage: String
     let targetLanguage: String
@@ -2569,6 +2573,10 @@ enum AppleBookCreatePresentation {
         year: String,
         isbn: String,
         coverFile: String,
+        sourceBookTitle: String,
+        sourceBookAuthor: String,
+        sourceBookGenre: String,
+        sourceBookSummary: String,
         sentenceCount: Int,
         inputLanguage: AppleBookCreateLanguage,
         targetLanguage: AppleBookCreateLanguage,
@@ -2631,6 +2639,10 @@ enum AppleBookCreatePresentation {
             year: trimmed(year).nonEmptyValue,
             isbn: trimmed(isbn).nonEmptyValue,
             coverFile: trimmed(coverFile).nonEmptyValue,
+            sourceBookTitle: trimmed(sourceBookTitle).nonEmptyValue,
+            sourceBookAuthor: trimmed(sourceBookAuthor).nonEmptyValue,
+            sourceBookGenre: trimmed(sourceBookGenre).nonEmptyValue,
+            sourceBookSummary: trimmed(sourceBookSummary).nonEmptyValue,
             sentenceCount: sentenceCount,
             inputLanguage: inputLanguage.backendValue,
             targetLanguage: targetLanguageValue,

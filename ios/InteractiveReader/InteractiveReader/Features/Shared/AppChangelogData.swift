@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
-            version: "2026.06.24.24",
+            version: "2026.06.24.25",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-generated-book-source-context",
+                    title: "Generated books get source context",
+                    detail: "Apple Create generated-book jobs now accept source-book title, author, genre, and summary context so iPad and iPhone can start continuation-style books with explicit source metadata."
+                ),
                 AppChangelogEntry(
                     id: "apple-device-update-preflight",
                     title: "Device updates preflight first",

@@ -169,6 +169,39 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert 'accessibilityIdentifier("createNarrateEndSentenceField")' in job_settings_section.group("body")
 
 
+def test_generated_book_create_exposes_source_context_fields() -> None:
+    source = _source(CREATE_VIEW)
+    support_source = _source(CREATE_VIEW_MODEL)
+    draft_source = _source(
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Create"
+        / "AppleBookCreateSupport.swift"
+    )
+
+    assert "creationMode == .generatedBook || creationMode == .narrateEbook" in source
+    assert '"createGeneratedSourceBookTitleField"' in source
+    assert '"createGeneratedSourceBookAuthorField"' in source
+    assert '"createGeneratedSourceBookGenreField"' in source
+    assert "sourceBookTitle: sourceBookTitle" in source
+    assert "sourceBookAuthor: sourceBookAuthor" in source
+    assert "sourceBookGenre: sourceBookGenre" in source
+    assert "sourceBookSummary: bookSummary" in source
+
+    assert "let sourceBookTitle: String?" in draft_source
+    assert "let sourceBookAuthor: String?" in draft_source
+    assert "let sourceBookGenre: String?" in draft_source
+    assert "let sourceBookSummary: String?" in draft_source
+
+    assert "sourceBookTitle: draft.sourceBookTitle" in support_source
+    assert "sourceBookAuthor: draft.sourceBookAuthor" in support_source
+    assert "sourceBookGenre: draft.sourceBookGenre" in support_source
+    assert "sourceBookSummary: draft.sourceBookSummary" in support_source
+
+
 def test_ipad_split_view_keeps_settings_in_detail_panel() -> None:
     source = _source(LIBRARY_SHELL)
 
