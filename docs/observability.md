@@ -78,6 +78,14 @@ defined in `modules/webapi/metrics.py` and collected in two ways:
 | `ebook_tools_jobs_backpressure_rejections_total` | Counter | -- | Rejected jobs (backpressure) |
 | `ebook_tools_jobs_backpressure_delays_total` | Counter | -- | Delayed jobs (backpressure) |
 | `ebook_tools_library_items_total` | Gauge | `item_type` | Library items (book/video/subtitle) |
+| `ebook_tools_library_route_duration_seconds` | Histogram | `operation`, `result` | Library route timing |
+| `ebook_tools_search_route_duration_seconds` | Histogram | `operation`, `result` | Search route timing |
+| `ebook_tools_job_list_route_duration_seconds` | Histogram | `operation`, `result` | Pipeline job list route timing |
+| `ebook_tools_media_route_duration_seconds` | Histogram | `operation`, `result` | Pipeline media manifest route timing |
+| `ebook_tools_media_stream_duration_seconds` | Histogram | `operation`, `result`, `media_kind` | Media stream setup timing |
+| `ebook_tools_export_route_duration_seconds` | Histogram | `operation`, `result` | Offline export route timing |
+| `ebook_tools_youtube_library_route_duration_seconds` | Histogram | `operation`, `result` | YouTube NAS library route timing |
+| `ebook_tools_source_picker_route_duration_seconds` | Histogram | `operation`, `result` | Create source picker route timing |
 | `ebook_tools_users_total` | Gauge | `role` | Users by role |
 | `ebook_tools_sessions_active` | Gauge | -- | Non-expired sessions |
 | `ebook_tools_auth_attempts_total` | Counter | `method`, `result` | Auth attempts |
@@ -272,7 +280,7 @@ Data is persisted to `/Volumes/Data/Monitoring/grafana`.
 The test suite validates the entire observability pipeline end-to-end.
 
 ```bash
-pytest -m observability -v       # ~26 tests
+pytest -m observability -v
 make test-observability          # same via Makefile
 ```
 
@@ -280,7 +288,7 @@ make test-observability          # same via Makefile
 
 | Layer | Tests | Validates |
 |-------|-------|-----------|
-| **Metric presence** | 16 | Every `ebook_tools_*` metric exists in `/metrics` with correct type |
+| **Metric presence** | Custom metrics | Every `ebook_tools_*` metric exists in `/metrics` with correct type |
 | **Label cardinality** | 5 | Labelled metrics expose expected label names |
 | **Dashboard coverage** | 1 | Every PromQL expression in dashboards references an existing metric |
 | **HTTP auto-instrumentation** | 2 | Traffic generates `http_request_duration_seconds`; `/metrics` is excluded |

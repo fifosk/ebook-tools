@@ -154,6 +154,13 @@ YOUTUBE_LIBRARY_ROUTE_DURATION = Histogram(
     buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
 )
 
+SOURCE_PICKER_ROUTE_DURATION = Histogram(
+    "ebook_tools_source_picker_route_duration_seconds",
+    "Create source picker route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+)
+
 # ---------------------------------------------------------------------------
 # Users & sessions
 # ---------------------------------------------------------------------------

@@ -779,7 +779,7 @@ The observability test suite validates the Prometheus metrics pipeline and
 Grafana dashboard integrity end-to-end.
 
 ```bash
-pytest -m observability -v       # ~26 tests
+pytest -m observability -v
 make test-observability          # same via Makefile
 ```
 
@@ -787,7 +787,7 @@ make test-observability          # same via Makefile
 
 | Layer | Tests | What it validates |
 |-------|-------|-------------------|
-| Metric presence | 16 | Every `ebook_tools_*` metric exists in `/metrics` with the correct Prometheus type |
+| Metric presence | Custom metrics | Every `ebook_tools_*` metric exists in `/metrics` with the correct Prometheus type |
 | Label cardinality | 5 | Labelled metrics expose expected label names |
 | Dashboard coverage | 1 | Every PromQL expression in all 4 dashboards references an existing metric |
 | HTTP auto-instrumentation | 2 | API traffic generates `http_request_duration_seconds`; `/metrics` is excluded |

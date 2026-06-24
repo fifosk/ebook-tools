@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import mimetypes
 import io
+import logging
 import os
 import re
 import stat as stat_module
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -40,12 +42,48 @@ from ...services.file_locator import FileLocator
 from ...services.pipeline_service import PipelineService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 _COVER_TARGET_SIZE = (600, 900)
 _COVER_ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
 _COVER_ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 _ALLOWED_ROLES = {"admin", "editor"}
+
+
+def _record_source_picker_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe source picker route timing if metrics are available."""
+
+    try:
+        from ..metrics import SOURCE_PICKER_ROUTE_DURATION
+    except Exception:
+        return
+    SOURCE_PICKER_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
+def _log_pipeline_file_picker(
+    started_at: float,
+    *,
+    result: str,
+    ebook_count: int = 0,
+    output_count: int = 0,
+    books_root_present: bool | None = None,
+    output_root_present: bool | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_source_picker_route_duration("pipeline_files", result, started_at)
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(
+        "Pipeline source picker result=%s ebooks=%s outputs=%s books_root_present=%s output_root_present=%s duration_ms=%.1f",
+        result,
+        ebook_count,
+        output_count,
+        books_root_present,
+        output_root_present,
+        duration_ms,
+    )
 
 
 def _ensure_editor(request_user: RequestUserContext) -> None:
@@ -238,9 +276,25 @@ async def list_pipeline_files(
     """Return available ebook and output paths for client-side file pickers."""
 
     _ensure_editor(request_user)
-    with context_provider.activation({}, {}) as context:
-        ebooks = _list_ebook_files(context.books_dir)
-        outputs = _list_output_entries(context.output_dir)
+    started_at = time.perf_counter()
+    try:
+        with context_provider.activation({}, {}) as context:
+            books_root_present = context.books_dir.exists()
+            output_root_present = context.output_dir.exists()
+            ebooks = _list_ebook_files(context.books_dir)
+            outputs = _list_output_entries(context.output_dir)
+    except Exception:
+        _log_pipeline_file_picker(started_at, result="error")
+        raise
+
+    _log_pipeline_file_picker(
+        started_at,
+        result="success",
+        ebook_count=len(ebooks),
+        output_count=len(outputs),
+        books_root_present=books_root_present,
+        output_root_present=output_root_present,
+    )
 
     return PipelineFileBrowserResponse(
         ebooks=ebooks,

@@ -191,8 +191,8 @@ Backend (:8000/metrics) ──(10s)──> Prometheus (:9090) ──> Grafana (:
 PostgreSQL (:5432)      ──(30s)──> PG Exporter (:9187) ─┘
 ```
 
-- **Backend metrics** (`modules/webapi/metrics.py`) -- 16 custom metrics
-  (jobs, users, sessions, auth, pipeline stages, errors) plus HTTP
+- **Backend metrics** (`modules/webapi/metrics.py`) -- custom metrics
+  (jobs, users, sessions, auth, source pickers, route timings, pipeline stages, errors) plus HTTP
   auto-instrumentation via `prometheus-fastapi-instrumentator`. A periodic
   collector refreshes gauge values every 15 seconds.
 - **PostgreSQL metrics** -- The `postgres-exporter` scrapes system views

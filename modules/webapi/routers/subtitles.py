@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 import stat as stat_module
 import tempfile
+import time
 from pathlib import Path
 from typing import Optional, Union
 
@@ -71,6 +72,37 @@ def _ensure_editor(request_user: RequestUserContext) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 
+def _record_source_picker_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe source picker route timing if metrics are available."""
+
+    try:
+        from ..metrics import SOURCE_PICKER_ROUTE_DURATION
+    except Exception:
+        return
+    SOURCE_PICKER_ROUTE_DURATION.labels(operation=operation, result=result).observe(
+        time.perf_counter() - started_at
+    )
+
+
+def _log_subtitle_source_picker(
+    started_at: float,
+    *,
+    result: str,
+    source_count: int = 0,
+    directory_override: bool = False,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_source_picker_route_duration("subtitle_sources", result, started_at)
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(
+        "Subtitle source picker result=%s sources=%s directory_override=%s duration_ms=%.1f",
+        result,
+        source_count,
+        directory_override,
+        duration_ms,
+    )
+
+
 def _subtitle_source_sort_key(entry: SubtitleSourceEntry) -> tuple[int, float, str]:
     normalized_format = entry.format.strip().lower()
     format_weight = 0 if normalized_format in _PREFERRED_SUBTITLE_SOURCE_FORMATS else 1
@@ -103,13 +135,31 @@ def list_subtitle_sources(
     """Return discoverable subtitle files (.srt/.vtt plus generated .ass)."""
 
     _ensure_editor(request_user)
+    started_at = time.perf_counter()
     base_path = Path(directory).expanduser() if directory else None
     try:
         entries = service.list_sources(base_path)
     except PermissionError as exc:
+        _log_subtitle_source_picker(
+            started_at,
+            result="forbidden",
+            directory_override=directory is not None,
+        )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except FileNotFoundError as exc:
+        _log_subtitle_source_picker(
+            started_at,
+            result="not_found",
+            directory_override=directory is not None,
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception:
+        _log_subtitle_source_picker(
+            started_at,
+            result="error",
+            directory_override=directory is not None,
+        )
+        raise
 
     payload: list[SubtitleSourceEntry] = []
     for path in entries:
@@ -117,6 +167,12 @@ def list_subtitle_sources(
         if entry is not None:
             payload.append(entry)
     payload.sort(key=_subtitle_source_sort_key)
+    _log_subtitle_source_picker(
+        started_at,
+        result="success",
+        source_count=len(payload),
+        directory_override=directory is not None,
+    )
     return SubtitleSourceListResponse(sources=payload)
 
 

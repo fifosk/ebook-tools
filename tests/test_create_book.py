@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
+from prometheus_client.parser import text_string_to_metric_families
 
 from modules import config_manager as cfg
 import modules.webapi.routes.books_routes as books_routes
@@ -20,6 +21,7 @@ from modules.webapi.dependencies import (
     get_auth_service,
     get_pipeline_job_manager,
     get_pipeline_service,
+    get_request_user,
     get_runtime_context_provider,
 )
 from modules.webapi.routes.books_routes import _list_ebook_files, _list_output_entries
@@ -116,6 +118,38 @@ class _RecordingJobManager:
             user_role=kwargs.get("user_role"),
             job_type=str(kwargs.get("job_type") or "pipeline"),
         )
+
+
+class _RecordingLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def debug(self, message: str, *args: object, **kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
+
+    def info(self, message: str, *args: object, **kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
+
+
+def _has_metric_count(
+    metrics_text: str,
+    family_name: str,
+    *,
+    operation: str,
+    result: str,
+) -> bool:
+    families = {
+        family.name: family
+        for family in text_string_to_metric_families(metrics_text)
+    }
+    metric = families[family_name]
+    return any(
+        sample.labels.get("operation") == operation
+        and sample.labels.get("result") == result
+        and sample.name.endswith("_count")
+        and sample.value >= 1
+        for sample in metric.samples
+    )
 
 
 def test_pipeline_ebook_listing_is_newest_first_with_metadata(tmp_path: Path) -> None:
@@ -244,6 +278,54 @@ def test_pipeline_file_listing_tolerates_root_scan_failure(
 
     assert _list_ebook_files(books_dir) == []
     assert _list_output_entries(output_dir) == []
+
+
+def test_pipeline_file_picker_records_safe_timing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    books_dir = tmp_path / "books"
+    output_dir = tmp_path / "working" / "ebook"
+    secret_dir = books_dir / "Secret Dan Brown Continuation"
+    secret_dir.mkdir(parents=True)
+    output_dir.mkdir(parents=True)
+    (secret_dir / "latest.epub").write_bytes(b"latest")
+    (output_dir / "finished-job").mkdir()
+    logger = _RecordingLogger()
+
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    app.dependency_overrides[get_request_user] = lambda: SimpleNamespace(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(books_routes, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/pipelines/files")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ebooks"][0]["path"] == "Secret Dan Brown Continuation/latest.epub"
+    assert body["outputs"][0]["path"] == "finished-job"
+
+    rendered_logs = "\n".join(logger.messages)
+    assert "Pipeline source picker result=success ebooks=1 outputs=1" in rendered_logs
+    assert "Secret Dan Brown Continuation" not in rendered_logs
+    assert "latest.epub" not in rendered_logs
+    assert "office-ipad-user" not in rendered_logs
+
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_source_picker_route_duration_seconds",
+        operation="pipeline_files",
+        result="success",
+    )
 
 
 def test_delete_pipeline_ebook_is_idempotent_for_missing_in_scope_file(tmp_path: Path) -> None:

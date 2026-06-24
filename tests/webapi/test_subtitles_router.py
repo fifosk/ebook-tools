@@ -4,8 +4,13 @@ from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
+from prometheus_client.parser import text_string_to_metric_families
 
 from modules.webapi.dependencies import RequestUserContext
+from modules.webapi.application import create_app
+from modules.webapi.dependencies import get_request_user, get_subtitle_service
+import modules.webapi.routers.subtitles as subtitles_router_module
 from modules.webapi.routers.subtitles import (
     _subtitle_source_entry,
     _subtitle_source_sort_key,
@@ -18,6 +23,38 @@ from modules.webapi.schemas import SubtitleDeleteRequest, SubtitleSourceEntry
 from modules.services.subtitle_service import SubtitleService
 
 pytestmark = pytest.mark.webapi
+
+
+class _RecordingLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def debug(self, message: str, *args: object, **kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
+
+    def info(self, message: str, *args: object, **kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
+
+
+def _has_metric_count(
+    metrics_text: str,
+    family_name: str,
+    *,
+    operation: str,
+    result: str,
+) -> bool:
+    families = {
+        family.name: family
+        for family in text_string_to_metric_families(metrics_text)
+    }
+    metric = families[family_name]
+    return any(
+        sample.labels.get("operation") == operation
+        and sample.labels.get("result") == result
+        and sample.name.endswith("_count")
+        and sample.value >= 1
+        for sample in metric.samples
+    )
 
 
 def test_parse_end_time_relative_minutes() -> None:
@@ -212,6 +249,58 @@ def test_list_subtitle_sources_returns_nested_sources_with_preferred_sort(tmp_pa
         older_srt.resolve().as_posix(),
         newer_ass.resolve().as_posix(),
     ]
+
+
+def test_subtitle_source_picker_records_safe_timing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    secret_dir = tmp_path / "Secret Show"
+    secret_dir.mkdir()
+    source = secret_dir / "episode.en.srt"
+    source.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    logger = _RecordingLogger()
+
+    class _Service:
+        default_source_dir = tmp_path
+
+        def list_sources(self, base_path=None):
+            assert base_path == secret_dir
+            return [source]
+
+    app.dependency_overrides[get_subtitle_service] = lambda: _Service()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(subtitles_router_module, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/subtitles/sources",
+                params={"directory": secret_dir.as_posix()},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["sources"][0]["path"] == source.as_posix()
+
+    rendered_logs = "\n".join(logger.messages)
+    assert "Subtitle source picker result=success sources=1 directory_override=True" in rendered_logs
+    assert "Secret Show" not in rendered_logs
+    assert "episode.en.srt" not in rendered_logs
+    assert "office-ipad-user" not in rendered_logs
+
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_source_picker_route_duration_seconds",
+        operation="subtitle_sources",
+        result="success",
+    )
 
 
 def test_subtitle_service_delete_source_reports_missing_in_scope_file(tmp_path: Path) -> None:
