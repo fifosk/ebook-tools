@@ -446,24 +446,26 @@ pytest -k "test_dashboard_loads" -v
 
 ### Makefile Shortcuts
 
-The Makefile provides convenient targets for every domain.
+The Makefile provides convenient targets for every domain. Makefile pytest
+targets run through `$(PYTHON) -m pytest`, using `.venv/bin/python` when
+available and `python3` otherwise.
 
 | Target | Command | Description |
 |--------|---------|-------------|
-| `make test` | `pytest` | Full suite (801+ tests) |
-| `make test-fast` | `pytest -m "not slow and not integration"` | Skip slow and integration tests |
-| `make test-audio` | `pytest -m audio` | TTS backends and audio tests |
-| `make test-translation` | `pytest -m translation` | Translation engine tests |
-| `make test-webapi` | `pytest -m webapi` | FastAPI route tests |
-| `make test-services` | `pytest -m services` | Job manager and service tests |
-| `make test-pipeline` | `pytest -m pipeline` | Core pipeline tests |
-| `make test-cli` | `pytest -m cli` | CLI argument and command tests |
-| `make test-auth` | `pytest -m auth` | Authentication and session tests |
-| `make test-library` | `pytest -m library` | Library sync and indexer tests |
-| `make test-render` | `pytest -m render` | Output writer and text pipeline tests |
-| `make test-media` | `pytest -m media` | Media command runner tests |
-| `make test-config` | `pytest -m config` | Config manager tests |
-| `make test-metadata` | `pytest -m metadata` | Metadata enrichment tests |
+| `make test` | `$(PYTHON) -m pytest` | Full suite (801+ tests) |
+| `make test-fast` | `$(PYTHON) -m pytest -m "not slow and not integration"` | Skip slow and integration tests |
+| `make test-audio` | `$(PYTHON) -m pytest -m audio` | TTS backends and audio tests |
+| `make test-translation` | `$(PYTHON) -m pytest -m translation` | Translation engine tests |
+| `make test-webapi` | `$(PYTHON) -m pytest -m webapi` | FastAPI route tests |
+| `make test-services` | `$(PYTHON) -m pytest -m services` | Job manager and service tests |
+| `make test-pipeline` | `$(PYTHON) -m pytest -m pipeline` | Core pipeline tests |
+| `make test-cli` | `$(PYTHON) -m pytest -m cli` | CLI argument and command tests |
+| `make test-auth` | `$(PYTHON) -m pytest -m auth` | Authentication and session tests |
+| `make test-library` | `$(PYTHON) -m pytest -m library` | Library sync and indexer tests |
+| `make test-render` | `$(PYTHON) -m pytest -m render` | Output writer and text pipeline tests |
+| `make test-media` | `$(PYTHON) -m pytest -m media` | Media command runner tests |
+| `make test-config` | `$(PYTHON) -m pytest -m config` | Config manager tests |
+| `make test-metadata` | `$(PYTHON) -m pytest -m metadata` | Metadata enrichment tests |
 
 ### Full Suite
 

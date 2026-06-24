@@ -26,51 +26,51 @@ APPLE_PIPELINE_PYTHON ?= python3
 
 # ── Full suite ───────────────────────────────────────────────────────────
 test:
-	pytest
+	$(PYTHON) -m pytest
 
 # ── Skip slow / integration tests ───────────────────────────────────────
 test-fast:
-	pytest -m "not slow and not integration"
+	$(PYTHON) -m pytest -m "not slow and not integration"
 
 # ── Domain markers ───────────────────────────────────────────────────────
 test-audio:
-	pytest -m audio
+	$(PYTHON) -m pytest -m audio
 
 test-translation:
-	pytest -m translation
+	$(PYTHON) -m pytest -m translation
 
 test-webapi:
-	pytest -m webapi
+	$(PYTHON) -m pytest -m webapi
 
 test-services:
-	pytest -m services
+	$(PYTHON) -m pytest -m services
 
 test-pipeline:
-	pytest -m pipeline
+	$(PYTHON) -m pytest -m pipeline
 
 test-cli:
-	pytest -m cli
+	$(PYTHON) -m pytest -m cli
 
 test-auth:
-	pytest -m auth
+	$(PYTHON) -m pytest -m auth
 
 test-library:
-	pytest -m library
+	$(PYTHON) -m pytest -m library
 
 test-render:
-	pytest -m render
+	$(PYTHON) -m pytest -m render
 
 test-media:
-	pytest -m media
+	$(PYTHON) -m pytest -m media
 
 test-config:
-	pytest -m config
+	$(PYTHON) -m pytest -m config
 
 test-metadata:
-	pytest -m metadata
+	$(PYTHON) -m pytest -m metadata
 
 test-observability:
-	pytest -m observability -v
+	$(PYTHON) -m pytest -m observability -v
 
 test-apple-contracts:
 	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_job_health_timeline_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_narration_history_defaults_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_ios_profile_capability_check.py
@@ -140,19 +140,19 @@ E2E_ARGS = -m e2e -o "addopts=-rs" --screenshot=on --full-page-screenshot --trac
 
 # Legacy targets (backward compat)
 test-e2e:
-	pytest $(E2E_ARGS) --e2e-report --headed --slowmo=200
+	$(PYTHON) -m pytest $(E2E_ARGS) --e2e-report --headed --slowmo=200
 
 test-e2e-headless:
-	pytest $(E2E_ARGS) --e2e-report
+	$(PYTHON) -m pytest $(E2E_ARGS) --e2e-report
 
 # Named Web targets with custom report title
 test-e2e-web:
-	pytest $(E2E_ARGS) --headed --slowmo=200 \
+	$(PYTHON) -m pytest $(E2E_ARGS) --headed --slowmo=200 \
 		--e2e-report=test-results/web-e2e-report.md \
 		--e2e-report-title="Web E2E Test Report"
 
 test-e2e-web-headless:
-	pytest $(E2E_ARGS) \
+	$(PYTHON) -m pytest $(E2E_ARGS) \
 		--e2e-report=test-results/web-e2e-report.md \
 		--e2e-report-title="Web E2E Test Report"
 
