@@ -27,10 +27,15 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
 def test_shared_pipeline_verification_stays_non_physical() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
-    target_line = "verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend"
+    target_line = (
+        "verify-apple-shared-pipeline: apple-pipeline-contracts "
+        "apple-pipeline-backend apple-pipeline-web-checks"
+    )
     assert target_line in makefile
 
     target = makefile.split("verify-apple-shared-pipeline:", 1)[1].split("\n\n", 1)[0]
+    assert "apple-pipeline-web-checks" in target
+    assert "apple-pipeline-source-sync" not in target
     assert "apple-device-update" not in target
     assert "run_app_device_deploy.py" not in target
     assert "apple_unattended_device_update.sh" not in target

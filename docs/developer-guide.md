@@ -157,7 +157,10 @@ Apple app pipeline at `/Users/fifo/Projects/home/apple-device-app-pipeline`.
 Use that pipeline for simulator build/install/launch smoke tests before
 physical device deployment. Use the local MacBook clone at
 `/Users/fifo/Projects/home/ebook-tools` for Apple development and simulator
-builds; keep the Mac Studio checkout for backend/container runtime.
+builds; keep the Mac Studio checkout for backend/container runtime. The
+repo-owned `make verify-apple-shared-pipeline` wrapper runs the shared
+contract, backend, and Web checks without source-sync or physical-device
+deployment.
 
 ```bash
 cd /Users/fifo/Projects/home/apple-device-app-pipeline

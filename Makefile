@@ -102,7 +102,7 @@ apple-pipeline-source-sync:
 apple-pipeline-web-checks:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_web_checks.py --app "$(APPLE_PIPELINE_APP)"
 
-verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend
+verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-web-checks
 
 apple-device-preflight:
 	bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only

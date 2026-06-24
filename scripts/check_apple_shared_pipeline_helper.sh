@@ -31,7 +31,7 @@ contract_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/r
 backend_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_backend.py --app "$(APPLE_PIPELINE_APP)"'
 source_sync_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_source_sync.py --app "$(APPLE_PIPELINE_APP)"'
 web_checks_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_web_checks.py --app "$(APPLE_PIPELINE_APP)"'
-verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend"
+verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-web-checks"
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
 preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only'
@@ -47,7 +47,7 @@ assert_contains "${makefile}" "apple-pipeline-source-sync:" "Makefile should exp
 assert_contains "${makefile}" "${source_sync_line}" "shared pipeline source sync should call check_app_source_sync"
 assert_contains "${makefile}" "apple-pipeline-web-checks:" "Makefile should expose the shared pipeline Web check runner"
 assert_contains "${makefile}" "${web_checks_line}" "shared pipeline Web checks should call run_app_web_checks"
-assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts and backend checks"
+assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts, backend checks, and Web checks"
 assert_contains "${makefile}" "apple-device-preflight:" "Makefile should expose a non-installing device preflight helper"
 assert_contains "${makefile}" "${preflight_line}" "device preflight should route through the repo-owned CoreDevice helper"
 assert_contains "${makefile}" "apple-device-signed-build-only:" "Makefile should expose the shared signed-build gate"
