@@ -20,7 +20,7 @@ from modules.webapi.dependencies import (
     get_pipeline_service,
     get_runtime_context_provider,
 )
-from modules.webapi.routes.books_routes import _list_ebook_files
+from modules.webapi.routes.books_routes import _list_ebook_files, _list_output_entries
 from modules.webapi.routers.create_book import _parse_sentences, _source_book_context
 from modules.webapi.schemas.create_book import BookGenerationJobSubmission
 
@@ -127,6 +127,36 @@ def test_pipeline_ebook_listing_is_newest_first_with_metadata(tmp_path: Path) ->
     assert [entry.name for entry in entries] == ["a-newer.epub", "z-older.epub"]
     assert entries[0].size_bytes == len(b"newer ebook")
     assert entries[0].modified_at is not None
+
+
+def test_pipeline_file_listing_skips_entries_that_disappear(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    books_dir = tmp_path / "books"
+    output_dir = tmp_path / "output"
+    books_dir.mkdir()
+    output_dir.mkdir()
+    stable_book = books_dir / "stable.epub"
+    vanished_book = books_dir / "vanished.epub"
+    stable_output = output_dir / "stable-output"
+    vanished_output = output_dir / "vanished-output"
+    stable_book.write_bytes(b"stable")
+    vanished_book.write_bytes(b"vanished")
+    stable_output.mkdir()
+    vanished_output.mkdir()
+
+    original_stat = Path.stat
+
+    def fake_stat(path: Path, *args, **kwargs):
+        if path.name in {"vanished.epub", "vanished-output"}:
+            raise FileNotFoundError(path)
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+
+    ebook_entries = _list_ebook_files(books_dir)
+    output_entries = _list_output_entries(output_dir)
+
+    assert [entry.name for entry in ebook_entries] == ["stable.epub"]
+    assert [entry.name for entry in output_entries] == ["stable-output"]
 
 
 def test_book_generation_job_schema_accepts_source_context() -> None:

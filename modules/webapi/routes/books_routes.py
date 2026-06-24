@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import mimetypes
 import io
+import os
 import re
+import stat as stat_module
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -105,14 +107,21 @@ def _format_relative_path(path: Path, root: Path) -> str:
     return relative.as_posix() or path.name
 
 
+def _safe_stat(path: Path) -> Optional[os.stat_result]:
+    try:
+        return path.stat()
+    except OSError:
+        return None
+
+
 def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
     if not root.exists():
         return entries
     for path in root.glob("*.epub"):
-        if not path.is_file():
+        stat = _safe_stat(path)
+        if stat is None or not stat_module.S_ISREG(stat.st_mode):
             continue
-        stat = path.stat()
         entries.append(
             PipelineFileEntry(
                 name=path.name,
@@ -138,14 +147,23 @@ def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
     for path in sorted(root.iterdir()):
         if path.name.startswith("."):
             continue
-        entry_type = "directory" if path.is_dir() else "file"
-        stat = path.stat()
+        stat = _safe_stat(path)
+        if stat is None:
+            continue
+        if stat_module.S_ISDIR(stat.st_mode):
+            entry_type = "directory"
+            size_bytes = None
+        elif stat_module.S_ISREG(stat.st_mode):
+            entry_type = "file"
+            size_bytes = stat.st_size
+        else:
+            continue
         entries.append(
             PipelineFileEntry(
                 name=path.name,
                 path=_format_relative_path(path, root),
                 type=entry_type,
-                size_bytes=stat.st_size if path.is_file() else None,
+                size_bytes=size_bytes,
                 modified_at=datetime.fromtimestamp(stat.st_mtime),
             )
         )

@@ -418,6 +418,11 @@ Optimization candidates:
   also reuses each `os.walk` folder file list for subtitle matching instead of
   re-reading the same directory once per video, keeping large default video
   pickers lighter on NAS-backed folders.
+- Keep backend source pickers resilient on NAS-backed folders. Status:
+  `/api/pipelines/files` now stats each visible ebook/output candidate once and
+  skips entries that disappear or become unreadable during listing, preserving
+  newest-first EPUB defaults for Web and Apple Create without failing the
+  whole picker response during concurrent file changes.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap
