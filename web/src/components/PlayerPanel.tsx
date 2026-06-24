@@ -25,7 +25,9 @@ import { PlayerPanelSentenceJumpDatalist } from './player-panel/PlayerPanelSente
 import {
   buildInteractiveAudioCatalog,
   fallbackTextFromSentences,
+  resolveActiveChapterId,
   resolveActiveTextChunk,
+  resolveChapterStartSentence,
   resolveChunkForSelectedItem,
   resolveSelectedTextItem,
 } from './player-panel/utils';
@@ -253,24 +255,18 @@ export default function PlayerPanel({
     setActiveSentenceNumber(value);
   }, []);
 
-  const activeChapterId = useMemo(() => {
-    if (!activeSentenceNumber || chapterEntries.length === 0) {
-      return null;
-    }
-    const target = chapterEntries.find((chapter) => {
-      const end = typeof chapter.endSentence === 'number' ? chapter.endSentence : Number.POSITIVE_INFINITY;
-      return activeSentenceNumber >= chapter.startSentence && activeSentenceNumber <= end;
-    });
-    return target?.id ?? null;
-  }, [activeSentenceNumber, chapterEntries]);
+  const activeChapterId = useMemo(
+    () => resolveActiveChapterId(activeSentenceNumber, chapterEntries),
+    [activeSentenceNumber, chapterEntries],
+  );
 
   const handleChapterJump = useCallback(
     (chapterId: string) => {
-      const target = chapterEntries.find((chapter) => chapter.id === chapterId);
-      if (!target) {
+      const startSentence = resolveChapterStartSentence(chapterEntries, chapterId);
+      if (startSentence === null) {
         return;
       }
-      handleInteractiveSentenceJump(target.startSentence);
+      handleInteractiveSentenceJump(startSentence);
     },
     [chapterEntries, handleInteractiveSentenceJump],
   );
