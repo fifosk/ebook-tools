@@ -257,6 +257,15 @@ CREATE_SOURCE_SECTION = (
     / "Create"
     / "AppleBookCreateSourceSection.swift"
 )
+CREATE_SOURCE_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSourceControls.swift"
+)
 CREATE_BASIC_SECTIONS = (
     ROOT
     / "ios"
@@ -956,19 +965,28 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     source = _source(CREATE_SOURCE_SECTION)
+    controls_source = _source(CREATE_SOURCE_CONTROLS)
     narration_source = _source(CREATE_NARRATION_SECTION)
     project = _source(XCODE_PROJECT)
 
     assert "struct AppleBookCreateSourceSection: View" in source
+    assert "struct AppleBookCreateNarrateSourceControls: View" in controls_source
+    assert "struct AppleBookCreateFileImportControl: View" in controls_source
     assert "let showsJobTypePicker: Bool" in source
     assert "let showsNarrateRangeControls: Bool" in source
     assert "if showsJobTypePicker || creationMode != .generatedBook" in source
     assert 'Picker("Job type", selection: $creationMode)' in source
     assert '.accessibilityIdentifier("createJobTypePicker")' in source
-    assert "if showsNarrateRangeControls" in source
+    assert "AppleBookCreateNarrateSourceControls(" in source
+    assert "private var narrateRangeControls: some View" not in source
+    assert "if showsNarrateRangeControls" in controls_source
+    assert 'Picker("Server EPUB", selection: $sourcePath)' in controls_source
+    assert "AppleBookCreatePresentation.chapterRangeSelection(" in controls_source
     assert "struct AppleBookCreateSourceSection: View" not in narration_source
     assert "AppleBookCreateSourceSection.swift in Sources" in project
     assert project.count("AppleBookCreateSourceSection.swift in Sources") == 4
+    assert "AppleBookCreateSourceControls.swift in Sources" in project
+    assert project.count("AppleBookCreateSourceControls.swift in Sources") == 4
     assert "AppleBookCreateNarrationSection.swift in Sources" in project
     assert project.count("AppleBookCreateNarrationSection.swift in Sources") == 4
     assert "AppleBookCreateSections.swift" not in project

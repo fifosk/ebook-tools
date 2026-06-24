@@ -76,6 +76,8 @@
 		CREATEHISTPARSE001A0002 /* AppleBookCreateHistoryParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEHISTPARSE002A0001 /* AppleBookCreateHistoryParsing.swift */; };
 		CREATESOURCESECT001A0001 /* AppleBookCreateSourceSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESOURCESECT002A0001 /* AppleBookCreateSourceSection.swift */; };
 		CREATESOURCESECT001A0002 /* AppleBookCreateSourceSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESOURCESECT002A0001 /* AppleBookCreateSourceSection.swift */; };
+		CREATESRCCTRL001A0001 /* AppleBookCreateSourceControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESRCCTRL002A0001 /* AppleBookCreateSourceControls.swift */; };
+		CREATESRCCTRL001A0002 /* AppleBookCreateSourceControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESRCCTRL002A0001 /* AppleBookCreateSourceControls.swift */; };
 		CREATEBASIC001A0001 /* AppleBookCreateBasicSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEBASIC002A0001 /* AppleBookCreateBasicSections.swift */; };
 		CREATEBASIC001A0002 /* AppleBookCreateBasicSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEBASIC002A0001 /* AppleBookCreateBasicSections.swift */; };
 		CREATEOUT001A0001 /* AppleBookCreateOutputSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEOUT002A0001 /* AppleBookCreateOutputSection.swift */; };
@@ -713,6 +715,7 @@
 		CREATEHIST002A0001 /* AppleBookCreateHistoryDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateHistoryDefaults.swift; sourceTree = "<group>"; };
 		CREATEHISTPARSE002A0001 /* AppleBookCreateHistoryParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateHistoryParsing.swift; sourceTree = "<group>"; };
 		CREATESOURCESECT002A0001 /* AppleBookCreateSourceSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateSourceSection.swift; sourceTree = "<group>"; };
+		CREATESRCCTRL002A0001 /* AppleBookCreateSourceControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateSourceControls.swift; sourceTree = "<group>"; };
 		CREATEBASIC002A0001 /* AppleBookCreateBasicSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateBasicSections.swift; sourceTree = "<group>"; };
 		CREATEOUT002A0001 /* AppleBookCreateOutputSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateOutputSection.swift; sourceTree = "<group>"; };
 		CREATEOUTCTRL002A0001 /* AppleBookCreateOutputControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateOutputControls.swift; sourceTree = "<group>"; };
@@ -923,6 +926,7 @@
 				CREATEHIST002A0001 /* AppleBookCreateHistoryDefaults.swift */,
 				CREATEHISTPARSE002A0001 /* AppleBookCreateHistoryParsing.swift */,
 				CREATESOURCESECT002A0001 /* AppleBookCreateSourceSection.swift */,
+				CREATESRCCTRL002A0001 /* AppleBookCreateSourceControls.swift */,
 				CREATEBASIC002A0001 /* AppleBookCreateBasicSections.swift */,
 				CREATEOUT002A0001 /* AppleBookCreateOutputSection.swift */,
 				CREATEOUTCTRL002A0001 /* AppleBookCreateOutputControls.swift */,
@@ -1804,6 +1808,7 @@
 				CREATEHIST001A0001 /* AppleBookCreateHistoryDefaults.swift in Sources */,
 				CREATEHISTPARSE001A0001 /* AppleBookCreateHistoryParsing.swift in Sources */,
 				CREATESOURCESECT001A0001 /* AppleBookCreateSourceSection.swift in Sources */,
+				CREATESRCCTRL001A0001 /* AppleBookCreateSourceControls.swift in Sources */,
 				CREATEBASIC001A0001 /* AppleBookCreateBasicSections.swift in Sources */,
 				CREATEOUT001A0001 /* AppleBookCreateOutputSection.swift in Sources */,
 				CREATEOUTCTRL001A0001 /* AppleBookCreateOutputControls.swift in Sources */,
@@ -2070,6 +2075,7 @@
 				CREATEHIST001A0002 /* AppleBookCreateHistoryDefaults.swift in Sources */,
 				CREATEHISTPARSE001A0002 /* AppleBookCreateHistoryParsing.swift in Sources */,
 				CREATESOURCESECT001A0002 /* AppleBookCreateSourceSection.swift in Sources */,
+				CREATESRCCTRL001A0002 /* AppleBookCreateSourceControls.swift in Sources */,
 				CREATEBASIC001A0002 /* AppleBookCreateBasicSections.swift in Sources */,
 				CREATEOUT001A0002 /* AppleBookCreateOutputSection.swift in Sources */,
 				CREATEOUTCTRL001A0002 /* AppleBookCreateOutputControls.swift in Sources */,
