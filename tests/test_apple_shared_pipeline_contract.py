@@ -23,6 +23,8 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     ) in makefile
     assert "apple-pipeline-contracts:" in makefile
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
+    assert "test-apple-language-catalogs:" in makefile
+    assert "tests/test_language_catalog_parity.py tests/scripts/test_generate_language_catalogs.py" in makefile
     assert "apple-pipeline-backend:" in makefile
     assert 'scripts/check_app_backend.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "apple-pipeline-backend-tests:" in makefile
@@ -123,6 +125,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
 
     for command in [
         "make apple-pipeline-contracts",
+        "make test-apple-language-catalogs",
         "make apple-pipeline-backend",
         "make apple-pipeline-backend-tests",
         "make apple-pipeline-source-sync",

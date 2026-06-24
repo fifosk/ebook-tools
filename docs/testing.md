@@ -211,6 +211,7 @@ through repo-owned wrapper targets:
 
 ```bash
 make apple-pipeline-contracts
+make test-apple-language-catalogs
 make apple-pipeline-backend
 make apple-pipeline-backend-tests
 make apple-pipeline-source-sync
@@ -329,6 +330,16 @@ repo-owned Apple deploy readiness hook, the guarded
 physical-device update helper, the shared Apple pipeline preflight targets, and
 the XCUITest config writer without installing to iPhone, iPad, or Apple TV
 hardware.
+
+For focused language picker/catalog work, use:
+
+```bash
+make test-apple-language-catalogs
+```
+
+This runs the backend/Web/Apple catalog parity tests, the catalog generator
+tests, and the generator staleness check without invoking the full Apple
+contract suite.
 
 The public runtime descriptor at `/api/system/runtime` also advertises the
 Create, saved-template, Library action, offline export, and playback-state

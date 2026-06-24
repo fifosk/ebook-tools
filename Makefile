@@ -10,7 +10,7 @@
        test-web-library-focused test-web-video-dubbing-focused \
        test-web-subtitle-tool-focused test-web-app-view-deeplink-focused \
        test-web-full build-web-production \
-       generate-language-catalogs check-language-catalogs \
+       generate-language-catalogs check-language-catalogs test-apple-language-catalogs \
        test-apple-contracts build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
        apple-device-preflight apple-device-signed-build-only apple-device-deploy-dry-run \
@@ -195,6 +195,10 @@ generate-language-catalogs:
 	$(PYTHON) scripts/generate_language_catalogs.py
 
 check-language-catalogs:
+	$(PYTHON) scripts/generate_language_catalogs.py --check
+
+test-apple-language-catalogs:
+	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/scripts/test_generate_language_catalogs.py
 	$(PYTHON) scripts/generate_language_catalogs.py --check
 
 test-apple-contracts:

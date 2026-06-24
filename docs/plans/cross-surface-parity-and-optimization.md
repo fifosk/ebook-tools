@@ -650,7 +650,9 @@ Refactor before restyling:
   wired into the Xcode project plus creation-payload compile contract so future
   catalog changes are verified across Apple targets. Focused parity tests now
   compare Web and Apple preview samples exactly, catching subtle punctuation or
-  diacritic drift as well as missing language codes.
+  diacritic drift as well as missing language codes. The reusable Apple
+  pipeline also has a focused `make test-apple-language-catalogs` contract so
+  language picker regressions can be run directly without the full Apple suite.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 
