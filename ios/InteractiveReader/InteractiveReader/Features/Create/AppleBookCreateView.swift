@@ -1662,7 +1662,11 @@ struct AppleBookCreateView: View {
     }
 
     private func youtubeSelectionStorageKey(field: String) -> String {
-        "ebookTools.appleCreate.youtubeDub.\(field).\(creationOptionsLoadKey)"
+        AppleBookCreateStorageKeys.youtubeSelection(
+            baseKey: creationOptionsLoadKey,
+            baseDir: youtubeBaseDir,
+            field: field
+        )
     }
 
     private func applyStoredSubtitleShowOriginal() {
@@ -1677,15 +1681,15 @@ struct AppleBookCreateView: View {
     }
 
     private var subtitleShowOriginalStorageKey: String {
-        AppleBookCreatePresentation.subtitleShowOriginalPreferenceKey(baseKey: creationOptionsLoadKey)
+        AppleBookCreateStorageKeys.subtitleShowOriginal(baseKey: creationOptionsLoadKey)
     }
 
     private var youtubeBaseDirStorageKey: String {
-        "ebookTools.appleCreate.youtubeDub.baseDir.\(creationOptionsLoadKey)"
+        AppleBookCreateStorageKeys.youtubeBaseDir(baseKey: creationOptionsLoadKey)
     }
 
     private var youtubeLibraryLoadKey: String {
-        AppleBookCreatePresentation.youtubeLibraryCacheKey(
+        AppleBookCreateStorageKeys.youtubeLibraryLoad(
             baseKey: creationOptionsLoadKey,
             baseDir: youtubeBaseDir
         )
@@ -2397,7 +2401,7 @@ struct AppleBookCreateView: View {
     }
 
     private var languagePreferencesStorageKey: String {
-        "ebookTools.appleCreate.bookJobDefaults.v1.\(creationOptionsLoadKey)"
+        AppleBookCreateStorageKeys.languagePreferences(baseKey: creationOptionsLoadKey)
     }
 
     private func applyCreationOptions(_ options: BookCreationOptionsResponse) {

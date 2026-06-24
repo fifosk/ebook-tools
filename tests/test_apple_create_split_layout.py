@@ -86,6 +86,15 @@ CREATE_SOURCE_SELECTION = (
     / "Create"
     / "AppleBookCreateSourceSelection.swift"
 )
+CREATE_STORAGE_KEYS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateStorageKeys.swift"
+)
 CREATE_MODELS = (
     ROOT
     / "ios"
@@ -683,6 +692,36 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
     assert "AppleBookCreateSourceSelection.swift in Sources" in project
     assert project.count("AppleBookCreateSourceSelection.swift in Sources") == 4
     assert "AppleBookCreateSourceSelection.swift" in payload_script
+
+
+def test_create_storage_keys_are_split_from_view_and_target_wired() -> None:
+    storage_source = _source(CREATE_STORAGE_KEYS)
+    view_source = _source(CREATE_VIEW)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+
+    assert "enum AppleBookCreateStorageKeys" in storage_source
+    assert "static func youtubeSelection(baseKey: String, baseDir: String, field: String)" in storage_source
+    assert "static func subtitleShowOriginal(baseKey: String)" in storage_source
+    assert "static func youtubeBaseDir(baseKey: String)" in storage_source
+    assert "static func youtubeLibraryLoad(baseKey: String, baseDir: String)" in storage_source
+    assert "static func languagePreferences(baseKey: String)" in storage_source
+    assert "AppleBookCreatePresentation.youtubeLibraryCacheKey" in storage_source
+    assert "AppleBookCreatePresentation.subtitleShowOriginalPreferenceKey" in storage_source
+    assert "ebookTools.appleCreate.youtubeDub.\\(field).\\(baseKey)" in storage_source
+    assert "ebookTools.appleCreate.youtubeDub.baseDir.\\(baseKey)" in storage_source
+    assert "ebookTools.appleCreate.bookJobDefaults.v1.\\(baseKey)" in storage_source
+    assert "ebookTools.appleCreate.youtubeDub.\\(field)" not in view_source
+    assert "ebookTools.appleCreate.youtubeDub.baseDir" not in view_source
+    assert "ebookTools.appleCreate.bookJobDefaults.v1" not in view_source
+    assert "AppleBookCreateStorageKeys.youtubeSelection(" in view_source
+    assert "AppleBookCreateStorageKeys.subtitleShowOriginal(" in view_source
+    assert "AppleBookCreateStorageKeys.youtubeBaseDir(" in view_source
+    assert "AppleBookCreateStorageKeys.youtubeLibraryLoad(" in view_source
+    assert "AppleBookCreateStorageKeys.languagePreferences(" in view_source
+    assert "AppleBookCreateStorageKeys.swift in Sources" in project
+    assert project.count("AppleBookCreateStorageKeys.swift in Sources") == 4
+    assert "AppleBookCreateStorageKeys.swift" in payload_script
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
