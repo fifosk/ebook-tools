@@ -1,6 +1,30 @@
 import Foundation
 
 enum AppleBookCreateTemplateSettings {
+    static func mode(for template: CreationTemplateEntry) -> AppleCreateMode? {
+        switch template.normalizedMode {
+        case "generated_book":
+            return .generatedBook
+        case "narrate_ebook":
+            return .narrateEbook
+        case "subtitle_job":
+            return .subtitleJob
+        case "youtube_dub":
+            return .youtubeDub
+        default:
+            return nil
+        }
+    }
+
+    static func compatibleTemplates(
+        from templates: [CreationTemplateEntry],
+        for mode: AppleCreateMode
+    ) -> [CreationTemplateEntry] {
+        templates.filter { template in
+            self.mode(for: template) == mode
+        }
+    }
+
     static func metadataObject(from formState: [String: JSONValue]) -> [String: JSONValue]? {
         object(from: formState["media_metadata"])
             ?? object(from: formState["media_metadata_json"])

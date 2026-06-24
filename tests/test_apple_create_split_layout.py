@@ -561,8 +561,10 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "creationTemplatePendingDelete = template" in view_source
     assert "await viewModel.deleteCreationTemplate(" in view_source
     assert "private func applyCreationTemplate(_ template: CreationTemplateEntry)" in view_source
-    assert 'template.normalizedMode == "subtitle_job"' in view_source
-    assert 'template.normalizedMode == "youtube_dub"' in view_source
+    assert "AppleBookCreateTemplateSettings.compatibleTemplates(" in view_source
+    assert "AppleBookCreateTemplateSettings.mode(for: template)" in view_source
+    assert 'template.normalizedMode == "subtitle_job"' not in view_source
+    assert 'template.normalizedMode == "youtube_dub"' not in view_source
     assert "private func applySubtitleCreationTemplate(" in view_source
     assert "private func applyYoutubeDubCreationTemplate(" in view_source
     assert "AppleBookCreateTemplateSettings.settings(from: template)" in view_source
@@ -571,6 +573,10 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "private func templateFormState(from template: CreationTemplateEntry)" not in view_source
     assert "private func templateSettings(from template: CreationTemplateEntry)" not in view_source
     assert "enum AppleBookCreateTemplateSettings" in template_settings_source
+    assert "static func mode(for template: CreationTemplateEntry) -> AppleCreateMode?" in template_settings_source
+    assert "static func compatibleTemplates(" in template_settings_source
+    assert 'case "subtitle_job"' in template_settings_source
+    assert 'case "youtube_dub"' in template_settings_source
     assert "static func formState(from template: CreationTemplateEntry)" in template_settings_source
     assert "static func settings(from template: CreationTemplateEntry)" in template_settings_source
     assert "static func metadataObject(from formState: [String: JSONValue])" in template_settings_source

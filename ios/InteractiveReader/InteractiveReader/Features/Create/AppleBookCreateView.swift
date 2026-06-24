@@ -604,18 +604,10 @@ struct AppleBookCreateView: View {
     }
 
     private var compatibleCreationTemplates: [CreationTemplateEntry] {
-        viewModel.creationTemplates.filter { template in
-            switch creationMode {
-            case .generatedBook:
-                return template.normalizedMode == "generated_book"
-            case .narrateEbook:
-                return template.normalizedMode == "narrate_ebook"
-            case .subtitleJob:
-                return template.normalizedMode == "subtitle_job"
-            case .youtubeDub:
-                return template.normalizedMode == "youtube_dub"
-            }
-        }
+        AppleBookCreateTemplateSettings.compatibleTemplates(
+            from: viewModel.creationTemplates,
+            for: creationMode
+        )
     }
 
     private var selectedCompatibleTemplateIDBinding: Binding<String> {
@@ -1200,14 +1192,14 @@ struct AppleBookCreateView: View {
             return
         }
 
-        switch template.normalizedMode {
-        case "generated_book", "narrate_ebook":
+        switch AppleBookCreateTemplateSettings.mode(for: template) {
+        case .generatedBook, .narrateEbook:
             applyBookCreationTemplate(template, settings: settings)
-        case "subtitle_job":
+        case .subtitleJob:
             applySubtitleCreationTemplate(template, settings: settings)
-        case "youtube_dub":
+        case .youtubeDub:
             applyYoutubeDubCreationTemplate(template, settings: settings)
-        default:
+        case nil:
             viewModel.creationTemplateMessage = nil
             viewModel.errorMessage = "Template \(template.displayName) is not supported by Apple Create yet."
         }
@@ -1219,9 +1211,9 @@ struct AppleBookCreateView: View {
             appliedFields.insert(field)
         }
 
-        if template.normalizedMode == "generated_book" {
+        if AppleBookCreateTemplateSettings.mode(for: template) == .generatedBook {
             creationMode = .generatedBook
-        } else if template.normalizedMode == "narrate_ebook" {
+        } else if AppleBookCreateTemplateSettings.mode(for: template) == .narrateEbook {
             creationMode = .narrateEbook
         }
 

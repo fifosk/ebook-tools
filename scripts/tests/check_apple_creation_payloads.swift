@@ -100,6 +100,28 @@ struct AppleCreationPayloadCheck {
         }
         """.data(using: .utf8)!
         let creationTemplate = try decoder.decode(CreationTemplateEntry.self, from: templateJSON)
+        require(
+            AppleBookCreateTemplateSettings.mode(for: creationTemplate) == .narrateEbook,
+            "Apple Create saved-template mode mapping should recognize Web Narrate Ebook templates"
+        )
+        let generatedTemplateJSON = """
+        {
+          "id": "template-2",
+          "name": "Generated book",
+          "mode": "generated_book",
+          "created_at": 1710000000,
+          "updated_at": 1710000001,
+          "payload": {"form_state": {"topic": "Mystery"}}
+        }
+        """.data(using: .utf8)!
+        let generatedTemplate = try decoder.decode(CreationTemplateEntry.self, from: generatedTemplateJSON)
+        require(
+            AppleBookCreateTemplateSettings.compatibleTemplates(
+                from: [creationTemplate, generatedTemplate],
+                for: .narrateEbook
+            ).map(\.id) == ["template-1"],
+            "Apple Create should filter saved templates to the active native Create mode"
+        )
         let templateSettings = try requireValue(
             AppleBookCreateTemplateSettings.settings(from: creationTemplate),
             "Apple Create should resolve nested saved-template form_state payloads"
