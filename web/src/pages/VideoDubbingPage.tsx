@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  fetchYoutubeLibrary,
-  generateYoutubeDub,
-  deleteYoutubeVideo
-} from '../api/client';
+import { generateYoutubeDub } from '../api/client';
 import type {
-  YoutubeNasLibraryResponse,
   YoutubeNasVideo,
   JobParameterSnapshot
 } from '../api/dtos';
@@ -31,15 +26,14 @@ import { useVideoDubbingVoiceState } from './video-dubbing/useVideoDubbingVoiceS
 import { useVideoDubbingModelState } from './video-dubbing/useVideoDubbingModelState';
 import { useVideoDubbingOutputState } from './video-dubbing/useVideoDubbingOutputState';
 import { useVideoDubbingSubtitleExtraction } from './video-dubbing/useVideoDubbingSubtitleExtraction';
+import { useVideoDubbingLibraryState } from './video-dubbing/useVideoDubbingLibraryState';
 import {
   buildVideoDubbingGeneratePayload,
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
   resolveVideoDubPrefill,
   resolveDefaultSubtitle,
-  resolveSelectionAfterVideoDelete,
   resolveSubtitleNotice,
-  resolveVideoDubbingSelection,
   resolveVideoDubbingMetadataSourceName
 } from './video-dubbing/videoDubbingUtils';
 import styles from './VideoDubbingPage.module.css';
@@ -75,9 +69,6 @@ export default function VideoDubbingPage({
     setSelectedSubtitlePath,
     selectedSubtitlePathRef
   } = useVideoDubbingSelectionState();
-  const [library, setLibrary] = useState<YoutubeNasLibraryResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<VideoDubbingTab>('videos');
 
   const {
@@ -121,7 +112,26 @@ export default function VideoDubbingPage({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [deletingVideoPath, setDeletingVideoPath] = useState<string | null>(null);
+
+  const {
+    library,
+    isLoading,
+    loadError,
+    deletingVideoPath,
+    refreshLibrary,
+    deleteVideo
+  } = useVideoDubbingLibraryState({
+    baseDir,
+    selectedVideoPath,
+    selectedSubtitlePath,
+    selectedVideoPathRef,
+    selectedSubtitlePathRef,
+    prefillParameters,
+    onBaseDirChange: setBaseDir,
+    onSelectedVideoPathChange: setSelectedVideoPath,
+    onSelectedSubtitlePathChange: setSelectedSubtitlePath,
+    onStatusMessageChange: setStatusMessage
+  });
 
   const videos = library?.videos ?? [];
   const selectedVideo = useMemo(
@@ -211,82 +221,16 @@ export default function VideoDubbingPage({
   }, [selectedVideo]);
 
   const handleRefresh = useCallback(async () => {
-    setIsLoading(true);
-    setLoadError(null);
-    setStatusMessage(null);
-    try {
-      const response = await fetchYoutubeLibrary(baseDir.trim() || undefined);
-      setLibrary(response);
-      setBaseDir(response.base_dir || baseDir);
-      if (response.videos.length > 0) {
-        const prefill = resolveVideoDubPrefill(prefillParameters);
-        const selection = resolveVideoDubbingSelection({
-          videos: response.videos,
-          preferredVideoPath: prefill?.videoPath || selectedVideoPathRef.current,
-          preferredSubtitlePath: prefill?.subtitlePath || selectedSubtitlePathRef.current,
-        });
-        setSelectedVideoPath(selection.videoPath);
-        setSelectedSubtitlePath(selection.subtitlePath);
-        ensureTargetLanguage(selection.subtitle?.language);
-      } else {
-        setSelectedVideoPath(null);
-        setSelectedSubtitlePath(null);
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message || 'Unable to load NAS videos.' : 'Unable to load NAS videos.';
-      setLoadError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [baseDir, ensureTargetLanguage, prefillParameters]);
+    const language = await refreshLibrary();
+    ensureTargetLanguage(language);
+  }, [ensureTargetLanguage, refreshLibrary]);
 
   const handleDeleteVideo = useCallback(
     async (video: YoutubeNasVideo) => {
-      if (video.linked_job_ids && video.linked_job_ids.length > 0) {
-        return;
-      }
-      const targetFolder = video.folder || video.path;
-      const confirmed = window.confirm(
-        `Delete the folder "${targetFolder}" and all dubbed outputs/subtitles inside it? This will remove the downloaded video and any generated artifacts.`
-      );
-      if (!confirmed) {
-        return;
-      }
-      setDeletingVideoPath(video.path);
-      setLoadError(null);
-      try {
-        await deleteYoutubeVideo({ video_path: video.path });
-        let nextSelectedPath = selectedVideoPath;
-        let nextSubtitle = selectedSubtitlePath;
-        let fallbackLanguage: string | null = null;
-        setLibrary((prev) => {
-          if (!prev) {
-            return prev;
-          }
-          const selection = resolveSelectionAfterVideoDelete({
-            videos: prev.videos,
-            deletedVideoPath: video.path,
-            selectedVideoPath: nextSelectedPath,
-            selectedSubtitlePath: nextSubtitle,
-          });
-          nextSelectedPath = selection.selectedVideoPath;
-          nextSubtitle = selection.selectedSubtitlePath;
-          fallbackLanguage = selection.fallbackLanguage;
-          return { ...prev, videos: selection.videos };
-        });
-        setSelectedVideoPath(nextSelectedPath);
-        setSelectedSubtitlePath(nextSubtitle);
-        ensureTargetLanguage(fallbackLanguage);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message || 'Unable to delete video.' : 'Unable to delete video.';
-        setLoadError(message);
-      } finally {
-        setDeletingVideoPath(null);
-      }
+      const language = await deleteVideo(video);
+      ensureTargetLanguage(language);
     },
-    [ensureTargetLanguage, selectedSubtitlePath, selectedVideoPath]
+    [deleteVideo, ensureTargetLanguage]
   );
 
   useEffect(() => {

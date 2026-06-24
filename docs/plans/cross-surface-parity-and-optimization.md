@@ -83,7 +83,11 @@ Large Web UI hotspots to split before redesign work:
   focused hook coverage. Embedded subtitle stream inspection, extraction,
   stream selection, subtitle deletion, and related progress/error state now
   live in `web/src/pages/video-dubbing/useVideoDubbingSubtitleExtraction.ts`
-  with focused hook coverage.
+  with focused hook coverage. NAS video library refresh, load errors, local
+  video deletion, prefill/current-selection fallback, and post-delete fallback
+  selection now live in
+  `web/src/pages/video-dubbing/useVideoDubbingLibraryState.ts` with focused hook
+  coverage.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style
