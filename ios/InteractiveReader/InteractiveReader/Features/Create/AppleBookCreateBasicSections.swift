@@ -160,29 +160,15 @@ struct AppleBookCreateJobSettingsSection: View {
     @ViewBuilder
     private var sentenceCountControl: some View {
         #if os(tvOS)
-        LabeledContent("Sentences") {
-            HStack(spacing: 12) {
-                Button {
-                    sentenceCount = max(sentenceBounds.min, sentenceCount - 5)
-                } label: {
-                    Image(systemName: "minus")
-                }
-                .disabled(sentenceCount <= sentenceBounds.min)
-                .accessibilityLabel("Decrease sentences")
-
-                Text("\(sentenceCount)")
-                    .monospacedDigit()
-                    .frame(minWidth: 48)
-
-                Button {
-                    sentenceCount = min(sentenceBounds.max, sentenceCount + 5)
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .disabled(sentenceCount >= sentenceBounds.max)
-                .accessibilityLabel("Increase sentences")
-            }
-        }
+        AppleBookCreateDiscreteValueControl(
+            value: $sentenceCount,
+            clampedValue: sentenceCount,
+            range: sentenceBounds.min...sentenceBounds.max,
+            step: 5,
+            title: "Sentences",
+            decrementAccessibilityLabel: "Decrease sentences",
+            incrementAccessibilityLabel: "Increase sentences"
+        )
         .accessibilityIdentifier("createBookSentenceControl")
         #else
         Stepper(value: $sentenceCount, in: sentenceBounds.min...sentenceBounds.max, step: 5) {

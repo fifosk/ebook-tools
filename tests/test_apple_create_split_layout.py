@@ -671,6 +671,7 @@ def test_create_status_views_are_split_from_create_view_and_target_wired() -> No
 
 def test_create_basic_sections_are_split_from_create_view_and_target_wired() -> None:
     basic_source = _source(CREATE_BASIC_SECTIONS)
+    value_controls_source = _source(CREATE_VALUE_CONTROLS)
     view_source = _source(CREATE_VIEW)
     project = _source(XCODE_PROJECT)
 
@@ -678,8 +679,12 @@ def test_create_basic_sections_are_split_from_create_view_and_target_wired() -> 
     assert "struct AppleBookCreateMetadataSection: View" in basic_source
     assert "struct AppleBookCreateJobTypeSection: View" in basic_source
     assert "struct AppleBookCreateJobSettingsSection: View" in basic_source
+    assert "struct AppleBookCreateDiscreteValueControl: View" in value_controls_source
     assert 'accessibilityIdentifier("createBookTopicField")' in basic_source
     assert 'accessibilityIdentifier("createNarrateOutputPathField")' in basic_source
+    assert "AppleBookCreateDiscreteValueControl(" in basic_source
+    assert "step: 5" in basic_source
+    assert "LabeledContent(\"Sentences\")" not in basic_source
     assert "AppleBookCreatePromptSection(" in view_source
     assert "AppleBookCreateMetadataSection(" in view_source
     assert "AppleBookCreateJobTypeSection(" in view_source
@@ -709,6 +714,7 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "struct AppleBookCreateGeneratedOutputControls: View" in generated_output_source
     assert "struct AppleBookCreateGeneratedImageControls: View" in generated_image_source
     assert "struct AppleBookCreateDiscreteValueControl: View" in value_controls_source
+    assert "step: Int = 1" in value_controls_source
     assert "AppleBookCreateGeneratedImageControls(" in generated_output_source
     assert generated_output_source.count("AppleBookCreateDiscreteValueControl(") == 3
     assert "LabeledContent(\"Translation batch\")" not in generated_output_source
