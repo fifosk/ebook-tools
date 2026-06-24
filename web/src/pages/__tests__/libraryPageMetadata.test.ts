@@ -6,6 +6,7 @@ import {
   extractTvMediaMetadata,
   extractYoutubeVideoMetadata,
   formatCount,
+  formatLibraryTimestamp,
   formatLibraryRangeLabel,
   formatYoutubeUploadDate,
   mergeIsbnMetadataIntoEditValues,
@@ -154,6 +155,13 @@ describe('libraryPageMetadata', () => {
     expect(formatCount('123')).toBeNull();
     expect(formatYoutubeUploadDate('20260623')).toBe('2026-06-23');
     expect(formatYoutubeUploadDate('  live soon  ')).toBe('live soon');
+  });
+
+  it('formats library timestamps while preserving invalid backend values', () => {
+    expect(formatLibraryTimestamp(null)).toBe('—');
+    expect(formatLibraryTimestamp(undefined)).toBe('—');
+    expect(formatLibraryTimestamp('not-a-date')).toBe('not-a-date');
+    expect(formatLibraryTimestamp('2026-06-23T10:00:00Z')).not.toBe('2026-06-23T10:00:00Z');
   });
 
   it('merges ISBN preview metadata into edit fields without erasing existing values', () => {

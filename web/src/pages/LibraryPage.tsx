@@ -12,7 +12,6 @@ import {
   lookupLibraryIsbnMetadata,
   removeLibraryEntry,
   reindexLibrary,
-  resolveLibraryMediaUrl,
   searchLibrary,
   updateLibraryAccess,
   updateLibraryMetadata,
@@ -25,9 +24,7 @@ import {
   buildLibraryMetadataUpdatePlan,
   extractTvMediaMetadata,
   extractYoutubeVideoMetadata,
-  formatCount,
   formatLibraryRangeLabel,
-  formatYoutubeUploadDate,
   mergeIsbnMetadataIntoEditValues,
   resolveAuthor,
   resolveGenre,
@@ -43,6 +40,7 @@ import {
 } from './library/libraryPageMetadata';
 import LibraryList from '../components/LibraryList';
 import LibraryToolbar from '../components/LibraryToolbar';
+import LibraryMetadataTab from './library/LibraryMetadataTab';
 import AccessPolicyEditor from '../components/access/AccessPolicyEditor';
 import styles from './LibraryPage.module.css';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
@@ -1025,89 +1023,13 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
 
               {/* Metadata Tab */}
               {detailTab === 'metadata' ? (
-                <div className={styles.tabContent}>
-                  <ul className={styles.detailList}>
-                    <li className={styles.detailItem}>
-                      <strong>Job ID:</strong> {selectedItem.jobId}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>Type:</strong>{' '}
-                      {selectedItemType === 'video'
-                        ? 'Video'
-                        : selectedItemType === 'narrated_subtitle'
-                          ? 'Narrated Subtitle'
-                          : 'Book'}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>Job:</strong>{' '}
-                      <JobTypeGlyphBadge glyph={selectedJobGlyph} className={styles.detailsJobGlyphInline} />{' '}
-                      {selectedJobType ?? '—'}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>ISBN:</strong> {selectedItem.isbn && selectedItem.isbn.trim() ? selectedItem.isbn : '—'}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>
-                        {selectedItemType === 'video'
-                          ? 'Source video:'
-                          : selectedItemType === 'narrated_subtitle'
-                            ? 'Source subtitle:'
-                            : 'Source file:'}
-                      </strong>{' '}
-                      {selectedItem.sourcePath ? selectedItem.sourcePath : '—'}
-                    </li>
-                    {selectedItemType === 'video' && youtubeMetadata ? (
-                      <>
-                        <li className={styles.detailItem}>
-                          <strong>YouTube channel:</strong>{' '}
-                          {typeof youtubeMetadata.channel === 'string' && youtubeMetadata.channel.trim()
-                            ? youtubeMetadata.channel.trim()
-                            : typeof youtubeMetadata.uploader === 'string' && youtubeMetadata.uploader.trim()
-                              ? youtubeMetadata.uploader.trim()
-                              : '—'}
-                        </li>
-                        <li className={styles.detailItem}>
-                          <strong>YouTube views:</strong> {formatCount(youtubeMetadata.view_count) ?? '—'}
-                          {formatCount(youtubeMetadata.like_count) ? ` · 👍 ${formatCount(youtubeMetadata.like_count)}` : ''}
-                        </li>
-                        <li className={styles.detailItem}>
-                          <strong>YouTube uploaded:</strong> {formatYoutubeUploadDate(youtubeMetadata.upload_date) ?? '—'}
-                        </li>
-                        <li className={styles.detailItem}>
-                          <strong>YouTube duration:</strong>{' '}
-                          {typeof youtubeMetadata.duration_seconds === 'number'
-                            ? `${Math.trunc(youtubeMetadata.duration_seconds)}s`
-                            : '—'}
-                        </li>
-                        <li className={styles.detailItem}>
-                          <strong>YouTube link:</strong>{' '}
-                          {typeof youtubeMetadata.webpage_url === 'string' && youtubeMetadata.webpage_url.trim() ? (
-                            <a href={youtubeMetadata.webpage_url.trim()} target="_blank" rel="noopener noreferrer">
-                              Open
-                            </a>
-                          ) : (
-                            '—'
-                          )}
-                        </li>
-                      </>
-                    ) : null}
-                    <li className={styles.detailItem}>
-                      <strong>Created:</strong> {formatTimestamp(selectedItem.createdAt)}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>Updated:</strong> {formatTimestamp(selectedItem.updatedAt)}
-                    </li>
-                    <li className={styles.detailItem}>
-                      <strong>Library path:</strong> {selectedItem.libraryPath}
-                    </li>
-                  </ul>
-                  <div>
-                    <h3>Raw Metadata</h3>
-                    <pre className={styles.metadataBlock}>
-                      {JSON.stringify(selectedItem.metadata, null, 2)}
-                    </pre>
-                  </div>
-                </div>
+                <LibraryMetadataTab
+                  item={selectedItem}
+                  itemType={selectedItemType}
+                  jobGlyph={selectedJobGlyph}
+                  jobType={selectedJobType}
+                  youtubeMetadata={youtubeMetadata}
+                />
               ) : null}
 
               {/* Permissions Tab */}
@@ -1131,17 +1053,6 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
       </div>
     </div>
   );
-}
-
-function formatTimestamp(value: string | null | undefined): string {
-  if (!value) {
-    return '—';
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString();
 }
 
 export default LibraryPage;

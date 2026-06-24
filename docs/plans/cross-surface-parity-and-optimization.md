@@ -46,7 +46,9 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
   Metadata edit submission now also delegates its trimmed payload and changed
   ISBN apply decision to the same tested helper, preserving source upload
-  ordering and explicit ISBN clears.
+  ordering and explicit ISBN clears. The details metadata tab presentation now
+  lives in `web/src/pages/library/LibraryMetadataTab.tsx`, keeping YouTube and
+  timestamp formatting with the shared metadata helpers.
 - `web/src/pages/VideoDubbingPage.tsx` - 1140 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option

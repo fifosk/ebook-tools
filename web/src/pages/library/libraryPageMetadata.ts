@@ -221,6 +221,17 @@ export function formatYoutubeUploadDate(value: unknown): string | null {
   return trimmed;
 }
 
+export function formatLibraryTimestamp(value: string | null | undefined): string {
+  if (!value) {
+    return '—';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString();
+}
+
 function trimmedMetadataString(metadata: Record<string, unknown>, key: string): string | null {
   const value = metadata[key];
   if (typeof value !== 'string') {
