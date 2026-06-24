@@ -15,6 +15,7 @@ swiftc \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Shared/PlayerLanguageFlagResolver.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateModels.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateSupport.swift" \
+  "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateSourceSelection.swift" \
   "${ROOT_DIR}/scripts/tests/check_apple_creation_payloads.swift" \
   -o "${TMP_DIR}/check_apple_creation_payloads"
 

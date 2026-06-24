@@ -41,6 +41,15 @@ CREATE_VIEW_MODEL = (
     / "Create"
     / "AppleBookCreateViewModel.swift"
 )
+CREATE_SUPPORT = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSupport.swift"
+)
 CREATE_PAYLOAD_FACTORY = (
     ROOT
     / "ios"
@@ -49,6 +58,15 @@ CREATE_PAYLOAD_FACTORY = (
     / "Features"
     / "Create"
     / "AppleBookCreatePayloadFactory.swift"
+)
+CREATE_SOURCE_SELECTION = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSourceSelection.swift"
 )
 CREATE_MODELS = (
     ROOT
@@ -105,6 +123,7 @@ CREATE_STATUS_VIEWS = (
     / "AppleBookCreateStatusViews.swift"
 )
 XCODE_PROJECT = ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj"
+APPLE_CREATION_PAYLOADS_SCRIPT = ROOT / "scripts" / "check_apple_creation_payloads.sh"
 
 
 def _source(path: Path) -> str:
@@ -265,6 +284,27 @@ def test_create_payload_factory_is_split_from_view_model_and_target_wired() -> N
     assert project.count("AppleBookCreatePayloadFactory.swift in Sources") == 4
 
 
+def test_create_source_selection_is_split_from_support_and_target_wired() -> None:
+    source_selection = _source(CREATE_SOURCE_SELECTION)
+    support_source = _source(CREATE_SUPPORT)
+    project = _source(XCODE_PROJECT)
+    payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
+
+    assert "extension AppleBookCreatePresentation" in source_selection
+    assert "static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry?" in source_selection
+    assert "static func preferredSubtitleSource(from response: SubtitleSourceListResponse?)" in source_selection
+    assert "static func preferredYoutubeSelection(from library: YoutubeNasLibraryResponse?)" in source_selection
+    assert "static func youtubeSelection(" in source_selection
+    assert "static func youtubeLibraryCacheKey(baseKey: String, baseDir: String)" in source_selection
+    assert "static func subtitleShowOriginalPreferenceKey(baseKey: String)" in source_selection
+    assert "private static let subtitleJobSourceFormats" not in support_source
+    assert "static func preferredPipelineEbook" not in support_source
+    assert "static func preferredSubtitleSource" not in support_source
+    assert "AppleBookCreateSourceSelection.swift in Sources" in project
+    assert project.count("AppleBookCreateSourceSelection.swift in Sources") == 4
+    assert "AppleBookCreateSourceSelection.swift" in payload_script
+
+
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     source = _source(CREATE_SECTIONS)
 
@@ -373,41 +413,26 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
 
 
 def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
-    source = _source(
-        ROOT
-        / "ios"
-        / "InteractiveReader"
-        / "InteractiveReader"
-        / "Features"
-        / "Create"
-        / "AppleBookCreateSupport.swift"
-    )
+    source = _source(CREATE_SOURCE_SELECTION)
 
     assert "static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry?" in source
     assert "files?.ebooks.filter({ $0.type == \"file\" })" in source
-    assert "parseSubtitleSourceDate(left.modifiedAt)" in source
-    assert "parseSubtitleSourceDate(right.modifiedAt)" in source
+    assert "parseSourceModifiedDate(left.modifiedAt)" in source
+    assert "parseSourceModifiedDate(right.modifiedAt)" in source
     assert "return leftDate > rightDate" in source
     assert "left.path.localizedStandardCompare(right.path)" in source
     assert "test-agatha-poirot-30sentences.epub" not in source
 
 
 def test_apple_create_subtitle_server_sources_match_web_ass_behavior() -> None:
-    source = _source(
-        ROOT
-        / "ios"
-        / "InteractiveReader"
-        / "InteractiveReader"
-        / "Features"
-        / "Create"
-        / "AppleBookCreateSupport.swift"
-    )
+    source = _source(CREATE_SOURCE_SELECTION)
 
-    assert 'private static let subtitleJobSourceFormats: Set<String> = ["ass", "srt", "vtt"]' in source
-    assert 'private static let subtitleJobPreferredDefaultFormats: Set<String> = ["srt", "vtt"]' in source
+    assert '["ass", "srt", "vtt"]' in source
+    assert '["srt", "vtt"]' in source
     assert "subtitleJobSources(from: response)" in source
     assert "let preferred = candidates.filter" in source
-    assert "subtitleJobPreferredDefaultFormats.contains(trimmed($0.format).lowercased())" in source
+    assert "AppleBookCreateSourceSelectionConstants.subtitleJobPreferredDefaultFormats" in source
+    assert ".contains(normalizedSourceText($0.format).lowercased())" in source
     assert "let pool = preferred.isEmpty ? candidates : preferred" in source
     assert "return pool.sorted" in source
 

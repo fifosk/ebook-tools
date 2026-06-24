@@ -54,6 +54,8 @@
 		CREATEMEDIA001A0002 /* AppleBookCreateMediaMetadataSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMEDIA002A0001 /* AppleBookCreateMediaMetadataSections.swift */; };
 		CREATEPAY001A0001 /* AppleBookCreatePayloadFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEPAY002A0001 /* AppleBookCreatePayloadFactory.swift */; };
 		CREATEPAY001A0002 /* AppleBookCreatePayloadFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEPAY002A0001 /* AppleBookCreatePayloadFactory.swift */; };
+		CREATESRCSEL001A0001 /* AppleBookCreateSourceSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESRCSEL002A0001 /* AppleBookCreateSourceSelection.swift */; };
+		CREATESRCSEL001A0002 /* AppleBookCreateSourceSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESRCSEL002A0001 /* AppleBookCreateSourceSelection.swift */; };
 		CREATESTAT001A0001 /* AppleBookCreateStatusViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESTAT002A0001 /* AppleBookCreateStatusViews.swift */; };
 		CREATESTAT001A0002 /* AppleBookCreateStatusViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESTAT002A0001 /* AppleBookCreateStatusViews.swift */; };
 		1798B15A2EF9F1A00092A8AF /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0090F34EFAD42D0BD98A51D /* LibraryView.swift */; };
@@ -656,6 +658,7 @@
 		CREATEOUT002A0001 /* AppleBookCreateOutputSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateOutputSection.swift; sourceTree = "<group>"; };
 		CREATEMEDIA002A0001 /* AppleBookCreateMediaMetadataSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateMediaMetadataSections.swift; sourceTree = "<group>"; };
 		CREATEPAY002A0001 /* AppleBookCreatePayloadFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreatePayloadFactory.swift; sourceTree = "<group>"; };
+		CREATESRCSEL002A0001 /* AppleBookCreateSourceSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateSourceSelection.swift; sourceTree = "<group>"; };
 		CREATESTAT002A0001 /* AppleBookCreateStatusViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateStatusViews.swift; sourceTree = "<group>"; };
 		EACAFCD435FB4D46926CB3F5 /* LibraryShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryShellView.swift; sourceTree = "<group>"; };
 		F0090F34EFAD42D0BD98A51D /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
@@ -845,6 +848,7 @@
 				CREATEOUT002A0001 /* AppleBookCreateOutputSection.swift */,
 				CREATEMEDIA002A0001 /* AppleBookCreateMediaMetadataSections.swift */,
 				CREATEPAY002A0001 /* AppleBookCreatePayloadFactory.swift */,
+				CREATESRCSEL002A0001 /* AppleBookCreateSourceSelection.swift */,
 				CREATESTAT002A0001 /* AppleBookCreateStatusViews.swift */,
 				11EF28BF0B1E7A3F6ECC3EEB /* AppleBookCreateViewModel.swift */,
 				762ABB57C1BCB734E6D5A0ED /* AppleBookCreateSupport.swift */,
@@ -1703,6 +1707,7 @@
 				CREATEOUT001A0001 /* AppleBookCreateOutputSection.swift in Sources */,
 				CREATEMEDIA001A0001 /* AppleBookCreateMediaMetadataSections.swift in Sources */,
 				CREATEPAY001A0001 /* AppleBookCreatePayloadFactory.swift in Sources */,
+				CREATESRCSEL001A0001 /* AppleBookCreateSourceSelection.swift in Sources */,
 				CREATESTAT001A0001 /* AppleBookCreateStatusViews.swift in Sources */,
 				40E3FF23022147B1F3B38F6E /* AppleBookCreateViewModel.swift in Sources */,
 				4225F50EC9D8CDDD12B4101C /* SubtitleTimecodeInput.swift in Sources */,
@@ -1946,6 +1951,7 @@
 				CREATEOUT001A0002 /* AppleBookCreateOutputSection.swift in Sources */,
 				CREATEMEDIA001A0002 /* AppleBookCreateMediaMetadataSections.swift in Sources */,
 				CREATEPAY001A0002 /* AppleBookCreatePayloadFactory.swift in Sources */,
+				CREATESRCSEL001A0002 /* AppleBookCreateSourceSelection.swift in Sources */,
 				CREATESTAT001A0002 /* AppleBookCreateStatusViews.swift in Sources */,
 				5776FC02D763AA4801FA841B /* AppleBookCreateViewModel.swift in Sources */,
 				C516F1F1817E9F730D1867BE /* SubtitleTimecodeInput.swift in Sources */,

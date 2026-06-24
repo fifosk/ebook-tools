@@ -1,184 +1,8 @@
 import Foundation
 
 enum AppleBookCreatePresentation {
-    private static let subtitleJobSourceFormats: Set<String> = ["ass", "srt", "vtt"]
-    private static let subtitleJobPreferredDefaultFormats: Set<String> = ["srt", "vtt"]
-    private static let youtubePlayableSubtitleFormats: Set<String> = ["ass", "srt", "vtt", "sub"]
-
     static func availableCreateModes(isTV: Bool) -> [AppleCreateMode] {
         isTV ? [.generatedBook] : AppleCreateMode.allCases
-    }
-
-    static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry? {
-        guard let ebooks = files?.ebooks.filter({ $0.type == "file" }), !ebooks.isEmpty else {
-            return nil
-        }
-        return ebooks.sorted { left, right in
-            let leftDate = parseSubtitleSourceDate(left.modifiedAt)
-            let rightDate = parseSubtitleSourceDate(right.modifiedAt)
-            if leftDate != rightDate {
-                return leftDate > rightDate
-            }
-            return left.path.localizedStandardCompare(right.path) == .orderedAscending
-        }.first
-    }
-
-    static func subtitleJobSources(from response: SubtitleSourceListResponse?) -> [SubtitleSourceEntry] {
-        response?.sources.filter { subtitleJobSourceFormats.contains(trimmed($0.format).lowercased()) } ?? []
-    }
-
-    static func preferredSubtitleSource(from response: SubtitleSourceListResponse?) -> SubtitleSourceEntry? {
-        let candidates = subtitleJobSources(from: response)
-        let preferred = candidates.filter {
-            subtitleJobPreferredDefaultFormats.contains(trimmed($0.format).lowercased())
-        }
-        let pool = preferred.isEmpty ? candidates : preferred
-        return pool.sorted { left, right in
-            let leftDate = parseSubtitleSourceDate(left.modifiedAt)
-            let rightDate = parseSubtitleSourceDate(right.modifiedAt)
-            if leftDate != rightDate {
-                return leftDate > rightDate
-            }
-            return left.path.localizedStandardCompare(right.path) == .orderedAscending
-        }.first
-    }
-
-    static func playableYoutubeSubtitles(for video: YoutubeNasVideoEntry?) -> [YoutubeNasSubtitleEntry] {
-        video?.subtitles.filter { youtubePlayableSubtitleFormats.contains(trimmed($0.format).lowercased()) } ?? []
-    }
-
-    static func preferredYoutubeSubtitle(for video: YoutubeNasVideoEntry?) -> YoutubeNasSubtitleEntry? {
-        let candidates = playableYoutubeSubtitles(for: video)
-        guard !candidates.isEmpty else {
-            return nil
-        }
-        return candidates.first { subtitle in
-            trimmed(subtitle.language ?? "").lowercased().hasPrefix("en")
-        } ?? candidates[0]
-    }
-
-    static func extractableYoutubeInlineSubtitleStreams(
-        from streams: [YoutubeInlineSubtitleStream]
-    ) -> [YoutubeInlineSubtitleStream] {
-        streams.filter(\.canExtract)
-    }
-
-    static func defaultYoutubeInlineSubtitleLanguages(
-        from streams: [YoutubeInlineSubtitleStream]
-    ) -> [String] {
-        let extractable = extractableYoutubeInlineSubtitleStreams(from: streams)
-        guard !extractable.isEmpty else {
-            return []
-        }
-        if let english = extractable.first(where: { stream in
-            trimmed(stream.language ?? "").lowercased().hasPrefix("en")
-        })?.language?.nonEmptyValue {
-            return [english]
-        }
-        if extractable.count == 1, let language = extractable[0].language?.nonEmptyValue {
-            return [language]
-        }
-        return []
-    }
-
-    static func normalizedYoutubeInlineSubtitleLanguages(_ value: String) -> [String] {
-        value
-            .split { character in
-                character == "," || character == "\n" || character == "\t"
-            }
-            .map { trimmed(String($0)) }
-            .filter { !$0.isEmpty }
-            .reduce(into: [String]()) { result, language in
-                if !result.contains(where: { $0.caseInsensitiveCompare(language) == .orderedSame }) {
-                    result.append(language)
-                }
-            }
-    }
-
-    static func youtubeInlineSubtitleStreamLabel(_ stream: YoutubeInlineSubtitleStream) -> String {
-        let language = trimmed(stream.language ?? "")
-        let codec = trimmed(stream.codec ?? "")
-        let title = trimmed(stream.title ?? "")
-        let details = [language, codec, title]
-            .filter { !$0.isEmpty }
-            .joined(separator: " · ")
-        let prefix = stream.canExtract ? "Text" : "Image"
-        return details.isEmpty
-            ? "\(prefix) subtitle stream \(stream.index)"
-            : "\(prefix) subtitle stream \(stream.index) · \(details)"
-    }
-
-    static func youtubeSubtitleExtractionStatus(
-        extractedCount: Int,
-        videoFilename: String
-    ) -> String {
-        guard extractedCount > 0 else {
-            return "No subtitle streams found to extract."
-        }
-        let noun = extractedCount == 1 ? "track" : "tracks"
-        return "Extracted \(extractedCount) subtitle \(noun) from \(videoFilename)."
-    }
-
-    static func preferredYoutubeSelection(from library: YoutubeNasLibraryResponse?) -> AppleYoutubeSourceSelection? {
-        guard let videos = library?.videos, !videos.isEmpty else {
-            return nil
-        }
-        let video = videos.first { !playableYoutubeSubtitles(for: $0).isEmpty } ?? videos[0]
-        return AppleYoutubeSourceSelection(video: video, subtitle: preferredYoutubeSubtitle(for: video))
-    }
-
-    static func youtubeSelection(
-        from library: YoutubeNasLibraryResponse?,
-        storedVideoPath: String?,
-        storedSubtitlePath: String?
-    ) -> AppleYoutubeSourceSelection? {
-        guard let videos = library?.videos, !videos.isEmpty else {
-            return nil
-        }
-
-        let requestedVideoPath = storedVideoPath?.nonEmptyValue
-        let selectedVideo = videos.first { $0.path == requestedVideoPath }
-            ?? preferredYoutubeSelection(from: library)?.video
-            ?? videos[0]
-        let subtitleCandidates = playableYoutubeSubtitles(for: selectedVideo)
-        let requestedSubtitlePath = storedSubtitlePath?.nonEmptyValue
-        let storedSubtitle = requestedVideoPath == selectedVideo.path
-            ? subtitleCandidates.first { $0.path == requestedSubtitlePath }
-            : nil
-        let subtitle = storedSubtitle ?? preferredYoutubeSubtitle(for: selectedVideo)
-
-        return AppleYoutubeSourceSelection(video: selectedVideo, subtitle: subtitle)
-    }
-
-    static func youtubeSubtitleLanguage(
-        from library: YoutubeNasLibraryResponse?,
-        videoPath: String,
-        subtitlePath: String
-    ) -> String? {
-        let normalizedVideoPath = trimmed(videoPath)
-        let normalizedSubtitlePath = trimmed(subtitlePath)
-        guard !normalizedVideoPath.isEmpty, !normalizedSubtitlePath.isEmpty else {
-            return nil
-        }
-        guard let video = library?.videos.first(where: { $0.path == normalizedVideoPath }) else {
-            return nil
-        }
-        return playableYoutubeSubtitles(for: video)
-            .first { $0.path == normalizedSubtitlePath }?
-            .language?
-            .nonEmptyValue
-    }
-
-    static func youtubeLibraryCacheKey(baseKey: String, baseDir: String) -> String {
-        let normalizedBaseDir = trimmed(baseDir)
-        guard !normalizedBaseDir.isEmpty else {
-            return baseKey
-        }
-        return "\(baseKey)|youtubeBaseDir=\(normalizedBaseDir)"
-    }
-
-    static func subtitleShowOriginalPreferenceKey(baseKey: String) -> String {
-        "ebookTools.appleCreate.subtitles.showOriginal.\(baseKey)"
     }
 
     static func narrationHistoryDefaults(
@@ -1420,13 +1244,6 @@ enum AppleBookCreatePresentation {
         jobDateFormatterWithFractional.date(from: value) ?? jobDateFormatter.date(from: value)
     }
 
-    private static func parseSubtitleSourceDate(_ value: String?) -> Date {
-        guard let value = value?.nonEmptyValue else { return .distantPast }
-        return subtitleSourceDateFormatterWithFractional.date(from: value)
-            ?? subtitleSourceDateFormatter.date(from: value)
-            ?? .distantPast
-    }
-
     private static let jobDateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
@@ -1434,18 +1251,6 @@ enum AppleBookCreatePresentation {
     }()
 
     private static let jobDateFormatterWithFractional: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-
-    private static let subtitleSourceDateFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
-
-    private static let subtitleSourceDateFormatterWithFractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
