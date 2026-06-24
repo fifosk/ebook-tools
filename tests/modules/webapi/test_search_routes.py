@@ -312,7 +312,10 @@ def test_search_skips_chunk_metadata_read_when_generated_chunk_is_complete(
     assert load_chunk_calls == []
 
 
-def test_search_uses_generated_chunks_when_metadata_manifest_is_missing(tmp_path: Path) -> None:
+def test_search_uses_generated_chunks_when_metadata_manifest_is_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     file_locator = FileLocator(storage_dir=tmp_path, base_url="https://example.invalid/jobs")
     job_id = "missing-manifest-job"
     job_root = file_locator.resolve_path(job_id)
@@ -320,6 +323,21 @@ def test_search_uses_generated_chunks_when_metadata_manifest_is_missing(tmp_path
     text_dir.mkdir(parents=True, exist_ok=True)
     html_path = text_dir / "sample.html"
     html_path.write_text("<p>Searchable fortune text.</p>", encoding="utf-8")
+    manifest_calls: list[str] = []
+
+    class _NoEagerManifestMetadataLoader:
+        def __init__(self, _job_root: Path) -> None:
+            pass
+
+        def iter_chunks(self):
+            manifest_calls.append("iter_chunks")
+            raise AssertionError("missing manifests should not be eagerly iterated")
+
+        def build_chunk_manifest(self):
+            manifest_calls.append("build_chunk_manifest")
+            raise AssertionError("missing manifests should not build a chunk manifest")
+
+    monkeypatch.setattr(search_service, "MetadataLoader", _NoEagerManifestMetadataLoader)
 
     job = PipelineJob(
         job_id=job_id,
@@ -354,6 +372,7 @@ def test_search_uses_generated_chunks_when_metadata_manifest_is_missing(tmp_path
     assert results[0].job_id == job_id
     assert results[0].chunk_id == "chunk-001"
     assert "fortune" in results[0].snippet.lower()
+    assert manifest_calls == []
 
 
 def test_search_resolves_job_label_once_per_job(

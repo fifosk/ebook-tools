@@ -250,7 +250,8 @@ Optimization candidates:
   metadata-only sentence text; search also resolves the friendly job label
   once per job and reuses it across multiple chunk hits. Generated-files search
   also continues when a job root exists but its metadata manifest is absent,
-  using the chunk data already present on the job.
+  using the chunk data already present on the job and skipping eager manifest
+  iteration in that case.
 - Keep all auth/session headers and token handling out of logs and docs.
 
 ## Parity Roadmap
