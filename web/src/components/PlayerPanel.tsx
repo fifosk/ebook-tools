@@ -15,7 +15,6 @@ import {
   TRANSLATION_SPEED_MAX,
   TRANSLATION_SPEED_MIN,
   TRANSLATION_SPEED_STEP,
-  type NavigationIntent,
 } from './player-panel/constants';
 import MediaSearchPanel from './MediaSearchPanel';
 import type { LibraryItem } from '../api/dtos';
@@ -57,6 +56,7 @@ import { usePlayerPanelActions } from './player-panel/usePlayerPanelActions';
 import { buildInteractiveViewerProps, buildNavigationBaseProps } from './player-panel/playerPanelProps';
 import { useInteractiveFullscreenPreference } from './player-panel/useInteractiveFullscreenPreference';
 import { usePlayerPanelScrollMemory } from './player-panel/usePlayerPanelScrollMemory';
+import { usePlayerPanelMediaNavigation } from './player-panel/usePlayerPanelMediaNavigation';
 import { getLocalStorageItem, setLocalStorageItem } from '../utils/browserStorage';
 
 type ReadingBedOverride = {
@@ -205,14 +205,6 @@ export default function PlayerPanel({
     chunks,
   });
   const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
-  // Use a ref instead of state to avoid re-renders when the skip function changes
-  const sequenceSkipFnRef = useRef<((direction: 1 | -1) => boolean) | null>(null);
-  const handleRegisterSequenceSkip = useCallback((fn: ((direction: 1 | -1) => boolean) | null) => {
-    if (import.meta.env.DEV) {
-      console.debug('[PlayerPanel] handleRegisterSequenceSkip called, fn is:', fn ? 'function' : 'null');
-    }
-    sequenceSkipFnRef.current = fn;
-  }, []);
   const {
     inlineAudioPlayingRef,
     mediaSessionTimeRef,
@@ -547,109 +539,31 @@ export default function PlayerPanel({
     inlineAudioPlayingRef,
   });
 
+  const {
+    hasSentenceNav,
+    handleRegisterSequenceSkip,
+    handleKeyboardNavigate,
+    handleMediaSessionTrackSkip,
+    handleMediaSessionSeekTo,
+  } = usePlayerPanelMediaNavigation({
+    activeSentenceNumber,
+    canJumpToSentence,
+    jobStartSentence,
+    jobEndSentence,
+    mediaSessionTimeRef,
+    onInteractiveSentenceJump: handleInteractiveSentenceJump,
+    onNavigatePreservingPlayback: handleNavigatePreservingPlayback,
+  });
+
   // When sentence-level navigation is possible, next/previous should not be
   // disabled just because we're at a chunk boundary — there may be more
   // sentences to skip to (within the current chunk or across chunks).
-  const hasSentenceNav = canJumpToSentence || sequenceSkipFnRef.current !== null;
   const isPreviousDisabled = hasSentenceNav ? false : isChunkPreviousDisabled;
   const isNextDisabled = hasSentenceNav ? false : isChunkNextDisabled;
 
   const handlePanelAdvancedControlsToggle = useCallback(() => {
     setPanelAdvancedControlsOpen((value) => !value);
   }, []);
-  const handleMediaSessionSentenceSkip = useCallback(
-    (direction: -1 | 1) => {
-      const sequenceSkipFn = sequenceSkipFnRef.current;
-      if (import.meta.env.DEV) {
-        console.debug('[PlayerPanel] handleMediaSessionSentenceSkip called, direction:', direction, 'sequenceSkipFn:', sequenceSkipFn ? 'set' : 'null');
-      }
-      // First try sequence skip (for within-chunk sentence navigation in sequence mode)
-      if (sequenceSkipFn) {
-        const result = sequenceSkipFn(direction);
-        if (import.meta.env.DEV) {
-          console.debug('[PlayerPanel] sequenceSkipFn returned:', result);
-        }
-        if (result) {
-          return true;
-        }
-      }
-      // Fall back to chunk-level sentence jump
-      if (!canJumpToSentence) {
-        if (import.meta.env.DEV) {
-          console.debug('[PlayerPanel] canJumpToSentence is false, returning false');
-        }
-        return false;
-      }
-      const fallback = direction > 0 ? jobStartSentence : null;
-      const current = activeSentenceNumber ?? fallback;
-      if (!current || !Number.isFinite(current)) {
-        if (import.meta.env.DEV) {
-          console.debug('[PlayerPanel] activeSentenceNumber invalid, returning false');
-        }
-        return false;
-      }
-      const target = Math.trunc(current) + direction;
-      if (jobStartSentence !== null && target < jobStartSentence) {
-        return false;
-      }
-      if (jobEndSentence !== null && target > jobEndSentence) {
-        return false;
-      }
-      if (import.meta.env.DEV) {
-        console.debug('[PlayerPanel] Jumping to sentence:', target);
-      }
-      handleInteractiveSentenceJump(target);
-      return true;
-    },
-    [
-      activeSentenceNumber,
-      canJumpToSentence,
-      handleInteractiveSentenceJump,
-      jobEndSentence,
-      jobStartSentence,
-    ],
-  );
-  const handleMediaSessionTrackSkip = useCallback(
-    (direction: -1 | 1) => {
-      if (handleMediaSessionSentenceSkip(direction)) {
-        return;
-      }
-      handleNavigatePreservingPlayback(direction > 0 ? 'next' : 'previous');
-    },
-    [handleMediaSessionSentenceSkip, handleNavigatePreservingPlayback],
-  );
-  // Keyboard navigation handler that prioritizes sentence skip within chunk
-  const handleKeyboardNavigate = useCallback(
-    (intent: NavigationIntent) => {
-      // For next/previous, try sentence skip first within the current chunk
-      if (intent === 'next' || intent === 'previous') {
-        const direction = intent === 'next' ? 1 : -1;
-        if (handleMediaSessionSentenceSkip(direction)) {
-          return;
-        }
-      }
-      // Fall back to chunk navigation
-      handleNavigatePreservingPlayback(intent);
-    },
-    [handleMediaSessionSentenceSkip, handleNavigatePreservingPlayback],
-  );
-  const handleMediaSessionSeekTo = useCallback(
-    (details: MediaSessionActionDetails) => {
-      const seekTime =
-        typeof details.seekTime === 'number' && Number.isFinite(details.seekTime)
-          ? details.seekTime
-          : null;
-      const current = mediaSessionTimeRef.current;
-      if (seekTime === null || current === null || !Number.isFinite(current)) {
-        return;
-      }
-      if (Math.abs(seekTime - current) < 0.25) {
-        return;
-      }
-      handleMediaSessionTrackSkip(seekTime > current ? 1 : -1);
-    },
-    [handleMediaSessionTrackSkip],
-  );
 
   useMediaSessionActions({
     inlineAudioSelection,

@@ -151,7 +151,11 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/player-panel/utils.ts` with focused Vitest coverage.
   Browser storage reads/writes used by PlayerPanel, interactive text, reading
   bed, media memory, and bookmarks now route through
-  `web/src/utils/browserStorage.ts` with focused Vitest coverage.
+  `web/src/utils/browserStorage.ts` with focused Vitest coverage. Media-session
+  seek/track skip handling, keyboard navigation, and registered sentence
+  sequence skipping now live in
+  `web/src/components/player-panel/usePlayerPanelMediaNavigation.ts` with
+  focused hook coverage.
 - `web/src/components/Sidebar.tsx` - 556 lines. Status: pipeline-view
   detection, sidebar language/label/status/stage/glyph/progress resolution,
   and image-wait status now live in
