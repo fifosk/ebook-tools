@@ -246,6 +246,15 @@ CREATE_FILE_IMPORT = (
     / "Create"
     / "AppleBookCreateFileImport.swift"
 )
+CREATE_FILE_IMPORTER_MODIFIER = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateFileImporterModifier.swift"
+)
 CREATE_METADATA_VIEWS = (
     ROOT
     / "ios"
@@ -1155,6 +1164,7 @@ def test_create_metadata_sources_are_split_from_view_and_target_wired() -> None:
 
 def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     import_source = _source(CREATE_FILE_IMPORT)
+    modifier_source = _source(CREATE_FILE_IMPORTER_MODIFIER)
     view_source = _source(CREATE_VIEW)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
@@ -1174,12 +1184,18 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     assert "UTType(filenameExtension: \"vtt\")" in import_source
     assert "AppleBookCreateFileImport.narrateImportSelection(" in view_source
     assert "AppleBookCreateFileImport.subtitleImportSelection(from: urls)" in view_source
-    assert "AppleBookCreateFileImport.epubContentType" in view_source
-    assert "AppleBookCreateFileImport.subtitleContentTypes" in view_source
+    assert "struct AppleBookCreateFileImporterModifier: ViewModifier" in modifier_source
+    assert "AppleBookCreateFileImport.epubContentType" in modifier_source
+    assert "AppleBookCreateFileImport.subtitleContentTypes" in modifier_source
+    assert "AppleBookCreateFileImporterModifier(" in view_source
+    assert "AppleBookCreateFileImport.epubContentType" not in view_source
+    assert "AppleBookCreateFileImport.subtitleContentTypes" not in view_source
     assert "url.lastPathComponent" not in view_source
     assert "url.deletingPathExtension().lastPathComponent" not in view_source
     assert "AppleBookCreateFileImport.swift in Sources" in project
     assert project.count("AppleBookCreateFileImport.swift in Sources") == 4
+    assert "AppleBookCreateFileImporterModifier.swift in Sources" in project
+    assert project.count("AppleBookCreateFileImporterModifier.swift in Sources") == 4
     assert "AppleBookCreateFileImport.swift" in payload_script
 
 

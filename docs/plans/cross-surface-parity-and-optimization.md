@@ -293,6 +293,10 @@ Current Apple UI partially exposes:
   successful job submission completion shares one intake-refresh/notify handler
   while the view model shares one submit-state/error wrapper in
   `AppleBookCreateViewModel+Submission.swift`.
+  iOS document importer modifier wiring for local EPUB/subtitle selection now
+  lives in `AppleBookCreateFileImporterModifier.swift`, keeping platform
+  document-picker modifiers out of the main Create view while preserving the
+  same iPad/iPhone import handlers.
   Narration language/voice routing now lives in
   `AppleBookCreateNarrationSection.swift`, and the
   iOS/iPad searchable full-language selector lives in

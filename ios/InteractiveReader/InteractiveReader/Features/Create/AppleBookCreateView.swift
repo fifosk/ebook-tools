@@ -1,7 +1,4 @@
 import SwiftUI
-#if os(iOS)
-import UniformTypeIdentifiers
-#endif
 
 struct AppleBookCreateView: View {
     @EnvironmentObject private var appState: AppState
@@ -177,20 +174,14 @@ struct AppleBookCreateView: View {
                 onDeleteSubtitleSource: deleteSubtitleSource
             )
         )
-        #if os(iOS)
-        .fileImporter(
-            isPresented: $isImportingNarrateEbook,
-            allowedContentTypes: [Self.epubContentType],
-            allowsMultipleSelection: false,
-            onCompletion: handleNarrateEbookImport
+        .modifier(
+            AppleBookCreateFileImporterModifier(
+                isImportingNarrateEbook: $isImportingNarrateEbook,
+                isImportingSubtitleFile: $isImportingSubtitleFile,
+                onNarrateImport: handleNarrateEbookImport,
+                onSubtitleImport: handleSubtitleFileImport
+            )
         )
-        .fileImporter(
-            isPresented: $isImportingSubtitleFile,
-            allowedContentTypes: Self.subtitleContentTypes,
-            allowsMultipleSelection: false,
-            onCompletion: handleSubtitleFileImport
-        )
-        #endif
         .accessibilityIdentifier("appleBookCreateView")
     }
 
@@ -1813,14 +1804,10 @@ struct AppleBookCreateView: View {
             viewModel.errorMessage = error.localizedDescription
         }
     }
+    #else
+    private func handleNarrateEbookImport(_ result: Result<[URL], Error>) {}
 
-    private static var epubContentType: UTType {
-        AppleBookCreateFileImport.epubContentType
-    }
-
-    private static var subtitleContentTypes: [UTType] {
-        AppleBookCreateFileImport.subtitleContentTypes
-    }
+    private func handleSubtitleFileImport(_ result: Result<[URL], Error>) {}
     #endif
 
     private var creationOptionsLoadKey: String {
