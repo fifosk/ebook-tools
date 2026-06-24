@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type {
+  CreationTemplateEntry,
   VoiceInventoryResponse,
   YoutubeInlineSubtitleStream,
   YoutubeNasSubtitle,
@@ -10,6 +11,7 @@ import {
   buildVideoDubbingTemplatePayload,
   buildVoiceOptions,
   canExtractEmbeddedSubtitles,
+  extractVideoDubbingTemplateFormState,
   filterPlayableSubtitles,
   formatSubtitleExtractionStatus,
   hasYoutubeMetadataTitle,
@@ -507,6 +509,69 @@ describe('videoDubbingUtils', () => {
     const metadata = formState.media_metadata as Record<string, unknown>;
     const youtube = metadata.youtube as Record<string, unknown>;
     expect(youtube.auth_token).toBeUndefined();
+  });
+
+  it('extracts YouTube dub template settings for deep-linked Web handoff', () => {
+    const template: CreationTemplateEntry = {
+      id: 'youtube-template',
+      name: 'Video Defaults',
+      mode: 'youtube_dub',
+      created_at: 1,
+      updated_at: 2,
+      payload: {
+        kind: 'youtube_dub_form',
+        form_state: {
+          video_path: '/videos/show.mkv',
+          subtitle_path: '/subs/show.es.ass',
+          target_language: 'German',
+          voice: 'Monica',
+          start_time_offset_seconds: 15,
+          end_time_offset: '01:45',
+          original_mix_percent: '12',
+          flush_sentences: 8,
+          translation_batch_size: '6',
+          target_height: 720,
+          preserve_aspect_ratio: false,
+          split_batches: false,
+          stitch_batches: true,
+          llm_model: 'gpt-test',
+          translation_provider: 'googletrans',
+          transliteration_mode: 'python',
+          transliteration_model: 'romanizer',
+          include_transliteration: false,
+          enable_lookup_cache: false,
+          media_metadata: {
+            youtube: { title: 'Example Video' },
+            auth_token: 'drop-me'
+          }
+        }
+      }
+    };
+
+    expect(extractVideoDubbingTemplateFormState(template)).toEqual({
+      videoPath: '/videos/show.mkv',
+      subtitlePath: '/subs/show.es.ass',
+      targetLanguage: 'German',
+      voice: 'Monica',
+      startOffset: '00:15',
+      endOffset: '01:45',
+      originalMixPercent: 12,
+      flushSentences: 8,
+      translationBatchSize: 6,
+      targetHeight: 720,
+      preserveAspectRatio: false,
+      splitBatches: false,
+      stitchBatches: true,
+      llmModel: 'gpt-test',
+      translationProvider: 'googletrans',
+      transliterationMode: 'python',
+      transliterationModel: 'romanizer',
+      includeTransliteration: false,
+      enableLookupCache: false,
+      mediaMetadataDraft: {
+        youtube: { title: 'Example Video' }
+      }
+    });
   });
 
   it('rejects YouTube dub generation without a selected video and subtitle', () => {

@@ -9,7 +9,11 @@ import {
   resolveSubtitleSubmitValues,
   type SubtitleSubmitInput
 } from '../subtitle-tool/subtitleSubmitUtils';
-import { buildSubtitleTemplatePayload } from '../subtitle-tool/subtitleTemplateUtils';
+import type { CreationTemplateEntry } from '../../api/dtos';
+import {
+  buildSubtitleTemplatePayload,
+  extractSubtitleTemplateFormState
+} from '../subtitle-tool/subtitleTemplateUtils';
 
 describe('formatSubmittedSubtitleSummary', () => {
   it('describes auto-detected submissions when no tuning details were captured', () => {
@@ -548,5 +552,72 @@ describe('buildSubtitleTemplatePayload', () => {
     const formState = template.payload.form_state as Record<string, unknown>;
     const metadata = formState.media_metadata as Record<string, unknown>;
     expect(metadata.api_token).toBeUndefined();
+  });
+
+  it('extracts subtitle template settings for deep-linked Web handoff', () => {
+    const template: CreationTemplateEntry = {
+      id: 'subtitle-template',
+      name: 'Subtitle Defaults',
+      mode: 'subtitle_job',
+      created_at: 1,
+      updated_at: 2,
+      payload: {
+        kind: 'subtitle_job_form',
+        form_state: {
+          source_mode: 'existing',
+          source_path: '/subs/current.srt',
+          input_language: 'Spanish',
+          target_language: 'German',
+          enable_transliteration: false,
+          highlight: true,
+          show_original: false,
+          generate_audio_book: true,
+          output_format: 'srt',
+          mirror_batches_to_source_dir: false,
+          start_time: '00:10',
+          end_time: '+02:00',
+          llm_model: 'gpt-test',
+          translation_provider: 'googletrans',
+          transliteration_mode: 'python',
+          transliteration_model: 'romanizer',
+          worker_count: '3',
+          batch_size: 16,
+          translation_batch_size: 7,
+          ass_font_size: '64',
+          ass_emphasis_scale: 1.4,
+          media_metadata: {
+            show: { name: 'Example Show' },
+            token: 'drop-me'
+          }
+        }
+      }
+    };
+
+    expect(extractSubtitleTemplateFormState(template)).toEqual({
+      sourceMode: 'existing',
+      selectedSource: '/subs/current.srt',
+      inputLanguage: 'Spanish',
+      targetLanguage: 'German',
+      enableTransliteration: false,
+      enableHighlight: true,
+      showOriginal: false,
+      generateAudioBook: true,
+      outputFormat: 'srt',
+      mirrorToSourceDir: false,
+      startTime: '00:10',
+      endTime: '+02:00',
+      selectedModel: 'gpt-test',
+      translationProvider: 'googletrans',
+      transliterationMode: 'python',
+      transliterationModel: 'romanizer',
+      workerCount: 3,
+      batchSize: 16,
+      translationBatchSize: 7,
+      assFontSize: 64,
+      assEmphasis: 1.4,
+      mediaMetadataDraft: {
+        show: { name: 'Example Show' }
+      }
+    });
   });
 });

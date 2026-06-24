@@ -1,4 +1,4 @@
-import type { CreationTemplatePayload } from '../../api/dtos';
+import type { CreationTemplateEntry, CreationTemplatePayload } from '../../api/dtos';
 import { sanitizeTemplateValue } from '../../utils/creationTemplateSanitizer';
 import type { ResolvedSubtitleSubmitValues } from './subtitleSubmitUtils';
 import type { SubtitleOutputFormat, SubtitleSourceMode } from './subtitleToolTypes';
@@ -13,6 +13,31 @@ export type BuildSubtitleTemplatePayloadInput = {
   outputFormat: SubtitleOutputFormat;
   mirrorToSourceDir: boolean;
   mediaMetadataDraft?: Record<string, unknown> | null;
+};
+
+export type AppliedSubtitleTemplate = {
+  sourceMode?: SubtitleSourceMode;
+  selectedSource?: string;
+  inputLanguage?: string;
+  targetLanguage?: string;
+  enableTransliteration?: boolean;
+  enableHighlight?: boolean;
+  showOriginal?: boolean;
+  generateAudioBook?: boolean;
+  outputFormat?: SubtitleOutputFormat;
+  mirrorToSourceDir?: boolean;
+  startTime?: string;
+  endTime?: string;
+  selectedModel?: string;
+  translationProvider?: string;
+  transliterationMode?: string;
+  transliterationModel?: string;
+  workerCount?: number;
+  batchSize?: number;
+  translationBatchSize?: number;
+  assFontSize?: number;
+  assEmphasis?: number;
+  mediaMetadataDraft?: Record<string, unknown>;
 };
 
 function basenameFromPath(value: string | null | undefined): string {
@@ -142,4 +167,108 @@ export function buildSubtitleTemplatePayload(input: BuildSubtitleTemplatePayload
       form_state: formState
     }
   };
+}
+
+function formStateFromTemplate(template: CreationTemplateEntry): Record<string, unknown> | null {
+  const payload = template.payload;
+  const formState = coerceRecord(payload.form_state);
+  if (formState) {
+    return formState;
+  }
+  const nested = coerceRecord(payload.payload);
+  return coerceRecord(nested?.form_state);
+}
+
+function booleanValue(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function finiteNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function subtitleSourceMode(value: unknown): SubtitleSourceMode | undefined {
+  return value === 'existing' || value === 'upload' ? value : undefined;
+}
+
+function subtitleOutputFormat(value: unknown): SubtitleOutputFormat | undefined {
+  return value === 'srt' || value === 'ass' ? value : undefined;
+}
+
+function metadataDraft(value: unknown): Record<string, unknown> | undefined {
+  const record = coerceRecord(value);
+  if (!record) {
+    return undefined;
+  }
+  return sanitizeTemplateValue(record) as Record<string, unknown>;
+}
+
+export function extractSubtitleTemplateFormState(
+  template: CreationTemplateEntry | null | undefined
+): AppliedSubtitleTemplate | null {
+  if (!template || template.mode !== 'subtitle_job') {
+    return null;
+  }
+  if (template.payload.kind && template.payload.kind !== 'subtitle_job_form') {
+    return null;
+  }
+  const formState = formStateFromTemplate(template);
+  if (!formState) {
+    return null;
+  }
+
+  const applied: AppliedSubtitleTemplate = {};
+  const sourceMode = subtitleSourceMode(formState.source_mode);
+  if (sourceMode) applied.sourceMode = sourceMode;
+  const sourcePath = textValue(formState.source_path);
+  if (sourcePath) applied.selectedSource = sourcePath;
+  const inputLanguage = textValue(formState.input_language) ?? textValue(formState.original_language);
+  if (inputLanguage) applied.inputLanguage = inputLanguage;
+  const targetLanguage = textValue(formState.target_language);
+  if (targetLanguage) applied.targetLanguage = targetLanguage;
+  const enableTransliteration = booleanValue(formState.enable_transliteration);
+  if (enableTransliteration !== undefined) applied.enableTransliteration = enableTransliteration;
+  const enableHighlight = booleanValue(formState.highlight);
+  if (enableHighlight !== undefined) applied.enableHighlight = enableHighlight;
+  const showOriginal = booleanValue(formState.show_original);
+  if (showOriginal !== undefined) applied.showOriginal = showOriginal;
+  const generateAudioBook = booleanValue(formState.generate_audio_book);
+  if (generateAudioBook !== undefined) applied.generateAudioBook = generateAudioBook;
+  const outputFormat = subtitleOutputFormat(formState.output_format);
+  if (outputFormat) applied.outputFormat = outputFormat;
+  const mirrorToSourceDir = booleanValue(formState.mirror_batches_to_source_dir);
+  if (mirrorToSourceDir !== undefined) applied.mirrorToSourceDir = mirrorToSourceDir;
+  const startTime = textValue(formState.start_time);
+  if (startTime) applied.startTime = startTime;
+  const endTime = textValue(formState.end_time);
+  if (endTime) applied.endTime = endTime;
+  const selectedModel = textValue(formState.llm_model);
+  if (selectedModel) applied.selectedModel = selectedModel;
+  const translationProvider = textValue(formState.translation_provider);
+  if (translationProvider) applied.translationProvider = translationProvider;
+  const transliterationMode = textValue(formState.transliteration_mode);
+  if (transliterationMode) applied.transliterationMode = transliterationMode;
+  const transliterationModel = textValue(formState.transliteration_model);
+  if (transliterationModel) applied.transliterationModel = transliterationModel;
+  const workerCount = finiteNumber(formState.worker_count);
+  if (workerCount !== undefined) applied.workerCount = workerCount;
+  const batchSize = finiteNumber(formState.batch_size);
+  if (batchSize !== undefined) applied.batchSize = batchSize;
+  const translationBatchSize = finiteNumber(formState.translation_batch_size);
+  if (translationBatchSize !== undefined) applied.translationBatchSize = translationBatchSize;
+  const assFontSize = finiteNumber(formState.ass_font_size);
+  if (assFontSize !== undefined) applied.assFontSize = assFontSize;
+  const assEmphasis = finiteNumber(formState.ass_emphasis_scale);
+  if (assEmphasis !== undefined) applied.assEmphasis = assEmphasis;
+  const mediaMetadataDraft = metadataDraft(formState.media_metadata);
+  if (mediaMetadataDraft) applied.mediaMetadataDraft = mediaMetadataDraft;
+
+  return Object.keys(applied).length > 0 ? applied : null;
 }

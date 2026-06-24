@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { generateYoutubeDub, saveCreationTemplate } from '../api/client';
 import type {
+  CreationTemplateEntry,
   YoutubeNasVideo,
   JobParameterSnapshot
 } from '../api/dtos';
@@ -31,6 +32,7 @@ import {
   buildVideoDubbingGeneratePayload,
   buildVideoDubbingTemplatePayload,
   canExtractEmbeddedSubtitles,
+  extractVideoDubbingTemplateFormState,
   filterPlayableSubtitles,
   resolveVideoDubPrefill,
   resolveDefaultSubtitle,
@@ -45,13 +47,19 @@ type Props = {
   onSelectJob: (jobId: string) => void;
   onOpenJobMedia?: (jobId: string) => void;
   prefillParameters?: JobParameterSnapshot | null;
+  creationTemplate?: CreationTemplateEntry | null;
+  creationTemplateError?: string | null;
+  isLoadingCreationTemplate?: boolean;
 };
 export default function VideoDubbingPage({
   jobs,
   onJobCreated,
   onSelectJob,
   onOpenJobMedia,
-  prefillParameters = null
+  prefillParameters = null,
+  creationTemplate = null,
+  creationTemplateError = null,
+  isLoadingCreationTemplate = false
 }: Props) {
   const { primaryTargetLanguage, setPrimaryTargetLanguage } = useLanguagePreferences();
   const {
@@ -96,7 +104,10 @@ export default function VideoDubbingPage({
     enableLookupCache,
     setEnableLookupCache,
     pipelineDefaults
-  } = useVideoDubbingOutputState({ prefillParameters });
+  } = useVideoDubbingOutputState({
+    prefillParameters,
+    hasCreationTemplate: Boolean(creationTemplate)
+  });
   const {
     llmModel,
     setLlmModel,
@@ -118,6 +129,9 @@ export default function VideoDubbingPage({
   const [templateStatus, setTemplateStatus] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const appliedTemplateRef = useRef<string | null>(null);
+  const pendingTemplateMetadataRef = useRef<Record<string, unknown> | null>(null);
+  const [templateMetadataApplyKey, setTemplateMetadataApplyKey] = useState(0);
 
   const {
     library,
@@ -275,11 +289,91 @@ export default function VideoDubbingPage({
   }, [applyTargetLanguage, prefillParameters]);
 
   useEffect(() => {
-    if (prefillParameters) {
+    if (prefillParameters || creationTemplate) {
       return;
     }
     applyPipelineDefaults(pipelineDefaults);
-  }, [applyPipelineDefaults, pipelineDefaults, prefillParameters]);
+  }, [applyPipelineDefaults, creationTemplate, pipelineDefaults, prefillParameters]);
+
+  useEffect(() => {
+    if (!creationTemplate) {
+      appliedTemplateRef.current = null;
+      return;
+    }
+    const applyKey = `${creationTemplate.id}:${creationTemplate.updated_at}`;
+    if (appliedTemplateRef.current === applyKey) {
+      return;
+    }
+    const applied = extractVideoDubbingTemplateFormState(creationTemplate);
+    if (!applied) {
+      setTemplateStatus(null);
+      setTemplateError(`Template "${creationTemplate.name}" is not compatible with Video Dubbing.`);
+      appliedTemplateRef.current = applyKey;
+      return;
+    }
+
+    if (applied.videoPath) setSelectedVideoPath(applied.videoPath);
+    if (applied.subtitlePath) setSelectedSubtitlePath(applied.subtitlePath);
+    if (applied.targetLanguage) applyTargetLanguage(applied.targetLanguage);
+    if (applied.voice !== undefined) setVoice(applied.voice);
+    if (applied.startOffset !== undefined) setStartOffset(applied.startOffset);
+    if (applied.endOffset !== undefined) setEndOffset(applied.endOffset);
+    if (applied.originalMixPercent !== undefined) setOriginalMixPercent(applied.originalMixPercent);
+    if (applied.flushSentences !== undefined) setFlushSentences(applied.flushSentences);
+    if (applied.translationBatchSize !== undefined) setTranslationBatchSize(applied.translationBatchSize);
+    if (applied.targetHeight !== undefined) setTargetHeight(applied.targetHeight);
+    if (applied.preserveAspectRatio !== undefined) setPreserveAspectRatio(applied.preserveAspectRatio);
+    if (applied.splitBatches !== undefined) setSplitBatches(applied.splitBatches);
+    if (applied.stitchBatches !== undefined) setStitchBatches(applied.stitchBatches);
+    if (applied.llmModel) setLlmModel(applied.llmModel);
+    if (applied.translationProvider) setTranslationProvider(applied.translationProvider);
+    if (applied.transliterationMode) setTransliterationMode(applied.transliterationMode);
+    if (applied.transliterationModel) setTransliterationModel(applied.transliterationModel);
+    if (applied.includeTransliteration !== undefined) setIncludeTransliteration(applied.includeTransliteration);
+    if (applied.enableLookupCache !== undefined) setEnableLookupCache(applied.enableLookupCache);
+    if (applied.mediaMetadataDraft) {
+      pendingTemplateMetadataRef.current = applied.mediaMetadataDraft;
+      setTemplateMetadataApplyKey((current) => current + 1);
+    }
+    setTemplateError(null);
+    setTemplateStatus(`Applied template "${creationTemplate.name}".`);
+    appliedTemplateRef.current = applyKey;
+  }, [
+    applyTargetLanguage,
+    creationTemplate,
+    setEnableLookupCache,
+    setEndOffset,
+    setFlushSentences,
+    setIncludeTransliteration,
+    setLlmModel,
+    setOriginalMixPercent,
+    setPreserveAspectRatio,
+    setSelectedSubtitlePath,
+    setSelectedVideoPath,
+    setSplitBatches,
+    setStartOffset,
+    setStitchBatches,
+    setTargetHeight,
+    setTranslationBatchSize,
+    setTranslationProvider,
+    setTransliterationMode,
+    setTransliterationModel,
+    setVoice
+  ]);
+
+  useEffect(() => {
+    const metadata = pendingTemplateMetadataRef.current;
+    if (!metadata) {
+      return;
+    }
+    pendingTemplateMetadataRef.current = null;
+    updateMediaMetadataDraft((draft) => {
+      Object.keys(draft).forEach((key) => {
+        delete draft[key];
+      });
+      Object.assign(draft, metadata);
+    });
+  }, [metadataSourceName, templateMetadataApplyKey, updateMediaMetadataDraft]);
 
   useEffect(() => {
     if (playableSubtitles.length === 0) {
@@ -500,8 +594,11 @@ export default function VideoDubbingPage({
 
       {statusMessage ? <p className={styles.success}>{statusMessage}</p> : null}
       {generateError ? <p className={styles.error}>{generateError}</p> : null}
+      {isLoadingCreationTemplate ? <p className={styles.success}>Loading saved template...</p> : null}
       {templateStatus ? <p className={styles.success}>{templateStatus}</p> : null}
-      {templateError ? <p className={styles.error}>{templateError}</p> : null}
+      {creationTemplateError ?? templateError ? (
+        <p className={styles.error}>{creationTemplateError ?? templateError}</p>
+      ) : null}
       <CreateIntakeStatusCallout status={intakeStatus} isLoading={isLoadingIntakeStatus} />
 
       {activeTab === 'videos' ? (

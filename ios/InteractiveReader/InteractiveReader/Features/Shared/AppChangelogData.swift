@@ -8,7 +8,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-web-template-handoff",
                     title: "Web handoff carries templates",
-                    detail: "Apple Create now includes the selected generated-book or Narrate EPUB template when opening Web Create, so iPad and iPhone can continue saved drafts in the advanced Web form."
+                    detail: "Apple Create now includes the selected saved creation template when opening Web Create, so iPad and iPhone can continue book, subtitle, and YouTube dubbing drafts in the advanced Web forms."
                 ),
                 AppChangelogEntry(
                     id: "apple-create-delete-saved-templates",

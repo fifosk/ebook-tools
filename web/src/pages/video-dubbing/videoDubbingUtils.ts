@@ -1,4 +1,5 @@
 import type {
+  CreationTemplateEntry,
   CreationTemplatePayload,
   JobParameterSnapshot,
   MacOSVoice,
@@ -714,8 +715,38 @@ export type VideoDubPrefillValues = {
   enableLookupCache?: boolean;
 };
 
+export type AppliedVideoDubbingTemplate = {
+  videoPath?: string;
+  subtitlePath?: string;
+  targetLanguage?: string;
+  voice?: string;
+  startOffset?: string;
+  endOffset?: string;
+  originalMixPercent?: number;
+  flushSentences?: number;
+  translationBatchSize?: number;
+  targetHeight?: number;
+  preserveAspectRatio?: boolean;
+  splitBatches?: boolean;
+  stitchBatches?: boolean;
+  llmModel?: string;
+  translationProvider?: string;
+  transliterationMode?: string;
+  transliterationModel?: string;
+  includeTransliteration?: boolean;
+  enableLookupCache?: boolean;
+  mediaMetadataDraft?: Record<string, unknown>;
+};
+
 function finiteNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
 }
 
 function trimmedString(value: unknown): string | undefined {
@@ -764,4 +795,96 @@ export function resolveVideoDubPrefill(
     enableLookupCache:
       typeof parameters.enable_lookup_cache === 'boolean' ? parameters.enable_lookup_cache : undefined
   };
+}
+
+function templateFormState(template: CreationTemplateEntry): Record<string, unknown> | null {
+  const formState = coerceRecord(template.payload.form_state);
+  if (formState) {
+    return formState;
+  }
+  const nested = coerceRecord(template.payload.payload);
+  return coerceRecord(nested?.form_state);
+}
+
+function booleanValue(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function offsetText(value: unknown): string | undefined {
+  const text = trimmedString(value);
+  if (text) {
+    return text;
+  }
+  const seconds = finiteNumber(value);
+  return seconds === undefined ? undefined : formatOffsetLabel(seconds);
+}
+
+function metadataDraft(value: unknown): Record<string, unknown> | undefined {
+  const record = coerceRecord(value);
+  if (!record) {
+    return undefined;
+  }
+  const sanitized = sanitizeTemplateValue(record);
+  return coerceRecord(sanitized) ?? undefined;
+}
+
+export function extractVideoDubbingTemplateFormState(
+  template: CreationTemplateEntry | null | undefined
+): AppliedVideoDubbingTemplate | null {
+  if (!template || template.mode !== 'youtube_dub') {
+    return null;
+  }
+  if (template.payload.kind && template.payload.kind !== 'youtube_dub_form') {
+    return null;
+  }
+  const formState = templateFormState(template);
+  if (!formState) {
+    return null;
+  }
+
+  const applied: AppliedVideoDubbingTemplate = {};
+  const videoPath = trimmedString(formState.video_path);
+  if (videoPath) applied.videoPath = videoPath;
+  const subtitlePath = trimmedString(formState.subtitle_path);
+  if (subtitlePath) applied.subtitlePath = subtitlePath;
+  const targetLanguage = trimmedString(formState.target_language);
+  if (targetLanguage) applied.targetLanguage = targetLanguage;
+  const voice = typeof formState.voice === 'string' ? formState.voice.trim() : undefined;
+  if (voice !== undefined) applied.voice = voice;
+  const startOffset =
+    offsetText(formState.start_time_offset) ?? offsetText(formState.start_time_offset_seconds);
+  if (startOffset !== undefined) applied.startOffset = startOffset;
+  const endOffset =
+    offsetText(formState.end_time_offset) ?? offsetText(formState.end_time_offset_seconds);
+  if (endOffset !== undefined) applied.endOffset = endOffset;
+  const originalMixPercent = finiteNumber(formState.original_mix_percent);
+  if (originalMixPercent !== undefined) applied.originalMixPercent = originalMixPercent;
+  const flushSentences = finiteNumber(formState.flush_sentences);
+  if (flushSentences !== undefined) applied.flushSentences = flushSentences;
+  const translationBatchSize = finiteNumber(formState.translation_batch_size);
+  if (translationBatchSize !== undefined) applied.translationBatchSize = translationBatchSize;
+  const targetHeight = finiteNumber(formState.target_height);
+  if (targetHeight !== undefined) applied.targetHeight = targetHeight;
+  const preserveAspectRatio = booleanValue(formState.preserve_aspect_ratio);
+  if (preserveAspectRatio !== undefined) applied.preserveAspectRatio = preserveAspectRatio;
+  const splitBatches = booleanValue(formState.split_batches);
+  if (splitBatches !== undefined) applied.splitBatches = splitBatches;
+  const stitchBatches = booleanValue(formState.stitch_batches);
+  if (stitchBatches !== undefined) applied.stitchBatches = stitchBatches;
+  const llmModel = trimmedString(formState.llm_model);
+  if (llmModel) applied.llmModel = llmModel;
+  const translationProvider = trimmedString(formState.translation_provider);
+  if (translationProvider) applied.translationProvider = translationProvider;
+  const transliterationMode = trimmedString(formState.transliteration_mode);
+  if (transliterationMode) applied.transliterationMode = transliterationMode;
+  const transliterationModel = trimmedString(formState.transliteration_model);
+  if (transliterationModel) applied.transliterationModel = transliterationModel;
+  const includeTransliteration = booleanValue(formState.include_transliteration);
+  if (includeTransliteration !== undefined) applied.includeTransliteration = includeTransliteration;
+  const enableLookupCache = booleanValue(formState.enable_lookup_cache);
+  if (enableLookupCache !== undefined) applied.enableLookupCache = enableLookupCache;
+  const mediaMetadataDraft = metadataDraft(formState.media_metadata);
+  if (mediaMetadataDraft) applied.mediaMetadataDraft = mediaMetadataDraft;
+
+  return Object.keys(applied).length > 0 ? applied : null;
 }

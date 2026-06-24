@@ -15,10 +15,12 @@ import { resolveVideoDubPrefill } from './videoDubbingUtils';
 
 type VideoDubbingOutputStateOptions = {
   prefillParameters?: JobParameterSnapshot | null;
+  hasCreationTemplate?: boolean;
 };
 
 export function useVideoDubbingOutputState({
-  prefillParameters = null
+  prefillParameters = null,
+  hasCreationTemplate = false
 }: VideoDubbingOutputStateOptions = {}) {
   const [startOffset, setStartOffset] = useState('');
   const [endOffset, setEndOffset] = useState('');
@@ -64,7 +66,7 @@ export function useVideoDubbingOutputState({
   );
 
   useEffect(() => {
-    if (prefillParameters) {
+    if (prefillParameters || hasCreationTemplate) {
       return undefined;
     }
     let cancelled = false;
@@ -85,7 +87,7 @@ export function useVideoDubbingOutputState({
     return () => {
       cancelled = true;
     };
-  }, [applyYoutubeDubDefaults, prefillParameters]);
+  }, [applyYoutubeDubDefaults, hasCreationTemplate, prefillParameters]);
 
   useEffect(() => {
     const prefill = resolveVideoDubPrefill(prefillParameters);

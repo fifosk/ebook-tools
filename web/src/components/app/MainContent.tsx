@@ -173,6 +173,10 @@ export function MainContent({
     creationTemplate?.mode === 'generated_book' ? creationTemplate : null;
   const narrateEbookCreationTemplate =
     creationTemplate?.mode === 'narrate_ebook' ? creationTemplate : null;
+  const subtitleCreationTemplate =
+    creationTemplate?.mode === 'subtitle_job' ? creationTemplate : null;
+  const youtubeDubCreationTemplate =
+    creationTemplate?.mode === 'youtube_dub' ? creationTemplate : null;
 
   return (
     <main className="dashboard__main">
@@ -259,6 +263,9 @@ export function MainContent({
                 onSelectJob={onSubtitleJobSelected}
                 onMoveToLibrary={onMoveJobToLibrary}
                 prefillParameters={subtitlePrefillParameters}
+                creationTemplate={subtitleCreationTemplate}
+                creationTemplateError={creationTemplateError}
+                isLoadingCreationTemplate={isLoadingCreationTemplate}
                 refreshSignal={subtitleRefreshKey}
               />
             </section>
@@ -276,6 +283,9 @@ export function MainContent({
                 onSelectJob={onYoutubeDubJobSelected}
                 onOpenJobMedia={onOpenYoutubeDubMedia}
                 prefillParameters={youtubeDubPrefillParameters}
+                creationTemplate={youtubeDubCreationTemplate}
+                creationTemplateError={creationTemplateError}
+                isLoadingCreationTemplate={isLoadingCreationTemplate}
               />
             </section>
           ) : null}

@@ -628,9 +628,6 @@ struct AppleBookCreateView: View {
     }
 
     private var webCreateHandoffTemplateID: String? {
-        guard creationMode == .generatedBook || creationMode == .narrateEbook else {
-            return nil
-        }
         return compatibleCreationTemplates.first { $0.id == selectedTemplateID }?.id
     }
 
