@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.104",
+            version: "2026.06.25.105",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-jump-input-submit",
+                    title: "Jump input and bookmarks land cleanly",
+                    detail: "Apple interactive reader Jump To input now sanitizes numeric entry, clamps to available sentence bounds, offers keyboard Done and Go actions on iPad and iPhone, and bookmark jumps prefer stored chunk/time targets before falling back to sentence lookup."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-header-time-pill-tap",
                     title: "Header time pill and bookmarks respond",

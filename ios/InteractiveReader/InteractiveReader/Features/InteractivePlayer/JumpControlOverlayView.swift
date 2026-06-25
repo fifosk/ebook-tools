@@ -59,8 +59,12 @@ private struct JumpSentenceInputSection: View {
     @FocusState private var isInputFocused: Bool
 
     private var inputSentenceNumber: Int? {
-        guard let number = Int(inputSentence), number > 0 else { return nil }
+        guard let number = Int(sanitizedInputSentence), number > 0 else { return nil }
         return number
+    }
+
+    private var sanitizedInputSentence: String {
+        inputSentence.filter(\.isNumber)
     }
 
     var body: some View {
@@ -96,6 +100,24 @@ private struct JumpSentenceInputSection: View {
             .frame(width: 100)
             .focused($isInputFocused)
             .onSubmit(submitSentence)
+            .onChange(of: inputSentence) { _, newValue in
+                let sanitized = newValue.filter(\.isNumber)
+                if sanitized != newValue {
+                    inputSentence = sanitized
+                }
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        isInputFocused = false
+                    }
+                    Button("Go") {
+                        submitSentence()
+                    }
+                    .disabled(inputSentenceNumber == nil)
+                }
+            }
         #else
         TextField("Enter #", text: $inputSentence)
             .frame(width: 100)
@@ -105,7 +127,19 @@ private struct JumpSentenceInputSection: View {
 
     private func submitSentence() {
         guard let inputSentenceNumber else { return }
-        onJumpToSentence(inputSentenceNumber)
+        isInputFocused = false
+        onJumpToSentence(clampedSentence(inputSentenceNumber))
+    }
+
+    private func clampedSentence(_ sentence: Int) -> Int {
+        var result = sentence
+        if let start = sentenceBounds.start {
+            result = max(start, result)
+        }
+        if let end = sentenceBounds.end {
+            result = min(end, result)
+        }
+        return result
     }
 }
 

@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.105
+
+- Advanced visible Apple app versioning to `v2026.06.25.105`.
+- Fixed the interactive reader Jump To input on iPad and iPhone by sanitizing numeric entry, clamping to sentence bounds, and adding keyboard Done/Go actions.
+- Fixed interactive book bookmark jumps by preferring stored chunk/time targets and updating the visible sentence selection before falling back to sentence lookup.
+
 ### 2026.06.25.104
 
 - Advanced visible Apple app versioning to `v2026.06.25.104`.

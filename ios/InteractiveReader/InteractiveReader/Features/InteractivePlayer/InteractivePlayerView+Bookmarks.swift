@@ -205,17 +205,22 @@ extension InteractivePlayerView {
     }
 
     func jumpToBookmark(_ bookmark: PlaybackBookmarkEntry) {
+        let shouldPlay = audioCoordinator.isPlaybackRequested
+        if let chunkId = bookmark.chunkId,
+           let time = bookmark.playbackTime,
+           let context = viewModel.jobContext,
+           let chunk = context.chunk(withID: chunkId) {
+            if let sentence = bookmark.sentenceNumber, sentence > 0 {
+                selectedSentenceID = sentence
+            }
+            viewModel.jumpToTime(time, in: chunk, autoPlay: shouldPlay)
+            return
+        }
         if let sentence = bookmark.sentenceNumber, sentence > 0 {
-            viewModel.jumpToSentence(sentence, autoPlay: audioCoordinator.isPlaybackRequested)
+            selectedSentenceID = sentence
+            viewModel.jumpToSentence(sentence, autoPlay: shouldPlay)
             return
         }
-        guard let chunkId = bookmark.chunkId,
-              let time = bookmark.playbackTime,
-              let context = viewModel.jobContext,
-              let chunk = context.chunk(withID: chunkId) else {
-            return
-        }
-        viewModel.jumpToTime(time, in: chunk, autoPlay: audioCoordinator.isPlaybackRequested)
     }
 
     func removeBookmark(_ bookmark: PlaybackBookmarkEntry) {

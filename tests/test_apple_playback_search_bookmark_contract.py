@@ -49,8 +49,10 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
 
     assert "BookmarkRibbonPillView(" in interactive_bookmarks
     assert "onJumpToBookmark: jumpToBookmark" in interactive_bookmarks
-    assert "viewModel.jumpToSentence(sentence, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_bookmarks
-    assert "viewModel.jumpToTime(time, in: chunk, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_bookmarks
+    assert "let shouldPlay = audioCoordinator.isPlaybackRequested" in interactive_bookmarks
+    assert "selectedSentenceID = sentence" in interactive_bookmarks
+    assert "viewModel.jumpToTime(time, in: chunk, autoPlay: shouldPlay)" in interactive_bookmarks
+    assert "viewModel.jumpToSentence(sentence, autoPlay: shouldPlay)" in interactive_bookmarks
     assert "DispatchQueue.main.async" not in interactive_bookmarks
     add_bookmark_body = interactive_bookmarks.split("func addBookmark(for chunk: InteractiveChunk)", 1)[1].split(
         "\n    func storeBookmark",
@@ -97,6 +99,18 @@ def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:
     assert "showBookMetadataOverlay = true" in metadata_overlay
     assert "struct InteractivePlayerBookMetadataOverlay: View" in metadata_overlay
     assert "Close book metadata" in metadata_overlay
+
+
+def test_interactive_reader_jump_input_supports_ios_number_pad_submit() -> None:
+    jump_overlay = _source(INTERACTIVE / "JumpControlOverlayView.swift")
+
+    assert "private var sanitizedInputSentence: String" in jump_overlay
+    assert "inputSentence.filter(\\.isNumber)" in jump_overlay
+    assert ".toolbar {" in jump_overlay
+    assert 'Button("Done")' in jump_overlay
+    assert 'Button("Go")' in jump_overlay
+    assert "onJumpToSentence(clampedSentence(inputSentenceNumber))" in jump_overlay
+    assert "private func clampedSentence(_ sentence: Int) -> Int" in jump_overlay
 
 
 def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
