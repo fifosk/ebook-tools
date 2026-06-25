@@ -1,5 +1,12 @@
 import Foundation
 
+struct AppleBookCreateVideoDiscoveryAvailability {
+    let youtubeSearchUnavailableMessage: String?
+    let isYoutubeSearchAvailable: Bool
+    let downloadStationUnavailableMessage: String?
+    let isDownloadStationAvailable: Bool
+}
+
 extension AppleBookCreatePresentation {
     static func contentIndexChapters(from value: JSONValue?) -> [AppleCreateChapterOption] {
         guard case let .object(root) = value,
@@ -291,6 +298,44 @@ extension AppleBookCreatePresentation {
         }
         let count = normalizedEnd - normalizedStart + 1
         return count > 0 ? count : nil
+    }
+
+    static func youtubeVideoDiscoveryAvailability(
+        providers: [AcquisitionProviderEntry]
+    ) -> AppleBookCreateVideoDiscoveryAvailability {
+        let youtubeSearchProvider = providers.first { $0.id == "youtube_search" }
+        let downloadStationProvider = providers.first { $0.id == "download_station" }
+        return AppleBookCreateVideoDiscoveryAvailability(
+            youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage(for: youtubeSearchProvider),
+            isYoutubeSearchAvailable: youtubeSearchProvider?.available != false,
+            downloadStationUnavailableMessage: downloadStationUnavailableMessage(for: downloadStationProvider),
+            isDownloadStationAvailable: downloadStationProvider?.available == true
+        )
+    }
+
+    private static func youtubeSearchUnavailableMessage(
+        for provider: AcquisitionProviderEntry?
+    ) -> String? {
+        guard let provider, !provider.available else {
+            return nil
+        }
+        return "\(provider.label) is \(formattedProviderStatus(provider.status)). Configure the YouTube Data API key to search videos, or use NAS videos."
+    }
+
+    private static func downloadStationUnavailableMessage(
+        for provider: AcquisitionProviderEntry?
+    ) -> String? {
+        guard let provider else {
+            return "This backend does not advertise Download Station handoff yet. Use manual downloads or NAS videos."
+        }
+        guard !provider.available else {
+            return nil
+        }
+        return "\(provider.label) is \(formattedProviderStatus(provider.status)). Configure backend Download Station credentials, or use manual downloads."
+    }
+
+    private static func formattedProviderStatus(_ status: String) -> String {
+        status.replacingOccurrences(of: "_", with: " ")
     }
 
     private static func normalizedPresentationText(_ value: String) -> String {

@@ -395,7 +395,11 @@ Current Apple UI partially exposes:
   pickers keep the full Web-supported language list even when runtime defaults
   or older option responses are sparse. Apple YouTube Dub discovery provider
   choices now also come from the shared acquisition registry with the same
-  NAS/manual/YouTube/indexer fallback ordering as Web Video Dubbing.
+  NAS/manual/YouTube/indexer fallback ordering as Web Video Dubbing. Video
+  discovery availability and unavailable-provider messaging now live in
+  `AppleBookCreatePresentationHelpers.swift`, keeping provider-id/status
+  formatting out of the main Create view while preserving the same Apple TV,
+  iPad, and iPhone source controls.
   `scripts/generate_language_catalogs.py`
   now regenerates the shared assets language list plus the Web and Apple catalog blocks from
   `modules/language_constants.py`, and the Apple contract gate runs the

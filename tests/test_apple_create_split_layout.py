@@ -1787,10 +1787,19 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let isYoutubeSearchAvailable: Bool" in source
     assert "let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void" in source
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
+    assert "struct AppleBookCreateVideoDiscoveryAvailability" in _source(CREATE_PRESENTATION_HELPERS)
+    assert "static func youtubeVideoDiscoveryAvailability(" in _source(CREATE_PRESENTATION_HELPERS)
+    assert 'providers.first { $0.id == "youtube_search" }' in _source(CREATE_PRESENTATION_HELPERS)
+    assert 'providers.first { $0.id == "download_station" }' in _source(CREATE_PRESENTATION_HELPERS)
     assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in view_source
     assert "acquisitionProviders: viewModel.acquisitionProviders" in view_source
-    assert "youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage" in view_source
-    assert "isYoutubeSearchAvailable: isYoutubeSearchAvailable" in view_source
+    assert "youtubeSearchUnavailableMessage: videoDiscoveryAvailability.youtubeSearchUnavailableMessage" in view_source
+    assert "isYoutubeSearchAvailable: videoDiscoveryAvailability.isYoutubeSearchAvailable" in view_source
+    assert "downloadStationUnavailableMessage: videoDiscoveryAvailability.downloadStationUnavailableMessage" in view_source
+    assert "isDownloadStationAvailable: videoDiscoveryAvailability.isDownloadStationAvailable" in view_source
+    assert "private var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" in view_source
+    assert "private var youtubeSearchProvider" not in view_source
+    assert "private var downloadStationProvider" not in view_source
     assert "loadAcquisitionProviders(using: appState" in view_source
     assert "onSearchYoutubeAcquisitionDiscovery: searchYoutubeAcquisitionDiscovery" in view_source
     assert "onSelectYoutubeAcquisitionCandidate: applyYoutubeAcquisitionDiscoveryCandidate" in view_source

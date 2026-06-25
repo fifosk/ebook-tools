@@ -261,10 +261,10 @@ struct AppleBookCreateView: View {
             downloadStationMessage: viewModel.downloadStationMessage,
             downloadStationErrorMessage: viewModel.downloadStationErrorMessage,
             acquisitionProvidersErrorMessage: viewModel.acquisitionProvidersErrorMessage,
-            youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage,
-            isYoutubeSearchAvailable: isYoutubeSearchAvailable,
-            downloadStationUnavailableMessage: downloadStationUnavailableMessage,
-            isDownloadStationAvailable: isDownloadStationAvailable,
+            youtubeSearchUnavailableMessage: videoDiscoveryAvailability.youtubeSearchUnavailableMessage,
+            isYoutubeSearchAvailable: videoDiscoveryAvailability.isYoutubeSearchAvailable,
+            downloadStationUnavailableMessage: videoDiscoveryAvailability.downloadStationUnavailableMessage,
+            isDownloadStationAvailable: videoDiscoveryAvailability.isDownloadStationAvailable,
             youtubeSubtitleExtractionMessage: viewModel.youtubeSubtitleExtractionMessage,
             youtubeSubtitleExtractionErrorMessage: viewModel.youtubeSubtitleExtractionErrorMessage,
             onRefreshPipelineFiles: refreshPipelineFilesFromSourceSection,
@@ -692,37 +692,10 @@ struct AppleBookCreateView: View {
         AppleBookCreateMetadataSources.youtubeVideoSourceName(videoPath: youtubeVideoPath)
     }
 
-    private var youtubeSearchProvider: AcquisitionProviderEntry? {
-        viewModel.acquisitionProviders.first { $0.id == "youtube_search" }
-    }
-
-    private var downloadStationProvider: AcquisitionProviderEntry? {
-        viewModel.acquisitionProviders.first { $0.id == "download_station" }
-    }
-
-    private var isYoutubeSearchAvailable: Bool {
-        youtubeSearchProvider?.available != false
-    }
-
-    private var isDownloadStationAvailable: Bool {
-        downloadStationProvider?.available == true
-    }
-
-    private var youtubeSearchUnavailableMessage: String? {
-        guard let provider = youtubeSearchProvider, !provider.available else {
-            return nil
-        }
-        return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure the YouTube Data API key to search videos, or use NAS videos."
-    }
-
-    private var downloadStationUnavailableMessage: String? {
-        guard let provider = downloadStationProvider else {
-            return "This backend does not advertise Download Station handoff yet. Use manual downloads or NAS videos."
-        }
-        guard !provider.available else {
-            return nil
-        }
-        return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure backend Download Station credentials, or use manual downloads."
+    private var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability {
+        AppleBookCreatePresentation.youtubeVideoDiscoveryAvailability(
+            providers: viewModel.acquisitionProviders
+        )
     }
 
     private var subtitleMetadataSourceName: String {
