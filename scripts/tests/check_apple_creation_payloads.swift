@@ -511,6 +511,10 @@ struct AppleCreationPayloadCheck {
             "Apple-generated template metadata JSON should preserve the source language"
         )
         require(
+            generatedBookMetadata["book_genres"] as? [String] == ["Thriller"],
+            "Apple-generated template metadata JSON should preserve Web-aligned book_genres"
+        )
+        require(
             encodedBookMetadata.contains("openlibrary_work_key"),
             "Apple-generated template metadata JSON should preserve Open Library provenance"
         )

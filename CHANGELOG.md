@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.97
+
+- Advanced visible Apple app versioning to `v2026.06.25.97`.
+- Apple-saved generated-book and Narrate EPUB templates now include normalized `book_genres` arrays in their Web-compatible `book_metadata`, matching submitted Apple book jobs and preserving multi-genre metadata through Web handoff and template reuse.
+
 ### 2026.06.25.96
 
 - Advanced visible Apple app versioning to `v2026.06.25.96`.

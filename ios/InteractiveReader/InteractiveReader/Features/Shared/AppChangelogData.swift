@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.96",
+            version: "2026.06.25.97",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-template-book-genres",
+                    title: "Book templates keep genre lists",
+                    detail: "Apple-saved generated-book and Narrate EPUB templates now include normalized book_genres arrays in their Web-compatible book_metadata, matching submitted Apple book jobs and preserving genre metadata through Web handoff and template reuse."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-template-book-language",
                     title: "Book templates keep language metadata",
