@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.10",
+            version: "2026.06.25.11",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-shared-chapter-range-control",
+                    title: "Create shares chapter controls",
+                    detail: "Apple Create now uses one Narrate EPUB chapter-range control in both the source pane and wide job-settings pane, keeping Load Chapters, pickers, summaries, and sentence-window updates consistent."
+                ),
                 AppChangelogEntry(
                     id: "web-create-chapter-loading-pipeline-coverage",
                     title: "Create chapter gate expanded",

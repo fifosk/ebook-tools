@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.11
+
+- Advanced visible Apple app versioning to `v2026.06.25.11`.
+- Apple Create now shares one Narrate EPUB chapter-range control between the source pane and the wide iPad/Mac job-settings pane, keeping Load Chapters, chapter pickers, range summaries, and sentence-window updates consistent.
+
 ### 2026.06.25.10
 
 - Advanced visible Apple app versioning to `v2026.06.25.10`.

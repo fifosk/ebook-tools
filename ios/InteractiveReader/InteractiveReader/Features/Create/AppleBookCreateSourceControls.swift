@@ -96,6 +96,60 @@ struct AppleBookCreateNarrateSourceControls: View {
 
     @ViewBuilder
     private var narrateRangeControls: some View {
+        AppleBookCreateNarrateChapterRangeControls(
+            sourcePath: sourcePath,
+            sourceStartSentence: $sourceStartSentence,
+            sourceEndSentence: $sourceEndSentence,
+            narrateChapterOptions: narrateChapterOptions,
+            selectedNarrateStartChapterID: $selectedNarrateStartChapterID,
+            selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
+            isLoadingNarrateChapters: isLoadingNarrateChapters,
+            narrateChaptersErrorMessage: narrateChaptersErrorMessage,
+            onLoadNarrateChapters: onLoadNarrateChapters
+        )
+    }
+
+    private var narrateServerEbooks: [PipelineFileEntry] {
+        AppleBookCreatePresentation.pipelineEbookEntries(from: pipelineFiles)
+    }
+
+    private var shouldShowNoServerEbooksMessage: Bool {
+        pipelineFiles != nil && narrateServerEbooks.isEmpty && !isLoadingPipelineFiles
+    }
+
+    private var noServerEbooksMessage: String {
+        let root = pipelineFiles?.booksRoot.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !root.isEmpty else {
+            return "No server EPUBs found. Check the backend EPUB folder and refresh."
+        }
+        return "No server EPUBs found in \(root). Check the backend EPUB folder and refresh."
+    }
+
+    private var selectedNarrateServerEbook: PipelineFileEntry? {
+        narrateServerEbooks.first { $0.path == sourcePath }
+    }
+
+    private var shouldShowCurrentServerPath: Bool {
+        let trimmedPath = sourcePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            return false
+        }
+        return !narrateServerEbooks.contains { $0.path == sourcePath }
+    }
+}
+
+struct AppleBookCreateNarrateChapterRangeControls: View {
+    let sourcePath: String
+    @Binding var sourceStartSentence: String
+    @Binding var sourceEndSentence: String
+    let narrateChapterOptions: [AppleCreateChapterOption]
+    @Binding var selectedNarrateStartChapterID: String
+    @Binding var selectedNarrateEndChapterID: String
+    let isLoadingNarrateChapters: Bool
+    let narrateChaptersErrorMessage: String?
+    let onLoadNarrateChapters: () -> Void
+
+    var body: some View {
         Button(action: onLoadNarrateChapters) {
             Label(
                 isLoadingNarrateChapters ? "Loading Chapters" : "Load Chapters",
@@ -151,34 +205,6 @@ struct AppleBookCreateNarrateSourceControls: View {
                 }
             }
         }
-    }
-
-    private var narrateServerEbooks: [PipelineFileEntry] {
-        AppleBookCreatePresentation.pipelineEbookEntries(from: pipelineFiles)
-    }
-
-    private var shouldShowNoServerEbooksMessage: Bool {
-        pipelineFiles != nil && narrateServerEbooks.isEmpty && !isLoadingPipelineFiles
-    }
-
-    private var noServerEbooksMessage: String {
-        let root = pipelineFiles?.booksRoot.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !root.isEmpty else {
-            return "No server EPUBs found. Check the backend EPUB folder and refresh."
-        }
-        return "No server EPUBs found in \(root). Check the backend EPUB folder and refresh."
-    }
-
-    private var selectedNarrateServerEbook: PipelineFileEntry? {
-        narrateServerEbooks.first { $0.path == sourcePath }
-    }
-
-    private var shouldShowCurrentServerPath: Bool {
-        let trimmedPath = sourcePath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedPath.isEmpty else {
-            return false
-        }
-        return !narrateServerEbooks.contains { $0.path == sourcePath }
     }
 
     private func applyNarrateChapterRangeSelection(startID: String, endID: String) {

@@ -352,10 +352,7 @@ struct AppleBookCreateView: View {
             selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
             narrateChaptersErrorMessage: viewModel.narrateChaptersErrorMessage,
-            onLoadNarrateChapters: loadNarrateChapters,
-            onChapterRangeSelection: { startID, endID in
-                applyNarrateChapterRangeSelection(startID: startID, endID: endID)
-            }
+            onLoadNarrateChapters: loadNarrateChapters
         )
     }
 
@@ -1350,26 +1347,6 @@ struct AppleBookCreateView: View {
             selectedNarrateEndChapterID = ""
             await viewModel.loadNarrateChapters(inputFile: sourcePath, using: appState)
         }
-    }
-
-    private func applyNarrateChapterRangeSelection(startID: String, endID: String) {
-        guard !startID.isEmpty else {
-            selectedNarrateEndChapterID = ""
-            return
-        }
-        guard let selection = AppleBookCreatePresentation.chapterRangeSelection(
-            chapters: viewModel.narrateChapterOptions,
-            startChapterID: startID,
-            endChapterID: endID
-        ) else {
-            return
-        }
-        let resolvedEndID = viewModel.narrateChapterOptions[selection.endIndex].id
-        if selectedNarrateEndChapterID != resolvedEndID {
-            selectedNarrateEndChapterID = resolvedEndID
-        }
-        sourceStartSentence = "\(selection.startSentence)"
-        sourceEndSentence = "\(selection.endSentence)"
     }
 
     private func refreshIntakeStatus(force: Bool = false) async {

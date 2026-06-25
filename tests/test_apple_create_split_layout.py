@@ -1679,6 +1679,7 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     source = _source(CREATE_VIEW)
     layout_source = _source(CREATE_LAYOUT)
     basic_source = _source(CREATE_BASIC_SECTIONS)
+    controls_source = _source(CREATE_SOURCE_CONTROLS)
     project = _source(XCODE_PROJECT)
 
     assert "usesRegularWidthCreateLayout" in source
@@ -1751,17 +1752,19 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "AppleBookCreateJobSettingsSection(" in source
     assert "sentenceCountControl" in basic_source
     assert "narrateChapterSettingsControls" in basic_source
+    assert "AppleBookCreateNarrateChapterRangeControls(" in basic_source
     assert 'accessibilityIdentifier("createNarrateOutputPathField")' in basic_source
     assert 'accessibilityIdentifier("createNarrateStartSentenceField")' in basic_source
     assert 'accessibilityIdentifier("createNarrateEndSentenceField")' in basic_source
     assert "showsNarrateRangeControls: false" in source
 
     assert "private var narrateChapterSettingsControls: some View" in basic_source
-    assert "Button(action: onLoadNarrateChapters)" in basic_source
-    assert 'accessibilityIdentifier("createNarrateLoadChaptersButton")' in basic_source
-    assert 'accessibilityIdentifier("createNarrateStartChapterPicker")' in basic_source
-    assert 'accessibilityIdentifier("createNarrateEndChapterPicker")' in basic_source
-    assert "applyNarrateChapterRangeSelection" in source
+    assert "struct AppleBookCreateNarrateChapterRangeControls: View" in controls_source
+    assert "Button(action: onLoadNarrateChapters)" in controls_source
+    assert 'accessibilityIdentifier("createNarrateLoadChaptersButton")' in controls_source
+    assert 'accessibilityIdentifier("createNarrateStartChapterPicker")' in controls_source
+    assert 'accessibilityIdentifier("createNarrateEndChapterPicker")' in controls_source
+    assert "applyNarrateChapterRangeSelection" in controls_source
 
 
 def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
