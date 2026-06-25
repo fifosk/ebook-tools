@@ -184,6 +184,7 @@ def _index_youtube_video_job_metadata(
     allowed_tokens: Optional[set[str]] = None,
 ) -> dict[str, set[str]]:
     jobs_by_video: dict[str, set[str]] = {}
+    allowed_names = {Path(token).name for token in allowed_tokens or set()}
     for job in job_metadata.values():
         payload = job.request_payload or job.resume_context or {}
         if not isinstance(payload, Mapping):
@@ -191,7 +192,10 @@ def _index_youtube_video_job_metadata(
         video_path = payload.get("video_path") or payload.get("input_file")
         if not video_path:
             continue
-        token = _normalize_path_token(Path(str(video_path)))
+        candidate_path = Path(str(video_path))
+        if allowed_names and candidate_path.name not in allowed_names:
+            continue
+        token = _normalize_path_token(candidate_path)
         if not token:
             continue
         if allowed_tokens is not None and token not in allowed_tokens:
@@ -408,11 +412,8 @@ def list_youtube_library(
     except FileNotFoundError as exc:
         _log_youtube_library_route("not_found", started_at)
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    video_tokens = {
-        token
-        for token in (_normalize_path_token(video.path) for video in videos)
-        if token
-    }
+    video_entries = [(video, _normalize_path_token(video.path)) for video in videos]
+    video_tokens = {token for _, token in video_entries if token}
     linked_jobs = _index_youtube_video_jobs(
         job_manager,
         request_user,
@@ -421,9 +422,9 @@ def list_youtube_library(
     payload = [
         _serialize_nas_video(
             video,
-            linked_jobs=linked_jobs.get(_normalize_path_token(video.path), set()),
+            linked_jobs=linked_jobs.get(token, set()) if token else set(),
         )
-        for video in videos
+        for video, token in video_entries
     ]
     _log_youtube_library_route(
         "success",

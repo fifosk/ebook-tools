@@ -82,6 +82,42 @@ class _MetadataOnlyJobManager:
         raise AssertionError("YouTube library route should not hydrate full jobs")
 
 
+def test_youtube_video_job_index_prefilters_by_discovered_filename(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    metadata = {
+        "match": PipelineJobMetadata(
+            job_id="match",
+            job_type="youtube_dub",
+            status=PipelineJobStatus.COMPLETED,
+            created_at=datetime(2026, 6, 24, 12, 0, tzinfo=timezone.utc),
+            request_payload={"video_path": "/nas/Show/video-a.mp4"},
+        ),
+        "unrelated": PipelineJobMetadata(
+            job_id="unrelated",
+            job_type="youtube_dub",
+            status=PipelineJobStatus.COMPLETED,
+            created_at=datetime(2026, 6, 24, 12, 5, tzinfo=timezone.utc),
+            request_payload={"video_path": "/nas/Other/another-video.mp4"},
+        ),
+    }
+    normalized_calls: list[str] = []
+
+    def fake_normalize(path: Path) -> str:
+        normalized_calls.append(path.as_posix())
+        return path.as_posix()
+
+    monkeypatch.setattr(youtube_routes, "_normalize_path_token", fake_normalize)
+
+    indexed = youtube_routes._index_youtube_video_job_metadata(
+        metadata,
+        allowed_tokens={"/nas/Show/video-a.mp4"},
+    )
+
+    assert indexed == {"/nas/Show/video-a.mp4": {"match"}}
+    assert normalized_calls == ["/nas/Show/video-a.mp4"]
+
+
 def test_youtube_library_links_jobs_from_metadata_without_full_job_hydration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -147,6 +183,57 @@ def test_youtube_library_links_jobs_from_metadata_without_full_job_hydration(
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+def test_youtube_library_normalizes_discovered_video_paths_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _EmptyMetadataJobManager(_MetadataOnlyJobManager):
+        def list_metadata(self, **kwargs) -> dict[str, PipelineJobMetadata]:
+            self.list_metadata_calls.append(dict(kwargs))
+            return {}
+
+    app = create_app()
+    manager = _EmptyMetadataJobManager()
+    video = YoutubeNasVideo(
+        path=Path("/nas/Secret Show/video-a.mp4"),
+        size_bytes=123,
+        modified_at=datetime(2026, 6, 24, 12, 30, tzinfo=timezone.utc),
+        subtitles=[],
+    )
+    normalize_calls: list[str] = []
+    real_normalize = youtube_routes._normalize_path_token
+
+    def recording_normalize(path: Path) -> str | None:
+        normalize_calls.append(path.as_posix())
+        return real_normalize(path)
+
+    monkeypatch.setattr(youtube_routes, "list_downloaded_videos", lambda root: [video])
+    monkeypatch.setattr(youtube_routes, "_normalize_path_token", recording_normalize)
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: manager
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/subtitles/youtube/library",
+                params={"base_dir": "/nas/Secret Show"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert normalize_calls.count("/nas/Secret Show/video-a.mp4") == 1
+    assert manager.list_metadata_calls == [
+        {
+            "user_id": "alice",
+            "user_role": "editor",
+            "job_type": "youtube_dub",
+        }
+    ]
 
 
 def test_youtube_dub_submission_records_safe_timing(

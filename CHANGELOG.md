@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.12
+
+- Advanced visible Apple app versioning to `v2026.06.25.12`.
+- Optimized the shared YouTube NAS library picker used by Web Video Dubbing and Apple Create so linked-job tagging prefilters unrelated stored jobs by filename before path normalization and reuses each discovered video token while building the response.
+
 ### 2026.06.25.11
 
 - Advanced visible Apple app versioning to `v2026.06.25.11`.

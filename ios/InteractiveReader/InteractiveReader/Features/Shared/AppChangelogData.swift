@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.11",
+            version: "2026.06.25.12",
             entries: [
+                AppChangelogEntry(
+                    id: "youtube-library-picker-token-reuse",
+                    title: "Video picker loads lighter",
+                    detail: "The shared YouTube NAS library picker now prefilters unrelated stored jobs by filename before path normalization and reuses discovered video tokens while building Web and Apple Create source rows."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-shared-chapter-range-control",
                     title: "Create shares chapter controls",
