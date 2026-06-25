@@ -58,6 +58,11 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     assert "bookmarkRibbonPillView" in interactive_header
     assert ".focusScope(headerControlsNamespace)" in interactive_header
     assert ".focused($focusedArea, equals: .controls)" in interactive_header
+    assert "if isPhone, showHeaderContent {" in interactive_header
+    assert "if isPhone, showHeaderContent, let info = headerInfo, !info.languageFlags.isEmpty" not in interactive_header
+    assert "if !isPhone {" in interactive_header
+    assert "if !isPhone, !info.languageFlags.isEmpty" not in interactive_header
+    assert "private func headerInlineControlsRow(" in interactive_header
 
 
 def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:

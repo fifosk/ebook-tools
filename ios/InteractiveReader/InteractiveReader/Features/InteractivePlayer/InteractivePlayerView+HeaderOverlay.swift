@@ -51,7 +51,7 @@ extension InteractivePlayerView {
         activeRoles: Set<LanguageFlagRole>
     ) -> some View {
         #if os(iOS)
-        if isPhone, showHeaderContent, let info = headerInfo, !info.languageFlags.isEmpty {
+        if isPhone, showHeaderContent {
             VStack(alignment: .leading, spacing: 8) {
                 playerInfoHeaderRow(
                     for: chunk,
@@ -62,7 +62,7 @@ extension InteractivePlayerView {
                     showHeaderContent: showHeaderContent
                 )
                 phoneHeaderControlsRow(
-                    info: info,
+                    info: headerInfo,
                     chunk: chunk,
                     availableRoles: availableRoles,
                     activeRoles: activeRoles
@@ -192,20 +192,22 @@ extension InteractivePlayerView {
 
     #if os(iOS)
     private func phoneHeaderControlsRow(
-        info: InteractivePlayerHeaderInfo,
+        info: InteractivePlayerHeaderInfo?,
         chunk: InteractiveChunk,
         availableRoles: Set<LanguageFlagRole>,
         activeRoles: Set<LanguageFlagRole>
     ) -> some View {
         HStack(spacing: 0) {
-            headerLanguageFlagRow(
-                info: info,
-                chunk: chunk,
-                availableRoles: availableRoles,
-                activeRoles: activeRoles,
-                showConnector: false
-            )
-            Spacer(minLength: 8)
+            if let info, !info.languageFlags.isEmpty {
+                headerLanguageFlagRow(
+                    info: info,
+                    chunk: chunk,
+                    availableRoles: availableRoles,
+                    activeRoles: activeRoles,
+                    showConnector: false
+                )
+                Spacer(minLength: 8)
+            }
             musicPillView
             Spacer(minLength: 8)
             speedPillView
@@ -247,44 +249,52 @@ extension InteractivePlayerView {
                     }
                     // On iPad and tvOS, show flags inline with title/author
                     // iPhone uses a separate full-width row for better spacing
-                    if !isPhone, !info.languageFlags.isEmpty {
+                    if !isPhone {
                         #if os(tvOS)
-                        HStack(spacing: 8 * infoPillScale) {
-                            headerLanguageFlagRow(
-                                info: info,
-                                chunk: chunk,
-                                availableRoles: availableRoles,
-                                activeRoles: activeRoles,
-                                showConnector: !isPhone
-                            )
-                            musicPillView
-                            speedPillView
-                            jumpPillView
-                            searchPillView
-                            bookmarkRibbonPillView
-                        }
+                        headerInlineControlsRow(
+                            info: info,
+                            chunk: chunk,
+                            availableRoles: availableRoles,
+                            activeRoles: activeRoles
+                        )
                         .focusScope(headerControlsNamespace)
                         .focused($focusedArea, equals: .controls)
                         #else
-                        HStack(spacing: 8 * infoPillScale) {
-                            headerLanguageFlagRow(
-                                info: info,
-                                chunk: chunk,
-                                availableRoles: availableRoles,
-                                activeRoles: activeRoles,
-                                showConnector: !isPhone
-                            )
-                            musicPillView
-                            speedPillView
-                            jumpPillView
-                            searchPillView
-                            bookmarkRibbonPillView
-                        }
+                        headerInlineControlsRow(
+                            info: info,
+                            chunk: chunk,
+                            availableRoles: availableRoles,
+                            activeRoles: activeRoles
+                        )
                         #endif
                     }
                 }
             }
             // iPhone pills row is now handled in playerInfoOverlay for full-width layout
+        }
+    }
+
+    private func headerInlineControlsRow(
+        info: InteractivePlayerHeaderInfo,
+        chunk: InteractiveChunk,
+        availableRoles: Set<LanguageFlagRole>,
+        activeRoles: Set<LanguageFlagRole>
+    ) -> some View {
+        HStack(spacing: 8 * infoPillScale) {
+            if !info.languageFlags.isEmpty {
+                headerLanguageFlagRow(
+                    info: info,
+                    chunk: chunk,
+                    availableRoles: availableRoles,
+                    activeRoles: activeRoles,
+                    showConnector: !isPhone
+                )
+            }
+            musicPillView
+            speedPillView
+            jumpPillView
+            searchPillView
+            bookmarkRibbonPillView
         }
     }
 

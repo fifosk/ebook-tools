@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.79",
+            version: "2026.06.25.80",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-playback-pills-without-language-flags",
+                    title: "Playback jump pills stay visible",
+                    detail: "Apple interactive playback now keeps Jump, Search, and Bookmark controls visible across iPhone, iPad, Apple TV, and Mac Designed for iPad even when a book has no language flag metadata."
+                ),
                 AppChangelogEntry(
                     id: "apple-sentence-image-prefetch",
                     title: "Sentence images prefetch nearby",

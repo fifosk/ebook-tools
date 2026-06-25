@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.80
+
+- Advanced visible Apple app versioning to `v2026.06.25.80`.
+- Apple interactive playback keeps the Jump, Search, and Bookmark pills visible across iPhone, iPad, Apple TV, and Mac Designed for iPad even when a book has no language flag metadata, preserving search-result and bookmark jump controls during playback.
+
 ### 2026.06.25.79
 
 - Advanced visible Apple app versioning to `v2026.06.25.79`.
