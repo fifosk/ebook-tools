@@ -210,6 +210,13 @@ CREATION_TEMPLATE_ROUTE_DURATION = Histogram(
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
 )
 
+BOOKMARK_ROUTE_DURATION = Histogram(
+    "ebook_tools_bookmark_route_duration_seconds",
+    "Playback bookmark route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
+)
+
 CREATE_SUBMISSION_ROUTE_DURATION = Histogram(
     "ebook_tools_create_submission_route_duration_seconds",
     "Create submission route duration in seconds",

@@ -4,6 +4,7 @@ from dataclasses import asdict
 
 import pytest
 from fastapi.testclient import TestClient
+from prometheus_client.parser import text_string_to_metric_families
 
 from modules.services.bookmark_service import BookmarkEntry
 from modules.webapi.application import create_app
@@ -12,8 +13,43 @@ from modules.webapi.dependencies import (
     get_bookmark_service,
     get_request_user,
 )
+from modules.webapi.routers import bookmarks as bookmarks_router
 
 pytestmark = pytest.mark.webapi
+
+
+class _ListLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def debug(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def info(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def warning(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def error(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+
+def _has_bookmark_metric_count(
+    metrics_text: str,
+    *,
+    operation: str,
+    result: str,
+) -> bool:
+    families = {family.name: family for family in text_string_to_metric_families(metrics_text)}
+    metric = families["ebook_tools_bookmark_route_duration_seconds"]
+    return any(
+        sample.name.endswith("_count")
+        and sample.labels.get("operation") == operation
+        and sample.labels.get("result") == result
+        and sample.value >= 1
+        for sample in metric.samples
+    )
 
 
 class _StubBookmarkService:
@@ -67,9 +103,13 @@ class _StubBookmarkService:
         return bookmark_id == "bookmark-1"
 
 
-def test_bookmark_routes_scope_calls_to_authenticated_user() -> None:
+def test_bookmark_routes_scope_calls_to_authenticated_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = create_app()
     service = _StubBookmarkService()
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(bookmarks_router, "logger", capture_logger)
     app.dependency_overrides[get_bookmark_service] = lambda: service
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="alice",
@@ -91,6 +131,7 @@ def test_bookmark_routes_scope_calls_to_authenticated_user() -> None:
                 },
             )
             delete_response = client.delete("/api/bookmarks/job-1/bookmark-1")
+            metrics_response = client.get("/metrics")
     finally:
         app.dependency_overrides.clear()
 
@@ -115,9 +156,40 @@ def test_bookmark_routes_scope_calls_to_authenticated_user() -> None:
     rendered = "\n".join([list_response.text, add_response.text, delete_response.text])
     assert "alice" not in rendered
 
+    assert metrics_response.status_code == 200
+    assert _has_bookmark_metric_count(
+        metrics_response.text,
+        operation="list",
+        result="success",
+    )
+    assert _has_bookmark_metric_count(
+        metrics_response.text,
+        operation="add",
+        result="success",
+    )
+    assert _has_bookmark_metric_count(
+        metrics_response.text,
+        operation="delete",
+        result="success",
+    )
 
-def test_bookmark_routes_require_authenticated_user() -> None:
+    logs = "\n".join(capture_logger.messages)
+    assert "Bookmark route operation=list result=success" in logs
+    assert "Bookmark route operation=add result=success" in logs
+    assert "Bookmark route operation=delete result=success" in logs
+    assert "bookmarks=1" in logs
+    assert "deleted=true" in logs
+    assert "alice" not in logs
+    assert "job-1" not in logs
+    assert "bookmark-1" not in logs
+    assert "bookmark-2" not in logs
+    assert "Saved line" not in logs
+
+
+def test_bookmark_routes_require_authenticated_user(monkeypatch: pytest.MonkeyPatch) -> None:
     app = create_app()
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(bookmarks_router, "logger", capture_logger)
     app.dependency_overrides[get_bookmark_service] = lambda: _StubBookmarkService()
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id=None,
@@ -127,7 +199,18 @@ def test_bookmark_routes_require_authenticated_user() -> None:
     try:
         with TestClient(app) as client:
             response = client.get("/api/bookmarks/job-1")
+            metrics_response = client.get("/metrics")
     finally:
         app.dependency_overrides.clear()
 
     assert response.status_code == 401
+    assert metrics_response.status_code == 200
+    assert _has_bookmark_metric_count(
+        metrics_response.text,
+        operation="list",
+        result="unauthorized",
+    )
+    logs = "\n".join(capture_logger.messages)
+    assert "Bookmark route operation=list result=unauthorized" in logs
+    assert "job-1" not in logs
+    assert "anonymous" not in logs

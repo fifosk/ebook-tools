@@ -1052,7 +1052,10 @@ Suggested features to evaluate after parity scaffolding:
   file and still return the freshest requested entries first. The repo-owned
   `test-backend-playback-state` target now covers resume routes, bookmark
   routes, and the optimized filtered resume service path, and the shared Apple
-  backend pipeline manifest runs it as a playback-state regression gate. The
+  backend pipeline manifest runs it as a playback-state regression gate.
+  Bookmark list/add/delete routes also record token-safe route duration metrics
+  and logs with only operation/result/count/deleted facts, keeping user, job,
+  bookmark, and payload identifiers out of playback-state observability. The
   repo-owned `test-backend-playback-media` target now covers job media
   manifests, Library media manifests with sentence metadata, token-safe media
   route timing, diagnostics counts, and ranged Library file streaming used by
