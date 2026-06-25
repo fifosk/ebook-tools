@@ -83,6 +83,13 @@ export function normalizeTextValue(value: unknown): string | null {
   return cleaned.length > 0 ? cleaned : null;
 }
 
+function isTruthyMetadataFlag(value: unknown): boolean {
+  if (value === true) {
+    return true;
+  }
+  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+}
+
 export function isDownloadStationHandoffCandidate(
   candidate: Pick<AcquisitionCandidate, 'provider' | 'metadata'>
 ): boolean {
@@ -90,8 +97,8 @@ export function isDownloadStationHandoffCandidate(
     return false;
   }
   const metadata = candidate.metadata ?? {};
-  return normalizeTextValue(metadata['handoff_provider']) === 'download_station'
-    || metadata['has_download_url'] === true;
+  return normalizeTextValue(metadata['handoff_provider'])?.toLowerCase() === 'download_station'
+    || isTruthyMetadataFlag(metadata['has_download_url']);
 }
 
 export function formatEpisodeCode(season: unknown, episode: unknown): string | null {

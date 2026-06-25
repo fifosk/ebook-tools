@@ -140,7 +140,19 @@ describe('videoDubbingUtils', () => {
     expect(
       isDownloadStationHandoffCandidate({
         provider: 'newznab_torznab',
+        metadata: { handoff_provider: ' Download_Station ' },
+      }),
+    ).toBe(true);
+    expect(
+      isDownloadStationHandoffCandidate({
+        provider: 'newznab_torznab',
         metadata: { has_download_url: true },
+      }),
+    ).toBe(true);
+    expect(
+      isDownloadStationHandoffCandidate({
+        provider: 'newznab_torznab',
+        metadata: { has_download_url: ' true ' },
       }),
     ).toBe(true);
     expect(

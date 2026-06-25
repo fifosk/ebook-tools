@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.25.87",
             entries: [
                 AppChangelogEntry(
+                    id: "download-station-handoff-metadata-tolerance",
+                    title: "Downloader handoff is more tolerant",
+                    detail: "Web and Apple video discovery now recognize Download Station handoff metadata when the backend sends explicit providers, booleans, or legacy string flags, keeping reviewed indexer candidates visible across metadata encoding changes."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-indexer-handoff-readiness",
                     title: "Create preflights indexer handoff",
                     detail: "Apple Create readiness now reports whether the backend registry can hand searchable Newznab/Torznab video candidates to Download Station, separating provider inventory health from the downloader handoff path used by Web and Apple discovery."
