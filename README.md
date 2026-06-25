@@ -133,12 +133,13 @@ files in [`docs/diagrams/`](docs/diagrams/). Exported PNGs live in
 
 ## Testing
 
-The project has **800+ tests** across 16 pytest markers with E2E coverage on
+The project has **1,300+ tests** across pytest markers with E2E coverage on
 4 platforms (Web, iPhone, iPad, tvOS).
 
 ```bash
 pytest -m webapi          # targeted: FastAPI routes
 pytest -m audio           # targeted: TTS backends
+pytest -m apple           # targeted: Apple contracts and pipeline helpers
 make test-fast            # quick feedback (not slow, not integration)
 make test-e2e-all         # E2E: all 4 platforms
 ```

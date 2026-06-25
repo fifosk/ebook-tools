@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ebook-tools project has a comprehensive test suite with **801+ tests** that
+The ebook-tools project has a comprehensive test suite with **1,300+ tests** that
 are fully green (10 skipped). Tests are organized by domain using pytest markers,
 enabling fast targeted runs during development. End-to-end tests run on-demand
 across **4 platforms**: Web (Playwright), iPhone, iPad, and tvOS (XCUITest).
@@ -11,7 +11,7 @@ across **4 platforms**: Web (Playwright), iPhone, iPad, and tvOS (XCUITest).
 
 **Key characteristics:**
 
-- **pytest-based** with 16 custom markers for domain isolation
+- **pytest-based** with custom markers for domain isolation
 - **E2E tests excluded by default** (`addopts = "-rs -m 'not e2e'"`)
 - **Session-scoped fixtures** prevent real RAMDisk mounts during tests
 - **Shared JSON journey architecture** for cross-platform E2E consistency
@@ -699,7 +699,7 @@ payload-contract drift as well as missing endpoint paths.
 # Install dev dependencies
 pip install -e .[dev]
 
-# Run the full suite (801+ tests)
+# Run the full suite (1,300+ tests)
 pytest
 
 # Run a specific domain
@@ -736,6 +736,7 @@ All markers are defined in `pyproject.toml` under `[tool.pytest.ini_options]`.
 | `config` | Config | Config manager, storage settings, runtime context |
 | `ramdisk` | RAMDisk | RAMDisk lifecycle, guard, mount/unmount |
 | `observability` | Observability | Prometheus metrics, dashboard PromQL coverage, JSON validation |
+| `apple` | Apple | Apple client contracts, simulator/device pipeline helpers, release metadata |
 | `slow` | Slow | Tests that take >2s (WhisperX, Piper, pipelines) |
 | `integration` | Integration | End-to-end workflows requiring external services |
 | `e2e` | E2E | Browser/device tests via Playwright (requires running app) |
@@ -747,6 +748,7 @@ All markers are defined in `pyproject.toml` under `[tool.pytest.ini_options]`.
 pytest -m webapi
 pytest -m audio
 pytest -m translation
+pytest -m apple
 
 # Combine markers
 pytest -m "services or pipeline"
@@ -767,11 +769,12 @@ available and `python3` otherwise.
 
 | Target | Command | Description |
 |--------|---------|-------------|
-| `make test` | `$(PYTHON) -m pytest` | Full suite (801+ tests) |
+| `make test` | `$(PYTHON) -m pytest` | Full suite (1,300+ tests) |
 | `make test-fast` | `$(PYTHON) -m pytest -m "not slow and not integration"` | Skip slow and integration tests |
 | `make test-audio` | `$(PYTHON) -m pytest -m audio` | TTS backends and audio tests |
 | `make test-translation` | `$(PYTHON) -m pytest -m translation` | Translation engine tests |
 | `make test-webapi` | `$(PYTHON) -m pytest -m webapi` | FastAPI route tests |
+| `make test-apple` | `$(PYTHON) -m pytest -m apple` | Apple client contracts and pipeline helper tests |
 | `make test-backend-auth-session` | `$(PYTHON) -m pytest ...` | Shared-pipeline login, session restore, logout, auth metric, and token rejection backend slice |
 | `make test-backend-library-search-source-isbn` | `$(PYTHON) -m pytest ...` | Shared-pipeline Library, Search, source upload, and ISBN backend slice |
 | `make test-backend-admin-system-status` | `$(PYTHON) -m pytest ...` | Shared-pipeline admin system status, job lifecycle actions, defaults/intake status, model/image-node helpers, and token-safe Create telemetry slice |

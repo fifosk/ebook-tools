@@ -209,8 +209,9 @@ class TestIsSegmentationOk:
         # Single word originals bypass check
         assert tv.is_segmentation_ok("hello", "こんにちは", "japanese")
 
-    def test_thai_with_no_spaces(self):
+    def test_thai_with_no_spaces(self, monkeypatch):
         # Thai with no segmentation (1 token)
+        monkeypatch.setattr(tv, "split_highlight_tokens", lambda text: [text])
         result = tv.is_segmentation_ok(
             "hello world test",
             "สวัสดีโลกทดสอบ",  # No spaces

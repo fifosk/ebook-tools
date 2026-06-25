@@ -77,6 +77,8 @@ markers = [
     "e2e: browser E2E tests via Playwright (requires running app).",
     "database: PostgreSQL/SQLAlchemy database layer tests.",
     "observability: metrics exporter, Prometheus exposition, dashboard coverage.",
+    "apple: Apple client contracts, simulator/device pipeline helpers, and release metadata.",
+    "order: optional test ordering marker for last-run integration checks.",
     "llm_probe: diagnostic probes for LLM model compatibility (slow, on-demand, needs network).",
 ]
 

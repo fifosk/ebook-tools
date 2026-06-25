@@ -6,6 +6,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MAKEFILE = ROOT / "Makefile"
 TESTING_DOC = ROOT / "docs" / "testing.md"
 GITIGNORE = ROOT / ".gitignore"
+PYPROJECT = ROOT / "pyproject.toml"
+ROOT_CONFTEST = ROOT / "tests" / "conftest.py"
 
 
 def _target_body(makefile: str, target: str) -> str:
@@ -25,6 +27,7 @@ def test_pytest_make_targets_use_configured_python() -> None:
     for target in [
         "test",
         "test-fast",
+        "test-apple",
         "test-library",
         "test-observability",
         "test-e2e",
@@ -41,6 +44,21 @@ def test_testing_docs_note_makefile_python_selection() -> None:
 
     assert "Makefile pytest targets run through `$(PYTHON) -m pytest`" in normalized_docs
     assert "`.venv/bin/python` when available" in normalized_docs
+
+
+def test_apple_marker_is_configured_and_collected_by_contract_patterns() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    pyproject = PYPROJECT.read_text(encoding="utf-8")
+    conftest = ROOT_CONFTEST.read_text(encoding="utf-8")
+    docs = TESTING_DOC.read_text(encoding="utf-8")
+
+    assert '"apple: Apple client contracts' in pyproject
+    assert "$(PYTHON) -m pytest -m apple" in _target_body(makefile, "test-apple")
+    assert "def pytest_collection_modifyitems" in conftest
+    assert 'path.name.startswith("test_apple_")' in conftest
+    assert '"test_write_apple_e2e_config.py"' in conftest
+    assert "| `apple` | Apple |" in docs
+    assert "| `make test-apple` | `$(PYTHON) -m pytest -m apple` |" in docs
 
 
 def test_generated_e2e_artifacts_do_not_dirty_source_sync() -> None:

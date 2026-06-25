@@ -1,4 +1,4 @@
-.PHONY: test test-fast test-audio test-translation test-webapi test-services \
+.PHONY: test test-fast test-audio test-translation test-webapi test-apple test-services \
        test-pipeline test-cli test-auth test-library test-render test-media \
        test-config test-metadata test-changed \
        test-backend-auth-session \
@@ -85,6 +85,9 @@ test-translation:
 
 test-webapi:
 	$(PYTHON) -m pytest -m webapi
+
+test-apple:
+	$(PYTHON) -m pytest -m apple
 
 test-backend-auth-session:
 	$(PYTHON) -m pytest tests/modules/webapi/test_auth_routes.py

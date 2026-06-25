@@ -2,11 +2,12 @@
 
 ## Current State
 
-- **800 tests** (661 in `tests/`, 139 in `modules/`) — all green
+- **1,300+ collected pytest items** under `tests/` — `make test-fast` is green
 - **88 test files** across 4 directory depths
 - **1 pytest marker** defined (`integration`) — barely used (3 tests)
 - **1 conftest.py** (root only) — minimal fixture sharing
-- **No fine-grained selection** — `pytest` runs everything or nothing
+- **Fine-grained selection enabled** — domain markers plus `make test-apple`
+  support targeted backend, Apple, and pipeline dogfood runs
 
 ---
 

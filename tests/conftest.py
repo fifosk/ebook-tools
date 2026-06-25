@@ -52,6 +52,37 @@ def _prepare_hf_cache_for_tests() -> None:
 _prepare_hf_cache_for_tests()
 configure_hf_environment()
 
+APPLE_MARKER_FILE_NAMES = {
+    "test_language_catalog_parity.py",
+    "test_release_version_contract.py",
+}
+
+APPLE_MARKER_SCRIPT_NAMES = {
+    "test_apple_full_entitlement_signing_plan.py",
+    "test_apple_merge_entitlements.py",
+    "test_check_apple_create_readiness.py",
+    "test_check_poc_readiness.py",
+    "test_generate_language_catalogs.py",
+    "test_ios_profile_capability_check.py",
+    "test_write_apple_e2e_config.py",
+}
+
+
+def _is_apple_contract_path(path: Path) -> bool:
+    if path.name.startswith("test_apple_"):
+        return True
+    if path.parent.name == "scripts" and path.name in APPLE_MARKER_SCRIPT_NAMES:
+        return True
+    return path.name in APPLE_MARKER_FILE_NAMES
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    apple_marker = pytest.mark.apple
+    for item in items:
+        path = Path(str(item.path))
+        if _is_apple_contract_path(path):
+            item.add_marker(apple_marker)
+
 
 @pytest.fixture(autouse=True, scope="session")
 def _disable_ramdisk_globally():

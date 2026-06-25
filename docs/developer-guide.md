@@ -1132,11 +1132,12 @@ pytest -m render              # output writer, text pipeline, parallel dispatch
 pytest -m media               # command runner, media backends
 pytest -m config              # config manager, storage settings
 pytest -m ramdisk             # RAMDisk lifecycle, guard, mount/unmount
+pytest -m apple               # Apple contracts, simulator/device pipeline helpers
 pytest -m database            # PostgreSQL models, repositories, migrations
 pytest -m "not slow and not integration"  # fast feedback loop
 
 # Full suite (only for wide-ranging changes)
-pytest                        # all 800+ tests
+pytest                        # all 1,300+ tests
 pytest --cov=modules          # with coverage
 
 # Specific file
@@ -1145,6 +1146,7 @@ pytest tests/modules/webapi/test_job_media_routes.py -v
 # Makefile shortcuts
 make test-fast                # not slow, not integration
 make test-webapi              # same as pytest -m webapi
+make test-apple               # same as pytest -m apple
 make test-services            # same as pytest -m services
 make test-observability       # Prometheus metrics + dashboard validation
 ```

@@ -1,5 +1,7 @@
 """Unit tests for googletrans_provider module."""
 
+import types
+
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
@@ -135,10 +137,11 @@ class TestGetGoogletransTranslator:
         if hasattr(gtp._GOOGLETRANS_LOCAL, 'translator'):
             del gtp._GOOGLETRANS_LOCAL.translator
 
-        with patch('googletrans.Translator') as mock_translator_class:
-            mock_instance = Mock()
-            mock_translator_class.return_value = mock_instance
+        mock_instance = Mock()
+        mock_translator_class = Mock(return_value=mock_instance)
+        fake_googletrans = types.SimpleNamespace(Translator=mock_translator_class)
 
+        with patch.dict("sys.modules", {"googletrans": fake_googletrans}):
             translator = gtp._get_googletrans_translator()
 
             assert translator == mock_instance

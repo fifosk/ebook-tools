@@ -21,6 +21,8 @@ def _build_context(tmp_dir: Path, *, is_ramdisk: bool) -> runtime.RuntimeContext
         local_ollama_url="http://localhost",
         cloud_ollama_url="http://cloud",
         lmstudio_url="http://localhost",
+        lmstudio_macstudio_url="http://macstudio",
+        lmstudio_macbook_url="http://macbook",
         thread_count=1,
         queue_size=1,
         pipeline_enabled=False,
